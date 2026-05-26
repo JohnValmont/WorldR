@@ -145,7 +145,10 @@ export const nationApi = {
 export const lawsApi = {
   getLaws: (nationId: string) => api.get(`/nations/${nationId}/laws`),
   proposeLaw: (nationId: string, data: any) =>
-    api.post(`/nations/${nationId}/laws`, data)
+    api.post(`/nations/${nationId}/laws`, data),
+  getLawsConfig: (nationId: string) => api.get(`/nations/${nationId}/laws/config`),
+  proposeBill: (nationId: string, data: any) =>
+    api.post(`/nations/${nationId}/laws/propose-bill`, data)
 };
 
 // Parties

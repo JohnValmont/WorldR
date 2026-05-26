@@ -196,9 +196,9 @@ export class PoliticsEngine {
     const welfareAllocation = Number(budgetItems.find(b => b.name === 'Welfare')?.allocation || 0);
     const welfareRatio = gdp > 0 ? (welfareAllocation / gdp) : 0.05;
 
-    const corruptionPressure = params.corruption_growth_factor 
-      + (inflationCpi * params.corruption_inflation_impact) 
-      + (unemploymentRate * 0.1) 
+    const corruptionPressure = params.corruption_growth_factor
+      + (inflationCpi * params.corruption_inflation_impact)
+      + (unemploymentRate * 0.1)
       - (welfareRatio * 0.2);
 
     const corruptionMitigation = prevAntiCorruptionEff * params.corruption_anticorruption_impact;
@@ -331,15 +331,15 @@ export class PoliticsEngine {
     const crimeResponse = Math.max(1.0, Math.min(20.0, params.policing_crime_response_base / (policeStrength + 0.1) * (1 + policeInst.backlog)));
     const unrestResponse = Math.max(0.01, Math.min(1.0, policeStrength * policeInst.efficiency));
 
-    const brutalityRisk = Math.max(0.01, Math.min(0.95, 
-      params.policing_brutality_base 
-      + (policeStrength * params.policing_brutality_budget_impact) 
-      + ((1 - nationalStability) * params.policing_brutality_unrest_impact) 
+    const brutalityRisk = Math.max(0.01, Math.min(0.95,
+      params.policing_brutality_base
+      + (policeStrength * params.policing_brutality_budget_impact)
+      + ((1 - nationalStability) * params.policing_brutality_unrest_impact)
       - (policeInst.trust * 0.1)
     ));
 
-    const publicSafetyPerception = Math.max(0.01, Math.min(1.0, 
-      (policeInst.efficiency * (1 - newCorruptionLevel) * 0.7) 
+    const publicSafetyPerception = Math.max(0.01, Math.min(1.0,
+      (policeInst.efficiency * (1 - newCorruptionLevel) * 0.7)
       + (Math.max(0, 1 - crimeResponse / 10) * 0.3)
     ));
 

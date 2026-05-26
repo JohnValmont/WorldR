@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../../../store/auth.store';
-import { partiesApi, electionsApi, KELDORIA_ID } from '../../../lib/api';
+import { partiesApi, electionsApi, lawsApi, KELDORIA_ID } from '../../../lib/api';
 import TerminalPanel from '../../../components/ui/TerminalPanel';
 import StatusBadge from '../../../components/ui/StatusBadge';
 import GaugeBar from '../../../components/ui/GaugeBar';
@@ -29,12 +29,14 @@ export default function ParliamentPage() {
 
   const [parties, setParties] = useState<any[]>([]);
   const [electionStatus, setElectionStatus] = useState<any>(null);
+  const [laws, setLaws] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       partiesApi.getParties(nationId).then(r => setParties(r.data.parties || [])).catch(() => {}),
       electionsApi.getStatus(nationId).then(r => setElectionStatus(r.data)).catch(() => {}),
+      lawsApi.getLaws(nationId).then(r => setLaws(r.data.laws || [])).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, [nationId]);
 
@@ -206,32 +208,41 @@ export default function ParliamentPage() {
       </TerminalPanel>
 
       {/* Active laws notice */}
-      <TerminalPanel title="Active Parliament Sessions">
+      <TerminalPanel title="Active Parliament Sessions" subtitle="Proposed and recently decided legislation">
         <div className="space-y-2">
-          <div className="p-2 border border-amber-900/50 bg-amber-950/10 text-[10px] font-mono">
-            <div className="flex items-center justify-between">
-              <span className="text-amber-400">📋 Pension Reform Sustainability Act</span>
-              <StatusBadge label="PROPOSED" variant="warning" />
+          {laws.length === 0 ? (
+            <div className="text-zinc-600 text-[10px] font-mono p-3 text-center border border-zinc-900 bg-zinc-950/20">
+              No bills currently under session. Propose a new bill from the Laws page.
             </div>
-            <div className="text-zinc-500 mt-1">Raise retirement age 65→67, +2% contributions. Opposed by ULA & unions.</div>
-          </div>
-          <div className="p-2 border border-zinc-800 bg-zinc-900/50 text-[10px] font-mono">
-            <div className="flex items-center justify-between">
-              <span className="text-zinc-300">📋 Digital Infrastructure Investment Program</span>
-              <StatusBadge label="COMMITTEE" variant="info" />
-            </div>
-            <div className="text-zinc-500 mt-1">KDM 180B for rural broadband, 5G rollout, digital services.</div>
-          </div>
-          <div className="p-2 border border-emerald-900/50 bg-emerald-950/10 text-[10px] font-mono">
-            <div className="flex items-center justify-between">
-              <span className="text-emerald-400">✓ Green Energy Transition Law</span>
-              <StatusBadge label="PASSED" variant="success" />
-            </div>
-            <div className="text-zinc-500 mt-1">60% renewable by 860 AE. Carbon levy on fossil fuels enacted.</div>
-          </div>
+          ) : (
+            laws.slice(0, 3).map((law) => (
+              <div
+                key={law.id}
+                className={`p-2 border font-mono text-[10px] ${
+                  law.status === 'passed'
+                    ? 'border-emerald-900/50 bg-emerald-950/10'
+                    : law.status === 'proposed'
+                    ? 'border-amber-900/50 bg-amber-950/10'
+                    : 'border-zinc-800 bg-zinc-900/50'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={law.status === 'passed' ? 'text-emerald-400 font-bold' : law.status === 'proposed' ? 'text-amber-400 font-bold' : 'text-zinc-400 font-bold'}>
+                    📋 {law.title}
+                  </span>
+                  <StatusBadge
+                    label={law.status.toUpperCase()}
+                    variant={law.status === 'passed' ? 'success' : law.status === 'proposed' ? 'warning' : 'neutral'}
+                  />
+                </div>
+                <div className="text-zinc-500 mt-1 leading-relaxed">
+                  {law.description?.split('[METADATA:')[0].trim()}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </TerminalPanel>
-
     </div>
   );
 }

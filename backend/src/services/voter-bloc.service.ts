@@ -11,6 +11,21 @@ interface VoterBlocApprovalInput {
   governingPartyIds: string[];
 }
 
+const BASE_BLOC_VALUES: Record<string, { population_share: number; turnout_rate: number }> = {
+  industrial_workers: { population_share: 0.1100, turnout_rate: 0.720 },
+  union_members: { population_share: 0.0800, turnout_rate: 0.800 },
+  middle_class_professionals: { population_share: 0.1400, turnout_rate: 0.750 },
+  urban_knowledge_workers: { population_share: 0.0900, turnout_rate: 0.680 },
+  university_students: { population_share: 0.0500, turnout_rate: 0.550 },
+  pensioners_elderly: { population_share: 0.1600, turnout_rate: 0.840 },
+  rural_conservatives: { population_share: 0.0700, turnout_rate: 0.710 },
+  small_business_owners: { population_share: 0.0600, turnout_rate: 0.740 },
+  large_business_executives: { population_share: 0.0400, turnout_rate: 0.780 },
+  industrial_conglomerates: { population_share: 0.0100, turnout_rate: 0.820 },
+  immigrant_communities: { population_share: 0.0700, turnout_rate: 0.420 },
+  unemployed_precariat: { population_share: 0.1200, turnout_rate: 0.340 }
+};
+
 export class VoterBlocService {
   /**
    * Get all voter blocs for a nation with their current affinities.
@@ -54,8 +69,47 @@ export class VoterBlocService {
     input: VoterBlocApprovalInput,
     trx: Knex.Transaction
   ): Promise<Array<{ id: string; approval: number }>> {
+    // 1. Fetch passed laws to retrieve modifiers
+    const passedLaws = await trx('laws').where({ nation_id: nationId, status: 'passed' });
+    
+    const blocStandingAdjustments: Record<string, number> = {};
+    const blocWeightModifiers: Record<string, number> = {};
+    const blocTurnoutModifiers: Record<string, number> = {};
+
+    for (const law of passedLaws) {
+      if (law.description) {
+        try {
+          const match = law.description.match(/\[METADATA:(.*)\]/);
+          if (match) {
+            const parsed = JSON.parse(match[1]);
+            if (parsed) {
+              if (parsed.voterBlocStanding) {
+                for (const [blocCode, value] of Object.entries(parsed.voterBlocStanding)) {
+                  // convert integer (e.g. +3) from UI design to decimal (e.g. +0.03) for math engine
+                  blocStandingAdjustments[blocCode] = (blocStandingAdjustments[blocCode] || 0) + (Number(value) / 100);
+                }
+              }
+              if (parsed.voterBlocWeightModifiers) {
+                for (const [blocCode, value] of Object.entries(parsed.voterBlocWeightModifiers)) {
+                  blocWeightModifiers[blocCode] = (blocWeightModifiers[blocCode] || 0) + (Number(value) / 100);
+                }
+              }
+              if (parsed.voterTurnoutModifiers) {
+                for (const [blocCode, value] of Object.entries(parsed.voterTurnoutModifiers)) {
+                  blocTurnoutModifiers[blocCode] = (blocTurnoutModifiers[blocCode] || 0) + (Number(value) / 100);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+
     const blocs = await voterBlocRepository.findByNationId(nationId, trx);
     const updates: Array<{ id: string; approval: number }> = [];
+    const now = new Date();
 
     for (const bloc of blocs) {
       const currentApproval = Number(bloc.approval);
@@ -78,10 +132,34 @@ export class VoterBlocService {
       }
       partyBonus = Math.min(0.10, partyBonus);
 
+      // Apply law standing adjustment
+      const standingAdj = blocStandingAdjustments[bloc.code] || 0;
+
       // Calculate new approval (decay toward equilibrium)
-      const equilibrium = 0.50 - inflationPenalty - unemploymentPenalty + welfareBonus + partyBonus;
+      const equilibrium = 0.50 - inflationPenalty - unemploymentPenalty + welfareBonus + partyBonus + standingAdj;
       const newApproval = currentApproval * 0.85 + equilibrium * 0.15;
       const clampedApproval = Math.min(0.95, Math.max(0.05, newApproval));
+
+      // Calculate modified population share and turnout rate without drifting
+      const base = BASE_BLOC_VALUES[bloc.code] || { population_share: Number(bloc.population_share), turnout_rate: Number(bloc.turnout_rate) };
+      const weightMod = blocWeightModifiers[bloc.code] || 0;
+      const turnoutMod = blocTurnoutModifiers[bloc.code] || 0;
+
+      const newPopShare = base.population_share * (1 + weightMod);
+      const newTurnout = base.turnout_rate + turnoutMod;
+
+      const clampedPopShare = Math.min(0.95, Math.max(0.001, newPopShare));
+      const clampedTurnout = Math.min(0.95, Math.max(0.05, newTurnout));
+
+      // Direct database updates during transaction
+      await trx('voter_blocs')
+        .where({ id: bloc.id })
+        .update({
+          approval: clampedApproval,
+          population_share: clampedPopShare,
+          turnout_rate: clampedTurnout,
+          updated_at: now
+        });
 
       updates.push({ id: bloc.id, approval: clampedApproval });
     }

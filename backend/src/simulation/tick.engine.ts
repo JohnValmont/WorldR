@@ -146,6 +146,35 @@ export class TickEngine {
                   
                   // Clear the active modifiers from law_effects to prevent double-applying
                   await this.trx('law_effects').where({ law_id: law.id }).delete();
+                } else if (parsed && parsed.type === 'policy_bill') {
+                  logger.info(`[TickEngine] Processing passed policy bill: "${law.title}"`);
+                  const policies = parsed.policies;
+                  if (policies && Array.isArray(policies)) {
+                    const passedLawsList = await lawRepository.findByNationId(this.nationId, this.trx);
+                    const activePassed = passedLawsList.filter(l => l.status === 'passed' && l.id !== law.id);
+                    
+                    for (const passedLaw of activePassed) {
+                      if (passedLaw.description) {
+                        try {
+                          const subMatch = passedLaw.description.match(/\[METADATA:(.*)\]/);
+                          if (subMatch) {
+                            const subParsed = JSON.parse(subMatch[1]);
+                            if (subParsed && subParsed.policies) {
+                              const overlap = subParsed.policies.some((otherP: any) =>
+                                policies.some((currentP: any) => currentP.policyKey === otherP.policyKey)
+                              );
+                              if (overlap) {
+                                logger.info(`[TickEngine] Conflict found! Repealing conflicting law "${passedLaw.title}" due to policy overlap.`);
+                                await lawRepository.updateStatus(passedLaw.id, 'repealed', this.trx);
+                              }
+                            }
+                          }
+                        } catch (e) {
+                          // ignore
+                        }
+                      }
+                    }
+                  }
                 }
               }
             } catch (e) {
