@@ -6,7 +6,12 @@ import { logger } from '../utils/logger';
 
 const knexConfig: Knex.Config = {
   client: 'pg',
-  connection: env.DATABASE_URL,
+  connection: {
+    connectionString: env.DATABASE_URL,
+    ssl: env.NODE_ENV === 'production'
+      ? { rejectUnauthorized: false }
+      : false,
+  },
   pool: {
     min: 2,
     max: 10,
