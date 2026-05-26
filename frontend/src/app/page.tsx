@@ -43,7 +43,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen w-full bg-[#050508] text-zinc-300 overflow-x-hidden font-sans relative selection:bg-amber-500/20 selection:text-amber-400">
+    <div className="h-screen w-full bg-[#050508] text-zinc-300 overflow-y-auto overflow-x-hidden font-sans relative selection:bg-amber-500/20 selection:text-amber-400">
       
       {/* ── Background Gradients & Grids ─── */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
