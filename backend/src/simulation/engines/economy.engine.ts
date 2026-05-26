@@ -1,6 +1,6 @@
 import { EconomicSector, ActiveModifier } from '../../types';
 import { ModifierResolver } from '../modifier.resolver';
-import { EconomyBalance } from '../../../../systems/balance/economy.balance';
+import { EconomyBalance } from '../../systems/balance/economy.balance';
 
 export class EconomyEngine {
   public static calculate(

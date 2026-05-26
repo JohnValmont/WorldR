@@ -1,6 +1,6 @@
 import { Price, ActiveModifier } from '../../types';
 import { ModifierResolver } from '../modifier.resolver';
-import { InflationBalance } from '../../../../systems/balance/inflation.balance';
+import { InflationBalance } from '../../systems/balance/inflation.balance';
 
 export class InflationEngine {
   public static calculate(

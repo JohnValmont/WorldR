@@ -38,7 +38,7 @@ import {
   TreasuryBalance,
   DebtBalance,
   UnemploymentBalance
-} from '../../../systems/balance';
+} from '../systems/balance';
 
 export class TickEngine {
   private trx: Knex.Transaction;

@@ -2,11 +2,11 @@
   "name": "worldr-backend",
   "version": "1.0.0",
   "description": "Backend simulation server and API layer for WORLDr Phase 1",
-  "main": "dist/backend/src/server.js",
+  "main": "dist/src/server.js",
   "scripts": {
     "dev": "nodemon --watch src -e ts --exec \"ts-node --files src/server.ts\"",
     "build": "tsc",
-    "start": "node dist/backend/src/server.js"
+    "start": "node dist/src/server.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -31,7 +31,7 @@
     "@types/pg": "^8.10.9",
     "nodemon": "^3.0.2",
     "ts-node": "^10.9.1",
-    "typescript": "^5.3.3"
+    "typescript": "5.9.3"
   },
   "private": true
 }

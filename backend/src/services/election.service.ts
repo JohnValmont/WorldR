@@ -5,7 +5,7 @@ import { nationRepository } from '../repositories/nation.repository';
 import { notificationRepository } from '../repositories/notification.repository';
 import { NotFoundError } from '../utils/errors';
 import { Knex } from 'knex';
-import { ElectionsBalance } from '../../../systems/balance/elections.balance';
+import { ElectionsBalance } from '../systems/balance/elections.balance';
 
 const ELECTION_CYCLE = ElectionsBalance.electionCycleMonths;
 
