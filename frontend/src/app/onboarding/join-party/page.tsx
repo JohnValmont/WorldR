@@ -64,8 +64,7 @@ export default function JoinPartyPage() {
       .finally(() => setLoading(false));
   }, [nationId]);
 
-  const aiParties = parties.filter((p: any) => p.is_ai_controlled);
-  const playerParties = parties.filter((p: any) => !p.is_ai_controlled);
+  const playerParties = parties;
 
   const handleJoin = async (partyId: string) => {
     setJoining(partyId);
@@ -95,7 +94,7 @@ export default function JoinPartyPage() {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
+    <div className="w-full max-w-2xl mx-auto animate-fade-in-up">
 
       {/* Header */}
       <div className="text-center mb-10">
@@ -107,7 +106,7 @@ export default function JoinPartyPage() {
           Join or Found a Party
         </h1>
         <p className="text-sm max-w-md mx-auto leading-relaxed" style={{ color: 'rgba(212,169,69,0.5)' }}>
-          Every faction needs a political home. Join an existing party or establish your own and set your ideology.
+          Every faction needs a political home. Join an existing player party or establish your own to set your political ideology.
         </p>
       </div>
 
@@ -128,7 +127,7 @@ export default function JoinPartyPage() {
             mode === 'browse' ? 'golden-tab-active' : 'golden-tab-inactive'
           }`}
         >
-          Browse Parties
+          Browse Player Parties ({playerParties.length})
         </button>
         <button
           type="button"
@@ -136,8 +135,10 @@ export default function JoinPartyPage() {
           className={`flex-1 py-3 rounded-xl text-xs font-bold tracking-wide transition-all duration-200 ${
             mode === 'create' ? 'golden-tab-active' : 'golden-tab-inactive'
           }`}
+          disabled={playerParties.length >= 6}
+          title={playerParties.length >= 6 ? 'Maximum limit of 6 parties per nation reached' : ''}
         >
-          + Found New Party
+          {playerParties.length >= 6 ? '🔒 Party Limit Reached (6/6)' : '+ Found New Party'}
         </button>
       </div>
 
@@ -150,57 +151,9 @@ export default function JoinPartyPage() {
             </div>
           )}
 
-          {/* AI Caretaker parties */}
-          {!loading && aiParties.length > 0 && (
-            <div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="text-[10px] uppercase tracking-widest font-medium" style={{ color: 'rgba(212,169,69,0.4)' }}>
-                  AI Caretaker Government
-                </div>
-                <div className="flex-1 divider-gold" />
-              </div>
-              {aiParties.map((party: any) => (
-                <div
-                  key={party.id}
-                  className="flex items-center gap-4 px-5 py-4 rounded-2xl mb-3 onboarding-card"
-                >
-                  <div className="w-1 h-12 rounded-full shrink-0" style={{ background: party.color || '#d4a945' }} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="text-sm font-bold" style={{ color: '#f0d585' }}>{party.name}</span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded font-mono" style={{ background: 'rgba(212,169,69,0.1)', border: '1px solid rgba(212,169,69,0.2)', color: '#d4a945' }}>
-                        {party.abbreviation}
-                      </span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded font-mono ai-badge">
-                        🤖 AI
-                      </span>
-                    </div>
-                    <div className="text-[10px]" style={{ color: 'rgba(212,169,69,0.4)' }}>
-                      {party.seats} seats · Caretaker government · {party.member_count || 0} members
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleJoin(party.id)}
-                    disabled={!!joining}
-                    className="shrink-0 px-5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50 golden-btn-ghost"
-                  >
-                    {joining === party.id ? 'Joining...' : 'Join'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
           {/* Player-founded parties */}
           {!loading && (
             <div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="text-[10px] uppercase tracking-widest font-medium" style={{ color: 'rgba(212,169,69,0.4)' }}>
-                  Player Factions
-                </div>
-                <div className="flex-1 divider-gold" />
-              </div>
               {playerParties.length === 0 ? (
                 <div className="text-center py-10 rounded-2xl" style={{ border: '1px dashed rgba(212,169,69,0.2)' }}>
                   <div className="text-3xl mb-3">🏛️</div>
@@ -227,18 +180,25 @@ export default function JoinPartyPage() {
                         <span className="text-[9px] px-1.5 py-0.5 rounded font-mono" style={{ background: 'rgba(212,169,69,0.1)', border: '1px solid rgba(212,169,69,0.2)', color: '#d4a945' }}>
                           {party.abbreviation}
                         </span>
+                        {party.member_count >= 2 && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded font-mono bg-red-950/40 text-red-400 border border-red-900/40">
+                            FULL (2/2)
+                          </span>
+                        )}
                       </div>
                       <div className="text-[10px]" style={{ color: 'rgba(212,169,69,0.4)' }}>
-                        {party.ideology?.replace(/_/g, ' ')} · {party.seats} seats · {party.member_count || 0} members
+                        {party.ideology?.replace(/_/g, ' ')} · {party.seats} seats · {party.member_count || 0}/2 real players
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleJoin(party.id)}
-                      disabled={!!joining}
-                      className="shrink-0 px-5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50 golden-btn"
+                      disabled={!!joining || party.member_count >= 2}
+                      className={`shrink-0 px-5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50 ${
+                        party.member_count >= 2 ? 'golden-btn-ghost cursor-not-allowed opacity-30' : 'golden-btn'
+                      }`}
                     >
-                      {joining === party.id ? 'Joining...' : 'Join'}
+                      {joining === party.id ? 'Joining...' : party.member_count >= 2 ? 'Full' : 'Join'}
                     </button>
                   </div>
                 ))

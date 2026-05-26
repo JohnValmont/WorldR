@@ -21,8 +21,65 @@ export class PartyService {
   public async getPartyDetails(partyId: string): Promise<{ party: Party; members: any[] }> {
     const party = await partyRepository.findById(partyId);
     if (!party) throw new NotFoundError('Party not found');
-    const members = await partyRepository.findMembersWithUsers(partyId);
-    return { party, members };
+    const realMembers = await partyRepository.findMembersWithUsers(partyId);
+
+    // Dynamic but stable/deterministic AI names based on partyId
+    const FIRST_NAMES = [
+      'Enver', 'Dorian', 'Bora', 'Skerdilaid', 'Ardit', 'Besart', 'Fisnik', 'Valon', 'Luan', 'Driton',
+      'Artan', 'Armend', 'Ardian', 'Viktor', 'Edon', 'Genci', 'Ilir', 'Ylli', 'Arben', 'Gent'
+    ];
+    const LAST_NAMES = [
+      'Bala', 'Ferati', 'Rama', 'Kurti', 'Dervishi', 'Gjoka', 'Murati', 'Hoti', 'Prenga', 'Duka',
+      'Vane', 'Krasniqi', 'Gashi', 'Hoxha', 'Shehu', 'Leka', 'Alimi', 'Pacolli', 'Basha', 'Berisha'
+    ];
+
+    function getDeterministicName(pId: string, roleName: string): string {
+      let hash = 0;
+      const str = pId + roleName;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const firstIdx = Math.abs(hash) % FIRST_NAMES.length;
+      const lastIdx = Math.abs(hash >> 2) % LAST_NAMES.length;
+      return `${FIRST_NAMES[firstIdx]} ${LAST_NAMES[lastIdx]}`;
+    }
+
+    const allRoles = [
+      'leader',
+      'deputy_leader',
+      'secretary_general',
+      'treasurer',
+      'campaign_manager',
+      'policy_chief',
+      'media_manager',
+      'whip'
+    ];
+
+    const filledRoles = realMembers.map(m => m.role);
+    const formattedMembers = realMembers.map(m => ({
+      user_id: m.user_id,
+      username: m.username,
+      display_name: m.display_name,
+      role: m.role,
+      joined_at: m.joined_at,
+      is_ai: false
+    }));
+
+    for (const role of allRoles) {
+      if (!filledRoles.includes(role)) {
+        const name = getDeterministicName(partyId, role);
+        formattedMembers.push({
+          user_id: `ai-${role}-${partyId}`,
+          username: `ai_${role}`,
+          display_name: name,
+          role: role,
+          joined_at: party.created_at,
+          is_ai: true
+        });
+      }
+    }
+
+    return { party, members: formattedMembers };
   }
 
   /**
@@ -57,6 +114,12 @@ export class PartyService {
     const existingMembership = await partyRepository.findMembership(userId, nationId);
     if (existingMembership) {
       throw new ConflictError('You are already a member of a political party in this nation');
+    }
+
+    // Limit to max 6 political parties per nation
+    const existingParties = await partyRepository.findByNationId(nationId);
+    if (existingParties.length >= 6) {
+      throw new ValidationError('This nation has reached the maximum of 6 political parties.');
     }
 
     // Check name uniqueness
@@ -127,6 +190,12 @@ export class PartyService {
     const existingMembership = await partyRepository.findMembership(userId, nationId);
     if (existingMembership) {
       throw new ConflictError('You are already a member of a party in this nation. Leave your current party first.');
+    }
+
+    // Limit to max 2 real players per party
+    const existingMembers = await partyRepository.findMembershipByParty(partyId);
+    if (existingMembers.length >= 2) {
+      throw new ValidationError('This party is already full (maximum 2 real players allowed).');
     }
 
     await db.transaction(async (trx) => {
