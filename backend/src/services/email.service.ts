@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
+import { AppError } from '../utils/errors';
 
 // Create Nodemailer Transporter using Gmail SMTP config with robust timeouts
 const transporter = nodemailer.createTransport({
@@ -193,7 +194,7 @@ export class EmailService {
 
         if (error) {
           logger.error(`[EmailService] Resend API error sending to ${to}:`, error);
-          throw new Error(`Email delivery failed: ${error.message}`);
+          throw new AppError(`Email delivery failed: ${error.message}`, 500, 'EMAIL_DELIVERY_FAILED');
         }
       } else {
         // Check if SMTP is configured. If not and we're in development, bypass email sending.
@@ -202,7 +203,7 @@ export class EmailService {
             logger.warn(`[EmailService] SMTP credentials are not configured. Bypassing email sending in development mode. Check console/logs for OTP.`);
             return;
           }
-          throw new Error('SMTP credentials are not configured. Please set SMTP_EMAIL and SMTP_APP_PASSWORD.');
+          throw new AppError('SMTP credentials are not configured. Please set SMTP_EMAIL and SMTP_APP_PASSWORD.', 500, 'SMTP_NOT_CONFIGURED');
         }
 
         // Gmail SMTP using Nodemailer
@@ -218,7 +219,7 @@ export class EmailService {
       logger.info(`[EmailService] Verification email sent successfully to ${to}`);
     } catch (err: any) {
       logger.error(`[EmailService] Failed to send verification email to ${to}:`, err);
-      throw new Error(`Email delivery failed: ${err.message || err}`);
+      throw new AppError(`Email delivery failed: ${err.message || err}`, 500, 'EMAIL_DELIVERY_FAILED');
     }
   }
 }
