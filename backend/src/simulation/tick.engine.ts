@@ -188,7 +188,8 @@ export class TickEngine {
             nation_id: this.nationId,
             title: `Law Passed: ${law.title}`,
             message: `The proposed law "${law.title}" has been PASSED by the parliament with ${totalYesSeats} YES votes against ${totalNoSeats} NO votes. It is now effective.`,
-            type: 'law',
+            type: 'success',
+            category: 'law',
             is_read: false,
             created_at: new Date(),
             updated_at: new Date()
@@ -207,7 +208,8 @@ export class TickEngine {
             nation_id: this.nationId,
             title: `Law Rejected: ${law.title}`,
             message: `The proposed law "${law.title}" has been REJECTED by the parliament. Votes: Yes=${totalYesSeats}, No=${totalNoSeats}.`,
-            type: 'law',
+            type: 'warning',
+            category: 'law',
             is_read: false,
             created_at: new Date(),
             updated_at: new Date()
