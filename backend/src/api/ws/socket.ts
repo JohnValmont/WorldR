@@ -3,12 +3,12 @@ import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
-import Redis from 'ioredis';
+import { createRedisClient } from '../../config/redis';
 import { multiplayerService } from '../../services/multiplayer.service';
 
 export class WebSocketServer {
   private io: Server;
-  private subRedis: Redis;
+  private subRedis: any;
 
   constructor(server: HttpServer) {
     this.io = new Server(server, {
@@ -18,7 +18,7 @@ export class WebSocketServer {
       }
     });
 
-    this.subRedis = new Redis(env.REDIS_URL);
+    this.subRedis = createRedisClient();
     multiplayerService.setSocketServer(this.io);
     this.setupMiddleware();
     this.setupConnectionHandlers();
@@ -76,7 +76,7 @@ export class WebSocketServer {
   }
 
   private setupRedisSubscriber(): void {
-    this.subRedis.subscribe('tick:completed', (err, count) => {
+    this.subRedis.subscribe('tick:completed', (err: any, count: any) => {
       if (err) {
         logger.error('Failed to subscribe to Redis tick:completed channel:', err);
       } else {
@@ -84,7 +84,7 @@ export class WebSocketServer {
       }
     });
 
-    this.subRedis.on('message', (channel, message) => {
+    this.subRedis.on('message', (channel: any, message: any) => {
       if (channel === 'tick:completed') {
         try {
           const { nationId } = JSON.parse(message);

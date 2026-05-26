@@ -67,7 +67,7 @@ async function handleShutdown(signal: string) {
           process.exit(0);
         });
       });
-    }).catch(err => {
+    }).catch((err: any) => {
       logger.error('Error closing worker connection:', err);
       process.exit(1);
     });

@@ -1,35 +1,60 @@
 import { Queue } from 'bullmq';
 import { redis } from '../config/redis';
 import { logger } from '../utils/logger';
+import { env } from '../config/env';
+import { db } from '../config/database';
 
 const TICK_QUEUE_NAME = 'tick-queue';
 
 export class QueueService {
-  private queue: Queue;
+  private queue: Queue | null = null;
 
   constructor() {
-    this.queue = new Queue(TICK_QUEUE_NAME, {
-      connection: redis,
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 1000,
+    if (env.REDIS_ENABLED && env.REDIS_URL) {
+      this.queue = new Queue(TICK_QUEUE_NAME, {
+        connection: redis,
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 1000,
+          },
+          removeOnComplete: true,
+          removeOnFail: false,
         },
-        removeOnComplete: true,
-        removeOnFail: false,
-      },
-    });
+      });
+    } else {
+      logger.info('[QueueService] Redis/BullMQ queue is disabled; using synchronous/in-memory task dispatcher.');
+    }
   }
 
   /**
    * Enqueue a simulation tick for a single nation.
-   * @returns BullMQ job ID
+   * @returns job ID (mocked if Redis is disabled)
    */
   public async enqueueNationTick(nationId: string): Promise<string> {
+    if (!env.REDIS_ENABLED || !env.REDIS_URL) {
+      logger.info(`[QueueService] [InMemory] Triggering simulation tick synchronously for nation: ${nationId}`);
+      // Execute in setImmediate to emulate asynchronous job execution and concurrency
+      setImmediate(async () => {
+        try {
+          await db.transaction(async (trx) => {
+            const { TickEngine } = require('../simulation/tick.engine');
+            const tickEngine = new TickEngine(trx, nationId);
+            await tickEngine.executeTick();
+          });
+          logger.info(`[QueueService] [InMemory] Successfully completed tick for nation ${nationId}`);
+          await redis.publish('tick:completed', JSON.stringify({ nationId }));
+        } catch (error) {
+          logger.error(`[QueueService] [InMemory] Tick failed for nation ${nationId}:`, error);
+        }
+      });
+      return `in-memory-job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
+
     try {
       logger.info(`Enqueuing simulation tick job for nation: ${nationId}`);
-      const job = await this.queue.add('execute-tick', { nationId });
+      const job = await this.queue!.add('execute-tick', { nationId });
       logger.info(`Enqueued job: ${job.id}`);
       return job.id || '';
     } catch (error) {
@@ -47,15 +72,21 @@ export class QueueService {
 
   /**
    * Enqueue simulation ticks for ALL nations in a world tick batch.
-   *
-   * Uses BullMQ bulk job insertion for efficiency. All jobs are labelled
-   * with `world_tick_batch` metadata for observability.
-   *
    * @param nationIds - Array of nation IDs to tick
    * @returns Array of enqueued job IDs
    */
   public async enqueueWorldTick(nationIds: string[]): Promise<string[]> {
     if (nationIds.length === 0) return [];
+
+    if (!env.REDIS_ENABLED || !env.REDIS_URL) {
+      logger.info(`[QueueService] [InMemory] Enqueuing in-memory world tick batch for ${nationIds.length} nations`);
+      const jobIds: string[] = [];
+      for (const nationId of nationIds) {
+        const jobId = await this.enqueueNationTick(nationId);
+        jobIds.push(jobId);
+      }
+      return jobIds;
+    }
 
     logger.info(`[QueueService] Enqueuing world tick batch for ${nationIds.length} nations`);
 
@@ -70,7 +101,7 @@ export class QueueService {
       }
     }));
 
-    const addedJobs = await this.queue.addBulk(jobs);
+    const addedJobs = await this.queue!.addBulk(jobs);
     const jobIds = addedJobs.map(j => j.id || '');
 
     logger.info(`[QueueService] World tick batch enqueued: ${jobIds.length} jobs`);
@@ -79,4 +110,3 @@ export class QueueService {
 }
 
 export const queueService = new QueueService();
-
