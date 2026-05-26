@@ -372,5 +372,6 @@ export interface Notification {
   data: Record<string, any> | null;
   is_read: boolean;
   created_at: Date;
+  updated_at: Date;
 }
 

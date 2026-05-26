@@ -6,7 +6,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================================================
 -- 1. NATIONS
 -- ============================================================================
-CREATE TABLE nations (
+CREATE TABLE IF NOT EXISTS nations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) UNIQUE NOT NULL,
     treasury NUMERIC(20, 2) NOT NULL DEFAULT 1000000000.00,
@@ -33,7 +33,7 @@ COMMENT ON TABLE nations IS 'Stores the core live state of simulated nation stat
 -- ============================================================================
 -- 2. USERS
 -- ============================================================================
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -47,14 +47,14 @@ CREATE TABLE users (
     CONSTRAINT check_user_role CHECK (role IN ('user', 'admin', 'moderator'))
 );
 
-CREATE INDEX idx_users_nation_id ON users(nation_id);
+CREATE INDEX IF NOT EXISTS idx_users_nation_id ON users(nation_id);
 
 COMMENT ON TABLE users IS 'User authentication and workspace configuration.';
 
 -- ============================================================================
 -- 3. ECONOMIC SECTORS
 -- ============================================================================
-CREATE TABLE economic_sectors (
+CREATE TABLE IF NOT EXISTS economic_sectors (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
     name VARCHAR(50) NOT NULL,
@@ -71,14 +71,14 @@ CREATE TABLE economic_sectors (
     UNIQUE (nation_id, name)
 );
 
-CREATE INDEX idx_economic_sectors_nation_id ON economic_sectors(nation_id);
+CREATE INDEX IF NOT EXISTS idx_economic_sectors_nation_id ON economic_sectors(nation_id);
 
 COMMENT ON TABLE economic_sectors IS 'Tracks output, wages, and employment metrics for national economic sectors.';
 
 -- ============================================================================
 -- 4. POPULATION GROUPS
 -- ============================================================================
-CREATE TABLE population_groups (
+CREATE TABLE IF NOT EXISTS population_groups (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
     name VARCHAR(50) NOT NULL,
@@ -97,14 +97,14 @@ CREATE TABLE population_groups (
     UNIQUE (nation_id, name)
 );
 
-CREATE INDEX idx_population_groups_nation_id ON population_groups(nation_id);
+CREATE INDEX IF NOT EXISTS idx_population_groups_nation_id ON population_groups(nation_id);
 
 COMMENT ON TABLE population_groups IS 'Maintains live state, size, income and approval rating per socio-economic population class.';
 
 -- ============================================================================
 -- 5. TAXES
 -- ============================================================================
-CREATE TABLE taxes (
+CREATE TABLE IF NOT EXISTS taxes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
     name VARCHAR(50) NOT NULL,
@@ -119,14 +119,14 @@ CREATE TABLE taxes (
     UNIQUE (nation_id, name)
 );
 
-CREATE INDEX idx_taxes_nation_id ON taxes(nation_id);
+CREATE INDEX IF NOT EXISTS idx_taxes_nation_id ON taxes(nation_id);
 
 COMMENT ON TABLE taxes IS 'Simulates taxation structures and revenue generation settings.';
 
 -- ============================================================================
 -- 6. BUDGET ITEMS
 -- ============================================================================
-CREATE TABLE budget_items (
+CREATE TABLE IF NOT EXISTS budget_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
     name VARCHAR(50) NOT NULL,
@@ -139,14 +139,14 @@ CREATE TABLE budget_items (
     UNIQUE (nation_id, name)
 );
 
-CREATE INDEX idx_budget_items_nation_id ON budget_items(nation_id);
+CREATE INDEX IF NOT EXISTS idx_budget_items_nation_id ON budget_items(nation_id);
 
 COMMENT ON TABLE budget_items IS 'Defines spending configurations and financial allocations.';
 
 -- ============================================================================
 -- 7. LAWS
 -- ============================================================================
-CREATE TABLE laws (
+CREATE TABLE IF NOT EXISTS laws (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
@@ -159,12 +159,12 @@ CREATE TABLE laws (
     CONSTRAINT check_law_status CHECK (status IN ('passed', 'proposed', 'repealed'))
 );
 
-CREATE INDEX idx_laws_nation_id ON laws(nation_id);
+CREATE INDEX IF NOT EXISTS idx_laws_nation_id ON laws(nation_id);
 
 -- ============================================================================
 -- 8. LAW EFFECTS
 -- ============================================================================
-CREATE TABLE law_effects (
+CREATE TABLE IF NOT EXISTS law_effects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     law_id UUID NOT NULL REFERENCES laws(id) ON DELETE CASCADE,
     target_type VARCHAR(50) NOT NULL,
@@ -180,12 +180,12 @@ CREATE TABLE law_effects (
     CONSTRAINT check_modifier_type CHECK (modifier_type IN ('multiplier', 'additive'))
 );
 
-CREATE INDEX idx_law_effects_law_id ON law_effects(law_id);
+CREATE INDEX IF NOT EXISTS idx_law_effects_law_id ON law_effects(law_id);
 
 -- ============================================================================
 -- 9. PARAMETERS
 -- ============================================================================
-CREATE TABLE parameters (
+CREATE TABLE IF NOT EXISTS parameters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     category VARCHAR(50) NOT NULL,
     name VARCHAR(100) NOT NULL,
@@ -198,12 +198,12 @@ CREATE TABLE parameters (
     UNIQUE (category, name)
 );
 
-CREATE INDEX idx_parameters_category ON parameters(category);
+CREATE INDEX IF NOT EXISTS idx_parameters_category ON parameters(category);
 
 -- ============================================================================
 -- 10. HISTORICAL SNAPSHOTS
 -- ============================================================================
-CREATE TABLE historical_snapshots (
+CREATE TABLE IF NOT EXISTS historical_snapshots (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
     tick INTEGER NOT NULL,
@@ -227,12 +227,12 @@ CREATE TABLE historical_snapshots (
     UNIQUE (nation_id, tick)
 );
 
-CREATE INDEX idx_historical_snapshots_nation_tick ON historical_snapshots(nation_id, tick);
+CREATE INDEX IF NOT EXISTS idx_historical_snapshots_nation_tick ON historical_snapshots(nation_id, tick);
 
 -- ============================================================================
 -- 11. NATION PARAMETER OVERRIDES
 -- ============================================================================
-CREATE TABLE nation_parameter_overrides (
+CREATE TABLE IF NOT EXISTS nation_parameter_overrides (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
     category VARCHAR(50) NOT NULL,
@@ -245,12 +245,12 @@ CREATE TABLE nation_parameter_overrides (
     UNIQUE (nation_id, category, name)
 );
 
-CREATE INDEX idx_nation_parameter_overrides_lookup ON nation_parameter_overrides(nation_id, category, name);
+CREATE INDEX IF NOT EXISTS idx_nation_parameter_overrides_lookup ON nation_parameter_overrides(nation_id, category, name);
 
 -- ============================================================================
 -- 12. REFRESH TOKENS
 -- ============================================================================
-CREATE TABLE refresh_tokens (
+CREATE TABLE IF NOT EXISTS refresh_tokens (
     token_hash VARCHAR(255) PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -258,12 +258,12 @@ CREATE TABLE refresh_tokens (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
 
 -- ============================================================================
 -- 13. NATION TEMPLATES
 -- ============================================================================
-CREATE TABLE nation_templates (
+CREATE TABLE IF NOT EXISTS nation_templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) UNIQUE NOT NULL,
     description TEXT,
@@ -286,7 +286,7 @@ COMMENT ON TABLE nation_templates IS 'Holds pre-configured nation settings to dy
 -- ============================================================================
 -- 14. PRICES
 -- ============================================================================
-CREATE TABLE prices (
+CREATE TABLE IF NOT EXISTS prices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
     sector_name VARCHAR(50) NOT NULL,
@@ -301,14 +301,14 @@ CREATE TABLE prices (
     UNIQUE (nation_id, sector_name)
 );
 
-CREATE INDEX idx_prices_nation_id ON prices(nation_id);
+CREATE INDEX IF NOT EXISTS idx_prices_nation_id ON prices(nation_id);
 
 COMMENT ON TABLE prices IS 'Tracks sector-specific prices and local inflation rates.';
 
 -- ============================================================================
 -- 15. AUDIT LOGS
 -- ============================================================================
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nation_id UUID REFERENCES nations(id) ON DELETE SET NULL,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -321,7 +321,7 @@ CREATE TABLE audit_logs (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_audit_logs_nation_id ON audit_logs(nation_id);
-CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_nation_id ON audit_logs(nation_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
 
 COMMENT ON TABLE audit_logs IS 'System audit trail logging player updates and ticks execution histories.';
