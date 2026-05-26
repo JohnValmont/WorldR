@@ -25,6 +25,7 @@ app.get('/health', (req: Request, res: Response) => {
 import apiRouter from './api/routes';
 
 app.use('/api/v1', apiRouter);
+app.use('/', apiRouter);
 
 // Catch-all route (404)
 app.use((req: Request, res: Response, next: NextFunction) => {

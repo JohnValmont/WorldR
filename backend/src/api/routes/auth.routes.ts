@@ -48,10 +48,12 @@ const updateNationSchema = z.object({
 router.post('/register', validate(registerSchema), authController.register);
 router.post('/login', validate(loginSchema), authController.login);
 router.post('/refresh', validate(refreshSchema), authController.refresh);
+router.post('/refresh-token', validate(refreshSchema), authController.refresh);
 router.post('/logout', authController.logout);
 router.get('/me', authMiddleware, authController.me);
 router.patch('/nation', authMiddleware, validate(updateNationSchema), authController.updateNation);
 router.post('/verify-email', validate(verifyEmailSchema), authController.verifyEmail);
+router.post('/verify', validate(verifyEmailSchema), authController.verifyEmail);
 router.post('/resend-verification', validate(resendVerificationSchema), authController.resendVerification);
 
 export default router;
