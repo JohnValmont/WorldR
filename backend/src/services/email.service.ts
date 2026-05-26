@@ -1,8 +1,17 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
-const resend = new Resend(env.RESEND_API_KEY);
+// Create Nodemailer Transporter using Gmail SMTP config
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
+  auth: {
+    user: env.SMTP_EMAIL,
+    pass: env.SMTP_APP_PASSWORD,
+  },
+});
 
 /**
  * Generates the branded WORLDr HTML email template for OTP verification.
@@ -10,6 +19,7 @@ const resend = new Resend(env.RESEND_API_KEY);
 function buildVerificationEmail(username: string, otp: string): { html: string; text: string } {
   // Format OTP with a gap: e.g. "123 456"
   const otpFormatted = `${otp.slice(0, 3)} ${otp.slice(3)}`;
+  const frontendVerifyUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/verify`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -101,7 +111,7 @@ function buildVerificationEmail(username: string, otp: string): { html: string; 
                               </td>
                               <td>
                                 <p style="margin:0;font-size:13px;color:#86efac;line-height:1.5;">
-                                  Go to <strong>worldr.onrender.com/verify</strong> and enter this 6-digit code. If you did not request this, you can safely ignore this email.
+                                  Go to <strong>${frontendVerifyUrl}</strong> and enter this 6-digit code. If you did not request this, you can safely ignore this email.
                                 </p>
                               </td>
                             </tr>
@@ -151,7 +161,7 @@ Your verification code is: ${otp}
 
 This code expires in 10 minutes.
 
-Enter it at: worldr.onrender.com/verify
+Enter it at: ${frontendVerifyUrl}
 
 If you did not create an account, ignore this email.
 
@@ -163,25 +173,40 @@ If you did not create an account, ignore this email.
 export class EmailService {
   async sendVerificationEmail(to: string, username: string, otp: string): Promise<void> {
     const { html, text } = buildVerificationEmail(username, otp);
+    const from = env.EMAIL_FROM;
 
     try {
-      const { error } = await resend.emails.send({
-        from: env.RESEND_FROM_EMAIL,
-        to,
-        subject: 'Your WORLDr verification code',
-        html,
-        text
-      });
+      if (env.EMAIL_PROVIDER === 'resend' && env.RESEND_API_KEY) {
+        // Keep Resend as legacy option if explicitly configured in env
+        const { Resend } = require('resend');
+        const resendInstance = new Resend(env.RESEND_API_KEY);
+        const { error } = await resendInstance.emails.send({
+          from: env.RESEND_FROM_EMAIL || from,
+          to,
+          subject: 'Your WORLDr verification code',
+          html,
+          text
+        });
 
-      if (error) {
-        logger.error(`[EmailService] Resend API error sending to ${to}:`, error);
-        throw new Error(`Email delivery failed: ${error.message}`);
+        if (error) {
+          logger.error(`[EmailService] Resend API error sending to ${to}:`, error);
+          throw new Error(`Email delivery failed: ${error.message}`);
+        }
+      } else {
+        // Gmail SMTP using Nodemailer
+        await transporter.sendMail({
+          from,
+          to,
+          subject: 'Your WORLDr verification code',
+          html,
+          text
+        });
       }
 
-      logger.info(`[EmailService] Verification email sent to ${to}`);
-    } catch (err) {
+      logger.info(`[EmailService] Verification email sent successfully to ${to}`);
+    } catch (err: any) {
       logger.error(`[EmailService] Failed to send verification email to ${to}:`, err);
-      throw err;
+      throw new Error(`Email delivery failed: ${err.message || err}`);
     }
   }
 }
