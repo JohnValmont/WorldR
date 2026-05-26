@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
-// Create Nodemailer Transporter using Gmail SMTP config
+// Create Nodemailer Transporter using Gmail SMTP config with robust timeouts
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
@@ -11,6 +11,9 @@ const transporter = nodemailer.createTransport({
     user: env.SMTP_EMAIL,
     pass: env.SMTP_APP_PASSWORD,
   },
+  connectionTimeout: 10000, // 10 seconds timeout for establishing connection
+  greetingTimeout: 10000,   // 10 seconds timeout for greeting response
+  socketTimeout: 15000,     // 15 seconds socket inactivity timeout
 });
 
 /**
@@ -193,6 +196,15 @@ export class EmailService {
           throw new Error(`Email delivery failed: ${error.message}`);
         }
       } else {
+        // Check if SMTP is configured. If not and we're in development, bypass email sending.
+        if (!env.SMTP_EMAIL || !env.SMTP_APP_PASSWORD) {
+          if (env.NODE_ENV !== 'production') {
+            logger.warn(`[EmailService] SMTP credentials are not configured. Bypassing email sending in development mode. Check console/logs for OTP.`);
+            return;
+          }
+          throw new Error('SMTP credentials are not configured. Please set SMTP_EMAIL and SMTP_APP_PASSWORD.');
+        }
+
         // Gmail SMTP using Nodemailer
         await transporter.sendMail({
           from,
