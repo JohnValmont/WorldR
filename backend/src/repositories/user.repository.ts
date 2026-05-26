@@ -9,12 +9,16 @@ export class UserRepository extends BaseRepository {
   }
 
   public async findByUsername(username: string, trx?: Knex.Transaction): Promise<User | null> {
-    const user = await this.getDb(trx)('users').where({ username }).first();
+    const user = await this.getDb(trx)('users')
+      .whereRaw('LOWER(username) = LOWER(?)', [username])
+      .first();
     return user || null;
   }
 
   public async findByEmail(email: string, trx?: Knex.Transaction): Promise<User | null> {
-    const user = await this.getDb(trx)('users').where({ email }).first();
+    const user = await this.getDb(trx)('users')
+      .whereRaw('LOWER(email) = LOWER(?)', [email])
+      .first();
     return user || null;
   }
 
