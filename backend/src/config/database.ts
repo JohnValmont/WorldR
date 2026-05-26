@@ -1,17 +1,30 @@
 import knex, { Knex } from 'knex';
 import fs from 'fs';
 import path from 'path';
+import { parse } from 'pg-connection-string';
 import { env } from './env';
 import { logger } from '../utils/logger';
+
+const pgConfig = parse(env.DATABASE_URL) as any;
+const isProductionOrRemote = env.NODE_ENV === 'production' ||
+  (!env.DATABASE_URL.includes('localhost') && !env.DATABASE_URL.includes('127.0.0.1'));
 
 const knexConfig: Knex.Config = {
   client: 'pg',
   connection: {
-    connectionString: env.DATABASE_URL,
-    ssl: (env.NODE_ENV === 'production' || (!env.DATABASE_URL.includes('localhost') && !env.DATABASE_URL.includes('127.0.0.1')))
+    host: pgConfig.host || undefined,
+    port: pgConfig.port ? parseInt(pgConfig.port, 10) : undefined,
+    database: pgConfig.database || undefined,
+    user: pgConfig.user || undefined,
+    password: pgConfig.password || undefined,
+    ssl: isProductionOrRemote
       ? { rejectUnauthorized: false }
       : false,
-  },
+    options: pgConfig.options || undefined,
+    sslmode: pgConfig.sslmode || undefined,
+    application_name: pgConfig.application_name || undefined,
+    fallback_application_name: pgConfig.fallback_application_name || undefined,
+  } as any,
   pool: {
     min: 2,
     max: 10,
