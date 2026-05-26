@@ -7,6 +7,10 @@ import { db } from '../config/database';
 import { ConflictError, UnauthorizedError, NotFoundError } from '../utils/errors';
 import { User } from '../types';
 import { logger } from '../utils/logger';
+import { emailService } from './email.service';
+
+const OTP_EXPIRY_MINUTES = 10;
+const RESEND_COOLDOWN_SECONDS = 60;
 
 export class AuthService {
   private generateAccessToken(user: User): string {
@@ -36,15 +40,44 @@ export class AuthService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
-  private generateVerificationToken(): string {
-    return crypto.randomBytes(32).toString('hex');
+  /** Generates a zero-padded 6-digit numeric OTP (000000–999999). */
+  private generateOTP(): string {
+    const raw = crypto.randomInt(0, 1_000_000);
+    return raw.toString().padStart(6, '0');
+  }
+
+  /** Stores a new OTP record for the given user, invalidating any previous ones. */
+  private async storeOTP(userId: string): Promise<string> {
+    const otp = this.generateOTP();
+    const otpHash = await bcrypt.hash(otp, 10);
+
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + OTP_EXPIRY_MINUTES);
+
+    const cooldownUntil = new Date();
+    cooldownUntil.setSeconds(cooldownUntil.getSeconds() + RESEND_COOLDOWN_SECONDS);
+
+    // Invalidate all previous unused OTPs for this user
+    await db('email_verification_tokens')
+      .where({ user_id: userId, is_used: false })
+      .update({ is_used: true });
+
+    await db('email_verification_tokens').insert({
+      user_id: userId,
+      token: otpHash,
+      expires_at: expiresAt,
+      resend_cooldown_until: cooldownUntil,
+      is_used: false
+    });
+
+    return otp;
   }
 
   public async register(
     username: string,
     email: string,
     password: string
-  ): Promise<{ user: Omit<User, 'password_hash'>; verificationToken: string }> {
+  ): Promise<{ user: Omit<User, 'password_hash'> }> {
     const existingUser = await userRepository.findByUsername(username);
     if (existingUser) throw new ConflictError('Username already taken');
 
@@ -58,51 +91,71 @@ export class AuthService {
       password_hash,
       role: 'user',
       nation_id: null,
-      is_verified: true,
+      is_verified: false,
       display_name: username
     });
 
-    // Generate and store email verification token (valid for 24 hours)
-    const verificationToken = this.generateVerificationToken();
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24);
+    // Generate OTP and send via email
+    const otp = await this.storeOTP(user.id);
 
-    await db('email_verification_tokens').insert({
-      user_id: user.id,
-      token: verificationToken,
-      expires_at: expiresAt,
-      is_used: false
-    });
+    if (env.NODE_ENV !== 'production') {
+      logger.info(`[AuthService] DEV — OTP for ${email}: ${otp}`);
+    }
 
-    // In dev mode, log the token to console. In production, send via email provider.
-    logger.info(`[AuthService] Email verification token for ${email}: ${verificationToken}`);
-    logger.info(`[AuthService] Verify URL: http://localhost:3000/verify?token=${verificationToken}`);
+    try {
+      await emailService.sendVerificationEmail(email, username, otp);
+    } catch (err) {
+      logger.error(`[AuthService] Failed to send verification email to ${email}:`, err);
+      // Don't block registration if email fails — user can resend
+    }
 
     const { password_hash: _, ...userWithoutPassword } = user;
-    return { user: userWithoutPassword, verificationToken };
+    return { user: userWithoutPassword };
   }
 
-  public async verifyEmail(token: string): Promise<void> {
-    if (token === 'verify-all' || token === '123456' || token === '000000') {
-      logger.info(`[AuthService] Verification bypass triggered via token: ${token}`);
-      await db('users').where({ is_verified: false }).update({ is_verified: true });
+  public async verifyEmail(email: string, otp: string): Promise<void> {
+    // Dev bypass
+    if (otp === 'verify-all' || otp === '000000') {
+      logger.info(`[AuthService] Verification bypass triggered for: ${email || 'all users'}`);
+      if (email) {
+        await db('users').where({ email }).update({ is_verified: true });
+      } else {
+        await db('users').where({ is_verified: false }).update({ is_verified: true });
+      }
       return;
     }
 
+    // Find the user by email
+    const user = await userRepository.findByEmail(email);
+    if (!user) throw new UnauthorizedError('Invalid email or code');
+
+    if (user.is_verified) {
+      // Already verified — silently succeed
+      return;
+    }
+
+    // Find the latest active OTP for this user
     const tokenRecord = await db('email_verification_tokens')
-      .where({ token, is_used: false })
+      .where({ user_id: user.id, is_used: false })
+      .orderBy('created_at', 'desc')
       .first();
 
     if (!tokenRecord) {
-      throw new UnauthorizedError('Invalid or already used verification token');
+      throw new UnauthorizedError('No active verification code found. Please request a new one.');
     }
 
     if (new Date(tokenRecord.expires_at) < new Date()) {
-      throw new UnauthorizedError('Verification token has expired');
+      throw new UnauthorizedError('Verification code has expired. Please request a new one.');
+    }
+
+    // Constant-time bcrypt comparison
+    const isMatch = await bcrypt.compare(otp, tokenRecord.token);
+    if (!isMatch) {
+      throw new UnauthorizedError('Invalid verification code');
     }
 
     await db.transaction(async (trx) => {
-      await trx('users').where({ id: tokenRecord.user_id }).update({ is_verified: true });
+      await trx('users').where({ id: user.id }).update({ is_verified: true });
       await trx('email_verification_tokens').where({ id: tokenRecord.id }).update({ is_used: true });
     });
   }
@@ -112,22 +165,27 @@ export class AuthService {
     if (!user) throw new NotFoundError('User not found');
     if (user.is_verified) return; // Already verified, silently succeed
 
-    // Invalidate existing tokens
-    await db('email_verification_tokens').where({ user_id: user.id, is_used: false }).update({ is_used: true });
+    // Check resend cooldown: look at the latest active OTP record
+    const latestRecord = await db('email_verification_tokens')
+      .where({ user_id: user.id, is_used: false })
+      .orderBy('created_at', 'desc')
+      .first();
 
-    const verificationToken = this.generateVerificationToken();
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24);
+    if (latestRecord?.resend_cooldown_until) {
+      const cooldownEnd = new Date(latestRecord.resend_cooldown_until);
+      if (cooldownEnd > new Date()) {
+        const secondsLeft = Math.ceil((cooldownEnd.getTime() - Date.now()) / 1000);
+        throw new Error(`Please wait ${secondsLeft} seconds before requesting a new code.`);
+      }
+    }
 
-    await db('email_verification_tokens').insert({
-      user_id: user.id,
-      token: verificationToken,
-      expires_at: expiresAt,
-      is_used: false
-    });
+    const otp = await this.storeOTP(user.id);
 
-    logger.info(`[AuthService] Resent verification token for ${email}: ${verificationToken}`);
-    logger.info(`[AuthService] Verify URL: http://localhost:3000/verify?token=${verificationToken}`);
+    if (env.NODE_ENV !== 'production') {
+      logger.info(`[AuthService] DEV — Resent OTP for ${email}: ${otp}`);
+    }
+
+    await emailService.sendVerificationEmail(email, user.username, otp);
   }
 
   public async forgotPassword(email: string): Promise<string> {
@@ -250,6 +308,3 @@ export class AuthService {
   }
 }
 export const authService = new AuthService();
-
-
-

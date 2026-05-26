@@ -17,6 +17,8 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32),
   // 1 in-game month = 8 real hours = 28,800,000 ms. Override for testing (e.g. 60000 = 1 min)
   TICK_INTERVAL_MS: z.coerce.number().default(28800000),
+  RESEND_API_KEY: z.string().min(1),
+  RESEND_FROM_EMAIL: z.string().email().default('onboarding@resend.dev'),
 });
 
 const parsed = envSchema.safeParse(process.env);

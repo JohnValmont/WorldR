@@ -29,7 +29,8 @@ const refreshSchema = z.object({
 
 const verifyEmailSchema = z.object({
   body: z.object({
-    token: z.string().min(1)
+    email: z.string().email(),
+    otp: z.string().length(6).regex(/^\d{6}$/, 'OTP must be exactly 6 digits')
   })
 });
 

@@ -5,12 +5,10 @@ export class AuthController {
   public async register(req: Request, res: Response, next: NextFunction) {
     try {
       const { username, email, password } = req.body;
-      const { user, verificationToken } = await authService.register(username, email, password);
+      const { user } = await authService.register(username, email, password);
       res.status(201).json({
-        message: 'Registration successful. Check your email for the verification token.',
-        user,
-        // Return token in dev mode for easy testing; strip in production
-        ...(process.env.NODE_ENV !== 'production' ? { verificationToken } : {})
+        message: 'Registration successful. A 6-digit verification code has been sent to your email.',
+        user
       });
     } catch (error) {
       next(error);
@@ -41,9 +39,9 @@ export class AuthController {
 
   public async verifyEmail(req: Request, res: Response, next: NextFunction) {
     try {
-      const { token } = req.body;
-      if (!token) return res.status(400).json({ error: 'Verification token is required' });
-      await authService.verifyEmail(token);
+      const { email, otp } = req.body;
+      if (!email || !otp) return res.status(400).json({ error: 'Email and verification code are required' });
+      await authService.verifyEmail(email, otp);
       res.status(200).json({ message: 'Email verified successfully. You may now log in.' });
     } catch (error) {
       next(error);

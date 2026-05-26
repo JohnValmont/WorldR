@@ -25,6 +25,7 @@
     "jsonwebtoken": "^9.0.2",
     "knex": "^3.0.1",
     "pg": "^8.11.3",
+    "resend": "^6.12.4",
     "socket.io": "^4.8.3",
     "typescript": "6.0.3",
     "zod": "^3.22.4"

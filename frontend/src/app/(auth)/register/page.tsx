@@ -10,7 +10,6 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [verifyToken, setVerifyToken] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -49,7 +48,7 @@ export default function RegisterPage() {
         email: form.email,
         password: form.password,
       });
-      if (data.verificationToken) setVerifyToken(data.verificationToken);
+      void data; // OTP is now sent to email, nothing to display here
       setSuccess(true);
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Registration failed. Please try again.');
@@ -76,23 +75,11 @@ export default function RegisterPage() {
 
           <h1 className="text-2xl font-bold text-zinc-100 mb-2">Account created!</h1>
           <p className="text-zinc-500 text-sm leading-relaxed max-w-xs">
-            A verification token was dispatched to{' '}
+            A 6-digit verification code was sent to{' '}
             <strong className="text-zinc-300">{form.email}</strong>.
-            Enter it below to activate your faction.
+            Enter it on the next screen to activate your faction.
           </p>
         </div>
-
-        {verifyToken && (
-          <div className="mt-5 bg-amber-950/20 border border-amber-800/40 rounded-sm p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <svg className="w-3.5 h-3.5 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
-              </svg>
-              <span className="text-[9px] text-amber-500/80 font-mono uppercase tracking-[0.25em]">Dev Mode — Verification Token</span>
-            </div>
-            <code className="text-amber-300 text-xs font-mono break-all select-all block leading-relaxed">{verifyToken}</code>
-          </div>
-        )}
 
         <Link
           href={`/verify?email=${encodeURIComponent(form.email)}`}
