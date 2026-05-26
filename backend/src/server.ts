@@ -1,6 +1,6 @@
 import http from 'http';
 import app from './app';
-import { checkDatabaseConnection, db } from './config/database';
+import { checkDatabaseConnection, db, runMigrationsAndSeeds } from './config/database';
 import { env } from './config/env';
 import { checkRedisConnection, redis } from './config/redis';
 import { logger } from './utils/logger';
@@ -17,6 +17,9 @@ async function startServer() {
     // 1. Check PostgreSQL Database connection
     await checkDatabaseConnection();
     logger.info('Database connection established successfully.');
+
+    // 1b. Run pending migrations & seed if database is blank
+    await runMigrationsAndSeeds();
 
     // 2. Check Redis connection
     await checkRedisConnection();
