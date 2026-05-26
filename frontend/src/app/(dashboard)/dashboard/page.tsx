@@ -39,7 +39,7 @@ export default function DashboardPage() {
   const { user } = useAuthStore();
   const nationId = user?.nation_id || KELDORIA_ID;
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'news'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'news'>('news');
   const [history, setHistory] = useState<any[]>([]);
   const [parties, setParties] = useState<any[]>([]);
   const [latestReport, setLatestReport] = useState<any>(null);

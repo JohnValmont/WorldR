@@ -79,5 +79,29 @@ export class PartyController {
       next(error);
     }
   }
+
+  public async runRally(req: Request, res: Response, next: NextFunction) {
+    try {
+      const nationId = req.params.nationId || req.params.nation_id;
+      if (!req.user) throw new UnauthorizedError('Authentication required');
+      const result = await partyService.runRally(req.user.id, nationId);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public async runFundraise(req: Request, res: Response, next: NextFunction) {
+    try {
+      const nationId = req.params.nationId || req.params.nation_id;
+      const { targetBloc } = req.body;
+      if (!req.user) throw new UnauthorizedError('Authentication required');
+      if (!targetBloc) throw new ValidationError('Target voter bloc code is required');
+      const result = await partyService.runFundraise(req.user.id, nationId, targetBloc);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 export const partyController = new PartyController();

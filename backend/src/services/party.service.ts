@@ -248,6 +248,150 @@ export class PartyService {
       }
     });
   }
+
+  public async runRally(userId: string, nationId: string): Promise<any> {
+    const membership = await partyRepository.findMembership(userId, nationId);
+    if (!membership) throw new UnauthorizedError('You are not a member of any party in this nation');
+    
+    if (membership.role !== 'leader' && membership.role !== 'deputy_leader') {
+      throw new ValidationError('Only the Party Leader or Deputy Leader can organize rallies');
+    }
+    
+    const party = await partyRepository.findById(membership.party_id);
+    if (!party) throw new NotFoundError('Party not found');
+    
+    const RALLY_COST = 100000; // $100K
+    if (Number(party.funds) < RALLY_COST) {
+      throw new ValidationError('Insufficient party funds to organize a rally (Requires $100K)');
+    }
+    
+    const supportBoost = 0.01 + Math.random() * 0.015; // 1.0% to 2.5% boost
+    
+    return db.transaction(async (trx) => {
+      // 1. Deduct funds and boost support share
+      const newSupport = Math.min(1.0, Number(party.support_share) + supportBoost);
+      const newFunds = Number(party.funds) - RALLY_COST;
+      
+      await trx('parties')
+        .where({ id: party.id })
+        .update({
+          funds: newFunds,
+          support_share: newSupport,
+          updated_at: new Date()
+        });
+        
+      // 2. Insert notification
+      await trx('notifications').insert({
+        user_id: userId,
+        nation_id: nationId,
+        type: 'success',
+        category: 'party',
+        title: 'Campaign Rally Held',
+        message: `Your Deputy Leader organized a successful grassroots rally, boosting your party support share by +${(supportBoost * 100).toFixed(1)}%. Spent $100K party funds.`,
+        is_read: false,
+        created_at: new Date(),
+        updated_at: new Date()
+      });
+      
+      // 3. Audit log
+      await trx('audit_logs').insert({
+        nation_id: nationId,
+        user_id: userId,
+        action: 'PARTY_RALLY',
+        target_type: 'party',
+        target_id: party.id,
+        new_values: JSON.stringify({ cost: RALLY_COST, boost: supportBoost }),
+        created_at: new Date()
+      });
+      
+      return { supportBoost, newFunds, newSupport };
+    });
+  }
+
+  public async runFundraise(userId: string, nationId: string, targetBloc: string): Promise<any> {
+    const membership = await partyRepository.findMembership(userId, nationId);
+    if (!membership) throw new UnauthorizedError('You are not a member of any party in this nation');
+    
+    if (membership.role !== 'leader' && membership.role !== 'treasurer') {
+      throw new ValidationError('Only the Party Leader or Treasurer can run fundraising campaigns');
+    }
+    
+    const party = await partyRepository.findById(membership.party_id);
+    if (!party) throw new NotFoundError('Party not found');
+    
+    let donationAmount = 0;
+    let approvalPenalty = 0;
+    let blocName = '';
+    
+    if (targetBloc === 'large_business_executives') {
+      donationAmount = 300000; // $300k
+      approvalPenalty = 0.05; // 5%
+      blocName = 'Large Business & Executives';
+    } else if (targetBloc === 'industrial_conglomerates') {
+      donationAmount = 500000; // $500k
+      approvalPenalty = 0.08; // 8%
+      blocName = 'Industrial Conglomerates';
+    } else if (targetBloc === 'union_members') {
+      donationAmount = 100000; // $100k
+      approvalPenalty = 0.02; // 2%
+      blocName = 'Union Members';
+    } else {
+      throw new ValidationError('Invalid target voter bloc selected for fundraising');
+    }
+    
+    return db.transaction(async (trx) => {
+      // 1. Add funds to party
+      const newFunds = Number(party.funds) + donationAmount;
+      await trx('parties')
+        .where({ id: party.id })
+        .update({
+          funds: newFunds,
+          updated_at: new Date()
+        });
+        
+      // 2. Reduce bloc approval
+      const bloc = await trx('voter_blocs').where({ nation_id: nationId, code: targetBloc }).first();
+      let actualPenaltyApplied = 0;
+      if (bloc) {
+        const oldApproval = Number(bloc.approval);
+        const newApproval = Math.max(0.05, oldApproval - approvalPenalty);
+        actualPenaltyApplied = oldApproval - newApproval;
+        
+        await trx('voter_blocs')
+          .where({ id: bloc.id })
+          .update({
+            approval: newApproval,
+            updated_at: new Date()
+          });
+      }
+      
+      // 3. Insert notification
+      await trx('notifications').insert({
+        user_id: userId,
+        nation_id: nationId,
+        type: 'warning',
+        category: 'party',
+        title: 'Fundraiser Solicited',
+        message: `Your Treasurer organized a high-society dinner with the ${blocName}. Raised $${(donationAmount / 1000).toFixed(0)}K for party funds, but their approval index decreased by -${(actualPenaltyApplied * 100).toFixed(1)}%.`,
+        is_read: false,
+        created_at: new Date(),
+        updated_at: new Date()
+      });
+      
+      // 4. Audit log
+      await trx('audit_logs').insert({
+        nation_id: nationId,
+        user_id: userId,
+        action: 'PARTY_FUNDRAISE',
+        target_type: 'party',
+        target_id: party.id,
+        new_values: JSON.stringify({ amount: donationAmount, bloc: targetBloc, penalty: actualPenaltyApplied }),
+        created_at: new Date()
+      });
+      
+      return { donationAmount, newFunds, penalty: actualPenaltyApplied };
+    });
+  }
 }
 
 export const partyService = new PartyService();

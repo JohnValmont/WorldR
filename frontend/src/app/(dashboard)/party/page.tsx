@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../../../store/auth.store';
-import { partiesApi, partyStaffApi, voterBlocsApi, KELDORIA_ID } from '../../../lib/api';
+import { partiesApi, partyStaffApi, voterBlocsApi, electionsApi, KELDORIA_ID } from '../../../lib/api';
 import TerminalPanel from '../../../components/ui/TerminalPanel';
 import StatusBadge from '../../../components/ui/StatusBadge';
 import GaugeBar from '../../../components/ui/GaugeBar';
@@ -61,7 +61,18 @@ export default function PartyPage() {
   const [hireMsg, setHireMsg] = useState('');
 
   // Active tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'blocs' | 'all'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'blocs' | 'elections' | 'all'>('overview');
+
+  // Interactive Operations State
+  const [rallying, setRallying] = useState(false);
+  const [fundraising, setFundraising] = useState(false);
+  const [actionMsg, setActionMsg] = useState<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' });
+  const [selectedFundraiseBloc, setSelectedFundraiseBloc] = useState('large_business_executives');
+
+  // Election Schedule & Outcomes
+  const [electionStatus, setElectionStatus] = useState<any>(null);
+  const [electionHistory, setElectionHistory] = useState<any[]>([]);
+  const [latestElection, setLatestElection] = useState<any>(null);
 
   const loadData = async () => {
     await Promise.all([
@@ -73,9 +84,24 @@ export default function PartyPage() {
     ]);
   };
 
+  const loadElectionData = () => {
+    electionsApi.getStatus(nationId)
+      .then(r => setElectionStatus(r.data))
+      .catch(() => {});
+    
+    electionsApi.getHistory(nationId, 10)
+      .then(r => setElectionHistory(r.data.elections || []))
+      .catch(() => {});
+
+    electionsApi.getLatest(nationId)
+      .then(r => setLatestElection(r.data))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     loadData().finally(() => setLoading(false));
     voterBlocsApi.getBlocs(nationId).then(r => setVoterBlocs(r.data.voterBlocs || r.data.blocs || [])).catch(() => {});
+    loadElectionData();
   }, [nationId]);
 
   useEffect(() => {
@@ -117,6 +143,50 @@ export default function PartyPage() {
       await partyStaffApi.fireStaff(nationId, myParty.id, staffId);
       setStaff(prev => prev.filter(s => s.id !== staffId));
     } catch {}
+  };
+
+  const handleRally = async () => {
+    setRallying(true);
+    setActionMsg({ text: '', type: '' });
+    try {
+      const res = await partiesApi.runRally(nationId);
+      const data = res.data;
+      setActionMsg({
+        text: `✓ Grassroots rally organized successfully! Gained +${(data.supportBoost * 100).toFixed(2)}% national support share. Spent $100K from party funds.`,
+        type: 'success'
+      });
+      await loadData();
+    } catch (err: any) {
+      setActionMsg({
+        text: '✕ ' + (err?.response?.data?.error || 'Failed to hold campaign rally.'),
+        type: 'error'
+      });
+    } finally {
+      setRallying(false);
+    }
+  };
+
+  const handleFundraise = async () => {
+    setFundraising(true);
+    setActionMsg({ text: '', type: '' });
+    try {
+      const res = await partiesApi.runFundraise(nationId, selectedFundraiseBloc);
+      const data = res.data;
+      const blocLabel = selectedFundraiseBloc === 'large_business_executives' ? 'Large Business & Executives' : selectedFundraiseBloc === 'industrial_conglomerates' ? 'Industrial Conglomerates' : 'Union Members';
+      setActionMsg({
+        text: `✓ Fundraising campaign complete! Raised +$${(data.donationAmount / 1000).toFixed(0)}K for party funds from ${blocLabel}. Applied popular approval penalty.`,
+        type: 'success'
+      });
+      await loadData();
+      voterBlocsApi.getBlocs(nationId).then(r => setVoterBlocs(r.data.voterBlocs || r.data.blocs || [])).catch(() => {});
+    } catch (err: any) {
+      setActionMsg({
+        text: '✕ ' + (err?.response?.data?.error || 'Failed to solicit fundraising.'),
+        type: 'error'
+      });
+    } finally {
+      setFundraising(false);
+    }
   };
 
   const isLeader = myMembership?.role === 'leader';
@@ -319,6 +389,7 @@ export default function PartyPage() {
               { key: 'overview', label: '📊 Dashboard' },
               { key: 'staff', label: `👥 AI Staff (${staff.length})` },
               { key: 'blocs', label: '📈 Voter Blocs' },
+              { key: 'elections', label: '🏛️ Elections' },
               { key: 'all', label: '🏛️ All Parties' },
             ].map(tab => (
               <button
@@ -391,29 +462,97 @@ export default function PartyPage() {
                   </TerminalPanel>
                 </div>
 
-                {/* Campaign Actions */}
+                {/* Faction Operations Center */}
                 <div className="space-y-4">
-                  <TerminalPanel title="CAMPAIGN CENTER">
-                    <div className="grid grid-cols-1 gap-2.5">
-                      {[
-                        { label: '📣 ORGANIZE RALLY', desc: 'Outreach to swing voter blocs', cost: '$150K' },
-                        { label: '📡 PRESS CAMPAIGN', desc: 'Boost narrative sentiment', cost: '$80K' },
-                        { label: '💰 TARGETED FUNDRAISER', desc: 'Generate capital from donors', cost: '$20K' },
-                        { label: '📊 DRAFT POLICY', desc: 'Formulate bills for parliament', cost: '$50K' },
-                      ].map(a => (
-                        <div 
-                          key={a.label} 
-                          className="border border-zinc-800 bg-zinc-950/40 p-3 rounded-lg hover:border-zinc-600 hover:bg-zinc-950 transition-all cursor-pointer group shadow-sm"
-                        >
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-zinc-200 text-xs font-black tracking-wide group-hover:text-amber-400 transition-colors">
-                              {a.label}
-                            </span>
-                            <span className="text-[10px] font-mono text-emerald-400 font-bold">{a.cost}</span>
+                  <TerminalPanel 
+                    title="FACTION OPERATIONS CENTER" 
+                    subtitle={ROLE_LABELS[myMembership?.role] || 'Faction Representative'}
+                  >
+                    {actionMsg.text && (
+                      <div className={`p-3 text-[10px] font-mono border rounded-lg mb-4 leading-relaxed ${
+                        actionMsg.type === 'success' 
+                          ? 'bg-emerald-950/20 border-emerald-900/50 text-emerald-400 animate-pulse' 
+                          : 'bg-red-950/20 border-red-900/50 text-red-400'
+                      }`}>
+                        {actionMsg.text}
+                      </div>
+                    )}
+
+                    <div className="space-y-4">
+                      {/* Deputy Leader / Leader Rally Action */}
+                      <div className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-xl space-y-3 hover:border-zinc-700 transition-colors shadow-sm">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-xs font-black text-zinc-200">📣 GRASSROOTS CAMPAIGN RALLY</div>
+                            <div className="text-[9px] text-zinc-500 font-mono mt-0.5">Assigned to: Deputy Leader / Leader</div>
                           </div>
-                          <p className="text-zinc-500 text-[10px] font-mono leading-tight">{a.desc}</p>
+                          <span className="text-[10px] font-mono text-red-400 font-bold">-$100K FUNDS</span>
                         </div>
-                      ))}
+                        <p className="text-zinc-400 text-[10px] leading-relaxed font-sans">
+                          Hold rallies in key swing regions to bolster your national platform popularity. Boosts support share by a random range (+1.0% to +2.5%).
+                        </p>
+                        
+                        {myMembership?.role === 'leader' || myMembership?.role === 'deputy_leader' ? (
+                          <button
+                            onClick={handleRally}
+                            disabled={rallying || partyFunds < 100000}
+                            className="w-full btn-premium-primary text-[10px] font-mono font-bold py-2 uppercase rounded-md tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            {rallying ? 'HOLDING RALLY...' : partyFunds < 100000 ? 'INSUFFICIENT FUNDS' : 'EXECUTE CAMPAIGN RALLY →'}
+                          </button>
+                        ) : (
+                          <div className="text-center text-[9px] text-zinc-650 bg-zinc-900/20 border border-zinc-850 p-2 rounded font-mono uppercase tracking-wider">
+                            🔒 Requires Leader or Deputy Leader
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Treasurer / Leader Fundraising Action */}
+                      <div className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-xl space-y-3 hover:border-zinc-700 transition-colors shadow-sm">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-xs font-black text-zinc-200">💰 SOLICIT FUNDRAISING DRIVE</div>
+                            <div className="text-[9px] text-zinc-500 font-mono mt-0.5">Assigned to: Treasurer / Leader</div>
+                          </div>
+                          <span className="text-[10px] font-mono text-emerald-400 font-bold">SOLICIT CAPITAL</span>
+                        </div>
+                        
+                        <p className="text-zinc-400 text-[10px] leading-relaxed font-sans">
+                          Secure major capital donations in exchange for policy compromises. Note: Soliciting donations incurs popular approval penalties from the target voter bloc.
+                        </p>
+
+                        <div className="space-y-2">
+                          <label className="text-[9px] text-zinc-500 uppercase tracking-widest block font-bold font-mono">Select Target Donor Bloc</label>
+                          <select
+                            value={selectedFundraiseBloc}
+                            onChange={e => setSelectedFundraiseBloc(e.target.value)}
+                            className="w-full bg-zinc-900 border border-zinc-850 rounded p-2 text-[10px] font-mono text-zinc-300 focus:border-amber-500 focus:outline-none"
+                          >
+                            <option value="large_business_executives">Executives (+$300K / -5% Approval)</option>
+                            <option value="industrial_conglomerates">Industrial Conglomerates (+$500K / -8% Approval)</option>
+                            <option value="union_members">Union Members (+$100K / -2% Approval)</option>
+                          </select>
+                        </div>
+
+                        {myMembership?.role === 'leader' || myMembership?.role === 'treasurer' ? (
+                          <button
+                            onClick={handleFundraise}
+                            disabled={fundraising}
+                            className="w-full btn-premium-primary text-[10px] font-mono font-bold py-2 uppercase rounded-md tracking-wider transition-all disabled:opacity-50 cursor-pointer"
+                          >
+                            {fundraising ? 'SOLICITING DONORS...' : 'LAUNCH FUNDRAISING CAMPAIGN →'}
+                          </button>
+                        ) : (
+                          <div className="text-center text-[9px] text-zinc-650 bg-zinc-900/20 border border-zinc-850 p-2 rounded font-mono uppercase tracking-wider">
+                            🔒 Requires Leader or Treasurer
+                          </div>
+                        )}
+                      </div>
+
+                      {/* General Cabinet Roles Information */}
+                      <div className="border border-zinc-900/60 bg-zinc-950/15 p-3 rounded-lg text-[9px] leading-relaxed font-mono text-zinc-500 text-center">
+                        💡 Real players hold executive administrative powers. If you are designated as the Faction Administrator, commission and fire deterministically named AI delegates under the **AI Staff** tab to configure your monthly retainer costs.
+                      </div>
                     </div>
                   </TerminalPanel>
                 </div>
@@ -577,6 +716,108 @@ export default function PartyPage() {
                 )}
               </div>
             </TerminalPanel>
+          )}
+
+          {/* ── ELECTIONS TAB ─────────────────────────────────────────────── */}
+          {activeTab === 'elections' && (
+            <div className="space-y-6">
+              {/* Election Schedule Status */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-zinc-950/60 border border-zinc-800 p-5 rounded-xl shadow-md space-y-2">
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold font-mono">Election Cycle</div>
+                  <div className="text-zinc-200 font-mono text-xl font-black">
+                    Every {electionStatus?.electionCycle || 24} Ticks
+                  </div>
+                  <div className="text-zinc-500 text-[10px] font-mono leading-relaxed">
+                    Under the Keldorian constitution, parliamentary representation is renewed on a standard calendar cycle.
+                  </div>
+                </div>
+
+                <div className="bg-zinc-950/60 border border-zinc-800 p-5 rounded-xl shadow-md space-y-2">
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold font-mono">Next Voting Tick</div>
+                  <div className="text-amber-500 font-mono text-xl font-black">
+                    🏛️ Tick {electionStatus?.nextElectionTick || '—'}
+                  </div>
+                  <div className="text-zinc-500 text-[10px] font-mono leading-relaxed">
+                    All faction campaign shares are tabulated at this tick to determine next proportional Bundestag seats.
+                  </div>
+                </div>
+
+                <div className="bg-zinc-950/60 border border-zinc-800 p-5 rounded-xl shadow-md space-y-2">
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold font-mono">Countdown</div>
+                  <div className="text-zinc-200 font-mono text-xl font-black flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                    {electionStatus?.ticksUntilNext !== undefined ? `${electionStatus.ticksUntilNext} Ticks Left` : '— Ticks Left'}
+                  </div>
+                  <div className="text-zinc-500 text-[10px] font-mono leading-relaxed">
+                    Optimize candidate operations and run voter bloc rallies before this deadline!
+                  </div>
+                </div>
+              </div>
+
+              {/* Latest Election Outcome */}
+              <TerminalPanel title="LATEST ELECTION AUDIT REPORT" subtitle="Proportional representation seat distribution">
+                {electionStatus?.lastElection?.election ? (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center bg-zinc-900/30 p-3 rounded-lg border border-zinc-850 font-mono text-[10px] text-zinc-400">
+                      <div>ELECTION DATE: <span className="text-zinc-200 font-bold">TICK {electionStatus.lastElection.election.tick}</span></div>
+                      <div>TURNOUT RATE: <span className="text-zinc-200 font-bold">{(Number(electionStatus.lastElection.election.turnout_rate || 0.72) * 100).toFixed(1)}%</span></div>
+                      <div>TOTAL VOTES: <span className="text-zinc-200 font-bold">{Number(electionStatus.lastElection.election.total_votes || 0).toLocaleString()}</span></div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider font-mono">Bundestag Seats Apportionment</div>
+                      <div className="divide-y divide-zinc-900">
+                        {electionStatus.lastElection.results?.map((res: any) => {
+                          const partyInfo = allParties.find(p => p.id === res.party_id) || {};
+                          return (
+                            <div key={res.id} className="flex items-center justify-between py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-1 h-8 rounded-full shrink-0" style={{ background: partyInfo.color || '#555' }} />
+                                <div>
+                                  <div className="text-xs font-extrabold text-zinc-200">{res.party_name || partyInfo.name}</div>
+                                  <div className="text-[10px] text-zinc-500 font-mono">{(Number(res.vote_share) * 100).toFixed(1)}% vote share</div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-mono font-black text-zinc-200">{res.seats_won}</div>
+                                <div className="text-[9px] text-zinc-500 uppercase tracking-wider font-bold">seats</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-zinc-500 font-mono text-xs">
+                    No elections have been conducted in Keldoria yet. Seat shares match initial setup configurations.
+                  </div>
+                )}
+              </TerminalPanel>
+
+              {/* Past Elections History */}
+              <TerminalPanel title="PAST ELECTIONS HISTORY LOG" subtitle="Archived electoral records">
+                {electionHistory.length === 0 ? (
+                  <div className="text-center py-8 text-zinc-500 font-mono text-xs">No historical records in archive logs.</div>
+                ) : (
+                  <div className="divide-y divide-zinc-900">
+                    {electionHistory.map((el: any) => (
+                      <div key={el.id} className="py-4 flex justify-between items-center first:pt-0 last:pb-0">
+                        <div className="space-y-1">
+                          <div className="text-xs font-bold text-zinc-300 font-mono">ELECTION S-{(el.tick / 24).toFixed(0)}</div>
+                          <div className="text-[10px] text-zinc-500 font-mono">Conducted at tick {el.tick} · Turnout: {(Number(el.turnout_rate || 0.75) * 100).toFixed(1)}%</div>
+                        </div>
+                        <div className="text-right font-mono text-[10px] text-zinc-400">
+                          <div>Seats Recalculated</div>
+                          <div className="text-zinc-500 text-[9px] mt-0.5">{Number(el.total_votes || 0).toLocaleString()} votes</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TerminalPanel>
+            </div>
           )}
 
           {/* ── ALL PARTIES TAB ──────────────────────────────────────────── */}

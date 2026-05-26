@@ -162,7 +162,11 @@ export const partiesApi = {
   joinParty: (nationId: string, partyId: string) =>
     api.post(`/nations/${nationId}/parties/${partyId}/join`),
   leaveParty: (nationId: string) =>
-    api.delete(`/nations/${nationId}/parties/leave`)
+    api.delete(`/nations/${nationId}/parties/leave`),
+  runRally: (nationId: string) =>
+    api.post(`/nations/${nationId}/parties/action/rally`),
+  runFundraise: (nationId: string, targetBloc: string) =>
+    api.post(`/nations/${nationId}/parties/action/fundraise`, { targetBloc })
 };
 
 // Notifications

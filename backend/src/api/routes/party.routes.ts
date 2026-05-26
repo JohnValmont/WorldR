@@ -26,5 +26,7 @@ router.get('/:party_id', authMiddleware, partyController.getPartyDetails);
 router.post('/', authMiddleware, validate(createPartySchema), partyController.createParty);
 router.post('/:party_id/join', authMiddleware, partyController.joinParty);
 router.delete('/leave', authMiddleware, partyController.leaveParty);
+router.post('/action/rally', authMiddleware, partyController.runRally);
+router.post('/action/fundraise', authMiddleware, partyController.runFundraise);
 
 export default router;

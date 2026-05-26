@@ -352,7 +352,7 @@ export interface PartyMembership {
   user_id: string;
   party_id: string;
   nation_id: string;
-  role: 'leader' | 'deputy_leader' | 'whip' | 'member';
+  role: 'leader' | 'deputy_leader' | 'whip' | 'member' | 'treasurer' | 'secretary_general' | 'campaign_manager' | 'policy_chief' | 'media_manager';
   joined_at: Date;
   updated_at: Date;
 }
