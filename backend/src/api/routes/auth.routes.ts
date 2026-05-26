@@ -45,6 +45,20 @@ const updateNationSchema = z.object({
   })
 });
 
+const forgotPasswordSchema = z.object({
+  body: z.object({
+    email: z.string().email()
+  })
+});
+
+const resetPasswordSchema = z.object({
+  body: z.object({
+    email: z.string().email(),
+    token: z.string().min(1),
+    password: z.string().min(6)
+  })
+});
+
 router.post('/register', validate(registerSchema), authController.register);
 router.post('/login', validate(loginSchema), authController.login);
 router.post('/refresh', validate(refreshSchema), authController.refresh);
@@ -55,5 +69,7 @@ router.patch('/nation', authMiddleware, validate(updateNationSchema), authContro
 router.post('/verify-email', validate(verifyEmailSchema), authController.verifyEmail);
 router.post('/verify', validate(verifyEmailSchema), authController.verifyEmail);
 router.post('/resend-verification', validate(resendVerificationSchema), authController.resendVerification);
+router.post('/forgot-password', validate(forgotPasswordSchema), authController.forgotPassword);
+router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
 
 export default router;

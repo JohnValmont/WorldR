@@ -130,6 +130,47 @@ export class AuthService {
     logger.info(`[AuthService] Verify URL: http://localhost:3000/verify?token=${verificationToken}`);
   }
 
+  public async forgotPassword(email: string): Promise<string> {
+    const user = await userRepository.findByEmail(email);
+    if (!user) throw new NotFoundError('No account registered with this email address');
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1);
+
+    await db('users').where({ id: user.id }).update({
+      reset_token: token,
+      reset_token_expires: expiresAt
+    });
+
+    logger.info(`[AuthService] Password reset token for ${email}: ${token}`);
+    logger.info(`[AuthService] Reset URL: http://localhost:3000/reset-password?token=${token}&email=${email}`);
+
+    return token;
+  }
+
+  public async resetPassword(email: string, token: string, password: string): Promise<void> {
+    const user = await userRepository.findByEmail(email);
+    if (!user) throw new NotFoundError('User not found');
+
+    const resetUser = await db('users').where({ id: user.id }).first();
+    if (!resetUser.reset_token || resetUser.reset_token !== token) {
+      throw new UnauthorizedError('Invalid password reset token');
+    }
+
+    if (new Date(resetUser.reset_token_expires) < new Date()) {
+      throw new UnauthorizedError('Password reset token has expired');
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+    await db('users').where({ id: user.id }).update({
+      password_hash,
+      reset_token: null,
+      reset_token_expires: null
+    });
+    logger.info(`[AuthService] Password reset successfully for ${email}`);
+  }
+
   public async login(
     username: string,
     password: string

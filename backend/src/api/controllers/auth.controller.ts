@@ -61,6 +61,30 @@ export class AuthController {
     }
   }
 
+  public async forgotPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ error: 'Email is required' });
+      const resetToken = await authService.forgotPassword(email);
+      res.status(200).json({ message: 'If an account exists, a reset link will be sent.', resetToken });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public async resetPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email, token, password } = req.body;
+      if (!email || !token || !password) {
+        return res.status(400).json({ error: 'Email, token, and new password are required' });
+      }
+      await authService.resetPassword(email, token, password);
+      res.status(200).json({ message: 'Password reset successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   public async refresh(req: Request, res: Response, next: NextFunction) {
     try {
       const refreshToken = req.body.refreshToken;

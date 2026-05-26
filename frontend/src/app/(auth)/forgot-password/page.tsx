@@ -1,15 +1,30 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { authApi } from '../../../lib/api';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
+  const [resetToken, setResetToken] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Stub — password reset requires email service
-    setSent(true);
+    setError('');
+    setLoading(true);
+    try {
+      const { data } = await authApi.forgotPassword(email);
+      if (data.resetToken) {
+        setResetToken(data.resetToken);
+      }
+      setSent(true);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Failed to initiate password reset.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -19,9 +34,29 @@ export default function ForgotPasswordPage() {
         <p className="text-zinc-600 text-xs mt-1">Enter your email to receive a reset link.</p>
       </div>
 
+      {error && (
+        <div className="bg-red-950/30 border border-red-900/50 text-red-400 text-xs p-2.5 mb-4 font-mono">
+          ✕ {error}
+        </div>
+      )}
+
       {sent ? (
-        <div className="bg-emerald-950/30 border border-emerald-900 text-emerald-400 text-xs p-3 font-mono">
-          ✓ If an account exists for <strong>{email}</strong>, a reset link will be sent shortly.
+        <div className="space-y-4">
+          <div className="bg-emerald-950/30 border border-emerald-900 text-emerald-400 text-xs p-3 font-mono">
+            ✓ If an account exists for <strong>{email}</strong>, a reset link will be sent shortly.
+          </div>
+          {resetToken && (
+            <div className="bg-white/[0.02] border border-white/10 p-3 rounded-sm">
+              <div className="text-[8px] text-zinc-500 uppercase tracking-widest mb-1 font-mono">Dev Mode Reset Token</div>
+              <div className="text-amber-400 text-xs font-mono break-all font-bold select-all mb-3">{resetToken}</div>
+              <Link
+                href={`/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`}
+                className="btn-premium-primary text-center block text-xs py-2 bg-amber-500 hover:bg-amber-600 text-black font-bold font-mono transition-colors"
+              >
+                RESET PASSWORD NOW →
+              </Link>
+            </div>
+          )}
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -37,7 +72,9 @@ export default function ForgotPasswordPage() {
               required
             />
           </div>
-          <button type="submit" className="btn-primary w-full">SEND RESET LINK</button>
+          <button type="submit" disabled={loading} className="btn-primary w-full">
+            {loading ? 'SENDING...' : 'SEND RESET LINK'}
+          </button>
         </form>
       )}
 

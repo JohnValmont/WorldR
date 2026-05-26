@@ -112,7 +112,11 @@ export const authApi = {
   logout: (refreshToken: string) =>
     api.post('/auth/logout', { refreshToken }),
   refresh: (refreshToken: string) =>
-    api.post('/auth/refresh', { refreshToken })
+    api.post('/auth/refresh', { refreshToken }),
+  forgotPassword: (email: string) =>
+    api.post('/auth/forgot-password', { email }),
+  resetPassword: (data: any) =>
+    api.post('/auth/reset-password', data)
 };
 
 // Profile

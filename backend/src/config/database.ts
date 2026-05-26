@@ -66,6 +66,17 @@ export async function runMigrationsAndSeeds(): Promise<void> {
     );
   `);
 
+  // Create reset_token columns in users table if not exists
+  try {
+    await db.raw(`
+      ALTER TABLE users 
+      ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMP WITH TIME ZONE;
+    `);
+  } catch (err) {
+    logger.warn('Failed to alter users table for reset_token columns:', err);
+  }
+
   if (!fs.existsSync(migrationsDir)) {
     logger.warn(`Migrations directory not found at ${migrationsDir}`);
     return;
