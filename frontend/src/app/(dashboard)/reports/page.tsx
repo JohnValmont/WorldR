@@ -33,7 +33,7 @@ export default function ReportsPage() {
   useEffect(() => {
     reportsApi.getHistory(nationId, 12)
       .then(r => setReports(r.data.reports || []))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [nationId]);
 
@@ -67,9 +67,8 @@ export default function ReportsPage() {
       <div className="flex gap-1 flex-wrap">
         {reports.map((r, i) => (
           <button key={i} onClick={() => setSelected(i)}
-            className={`px-2 py-1 text-[10px] font-mono border transition-colors ${
-              selected === i ? 'border-amber-500 text-amber-400 bg-amber-950/20' : 'border-zinc-800 text-zinc-500 hover:text-zinc-300'
-            }`}>
+            className={`px-2 py-1 text-[10px] font-mono border transition-colors ${selected === i ? 'border-amber-500 text-amber-400 bg-amber-950/20' : 'border-zinc-800 text-zinc-500 hover:text-zinc-300'
+              }`}>
             Month {r.tick}
           </button>
         ))}
@@ -81,11 +80,10 @@ export default function ReportsPage() {
           {report.alerts?.length > 0 && (
             <div className="space-y-1.5">
               {report.alerts.map((a: any, i: number) => (
-                <div key={i} className={`p-2 text-[10px] font-mono border flex items-center gap-2 ${
-                  a.severity === 'danger' ? 'border-red-900 bg-red-950/30 text-red-400' :
+                <div key={i} className={`p-2 text-[10px] font-mono border flex items-center gap-2 ${a.severity === 'danger' ? 'border-red-900 bg-red-950/30 text-red-400' :
                   a.severity === 'warning' ? 'border-amber-900 bg-amber-950/20 text-amber-400' :
-                  'border-zinc-800 bg-zinc-900 text-zinc-400'
-                }`}>
+                    'border-zinc-800 bg-zinc-900 text-zinc-400'
+                  }`}>
                   <span>{a.severity === 'danger' ? '⚠' : a.severity === 'warning' ? '▲' : 'ℹ'}</span>
                   {a.message}
                 </div>

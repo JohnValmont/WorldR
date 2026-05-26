@@ -2,8 +2,10 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { z } from 'zod';
 
-// Load environment variables from .env file
-dotenv.config({ path: path.join(__dirname, '../../../.env') });
+// Load environment variables from .env file with highly robust path resolution
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.join(__dirname, '../../../../.env') });
+dotenv.config({ path: path.join(__dirname, '../../../../../.env') });
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),

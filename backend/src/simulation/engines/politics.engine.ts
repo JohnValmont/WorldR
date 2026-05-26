@@ -383,7 +383,7 @@ export class PoliticsEngine {
     };
   }
 
-  private static getIdeologyCompatibility(id1: string, id2: string): number {
+  public static getIdeologyCompatibility(id1: string, id2: string): number {
     if (id1 === id2) return 2;
     const compatibilities: Record<string, Record<string, number>> = {
       socialist: { social_democrat: 2, green: 2, centrist: 1, socialist: 2 },
