@@ -179,19 +179,6 @@ export class EmailService {
     const { html, text } = buildVerificationEmail(username, otp);
     const from = env.EMAIL_FROM;
 
-    const useResendPrimary = env.EMAIL_PROVIDER === 'resend' && !!env.RESEND_API_KEY;
-
-    if (useResendPrimary) {
-      try {
-        await this.sendViaResend(to, from, html, text);
-        logger.info(`[EmailService] Verification email sent successfully to ${to} via Resend (Primary)`);
-        return;
-      } catch (err: any) {
-        logger.error(`[EmailService] Primary Resend delivery failed for ${to}:`, err);
-        throw new AppError(`Email delivery failed (Resend): ${err.message || err}`, 500, 'EMAIL_DELIVERY_FAILED');
-      }
-    }
-
     // Try Gmail SMTP
     try {
       if (!env.SMTP_EMAIL || !env.SMTP_APP_PASSWORD) {
@@ -199,15 +186,6 @@ export class EmailService {
           logger.warn(`[EmailService] SMTP credentials are not configured. Bypassing email sending in development mode. Check console/logs for OTP.`);
           return;
         }
-        
-        // Fallback directly to Resend if SMTP is unconfigured in production but Resend is available
-        if (env.RESEND_API_KEY) {
-          logger.warn(`[EmailService] SMTP credentials missing in production. Falling back to Resend API.`);
-          await this.sendViaResend(to, from, html, text);
-          logger.info(`[EmailService] Verification email sent successfully to ${to} via Resend (SMTP missing fallback)`);
-          return;
-        }
-
         throw new AppError('SMTP credentials are not configured. Please set SMTP_EMAIL and SMTP_APP_PASSWORD.', 500, 'SMTP_NOT_CONFIGURED');
       }
 
@@ -221,41 +199,8 @@ export class EmailService {
       });
       logger.info(`[EmailService] Verification email sent successfully to ${to} via SMTP`);
     } catch (smtpErr: any) {
-      logger.warn(`[EmailService] SMTP delivery failed for ${to}: ${smtpErr.message || smtpErr}.`);
-
-      // If SMTP fails, check if we can fall back to Resend API (bypasses Render SMTP port blocking)
-      if (env.RESEND_API_KEY) {
-        logger.info(`[EmailService] Attempting automatic fallback to Resend HTTP API for ${to}...`);
-        try {
-          await this.sendViaResend(to, from, html, text);
-          logger.info(`[EmailService] Verification email sent successfully to ${to} via Resend API (SMTP fallback)`);
-          return;
-        } catch (resendErr: any) {
-          logger.error(`[EmailService] Fallback to Resend also failed for ${to}:`, resendErr);
-          throw new AppError(`Email delivery failed. SMTP Error: ${smtpErr.message || smtpErr}. Resend Error: ${resendErr.message || resendErr}`, 500, 'EMAIL_DELIVERY_FAILED');
-        }
-      }
-
-      // No fallback available, throw original SMTP error
+      logger.error(`[EmailService] SMTP delivery failed for ${to}:`, smtpErr);
       throw new AppError(`Email delivery failed: ${smtpErr.message || smtpErr}`, 500, 'EMAIL_DELIVERY_FAILED');
-    }
-  }
-
-  private async sendViaResend(to: string, from: string, html: string, text: string): Promise<void> {
-    const { Resend } = require('resend');
-    const resendInstance = new Resend(env.RESEND_API_KEY);
-    const fromAddress = env.RESEND_FROM_EMAIL || from;
-
-    const { error } = await resendInstance.emails.send({
-      from: fromAddress,
-      to,
-      subject: 'Your WORLDr verification code',
-      html,
-      text
-    });
-
-    if (error) {
-      throw new Error(error.message);
     }
   }
 }

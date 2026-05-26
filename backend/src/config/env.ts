@@ -22,8 +22,6 @@ const envSchema = z.object({
   SMTP_APP_PASSWORD: z.string().optional(),
   EMAIL_FROM: z.string().default('no-reply@worldr.game'),
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
-  RESEND_API_KEY: z.string().optional(),
-  RESEND_FROM_EMAIL: z.string().email().optional().default('onboarding@resend.dev'),
 });
 
 const parsed = envSchema.safeParse(process.env);
