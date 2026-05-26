@@ -8,15 +8,32 @@ export class NotificationRepository extends BaseRepository {
     limit = 50,
     trx?: Knex.Transaction
   ): Promise<Notification[]> {
+    const user = await this.getDb(trx)('users').where({ id: userId }).select('nation_id').first();
+    const nationId = user?.nation_id;
+
     return this.getDb(trx)('notifications')
-      .where({ user_id: userId })
+      .where(function () {
+        this.where({ user_id: userId });
+        if (nationId) {
+          this.orWhere({ user_id: null, nation_id: nationId });
+        }
+      })
       .orderBy('created_at', 'desc')
       .limit(limit);
   }
 
   public async countUnread(userId: string, trx?: Knex.Transaction): Promise<number> {
+    const user = await this.getDb(trx)('users').where({ id: userId }).select('nation_id').first();
+    const nationId = user?.nation_id;
+
     const result = await this.getDb(trx)('notifications')
-      .where({ user_id: userId, is_read: false })
+      .where(function () {
+        this.where({ user_id: userId });
+        if (nationId) {
+          this.orWhere({ user_id: null, nation_id: nationId });
+        }
+      })
+      .andWhere({ is_read: false })
       .count('id as count')
       .first();
     return Number(result?.count || 0);
@@ -24,7 +41,7 @@ export class NotificationRepository extends BaseRepository {
 
   public async create(
     data: {
-      user_id: string;
+      user_id?: string | null;
       nation_id?: string | null;
       type: NotificationType;
       category: NotificationCategory;
@@ -35,7 +52,7 @@ export class NotificationRepository extends BaseRepository {
     trx?: Knex.Transaction
   ): Promise<Notification> {
     const [created] = await this.getDb(trx)('notifications').insert({
-      user_id: data.user_id,
+      user_id: data.user_id ?? null,
       nation_id: data.nation_id ?? null,
       type: data.type,
       category: data.category,
@@ -48,16 +65,34 @@ export class NotificationRepository extends BaseRepository {
   }
 
   public async markRead(id: string, userId: string, trx?: Knex.Transaction): Promise<void> {
+    const user = await this.getDb(trx)('users').where({ id: userId }).select('nation_id').first();
+    const nationId = user?.nation_id;
+
     await this.getDb(trx)('notifications')
-      .where({ id, user_id: userId })
+      .where({ id })
+      .andWhere(function () {
+        this.where({ user_id: userId });
+        if (nationId) {
+          this.orWhere({ user_id: null, nation_id: nationId });
+        }
+      })
       .update({ is_read: true });
   }
 
   public async markAllRead(userId: string, trx?: Knex.Transaction): Promise<void> {
+    const user = await this.getDb(trx)('users').where({ id: userId }).select('nation_id').first();
+    const nationId = user?.nation_id;
+
     await this.getDb(trx)('notifications')
-      .where({ user_id: userId })
+      .where(function () {
+        this.where({ user_id: userId });
+        if (nationId) {
+          this.orWhere({ user_id: null, nation_id: nationId });
+        }
+      })
       .update({ is_read: true });
   }
 }
 
 export const notificationRepository = new NotificationRepository();
+

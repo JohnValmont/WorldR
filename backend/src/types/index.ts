@@ -363,7 +363,7 @@ export type NotificationCategory =
 
 export interface Notification {
   id: string;
-  user_id: string;
+  user_id: string | null;
   nation_id: string | null;
   type: NotificationType;
   category: NotificationCategory;
@@ -374,4 +374,5 @@ export interface Notification {
   created_at: Date;
   updated_at: Date;
 }
+
 
