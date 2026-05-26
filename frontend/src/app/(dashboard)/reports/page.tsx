@@ -45,7 +45,7 @@ export default function ReportsPage() {
         <h1 className="text-amber-400 font-black text-base uppercase tracking-widest">Monthly Reports</h1>
         <TerminalPanel title="No Reports Available">
           <div className="text-zinc-600 text-xs text-center py-12">
-            Advance at least two months to generate your first comparative report.
+            Reports are generated automatically after each simulation tick. Check back after the next tick fires (every 8 real hours).
           </div>
         </TerminalPanel>
       </div>

@@ -186,6 +186,40 @@ export class WorldService {
     // A crisis is active if any crisis object has status === 'active'
     return Object.values(crises).some((c: any) => c?.status === 'active');
   }
+
+  /**
+   * Record that an automatic world tick has just fired.
+   * Stores the timestamp in Redis for the tick-status endpoint.
+   */
+  public async recordTickFired(): Promise<void> {
+    try {
+      await redis.set('world:last_tick_at', Date.now().toString(), 'EX', 86400 * 7); // 7-day TTL
+      logger.info('[WorldService] Recorded tick fired timestamp in Redis.');
+    } catch (err) {
+      logger.warn('[WorldService] Failed to record tick timestamp:', err);
+    }
+  }
+
+  /**
+   * Get tick timing status for the frontend countdown display.
+   */
+  public async getTickStatus(tickIntervalMs: number): Promise<{
+    lastTickAt: number | null;
+    nextTickAt: number | null;
+    tickIntervalMs: number;
+  }> {
+    let lastTickAt: number | null = null;
+    try {
+      const raw = await redis.get('world:last_tick_at');
+      if (raw) lastTickAt = parseInt(raw, 10);
+    } catch {
+      // Redis unavailable — fall back gracefully
+    }
+
+    const nextTickAt = lastTickAt ? lastTickAt + tickIntervalMs : null;
+
+    return { lastTickAt, nextTickAt, tickIntervalMs };
+  }
 }
 
 export const worldService = new WorldService();

@@ -73,7 +73,7 @@ export default function NotificationsPage() {
           <div className="text-zinc-600 text-xs text-center py-8">Loading...</div>
         ) : filtered.length === 0 ? (
           <div className="text-zinc-600 text-xs text-center py-8">
-            {filter === 'unread' ? 'No unread notifications.' : 'No notifications yet. Advance months to generate alerts.'}
+            {filter === 'unread' ? 'No unread notifications.' : 'No notifications yet. Alerts are generated automatically after each simulation tick.'}
           </div>
         ) : (
           <div className="space-y-1.5">

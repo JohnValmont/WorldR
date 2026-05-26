@@ -251,7 +251,7 @@ export default function ElectionsPage() {
         <TerminalPanel title="No Elections Yet">
           <div className="text-zinc-600 text-xs text-center py-8">
             First election will occur at Month {status?.nextElectionTick || 48}.<br />
-            Advance months to reach the first election cycle.<br />
+            Ticks fire automatically every 8 real hours — elections advance with each tick.<br />
             <span className="text-zinc-700 text-[9px]">Campaign now to build support before the vote.</span>
           </div>
         </TerminalPanel>

@@ -82,7 +82,7 @@ export default function PoliticsPage() {
               { key: 'approval', color: '#34d399', label: 'Approval %' },
               { key: 'stability', color: '#60a5fa', label: 'Stability %' },
             ]} height={180} yDomain={[0, 100]} formatY={v => `${v.toFixed(0)}%`} />
-          ) : <div className="text-zinc-600 text-xs text-center py-14">Advance months to see data.</div>}
+          ) : <div className="text-zinc-600 text-xs text-center py-14">Awaiting simulation tick data.</div>}
         </TerminalPanel>
 
         <TerminalPanel title="Class Approval Breakdown">

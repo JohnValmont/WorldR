@@ -135,6 +135,8 @@ export const nationApi = {
     api.get(`/nations/${nationId}/history?limit=${limit}`),
   updateBudget: (nationId: string, data: any) =>
     api.patch(`/nations/${nationId}/budget`, data),
+  // NOTE: Ticks are managed automatically by the server (every 8 real hours).
+  // This endpoint is admin-only. Calling it as a regular user returns 403.
   triggerTick: (nationId: string) =>
     api.post(`/nations/${nationId}/tick`)
 };
@@ -170,7 +172,8 @@ export const notificationsApi = {
 // World
 export const worldApi = {
   getWorldState: () => api.get('/world'),
-  getNations: () => api.get('/world/nations')
+  getNations: () => api.get('/world/nations'),
+  getTickStatus: () => api.get('/world/tick-status')
 };
 
 // Elections

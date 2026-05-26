@@ -13,6 +13,7 @@ import CoalitionPanel from '../../../components/ui/CoalitionPanel';
 import ElectionPolling from '../../../components/ui/ElectionPolling';
 import NationFlag from '../../../components/ui/NationFlag';
 import VoterBlocRow from '../../../components/ui/VoterBlocRow';
+import TickCountdown from '../../../components/ui/TickCountdown';
 
 function fmt(n: number) {
   if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
@@ -43,8 +44,6 @@ export default function DashboardPage() {
   const [parties, setParties] = useState<any[]>([]);
   const [latestReport, setLatestReport] = useState<any>(null);
   const [voterBlocs, setVoterBlocs] = useState<any[]>([]);
-  const [ticking, setTicking] = useState(false);
-  const [tickMsg, setTickMsg] = useState('');
 
   // Newspaper local state
   const [showWriteModal, setShowWriteModal] = useState(false);
@@ -114,19 +113,6 @@ export default function DashboardPage() {
       .catch(() => {});
   }, [nationId]);
 
-  const handleTick = async () => {
-    setTicking(true);
-    setTickMsg('');
-    try {
-      await nationApi.triggerTick(nationId);
-      setTickMsg('✓ Month advanced.');
-      setTimeout(() => window.location.reload(), 1200);
-    } catch (err: any) {
-      setTickMsg('✕ ' + (err?.response?.data?.error || 'Tick failed.'));
-    } finally {
-      setTicking(false);
-    }
-  };
 
   const handleCreateArticle = (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,22 +189,8 @@ export default function DashboardPage() {
           </div>
         </div>
         
-        {/* Advanced Tick Controller */}
-        <div className="flex items-center gap-3">
-          {tickMsg && (
-            <span className={`text-[10px] font-mono ${tickMsg.startsWith('✓') ? 'text-emerald-400' : 'text-red-400'}`}>
-              {tickMsg}
-            </span>
-          )}
-          <button
-            id="advance-month-btn"
-            onClick={handleTick}
-            disabled={ticking}
-            className="btn-premium-primary"
-          >
-            {ticking ? '⟳ PROCESSING...' : '▶ ADVANCE MONTH'}
-          </button>
-        </div>
+        {/* Live Tick Countdown — ticks fire automatically every 8 real hours */}
+        <TickCountdown />
       </div>
 
       {/* ── Top Stats Row ────────────────────────────────────────────── */}
@@ -282,7 +254,7 @@ export default function DashboardPage() {
                   formatY={v => `$${v.toFixed(1)}B`}
                 />
               ) : (
-                <div className="text-zinc-600 text-xs text-center py-8">Advance a month to see trends.</div>
+                <div className="text-zinc-600 text-xs text-center py-8">Simulation data available after first tick.</div>
               )}
             </TerminalPanel>
 
@@ -300,7 +272,7 @@ export default function DashboardPage() {
                   formatY={v => `${v.toFixed(0)}%`}
                 />
               ) : (
-                <div className="text-zinc-600 text-xs text-center py-8">Advance a month to see trends.</div>
+                <div className="text-zinc-600 text-xs text-center py-8">Simulation data available after first tick.</div>
               )}
             </TerminalPanel>
 

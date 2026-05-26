@@ -64,12 +64,12 @@ export default function EconomyPage() {
         <TerminalPanel title="GDP History" subtitle="$M">
           {history.length > 1 ? (
             <LineChart data={history} xKey="tick" lines={[{ key: 'gdp', color: '#f59e0b', label: 'GDP ($M)' }]} height={180} formatY={v => `$${v.toFixed(0)}M`} />
-          ) : <div className="text-zinc-600 text-xs text-center py-14">Advance months to see data.</div>}
+          ) : <div className="text-zinc-600 text-xs text-center py-14">Awaiting simulation tick data.</div>}
         </TerminalPanel>
         <TerminalPanel title="Unemployment History" subtitle="%">
           {history.length > 1 ? (
             <LineChart data={history} xKey="tick" lines={[{ key: 'unemployment', color: '#f87171', label: 'Unemployment %' }]} height={180} yDomain={[0, 30]} formatY={v => `${v.toFixed(0)}%`} />
-          ) : <div className="text-zinc-600 text-xs text-center py-14">Advance months to see data.</div>}
+          ) : <div className="text-zinc-600 text-xs text-center py-14">Awaiting simulation tick data.</div>}
         </TerminalPanel>
       </div>
 

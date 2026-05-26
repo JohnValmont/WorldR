@@ -76,7 +76,7 @@ export default function InflationPage() {
         <TerminalPanel title="CPI History" subtitle="%">
           {history.length > 1 ? (
             <LineChart data={history} xKey="tick" lines={[{ key: 'cpi', color: '#f87171', label: 'CPI %' }]} height={180} formatY={v => `${v.toFixed(1)}%`} />
-          ) : <div className="text-zinc-600 text-xs text-center py-14">Advance months to see data.</div>}
+          ) : <div className="text-zinc-600 text-xs text-center py-14">Awaiting simulation tick data.</div>}
         </TerminalPanel>
         <TerminalPanel title="Inflation by Category" subtitle="%">
           {history.length > 1 ? (
@@ -85,7 +85,7 @@ export default function InflationPage() {
               { key: 'fuel', color: '#f59e0b', label: 'Fuel' },
               { key: 'housing', color: '#3b82f6', label: 'Housing' },
             ]} height={180} formatY={v => `${v.toFixed(1)}%`} />
-          ) : <div className="text-zinc-600 text-xs text-center py-14">Advance months to see data.</div>}
+          ) : <div className="text-zinc-600 text-xs text-center py-14">Awaiting simulation tick data.</div>}
         </TerminalPanel>
       </div>
 

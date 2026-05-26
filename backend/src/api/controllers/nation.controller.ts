@@ -40,8 +40,9 @@ export class NationController {
     try {
       const { nation_id } = req.params;
 
-      if (req.user?.role !== 'admin' && req.user?.nation_id !== nation_id) {
-        throw new UnauthorizedError('Access denied to this nation');
+      // Only admins can manually trigger ticks — ticks fire automatically every 8 real hours
+      if (req.user?.role !== 'admin') {
+        throw new UnauthorizedError('Simulation ticks are managed automatically by the server. Manual triggering is restricted to administrators.');
       }
 
       const jobId = await queueService.triggerTick(nation_id);

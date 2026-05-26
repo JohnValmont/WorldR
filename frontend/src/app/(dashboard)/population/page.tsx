@@ -222,7 +222,7 @@ export default function PopulationPage() {
                 formatY={v => `${v.toFixed(0)}%`}
               />
             ) : (
-              <div className="text-zinc-600 text-xs text-center py-12">Advance months to see approval history.</div>
+              <div className="text-zinc-600 text-xs text-center py-12">Awaiting simulation tick data.</div>
             )}
           </TerminalPanel>
 

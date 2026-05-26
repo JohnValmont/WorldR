@@ -7,8 +7,67 @@ import { logger } from './utils/logger';
 import { WebSocketServer } from './api/ws/socket';
 import { tickWorker } from './workers/tick.worker';
 import { parameterService } from './services/parameter.service';
+import { worldService } from './services/world.service';
 
 const server = http.createServer(app);
+
+// Reference to the automatic tick scheduler interval (for graceful shutdown)
+let tickSchedulerInterval: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Start the automatic world tick scheduler.
+ * Fires every TICK_INTERVAL_MS (default 8 real hours = 1 in-game month).
+ * All nations are ticked simultaneously in a world tick batch.
+ * Players cannot manually trigger ticks — this is fully server-controlled.
+ */
+function startTickScheduler() {
+  const intervalMs = env.TICK_INTERVAL_MS;
+  const intervalHours = (intervalMs / 3600000).toFixed(2);
+
+  logger.info(`[TickScheduler] Automatic world tick scheduler starting.`);
+  logger.info(`[TickScheduler] Tick interval: ${intervalMs}ms (${intervalHours} real hours = 1 in-game month).`);
+
+  // Fire a catch-up tick on server start if the last tick was missed (e.g. server was down)
+  worldService.getTickStatus(intervalMs).then(async (status) => {
+    const now = Date.now();
+    const missedTick = status.lastTickAt === null ||
+      (status.nextTickAt !== null && now > status.nextTickAt);
+
+    if (missedTick) {
+      logger.info('[TickScheduler] Server restarted — firing catch-up world tick now...');
+      try {
+        const result = await worldService.scheduleWorldTick();
+        await worldService.recordTickFired();
+        const nextAt = new Date(Date.now() + intervalMs);
+        logger.info(`[TickScheduler] Catch-up tick complete: ${result.nationCount} nations. Next tick at ${nextAt.toISOString()}`);
+      } catch (err) {
+        logger.error('[TickScheduler] Catch-up tick failed:', err);
+      }
+    } else {
+      const nextAt = status.nextTickAt ? new Date(status.nextTickAt).toISOString() : 'unknown';
+      logger.info(`[TickScheduler] No missed tick detected. Next scheduled tick at ${nextAt}`);
+    }
+  }).catch(err => {
+    logger.warn('[TickScheduler] Could not check tick status on startup:', err);
+  });
+
+  // Set up the recurring interval
+  tickSchedulerInterval = setInterval(async () => {
+    logger.info('[TickScheduler] ⏰ Automatic world tick firing — advancing all nations by 1 in-game month...');
+    try {
+      const result = await worldService.scheduleWorldTick();
+      await worldService.recordTickFired();
+      const nextAt = new Date(Date.now() + intervalMs);
+      logger.info(
+        `[TickScheduler] ✓ World tick complete: ${result.nationCount} nations ticked. Next tick at ${nextAt.toISOString()}`
+      );
+    } catch (err) {
+      logger.error('[TickScheduler] ✕ World tick failed:', err);
+    }
+  }, intervalMs);
+
+  logger.info('[TickScheduler] Scheduler is active and running.');
+}
 
 async function startServer() {
   try {
@@ -39,6 +98,9 @@ async function startServer() {
     const port = env.PORT;
     server.listen(port, () => {
       logger.info(`WORLDr simulation API server is online and listening on port ${port} [${env.NODE_ENV}]`);
+
+      // 7. Start automatic world tick scheduler AFTER server is listening
+      startTickScheduler();
     });
 
   } catch (error) {
@@ -50,6 +112,13 @@ async function startServer() {
 // Graceful shutdown handler
 async function handleShutdown(signal: string) {
   logger.warn(`Received ${signal}. Starting graceful shutdown sequence...`);
+
+  // Stop the tick scheduler
+  if (tickSchedulerInterval) {
+    clearInterval(tickSchedulerInterval);
+    tickSchedulerInterval = null;
+    logger.info('Automatic tick scheduler stopped.');
+  }
 
   // Close HTTP Server
   server.close(() => {
@@ -76,7 +145,6 @@ async function handleShutdown(signal: string) {
     });
   });
 
-
   // Force shutdown if connections do not close within 10 seconds
   setTimeout(() => {
     logger.error('Force shutdown triggered: connections failed to close gracefully within 10 seconds.');
@@ -95,9 +163,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 process.on('uncaughtException', (error) => {
   logger.error('Uncaught Exception thrown:', error);
-  // Force clean exit
   process.exit(1);
 });
 
 startServer();
-

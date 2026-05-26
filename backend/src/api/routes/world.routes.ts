@@ -13,6 +13,7 @@ import { worldService } from '../../services/world.service';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { UnauthorizedError } from '../../utils/errors';
 import { logger } from '../../utils/logger';
+import { env } from '../../config/env';
 
 const router = Router();
 
@@ -151,6 +152,20 @@ router.post('/state/refresh', authMiddleware, async (req: Request, res: Response
       message: 'World state cache refreshed successfully',
       worldState
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/v1/world/tick-status
+ * Public endpoint — returns tick timing info so the frontend can show a countdown.
+ * Response: { lastTickAt, nextTickAt, tickIntervalMs }
+ */
+router.get('/tick-status', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const status = await worldService.getTickStatus(env.TICK_INTERVAL_MS);
+    res.status(200).json(status);
   } catch (error) {
     next(error);
   }
