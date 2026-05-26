@@ -25,6 +25,14 @@ const BLOC_NAMES: Record<string, string> = {
   unemployed_precariat: 'Unemployed & Precariat'
 };
 
+function fmtMoney(n: number): string {
+  if (n >= 1e12) return `$${(n / 1e12).toFixed(1)}T`;
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
+  return `$${n.toFixed(0)}`;
+}
+
 export default function LawsPage() {
   const { user } = useAuthStore();
   const nationId = user?.nation_id || VALDORIA_ID;
@@ -239,70 +247,60 @@ export default function LawsPage() {
   const proposalCost = 15.0; // 15.0M KDM
 
   return (
-    <div className="space-y-4 animate-fade-in-up">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-        <div>
-          <h1 className="text-amber-400 font-black text-base uppercase tracking-widest">
-            Bills & Laws of Keldoria
-          </h1>
-          <div className="text-zinc-600 text-[10px] font-mono mt-0.5">
-            Legislative chamber of the Bundestag · Propose & manage policies
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <div className="text-[8px] text-zinc-600 uppercase tracking-widest">Treasury Balance</div>
-            <div className="text-amber-400 font-mono font-bold text-sm">
-              {nation ? `KDM ${(Number(nation.treasury) / 1000000).toFixed(1)}M` : 'Loading...'}
-            </div>
-          </div>
-          <button
-            id="propose-bill-btn"
-            onClick={() => {
-              setShowModal(true);
-              setDraftArticles([]);
-              setError('');
-            }}
-            className="btn-primary py-1.5 px-4 font-mono font-bold tracking-widest text-[10px] border border-amber-500/30 hover:border-amber-400 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-          >
-            PROPOSE BILL
-          </button>
-        </div>
+    <div className="space-y-6 animate-fade-in-up">
+      
+      {/* Centered Government Title matching Nationhood target */}
+      <div className="text-center space-y-1 py-4 border-b border-zinc-900/60 max-w-xl mx-auto mb-6">
+        <h1 className="text-amber-400 font-black text-2xl uppercase tracking-widest glow-text-amber font-mono">
+          PARLIAMENT LEGISLATION
+        </h1>
+        <p className="text-zinc-500 text-[10px] uppercase font-mono tracking-widest leading-none">
+          LEGISLATIVE DEBATES, BILLS, & CONSTITUTIONAL LAWS
+        </p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-zinc-800 pb-2">
+      {/* Centered Propose Button */}
+      <div className="flex flex-col items-center justify-center gap-2 mb-6">
+        {nation && (
+          <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1">
+            Treasury Balance: <span className="text-emerald-400 font-bold">${fmtMoney(Number(nation.treasury))}</span>
+          </div>
+        )}
         <button
-          onClick={() => setStatusFilter('proposed')}
-          className={`px-4 py-1.5 text-[10px] font-mono uppercase tracking-wider border transition-colors ${
-            statusFilter === 'proposed'
-              ? 'border-amber-500 text-amber-400 bg-amber-950/20'
-              : 'border-zinc-800 text-zinc-500 hover:text-zinc-300'
-          }`}
+          id="propose-bill-btn"
+          onClick={() => {
+            setShowModal(true);
+            setDraftArticles([]);
+            setError('');
+          }}
+          className="btn-premium-primary py-2 px-6 font-mono font-bold tracking-[0.2em] text-[10px]"
         >
-          Active Bills ({laws.filter(l => l.status === 'proposed').length})
+          🏛️ PROPOSE LEGISLATIVE BILL
         </button>
-        <button
-          onClick={() => setStatusFilter('passed')}
-          className={`px-4 py-1.5 text-[10px] font-mono uppercase tracking-wider border transition-colors ${
-            statusFilter === 'passed'
-              ? 'border-amber-500 text-amber-400 bg-amber-950/20'
-              : 'border-zinc-800 text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          All Laws (Active) ({laws.filter(l => l.status === 'passed').length})
-        </button>
-        <button
-          onClick={() => setStatusFilter('repealed')}
-          className={`px-4 py-1.5 text-[10px] font-mono uppercase tracking-wider border transition-colors ${
-            statusFilter === 'repealed'
-              ? 'border-amber-500 text-amber-400 bg-amber-950/20'
-              : 'border-zinc-800 text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          Resolved / Repealed ({laws.filter(l => l.status === 'repealed').length})
-        </button>
+      </div>
+
+      {/* Tabs styled with custom gold underlines and borders */}
+      <div className="flex justify-center gap-2 border-b border-zinc-900/80 pb-2 mb-4">
+        {[
+          { key: 'proposed', label: `Active Bills (${laws.filter(l => l.status === 'proposed').length})` },
+          { key: 'passed', label: `Enacted Laws (${laws.filter(l => l.status === 'passed').length})` },
+          { key: 'repealed', label: `Repealed (${laws.filter(l => l.status === 'repealed').length})` }
+        ].map(tab => {
+          const isActive = statusFilter === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setStatusFilter(tab.key as any)}
+              className={`px-5 py-2 text-[10px] font-mono uppercase tracking-wider transition-all border-b-2 -mb-[10px] ${
+                isActive
+                  ? 'border-amber-500 text-amber-400 font-black glow-text-amber'
+                  : 'border-transparent text-zinc-650 hover:text-zinc-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Content */}

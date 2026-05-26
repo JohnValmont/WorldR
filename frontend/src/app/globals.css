@@ -274,3 +274,51 @@ th, td {
 .animate-auth-enter {
   animation: authEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* ── Simulator Theme ───────────────────────────────────────── */
+.simulator-bg {
+  background-color: #060805;
+  background-image: radial-gradient(circle at center, #0e120b 0%, #060805 100%);
+}
+
+.simulator-vignette {
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.95);
+}
+
+.border-premium-gold {
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.03);
+}
+
+.border-premium-green {
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.03);
+}
+
+.border-premium-red {
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.03);
+}
+
+.border-premium-blue {
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.03);
+}
+
+.border-premium-muted {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glow-underline-gold {
+  position: relative;
+}
+.glow-underline-gold::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #f59e0b;
+  box-shadow: 0 0 10px #f59e0b;
+}

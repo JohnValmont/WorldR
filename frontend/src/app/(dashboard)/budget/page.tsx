@@ -133,46 +133,56 @@ export default function BudgetPage() {
   draftSpending += interestSpending;
 
   const draftDeficit = draftSpending - draftRevenue;
+  const currentYear = nation ? 850 + Math.floor(Number(nation.currentTick || 0) / 12) : 850;
 
   return (
-    <div className="space-y-4 animate-fade-in-up">
-      <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-        <div>
-          <h1 className="text-amber-400 font-black text-base uppercase tracking-widest">Budget & Fiscal Policy</h1>
-          <div className="text-zinc-600 text-[10px] font-mono mt-0.5">National economic balance sheet · Propose bills to adjust policy</div>
-        </div>
-        <div className="flex items-center gap-4">
-          {saveMsg && <span className={`text-[10px] font-mono ${saveMsg.startsWith('✓') ? 'text-emerald-400' : 'text-red-400'}`}>{saveMsg}</span>}
-          <button
-            onClick={() => {
-              // Reset draft to current values on open
-              const te: Record<string, number> = {};
-              taxes.forEach((t: any) => { te[t.name] = Number(t.rate) * 100; });
-              setDraftTaxes(te);
-              
-              const be: Record<string, number> = {};
-              budgetItems.forEach((b: any) => { be[b.name] = Number(b.allocation) / 1e6; });
-              setDraftBudgets(be);
-
-              setShowDraftModal(true);
-            }}
-            className="btn-primary py-1.5 px-4 font-mono font-bold tracking-widest text-[10px] border border-amber-500/30 hover:border-amber-400 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-            id="propose-fiscal-btn"
-          >
-            PROPOSE FISCAL REFORM
-          </button>
-        </div>
+    <div className="space-y-6 animate-fade-in-up">
+      
+      {/* Centered Government Title matching user target */}
+      <div className="text-center space-y-1 py-4 border-b border-zinc-900/60 max-w-xl mx-auto mb-6">
+        <h1 className="text-amber-400 font-black text-2xl uppercase tracking-widest glow-text-amber font-mono">
+          GOVERNMENT BUDGET {currentYear} AE
+        </h1>
+        <p className="text-zinc-500 text-[10px] uppercase font-mono tracking-widest leading-none">
+          NATIONAL BALANCE SHEET & FISCAL POLICY COCKPIT
+        </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      {/* Centered Propose Button */}
+      <div className="flex flex-col items-center justify-center gap-2 mb-6">
+        {saveMsg && <span className={`text-[10px] font-mono ${saveMsg.startsWith('✓') ? 'text-emerald-400' : 'text-red-400'}`}>{saveMsg}</span>}
+        <button
+          onClick={() => {
+            // Reset draft to current values on open
+            const te: Record<string, number> = {};
+            taxes.forEach((t: any) => { te[t.name] = Number(t.rate) * 100; });
+            setDraftTaxes(te);
+            
+            const be: Record<string, number> = {};
+            budgetItems.forEach((b: any) => { be[b.name] = Number(b.allocation) / 1e6; });
+            setDraftBudgets(be);
+
+            setShowDraftModal(true);
+          }}
+          className="btn-premium-primary py-2 px-6 font-mono font-bold tracking-[0.2em] text-[10px]"
+          id="propose-fiscal-btn"
+        >
+          🏛️ PROPOSE FISCAL REFORM BILL
+        </button>
+      </div>
+
+      {/* Grid of 6 Compact Stat Cards: GDP, Budget, Revenue, Expenditure, Balance, Debt */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <StatCard label="GDP Rating" value={fmt(Number(nation?.gdp || 0))} color="blue" />
         <StatCard label="Total Revenue" value={fmt(totalRevenue)} color="green" />
         <StatCard label="Total Spending" value={fmt(totalSpending)} color="amber" />
-        <StatCard label={deficit > 0 ? 'Deficit' : 'Surplus'} value={fmt(Math.abs(deficit))} color={deficit > 0 ? 'red' : 'green'} />
-        <StatCard label="Treasury" value={nation ? fmt(Number(nation.treasury)) : '—'} color={nation && Number(nation.treasury) < 0 ? 'red' : 'green'} />
+        <StatCard label={deficit > 0 ? 'Budget Deficit' : 'Budget Surplus'} value={`${deficit > 0 ? '-' : '+'}${fmt(Math.abs(deficit))}`} color={deficit > 0 ? 'red' : 'green'} />
+        <StatCard label="National Treasury" value={nation ? fmt(Number(nation.treasury)) : '—'} color={nation && Number(nation.treasury) < 0 ? 'red' : 'green'} />
+        <StatCard label="Public Debt" value={nation ? fmt(Number(nation.debt)) : '—'} color="red" />
       </div>
 
       {activeProposal && (
-        <div className="border border-amber-500/20 bg-amber-500/[0.03] px-4 py-3 rounded-lg flex items-center justify-between gap-3 text-xs text-amber-500/80 font-mono tracking-wide animate-pulse">
+        <div className="border border-amber-500/20 bg-amber-500/[0.03] px-4 py-3 rounded-sm flex items-center justify-between gap-3 text-xs text-amber-500/80 font-mono tracking-wide animate-pulse">
           <div className="flex items-center gap-3">
             <span className="text-sm shrink-0">🏛️</span>
             <div>
@@ -186,9 +196,10 @@ export default function BudgetPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      {/* Income & Expenditure Panels */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Tax rates */}
-        <TerminalPanel title="Tax Rates" headerAction={<span className="text-zinc-600 text-[9px] uppercase font-mono tracking-wider">Read-Only Cockpit</span>}>
+        <TerminalPanel title="Tax Rates" headerAction={<span className="text-zinc-600 text-[9px] uppercase font-mono tracking-wider font-bold">Income Panel</span>}>
           <div className="space-y-3">
             {taxes.map((t: any) => {
               const currentRatePct = (taxEdits[t.name] || Number(t.rate) * 100);
@@ -196,7 +207,7 @@ export default function BudgetPage() {
               const hasProposal = proposedRatePct !== undefined && Math.abs(proposedRatePct - currentRatePct) > 0.01;
               
               return (
-                <div key={t.name} className="border border-zinc-900 bg-zinc-950/20 p-3 rounded-sm space-y-2">
+                <div key={t.name} className="border border-zinc-900 bg-zinc-950/20 p-3.5 rounded-sm space-y-2">
                   <div className="flex justify-between items-center mb-1">
                     <div className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-sm animate-pulse" style={{ background: TAX_COLORS[t.name] || '#6b7280' }} />
@@ -222,7 +233,7 @@ export default function BudgetPage() {
         </TerminalPanel>
 
         {/* Budget allocations */}
-        <TerminalPanel title="Budget Allocations" subtitle="$M" headerAction={<span className="text-zinc-600 text-[9px] uppercase font-mono tracking-wider">Read-Only Cockpit</span>}>
+        <TerminalPanel title="Budget Allocations" subtitle="$M" headerAction={<span className="text-zinc-600 text-[9px] uppercase font-mono tracking-wider font-bold">Expenditure Panel</span>}>
           <div className="space-y-3">
             {budgetItems.map((b: any) => {
               const currentAllocM = (budgetEdits[b.name] || Number(b.allocation) / 1e6);
@@ -230,7 +241,7 @@ export default function BudgetPage() {
               const hasProposal = proposedAllocM !== undefined && Math.abs(proposedAllocM - currentAllocM) > 0.01;
 
               return (
-                <div key={b.name} className="border border-zinc-900 bg-zinc-950/20 p-3 rounded-sm space-y-2">
+                <div key={b.name} className="border border-zinc-900 bg-zinc-950/20 p-3.5 rounded-sm space-y-2">
                   <div className="flex justify-between items-center mb-1">
                     <div className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-sm animate-pulse" style={{ background: BUDGET_COLORS[b.name] || '#6b7280' }} />
@@ -255,7 +266,8 @@ export default function BudgetPage() {
         </TerminalPanel>
       </div>
 
-      <TerminalPanel title="Spending Breakdown" subtitle="$M">
+      {/* Spending Breakdown Deep Dive panel */}
+      <TerminalPanel title="Fiscal Breakdown (Deep Dive)" subtitle="$M">
         {budgetData.length > 0 ? (
           <BarChart data={budgetData} height={160} formatValue={v => `$${v.toFixed(0)}M`} />
         ) : <div className="text-zinc-600 text-xs text-center py-10">No budget data available.</div>}

@@ -56,8 +56,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="h-screen flex flex-col bg-black">
       <Topbar />
-      <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto bg-zinc-950 p-6">
+      <div className="flex flex-1 overflow-hidden relative">
+        <main className="flex-1 overflow-y-auto simulator-bg simulator-vignette p-6">
           {children}
         </main>
       </div>

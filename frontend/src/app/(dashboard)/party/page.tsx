@@ -275,34 +275,44 @@ export default function PartyPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in-up">
-      {/* ── HIGH PREMIUM HERO BANNER ──────────────────────────────────────── */}
-      <div className="relative overflow-hidden border border-zinc-800 bg-gradient-to-r from-zinc-950 to-zinc-900/40 p-6 rounded-2xl shadow-xl">
+      {/* Centered Faction Title matching user target */}
+      <div className="text-center space-y-1 py-4 border-b border-zinc-900/60 max-w-xl mx-auto mb-6">
+        <h1 className="text-amber-400 font-black text-2xl uppercase tracking-widest glow-text-amber font-mono">
+          FACTION HEADQUARTERS
+        </h1>
+        <p className="text-zinc-500 text-[10px] uppercase font-mono tracking-widest leading-none">
+          POLITICAL MOBILIZATION, HQ OVERVIEW & ELECTIONEERING
+        </p>
+      </div>
+
+      {/* Party Identity card */}
+      <div className="relative overflow-hidden border border-premium-gold bg-[#0d0f0b]/90 p-5 rounded-sm shadow-md backdrop-blur-md">
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-radial from-amber-500/5 to-transparent pointer-events-none rounded-full blur-3xl" />
         
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
           <div className="flex items-start gap-4">
-            <div className="w-2 h-16 shrink-0 rounded-full" style={{ background: myParty.color }} />
+            <div className="w-1.5 h-14 shrink-0 rounded-sm" style={{ background: myParty.color }} />
             <div>
               <div className="flex items-center gap-3 mb-1.5 flex-wrap">
-                <h1 className="text-zinc-100 font-black text-2xl tracking-tight">{myParty.name}</h1>
-                <span className="text-zinc-500 text-lg font-mono font-bold uppercase">[{myParty.abbreviation}]</span>
+                <h1 className="text-zinc-100 font-black text-xl tracking-tight leading-none uppercase font-mono">{myParty.name}</h1>
+                <span className="text-zinc-500 text-base font-mono font-bold uppercase">[{myParty.abbreviation}]</span>
                 <IdeologyBadge ideology={myParty.ideology} />
                 {myParty.is_governing && <StatusBadge label="GOVERNING COALITION" variant="success" dot />}
               </div>
               <p className="text-amber-400/80 text-xs font-mono italic mb-2">"{myParty.slogan || 'No slogan published'}"</p>
               {myParty.description && (
-                <p className="text-zinc-400 text-xs max-w-3xl leading-relaxed">{myParty.description}</p>
+                <p className="text-zinc-400 text-[11px] max-w-3xl leading-relaxed">{myParty.description}</p>
               )}
             </div>
           </div>
           
           <div className="flex flex-row lg:flex-col items-center lg:items-end justify-between w-full lg:w-auto shrink-0 border-t lg:border-t-0 border-zinc-800 pt-4 lg:pt-0 gap-4">
             <div className="text-left lg:text-right">
-              <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-1">Affiliation Status</div>
+              <div className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold mb-1 font-mono">Affiliation Status</div>
               <StatusBadge label={ROLE_LABELS[myMembership?.role]?.replace(/^.+ /, '') || 'Member'} variant="purple" />
             </div>
             {isLeader && (
-              <span className="text-[10px] px-2 py-1 bg-amber-950/40 border border-amber-900/40 text-amber-400 font-mono rounded">
+              <span className="text-[8px] px-2 py-1 bg-amber-950/40 border border-amber-900/40 text-amber-400 font-mono rounded">
                 🔑 Party Administrator
               </span>
             )}

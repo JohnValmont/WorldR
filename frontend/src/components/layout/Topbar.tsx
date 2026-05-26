@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/auth.store';
 import { useNationStore } from '../../store/useNationStore';
 import { authApi, getRefreshToken } from '../../lib/api';
 import NationFlag from '../ui/NationFlag';
+import { useState } from 'react';
 
 function fmtNum(n: number): string {
   if (n >= 1e12) return `${(n / 1e12).toFixed(1)}T`;
@@ -39,9 +40,9 @@ const GROUPS = [
     key: 'government',
     label: 'GOVERNMENT',
     items: [
+      { href: '/parliament', label: 'PARLIAMENT' },
       { href: '/budget', label: 'BUDGET' },
-      { href: '/laws', label: 'LAWS' },
-      { href: '/parliament', label: 'PARLIAMENT' }
+      { href: '/laws', label: 'LAWS' }
     ]
   },
   {
@@ -54,10 +55,17 @@ const GROUPS = [
     ]
   },
   {
-    key: 'system',
-    label: 'SYSTEM',
+    key: 'world',
+    label: 'WORLD',
     items: [
-      { href: '/settings', label: 'SETTINGS' }
+      { href: '/dashboard', label: 'WORLD OVERVIEW' }
+    ]
+  },
+  {
+    key: 'ledger',
+    label: 'LEDGER',
+    items: [
+      { href: '/reports', label: 'FINANCIAL LEDGER' }
     ]
   }
 ];
@@ -72,6 +80,7 @@ export default function Topbar() {
   const { nation } = useNationStore();
   const router = useRouter();
   const pathname = usePathname();
+  const [isDark, setIsDark] = useState(true);
 
   const handleLogout = async () => {
     const refreshToken = getRefreshToken();
@@ -94,104 +103,108 @@ export default function Topbar() {
     <div className="flex flex-col shrink-0 select-none">
       
       {/* ── ROW 1: METADATA, TICK COCKPIT, STATS & CASH ────────────────────── */}
-      <header className="h-14 bg-zinc-950 border-b border-zinc-900/60 flex items-center px-4 gap-4 justify-between">
+      <header className="h-14 bg-[#0a0c09] border-b border-zinc-900/60 flex items-center px-4 gap-4 justify-between relative shadow-md">
         
-        {/* Left: Nationhood Logo & Tagline */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className="w-6 h-6 bg-amber-500 flex items-center justify-center rounded shadow-md shadow-amber-500/10">
-            <span className="text-black font-black text-xs font-mono">W</span>
-          </div>
+        {/* Left: Nationhood flag & name */}
+        <div className="flex items-center gap-3 shrink-0">
+          <NationFlag size="xs" className="border border-zinc-700/50 shadow-sm" />
           <div className="flex flex-col">
-            <span className="text-amber-400 font-black text-xs tracking-widest leading-none">WORLDR</span>
-            <span className="text-zinc-600 text-[8px] uppercase tracking-widest leading-none mt-0.5">Alpha v0.1</span>
+            <span className="text-zinc-100 font-extrabold text-sm uppercase tracking-wider leading-none">
+              {nation?.name || 'KELDORIA'}
+            </span>
+            <span className="text-zinc-500 text-[8px] uppercase tracking-widest font-mono mt-1">
+              ♔ {user?.display_name || user?.username || 'Representative'}
+            </span>
           </div>
         </div>
 
-        {/* Center: Game Date, Tick Clock Cockpit */}
+        {/* Center-Left: Game Date, Tick timer countdown */}
         {nation && (
-          <div className="flex items-center gap-6">
-            
+          <div className="flex items-center gap-6 font-mono text-[10px]">
             {/* Game Date */}
             <div className="flex flex-col justify-center">
-              <span className="text-[7px] text-zinc-600 uppercase tracking-widest font-mono font-bold">GAME DATE</span>
-              <span className="text-zinc-200 text-[11px] font-mono font-bold leading-none mt-0.5 uppercase">
+              <span className="text-[7px] text-zinc-650 uppercase tracking-widest font-extrabold font-sans leading-none">Game Date</span>
+              <span className="text-zinc-300 font-bold mt-0.5 uppercase leading-none">
                 {currentMonthName}, {currentYear} AE
               </span>
             </div>
 
             {/* Tick Number */}
-            <div className="flex flex-col justify-center border-l border-zinc-800 pl-4">
-              <span className="text-[7px] text-zinc-600 uppercase tracking-widest font-mono font-bold">TICK</span>
-              <span className="text-amber-400 text-[11px] font-mono font-black leading-none mt-0.5">
+            <div className="flex flex-col justify-center border-l border-zinc-900 pl-4">
+              <span className="text-[7px] text-zinc-650 uppercase tracking-widest font-extrabold font-sans leading-none">Tick</span>
+              <span className="text-amber-500 font-black mt-0.5 leading-none">
                 {nation.currentTick}
               </span>
             </div>
 
-            {/* Next Tick Timing (Mock countdown matching Dravka style) */}
-            <div className="flex flex-col justify-center border-l border-zinc-800 pl-4">
-              <span className="text-[7px] text-zinc-600 uppercase tracking-widest font-mono font-bold">NEXT TICK</span>
-              <span className="text-zinc-400 text-[11px] font-mono font-bold leading-none mt-0.5">
+            {/* Countdown timer */}
+            <div className="flex flex-col justify-center border-l border-zinc-900 pl-4">
+              <span className="text-[7px] text-zinc-650 uppercase tracking-widest font-extrabold font-sans leading-none">Next Tick</span>
+              <span className="text-zinc-400 font-bold mt-0.5 flex items-center gap-1 leading-none">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
                 5h 46m 32s
               </span>
             </div>
 
-            {/* Metrics display bar */}
-            <div className="hidden lg:flex items-center gap-4 border-l border-zinc-800 pl-4 font-mono">
+            {/* Quick Gauges */}
+            <div className="hidden xl:flex items-center gap-4 border-l border-zinc-900 pl-4">
               <div className="flex items-center gap-1">
                 <span className="text-[7px] text-zinc-600 uppercase">GDP</span>
-                <span className="text-[10px] text-zinc-300">${fmtNum(nation.gdp)}</span>
+                <span className="text-[9px] text-zinc-300 font-bold">${fmtNum(nation.gdp)}</span>
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-[7px] text-zinc-600 uppercase">CPI</span>
-                <span className={`text-[10px] ${nation.inflationCpi > 0.05 ? 'text-red-400' : nation.inflationCpi > 0.03 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                <span className={`text-[9px] font-bold ${nation.inflationCpi > 0.05 ? 'text-red-400' : 'text-emerald-400'}`}>
                   {(nation.inflationCpi * 100).toFixed(1)}%
                 </span>
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-[7px] text-zinc-600 uppercase">APR</span>
-                <span className={`text-[10px] ${nation.approval < 0.4 ? 'text-red-400' : nation.approval > 0.6 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                <span className={`text-[9px] font-bold ${nation.approval < 0.4 ? 'text-red-400' : 'text-emerald-400'}`}>
                   {(nation.approval * 100).toFixed(0)}%
                 </span>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-[7px] text-zinc-600 uppercase">STAB</span>
-                <span className={`text-[10px] ${nation.stability < 0.4 ? 'text-red-400' : nation.stability > 0.6 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {(nation.stability * 100).toFixed(0)}%
-                </span>
-              </div>
             </div>
-
           </div>
         )}
 
-        {/* Right: Cash Box, User Profile & Exit */}
+        {/* Right: Cash, resources, party tag, dark toggle, logout */}
         <div className="flex items-center gap-3 shrink-0">
           
-          {/* Treasury Cash Display (Vibrant Emerald Glow) */}
+          {/* Treasury Cash Display */}
           {nation && (
-            <div className="px-3 py-1 bg-emerald-950/20 border border-emerald-500/30 text-emerald-400 font-mono text-[10px] font-black rounded-lg shadow-[0_0_10px_rgba(16,185,129,0.05)] select-all shrink-0">
-              CASH: ${fmtNum(nation.treasury)}
+            <div className="px-3.5 py-1.5 bg-[#0a140f] border border-emerald-500/20 text-emerald-400 font-mono text-[10px] font-black rounded-sm shadow-md shrink-0">
+              💵 CASH: ${fmtNum(nation.treasury)}
             </div>
           )}
 
-          {/* User Tag */}
-          <div className="text-[9px] text-zinc-500 font-mono border-l border-zinc-800 pl-3 hidden sm:block">
-            ♔ {nation?.name?.toUpperCase() || 'KELDORIA'} · {user?.display_name?.toUpperCase() || user?.username?.toUpperCase()}
-          </div>
+          {/* Party Tag */}
+          <span className="text-[9px] font-mono px-2 py-1 bg-amber-950/20 border border-amber-500/20 text-amber-500 rounded-sm font-extrabold uppercase shrink-0">
+            🏛️ Faction Admin
+          </span>
 
-          {/* Exit/Logout Button */}
+          {/* Light/Dark Theme Switcher */}
+          <button 
+            onClick={() => setIsDark(!isDark)}
+            className="w-8 h-8 rounded-sm bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 transition-colors flex items-center justify-center cursor-pointer shrink-0"
+            title="Toggle theme stance"
+          >
+            <span className="text-xs">{isDark ? '🌙' : '☀️'}</span>
+          </button>
+
+          {/* Exit/Logout */}
           <button
             onClick={handleLogout}
-            className="text-[9px] text-zinc-600 hover:text-red-400 font-mono font-bold uppercase tracking-wider transition-colors border-l border-zinc-800 pl-3 shrink-0"
+            className="text-[9px] text-zinc-650 hover:text-red-400 font-mono font-bold uppercase tracking-wider transition-colors border-l border-zinc-900 pl-3 shrink-0 cursor-pointer"
           >
-            [EXIT]
+            [Exit]
           </button>
         </div>
 
       </header>
 
-      {/* ── ROW 2: PRIMARY TABS NAVIGATION ────────────────────────────────── */}
-      <nav className="h-10 bg-zinc-950 border-b border-zinc-900 flex items-center px-4 gap-6 shrink-0">
+      {/* ── ROW 2: PRIMARY TABS NAVIGATION (MAINNAV) ────────────────────────── */}
+      <nav className="h-10 bg-[#060805] border-b border-zinc-900/60 flex items-center px-4 gap-6 shrink-0 shadow-inner">
         {GROUPS.map((group) => {
           const isActive = activeGroup.key === group.key;
           const firstItemHref = group.items[0].href;
@@ -200,10 +213,10 @@ export default function Topbar() {
             <Link
               key={group.key}
               href={firstItemHref}
-              className={`h-full flex items-center px-2 text-[11px] font-mono tracking-widest font-black transition-all border-b-2 relative -mb-px ${
+              className={`h-full flex items-center px-3 text-[10px] font-mono tracking-[0.2em] font-extrabold transition-all border-b-2 relative -mb-px ${
                 isActive
-                  ? 'border-amber-500 text-amber-400 text-shadow-glow'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                  ? 'border-amber-500 text-amber-400 glow-text-amber'
+                  : 'border-transparent text-zinc-600 hover:text-zinc-300'
               }`}
             >
               {group.label}
@@ -212,8 +225,8 @@ export default function Topbar() {
         })}
       </nav>
 
-      {/* ── ROW 3: SUB-NAVIGATION CHILD LINKS ─────────────────────────────── */}
-      <div className="h-9 bg-zinc-900/20 border-b border-zinc-900/60 flex items-center px-6 gap-6 shrink-0 overflow-x-auto">
+      {/* ── ROW 3: SUB-NAVIGATION CHILD LINKS (SECTIONTABS) ────────────────── */}
+      <div className="h-9 bg-[#040504]/40 border-b border-zinc-900/40 flex items-center px-6 gap-6 shrink-0 overflow-x-auto">
         {activeGroup.items.map((item) => {
           const isChildActive = pathname === item.href || pathname.startsWith(item.href + '/');
           
@@ -221,10 +234,10 @@ export default function Topbar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`text-[10px] font-mono tracking-wider font-extrabold uppercase transition-all duration-100 ${
+              className={`text-[9px] font-mono tracking-wider font-extrabold uppercase transition-all duration-100 ${
                 isChildActive
-                  ? 'text-amber-400 bg-amber-950/20 px-2.5 py-1 rounded-md border border-amber-500/20'
-                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40 px-2.5 py-1 rounded-md'
+                  ? 'text-amber-400 bg-amber-950/20 px-3 py-1 rounded-sm border border-amber-500/20'
+                  : 'text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/20 px-3 py-1 rounded-sm'
               }`}
             >
               {item.label}
