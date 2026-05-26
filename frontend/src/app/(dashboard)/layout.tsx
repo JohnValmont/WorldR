@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../../store/auth.store';
 import { useNationStore } from '../../store/useNationStore';
 import { nationApi, KELDORIA_ID } from '../../lib/api';
-import Sidebar from '../../components/layout/Sidebar';
 import Topbar from '../../components/layout/Topbar';
 
 // Keldoria is the canonical Alpha v0.1 starter nation
@@ -58,8 +57,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="h-screen flex flex-col bg-black">
       <Topbar />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto bg-zinc-950 p-4">
+        <main className="flex-1 overflow-y-auto bg-zinc-950 p-6">
           {children}
         </main>
       </div>
