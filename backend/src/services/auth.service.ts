@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { env } from '../config/env';
 import { userRepository } from '../repositories/user.repository';
 import { db } from '../config/database';
-import { ConflictError, UnauthorizedError, NotFoundError } from '../utils/errors';
+import { ConflictError, UnauthorizedError, NotFoundError, ValidationError } from '../utils/errors';
 import { User } from '../types';
 import { logger } from '../utils/logger';
 import { emailService } from './email.service';
@@ -175,7 +175,7 @@ export class AuthService {
       const cooldownEnd = new Date(latestRecord.resend_cooldown_until);
       if (cooldownEnd > new Date()) {
         const secondsLeft = Math.ceil((cooldownEnd.getTime() - Date.now()) / 1000);
-        throw new Error(`Please wait ${secondsLeft} seconds before requesting a new code.`);
+        throw new ValidationError(`Please wait ${secondsLeft} seconds before requesting a new code.`);
       }
     }
 
