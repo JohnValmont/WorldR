@@ -14,7 +14,8 @@
     "lint": "turbo lint"
   },
   "devDependencies": {
-    "turbo": "^2.9.14"
+    "turbo": "^2.9.14",
+    "typescript": "6.0.3"
   },
   "dependencies": {
     "next": "16.2.6"
