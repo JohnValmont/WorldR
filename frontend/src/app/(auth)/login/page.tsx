@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [form, setForm] = useState({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +21,6 @@ export default function LoginPage() {
       const { data } = await authApi.login(form);
       setAuth(data.user, data.accessToken, data.refreshToken);
 
-      // Route based on onboarding state
       const user = data.user;
       if (!user.is_verified) {
         router.push(`/verify?email=${encodeURIComponent(user.email)}`);
@@ -39,77 +39,131 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="glass-panel p-6 rounded-sm animate-fade-in-up shadow-2xl relative overflow-hidden">
-      <div className="flex items-center gap-1.5 mb-5 border-b border-white/10 pb-3">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)] shrink-0 animate-pulse" />
-        <span className="text-[10px] text-zinc-400 font-mono uppercase tracking-[0.25em] font-bold">FACTION LOGIN</span>
+    <div className="w-full animate-auth-enter">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)] animate-pulse" />
+          <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.3em]">Faction Login</span>
+        </div>
+        <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">Welcome back</h1>
+        <p className="text-zinc-500 text-sm mt-1">Sign in to resume your political legacy.</p>
       </div>
 
-      {/* WORLDr brand identity */}
-      <div className="flex flex-col items-center justify-center my-5 py-4 bg-white/[0.01] border border-white/5 rounded-sm">
-        <div className="w-14 h-14 border border-amber-500/20 bg-black/60 flex items-center justify-center mb-2 shadow-inner relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent" />
-          <span className="font-serif text-amber-400 text-lg font-extrabold tracking-[0.15em] relative z-10">WR</span>
-        </div>
-        <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.3em]">
-          Aethon Chronicle
-        </div>
-        <div className="text-[8px] font-mono text-zinc-700 uppercase tracking-widest mt-0.5">
-          v0.1 Alpha
-        </div>
-      </div>
-
+      {/* Error */}
       {error && (
-        <div className="bg-red-950/30 border border-red-900/50 text-red-400 text-xs p-2.5 mb-4 font-mono">
-          ✕ {error}
+        <div className="flex items-start gap-2.5 bg-red-950/30 border border-red-800/50 text-red-400 text-xs p-3.5 mb-6 rounded-sm">
+          <svg className="w-3.5 h-3.5 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+          </svg>
+          <span className="font-mono">{error}</span>
         </div>
       )}
 
+      {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="text-[9px] text-zinc-500 uppercase tracking-[0.2em] font-bold block mb-1">Username / Email</label>
-          <input
-            id="login-username"
-            className="input-premium"
-            placeholder="info@nationhoodgame.com"
-            value={form.username}
-            onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-            required
-          />
+          <label className="auth-label">Username</label>
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </span>
+            <input
+              id="login-username"
+              className="auth-input pl-10"
+              placeholder="Enter your username"
+              value={form.username}
+              onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+              autoComplete="username"
+              required
+            />
+          </div>
         </div>
+
         <div>
-          <label className="text-[9px] text-zinc-500 uppercase tracking-[0.2em] font-bold block mb-1">Password</label>
-          <input
-            id="login-password"
-            type="password"
-            className="input-premium"
-            placeholder="••••••••"
-            value={form.password}
-            onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-            required
-          />
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="auth-label">Password</label>
+            <Link href="/forgot-password" className="text-[10px] text-zinc-500 hover:text-amber-400 transition-colors font-mono">
+              Forgot password?
+            </Link>
+          </div>
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </span>
+            <input
+              id="login-password"
+              type={showPassword ? 'text' : 'password'}
+              className="auth-input pl-10 pr-12"
+              placeholder="••••••••"
+              value={form.password}
+              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+              autoComplete="current-password"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(v => !v)}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
+              tabIndex={-1}
+            >
+              {showPassword ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
+
         <button
           id="login-submit"
           type="submit"
           disabled={loading}
-          className="btn-premium-primary w-full mt-2"
+          className="auth-btn-primary w-full mt-6 group"
         >
-          {loading ? 'AUTHENTICATING...' : 'ENTER THE CHRONICLE'}
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Authenticating...
+            </span>
+          ) : (
+            <span className="flex items-center justify-center gap-2">
+              Enter the Chronicle
+              <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </span>
+          )}
         </button>
       </form>
 
-      <div className="flex flex-col gap-2.5 items-center justify-center mt-6 border-t border-white/5 pt-4 text-center">
-        <Link href="/forgot-password" className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors">
-          Forgot password?
-        </Link>
-        <div className="text-[10px] text-zinc-500">
-          New to Aethon?{' '}
-          <Link href="/register" className="text-amber-500 hover:text-amber-400 font-bold transition-colors">
-            Establish a Faction
-          </Link>
-        </div>
+      {/* Divider */}
+      <div className="flex items-center gap-3 my-6">
+        <div className="flex-1 h-px bg-white/5" />
+        <span className="text-[10px] text-zinc-700 font-mono uppercase tracking-widest">or</span>
+        <div className="flex-1 h-px bg-white/5" />
       </div>
+
+      {/* Register link */}
+      <p className="text-center text-zinc-500 text-sm">
+        New to Aethon?{' '}
+        <Link href="/register" className="text-amber-400 hover:text-amber-300 font-semibold transition-colors">
+          Establish a Faction
+        </Link>
+      </p>
     </div>
   );
 }

@@ -246,3 +246,31 @@ th, td {
   animation: marquee 30s linear infinite;
   white-space: nowrap;
 }
+
+/* ── Auth System ─────────────────────────────────────────── */
+.auth-label {
+  @apply text-[11px] text-zinc-500 uppercase tracking-[0.15em] font-semibold block mb-1.5;
+}
+
+.auth-input {
+  @apply w-full bg-white/[0.03] border border-white/[0.08] text-zinc-100 text-sm px-3.5 py-2.5 rounded-sm
+    focus:outline-none focus:border-amber-500/60 focus:bg-white/[0.05] focus:ring-1 focus:ring-amber-500/15
+    placeholder:text-zinc-700 transition-all duration-200;
+}
+
+.auth-btn-primary {
+  @apply relative overflow-hidden bg-gradient-to-r from-amber-500 to-amber-600 text-black font-semibold text-sm
+    tracking-wide px-5 py-2.5 rounded-sm
+    hover:from-amber-400 hover:to-amber-500 active:from-amber-600 active:to-amber-700
+    shadow-[0_2px_12px_rgba(245,158,11,0.25)] hover:shadow-[0_4px_20px_rgba(245,158,11,0.4)]
+    transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+@keyframes authEnter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-auth-enter {
+  animation: authEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
