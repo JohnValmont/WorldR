@@ -108,6 +108,26 @@ export class TickEngine {
         const passed = totalYesSeats >= Math.ceil(totalSeats / 2 + 1);
         const quorumPassed = (totalYesSeats + totalNoSeats) >= Math.ceil(totalSeats * 0.5); // Quorum: 50% of seats present
         
+        // Parse metadata to extract or initialize voting_ticks_run
+        let metadata: any = {};
+        let votingTicksRun = 0;
+        let baseDescription = law.description || '';
+        
+        if (law.description) {
+          try {
+            const metadataMatch = law.description.match(/\[METADATA:(.*)\]/);
+            if (metadataMatch) {
+              metadata = JSON.parse(metadataMatch[1]) || {};
+              votingTicksRun = Number(metadata.voting_ticks_run || 0);
+              baseDescription = law.description.split('[METADATA:')[0].trim();
+            }
+          } catch (e) {
+            logger.error(`[TickEngine] Failed to parse metadata for law ${law.id}:`, e);
+          }
+        }
+        
+        votingTicksRun += 1;
+        
         if (quorumPassed && passed) {
           logger.info(`[TickEngine] Proposed law "${law.title}" PASSED in parliament! Votes: Yes=${totalYesSeats}, No=${totalNoSeats}`);
           await lawRepository.updateStatus(law.id, 'passed', this.trx);
@@ -196,24 +216,52 @@ export class TickEngine {
           });
           
         } else {
-          logger.info(`[TickEngine] Proposed law "${law.title}" REJECTED in parliament. Votes: Yes=${totalYesSeats}, No=${totalNoSeats}`);
-          await lawRepository.updateStatus(law.id, 'repealed', this.trx);
-          
-          // Clear active modifiers from law_effects since it failed
-          await this.trx('law_effects').where({ law_id: law.id }).delete();
-          
-          // Send notification/alert about rejected law
-          await this.trx('notifications').insert({
-            user_id: user ? user.id : null,
-            nation_id: this.nationId,
-            title: `Law Rejected: ${law.title}`,
-            message: `The proposed law "${law.title}" has been REJECTED by the parliament. Votes: Yes=${totalYesSeats}, No=${totalNoSeats}.`,
-            type: 'warning',
-            category: 'law',
-            is_read: false,
-            created_at: new Date(),
-            updated_at: new Date()
-          });
+          if (votingTicksRun >= 2) {
+            // EXPIRED after 2 ticks
+            logger.info(`[TickEngine] Proposed law "${law.title}" has EXPIRED in parliament committee after ${votingTicksRun} ticks. Votes: Yes=${totalYesSeats}, No=${totalNoSeats}`);
+            await lawRepository.updateStatus(law.id, 'repealed', this.trx);
+            
+            // Clear active modifiers from law_effects since it failed/expired
+            await this.trx('law_effects').where({ law_id: law.id }).delete();
+            
+            // Send notification/alert about expired law
+            await this.trx('notifications').insert({
+              user_id: user ? user.id : null,
+              nation_id: this.nationId,
+              title: `Law Expired: ${law.title}`,
+              message: `The proposed law "${law.title}" has EXPIRED in committee after failing to reach a majority quorum over 2 voting sessions. (Latest round: ${totalYesSeats} YES, ${totalNoSeats} NO).`,
+              type: 'warning',
+              category: 'law',
+              is_read: false,
+              created_at: new Date(),
+              updated_at: new Date()
+            });
+          } else {
+            // CONTINUE to the next tick
+            logger.info(`[TickEngine] Proposed law "${law.title}" did not pass quorum/majority (Yes=${totalYesSeats}, No=${totalNoSeats}) and will CONTINUE to the next tick session.`);
+            
+            // Update metadata to save voting_ticks_run
+            metadata.voting_ticks_run = votingTicksRun;
+            const updatedDescription = `${baseDescription}\n\n[METADATA:${JSON.stringify(metadata)}]`;
+            
+            await this.trx('laws').where({ id: law.id }).update({
+              description: updatedDescription,
+              updated_at: new Date()
+            });
+            
+            // Send notification about debate continuation
+            await this.trx('notifications').insert({
+              user_id: user ? user.id : null,
+              nation_id: this.nationId,
+              title: `Bill Debate Continued: ${law.title}`,
+              message: `The proposed bill "${law.title}" did not secure a majority quorum in this tick (Votes: ${totalYesSeats} YES, ${totalNoSeats} NO). Debate has been extended to the next legislative session.`,
+              type: 'info',
+              category: 'law',
+              is_read: false,
+              created_at: new Date(),
+              updated_at: new Date()
+            });
+          }
         }
       }
     }

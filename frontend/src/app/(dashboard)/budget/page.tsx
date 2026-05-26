@@ -6,6 +6,7 @@ import TerminalPanel from '../../../components/ui/TerminalPanel';
 import StatCard from '../../../components/ui/StatCard';
 import GaugeBar from '../../../components/ui/GaugeBar';
 import BarChart from '../../../components/charts/BarChart';
+import ModalOverlay from '../../../components/ui/ModalOverlay';
 
 const VALDORIA_ID = KELDORIA_ID;
 
@@ -33,29 +34,39 @@ export default function BudgetPage() {
   const [taxEdits, setTaxEdits] = useState<Record<string, number>>({});
   const [budgetEdits, setBudgetEdits] = useState<Record<string, number>>({});
 
+  // Drafting Bill State
+  const [showDraftModal, setShowDraftModal] = useState(false);
+  const [draftTaxes, setDraftTaxes] = useState<Record<string, number>>({});
+  const [draftBudgets, setDraftBudgets] = useState<Record<string, number>>({});
+
   useEffect(() => {
     nationApi.getState(nationId).then(r => {
       setState(r.data);
+      
       const te: Record<string, number> = {};
       (r.data.taxes || []).forEach((t: any) => { te[t.name] = Number(t.rate) * 100; });
       setTaxEdits(te);
+      setDraftTaxes(te); // Sync draft start point
+      
       const be: Record<string, number> = {};
       (r.data.budgetItems || []).forEach((b: any) => { be[b.name] = Number(b.allocation) / 1e6; });
       setBudgetEdits(be);
+      setDraftBudgets(be); // Sync draft start point
     }).catch(() => {});
   }, [nationId]);
 
-  const handleSave = async () => {
+  const handleDraftSubmit = async () => {
     setSaving(true);
     setSaveMsg('');
     try {
-      const taxes = Object.entries(taxEdits).map(([name, rate]) => ({ name, rate: rate / 100 }));
-      const budgets = Object.entries(budgetEdits).map(([name, allocation]) => ({ name, allocation: allocation * 1e6 }));
-      await nationApi.updateBudget(nationId, { taxes, budgets });
+      const taxesPayload = Object.entries(draftTaxes).map(([name, rate]) => ({ name, rate: rate / 100 }));
+      const budgetsPayload = Object.entries(draftBudgets).map(([name, allocation]) => ({ name, allocation: allocation * 1e6 }));
+      await nationApi.updateBudget(nationId, { taxes: taxesPayload, budgets: budgetsPayload });
       setSaveMsg('✓ PROPOSED TO PARLIAMENT');
+      setShowDraftModal(false);
       setTimeout(() => window.location.reload(), 1500);
     } catch (err: any) {
-      setSaveMsg('✕ ' + (err?.response?.data?.error || 'Update failed'));
+      setSaveMsg('✕ ' + (err?.response?.data?.error || 'Failed to submit bill'));
     } finally {
       setSaving(false);
     }
@@ -68,6 +79,31 @@ export default function BudgetPage() {
 
   const activeProposal = laws.find((l: any) => l.title === 'Fiscal Policy Proposal' && l.status === 'proposed');
 
+  // Parse proposed values from description metadata if activeProposal exists
+  let proposedTaxesMap: Record<string, number> = {};
+  let proposedBudgetsMap: Record<string, number> = {};
+  let proposalTicksRun = 1;
+  
+  if (activeProposal?.description) {
+    try {
+      const match = activeProposal.description.match(/\[METADATA:(.*)\]/);
+      if (match) {
+        const parsed = JSON.parse(match[1]);
+        if (parsed && parsed.type === 'budget_policy') {
+          proposalTicksRun = parsed.voting_ticks_run || 1;
+          (parsed.taxes || []).forEach((t: any) => {
+            proposedTaxesMap[t.name] = t.rate * 100;
+          });
+          (parsed.budgets || []).forEach((b: any) => {
+            proposedBudgetsMap[b.name] = b.allocation / 1e6;
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse metadata in frontend:', e);
+    }
+  }
+
   const totalRevenue = taxes.reduce((a: number, t: any) => a + Number(t.revenue), 0);
   const totalSpending = budgetItems.reduce((a: number, b: any) => a + Number(b.allocation), 0);
   const deficit = totalSpending - totalRevenue;
@@ -76,17 +112,54 @@ export default function BudgetPage() {
     name: b.name, value: Number(b.allocation) / 1e6, color: BUDGET_COLORS[b.name] || '#6b7280'
   }));
 
+  // live draft forecasts inside the modal
+  let draftRevenue = 0;
+  taxes.forEach((t: any) => {
+    const currentRate = Number(t.rate) * 100;
+    const proposedRate = draftTaxes[t.name] ?? currentRate;
+    const currentRev = Number(t.revenue);
+    const estRev = currentRate > 0 ? (proposedRate / currentRate) * currentRev : (proposedRate / 100) * (Number(state?.nation?.gdp || 0) / 5);
+    draftRevenue += estRev;
+  });
+
+  let draftSpending = 0;
+  budgetItems.forEach((b: any) => {
+    const proposedAlloc = (draftBudgets[b.name] ?? (Number(b.allocation) / 1e6)) * 1e6;
+    draftSpending += proposedAlloc;
+  });
+  // Add interest spending on national debt (which is totalSpending - original allocations sum)
+  const originalAllocationsSum = budgetItems.reduce((a: number, b: any) => a + Number(b.allocation), 0);
+  const interestSpending = Math.max(0, totalSpending - originalAllocationsSum);
+  draftSpending += interestSpending;
+
+  const draftDeficit = draftSpending - draftRevenue;
+
   return (
     <div className="space-y-4 animate-fade-in-up">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
         <div>
           <h1 className="text-amber-400 font-black text-base uppercase tracking-widest">Budget & Fiscal Policy</h1>
-          <div className="text-zinc-600 text-[10px]">Manage taxation and public spending</div>
+          <div className="text-zinc-600 text-[10px] font-mono mt-0.5">National economic balance sheet · Propose bills to adjust policy</div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           {saveMsg && <span className={`text-[10px] font-mono ${saveMsg.startsWith('✓') ? 'text-emerald-400' : 'text-red-400'}`}>{saveMsg}</span>}
-          <button onClick={handleSave} disabled={saving} className="btn-primary" id="save-fiscal-btn">
-            {saving ? 'SAVING...' : 'APPLY POLICY'}
+          <button
+            onClick={() => {
+              // Reset draft to current values on open
+              const te: Record<string, number> = {};
+              taxes.forEach((t: any) => { te[t.name] = Number(t.rate) * 100; });
+              setDraftTaxes(te);
+              
+              const be: Record<string, number> = {};
+              budgetItems.forEach((b: any) => { be[b.name] = Number(b.allocation) / 1e6; });
+              setDraftBudgets(be);
+
+              setShowDraftModal(true);
+            }}
+            className="btn-primary py-1.5 px-4 font-mono font-bold tracking-widest text-[10px] border border-amber-500/30 hover:border-amber-400 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+            id="propose-fiscal-btn"
+          >
+            PROPOSE FISCAL REFORM
           </button>
         </div>
       </div>
@@ -99,64 +172,85 @@ export default function BudgetPage() {
       </div>
 
       {activeProposal && (
-        <div className="border border-amber-500/20 bg-amber-500/[0.03] px-4 py-3 rounded-lg flex items-center gap-3 text-xs text-amber-500/80 font-mono tracking-wide animate-pulse">
-          <span className="text-sm shrink-0">🏛️</span>
-          <div>
-            <div className="font-bold uppercase tracking-wider text-amber-400">Pending Parliamentary Vote</div>
-            <div className="text-[10px] mt-0.5 opacity-80">
-              A Fiscal Policy Proposal is currently active in the legislature. Advancing the month will trigger a parliamentary vote. Submitting new changes will replace this active proposal.
+        <div className="border border-amber-500/20 bg-amber-500/[0.03] px-4 py-3 rounded-lg flex items-center justify-between gap-3 text-xs text-amber-500/80 font-mono tracking-wide animate-pulse">
+          <div className="flex items-center gap-3">
+            <span className="text-sm shrink-0">🏛️</span>
+            <div>
+              <div className="font-bold uppercase tracking-wider text-amber-400">Pending Parliamentary Vote (Round {proposalTicksRun}/2)</div>
+              <div className="text-[10px] mt-0.5 opacity-80">
+                A Fiscal Policy Proposal is currently active in the legislature. Advancing the tick will trigger a parliamentary vote. Proposing new changes will replace this active proposal.
+              </div>
             </div>
           </div>
+          <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded text-[8px] font-bold shrink-0">ACTIVE DEBATE</span>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {/* Tax rates */}
-        <TerminalPanel title="Tax Rates" headerAction={<span className="text-zinc-600 text-[9px]">drag sliders to adjust</span>}>
-          <div className="space-y-4">
-            {taxes.map((t: any) => (
-              <div key={t.name}>
-                <div className="flex justify-between items-center mb-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-sm" style={{ background: TAX_COLORS[t.name] || '#6b7280' }} />
-                    <span className="text-zinc-300 text-xs">{t.name}</span>
+        <TerminalPanel title="Tax Rates" headerAction={<span className="text-zinc-600 text-[9px] uppercase font-mono tracking-wider">Read-Only Cockpit</span>}>
+          <div className="space-y-3">
+            {taxes.map((t: any) => {
+              const currentRatePct = (taxEdits[t.name] || Number(t.rate) * 100);
+              const proposedRatePct = proposedTaxesMap[t.name];
+              const hasProposal = proposedRatePct !== undefined && Math.abs(proposedRatePct - currentRatePct) > 0.01;
+              
+              return (
+                <div key={t.name} className="border border-zinc-900 bg-zinc-950/20 p-3 rounded-sm space-y-2">
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-sm animate-pulse" style={{ background: TAX_COLORS[t.name] || '#6b7280' }} />
+                      <span className="text-zinc-200 text-xs font-bold font-mono uppercase tracking-wider">{t.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 font-mono">
+                      <span className="text-zinc-500 text-[9px]">Rev: {fmt(Number(t.revenue))}</span>
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <span className="text-zinc-300 font-bold">{currentRatePct.toFixed(1)}%</span>
+                        {hasProposal && (
+                          <span className="text-amber-400 bg-amber-950/40 border border-amber-900/30 px-1.5 py-0.2 rounded-sm text-[9px] font-black animate-pulse flex items-center gap-0.5">
+                            🏛️ → {proposedRatePct.toFixed(1)}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-zinc-500 text-[10px]">Rev: {fmt(Number(t.revenue))}</span>
-                    <span className="text-amber-400 font-mono text-xs font-bold">{(taxEdits[t.name] || 0).toFixed(1)}%</span>
-                  </div>
+                  <GaugeBar value={currentRatePct / 60} color={t.name === 'Income Tax' ? 'amber' : t.name === 'Corporate Tax' ? 'blue' : 'purple'} showValue={false} height="xs" />
                 </div>
-                <input
-                  type="range" min="0" max="60" step="0.5"
-                  value={taxEdits[t.name] || 0}
-                  onChange={e => setTaxEdits(prev => ({ ...prev, [t.name]: parseFloat(e.target.value) }))}
-                  className="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-amber-500"
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </TerminalPanel>
 
         {/* Budget allocations */}
-        <TerminalPanel title="Budget Allocations" subtitle="$M" headerAction={<span className="text-zinc-600 text-[9px]">drag sliders to adjust</span>}>
-          <div className="space-y-4">
-            {budgetItems.map((b: any) => (
-              <div key={b.name}>
-                <div className="flex justify-between items-center mb-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-sm" style={{ background: BUDGET_COLORS[b.name] || '#6b7280' }} />
-                    <span className="text-zinc-300 text-xs">{b.name}</span>
+        <TerminalPanel title="Budget Allocations" subtitle="$M" headerAction={<span className="text-zinc-600 text-[9px] uppercase font-mono tracking-wider">Read-Only Cockpit</span>}>
+          <div className="space-y-3">
+            {budgetItems.map((b: any) => {
+              const currentAllocM = (budgetEdits[b.name] || Number(b.allocation) / 1e6);
+              const proposedAllocM = proposedBudgetsMap[b.name];
+              const hasProposal = proposedAllocM !== undefined && Math.abs(proposedAllocM - currentAllocM) > 0.01;
+
+              return (
+                <div key={b.name} className="border border-zinc-900 bg-zinc-950/20 p-3 rounded-sm space-y-2">
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-sm animate-pulse" style={{ background: BUDGET_COLORS[b.name] || '#6b7280' }} />
+                      <span className="text-zinc-200 text-xs font-bold font-mono uppercase tracking-wider">{b.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 font-mono">
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <span className="text-zinc-300 font-bold">${currentAllocM.toFixed(0)}M</span>
+                        {hasProposal && (
+                          <span className="text-amber-400 bg-amber-950/40 border border-amber-900/30 px-1.5 py-0.2 rounded-sm text-[9px] font-black animate-pulse flex items-center gap-0.5">
+                            🏛️ → ${proposedAllocM.toFixed(0)}M
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-amber-400 font-mono text-xs font-bold">${(budgetEdits[b.name] || 0).toFixed(0)}M</span>
+                  <GaugeBar value={currentAllocM / 400} color={b.name === 'Education' ? 'blue' : b.name === 'Healthcare' ? 'green' : 'amber'} showValue={false} height="xs" />
                 </div>
-                <input
-                  type="range" min="0" max="400" step="5"
-                  value={budgetEdits[b.name] || 0}
-                  onChange={e => setBudgetEdits(prev => ({ ...prev, [b.name]: parseFloat(e.target.value) }))}
-                  className="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-amber-500"
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </TerminalPanel>
       </div>
@@ -166,6 +260,148 @@ export default function BudgetPage() {
           <BarChart data={budgetData} height={160} formatValue={v => `$${v.toFixed(0)}M`} />
         ) : <div className="text-zinc-600 text-xs text-center py-10">No budget data available.</div>}
       </TerminalPanel>
+
+      {/* Redesigned Premium Propose Fiscal Reform Modal */}
+      <ModalOverlay isOpen={showDraftModal} onClose={() => setShowDraftModal(false)} title="Draft Fiscal Reform Bill" width="max-w-6xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[75vh]">
+          {/* Sliders Area */}
+          <div className="lg:col-span-2 space-y-4 overflow-y-auto pr-2">
+            <div>
+              <h3 className="text-xs font-bold font-mono text-zinc-300 uppercase tracking-wider mb-1">Proposed Tax Policies</h3>
+              <p className="text-[9px] text-zinc-500 font-mono">Adjust targeted tax rate modifiers for this legislative session.</p>
+            </div>
+            
+            <div className="space-y-3">
+              {taxes.map((t: any) => {
+                const currentRate = Number(t.rate) * 100;
+                const draftRate = draftTaxes[t.name] ?? currentRate;
+                return (
+                  <div key={t.name} className="bg-zinc-950/40 border border-zinc-900 p-3 rounded-sm space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-300 text-xs font-bold font-mono uppercase tracking-wider">{t.name}</span>
+                      <div className="flex items-center gap-2 font-mono text-xs font-bold">
+                        <span className="text-zinc-500 font-normal text-[10px]">Current: {currentRate.toFixed(1)}%</span>
+                        <span className="text-amber-400 font-black">{draftRate.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <input
+                      type="range" min="0" max="60" step="0.5"
+                      value={draftRate}
+                      onChange={e => setDraftTaxes(prev => ({ ...prev, [t.name]: parseFloat(e.target.value) }))}
+                      className="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-amber-500"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="pt-2">
+              <h3 className="text-xs font-bold font-mono text-zinc-300 uppercase tracking-wider mb-1">Proposed Spendings & Allocations</h3>
+              <p className="text-[9px] text-zinc-500 font-mono">Adjust targeted public spending programs to expand or downsize.</p>
+            </div>
+            
+            <div className="space-y-3">
+              {budgetItems.map((b: any) => {
+                const currentAlloc = Number(b.allocation) / 1e6;
+                const draftAlloc = draftBudgets[b.name] ?? currentAlloc;
+                return (
+                  <div key={b.name} className="bg-zinc-950/40 border border-zinc-900 p-3 rounded-sm space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-300 text-xs font-bold font-mono uppercase tracking-wider">{b.name}</span>
+                      <div className="flex items-center gap-2 font-mono text-xs font-bold">
+                        <span className="text-zinc-500 font-normal text-[10px]">Current: ${currentAlloc.toFixed(0)}M</span>
+                        <span className="text-amber-400 font-black">${draftAlloc.toFixed(0)}M</span>
+                      </div>
+                    </div>
+                    <input
+                      type="range" min="0" max="400" step="5"
+                      value={draftAlloc}
+                      onChange={e => setDraftBudgets(prev => ({ ...prev, [b.name]: parseFloat(e.target.value) }))}
+                      className="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-amber-500"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Estimates & Forecasts */}
+          <div className="border-l border-zinc-900 pl-3 flex flex-col justify-between h-full">
+            <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+              <div>
+                <label className="text-[8px] text-zinc-500 uppercase tracking-widest block font-mono mb-1">Bill Title</label>
+                <div className="terminal-input bg-zinc-950/50 text-[11px] font-mono text-amber-500 font-bold uppercase tracking-wider py-2 px-3 border border-zinc-900">
+                  🏛️ Fiscal Policy Proposal
+                </div>
+              </div>
+
+              {/* Estimates Panel */}
+              <div className="border border-zinc-900 bg-zinc-950/40 p-3 rounded-sm space-y-3 font-mono">
+                <h4 className="text-[9px] text-zinc-500 uppercase tracking-widest">IMPACT FORECAST (ANNUAL)</h4>
+                
+                {/* Total Revenue Estimate */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-zinc-400">
+                    <span>Est. Revenue</span>
+                    <span className="font-bold text-zinc-200">{fmt(draftRevenue)}</span>
+                  </div>
+                  <div className="text-[9px] text-zinc-500 flex justify-between">
+                    <span>Current: {fmt(totalRevenue)}</span>
+                    <span className={draftRevenue >= totalRevenue ? 'text-emerald-500' : 'text-rose-500'}>
+                      {draftRevenue >= totalRevenue ? '+' : ''}{((draftRevenue - totalRevenue) / 1e6).toFixed(1)}M
+                    </span>
+                  </div>
+                </div>
+
+                {/* Total Spending Estimate */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-zinc-400">
+                    <span>Est. Spending</span>
+                    <span className="font-bold text-zinc-200">{fmt(draftSpending)}</span>
+                  </div>
+                  <div className="text-[9px] text-zinc-500 flex justify-between">
+                    <span>Current: {fmt(totalSpending)}</span>
+                    <span className={draftSpending <= totalSpending ? 'text-emerald-500' : 'text-rose-500'}>
+                      {draftSpending <= totalSpending ? '' : '+'}{((draftSpending - totalSpending) / 1e6).toFixed(1)}M
+                    </span>
+                  </div>
+                </div>
+
+                {/* Deficit / Surplus Estimate */}
+                <div className="space-y-1 border-t border-zinc-900 pt-2">
+                  <div className="flex justify-between text-[10px] text-zinc-400">
+                    <span>Forecast Balance</span>
+                    <span className={`font-bold ${draftDeficit > 0 ? 'text-rose-500 animate-pulse' : 'text-emerald-500'}`}>
+                      {draftDeficit > 0 ? `${fmt(draftDeficit)} Deficit` : `${fmt(Math.abs(draftDeficit))} Surplus`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-[9px] font-mono text-zinc-500 leading-relaxed bg-zinc-950/20 p-2.5 border border-zinc-900">
+                🏛️ **PARLIAMENTARY RULES**:
+                Submitting this reform package puts it in front of the Bundestag committee. The bill will be voted on in the next tick simulation.
+              </div>
+            </div>
+
+            <div className="border-t border-zinc-900 pt-3 mt-3 space-y-2">
+              <button
+                onClick={handleDraftSubmit}
+                disabled={saving}
+                className="w-full btn-primary py-2 font-mono text-[10px] font-bold tracking-wider"
+              >
+                {saving ? 'PROPOSING BILL...' : 'PROPOSE BILL TO COMMITTEE'}
+              </button>
+              <button
+                onClick={() => setShowDraftModal(false)}
+                className="w-full btn-secondary py-1.5 font-mono text-[9px] border border-zinc-800 text-zinc-500 hover:text-zinc-300"
+              >
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      </ModalOverlay>
     </div>
   );
 }
