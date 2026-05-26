@@ -17,6 +17,16 @@ const transporter = nodemailer.createTransport({
   socketTimeout: 15000,     // 15 seconds socket inactivity timeout
 });
 
+// Verify the connection configuration on startup
+logger.info('[EmailService] Verifying SMTP connection on startup...');
+transporter.verify((error, success) => {
+  if (error) {
+    logger.error('[EmailService] SMTP verification failed on startup:', error);
+  } else {
+    logger.info('[EmailService] SMTP connected. SMTP server is ready to take our messages.');
+  }
+});
+
 /**
  * Generates the branded WORLDr HTML email template for OTP verification.
  */
@@ -190,6 +200,7 @@ export class EmailService {
       }
 
       // Gmail SMTP using Nodemailer
+      logger.info(`[EmailService] Attempting to send verification email to ${to} from ${from}...`);
       await transporter.sendMail({
         from,
         to,
@@ -197,9 +208,9 @@ export class EmailService {
         html,
         text
       });
-      logger.info(`[EmailService] Verification email sent successfully to ${to} via SMTP`);
+      logger.info(`[EmailService] sendMail success: Verification email sent successfully to ${to} via SMTP`);
     } catch (smtpErr: any) {
-      logger.error(`[EmailService] SMTP delivery failed for ${to}:`, smtpErr);
+      logger.error(`[EmailService] sendMail failure: Failed to send verification email to ${to}:`, smtpErr);
       throw new AppError(`Email delivery failed: ${smtpErr.message || smtpErr}`, 500, 'EMAIL_DELIVERY_FAILED');
     }
   }

@@ -49,6 +49,7 @@ export class AuthService {
   /** Stores a new OTP record for the given user, invalidating any previous ones. */
   private async storeOTP(userId: string): Promise<string> {
     const otp = this.generateOTP();
+    logger.info(`[AuthService] OTP generated for user ID: ${userId}`);
     const otpHash = await bcrypt.hash(otp, 10);
 
     const expiresAt = new Date();
@@ -85,31 +86,47 @@ export class AuthService {
     if (existingEmail) throw new ConflictError('Email already registered');
 
     const password_hash = await bcrypt.hash(password, 10);
-    const user = await userRepository.create({
-      username,
-      email,
-      password_hash,
-      role: 'user',
-      nation_id: null,
-      is_verified: false,
-      display_name: username
+
+    const result = await db.transaction(async (trx) => {
+      const user = await userRepository.create({
+        username,
+        email,
+        password_hash,
+        role: 'user',
+        nation_id: null,
+        is_verified: false,
+        display_name: username
+      }, trx);
+
+      // Generate OTP and store it in the database
+      const otp = this.generateOTP();
+      logger.info(`[AuthService] OTP generated for user ID: ${user.id} during registration`);
+      const otpHash = await bcrypt.hash(otp, 10);
+
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + OTP_EXPIRY_MINUTES);
+
+      const cooldownUntil = new Date();
+      cooldownUntil.setSeconds(cooldownUntil.getSeconds() + RESEND_COOLDOWN_SECONDS);
+
+      await trx('email_verification_tokens').insert({
+        user_id: user.id,
+        token: otpHash,
+        expires_at: expiresAt,
+        resend_cooldown_until: cooldownUntil,
+        is_used: false
+      });
+
+      if (env.NODE_ENV !== 'production') {
+        logger.info(`[AuthService] DEV — OTP for ${email}: ${otp}`);
+      }
+
+      await emailService.sendVerificationEmail(email, username, otp);
+
+      return user;
     });
 
-    // Generate OTP and send via email
-    const otp = await this.storeOTP(user.id);
-
-    if (env.NODE_ENV !== 'production') {
-      logger.info(`[AuthService] DEV — OTP for ${email}: ${otp}`);
-    }
-
-    try {
-      await emailService.sendVerificationEmail(email, username, otp);
-    } catch (err) {
-      logger.error(`[AuthService] Failed to send verification email to ${email}:`, err);
-      // Don't block registration if email fails — user can resend
-    }
-
-    const { password_hash: _, ...userWithoutPassword } = user;
+    const { password_hash: _, ...userWithoutPassword } = result;
     return { user: userWithoutPassword };
   }
 
