@@ -6,15 +6,16 @@ import { AppError } from '../utils/errors';
 // Create Nodemailer Transporter using Gmail SMTP config with robust timeouts
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
+  port: 587,
+  secure: false,
+  requireTLS: true,
   auth: {
     user: env.SMTP_EMAIL,
     pass: env.SMTP_APP_PASSWORD,
   },
-  connectionTimeout: 10000, // 10 seconds timeout for establishing connection
-  greetingTimeout: 10000,   // 10 seconds timeout for greeting response
-  socketTimeout: 15000,     // 15 seconds socket inactivity timeout
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
 });
 
 // Verify the connection configuration on startup
