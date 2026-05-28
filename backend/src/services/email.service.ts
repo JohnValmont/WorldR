@@ -3,18 +3,26 @@ import { env } from '../config/env';
 import { logger } from '../utils/logger';
 import { AppError } from '../utils/errors';
 
+logger.info(`[EmailService] Initializing SMTP Transporter...`);
+logger.info(`[EmailService] EMAIL_PROVIDER: ${process.env.EMAIL_PROVIDER || env.EMAIL_PROVIDER}`);
+logger.info(`[EmailService] SMTP_HOST: ${process.env.SMTP_HOST || 'smtp-relay.brevo.com'}`);
+logger.info(`[EmailService] SMTP_PORT: ${process.env.SMTP_PORT || '587'}`);
+
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
+  host: "smtp-relay.brevo.com",
+  port: 587,
   secure: false,
   requireTLS: true,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
+  tls: {
+    rejectUnauthorized: false
+  },
+  connectionTimeout: 20000,
+  greetingTimeout: 20000,
+  socketTimeout: 20000,
 });
 
 logger.info('[EmailService] Verifying SMTP connection...');
