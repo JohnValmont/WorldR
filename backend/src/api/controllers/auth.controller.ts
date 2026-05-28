@@ -114,16 +114,5 @@ export class AuthController {
       next(error);
     }
   }
-
-  public async updateNation(req: Request, res: Response, next: NextFunction) {
-    try {
-      if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-      const { nation_id } = req.body;
-      const result = await authService.updateNation(req.user.id, nation_id);
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
-  }
 }
 export const authController = new AuthController();

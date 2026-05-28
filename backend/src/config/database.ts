@@ -72,7 +72,6 @@ export async function runMigrationsAndSeeds(): Promise<void> {
   }
 
   const migrationsDir = path.join(dbDir, 'migrations');
-  const seedsDir = path.join(dbDir, 'seeds');
 
   logger.info(`Database directory resolved to: ${dbDir}`);
 
@@ -83,17 +82,6 @@ export async function runMigrationsAndSeeds(): Promise<void> {
       applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
   `);
-
-  // Create reset_token columns in users table if not exists
-  try {
-    await db.raw(`
-      ALTER TABLE users 
-      ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255),
-      ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMP WITH TIME ZONE;
-    `);
-  } catch (err) {
-    logger.warn('Failed to alter users table for reset_token columns:', err);
-  }
 
   if (!fs.existsSync(migrationsDir)) {
     logger.warn(`Migrations directory not found at ${migrationsDir}`);
@@ -125,46 +113,4 @@ export async function runMigrationsAndSeeds(): Promise<void> {
       }
     }
   }
-
-  // Seed the database if no nations exist
-  try {
-    const nationCountRow = await db('nations').count('id as count').first();
-    const nationCount = nationCountRow ? parseInt(nationCountRow.count as string, 10) : 0;
-
-    if (nationCount === 0) {
-      logger.info('No nations found in database. Starting database seeding...');
-      if (fs.existsSync(seedsDir)) {
-        const seedFiles = fs.readdirSync(seedsDir)
-          .filter(file => file.endsWith('.sql'))
-          .sort();
-
-        for (const file of seedFiles) {
-          // Skip first_nation_seed.sql to avoid conflicting with Valdoria/Keldoria seeds
-          if (file === 'first_nation_seed.sql') {
-            logger.info(`Skipping first_nation_seed.sql to avoid conflicting with Valdoria/Keldoria seeds.`);
-            continue;
-          }
-          logger.info(`Running seed: ${file}`);
-          const filePath = path.join(seedsDir, file);
-          const sql = fs.readFileSync(filePath, 'utf8');
-
-          try {
-            await db.raw(sql);
-            logger.info(`Successfully run seed: ${file}`);
-          } catch (err) {
-            logger.error(`Failed to run seed ${file}:`, err);
-            throw err;
-          }
-        }
-      } else {
-        logger.warn(`Seeds directory not found at ${seedsDir}`);
-      }
-    } else {
-      logger.info(`Database already seeded with ${nationCount} nations.`);
-    }
-  } catch (err) {
-    logger.error('Failed to run database seeds:', err);
-    throw err;
-  }
 }
-

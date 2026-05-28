@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env';
 import { UnauthorizedError } from '../../utils/errors';
-
 import { userRepository } from '../../repositories/user.repository';
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
@@ -18,14 +17,12 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       username: string;
       email: string;
       role: 'user' | 'admin' | 'moderator';
-      nation_id: string | null;
       is_verified: boolean;
     };
 
     const user = await userRepository.findById(decoded.id);
     req.user = {
       ...decoded,
-      nation_id: user ? user.nation_id : decoded.nation_id,
       role: user ? user.role : decoded.role
     };
     next();

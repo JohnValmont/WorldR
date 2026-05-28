@@ -8,7 +8,6 @@ declare global {
         username: string;
         email: string;
         role: 'user' | 'admin' | 'moderator';
-        nation_id: string | null;
         is_verified: boolean;
       };
     }

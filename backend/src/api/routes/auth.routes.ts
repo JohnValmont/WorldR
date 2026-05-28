@@ -40,12 +40,6 @@ const resendVerificationSchema = z.object({
   })
 });
 
-const updateNationSchema = z.object({
-  body: z.object({
-    nation_id: z.string().uuid()
-  })
-});
-
 const forgotPasswordSchema = z.object({
   body: z.object({
     email: z.string().email()
@@ -66,7 +60,6 @@ router.post('/refresh', validate(refreshSchema), authController.refresh);
 router.post('/refresh-token', validate(refreshSchema), authController.refresh);
 router.post('/logout', authController.logout);
 router.get('/me', authMiddleware, authController.me);
-router.patch('/nation', authMiddleware, validate(updateNationSchema), authController.updateNation);
 router.post('/verify-email', validate(verifyEmailSchema), authController.verifyEmail);
 router.post('/verify', validate(verifyEmailSchema), authController.verifyEmail);
 router.post('/resend-verification', validate(resendVerificationSchema), authController.resendVerification);

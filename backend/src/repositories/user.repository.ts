@@ -27,10 +27,6 @@ export class UserRepository extends BaseRepository {
     return created;
   }
 
-  public async updateNationId(userId: string, nationId: string | null, trx?: Knex.Transaction): Promise<void> {
-    await this.getDb(trx)('users').where({ id: userId }).update({ nation_id: nationId, updated_at: new Date() });
-  }
-
   public async markVerified(userId: string, trx?: Knex.Transaction): Promise<void> {
     await this.getDb(trx)('users').where({ id: userId }).update({ is_verified: true, updated_at: new Date() });
   }

@@ -20,7 +20,6 @@ export class AuthService {
         username: user.username,
         email: user.email,
         role: user.role,
-        nation_id: user.nation_id,
         is_verified: user.is_verified
       },
       env.JWT_ACCESS_SECRET,
@@ -93,9 +92,10 @@ export class AuthService {
         email,
         password_hash,
         role: 'user',
-        nation_id: null,
         is_verified: false,
-        display_name: username
+        display_name: username,
+        reset_token: null,
+        reset_token_expires: null
       }, trx);
 
       // Generate OTP and store it in the database
@@ -310,18 +310,6 @@ export class AuthService {
     if (!user) throw new UnauthorizedError('User not found');
     const { password_hash: _, ...userWithoutPassword } = user;
     return userWithoutPassword;
-  }
-
-  public async updateNation(
-    userId: string,
-    nationId: string
-  ): Promise<{ user: Omit<User, 'password_hash'>; accessToken: string }> {
-    await userRepository.updateNationId(userId, nationId);
-    const user = await userRepository.findById(userId);
-    if (!user) throw new NotFoundError('User not found');
-    const accessToken = this.generateAccessToken(user);
-    const { password_hash: _, ...userWithoutPassword } = user;
-    return { user: userWithoutPassword, accessToken };
   }
 }
 export const authService = new AuthService();

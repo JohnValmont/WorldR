@@ -7,7 +7,6 @@ export interface AuthUser {
   username: string;
   email: string;
   role: string;
-  nation_id: string | null;
   is_verified: boolean;
   display_name: string | null;
 }

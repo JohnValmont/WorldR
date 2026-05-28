@@ -24,12 +24,8 @@ export default function LoginPage() {
       const user = data.user;
       if (!user.is_verified) {
         router.push(`/verify?email=${encodeURIComponent(user.email)}`);
-      } else if (!user.display_name) {
-        router.push('/onboarding/profile');
-      } else if (!user.nation_id) {
-        router.push('/onboarding/nation');
       } else {
-        router.push('/dashboard');
+        router.push('/settings');
       }
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Invalid credentials. Please try again.');
