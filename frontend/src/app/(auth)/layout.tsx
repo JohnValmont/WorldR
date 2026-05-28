@@ -190,7 +190,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             </div>
             <div>
               <div className="text-zinc-100 font-extrabold text-xl tracking-[0.2em] leading-none">WORLDR</div>
-              <div className="text-amber-500/70 font-mono text-[9px] tracking-[0.3em] uppercase leading-none mt-1">Aethon Chronicle · Sim Engine</div>
+              <div className="text-amber-500/70 font-mono text-[9px] tracking-[0.3em] uppercase leading-none mt-1">Secure Identity Gateway Node</div>
             </div>
           </div>
         </div>
@@ -198,26 +198,26 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Bottom text */}
         <div className="relative z-10 mt-auto p-8 pb-10">
           <div className="max-w-xs">
-            <div className="text-[10px] text-indigo-400/70 font-mono uppercase tracking-[0.25em] mb-2">Active Simulation</div>
+            <div className="text-[10px] text-indigo-400/70 font-mono uppercase tracking-[0.25em] mb-2">Gateway Infrastructure</div>
             <h2 className="text-2xl font-bold text-zinc-100 leading-tight mb-3">
-              Command your faction.<br />
-              <span className="text-amber-400">Shape the world.</span>
+              Secure Access Gateway.<br />
+              <span className="text-amber-400">Robust Identity Layer.</span>
             </h2>
             <p className="text-zinc-500 text-xs leading-relaxed">
-              A living political simulation where your decisions ripple across economies, elections, and international alliances.
+              Centralized gateway verification console utilizing standard JWT access/refresh token rotation and secure email OTP validation.
             </p>
           </div>
 
           {/* Stats bar */}
           <div className="flex items-center gap-6 mt-6 pt-4 border-t border-white/5">
             {[
-              { label: 'Active Nations', value: '2' },
-              { label: 'Live Players', value: '∞' },
-              { label: 'Simulation Tick', value: '24h' },
+              { label: 'Identity Protocol', value: 'JWT+OTP' },
+              { label: 'Encryption Key', value: 'SHA256' },
+              { label: 'Security Status', value: 'ACTIVE' },
             ].map(stat => (
               <div key={stat.label}>
-                <div className="text-amber-400 font-bold text-base leading-none">{stat.value}</div>
-                <div className="text-zinc-600 font-mono text-[9px] uppercase tracking-widest mt-0.5">{stat.label}</div>
+                <div className="text-amber-400 font-bold text-sm leading-none">{stat.value}</div>
+                <div className="text-zinc-600 font-mono text-[8px] uppercase tracking-widest mt-0.5">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -254,7 +254,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Bottom footer */}
         <div className="relative z-10 px-6 lg:px-8 pb-4 pt-2">
           <p className="text-zinc-700 text-[10px] font-mono text-center">
-            © 2025 WorldR · Aethon Chronicle Simulation Engine
+            © 2025 WorldR · Secure Authorization Core
           </p>
         </div>
       </div>

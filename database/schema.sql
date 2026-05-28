@@ -1,37 +1,10 @@
--- WORLDr Consolidated Database Schema: Phase 1
+-- WORLDr Consolidated Database Schema: Auth only
 -- Target Database: PostgreSQL 13+
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ============================================================================
--- 1. NATIONS
--- ============================================================================
-CREATE TABLE IF NOT EXISTS nations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(100) UNIQUE NOT NULL,
-    treasury NUMERIC(20, 2) NOT NULL DEFAULT 1000000000.00,
-    debt NUMERIC(20, 2) NOT NULL DEFAULT 0.00,
-    gdp NUMERIC(20, 2) NOT NULL DEFAULT 0.00,
-    inflation_food NUMERIC(5, 4) NOT NULL DEFAULT 0.0200,
-    inflation_fuel NUMERIC(5, 4) NOT NULL DEFAULT 0.0200,
-    inflation_housing NUMERIC(5, 4) NOT NULL DEFAULT 0.0200,
-    inflation_cpi NUMERIC(5, 4) NOT NULL DEFAULT 0.0200,
-    approval NUMERIC(5, 4) NOT NULL DEFAULT 0.5000,
-    stability NUMERIC(5, 4) NOT NULL DEFAULT 0.5000,
-    current_tick INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-
-    -- Constraints
-    CONSTRAINT check_approval_range CHECK (approval >= 0.0 AND approval <= 1.0),
-    CONSTRAINT check_stability_range CHECK (stability >= 0.0 AND stability <= 1.0),
-    CONSTRAINT check_current_tick CHECK (current_tick >= 0)
-);
-
-COMMENT ON TABLE nations IS 'Stores the core live state of simulated nation states.';
-
--- ============================================================================
--- 2. USERS
+-- 1. USERS
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -39,7 +12,10 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'user',
-    nation_id UUID REFERENCES nations(id) ON DELETE SET NULL,
+    is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    display_name VARCHAR(100),
+    reset_token VARCHAR(255),
+    reset_token_expires TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 
@@ -47,208 +23,11 @@ CREATE TABLE IF NOT EXISTS users (
     CONSTRAINT check_user_role CHECK (role IN ('user', 'admin', 'moderator'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_users_nation_id ON users(nation_id);
-
-COMMENT ON TABLE users IS 'User authentication and workspace configuration.';
-
--- ============================================================================
--- 3. ECONOMIC SECTORS
--- ============================================================================
-CREATE TABLE IF NOT EXISTS economic_sectors (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
-    name VARCHAR(50) NOT NULL,
-    output NUMERIC(20, 2) NOT NULL DEFAULT 0.00,
-    workers NUMERIC(20, 2) NOT NULL DEFAULT 0.00,
-    productivity NUMERIC(10, 4) NOT NULL DEFAULT 1.0000,
-    wages NUMERIC(20, 2) NOT NULL DEFAULT 0.00,
-    growth NUMERIC(10, 6) NOT NULL DEFAULT 0.000000,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-
-    -- Constraints
-    CONSTRAINT check_sector_name CHECK (name IN ('Agriculture', 'Industry', 'Services', 'Energy', 'Construction')),
-    UNIQUE (nation_id, name)
-);
-
-CREATE INDEX IF NOT EXISTS idx_economic_sectors_nation_id ON economic_sectors(nation_id);
-
-COMMENT ON TABLE economic_sectors IS 'Tracks output, wages, and employment metrics for national economic sectors.';
+COMMENT ON TABLE users IS 'User authentication and basic profile configurations.';
+COMMENT ON COLUMN users.role IS 'Security classification and permission privileges (user, admin, moderator).';
 
 -- ============================================================================
--- 4. POPULATION GROUPS
--- ============================================================================
-CREATE TABLE IF NOT EXISTS population_groups (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
-    name VARCHAR(50) NOT NULL,
-    size NUMERIC(20, 2) NOT NULL DEFAULT 0.00,
-    income NUMERIC(20, 2) NOT NULL DEFAULT 0.00,
-    approval NUMERIC(5, 4) NOT NULL DEFAULT 0.5000,
-    ideology VARCHAR(100),
-    inflation_sensitivity NUMERIC(5, 4) NOT NULL DEFAULT 0.5000,
-    unemployment_sensitivity NUMERIC(5, 4) NOT NULL DEFAULT 0.5000,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-
-    -- Constraints
-    CONSTRAINT check_population_group_name CHECK (name IN ('Poor', 'Working', 'Middle', 'Wealthy', 'Elite')),
-    CONSTRAINT check_pop_group_approval CHECK (approval >= 0.0 AND approval <= 1.0),
-    UNIQUE (nation_id, name)
-);
-
-CREATE INDEX IF NOT EXISTS idx_population_groups_nation_id ON population_groups(nation_id);
-
-COMMENT ON TABLE population_groups IS 'Maintains live state, size, income and approval rating per socio-economic population class.';
-
--- ============================================================================
--- 5. TAXES
--- ============================================================================
-CREATE TABLE IF NOT EXISTS taxes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
-    name VARCHAR(50) NOT NULL,
-    rate NUMERIC(5, 4) NOT NULL DEFAULT 0.1500,
-    revenue NUMERIC(20, 2) NOT NULL DEFAULT 0.00,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-
-    -- Constraints
-    CONSTRAINT check_tax_name CHECK (name IN ('Income Tax', 'Corporate Tax', 'Sales Tax', 'Property Tax', 'Tariffs')),
-    CONSTRAINT check_tax_rate CHECK (rate >= 0.0 AND rate <= 1.0),
-    UNIQUE (nation_id, name)
-);
-
-CREATE INDEX IF NOT EXISTS idx_taxes_nation_id ON taxes(nation_id);
-
-COMMENT ON TABLE taxes IS 'Simulates taxation structures and revenue generation settings.';
-
--- ============================================================================
--- 6. BUDGET ITEMS
--- ============================================================================
-CREATE TABLE IF NOT EXISTS budget_items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
-    name VARCHAR(50) NOT NULL,
-    allocation NUMERIC(20, 2) NOT NULL DEFAULT 0.00,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-
-    -- Constraints
-    CONSTRAINT check_budget_item_name CHECK (name IN ('Education', 'Healthcare', 'Infrastructure', 'Welfare', 'Administration')),
-    UNIQUE (nation_id, name)
-);
-
-CREATE INDEX IF NOT EXISTS idx_budget_items_nation_id ON budget_items(nation_id);
-
-COMMENT ON TABLE budget_items IS 'Defines spending configurations and financial allocations.';
-
--- ============================================================================
--- 7. LAWS
--- ============================================================================
-CREATE TABLE IF NOT EXISTS laws (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    status VARCHAR(50) NOT NULL DEFAULT 'passed',
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-
-    -- Constraints
-    CONSTRAINT check_law_status CHECK (status IN ('passed', 'proposed', 'repealed'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_laws_nation_id ON laws(nation_id);
-
--- ============================================================================
--- 8. LAW EFFECTS
--- ============================================================================
-CREATE TABLE IF NOT EXISTS law_effects (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    law_id UUID NOT NULL REFERENCES laws(id) ON DELETE CASCADE,
-    target_type VARCHAR(50) NOT NULL,
-    target_name VARCHAR(100) NOT NULL,
-    parameter_name VARCHAR(100) NOT NULL,
-    modifier_type VARCHAR(20) NOT NULL,
-    modifier_value NUMERIC(10, 6) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-
-    -- Constraints
-    CONSTRAINT check_effect_target CHECK (target_type IN ('sector', 'population_group', 'tax', 'budget_item', 'nation')),
-    CONSTRAINT check_modifier_type CHECK (modifier_type IN ('multiplier', 'additive'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_law_effects_law_id ON law_effects(law_id);
-
--- ============================================================================
--- 9. PARAMETERS
--- ============================================================================
-CREATE TABLE IF NOT EXISTS parameters (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    category VARCHAR(50) NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    value NUMERIC(20, 6) NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-
-    -- Constraints
-    UNIQUE (category, name)
-);
-
-CREATE INDEX IF NOT EXISTS idx_parameters_category ON parameters(category);
-
--- ============================================================================
--- 10. HISTORICAL SNAPSHOTS
--- ============================================================================
-CREATE TABLE IF NOT EXISTS historical_snapshots (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
-    tick INTEGER NOT NULL,
-    gdp NUMERIC(20, 2) NOT NULL,
-    inflation_food NUMERIC(5, 4) NOT NULL,
-    inflation_fuel NUMERIC(5, 4) NOT NULL,
-    inflation_housing NUMERIC(5, 4) NOT NULL,
-    inflation_cpi NUMERIC(5, 4) NOT NULL,
-    unemployment_rate NUMERIC(5, 4) NOT NULL,
-    approval NUMERIC(5, 4) NOT NULL,
-    stability NUMERIC(5, 4) NOT NULL,
-    treasury NUMERIC(20, 2) NOT NULL,
-    debt NUMERIC(20, 2) NOT NULL,
-    revenue NUMERIC(20, 2) NOT NULL,
-    spending NUMERIC(20, 2) NOT NULL,
-    snapshot_data JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-
-    -- Constraints
-    CONSTRAINT check_snapshot_tick CHECK (tick >= 0),
-    UNIQUE (nation_id, tick)
-);
-
-CREATE INDEX IF NOT EXISTS idx_historical_snapshots_nation_tick ON historical_snapshots(nation_id, tick);
-
--- ============================================================================
--- 11. NATION PARAMETER OVERRIDES
--- ============================================================================
-CREATE TABLE IF NOT EXISTS nation_parameter_overrides (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
-    category VARCHAR(50) NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    value NUMERIC(20, 6) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-
-    -- Constraints
-    UNIQUE (nation_id, category, name)
-);
-
-CREATE INDEX IF NOT EXISTS idx_nation_parameter_overrides_lookup ON nation_parameter_overrides(nation_id, category, name);
-
--- ============================================================================
--- 12. REFRESH TOKENS
+-- 2. REFRESH TOKENS
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS refresh_tokens (
     token_hash VARCHAR(255) PRIMARY KEY,
@@ -260,68 +39,25 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
 
+COMMENT ON TABLE refresh_tokens IS 'Stores cryptographically hashed long-lived refresh tokens for secure session rotation.';
+COMMENT ON COLUMN refresh_tokens.token_hash IS 'SHA-256 hash of the generated refresh token string.';
+
 -- ============================================================================
--- 13. NATION TEMPLATES
+-- 3. EMAIL VERIFICATION TOKENS
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS nation_templates (
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(100) UNIQUE NOT NULL,
-    description TEXT,
-    treasury NUMERIC(20, 2) NOT NULL DEFAULT 1000000000.00,
-    debt NUMERIC(20, 2) NOT NULL DEFAULT 0.00,
-    gdp NUMERIC(20, 2) NOT NULL DEFAULT 0.00,
-    inflation_food NUMERIC(5, 4) NOT NULL DEFAULT 0.0200,
-    inflation_fuel NUMERIC(5, 4) NOT NULL DEFAULT 0.0200,
-    inflation_housing NUMERIC(5, 4) NOT NULL DEFAULT 0.0200,
-    inflation_cpi NUMERIC(5, 4) NOT NULL DEFAULT 0.0200,
-    approval NUMERIC(5, 4) NOT NULL DEFAULT 0.5000,
-    stability NUMERIC(5, 4) NOT NULL DEFAULT 0.5000,
-    template_data JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-);
-
-COMMENT ON TABLE nation_templates IS 'Holds pre-configured nation settings to dynamically instantiate new lobbies.';
-
--- ============================================================================
--- 14. PRICES
--- ============================================================================
-CREATE TABLE IF NOT EXISTS prices (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nation_id UUID NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
-    sector_name VARCHAR(50) NOT NULL,
-    price_index NUMERIC(10, 4) NOT NULL DEFAULT 1.0000,
-    base_price NUMERIC(10, 4) NOT NULL DEFAULT 1.0000,
-    inflation_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.0200,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-
-    -- Constraints
-    CONSTRAINT check_price_sector CHECK (sector_name IN ('Agriculture', 'Industry', 'Services', 'Energy', 'Construction')),
-    UNIQUE (nation_id, sector_name)
-);
-
-CREATE INDEX IF NOT EXISTS idx_prices_nation_id ON prices(nation_id);
-
-COMMENT ON TABLE prices IS 'Tracks sector-specific prices and local inflation rates.';
-
--- ============================================================================
--- 15. AUDIT LOGS
--- ============================================================================
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nation_id UUID REFERENCES nations(id) ON DELETE SET NULL,
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    action VARCHAR(100) NOT NULL,
-    target_type VARCHAR(50) NOT NULL,
-    target_id UUID,
-    old_values JSONB,
-    new_values JSONB,
-    ip_address VARCHAR(45),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_used BOOLEAN NOT NULL DEFAULT FALSE,
+    resend_cooldown_until TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_audit_logs_nation_id ON audit_logs(nation_id);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_user_id ON email_verification_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_token ON email_verification_tokens(token);
 
-COMMENT ON TABLE audit_logs IS 'System audit trail logging player updates and ticks execution histories.';
+COMMENT ON TABLE email_verification_tokens IS 'Stores email verification tokens (OTP bcrypt hashes) generated at registration or resend.';
+COMMENT ON COLUMN email_verification_tokens.token IS 'bcrypt hash of the 6-digit numeric OTP sent to the user email.';
+COMMENT ON COLUMN email_verification_tokens.resend_cooldown_until IS 'Timestamp after which a new OTP may be sent. NULL means no active cooldown.';

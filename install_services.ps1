@@ -10,12 +10,8 @@ Remove-Item -Path "C:\Program Files\PostgreSQL\18" -Recurse -Force -ErrorAction 
 Write-Output "Installing PostgreSQL 18 with runtimes disabled..."
 choco install postgresql18 -y --ia "--install_runtimes 0 --superpassword postgres"
 
-Write-Output "Installing Redis..."
-choco install redis -y
-
 Write-Output "Starting Services..."
 Start-Service -Name "postgresql*" -ErrorAction SilentlyContinue
-Start-Service -Name "redis*" -ErrorAction SilentlyContinue
 
 Write-Output "Creating worldr_db database..."
 $pgBin = Get-ChildItem -Path "C:\Program Files\PostgreSQL" -ErrorAction SilentlyContinue | Select-Object -First 1

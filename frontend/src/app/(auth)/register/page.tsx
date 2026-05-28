@@ -70,14 +70,14 @@ export default function RegisterPage() {
 
           <div className="flex items-center gap-2 mb-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
-            <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.3em]">Faction Registered</span>
+            <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.3em]">Account Registered</span>
           </div>
 
           <h1 className="text-2xl font-bold text-zinc-100 mb-2">Account created!</h1>
           <p className="text-zinc-500 text-sm leading-relaxed max-w-xs">
             A 6-digit verification code was sent to{' '}
             <strong className="text-zinc-300">{form.email}</strong>.
-            Enter it on the next screen to activate your faction.
+            Enter it on the next screen to activate your account.
           </p>
         </div>
 
@@ -105,10 +105,10 @@ export default function RegisterPage() {
       <div className="mb-7">
         <div className="flex items-center gap-2 mb-3">
           <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shadow-[0_0_6px_rgba(99,102,241,0.8)] animate-pulse" />
-          <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.3em]">Establish Faction</span>
+          <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.3em]">Create Account</span>
         </div>
         <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">Create account</h1>
-        <p className="text-zinc-500 text-sm mt-1">Join the Aethon Chronicle simulation.</p>
+        <p className="text-zinc-500 text-sm mt-1">Create your security credential profile.</p>
       </div>
 
       {/* Error */}
@@ -135,7 +135,7 @@ export default function RegisterPage() {
               <input
                 id="register-username"
                 className="auth-input pl-10"
-                placeholder="e.g. keldoria_patriot"
+                placeholder="e.g. secure_user"
                 value={form.username}
                 onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
                 autoComplete="username"
@@ -293,11 +293,11 @@ export default function RegisterPage() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              Creating Faction...
+              Creating Account...
             </span>
           ) : (
             <span className="flex items-center justify-center gap-2">
-              Establish Faction
+              Create Account
               <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
@@ -314,7 +314,7 @@ export default function RegisterPage() {
       </div>
 
       <p className="text-center text-zinc-500 text-sm">
-        Already have a faction?{' '}
+        Already have an account?{' '}
         <Link href="/login" className="text-amber-400 hover:text-amber-300 font-semibold transition-colors">
           Sign in
         </Link>

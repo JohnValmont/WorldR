@@ -41,7 +41,7 @@ function buildVerificationEmail(username: string, otp: string): { html: string; 
                   </td>
                 </tr>
               </table>
-              <p style="margin:10px 0 0;font-size:10px;color:#71717a;font-family:'JetBrains Mono',monospace;letter-spacing:0.3em;text-transform:uppercase;">Political Simulation Engine</p>
+              <p style="margin:10px 0 0;font-size:10px;color:#71717a;font-family:'JetBrains Mono',monospace;letter-spacing:0.3em;text-transform:uppercase;">Secure Gateway</p>
             </td>
           </tr>
 
@@ -64,7 +64,7 @@ function buildVerificationEmail(username: string, otp: string): { html: string; 
                     <table cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
                       <tr>
                         <td style="background-color:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.3);border-radius:4px;padding:5px 12px;box-shadow: 0 0 10px rgba(245,158,11,0.05);">
-                          <span style="font-size:9px;color:#f59e0b;font-family:'JetBrains Mono',monospace;letter-spacing:0.25em;text-transform:uppercase;font-weight:700;">&#9679; Establish Faction</span>
+                          <span style="font-size:9px;color:#f59e0b;font-family:'JetBrains Mono',monospace;letter-spacing:0.25em;text-transform:uppercase;font-weight:700;">&#9679; Secure Registration</span>
                         </td>
                       </tr>
                     </table>
@@ -74,7 +74,7 @@ function buildVerificationEmail(username: string, otp: string): { html: string; 
                       Verify your identity
                     </h1>
                     <p style="margin:0 0 28px;font-size:15px;color:#a1a1aa;line-height:1.6;font-family:'Outfit',sans-serif;">
-                      Welcome, <strong style="color:#ffffff;">${username}</strong>. Enter the code below to activate your account and claim your seat in the senate.
+                      Welcome, <strong style="color:#ffffff;">${username}</strong>. Enter the code below to activate your account and verify your identity.
                     </p>
 
                     <!-- OTP Block -->
@@ -121,7 +121,7 @@ function buildVerificationEmail(username: string, otp: string): { html: string; 
 
                     <!-- Footer note -->
                     <p style="margin:0;font-size:12px;color:#71717a;line-height:1.6;font-family:'Outfit',sans-serif;">
-                      This code was generated for the WORLDr political simulation engine. Do not share this code with anyone.
+                      This code was generated for WORLDr secure authentication. Do not share this code with anyone.
                     </p>
                   </td>
                 </tr>
@@ -133,7 +133,7 @@ function buildVerificationEmail(username: string, otp: string): { html: string; 
           <tr>
             <td align="center" style="padding-top:28px;">
               <p style="margin:0;font-size:11px;color:#52525b;font-family:'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;">
-                &copy; ${new Date().getFullYear()} WORLDr &mdash; Political Simulation Engine
+                &copy; ${new Date().getFullYear()} WORLDr &mdash; Secure Gateway
               </p>
             </td>
           </tr>

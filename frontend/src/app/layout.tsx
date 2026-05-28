@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'WORLDr — Political Simulation',
-  description: 'Govern a nation, manage the economy, and compete for political power in WORLDr — the immersive political simulation.',
-  keywords: ['political simulation', 'economy game', 'governance', 'strategy'],
+  title: 'WORLDr — Secure Auth Gateway',
+  description: 'WORLDr centralized authentication gateway, identity management, and secure authorization node.',
+  keywords: ['authentication', 'security', 'identity', 'verification', 'authorization'],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

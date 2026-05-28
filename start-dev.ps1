@@ -7,7 +7,7 @@ Write-Host "  WORLDr Auth Core - Starting Dev Stack" -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 
 # 1. Start Docker Compose (PostgreSQL)
-Write-Host "`n[1/3] Starting PostgreSQL and Redis via Docker Compose..." -ForegroundColor Yellow
+Write-Host "`n[1/3] Starting PostgreSQL via Docker Compose..." -ForegroundColor Yellow
 Set-Location $PSScriptRoot
 docker-compose up -d
 

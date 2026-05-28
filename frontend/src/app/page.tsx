@@ -93,7 +93,7 @@ export default function LandingPage() {
 
           <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-2">
             <Link href="/register" className="text-[10px] font-mono font-bold tracking-wider text-black bg-amber-500 hover:bg-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)] hover:shadow-[0_0_25px_rgba(245,158,11,0.5)] px-6 py-2.5 rounded-sm transition-all uppercase">
-              Establish Faction Account
+              Create Secure Account
             </Link>
             <Link href="/login" className="text-[10px] font-mono font-bold tracking-wider text-zinc-300 hover:text-zinc-100 border border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 hover:bg-zinc-900/60 px-6 py-2.5 rounded-sm transition-all uppercase">
               Enter the Terminal

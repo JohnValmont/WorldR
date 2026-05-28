@@ -40,10 +40,10 @@ export default function LoginPage() {
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)] animate-pulse" />
-          <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.3em]">Faction Login</span>
+          <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.3em]">Secure Login</span>
         </div>
         <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">Welcome back</h1>
-        <p className="text-zinc-500 text-sm mt-1">Sign in to resume your political legacy.</p>
+        <p className="text-zinc-500 text-sm mt-1">Sign in to access your secure profile.</p>
       </div>
 
       {/* Error */}
@@ -137,7 +137,7 @@ export default function LoginPage() {
             </span>
           ) : (
             <span className="flex items-center justify-center gap-2">
-              Enter the Chronicle
+              Sign In
               <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
@@ -155,9 +155,9 @@ export default function LoginPage() {
 
       {/* Register link */}
       <p className="text-center text-zinc-500 text-sm">
-        New to Aethon?{' '}
+        New to the platform?{' '}
         <Link href="/register" className="text-amber-400 hover:text-amber-300 font-semibold transition-colors">
-          Establish a Faction
+          Create an account
         </Link>
       </p>
     </div>

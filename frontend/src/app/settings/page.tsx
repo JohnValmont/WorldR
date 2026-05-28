@@ -124,12 +124,12 @@ export default function SettingsPage() {
               onClick={() => setConfirmLogout(true)}
               className="w-full text-center text-xs font-mono font-bold tracking-widest text-red-400 border border-red-950/50 hover:border-red-800 bg-red-950/20 hover:bg-red-950/40 py-2.5 transition-all"
             >
-              TERMINATE GOVERNANCE SESSION
+              TERMINATE SESSION
             </button>
           ) : (
             <div className="space-y-3 font-mono">
               <p className="text-zinc-400 text-xs leading-relaxed">
-                Confirm termination of current governance session. Your local token signatures will be revoked.
+                Confirm termination of current session. Your local token signatures will be revoked.
               </p>
               <div className="flex gap-2">
                 <button
@@ -137,7 +137,7 @@ export default function SettingsPage() {
                   onClick={handleLogout}
                   className="flex-1 text-center text-xs font-bold tracking-widest text-black bg-red-500 hover:bg-red-400 py-2 transition-all"
                 >
-                  CONFIRM RESTRUCTURING
+                  CONFIRM SIGN OUT
                 </button>
                 <button
                   onClick={() => setConfirmLogout(false)}
