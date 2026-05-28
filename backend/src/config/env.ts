@@ -18,8 +18,11 @@ const envSchema = z.object({
   // 1 in-game month = 8 real hours = 28,800,000 ms. Override for testing (e.g. 60000 = 1 min)
   TICK_INTERVAL_MS: z.coerce.number().default(28800000),
   EMAIL_PROVIDER: z.string().default('smtp'),
-  SMTP_EMAIL: z.string().optional(),
-  SMTP_APP_PASSWORD: z.string().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional(),
+  SMTP_SECURE: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().default('no-reply@worldr.game'),
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
 });

@@ -3,30 +3,34 @@ import { env } from '../config/env';
 import { logger } from '../utils/logger';
 import { AppError } from '../utils/errors';
 
-// Create Nodemailer Transporter using Gmail SMTP config with robust timeouts
+// Create Nodemailer Transporter using Brevo SMTP config with robust timeouts
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT),
+  secure: process.env.SMTP_SECURE === "true",
   requireTLS: true,
   auth: {
-    user: env.SMTP_EMAIL,
-    pass: env.SMTP_APP_PASSWORD,
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
   connectionTimeout: 30000,
   greetingTimeout: 30000,
   socketTimeout: 30000,
 });
 
-// Verify the connection configuration on startup
-logger.info('[EmailService] Verifying SMTP connection on startup...');
-transporter.verify((error, success) => {
-  if (error) {
-    logger.error('[EmailService] SMTP verification failed on startup:', error);
-  } else {
-    logger.info('[EmailService] SMTP connected. SMTP server is ready to take our messages.');
-  }
-});
+// Verify the connection configuration on startup if configured
+if (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  logger.info('[EmailService] Verifying Brevo SMTP connection on startup...');
+  transporter.verify((error, success) => {
+    if (error) {
+      logger.error('[EmailService] Brevo SMTP verification failed on startup:', error);
+    } else {
+      logger.info('[EmailService] Brevo SMTP connected. SMTP server is ready to take our messages.');
+    }
+  });
+} else {
+  logger.warn('[EmailService] Brevo SMTP credentials not fully configured. Skipping startup SMTP verification.');
+}
 
 /**
  * Generates the branded WORLDr HTML email template for OTP verification.
@@ -190,17 +194,17 @@ export class EmailService {
     const { html, text } = buildVerificationEmail(username, otp);
     const from = env.EMAIL_FROM;
 
-    // Try Gmail SMTP
+    // Try Brevo SMTP
     try {
-      if (!env.SMTP_EMAIL || !env.SMTP_APP_PASSWORD) {
+      if (!process.env.SMTP_HOST || !process.env.SMTP_PORT || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
         if (env.NODE_ENV !== 'production') {
-          logger.warn(`[EmailService] SMTP credentials are not configured. Bypassing email sending in development mode. Check console/logs for OTP.`);
+          logger.warn(`[EmailService] Brevo SMTP credentials are not configured. Bypassing email sending in development mode. Check console/logs for OTP.`);
           return;
         }
-        throw new AppError('SMTP credentials are not configured. Please set SMTP_EMAIL and SMTP_APP_PASSWORD.', 500, 'SMTP_NOT_CONFIGURED');
+        throw new AppError('Brevo SMTP credentials are not configured. Please set SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS.', 500, 'SMTP_NOT_CONFIGURED');
       }
 
-      // Gmail SMTP using Nodemailer
+      // Brevo SMTP using Nodemailer
       logger.info(`[EmailService] Attempting to send verification email to ${to} from ${from}...`);
       await transporter.sendMail({
         from,
