@@ -178,7 +178,7 @@ export class EmailService {
     }
 
     try {
-      logger.info(`[EmailService] Brevo API email send started. Sending to ${to}...`);
+      logger.info("[EmailService] Brevo API email send started");
 
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
