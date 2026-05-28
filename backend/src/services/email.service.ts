@@ -3,7 +3,7 @@ import { logger } from '../utils/logger';
 import { AppError } from '../utils/errors';
 
 logger.info(`[EmailService] Initializing Brevo API Email Service...`);
-logger.info(`[EmailService] EMAIL_PROVIDER: ${process.env.EMAIL_PROVIDER || env.EMAIL_PROVIDER}`);
+logger.info(`[EmailService] EMAIL_PROVIDER: brevo_api`);
 logger.info(`[EmailService] EMAIL_FROM: ${process.env.EMAIL_FROM || env.EMAIL_FROM}`);
 
 /**
