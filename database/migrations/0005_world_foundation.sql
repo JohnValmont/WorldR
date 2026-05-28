@@ -21,49 +21,7 @@ CREATE TABLE IF NOT EXISTS continents (
 
 COMMENT ON TABLE continents IS 'The four fictional continents of Aethon (Alderis, Varanthos, Novara, Kethara).';
 
--- Seed continents
-INSERT INTO continents (id, name, description, political_identity, economic_characteristics, climate_regions, demographic_tendencies, geopolitical_tendencies) VALUES
-  (
-    'c0000000-0001-4000-a000-000000000001',
-    'Alderis',
-    'The Old World — Europe-inspired advanced parliamentary democracies with strong welfare states and aging populations.',
-    'Constitutional monarchies and parliamentary republics; coalition politics norm; high institutional trust',
-    'Post-industrial service economies with advanced manufacturing; high wages; strong welfare states; export-driven',
-    'Maritime west, Continental center, Alpine south, Mediterranean far south',
-    'Aging population (22-28% over 65); below-replacement birth rates; high immigration from Kethara/Varanthos',
-    'Multilateral diplomacy; regional economic bloc (ACC); pacifist tradition; strong institutions'
-  ),
-  (
-    'c0000000-0002-4000-a000-000000000002',
-    'Varanthos',
-    'The Rising East — Asia-inspired massive populations, manufacturing dominance, and mixed governance.',
-    'One-party states, presidential and semi-presidential republics; strong executive culture; technocratic governance growing',
-    'Global manufacturing center; chaebol-style conglomerates; rapid urbanization; high savings rates',
-    'Arctic tundra north, Continental center, Subtropical south, Tropical archipelago southeast',
-    '2.1B population; working-age heavy; birth rates falling; massive rural-to-urban migration',
-    'Bilateral deal-making; resist multilateral agreements; regional hegemony competition'
-  ),
-  (
-    'c0000000-0003-4000-a000-000000000003',
-    'Novara',
-    'The New World — Americas-inspired presidential republics with media-heavy politics and high inequality.',
-    'Presidential and semi-presidential republics; populism endemic; media-driven elections',
-    'Northern: advanced post-industrial tech economy; Southern: commodity exporters with high inequality',
-    'Arctic far north, Temperate north-center, Tropical equatorial, Arid southern plains, Polar far south',
-    '1.1B total; Northern aging but immigration-sustained; Southern rapidly growing (median age 26)',
-    'Northern Novara global hegemon; Southern non-alignment; regional market partially integrated'
-  ),
-  (
-    'c0000000-0004-4000-a000-000000000004',
-    'Kethara',
-    'The Frontier — Africa-inspired developing economies with resource-driven politics, young populations, and high growth potential.',
-    'Enormous diversity: functioning democracies, hybrid states, juntas, dominant-party republics',
-    'Resource-driven: oil, minerals, rare earths; large informal economy; fastest-growing tech startups',
-    'Desert north, Arid savanna north-center, Tropical savanna center, Rainforest equatorial, Highland temperate south',
-    '1.4B and growing; median age 19; 60% under 25; urbanization 45% rising 2% annually',
-    'Non-alignment tradition; Ketharan Union (KU) growing; resource-diplomacy for infrastructure'
-  )
-ON CONFLICT (name) DO NOTHING;
+-- Seed continents (Cleared for blank simulation slate)
 
 -- ============================================================================
 -- 2. GOVERNANCE SYSTEMS

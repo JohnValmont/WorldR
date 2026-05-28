@@ -26,9 +26,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push('/onboarding/profile');
       return;
     }
+    if (!user.nation_id) {
+      router.push('/onboarding/nation');
+      return;
+    }
 
     // Load nation state
-    const nationId = user.nation_id || KELDORIA_ID;
+    const nationId = user.nation_id;
     setLoading(true);
     nationApi.getState(nationId)
       .then(({ data }) => {

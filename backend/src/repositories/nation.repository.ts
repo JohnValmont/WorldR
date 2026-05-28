@@ -35,9 +35,9 @@ export class NationRepository extends BaseRepository {
     return this.getDb(trx)('nations').select('*');
   }
 
-  public async findAllSummary(trx?: Knex.Transaction): Promise<Pick<Nation, 'id' | 'name' | 'region' | 'continent' | 'gdp' | 'approval' | 'stability' | 'current_tick'>[]> {
+  public async findAllSummary(trx?: Knex.Transaction): Promise<Pick<Nation, 'id' | 'name' | 'region' | 'continent' | 'gdp' | 'approval' | 'stability' | 'current_tick' | 'population_size' | 'motto' | 'flag_colors'>[]> {
     return this.getDb(trx)('nations').select(
-      'id', 'name', 'region', 'continent', 'gdp', 'approval', 'stability', 'current_tick'
+      'id', 'name', 'region', 'continent', 'gdp', 'approval', 'stability', 'current_tick', 'population_size', 'motto', 'flag_colors'
     );
   }
 

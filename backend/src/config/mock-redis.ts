@@ -254,6 +254,18 @@ export class MockRedis extends EventEmitter {
     }
   }
 
+  async flushall(): Promise<'OK'> {
+    this.store.clear();
+    this.ttls.clear();
+    return 'OK';
+  }
+
+  async flushdb(): Promise<'OK'> {
+    this.store.clear();
+    this.ttls.clear();
+    return 'OK';
+  }
+
   pipeline() {
     return new MockRedisPipeline(this);
   }

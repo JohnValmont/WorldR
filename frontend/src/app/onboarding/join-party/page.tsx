@@ -39,7 +39,7 @@ const COLOR_PRESETS = [
 export default function JoinPartyPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const nationId = user?.nation_id || KELDORIA_ID;
+  const nationId = user?.nation_id;
 
   const [parties, setParties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,12 +57,32 @@ export default function JoinPartyPage() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
+    if (!nationId) return;
     partiesApi
       .getParties(nationId)
       .then(r => setParties(r.data.parties || []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [nationId]);
+
+  if (!nationId) {
+    return (
+      <div className="w-full max-w-md mx-auto text-center py-16 rounded-2xl onboarding-card animate-fade-in-up">
+        <div className="text-4xl mb-4">🏛️</div>
+        <h2 className="text-lg font-bold mb-2" style={{ color: '#f0d585' }}>No Nation Selected</h2>
+        <p className="text-xs leading-relaxed mb-6" style={{ color: 'rgba(212,169,69,0.45)' }}>
+          You must choose or register with a nation before joining or founding a political party.
+        </p>
+        <button
+          type="button"
+          onClick={() => router.push('/onboarding/nation')}
+          className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all golden-btn"
+        >
+          ← Go to Nation Registry
+        </button>
+      </div>
+    );
+  }
 
   const playerParties = parties;
 

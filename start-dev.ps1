@@ -31,11 +31,7 @@ if (Test-Path $pgPath) {
     & $pgPath -U postgres -d worldr_db -f ".\database\migrations\0002_simulation_tables.sql"
     & $pgPath -U postgres -d worldr_db -f ".\database\migrations\0003_vertical_slice.sql"
     & $pgPath -U postgres -d worldr_db -f ".\database\migrations\0004_elections.sql"
-    
-    # Run seed
-    & $pgPath -U postgres -d worldr_db -f ".\database\seeds\seed_valdoria.sql"
     Write-Host "     ✓ Migrations applied" -ForegroundColor Green
-    Write-Host "     ✓ Valdoria nation seeded" -ForegroundColor Green
 } else {
     Write-Host "     WARN: psql not found at $pgPath. Please run migrations manually." -ForegroundColor Yellow
     Write-Host "     HINT: The backend Knex connection will verify tables on startup." -ForegroundColor Gray
