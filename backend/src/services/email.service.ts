@@ -34,9 +34,7 @@ function buildVerificationEmail(username: string, otp: string): { html: string; 
               <table cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="padding-right:12px;vertical-align:middle;">
-                    <div style="width:40px;height:40px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;box-shadow: 0 0 15px rgba(245,158,11,0.35);">
-                      <span style="font-size:20px;font-weight:900;color:#09090b;letter-spacing:-1px;font-family:'Outfit',sans-serif;">W</span>
-                    </div>
+                    <img src="https://raw.githubusercontent.com/JohnValmont/WorldR/main/assets/branding/logo.jpg" width="40" height="40" alt="W" style="display:block; border-radius:10px; border: 1px solid rgba(245, 158, 11, 0.3); box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);" />
                   </td>
                   <td style="vertical-align:middle;">
                     <span style="font-size:24px;font-weight:800;color:#fafafa;letter-spacing:-0.5px;font-family:'Outfit',sans-serif;">WORLD<span style="color:#f59e0b;">r</span></span>
