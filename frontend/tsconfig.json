@@ -1,5 +1,5 @@
 {
-  "//": "Refresh IDE TypeScript server",
+  "//": "Refresh IDE TypeScript server - triggered",
   "compilerOptions": {
     "target": "es2022",
     "lib": [
