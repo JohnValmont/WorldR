@@ -22,3 +22,6 @@ build/
 postgres/
 tools/postgres/
 postgresql.zip
+
+# TS Build Info Cache
+*.tsbuildinfo
