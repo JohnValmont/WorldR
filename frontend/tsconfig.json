@@ -1,6 +1,7 @@
 {
   "//": "Refresh IDE TypeScript server - triggered",
   "compilerOptions": {
+    "ignoreDeprecations": "5.0",
     "target": "es2022",
     "lib": [
       "dom",
