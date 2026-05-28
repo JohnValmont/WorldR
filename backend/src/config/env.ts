@@ -23,6 +23,7 @@ const envSchema = z.object({
   SMTP_SECURE: z.string().optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
+  BREVO_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default('no-reply@worldr.game'),
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
 });

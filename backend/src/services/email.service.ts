@@ -1,38 +1,10 @@
-import nodemailer from 'nodemailer';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 import { AppError } from '../utils/errors';
 
-logger.info(`[EmailService] Initializing SMTP Transporter...`);
+logger.info(`[EmailService] Initializing Brevo API Email Service...`);
 logger.info(`[EmailService] EMAIL_PROVIDER: ${process.env.EMAIL_PROVIDER || env.EMAIL_PROVIDER}`);
-logger.info(`[EmailService] SMTP_HOST: ${process.env.SMTP_HOST || 'smtp-relay.brevo.com'}`);
-logger.info(`[EmailService] SMTP_PORT: ${process.env.SMTP_PORT || '587'}`);
-
-const transporter = nodemailer.createTransport({
-  host: "smtp-relay.brevo.com",
-  port: 587,
-  secure: false,
-  requireTLS: true,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false
-  },
-  connectionTimeout: 20000,
-  greetingTimeout: 20000,
-  socketTimeout: 20000,
-});
-
-logger.info('[EmailService] Verifying SMTP connection...');
-transporter.verify((error, success) => {
-  if (error) {
-    logger.error('[EmailService] SMTP verification failed:', error);
-  } else {
-    logger.info('[EmailService] SMTP connected. SMTP server is ready to take our messages.');
-  }
-});
+logger.info(`[EmailService] EMAIL_FROM: ${process.env.EMAIL_FROM || env.EMAIL_FROM}`);
 
 /**
  * Generates the branded WORLDr HTML email template for OTP verification.
@@ -194,31 +166,55 @@ If you did not create an account, ignore this email.
 export class EmailService {
   async sendVerificationEmail(to: string, username: string, otp: string): Promise<void> {
     const { html, text } = buildVerificationEmail(username, otp);
-    const from = env.EMAIL_FROM;
+    const from = process.env.EMAIL_FROM || env.EMAIL_FROM;
+    const apiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
 
-    // Try SMTP
+    if (!apiKey) {
+      if (env.NODE_ENV !== 'production') {
+        logger.warn(`[EmailService] BREVO_API_KEY is not configured. Bypassing email sending in development mode. Check console/logs for OTP.`);
+        return;
+      }
+      throw new AppError('BREVO_API_KEY is not configured. Please set BREVO_API_KEY.', 500, 'SMTP_NOT_CONFIGURED');
+    }
+
     try {
-      if (!process.env.SMTP_HOST || !process.env.SMTP_PORT || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        if (env.NODE_ENV !== 'production') {
-          logger.warn(`[EmailService] SMTP credentials are not configured. Bypassing email sending in development mode. Check console/logs for OTP.`);
-          return;
-        }
-        throw new AppError('SMTP credentials are not configured. Please set SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS.', 500, 'SMTP_NOT_CONFIGURED');
+      logger.info(`[EmailService] Brevo API email send started. Sending to ${to}...`);
+
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: {
+            email: from,
+            name: "WORLDr",
+          },
+          to: [
+            {
+              email: to,
+              name: username,
+            },
+          ],
+          subject: "Your WORLDr verification code",
+          htmlContent: html,
+          textContent: text,
+        }),
+      });
+
+      logger.info(`[EmailService] Brevo API response status: ${response.status} ${response.statusText}`);
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        logger.error(`[EmailService] Brevo API error body: ${errorBody}`);
+        throw new Error(`HTTP error ${response.status}: ${errorBody}`);
       }
 
-      // SMTP using Nodemailer
-      logger.info(`[EmailService] Attempting to send verification email to ${to} from ${from}...`);
-      await transporter.sendMail({
-        from,
-        to,
-        subject: 'Your WORLDr verification code',
-        html,
-        text
-      });
-      logger.info(`[EmailService] sendMail success: Verification email sent successfully to ${to} via SMTP`);
-    } catch (smtpErr: any) {
-      logger.error(`[EmailService] sendMail failure: Failed to send verification email to ${to}:`, smtpErr);
-      throw new AppError(`Email delivery failed: ${smtpErr.message || smtpErr}`, 500, 'EMAIL_DELIVERY_FAILED');
+      logger.info(`[EmailService] Brevo API success: Email sent successfully to ${to}`);
+    } catch (err: any) {
+      logger.error(`[EmailService] Brevo API failure: Failed to send email:`, err);
+      throw new AppError(`Email delivery failed: ${err.message || err}`, 500, 'EMAIL_DELIVERY_FAILED');
     }
   }
 }
