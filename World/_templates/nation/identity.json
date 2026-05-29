@@ -1,0 +1,12 @@
+{
+  "nation_id": "",
+  "name": "",
+  "continent": "",
+  "culture": "",
+  "capital": "",
+  "government_type": "",
+  "flag_path": "",
+  "map_color": "",
+  "is_playable": false,
+  "launch_status": "planned"
+}

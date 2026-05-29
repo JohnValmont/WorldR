@@ -1,0 +1,26 @@
+{
+  "varelian": {
+    "culture_id": "varelian",
+    "name": "Varelian",
+    "description": "Varelian culture is characterized by its historical legacy, pride, and traditions.",
+    "traits": []
+  },
+  "azharan": {
+    "culture_id": "azharan",
+    "name": "Azharan",
+    "description": "Azharan culture is characterized by its rich philosophical roots and artistic expressions.",
+    "traits": []
+  },
+  "norvanian": {
+    "culture_id": "norvanian",
+    "name": "Norvanian",
+    "description": "Norvanian culture is characterized by efficiency, community structure, and engineering.",
+    "traits": []
+  },
+  "solkaran": {
+    "culture_id": "solkaran",
+    "name": "Solkaran",
+    "description": "Solkaran culture is characterized by resilience, resourcefulness, and adaptability to rugged terrains.",
+    "traits": []
+  }
+}

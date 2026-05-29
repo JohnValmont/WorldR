@@ -1,0 +1,14 @@
+{
+  "playable_nations": [
+    {
+      "nation_id": "placeholder_middle_class",
+      "name": "Placeholder Middle Class Nation",
+      "gameplay_availability": {
+        "is_playable": false,
+        "is_ai_controlled": false,
+        "is_locked": true,
+        "release_phase": "future"
+      }
+    }
+  ]
+}

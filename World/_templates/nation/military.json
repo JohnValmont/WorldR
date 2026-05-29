@@ -1,0 +1,21 @@
+{
+  "total_personnel": 0,
+  "active_duty": 0,
+  "reserve_duty": 0,
+  "branches": {
+    "army": {
+      "personnel": 0,
+      "equipment": {}
+    },
+    "navy": {
+      "personnel": 0,
+      "equipment": {}
+    },
+    "air_force": {
+      "personnel": 0,
+      "equipment": {}
+    }
+  },
+  "budget_acr": 0,
+  "nuclear_capabilities": false
+}

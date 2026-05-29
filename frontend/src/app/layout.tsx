@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="bg-black text-zinc-100 font-sans overflow-hidden h-screen antialiased">
+      <body className="bg-black text-zinc-100 font-sans antialiased">
         {children}
       </body>
     </html>

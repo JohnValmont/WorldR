@@ -1,0 +1,26 @@
+[
+  {
+    "continent_id": "varelia",
+    "name": "Varelia",
+    "primary_culture": "Varelian",
+    "description": "The continent of Varelia, home to the Varelian people."
+  },
+  {
+    "continent_id": "azhara",
+    "name": "Azhara",
+    "primary_culture": "Azharan",
+    "description": "The continent of Azhara, home to the Azharan people."
+  },
+  {
+    "continent_id": "norvane",
+    "name": "Norvane",
+    "primary_culture": "Norvanian",
+    "description": "The continent of Norvane, home to the Norvanian people."
+  },
+  {
+    "continent_id": "solkar",
+    "name": "Solkar",
+    "primary_culture": "Solkaran",
+    "description": "The continent of Solkar, home to the Solkaran people."
+  }
+]

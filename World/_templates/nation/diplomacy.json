@@ -1,0 +1,12 @@
+{
+  "alliances": [],
+  "rivalries": [],
+  "trade_agreements": [],
+  "relations": [
+    {
+      "target_nation_id": "",
+      "relation_value": 0,
+      "status": "neutral"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "planet_name": "Aethon",
+  "map_version": "1.0.0",
+  "currency_name": "Aethon Credit",
+  "currency_symbol": "ACR",
+  "current_world_era": "Modern Era",
+  "default_simulation_rules": {
+    "population_growth_rate": 0.012,
+    "gdp_growth_rate": 0.025,
+    "inflation_rate": 0.02,
+    "tax_rate_default": 0.2,
+    "unemployment_rate_default": 0.05
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "nation_id": "",
+  "name": "",
+  "identity_file": "identity.json",
+  "geography_file": "geography.json",
+  "population_file": "population.json",
+  "government_file": "government.json",
+  "economy_file": "economy.json",
+  "military_file": "military.json",
+  "parties_file": "parties.json",
+  "diplomacy_file": "diplomacy.json",
+  "resources_file": "resources.json",
+  "lore_file": "lore.md",
+  "map_file": "map.json"
+}

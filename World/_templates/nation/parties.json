@@ -1,0 +1,12 @@
+{
+  "political_parties": [
+    {
+      "party_id": "",
+      "name": "",
+      "ideology": "",
+      "seats_held": 0,
+      "total_seats": 0,
+      "popularity_pct": 0
+    }
+  ]
+}

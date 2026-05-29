@@ -3,12 +3,9 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    overflow: hidden;
-  }
+  /* overflow is managed per-layout: auth layout clips itself, onboarding scrolls freely */
   body {
     @apply bg-black text-zinc-100 font-sans antialiased;
-    overflow: hidden;
   }
   * {
     box-sizing: border-box;

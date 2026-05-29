@@ -25,7 +25,7 @@ export default function LoginPage() {
       if (!user.is_verified) {
         router.push(`/verify?email=${encodeURIComponent(user.email)}`);
       } else {
-        router.push('/settings');
+        router.push('/onboarding/start-life');
       }
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Invalid credentials. Please try again.');
