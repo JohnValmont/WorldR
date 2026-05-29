@@ -97,11 +97,11 @@ export default function ChooseMotherlandPage() {
       </div>
 
       {/* Page header */}
-      <div className="px-4 md:px-10 pt-10 pb-6 max-w-5xl mx-auto w-full">
+      <div className="px-4 md:px-10 pt-5 pb-4 max-w-5xl mx-auto w-full">
         {/* Breadcrumb */}
         <button
           onClick={() => router.push('/onboarding/create-character')}
-          className="flex items-center gap-1.5 text-zinc-600 hover:text-zinc-400 transition-colors mb-6 font-mono text-[10px] uppercase tracking-widest group"
+          className="flex items-center gap-1.5 text-zinc-600 hover:text-zinc-400 transition-colors mb-4 font-mono text-[10px] uppercase tracking-widest group"
         >
           <svg className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12" />

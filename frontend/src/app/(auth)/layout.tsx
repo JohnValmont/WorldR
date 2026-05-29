@@ -156,6 +156,13 @@ function AnimatedGlobe() {
   return <canvas ref={canvasRef} className="w-full h-full" />;
 }
 
+const PILLARS = [
+  { icon: '🏛️', text: 'Politics & Government' },
+  { icon: '📈', text: 'Business & Economy' },
+  { icon: '⚔️', text: 'Military & Defense' },
+  { icon: '🌍', text: 'Society & Culture' },
+];
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="h-screen w-full flex overflow-hidden bg-[#050508]">
@@ -163,16 +170,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="hidden lg:flex flex-col flex-1 relative overflow-hidden">
         {/* Background gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/60 via-[#050508] to-amber-950/20" />
-        
-        {/* Animated grid */}
-        <div className="absolute inset-0 opacity-[0.025]" style={{
-          backgroundImage: 'linear-gradient(rgba(99,102,241,1) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,1) 1px, transparent 1px)',
-          backgroundSize: '60px 60px'
-        }} />
 
-        {/* Noise texture overlay */}
-        <div className="absolute inset-0 opacity-[0.015]" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        {/* Subtle grid */}
+        <div className="absolute inset-0 opacity-[0.02]" style={{
+          backgroundImage: 'linear-gradient(rgba(245,158,11,1) 1px, transparent 1px), linear-gradient(90deg, rgba(245,158,11,1) 1px, transparent 1px)',
+          backgroundSize: '80px 80px',
         }} />
 
         {/* Globe canvas */}
@@ -190,7 +192,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             </div>
             <div>
               <div className="text-zinc-100 font-extrabold text-xl tracking-[0.2em] leading-none">WORLDr</div>
-              <div className="text-amber-500/70 font-mono text-[9px] tracking-[0.3em] uppercase leading-none mt-1">Secure Identity Gateway Node</div>
+              <div className="text-amber-500/60 font-mono text-[9px] tracking-[0.25em] uppercase leading-none mt-1">Life Simulator</div>
             </div>
           </div>
         </div>
@@ -198,28 +200,32 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Bottom text */}
         <div className="relative z-10 mt-auto p-8 pb-10">
           <div className="max-w-xs">
-            <div className="text-[10px] text-indigo-400/70 font-mono uppercase tracking-[0.25em] mb-2">Gateway Infrastructure</div>
+            <div className="text-[10px] text-amber-500/50 font-mono uppercase tracking-[0.25em] mb-3">Return to Your Life</div>
             <h2 className="text-2xl font-bold text-zinc-100 leading-tight mb-3">
-              Secure Access Gateway.<br />
-              <span className="text-amber-400">Robust Identity Layer.</span>
+              Welcome Back to<br />
+              <span className="text-amber-400">WORLDr</span>
             </h2>
-            <p className="text-zinc-500 text-xs leading-relaxed">
-              Centralized gateway verification console utilizing standard JWT access/refresh token rotation and secure email OTP validation.
+            <p className="text-zinc-500 text-xs leading-relaxed mb-6">
+              Continue your political, economic, and social journey in a living world where your decisions shape your legacy.
             </p>
-          </div>
 
-          {/* Stats bar */}
-          <div className="flex items-center gap-6 mt-6 pt-4 border-t border-white/5">
-            {[
-              { label: 'Identity Protocol', value: 'JWT+OTP' },
-              { label: 'Encryption Key', value: 'SHA256' },
-              { label: 'Security Status', value: 'ACTIVE' },
-            ].map(stat => (
-              <div key={stat.label}>
-                <div className="text-amber-400 font-bold text-sm leading-none">{stat.value}</div>
-                <div className="text-zinc-600 font-mono text-[8px] uppercase tracking-widest mt-0.5">{stat.label}</div>
-              </div>
-            ))}
+            {/* Game pillars */}
+            <div className="grid grid-cols-2 gap-2">
+              {PILLARS.map((p) => (
+                <div
+                  key={p.text}
+                  className="flex items-center gap-2 px-3 py-2 rounded-sm text-[10px] text-zinc-400"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+                >
+                  <span>{p.icon}</span>
+                  <span className="font-mono tracking-wide">{p.text}</span>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-zinc-600 font-mono text-[9px] uppercase tracking-widest mt-6">
+              One life. One origin. Many paths.
+            </p>
           </div>
         </div>
 
@@ -235,9 +241,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="flex flex-col w-full lg:w-[420px] xl:w-[460px] relative overflow-y-auto overflow-x-hidden">
         {/* Panel background */}
         <div className="absolute inset-0 bg-[#080810] border-l border-white/[0.04]" />
-        
+
         {/* Top gradient stripe */}
-        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
 
         {/* Mobile logo */}
         <div className="relative z-10 flex lg:hidden items-center gap-3 p-6 pb-0">
@@ -254,7 +260,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Bottom footer */}
         <div className="relative z-10 px-6 lg:px-8 pb-4 pt-2">
           <p className="text-zinc-700 text-[10px] font-mono text-center">
-            © 2025 WORLDr · Secure Authorization Core
+            © {new Date().getFullYear()} WORLDr · Political Life Simulator
           </p>
         </div>
       </div>

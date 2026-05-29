@@ -21,7 +21,7 @@ function buildFullName(first: string, middle: string, last: string): string {
 const GENDER_LABELS: Record<string, string> = {
   male: 'Male',
   female: 'Female',
-  other: 'Custom / Other',
+  other: 'Other',
 };
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -74,19 +74,21 @@ function GenderCard({
   const icons: Record<string, React.ReactNode> = {
     male: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 3h6m0 0v6m0-6l-7 7M9 3H4a1 1 0 00-1 1v16a1 1 0 001 1h16a1 1 0 001-1v-5" />
+        <circle cx="12" cy="7" r="4" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5.5 21a6.5 6.5 0 0113 0" />
       </svg>
     ),
     female: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-        <circle cx="12" cy="8" r="5" />
-        <path strokeLinecap="round" d="M12 13v8M9 18h6" />
+        <circle cx="12" cy="7" r="4" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 11v10M9 18h6" />
       </svg>
     ),
     other: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-        <circle cx="12" cy="12" r="9" />
-        <path strokeLinecap="round" d="M12 8v8M8 12h8" />
+        <circle cx="12" cy="7" r="4" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5.5 21a6.5 6.5 0 0113 0" />
+        <circle cx="12" cy="7" r="1.5" fill="currentColor" />
       </svg>
     ),
   };
@@ -294,14 +296,14 @@ export default function CreateCharacterPage() {
 
   return (
     <div
-      className="max-w-6xl mx-auto px-4 md:px-8 py-10 transition-all duration-500"
+      className="max-w-6xl mx-auto px-4 md:px-8 py-6 transition-all duration-500"
       style={{ opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(14px)' }}
     >
       {/* Step indicator */}
       <StepIndicator step={0} total={2} />
 
       {/* Page header */}
-      <div className="mb-10">
+      <div className="mb-6">
         <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-2">
           Create Your Life
         </h1>
