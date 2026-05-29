@@ -54,7 +54,7 @@ export default function SettingsPage() {
               <span className="text-black font-black text-base">W</span>
             </div>
             <div>
-              <span className="text-zinc-100 font-extrabold text-sm tracking-[0.2em] uppercase">WORLDR</span>
+              <span className="text-zinc-100 font-extrabold text-sm tracking-[0.2em] uppercase">WORLDr</span>
               <span className="text-amber-500/70 font-mono text-[8px] tracking-[0.25em] block uppercase">System Gateway</span>
             </div>
           </div>

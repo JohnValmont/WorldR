@@ -189,7 +189,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               <span className="text-black font-black text-lg leading-none">W</span>
             </div>
             <div>
-              <div className="text-zinc-100 font-extrabold text-xl tracking-[0.2em] leading-none">WORLDR</div>
+              <div className="text-zinc-100 font-extrabold text-xl tracking-[0.2em] leading-none">WORLDr</div>
               <div className="text-amber-500/70 font-mono text-[9px] tracking-[0.3em] uppercase leading-none mt-1">Secure Identity Gateway Node</div>
             </div>
           </div>
@@ -244,7 +244,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center rounded-sm shrink-0">
             <span className="text-black font-black text-base leading-none">W</span>
           </div>
-          <div className="text-zinc-100 font-extrabold text-base tracking-[0.2em]">WORLDR</div>
+          <div className="text-zinc-100 font-extrabold text-base tracking-[0.2em]">WORLDr</div>
         </div>
 
         <div className="relative z-10 flex flex-col flex-1 justify-center p-6 lg:p-8 xl:p-10">
@@ -254,7 +254,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Bottom footer */}
         <div className="relative z-10 px-6 lg:px-8 pb-4 pt-2">
           <p className="text-zinc-700 text-[10px] font-mono text-center">
-            © 2025 WorldR · Secure Authorization Core
+            © 2025 WORLDr · Secure Authorization Core
           </p>
         </div>
       </div>

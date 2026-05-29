@@ -17,7 +17,7 @@ export default function StartLifePage() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-73px)] px-6 text-center">
+    <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center">
 
       {/* Cinematic vignette ring */}
       <div className="absolute inset-0 pointer-events-none"
@@ -40,7 +40,7 @@ export default function StartLifePage() {
         style={{ opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(16px)' }}
       >
         <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl font-bold text-white leading-[0.9] tracking-tight mb-2">
-          WORLDR
+          WORLDr
         </h1>
         <div className="w-24 h-px mx-auto my-5"
           style={{ background: 'linear-gradient(90deg, transparent, #f59e0b, transparent)' }} />

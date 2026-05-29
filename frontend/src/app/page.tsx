@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 const BOOT_LINES = [
-  '> WORLDR CORE SYSTEM GATEWAY v1.0.0 LOADING...',
+  '> WORLDr CORE SYSTEM GATEWAY v1.0.0 LOADING...',
   '> SYNCING SECURITY MIDDLEWARE KEYS......... [OK]',
   '> ESTABLISHING SUPABASE POSTGRESQL POOL... [OK]',
   '> SECURING JSON WEB TOKEN EXCHANGE LAYER... [OK]',
@@ -61,7 +61,7 @@ export default function LandingPage() {
               <span className="text-black font-black text-base">W</span>
             </div>
             <div>
-              <span className="text-zinc-100 font-extrabold text-sm tracking-[0.2em] uppercase">WORLDR</span>
+              <span className="text-zinc-100 font-extrabold text-sm tracking-[0.2em] uppercase">WORLDr</span>
               <span className="text-amber-500/70 font-mono text-[8px] tracking-[0.25em] block uppercase">System Gateway</span>
             </div>
           </div>

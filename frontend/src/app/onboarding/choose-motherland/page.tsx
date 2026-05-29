@@ -66,11 +66,11 @@ export default function ChooseMotherlandPage() {
 
   return (
     <div
-      className="min-h-[calc(100vh-73px)] flex flex-col transition-all duration-500"
+      className="min-h-screen flex flex-col transition-all duration-500"
       style={{ opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(14px)' }}
     >
       {/* Character mini-card (top right sticky) */}
-      <div className="absolute top-[73px] right-0 z-20 p-4 md:p-6">
+      <div className="absolute top-4 right-0 z-20 p-4 md:p-6">
         <div
           className="flex items-center gap-3 px-4 py-2.5 rounded-sm"
           style={{
@@ -122,7 +122,7 @@ export default function ChooseMotherlandPage() {
       </div>
 
       {/* Continent tab bar */}
-      <div className="sticky top-[73px] z-10 px-0 border-b border-white/[0.05]"
+      <div className="sticky top-0 z-10 px-0 border-b border-white/[0.05]"
         style={{ background: 'rgba(6,6,12,0.9)', backdropFilter: 'blur(20px)' }}>
         <div className="max-w-5xl mx-auto px-4 md:px-10">
           <div className="flex overflow-x-auto scrollbar-hide -mb-px">

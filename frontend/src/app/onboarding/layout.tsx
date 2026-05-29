@@ -119,25 +119,7 @@ export default function OnboardingLayout({
 
       <ParticleField />
 
-      {/* Top bar */}
-      <div className="relative z-10 flex items-center justify-between px-6 md:px-10 py-5 border-b border-white/[0.04]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.3)] rounded-sm shrink-0">
-            <span className="text-black font-black text-base leading-none">W</span>
-          </div>
-          <div>
-            <div className="text-zinc-100 font-extrabold text-sm tracking-[0.25em] leading-none">WORLDR</div>
-            <div className="text-amber-500/50 font-mono text-[8px] tracking-[0.3em] uppercase leading-none mt-0.5">
-              Life Simulator
-            </div>
-          </div>
-        </div>
-        <div className="text-[9px] font-mono text-zinc-700 uppercase tracking-widest border border-zinc-800/60 px-2 py-1 rounded-sm">
-          v0.1 Alpha
-        </div>
-      </div>
-
-      {/* Page content */}
+      {/* Page content — full screen, no top bar */}
       <div className="relative z-10">
         {children}
       </div>

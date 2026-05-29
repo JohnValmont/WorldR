@@ -185,7 +185,7 @@ function IdentityCard({
               <span className="text-[9px] font-mono text-emerald-400/80 uppercase tracking-widest">New Citizen</span>
             </div>
             <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">
-              WORLDR / AETHON
+              WORLDr / AETHON
             </div>
           </div>
 
@@ -229,7 +229,7 @@ function IdentityCard({
         {/* Document ID bar */}
         <div className="mt-auto pt-3 border-t border-white/[0.04]">
           <div className="font-mono text-[8px] text-zinc-700 tracking-widest">
-            DOC · {new Date().getFullYear()} · WORLDR-AETHON
+            DOC · {new Date().getFullYear()} · WORLDr-AETHON
           </div>
           <div className="mt-1 h-4 rounded-sm overflow-hidden flex gap-px opacity-20">
             {Array.from({ length: 48 }).map((_, i) => (
