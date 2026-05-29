@@ -1,349 +1,253 @@
 'use client';
-import { useEffect, useRef } from 'react';
 
-// ── Aethon World Map Data ──────────────────────────────────────────────────────
-// Polygons defined as [longitude, latitude] pairs (equirectangular)
+// ── Aethon World Map — detailed country SVG paths ──────────────────────────────
+// Coordinate space: 1024 × 512 (equirectangular world map)
+// All colours are dark-navy variants so land stands out clearly from ocean.
 
-type LatLon = [number, number];
+const BORDER = 'rgba(68,148,255,0.78)';
+const BORDER_SM = 'rgba(68,148,255,0.65)';
+// strokeWidth values are large because the SVG is scaled down inside a ~300px circle
+// (scale ≈ 0.30×, so SW 4 → ~1.2 px on screen, SW 6 → ~1.8 px on screen)
+const SW = '4';   // major nations
+const SW2 = '3.5'; // medium
+const SW3 = '3';  // tiny
 
-// Major continent landmasses
-const LANDMASSES: { fill: string; stroke: string; poly: LatLon[] }[] = [
-  {
-    // Varelia – western continent (Keldoria, Eryndor, Arkenfall, Valdoria, Norhaven…)
-    fill: 'rgba(22, 48, 118, 0.84)',
-    stroke: 'rgba(88, 148, 240, 0.75)',
-    poly: [
-      [-165, 75], [-148, 80], [-128, 76], [-105, 73],
-      [-82, 66], [-75, 54], [-76, 44], [-83, 30],
-      [-93, 18], [-106, 8], [-122, 2], [-138, 2],
-      [-155, 10], [-164, 22], [-170, 40], [-170, 58],
-      [-168, 68], [-165, 75],
-    ],
-  },
-  {
-    // Azhara – central continent (Novara, Astralis, Drakoria, Altaria, Solmere…)
-    fill: 'rgba(19, 42, 112, 0.84)',
-    stroke: 'rgba(82, 140, 232, 0.75)',
-    poly: [
-      [-96, 50], [-70, 54], [-42, 54], [-15, 50],
-      [8, 46], [36, 42], [44, 26], [41, 8],
-      [28, -6], [12, -30], [-5, -42],
-      [-32, -44], [-60, -40], [-80, -30],
-      [-96, -15], [-99, 8], [-97, 28], [-96, 50],
-    ],
-  },
-  {
-    // Solkar – southern continent (Vastara, Kaelvar, Aurelia, Korvath, Tyralis…)
-    fill: 'rgba(16, 38, 102, 0.84)',
-    stroke: 'rgba(78, 134, 225, 0.75)',
-    poly: [
-      [-80, -28], [-50, -24], [-15, -24],
-      [12, -26], [38, -30], [53, -40],
-      [56, -56], [40, -70], [15, -78],
-      [-18, -80], [-52, -76], [-75, -64],
-      [-84, -48], [-80, -28],
-    ],
-  },
-  {
-    // Norvane – eastern continent (Norvane Federation, Zorathia, Dravenor, Rethoria…)
-    fill: 'rgba(20, 45, 115, 0.84)',
-    stroke: 'rgba(85, 144, 236, 0.75)',
-    poly: [
-      [58, 70], [72, 76], [98, 72], [118, 65],
-      [126, 50], [128, 30], [122, 12],
-      [118, -4], [108, -28], [98, -52],
-      [74, -64], [56, -50], [50, -24],
-      [52, 2], [54, 28], [56, 50], [58, 70],
-    ],
-  },
-];
+function MapPaths() {
+  return (
+    <>
+      {/* ═══════ VARELIA ═══════ */}
+      {/* Norhaven */}
+      <path fill="#172c5e" stroke={BORDER} strokeWidth={SW2} d="M18,38 L44,30 L72,28 L90,40 L94,58 L84,74 L60,87 L38,90 L18,76 L10,58 Z"/>
+      {/* Arkenfall */}
+      <path fill="#122348" stroke={BORDER} strokeWidth={SW} d="M84,40 L112,34 L142,33 L164,44 L170,66 L160,90 L142,110 L116,117 L95,104 L84,74 L86,58 Z"/>
+      {/* Orinth (tiny) */}
+      <path fill="#162a58" stroke={BORDER_SM} strokeWidth={SW3} d="M58,72 L80,67 L87,82 L73,92 L54,90 L49,78 Z"/>
+      {/* Talmere */}
+      <path fill="#102040" stroke={BORDER_SM} strokeWidth={SW2} d="M40,90 L66,92 L73,108 L70,128 L52,138 L36,130 L30,114 L34,98 Z"/>
+      {/* Torland */}
+      <path fill="#152958" stroke={BORDER} strokeWidth={SW} d="M10,130 L36,128 L70,126 L80,144 L77,164 L63,180 L44,190 L20,184 L8,166 L6,148 Z"/>
+      {/* Keldoria — large */}
+      <path fill="#1a3068" stroke={BORDER} strokeWidth={SW} d="M95,104 L116,117 L142,110 L168,120 L192,128 L214,146 L222,168 L225,196 L218,222 L200,242 L180,256 L154,268 L126,272 L100,260 L80,242 L76,214 L73,186 L74,163 L78,142 L88,122 Z"/>
+      {/* Silveria (narrow strip) */}
+      <path fill="#0e1e3e" stroke={BORDER_SM} strokeWidth={SW3} d="M0,164 L14,160 L20,178 L17,220 L13,256 L6,274 L0,285 Z"/>
+      {/* Eryndor */}
+      <path fill="#142756" stroke={BORDER} strokeWidth={SW} d="M18,268 L46,260 L78,264 L104,272 L112,290 L110,316 L98,342 L78,358 L54,370 L26,364 L10,350 L6,324 L10,296 Z"/>
+      {/* Greyport (tiny) */}
+      <path fill="#162a5a" stroke={BORDER_SM} strokeWidth={SW3} d="M123,250 L150,244 L156,260 L140,270 L120,267 L114,256 Z"/>
+      {/* Drennia */}
+      <path fill="#112246" stroke={BORDER} strokeWidth={SW} d="M118,267 L154,267 L180,260 L190,282 L184,308 L166,326 L140,332 L118,318 L108,300 L112,280 Z"/>
+      {/* Westmark */}
+      <path fill="#1a3068" stroke={BORDER} strokeWidth={SW} d="M110,300 L140,332 L166,326 L178,344 L170,360 L150,372 L126,372 L100,362 L93,344 L98,320 Z"/>
+      {/* Vestria */}
+      <path fill="#142756" stroke={BORDER} strokeWidth={SW} d="M194,152 L220,148 L248,158 L266,180 L266,208 L254,232 L235,252 L213,256 L192,242 L188,218 L190,188 Z"/>
+      {/* Valdoria — large */}
+      <path fill="#112246" stroke={BORDER} strokeWidth={SW} d="M164,44 L198,36 L230,33 L262,36 L286,52 L292,78 L288,106 L273,132 L251,152 L228,162 L202,166 L176,158 L163,140 L160,114 L162,86 Z"/>
 
-// Small islands
-const ISLANDS: LatLon[][] = [
-  // Frostholm (north center)
-  [[3, 83], [12, 85], [22, 83], [18, 80], [8, 80], [3, 83]],
-  // Zahara Isles (southwest)
-  [[-155, -42], [-148, -39], [-144, -43], [-150, -47], [-156, -45], [-155, -42]],
-  // Veloria (NE, near Norvane)
-  [[116, 62], [121, 64], [123, 61], [119, 59], [116, 62]],
-  [[108, 56], [113, 58], [115, 55], [111, 54], [108, 56]],
-  // Belvar (east mid)
-  [[115, 12], [120, 14], [122, 11], [118, 10], [115, 12]],
-];
+      {/* ═══════ AZHARA ═══════ */}
+      {/* Drakoria — large */}
+      <path fill="#0e2245" stroke={BORDER} strokeWidth={SW} d="M238,212 L270,204 L312,200 L344,208 L372,224 L382,250 L378,278 L365,304 L347,326 L323,344 L296,352 L268,348 L248,330 L238,308 L232,280 L232,254 Z"/>
+      {/* Zehra */}
+      <path fill="#132550" stroke={BORDER} strokeWidth={SW} d="M278,318 L322,313 L350,326 L358,348 L344,368 L320,382 L292,384 L272,370 L267,350 L272,330 Z"/>
+      {/* Solmere */}
+      <path fill="#0e2245" stroke={BORDER} strokeWidth={SW} d="M344,344 L380,341 L412,350 L418,368 L411,386 L390,399 L364,402 L340,391 L332,371 L336,353 Z"/>
+      {/* Astralis — large */}
+      <path fill="#142858" stroke={BORDER} strokeWidth={SW} d="M340,208 L370,198 L406,192 L436,196 L462,210 L472,234 L468,262 L455,288 L440,308 L420,326 L397,339 L370,346 L347,340 L323,326 L318,302 L322,276 L330,250 L338,232 Z"/>
+      {/* Velis (tiny) */}
+      <path fill="#0e2245" stroke={BORDER_SM} strokeWidth={SW3} d="M370,120 L393,115 L403,128 L400,142 L380,146 L368,135 Z"/>
+      {/* Asterra / Corwyn area */}
+      <path fill="#132550" stroke={BORDER_SM} strokeWidth={SW3} d="M395,120 L430,115 L448,125 L448,142 L432,150 L408,152 L395,140 Z"/>
+      {/* Terenis */}
+      <path fill="#0e2040" stroke={BORDER} strokeWidth={SW2} d="M450,110 L488,107 L522,110 L535,124 L533,142 L512,150 L483,154 L458,147 L447,132 L448,117 Z"/>
+      {/* Virelia */}
+      <path fill="#162a58" stroke={BORDER} strokeWidth={SW} d="M426,142 L462,137 L496,137 L512,150 L513,166 L502,182 L480,190 L457,186 L437,175 L424,161 Z"/>
+      {/* Novara — large */}
+      <path fill="#1a3268" stroke={BORDER} strokeWidth={SW} d="M448,144 L482,139 L513,137 L546,141 L578,155 L594,178 L596,207 L591,236 L579,262 L562,283 L543,299 L519,312 L493,316 L468,311 L449,296 L438,272 L432,246 L436,217 L441,192 L444,168 Z"/>
+      {/* Kitaros */}
+      <path fill="#0e2040" stroke={BORDER} strokeWidth={SW2} d="M560,234 L591,230 L606,245 L603,263 L588,276 L563,274 L547,261 L547,245 Z"/>
+      {/* Lumos */}
+      <path fill="#132550" stroke={BORDER} strokeWidth={SW2} d="M546,265 L580,261 L600,276 L597,298 L580,313 L558,316 L541,302 L538,283 Z"/>
+      {/* Altaria */}
+      <path fill="#0e2245" stroke={BORDER} strokeWidth={SW} d="M452,319 L490,313 L525,316 L550,330 L553,355 L545,378 L527,395 L503,403 L478,403 L455,390 L445,366 L444,342 Z"/>
 
-// Internal nation/country borders — each as a pair of LatLon endpoints
-const BORDERS: Array<[LatLon, LatLon]> = [
-  // Varelia internal borders
-  [[-152, 68], [-130, 70]], [[-130, 70], [-112, 66]],
-  [[-112, 66], [-95, 62]],  [[-95, 62],  [-80, 52]],
-  [[-140, 52], [-125, 50]], [[-125, 50], [-115, 45]],
-  [[-125, 50], [-130, 40]], [[-130, 35], [-118, 30]],
-  [[-118, 30], [-115, 28]], [[-130, 22], [-118, 18]],
-  [[-118, 18], [-110, 12]], [[-148, 22], [-138, 18]],
-  [[-160, 45], [-152, 48]],
-  // Azhara internal borders
-  [[-70, 45], [-55, 42]],  [[-55, 42], [-40, 38]],
-  [[-40, 38], [-25, 32]],  [[-25, 32], [-12, 24]],
-  [[-12, 24], [0, 18]],    [[0, 18],   [12, 12]],
-  [[12, 12],  [25, 8]],    [[-50, 32], [-42, 18]],
-  [[-42, 18], [-35, 6]],   [[-35, 6],  [-22, -2]],
-  [[-22, -2], [-10, -8]],  [[-65, 20], [-55, 10]],
-  [[-55, 10], [-48, 2]],   [[-70, -5], [-55, -12]],
-  [[-55,-12], [-40,-20]],  [[18, 30],  [28, 18]],
-  [[28, 18],  [35, 8]],
-  // Solkar internal borders
-  [[-40, -32], [-28, -40]], [[-28, -40], [-18, -50]],
-  [[-55, -48], [-42, -56]], [[-42, -56], [-30, -60]],
-  [[8, -32],   [18, -44]],  [[18, -44],  [25, -56]],
-  [[-12, -38], [-5, -50]],  [[-5, -50],  [5, -60]],
-  [[-20, -60], [-8, -65]],
-  // Norvane internal borders
-  [[72, 58],  [88, 52]],   [[88, 52],  [100, 42]],
-  [[100, 42], [108, 28]],  [[85, 30],  [92, 18]],
-  [[92, 18],  [100, 8]],   [[96, -5],  [105, -18]],
-  [[105,-18], [108,-32]],  [[80, -38], [92, -50]],
-  [[68, -20], [80, -30]],  [[62, 45],  [70, 32]],
-];
+      {/* ═══════ NORVANE ═══════ */}
+      {/* Norvane Federation — large */}
+      <path fill="#162a58" stroke={BORDER} strokeWidth={SW} d="M661,30 L702,26 L741,26 L775,32 L806,42 L832,58 L839,80 L834,107 L820,130 L800,148 L772,164 L743,169 L714,165 L686,152 L666,133 L656,108 L653,81 L657,57 Z"/>
+      {/* Aragua */}
+      <path fill="#0e2245" stroke={BORDER} strokeWidth={SW} d="M617,168 L656,162 L686,156 L714,170 L724,196 L720,224 L710,248 L693,264 L667,274 L641,276 L620,262 L610,238 L610,210 Z"/>
+      {/* Oceara */}
+      <path fill="#142756" stroke={BORDER} strokeWidth={SW} d="M722,172 L763,168 L799,176 L816,194 L816,220 L807,244 L788,261 L764,272 L737,274 L712,260 L709,234 L714,207 Z"/>
+      {/* South Coralis */}
+      <path fill="#0e2040" stroke={BORDER_SM} strokeWidth={SW2} d="M697,277 L735,272 L753,285 L752,306 L738,320 L712,322 L696,310 L692,294 Z"/>
+      {/* Veloria (north right) */}
+      <path fill="#1a3268" stroke={BORDER} strokeWidth={SW} d="M942,50 L974,44 L1000,56 L1021,74 L1024,104 L1017,134 L1001,158 L978,172 L953,175 L940,159 L937,126 L936,90 Z"/>
+      {/* Elanis / Noralis cluster */}
+      <path fill="#0e2040" stroke={BORDER_SM} strokeWidth={SW2} d="M803,292 L840,289 L858,302 L856,320 L841,334 L818,337 L800,324 L798,307 Z"/>
+      {/* Sylvari / Temza (tiny SE cluster) */}
+      <path fill="#112246" stroke={BORDER_SM} strokeWidth={SW3} d="M826,342 L854,340 L868,352 L866,366 L851,375 L830,374 L818,362 L820,348 Z"/>
+      {/* Belvar */}
+      <path fill="#132550" stroke={BORDER} strokeWidth={SW2} d="M880,300 L916,296 L939,312 L940,332 L930,348 L909,356 L886,352 L873,337 L872,316 Z"/>
+      {/* Zorathia — large */}
+      <path fill="#1a3268" stroke={BORDER} strokeWidth={SW} d="M650,322 L698,314 L745,317 L782,323 L820,330 L857,340 L890,352 L900,374 L896,401 L881,428 L858,448 L825,462 L789,468 L756,465 L722,457 L692,442 L667,424 L649,404 L641,380 L641,352 Z"/>
+      {/* Dravenor */}
+      <path fill="#0e2245" stroke={BORDER} strokeWidth={SW} d="M762,403 L803,394 L845,391 L883,396 L919,407 L947,423 L954,444 L944,468 L926,484 L899,494 L868,500 L837,502 L806,498 L778,488 L760,470 L751,450 L750,424 Z"/>
+      {/* Rethoria (far right, partial) */}
+      <path fill="#142756" stroke={BORDER} strokeWidth={SW} d="M947,265 L980,272 L1004,294 L1021,326 L1024,360 L1021,396 L1012,426 L1001,452 L983,472 L960,484 L938,492 L933,465 L936,438 L940,408 L938,374 L936,342 L940,312 L947,285 Z"/>
 
-// ── Globe math utilities ────────────────────────────────────────────────────────
+      {/* ═══════ SOLKAR ═══════ */}
+      {/* Solmura (tiny) */}
+      <path fill="#102040" stroke={BORDER_SM} strokeWidth={SW3} d="M226,363 L255,360 L262,378 L256,402 L240,414 L222,405 L220,388 L224,370 Z"/>
+      {/* Korvath */}
+      <path fill="#0e2245" stroke={BORDER} strokeWidth={SW} d="M256,364 L290,360 L318,364 L328,381 L323,404 L309,420 L282,427 L261,420 L250,403 L250,382 Z"/>
+      {/* Osendi */}
+      <path fill="#142756" stroke={BORDER} strokeWidth={SW2} d="M294,382 L330,376 L360,381 L370,400 L362,422 L343,434 L318,436 L293,426 L283,408 L287,394 Z"/>
+      {/* Voleari */}
+      <path fill="#0e2040" stroke={BORDER_SM} strokeWidth={SW2} d="M347,377 L384,372 L408,384 L413,404 L404,424 L383,436 L355,436 L339,422 L338,402 Z"/>
+      {/* Kaelvar — large */}
+      <path fill="#1a3268" stroke={BORDER} strokeWidth={SW} d="M226,432 L270,424 L313,422 L350,428 L384,436 L412,446 L438,460 L444,478 L437,498 L420,510 L395,518 L362,520 L326,517 L292,514 L261,508 L238,496 L225,479 L220,458 Z"/>
+      {/* Aurelia */}
+      <path fill="#112246" stroke={BORDER} strokeWidth={SW} d="M239,438 L279,432 L323,432 L362,438 L400,447 L416,466 L411,488 L397,504 L369,516 L335,520 L300,518 L261,510 L238,498 L227,481 L230,460 Z"/>
+      {/* Tyralis */}
+      <path fill="#0e2040" stroke={BORDER} strokeWidth={SW} d="M462,444 L495,440 L526,446 L533,464 L524,488 L507,506 L483,513 L462,505 L449,486 L448,464 Z"/>
+      {/* Caldris */}
+      <path fill="#142756" stroke={BORDER} strokeWidth={SW} d="M510,440 L548,436 L575,444 L582,464 L576,488 L561,504 L534,514 L509,512 L494,496 L491,472 L498,453 Z"/>
+      {/* Myrath */}
+      <path fill="#0e2245" stroke={BORDER} strokeWidth={SW} d="M540,438 L571,432 L598,442 L607,460 L601,484 L585,500 L562,506 L538,500 L524,483 L523,461 Z"/>
+      {/* Zelvat */}
+      <path fill="#112246" stroke={BORDER} strokeWidth={SW} d="M548,401 L582,394 L612,404 L619,422 L612,444 L591,454 L562,453 L540,440 L538,421 Z"/>
+      {/* Nareth */}
+      <path fill="#142756" stroke={BORDER} strokeWidth={SW} d="M572,365 L606,360 L630,373 L634,393 L628,414 L610,428 L582,431 L561,420 L556,402 L560,381 Z"/>
+      {/* Valtor */}
+      <path fill="#0e2040" stroke={BORDER_SM} strokeWidth={SW2} d="M594,334 L624,329 L646,342 L649,362 L640,378 L621,384 L599,380 L585,366 L584,349 Z"/>
+      {/* Kharon */}
+      <path fill="#112246" stroke={BORDER_SM} strokeWidth={SW2} d="M609,350 L641,347 L654,363 L653,382 L641,398 L620,403 L604,392 L598,375 Z"/>
+      {/* Vastara — large */}
+      <path fill="#1a3268" stroke={BORDER} strokeWidth={SW} d="M552,413 L594,408 L632,408 L664,416 L677,434 L676,462 L665,488 L644,506 L619,518 L591,522 L566,518 L544,508 L529,490 L526,467 L530,445 Z"/>
 
-function latlonTo3D(lon: number, lat: number): [number, number, number] {
-  const phi = (lat * Math.PI) / 180;
-  const lam = (lon * Math.PI) / 180;
-  return [
-    Math.cos(phi) * Math.cos(lam),
-    Math.sin(phi),
-    Math.cos(phi) * Math.sin(lam),
-  ];
+      {/* ═══════ ISLANDS ═══════ */}
+      {/* Zahara Isles */}
+      <path fill="#112246" stroke={BORDER_SM} strokeWidth={SW3} d="M30,428 L70,422 L102,428 L122,442 L124,458 L113,472 L88,482 L61,483 L36,475 L23,460 L24,444 Z"/>
+      {/* Frostholm */}
+      <path fill="#142756" stroke={BORDER_SM} strokeWidth={SW3} d="M474,30 L502,26 L528,30 L541,44 L535,62 L516,72 L491,72 L472,61 L469,46 Z"/>
+    </>
+  );
 }
 
-function rotateY(
-  p: [number, number, number],
-  angle: number
-): [number, number, number] {
-  return [
-    p[0] * Math.cos(angle) - p[2] * Math.sin(angle),
-    p[1],
-    p[0] * Math.sin(angle) + p[2] * Math.cos(angle),
-  ];
-}
-
-function projectPt(
-  lon: number,
-  lat: number,
-  rot: number,
-  cx: number,
-  cy: number,
-  r: number
-): { sx: number; sy: number; z: number } {
-  const rp = rotateY(latlonTo3D(lon, lat), rot);
-  return { sx: cx + r * rp[0], sy: cy - r * rp[1], z: rp[2] };
-}
-
-function drawLandmass(
-  ctx: CanvasRenderingContext2D,
-  poly: LatLon[],
-  rot: number,
-  cx: number,
-  cy: number,
-  r: number,
-  fill: string,
-  stroke: string
-) {
-  const pts = poly.map(([lon, lat]) => projectPt(lon, lat, rot, cx, cy, r));
-  // Skip if centroid is on the back of the globe
-  const zAvg = pts.reduce((s, p) => s + p.z, 0) / pts.length;
-  if (zAvg <= -0.05) return;
-  ctx.beginPath();
-  ctx.moveTo(pts[0].sx, pts[0].sy);
-  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].sx, pts[i].sy);
-  ctx.closePath();
-  ctx.fillStyle = fill;
-  ctx.fill();
-  ctx.strokeStyle = stroke;
-  ctx.lineWidth = 0.9;
-  ctx.stroke();
-}
-
-function drawBorderSeg(
-  ctx: CanvasRenderingContext2D,
-  seg: [LatLon, LatLon],
-  rot: number,
-  cx: number,
-  cy: number,
-  r: number
-) {
-  const a = projectPt(seg[0][0], seg[0][1], rot, cx, cy, r);
-  const b = projectPt(seg[1][0], seg[1][1], rot, cx, cy, r);
-  // Only draw if both endpoints face the camera
-  if (a.z <= 0.06 || b.z <= 0.06) return;
-  ctx.beginPath();
-  ctx.moveTo(a.sx, a.sy);
-  ctx.lineTo(b.sx, b.sy);
-  ctx.strokeStyle = 'rgba(105, 170, 255, 0.42)';
-  ctx.lineWidth = 0.65;
-  ctx.stroke();
-}
-
-// ── WorldMapGlobe component ────────────────────────────────────────────────────
+// ── WorldMapGlobe — flat-scroll with sphere shading ────────────────────────────
 
 function WorldMapGlobe() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  return (
+    <div className="relative w-full h-full flex items-center justify-center">
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let animFrame: number;
-    let rot = 0;
-
-    const resize = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    const draw = () => {
-      rot += 0.0022;
-      const W = canvas.width;
-      const H = canvas.height;
-      ctx.clearRect(0, 0, W, H);
-
-      const cx = W / 2;
-      const cy = H / 2;
-      const r  = Math.min(W, H) * 0.36;
-
-      // Outer ambient glow
-      const ambient = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r * 1.65);
-      ambient.addColorStop(0, 'rgba(12, 45, 160, 0.07)');
-      ambient.addColorStop(1, 'transparent');
-      ctx.fillStyle = ambient;
-      ctx.fillRect(0, 0, W, H);
-
-      // Ocean base sphere
-      const ocean = ctx.createRadialGradient(cx - r * 0.28, cy - r * 0.28, 0, cx, cy, r);
-      ocean.addColorStop(0,    'rgba(8, 18, 58, 0.96)');
-      ocean.addColorStop(0.55, 'rgba(4, 10, 38, 0.98)');
-      ocean.addColorStop(1,    'rgba(2,  5, 20, 1.00)');
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fillStyle = ocean;
-      ctx.fill();
-
-      // Clip all interior drawing to the globe circle
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.clip();
-
-      // Latitude / longitude grid (very subtle)
-      ctx.globalAlpha = 0.16;
-      ctx.strokeStyle = 'rgba(28, 68, 165, 1)';
-      ctx.lineWidth   = 0.4;
-
-      const LAT_LINES = [-60, -30, 0, 30, 60];
-      for (const lat of LAT_LINES) {
-        ctx.beginPath();
-        let first = true;
-        for (let lon = -180; lon <= 180; lon += 4) {
-          const p = projectPt(lon, lat, rot, cx, cy, r);
-          if (p.z > 0) {
-            if (first) { ctx.moveTo(p.sx, p.sy); first = false; }
-            else ctx.lineTo(p.sx, p.sy);
-          } else if (!first) {
-            ctx.stroke();
-            ctx.beginPath();
-            first = true;
-          }
+      {/* Keyframe for horizontal scroll */}
+      <style>{`
+        @keyframes worldScroll {
+          from { transform: translateX(0); }
+          to   { transform: translateX(-50%); }
         }
-        ctx.stroke();
-      }
+      `}</style>
 
-      for (let lon = -150; lon <= 180; lon += 30) {
-        ctx.beginPath();
-        let first = true;
-        for (let lat = -88; lat <= 88; lat += 4) {
-          const p = projectPt(lon, lat, rot, cx, cy, r);
-          if (p.z > 0) {
-            if (first) { ctx.moveTo(p.sx, p.sy); first = false; }
-            else ctx.lineTo(p.sx, p.sy);
-          } else if (!first) {
-            ctx.stroke();
-            ctx.beginPath();
-            first = true;
-          }
-        }
-        ctx.stroke();
-      }
+      {/* Outer ambient glow behind the globe */}
+      <div
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: 'clamp(220px, 60%, 350px)',
+          aspectRatio: '1 / 1',
+          background: 'radial-gradient(circle, rgba(18,60,200,0.12) 0%, transparent 70%)',
+          transform: 'scale(1.55)',
+        }}
+      />
 
-      ctx.globalAlpha = 1;
+      {/* ── Globe circle ── */}
+      <div
+        className="relative rounded-full overflow-hidden shrink-0"
+        style={{
+          width:  'clamp(220px, 60%, 350px)',
+          aspectRatio: '1 / 1',
+        }}
+      >
+        {/* Scrolling flat map — two copies for seamless loop */}
+        <div
+          style={{
+            display: 'flex',
+            width: '200%',
+            height: '100%',
+            animation: 'worldScroll 72s linear infinite',
+          }}
+        >
+          {([0, 1] as const).map((idx) => (
+            <svg
+              key={idx}
+              viewBox="0 0 1024 512"
+              xmlns="http://www.w3.org/2000/svg"
+              preserveAspectRatio="xMidYMid slice"
+              style={{ width: '50%', height: '100%', flexShrink: 0, display: 'block' }}
+            >
+              {/* Ocean */}
+              <rect width="1024" height="512" fill="#020917"/>
+              {/* All countries */}
+              <MapPaths />
+            </svg>
+          ))}
+        </div>
 
-      // Draw continent landmasses
-      for (const lm of LANDMASSES) {
-        drawLandmass(ctx, lm.poly, rot, cx, cy, r, lm.fill, lm.stroke);
-      }
+        {/* ── Sphere shading overlay ── */}
+        {/* Dark vignette around the edge — creates the 3D globe illusion */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: [
+              'radial-gradient(circle at 38% 36%,',
+              '  transparent 20%,',
+              '  rgba(1,4,18,0.32) 48%,',
+              '  rgba(1,3,14,0.72) 70%,',
+              '  rgba(0,2,10,0.96) 90%,',
+              '  rgba(0,1,8,1) 100%)',
+            ].join(' '),
+          }}
+        />
 
-      // Draw islands
-      for (const isle of ISLANDS) {
-        drawLandmass(ctx, isle, rot, cx, cy, r,
-          'rgba(22, 48, 118, 0.80)',
-          'rgba(84, 142, 230, 0.68)'
-        );
-      }
+        {/* ── Fixed grid overlay (lat/lon lines, non-scrolling) ── */}
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          style={{ opacity: 0.14 }}
+        >
+          {/* Latitude lines (horizontal) */}
+          <line x1="0" y1="16.7" x2="100" y2="16.7" stroke="rgba(50,120,240,1)" strokeWidth="0.5"/>
+          <line x1="0" y1="33.3" x2="100" y2="33.3" stroke="rgba(50,120,240,1)" strokeWidth="0.5"/>
+          <line x1="0" y1="50"   x2="100" y2="50"   stroke="rgba(50,120,240,1)" strokeWidth="0.7"/>
+          <line x1="0" y1="66.7" x2="100" y2="66.7" stroke="rgba(50,120,240,1)" strokeWidth="0.5"/>
+          <line x1="0" y1="83.3" x2="100" y2="83.3" stroke="rgba(50,120,240,1)" strokeWidth="0.5"/>
+        </svg>
 
-      // Draw internal nation borders
-      for (const seg of BORDERS) {
-        drawBorderSeg(ctx, seg, rot, cx, cy, r);
-      }
+        {/* ── Specular highlight (upper-left glint) ── */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            top: '8%', left: '10%',
+            width: '38%', height: '38%',
+            background: 'radial-gradient(circle at 40% 40%, rgba(255,255,255,0.055) 0%, transparent 70%)',
+            borderRadius: '50%',
+          }}
+        />
+      </div>
 
-      ctx.restore(); // end clip
-
-      // Globe rim line
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(48, 110, 225, 0.40)';
-      ctx.lineWidth   = 1.3;
-      ctx.stroke();
-
-      // Atmospheric halo ring
-      const halo = ctx.createRadialGradient(cx, cy, r * 0.88, cx, cy, r * 1.08);
-      halo.addColorStop(0,   'transparent');
-      halo.addColorStop(0.7, 'rgba(22, 65, 200, 0.07)');
-      halo.addColorStop(1,   'rgba(15, 50, 185, 0.14)');
-      ctx.beginPath();
-      ctx.arc(cx, cy, r * 1.08, 0, Math.PI * 2);
-      ctx.fillStyle = halo;
-      ctx.fill();
-
-      // Specular highlight (top-left glint)
-      const spec = ctx.createRadialGradient(
-        cx - r * 0.30, cy - r * 0.30, 0,
-        cx - r * 0.20, cy - r * 0.20, r * 0.50
-      );
-      spec.addColorStop(0, 'rgba(255, 255, 255, 0.058)');
-      spec.addColorStop(1, 'transparent');
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fillStyle = spec;
-      ctx.fill();
-
-      animFrame = requestAnimationFrame(draw);
-    };
-
-    draw();
-    return () => {
-      cancelAnimationFrame(animFrame);
-      window.removeEventListener('resize', resize);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} className="w-full h-full" />;
+      {/* ── Globe rim circle ── */}
+      <div
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width:  'clamp(220px, 60%, 350px)',
+          aspectRatio: '1 / 1',
+          border: '1.5px solid rgba(52,118,240,0.38)',
+          boxShadow: '0 0 28px rgba(22,78,220,0.18), inset 0 0 28px rgba(10,40,180,0.06)',
+        }}
+      />
+    </div>
+  );
 }
 
-// ── Game pillars (shown below the globe copy) ──────────────────────────────────
+// ── Game pillars ────────────────────────────────────────────────────────────────
 
 const PILLARS = [
   { icon: '🏛️', text: 'Politics & Government' },
@@ -361,23 +265,22 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* ── Left hero panel ─── */}
       <div className="hidden lg:flex flex-col flex-1 relative overflow-hidden">
         {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/50 via-[#050508] to-[#050508]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/40 via-[#050508] to-[#050508]" />
 
         {/* Subtle gold grid */}
         <div
-          className="absolute inset-0 opacity-[0.018]"
+          className="absolute inset-0 opacity-[0.016]"
           style={{
             backgroundImage:
-              'linear-gradient(rgba(245,158,11,1) 1px, transparent 1px), linear-gradient(90deg, rgba(245,158,11,1) 1px, transparent 1px)',
+              'linear-gradient(rgba(245,158,11,1) 1px, transparent 1px),' +
+              'linear-gradient(90deg, rgba(245,158,11,1) 1px, transparent 1px)',
             backgroundSize: '80px 80px',
           }}
         />
 
-        {/* Globe canvas — fills the entire panel */}
+        {/* Globe — centred in the panel */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-full h-full">
-            <WorldMapGlobe />
-          </div>
+          <WorldMapGlobe />
         </div>
 
         {/* Top brand */}
