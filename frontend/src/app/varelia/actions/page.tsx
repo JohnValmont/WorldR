@@ -2008,7 +2008,7 @@ function ActionExecutionModal({
 
   if (!position || !action || !staff) return null;
 
-  const implementedIds = ['mo_recruit', 'smallDonationDrive', 'pl_promise', 'cm_rally', 'meo_statement'];
+  const implementedIds = ['mo_recruit', 'smallDonationDrive', 'pl_promise', 'cm_rally', 'meo_statement', 'doorToDoorCampaign', 'giveInterview', 'openMembershipBooth'];
   const isImplemented = implementedIds.includes(actionId);
   
   if (!isImplemented) {
