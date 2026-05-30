@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Playfair_Display, IM_Fell_English } from 'next/font/google';
 import { useCharacterStore } from '../../../store/character.store';
 import { LogoSVG } from '../../../components/LogoSVG';
@@ -943,6 +944,7 @@ function PublicNoticesSection() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function VareliaNewsPage() {
+  const router = useRouter();
   const { character } = useCharacterStore();
   const [revealed,      setRevealed]      = useState(false);
   const [showModal,     setShowModal]     = useState(false);
@@ -1118,15 +1120,21 @@ export default function VareliaNewsPage() {
         <nav className="shrink-0 flex items-center px-4 md:px-5"
           style={{ height: '40px', background: 'rgba(5,5,13,0.98)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           {MAIN_TABS.map((tab) => {
-            const isActive  = tab === 'Home';
-            const isCurrent = tab === activeMainTab;
+            const isHome    = tab === 'Home';
+            const isActions = tab === 'Actions';
+            const isEnabled = isHome || isActions;
+            const isCurrent = isHome; // we ARE on Home/News
             return (
               <button key={tab} id={`main-tab-${tab.toLowerCase()}`} type="button"
-                disabled={!isActive} onClick={() => isActive && setActiveMainTab(tab)}
+                disabled={!isEnabled}
+                onClick={() => {
+                  if (isActions) router.push('/varelia/actions');
+                  // Home is current page — no-op
+                }}
                 className="relative px-4 h-full flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors duration-150"
-                style={{ color: isCurrent ? '#e4e4e7' : isActive ? '#71717a' : '#3f3f46', cursor: isActive ? 'pointer' : 'not-allowed', borderBottom: isCurrent ? '2px solid #c0a060' : '2px solid transparent' }}>
+                style={{ color: isCurrent ? '#e4e4e7' : isEnabled ? '#71717a' : '#3f3f46', cursor: isEnabled ? 'pointer' : 'not-allowed', borderBottom: isCurrent ? '2px solid #c0a060' : '2px solid transparent' }}>
                 {tab}
-                {!isActive && <span className="text-[7px] font-mono text-zinc-700 normal-case tracking-normal hidden lg:inline">soon</span>}
+                {!isEnabled && <span className="text-[7px] font-mono text-zinc-700 normal-case tracking-normal hidden lg:inline">soon</span>}
               </button>
             );
           })}
