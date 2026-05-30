@@ -870,6 +870,266 @@ function PartyDropdown({ ctx, onClose }: { ctx: PlayerCtx; onClose: () => void }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PLACEHOLDER COMPONENTS FOR SUBTABS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function PartyStaffView({ accentColor }: { accentColor: string }) {
+  const staff = [
+    { title: 'Secretary', desc: 'Manages internal communications, party records, meeting coordination, and volunteer logistics.' },
+    { title: 'Treasurer', desc: 'Handles party finances, fundraising, donor relations, and financial compliance.' },
+    { title: 'Campaign Manager', desc: 'Plans and executes electoral and public outreach campaigns across districts and regions.' },
+    { title: 'Spokesperson', desc: 'Manages public communications, media relations, and official party statements.' },
+    { title: 'Policy Director', desc: "Develops the party's official policy positions, manifestos, and legislative proposals." },
+    { title: 'Membership Officer', desc: "Grows the party's registered membership through recruitment, drives, and volunteer integration." },
+    { title: 'Legal Officer', desc: 'Handles party registration compliance, election law, candidate paperwork, and legal challenges.' },
+    { title: 'Public Network Officer', desc: 'Builds relationships between the party and key social groups (business, unions, farmers, etc.).' },
+    { title: 'Media Officer', desc: 'Manages party presence in newspapers, press, and public broadcast channels.' },
+    { title: 'Regional Organizer', desc: 'Expands party presence into regions, districts, and rural areas through branches and local coordinators.' },
+  ];
+
+  return (
+    <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-white tracking-tight">Party Staff</h2>
+          <p className="text-zinc-500 text-xs mt-1">Manage fictional hired officials who help run your political organization.</p>
+        </div>
+
+        {/* Note */}
+        <div className="rounded-sm px-4 py-3 mb-6 flex items-start gap-2.5" style={{ background: 'rgba(212,169,31,0.04)', border: `1px solid ${BORDER}` }}>
+          <svg className="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-[11px] leading-relaxed" style={{ color: MUTED }}>
+            Party staff are fictional hired officials controlled by you. Real players cannot join political parties.
+          </p>
+        </div>
+
+        {/* Staff Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {staff.map((s) => (
+            <div key={s.title} className="p-4 flex items-center justify-between gap-4" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm text-zinc-300">{s.title}</span>
+                  <span className="text-[8px] font-mono uppercase tracking-widest px-1.5 py-0.5 text-zinc-500" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+                    Vacant
+                  </span>
+                </div>
+                <p className="text-[10px] leading-normal text-zinc-600 mt-1">{s.desc}</p>
+              </div>
+              <button type="button" disabled className="px-3 py-1.5 text-[8.5px] font-bold uppercase tracking-widest opacity-40 cursor-not-allowed shrink-0" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, color: MUTED, borderRadius: '2px' }}>
+                Hiring Soon
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PartyStrategyView() {
+  const strategyItems = [
+    { label: 'Current Objective', value: 'Grow political recognition', desc: 'Build initial support and raise party brand awareness in Varelia.' },
+    { label: 'Main Promise', value: 'Not declared', desc: 'The defining campaign pledge representing the heart of your platform.' },
+    { label: 'Election Focus', value: 'Not selected', desc: 'Determine which legislative reforms to campaign on in the next election.' },
+    { label: 'Target Voters', value: 'Not selected', desc: 'Select demographic cohorts to focus your campaigning and outreach efforts on.' },
+    { label: 'Strategy Type', value: 'Not selected', desc: 'Define your party\'s overarching strategy: Populist, Elite-oriented, or Grassroots.' },
+  ];
+
+  return (
+    <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
+      <div className="max-w-xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-white tracking-tight">Party Strategy</h2>
+          <p className="text-zinc-500 text-xs mt-1">Plan your party’s long-term political direction.</p>
+        </div>
+
+        {/* Content list */}
+        <div className="space-y-4" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px', padding: '16px' }}>
+          {strategyItems.map((item) => (
+            <div key={item.label} className="pb-4 last:pb-0 border-b border-white/[0.03] last:border-b-0">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">{item.label}</span>
+                <span className="text-xs font-semibold text-zinc-300">{item.value}</span>
+              </div>
+              <p className="text-[10.5px] leading-normal text-zinc-600">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer text */}
+        <p className="text-[10px] text-zinc-700 text-center mt-6 italic">
+          Party strategy choices will be added in a later gameplay phase.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ElectionsView() {
+  const electionStats = [
+    { label: 'Next Election', value: 'Not scheduled' },
+    { label: 'Election Type', value: 'Parliamentary' },
+    { label: 'Candidate Status', value: 'Not registered' },
+    { label: 'Party Eligibility', value: 'Not ready' },
+    { label: 'Required Support', value: '5.0%' },
+    { label: 'Current Support', value: '0.1%' },
+  ];
+
+  return (
+    <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
+      <div className="max-w-xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-white tracking-tight">Elections</h2>
+          <p className="text-zinc-500 text-xs mt-1">Track upcoming elections and prepare your party for national competition.</p>
+        </div>
+
+        {/* Status Box */}
+        <div className="grid grid-cols-2 gap-4 p-5 mb-6" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+          {electionStats.map((stat) => (
+            <div key={stat.label}>
+              <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">{stat.label}</div>
+              <div className="text-xs font-semibold text-zinc-300">{stat.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          {['Register Candidate List', 'Prepare Campaign', 'View Election Rules'].map((btn) => (
+            <button
+              key={btn}
+              type="button"
+              disabled
+              className="px-5 py-2.5 text-xs font-semibold uppercase tracking-wider opacity-40 cursor-not-allowed rounded-sm flex items-center justify-center gap-1.5"
+              style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, color: MUTED }}>
+              <span>{btn}</span>
+              <span className="text-[7.5px] font-mono font-bold lowercase tracking-normal px-1 py-0.5 rounded-sm" style={{ background: 'rgba(255,255,255,0.05)', color: MUTED }}>soon</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PastElectionsView() {
+  return (
+    <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
+      <div className="max-w-xl mx-auto text-center py-12">
+        {/* Header/Title */}
+        <h2 className="text-xl font-bold text-white tracking-tight mb-1">Past Elections</h2>
+        <p className="text-zinc-500 text-xs mb-8">Review previous election results and your party’s historical performance.</p>
+
+        {/* Empty state icon & text */}
+        <div className="w-16 h-16 mx-auto mb-5 flex items-center justify-center"
+          style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+          <svg className="w-8 h-8 text-zinc-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+        <p className="font-semibold text-sm mb-2" style={{ color: TEXT }}>No past elections recorded.</p>
+        <p className="text-[11px] leading-relaxed max-w-[280px] mx-auto" style={{ color: MUTED }}>
+          Drennia has not held an election since your party was founded.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ActivityLogView() {
+  const [logItems, setLogItems] = useState<{ title: string; time: string; details: string }[]>([]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const items: { title: string; time: string; details: string }[] = [];
+
+    try {
+      // 1. Character
+      const charRaw = localStorage.getItem('worldr_character');
+      if (charRaw) {
+        const char = JSON.parse(charRaw);
+        const name = [char.firstName, char.middleName, char.lastName].filter(Boolean).join(' ') || 'Citizen';
+        items.push({
+          title: 'Character created',
+          time: 'Phase 1 · Milestone 1',
+          details: `Character identity created for ${name} (${char.age} yrs, ${char.gender}). Family lineage registered under the name ${char.familyName}.`
+        });
+      }
+
+      // 2. Party
+      const partyRaw = localStorage.getItem('worldr_current_party');
+      if (partyRaw) {
+        const party = JSON.parse(partyRaw);
+        const createdAtStr = party.createdAt ? new Date(party.createdAt).toLocaleDateString() : 'Phase 1 · Milestone 2';
+        items.push({
+          title: 'Political party registered',
+          time: createdAtStr,
+          details: `Political party ${party.partyName} registered successfully under abbreviation ${party.partyAbbreviation}. Ideologies: ${party.ideologyIds?.join(', ') || 'None'}.`
+        });
+      }
+
+      // 3. Country
+      const countryRaw = localStorage.getItem('worldr_selected_country');
+      if (countryRaw) {
+        const c = JSON.parse(countryRaw);
+        items.push({
+          title: `${c.countryName} selected as motherland`,
+          time: 'Phase 1 · Milestone 3',
+          details: `Allegiance sworn to the motherland ${c.countryName} inside the continent of ${c.continentName}.`
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    setLogItems(items);
+  }, []);
+
+  return (
+    <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
+      <div className="max-w-xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-white tracking-tight">Activity Log</h2>
+          <p className="text-zinc-500 text-xs mt-1">A timeline of your party’s important actions and milestones.</p>
+        </div>
+
+        {logItems.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-[11px] leading-relaxed text-zinc-500">
+              No activity recorded yet.
+            </p>
+          </div>
+        ) : (
+          <div className="relative border-l border-white/[0.05] pl-4 ml-2 space-y-6 py-2">
+            {logItems.map((item, idx) => (
+              <div key={idx} className="relative">
+                {/* Timeline dot */}
+                <div className="absolute w-2.5 h-2.5 rounded-full -left-[21.5px] top-1" style={{ background: ACCENT, border: `2px solid ${BG}` }} />
+                
+                <div>
+                  <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
+                    <span className="font-semibold text-xs text-zinc-300">{item.title}</span>
+                    <span className="text-[9px] font-mono text-zinc-600">{item.time}</span>
+                  </div>
+                  <p className="text-[10.5px] leading-relaxed text-zinc-500">{item.details}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -884,6 +1144,7 @@ export default function ActionsPage() {
   const [selectedPosId, setSelectedPosId] = useState('party_leader');
   const [hireTarget, setHireTarget] = useState<string | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
+  const [activeSubtab, setActiveSubtab] = useState<'Party HQ' | 'Party Staff' | 'Party Strategy' | 'Elections' | 'Past Elections' | 'Activity Log'>('Party HQ');
 
   const [ctx, setCtx] = useState<PlayerCtx>({
     characterName: '—', characterAge: '—',
@@ -1098,42 +1359,66 @@ export default function ActionsPage() {
         </nav>
 
         {/* ══ ACTIONS SUBTAB ROW ════════════════════════════════════════ */}
-        <div className="shrink-0 flex items-center px-4 md:px-5 border-b"
-          style={{ height: '34px', background: PANEL2, borderColor: BORDER }}>
-          <button type="button"
-            className="px-4 h-full flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-[0.14em] border-b-2"
-            style={{
-              color: TEXT,
-              borderColor: ACCENT,
-            }}>
-            Party Actions
-          </button>
+        <div className="shrink-0 flex items-center px-4 md:px-5 border-b overflow-x-auto"
+          style={{ height: '34px', background: PANEL2, borderColor: BORDER, scrollbarWidth: 'none' }}>
+          <div className="flex gap-2 h-full">
+            {(['Party HQ', 'Party Staff', 'Party Strategy', 'Elections', 'Past Elections', 'Activity Log'] as const).map((tab) => {
+              const isActive = activeSubtab === tab;
+              return (
+                <button
+                  key={tab}
+                  id={`subtab-${tab.toLowerCase().replace(/ /g, '-')}`}
+                  type="button"
+                  onClick={() => setActiveSubtab(tab)}
+                  className="px-4 h-full flex items-center text-[9.5px] font-bold uppercase tracking-[0.14em] border-b-2 transition-all duration-150 whitespace-nowrap"
+                  style={{
+                    color: isActive ? TEXT : MUTED,
+                    borderColor: isActive ? ACCENT : 'transparent',
+                  }}>
+                  {tab}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* ══ TWO-COLUMN BODY ════════════════════════════════════════════ */}
         <div className="flex-1 overflow-hidden">
-
-          {/* Mobile: stacked */}
-          <div className="h-full flex flex-col lg:hidden overflow-y-auto" style={{ background: BG }}>
-            {positions.length > 0 && (
-              <div style={{ minHeight: '260px', maxHeight: '340px', borderBottom: `1px solid ${BORDER}` }}>
-                <PositionList positions={positions} selectedId={selectedPosId} onSelect={setSelectedPosId} accentColor={ctx.partyColor} />
+          {activeSubtab === 'Party HQ' ? (
+            <>
+              {/* Mobile: stacked */}
+              <div className="h-full flex flex-col lg:hidden overflow-y-auto" style={{ background: BG }}>
+                {positions.length > 0 && (
+                  <div style={{ minHeight: '260px', maxHeight: '340px', borderBottom: `1px solid ${BORDER}` }}>
+                    <PositionList positions={positions} selectedId={selectedPosId} onSelect={setSelectedPosId} accentColor={ctx.partyColor} />
+                  </div>
+                )}
+                {selectedPos && (
+                  <PositionCenter position={selectedPos} accentColor={ctx.partyColor} partyName={ctx.partyName} countryName={ctx.countryName} onHire={setHireTarget} onTrigger={handleTriggerAction} />
+                )}
               </div>
-            )}
-            {selectedPos && (
-              <PositionCenter position={selectedPos} accentColor={ctx.partyColor} partyName={ctx.partyName} countryName={ctx.countryName} onHire={setHireTarget} onTrigger={handleTriggerAction} />
-            )}
-          </div>
 
-          {/* Desktop: 2-column */}
-          <div className="h-full hidden lg:grid" style={{ gridTemplateColumns: '224px 1fr' }}>
-            {positions.length > 0 && (
-              <PositionList positions={positions} selectedId={selectedPosId} onSelect={setSelectedPosId} accentColor={ctx.partyColor} />
-            )}
-            {selectedPos && (
-              <PositionCenter position={selectedPos} accentColor={ctx.partyColor} partyName={ctx.partyName} countryName={ctx.countryName} onHire={setHireTarget} onTrigger={handleTriggerAction} />
-            )}
-          </div>
+              {/* Desktop: 2-column */}
+              <div className="h-full hidden lg:grid" style={{ gridTemplateColumns: '224px 1fr' }}>
+                {positions.length > 0 && (
+                  <PositionList positions={positions} selectedId={selectedPosId} onSelect={setSelectedPosId} accentColor={ctx.partyColor} />
+                )}
+                {selectedPos && (
+                  <PositionCenter position={selectedPos} accentColor={ctx.partyColor} partyName={ctx.partyName} countryName={ctx.countryName} onHire={setHireTarget} onTrigger={handleTriggerAction} />
+                )}
+              </div>
+            </>
+          ) : activeSubtab === 'Party Staff' ? (
+            <PartyStaffView accentColor={ctx.partyColor} />
+          ) : activeSubtab === 'Party Strategy' ? (
+            <PartyStrategyView />
+          ) : activeSubtab === 'Elections' ? (
+            <ElectionsView />
+          ) : activeSubtab === 'Past Elections' ? (
+            <PastElectionsView />
+          ) : (
+            <ActivityLogView />
+          )}
         </div>
       </div>
     </>
