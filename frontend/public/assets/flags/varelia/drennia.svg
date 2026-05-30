@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" width="600" height="400">
+  <!-- Drennia Flag: Royal Blue + Gold diamond lozenge pattern (3:2 ratio) -->
+  <!-- Base: Royal Blue background -->
+  <rect width="300" height="200" fill="#1a3a8f"/>
+
+  <!-- Diamond/lozenge pattern — 4 columns × 3 rows of lozenges -->
+  <!-- Each lozenge is centered at (col*75, row*66.7) with width 75 height 66.7 -->
+  <!-- We use a path for each lozenge: rotated square (diamond shape) -->
+
+  <!-- Row 0 (y=0): centers at y=-33, shifted right by 37.5 for alternating rows -->
+  <!-- Row pattern: alternating offset columns create the Bavaria-style pattern -->
+
+  <!-- Using clip path to keep pattern within flag bounds -->
+  <clipPath id="flagClip">
+    <rect width="300" height="200"/>
+  </clipPath>
+
+  <g clip-path="url(#flagClip)">
+    <!-- Diamond grid: each diamond = 75 wide × 67 tall -->
+    <!-- Diamonds are drawn using polygon points: center ± half-width/height -->
+    <!-- Even columns: no offset. Odd columns: offset 37.5px right, 33px down -->
+
+    <!-- We'll do this systematically with x=col*75, y=row*67 centers -->
+    <!-- Half-width = 37.5, Half-height = 33.5 -->
+
+    <!-- Row -1 (partially visible at top) -->
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(0,0)"/>
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(75,0)"/>
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(150,0)"/>
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(225,0)"/>
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(300,0)"/>
+
+    <!-- Row 0 offset (y=33.5 from first row): 37.5 shift -->
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(37.5,67)"/>
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(112.5,67)"/>
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(187.5,67)"/>
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(262.5,67)"/>
+
+    <!-- Row 1 (y=134 from top) -->
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(0,134)"/>
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(75,134)"/>
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(150,134)"/>
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(225,134)"/>
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(300,134)"/>
+
+    <!-- Row 1 offset (y=201) -->
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(37.5,201)"/>
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(112.5,201)"/>
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(187.5,201)"/>
+    <polygon points="0,-33.5 37.5,0 0,33.5 -37.5,0" fill="#f7c70a" transform="translate(262.5,201)"/>
+  </g>
+</svg>

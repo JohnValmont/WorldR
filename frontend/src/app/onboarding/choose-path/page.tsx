@@ -56,11 +56,20 @@ export default function ChoosePathPage() {
 
   useEffect(() => {
     const t = setTimeout(() => setRevealed(true), 80);
+
+    // Route guard: redirect if no character
+    const charRaw = localStorage.getItem('worldr-character');
+    if (!charRaw) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
+    try {
+      const charState = JSON.parse(charRaw);
+      if (!charState?.state?.character?.firstName) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
+    } catch { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
+
     // Restore previously selected path if any
     const saved = localStorage.getItem('worldr-path');
     if (saved) setSelected(saved);
     return () => clearTimeout(t);
-  }, []);
+  }, [router]);
 
   const handleSelect = (id: string) => {
     setSelected(id);

@@ -13,7 +13,7 @@ export const DRENNIA = {
   gdp: '$88B',
   gdpPerCapita: '$28,400',
   stability: '67%',
-  flagPath: '/assets/flags/varelia/drennia.png',
+  flagPath: '/assets/flags/varelia/drennia.svg',
 } as const;
 
 export type CountryData = typeof DRENNIA;

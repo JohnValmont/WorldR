@@ -1,7 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { useCharacterStore } from '../../../store/character.store';
 import { LogoSVG } from '../../../components/LogoSVG';
 import { PARTY_COLORS } from '../../../data/political-parties/partyLogos';
@@ -92,18 +91,15 @@ function DrenniaCard({ onChoose }: { onChoose: () => void }) {
           <div
             className="shrink-0 overflow-hidden rounded-sm"
             style={{
-              width: '36px',
-              height: '24px',
+              width: '40px',
+              height: '27px',
               border: '1px solid rgba(255,255,255,0.12)',
             }}
           >
-            <Image
+            <img
               src={DRENNIA.flagPath}
               alt="Drennia flag"
-              width={36}
-              height={24}
-              className="object-cover w-full h-full"
-              unoptimized
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             />
           </div>
           <span className="text-white font-bold text-sm tracking-wide">
@@ -265,6 +261,22 @@ export default function ChooseMotherlandPage() {
 
   useEffect(() => {
     const t = setTimeout(() => setRevealed(true), 80);
+
+    // Route guards
+    const charRaw = localStorage.getItem('worldr-character');
+    if (!charRaw) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
+    try {
+      const charState = JSON.parse(charRaw);
+      if (!charState?.state?.character?.firstName) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
+    } catch { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
+
+    const path = localStorage.getItem('worldr-path');
+    if (!path) { router.replace('/onboarding/choose-path'); return () => clearTimeout(t); }
+
+    if (path === 'politician') {
+      const partyRaw = localStorage.getItem('worldr_current_party');
+      if (!partyRaw) { router.replace('/onboarding/create-party'); return () => clearTimeout(t); }
+    }
 
     const pathLabels: Record<string, string> = {
       politician: 'Politician',
