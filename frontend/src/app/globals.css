@@ -3,10 +3,12 @@
 @tailwind utilities;
 
 @layer base {
+
   /* overflow is managed per-layout: auth layout clips itself, onboarding scrolls freely */
   body {
     @apply bg-black text-zinc-100 font-sans antialiased;
   }
+
   * {
     box-sizing: border-box;
   }
@@ -17,13 +19,16 @@
   width: 4px;
   height: 4px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #3f3f46;
   border-radius: 2px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #52525b;
 }
@@ -32,12 +37,15 @@
 .terminal-glow {
   text-shadow: 0 0 8px rgba(48, 209, 88, 0.5), 0 0 2px rgba(48, 209, 88, 0.8);
 }
+
 .amber-glow {
   text-shadow: 0 0 8px rgba(255, 159, 10, 0.5), 0 0 2px rgba(255, 159, 10, 0.8);
 }
+
 .red-glow {
   text-shadow: 0 0 8px rgba(255, 69, 58, 0.5), 0 0 2px rgba(255, 69, 58, 0.8);
 }
+
 .blue-glow {
   text-shadow: 0 0 8px rgba(10, 132, 255, 0.5), 0 0 2px rgba(10, 132, 255, 0.8);
 }
@@ -47,13 +55,11 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.04) 2px,
-    rgba(0, 0, 0, 0.04) 4px
-  );
+  background: repeating-linear-gradient(0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.04) 2px,
+      rgba(0, 0, 0, 0.04) 4px);
   pointer-events: none;
   z-index: 1;
 }
@@ -63,7 +69,9 @@ table {
   border-collapse: collapse;
   width: 100%;
 }
-th, td {
+
+th,
+td {
   padding: 0.25rem 0.5rem;
   text-align: left;
 }
@@ -75,23 +83,33 @@ th, td {
   height: 6px;
   border-radius: 50%;
 }
+
 .status-dot.live {
   background: #30d158;
   box-shadow: 0 0 6px #30d158;
   animation: pulse-glow 2s ease-in-out infinite;
 }
+
 .status-dot.warning {
   background: #ff9f0a;
   box-shadow: 0 0 6px #ff9f0a;
 }
+
 .status-dot.danger {
   background: #ff453a;
   box-shadow: 0 0 6px #ff453a;
 }
 
 @keyframes pulse-glow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* ── Terminal cursor blink ─────────────────────────────────── */
@@ -101,9 +119,17 @@ th, td {
   color: #ff9f0a;
   margin-left: 2px;
 }
+
 @keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
 }
 
 /* ── Gauge bar animation ───────────────────────────────────── */
@@ -112,37 +138,36 @@ th, td {
 }
 
 @layer components {
+
   /* ── Card hover effect ────────────────────────────────────── */
   .terminal-card {
     @apply border border-zinc-800 bg-zinc-950 transition-colors duration-150;
   }
+
   .terminal-card:hover {
     @apply border-zinc-700;
   }
 
   /* ── Input field ──────────────────────────────────────────── */
   .terminal-input {
-    @apply w-full bg-zinc-900 border border-zinc-700 text-zinc-100 font-mono text-sm px-3 py-2
-      focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20
-      placeholder:text-zinc-600 transition-colors duration-150;
+    @apply w-full bg-zinc-900 border border-zinc-700 text-zinc-100 font-mono text-sm px-3 py-2 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 placeholder:text-zinc-600 transition-colors duration-150;
   }
 
   /* ── Button variants ─────────────────────────────────────── */
   .btn-primary {
-    @apply bg-amber-500 text-black font-bold text-xs uppercase tracking-widest px-4 py-2
-      hover:bg-amber-400 active:bg-amber-600 transition-colors duration-150 cursor-pointer;
+    @apply bg-amber-500 text-black font-bold text-xs uppercase tracking-widest px-4 py-2 hover:bg-amber-400 active:bg-amber-600 transition-colors duration-150 cursor-pointer;
   }
+
   .btn-secondary {
-    @apply border border-zinc-700 text-zinc-300 font-mono text-xs uppercase tracking-widest px-4 py-2
-      hover:border-zinc-500 hover:text-zinc-100 active:bg-zinc-900 transition-colors duration-150 cursor-pointer;
+    @apply border border-zinc-700 text-zinc-300 font-mono text-xs uppercase tracking-widest px-4 py-2 hover:border-zinc-500 hover:text-zinc-100 active:bg-zinc-900 transition-colors duration-150 cursor-pointer;
   }
+
   .btn-danger {
-    @apply border border-red-800 text-red-400 font-mono text-xs uppercase tracking-widest px-4 py-2
-      hover:border-red-600 hover:text-red-300 hover:bg-red-950/30 transition-colors duration-150 cursor-pointer;
+    @apply border border-red-800 text-red-400 font-mono text-xs uppercase tracking-widest px-4 py-2 hover:border-red-600 hover:text-red-300 hover:bg-red-950/30 transition-colors duration-150 cursor-pointer;
   }
+
   .btn-ghost {
-    @apply text-zinc-500 font-mono text-xs uppercase tracking-widest px-3 py-1.5
-      hover:text-zinc-300 transition-colors duration-150 cursor-pointer;
+    @apply text-zinc-500 font-mono text-xs uppercase tracking-widest px-3 py-1.5 hover:text-zinc-300 transition-colors duration-150 cursor-pointer;
   }
 
   /* ── Section divider ─────────────────────────────────────── */
@@ -152,25 +177,65 @@ th, td {
 
   /* ── Animated entry ──────────────────────────────────────── */
   @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
+
   .animate-fade-in-up {
     animation: fadeInUp 0.3s ease-out forwards;
   }
 
   /* ── Ideology color tokens ───────────────────────────────── */
-  .ideology-far_left    { color: #cc0000; }
-  .ideology-left        { color: #e53e3e; }
-  .ideology-centre_left { color: #ed8936; }
-  .ideology-centrist    { color: #a0aec0; }
-  .ideology-centre_right { color: #4299e1; }
-  .ideology-right       { color: #2b6cb0; }
-  .ideology-far_right   { color: #1a365d; }
-  .ideology-libertarian { color: #d4a017; }
-  .ideology-authoritarian { color: #702459; }
-  .ideology-green       { color: #276749; }
-  .ideology-nationalist { color: #9c4221; }
+  .ideology-far_left {
+    color: #cc0000;
+  }
+
+  .ideology-left {
+    color: #e53e3e;
+  }
+
+  .ideology-centre_left {
+    color: #ed8936;
+  }
+
+  .ideology-centrist {
+    color: #a0aec0;
+  }
+
+  .ideology-centre_right {
+    color: #4299e1;
+  }
+
+  .ideology-right {
+    color: #2b6cb0;
+  }
+
+  .ideology-far_right {
+    color: #1a365d;
+  }
+
+  .ideology-libertarian {
+    color: #d4a017;
+  }
+
+  .ideology-authoritarian {
+    color: #702459;
+  }
+
+  .ideology-green {
+    color: #276749;
+  }
+
+  .ideology-nationalist {
+    color: #9c4221;
+  }
 
   /* ── Premium Glassmorphism & UI Additions ────────────────────── */
   .radial-ambient {
@@ -188,6 +253,7 @@ th, td {
   .glass-panel-hover {
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
+
   .glass-panel-hover:hover {
     background: rgba(18, 18, 28, 0.85);
     border-color: rgba(245, 158, 11, 0.25);
@@ -209,34 +275,34 @@ th, td {
 
   /* Premium Buttons overrides */
   .btn-premium-primary {
-    @apply relative overflow-hidden bg-gradient-to-r from-amber-500 to-amber-600 text-black font-semibold text-xs uppercase tracking-widest px-5 py-2.5 rounded-sm
-      hover:from-amber-400 hover:to-amber-500 active:from-amber-600 active:to-amber-700
-      shadow-[0_2px_10px_rgba(245,158,11,0.2)] hover:shadow-[0_4px_15px_rgba(245,158,11,0.35)]
-      transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply relative overflow-hidden bg-gradient-to-r from-amber-500 to-amber-600 text-black font-semibold text-xs uppercase tracking-widest px-5 py-2.5 rounded-sm hover:from-amber-400 hover:to-amber-500 active:from-amber-600 active:to-amber-700 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    box-shadow: 0 2px 10px rgba(245, 158, 11, 0.2);
+  }
+  .btn-premium-primary:hover {
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.35);
   }
 
   .btn-premium-secondary {
-    @apply relative overflow-hidden bg-white/5 border border-white/10 text-zinc-300 font-sans text-xs uppercase tracking-widest px-5 py-2.5 rounded-sm
-      hover:bg-white/10 hover:text-white hover:border-white/20 active:bg-white/15
-      transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply relative overflow-hidden bg-white/5 border border-white/10 text-zinc-300 font-sans text-xs uppercase tracking-widest px-5 py-2.5 rounded-sm hover:bg-white/10 hover:text-white hover:border-white/20 active:bg-white/15 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-premium-danger {
-    @apply relative overflow-hidden bg-red-950/20 border border-red-800/40 text-red-400 font-sans text-xs uppercase tracking-widest px-5 py-2.5 rounded-sm
-      hover:bg-red-900/30 hover:border-red-600 active:bg-red-950/45
-      transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply relative overflow-hidden bg-red-950/20 border border-red-800/40 text-red-400 font-sans text-xs uppercase tracking-widest px-5 py-2.5 rounded-sm hover:bg-red-900/30 hover:border-red-600 active:bg-red-950/45 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .input-premium {
-    @apply w-full bg-black/40 border border-white/10 text-white font-sans text-sm px-3.5 py-2.5 rounded-sm
-      focus:outline-none focus:border-amber-500/80 focus:ring-1 focus:ring-amber-500/20
-      placeholder:text-zinc-600 transition-all duration-200;
+    @apply w-full bg-black/40 border border-white/10 text-white font-sans text-sm px-3.5 py-2.5 rounded-sm focus:outline-none focus:border-amber-500/80 focus:ring-1 focus:ring-amber-500/20 placeholder:text-zinc-600 transition-all duration-200;
   }
 
   /* ── Smooth CSS Marquee ────────────────────────────────────── */
   @keyframes marquee {
-    0% { transform: translateX(0%); }
-    100% { transform: translateX(-50%); }
+    0% {
+      transform: translateX(0%);
+    }
+
+    100% {
+      transform: translateX(-50%);
+    }
   }
 
   .animate-marquee {
@@ -251,22 +317,27 @@ th, td {
   }
 
   .auth-input {
-    @apply w-full bg-white/[0.03] border border-white/[0.08] text-zinc-100 text-sm px-3.5 py-2.5 rounded-sm
-      focus:outline-none focus:border-amber-500/60 focus:bg-white/[0.05] focus:ring-1 focus:ring-amber-500/15
-      placeholder:text-zinc-700 transition-all duration-200;
+    @apply w-full bg-white/[0.03] border border-white/[0.08] text-zinc-100 text-sm px-3.5 py-2.5 rounded-sm focus:outline-none focus:border-amber-500/60 focus:bg-white/[0.05] focus:ring-1 focus:ring-amber-500/15 placeholder:text-zinc-700 transition-all duration-200;
   }
 
   .auth-btn-primary {
-    @apply relative overflow-hidden bg-gradient-to-r from-amber-500 to-amber-600 text-black font-semibold text-sm
-      tracking-wide px-5 py-2.5 rounded-sm
-      hover:from-amber-400 hover:to-amber-500 active:from-amber-600 active:to-amber-700
-      shadow-[0_2px_12px_rgba(245,158,11,0.25)] hover:shadow-[0_4px_20px_rgba(245,158,11,0.4)]
-      transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply relative overflow-hidden bg-gradient-to-r from-amber-500 to-amber-600 text-black font-semibold text-sm tracking-wide px-5 py-2.5 rounded-sm hover:from-amber-400 hover:to-amber-500 active:from-amber-600 active:to-amber-700 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    box-shadow: 0 2px 12px rgba(245, 158, 11, 0.25);
+  }
+  .auth-btn-primary:hover {
+    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
   }
 
   @keyframes authEnter {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .animate-auth-enter {
@@ -310,6 +381,7 @@ th, td {
   .glow-underline-gold {
     position: relative;
   }
+
   .glow-underline-gold::after {
     content: '';
     position: absolute;
