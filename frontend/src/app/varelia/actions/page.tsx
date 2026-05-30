@@ -263,51 +263,113 @@ function getInitials(name: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HIRE PLACEHOLDER MODAL
+// HIRE STAFF MODAL
 // ─────────────────────────────────────────────────────────────────────────────
 
-function HirePlaceholderModal({ positionTitle, onClose }: { positionTitle: string; onClose: () => void }) {
+function HireStaffModal({ positionId, positionTitle, onClose, onHireSuccess, countryInfo }: { positionId: string; positionTitle: string; onClose: () => void; onHireSuccess: (candidate: any) => void; countryInfo: any }) {
+  const [candidates, setCandidates] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Generate candidates on mount
+    const gdp = countryInfo?.gdp || 88000000000; // default Drennia
+    const perCap = countryInfo?.gdpPerCapita || 28400;
+    
+    const perCapitaIndex = perCap / 35000;
+    const gdpScaleIndex = gdp / 500e9;
+    
+    let nationSalaryIndex = (perCapitaIndex * 0.75) + (gdpScaleIndex * 0.25);
+    nationSalaryIndex = Math.max(0.45, Math.min(2.5, nationSalaryIndex));
+
+    const baseSalary = 3000 + Math.random() * 2000; 
+    
+    const cands = [];
+    const firstNames = ['Aris', 'Bane', 'Cael', 'Dora', 'Elara', 'Fenn', 'Gael', 'Hale', 'Ira', 'Jace', 'Lyra', 'Nia', 'Orin', 'Quinn', 'Sia', 'Uri', 'Wren', 'Yara'];
+    const lastNames = ['Voss', 'Tarn', 'Kest', 'Renn', 'Vale', 'Thorn', 'Lest', 'Gant', 'Vane', 'Sorn', 'Karn', 'Vell', 'Tess'];
+    
+    for(let i=0; i<3; i++) {
+      const fn = firstNames[Math.floor(Math.random() * firstNames.length)];
+      const ln = lastNames[Math.floor(Math.random() * lastNames.length)];
+      const skill = Math.floor(50 + Math.random() * 40); 
+      const loyalty = Math.floor(40 + Math.random() * 50); 
+      const age = Math.floor(25 + Math.random() * 40);
+      
+      const skillMultiplier = skill / 70;
+      const finalSalary = Math.floor(baseSalary * nationSalaryIndex * skillMultiplier / 100) * 100;
+
+      cands.push({
+        id: Math.random().toString(36).substring(2, 9),
+        name: `${fn} ${ln}`,
+        age,
+        skill,
+        loyalty,
+        salary: finalSalary,
+        status: 'Hired'
+      });
+    }
+    setCandidates(cands);
+  }, [countryInfo]);
+
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', h);
     return () => document.removeEventListener('keydown', h);
   }, [onClose]);
 
+  const handleHire = (cand: any) => {
+    // Developer Comment: Temporary local hiring. In multiplayer, hiring must be validated server-side.
+    try {
+      const staffRaw = localStorage.getItem('worldr_party_staff');
+      const staff = staffRaw ? JSON.parse(staffRaw) : {};
+      staff[positionId] = cand;
+      localStorage.setItem('worldr_party_staff', JSON.stringify(staff));
+      onHireSuccess(cand);
+    } catch(e) {}
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="w-full max-w-sm overflow-hidden"
+      <div className="w-full max-w-md overflow-hidden"
         style={{ background: PANEL, border: `1px solid ${BORDER}`, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', borderRadius: '2px' }}>
         <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
           <div className="w-8 h-8 flex items-center justify-center shrink-0"
             style={{ background: `${ACCENT}14`, border: `1px solid ${ACCENT}30`, borderRadius: '2px' }}>
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
           </div>
           <div>
             <div className="font-bold text-sm" style={{ color: TEXT }}>Hire {positionTitle}</div>
-            <div className="text-[9px] font-mono uppercase tracking-[0.18em] mt-0.5" style={{ color: MUTED }}>Vacant Position</div>
+            <div className="text-[9px] font-mono uppercase tracking-[0.18em] mt-0.5" style={{ color: MUTED }}>Candidate Selection</div>
           </div>
         </div>
-        <div className="px-5 py-6 text-center">
-          <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center"
-            style={{ background: `${ACCENT}0a`, border: `1px solid ${ACCENT}20`, borderRadius: '2px' }}>
-            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth={1}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <p className="font-semibold text-sm mb-2" style={{ color: TEXT }}>Hiring Coming Soon</p>
-          <p className="text-[11px] leading-relaxed max-w-[240px] mx-auto" style={{ color: MUTED }}>
-            Hiring staff and assigning party roles will be available in the next gameplay phase of WORLDr.
-          </p>
+        
+        <div className="p-5 space-y-3">
+          {candidates.map((c) => (
+            <div key={c.id} className="flex items-center justify-between p-3" style={{ background: PANEL2, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+              <div>
+                <div className="font-bold text-sm text-zinc-200">{c.name}</div>
+                <div className="flex items-center gap-3 mt-1.5">
+                   <div className="text-[10px]"><span className="text-zinc-500">Age:</span> <span className="text-zinc-300 font-mono">{c.age}</span></div>
+                   <div className="text-[10px]"><span className="text-zinc-500">Skill:</span> <span className="text-amber-500 font-mono font-bold">{c.skill}</span></div>
+                   <div className="text-[10px]"><span className="text-zinc-500">Salary:</span> <span className="text-emerald-500 font-mono font-bold">${c.salary.toLocaleString()}/mo</span></div>
+                </div>
+              </div>
+              <button type="button" onClick={() => handleHire(c)}
+                className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75 shrink-0"
+                style={{ background: `${ACCENT}10`, border: `1px solid ${ACCENT}28`, color: ACCENT, borderRadius: '2px' }}>
+                Hire
+              </button>
+            </div>
+          ))}
         </div>
+
         <div className="px-5 pb-5 flex justify-center">
           <button type="button" onClick={onClose}
-            className="px-6 py-2 text-xs font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
-            style={{ background: `${ACCENT}10`, border: `1px solid ${ACCENT}28`, color: ACCENT, borderRadius: '2px' }}>
-            Close
+            className="px-6 py-2 text-xs font-semibold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
+            style={{ color: MUTED }}>
+            Cancel
           </button>
         </div>
       </div>
@@ -644,10 +706,10 @@ function PositionCenter({
               <>
                 <div className="font-semibold text-sm mb-1" style={{ color: '#4a5045' }}>Vacant Position</div>
                 <p className="text-[11px] leading-snug mb-2 max-w-sm" style={{ color: '#3d4238' }}>{position.description}</p>
-                <button type="button" disabled
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest opacity-40 cursor-not-allowed"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, color: MUTED, borderRadius: '2px' }}>
-                  Coming Soon
+                <button type="button" onClick={() => onHire(position.id)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-80 mt-1"
+                  style={{ background: `${accentColor}10`, border: `1px solid ${accentColor}30`, color: accentColor, borderRadius: '2px' }}>
+                  Hire Staff
                 </button>
               </>
             )}
@@ -873,19 +935,8 @@ function PartyDropdown({ ctx, onClose }: { ctx: PlayerCtx; onClose: () => void }
 // PLACEHOLDER COMPONENTS FOR SUBTABS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function PartyStaffView({ accentColor }: { accentColor: string }) {
-  const staff = [
-    { title: 'Secretary', desc: 'Manages internal communications, party records, meeting coordination, and volunteer logistics.' },
-    { title: 'Treasurer', desc: 'Handles party finances, fundraising, donor relations, and financial compliance.' },
-    { title: 'Campaign Manager', desc: 'Plans and executes electoral and public outreach campaigns across districts and regions.' },
-    { title: 'Spokesperson', desc: 'Manages public communications, media relations, and official party statements.' },
-    { title: 'Policy Director', desc: "Develops the party's official policy positions, manifestos, and legislative proposals." },
-    { title: 'Membership Officer', desc: "Grows the party's registered membership through recruitment, drives, and volunteer integration." },
-    { title: 'Legal Officer', desc: 'Handles party registration compliance, election law, candidate paperwork, and legal challenges.' },
-    { title: 'Public Network Officer', desc: 'Builds relationships between the party and key social groups (business, unions, farmers, etc.).' },
-    { title: 'Media Officer', desc: 'Manages party presence in newspapers, press, and public broadcast channels.' },
-    { title: 'Regional Organizer', desc: 'Expands party presence into regions, districts, and rural areas through branches and local coordinators.' },
-  ];
+function PartyStaffView({ positions, onHire, onFire, accentColor }: { positions: Position[]; onHire: (id: string) => void; onFire: (id: string) => void; accentColor: string }) {
+  const staff = positions.filter((p) => p.id !== 'party_leader');
 
   return (
     <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
@@ -908,23 +959,97 @@ function PartyStaffView({ accentColor }: { accentColor: string }) {
 
         {/* Staff Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {staff.map((s) => (
-            <div key={s.title} className="p-4 flex items-center justify-between gap-4" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm text-zinc-300">{s.title}</span>
-                  <span className="text-[8px] font-mono uppercase tracking-widest px-1.5 py-0.5 text-zinc-500" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
-                    Vacant
-                  </span>
+          {staff.map((s) => {
+            const isFilled = !!s.filledBy;
+            return (
+              <div key={s.id} className="p-4 flex flex-col justify-between gap-3" style={{ background: PANEL, border: `1px solid ${isFilled ? accentColor + '30' : BORDER}`, borderRadius: '2px' }}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-bold text-sm text-zinc-300">{s.title}</span>
+                      {isFilled ? (
+                        <span className="text-[8px] font-mono uppercase tracking-widest px-1.5 py-0.5" style={{ background: `${accentColor}15`, color: accentColor, borderRadius: '2px' }}>
+                          Filled
+                        </span>
+                      ) : (
+                        <span className="text-[8px] font-mono uppercase tracking-widest px-1.5 py-0.5 text-zinc-500" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+                          Vacant
+                        </span>
+                      )}
+                    </div>
+                    {isFilled ? (
+                      <div className="text-[13px] font-semibold text-zinc-100">{s.filledBy!.name}</div>
+                    ) : (
+                      <p className="text-[10px] leading-normal text-zinc-500 line-clamp-2">{s.description}</p>
+                    )}
+                  </div>
+                  
+                  {isFilled ? (
+                    <button type="button" onClick={() => onFire(s.id)} className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75 shrink-0" style={{ background: 'rgba(239,68,68,0.1)', border: `1px solid rgba(239,68,68,0.3)`, color: '#f87171', borderRadius: '2px' }}>
+                      Fire
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => onHire(s.id)} className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75 shrink-0" style={{ background: `${accentColor}10`, border: `1px solid ${accentColor}30`, color: accentColor, borderRadius: '2px' }}>
+                      Hire
+                    </button>
+                  )}
                 </div>
-                <p className="text-[10px] leading-normal text-zinc-600 mt-1">{s.desc}</p>
+                
+                {isFilled && (
+                  <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-white/[0.04] mt-1">
+                    <div className="text-[9px]"><span className="text-zinc-500">Skill:</span> <span className="text-amber-500 font-mono font-bold">{s.filledBy!.skill}</span></div>
+                    <div className="text-[9px]"><span className="text-zinc-500">Loyalty:</span> <span className="text-emerald-500 font-mono font-bold">{s.filledBy!.loyalty}%</span></div>
+                    {/* TypeScript safety cast for the additional properties we added */}
+                    <div className="text-[9px]"><span className="text-zinc-500">Salary:</span> <span className="text-zinc-300 font-mono">${(s.filledBy as any).salary?.toLocaleString()}/mo</span></div>
+                  </div>
+                )}
               </div>
-              <button type="button" disabled className="px-3 py-1.5 text-[8.5px] font-bold uppercase tracking-widest opacity-40 cursor-not-allowed shrink-0" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, color: MUTED, borderRadius: '2px' }}>
-                Hiring Soon
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function BudgetView() {
+  const [budgetData, setBudgetData] = useState({ staffCost: 0, balance: 50000 });
+  useEffect(() => {
+    let cost = 0;
+    try {
+      const staffRaw = localStorage.getItem('worldr_party_staff');
+      if (staffRaw) {
+        const staff = JSON.parse(staffRaw);
+        Object.values(staff).forEach((s: any) => {
+          if (s && s.salary) cost += s.salary;
+        });
+      }
+    } catch(e){}
+    setBudgetData({ staffCost: cost, balance: 50000 });
+  }, []);
+
+  return (
+    <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
+      <div className="max-w-xl mx-auto">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-white tracking-tight">Party Budget</h2>
+          <p className="text-zinc-500 text-xs mt-1">Manage your political organization's finances and staff salaries.</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 p-5 mb-6" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+            <div>
+              <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Treasury Balance</div>
+              <div className="text-lg font-bold text-emerald-500">${budgetData.balance.toLocaleString()}</div>
+            </div>
+            <div>
+              <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Monthly Staff Costs</div>
+              <div className="text-lg font-bold text-red-400">-${budgetData.staffCost.toLocaleString()}</div>
+            </div>
+        </div>
+        
+        <p className="text-[10px] text-zinc-700 text-center mt-6 italic">
+          Income sources and donations will be implemented in a future gameplay phase.
+        </p>
       </div>
     </div>
   );
@@ -1144,7 +1269,7 @@ export default function ActionsPage() {
   const [selectedPosId, setSelectedPosId] = useState('party_leader');
   const [hireTarget, setHireTarget] = useState<string | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
-  const [activeSubtab, setActiveSubtab] = useState<'Party HQ' | 'Party Staff' | 'Party Strategy' | 'Elections' | 'Past Elections' | 'Activity Log'>('Party HQ');
+  const [activeSubtab, setActiveSubtab] = useState<'Party HQ' | 'Party Staff' | 'Party Strategy' | 'Budget' | 'Elections' | 'Past Elections' | 'Activity Log'>('Party HQ');
 
   const [ctx, setCtx] = useState<PlayerCtx>({
     characterName: '—', characterAge: '—',
@@ -1194,7 +1319,10 @@ export default function ActionsPage() {
 
     setCtx({ characterName: charName, characterAge: charAge, countryName, continentName, partyName, partyAbbreviation, partyColor, partyLogoId, ideologyIds, partyDescription, partyCreatedAt, selectedPath, partyId });
 
-    // Build positions — Party Leader filled by player
+    // Build positions
+    const staffRaw = localStorage.getItem('worldr_party_staff');
+    const staffDb = staffRaw ? JSON.parse(staffRaw) : {};
+
     const filled: Position[] = POSITION_DEFINITIONS.map((def) => {
       if (def.id === 'party_leader') {
         return {
@@ -1207,6 +1335,14 @@ export default function ActionsPage() {
             status: 'Founder',
           },
         };
+      }
+      
+      const hired = staffDb[def.id];
+      if (hired) {
+         return {
+            ...def,
+            filledBy: hired
+         };
       }
       return { ...def };
     });
@@ -1234,6 +1370,23 @@ export default function ActionsPage() {
 
   const handleConfirmRebrandParty = () => {
     router.push('/onboarding/create-party?mode=edit');
+  };
+
+  const handleHireSuccess = (cand: any) => {
+    if (!hireTarget) return;
+    setPositions(prev => prev.map(p => p.id === hireTarget ? { ...p, filledBy: cand } : p));
+    setHireTarget(null);
+  };
+
+  const handleFireStaff = (posId: string) => {
+    try {
+      const staffRaw = localStorage.getItem('worldr_party_staff');
+      const staff = staffRaw ? JSON.parse(staffRaw) : {};
+      delete staff[posId];
+      localStorage.setItem('worldr_party_staff', JSON.stringify(staff));
+      
+      setPositions(prev => prev.map(p => p.id === posId ? { ...p, filledBy: undefined } : p));
+    } catch(e) {}
   };
 
   const handleConfirmDissolve = () => {
@@ -1267,7 +1420,15 @@ export default function ActionsPage() {
 
   return (
     <>
-      {hireTarget && <HirePlaceholderModal positionTitle={hireTarget} onClose={() => setHireTarget(null)} />}
+      {hireTarget && (
+        <HireStaffModal 
+          positionId={hireTarget} 
+          positionTitle={positions.find(p => p.id === hireTarget)?.title || hireTarget}
+          countryInfo={{ gdp: 88000000000, gdpPerCapita: 28400 }} // Drennia default
+          onHireSuccess={handleHireSuccess}
+          onClose={() => setHireTarget(null)} 
+        />
+      )}
       {showDissolveModal && <DissolvePartyModal onCancel={() => setShowDissolveModal(false)} onConfirm={handleConfirmDissolve} />}
       {showRedoCharModal && <RedoCharModal onCancel={() => setShowRedoCharModal(false)} onConfirm={handleConfirmRedoChar} />}
       {showRebrandPartyModal && <RebrandPartyModal onCancel={() => setShowRebrandPartyModal(false)} onConfirm={handleConfirmRebrandParty} />}
@@ -1362,7 +1523,7 @@ export default function ActionsPage() {
         <div className="shrink-0 flex items-center px-4 md:px-5 border-b overflow-x-auto"
           style={{ height: '34px', background: PANEL2, borderColor: BORDER, scrollbarWidth: 'none' }}>
           <div className="flex gap-2 h-full">
-            {(['Party HQ', 'Party Staff', 'Party Strategy', 'Elections', 'Past Elections', 'Activity Log'] as const).map((tab) => {
+            {(['Party HQ', 'Party Staff', 'Party Strategy', 'Budget', 'Elections', 'Past Elections', 'Activity Log'] as const).map((tab) => {
               const isActive = activeSubtab === tab;
               return (
                 <button
@@ -1409,9 +1570,11 @@ export default function ActionsPage() {
               </div>
             </>
           ) : activeSubtab === 'Party Staff' ? (
-            <PartyStaffView accentColor={ctx.partyColor} />
+            <PartyStaffView positions={positions} onHire={setHireTarget} onFire={handleFireStaff} accentColor={ctx.partyColor} />
           ) : activeSubtab === 'Party Strategy' ? (
             <PartyStrategyView />
+          ) : activeSubtab === 'Budget' ? (
+            <BudgetView />
           ) : activeSubtab === 'Elections' ? (
             <ElectionsView />
           ) : activeSubtab === 'Past Elections' ? (
