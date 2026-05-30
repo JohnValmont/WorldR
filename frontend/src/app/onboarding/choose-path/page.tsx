@@ -91,7 +91,7 @@ export default function ChoosePathPage() {
         <div className="mb-2 flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)] animate-pulse" />
           <span className="text-[10px] font-mono text-amber-500/60 uppercase tracking-[0.25em]">
-            Step 2 of 3 — Path
+            Step 2 of 4 — Path
           </span>
         </div>
 
@@ -209,7 +209,7 @@ export default function ChoosePathPage() {
             id="choose-path-continue"
             type="button"
             disabled={!canContinue}
-            onClick={() => router.push('/onboarding/choose-motherland')}
+            onClick={() => router.push('/onboarding/create-party')}
             className="group relative inline-flex items-center gap-2.5 px-8 py-3 text-sm font-semibold uppercase tracking-[0.15em] rounded-sm overflow-hidden transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{
               background: canContinue
@@ -226,7 +226,7 @@ export default function ChoosePathPage() {
                 style={{ background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%)' }}
               />
             )}
-            Continue to Motherland
+            Continue to Party Creation
             <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>

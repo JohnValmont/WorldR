@@ -300,7 +300,7 @@ export default function CreateCharacterPage() {
       style={{ opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(14px)' }}
     >
       {/* Step indicator */}
-      <StepIndicator step={0} total={3} />
+      <StepIndicator step={0} total={4} />
 
       {/* Page header */}
       <div className="mb-6">

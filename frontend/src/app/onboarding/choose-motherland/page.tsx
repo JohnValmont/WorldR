@@ -2,6 +2,9 @@
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useCharacterStore } from '../../../store/character.store';
+import { LogoSVG } from '../../../components/LogoSVG';
+import { PARTY_COLORS } from '../../../data/political-parties/partyLogos';
+import type { RegisteredPoliticalParty } from '../../../data/political-parties/partyTypes';
 
 // ── Continent data ─────────────────────────────────────────────────────────────
 
@@ -55,31 +58,37 @@ export default function ChooseMotherlandPage() {
   const { character } = useCharacterStore();
   const [activeContinent, setActiveContinent] = useState(CONTINENTS[0].id);
   const [revealed, setRevealed] = useState(false);
+
+  // Path & party from localStorage
   const [selectedPath, setSelectedPath] = useState('Politician');
+  const [party, setParty] = useState<RegisteredPoliticalParty | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setRevealed(true), 80);
-    const path = localStorage.getItem('worldr-path');
-    if (path) {
-      // Capitalise display
-      const labels: Record<string, string> = {
-        politician: 'Politician',
-        businessman: 'Businessman',
-        military: 'Military Officer',
-        judicial: 'Judicial Officer',
-        media: 'Media & Influence',
-      };
-      setSelectedPath(labels[path] ?? 'Politician');
-    }
+
+    const pathLabels: Record<string, string> = {
+      politician: 'Politician',
+      businessman: 'Businessman',
+      military: 'Military Officer',
+      judicial: 'Judicial Officer',
+      media: 'Media & Influence',
+    };
+    const storedPath = localStorage.getItem('worldr-path');
+    if (storedPath) setSelectedPath(pathLabels[storedPath] ?? 'Politician');
+
+    try {
+      const raw = localStorage.getItem('worldr_current_party');
+      if (raw) setParty(JSON.parse(raw));
+    } catch {}
+
     return () => clearTimeout(t);
   }, []);
 
   const current = CONTINENTS.find((c) => c.id === activeContinent)!;
-  const displayName = buildDisplayName(
-    character.firstName,
-    character.middleName,
-    character.lastName
-  );
+  const displayName = buildDisplayName(character.firstName, character.middleName, character.lastName);
+
+  const partyColor =
+    party ? (PARTY_COLORS.find((c) => c.id === party.colorId)?.hex ?? '#f59e0b') : '#f59e0b';
 
   return (
     <div
@@ -91,23 +100,33 @@ export default function ChooseMotherlandPage() {
         <div
           className="flex items-center gap-3 px-4 py-2.5 rounded-sm"
           style={{
-            background: 'rgba(10,10,20,0.85)',
+            background: 'rgba(10,10,20,0.88)',
             border: '1px solid rgba(245,158,11,0.15)',
             backdropFilter: 'blur(16px)',
           }}
         >
+          {/* Party logo or initials */}
           <div
-            className="w-7 h-7 rounded-sm flex items-center justify-center text-xs font-bold font-mono shrink-0"
-            style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}
+            className="w-8 h-8 rounded-sm flex items-center justify-center shrink-0"
+            style={{ background: `${partyColor}14`, border: `1px solid ${partyColor}30` }}
           >
-            {(character.firstName.charAt(0) || '?').toUpperCase()}
+            {party?.partyLogoId ? (
+              <LogoSVG logoId={party.partyLogoId} color={partyColor} size={20} />
+            ) : (
+              <span className="text-xs font-bold font-mono" style={{ color: partyColor }}>
+                {(character.firstName.charAt(0) || '?').toUpperCase()}
+              </span>
+            )}
           </div>
           <div className="hidden sm:block">
             <div className="text-zinc-200 text-xs font-semibold leading-none mb-0.5">
               Starting as: {displayName}
             </div>
-            <div className="text-zinc-500 font-mono text-[9px] uppercase tracking-widest">
+            <div className="text-zinc-500 font-mono text-[9px] uppercase tracking-widest leading-snug">
               Age: {character.age || '—'} &nbsp;·&nbsp; Path: {selectedPath}
+            </div>
+            <div className="font-mono text-[9px] uppercase tracking-widest leading-snug" style={{ color: `${partyColor}90` }}>
+              Party: {party ? party.partyAbbreviation : 'Not created'}
             </div>
           </div>
         </div>
@@ -115,22 +134,20 @@ export default function ChooseMotherlandPage() {
 
       {/* ── Page header ── */}
       <div className="px-4 md:px-10 pt-5 pb-4 max-w-5xl mx-auto w-full">
-        {/* Back to choose-path */}
         <button
-          onClick={() => router.push('/onboarding/choose-path')}
+          onClick={() => router.push('/onboarding/create-party')}
           className="flex items-center gap-1.5 text-zinc-600 hover:text-zinc-400 transition-colors mb-4 font-mono text-[10px] uppercase tracking-widest group"
         >
           <svg className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
           </svg>
-          Back to Path
+          Back to Party
         </button>
 
-        {/* Step label */}
         <div className="mb-2 flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)] animate-pulse" />
           <span className="text-[10px] font-mono text-amber-500/60 uppercase tracking-[0.25em]">
-            Step 3 of 3 — Motherland
+            Step 4 of 4 — Motherland
           </span>
         </div>
 
@@ -153,7 +170,7 @@ export default function ChooseMotherlandPage() {
                 id={`continent-tab-${c.id}`}
                 type="button"
                 onClick={() => setActiveContinent(c.id)}
-                className="text-left rounded-sm p-4 transition-all duration-200 group"
+                className="text-left rounded-sm p-4 transition-all duration-200"
                 style={
                   isActive
                     ? {
@@ -167,7 +184,6 @@ export default function ChooseMotherlandPage() {
                       }
                 }
               >
-                {/* Active dot */}
                 <div className="flex items-center justify-between mb-2">
                   <span
                     className="text-xs font-bold uppercase tracking-[0.15em] font-mono"
@@ -208,7 +224,6 @@ export default function ChooseMotherlandPage() {
           className="rounded-sm border border-dashed flex flex-col items-center justify-center py-14 px-6 text-center"
           style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.01)' }}
         >
-          {/* Globe icon */}
           <div
             className="w-12 h-12 rounded-sm flex items-center justify-center mb-4"
             style={{ background: current.accentBg, border: `1px solid ${current.activeBorder}` }}
@@ -227,7 +242,6 @@ export default function ChooseMotherlandPage() {
             Nation selection will be added in the next step.
           </p>
 
-          {/* Skeleton placeholders */}
           <div className="mt-7 grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-lg">
             {Array.from({ length: 4 }).map((_, i) => (
               <div
@@ -236,7 +250,6 @@ export default function ChooseMotherlandPage() {
                 style={{
                   background: 'rgba(255,255,255,0.015)',
                   border: '1px solid rgba(255,255,255,0.05)',
-                  animation: `pulse 2s ease-in-out ${i * 0.3}s infinite`,
                 }}
               >
                 <div className="h-2 rounded-full mb-2" style={{ background: 'rgba(255,255,255,0.06)' }} />
@@ -246,7 +259,6 @@ export default function ChooseMotherlandPage() {
           </div>
         </div>
 
-        {/* Bottom note */}
         <div className="mt-4 flex items-center gap-2 text-zinc-700 font-mono text-[9px] uppercase tracking-widest">
           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
             <circle cx="12" cy="12" r="9" />
