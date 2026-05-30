@@ -285,7 +285,7 @@ export default function CreateCharacterPage() {
   const handleSubmit = () => {
     setTouched({ firstName: true, lastName: true, familyName: true, gender: true, age: true });
     if (!isValid) return;
-    router.push('/onboarding/choose-motherland');
+    router.push('/onboarding/choose-path');
   };
 
   const inputClass = (field: string) =>
@@ -300,7 +300,7 @@ export default function CreateCharacterPage() {
       style={{ opacity: revealed ? 1 : 0, transform: revealed ? 'translateY(0)' : 'translateY(14px)' }}
     >
       {/* Step indicator */}
-      <StepIndicator step={0} total={2} />
+      <StepIndicator step={0} total={3} />
 
       {/* Page header */}
       <div className="mb-6">
