@@ -49,6 +49,7 @@ interface PlayerCtx {
   partyColor: string;
   partyLogoId: string;
   selectedPath: string;
+  partyFunds: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,6 +115,44 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
+function getCurrentPartyFunds(): number {
+  try {
+    const cpRaw = typeof window !== 'undefined' ? localStorage.getItem('worldr_current_party') : null;
+    if (!cpRaw) return 0;
+    const cp = JSON.parse(cpRaw);
+    if (!cp.partyId) return 0;
+
+    const bRaw = typeof window !== 'undefined' ? localStorage.getItem('worldr_party_budget') : null;
+    if (bRaw) {
+      const budget = JSON.parse(bRaw);
+      if (budget.partyId === cp.partyId) {
+        return budget.partyFunds;
+      }
+    }
+
+    const newBudget = {
+      partyId: cp.partyId,
+      partyFunds: 2000000,
+      totalRevenue: 0,
+      totalExpenses: 0,
+      monthlyRevenue: 0,
+      otherExpenses: 0
+    };
+    if (typeof window !== 'undefined') localStorage.setItem('worldr_party_budget', JSON.stringify(newBudget));
+    return newBudget.partyFunds;
+  } catch (e) {
+    return 0;
+  }
+}
+
+export function formatMoney(value: number): string {
+  if (value >= 1000000) {
+    const m = value / 1000000;
+    return `$${Number.isInteger(m) ? m.toFixed(1) : parseFloat(m.toFixed(2))}M`;
+  }
+  return `$${value.toLocaleString('en-US')}`;
+}
+
 /** Temporary frontend-only newspaper access rule.
  *  In multiplayer, article read/write access must be enforced by backend
  *  using userId, countryId, and continentId. */
@@ -129,27 +168,54 @@ function getCountryArticleKey(countryName: string): string {
  *  must come from backend/database and be grouped by continent. */
 function getPartiesByContinent(continentName: string): RegisteredPoliticalParty[] {
   const result: RegisteredPoliticalParty[] = [];
+  let currentPartyId: string | null = null;
+  let currentPartyMembers = 1;
+
   try {
+    const cpRaw = localStorage.getItem('worldr_current_party');
+    if (cpRaw) {
+      const cp = JSON.parse(cpRaw);
+      currentPartyId = cp.partyId;
+      if (cp.continentName === continentName) {
+        result.push(cp);
+      }
+    }
+
+    if (currentPartyId) {
+      const statsRaw = localStorage.getItem('worldr_party_stats');
+      if (statsRaw) {
+        const stats = JSON.parse(statsRaw);
+        if (stats.partyId === currentPartyId && stats.members !== undefined) {
+          currentPartyMembers = stats.members;
+        }
+      }
+    }
+
     const raw = localStorage.getItem('worldr_registered_parties');
     if (raw) {
       const all: RegisteredPoliticalParty[] = JSON.parse(raw);
       all.forEach((p) => {
-        if (p.continentName === continentName) result.push(p);
+        if (p.continentName === continentName) {
+          const exists = result.find(r => r.partyId === p.partyId);
+          if (exists) {
+            Object.assign(exists, p);
+          } else {
+            result.push(p);
+          }
+        }
       });
     }
-  } catch {}
-  // Also include worldr_current_party if it matches (in case it was just created)
-  try {
-    const cRaw = localStorage.getItem('worldr_current_party');
-    if (cRaw) {
-      const cp: RegisteredPoliticalParty = JSON.parse(cRaw);
-      if (cp.continentName === continentName && !result.find((p) => p.partyId === cp.partyId)) {
-        result.push(cp);
+
+    result.forEach((p: any) => {
+      if (p.partyId === currentPartyId) {
+        p.computedMembers = currentPartyMembers;
+      } else {
+        p.computedMembers = p.members ?? p.memberCount ?? p.registeredMembers ?? 1;
       }
-    }
+    });
   } catch {}
-  // Sort: highest registeredMembers first (default 0 if missing)
-  return result.sort((a, b) => (b.registeredMembers ?? 0) - (a.registeredMembers ?? 0));
+
+  return result.sort((a: any, b: any) => (b.computedMembers || 0) - (a.computedMembers || 0));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -786,23 +852,15 @@ function PartyDetailModal({ party, onClose }: { party: RegisteredPoliticalParty;
 
           {/* Stats grid */}
           <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-            {field('Leader',  party.leaderName || 'Not recorded')}
-            {field('Members', party.registeredMembers ?? 1, true)}
-            {field('Country',   party.countryName   || 'Not recorded')}
-            {field('Continent', party.continentName || 'Not recorded')}
-            {field('Ideology 1', ideologyNames[0] ?? 'Not recorded')}
-            {field('Ideology 2', ideologyNames[1] ?? 'Not recorded')}
+            {field('Leader', (party as any).characterName || party.leaderName || 'Not recorded')}
+            {field('Country', party.countryName ?? '—')}
+            {field('Continent', party.continentName ?? '—')}
+            {field('Members', ((party as any).computedMembers ?? party.registeredMembers ?? 1).toLocaleString(), true)}
+            {field('Recognition', (party as any).recognition != null ? `${((party as any).recognition).toFixed(2)}%` : 'Not recorded')}
+            {field('Polling Support', (party as any).support != null ? `${((party as any).support).toFixed(1)}%` : 'Not recorded')}
+            {field('Main Promise', (party as any).mainPromise || 'None declared')}
             {field('Registered', party.createdAt ? formatGameDate(party.createdAt) : 'Not recorded')}
-            {field('Status', 'Registered Political Party', true)}
           </div>
-
-          {/* Description */}
-          {party.partyDescription && (
-            <div>
-              <div className="text-[8.5px] font-mono uppercase tracking-[0.2em] mb-1.5 text-zinc-600">Party Description</div>
-              <p className="text-zinc-400 text-xs leading-relaxed">{party.partyDescription}</p>
-            </div>
-          )}
         </div>
 
         {/* Footer */}
@@ -832,11 +890,18 @@ function PublicNoticesSection() {
   const [parties, setParties] = useState<RegisteredPoliticalParty[]>([]);
 
   useEffect(() => {
-    setParties(getPartiesByContinent(activeContinent));
+    const rawStats = localStorage.getItem('worldr_party_stats');
+    const stats: Record<string, number> = rawStats ? JSON.parse(rawStats) : {};
+    const allParties = getPartiesByContinent(activeContinent).map(p => ({
+      ...p,
+      computedMembers: stats[p.partyId] ?? p.registeredMembers ?? 1
+    }));
+    allParties.sort((a, b) => ((b as any).computedMembers) - ((a as any).computedMembers));
+    setParties(allParties);
   }, [activeContinent]);
 
   return (
-    <div className="flex-1 overflow-y-auto" style={{ background: '#0a0a16' }}>
+    <div className="flex-1 overflow-y-auto" style={{ background: '#0a0a14' }}>
 
       {/* Header */}
       <div className="px-4 md:px-8 pt-8 pb-6 max-w-4xl mx-auto">
@@ -850,7 +915,7 @@ function PublicNoticesSection() {
       </div>
 
       {/* Continent subtabs */}
-      <div className="border-b border-white/[0.06]" style={{ background: 'rgba(5,5,14,0.98)' }}>
+      <div className="border-b border-white/[0.06]" style={{ background: 'rgba(10,10,20,0.98)' }}>
         <div className="max-w-4xl mx-auto px-4 md:px-8 flex items-center">
           {CONTINENTS.map((ct) => (
             <button key={ct} id={`public-notices-${ct.toLowerCase()}`} type="button"
@@ -893,7 +958,7 @@ function PublicNoticesSection() {
             {/* Table header */}
             <div className="grid grid-cols-[48px_80px_1fr_72px] gap-0 px-4 py-2.5"
               style={{ background: 'rgba(192,160,96,0.07)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              {['Rank', 'Party Abbreviation', 'Party Name', 'Members'].map((h) => (
+              {['Rank', 'Party ABB', 'Party Name', 'Members'].map((h) => (
                 <div key={h} className="text-[8px] font-mono uppercase tracking-[0.2em]" style={{ color: '#c0a060' }}>{h}</div>
               ))}
             </div>
@@ -920,7 +985,7 @@ function PublicNoticesSection() {
                   </button>
                   {/* Members */}
                   <div className="font-mono text-[10px] font-bold" style={{ color: 'rgba(52,211,153,0.8)' }}>
-                    {party.registeredMembers ?? 1}
+                    {((party as any).computedMembers ?? 0).toLocaleString()}
                   </div>
                 </div>
               );
@@ -960,7 +1025,7 @@ export default function VareliaNewsPage() {
   const [ctx, setCtx] = useState<PlayerCtx>({
     characterName: '—', countryName: 'Drennia', continentName: 'Varelia',
     partyName: '—', partyAbbreviation: '—', partyColor: '#c0a060',
-    partyLogoId: '', selectedPath: 'Politician',
+    partyLogoId: '', selectedPath: 'Politician', partyFunds: 0
   });
 
   useEffect(() => {
@@ -995,7 +1060,17 @@ export default function VareliaNewsPage() {
     };
     const selectedPath = pathLabels[pathRaw ?? ''] ?? 'Politician';
 
-    setCtx({ characterName: charName, countryName, continentName, partyName, partyAbbreviation, partyColor, partyLogoId, selectedPath });
+    setCtx({
+      characterName: charName,
+      countryName,
+      continentName,
+      partyName,
+      partyAbbreviation,
+      partyColor,
+      partyLogoId,
+      selectedPath,
+      partyFunds: getCurrentPartyFunds()
+    });
 
     // Enrich party with country/continent data if missing
     enrichPartyWithCountry(countryName, continentName);
@@ -1090,8 +1165,8 @@ export default function VareliaNewsPage() {
             </button>
             <div className="hidden sm:flex items-center gap-1.5 px-3 h-8 rounded-sm"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <span className="text-zinc-600 text-[8.5px] font-mono uppercase tracking-widest">Cash</span>
-              <span className="text-emerald-400 text-[11px] font-bold font-mono">$0</span>
+              <span className="text-zinc-600 text-[8.5px] font-mono uppercase tracking-widest">FUNDS</span>
+              <span className="text-emerald-400 text-[11px] font-bold font-mono">{formatMoney(ctx.partyFunds)}</span>
             </div>
             <div className="relative">
               <button id="party-menu-btn" type="button" onClick={() => setShowPartyMenu((v) => !v)}

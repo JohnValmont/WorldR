@@ -3107,6 +3107,21 @@ export default function ActionsPage() {
 
       localStorage.setItem('worldr_party_stats', JSON.stringify(updatedStats));
 
+      if (result.membersJoined > 0) {
+        const rpRaw = localStorage.getItem('worldr_registered_parties');
+        if (rpRaw) {
+          const rps = JSON.parse(rpRaw);
+          const rpIdx = rps.findIndex((p: any) => p.partyId === ctx.partyId);
+          if (rpIdx >= 0) {
+            rps[rpIdx].members = updatedStats.members;
+            rps[rpIdx].memberCount = updatedStats.members;
+            rps[rpIdx].registeredMembers = updatedStats.members;
+            localStorage.setItem('worldr_registered_parties', JSON.stringify(rps));
+          }
+        }
+      }
+
+
       // Financial Transactions
       const txRaw = localStorage.getItem('worldr_party_transactions');
       const transactions = txRaw ? JSON.parse(txRaw) : [];
