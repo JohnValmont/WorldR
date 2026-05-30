@@ -10,13 +10,60 @@ const TAGLINES = [
 export default function StartLifePage() {
   const router = useRouter();
   const [revealed, setRevealed] = useState(false);
-
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      let hasChar = false;
+      try {
+        const charRaw = localStorage.getItem('worldr-character') || localStorage.getItem('worldr_character');
+        if (charRaw) {
+          const charState = JSON.parse(charRaw);
+          const c = charState?.state?.character || charState;
+          if (c && c.firstName && c.firstName.trim().length > 0) hasChar = true;
+        }
+      } catch {}
+
+      const path = localStorage.getItem('worldr_selected_path') || localStorage.getItem('worldr-path');
+
+      let hasParty = false;
+      try {
+        const partyRaw = localStorage.getItem('worldr_current_party');
+        if (partyRaw) {
+          const party = JSON.parse(partyRaw);
+          if (party && party.partyName) hasParty = true;
+        }
+      } catch {}
+
+      let hasCountry = false;
+      try {
+        const countryRaw = localStorage.getItem('worldr_selected_country');
+        if (countryRaw) {
+          const country = JSON.parse(countryRaw);
+          if (country && country.countryName) hasCountry = true;
+        }
+      } catch {}
+
+      if (hasChar && path && hasParty && hasCountry) {
+        router.replace('/varelia/news');
+        return;
+      }
+
+      if (hasChar || path || hasParty || hasCountry) {
+        if (!hasChar) {
+          router.replace('/onboarding/create-character');
+        } else if (!path) {
+          router.replace('/onboarding/choose-path');
+        } else if (path === 'politician' && !hasParty) {
+          router.replace('/onboarding/create-party');
+        } else if (!hasCountry) {
+          router.replace('/onboarding/choose-motherland');
+        }
+        return;
+      }
+    }
+
     const t = setTimeout(() => setRevealed(true), 120);
     return () => clearTimeout(t);
-  }, []);
-
-  return (
+  }, [router]);  return (
     <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center">
 
       {/* Cinematic vignette ring */}

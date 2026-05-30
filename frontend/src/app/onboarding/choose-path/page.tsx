@@ -57,15 +57,44 @@ export default function ChoosePathPage() {
   useEffect(() => {
     const t = setTimeout(() => setRevealed(true), 80);
 
-    // Route guard: redirect if no character
-    const charRaw =
-      localStorage.getItem('worldr-character') ||
-      localStorage.getItem('worldr_character');
-    if (!charRaw) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
-    try {
-      const charState = JSON.parse(charRaw);
-      if (!charState?.state?.character?.firstName) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
-    } catch { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
+    if (typeof window !== 'undefined') {
+      let hasChar = false;
+      try {
+        const charRaw = localStorage.getItem('worldr-character') || localStorage.getItem('worldr_character');
+        if (charRaw) {
+          const charState = JSON.parse(charRaw);
+          const c = charState?.state?.character || charState;
+          if (c && c.firstName && c.firstName.trim().length > 0) hasChar = true;
+        }
+      } catch {}
+
+      const path = localStorage.getItem('worldr_selected_path') || localStorage.getItem('worldr-path');
+
+      let hasParty = false;
+      try {
+        const partyRaw = localStorage.getItem('worldr_current_party');
+        if (partyRaw) {
+          const party = JSON.parse(partyRaw);
+          if (party && party.partyName) hasParty = true;
+        }
+      } catch {}
+
+      let hasCountry = false;
+      try {
+        const countryRaw = localStorage.getItem('worldr_selected_country');
+        if (countryRaw) {
+          const country = JSON.parse(countryRaw);
+          if (country && country.countryName) hasCountry = true;
+        }
+      } catch {}
+
+      if (hasChar && path && hasParty && hasCountry) {
+        router.replace('/varelia/news');
+        return () => clearTimeout(t);
+      }
+
+      if (!hasChar) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
+    }
 
     // Restore previously selected path — read both key variants
     const saved =

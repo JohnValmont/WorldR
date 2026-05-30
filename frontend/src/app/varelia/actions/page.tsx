@@ -16,13 +16,13 @@ import type { RegisteredPoliticalParty } from '../../../data/political-parties/p
 // text:    #d6d9d2  (soft off-white)
 // muted:   #7a8070  (gray-green)
 
-const BG      = '#11140f';
-const PANEL   = '#181c17';
-const BORDER  = '#2a2f26';
-const ACCENT  = '#d4a91f';
-const TEXT    = '#d6d9d2';
-const MUTED   = '#7a8070';
-const PANEL2  = '#1e2319';
+const BG = '#11140f';
+const PANEL = '#1b1f1a';
+const BORDER = '#2d3329';
+const ACCENT = '#d4a91f';
+const TEXT = '#d6d9d2';
+const MUTED = '#7a8070';
+const PANEL2 = '#151814';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IDEOLOGY MAP
@@ -55,6 +55,7 @@ interface PlayerCtx {
   partyDescription: string;
   partyCreatedAt: string;
   selectedPath: string;
+  partyId?: string;
 }
 
 interface PartyAction {
@@ -90,15 +91,15 @@ const CATEGORY_COLORS: Record<string, string> = {
   Outreach: '#3d7a6e',
   Strategy: '#5a4b8a',
   Internal: '#2d5a8a',
-  Policy:   '#3a6642',
+  Policy: '#3a6642',
   Campaign: '#7a3a3a',
-  Admin:    '#4a5045',
-  Network:  '#2d6a7a',
-  Media:    '#7a5a1a',
-  Funding:  '#2d7a5a',
-  Growth:   '#7a4a2a',
+  Admin: '#4a5045',
+  Network: '#2d6a7a',
+  Media: '#7a5a1a',
+  Funding: '#2d7a5a',
+  Growth: '#7a4a2a',
   Research: '#3a4a7a',
-  Legal:    '#3a3a4a',
+  Legal: '#3a3a4a',
   Politics: '#7a2a2a',
 };
 
@@ -109,11 +110,12 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     shortTitle: 'Leader',
     description: 'The founding head of the party. Directs political strategy, represents the movement publicly, and holds final decision-making authority.',
     actions: [
-      { id: 'pl_speech',    name: 'Give Public Speech',    description: 'Build early recognition through a public address to citizens.',               category: 'Outreach'  },
-      { id: 'pl_direction', name: 'Set Party Direction',   description: "Define the movement's immediate political focus and goals.",                 category: 'Strategy'  },
-      { id: 'pl_meeting',   name: 'Call Internal Meeting', description: 'Improve internal discipline and prepare party organization.',                category: 'Internal'  },
-      { id: 'pl_manifesto', name: 'Approve Manifesto',     description: "Review and formally approve the party's official political platform.",       category: 'Policy'    },
-      { id: 'pl_promise',   name: 'Declare Main Promise',  description: "Announce the central promise that defines the party's campaign.",            category: 'Campaign'  },
+      { id: 'pl_speech', name: 'Give Public Speech', description: 'Build early recognition through a public address to citizens.', category: 'Outreach' },
+      { id: 'pl_direction', name: 'Set Party Direction', description: "Define the movement's immediate political focus and goals.", category: 'Strategy' },
+      { id: 'pl_meeting', name: 'Call Internal Meeting', description: 'Improve internal discipline and prepare party organization.', category: 'Internal' },
+      { id: 'pl_manifesto', name: 'Approve Manifesto', description: "Review and formally approve the party's official political platform.", category: 'Policy' },
+      { id: 'pl_promise', name: 'Declare Main Promise', description: "Announce the central promise that defines the party's campaign.", category: 'Campaign' },
+      { id: 'pl_dissolve', name: 'Dissolve Political Party', description: 'Permanently dissolve your registered political party. This releases the party abbreviation and removes the party from public records.', category: 'Leadership' },
     ],
   },
   {
@@ -122,11 +124,11 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     shortTitle: 'Secretary',
     description: 'Manages internal communications, party records, meeting coordination, and volunteer logistics.',
     actions: [
-      { id: 'sec_meeting',    name: 'Organize Party Meeting',  description: 'Schedule and coordinate an official internal meeting.',                  category: 'Internal'  },
-      { id: 'sec_records',    name: 'Manage Member Records',   description: 'Update and verify party membership and contact information.',             category: 'Admin'     },
-      { id: 'sec_report',     name: 'Prepare Internal Report', description: 'Compile an internal summary of recent activity and progress.',            category: 'Admin'     },
-      { id: 'sec_discipline', name: 'Improve Party Discipline',description: 'Enforce internal party rules and conduct standards.',                    category: 'Internal'  },
-      { id: 'sec_volunteers', name: 'Coordinate Volunteers',   description: 'Assign tasks and mobilize volunteer supporters.',                         category: 'Outreach'  },
+      { id: 'sec_meeting', name: 'Organize Party Meeting', description: 'Schedule and coordinate an official internal meeting.', category: 'Internal' },
+      { id: 'sec_records', name: 'Manage Member Records', description: 'Update and verify party membership and contact information.', category: 'Admin' },
+      { id: 'sec_report', name: 'Prepare Internal Report', description: 'Compile an internal summary of recent activity and progress.', category: 'Admin' },
+      { id: 'sec_discipline', name: 'Improve Party Discipline', description: 'Enforce internal party rules and conduct standards.', category: 'Internal' },
+      { id: 'sec_volunteers', name: 'Coordinate Volunteers', description: 'Assign tasks and mobilize volunteer supporters.', category: 'Outreach' },
     ],
   },
   {
@@ -135,11 +137,11 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     shortTitle: 'Treasurer',
     description: 'Handles party finances, fundraising, donor relations, and financial compliance.',
     actions: [
-      { id: 'tr_donation', name: 'Small Donation Drive',      description: 'Run a small public donation campaign to grow party funds.',               category: 'Funding'   },
-      { id: 'tr_fees',     name: 'Membership Fee Collection', description: 'Collect monthly dues from registered party members.',                     category: 'Funding'   },
-      { id: 'tr_dinner',   name: 'Donor Dinner',              description: 'Host a private dinner event to cultivate major donors.',                  category: 'Funding'   },
-      { id: 'tr_business', name: 'Business Funding Meeting',  description: 'Meet business owners to secure financial backing.',                       category: 'Funding'   },
-      { id: 'tr_audit',    name: 'Audit Party Accounts',      description: 'Review financial records to ensure accuracy and compliance.',              category: 'Admin'     },
+      { id: 'tr_donation', name: 'Small Donation Drive', description: 'Run a small public donation campaign to grow party funds.', category: 'Funding' },
+      { id: 'tr_fees', name: 'Membership Fee Collection', description: 'Collect monthly dues from registered party members.', category: 'Funding' },
+      { id: 'tr_dinner', name: 'Donor Dinner', description: 'Host a private dinner event to cultivate major donors.', category: 'Funding' },
+      { id: 'tr_business', name: 'Business Funding Meeting', description: 'Meet business owners to secure financial backing.', category: 'Funding' },
+      { id: 'tr_audit', name: 'Audit Party Accounts', description: 'Review financial records to ensure accuracy and compliance.', category: 'Admin' },
     ],
   },
   {
@@ -148,12 +150,12 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     shortTitle: 'Campaign',
     description: 'Plans and executes electoral and public outreach campaigns across districts and regions.',
     actions: [
-      { id: 'cm_door',   name: 'Door-to-Door Campaign', description: 'Canvass residential areas to meet voters directly.',                           category: 'Campaign'  },
-      { id: 'cm_rally',  name: 'Hold Local Rally',      description: 'Organize a public rally to energize supporters.',                              category: 'Campaign'  },
-      { id: 'cm_hall',   name: 'Town Hall Meeting',     description: 'Host an open forum where citizens can engage the party.',                      category: 'Outreach'  },
-      { id: 'cm_rural',  name: 'Rural Visit',           description: 'Travel to rural areas to build support outside cities.',                       category: 'Campaign'  },
-      { id: 'cm_poster', name: 'Poster Campaign',       description: 'Distribute posters and flyers in key public locations.',                       category: 'Campaign'  },
-      { id: 'cm_survey', name: 'Voter Survey',          description: 'Conduct surveys to understand voter priorities.',                               category: 'Research'  },
+      { id: 'cm_door', name: 'Door-to-Door Campaign', description: 'Canvass residential areas to meet voters directly.', category: 'Campaign' },
+      { id: 'cm_rally', name: 'Hold Local Rally', description: 'Organize a public rally to energize supporters.', category: 'Campaign' },
+      { id: 'cm_hall', name: 'Town Hall Meeting', description: 'Host an open forum where citizens can engage the party.', category: 'Outreach' },
+      { id: 'cm_rural', name: 'Rural Visit', description: 'Travel to rural areas to build support outside cities.', category: 'Campaign' },
+      { id: 'cm_poster', name: 'Poster Campaign', description: 'Distribute posters and flyers in key public locations.', category: 'Campaign' },
+      { id: 'cm_survey', name: 'Voter Survey', description: 'Conduct surveys to understand voter priorities.', category: 'Research' },
     ],
   },
   {
@@ -162,11 +164,11 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     shortTitle: 'Spokesperson',
     description: 'Manages public communications, media relations, and official party statements.',
     actions: [
-      { id: 'sp_press',     name: 'Issue Press Statement', description: 'Release an official statement on a current political matter.',               category: 'Media'     },
-      { id: 'sp_interview', name: 'Give Interview',        description: 'Participate in a media interview to communicate party stance.',               category: 'Media'     },
-      { id: 'sp_respond',   name: 'Respond to Criticism',  description: 'Publicly address and counter negative press or attacks.',                    category: 'Media'     },
-      { id: 'sp_defend',    name: 'Defend Party Leader',   description: "Issue a public defense of the leader's record or decisions.",                category: 'Media'     },
-      { id: 'sp_attack',    name: 'Attack Rival Party',    description: 'Release a pointed critique of a competing political party.',                 category: 'Politics'  },
+      { id: 'sp_press', name: 'Issue Press Statement', description: 'Release an official statement on a current political matter.', category: 'Media' },
+      { id: 'sp_interview', name: 'Give Interview', description: 'Participate in a media interview to communicate party stance.', category: 'Media' },
+      { id: 'sp_respond', name: 'Respond to Criticism', description: 'Publicly address and counter negative press or attacks.', category: 'Media' },
+      { id: 'sp_defend', name: 'Defend Party Leader', description: "Issue a public defense of the leader's record or decisions.", category: 'Media' },
+      { id: 'sp_attack', name: 'Attack Rival Party', description: 'Release a pointed critique of a competing political party.', category: 'Politics' },
     ],
   },
   {
@@ -175,11 +177,11 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     shortTitle: 'Policy',
     description: "Develops the party's official policy positions, manifestos, and legislative proposals.",
     actions: [
-      { id: 'pd_manifesto',  name: 'Write Party Manifesto',      description: "Draft the party's official comprehensive policy platform.",            category: 'Policy'    },
-      { id: 'pd_economic',   name: 'Draft Economic Policy',      description: 'Prepare a formal economic strategy and fiscal direction.',              category: 'Policy'    },
-      { id: 'pd_welfare',    name: 'Draft Welfare Policy',       description: 'Design a social protection and public services policy.',               category: 'Policy'    },
-      { id: 'pd_corruption', name: 'Draft Anti-Corruption Plan', description: 'Develop a formal plan to address government corruption.',              category: 'Policy'    },
-      { id: 'pd_bill',       name: 'Prepare Bill Idea',          description: 'Draft a preliminary legislative bill concept for review.',              category: 'Policy'    },
+      { id: 'pd_manifesto', name: 'Write Party Manifesto', description: "Draft the party's official comprehensive policy platform.", category: 'Policy' },
+      { id: 'pd_economic', name: 'Draft Economic Policy', description: 'Prepare a formal economic strategy and fiscal direction.', category: 'Policy' },
+      { id: 'pd_welfare', name: 'Draft Welfare Policy', description: 'Design a social protection and public services policy.', category: 'Policy' },
+      { id: 'pd_corruption', name: 'Draft Anti-Corruption Plan', description: 'Develop a formal plan to address government corruption.', category: 'Policy' },
+      { id: 'pd_bill', name: 'Prepare Bill Idea', description: 'Draft a preliminary legislative bill concept for review.', category: 'Policy' },
     ],
   },
   {
@@ -188,11 +190,11 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     shortTitle: 'Membership',
     description: "Grows the party's registered membership through recruitment, drives, and volunteer integration.",
     actions: [
-      { id: 'mo_recruit',    name: 'Recruit Members',              description: 'Run a targeted campaign to attract new party members.',               category: 'Growth'    },
-      { id: 'mo_volunteers', name: 'Recruit Volunteers',           description: 'Build a volunteer base to support party activities.',                 category: 'Growth'    },
-      { id: 'mo_youth',      name: 'Start Youth Membership Drive', description: 'Target young citizens for party membership enrollment.',              category: 'Growth'    },
-      { id: 'mo_booth',      name: 'Open Membership Booth',        description: 'Set up a public registration booth in a busy location.',              category: 'Outreach'  },
-      { id: 'mo_activists',  name: 'Invite Independent Activists', description: 'Reach out to unaffiliated political activists.',                      category: 'Growth'    },
+      { id: 'mo_recruit', name: 'Recruit Members', description: 'Run a targeted campaign to attract new party members.', category: 'Growth' },
+      { id: 'mo_volunteers', name: 'Recruit Volunteers', description: 'Build a volunteer base to support party activities.', category: 'Growth' },
+      { id: 'mo_youth', name: 'Start Youth Membership Drive', description: 'Target young citizens for party membership enrollment.', category: 'Growth' },
+      { id: 'mo_booth', name: 'Open Membership Booth', description: 'Set up a public registration booth in a busy location.', category: 'Outreach' },
+      { id: 'mo_activists', name: 'Invite Independent Activists', description: 'Reach out to unaffiliated political activists.', category: 'Growth' },
     ],
   },
   {
@@ -201,11 +203,11 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     shortTitle: 'Legal',
     description: 'Handles party registration compliance, election law, candidate paperwork, and legal challenges.',
     actions: [
-      { id: 'lo_registration', name: 'Check Party Registration',  description: "Verify the party's formal registration status is current.",           category: 'Legal'     },
-      { id: 'lo_rules',        name: 'Review Election Rules',     description: 'Study current electoral regulations to ensure compliance.',             category: 'Legal'     },
-      { id: 'lo_papers',       name: 'Prepare Candidate Papers',  description: 'Compile formal documentation for party candidate nominations.',         category: 'Legal'     },
-      { id: 'lo_donations',    name: 'Check Donation Rules',      description: 'Verify all fundraising activity complies with donation laws.',          category: 'Legal'     },
-      { id: 'lo_complaint',    name: 'Defend Against Complaint',  description: 'Respond to any formal complaint filed against the party.',              category: 'Legal'     },
+      { id: 'lo_registration', name: 'Check Party Registration', description: "Verify the party's formal registration status is current.", category: 'Legal' },
+      { id: 'lo_rules', name: 'Review Election Rules', description: 'Study current electoral regulations to ensure compliance.', category: 'Legal' },
+      { id: 'lo_papers', name: 'Prepare Candidate Papers', description: 'Compile formal documentation for party candidate nominations.', category: 'Legal' },
+      { id: 'lo_donations', name: 'Check Donation Rules', description: 'Verify all fundraising activity complies with donation laws.', category: 'Legal' },
+      { id: 'lo_complaint', name: 'Defend Against Complaint', description: 'Respond to any formal complaint filed against the party.', category: 'Legal' },
     ],
   },
   {
@@ -214,12 +216,12 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     shortTitle: 'Network',
     description: 'Builds relationships between the party and key social groups: business, unions, farmers, students, and religious communities.',
     actions: [
-      { id: 'pno_business',  name: 'Meet Business Owners',   description: 'Engage local business leaders to build commercial support.',                category: 'Network'   },
-      { id: 'pno_farmers',   name: 'Meet Farmers',           description: 'Connect with agricultural communities about rural policy.',                 category: 'Network'   },
-      { id: 'pno_unions',    name: 'Meet Trade Unions',      description: "Open dialogue with labor unions about workers' rights.",                    category: 'Network'   },
-      { id: 'pno_students',  name: 'Meet Students',          description: 'Engage universities and student organizations for youth support.',           category: 'Network'   },
-      { id: 'pno_religious', name: 'Meet Religious Leaders', description: 'Build respectful ties with community religious figures.',                   category: 'Network'   },
-      { id: 'pno_press',     name: 'Meet Journalists',       description: 'Cultivate relationships with journalists and editors.',                     category: 'Media'     },
+      { id: 'pno_business', name: 'Meet Business Owners', description: 'Engage local business leaders to build commercial support.', category: 'Network' },
+      { id: 'pno_farmers', name: 'Meet Farmers', description: 'Connect with agricultural communities about rural policy.', category: 'Network' },
+      { id: 'pno_unions', name: 'Meet Trade Unions', description: "Open dialogue with labor unions about workers' rights.", category: 'Network' },
+      { id: 'pno_students', name: 'Meet Students', description: 'Engage universities and student organizations for youth support.', category: 'Network' },
+      { id: 'pno_religious', name: 'Meet Religious Leaders', description: 'Build respectful ties with community religious figures.', category: 'Network' },
+      { id: 'pno_press', name: 'Meet Journalists', description: 'Cultivate relationships with journalists and editors.', category: 'Media' },
     ],
   },
   {
@@ -228,11 +230,11 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     shortTitle: 'Media',
     description: 'Manages party presence in newspapers, press, and public broadcast channels.',
     actions: [
-      { id: 'meo_article',   name: 'Write Newspaper Article',   description: 'Draft a political opinion piece for local newspapers.',                  category: 'Media'     },
-      { id: 'meo_statement', name: 'Publish Party Statement',   description: 'Issue a formal written declaration from the party.',                    category: 'Media'     },
-      { id: 'meo_release',   name: 'Prepare Press Release',     description: 'Write a press release on a timely political topic.',                    category: 'Media'     },
-      { id: 'meo_editors',   name: 'Contact Newspaper Editors', description: 'Reach out to editors to improve media coverage.',                       category: 'Media'     },
-      { id: 'meo_message',   name: 'Launch Public Message',     description: 'Distribute a mass message to citizens on party priorities.',             category: 'Media'     },
+      { id: 'meo_article', name: 'Write Newspaper Article', description: 'Draft a political opinion piece for local newspapers.', category: 'Media' },
+      { id: 'meo_statement', name: 'Publish Party Statement', description: 'Issue a formal written declaration from the party.', category: 'Media' },
+      { id: 'meo_release', name: 'Prepare Press Release', description: 'Write a press release on a timely political topic.', category: 'Media' },
+      { id: 'meo_editors', name: 'Contact Newspaper Editors', description: 'Reach out to editors to improve media coverage.', category: 'Media' },
+      { id: 'meo_message', name: 'Launch Public Message', description: 'Distribute a mass message to citizens on party priorities.', category: 'Media' },
     ],
   },
   {
@@ -241,11 +243,11 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     shortTitle: 'Regional',
     description: 'Expands party presence into regions, districts, and rural areas through branches and local coordinators.',
     actions: [
-      { id: 'ro_branch',   name: 'Open Local Branch',          description: 'Establish a formal party office in a new district.',                     category: 'Growth'    },
-      { id: 'ro_rural',    name: 'Build Rural Network',        description: 'Develop contacts and visibility in rural communities.',                   category: 'Growth'    },
-      { id: 'ro_urban',    name: 'Build Urban Network',        description: 'Strengthen party organization in city neighborhoods.',                    category: 'Growth'    },
-      { id: 'ro_district', name: 'Assign District Coordinator',description: 'Designate a coordinator to manage a specific district.',                 category: 'Admin'     },
-      { id: 'ro_survey',   name: 'Survey Regional Support',   description: 'Assess party strength and voter mood across different regions.',           category: 'Research'  },
+      { id: 'ro_branch', name: 'Open Local Branch', description: 'Establish a formal party office in a new district.', category: 'Growth' },
+      { id: 'ro_rural', name: 'Build Rural Network', description: 'Develop contacts and visibility in rural communities.', category: 'Growth' },
+      { id: 'ro_urban', name: 'Build Urban Network', description: 'Strengthen party organization in city neighborhoods.', category: 'Growth' },
+      { id: 'ro_district', name: 'Assign District Coordinator', description: 'Designate a coordinator to manage a specific district.', category: 'Admin' },
+      { id: 'ro_survey', name: 'Survey Regional Support', description: 'Assess party strength and voter mood across different regions.', category: 'Research' },
     ],
   },
 ];
@@ -341,14 +343,14 @@ function PositionList({
       <div className="flex-1 overflow-y-auto">
         {positions.map((pos) => {
           const isSelected = pos.id === selectedId;
-          const isFilled   = !!pos.filledBy;
+          const isFilled = !!pos.filledBy;
           return (
             <button key={pos.id} id={`position-${pos.id}`} type="button"
               onClick={() => onSelect(pos.id)}
               className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-all duration-100"
               style={{
-                background:  isSelected ? `${accentColor}12` : 'transparent',
-                borderLeft:  isSelected ? `2px solid ${accentColor}` : `2px solid transparent`,
+                background: isSelected ? 'rgba(212,169,31,0.08)' : 'transparent',
+                borderLeft: isSelected ? '2px solid #d4a91f' : '2px solid transparent',
                 borderBottom: `1px solid ${BORDER}40`,
               }}>
               {/* Avatar */}
@@ -394,8 +396,9 @@ function PositionList({
 // DUTY ROW (full-width horizontal)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DutyRow({ action, positionTitle, accentColor }: { action: PartyAction; positionTitle: string; accentColor: string }) {
+function DutyRow({ action, positionTitle, accentColor, onTrigger }: { action: PartyAction; positionTitle: string; accentColor: string; onTrigger?: (id: string) => void }) {
   const catColor = CATEGORY_COLORS[action.category] ?? '#3a4238';
+  const isDissolve = action.id === 'pl_dissolve';
 
   return (
     <div className="flex items-center gap-4 px-4 py-3 transition-colors duration-100"
@@ -411,15 +414,38 @@ function DutyRow({ action, positionTitle, accentColor }: { action: PartyAction; 
         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
           <span className="font-semibold text-[12.5px]" style={{ color: TEXT }}>{action.name}</span>
           {/* Category tag */}
-          <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
-            style={{
-              background: `${catColor}28`,
-              color: `${catColor}d0`,
-              border: `1px solid ${catColor}50`,
-              borderRadius: '2px',
-            }}>
-            {action.category}
-          </span>
+          {isDissolve ? (
+            <>
+              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
+                style={{
+                  background: 'rgba(239,68,68,0.12)',
+                  color: '#f87171',
+                  border: '1px solid rgba(239,68,68,0.25)',
+                  borderRadius: '2px',
+                }}>
+                Leadership
+              </span>
+              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
+                style={{
+                  background: 'rgba(239,68,68,0.12)',
+                  color: '#f87171',
+                  border: '1px solid rgba(239,68,68,0.25)',
+                  borderRadius: '2px',
+                }}>
+                Critical
+              </span>
+            </>
+          ) : (
+            <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
+              style={{
+                background: `${catColor}28`,
+                color: `${catColor}d0`,
+                border: `1px solid ${catColor}50`,
+                borderRadius: '2px',
+              }}>
+              {action.category}
+            </span>
+          )}
           {/* Position tag */}
           <span className="text-[8px] font-mono uppercase tracking-[0.12em] px-1.5 py-0.5"
             style={{
@@ -434,17 +460,32 @@ function DutyRow({ action, positionTitle, accentColor }: { action: PartyAction; 
         <p className="text-[11px] leading-snug truncate" style={{ color: MUTED }}>{action.description}</p>
       </div>
 
-      {/* Right: Coming Soon label */}
+      {/* Right: Coming Soon or Danger Action */}
       <div className="shrink-0 flex items-center">
-        <span className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1"
-          style={{
-            color: '#3d4238',
-            background: 'rgba(255,255,255,0.02)',
-            border: `1px solid ${BORDER}`,
-            borderRadius: '2px',
-          }}>
-          Coming Soon
-        </span>
+        {isDissolve ? (
+          <button type="button"
+            onClick={() => onTrigger && onTrigger(action.id)}
+            className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1 transition-colors hover:bg-red-800/30"
+            style={{
+              color: '#f87171',
+              background: 'rgba(239,68,68,0.08)',
+              border: '1px solid rgba(239,68,68,0.28)',
+              borderRadius: '2px',
+              cursor: 'pointer',
+            }}>
+            Danger / Requires Confirmation
+          </button>
+        ) : (
+          <span className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1"
+            style={{
+              color: '#3d4238',
+              background: 'rgba(255,255,255,0.02)',
+              border: `1px solid ${BORDER}`,
+              borderRadius: '2px',
+            }}>
+            Coming Soon
+          </span>
+        )}
       </div>
     </div>
   );
@@ -460,12 +501,14 @@ function PositionCenter({
   partyName,
   countryName,
   onHire,
+  onTrigger,
 }: {
   position: Position;
   accentColor: string;
   partyName: string;
   countryName: string;
   onHire: (title: string) => void;
+  onTrigger?: (id: string) => void;
 }) {
   const isFilled = !!position.filledBy;
 
@@ -511,11 +554,11 @@ function PositionCenter({
                 {/* Stats row */}
                 <div className="flex items-center gap-4 flex-wrap">
                   {[
-                    { label: 'Age',     value: position.filledBy!.age },
-                    { label: 'Skill',   value: position.filledBy!.skill },
+                    { label: 'Age', value: position.filledBy!.age },
+                    { label: 'Skill', value: position.filledBy!.skill },
                     { label: 'Loyalty', value: `${position.filledBy!.loyalty}%` },
-                    { label: 'Status',  value: position.filledBy!.status },
-                    { label: 'Party',   value: partyName !== '—' ? partyName : '—' },
+                    { label: 'Status', value: position.filledBy!.status },
+                    { label: 'Party', value: partyName !== '—' ? partyName : '—' },
                     { label: 'Country', value: countryName },
                   ].map((f) => (
                     <div key={f.label} className="flex items-center gap-1">
@@ -529,13 +572,10 @@ function PositionCenter({
               <>
                 <div className="font-semibold text-sm mb-1" style={{ color: '#4a5045' }}>Vacant Position</div>
                 <p className="text-[11px] leading-snug mb-2 max-w-sm" style={{ color: '#3d4238' }}>{position.description}</p>
-                <button type="button" id={`hire-btn-${position.id}`} onClick={() => onHire(position.title)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
-                  style={{ background: `${accentColor}0c`, border: `1px solid ${accentColor}28`, color: `${accentColor}80`, borderRadius: '2px' }}>
-                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                  Hire {position.title}
+                <button type="button" disabled
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest opacity-40 cursor-not-allowed"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, color: MUTED, borderRadius: '2px' }}>
+                  Coming Soon
                 </button>
               </>
             )}
@@ -567,7 +607,7 @@ function PositionCenter({
       <div className="flex-1 overflow-y-auto mx-5 mb-4"
         style={{ border: `1px solid ${BORDER}`, borderRadius: '2px', background: PANEL }}>
         {position.actions.map((action) => (
-          <DutyRow key={action.id} action={action} positionTitle={position.title} accentColor={accentColor} />
+          <DutyRow key={action.id} action={action} positionTitle={position.title} accentColor={accentColor} onTrigger={onTrigger} />
         ))}
         {/* Coming soon footer note */}
         <div className="px-4 py-2.5 flex items-center gap-2"
@@ -587,6 +627,56 @@ function PositionCenter({
 // ─────────────────────────────────────────────────────────────────────────────
 // PARTY DROPDOWN (top bar)
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DISSOLVE PARTY CONFIRMATION MODAL
+// ─────────────────────────────────────────────────────────────────────────────
+
+function DissolvePartyModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [onCancel]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
+      <div className="w-full max-w-sm overflow-hidden"
+        style={{ background: '#1b1f1a', border: `1px solid #2d3329`, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', borderRadius: '2px' }}>
+        <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid #2d3329` }}>
+          <div className="w-9 h-9 rounded-sm flex items-center justify-center shrink-0" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)' }}>
+            <svg className="w-4 h-4 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+          </div>
+          <div>
+            <div className="font-bold text-sm text-zinc-100">Dissolve Political Party?</div>
+            <div className="text-[9px] font-mono uppercase tracking-[0.18em] mt-0.5 text-zinc-500">Requires Confirmation</div>
+          </div>
+        </div>
+        <div className="px-5 py-6">
+          <p className="text-[11px] leading-relaxed text-zinc-400">
+            This will permanently dissolve your political party, remove it from public notices, release its abbreviation, and return you to political party creation. Your character will remain.
+          </p>
+        </div>
+        <div className="px-5 pb-5 flex gap-3">
+          <button type="button" onClick={onCancel}
+            className="flex-1 py-2.5 text-xs font-semibold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa', borderRadius: '2px' }}>
+            Cancel
+          </button>
+          <button type="button" onClick={onConfirm}
+            className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
+            style={{ background: 'rgba(239,68,68,0.14)', border: '1px solid rgba(239,68,68,0.40)', color: '#f87171', borderRadius: '2px' }}>
+            Dissolve Party
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function PartyDropdown({ ctx, onClose }: { ctx: PlayerCtx; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -622,11 +712,12 @@ function PartyDropdown({ ctx, onClose }: { ctx: PlayerCtx; onClose: () => void }
 export default function ActionsPage() {
   const router = useRouter();
   const { character } = useCharacterStore();
-  const [revealed,      setRevealed]      = useState(false);
+  const [revealed, setRevealed] = useState(false);
   const [showPartyMenu, setShowPartyMenu] = useState(false);
+  const [showDissolveModal, setShowDissolveModal] = useState(false);
   const [selectedPosId, setSelectedPosId] = useState('party_leader');
-  const [hireTarget,    setHireTarget]    = useState<string | null>(null);
-  const [positions,     setPositions]     = useState<Position[]>([]);
+  const [hireTarget, setHireTarget] = useState<string | null>(null);
+  const [positions, setPositions] = useState<Position[]>([]);
 
   const [ctx, setCtx] = useState<PlayerCtx>({
     characterName: '—', characterAge: '—',
@@ -635,35 +726,37 @@ export default function ActionsPage() {
     partyColor: ACCENT, partyLogoId: '',
     ideologyIds: [], partyDescription: '', partyCreatedAt: '',
     selectedPath: 'Politician',
+    partyId: '',
   });
 
   useEffect(() => {
     const t = setTimeout(() => setRevealed(true), 80);
 
     const charName = [character.firstName, character.middleName, character.lastName].filter(Boolean).join(' ') || '—';
-    const charAge  = character.age ?? '—';
+    const charAge = character.age ?? '—';
 
     let countryName = 'Drennia', continentName = 'Varelia';
     try {
       const raw = localStorage.getItem('worldr_selected_country');
       if (raw) { const c = JSON.parse(raw); countryName = c.countryName ?? 'Drennia'; continentName = c.continentName ?? 'Varelia'; }
-    } catch {}
+    } catch { }
 
-    let partyName = '—', partyAbbreviation = '—', partyColor = ACCENT, partyLogoId = '';
+    let partyName = '—', partyAbbreviation = '—', partyColor = ACCENT, partyLogoId = '', partyId = '';
     let ideologyIds: string[] = [], partyDescription = '', partyCreatedAt = '';
     try {
       const pRaw = localStorage.getItem('worldr_current_party');
       if (pRaw) {
         const p: RegisteredPoliticalParty = JSON.parse(pRaw);
-        partyName        = p.partyName         ?? '—';
-        partyAbbreviation= p.partyAbbreviation ?? '—';
-        partyLogoId      = p.partyLogoId       ?? '';
-        partyColor       = PARTY_COLORS.find((c) => c.id === p.colorId)?.hex ?? ACCENT;
-        ideologyIds      = p.ideologyIds        ?? [];
-        partyDescription = p.partyDescription   ?? '';
-        partyCreatedAt   = p.createdAt          ?? '';
+        partyId = p.partyId;
+        partyName = p.partyName ?? '—';
+        partyAbbreviation = p.partyAbbreviation ?? '—';
+        partyLogoId = p.partyLogoId ?? '';
+        partyColor = PARTY_COLORS.find((c) => c.id === p.colorId)?.hex ?? ACCENT;
+        ideologyIds = p.ideologyIds ?? [];
+        partyDescription = p.partyDescription ?? '';
+        partyCreatedAt = p.createdAt ?? '';
       }
-    } catch {}
+    } catch { }
 
     const pathRaw = localStorage.getItem('worldr_selected_path') || localStorage.getItem('worldr-path');
     const pathLabels: Record<string, string> = {
@@ -672,7 +765,7 @@ export default function ActionsPage() {
     };
     const selectedPath = pathLabels[pathRaw ?? ''] ?? 'Politician';
 
-    setCtx({ characterName: charName, characterAge: charAge, countryName, continentName, partyName, partyAbbreviation, partyColor, partyLogoId, ideologyIds, partyDescription, partyCreatedAt, selectedPath });
+    setCtx({ characterName: charName, characterAge: charAge, countryName, continentName, partyName, partyAbbreviation, partyColor, partyLogoId, ideologyIds, partyDescription, partyCreatedAt, selectedPath, partyId });
 
     // Build positions — Party Leader filled by player
     const filled: Position[] = POSITION_DEFINITIONS.map((def) => {
@@ -680,11 +773,11 @@ export default function ActionsPage() {
         return {
           ...def,
           filledBy: {
-            name:    charName !== '—' ? charName : 'Player Name',
-            age:     charAge,
-            skill:   'Leadership',
+            name: charName !== '—' ? charName : 'Player Name',
+            age: charAge,
+            skill: 'Leadership',
             loyalty: 100,
-            status:  'Founder',
+            status: 'Founder',
           },
         };
       }
@@ -698,9 +791,45 @@ export default function ActionsPage() {
   const selectedPos = positions.find((p) => p.id === selectedPosId) ?? positions[0];
   const ideologyNames = ctx.ideologyIds.map((id) => IDEOLOGY_NAMES[id] ?? id);
 
+  const handleTriggerAction = (actionId: string) => {
+    if (actionId === 'pl_dissolve') {
+      setShowDissolveModal(true);
+    }
+  };
+
+  const handleConfirmDissolve = () => {
+    // Temporary local party dissolution. In multiplayer, party dissolution must be enforced by backend ownership checks and must release the abbreviation only after the party record is inactive/deleted.
+    
+    // 1. Remove current party
+    localStorage.removeItem('worldr_current_party');
+
+    // 2. Remove this party from worldr_registered_parties by partyId
+    if (ctx.partyId) {
+      try {
+        const raw = localStorage.getItem('worldr_registered_parties');
+        if (raw) {
+          const registry: RegisteredPoliticalParty[] = JSON.parse(raw);
+          const filtered = registry.filter((p) => p.partyId !== ctx.partyId);
+          localStorage.setItem('worldr_registered_parties', JSON.stringify(filtered));
+        }
+      } catch (e) {}
+    }
+
+    // 3. Keep worldr_character, keep worldr_selected_path as Politician
+    localStorage.setItem('worldr_selected_path', 'politician');
+    localStorage.setItem('worldr-path', 'politician');
+
+    // 4. Remove worldr_selected_country for now
+    localStorage.removeItem('worldr_selected_country');
+
+    // 5. Redirect to /onboarding/create-party
+    router.replace('/onboarding/create-party');
+  };
+
   return (
     <>
       {hireTarget && <HirePlaceholderModal positionTitle={hireTarget} onClose={() => setHireTarget(null)} />}
+      {showDissolveModal && <DissolvePartyModal onCancel={() => setShowDissolveModal(false)} onConfirm={handleConfirmDissolve} />}
 
       <div className="h-screen flex flex-col overflow-hidden transition-opacity duration-500"
         style={{ opacity: revealed ? 1 : 0, background: BG }}>
@@ -767,7 +896,7 @@ export default function ActionsPage() {
         <nav className="shrink-0 flex items-center px-4 md:px-5"
           style={{ height: '38px', background: PANEL, borderBottom: `1px solid ${BORDER}`, zIndex: 20 }}>
           {(MAIN_TABS as readonly string[]).map((tab) => {
-            const isHome    = tab === 'Home';
+            const isHome = tab === 'Home';
             const isActions = tab === 'Actions';
             const isEnabled = isHome || isActions;
             const isCurrent = isActions;
@@ -777,8 +906,8 @@ export default function ActionsPage() {
                 onClick={() => { if (isHome) router.push('/varelia/news'); }}
                 className="relative px-4 h-full flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors duration-100"
                 style={{
-                  color:        isCurrent ? TEXT : isEnabled ? MUTED : '#2d3228',
-                  cursor:       isEnabled ? 'pointer' : 'not-allowed',
+                  color: isCurrent ? TEXT : isEnabled ? MUTED : '#2d3228',
+                  cursor: isEnabled ? 'pointer' : 'not-allowed',
                   borderBottom: isCurrent ? `2px solid ${ACCENT}` : '2px solid transparent',
                 }}>
                 {tab}
@@ -788,54 +917,17 @@ export default function ActionsPage() {
           })}
         </nav>
 
-        {/* ══ PAGE HEADER ════════════════════════════════════════════════ */}
-        <div className="shrink-0 px-5 py-3 flex items-center justify-between flex-wrap gap-3"
-          style={{ background: PANEL2, borderBottom: `1px solid ${BORDER}` }}>
-          {/* Title block */}
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-0.5 h-8 rounded-sm" style={{ background: `linear-gradient(180deg, ${ACCENT}, ${ACCENT}40)` }} />
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="font-bold text-[15px]" style={{ color: TEXT }}>Party Actions</h1>
-                {ctx.partyName !== '—' && (
-                  <span className="text-[8.5px] font-mono uppercase tracking-widest px-2 py-0.5"
-                    style={{ color: `${ACCENT}90`, background: `${ACCENT}0e`, border: `1px solid ${ACCENT}28`, borderRadius: '2px' }}>
-                    {ctx.partyName}
-                  </span>
-                )}
-              </div>
-              <p className="text-[10.5px] mt-0.5" style={{ color: MUTED }}>
-                Manage your political organization, party officials, and internal duties.
-              </p>
-            </div>
-          </div>
-
-          {/* Compact party identity */}
-          <div className="flex items-center gap-3 shrink-0">
-            {ctx.partyLogoId && (
-              <div className="w-7 h-7 flex items-center justify-center"
-                style={{ background: `${ctx.partyColor}10`, border: `1px solid ${ctx.partyColor}30`, borderRadius: '2px' }}>
-                <LogoSVG logoId={ctx.partyLogoId} color={ctx.partyColor} size={16} />
-              </div>
-            )}
-            <div className="hidden sm:flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-[11px]" style={{ color: ctx.partyColor }}>{ctx.partyAbbreviation !== '—' ? ctx.partyAbbreviation : '—'}</span>
-                <span className="text-[9px]" style={{ color: MUTED }}>·</span>
-                <span className="text-[10.5px] font-medium" style={{ color: '#8a9085' }}>
-                  {ctx.characterName !== '—' ? ctx.characterName : 'Leader'}
-                </span>
-              </div>
-              <div className="text-[8.5px] font-mono" style={{ color: '#3d4238' }}>
-                {ctx.countryName} · {ideologyNames[0] ?? 'Not recorded'}
-              </div>
-            </div>
-            {/* Party HQ badge */}
-            <div className="px-3 py-1.5 text-[8.5px] font-bold uppercase tracking-[0.18em]"
-              style={{ background: `${ACCENT}10`, border: `1px solid ${ACCENT}30`, color: ACCENT, borderRadius: '2px' }}>
-              Party HQ
-            </div>
-          </div>
+        {/* ══ ACTIONS SUBTAB ROW ════════════════════════════════════════ */}
+        <div className="shrink-0 flex items-center px-4 md:px-5 border-b"
+          style={{ height: '34px', background: PANEL2, borderColor: BORDER }}>
+          <button type="button"
+            className="px-4 h-full flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-[0.14em] border-b-2"
+            style={{
+              color: TEXT,
+              borderColor: ACCENT,
+            }}>
+            Party Actions
+          </button>
         </div>
 
         {/* ══ TWO-COLUMN BODY ════════════════════════════════════════════ */}
@@ -849,7 +941,7 @@ export default function ActionsPage() {
               </div>
             )}
             {selectedPos && (
-              <PositionCenter position={selectedPos} accentColor={ctx.partyColor} partyName={ctx.partyName} countryName={ctx.countryName} onHire={setHireTarget} />
+              <PositionCenter position={selectedPos} accentColor={ctx.partyColor} partyName={ctx.partyName} countryName={ctx.countryName} onHire={setHireTarget} onTrigger={handleTriggerAction} />
             )}
           </div>
 
@@ -859,7 +951,7 @@ export default function ActionsPage() {
               <PositionList positions={positions} selectedId={selectedPosId} onSelect={setSelectedPosId} accentColor={ctx.partyColor} />
             )}
             {selectedPos && (
-              <PositionCenter position={selectedPos} accentColor={ctx.partyColor} partyName={ctx.partyName} countryName={ctx.countryName} onHire={setHireTarget} />
+              <PositionCenter position={selectedPos} accentColor={ctx.partyColor} partyName={ctx.partyName} countryName={ctx.countryName} onHire={setHireTarget} onTrigger={handleTriggerAction} />
             )}
           </div>
         </div>

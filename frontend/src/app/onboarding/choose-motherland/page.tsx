@@ -262,29 +262,48 @@ export default function ChooseMotherlandPage() {
   useEffect(() => {
     const t = setTimeout(() => setRevealed(true), 80);
 
-    // Route guards: check character
-    const charRaw =
-      localStorage.getItem('worldr-character') ||
-      localStorage.getItem('worldr_character');
-    if (!charRaw) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
-    try {
-      const charState = JSON.parse(charRaw);
-      if (!charState?.state?.character?.firstName) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
-    } catch { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
+    if (typeof window !== 'undefined') {
+      let hasChar = false;
+      try {
+        const charRaw = localStorage.getItem('worldr-character') || localStorage.getItem('worldr_character');
+        if (charRaw) {
+          const charState = JSON.parse(charRaw);
+          const c = charState?.state?.character || charState;
+          if (c && c.firstName && c.firstName.trim().length > 0) hasChar = true;
+        }
+      } catch {}
 
-    // Route guards: check path (read both key variants)
-    const path =
-      localStorage.getItem('worldr_selected_path') ||
-      localStorage.getItem('worldr-path');
-    if (!path) { router.replace('/onboarding/choose-path'); return () => clearTimeout(t); }
+      const path = localStorage.getItem('worldr_selected_path') || localStorage.getItem('worldr-path');
 
-    // Route guard: Politician must have a party
-    if (path === 'politician') {
-      const partyRaw = localStorage.getItem('worldr_current_party');
-      if (!partyRaw) { router.replace('/onboarding/create-party'); return () => clearTimeout(t); }
+      let hasParty = false;
+      try {
+        const partyRaw = localStorage.getItem('worldr_current_party');
+        if (partyRaw) {
+          const party = JSON.parse(partyRaw);
+          if (party && party.partyName) hasParty = true;
+        }
+      } catch {}
+
+      let hasCountry = false;
+      try {
+        const countryRaw = localStorage.getItem('worldr_selected_country');
+        if (countryRaw) {
+          const country = JSON.parse(countryRaw);
+          if (country && country.countryName) hasCountry = true;
+        }
+      } catch {}
+
+      if (hasChar && path && hasParty && hasCountry) {
+        router.replace('/varelia/news');
+        return () => clearTimeout(t);
+      }
+
+      if (!hasChar) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
+      if (!path) { router.replace('/onboarding/choose-path'); return () => clearTimeout(t); }
+      if (path === 'politician' && !hasParty) { router.replace('/onboarding/create-party'); return () => clearTimeout(t); }
     }
 
-    // Set display path label
+    const path = localStorage.getItem('worldr_selected_path') || localStorage.getItem('worldr-path');
     const pathLabels: Record<string, string> = {
       politician: 'Politician',
       businessman: 'Businessman',
@@ -292,7 +311,7 @@ export default function ChooseMotherlandPage() {
       judicial: 'Judicial Officer',
       media: 'Media & Influence',
     };
-    setSelectedPath(pathLabels[path] ?? 'Politician');
+    if (path) setSelectedPath(pathLabels[path] ?? 'Politician');
 
     try {
       const raw = localStorage.getItem('worldr_current_party');

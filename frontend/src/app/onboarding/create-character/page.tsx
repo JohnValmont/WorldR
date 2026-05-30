@@ -174,18 +174,7 @@ function CharacterSummary({
               </svg>
             </button>
 
-            <button
-              id="char-summary-delete"
-              type="button"
-              onClick={onDelete}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 text-xs font-semibold uppercase tracking-widest rounded-sm transition-all duration-150 hover:opacity-90"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.28)', color: '#f87171' }}
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Delete &amp; Start Over
-            </button>
+            {/* Delete button removed per TASK 3 */}
           </div>
         </div>
       </div>
@@ -321,9 +310,46 @@ export default function CreateCharacterPage() {
   const [hasCharacter, setHasCharacter] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      let hasChar = false;
+      try {
+        const charRaw = localStorage.getItem('worldr-character') || localStorage.getItem('worldr_character');
+        if (charRaw) {
+          const charState = JSON.parse(charRaw);
+          const c = charState?.state?.character || charState;
+          if (c && c.firstName && c.firstName.trim().length > 0) hasChar = true;
+        }
+      } catch {}
+
+      const path = localStorage.getItem('worldr_selected_path') || localStorage.getItem('worldr-path');
+
+      let hasParty = false;
+      try {
+        const partyRaw = localStorage.getItem('worldr_current_party');
+        if (partyRaw) {
+          const party = JSON.parse(partyRaw);
+          if (party && party.partyName) hasParty = true;
+        }
+      } catch {}
+
+      let hasCountry = false;
+      try {
+        const countryRaw = localStorage.getItem('worldr_selected_country');
+        if (countryRaw) {
+          const country = JSON.parse(countryRaw);
+          if (country && country.countryName) hasCountry = true;
+        }
+      } catch {}
+
+      if (hasChar && path && hasParty && hasCountry) {
+        router.replace('/varelia/news');
+        return;
+      }
+    }
+
     const t = setTimeout(() => setRevealed(true), 80);
     return () => clearTimeout(t);
-  }, []);
+  }, [router]);
 
   // Read character completion from store on mount and on change
   useEffect(() => {

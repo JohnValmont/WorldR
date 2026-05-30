@@ -189,18 +189,7 @@ function PartySummary({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
             </button>
-            <button
-              id="party-summary-delete"
-              type="button"
-              onClick={onDelete}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 text-xs font-semibold uppercase tracking-widest rounded-sm transition-all duration-150 hover:opacity-90"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.28)', color: '#f87171' }}
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Dissolve &amp; Create New
-            </button>
+            {/* Party delete button removed per TASK 4 */}
           </div>
         </div>
       </div>
@@ -275,27 +264,46 @@ export default function CreatePartyPage() {
   useEffect(() => {
     const t = setTimeout(() => setRevealed(true), 80);
 
-    // Route guard: redirect if no character
-    // Zustand persists to 'worldr-character'; also check 'worldr_character' for future migration
-    const charRaw =
-      localStorage.getItem('worldr-character') ||
-      localStorage.getItem('worldr_character');
-    if (!charRaw) { router.replace('/onboarding/create-character'); return; }
-    try {
-      const charState = JSON.parse(charRaw);
-      const c = charState?.state?.character;
-      if (!c?.firstName) { router.replace('/onboarding/create-character'); return; }
-    } catch { router.replace('/onboarding/create-character'); return; }
+    if (typeof window !== 'undefined') {
+      let hasChar = false;
+      try {
+        const charRaw = localStorage.getItem('worldr-character') || localStorage.getItem('worldr_character');
+        if (charRaw) {
+          const charState = JSON.parse(charRaw);
+          const c = charState?.state?.character || charState;
+          if (c && c.firstName && c.firstName.trim().length > 0) hasChar = true;
+        }
+      } catch {}
 
-    // Route guard: redirect if no path selected
-    // Read standardized key first, fall back to legacy key
-    const path =
-      localStorage.getItem('worldr_selected_path') ||
-      localStorage.getItem('worldr-path');
-    if (!path) { router.replace('/onboarding/choose-path'); return; }
+      const path = localStorage.getItem('worldr_selected_path') || localStorage.getItem('worldr-path');
 
-    // Temporary local one-party rule.
-    // In multiplayer, enforce one political party per account in the backend/database using userId ownership.
+      let hasParty = false;
+      try {
+        const partyRaw = localStorage.getItem('worldr_current_party');
+        if (partyRaw) {
+          const party = JSON.parse(partyRaw);
+          if (party && party.partyName) hasParty = true;
+        }
+      } catch {}
+
+      let hasCountry = false;
+      try {
+        const countryRaw = localStorage.getItem('worldr_selected_country');
+        if (countryRaw) {
+          const country = JSON.parse(countryRaw);
+          if (country && country.countryName) hasCountry = true;
+        }
+      } catch {}
+
+      if (hasChar && path && hasParty && hasCountry) {
+        router.replace('/varelia/news');
+        return () => clearTimeout(t);
+      }
+
+      if (!hasChar) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
+      if (!path) { router.replace('/onboarding/choose-path'); return () => clearTimeout(t); }
+    }
+
     try {
       const raw = localStorage.getItem('worldr_current_party');
       if (raw) setExistingParty(JSON.parse(raw));

@@ -25,7 +25,49 @@ export default function LoginPage() {
       if (!user.is_verified) {
         router.push(`/verify?email=${encodeURIComponent(user.email)}`);
       } else {
-        router.push('/onboarding/start-life');
+        const getOnboardingRedirectPath = (): string => {
+          if (typeof window === 'undefined') return '/onboarding/start-life';
+          let hasChar = false;
+          try {
+            const charRaw = localStorage.getItem('worldr-character') || localStorage.getItem('worldr_character');
+            if (charRaw) {
+              const charState = JSON.parse(charRaw);
+              const c = charState?.state?.character || charState;
+              if (c && c.firstName && c.firstName.trim().length > 0) {
+                hasChar = true;
+              }
+            }
+          } catch (e) {}
+          if (!hasChar) return '/onboarding/start-life';
+          
+          const path = localStorage.getItem('worldr_selected_path') || localStorage.getItem('worldr-path');
+          if (!path) return '/onboarding/choose-path';
+          
+          if (path === 'politician') {
+            let hasParty = false;
+            try {
+              const partyRaw = localStorage.getItem('worldr_current_party');
+              if (partyRaw) {
+                const party = JSON.parse(partyRaw);
+                if (party && party.partyName) hasParty = true;
+              }
+            } catch (e) {}
+            if (!hasParty) return '/onboarding/create-party';
+          }
+          
+          let hasCountry = false;
+          try {
+            const countryRaw = localStorage.getItem('worldr_selected_country');
+            if (countryRaw) {
+              const country = JSON.parse(countryRaw);
+              if (country && country.countryName) hasCountry = true;
+            }
+          } catch (e) {}
+          if (!hasCountry) return '/onboarding/choose-motherland';
+          
+          return '/varelia/news';
+        };
+        router.push(getOnboardingRedirectPath());
       }
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Invalid credentials. Please try again.');
