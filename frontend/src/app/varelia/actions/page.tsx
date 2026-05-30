@@ -6,6 +6,21 @@ import { LogoSVG } from '../../../components/LogoSVG';
 import { PARTY_COLORS } from '../../../data/political-parties/partyLogos';
 import type { RegisteredPoliticalParty } from '../../../data/political-parties/partyTypes';
 import { syncCurrentPartyStatsToRegisteredParties, getLivePartyRegistryData, initializeCurrentPartyStatsIfNeeded, formatMoney, roundMoney, roundActionMoney } from '../../../lib/partyHelpers';
+import {
+  DRENNIA_SOCIETY,
+  getSocietyProfile,
+  extractIdeologies,
+  calculateBlocAppeal,
+  calculateVoterBlocAppealScore,
+  voterBlocAppealPower,
+  scoreToAppealLabel,
+  appealLabelColor,
+  appealLabelBg,
+  generateCampaignAdvice,
+  getMainPromise,
+  type BlocAppealResult,
+  type AppealLabel,
+} from '../../../lib/voterBlocs';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PALETTE  (calm dark olive / charcoal political-strategy style)
@@ -263,6 +278,7 @@ export function calculateElectionStrength({
   mediaPresencePower: number;
   mainPromiseBonus: number;
   controversyPenalty: number;
+  voterBlocAppealPower?: number;
   baseStrength: number;
   lowStrength: number;
   highStrength: number;
@@ -292,6 +308,12 @@ export function calculateElectionStrength({
     mediaPresencePower + mainPromiseBonus - controversyPenalty
   );
 
+  // voterBlocAppealPower is applied externally after calculation
+  const vbap = typeof (arguments[0] as any)?.voterBlocAppealPower === 'number'
+    ? (arguments[0] as any).voterBlocAppealPower
+    : 0;
+  const finalStrength = Math.max(1, baseStrength + vbap);
+
   return {
     base,
     pollingPower,
@@ -303,9 +325,10 @@ export function calculateElectionStrength({
     mediaPresencePower,
     mainPromiseBonus,
     controversyPenalty,
-    baseStrength,
-    lowStrength: baseStrength * 0.94,
-    highStrength: baseStrength * 1.06,
+    voterBlocAppealPower: vbap,
+    baseStrength: finalStrength,
+    lowStrength: finalStrength * 0.94,
+    highStrength: finalStrength * 1.06,
   };
 }
 
@@ -1143,6 +1166,241 @@ function PartyDropdown({ ctx, onClose }: { ctx: PlayerCtx; onClose: () => void }
   );
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VOTER BLOCS VIEW
+// ─────────────────────────────────────────────────────────────────────────────
+
+function VoterBlocsView({ ctx }: { ctx: PlayerCtx }) {
+  const society = getSocietyProfile(ctx.countryName);
+
+  // Read party data
+  let rawParty: any = null;
+  try {
+    const cpRaw = typeof window !== 'undefined' ? localStorage.getItem('worldr_current_party') : null;
+    if (cpRaw) rawParty = JSON.parse(cpRaw);
+  } catch (e) {}
+
+  const ideologies = extractIdeologies(rawParty || ctx);
+  const mainPromise = getMainPromise(ctx.partyId, ctx.partyStats);
+
+  if (!society) {
+    return (
+      <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
+        <div className="max-w-xl mx-auto text-center py-12">
+          <p className="text-zinc-500 text-xs">Voter bloc data is not yet available for {ctx.countryName}.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const blocResults = calculateBlocAppeal(society.blocs, ideologies, mainPromise);
+  const appealScore = calculateVoterBlocAppealScore(blocResults);
+  const vbapPower = voterBlocAppealPower(appealScore);
+
+  const sorted = [...blocResults].sort((a, b) => b.finalScore - a.finalScore);
+  const strongest = sorted.slice(0, 3);
+  const weakest = sorted.slice(-3).reverse();
+
+  const advice = generateCampaignAdvice(blocResults);
+
+  const noIdeologies = ideologies.length === 0;
+  const noPromise = !mainPromise;
+
+  return (
+    <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Header */}
+        <div>
+          <h2 className="text-xl font-bold text-white tracking-tight">Voter Blocs</h2>
+          <p className="text-zinc-500 text-xs mt-1">
+            Understand {society.countryName}&apos;s society, voter groups, and your party&apos;s natural political appeal.
+          </p>
+        </div>
+
+        {/* Society Overview Card */}
+        <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+          <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: BORDER }}>
+            <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">{society.countryName} Society</h3>
+            <span className="text-[9px] font-mono uppercase tracking-widest" style={{ color: ACCENT }}>{society.continentName}</span>
+          </div>
+          <div className="p-4">
+            <p className="text-[11px] leading-relaxed text-zinc-400 mb-4 italic">&ldquo;{society.societyDescription}&rdquo;</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {[
+                { label: 'Country', value: society.countryName },
+                { label: 'Continent', value: society.continentName },
+                { label: 'Population', value: society.population },
+                { label: 'Government', value: society.government },
+                { label: 'Political Culture', value: society.politicalCulture },
+              ].map(({ label, value }) => (
+                <div key={label}>
+                  <div className="text-[9px] font-mono uppercase tracking-widest mb-0.5" style={{ color: MUTED }}>{label}</div>
+                  <div className="text-xs font-semibold text-zinc-300">{value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Party Ideology & Promise Status */}
+        {(noIdeologies || noPromise) && (
+          <div className="space-y-2">
+            {noIdeologies && (
+              <div className="px-4 py-3 text-[11px] leading-relaxed" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.18)', borderRadius: '2px', color: '#f87171' }}>
+                No ideologies found for this party. Party ideology effects cannot be calculated. Set your ideologies during party creation or via Rebrand Political Party.
+              </div>
+            )}
+            {noPromise && (
+              <div className="px-4 py-3 text-[11px] leading-relaxed" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.18)', borderRadius: '2px', color: '#fbbf24' }}>
+                No main promise declared for this election. Declare a main promise to strengthen appeal among specific voter blocs.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Party Summary */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }} className="p-3">
+            <div className="text-[9px] font-mono uppercase tracking-widest mb-1" style={{ color: MUTED }}>Ideologies</div>
+            <div className="text-xs font-semibold text-zinc-300 leading-relaxed">
+              {noIdeologies ? <span className="text-zinc-600 italic">None found</span> : ideologies.join(', ')}
+            </div>
+          </div>
+          <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }} className="p-3">
+            <div className="text-[9px] font-mono uppercase tracking-widest mb-1" style={{ color: MUTED }}>Main Promise</div>
+            <div className="text-xs font-semibold text-emerald-400">
+              {noPromise ? <span className="text-zinc-600 italic">None declared</span> : mainPromise}
+            </div>
+          </div>
+          <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }} className="p-3">
+            <div className="text-[9px] font-mono uppercase tracking-widest mb-1" style={{ color: MUTED }}>Voter Bloc Appeal Score</div>
+            <div className={`text-sm font-bold ${appealScore >= 1 ? 'text-emerald-400' : appealScore < 0 ? 'text-red-400' : 'text-zinc-400'}`}>
+              {appealScore >= 0 ? '+' : ''}{appealScore.toFixed(1)}
+            </div>
+            <div className="text-[9px] text-zinc-600 mt-0.5">Election Power: {vbapPower >= 0 ? '+' : ''}{vbapPower.toFixed(1)}</div>
+          </div>
+        </div>
+
+        {/* Strongest / Weakest Blocs */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+            <div className="px-4 py-2.5 border-b flex items-center gap-2" style={{ borderColor: BORDER }}>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <h4 className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest">Strongest Blocs</h4>
+            </div>
+            <div className="p-3 space-y-2">
+              {strongest.map(r => (
+                <div key={r.bloc.id} className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] font-semibold text-zinc-300">{r.bloc.name}</span>
+                    <span className="text-[9px] text-zinc-600 ml-2">{r.bloc.populationShare}%</span>
+                  </div>
+                  <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm"
+                    style={{ color: appealLabelColor(r.label), background: appealLabelBg(r.label) }}>
+                    {r.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+            <div className="px-4 py-2.5 border-b flex items-center gap-2" style={{ borderColor: BORDER }}>
+              <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+              <h4 className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest">Weakest Blocs</h4>
+            </div>
+            <div className="p-3 space-y-2">
+              {weakest.map(r => (
+                <div key={r.bloc.id} className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] font-semibold text-zinc-300">{r.bloc.name}</span>
+                    <span className="text-[9px] text-zinc-600 ml-2">{r.bloc.populationShare}%</span>
+                  </div>
+                  <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm"
+                    style={{ color: appealLabelColor(r.label), background: appealLabelBg(r.label) }}>
+                    {r.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Campaign Advice */}
+        {advice.length > 0 && (
+          <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+            <div className="px-4 py-2.5 border-b" style={{ borderColor: BORDER }}>
+              <h4 className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest">Campaign Advice</h4>
+            </div>
+            <div className="p-4 space-y-2">
+              {advice.map((tip, i) => (
+                <div key={i} className="flex gap-2 text-[11px] leading-relaxed text-zinc-400">
+                  <span style={{ color: ACCENT }} className="shrink-0">•</span>
+                  {tip}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* All Voter Blocs Table */}
+        <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+          <div className="px-4 py-3 border-b" style={{ borderColor: BORDER }}>
+            <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">All Voter Blocs — {society.countryName}</h3>
+            <p className="text-[9px] font-mono text-zinc-600 mt-0.5 uppercase tracking-widest">
+              {society.blocs.length} blocs · {society.blocs.reduce((s, b) => s + b.populationShare, 0)}% total
+            </p>
+          </div>
+
+          {/* Table Header */}
+          <div className="grid grid-cols-[1fr_60px_100px_36px] gap-0 px-4 py-2"
+            style={{ background: 'rgba(212,169,31,0.05)', borderBottom: `1px solid ${BORDER}` }}>
+            {['Bloc', 'Share', 'Appeal', 'Pts'].map(h => (
+              <div key={h} className="text-[8px] font-mono uppercase tracking-[0.2em]" style={{ color: ACCENT }}>{h}</div>
+            ))}
+          </div>
+
+          {blocResults.map((r, idx) => (
+            <div key={r.bloc.id} className="group"
+              style={{ borderBottom: idx < blocResults.length - 1 ? `1px solid ${BORDER}40` : 'none' }}>
+              {/* Main Row */}
+              <div className="grid grid-cols-[1fr_60px_100px_36px] gap-0 px-4 py-3">
+                <div>
+                  <div className="text-[11px] font-semibold text-zinc-300">{r.bloc.name}</div>
+                  <div className="text-[9px] text-zinc-600 mt-0.5 line-clamp-1">{r.bloc.description}</div>
+                </div>
+                <div className="text-[10px] font-mono font-bold text-zinc-400 self-center">{r.bloc.populationShare}%</div>
+                <div className="self-center">
+                  <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm"
+                    style={{ color: appealLabelColor(r.label), background: appealLabelBg(r.label) }}>
+                    {r.label}
+                  </span>
+                </div>
+                <div className={`text-[10px] font-mono font-bold self-center ${r.finalScore > 0 ? 'text-emerald-400' : r.finalScore < 0 ? 'text-red-400' : 'text-zinc-600'}`}>
+                  {r.finalScore > 0 ? '+' : ''}{r.finalScore}
+                </div>
+              </div>
+              {/* Concerns row */}
+              <div className="px-4 pb-2.5 flex flex-wrap gap-1">
+                {r.bloc.concerns.map(c => (
+                  <span key={c} className="text-[8px] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, color: MUTED }}>{c}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Appeal Score Explanation */}
+        <div className="p-4 rounded-sm" style={{ background: 'rgba(212,169,31,0.05)', border: `1px solid ${BORDER}` }}>
+          <p className="text-[9px] font-mono text-zinc-500 leading-relaxed">
+            Voter Bloc Appeal Score: <span className="font-bold" style={{ color: ACCENT }}>{appealScore >= 0 ? '+' : ''}{appealScore.toFixed(1)}</span> · This score estimates how well your ideology and main promise fit {society.countryName}&apos;s voter structure. · Election Power Impact: <span className="font-bold" style={{ color: ACCENT }}>{vbapPower >= 0 ? '+' : ''}{vbapPower.toFixed(1)}</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PLACEHOLDER COMPONENTS FOR SUBTABS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1392,7 +1650,22 @@ function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
   }, [ctx.partyId]);
 
   // Election strength preview for strategy panel
-  const elStrength = calculateElectionStrength({ partyStats: stats, allocatedFunds: allocatedElectionFunds, hasMainPromise: !!(stats.mainPromise) });
+  // Voter Bloc Appeal
+  let rawPartyForStrategy: any = null;
+  try {
+    const cpRaw = typeof window !== 'undefined' ? localStorage.getItem('worldr_current_party') : null;
+    if (cpRaw) rawPartyForStrategy = JSON.parse(cpRaw);
+  } catch (e) {}
+  const stratIdeologies = extractIdeologies(rawPartyForStrategy || ctx);
+  const stratMainPromise = getMainPromise(ctx.partyId, stats);
+  const stratSociety = getSocietyProfile(ctx.countryName);
+  const stratBlocResults = stratSociety ? calculateBlocAppeal(stratSociety.blocs, stratIdeologies, stratMainPromise) : [];
+  const stratAppealScore = calculateVoterBlocAppealScore(stratBlocResults);
+  const stratVBAPower = voterBlocAppealPower(stratAppealScore);
+  const stratStrongest = stratBlocResults.length > 0 ? [...stratBlocResults].sort((a, b) => b.finalScore - a.finalScore)[0] : null;
+  const stratWeakest = stratBlocResults.length > 0 ? [...stratBlocResults].sort((a, b) => a.finalScore - b.finalScore)[0] : null;
+
+  const elStrength = calculateElectionStrength({ partyStats: stats, allocatedFunds: allocatedElectionFunds, hasMainPromise: !!(stats.mainPromise), voterBlocAppealPower: stratVBAPower } as any);
   const indepStrength = calculateIndependentStrength({ registeredPlayerPartiesCount: 1, totalPlayerRecognition: recognition });
   const lowVS = (elStrength.lowStrength / (elStrength.lowStrength + indepStrength)) * 100;
   const highVS = (elStrength.highStrength / (elStrength.highStrength + indepStrength)) * 100;
@@ -1586,6 +1859,37 @@ function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
               </div>
             </div>
 
+            {/* Voter Bloc Summary */}
+            {stratSociety && (
+              <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+                <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: BORDER }}>
+                  <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Voter Bloc Appeal</h3>
+                  <span className={`text-xs font-bold ${stratAppealScore >= 1 ? 'text-emerald-400' : stratAppealScore < 0 ? 'text-red-400' : 'text-zinc-400'}`}>
+                    {stratAppealScore >= 0 ? '+' : ''}{stratAppealScore.toFixed(1)}
+                  </span>
+                </div>
+                <div className="p-4 space-y-2">
+                  {stratStrongest && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Strongest</span>
+                      <span className="text-[10px] font-semibold text-zinc-300">{stratStrongest.bloc.name}</span>
+                    </div>
+                  )}
+                  {stratWeakest && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Weakest</span>
+                      <span className="text-[10px] font-semibold text-zinc-300">{stratWeakest.bloc.name}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between border-t border-white/[0.04] pt-2 mt-1">
+                    <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Election Power</span>
+                    <span className={`text-[10px] font-bold ${stratVBAPower >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{stratVBAPower >= 0 ? '+' : ''}{stratVBAPower.toFixed(1)}</span>
+                  </div>
+                  <div className="text-[9px] text-zinc-600 mt-1">See <span style={{ color: ACCENT }}>Voter Blocs</span> tab for full society breakdown.</div>
+                </div>
+              </div>
+            )}
+
             {/* Section 4: Recommended Next Steps */}
             <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
               <div className="px-4 py-3 border-b" style={{ borderColor: BORDER }}>
@@ -1685,7 +1989,20 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
   const allocatedFunds = campaign?.allocatedFunds || 0;
   const hasMainPromise = !!(ctx.partyStats?.mainPromise);
 
-  const strength = calculateElectionStrength({ partyStats: ctx.partyStats, allocatedFunds, hasMainPromise });
+  // Voter Bloc Appeal Power integration
+  let elRawParty: any = null;
+  try {
+    const cpRaw = typeof window !== 'undefined' ? localStorage.getItem('worldr_current_party') : null;
+    if (cpRaw) elRawParty = JSON.parse(cpRaw);
+  } catch (e) {}
+  const elIdeologies = extractIdeologies(elRawParty || ctx);
+  const elMainPromise = getMainPromise(ctx.partyId, ctx.partyStats);
+  const elSociety = getSocietyProfile(ctx.countryName);
+  const elBlocResults = elSociety ? calculateBlocAppeal(elSociety.blocs, elIdeologies, elMainPromise) : [];
+  const elAppealScore = calculateVoterBlocAppealScore(elBlocResults);
+  const elVBAPower = voterBlocAppealPower(elAppealScore);
+
+  const strength = calculateElectionStrength({ partyStats: ctx.partyStats, allocatedFunds, hasMainPromise, voterBlocAppealPower: elVBAPower } as any);
   const totalPlayerRecognition = countryParties.reduce((acc: number, p: any) => acc + (p.recognition || 0), 0);
   const independentStrength = calculateIndependentStrength({
     registeredPlayerPartiesCount: Math.max(1, countryParties.length),
@@ -1866,6 +2183,7 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
                   <span className="text-[10px] text-zinc-500">Controversy Penalty</span>
                   <span className={`text-[10px] font-mono font-bold ${strength.controversyPenalty > 0 ? 'text-red-400' : 'text-zinc-600'}`}>-{strength.controversyPenalty.toFixed(2)}</span>
                 </div>
+                <BreakdownRow label={`Voter Bloc Appeal${elAppealScore === 0 ? ' (no ideology/promise)' : ''}`} value={elVBAPower} color={elVBAPower > 0 ? 'text-emerald-400' : elVBAPower < 0 ? 'text-red-400' : 'text-zinc-600'} />
               </div>
               <div className="pt-3 space-y-3">
                 <div className="flex items-center justify-between">
@@ -3088,7 +3406,7 @@ export default function ActionsPage() {
   const [selectedPosId, setSelectedPosId] = useState('party_leader');
   const [hireTarget, setHireTarget] = useState<string | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
-  const [activeSubtab, setActiveSubtab] = useState<'Party HQ' | 'Party Staff' | 'Party Strategy' | 'Budget' | 'Elections' | 'Past Elections' | 'Activity Log'>('Party HQ');
+  const [activeSubtab, setActiveSubtab] = useState<'Party HQ' | 'Party Staff' | 'Party Strategy' | 'Voter Blocs' | 'Budget' | 'Elections' | 'Past Elections' | 'Activity Log'>('Party HQ');
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const [activeResult, setActiveResult] = useState<any>(null);
 
@@ -3738,7 +4056,7 @@ export default function ActionsPage() {
         <div className="shrink-0 flex items-center px-4 md:px-5 border-b overflow-x-auto"
           style={{ height: '34px', background: PANEL2, borderColor: BORDER, scrollbarWidth: 'none' }}>
           <div className="flex gap-2 h-full">
-            {(['Party HQ', 'Party Staff', 'Party Strategy', 'Budget', 'Elections', 'Past Elections', 'Activity Log'] as const).map((tab) => {
+            {(['Party HQ', 'Party Staff', 'Party Strategy', 'Voter Blocs', 'Budget', 'Elections', 'Past Elections', 'Activity Log'] as const).map((tab) => {
               const isActive = activeSubtab === tab;
               return (
                 <button
@@ -3834,6 +4152,8 @@ export default function ActionsPage() {
             <PartyStaffView positions={positions} onHire={setHireTarget} onFire={handleFireStaff} accentColor={ctx.partyColor} />
           ) : activeSubtab === 'Party Strategy' ? (
             <PartyStrategyView ctx={ctx} />
+          ) : activeSubtab === 'Voter Blocs' ? (
+            <VoterBlocsView ctx={ctx} />
           ) : activeSubtab === 'Budget' ? (
             <BudgetView budget={ctx.partyBudget} partyId={ctx.partyId || ''} />
           ) : activeSubtab === 'Elections' ? (
