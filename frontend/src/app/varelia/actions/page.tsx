@@ -123,15 +123,11 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     id: 'party_leader',
     title: 'Party Leader',
     shortTitle: 'Leader',
-    description: 'The founder and public face of the party. Controls major identity, leadership, manifesto approval, promises, and party-level decisions.',
+    description: 'The founder and public face of the party. Controls major identity, leadership, promises, and party-level decisions.',
     actions: [
       { id: 'pl_speech', name: 'Give Public Speech', description: 'Build early recognition through a public address to citizens.', category: 'Outreach' },
       { id: 'pl_direction', name: 'Set Party Direction', description: "Define the movement's immediate political focus and goals.", category: 'Strategy' },
-      { id: 'pl_meeting', name: 'Call Internal Meeting', description: 'Improve internal discipline and prepare party organization.', category: 'Internal' },
-      { id: 'pl_manifesto', name: 'Approve Manifesto', description: "Review and formally approve the party's official political platform.", category: 'Policy' },
       { id: 'pl_promise', name: 'Declare Main Promise', description: "Announce the central promise that defines the party's campaign.", category: 'Campaign' },
-      { id: 'pl_redo_char', name: 'Redo Character', description: 'Update your character’s personal details while keeping your party, country, and progress intact.', category: 'Leader' },
-      { id: 'pl_rebrand_party', name: 'Rebrand Political Party', description: 'Update your party name, abbreviation, logo, color, description, and ideological presentation.', category: 'Leadership' },
       { id: 'pl_dissolve', name: 'Dissolve Political Party', description: 'Permanently dissolve your registered political party. This releases the party abbreviation and removes the party from public records.', category: 'Leadership' },
     ],
   },
@@ -161,18 +157,6 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     ],
   },
   {
-    id: 'policyDirector',
-    title: 'Policy Director',
-    shortTitle: 'Policy',
-    description: "Creates manifesto drafts, policy plans, political programs, and future bill ideas.",
-    actions: [
-      { id: 'pd_manifesto', name: 'Write Party Manifesto', description: "Draft the party's official comprehensive policy platform.", category: 'Policy' },
-      { id: 'pd_economic', name: 'Draft Economic Policy', description: 'Prepare a formal economic strategy and fiscal direction.', category: 'Policy' },
-      { id: 'pd_corruption', name: 'Draft Anti-Corruption Plan', description: 'Develop a formal plan to address government corruption.', category: 'Policy' },
-      { id: 'pd_bill', name: 'Prepare Bill Idea', description: 'Draft a preliminary legislative bill concept for review.', category: 'Policy' },
-    ],
-  },
-  {
     id: 'membershipOfficer',
     title: 'Membership Officer',
     shortTitle: 'Membership',
@@ -181,6 +165,18 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
       { id: 'mo_recruit', name: 'Recruit Members', description: 'Run a targeted campaign to attract new party members.', category: 'Growth' },
       { id: 'mo_youth', name: 'Start Youth Membership Drive', description: 'Target young citizens for party membership enrollment.', category: 'Growth' },
       { id: 'mo_booth', name: 'Open Membership Booth', description: 'Set up a public registration booth in a busy location.', category: 'Outreach' },
+    ],
+  },
+  {
+    id: 'publicImageManager',
+    title: 'Public Image Manager',
+    shortTitle: 'Image',
+    description: 'Manages the leader’s public image, party identity, branding, messaging style, visual image, and political presentation.',
+    actions: [
+      { id: 'pim_redo_char', name: 'Redo Character', description: 'Update your character’s personal details while keeping your party, country, and progress intact.', category: 'Identity' },
+      { id: 'pim_rebrand_party', name: 'Rebrand Political Party', description: 'Update your party name, abbreviation, logo, color, description, and ideological presentation.', category: 'Branding' },
+      { id: 'pim_leader_image', name: 'Refresh Leader Image', description: 'Run a targeted media campaign to improve the leader’s personal appeal.', category: 'Image' },
+      { id: 'pim_party_branding', name: 'Improve Party Branding', description: 'Modernize party visuals and messaging to attract a broader audience.', category: 'Branding' },
     ],
   },
 ];
@@ -305,7 +301,7 @@ function calculateStaffSalary(countryInfo: any, positionId: string, skill: numbe
   let rolePrestigeMultiplier = 1.00;
   if (positionId === 'treasurer') rolePrestigeMultiplier = 1.35;
   else if (positionId === 'campaignMediaManager') rolePrestigeMultiplier = 1.35;
-  else if (positionId === 'policyDirector') rolePrestigeMultiplier = 1.45;
+  else if (positionId === 'publicImageManager') rolePrestigeMultiplier = 1.25;
   else if (positionId === 'membershipOfficer') rolePrestigeMultiplier = 1.00;
 
   const skillMultiplier = 0.75 + (skill / 100) * 0.95;
@@ -363,7 +359,7 @@ function HireStaffModal({ positionId, positionTitle, onClose, onHireSuccess, cou
       let allTraits = ['Charismatic', 'Connected', 'Organized', 'Ruthless', 'Popular', 'Wealthy', 'Respected'];
       if (positionId === 'treasurer') allTraits = ['Careful Accountant', 'Elite Donor Network', 'Business Circle', 'Anti-Corruption Auditor'];
       else if (positionId === 'campaignMediaManager') allTraits = ['Grassroots Organizer', 'Charismatic Planner', 'Media Friendly', 'Sharp Debater', 'Urban Campaigner', 'Rally Organizer', 'Public Messaging Expert', 'Newspaper Contact'];
-      else if (positionId === 'policyDirector') allTraits = ['Academic Thinker', 'Reform Planner', 'Economic Technocrat', 'Welfare Advocate', 'Legal Scholar'];
+      else if (positionId === 'publicImageManager') allTraits = ['Image Consultant', 'Public Branding Expert', 'Reputation Handler', 'Political Stylist', 'Message Designer', 'Brand Strategist', 'Crisis Image Planner'];
       else if (positionId === 'membershipOfficer') allTraits = ['Youth Organizer', 'Community Recruiter', 'Grassroots Connector', 'Activist Network'];
 
       const trait = allTraits[Math.floor(Math.random() * allTraits.length)];
@@ -540,20 +536,13 @@ function PositionList({
 function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger, ctx }: { action: PartyAction; positionTitle: string; accentColor: string; isFilled?: boolean; onTrigger?: (id: string) => void; ctx?: PlayerCtx }) {
   const catColor = CATEGORY_COLORS[action.category] ?? '#3a4238';
   const isDissolve = action.id === 'pl_dissolve';
-  const isRedoChar = action.id === 'pl_redo_char';
-  const isRebrandParty = action.id === 'pl_rebrand_party';
+  const isRedoChar = action.id === 'pim_redo_char';
+  const isRebrandParty = action.id === 'pim_rebrand_party';
   
-  const implementedIds = ['mo_recruit', 'tr_donation', 'pd_manifesto', 'pl_manifesto', 'pl_promise', 'cm_rally', 'meo_statement'];
+  const implementedIds = ['mo_recruit', 'tr_donation', 'pl_promise', 'cm_rally', 'meo_statement'];
   const isImplementedAction = implementedIds.includes(action.id);
   
-  const manifesto = ctx?.partyStats?.manifestoStatus || 'Not Written';
   let preconditionError = '';
-  if (action.id === 'pl_manifesto') {
-    if (manifesto === 'Not Written') preconditionError = 'Write a manifesto first.';
-    else if (manifesto === 'Approved') preconditionError = 'Manifesto already approved.';
-  } else if (action.id === 'pd_manifesto') {
-    if (manifesto === 'Approved') preconditionError = 'Manifesto is already approved.';
-  }
   
   const isLockedByPrecondition = !!preconditionError;
 
@@ -910,7 +899,7 @@ function DissolvePartyModal({ onCancel, onConfirm }: { onCancel: () => void; onC
   );
 }
 
-function RedoCharModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+function RedoCharModal({ onCancel, onConfirm, canAfford }: { onCancel: () => void; onConfirm: () => void; canAfford: boolean }) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
     document.addEventListener('keydown', h);
@@ -938,6 +927,15 @@ function RedoCharModal({ onCancel, onConfirm }: { onCancel: () => void; onConfir
           <p className="text-[11px] leading-relaxed text-zinc-400">
             You can update your character name, family name, age, and gender. Your party, country, and political progress will remain unchanged.
           </p>
+          <div className="mt-4 flex items-center justify-between p-3 rounded-sm" style={{ background: 'rgba(212,169,31,0.08)', border: '1px solid rgba(212,169,31,0.2)' }}>
+             <span className="text-[10px] font-mono text-amber-500/70 uppercase tracking-widest">Identity Cost</span>
+             <span className="text-xs font-bold text-amber-400">$500,000</span>
+          </div>
+          {!canAfford && (
+            <div className="mt-2 text-[10px] font-mono text-red-400 uppercase tracking-widest text-center">
+              Insufficient party funds. Requires $500,000.
+            </div>
+          )}
         </div>
         <div className="px-5 pb-5 flex gap-3">
           <button type="button" onClick={onCancel}
@@ -945,10 +943,10 @@ function RedoCharModal({ onCancel, onConfirm }: { onCancel: () => void; onConfir
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa', borderRadius: '2px' }}>
             Cancel
           </button>
-          <button type="button" onClick={onConfirm}
-            className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
+          <button type="button" onClick={onConfirm} disabled={!canAfford}
+            className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: 'rgba(212,169,31,0.14)', border: '1px solid rgba(212,169,31,0.40)', color: '#d4a91f', borderRadius: '2px' }}>
-            Continue to Editor
+            Pay & Edit
           </button>
         </div>
       </div>
@@ -956,7 +954,7 @@ function RedoCharModal({ onCancel, onConfirm }: { onCancel: () => void; onConfir
   );
 }
 
-function RebrandPartyModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+function RebrandPartyModal({ onCancel, onConfirm, canAfford }: { onCancel: () => void; onConfirm: () => void; canAfford: boolean }) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
     document.addEventListener('keydown', h);
@@ -984,6 +982,15 @@ function RebrandPartyModal({ onCancel, onConfirm }: { onCancel: () => void; onCo
           <p className="text-[11px] leading-relaxed text-zinc-400">
             You can update your party identity. Existing public records will reflect the new party details.
           </p>
+          <div className="mt-4 flex items-center justify-between p-3 rounded-sm" style={{ background: 'rgba(212,169,31,0.08)', border: '1px solid rgba(212,169,31,0.2)' }}>
+             <span className="text-[10px] font-mono text-amber-500/70 uppercase tracking-widest">Branding Cost</span>
+             <span className="text-xs font-bold text-amber-400">$500,000</span>
+          </div>
+          {!canAfford && (
+            <div className="mt-2 text-[10px] font-mono text-red-400 uppercase tracking-widest text-center">
+              Insufficient party funds. Requires $500,000.
+            </div>
+          )}
         </div>
         <div className="px-5 pb-5 flex gap-3">
           <button type="button" onClick={onCancel}
@@ -991,10 +998,10 @@ function RebrandPartyModal({ onCancel, onConfirm }: { onCancel: () => void; onCo
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa', borderRadius: '2px' }}>
             Cancel
           </button>
-          <button type="button" onClick={onConfirm}
-            className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
+          <button type="button" onClick={onConfirm} disabled={!canAfford}
+            className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: 'rgba(212,169,31,0.14)', border: '1px solid rgba(212,169,31,0.40)', color: '#d4a91f', borderRadius: '2px' }}>
-            Continue to Rebrand
+            Pay & Rebrand
           </button>
         </div>
       </div>
@@ -1273,11 +1280,8 @@ function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
 
   if (!staffDb.campaignMediaManager) nextSteps.push("Hire a Campaign & Media Manager.");
   if (!staffDb.treasurer) nextSteps.push("Hire a Treasurer.");
-  if (!staffDb.policyDirector) nextSteps.push("Hire a Policy Director.");
+  if (!staffDb.publicImageManager) nextSteps.push("Hire a Public Image Manager if image actions are needed.");
   if (!staffDb.membershipOfficer) nextSteps.push("Hire a Membership Officer.");
-
-  if (stats.manifestoStatus === "Not Written") nextSteps.push("Hire a Policy Director to write a Party Manifesto.");
-  else if (stats.manifestoStatus !== "Approved") nextSteps.push("Approve the Party Manifesto to finalize your platform.");
   if (!stats.mainPromise) nextSteps.push("Declare a Main Promise to rally voters.");
   if (nextSteps.length === 0) nextSteps.push("Your party is well positioned. Focus on maintaining public trust and raising funds.");
 
@@ -1380,16 +1384,12 @@ function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
           </div>
 
           <div className="space-y-6">
-            {/* Section 3: Manifesto & Promise */}
+            {/* Section 3: Platform */}
             <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
               <div className="px-4 py-3 border-b" style={{ borderColor: BORDER }}>
                  <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Platform</h3>
               </div>
               <div className="p-4 space-y-4">
-                 <div>
-                   <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Manifesto Status</div>
-                   <div className="text-sm font-semibold text-zinc-200">{stats.manifestoStatus || 'Not Written'}</div>
-                 </div>
                  <div>
                    <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Main Promise</div>
                    <div className="text-sm font-semibold text-emerald-400">{stats.mainPromise || 'None Declared'}</div>
@@ -1597,7 +1597,6 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
             <div className="px-5 py-4 border-t" style={{ borderColor: BORDER, background: 'rgba(255,255,255,0.01)' }}>
                <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-3">Optional Preparation Checklist</div>
                <ul className="space-y-2 text-[11px] text-zinc-400">
-                 <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Manifesto</li>
                  <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Main Promise</li>
                  <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Campaign Staff</li>
                  <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Party Members</li>
@@ -1691,9 +1690,8 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
                 <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Campaign Strength</span><span className="text-xs font-semibold text-zinc-300">{campaignStrength.toFixed(1)}</span></div>
                 <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Media Presence</span><span className="text-xs font-semibold text-zinc-300">{mediaPresence.toFixed(1)}</span></div>
              </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t" style={{ borderColor: BORDER }}>
-                <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Manifesto Status</span><span className="text-xs font-semibold text-zinc-300">{ctx.partyStats?.manifestoStatus || 'Not Written'}</span></div>
-                <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Main Promise</span><span className="text-xs font-semibold text-zinc-300">{ctx.partyStats?.mainPromise || 'None'}</span></div>
+             <div className="mt-4 pt-4 border-t" style={{ borderColor: BORDER }}>
+                <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Main Promise</span><span className="text-xs font-semibold text-zinc-300">{ctx.partyStats?.mainPromise || 'None Declared'}</span></div>
              </div>
           </div>
         </div>
@@ -1903,7 +1901,7 @@ function ActionExecutionModal({
 
   if (!position || !action || !staff) return null;
 
-  const implementedIds = ['mo_recruit', 'tr_donation', 'pd_manifesto', 'pl_manifesto', 'pl_promise', 'cm_rally', 'meo_statement'];
+  const implementedIds = ['mo_recruit', 'tr_donation', 'pl_promise', 'cm_rally', 'meo_statement'];
   const isImplemented = implementedIds.includes(actionId);
   
   if (!isImplemented) {
@@ -1944,14 +1942,7 @@ function ActionExecutionModal({
     { base: 300000, mult: 2.10 },
   ];
   
-  if (actionId === 'pl_manifesto') {
-    baseTiers = [
-      { base: 5000, mult: 1.00 },
-      { base: 15000, mult: 1.25 },
-      { base: 40000, mult: 1.60 },
-      { base: 100000, mult: 2.10 },
-    ];
-  } else if (actionId === 'meo_statement') {
+  if (actionId === 'meo_statement') {
     baseTiers = [
       { base: 10000, mult: 1.00 },
       { base: 30000, mult: 1.25 },
@@ -1997,7 +1988,7 @@ function ActionExecutionModal({
       let controversyGain = 0;
       let mediaPresenceGain = 0;
       
-      let updatedManifestoStatus = ctx.partyStats?.manifestoStatus || 'Not Written';
+
       let updatedMainPromise = ctx.partyStats?.mainPromise || '';
       
       if (actionId === 'mo_recruit') {
@@ -2038,59 +2029,6 @@ function ActionExecutionModal({
       else if (finalScore < 9.5) { percent = 1.70 + Math.random() * 0.35; recognitionGain = 0.45 + Math.random() * 0.25; }
       else { percent = 2.05 + Math.random() * 0.15; recognitionGain = 0.70 + Math.random() * 0.30; }
       
-    } else if (actionId === 'pd_manifesto') {
-      if (finalScore < 0) {
-        policyCredibilityGain = 0;
-      } else if (finalScore < 2) {
-        policyCredibilityGain = 0.2 + Math.random() * 0.3;
-      } else if (finalScore < 4) {
-        updatedManifestoStatus = 'Drafted';
-        policyCredibilityGain = 0.5 + Math.random() * 0.7;
-        recognitionGain = 0.02 + Math.random() * 0.03;
-      } else if (finalScore < 6) {
-        updatedManifestoStatus = 'Drafted';
-        policyCredibilityGain = 1.2 + Math.random() * 1.3;
-        recognitionGain = 0.05 + Math.random() * 0.05;
-      } else if (finalScore < 8) {
-        updatedManifestoStatus = 'Strong Draft';
-        policyCredibilityGain = 2.5 + Math.random() * 1.5;
-        recognitionGain = 0.10 + Math.random() * 0.08;
-      } else if (finalScore < 9.5) {
-        updatedManifestoStatus = 'Major Draft';
-        policyCredibilityGain = 4.0 + Math.random() * 2.0;
-        recognitionGain = 0.18 + Math.random() * 0.07;
-      } else {
-        updatedManifestoStatus = 'Major Draft';
-        policyCredibilityGain = 6.0 + Math.random() * 2.0;
-        recognitionGain = 0.25 + Math.random() * 0.10;
-      }
-    } else if (actionId === 'pl_manifesto') {
-      if (finalScore < 0) {
-        internalUnityGain = -0.5;
-      } else if (finalScore < 2) {
-        updatedManifestoStatus = 'Approved';
-        policyCredibilityGain = 0.2;
-      } else if (finalScore < 4) {
-        updatedManifestoStatus = 'Approved';
-        policyCredibilityGain = 0.5;
-        internalUnityGain = 0.2;
-      } else if (finalScore < 6) {
-        updatedManifestoStatus = 'Approved';
-        policyCredibilityGain = 1.0;
-        internalUnityGain = 0.5;
-      } else if (finalScore < 8) {
-        updatedManifestoStatus = 'Approved';
-        policyCredibilityGain = 1.5;
-        internalUnityGain = 1.0;
-      } else if (finalScore < 9.5) {
-        updatedManifestoStatus = 'Approved';
-        policyCredibilityGain = 2.0;
-        internalUnityGain = 1.5;
-      } else {
-        updatedManifestoStatus = 'Approved';
-        policyCredibilityGain = 3.0;
-        internalUnityGain = 2.0;
-      }
     } else if (actionId === 'pl_promise') {
       if (finalScore < 0) {
         controversyGain = 0.2;
@@ -2200,7 +2138,7 @@ function ActionExecutionModal({
       supportGain,
       controversyGain,
       mediaPresenceGain,
-      updatedManifestoStatus,
+
       updatedMainPromise,
     };
   
@@ -2555,7 +2493,7 @@ export default function ActionsPage() {
       } else if (partyId) {
         partyStats = {
           partyId, members: 1, volunteers: 0, recognition: 0, support: 0.1, internalUnity: 100, controversy: 0,
-          publicTrust: 0, manifestoStatus: "Not Written", mainPromise: "", policyCredibility: 0, legalReadiness: 0, campaignStrength: 0, mediaPresence: 0,
+          publicTrust: 0, mainPromise: "", policyCredibility: 0, legalReadiness: 0, campaignStrength: 0, mediaPresence: 0,
           regionalReach: 0, businessFavorability: 0, ruralFavorability: 0, youthFavorability: 0,
           workerFavorability: 0, traditionalFavorability: 0
         };
@@ -2677,7 +2615,7 @@ export default function ActionsPage() {
     updatedStats.controversy = (updatedStats.controversy || 0) + result.controversyGain;
     updatedStats.mediaPresence = (updatedStats.mediaPresence || 0) + result.mediaPresenceGain;
     
-    if (result.updatedManifestoStatus) updatedStats.manifestoStatus = result.updatedManifestoStatus;
+
     if (result.updatedMainPromise) updatedStats.mainPromise = result.updatedMainPromise;
 
     let updatedBudget = ctx.partyBudget || { partyId: ctx.partyId, partyFunds: 2000000, totalRevenue: 0, totalExpenses: 0, monthlyRevenue: 0, otherExpenses: 0 };
@@ -2752,10 +2690,7 @@ export default function ActionsPage() {
       } else if (result.actionId === 'tr_donation') {
         const net = result.moneyRaised - result.investment;
         summaryStr = `Treasurer raised ${formatMoney(result.moneyRaised)} from a small donation drive. Net funds changed by ${net >= 0 ? '+' : '-'}${formatMoney(Math.abs(net))}.`;
-      } else if (result.actionId === 'pd_manifesto') {
-        summaryStr = `Policy Director drafted a party manifesto with a ${result.quality.toLowerCase()} result.`;
-      } else if (result.actionId === 'pl_manifesto') {
-        summaryStr = `Party Leader approved the manifesto.`;
+
       } else if (result.actionId === 'pl_promise') {
         summaryStr = `Party Leader declared ${result.updatedMainPromise || 'a new policy'} as the party's main promise.`;
       } else if (result.actionId === 'cm_rally') {
@@ -2787,10 +2722,90 @@ export default function ActionsPage() {
   };
 
   const handleConfirmRedoChar = () => {
+    if (ctx.partyFunds < 500000) return;
+    const updatedFunds = ctx.partyFunds - 500000;
+    
+    let updatedBudget = ctx.partyBudget || { partyId: ctx.partyId, partyFunds: 2000000, totalRevenue: 0, totalExpenses: 0, monthlyRevenue: 0, otherExpenses: 0 };
+    updatedBudget.partyFunds = updatedFunds;
+    updatedBudget.totalExpenses += 500000;
+    
+    const txRaw = localStorage.getItem('worldr_party_transactions');
+    const transactions = txRaw ? JSON.parse(txRaw) : [];
+    transactions.unshift({
+      id: Math.random().toString(36).substring(2, 9),
+      partyId: ctx.partyId,
+      type: "expense",
+      category: "Identity Management",
+      source: "Redo Character",
+      amount: 500000,
+      actionName: "Redo Character",
+      createdAt: new Date().toISOString()
+    });
+    const logRaw = localStorage.getItem('worldr_activity_log');
+    const logs = logRaw ? JSON.parse(logRaw) : [];
+    logs.unshift({
+      id: Math.random().toString(36).substring(2, 9),
+      partyId: ctx.partyId,
+      countryName: ctx.countryName,
+      continentName: ctx.continentName,
+      actionName: "Redo Character",
+      roleName: "Public Image Manager",
+      officialName: "Staff",
+      investment: 500000,
+      finalScore: 10,
+      resultQuality: "Success",
+      summary: `Public Image Manager initiated character identity changes.`,
+      createdAt: new Date().toISOString()
+    });
+    localStorage.setItem('worldr_party_budget', JSON.stringify(updatedBudget));
+    localStorage.setItem('worldr_party_transactions', JSON.stringify(transactions));
+    localStorage.setItem('worldr_activity_log', JSON.stringify(logs));
+    setCtx({ ...ctx, partyFunds: updatedFunds, partyBudget: updatedBudget });
+    
     router.push('/onboarding/create-character?mode=edit');
   };
 
   const handleConfirmRebrandParty = () => {
+    if (ctx.partyFunds < 500000) return;
+    const updatedFunds = ctx.partyFunds - 500000;
+    
+    let updatedBudget = ctx.partyBudget || { partyId: ctx.partyId, partyFunds: 2000000, totalRevenue: 0, totalExpenses: 0, monthlyRevenue: 0, otherExpenses: 0 };
+    updatedBudget.partyFunds = updatedFunds;
+    updatedBudget.totalExpenses += 500000;
+    
+    const txRaw = localStorage.getItem('worldr_party_transactions');
+    const transactions = txRaw ? JSON.parse(txRaw) : [];
+    transactions.unshift({
+      id: Math.random().toString(36).substring(2, 9),
+      partyId: ctx.partyId,
+      type: "expense",
+      category: "Party Branding",
+      source: "Rebrand Political Party",
+      amount: 500000,
+      actionName: "Rebrand Political Party",
+      createdAt: new Date().toISOString()
+    });
+    const logRaw = localStorage.getItem('worldr_activity_log');
+    const logs = logRaw ? JSON.parse(logRaw) : [];
+    logs.unshift({
+      id: Math.random().toString(36).substring(2, 9),
+      partyId: ctx.partyId,
+      countryName: ctx.countryName,
+      continentName: ctx.continentName,
+      actionName: "Rebrand Political Party",
+      roleName: "Public Image Manager",
+      officialName: "Staff",
+      investment: 500000,
+      finalScore: 10,
+      resultQuality: "Success",
+      summary: `Public Image Manager initiated a party rebrand.`,
+      createdAt: new Date().toISOString()
+    });
+    localStorage.setItem('worldr_party_budget', JSON.stringify(updatedBudget));
+    localStorage.setItem('worldr_party_transactions', JSON.stringify(transactions));
+    localStorage.setItem('worldr_activity_log', JSON.stringify(logs));
+    setCtx({ ...ctx, partyFunds: updatedFunds, partyBudget: updatedBudget });
+    
     router.push('/onboarding/create-party?mode=edit');
   };
 
@@ -2852,8 +2867,8 @@ export default function ActionsPage() {
         />
       )}
       {showDissolveModal && <DissolvePartyModal onCancel={() => setShowDissolveModal(false)} onConfirm={handleConfirmDissolve} />}
-      {showRedoCharModal && <RedoCharModal onCancel={() => setShowRedoCharModal(false)} onConfirm={handleConfirmRedoChar} />}
-      {showRebrandPartyModal && <RebrandPartyModal onCancel={() => setShowRebrandPartyModal(false)} onConfirm={handleConfirmRebrandParty} />}
+      {showRedoCharModal && <RedoCharModal onCancel={() => setShowRedoCharModal(false)} onConfirm={handleConfirmRedoChar} canAfford={ctx.partyFunds >= 500000} />}
+      {showRebrandPartyModal && <RebrandPartyModal onCancel={() => setShowRebrandPartyModal(false)} onConfirm={handleConfirmRebrandParty} canAfford={ctx.partyFunds >= 500000} />}
       
       {activeActionId && (
         <ActionExecutionModal 
