@@ -601,6 +601,15 @@ function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger, ctx 
                 }}>
                 Identity
               </span>
+              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
+                style={{
+                  background: 'rgba(212,169,31,0.12)',
+                  color: '#d4a91f',
+                  border: '1px solid rgba(212,169,31,0.25)',
+                  borderRadius: '2px',
+                }}>
+                Public Image Manager
+              </span>
             </>
           ) : isRebrandParty ? (
             <>
@@ -621,6 +630,15 @@ function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger, ctx 
                   borderRadius: '2px',
                 }}>
                 Party Identity
+              </span>
+              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
+                style={{
+                  background: 'rgba(212,169,31,0.12)',
+                  color: '#d4a91f',
+                  border: '1px solid rgba(212,169,31,0.25)',
+                  borderRadius: '2px',
+                }}>
+                Public Image Manager
               </span>
             </>
           ) : (
@@ -665,29 +683,31 @@ function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger, ctx 
           </button>
         ) : isRedoChar ? (
           <button type="button"
+            disabled={!isFilled || (ctx?.partyFunds ?? 0) < 500000}
             onClick={() => onTrigger && onTrigger(action.id)}
-            className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1 transition-colors hover:bg-amber-800/30"
+            className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1 transition-colors hover:bg-amber-800/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             style={{
-              color: '#d4a91f',
-              background: 'rgba(212,169,31,0.08)',
-              border: '1px solid rgba(212,169,31,0.28)',
+              color: (!isFilled || (ctx?.partyFunds ?? 0) < 500000) ? '#4a5045' : '#d4a91f',
+              background: (!isFilled || (ctx?.partyFunds ?? 0) < 500000) ? 'rgba(255,255,255,0.01)' : 'rgba(212,169,31,0.08)',
+              border: (!isFilled || (ctx?.partyFunds ?? 0) < 500000) ? `1px solid ${BORDER}` : '1px solid rgba(212,169,31,0.28)',
               borderRadius: '2px',
-              cursor: 'pointer',
+              cursor: (!isFilled || (ctx?.partyFunds ?? 0) < 500000) ? 'not-allowed' : 'pointer',
             }}>
-            Edit Character
+            {!isFilled ? "Hire a Public Image Manager to use image and identity actions." : ((ctx?.partyFunds ?? 0) < 500000) ? "Insufficient party funds. Requires $500,000." : "$500,000 · Edit Character"}
           </button>
         ) : isRebrandParty ? (
           <button type="button"
+            disabled={!isFilled || (ctx?.partyFunds ?? 0) < 500000}
             onClick={() => onTrigger && onTrigger(action.id)}
-            className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1 transition-colors hover:bg-amber-800/30"
+            className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1 transition-colors hover:bg-amber-800/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             style={{
-              color: '#d4a91f',
-              background: 'rgba(212,169,31,0.08)',
-              border: '1px solid rgba(212,169,31,0.28)',
+              color: (!isFilled || (ctx?.partyFunds ?? 0) < 500000) ? '#4a5045' : '#d4a91f',
+              background: (!isFilled || (ctx?.partyFunds ?? 0) < 500000) ? 'rgba(255,255,255,0.01)' : 'rgba(212,169,31,0.08)',
+              border: (!isFilled || (ctx?.partyFunds ?? 0) < 500000) ? `1px solid ${BORDER}` : '1px solid rgba(212,169,31,0.28)',
               borderRadius: '2px',
-              cursor: 'pointer',
+              cursor: (!isFilled || (ctx?.partyFunds ?? 0) < 500000) ? 'not-allowed' : 'pointer',
             }}>
-            Edit Party
+            {!isFilled ? "Hire a Public Image Manager to use image and identity actions." : ((ctx?.partyFunds ?? 0) < 500000) ? "Insufficient party funds. Requires $500,000." : "$500,000 · Edit Party"}
           </button>
         ) : (
           <button type="button"
@@ -2590,9 +2610,9 @@ export default function ActionsPage() {
   const handleTriggerAction = (actionId: string) => {
     if (actionId === 'pl_dissolve') {
       setShowDissolveModal(true);
-    } else if (actionId === 'pl_redo_char') {
+    } else if (actionId === 'pim_redo_char') {
       setShowRedoCharModal(true);
-    } else if (actionId === 'pl_rebrand_party') {
+    } else if (actionId === 'pim_rebrand_party') {
       setShowRebrandPartyModal(true);
     } else {
       setActiveActionId(actionId);
