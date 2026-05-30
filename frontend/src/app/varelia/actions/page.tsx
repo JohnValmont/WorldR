@@ -137,7 +137,7 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     shortTitle: 'Treasurer',
     description: 'Manages party funds, donations, financial discipline, fundraising, and budget-related work.',
     actions: [
-      { id: 'tr_donation', name: 'Small Donation Drive', description: 'Run a small public donation campaign to grow party funds.', category: 'Funding' },
+      { id: 'smallDonationDrive', name: 'Small Donation Drive', description: 'Run a small public donation campaign to grow party funds.', category: 'Funding' },
       { id: 'tr_fees', name: 'Membership Fee Collection', description: 'Collect monthly dues from registered party members.', category: 'Funding' },
       { id: 'tr_business', name: 'Business Funding Meeting', description: 'Meet business owners to secure financial backing.', category: 'Funding' },
       { id: 'tr_audit', name: 'Audit Party Accounts', description: 'Review financial records to ensure accuracy and compliance.', category: 'Admin' },
@@ -149,11 +149,11 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     shortTitle: 'Campaign',
     description: 'Handles rallies, public campaigns, voter outreach, media messaging, party statements, interviews, and public visibility.',
     actions: [
-      { id: 'cm_door', name: 'Door-to-Door Campaign', description: 'Canvass residential areas to meet voters directly.', category: 'Campaign' },
+      { id: 'doorToDoorCampaign', name: 'Door-to-Door Campaign', description: 'Canvass residential areas to meet voters directly.', category: 'Campaign' },
       { id: 'cm_rally', name: 'Hold Local Rally', description: 'Organize a public rally to energize supporters.', category: 'Campaign' },
       { id: 'cm_survey', name: 'Voter Survey', description: 'Conduct surveys to understand voter priorities.', category: 'Research' },
       { id: 'meo_statement', name: 'Publish Party Statement', description: 'Issue a formal written declaration from the party.', category: 'Media' },
-      { id: 'sp_interview', name: 'Give Interview', description: 'Participate in a media interview to communicate party stance.', category: 'Media' },
+      { id: 'giveInterview', name: 'Give Interview', description: 'Participate in a media interview to communicate party stance.', category: 'Media' },
     ],
   },
   {
@@ -164,7 +164,7 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     actions: [
       { id: 'mo_recruit', name: 'Recruit Members', description: 'Run a targeted campaign to attract new party members.', category: 'Growth' },
       { id: 'mo_youth', name: 'Start Youth Membership Drive', description: 'Target young citizens for party membership enrollment.', category: 'Growth' },
-      { id: 'mo_booth', name: 'Open Membership Booth', description: 'Set up a public registration booth in a busy location.', category: 'Outreach' },
+      { id: 'openMembershipBooth', name: 'Open Membership Booth', description: 'Set up a public registration booth in a busy location.', category: 'Outreach' },
     ],
   },
   {
@@ -539,12 +539,27 @@ function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger, ctx 
   const isRedoChar = action.id === 'pim_redo_char';
   const isRebrandParty = action.id === 'pim_rebrand_party';
   
-  const implementedIds = ['mo_recruit', 'tr_donation', 'pl_promise', 'cm_rally', 'meo_statement'];
+  const implementedIds = ['mo_recruit', 'smallDonationDrive', 'pl_promise', 'cm_rally', 'meo_statement', 'doorToDoorCampaign', 'giveInterview', 'openMembershipBooth'];
   const isImplementedAction = implementedIds.includes(action.id);
   
   let preconditionError = '';
   
   const isLockedByPrecondition = !!preconditionError;
+
+  const ACTION_HINTS: Record<string, string> = {
+    'mo_recruit': 'Main effects: +Members, small +Recognition, tiny +Public Trust',
+    'smallDonationDrive': 'Main effects: +Party Funds, tiny +Recognition',
+    'cm_rally': 'Main effects: +Recognition, +Polling Support, small +Public Trust',
+    'meo_statement': 'Main effects: +Media Presence, small +Recognition',
+    'doorToDoorCampaign': 'Main effects: +Public Trust, +Polling Support, small +Recognition',
+    'giveInterview': 'Main effects: +Media Presence, +Recognition, possible +Controversy on poor result',
+    'openMembershipBooth': 'Main effects: +Members, small +Recognition',
+    'pl_promise': 'Main effects: sets one Main Promise for this election, small +Recognition, small +Polling Support on strong result',
+    'pim_redo_char': 'Management action: costs $500,000 and edits character identity',
+    'pim_rebrand_party': 'Management action: costs $500,000 and edits party identity',
+    'pl_dissolve': 'Danger action: permanently dissolves party and releases abbreviation',
+  };
+  const effectHint = ACTION_HINTS[action.id] || 'Effect hint: Coming soon';
 
   return (
     <div className="flex items-center gap-4 px-4 py-3 transition-colors duration-100"
@@ -664,6 +679,7 @@ function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger, ctx 
           </span>
         </div>
         <p className="text-[11px] leading-snug truncate" style={{ color: MUTED }}>{action.description}</p>
+        <p className="text-[9px] mt-0.5 leading-snug truncate" style={{ color: '#68735b' }}>{effectHint}</p>
       </div>
 
       {/* Right: Coming Soon or Danger Action */}
@@ -712,15 +728,15 @@ function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger, ctx 
         ) : (
           <button type="button"
             disabled={!isImplementedAction || !isFilled || isLockedByPrecondition}
-            onClick={() => onTrigger && onTrigger(action.id)}
-            className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1 transition-colors hover:bg-white/10"
+            onClick={() => { if (isImplementedAction && onTrigger) onTrigger(action.id); }}
+            className={`text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1 transition-colors ${isImplementedAction ? 'hover:bg-white/10' : ''}`}
             style={{
               color: isImplementedAction ? (isFilled && !isLockedByPrecondition ? '#b8bcb4' : '#3d4238') : '#4a5045',
-              background: isImplementedAction ? (isFilled && !isLockedByPrecondition ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)') : 'rgba(255,255,255,0.01)',
-              border: `1px solid ${isImplementedAction ? (isFilled && !isLockedByPrecondition ? '#5a6058' : BORDER) : BORDER}`,
+              background: isImplementedAction ? (isFilled && !isLockedByPrecondition ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)') : 'transparent',
+              border: `1px solid ${isImplementedAction ? (isFilled && !isLockedByPrecondition ? '#5a6058' : BORDER) : 'transparent'}`,
               borderRadius: '2px',
-              cursor: isImplementedAction ? (isFilled && !isLockedByPrecondition ? 'pointer' : 'not-allowed') : 'not-allowed',
-              opacity: isImplementedAction ? 1 : 0.4,
+              cursor: isImplementedAction ? (isFilled && !isLockedByPrecondition ? 'pointer' : 'not-allowed') : 'default',
+              opacity: isImplementedAction ? 1 : 0.3,
             }}>
             {!isImplementedAction ? 'Coming Soon' : (!isFilled ? `Locked - Hire ${positionTitle.split(' ')[0]}` : isLockedByPrecondition ? preconditionError : 'Execute Action')}
           </button>
@@ -1303,6 +1319,12 @@ function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
   if (!staffDb.publicImageManager) nextSteps.push("Hire a Public Image Manager if image actions are needed.");
   if (!staffDb.membershipOfficer) nextSteps.push("Hire a Membership Officer.");
   if (!stats.mainPromise) nextSteps.push("Declare a Main Promise to rally voters.");
+  
+  if (support < 2.0) nextSteps.push("Use Door-to-Door Campaign or Hold Local Rally to improve polling support.");
+  if (publicTrust < 2.0) nextSteps.push("Use Door-to-Door Campaign to improve public trust.");
+  if (mediaPresence < 2.0) nextSteps.push("Use Give Interview or Publish Party Statement to improve media presence.");
+  if (members < 500) nextSteps.push("Use Recruit Members or Open Membership Booth to grow party membership.");
+
   if (nextSteps.length === 0) nextSteps.push("Your party is well positioned. Focus on maintaining public trust and raising funds.");
 
   return (
@@ -1598,8 +1620,8 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
           <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
             <div className="px-5 py-4 border-b flex justify-between items-center" style={{ borderColor: BORDER }}>
                <div>
-                 <h3 className="font-bold text-zinc-100">{election.electionName}</h3>
-                 <div className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 mt-1">Registered</div>
+                 <h3 className="font-bold text-zinc-100">Election Campaign Preparation</h3>
+                 <div className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 mt-1">Your party is registered. Build campaign strength before the election result phase is added.</div>
                </div>
                <div className="w-10 h-10 rounded-sm flex items-center justify-center" style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)' }}>
                  <svg className="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -1607,23 +1629,49 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
                  </svg>
                </div>
             </div>
-            <div className="p-5 grid grid-cols-2 gap-4">
-               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Party</span><span className="text-xs font-semibold text-zinc-300">{regRecord.partyName} ({regRecord.partyAbbreviation})</span></div>
-               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Country</span><span className="text-xs font-semibold text-zinc-300">{regRecord.countryName}</span></div>
-               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Registration Fee Paid</span><span className="text-xs font-bold text-zinc-300">{formatMoney(regRecord.registrationFeePaid)}</span></div>
-               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Recognition at Registration</span><span className="text-xs font-semibold text-zinc-300">{regRecord.recognitionAtRegistration.toFixed(2)}%</span></div>
-               <div className="col-span-2"><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Registered At</span><span className="text-xs font-semibold text-zinc-300">{new Date(regRecord.registeredAt).toLocaleString()}</span></div>
+            
+            <div className="p-5 grid grid-cols-2 md:grid-cols-3 gap-4">
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Election</span><span className="text-xs font-semibold text-zinc-300">{election.electionName}</span></div>
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Registration Status</span><span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-sm border border-emerald-500/20">Registered</span></div>
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Main Promise</span><span className="text-xs font-semibold text-emerald-400">{ctx.partyStats?.mainPromise || 'Not Declared'}</span></div>
+               
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Party Funds</span><span className="text-xs font-semibold text-zinc-300">{formatMoney(funds)}</span></div>
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Recognition</span><span className="text-xs font-semibold text-zinc-300">{recognition.toFixed(2)}%</span></div>
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Polling Support</span><span className="text-xs font-semibold text-zinc-300">{support.toFixed(1)}%</span></div>
+               
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Members</span><span className="text-xs font-semibold text-zinc-300">{members.toLocaleString()}</span></div>
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Public Trust</span><span className="text-xs font-semibold text-zinc-300">{publicTrust.toFixed(1)}</span></div>
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Media Presence</span><span className="text-xs font-semibold text-zinc-300">{mediaPresence.toFixed(1)}</span></div>
             </div>
+            
             <div className="px-5 py-4 border-t" style={{ borderColor: BORDER, background: 'rgba(255,255,255,0.01)' }}>
-               <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-3">Optional Preparation Checklist</div>
-               <ul className="space-y-2 text-[11px] text-zinc-400">
-                 <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Main Promise</li>
-                 <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Campaign Staff</li>
-                 <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Party Members</li>
-                 <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Party Funds</li>
-                 <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Media Presence</li>
-                 <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Public Trust</li>
-               </ul>
+               <div className="text-[10px] leading-relaxed text-zinc-400 mb-4">
+                 Registration enters your party into the election. Campaign actions improve future vote performance but do not guarantee victory.
+               </div>
+               
+               <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-3">Recommended Campaign Actions</div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                 <div className="p-3" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+                   <div className="text-xs font-bold text-zinc-300 mb-1">Door-to-Door Campaign</div>
+                   <div className="text-[10px] text-zinc-500">improves Public Trust and Polling Support</div>
+                 </div>
+                 <div className="p-3" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+                   <div className="text-xs font-bold text-zinc-300 mb-1">Hold Local Rally</div>
+                   <div className="text-[10px] text-zinc-500">improves Recognition and Polling Support</div>
+                 </div>
+                 <div className="p-3" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+                   <div className="text-xs font-bold text-zinc-300 mb-1">Give Interview</div>
+                   <div className="text-[10px] text-zinc-500">improves Media Presence and Recognition</div>
+                 </div>
+                 <div className="p-3" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+                   <div className="text-xs font-bold text-zinc-300 mb-1">Publish Party Statement</div>
+                   <div className="text-[10px] text-zinc-500">improves Media Presence and Recognition</div>
+                 </div>
+                 <div className="p-3" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+                   <div className="text-xs font-bold text-zinc-300 mb-1">Open Membership Booth</div>
+                   <div className="text-[10px] text-zinc-500">grows Members</div>
+                 </div>
+               </div>
             </div>
           </div>
         ) : (
@@ -1921,7 +1969,7 @@ function ActionExecutionModal({
 
   if (!position || !action || !staff) return null;
 
-  const implementedIds = ['mo_recruit', 'tr_donation', 'pl_promise', 'cm_rally', 'meo_statement'];
+  const implementedIds = ['mo_recruit', 'smallDonationDrive', 'pl_promise', 'cm_rally', 'meo_statement'];
   const isImplemented = implementedIds.includes(actionId);
   
   if (!isImplemented) {
@@ -1962,7 +2010,7 @@ function ActionExecutionModal({
     { base: 300000, mult: 2.10 },
   ];
   
-  if (actionId === 'meo_statement') {
+  if (actionId === 'meo_statement' || actionId === 'giveInterview' || actionId === 'openMembershipBooth') {
     baseTiers = [
       { base: 10000, mult: 1.00 },
       { base: 30000, mult: 1.25 },
@@ -1986,7 +2034,10 @@ function ActionExecutionModal({
       
       const traitMatches: Record<string, string[]> = {
         'mo_recruit': ['Charismatic', 'Popular', 'Connected'],
-        'tr_donation': ['Wealthy', 'Connected', 'Respected'],
+        'smallDonationDrive': ['Wealthy', 'Connected', 'Respected'],
+        'doorToDoorCampaign': ['Charismatic', 'Relatable', 'Popular'],
+        'giveInterview': ['Charismatic', 'Articulate', 'Media Savvy'],
+        'openMembershipBooth': ['Charismatic', 'Friendly', 'Popular'],
       };
       
       let traitBonus = 0;
@@ -2039,7 +2090,7 @@ function ActionExecutionModal({
         recognitionGain = 1.20 + Math.random() * 0.80;
         publicTrustGain = 0.60 + Math.random() * 0.40;
       }
-    } else if (actionId === 'tr_donation') {
+    } else if (actionId === 'smallDonationDrive') {
       let percent = 0;
       if (finalScore < 0) percent = Math.random() * 0.35;
       else if (finalScore < 2) { percent = 0.35 + Math.random() * 0.35; recognitionGain = Math.random() * 0.05; }
@@ -2048,7 +2099,7 @@ function ActionExecutionModal({
       else if (finalScore < 8) { percent = 1.35 + Math.random() * 0.35; recognitionGain = 0.25 + Math.random() * 0.20; }
       else if (finalScore < 9.5) { percent = 1.70 + Math.random() * 0.35; recognitionGain = 0.45 + Math.random() * 0.25; }
       else { percent = 2.05 + Math.random() * 0.15; recognitionGain = 0.70 + Math.random() * 0.30; }
-      
+      moneyRaised = currentTier.cost * percent;
     } else if (actionId === 'pl_promise') {
       if (finalScore < 0) {
         controversyGain = 0.2;
@@ -2131,6 +2182,90 @@ function ActionExecutionModal({
         mediaPresenceGain = 4.0;
         recognitionGain = 0.90;
         policyCredibilityGain = 0.8;
+      }
+    } else if (actionId === 'doorToDoorCampaign') {
+      if (finalScore < 0) {
+        recognitionGain = 0.02;
+        controversyGain = 0.05;
+      } else if (finalScore < 2) {
+        publicTrustGain = 0.05 + Math.random() * 0.10;
+        supportGain = 0.002 + Math.random() * 0.004;
+        recognitionGain = 0.03 + Math.random() * 0.05;
+      } else if (finalScore < 4) {
+        publicTrustGain = 0.15 + Math.random() * 0.20;
+        supportGain = 0.006 + Math.random() * 0.006;
+        recognitionGain = 0.08 + Math.random() * 0.10;
+      } else if (finalScore < 6) {
+        publicTrustGain = 0.35 + Math.random() * 0.35;
+        supportGain = 0.012 + Math.random() * 0.013;
+        recognitionGain = 0.18 + Math.random() * 0.17;
+      } else if (finalScore < 8) {
+        publicTrustGain = 0.70 + Math.random() * 0.50;
+        supportGain = 0.025 + Math.random() * 0.020;
+        recognitionGain = 0.35 + Math.random() * 0.25;
+      } else if (finalScore < 9.5) {
+        publicTrustGain = 1.20 + Math.random() * 0.60;
+        supportGain = 0.045 + Math.random() * 0.030;
+        recognitionGain = 0.60 + Math.random() * 0.35;
+      } else {
+        publicTrustGain = 1.80 + Math.random() * 0.70;
+        supportGain = 0.075 + Math.random() * 0.045;
+        recognitionGain = 0.95 + Math.random() * 0.35;
+      }
+    } else if (actionId === 'giveInterview') {
+      if (finalScore < 0) {
+        controversyGain = 0.4;
+      } else if (finalScore < 2) {
+        mediaPresenceGain = 0.2 + Math.random() * 0.3;
+        recognitionGain = 0.03 + Math.random() * 0.05;
+        controversyGain = 0.1;
+      } else if (finalScore < 4) {
+        mediaPresenceGain = 0.5 + Math.random() * 0.5;
+        recognitionGain = 0.08 + Math.random() * 0.10;
+        supportGain = 0.002 + Math.random() * 0.004;
+      } else if (finalScore < 6) {
+        mediaPresenceGain = 1.0 + Math.random() * 0.8;
+        recognitionGain = 0.18 + Math.random() * 0.17;
+        supportGain = 0.006 + Math.random() * 0.006;
+      } else if (finalScore < 8) {
+        mediaPresenceGain = 1.8 + Math.random() * 1.0;
+        recognitionGain = 0.35 + Math.random() * 0.30;
+        supportGain = 0.012 + Math.random() * 0.013;
+      } else if (finalScore < 9.5) {
+        mediaPresenceGain = 2.8 + Math.random() * 1.2;
+        recognitionGain = 0.65 + Math.random() * 0.35;
+        supportGain = 0.025 + Math.random() * 0.020;
+      } else {
+        mediaPresenceGain = 4.0 + Math.random() * 1.5;
+        recognitionGain = 1.00 + Math.random() * 0.50;
+        supportGain = 0.045 + Math.random() * 0.030;
+      }
+    } else if (actionId === 'openMembershipBooth') {
+      if (finalScore < 0) {
+        membersJoined = Math.floor(Math.random() * 6);
+      } else if (finalScore < 2) {
+        membersJoined = Math.floor(5 + Math.random() * 21);
+        recognitionGain = 0.01 + Math.random() * 0.03;
+      } else if (finalScore < 4) {
+        membersJoined = Math.floor(25 + Math.random() * 56);
+        recognitionGain = 0.04 + Math.random() * 0.06;
+        publicTrustGain = 0.01 + Math.random() * 0.02;
+      } else if (finalScore < 6) {
+        membersJoined = Math.floor(80 + Math.random() * 101);
+        recognitionGain = 0.10 + Math.random() * 0.12;
+        publicTrustGain = 0.03 + Math.random() * 0.05;
+      } else if (finalScore < 8) {
+        membersJoined = Math.floor(180 + Math.random() * 221);
+        recognitionGain = 0.22 + Math.random() * 0.23;
+        publicTrustGain = 0.08 + Math.random() * 0.07;
+      } else if (finalScore < 9.5) {
+        membersJoined = Math.floor(400 + Math.random() * 401);
+        recognitionGain = 0.45 + Math.random() * 0.30;
+        publicTrustGain = 0.15 + Math.random() * 0.10;
+      } else {
+        membersJoined = Math.floor(800 + Math.random() * 601);
+        recognitionGain = 0.75 + Math.random() * 0.35;
+        publicTrustGain = 0.25 + Math.random() * 0.15;
       }
     }
   
@@ -2665,7 +2800,7 @@ export default function ActionsPage() {
           actionName: result.actionName,
           createdAt: new Date().toISOString()
         });
-      } else if (result.actionId === 'tr_donation') {
+      } else if (result.actionId === 'smallDonationDrive') {
         transactions.unshift({
           id: Math.random().toString(36).substring(2, 9),
           partyId: ctx.partyId,
@@ -2687,11 +2822,16 @@ export default function ActionsPage() {
           createdAt: new Date().toISOString()
         });
       } else {
+         let txCat = "Operation Cost";
+         if (result.actionId === 'doorToDoorCampaign' || result.actionId === 'cm_rally') txCat = "Campaign";
+         if (result.actionId === 'giveInterview' || result.actionId === 'meo_statement') txCat = "Media";
+         if (result.actionId === 'openMembershipBooth') txCat = "Recruitment";
+         
          transactions.unshift({
            id: Math.random().toString(36).substring(2, 9),
            partyId: ctx.partyId,
            type: "expense",
-           category: "Operation Cost",
+           category: txCat,
            source: result.actionName,
            amount: result.investment,
            actionName: result.actionName,
@@ -2707,7 +2847,7 @@ export default function ActionsPage() {
       
       if (result.actionId === 'mo_recruit') {
         summaryStr = `Membership Officer recruited ${result.membersJoined.toLocaleString()} new members with a ${result.quality.toLowerCase()} recruitment result.`;
-      } else if (result.actionId === 'tr_donation') {
+      } else if (result.actionId === 'smallDonationDrive') {
         const net = result.moneyRaised - result.investment;
         summaryStr = `Treasurer raised ${formatMoney(result.moneyRaised)} from a small donation drive. Net funds changed by ${net >= 0 ? '+' : '-'}${formatMoney(Math.abs(net))}.`;
 
@@ -2717,6 +2857,12 @@ export default function ActionsPage() {
         summaryStr = `Campaign & Media Manager held a local rally and increased recognition by ${result.recognitionGain.toFixed(2)}.`;
       } else if (result.actionId === 'meo_statement') {
         summaryStr = `Campaign & Media Manager published a party statement.`;
+      } else if (result.actionId === 'doorToDoorCampaign') {
+        summaryStr = `Campaign & Media Manager ran a door-to-door campaign and improved public trust.`;
+      } else if (result.actionId === 'giveInterview') {
+        summaryStr = `Campaign & Media Manager gave an interview and expanded media presence.`;
+      } else if (result.actionId === 'openMembershipBooth') {
+        summaryStr = `Membership Officer opened a membership booth and recruited new members.`;
       }
 
       const newLog = {
