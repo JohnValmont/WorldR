@@ -305,45 +305,85 @@ export default function CreateCharacterPage() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [revealed, setRevealed] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Determine if a complete character already exists (summary mode)
   const [hasCharacter, setHasCharacter] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      let hasChar = false;
-      try {
-        const charRaw = localStorage.getItem('worldr-character') || localStorage.getItem('worldr_character');
-        if (charRaw) {
-          const charState = JSON.parse(charRaw);
-          const c = charState?.state?.character || charState;
-          if (c && c.firstName && c.firstName.trim().length > 0) hasChar = true;
+      const params = new URLSearchParams(window.location.search);
+      const isEdit = params.get('mode') === 'edit';
+
+      if (isEdit) {
+        setIsEditMode(true);
+        try {
+          const raw = localStorage.getItem('worldr_character');
+          if (raw) {
+            const char = JSON.parse(raw);
+            setCharacter({
+              firstName: char.firstName ?? '',
+              middleName: char.middleName ?? '',
+              lastName: char.lastName ?? '',
+              familyName: char.familyName ?? '',
+              age: char.age ?? 18,
+              gender: char.gender ?? '',
+            });
+          } else {
+            // fallback to store
+            const storeRaw = localStorage.getItem('worldr-character');
+            if (storeRaw) {
+              const charState = JSON.parse(storeRaw);
+              const c = charState?.state?.character;
+              if (c) {
+                setCharacter({
+                  firstName: c.firstName ?? '',
+                  middleName: c.middleName ?? '',
+                  lastName: c.lastName ?? '',
+                  familyName: c.familyName ?? '',
+                  age: c.age ?? 18,
+                  gender: c.gender ?? '',
+                });
+              }
+            }
+          }
+        } catch {}
+      } else {
+        // Normal onboarding redirects
+        let hasChar = false;
+        try {
+          const charRaw = localStorage.getItem('worldr-character') || localStorage.getItem('worldr_character');
+          if (charRaw) {
+            const charState = JSON.parse(charRaw);
+            const c = charState?.state?.character || charState;
+            if (c && c.firstName && c.firstName.trim().length > 0) hasChar = true;
+          }
+        } catch {}
+
+        const path = localStorage.getItem('worldr_selected_path') || localStorage.getItem('worldr-path');
+
+        let hasParty = false;
+        try {
+          const partyRaw = localStorage.getItem('worldr_current_party');
+          if (partyRaw) {
+            const party = JSON.parse(partyRaw);
+            if (party && party.partyName) hasParty = true;
+          }
+        } catch {}
+
+        let hasCountry = false;
+        try {
+          const countryRaw = localStorage.getItem('worldr_selected_country');
+          if (countryRaw) {
+            const country = JSON.parse(countryRaw);
+            if (country && country.countryName) hasCountry = true;
+          }
+        } catch {}
+
+        if (hasChar && path && hasParty && hasCountry) {
+          router.replace('/varelia/news');
+          return;
         }
-      } catch {}
-
-      const path = localStorage.getItem('worldr_selected_path') || localStorage.getItem('worldr-path');
-
-      let hasParty = false;
-      try {
-        const partyRaw = localStorage.getItem('worldr_current_party');
-        if (partyRaw) {
-          const party = JSON.parse(partyRaw);
-          if (party && party.partyName) hasParty = true;
-        }
-      } catch {}
-
-      let hasCountry = false;
-      try {
-        const countryRaw = localStorage.getItem('worldr_selected_country');
-        if (countryRaw) {
-          const country = JSON.parse(countryRaw);
-          if (country && country.countryName) hasCountry = true;
-        }
-      } catch {}
-
-      if (hasChar && path && hasParty && hasCountry) {
-        router.replace('/varelia/news');
-        return;
       }
     }
 
@@ -438,7 +478,46 @@ export default function CreateCharacterPage() {
   const handleSubmit = () => {
     setTouched({ firstName: true, lastName: true, familyName: true, gender: true, age: true });
     if (!isValid) return;
-    router.push('/onboarding/choose-path');
+
+    const newFullName = [character.firstName, character.middleName, character.lastName].filter(Boolean).join(' ');
+
+    if (isEditMode) {
+      // Save character to worldr_character
+      localStorage.setItem('worldr_character', JSON.stringify(character));
+
+      // Sync leaderName in current party and registered parties
+      try {
+        const partyRaw = localStorage.getItem('worldr_current_party');
+        if (partyRaw) {
+          const party = JSON.parse(partyRaw);
+          const partyId = party.partyId;
+
+          // Update current party leaderName
+          party.leaderName = newFullName;
+          localStorage.setItem('worldr_current_party', JSON.stringify(party));
+
+          // Update matching party inside worldr_registered_parties
+          const regRaw = localStorage.getItem('worldr_registered_parties');
+          if (regRaw) {
+            const registry = JSON.parse(regRaw);
+            const updatedRegistry = registry.map((p: any) => {
+              if (p.partyId === partyId) {
+                return { ...p, leaderName: newFullName };
+              }
+              return p;
+            });
+            localStorage.setItem('worldr_registered_parties', JSON.stringify(updatedRegistry));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync leaderName', err);
+      }
+
+      router.push('/varelia/actions');
+    } else {
+      localStorage.setItem('worldr_character', JSON.stringify(character));
+      router.push('/onboarding/choose-path');
+    }
   };
 
   const inputClass = (field: string) =>
@@ -457,20 +536,22 @@ export default function CreateCharacterPage() {
       {/* Delete confirmation modal */}
       {showDelete && <DeleteModal onCancel={() => setShowDelete(false)} onConfirm={handleDeleteConfirm} />}
 
-      <StepIndicator step={0} total={4} />
+      {!isEditMode && <StepIndicator step={0} total={4} />}
 
       <div className="mb-6">
         <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-2">
-          {hasCharacter ? 'Your Character' : 'Create Your Life'}
+          {isEditMode ? 'Edit Character' : hasCharacter ? 'Your Character' : 'Create Your Life'}
         </h1>
         <p className="text-zinc-500 text-sm leading-relaxed">
-          {hasCharacter
+          {isEditMode
+            ? 'Update your personal identity. Your political party and country will remain unchanged.'
+            : hasCharacter
             ? 'Your identity has been created. Continue your journey or start fresh.'
             : 'Your identity will shape how the world sees you.'}
         </p>
       </div>
 
-      {hasCharacter ? (
+      {(hasCharacter && !isEditMode) ? (
         /* ── Summary mode ── */
         <CharacterSummary
           character={character}
@@ -543,7 +624,7 @@ export default function CreateCharacterPage() {
                 style={{ background: isValid ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(245,158,11,0.08)', color: isValid ? '#000' : '#78716c', border: isValid ? 'none' : '1px solid rgba(245,158,11,0.12)', boxShadow: isValid ? '0 4px 20px rgba(245,158,11,0.2)' : 'none' }}
               >
                 {isValid && <span className="absolute inset-0 translate-x-[-110%] group-hover:translate-x-[110%] transition-transform duration-500 ease-in-out" style={{ background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%)' }} />}
-                Continue
+                {isEditMode ? 'Save Character' : 'Continue'}
                 <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>

@@ -247,6 +247,8 @@ export default function CreatePartyPage() {
   const { character } = useCharacterStore();
   const [revealed, setRevealed] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [initialAbbr, setInitialAbbr] = useState('');
 
   // Temporary local one-party rule.
   // In multiplayer, enforce one political party per account in the backend/database using userId ownership.
@@ -265,6 +267,9 @@ export default function CreatePartyPage() {
     const t = setTimeout(() => setRevealed(true), 80);
 
     if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const isEdit = params.get('mode') === 'edit';
+
       let hasChar = false;
       try {
         const charRaw = localStorage.getItem('worldr-character') || localStorage.getItem('worldr_character');
@@ -277,37 +282,52 @@ export default function CreatePartyPage() {
 
       const path = localStorage.getItem('worldr_selected_path') || localStorage.getItem('worldr-path');
 
-      let hasParty = false;
+      let currentParty: RegisteredPoliticalParty | null = null;
       try {
         const partyRaw = localStorage.getItem('worldr_current_party');
-        if (partyRaw) {
-          const party = JSON.parse(partyRaw);
-          if (party && party.partyName) hasParty = true;
-        }
+        if (partyRaw) currentParty = JSON.parse(partyRaw);
       } catch {}
 
-      let hasCountry = false;
-      try {
-        const countryRaw = localStorage.getItem('worldr_selected_country');
-        if (countryRaw) {
-          const country = JSON.parse(countryRaw);
-          if (country && country.countryName) hasCountry = true;
+      if (isEdit) {
+        if (!currentParty) {
+          // If no current party exists and user opens edit mode, redirect to normal onboarding create-party
+          router.replace('/onboarding/create-party');
+          return () => clearTimeout(t);
         }
-      } catch {}
+        setIsEditMode(true);
+        setInitialAbbr(currentParty.partyAbbreviation);
 
-      if (hasChar && path && hasParty && hasCountry) {
-        router.replace('/varelia/news');
-        return () => clearTimeout(t);
+        // Pre-fill fields
+        setPartyName(currentParty.partyName ?? '');
+        setAbbr(currentParty.partyAbbreviation ?? '');
+        setDescription(currentParty.partyDescription ?? '');
+        setColorId(currentParty.colorId ?? 'gold');
+        setLogoId(currentParty.partyLogoId ?? '');
+        setSelectedIdeologyIds(currentParty.ideologyIds ?? []);
+      } else {
+        // Normal onboarding logic (redirect to /varelia/news if complete)
+        let hasCountry = false;
+        try {
+          const countryRaw = localStorage.getItem('worldr_selected_country');
+          if (countryRaw) {
+            const country = JSON.parse(countryRaw);
+            if (country && country.countryName) hasCountry = true;
+          }
+        } catch {}
+
+        if (hasChar && path && currentParty && hasCountry) {
+          router.replace('/varelia/news');
+          return () => clearTimeout(t);
+        }
+
+        if (!hasChar) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
+        if (!path) { router.replace('/onboarding/choose-path'); return () => clearTimeout(t); }
+
+        if (currentParty) {
+          setExistingParty(currentParty);
+        }
       }
-
-      if (!hasChar) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
-      if (!path) { router.replace('/onboarding/choose-path'); return () => clearTimeout(t); }
     }
-
-    try {
-      const raw = localStorage.getItem('worldr_current_party');
-      if (raw) setExistingParty(JSON.parse(raw));
-    } catch {}
 
     return () => clearTimeout(t);
   }, [router]);
@@ -332,7 +352,13 @@ export default function CreatePartyPage() {
     return [...MOCK_REGISTERED_ABBREVIATIONS, ...local];
   }, []);
 
-  const isDuplicateAbbr = abbr.length >= 2 && existingAbbreviations.includes(abbr);
+  // Temporary local rebrand uniqueness check. In multiplayer, abbreviation changes must be validated by backend/database transactionally.
+  const isDuplicateAbbr = useMemo(() => {
+    if (abbr.length < 2) return false;
+    if (isEditMode && abbr === initialAbbr) return false;
+    return existingAbbreviations.includes(abbr);
+  }, [abbr, isEditMode, initialAbbr, existingAbbreviations]);
+
   const abbrValid = abbr.length >= 2 && abbr.length <= 6 && !isDuplicateAbbr;
 
   // Validation (description optional)
@@ -366,27 +392,67 @@ export default function CreatePartyPage() {
     setTouched({ partyName: true, abbr: true, logo: true, ideology: true });
     if (!isFormValid) return;
 
-    const party: RegisteredPoliticalParty = {
-      partyId: generatePartyId(),
-      partyAbbreviation: abbr,
-      partyName: partyName.trim(),
-      partyDescription: description.trim(),
-      partyLogoId: logoId,
-      ideologyIds: selectedIdeologyIds,
-      colorId,
-      leaderName,
-      createdAt: new Date().toISOString(),
-    };
+    if (isEditMode) {
+      let currentParty: RegisteredPoliticalParty | null = null;
+      try {
+        const partyRaw = localStorage.getItem('worldr_current_party');
+        if (partyRaw) currentParty = JSON.parse(partyRaw);
+      } catch {}
 
-    localStorage.setItem('worldr_current_party', JSON.stringify(party));
+      if (!currentParty) return;
 
-    const existing: RegisteredPoliticalParty[] = (() => {
-      try { return JSON.parse(localStorage.getItem('worldr_registered_parties') ?? '[]'); }
-      catch { return []; }
-    })();
-    localStorage.setItem('worldr_registered_parties', JSON.stringify([...existing, party]));
+      const updatedParty: RegisteredPoliticalParty = {
+        ...currentParty, // keeps partyId, leaderName, countryName, continentName, registeredMembers, createdAt
+        partyAbbreviation: abbr,
+        partyName: partyName.trim(),
+        partyDescription: description.trim(),
+        partyLogoId: logoId,
+        ideologyIds: selectedIdeologyIds,
+        colorId,
+      };
 
-    router.push('/onboarding/choose-motherland');
+      localStorage.setItem('worldr_current_party', JSON.stringify(updatedParty));
+
+      try {
+        const raw = localStorage.getItem('worldr_registered_parties');
+        if (raw) {
+          const registry: RegisteredPoliticalParty[] = JSON.parse(raw);
+          const updatedRegistry = registry.map((p) => {
+            if (p.partyId === updatedParty.partyId) {
+              return updatedParty;
+            }
+            return p;
+          });
+          localStorage.setItem('worldr_registered_parties', JSON.stringify(updatedRegistry));
+        }
+      } catch (e) {
+        console.error('Failed to update registered parties', e);
+      }
+
+      router.push('/varelia/actions');
+    } else {
+      const party: RegisteredPoliticalParty = {
+        partyId: generatePartyId(),
+        partyAbbreviation: abbr,
+        partyName: partyName.trim(),
+        partyDescription: description.trim(),
+        partyLogoId: logoId,
+        ideologyIds: selectedIdeologyIds,
+        colorId,
+        leaderName,
+        createdAt: new Date().toISOString(),
+      };
+
+      localStorage.setItem('worldr_current_party', JSON.stringify(party));
+
+      const existing: RegisteredPoliticalParty[] = (() => {
+        try { return JSON.parse(localStorage.getItem('worldr_registered_parties') ?? '[]'); }
+        catch { return []; }
+      })();
+      localStorage.setItem('worldr_registered_parties', JSON.stringify([...existing, party]));
+
+      router.push('/onboarding/choose-motherland');
+    }
   };
 
   // ── Delete party handler ──────────────────────────────────────────────────
@@ -433,22 +499,33 @@ export default function CreatePartyPage() {
 
       {/* Page header */}
       <div className="px-4 md:px-8 pt-5 pb-4 max-w-7xl mx-auto w-full">
-        <button onClick={() => router.push('/onboarding/choose-path')} className="flex items-center gap-1.5 text-zinc-600 hover:text-zinc-400 transition-colors mb-4 font-mono text-[10px] uppercase tracking-widest group">
-          <svg className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12" /></svg>
-          Back to Path
-        </button>
+        {isEditMode ? (
+          <button onClick={() => router.push('/varelia/actions')} className="flex items-center gap-1.5 text-zinc-600 hover:text-zinc-400 transition-colors mb-4 font-mono text-[10px] uppercase tracking-widest group">
+            <svg className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12" /></svg>
+            Back to Actions
+          </button>
+        ) : (
+          <button onClick={() => router.push('/onboarding/choose-path')} className="flex items-center gap-1.5 text-zinc-600 hover:text-zinc-400 transition-colors mb-4 font-mono text-[10px] uppercase tracking-widest group">
+            <svg className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12" /></svg>
+            Back to Path
+          </button>
+        )}
 
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)] animate-pulse" />
-          <span className="text-[10px] font-mono text-amber-500/60 uppercase tracking-[0.25em]">Step 3 of 4 — Political Party</span>
-        </div>
+        {!isEditMode && (
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)] animate-pulse" />
+            <span className="text-[10px] font-mono text-amber-500/60 uppercase tracking-[0.25em]">Step 3 of 4 — Political Party</span>
+          </div>
+        )}
         <div className="flex items-baseline justify-between flex-wrap gap-2">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight">
-              {existingParty ? 'Your Political Party' : 'Create Your Political Party'}
+              {isEditMode ? 'Rebrand Political Party' : existingParty ? 'Your Political Party' : 'Create Your Political Party'}
             </h1>
             <p className="text-zinc-500 text-sm mt-1">
-              {existingParty
+              {isEditMode
+                ? 'Update your party identity while keeping registration, country, leader, and members intact.'
+                : existingParty
                 ? 'Your party has been founded. Continue to choose your Motherland.'
                 : 'Build the movement that will carry your name into national politics.'}
             </p>
@@ -572,7 +649,7 @@ export default function CreatePartyPage() {
               <div className="flex lg:hidden items-center justify-end pt-2 pb-6">
                 <button id="create-party-btn-mobile" type="button" disabled={!isFormValid} onClick={handleCreate} className="group relative inline-flex items-center gap-2.5 px-8 py-3 text-sm font-semibold uppercase tracking-[0.15em] rounded-sm overflow-hidden transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{ background: isFormValid ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(245,158,11,0.08)', color: isFormValid ? '#000' : '#78716c', border: isFormValid ? 'none' : '1px solid rgba(245,158,11,0.12)', boxShadow: isFormValid ? '0 4px 20px rgba(245,158,11,0.2)' : 'none' }}>
-                  Found My Party
+                  {isEditMode ? 'Save Rebrand' : 'Found My Party'}
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                 </button>
               </div>
@@ -626,7 +703,7 @@ export default function CreatePartyPage() {
               <button id="create-party-btn-desktop" type="button" disabled={!isFormValid} onClick={handleCreate} className="group relative w-full inline-flex items-center justify-center gap-2.5 px-6 py-3.5 text-sm font-semibold uppercase tracking-[0.15em] rounded-sm overflow-hidden transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ background: isFormValid ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(245,158,11,0.07)', color: isFormValid ? '#000' : '#78716c', border: isFormValid ? 'none' : '1px solid rgba(245,158,11,0.12)', boxShadow: isFormValid ? '0 4px 22px rgba(245,158,11,0.22)' : 'none' }}>
                 {isFormValid && <span className="absolute inset-0 translate-x-[-110%] group-hover:translate-x-[110%] transition-transform duration-500 ease-in-out" style={{ background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%)' }} />}
-                Found My Party
+                {isEditMode ? 'Save Rebrand' : 'Found My Party'}
                 <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
               </button>
 

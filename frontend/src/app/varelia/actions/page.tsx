@@ -115,6 +115,8 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
       { id: 'pl_meeting', name: 'Call Internal Meeting', description: 'Improve internal discipline and prepare party organization.', category: 'Internal' },
       { id: 'pl_manifesto', name: 'Approve Manifesto', description: "Review and formally approve the party's official political platform.", category: 'Policy' },
       { id: 'pl_promise', name: 'Declare Main Promise', description: "Announce the central promise that defines the party's campaign.", category: 'Campaign' },
+      { id: 'pl_redo_char', name: 'Redo Character', description: 'Update your character’s personal details while keeping your party, country, and progress intact.', category: 'Leader' },
+      { id: 'pl_rebrand_party', name: 'Rebrand Political Party', description: 'Update your party name, abbreviation, logo, color, description, and ideological presentation.', category: 'Leadership' },
       { id: 'pl_dissolve', name: 'Dissolve Political Party', description: 'Permanently dissolve your registered political party. This releases the party abbreviation and removes the party from public records.', category: 'Leadership' },
     ],
   },
@@ -399,6 +401,8 @@ function PositionList({
 function DutyRow({ action, positionTitle, accentColor, onTrigger }: { action: PartyAction; positionTitle: string; accentColor: string; onTrigger?: (id: string) => void }) {
   const catColor = CATEGORY_COLORS[action.category] ?? '#3a4238';
   const isDissolve = action.id === 'pl_dissolve';
+  const isRedoChar = action.id === 'pl_redo_char';
+  const isRebrandParty = action.id === 'pl_rebrand_party';
 
   return (
     <div className="flex items-center gap-4 px-4 py-3 transition-colors duration-100"
@@ -433,6 +437,48 @@ function DutyRow({ action, positionTitle, accentColor, onTrigger }: { action: Pa
                   borderRadius: '2px',
                 }}>
                 Critical
+              </span>
+            </>
+          ) : isRedoChar ? (
+            <>
+              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
+                style={{
+                  background: 'rgba(212,169,31,0.12)',
+                  color: '#d4a91f',
+                  border: '1px solid rgba(212,169,31,0.25)',
+                  borderRadius: '2px',
+                }}>
+                Leader
+              </span>
+              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
+                style={{
+                  background: 'rgba(212,169,31,0.12)',
+                  color: '#d4a91f',
+                  border: '1px solid rgba(212,169,31,0.25)',
+                  borderRadius: '2px',
+                }}>
+                Identity
+              </span>
+            </>
+          ) : isRebrandParty ? (
+            <>
+              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
+                style={{
+                  background: 'rgba(212,169,31,0.12)',
+                  color: '#d4a91f',
+                  border: '1px solid rgba(212,169,31,0.25)',
+                  borderRadius: '2px',
+                }}>
+                Leadership
+              </span>
+              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
+                style={{
+                  background: 'rgba(212,169,31,0.12)',
+                  color: '#d4a91f',
+                  border: '1px solid rgba(212,169,31,0.25)',
+                  borderRadius: '2px',
+                }}>
+                Party Identity
               </span>
             </>
           ) : (
@@ -474,6 +520,32 @@ function DutyRow({ action, positionTitle, accentColor, onTrigger }: { action: Pa
               cursor: 'pointer',
             }}>
             Danger / Requires Confirmation
+          </button>
+        ) : isRedoChar ? (
+          <button type="button"
+            onClick={() => onTrigger && onTrigger(action.id)}
+            className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1 transition-colors hover:bg-amber-800/30"
+            style={{
+              color: '#d4a91f',
+              background: 'rgba(212,169,31,0.08)',
+              border: '1px solid rgba(212,169,31,0.28)',
+              borderRadius: '2px',
+              cursor: 'pointer',
+            }}>
+            Edit Character
+          </button>
+        ) : isRebrandParty ? (
+          <button type="button"
+            onClick={() => onTrigger && onTrigger(action.id)}
+            className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1 transition-colors hover:bg-amber-800/30"
+            style={{
+              color: '#d4a91f',
+              background: 'rgba(212,169,31,0.08)',
+              border: '1px solid rgba(212,169,31,0.28)',
+              borderRadius: '2px',
+              cursor: 'pointer',
+            }}>
+            Edit Party
           </button>
         ) : (
           <span className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1"
@@ -678,6 +750,98 @@ function DissolvePartyModal({ onCancel, onConfirm }: { onCancel: () => void; onC
   );
 }
 
+function RedoCharModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [onCancel]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
+      <div className="w-full max-w-sm overflow-hidden"
+        style={{ background: '#1b1f1a', border: `1px solid #2d3329`, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', borderRadius: '2px' }}>
+        <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid #2d3329` }}>
+          <div className="w-9 h-9 rounded-sm flex items-center justify-center shrink-0" style={{ background: 'rgba(212,169,31,0.12)', border: '1px solid rgba(212,169,31,0.25)' }}>
+            <svg className="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <div>
+            <div className="font-bold text-sm text-zinc-100">Redo Character Details?</div>
+            <div className="text-[9px] font-mono uppercase tracking-[0.18em] mt-0.5 text-zinc-500">Requires Confirmation</div>
+          </div>
+        </div>
+        <div className="px-5 py-6">
+          <p className="text-[11px] leading-relaxed text-zinc-400">
+            You can update your character name, family name, age, and gender. Your party, country, and political progress will remain unchanged.
+          </p>
+        </div>
+        <div className="px-5 pb-5 flex gap-3">
+          <button type="button" onClick={onCancel}
+            className="flex-1 py-2.5 text-xs font-semibold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa', borderRadius: '2px' }}>
+            Cancel
+          </button>
+          <button type="button" onClick={onConfirm}
+            className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
+            style={{ background: 'rgba(212,169,31,0.14)', border: '1px solid rgba(212,169,31,0.40)', color: '#d4a91f', borderRadius: '2px' }}>
+            Continue to Editor
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RebrandPartyModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [onCancel]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
+      <div className="w-full max-w-sm overflow-hidden"
+        style={{ background: '#1b1f1a', border: `1px solid #2d3329`, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', borderRadius: '2px' }}>
+        <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid #2d3329` }}>
+          <div className="w-9 h-9 rounded-sm flex items-center justify-center shrink-0" style={{ background: 'rgba(212,169,31,0.12)', border: '1px solid rgba(212,169,31,0.25)' }}>
+            <svg className="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          </div>
+          <div>
+            <div className="font-bold text-sm text-zinc-100">Rebrand Political Party?</div>
+            <div className="text-[9px] font-mono uppercase tracking-[0.18em] mt-0.5 text-zinc-500">Requires Confirmation</div>
+          </div>
+        </div>
+        <div className="px-5 py-6">
+          <p className="text-[11px] leading-relaxed text-zinc-400">
+            You can update your party identity. Existing public records will reflect the new party details.
+          </p>
+        </div>
+        <div className="px-5 pb-5 flex gap-3">
+          <button type="button" onClick={onCancel}
+            className="flex-1 py-2.5 text-xs font-semibold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa', borderRadius: '2px' }}>
+            Cancel
+          </button>
+          <button type="button" onClick={onConfirm}
+            className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
+            style={{ background: 'rgba(212,169,31,0.14)', border: '1px solid rgba(212,169,31,0.40)', color: '#d4a91f', borderRadius: '2px' }}>
+            Continue to Rebrand
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PartyDropdown({ ctx, onClose }: { ctx: PlayerCtx; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -715,6 +879,8 @@ export default function ActionsPage() {
   const [revealed, setRevealed] = useState(false);
   const [showPartyMenu, setShowPartyMenu] = useState(false);
   const [showDissolveModal, setShowDissolveModal] = useState(false);
+  const [showRedoCharModal, setShowRedoCharModal] = useState(false);
+  const [showRebrandPartyModal, setShowRebrandPartyModal] = useState(false);
   const [selectedPosId, setSelectedPosId] = useState('party_leader');
   const [hireTarget, setHireTarget] = useState<string | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -794,7 +960,19 @@ export default function ActionsPage() {
   const handleTriggerAction = (actionId: string) => {
     if (actionId === 'pl_dissolve') {
       setShowDissolveModal(true);
+    } else if (actionId === 'pl_redo_char') {
+      setShowRedoCharModal(true);
+    } else if (actionId === 'pl_rebrand_party') {
+      setShowRebrandPartyModal(true);
     }
+  };
+
+  const handleConfirmRedoChar = () => {
+    router.push('/onboarding/create-character?mode=edit');
+  };
+
+  const handleConfirmRebrandParty = () => {
+    router.push('/onboarding/create-party?mode=edit');
   };
 
   const handleConfirmDissolve = () => {
@@ -830,6 +1008,8 @@ export default function ActionsPage() {
     <>
       {hireTarget && <HirePlaceholderModal positionTitle={hireTarget} onClose={() => setHireTarget(null)} />}
       {showDissolveModal && <DissolvePartyModal onCancel={() => setShowDissolveModal(false)} onConfirm={handleConfirmDissolve} />}
+      {showRedoCharModal && <RedoCharModal onCancel={() => setShowRedoCharModal(false)} onConfirm={handleConfirmRedoChar} />}
+      {showRebrandPartyModal && <RebrandPartyModal onCancel={() => setShowRebrandPartyModal(false)} onConfirm={handleConfirmRebrandParty} />}
 
       <div className="h-screen flex flex-col overflow-hidden transition-opacity duration-500"
         style={{ opacity: revealed ? 1 : 0, background: BG }}>
