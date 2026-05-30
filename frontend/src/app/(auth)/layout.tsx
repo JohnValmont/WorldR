@@ -19,7 +19,7 @@ function WorldMapGlobe() {
           to   { transform: translateX(-50%); }
         }
         .globe-map-scroll {
-          animation: worldScroll 80s linear infinite;
+          animation: worldScroll 25s linear infinite;
         }
       `}</style>
 
