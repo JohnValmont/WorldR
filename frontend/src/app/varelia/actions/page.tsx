@@ -620,12 +620,25 @@ function PositionList({
 // DUTY ROW (full-width horizontal)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger }: { action: PartyAction; positionTitle: string; accentColor: string; isFilled?: boolean; onTrigger?: (id: string) => void }) {
+function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger, ctx }: { action: PartyAction; positionTitle: string; accentColor: string; isFilled?: boolean; onTrigger?: (id: string) => void; ctx?: PlayerCtx }) {
   const catColor = CATEGORY_COLORS[action.category] ?? '#3a4238';
   const isDissolve = action.id === 'pl_dissolve';
   const isRedoChar = action.id === 'pl_redo_char';
   const isRebrandParty = action.id === 'pl_rebrand_party';
-  const isImplementedAction = action.id === 'mo_recruit' || action.id === 'tr_donation';
+  
+  const implementedIds = ['mo_recruit', 'tr_donation', 'pd_manifesto', 'pl_manifesto', 'pl_promise', 'cm_rally', 'meo_statement'];
+  const isImplementedAction = implementedIds.includes(action.id);
+  
+  const manifesto = ctx?.partyStats?.manifestoStatus || 'Not Written';
+  let preconditionError = '';
+  if (action.id === 'pl_manifesto') {
+    if (manifesto === 'Not Written') preconditionError = 'Write a manifesto first.';
+    else if (manifesto === 'Approved') preconditionError = 'Manifesto already approved.';
+  } else if (action.id === 'pd_manifesto') {
+    if (manifesto === 'Approved') preconditionError = 'Manifesto is already approved.';
+  }
+  
+  const isLockedByPrecondition = !!preconditionError;
 
   return (
     <div className="flex items-center gap-4 px-4 py-3 transition-colors duration-100"
@@ -772,18 +785,18 @@ function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger }: { 
           </button>
         ) : (
           <button type="button"
-            disabled={!isImplementedAction || !isFilled}
+            disabled={!isImplementedAction || !isFilled || isLockedByPrecondition}
             onClick={() => onTrigger && onTrigger(action.id)}
             className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1 transition-colors hover:bg-white/10"
             style={{
-              color: isImplementedAction ? (isFilled ? '#b8bcb4' : '#3d4238') : '#4a5045',
-              background: isImplementedAction ? (isFilled ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)') : 'rgba(255,255,255,0.01)',
-              border: `1px solid ${isImplementedAction ? (isFilled ? '#5a6058' : BORDER) : BORDER}`,
+              color: isImplementedAction ? (isFilled && !isLockedByPrecondition ? '#b8bcb4' : '#3d4238') : '#4a5045',
+              background: isImplementedAction ? (isFilled && !isLockedByPrecondition ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)') : 'rgba(255,255,255,0.01)',
+              border: `1px solid ${isImplementedAction ? (isFilled && !isLockedByPrecondition ? '#5a6058' : BORDER) : BORDER}`,
               borderRadius: '2px',
-              cursor: isImplementedAction ? (isFilled ? 'pointer' : 'not-allowed') : 'not-allowed',
+              cursor: isImplementedAction ? (isFilled && !isLockedByPrecondition ? 'pointer' : 'not-allowed') : 'not-allowed',
               opacity: isImplementedAction ? 1 : 0.4,
             }}>
-            {!isImplementedAction ? 'Coming Soon' : (isFilled ? 'Execute Action' : `Locked - Hire ${positionTitle.split(' ')[0]}`)}
+            {!isImplementedAction ? 'Coming Soon' : (!isFilled ? `Locked - Hire ${positionTitle.split(' ')[0]}` : isLockedByPrecondition ? preconditionError : 'Execute Action')}
           </button>
         )}
       </div>
@@ -800,6 +813,7 @@ function PositionCenter({
   accentColor,
   partyName,
   countryName,
+  ctx,
   onHire,
   onTrigger,
 }: {
@@ -807,6 +821,7 @@ function PositionCenter({
   accentColor: string;
   partyName: string;
   countryName: string;
+  ctx: PlayerCtx;
   onHire: (title: string) => void;
   onTrigger?: (id: string) => void;
 }) {
@@ -907,7 +922,7 @@ function PositionCenter({
       <div className="flex-1 overflow-y-auto mx-5 mb-4"
         style={{ border: `1px solid ${BORDER}`, borderRadius: '2px', background: PANEL }}>
         {position.actions.map((action) => (
-          <DutyRow key={action.id} action={action} positionTitle={position.title} accentColor={accentColor} isFilled={isFilled} onTrigger={onTrigger} />
+          <DutyRow key={action.id} action={action} positionTitle={position.title} accentColor={accentColor} isFilled={isFilled} onTrigger={onTrigger} ctx={ctx} />
         ))}
         {/* Coming soon footer note */}
         <div className="px-4 py-2.5 flex items-center gap-2"
@@ -1298,41 +1313,148 @@ function BudgetView({ budget, partyId }: { budget: any, partyId: string }) {
   );
 }
 
-function PartyStrategyView() {
-  const strategyItems = [
-    { label: 'Current Objective', value: 'Grow political recognition', desc: 'Build initial support and raise party brand awareness in Varelia.' },
-    { label: 'Main Promise', value: 'Not declared', desc: 'The defining campaign pledge representing the heart of your platform.' },
-    { label: 'Election Focus', value: 'Not selected', desc: 'Determine which legislative reforms to campaign on in the next election.' },
-    { label: 'Target Voters', value: 'Not selected', desc: 'Select demographic cohorts to focus your campaigning and outreach efforts on.' },
-    { label: 'Strategy Type', value: 'Not selected', desc: 'Define your party\'s overarching strategy: Populist, Elite-oriented, or Grassroots.' },
-  ];
+function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
+  const stats = ctx.partyStats || {};
+  const recognition = stats.recognition || 0;
+  const funds = ctx.partyFunds || 0;
+  
+  const isEligible = recognition >= 2 && funds >= 100000;
+
+  const support = stats.support || 0.1;
+  const policyCredibility = stats.policyCredibility || 0;
+  const campaignStrength = stats.campaignStrength || 0;
+  const mediaPresence = stats.mediaPresence || 0;
+  const legalReadiness = stats.legalReadiness || 0;
+  const publicTrust = stats.publicTrust || 0;
+  const members = stats.members || 1;
+  
+  const fundsBonus = Math.min(funds / 1000000, 5); // cap at +5
+  
+  const readinessScore = (recognition * 1.5) + (support * 10) + (policyCredibility * 0.8) + 
+    (campaignStrength * 0.8) + (mediaPresence * 0.5) + (legalReadiness * 0.5) + 
+    (publicTrust * 0.6) + Math.min(members / 1000, 10) + fundsBonus;
+
+  let readinessLevel = "Very Weak";
+  let readinessColor = "text-red-500";
+  if (readinessScore >= 80) { readinessLevel = "Strong"; readinessColor = "text-emerald-500"; }
+  else if (readinessScore >= 50) { readinessLevel = "Competitive"; readinessColor = "text-emerald-400"; }
+  else if (readinessScore >= 25) { readinessLevel = "Developing"; readinessColor = "text-amber-400"; }
+  else if (readinessScore >= 10) { readinessLevel = "Weak"; readinessColor = "text-amber-500"; }
+
+  const nextSteps = [];
+  if (funds < 100000) nextSteps.push("Raise at least $100,000 for the election registration fee.");
+  if (recognition < 2) nextSteps.push("Increase Party Recognition to at least 2.0 to register.");
+  if (stats.manifestoStatus === "Not Written") nextSteps.push("Hire a Policy Director to write a Party Manifesto.");
+  else if (stats.manifestoStatus !== "Approved") nextSteps.push("Approve the Party Manifesto to finalize your platform.");
+  if (!stats.mainPromise) nextSteps.push("Declare a Main Promise to rally voters.");
+  if (nextSteps.length === 0) nextSteps.push("Your party is well positioned. Focus on maintaining public trust and raising funds.");
 
   return (
     <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
-      <div className="max-w-xl mx-auto">
+      <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-6">
+        <div>
           <h2 className="text-xl font-bold text-white tracking-tight">Party Strategy</h2>
-          <p className="text-zinc-500 text-xs mt-1">Plan your party’s long-term political direction.</p>
+          <p className="text-zinc-500 text-xs mt-1">Monitor election readiness and define your political platform.</p>
         </div>
 
-        {/* Content list */}
-        <div className="space-y-4" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px', padding: '16px' }}>
-          {strategyItems.map((item) => (
-            <div key={item.label} className="pb-4 last:pb-0 border-b border-white/[0.03] last:border-b-0">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">{item.label}</span>
-                <span className="text-xs font-semibold text-zinc-300">{item.value}</span>
-              </div>
-              <p className="text-[10.5px] leading-normal text-zinc-600">{item.desc}</p>
+        {/* Section 1: Election Eligibility */}
+        <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+          <div className="px-4 py-3 border-b" style={{ borderColor: BORDER }}>
+             <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Election Registration</h3>
+          </div>
+          <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+             <div>
+               <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Required Recog.</div>
+               <div className="text-sm font-semibold text-zinc-400">2.0+</div>
+             </div>
+             <div>
+               <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Current Recog.</div>
+               <div className={`text-sm font-bold ${recognition >= 2 ? 'text-emerald-400' : 'text-red-400'}`}>{recognition.toFixed(2)}</div>
+             </div>
+             <div>
+               <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Registration Fee</div>
+               <div className="text-sm font-semibold text-zinc-400">$100,000</div>
+             </div>
+             <div>
+               <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Current Funds</div>
+               <div className={`text-sm font-bold ${funds >= 100000 ? 'text-emerald-400' : 'text-red-400'}`}>{formatMoney(funds)}</div>
+             </div>
+          </div>
+          <div className="px-4 py-3 border-t flex justify-between items-center" style={{ borderColor: BORDER, background: 'rgba(255,255,255,0.01)' }}>
+             <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500">Eligibility Status</span>
+             <span className={`text-xs font-bold uppercase tracking-widest ${isEligible ? 'text-emerald-500' : 'text-red-500'}`}>
+               {isEligible ? 'Eligible to Register' : 'Not Eligible'}
+             </span>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Section 2: Election Readiness */}
+          <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+            <div className="px-4 py-3 border-b flex justify-between items-center" style={{ borderColor: BORDER }}>
+               <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Readiness Score</h3>
+               <span className={`text-xs font-bold uppercase tracking-widest ${readinessColor}`}>{readinessLevel}</span>
             </div>
-          ))}
-        </div>
+            <div className="p-4 space-y-3">
+               <div className="flex justify-between items-center pb-2 border-b border-white/[0.03]">
+                 <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Score Value</span>
+                 <span className="text-sm font-bold text-zinc-200">{readinessScore.toFixed(1)} <span className="text-[10px] text-zinc-500 font-normal">/ 100</span></span>
+               </div>
+               <div className="flex justify-between items-center pb-2 border-b border-white/[0.03]">
+                 <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Polling Support</span>
+                 <span className="text-xs font-semibold text-zinc-300">{support.toFixed(1)}%</span>
+               </div>
+               <div className="flex justify-between items-center pb-2 border-b border-white/[0.03]">
+                 <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Policy Credibility</span>
+                 <span className="text-xs font-semibold text-zinc-300">{policyCredibility.toFixed(1)}</span>
+               </div>
+               <div className="flex justify-between items-center pb-2 border-b border-white/[0.03]">
+                 <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Media Presence</span>
+                 <span className="text-xs font-semibold text-zinc-300">{mediaPresence.toFixed(1)}</span>
+               </div>
+               <div className="flex justify-between items-center">
+                 <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Public Trust</span>
+                 <span className="text-xs font-semibold text-zinc-300">{publicTrust.toFixed(1)}</span>
+               </div>
+            </div>
+          </div>
 
-        {/* Footer text */}
-        <p className="text-[10px] text-zinc-700 text-center mt-6 italic">
-          Party strategy choices will be added in a later gameplay phase.
-        </p>
+          <div className="space-y-6">
+            {/* Section 3: Manifesto & Promise */}
+            <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+              <div className="px-4 py-3 border-b" style={{ borderColor: BORDER }}>
+                 <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Platform</h3>
+              </div>
+              <div className="p-4 space-y-4">
+                 <div>
+                   <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Manifesto Status</div>
+                   <div className="text-sm font-semibold text-zinc-200">{stats.manifestoStatus || 'Not Written'}</div>
+                 </div>
+                 <div>
+                   <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Main Promise</div>
+                   <div className="text-sm font-semibold text-emerald-400">{stats.mainPromise || 'None Declared'}</div>
+                 </div>
+              </div>
+            </div>
+
+            {/* Section 4: Recommended Next Steps */}
+            <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+              <div className="px-4 py-3 border-b" style={{ borderColor: BORDER }}>
+                 <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Actionable Steps</h3>
+              </div>
+              <div className="p-4">
+                 <ul className="space-y-2">
+                   {nextSteps.map((step, idx) => (
+                     <li key={idx} className="flex gap-2 text-[11px] text-zinc-400 leading-relaxed">
+                       <span className="text-accent mt-0.5">•</span> {step}
+                     </li>
+                   ))}
+                 </ul>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1531,6 +1653,11 @@ function ActionExecutionModal({
   onExecute: (result: any) => void;
 }) {
   const [selectedTier, setSelectedTier] = useState<number>(0);
+  const [selectedPromise, setSelectedPromise] = useState('');
+  const promisesList = [
+    'Jobs and Wages', 'Anti-Corruption', 'Lower Taxes', 'Public Welfare', 'National Security',
+    'Education Reform', 'Healthcare Reform', 'Business Growth', 'Rural Development', 'Law and Order'
+  ];
   
   const position = positions.find(p => p.actions.some(a => a.id === actionId));
   const action = position?.actions.find(a => a.id === actionId);
@@ -1544,7 +1671,8 @@ function ActionExecutionModal({
 
   if (!position || !action || !staff) return null;
 
-  const isImplemented = actionId === 'mo_recruit' || actionId === 'tr_donation';
+  const implementedIds = ['mo_recruit', 'tr_donation', 'pd_manifesto', 'pl_manifesto', 'pl_promise', 'cm_rally', 'meo_statement'];
+  const isImplemented = implementedIds.includes(actionId);
   
   if (!isImplemented) {
     return (
@@ -1577,42 +1705,70 @@ function ActionExecutionModal({
   const countryInfo = { gdp: 88000000000, population: 3100000, gdpPerCapita: 28400, stability: 67 }; // mock drennia
   const costIndex = getNationActionCostIndex(countryInfo);
 
-  const tiers = [
+  let baseTiers = [
     { base: 20000, mult: 1.00 },
     { base: 60000, mult: 1.25 },
     { base: 120000, mult: 1.60 },
     { base: 300000, mult: 2.10 },
-  ].map(t => ({ cost: Math.round((t.base * costIndex) / 100) * 100, mult: t.mult }));
+  ];
+  
+  if (actionId === 'pl_manifesto') {
+    baseTiers = [
+      { base: 5000, mult: 1.00 },
+      { base: 15000, mult: 1.25 },
+      { base: 40000, mult: 1.60 },
+      { base: 100000, mult: 2.10 },
+    ];
+  } else if (actionId === 'meo_statement') {
+    baseTiers = [
+      { base: 10000, mult: 1.00 },
+      { base: 30000, mult: 1.25 },
+      { base: 75000, mult: 1.60 },
+      { base: 150000, mult: 2.10 },
+    ];
+  }
 
+  const tiers = baseTiers.map(t => ({ cost: Math.round((t.base * costIndex) / 100) * 100, mult: t.mult }));
   const currentTier = tiers[selectedTier];
+
+  const isPromiseValid = actionId === 'pl_promise' ? !!selectedPromise : true;
   const canAfford = ctx.partyFunds >= currentTier.cost;
-
-  const handleExecute = () => {
-    if (!canAfford) return;
-
-    // Developer Comment: Temporary local action execution. In multiplayer, action execution, random rolls, costs, and results must be performed server-side to prevent cheating.
-    const roll = rollStaffOutcome(staff.skill);
-    
-    const traitMatches: Record<string, string[]> = {
-      'mo_recruit': ['Charismatic', 'Popular', 'Connected'],
-      'tr_donation': ['Wealthy', 'Connected', 'Respected'],
-    };
-    
-    let traitBonus = 0;
-    if (traitMatches[actionId]?.includes(staff.trait || '')) {
-      traitBonus = 0.5; // Strong match for now
-    }
-
-    const finalScore = calculateActionOutcomeScore(roll, currentTier.mult, traitBonus, staff.loyalty, staff.risk || 'Low', countryInfo.stability);
-    const quality = getResultQuality(finalScore);
-
-    // Specific logic
-    let membersJoined = 0;
-    let recognitionGain = 0;
-    let publicTrustGain = 0;
-    let moneyRaised = 0;
-    
-    if (actionId === 'mo_recruit') {
+  const canExecute = canAfford && isPromiseValid;
+  
+    const handleExecute = () => {
+      if (!canExecute) return;
+  
+      // Developer Comment: Temporary local action execution. In multiplayer, action execution, random rolls, costs, and results must be performed server-side to prevent cheating.
+      const roll = rollStaffOutcome(staff.skill);
+      
+      const traitMatches: Record<string, string[]> = {
+        'mo_recruit': ['Charismatic', 'Popular', 'Connected'],
+        'tr_donation': ['Wealthy', 'Connected', 'Respected'],
+      };
+      
+      let traitBonus = 0;
+      if (traitMatches[actionId]?.includes(staff.trait || '')) {
+        traitBonus = 0.5; // Strong match for now
+      }
+  
+      const finalScore = calculateActionOutcomeScore(roll, currentTier.mult, traitBonus, staff.loyalty, staff.risk || 'Low', countryInfo.stability);
+      const quality = getResultQuality(finalScore);
+  
+      // Specific logic
+      let membersJoined = 0;
+      let recognitionGain = 0;
+      let publicTrustGain = 0;
+      let moneyRaised = 0;
+      let policyCredibilityGain = 0;
+      let internalUnityGain = 0;
+      let supportGain = 0;
+      let controversyGain = 0;
+      let mediaPresenceGain = 0;
+      
+      let updatedManifestoStatus = ctx.partyStats?.manifestoStatus || 'Not Written';
+      let updatedMainPromise = ctx.partyStats?.mainPromise || '';
+      
+      if (actionId === 'mo_recruit') {
       if (finalScore < 0) {
         membersJoined = Math.floor(Math.random() * 11);
       } else if (finalScore < 2) {
@@ -1650,9 +1806,144 @@ function ActionExecutionModal({
       else if (finalScore < 9.5) { percent = 1.70 + Math.random() * 0.35; recognitionGain = 0.45 + Math.random() * 0.25; }
       else { percent = 2.05 + Math.random() * 0.15; recognitionGain = 0.70 + Math.random() * 0.30; }
       
-      moneyRaised = Math.round((currentTier.cost * percent) / 100) * 100;
+    } else if (actionId === 'pd_manifesto') {
+      if (finalScore < 0) {
+        policyCredibilityGain = 0;
+      } else if (finalScore < 2) {
+        policyCredibilityGain = 0.2 + Math.random() * 0.3;
+      } else if (finalScore < 4) {
+        updatedManifestoStatus = 'Drafted';
+        policyCredibilityGain = 0.5 + Math.random() * 0.7;
+        recognitionGain = 0.02 + Math.random() * 0.03;
+      } else if (finalScore < 6) {
+        updatedManifestoStatus = 'Drafted';
+        policyCredibilityGain = 1.2 + Math.random() * 1.3;
+        recognitionGain = 0.05 + Math.random() * 0.05;
+      } else if (finalScore < 8) {
+        updatedManifestoStatus = 'Strong Draft';
+        policyCredibilityGain = 2.5 + Math.random() * 1.5;
+        recognitionGain = 0.10 + Math.random() * 0.08;
+      } else if (finalScore < 9.5) {
+        updatedManifestoStatus = 'Major Draft';
+        policyCredibilityGain = 4.0 + Math.random() * 2.0;
+        recognitionGain = 0.18 + Math.random() * 0.07;
+      } else {
+        updatedManifestoStatus = 'Major Draft';
+        policyCredibilityGain = 6.0 + Math.random() * 2.0;
+        recognitionGain = 0.25 + Math.random() * 0.10;
+      }
+    } else if (actionId === 'pl_manifesto') {
+      if (finalScore < 0) {
+        internalUnityGain = -0.5;
+      } else if (finalScore < 2) {
+        updatedManifestoStatus = 'Approved';
+        policyCredibilityGain = 0.2;
+      } else if (finalScore < 4) {
+        updatedManifestoStatus = 'Approved';
+        policyCredibilityGain = 0.5;
+        internalUnityGain = 0.2;
+      } else if (finalScore < 6) {
+        updatedManifestoStatus = 'Approved';
+        policyCredibilityGain = 1.0;
+        internalUnityGain = 0.5;
+      } else if (finalScore < 8) {
+        updatedManifestoStatus = 'Approved';
+        policyCredibilityGain = 1.5;
+        internalUnityGain = 1.0;
+      } else if (finalScore < 9.5) {
+        updatedManifestoStatus = 'Approved';
+        policyCredibilityGain = 2.0;
+        internalUnityGain = 1.5;
+      } else {
+        updatedManifestoStatus = 'Approved';
+        policyCredibilityGain = 3.0;
+        internalUnityGain = 2.0;
+      }
+    } else if (actionId === 'pl_promise') {
+      if (finalScore < 0) {
+        controversyGain = 0.2;
+      } else if (finalScore < 2) {
+        updatedMainPromise = selectedPromise;
+        recognitionGain = 0.05;
+      } else if (finalScore < 4) {
+        updatedMainPromise = selectedPromise;
+        recognitionGain = 0.10;
+        policyCredibilityGain = 0.2;
+      } else if (finalScore < 6) {
+        updatedMainPromise = selectedPromise;
+        recognitionGain = 0.25;
+        policyCredibilityGain = 0.5;
+      } else if (finalScore < 8) {
+        updatedMainPromise = selectedPromise;
+        recognitionGain = 0.50;
+        policyCredibilityGain = 1.0;
+        supportGain = 0.02;
+      } else if (finalScore < 9.5) {
+        updatedMainPromise = selectedPromise;
+        recognitionGain = 0.80;
+        policyCredibilityGain = 1.5;
+        supportGain = 0.05;
+      } else {
+        updatedMainPromise = selectedPromise;
+        recognitionGain = 1.20;
+        policyCredibilityGain = 2.0;
+        supportGain = 0.10;
+      }
+    } else if (actionId === 'cm_rally') {
+      if (finalScore < 0) {
+        recognitionGain = 0.02;
+        controversyGain = 0.2;
+      } else if (finalScore < 2) {
+        recognitionGain = 0.10;
+        supportGain = 0.005;
+      } else if (finalScore < 4) {
+        recognitionGain = 0.25;
+        supportGain = 0.01;
+        publicTrustGain = 0.05;
+      } else if (finalScore < 6) {
+        recognitionGain = 0.60;
+        supportGain = 0.03;
+        publicTrustGain = 0.10;
+      } else if (finalScore < 8) {
+        recognitionGain = 1.10;
+        supportGain = 0.06;
+        publicTrustGain = 0.30;
+      } else if (finalScore < 9.5) {
+        recognitionGain = 1.80;
+        supportGain = 0.10;
+        publicTrustGain = 0.50;
+      } else {
+        recognitionGain = 2.50;
+        supportGain = 0.18;
+        publicTrustGain = 0.80;
+      }
+    } else if (actionId === 'meo_statement') {
+      if (finalScore < 0) {
+        controversyGain = 0.2;
+      } else if (finalScore < 2) {
+        mediaPresenceGain = 0.2;
+      } else if (finalScore < 4) {
+        mediaPresenceGain = 0.5;
+        recognitionGain = 0.05;
+      } else if (finalScore < 6) {
+        mediaPresenceGain = 1.0;
+        recognitionGain = 0.15;
+        policyCredibilityGain = 0.1;
+      } else if (finalScore < 8) {
+        mediaPresenceGain = 1.8;
+        recognitionGain = 0.35;
+        policyCredibilityGain = 0.3;
+      } else if (finalScore < 9.5) {
+        mediaPresenceGain = 2.8;
+        recognitionGain = 0.60;
+        policyCredibilityGain = 0.5;
+      } else {
+        mediaPresenceGain = 4.0;
+        recognitionGain = 0.90;
+        policyCredibilityGain = 0.8;
+      }
     }
-
+  
     const result = {
       actionId,
       actionName: action.name,
@@ -1672,8 +1963,15 @@ function ActionExecutionModal({
       recognitionGain,
       publicTrustGain,
       moneyRaised,
+      policyCredibilityGain,
+      internalUnityGain,
+      supportGain,
+      controversyGain,
+      mediaPresenceGain,
+      updatedManifestoStatus,
+      updatedMainPromise,
     };
-
+  
     onExecute(result);
   };
 
@@ -1723,6 +2021,24 @@ function ActionExecutionModal({
               ))}
             </div>
           </div>
+          
+          {actionId === 'pl_promise' && (
+            <div>
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2">Select Central Promise</div>
+              <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                {promisesList.map((promise) => (
+                  <button key={promise} type="button" onClick={() => setSelectedPromise(promise)}
+                    className="p-2 text-left border transition-colors rounded-sm flex items-center justify-between"
+                    style={{
+                      background: selectedPromise === promise ? `${ACCENT}14` : PANEL2,
+                      borderColor: selectedPromise === promise ? ACCENT : BORDER,
+                    }}>
+                    <span className="text-[11px] font-semibold" style={{ color: selectedPromise === promise ? ACCENT : TEXT }}>{promise}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Tip */}
           <div className="p-3" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
@@ -1738,16 +2054,16 @@ function ActionExecutionModal({
             style={{ color: MUTED, border: `1px solid ${BORDER}` }}>
             Cancel
           </button>
-          <button type="button" onClick={handleExecute} disabled={!canAfford}
+          <button type="button" onClick={handleExecute} disabled={!canExecute}
             className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity hover:opacity-75"
             style={{ 
-              background: canAfford ? `${ACCENT}14` : 'transparent', 
-              border: `1px solid ${canAfford ? ACCENT : BORDER}`, 
-              color: canAfford ? ACCENT : MUTED,
-              opacity: canAfford ? 1 : 0.5,
-              cursor: canAfford ? 'pointer' : 'not-allowed'
+              background: canExecute ? `${ACCENT}14` : 'transparent', 
+              border: `1px solid ${canExecute ? ACCENT : BORDER}`, 
+              color: canExecute ? ACCENT : MUTED,
+              opacity: canExecute ? 1 : 0.5,
+              cursor: canExecute ? 'pointer' : 'not-allowed'
             }}>
-            {canAfford ? 'Execute Action' : 'Insufficient Funds'}
+            {canAfford ? (actionId === 'pl_promise' && !selectedPromise ? 'Select Promise' : 'Execute Action') : 'Insufficient Funds'}
           </button>
         </div>
       </div>
@@ -1842,6 +2158,42 @@ function ActionResultsModal({
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-400">Public Trust</span>
                 <span className="text-emerald-400 font-mono">+{result.publicTrustGain.toFixed(2)}</span>
+              </div>
+            )}
+            {result.policyCredibilityGain > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-zinc-400">Policy Credibility</span>
+                <span className="text-emerald-400 font-mono">+{result.policyCredibilityGain.toFixed(2)}</span>
+              </div>
+            )}
+            {result.supportGain > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-zinc-400">Polling Support</span>
+                <span className="text-emerald-400 font-mono">+{result.supportGain.toFixed(2)}%</span>
+              </div>
+            )}
+            {result.mediaPresenceGain > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-zinc-400">Media Presence</span>
+                <span className="text-emerald-400 font-mono">+{result.mediaPresenceGain.toFixed(2)}</span>
+              </div>
+            )}
+            {result.internalUnityGain > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-zinc-400">Internal Unity</span>
+                <span className="text-emerald-400 font-mono">+{result.internalUnityGain.toFixed(2)}</span>
+              </div>
+            )}
+            {result.controversyGain > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-zinc-400">Controversy</span>
+                <span className="text-red-400 font-mono">+{result.controversyGain.toFixed(2)}</span>
+              </div>
+            )}
+            {result.actionId === 'pl_promise' && result.updatedMainPromise && (
+              <div className="flex justify-between text-xs">
+                <span className="text-zinc-400">Main Promise</span>
+                <span className="text-emerald-400">{result.updatedMainPromise}</span>
               </div>
             )}
             <div className="flex justify-between text-xs font-bold pt-1 border-t border-white/[0.05] mt-1">
@@ -1950,10 +2302,28 @@ export default function ActionsPage() {
       const statsRaw = localStorage.getItem('worldr_party_stats');
       if (statsRaw) {
         partyStats = JSON.parse(statsRaw);
+        // Safe migration
+        if (partyStats.policyCredibility === undefined) {
+           partyStats = {
+              ...partyStats,
+              mainPromise: partyStats.mainPromise || "",
+              policyCredibility: partyStats.policyCredibility || 0,
+              legalReadiness: partyStats.legalReadiness || 0,
+              campaignStrength: partyStats.campaignStrength || 0,
+              mediaPresence: partyStats.mediaPresence || 0,
+              regionalReach: partyStats.regionalReach || 0,
+              businessFavorability: partyStats.businessFavorability || 0,
+              ruralFavorability: partyStats.ruralFavorability || 0,
+              youthFavorability: partyStats.youthFavorability || 0,
+              workerFavorability: partyStats.workerFavorability || 0,
+              traditionalFavorability: partyStats.traditionalFavorability || 0
+           };
+           localStorage.setItem('worldr_party_stats', JSON.stringify(partyStats));
+        }
       } else if (partyId) {
         partyStats = {
           partyId, members: 1, volunteers: 0, recognition: 0, support: 0.1, internalUnity: 100, controversy: 0,
-          publicTrust: 0, manifestoStatus: "Not Written", legalReadiness: 0, campaignStrength: 0, mediaPresence: 0,
+          publicTrust: 0, manifestoStatus: "Not Written", mainPromise: "", policyCredibility: 0, legalReadiness: 0, campaignStrength: 0, mediaPresence: 0,
           regionalReach: 0, businessFavorability: 0, ruralFavorability: 0, youthFavorability: 0,
           workerFavorability: 0, traditionalFavorability: 0
         };
@@ -2025,6 +2395,14 @@ export default function ActionsPage() {
     updatedStats.members = (updatedStats.members || 0) + result.membersJoined;
     updatedStats.recognition = (updatedStats.recognition || 0) + result.recognitionGain;
     updatedStats.publicTrust = (updatedStats.publicTrust || 0) + result.publicTrustGain;
+    updatedStats.policyCredibility = (updatedStats.policyCredibility || 0) + result.policyCredibilityGain;
+    updatedStats.internalUnity = (updatedStats.internalUnity || 100) + result.internalUnityGain;
+    updatedStats.support = (updatedStats.support || 0.1) + result.supportGain;
+    updatedStats.controversy = (updatedStats.controversy || 0) + result.controversyGain;
+    updatedStats.mediaPresence = (updatedStats.mediaPresence || 0) + result.mediaPresenceGain;
+    
+    if (result.updatedManifestoStatus) updatedStats.manifestoStatus = result.updatedManifestoStatus;
+    if (result.updatedMainPromise) updatedStats.mainPromise = result.updatedMainPromise;
 
     let updatedBudget = ctx.partyBudget || { partyId: ctx.partyId, partyFunds: 2000000, totalRevenue: 0, totalExpenses: 0, monthlyRevenue: 0, otherExpenses: 0 };
 
@@ -2074,6 +2452,17 @@ export default function ActionsPage() {
           actionName: result.actionName,
           createdAt: new Date().toISOString()
         });
+      } else {
+         transactions.unshift({
+           id: Math.random().toString(36).substring(2, 9),
+           partyId: ctx.partyId,
+           type: "expense",
+           category: "Operation Cost",
+           source: result.actionName,
+           amount: result.investment,
+           actionName: result.actionName,
+           createdAt: new Date().toISOString()
+         });
       }
       localStorage.setItem('worldr_party_transactions', JSON.stringify(transactions));
 
@@ -2087,6 +2476,16 @@ export default function ActionsPage() {
       } else if (result.actionId === 'tr_donation') {
         const net = result.moneyRaised - result.investment;
         summaryStr = `Treasurer raised ${formatMoney(result.moneyRaised)} from a small donation drive. Net funds changed by ${net >= 0 ? '+' : '-'}${formatMoney(Math.abs(net))}.`;
+      } else if (result.actionId === 'pd_manifesto') {
+        summaryStr = `Policy Director drafted a party manifesto with a ${result.quality.toLowerCase()} result.`;
+      } else if (result.actionId === 'pl_manifesto') {
+        summaryStr = `Party Leader approved the manifesto.`;
+      } else if (result.actionId === 'pl_promise') {
+        summaryStr = `Party Leader declared ${result.updatedMainPromise || 'a new policy'} as the party's main promise.`;
+      } else if (result.actionId === 'cm_rally') {
+        summaryStr = `Campaign Manager held a local rally and increased recognition by ${result.recognitionGain.toFixed(2)}.`;
+      } else if (result.actionId === 'meo_statement') {
+        summaryStr = `Media Officer published a party statement.`;
       }
 
       const newLog = {
@@ -2341,7 +2740,7 @@ export default function ActionsPage() {
                   </div>
                 )}
                 {selectedPos && (
-                  <PositionCenter position={selectedPos} accentColor={ctx.partyColor} partyName={ctx.partyName} countryName={ctx.countryName} onHire={setHireTarget} onTrigger={handleTriggerAction} />
+                  <PositionCenter position={selectedPos} accentColor={ctx.partyColor} partyName={ctx.partyName} countryName={ctx.countryName} ctx={ctx} onHire={setHireTarget} onTrigger={handleTriggerAction} />
                 )}
               </div>
 
@@ -2374,7 +2773,7 @@ export default function ActionsPage() {
                     <PositionList positions={positions} selectedId={selectedPosId} onSelect={setSelectedPosId} accentColor={ctx.partyColor} />
                   )}
                   {selectedPos && (
-                    <PositionCenter position={selectedPos} accentColor={ctx.partyColor} partyName={ctx.partyName} countryName={ctx.countryName} onHire={setHireTarget} onTrigger={handleTriggerAction} />
+                    <PositionCenter position={selectedPos} accentColor={ctx.partyColor} partyName={ctx.partyName} countryName={ctx.countryName} ctx={ctx} onHire={setHireTarget} onTrigger={handleTriggerAction} />
                   )}
                 </div>
               </div>
@@ -2382,7 +2781,7 @@ export default function ActionsPage() {
           ) : activeSubtab === 'Party Staff' ? (
             <PartyStaffView positions={positions} onHire={setHireTarget} onFire={handleFireStaff} accentColor={ctx.partyColor} />
           ) : activeSubtab === 'Party Strategy' ? (
-            <PartyStrategyView />
+            <PartyStrategyView ctx={ctx} />
           ) : activeSubtab === 'Budget' ? (
             <BudgetView budget={ctx.partyBudget} partyId={ctx.partyId || ''} />
           ) : activeSubtab === 'Elections' ? (
