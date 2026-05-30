@@ -276,20 +276,26 @@ export default function CreatePartyPage() {
     const t = setTimeout(() => setRevealed(true), 80);
 
     // Route guard: redirect if no character
-    // (Zustand persist key is 'worldr-character')
-    const charRaw = localStorage.getItem('worldr-character');
+    // Zustand persists to 'worldr-character'; also check 'worldr_character' for future migration
+    const charRaw =
+      localStorage.getItem('worldr-character') ||
+      localStorage.getItem('worldr_character');
     if (!charRaw) { router.replace('/onboarding/create-character'); return; }
     try {
       const charState = JSON.parse(charRaw);
       const c = charState?.state?.character;
       if (!c?.firstName) { router.replace('/onboarding/create-character'); return; }
-    } catch {}
+    } catch { router.replace('/onboarding/create-character'); return; }
 
     // Route guard: redirect if no path selected
-    const path = localStorage.getItem('worldr-path');
+    // Read standardized key first, fall back to legacy key
+    const path =
+      localStorage.getItem('worldr_selected_path') ||
+      localStorage.getItem('worldr-path');
     if (!path) { router.replace('/onboarding/choose-path'); return; }
 
-    // One-party rule: check for existing party
+    // Temporary local one-party rule.
+    // In multiplayer, enforce one political party per account in the backend/database using userId ownership.
     try {
       const raw = localStorage.getItem('worldr_current_party');
       if (raw) setExistingParty(JSON.parse(raw));

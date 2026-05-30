@@ -262,22 +262,29 @@ export default function ChooseMotherlandPage() {
   useEffect(() => {
     const t = setTimeout(() => setRevealed(true), 80);
 
-    // Route guards
-    const charRaw = localStorage.getItem('worldr-character');
+    // Route guards: check character
+    const charRaw =
+      localStorage.getItem('worldr-character') ||
+      localStorage.getItem('worldr_character');
     if (!charRaw) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
     try {
       const charState = JSON.parse(charRaw);
       if (!charState?.state?.character?.firstName) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
     } catch { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
 
-    const path = localStorage.getItem('worldr-path');
+    // Route guards: check path (read both key variants)
+    const path =
+      localStorage.getItem('worldr_selected_path') ||
+      localStorage.getItem('worldr-path');
     if (!path) { router.replace('/onboarding/choose-path'); return () => clearTimeout(t); }
 
+    // Route guard: Politician must have a party
     if (path === 'politician') {
       const partyRaw = localStorage.getItem('worldr_current_party');
       if (!partyRaw) { router.replace('/onboarding/create-party'); return () => clearTimeout(t); }
     }
 
+    // Set display path label
     const pathLabels: Record<string, string> = {
       politician: 'Politician',
       businessman: 'Businessman',
@@ -285,8 +292,7 @@ export default function ChooseMotherlandPage() {
       judicial: 'Judicial Officer',
       media: 'Media & Influence',
     };
-    const storedPath = localStorage.getItem('worldr-path');
-    if (storedPath) setSelectedPath(pathLabels[storedPath] ?? 'Politician');
+    setSelectedPath(pathLabels[path] ?? 'Politician');
 
     try {
       const raw = localStorage.getItem('worldr_current_party');
@@ -294,7 +300,7 @@ export default function ChooseMotherlandPage() {
     } catch {}
 
     return () => clearTimeout(t);
-  }, []);
+  }, [router]);
 
   const current = CONTINENTS.find((c) => c.id === activeContinent)!;
   const displayName = buildDisplayName(character.firstName, character.middleName, character.lastName);

@@ -58,22 +58,28 @@ export default function ChoosePathPage() {
     const t = setTimeout(() => setRevealed(true), 80);
 
     // Route guard: redirect if no character
-    const charRaw = localStorage.getItem('worldr-character');
+    const charRaw =
+      localStorage.getItem('worldr-character') ||
+      localStorage.getItem('worldr_character');
     if (!charRaw) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
     try {
       const charState = JSON.parse(charRaw);
       if (!charState?.state?.character?.firstName) { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
     } catch { router.replace('/onboarding/create-character'); return () => clearTimeout(t); }
 
-    // Restore previously selected path if any
-    const saved = localStorage.getItem('worldr-path');
+    // Restore previously selected path — read both key variants
+    const saved =
+      localStorage.getItem('worldr_selected_path') ||
+      localStorage.getItem('worldr-path');
     if (saved) setSelected(saved);
     return () => clearTimeout(t);
   }, [router]);
 
   const handleSelect = (id: string) => {
     setSelected(id);
-    localStorage.setItem('worldr-path', id);
+    // Write standardized key; also write legacy key during transition for backward compat
+    localStorage.setItem('worldr_selected_path', id);
+    localStorage.setItem('worldr-path', id); // legacy — will be phased out post-multiplayer launch
   };
 
   const canContinue = selected !== '';

@@ -333,31 +333,60 @@ export default function CreateCharacterPage() {
   // ── Summary mode: smart continue routing ──────────────────────────────────
 
   const handleSummaryContinue = () => {
-    const path = localStorage.getItem('worldr-path');
-    const partyRaw = localStorage.getItem('worldr_current_party');
+    // Read path from standardized key, fall back to legacy key for compat
+    const path =
+      localStorage.getItem('worldr_selected_path') ||
+      localStorage.getItem('worldr-path');
+
     if (!path) {
       router.push('/onboarding/choose-path');
       return;
     }
-    if (path === 'politician' && !partyRaw) {
+
+    // For Politician path: ALWAYS route through create-party.
+    // create-party will show existing party summary OR the creation form.
+    // Never skip the party step from the character summary.
+    if (path === 'politician') {
       router.push('/onboarding/create-party');
       return;
     }
+
+    // For future non-Politician paths (Businessman, Military etc.)
     router.push('/onboarding/choose-motherland');
   };
 
-  // ── Delete character (and all dependent data) ─────────────────────────────
+  // ── Delete character + full account cleanup ───────────────────────────────
 
   const handleDeleteConfirm = () => {
-    // Reset Zustand store (also clears the persisted 'worldr-character' key)
+    // Temporary local account cleanup.
+    // In multiplayer, deleting an account must delete all owned party records
+    // in the backend/database and release the party abbreviation for reuse.
+
+    // 1. Release party abbreviation: remove player's party from the registry first
+    try {
+      const partyRaw = localStorage.getItem('worldr_current_party');
+      if (partyRaw) {
+        const party: { partyId: string } = JSON.parse(partyRaw);
+        const registryRaw = localStorage.getItem('worldr_registered_parties');
+        if (registryRaw) {
+          const registry: Array<{ partyId: string }> = JSON.parse(registryRaw);
+          const filtered = registry.filter((p) => p.partyId !== party.partyId);
+          localStorage.setItem('worldr_registered_parties', JSON.stringify(filtered));
+        }
+      }
+    } catch {}
+
+    // 2. Reset Zustand store (clears the persisted 'worldr-character' key)
     resetCharacter();
-    // Clear all dependent onboarding data
-    localStorage.removeItem('worldr-path');
+
+    // 3. Clear all onboarding data (both old and new key variants for safety)
+    localStorage.removeItem('worldr-path');          // legacy key
+    localStorage.removeItem('worldr_selected_path'); // standardized key
     localStorage.removeItem('worldr_current_party');
     localStorage.removeItem('worldr_selected_country');
-    // Note: we do NOT remove worldr_registered_parties because mock seed data lives there
-    // and other players' parties (in future multiplayer) must not be erased.
-    // Temporary local delete flow. Real account-level deletion must be enforced by backend before multiplayer launch.
+    // Note: worldr_registered_parties is NOT wiped — only the player's own party
+    // was already removed above. Mock seed parties and future other players' parties remain.
+
     setShowDelete(false);
     setHasCharacter(false);
   };
