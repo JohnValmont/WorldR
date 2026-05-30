@@ -24,6 +24,14 @@ const TEXT = '#d6d9d2';
 const MUTED = '#7a8070';
 const PANEL2 = '#151814';
 
+export function formatMoney(value: number): string {
+  if (value >= 1000000) {
+    const m = value / 1000000;
+    return '$' + (m % 1 === 0 ? m.toFixed(1) : m.toFixed(2)) + 'M';
+  }
+  return '$' + value.toLocaleString('en-US');
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // IDEOLOGY MAP
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,6 +65,7 @@ interface PlayerCtx {
   selectedPath: string;
   partyId?: string;
   partyFunds: number;
+  partyBudget?: any;
   partyStats?: any;
 }
 
@@ -505,7 +514,7 @@ function HireStaffModal({ positionId, positionTitle, onClose, onHireSuccess, cou
                    <div className="text-[10px]"><span className="text-zinc-500">Loyalty:</span> <span className="text-blue-400 font-mono font-bold">{c.loyalty}</span></div>
                 </div>
                 <div className="text-[10px] mt-1.5"><span className="text-zinc-500">Type:</span> <span className="text-zinc-300 font-mono">{c.type}</span></div>
-                <div className="text-[10px] mt-0.5"><span className="text-zinc-500">Salary:</span> <span className="text-emerald-500 font-mono font-bold">${c.salary.toLocaleString()} / month</span></div>
+                <div className="text-[10px] mt-0.5"><span className="text-zinc-500">Salary:</span> <span className="text-emerald-500 font-mono font-bold">{formatMoney(c.salary)} / month</span></div>
               </div>
               <button type="button" onClick={() => handleHire(c)}
                 className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75 shrink-0"
@@ -616,6 +625,7 @@ function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger }: { 
   const isDissolve = action.id === 'pl_dissolve';
   const isRedoChar = action.id === 'pl_redo_char';
   const isRebrandParty = action.id === 'pl_rebrand_party';
+  const isImplementedAction = action.id === 'mo_recruit' || action.id === 'tr_donation';
 
   return (
     <div className="flex items-center gap-4 px-4 py-3 transition-colors duration-100"
@@ -762,17 +772,18 @@ function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger }: { 
           </button>
         ) : (
           <button type="button"
-            disabled={!isFilled}
+            disabled={!isImplementedAction || !isFilled}
             onClick={() => onTrigger && onTrigger(action.id)}
             className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1 transition-colors hover:bg-white/10"
             style={{
-              color: isFilled ? '#b8bcb4' : '#3d4238',
-              background: isFilled ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',
-              border: `1px solid ${isFilled ? '#5a6058' : BORDER}`,
+              color: isImplementedAction ? (isFilled ? '#b8bcb4' : '#3d4238') : '#4a5045',
+              background: isImplementedAction ? (isFilled ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)') : 'rgba(255,255,255,0.01)',
+              border: `1px solid ${isImplementedAction ? (isFilled ? '#5a6058' : BORDER) : BORDER}`,
               borderRadius: '2px',
-              cursor: isFilled ? 'pointer' : 'not-allowed',
+              cursor: isImplementedAction ? (isFilled ? 'pointer' : 'not-allowed') : 'not-allowed',
+              opacity: isImplementedAction ? 1 : 0.4,
             }}>
-            {isFilled ? 'Execute Action' : `Locked - Hire ${positionTitle.split(' ')[0]}`}
+            {!isImplementedAction ? 'Coming Soon' : (isFilled ? 'Execute Action' : `Locked - Hire ${positionTitle.split(' ')[0]}`)}
           </button>
         )}
       </div>
@@ -1155,7 +1166,7 @@ function PartyStaffView({ positions, onHire, onFire, accentColor }: { positions:
                     <div className="text-[9px]"><span className="text-zinc-500">Skill:</span> <span className="text-amber-500 font-mono font-bold">{s.filledBy!.skill}</span></div>
                     <div className="text-[9px]"><span className="text-zinc-500">Loyalty:</span> <span className="text-emerald-500 font-mono font-bold">{s.filledBy!.loyalty}%</span></div>
                     {/* TypeScript safety cast for the additional properties we added */}
-                    <div className="text-[9px]"><span className="text-zinc-500">Salary:</span> <span className="text-zinc-300 font-mono">${(s.filledBy as any).salary?.toLocaleString()}/mo</span></div>
+                    <div className="text-[9px]"><span className="text-zinc-500">Salary:</span> <span className="text-zinc-300 font-mono">{formatMoney((s.filledBy as any).salary)}/mo</span></div>
                   </div>
                 )}
               </div>
@@ -1167,9 +1178,9 @@ function PartyStaffView({ positions, onHire, onFire, accentColor }: { positions:
   );
 }
 
-function BudgetView() {
-  const [budget, setBudget] = useState({ partyFunds: 2000000, monthlyRevenue: 0, otherExpenses: 0 });
+function BudgetView({ budget, partyId }: { budget: any, partyId: string }) {
   const [staffCost, setStaffCost] = useState(0);
+  const [transactions, setTransactions] = useState<any[]>([]);
 
   useEffect(() => {
     // Developer Comment: Temporary party budget model. In multiplayer, party funds, revenue, expenses, and salary payments must be stored and validated by backend/database.
@@ -1182,80 +1193,106 @@ function BudgetView() {
           if (s && s.salary) cost += s.salary;
         });
       }
+      
+      const txRaw = localStorage.getItem('worldr_party_transactions');
+      if (txRaw) {
+        setTransactions(JSON.parse(txRaw).filter((t: any) => t.partyId === partyId));
+      }
     } catch(e){}
     setStaffCost(cost);
+  }, [partyId, budget]);
 
-    let partyId = '';
-    try {
-      const pRaw = localStorage.getItem('worldr_current_party');
-      if (pRaw) {
-        partyId = JSON.parse(pRaw).partyId;
-      }
-    } catch(e) {}
-
-    try {
-      const budgetRaw = localStorage.getItem('worldr_party_budget');
-      if (budgetRaw) {
-        setBudget(JSON.parse(budgetRaw));
-      } else {
-        const defaultBudget = { partyId, partyFunds: 2000000, monthlyRevenue: 0, otherExpenses: 0 };
-        localStorage.setItem('worldr_party_budget', JSON.stringify(defaultBudget));
-        setBudget(defaultBudget);
-      }
-    } catch(e) {}
-  }, []);
-
-  const monthlyExpenses = staffCost + budget.otherExpenses;
-  const netProfit = budget.monthlyRevenue - monthlyExpenses;
-  const projectedMonthlyBalance = budget.partyFunds + netProfit;
+  const safeBudget = budget || { partyFunds: 2000000, totalRevenue: 0, totalExpenses: 0, monthlyRevenue: 0, otherExpenses: 0 };
+  const netProfit = (safeBudget.totalRevenue || 0) - (safeBudget.totalExpenses || 0);
+  
+  const monthlyExpenses = staffCost + (safeBudget.otherExpenses || 0);
+  const projectedMonthlyNet = (safeBudget.monthlyRevenue || 0) - monthlyExpenses;
 
   return (
     <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
-      <div className="max-w-xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <div className="mb-6">
           <h2 className="text-xl font-bold text-white tracking-tight">Party Budget</h2>
           <p className="text-zinc-500 text-xs mt-1">Manage your political organization's finances and staff salaries.</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="p-5" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="p-4" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
               <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Party Funds</div>
-              <div className="text-xl font-bold text-emerald-500">${(budget.partyFunds / 1000000).toFixed(1)}M</div>
+              <div className="text-lg font-bold text-emerald-500">{formatMoney(safeBudget.partyFunds)}</div>
             </div>
-            <div className="p-5" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
-              <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Projected Monthly Balance</div>
-              <div className="text-lg font-bold text-emerald-400">${projectedMonthlyBalance.toLocaleString()}</div>
+            <div className="p-4" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+              <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Total Revenue</div>
+              <div className="text-lg font-bold text-emerald-400">{formatMoney(safeBudget.totalRevenue || 0)}</div>
+            </div>
+            <div className="p-4" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+              <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Total Expenses</div>
+              <div className="text-lg font-bold text-red-400">{formatMoney(safeBudget.totalExpenses || 0)}</div>
+            </div>
+            <div className="p-4" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+              <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Net Profit</div>
+              <div className={`text-lg font-bold ${netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                {netProfit >= 0 ? '+' : ''}{formatMoney(netProfit)}
+              </div>
             </div>
         </div>
 
-        <div className="space-y-4" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px', padding: '16px' }}>
-          <div className="flex items-center justify-between pb-3 border-b border-white/[0.03]">
-            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Monthly Revenue</span>
-            <span className="text-xs font-semibold text-zinc-300">${budget.monthlyRevenue.toLocaleString()}</span>
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-4" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px', padding: '16px' }}>
+            <h3 className="text-xs font-bold text-zinc-300 mb-2 uppercase tracking-widest border-b border-white/[0.05] pb-2">Monthly Projection</h3>
+            <div className="flex items-center justify-between pb-2 border-b border-white/[0.03]">
+              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Monthly Revenue</span>
+              <span className="text-xs font-semibold text-zinc-300">{formatMoney(safeBudget.monthlyRevenue || 0)}</span>
+            </div>
+            <div className="flex items-center justify-between pb-2 border-b border-white/[0.03]">
+              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Staff Salary Exp.</span>
+              <span className="text-xs font-semibold text-red-400">-{formatMoney(staffCost)}</span>
+            </div>
+            <div className="flex items-center justify-between pb-2 border-b border-white/[0.03]">
+              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Other Expenses</span>
+              <span className="text-xs font-semibold text-red-400">-{formatMoney(safeBudget.otherExpenses || 0)}</span>
+            </div>
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/[0.05]">
+              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Projected Net</span>
+              <span className={`text-xs font-semibold ${projectedMonthlyNet >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                {projectedMonthlyNet >= 0 ? '+' : ''}{formatMoney(projectedMonthlyNet)}
+              </span>
+            </div>
+            <p className="text-[9px] text-zinc-700 text-center mt-2 italic">
+              Salaries are not yet automatically deducted.
+            </p>
           </div>
-          <div className="flex items-center justify-between pb-3 border-b border-white/[0.03]">
-            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Staff Salary Expenses</span>
-            <span className="text-xs font-semibold text-red-400">-${staffCost.toLocaleString()}</span>
-          </div>
-          <div className="flex items-center justify-between pb-3 border-b border-white/[0.03]">
-            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Other Expenses</span>
-            <span className="text-xs font-semibold text-red-400">-${budget.otherExpenses.toLocaleString()}</span>
-          </div>
-          <div className="flex items-center justify-between pb-3 border-b border-white/[0.03]">
-            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Monthly Expenses</span>
-            <span className="text-xs font-semibold text-red-400">-${monthlyExpenses.toLocaleString()}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Net Profit</span>
-            <span className={`text-xs font-semibold ${netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-              {netProfit >= 0 ? '+' : ''}${netProfit.toLocaleString()}
-            </span>
+
+          <div className="space-y-4 flex flex-col" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px', maxHeight: '300px' }}>
+             <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest border-b border-white/[0.05] px-4 py-3 shrink-0">Recent Transactions</h3>
+             <div className="flex-1 overflow-y-auto px-4 pb-4">
+                {transactions.length === 0 ? (
+                  <p className="text-[10px] text-zinc-500 italic text-center py-6">No financial transactions recorded yet.</p>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr>
+                        <th className="text-[8px] font-mono uppercase tracking-widest text-zinc-600 pb-2 font-normal">Date</th>
+                        <th className="text-[8px] font-mono uppercase tracking-widest text-zinc-600 pb-2 font-normal">Source</th>
+                        <th className="text-[8px] font-mono uppercase tracking-widest text-zinc-600 pb-2 font-normal text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transactions.map((tx) => (
+                        <tr key={tx.id} className="border-t border-white/[0.02]">
+                          <td className="py-2 text-[9px] font-mono text-zinc-500">{new Date(tx.createdAt).toLocaleDateString()}</td>
+                          <td className="py-2 text-[10px] text-zinc-300">{tx.source} <span className="text-zinc-600 text-[8px] ml-1">({tx.category})</span></td>
+                          <td className={`py-2 text-[10px] font-mono text-right font-bold ${tx.type === 'revenue' ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {tx.type === 'revenue' ? '+' : '-'}{formatMoney(tx.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+             </div>
           </div>
         </div>
-        
-        <p className="text-[10px] text-zinc-700 text-center mt-6 italic">
-          Budget is currently view-only. Salaries are not yet deducted.
-        </p>
       </div>
     </div>
   );
@@ -1577,41 +1614,41 @@ function ActionExecutionModal({
     
     if (actionId === 'mo_recruit') {
       if (finalScore < 0) {
-        membersJoined = Math.floor(Math.random() * 6);
+        membersJoined = Math.floor(Math.random() * 11);
       } else if (finalScore < 2) {
-        membersJoined = Math.floor(5 + Math.random() * 26);
-        recognitionGain = 0.1 + Math.random() * 0.2;
-        publicTrustGain = Math.random() * 0.2;
+        membersJoined = Math.floor(10 + Math.random() * 51);
+        recognitionGain = 0.02 + Math.random() * 0.06;
+        publicTrustGain = Math.random() * 0.05;
       } else if (finalScore < 4) {
-        membersJoined = Math.floor(30 + Math.random() * 71);
-        recognitionGain = 0.3 + Math.random() * 0.5;
-        publicTrustGain = 0.2 + Math.random() * 0.3;
+        membersJoined = Math.floor(60 + Math.random() * 121);
+        recognitionGain = 0.05 + Math.random() * 0.10;
+        publicTrustGain = 0.02 + Math.random() * 0.08;
       } else if (finalScore < 6) {
-        membersJoined = Math.floor(100 + Math.random() * 151);
-        recognitionGain = 0.8 + Math.random() * 0.7;
-        publicTrustGain = 0.5 + Math.random() * 0.5;
+        membersJoined = Math.floor(180 + Math.random() * 321);
+        recognitionGain = 0.15 + Math.random() * 0.20;
+        publicTrustGain = 0.05 + Math.random() * 0.15;
       } else if (finalScore < 8) {
-        membersJoined = Math.floor(250 + Math.random() * 401);
-        recognitionGain = 1.5 + Math.random() * 1.3;
-        publicTrustGain = 1.0 + Math.random() * 1.0;
+        membersJoined = Math.floor(500 + Math.random() * 701);
+        recognitionGain = 0.35 + Math.random() * 0.35;
+        publicTrustGain = 0.15 + Math.random() * 0.20;
       } else if (finalScore < 9.5) {
-        membersJoined = Math.floor(650 + Math.random() * 651);
-        recognitionGain = 2.8 + Math.random() * 1.7;
-        publicTrustGain = 2.0 + Math.random() * 1.5;
+        membersJoined = Math.floor(1200 + Math.random() * 1301);
+        recognitionGain = 0.70 + Math.random() * 0.50;
+        publicTrustGain = 0.30 + Math.random() * 0.30;
       } else {
-        membersJoined = Math.floor(1300 + Math.random() * 1201);
-        recognitionGain = 4.5 + Math.random() * 1.5;
-        publicTrustGain = 3.5 + Math.random() * 1.5;
+        membersJoined = Math.floor(2500 + Math.random() * 2501);
+        recognitionGain = 1.20 + Math.random() * 0.80;
+        publicTrustGain = 0.60 + Math.random() * 0.40;
       }
     } else if (actionId === 'tr_donation') {
       let percent = 0;
-      if (finalScore < 0) percent = 0.1 + Math.random() * 0.3;
-      else if (finalScore < 2) { percent = 0.5 + Math.random() * 0.4; recognitionGain = Math.random() * 0.2; }
-      else if (finalScore < 4) { percent = 0.9 + Math.random() * 0.5; recognitionGain = 0.2 + Math.random() * 0.3; }
-      else if (finalScore < 6) { percent = 1.5 + Math.random() * 0.8; recognitionGain = 0.5 + Math.random() * 0.5; }
-      else if (finalScore < 8) { percent = 2.5 + Math.random() * 1.5; recognitionGain = 1.0 + Math.random() * 0.8; }
-      else if (finalScore < 9.5) { percent = 4.5 + Math.random() * 2.0; recognitionGain = 1.8 + Math.random() * 1.0; }
-      else { percent = 7.0 + Math.random() * 3.0; recognitionGain = 2.8 + Math.random() * 1.2; }
+      if (finalScore < 0) percent = Math.random() * 0.35;
+      else if (finalScore < 2) { percent = 0.35 + Math.random() * 0.35; recognitionGain = Math.random() * 0.05; }
+      else if (finalScore < 4) { percent = 0.70 + Math.random() * 0.35; recognitionGain = 0.05 + Math.random() * 0.07; }
+      else if (finalScore < 6) { percent = 1.05 + Math.random() * 0.30; recognitionGain = 0.12 + Math.random() * 0.13; }
+      else if (finalScore < 8) { percent = 1.35 + Math.random() * 0.35; recognitionGain = 0.25 + Math.random() * 0.20; }
+      else if (finalScore < 9.5) { percent = 1.70 + Math.random() * 0.35; recognitionGain = 0.45 + Math.random() * 0.25; }
+      else { percent = 2.05 + Math.random() * 0.15; recognitionGain = 0.70 + Math.random() * 0.30; }
       
       moneyRaised = Math.round((currentTier.cost * percent) / 100) * 100;
     }
@@ -1680,7 +1717,7 @@ function ActionExecutionModal({
                     background: selectedTier === idx ? `${ACCENT}14` : PANEL2,
                     borderColor: selectedTier === idx ? ACCENT : BORDER,
                   }}>
-                  <div className="text-xs font-bold" style={{ color: selectedTier === idx ? ACCENT : TEXT }}>${(t.cost / 1000).toFixed(0)}K</div>
+                  <div className="text-xs font-bold" style={{ color: selectedTier === idx ? ACCENT : TEXT }}>{formatMoney(t.cost)}</div>
                   <div className="text-[9px] font-mono mt-0.5" style={{ color: MUTED }}>{t.mult.toFixed(2)}x Mult</div>
                 </button>
               ))}
@@ -1773,19 +1810,19 @@ function ActionResultsModal({
             <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2">Outcome Effects</div>
             <div className="flex justify-between text-xs">
               <span className="text-zinc-400">Investment Cost</span>
-              <span className="text-red-400 font-mono">-${result.investment.toLocaleString()}</span>
+              <span className="text-red-400 font-mono">-{formatMoney(result.investment)}</span>
             </div>
             {result.moneyRaised > 0 && (
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-400">Gross Money Raised</span>
-                <span className="text-emerald-400 font-mono">+${result.moneyRaised.toLocaleString()}</span>
+                <span className="text-emerald-400 font-mono">+{formatMoney(result.moneyRaised)}</span>
               </div>
             )}
             {result.moneyRaised > 0 && (
               <div className="flex justify-between text-xs font-bold pt-1 border-t border-white/[0.05] mt-1">
                 <span className="text-zinc-300">Net Funds Gain</span>
                 <span className={result.moneyRaised - result.investment >= 0 ? "text-emerald-500 font-mono" : "text-red-500 font-mono"}>
-                  {result.moneyRaised - result.investment >= 0 ? '+' : ''}${(result.moneyRaised - result.investment).toLocaleString()}
+                  {result.moneyRaised - result.investment >= 0 ? '+' : '-'}{formatMoney(Math.abs(result.moneyRaised - result.investment))}
                 </span>
               </div>
             )}
@@ -1807,6 +1844,10 @@ function ActionResultsModal({
                 <span className="text-emerald-400 font-mono">+{result.publicTrustGain.toFixed(2)}</span>
               </div>
             )}
+            <div className="flex justify-between text-xs font-bold pt-1 border-t border-white/[0.05] mt-1">
+              <span className="text-zinc-300">Updated Party Funds</span>
+              <span className="text-emerald-500 font-mono">{formatMoney(result.updatedFunds)}</span>
+            </div>
           </div>
         </div>
 
@@ -1885,14 +1926,25 @@ export default function ActionsPage() {
     const selectedPath = pathLabels[pathRaw ?? ''] ?? 'Politician';
 
     let partyFunds = 2000000;
+    let partyBudget: any = null;
     let partyStats: any = { members: 1, recognition: 0, support: 0.1 };
     try {
       const budgetRaw = localStorage.getItem('worldr_party_budget');
       if (budgetRaw) {
-        partyFunds = JSON.parse(budgetRaw).partyFunds;
+        partyBudget = JSON.parse(budgetRaw);
+        partyBudget = {
+          partyId,
+          partyFunds: partyBudget.partyFunds ?? 2000000,
+          totalRevenue: partyBudget.totalRevenue ?? 0,
+          totalExpenses: partyBudget.totalExpenses ?? 0,
+          monthlyRevenue: partyBudget.monthlyRevenue ?? 0,
+          otherExpenses: partyBudget.otherExpenses ?? 0,
+        };
+        localStorage.setItem('worldr_party_budget', JSON.stringify(partyBudget));
+        partyFunds = partyBudget.partyFunds;
       } else if (partyId) {
-        const defaultBudget = { partyId, partyFunds: 2000000, monthlyRevenue: 0, otherExpenses: 0 };
-        localStorage.setItem('worldr_party_budget', JSON.stringify(defaultBudget));
+        partyBudget = { partyId, partyFunds: 2000000, totalRevenue: 0, totalExpenses: 0, monthlyRevenue: 0, otherExpenses: 0 };
+        localStorage.setItem('worldr_party_budget', JSON.stringify(partyBudget));
       }
 
       const statsRaw = localStorage.getItem('worldr_party_stats');
@@ -1914,7 +1966,7 @@ export default function ActionsPage() {
       }
     } catch(e) {}
 
-    setCtx({ characterName: charName, characterAge: charAge, countryName, continentName, partyName, partyAbbreviation, partyColor, partyLogoId, ideologyIds, partyDescription, partyCreatedAt, selectedPath, partyId, partyFunds, partyStats });
+    setCtx({ characterName: charName, characterAge: charAge, countryName, continentName, partyName, partyAbbreviation, partyColor, partyLogoId, ideologyIds, partyDescription, partyCreatedAt, selectedPath, partyId, partyFunds, partyBudget, partyStats });
 
     // Build positions
     const staffRaw = localStorage.getItem('worldr_party_staff');
@@ -1974,18 +2026,69 @@ export default function ActionsPage() {
     updatedStats.recognition = (updatedStats.recognition || 0) + result.recognitionGain;
     updatedStats.publicTrust = (updatedStats.publicTrust || 0) + result.publicTrustGain;
 
+    let updatedBudget = ctx.partyBudget || { partyId: ctx.partyId, partyFunds: 2000000, totalRevenue: 0, totalExpenses: 0, monthlyRevenue: 0, otherExpenses: 0 };
+
     try {
-      const budgetRaw = localStorage.getItem('worldr_party_budget');
-      if (budgetRaw) {
-        const budget = JSON.parse(budgetRaw);
-        budget.partyFunds = updatedFunds;
-        localStorage.setItem('worldr_party_budget', JSON.stringify(budget));
+      updatedBudget.partyFunds = updatedFunds;
+      updatedBudget.totalExpenses += result.investment;
+      if (result.moneyRaised > 0) {
+        updatedBudget.totalRevenue += result.moneyRaised;
       }
+      localStorage.setItem('worldr_party_budget', JSON.stringify(updatedBudget));
+
       localStorage.setItem('worldr_party_stats', JSON.stringify(updatedStats));
+
+      // Financial Transactions
+      const txRaw = localStorage.getItem('worldr_party_transactions');
+      const transactions = txRaw ? JSON.parse(txRaw) : [];
+      
+      if (result.actionId === 'mo_recruit') {
+        transactions.unshift({
+          id: Math.random().toString(36).substring(2, 9),
+          partyId: ctx.partyId,
+          type: "expense",
+          category: "Recruitment",
+          source: "Recruit Members",
+          amount: result.investment,
+          actionName: result.actionName,
+          createdAt: new Date().toISOString()
+        });
+      } else if (result.actionId === 'tr_donation') {
+        transactions.unshift({
+          id: Math.random().toString(36).substring(2, 9),
+          partyId: ctx.partyId,
+          type: "expense",
+          category: "Fundraising Cost",
+          source: "Small Donation Drive",
+          amount: result.investment,
+          actionName: result.actionName,
+          createdAt: new Date().toISOString()
+        });
+        transactions.unshift({
+          id: Math.random().toString(36).substring(2, 9),
+          partyId: ctx.partyId,
+          type: "revenue",
+          category: "Donation",
+          source: "Small Donation Drive",
+          amount: result.moneyRaised,
+          actionName: result.actionName,
+          createdAt: new Date().toISOString()
+        });
+      }
+      localStorage.setItem('worldr_party_transactions', JSON.stringify(transactions));
 
       // Developer Comment: Temporary local activity log. In multiplayer, logs must be generated server-side.
       const logRaw = localStorage.getItem('worldr_activity_log');
       const logs = logRaw ? JSON.parse(logRaw) : [];
+      let summaryStr = `Action executed with score ${result.finalScore.toFixed(2)}. ${result.membersJoined > 0 ? '+' + result.membersJoined + ' members. ' : ''}${result.moneyRaised > 0 ? 'Raised ' + formatMoney(result.moneyRaised) + '. ' : ''}`;
+      
+      if (result.actionId === 'mo_recruit') {
+        summaryStr = `Membership Officer recruited ${result.membersJoined.toLocaleString()} new members with a ${result.quality.toLowerCase()} recruitment result.`;
+      } else if (result.actionId === 'tr_donation') {
+        const net = result.moneyRaised - result.investment;
+        summaryStr = `Treasurer raised ${formatMoney(result.moneyRaised)} from a small donation drive. Net funds changed by ${net >= 0 ? '+' : '-'}${formatMoney(Math.abs(net))}.`;
+      }
+
       const newLog = {
         id: Math.random().toString(36).substring(2, 9),
         partyId: ctx.partyId,
@@ -1997,15 +2100,15 @@ export default function ActionsPage() {
         investment: result.investment,
         finalScore: result.finalScore,
         resultQuality: result.quality,
-        summary: `Action executed with score ${result.finalScore.toFixed(2)}. ${result.membersJoined > 0 ? '+' + result.membersJoined + ' members. ' : ''}${result.moneyRaised > 0 ? 'Raised $' + result.moneyRaised.toLocaleString() + '. ' : ''}`,
+        summary: summaryStr,
         createdAt: new Date().toISOString()
       };
       logs.unshift(newLog);
       localStorage.setItem('worldr_activity_log', JSON.stringify(logs));
     } catch(e) {}
     
-    setCtx({ ...ctx, partyFunds: updatedFunds, partyStats: updatedStats });
-    setActiveResult(result);
+    setCtx({ ...ctx, partyFunds: updatedFunds, partyBudget: updatedBudget, partyStats: updatedStats });
+    setActiveResult({ ...result, updatedFunds });
   };
 
   const handleConfirmRedoChar = () => {
@@ -2128,7 +2231,7 @@ export default function ActionsPage() {
             <div className="hidden sm:flex items-center gap-1.5 px-3 h-8 rounded-sm"
               style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
               <span className="text-[8.5px] font-mono uppercase tracking-widest" style={{ color: MUTED }}>Funds</span>
-              <span className="text-[11px] font-bold font-mono text-emerald-600">${(ctx.partyFunds / 1000000).toFixed(1)}M</span>
+              <span className="text-[11px] font-bold font-mono text-emerald-600">{formatMoney(ctx.partyFunds)}</span>
             </div>
             <div className="relative">
               <button id="party-menu-btn" type="button" onClick={() => setShowPartyMenu((v) => !v)}
@@ -2215,7 +2318,7 @@ export default function ActionsPage() {
                   <div className="flex gap-4 items-center">
                     <div>
                        <div className="text-[8px] font-mono uppercase tracking-[0.15em]" style={{ color: MUTED }}>Funds</div>
-                       <div className="text-[11px] font-bold text-emerald-500">${(ctx.partyFunds / 1000).toFixed(0)}K</div>
+                       <div className="text-[11px] font-bold text-emerald-500">{formatMoney(ctx.partyFunds)}</div>
                     </div>
                     <div>
                        <div className="text-[8px] font-mono uppercase tracking-[0.15em]" style={{ color: MUTED }}>Members</div>
@@ -2247,7 +2350,7 @@ export default function ActionsPage() {
                 <div className="shrink-0 flex items-center gap-6 px-5 py-2.5" style={{ background: PANEL, borderBottom: `1px solid ${BORDER}` }}>
                     <div>
                        <div className="text-[8.5px] font-mono uppercase tracking-[0.15em]" style={{ color: MUTED }}>Party Funds</div>
-                       <div className="text-[13px] font-bold text-emerald-500">${(ctx.partyFunds / 1000000).toFixed(2)}M</div>
+                       <div className="text-[13px] font-bold text-emerald-500">{formatMoney(ctx.partyFunds)}</div>
                     </div>
                     <div className="w-px h-6" style={{ background: BORDER }} />
                     <div>
@@ -2281,7 +2384,7 @@ export default function ActionsPage() {
           ) : activeSubtab === 'Party Strategy' ? (
             <PartyStrategyView />
           ) : activeSubtab === 'Budget' ? (
-            <BudgetView />
+            <BudgetView budget={ctx.partyBudget} partyId={ctx.partyId || ''} />
           ) : activeSubtab === 'Elections' ? (
             <ElectionsView />
           ) : activeSubtab === 'Past Elections' ? (
