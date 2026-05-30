@@ -1295,30 +1295,57 @@ function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
           <div className="px-4 py-3 border-b" style={{ borderColor: BORDER }}>
              <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Election Registration</h3>
           </div>
-          <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-             <div>
-               <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Required Recog.</div>
-               <div className="text-sm font-semibold text-zinc-400">2.0+</div>
-             </div>
-             <div>
-               <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Current Recog.</div>
-               <div className={`text-sm font-bold ${recognition >= 2 ? 'text-emerald-400' : 'text-red-400'}`}>{recognition.toFixed(2)}</div>
-             </div>
-             <div>
-               <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Registration Fee</div>
-               <div className="text-sm font-semibold text-zinc-400">$100,000</div>
-             </div>
-             <div>
-               <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Current Funds</div>
-               <div className={`text-sm font-bold ${funds >= 100000 ? 'text-emerald-400' : 'text-red-400'}`}>{formatMoney(funds)}</div>
-             </div>
-          </div>
-          <div className="px-4 py-3 border-t flex justify-between items-center" style={{ borderColor: BORDER, background: 'rgba(255,255,255,0.01)' }}>
-             <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500">Eligibility Status</span>
-             <span className={`text-xs font-bold uppercase tracking-widest ${isEligible ? 'text-emerald-500' : 'text-red-500'}`}>
-               {isEligible ? 'Eligible to Register' : 'Not Eligible'}
-             </span>
-          </div>
+          
+          {(() => {
+            let isRegistered = false;
+            try {
+              const regsRaw = typeof window !== 'undefined' ? localStorage.getItem('worldr_election_registrations') : null;
+              if (regsRaw) {
+                const regs = JSON.parse(regsRaw);
+                if (regs.some((r: any) => r.partyId === ctx.partyId && r.electionName === 'Drennia Parliamentary Election')) {
+                  isRegistered = true;
+                }
+              }
+            } catch(e) {}
+            
+            if (isRegistered) {
+              return (
+                <div className="p-4 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-zinc-300">Registered for Drennia Parliamentary Election</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-sm border border-emerald-500/20">Registered</span>
+                </div>
+              );
+            }
+            
+            return (
+              <>
+                <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                   <div>
+                     <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Required Recog.</div>
+                     <div className="text-sm font-semibold text-zinc-400">2.0+</div>
+                   </div>
+                   <div>
+                     <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Current Recog.</div>
+                     <div className={`text-sm font-bold ${recognition >= 2 ? 'text-emerald-400' : 'text-red-400'}`}>{recognition.toFixed(2)}</div>
+                   </div>
+                   <div>
+                     <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Registration Fee</div>
+                     <div className="text-sm font-semibold text-zinc-400">$100,000</div>
+                   </div>
+                   <div>
+                     <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Current Funds</div>
+                     <div className={`text-sm font-bold ${funds >= 100000 ? 'text-emerald-400' : 'text-red-400'}`}>{formatMoney(funds)}</div>
+                   </div>
+                </div>
+                <div className="px-4 py-3 border-t flex justify-between items-center" style={{ borderColor: BORDER, background: 'rgba(255,255,255,0.01)' }}>
+                   <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500">Eligibility Status</span>
+                   <span className={`text-xs font-bold uppercase tracking-widest ${isEligible ? 'text-emerald-500' : 'text-red-500'}`}>
+                     {isEligible ? 'Eligible to Register' : 'Not Eligible'}
+                   </span>
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -1392,50 +1419,323 @@ function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
   );
 }
 
-function ElectionsView() {
-  const electionStats = [
-    { label: 'Next Election', value: 'Not scheduled' },
-    { label: 'Election Type', value: 'Parliamentary' },
-    { label: 'Candidate Status', value: 'Not registered' },
-    { label: 'Party Eligibility', value: 'Not ready' },
-    { label: 'Required Support', value: '5.0%' },
-    { label: 'Current Support', value: '0.1%' },
-  ];
+function getCurrentCountryElection(selectedCountry: { countryName: string, continentName: string }) {
+  if (selectedCountry?.countryName === 'Drennia') {
+    return {
+      electionId: "drennia_parliamentary_y0",
+      electionName: "Drennia Parliamentary Election",
+      countryName: "Drennia",
+      continentName: "Varelia",
+      electionType: "Parliamentary Election",
+      registrationFee: 100000,
+      requiredRecognition: 2,
+      status: "Registration Open",
+      votingStatus: "Not Started"
+    };
+  }
+  return null;
+}
+
+function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: PlayerCtx) => void }) {
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [registrations, setRegistrations] = useState<any[]>([]);
+
+  useEffect(() => {
+    try {
+      const regsRaw = localStorage.getItem('worldr_election_registrations');
+      if (regsRaw) setRegistrations(JSON.parse(regsRaw));
+    } catch(e) {}
+  }, []);
+
+  const selectedCountry = { countryName: ctx.countryName, continentName: ctx.continentName };
+  const election = getCurrentCountryElection(selectedCountry);
+
+  if (!election) {
+    return (
+      <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
+        <div className="max-w-xl mx-auto text-center py-12">
+          <p className="text-zinc-500 text-xs">No upcoming elections in {ctx.countryName}.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const isRegistered = registrations.some(r => r.partyId === ctx.partyId && r.electionId === election.electionId);
+  const recognition = ctx.partyStats?.recognition || 0;
+  const funds = ctx.partyFunds;
+  
+  const meetsRecognition = recognition >= election.requiredRecognition;
+  const meetsFunds = funds >= election.registrationFee;
+  const isEligible = meetsRecognition && meetsFunds;
+
+  const handleRegisterClick = () => {
+    if (!isEligible || isRegistered) return;
+    setShowConfirm(true);
+  };
+
+  const executeRegistration = () => {
+    const updatedFunds = funds - election.registrationFee;
+    let updatedBudget = ctx.partyBudget || { partyId: ctx.partyId, partyFunds: 2000000, totalRevenue: 0, totalExpenses: 0, monthlyRevenue: 0, otherExpenses: 0 };
+    updatedBudget.partyFunds = updatedFunds;
+    updatedBudget.totalExpenses += election.registrationFee;
+    
+    const txRaw = localStorage.getItem('worldr_party_transactions');
+    const transactions = txRaw ? JSON.parse(txRaw) : [];
+    transactions.unshift({
+      id: Math.random().toString(36).substring(2, 9),
+      partyId: ctx.partyId,
+      type: "expense",
+      category: "Election Registration",
+      source: election.electionName,
+      amount: election.registrationFee,
+      actionName: "Register for Election",
+      createdAt: new Date().toISOString()
+    });
+    
+    const newReg = {
+      registrationId: Math.random().toString(36).substring(2, 9),
+      electionId: election.electionId,
+      electionName: election.electionName,
+      partyId: ctx.partyId,
+      partyName: ctx.partyName,
+      partyAbbreviation: ctx.partyAbbreviation,
+      countryName: election.countryName,
+      continentName: election.continentName,
+      electionType: election.electionType,
+      registrationFeePaid: election.registrationFee,
+      recognitionAtRegistration: recognition,
+      fundsAfterRegistration: updatedFunds,
+      registeredAt: new Date().toISOString(),
+      status: "Registered"
+    };
+    const updatedRegs = [newReg, ...registrations];
+    
+    const logRaw = localStorage.getItem('worldr_activity_log');
+    const logs = logRaw ? JSON.parse(logRaw) : [];
+    logs.unshift({
+      id: Math.random().toString(36).substring(2, 9),
+      partyId: ctx.partyId,
+      countryName: ctx.countryName,
+      continentName: ctx.continentName,
+      actionName: "Election Registration",
+      roleName: "Party Leader",
+      officialName: ctx.characterName,
+      investment: election.registrationFee,
+      finalScore: 10,
+      resultQuality: "Success",
+      summary: `Party registered for the ${election.electionName} after paying the ${formatMoney(election.registrationFee)} registration fee.`,
+      createdAt: new Date().toISOString()
+    });
+
+    try {
+      localStorage.setItem('worldr_party_budget', JSON.stringify(updatedBudget));
+      localStorage.setItem('worldr_party_transactions', JSON.stringify(transactions));
+      localStorage.setItem('worldr_election_registrations', JSON.stringify(updatedRegs));
+      localStorage.setItem('worldr_activity_log', JSON.stringify(logs));
+    } catch(e) {}
+    
+    setRegistrations(updatedRegs);
+    onUpdateCtx({ ...ctx, partyFunds: updatedFunds, partyBudget: updatedBudget });
+    setShowConfirm(false);
+  };
+
+  const support = ctx.partyStats?.support || 0.1;
+  const policyCredibility = ctx.partyStats?.policyCredibility || 0;
+  const campaignStrength = ctx.partyStats?.campaignStrength || 0;
+  const mediaPresence = ctx.partyStats?.mediaPresence || 0;
+  const legalReadiness = ctx.partyStats?.legalReadiness || 0;
+  const publicTrust = ctx.partyStats?.publicTrust || 0;
+  const members = ctx.partyStats?.members || 1;
+  const fundsBonus = Math.min(funds / 1000000, 5);
+  const readinessScore = (recognition * 1.5) + (support * 10) + (policyCredibility * 0.8) + 
+    (campaignStrength * 0.8) + (mediaPresence * 0.5) + (legalReadiness * 0.5) + 
+    (publicTrust * 0.6) + Math.min(members / 1000, 10) + fundsBonus;
+
+  let readinessLevel = "Very Weak";
+  let readinessColor = "text-red-500";
+  if (readinessScore >= 80) { readinessLevel = "Strong"; readinessColor = "text-emerald-500"; }
+  else if (readinessScore >= 50) { readinessLevel = "Competitive"; readinessColor = "text-emerald-400"; }
+  else if (readinessScore >= 25) { readinessLevel = "Developing"; readinessColor = "text-amber-400"; }
+  else if (readinessScore >= 10) { readinessLevel = "Weak"; readinessColor = "text-amber-500"; }
+
+  const regRecord = registrations.find(r => r.partyId === ctx.partyId && r.electionId === election.electionId);
 
   return (
     <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
-      <div className="max-w-xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-white tracking-tight">Elections</h2>
-          <p className="text-zinc-500 text-xs mt-1">Track upcoming elections and prepare your party for national competition.</p>
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div>
+          <h2 className="text-xl font-bold text-white tracking-tight">{isRegistered ? 'Registered for Election' : 'Elections'}</h2>
+          <p className="text-zinc-500 text-xs mt-1">Register your party for upcoming elections and prepare for national competition.</p>
         </div>
 
-        {/* Status Box */}
-        <div className="grid grid-cols-2 gap-4 p-5 mb-6" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
-          {electionStats.map((stat) => (
-            <div key={stat.label}>
-              <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">{stat.label}</div>
-              <div className="text-xs font-semibold text-zinc-300">{stat.value}</div>
+        <div className="hidden">
+          {/* Temporary local election registration. In multiplayer, election registration must be validated server-side using partyId, userId, countryId, recognition, and party funds. */}
+          {/* Temporary local election config. In multiplayer, elections must come from backend/database per country and season. */}
+          {/* Temporary local fee deduction. In multiplayer, registration fee deduction must be transactional on backend. */}
+        </div>
+
+        {isRegistered && regRecord ? (
+          <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+            <div className="px-5 py-4 border-b flex justify-between items-center" style={{ borderColor: BORDER }}>
+               <div>
+                 <h3 className="font-bold text-zinc-100">{election.electionName}</h3>
+                 <div className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 mt-1">Registered</div>
+               </div>
+               <div className="w-10 h-10 rounded-sm flex items-center justify-center" style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)' }}>
+                 <svg className="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                 </svg>
+               </div>
             </div>
-          ))}
-        </div>
+            <div className="p-5 grid grid-cols-2 gap-4">
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Party</span><span className="text-xs font-semibold text-zinc-300">{regRecord.partyName} ({regRecord.partyAbbreviation})</span></div>
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Country</span><span className="text-xs font-semibold text-zinc-300">{regRecord.countryName}</span></div>
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Registration Fee Paid</span><span className="text-xs font-bold text-zinc-300">{formatMoney(regRecord.registrationFeePaid)}</span></div>
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Recognition at Registration</span><span className="text-xs font-semibold text-zinc-300">{regRecord.recognitionAtRegistration.toFixed(2)}%</span></div>
+               <div className="col-span-2"><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Registered At</span><span className="text-xs font-semibold text-zinc-300">{new Date(regRecord.registeredAt).toLocaleString()}</span></div>
+            </div>
+            <div className="px-5 py-4 border-t" style={{ borderColor: BORDER, background: 'rgba(255,255,255,0.01)' }}>
+               <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-3">Optional Preparation Checklist</div>
+               <ul className="space-y-2 text-[11px] text-zinc-400">
+                 <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Manifesto</li>
+                 <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Main Promise</li>
+                 <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Campaign Staff</li>
+                 <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Party Members</li>
+                 <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Party Funds</li>
+                 <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Media Presence</li>
+                 <li className="flex items-center gap-2"><span className="text-emerald-500">•</span> Public Trust</li>
+               </ul>
+            </div>
+          </div>
+        ) : (
+          <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+            <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8">
+              <div className="flex-1 space-y-5">
+                 <div>
+                   <h3 className="font-bold text-zinc-100 text-lg mb-1">{election.electionName}</h3>
+                   <div className="text-xs text-zinc-400">{election.electionType} · {election.countryName}</div>
+                 </div>
+                 
+                 <div className="grid grid-cols-2 gap-4">
+                   <div>
+                     <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Registration Fee</div>
+                     <div className="text-sm font-semibold text-zinc-300">{formatMoney(election.registrationFee)}</div>
+                   </div>
+                   <div>
+                     <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Required Recognition</div>
+                     <div className="text-sm font-semibold text-zinc-300">{election.requiredRecognition.toFixed(1)}%</div>
+                   </div>
+                   <div>
+                     <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Party Funds</div>
+                     <div className={`text-sm font-bold ${meetsFunds ? 'text-emerald-400' : 'text-red-400'}`}>{formatMoney(funds)}</div>
+                   </div>
+                   <div>
+                     <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Current Recognition</div>
+                     <div className={`text-sm font-bold ${meetsRecognition ? 'text-emerald-400' : 'text-red-400'}`}>{recognition.toFixed(2)}%</div>
+                   </div>
+                 </div>
+              </div>
+              
+              <div className="w-full md:w-56 shrink-0 flex flex-col justify-center gap-4 pl-0 md:pl-6 border-t md:border-t-0 md:border-l pt-6 md:pt-0" style={{ borderColor: BORDER }}>
+                 <div className="text-center">
+                   <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-2">Eligibility</div>
+                   <div className={`inline-flex px-3 py-1 rounded-sm text-[10px] font-bold uppercase tracking-widest ${isEligible ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                     {isEligible ? 'Eligible' : 'Not Eligible'}
+                   </div>
+                 </div>
+                 
+                 <div className="text-center">
+                   <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-2">Registration Status</div>
+                   <div className="inline-flex px-3 py-1 rounded-sm text-[10px] font-bold uppercase tracking-widest bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+                     Not Registered
+                   </div>
+                 </div>
+                 
+                 <div className="mt-2">
+                   <button
+                     type="button"
+                     disabled={!isEligible}
+                     onClick={handleRegisterClick}
+                     className={`w-full py-3 text-xs font-bold uppercase tracking-widest transition-opacity ${isEligible ? 'hover:opacity-80' : 'opacity-40 cursor-not-allowed'}`}
+                     style={{ background: isEligible ? `${ACCENT}14` : 'rgba(255,255,255,0.03)', border: `1px solid ${isEligible ? ACCENT : BORDER}`, color: isEligible ? ACCENT : MUTED, borderRadius: '2px' }}>
+                     Register for Election
+                   </button>
+                   {!isEligible && (
+                     <div className="text-[9px] text-red-400 text-center mt-2 px-2 leading-relaxed">
+                       {!meetsRecognition && !meetsFunds ? 'Need 2% recognition and $100,000 fee.' : !meetsRecognition ? 'Need 2% recognition.' : 'Need $100,000 registration fee.'}
+                     </div>
+                   )}
+                 </div>
+              </div>
+            </div>
+          </div>
+        )}
 
-        {/* Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          {['Register Candidate List', 'Prepare Campaign', 'View Election Rules'].map((btn) => (
-            <button
-              key={btn}
-              type="button"
-              disabled
-              className="px-5 py-2.5 text-xs font-semibold uppercase tracking-wider opacity-40 cursor-not-allowed rounded-sm flex items-center justify-center gap-1.5"
-              style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, color: MUTED }}>
-              <span>{btn}</span>
-              <span className="text-[7.5px] font-mono font-bold lowercase tracking-normal px-1 py-0.5 rounded-sm" style={{ background: 'rgba(255,255,255,0.05)', color: MUTED }}>soon</span>
-            </button>
-          ))}
+        {/* Election Readiness Panel */}
+        <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+          <div className="px-4 py-3 border-b flex justify-between items-center" style={{ borderColor: BORDER }}>
+             <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Election Readiness</h3>
+             <span className={`text-[10px] font-bold uppercase tracking-widest ${readinessColor}`}>{readinessLevel}</span>
+          </div>
+          <div className="p-4">
+             <p className="text-[10px] leading-relaxed text-zinc-500 mb-4">
+               Registration only requires 2% recognition and the $100,000 fee. Readiness affects future election performance, not eligibility.
+             </p>
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Recognition</span><span className="text-xs font-semibold text-zinc-300">{recognition.toFixed(2)}%</span></div>
+                <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Polling Support</span><span className="text-xs font-semibold text-zinc-300">{support.toFixed(1)}%</span></div>
+                <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Members</span><span className="text-xs font-semibold text-zinc-300">{members.toLocaleString()}</span></div>
+                <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Party Funds</span><span className="text-xs font-semibold text-zinc-300">{formatMoney(funds)}</span></div>
+                <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Public Trust</span><span className="text-xs font-semibold text-zinc-300">{publicTrust.toFixed(1)}</span></div>
+                <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Policy Credibility</span><span className="text-xs font-semibold text-zinc-300">{policyCredibility.toFixed(1)}</span></div>
+                <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Campaign Strength</span><span className="text-xs font-semibold text-zinc-300">{campaignStrength.toFixed(1)}</span></div>
+                <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Media Presence</span><span className="text-xs font-semibold text-zinc-300">{mediaPresence.toFixed(1)}</span></div>
+             </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t" style={{ borderColor: BORDER }}>
+                <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Manifesto Status</span><span className="text-xs font-semibold text-zinc-300">{ctx.partyStats?.manifestoStatus || 'Not Written'}</span></div>
+                <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Main Promise</span><span className="text-xs font-semibold text-zinc-300">{ctx.partyStats?.mainPromise || 'None'}</span></div>
+             </div>
+          </div>
         </div>
       </div>
+
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowConfirm(false); }}>
+          <div className="w-full max-w-sm overflow-hidden"
+            style={{ background: '#1b1f1a', border: `1px solid #2d3329`, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', borderRadius: '2px' }}>
+            <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid #2d3329` }}>
+              <div className="w-9 h-9 rounded-sm flex items-center justify-center shrink-0" style={{ background: 'rgba(212,169,31,0.12)', border: '1px solid rgba(212,169,31,0.25)' }}>
+                <svg className="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <div className="font-bold text-sm text-zinc-100">Register for {election.electionName}?</div>
+                <div className="text-[9px] font-mono uppercase tracking-[0.18em] mt-0.5 text-zinc-500">Requires Confirmation</div>
+              </div>
+            </div>
+            <div className="px-5 py-6">
+              <p className="text-[11px] leading-relaxed text-zinc-400">
+                Your party meets the legal minimum to register. Registration costs $100,000 and will be deducted from party funds. This does not guarantee election success; it only enters your party into the election.
+              </p>
+            </div>
+            <div className="px-5 pb-5 flex gap-3">
+              <button type="button" onClick={() => setShowConfirm(false)}
+                className="flex-1 py-2.5 text-xs font-semibold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa', borderRadius: '2px' }}>
+                Cancel
+              </button>
+              <button type="button" onClick={executeRegistration}
+                className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
+                style={{ background: 'rgba(212,169,31,0.14)', border: '1px solid rgba(212,169,31,0.40)', color: '#d4a91f', borderRadius: '2px' }}>
+                Pay $100,000 and Register
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1457,7 +1757,7 @@ function PastElectionsView() {
         </div>
         <p className="font-semibold text-sm mb-2" style={{ color: TEXT }}>No past elections recorded.</p>
         <p className="text-[11px] leading-relaxed max-w-[280px] mx-auto" style={{ color: MUTED }}>
-          Drennia has not held an election since your party was founded.
+          Election results will appear here after the first election is completed.
         </p>
       </div>
     </div>
@@ -2761,7 +3061,7 @@ export default function ActionsPage() {
           ) : activeSubtab === 'Budget' ? (
             <BudgetView budget={ctx.partyBudget} partyId={ctx.partyId || ''} />
           ) : activeSubtab === 'Elections' ? (
-            <ElectionsView />
+            <ElectionsView ctx={ctx} onUpdateCtx={setCtx} />
           ) : activeSubtab === 'Past Elections' ? (
             <PastElectionsView />
           ) : (
