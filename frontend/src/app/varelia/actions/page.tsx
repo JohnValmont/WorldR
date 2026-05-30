@@ -123,7 +123,7 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     id: 'party_leader',
     title: 'Party Leader',
     shortTitle: 'Leader',
-    description: 'The founding head of the party. Directs political strategy, represents the movement publicly, and holds final decision-making authority.',
+    description: 'The founder and public face of the party. Controls major identity, leadership, manifesto approval, promises, and party-level decisions.',
     actions: [
       { id: 'pl_speech', name: 'Give Public Speech', description: 'Build early recognition through a public address to citizens.', category: 'Outreach' },
       { id: 'pl_direction', name: 'Set Party Direction', description: "Define the movement's immediate political focus and goals.", category: 'Strategy' },
@@ -136,23 +136,10 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     ],
   },
   {
-    id: 'secretary',
-    title: 'Secretary',
-    shortTitle: 'Secretary',
-    description: 'Manages internal communications, party records, meeting coordination, and volunteer logistics.',
-    actions: [
-      { id: 'sec_meeting', name: 'Organize Party Meeting', description: 'Schedule and coordinate an official internal meeting.', category: 'Internal' },
-      { id: 'sec_records', name: 'Manage Member Records', description: 'Update and verify party membership and contact information.', category: 'Admin' },
-      { id: 'sec_report', name: 'Prepare Internal Report', description: 'Compile an internal summary of recent activity and progress.', category: 'Admin' },
-      { id: 'sec_discipline', name: 'Improve Party Discipline', description: 'Enforce internal party rules and conduct standards.', category: 'Internal' },
-      { id: 'sec_volunteers', name: 'Coordinate Volunteers', description: 'Assign tasks and mobilize volunteer supporters.', category: 'Outreach' },
-    ],
-  },
-  {
     id: 'treasurer',
     title: 'Treasurer',
     shortTitle: 'Treasurer',
-    description: 'Handles party finances, fundraising, donor relations, and financial compliance.',
+    description: 'Manages party funds, donations, financial discipline, fundraising, and budget-related work.',
     actions: [
       { id: 'tr_donation', name: 'Small Donation Drive', description: 'Run a small public donation campaign to grow party funds.', category: 'Funding' },
       { id: 'tr_fees', name: 'Membership Fee Collection', description: 'Collect monthly dues from registered party members.', category: 'Funding' },
@@ -162,10 +149,10 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     ],
   },
   {
-    id: 'campaign_manager',
-    title: 'Campaign Manager',
+    id: 'campaignMediaManager',
+    title: 'Campaign & Media Manager',
     shortTitle: 'Campaign',
-    description: 'Plans and executes electoral and public outreach campaigns across districts and regions.',
+    description: 'Handles rallies, public campaigns, voter outreach, media messaging, party statements, interviews, and public visibility.',
     actions: [
       { id: 'cm_door', name: 'Door-to-Door Campaign', description: 'Canvass residential areas to meet voters directly.', category: 'Campaign' },
       { id: 'cm_rally', name: 'Hold Local Rally', description: 'Organize a public rally to energize supporters.', category: 'Campaign' },
@@ -173,26 +160,17 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
       { id: 'cm_rural', name: 'Rural Visit', description: 'Travel to rural areas to build support outside cities.', category: 'Campaign' },
       { id: 'cm_poster', name: 'Poster Campaign', description: 'Distribute posters and flyers in key public locations.', category: 'Campaign' },
       { id: 'cm_survey', name: 'Voter Survey', description: 'Conduct surveys to understand voter priorities.', category: 'Research' },
-    ],
-  },
-  {
-    id: 'spokesperson',
-    title: 'Spokesperson',
-    shortTitle: 'Spokesperson',
-    description: 'Manages public communications, media relations, and official party statements.',
-    actions: [
-      { id: 'sp_press', name: 'Issue Press Statement', description: 'Release an official statement on a current political matter.', category: 'Media' },
+      { id: 'meo_statement', name: 'Publish Party Statement', description: 'Issue a formal written declaration from the party.', category: 'Media' },
       { id: 'sp_interview', name: 'Give Interview', description: 'Participate in a media interview to communicate party stance.', category: 'Media' },
       { id: 'sp_respond', name: 'Respond to Criticism', description: 'Publicly address and counter negative press or attacks.', category: 'Media' },
-      { id: 'sp_defend', name: 'Defend Party Leader', description: "Issue a public defense of the leader's record or decisions.", category: 'Media' },
-      { id: 'sp_attack', name: 'Attack Rival Party', description: 'Release a pointed critique of a competing political party.', category: 'Politics' },
+      { id: 'meo_message', name: 'Launch Public Message', description: 'Distribute a mass message to citizens on party priorities.', category: 'Media' },
     ],
   },
   {
-    id: 'policy_director',
+    id: 'policyDirector',
     title: 'Policy Director',
     shortTitle: 'Policy',
-    description: "Develops the party's official policy positions, manifestos, and legislative proposals.",
+    description: "Creates manifesto drafts, policy plans, political programs, and future bill ideas.",
     actions: [
       { id: 'pd_manifesto', name: 'Write Party Manifesto', description: "Draft the party's official comprehensive policy platform.", category: 'Policy' },
       { id: 'pd_economic', name: 'Draft Economic Policy', description: 'Prepare a formal economic strategy and fiscal direction.', category: 'Policy' },
@@ -202,69 +180,16 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     ],
   },
   {
-    id: 'membership_officer',
+    id: 'membershipOfficer',
     title: 'Membership Officer',
     shortTitle: 'Membership',
-    description: "Grows the party's registered membership through recruitment, drives, and volunteer integration.",
+    description: "Grows party membership, recruits volunteers, expands grassroots organization, and manages supporter recruitment.",
     actions: [
       { id: 'mo_recruit', name: 'Recruit Members', description: 'Run a targeted campaign to attract new party members.', category: 'Growth' },
       { id: 'mo_volunteers', name: 'Recruit Volunteers', description: 'Build a volunteer base to support party activities.', category: 'Growth' },
       { id: 'mo_youth', name: 'Start Youth Membership Drive', description: 'Target young citizens for party membership enrollment.', category: 'Growth' },
       { id: 'mo_booth', name: 'Open Membership Booth', description: 'Set up a public registration booth in a busy location.', category: 'Outreach' },
       { id: 'mo_activists', name: 'Invite Independent Activists', description: 'Reach out to unaffiliated political activists.', category: 'Growth' },
-    ],
-  },
-  {
-    id: 'legal_officer',
-    title: 'Legal Officer',
-    shortTitle: 'Legal',
-    description: 'Handles party registration compliance, election law, candidate paperwork, and legal challenges.',
-    actions: [
-      { id: 'lo_registration', name: 'Check Party Registration', description: "Verify the party's formal registration status is current.", category: 'Legal' },
-      { id: 'lo_rules', name: 'Review Election Rules', description: 'Study current electoral regulations to ensure compliance.', category: 'Legal' },
-      { id: 'lo_papers', name: 'Prepare Candidate Papers', description: 'Compile formal documentation for party candidate nominations.', category: 'Legal' },
-      { id: 'lo_donations', name: 'Check Donation Rules', description: 'Verify all fundraising activity complies with donation laws.', category: 'Legal' },
-      { id: 'lo_complaint', name: 'Defend Against Complaint', description: 'Respond to any formal complaint filed against the party.', category: 'Legal' },
-    ],
-  },
-  {
-    id: 'public_network_officer',
-    title: 'Public Network Officer',
-    shortTitle: 'Network',
-    description: 'Builds relationships between the party and key social groups: business, unions, farmers, students, and religious communities.',
-    actions: [
-      { id: 'pno_business', name: 'Meet Business Owners', description: 'Engage local business leaders to build commercial support.', category: 'Network' },
-      { id: 'pno_farmers', name: 'Meet Farmers', description: 'Connect with agricultural communities about rural policy.', category: 'Network' },
-      { id: 'pno_unions', name: 'Meet Trade Unions', description: "Open dialogue with labor unions about workers' rights.", category: 'Network' },
-      { id: 'pno_students', name: 'Meet Students', description: 'Engage universities and student organizations for youth support.', category: 'Network' },
-      { id: 'pno_religious', name: 'Meet Religious Leaders', description: 'Build respectful ties with community religious figures.', category: 'Network' },
-      { id: 'pno_press', name: 'Meet Journalists', description: 'Cultivate relationships with journalists and editors.', category: 'Media' },
-    ],
-  },
-  {
-    id: 'media_officer',
-    title: 'Media Officer',
-    shortTitle: 'Media',
-    description: 'Manages party presence in newspapers, press, and public broadcast channels.',
-    actions: [
-      { id: 'meo_article', name: 'Write Newspaper Article', description: 'Draft a political opinion piece for local newspapers.', category: 'Media' },
-      { id: 'meo_statement', name: 'Publish Party Statement', description: 'Issue a formal written declaration from the party.', category: 'Media' },
-      { id: 'meo_release', name: 'Prepare Press Release', description: 'Write a press release on a timely political topic.', category: 'Media' },
-      { id: 'meo_editors', name: 'Contact Newspaper Editors', description: 'Reach out to editors to improve media coverage.', category: 'Media' },
-      { id: 'meo_message', name: 'Launch Public Message', description: 'Distribute a mass message to citizens on party priorities.', category: 'Media' },
-    ],
-  },
-  {
-    id: 'regional_organizer',
-    title: 'Regional Organizer',
-    shortTitle: 'Regional',
-    description: 'Expands party presence into regions, districts, and rural areas through branches and local coordinators.',
-    actions: [
-      { id: 'ro_branch', name: 'Open Local Branch', description: 'Establish a formal party office in a new district.', category: 'Growth' },
-      { id: 'ro_rural', name: 'Build Rural Network', description: 'Develop contacts and visibility in rural communities.', category: 'Growth' },
-      { id: 'ro_urban', name: 'Build Urban Network', description: 'Strengthen party organization in city neighborhoods.', category: 'Growth' },
-      { id: 'ro_district', name: 'Assign District Coordinator', description: 'Designate a coordinator to manage a specific district.', category: 'Admin' },
-      { id: 'ro_survey', name: 'Survey Regional Support', description: 'Assess party strength and voter mood across different regions.', category: 'Research' },
     ],
   },
 ];
@@ -388,13 +313,9 @@ function calculateStaffSalary(countryInfo: any, positionId: string, skill: numbe
 
   let rolePrestigeMultiplier = 1.00;
   if (positionId === 'treasurer') rolePrestigeMultiplier = 1.35;
-  else if (positionId === 'campaign_manager') rolePrestigeMultiplier = 1.30;
-  else if (positionId === 'spokesperson') rolePrestigeMultiplier = 1.15;
-  else if (positionId === 'policy_director') rolePrestigeMultiplier = 1.45;
-  else if (positionId === 'legal_officer') rolePrestigeMultiplier = 1.65;
-  else if (positionId === 'public_network_officer') rolePrestigeMultiplier = 1.25;
-  else if (positionId === 'media_officer') rolePrestigeMultiplier = 1.15;
-  else if (positionId === 'regional_organizer') rolePrestigeMultiplier = 1.25;
+  else if (positionId === 'campaignMediaManager') rolePrestigeMultiplier = 1.35;
+  else if (positionId === 'policyDirector') rolePrestigeMultiplier = 1.45;
+  else if (positionId === 'membershipOfficer') rolePrestigeMultiplier = 1.00;
 
   const skillMultiplier = 0.75 + (skill / 100) * 0.95;
 
@@ -448,7 +369,12 @@ function HireStaffModal({ positionId, positionTitle, onClose, onHireSuccess, cou
       else if (type === 'Skilled') risk = Math.random() < 0.5 ? 'Low' : 'Medium';
       else risk = 'High';
 
-      const allTraits = ['Charismatic', 'Connected', 'Organized', 'Ruthless', 'Popular', 'Wealthy', 'Respected'];
+      let allTraits = ['Charismatic', 'Connected', 'Organized', 'Ruthless', 'Popular', 'Wealthy', 'Respected'];
+      if (positionId === 'treasurer') allTraits = ['Careful Accountant', 'Elite Donor Network', 'Business Circle', 'Anti-Corruption Auditor'];
+      else if (positionId === 'campaignMediaManager') allTraits = ['Grassroots Organizer', 'Charismatic Planner', 'Media Friendly', 'Sharp Debater', 'Urban Campaigner', 'Rally Organizer', 'Public Messaging Expert', 'Newspaper Contact'];
+      else if (positionId === 'policyDirector') allTraits = ['Academic Thinker', 'Reform Planner', 'Economic Technocrat', 'Welfare Advocate', 'Legal Scholar'];
+      else if (positionId === 'membershipOfficer') allTraits = ['Youth Organizer', 'Community Recruiter', 'Grassroots Connector', 'Activist Network'];
+
       const trait = allTraits[Math.floor(Math.random() * allTraits.length)];
 
       cands.push({
@@ -1204,8 +1130,11 @@ function BudgetView({ budget, partyId }: { budget: any, partyId: string }) {
       const staffRaw = localStorage.getItem('worldr_party_staff');
       if (staffRaw) {
         const staff = JSON.parse(staffRaw);
-        Object.values(staff).forEach((s: any) => {
-          if (s && s.salary) cost += s.salary;
+        const validRoles = ['treasurer', 'campaignMediaManager', 'policyDirector', 'membershipOfficer'];
+        Object.keys(staff).forEach((roleId) => {
+          if (validRoles.includes(roleId) && staff[roleId] && staff[roleId].salary) {
+            cost += staff[roleId].salary;
+          }
         });
       }
       
@@ -1344,6 +1273,18 @@ function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
   const nextSteps = [];
   if (funds < 100000) nextSteps.push("Raise at least $100,000 for the election registration fee.");
   if (recognition < 2) nextSteps.push("Increase Party Recognition to at least 2.0 to register.");
+  
+  let staffDb: any = {};
+  try {
+    const staffRaw = typeof window !== 'undefined' ? localStorage.getItem('worldr_party_staff') : null;
+    if (staffRaw) staffDb = JSON.parse(staffRaw);
+  } catch (e) {}
+
+  if (!staffDb.campaignMediaManager) nextSteps.push("Hire a Campaign & Media Manager.");
+  if (!staffDb.treasurer) nextSteps.push("Hire a Treasurer.");
+  if (!staffDb.policyDirector) nextSteps.push("Hire a Policy Director.");
+  if (!staffDb.membershipOfficer) nextSteps.push("Hire a Membership Officer.");
+
   if (stats.manifestoStatus === "Not Written") nextSteps.push("Hire a Policy Director to write a Party Manifesto.");
   else if (stats.manifestoStatus !== "Approved") nextSteps.push("Approve the Party Manifesto to finalize your platform.");
   if (!stats.mainPromise) nextSteps.push("Declare a Main Promise to rally voters.");
@@ -2340,7 +2281,51 @@ export default function ActionsPage() {
 
     // Build positions
     const staffRaw = localStorage.getItem('worldr_party_staff');
-    const staffDb = staffRaw ? JSON.parse(staffRaw) : {};
+    let staffDb = staffRaw ? JSON.parse(staffRaw) : {};
+
+    let staffMigrated = false;
+    if (staffDb.campaignManager && !staffDb.campaignMediaManager) {
+      staffDb.campaignMediaManager = staffDb.campaignManager;
+      staffMigrated = true;
+    } else if (staffDb.campaign_manager && !staffDb.campaignMediaManager) {
+      staffDb.campaignMediaManager = staffDb.campaign_manager;
+      staffMigrated = true;
+    } else if (staffDb.mediaOfficer && !staffDb.campaignMediaManager) {
+      staffDb.campaignMediaManager = staffDb.mediaOfficer;
+      staffMigrated = true;
+    } else if (staffDb.media_officer && !staffDb.campaignMediaManager) {
+      staffDb.campaignMediaManager = staffDb.media_officer;
+      staffMigrated = true;
+    }
+
+    if (staffDb.policy_director && !staffDb.policyDirector) {
+      staffDb.policyDirector = staffDb.policy_director;
+      staffMigrated = true;
+    }
+    if (staffDb.membership_officer && !staffDb.membershipOfficer) {
+      staffDb.membershipOfficer = staffDb.membership_officer;
+      staffMigrated = true;
+    }
+
+    const rolesToRemove = [
+      'secretary', 'campaignManager', 'campaign_manager', 
+      'spokesperson', 'legalOfficer', 'legal_officer', 
+      'publicNetworkOfficer', 'public_network_officer', 
+      'mediaOfficer', 'media_officer', 
+      'regionalOrganizer', 'regional_organizer',
+      'policy_director', 'membership_officer'
+    ];
+    
+    for (const r of rolesToRemove) {
+      if (staffDb[r]) {
+        delete staffDb[r];
+        staffMigrated = true;
+      }
+    }
+
+    if (staffMigrated) {
+      localStorage.setItem('worldr_party_staff', JSON.stringify(staffDb));
+    }
 
     const filled: Position[] = POSITION_DEFINITIONS.map((def) => {
       if (def.id === 'party_leader') {
@@ -2483,9 +2468,9 @@ export default function ActionsPage() {
       } else if (result.actionId === 'pl_promise') {
         summaryStr = `Party Leader declared ${result.updatedMainPromise || 'a new policy'} as the party's main promise.`;
       } else if (result.actionId === 'cm_rally') {
-        summaryStr = `Campaign Manager held a local rally and increased recognition by ${result.recognitionGain.toFixed(2)}.`;
+        summaryStr = `Campaign & Media Manager held a local rally and increased recognition by ${result.recognitionGain.toFixed(2)}.`;
       } else if (result.actionId === 'meo_statement') {
-        summaryStr = `Media Officer published a party statement.`;
+        summaryStr = `Campaign & Media Manager published a party statement.`;
       }
 
       const newLog = {
