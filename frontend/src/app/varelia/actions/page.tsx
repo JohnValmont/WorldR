@@ -5,6 +5,7 @@ import { useCharacterStore } from '../../../store/character.store';
 import { LogoSVG } from '../../../components/LogoSVG';
 import { PARTY_COLORS } from '../../../data/political-parties/partyLogos';
 import type { RegisteredPoliticalParty } from '../../../data/political-parties/partyTypes';
+import { syncCurrentPartyStatsToRegisteredParties, getLivePartyRegistryData, initializeCurrentPartyStatsIfNeeded, formatMoney, roundMoney, roundActionMoney } from '../../../lib/partyHelpers';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PALETTE  (calm dark olive / charcoal political-strategy style)
@@ -24,13 +25,7 @@ const TEXT = '#d6d9d2';
 const MUTED = '#7a8070';
 const PANEL2 = '#151814';
 
-export function formatMoney(value: number): string {
-  if (value >= 1000000) {
-    const m = value / 1000000;
-    return '$' + (m % 1 === 0 ? m.toFixed(1) : m.toFixed(2)) + 'M';
-  }
-  return '$' + value.toLocaleString('en-US');
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IDEOLOGY MAP
@@ -1648,11 +1643,10 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
     try {
       const regsRaw = localStorage.getItem('worldr_election_registrations');
       if (regsRaw) setRegistrations(JSON.parse(regsRaw));
-      const rpRaw = localStorage.getItem('worldr_registered_parties');
-      if (rpRaw) {
-        const all = JSON.parse(rpRaw);
-        setCountryParties(all.filter((p: any) => p.countryName === ctx.countryName));
-      }
+      
+      const all = getLivePartyRegistryData();
+      setCountryParties(all.filter((p: any) => p.countryName === ctx.countryName));
+      
       const campRaw = localStorage.getItem('worldr_election_campaigns');
       if (campRaw) {
         const camps = JSON.parse(campRaw);
@@ -1692,7 +1686,7 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
   const hasMainPromise = !!(ctx.partyStats?.mainPromise);
 
   const strength = calculateElectionStrength({ partyStats: ctx.partyStats, allocatedFunds, hasMainPromise });
-  const totalPlayerRecognition = countryParties.reduce((acc: number, p: any) => acc + (p.recognition || 0), recognition);
+  const totalPlayerRecognition = countryParties.reduce((acc: number, p: any) => acc + (p.recognition || 0), 0);
   const independentStrength = calculateIndependentStrength({
     registeredPlayerPartiesCount: Math.max(1, countryParties.length),
     totalPlayerRecognition,
@@ -1713,9 +1707,9 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
     if (amount < 50000 || amount > ctx.partyFunds) return;
     // Temporary local election fund allocation. In multiplayer, campaign allocation must be
     // validated server-side and stored per partyId/electionId.
-    const updatedFunds = ctx.partyFunds - amount;
+    const updatedFunds = roundMoney(ctx.partyFunds - amount);
     let updatedBudget = ctx.partyBudget || { partyId: ctx.partyId, partyFunds: 2000000, totalRevenue: 0, totalExpenses: 0, monthlyRevenue: 0, otherExpenses: 0 };
-    updatedBudget = { ...updatedBudget, partyFunds: updatedFunds, totalExpenses: (updatedBudget.totalExpenses || 0) + amount };
+    updatedBudget = { ...updatedBudget, partyFunds: updatedFunds, totalExpenses: roundMoney((updatedBudget.totalExpenses || 0) + amount) };
     let camps: any[] = [];
     try { const r = localStorage.getItem('worldr_election_campaigns'); if (r) camps = JSON.parse(r); } catch (e) {}
     const idx = camps.findIndex((c: any) => c.partyId === ctx.partyId && c.electionId === election.electionId);
@@ -1735,6 +1729,7 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
       localStorage.setItem('worldr_election_campaigns', JSON.stringify(camps));
       localStorage.setItem('worldr_party_transactions', JSON.stringify(txs));
       localStorage.setItem('worldr_activity_log', JSON.stringify(logs));
+      syncCurrentPartyStatsToRegisteredParties();
     } catch (e) {}
     setCampaign(newCamp);
     onUpdateCtx({ ...ctx, partyFunds: updatedFunds, partyBudget: updatedBudget });
@@ -1744,9 +1739,9 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
   };
 
   const executeRegistration = () => {
-    const updatedFunds = funds - election.registrationFee;
+    const updatedFunds = roundMoney(funds - election.registrationFee);
     let updatedBudget = ctx.partyBudget || { partyId: ctx.partyId, partyFunds: 2000000, totalRevenue: 0, totalExpenses: 0, monthlyRevenue: 0, otherExpenses: 0 };
-    updatedBudget = { ...updatedBudget, partyFunds: updatedFunds, totalExpenses: (updatedBudget.totalExpenses || 0) + election.registrationFee };
+    updatedBudget = { ...updatedBudget, partyFunds: updatedFunds, totalExpenses: roundMoney((updatedBudget.totalExpenses || 0) + election.registrationFee) };
     const now = new Date().toISOString();
     let txs: any[] = []; try { const r = localStorage.getItem('worldr_party_transactions'); if (r) txs = JSON.parse(r); } catch (e) {}
     txs.unshift({ id: Math.random().toString(36).slice(2, 9), partyId: ctx.partyId, type: 'expense', category: 'Election Registration', source: election.electionName, amount: election.registrationFee, actionName: 'Register for Election', createdAt: now });
@@ -1759,6 +1754,7 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
       localStorage.setItem('worldr_party_transactions', JSON.stringify(txs));
       localStorage.setItem('worldr_election_registrations', JSON.stringify(updatedRegs));
       localStorage.setItem('worldr_activity_log', JSON.stringify(logs));
+      syncCurrentPartyStatsToRegisteredParties();
     } catch (e) {}
     setRegistrations(updatedRegs);
     onUpdateCtx({ ...ctx, partyFunds: updatedFunds, partyBudget: updatedBudget });
@@ -1947,11 +1943,11 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
                           <>
                             <td className="px-4 py-2 font-bold" style={{ color: isCurrentParty ? ctx.partyColor : '#7a8070' }}>{party.partyAbbreviation}</td>
                             <td className="px-4 py-2 text-zinc-300 font-semibold">{party.partyName}{isCurrentParty ? ' (You)' : ''}</td>
-                            <td className="px-4 py-2 text-zinc-400">{party.characterName || '—'}</td>
+                            <td className="px-4 py-2 text-zinc-400">{party.leaderName || '—'}</td>
                             <td className="px-4 py-2 text-zinc-400">{(party.recognition || 0).toFixed(2)}%</td>
-                            <td className="px-4 py-2 text-zinc-400">{(party.support || 0.1).toFixed(1)}%</td>
+                            <td className="px-4 py-2 text-zinc-400">{(party.support || 0.1).toFixed(2)}%</td>
                             <td className="px-4 py-2">
-                              <span className={`font-bold uppercase tracking-widest text-[9px] px-1.5 py-0.5 rounded-sm ${regForParty ? 'text-emerald-400 bg-emerald-500/10' : 'text-zinc-600 bg-white/[0.03]'}`}>{regForParty ? 'Yes' : 'No'}</span>
+                              <span className={`font-bold uppercase tracking-widest text-[9px] px-1.5 py-0.5 rounded-sm ${party.registeredForElection ? 'text-emerald-400 bg-emerald-500/10' : 'text-zinc-600 bg-white/[0.03]'}`}>{party.registeredForElection ? 'Yes' : 'No'}</span>
                             </td>
                           </>
                         ) : (
@@ -2489,7 +2485,7 @@ function ActionExecutionModal({
       else if (finalScore < 8) { percent = 1.35 + Math.random() * 0.35; recognitionGain = 0.25 + Math.random() * 0.20; }
       else if (finalScore < 9.5) { percent = 1.70 + Math.random() * 0.35; recognitionGain = 0.45 + Math.random() * 0.25; }
       else { percent = 2.05 + Math.random() * 0.15; recognitionGain = 0.70 + Math.random() * 0.30; }
-      moneyRaised = currentTier.cost * percent;
+      moneyRaised = roundActionMoney(currentTier.cost * percent);
     } else if (actionId === 'pl_promise') {
       if (finalScore < 0) {
         controversyGain = 0.2;
@@ -2727,13 +2723,8 @@ function ActionExecutionModal({
         }
       }
 
-      // Default registered part count / recog
-      const rpRaw = localStorage.getItem('worldr_registered_parties');
-      const allRegisteredParties = rpRaw ? JSON.parse(rpRaw) : [];
-      let totalPlayerRecognition = 0;
-      if (ctx.partyStats?.recognition) totalPlayerRecognition += ctx.partyStats.recognition;
-      // In multiplayer, you'd add up all parties' recognition here.
-
+      const allRegisteredParties = getLivePartyRegistryData().filter((p: any) => p.countryName === ctx.countryName);
+      let totalPlayerRecognition = allRegisteredParties.reduce((acc: number, p: any) => acc + (p.recognition || 0), 0);
       const registeredPlayerPartiesCount = Math.max(1, allRegisteredParties.length);
 
       const strengthResult = calculateElectionStrength({
@@ -3113,6 +3104,7 @@ export default function ActionsPage() {
   });
 
   useEffect(() => {
+    initializeCurrentPartyStatsIfNeeded();
     const t = setTimeout(() => setRevealed(true), 80);
 
     const charName = [character.firstName, character.middleName, character.lastName].filter(Boolean).join(' ') || '—';
@@ -3304,7 +3296,7 @@ export default function ActionsPage() {
     setActiveActionId(null);
     
     // Developer Comment: Temporary frontend economy update. In multiplayer, party funds and stats must be validated and stored in backend/database.
-    let updatedFunds = ctx.partyFunds - result.investment + result.moneyRaised;
+    let updatedFunds = roundMoney(ctx.partyFunds - result.investment + result.moneyRaised);
     let updatedStats = { ...ctx.partyStats };
     
     updatedStats.members = (updatedStats.members || 0) + result.membersJoined;
@@ -3323,9 +3315,9 @@ export default function ActionsPage() {
 
     try {
       updatedBudget.partyFunds = updatedFunds;
-      updatedBudget.totalExpenses += result.investment;
+      updatedBudget.totalExpenses = roundMoney(updatedBudget.totalExpenses + result.investment);
       if (result.moneyRaised > 0) {
-        updatedBudget.totalRevenue += result.moneyRaised;
+        updatedBudget.totalRevenue = roundMoney(updatedBudget.totalRevenue + result.moneyRaised);
       }
       localStorage.setItem('worldr_party_budget', JSON.stringify(updatedBudget));
 
@@ -3457,6 +3449,8 @@ export default function ActionsPage() {
       };
       logs.unshift(newLog);
       localStorage.setItem('worldr_activity_log', JSON.stringify(logs));
+      
+      syncCurrentPartyStatsToRegisteredParties();
     } catch(e) {}
     
     setCtx({ ...ctx, partyFunds: updatedFunds, partyBudget: updatedBudget, partyStats: updatedStats });
@@ -3502,6 +3496,7 @@ export default function ActionsPage() {
     localStorage.setItem('worldr_party_budget', JSON.stringify(updatedBudget));
     localStorage.setItem('worldr_party_transactions', JSON.stringify(transactions));
     localStorage.setItem('worldr_activity_log', JSON.stringify(logs));
+    syncCurrentPartyStatsToRegisteredParties();
     setCtx({ ...ctx, partyFunds: updatedFunds, partyBudget: updatedBudget });
     
     router.push('/onboarding/create-character?mode=edit');
@@ -3546,6 +3541,7 @@ export default function ActionsPage() {
     localStorage.setItem('worldr_party_budget', JSON.stringify(updatedBudget));
     localStorage.setItem('worldr_party_transactions', JSON.stringify(transactions));
     localStorage.setItem('worldr_activity_log', JSON.stringify(logs));
+    syncCurrentPartyStatsToRegisteredParties();
     setCtx({ ...ctx, partyFunds: updatedFunds, partyBudget: updatedBudget });
     
     router.push('/onboarding/create-party?mode=edit');

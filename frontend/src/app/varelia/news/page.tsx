@@ -6,6 +6,7 @@ import { useCharacterStore } from '../../../store/character.store';
 import { LogoSVG } from '../../../components/LogoSVG';
 import { PARTY_COLORS } from '../../../data/political-parties/partyLogos';
 import type { RegisteredPoliticalParty } from '../../../data/political-parties/partyTypes';
+import { getLivePartyRegistryData, initializeCurrentPartyStatsIfNeeded, formatMoney } from '../../../lib/partyHelpers';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -145,14 +146,6 @@ function getCurrentPartyFunds(): number {
   }
 }
 
-export function formatMoney(value: number): string {
-  if (value >= 1000000) {
-    const m = value / 1000000;
-    return `$${Number.isInteger(m) ? m.toFixed(1) : parseFloat(m.toFixed(2))}M`;
-  }
-  return `$${value.toLocaleString('en-US')}`;
-}
-
 /** Temporary frontend-only newspaper access rule.
  *  In multiplayer, article read/write access must be enforced by backend
  *  using userId, countryId, and continentId. */
@@ -167,55 +160,9 @@ function getCountryArticleKey(countryName: string): string {
 /** Temporary local public notices. In multiplayer, registered party lists
  *  must come from backend/database and be grouped by continent. */
 function getPartiesByContinent(continentName: string): RegisteredPoliticalParty[] {
-  const result: RegisteredPoliticalParty[] = [];
-  let currentPartyId: string | null = null;
-  let currentPartyMembers = 1;
-
-  try {
-    const cpRaw = localStorage.getItem('worldr_current_party');
-    if (cpRaw) {
-      const cp = JSON.parse(cpRaw);
-      currentPartyId = cp.partyId;
-      if (cp.continentName === continentName) {
-        result.push(cp);
-      }
-    }
-
-    if (currentPartyId) {
-      const statsRaw = localStorage.getItem('worldr_party_stats');
-      if (statsRaw) {
-        const stats = JSON.parse(statsRaw);
-        if (stats.partyId === currentPartyId && stats.members !== undefined) {
-          currentPartyMembers = stats.members;
-        }
-      }
-    }
-
-    const raw = localStorage.getItem('worldr_registered_parties');
-    if (raw) {
-      const all: RegisteredPoliticalParty[] = JSON.parse(raw);
-      all.forEach((p) => {
-        if (p.continentName === continentName) {
-          const exists = result.find(r => r.partyId === p.partyId);
-          if (exists) {
-            Object.assign(exists, p);
-          } else {
-            result.push(p);
-          }
-        }
-      });
-    }
-
-    result.forEach((p: any) => {
-      if (p.partyId === currentPartyId) {
-        p.computedMembers = currentPartyMembers;
-      } else {
-        p.computedMembers = p.members ?? p.memberCount ?? p.registeredMembers ?? 1;
-      }
-    });
-  } catch {}
-
-  return result.sort((a: any, b: any) => (b.computedMembers || 0) - (a.computedMembers || 0));
+  const all = getLivePartyRegistryData();
+  const filtered = all.filter((p: any) => p.continentName === continentName);
+  return filtered.sort((a: any, b: any) => (b.members || 0) - (a.members || 0));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -780,10 +727,9 @@ function NewspaperSection({
 // PARTY DETAIL MODAL
 // ─────────────────────────────────────────────────────────────────────────────
 
-function PartyDetailModal({ party, onClose }: { party: RegisteredPoliticalParty; onClose: () => void }) {
-  const color = PARTY_COLORS.find((c) => c.id === party.colorId)?.hex ?? '#c0a060';
-  const colorName = PARTY_COLORS.find((c) => c.id === party.colorId)?.name ?? '—';
-  const ideologyNames = (party.ideologyIds ?? []).map((id) => IDEOLOGY_NAMES[id] ?? id);
+function PartyDetailModal({ party, onClose }: { party: any; onClose: () => void }) {
+  const color = party.color || '#c0a060';
+  const colorName = party.colorName || '—';
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -852,12 +798,12 @@ function PartyDetailModal({ party, onClose }: { party: RegisteredPoliticalParty;
 
           {/* Stats grid */}
           <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-            {field('Leader', (party as any).characterName || party.leaderName || 'Not recorded')}
+            {field('Leader', party.leaderName || 'Not recorded')}
             {field('Country', party.countryName ?? '—')}
             {field('Continent', party.continentName ?? '—')}
-            {field('Members', ((party as any).computedMembers ?? party.registeredMembers ?? 1).toLocaleString(), true)}
-            {field('Recognition', (party as any).recognition != null ? `${((party as any).recognition).toFixed(2)}%` : 'Not recorded')}
-            {field('Polling Support', (party as any).support != null ? `${((party as any).support).toFixed(1)}%` : 'Not recorded')}
+            {field('Members', (party.members ?? 1).toLocaleString(), true)}
+            {field('Recognition', party.recognition != null ? `${(party.recognition).toFixed(2)}%` : 'Not recorded')}
+            {field('Polling Support', party.support != null ? `${(party.support).toFixed(2)}%` : 'Not recorded')}
             {field('Main Promise', (party as any).mainPromise || 'None declared')}
             {field('Registered', party.createdAt ? formatGameDate(party.createdAt) : 'Not recorded')}
           </div>
@@ -890,18 +836,11 @@ function PublicNoticesSection() {
   const [parties, setParties] = useState<RegisteredPoliticalParty[]>([]);
 
   useEffect(() => {
-    const rawStats = localStorage.getItem('worldr_party_stats');
-    const stats: Record<string, number> = rawStats ? JSON.parse(rawStats) : {};
-    const allParties = getPartiesByContinent(activeContinent).map(p => ({
-      ...p,
-      computedMembers: stats[p.partyId] ?? p.registeredMembers ?? 1
-    }));
-    allParties.sort((a, b) => ((b as any).computedMembers) - ((a as any).computedMembers));
-    setParties(allParties);
+    setParties(getPartiesByContinent(activeContinent));
   }, [activeContinent]);
 
   return (
-    <div className="flex-1 overflow-y-auto" style={{ background: '#0a0a14' }}>
+    <div className="flex-1 overflow-y-auto" style={{ background: '#11140f' }}>
 
       {/* Header */}
       <div className="px-4 md:px-8 pt-8 pb-6 max-w-4xl mx-auto">
@@ -1029,6 +968,7 @@ export default function VareliaNewsPage() {
   });
 
   useEffect(() => {
+    initializeCurrentPartyStatsIfNeeded();
     const t = setTimeout(() => setRevealed(true), 80);
 
     const charName = [character.firstName, character.middleName, character.lastName].filter(Boolean).join(' ') || '—';
