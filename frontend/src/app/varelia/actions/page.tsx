@@ -632,7 +632,7 @@ function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger, ctx 
   const isRedoChar = action.id === 'pim_redo_char';
   const isRebrandParty = action.id === 'pim_rebrand_party';
   
-  const implementedIds = ['mo_recruit', 'smallDonationDrive', 'pl_promise', 'cm_rally', 'meo_statement', 'doorToDoorCampaign', 'giveInterview', 'openMembershipBooth', 'pim_redo_char', 'pim_rebrand_party', 'pl_dissolve'];
+  const implementedIds = ['mo_recruit', 'smallDonationDrive', 'pl_promise', 'cm_rally', 'meo_statement', 'doorToDoorCampaign', 'giveInterview', 'openMembershipBooth', 'pim_redo_char', 'pim_rebrand_party', 'pl_dissolve', 'cm_survey'];
   const isImplementedAction = implementedIds.includes(action.id);
   
   let preconditionError = '';
@@ -1384,6 +1384,18 @@ function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
     }
   } catch (e) {}
 
+  const [latestSurvey, setLatestSurvey] = useState<any>(null);
+  useEffect(() => {
+    try {
+      const surveysRaw = localStorage.getItem('worldr_election_surveys');
+      if (surveysRaw) {
+        const surveys = JSON.parse(surveysRaw);
+        const partySurveys = surveys.filter((s: any) => s.partyId === ctx.partyId);
+        if (partySurveys.length > 0) setLatestSurvey(partySurveys[0]);
+      }
+    } catch (e) {}
+  }, [ctx.partyId]);
+
   // Election strength preview for strategy panel
   const elStrength = calculateElectionStrength({ partyStats: stats, allocatedFunds: allocatedElectionFunds, hasMainPromise: !!(stats.mainPromise) });
   const indepStrength = calculateIndependentStrength({ registeredPlayerPartiesCount: 1, totalPlayerRecognition: recognition });
@@ -1439,6 +1451,35 @@ function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
         </div>
 
         {/* Section 1: Election Eligibility */}
+        {latestSurvey ? (
+          <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+            <div className="px-4 py-3 border-b flex justify-between items-center" style={{ borderColor: BORDER }}>
+               <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Latest Voter Survey</h3>
+               <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">{new Date(latestSurvey.createdAt).toLocaleDateString()}</span>
+            </div>
+            <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Polling Accuracy</div>
+                <div className={`text-sm font-bold ${latestSurvey.surveyData.pollingAccuracy === 'Excellent' || latestSurvey.surveyData.pollingAccuracy === 'High' ? 'text-emerald-400' : latestSurvey.surveyData.pollingAccuracy === 'Good' || latestSurvey.surveyData.pollingAccuracy === 'Moderate' ? 'text-amber-400' : 'text-red-400'}`}>
+                  {latestSurvey.surveyData.pollingAccuracy}
+                </div>
+              </div>
+              <div>
+                <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Proj. Vote Share</div>
+                <div className="text-sm font-bold text-amber-400">{latestSurvey.surveyData.projectedVoteShareLow.toFixed(1)}% – {latestSurvey.surveyData.projectedVoteShareHigh.toFixed(1)}%</div>
+              </div>
+              <div>
+                <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Proj. Seats</div>
+                <div className="text-sm font-bold text-amber-400">{latestSurvey.surveyData.projectedSeatsLow} – {latestSurvey.surveyData.projectedSeatsHigh} seats</div>
+              </div>
+              <div>
+                <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Campaign Gain</div>
+                <div className="text-sm font-bold text-emerald-400">+{latestSurvey.surveyData.campaignStrengthGain.toFixed(2)}</div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
           <div className="px-4 py-3 border-b" style={{ borderColor: BORDER }}>
              <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Election Registration</h3>
@@ -1597,6 +1638,7 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
   const [campaign, setCampaign] = useState<any>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
+  const [latestSurvey, setLatestSurvey] = useState<any>(null);
 
   const TOTAL_SEATS = 120;
   const MAJORITY_SEATS = 61;
@@ -1616,6 +1658,12 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
         const camps = JSON.parse(campRaw);
         const found = camps.find((c: any) => c.partyId === ctx.partyId && c.electionId === 'drennia_parliamentary_y0');
         if (found) setCampaign(found);
+      }
+      const surveysRaw = localStorage.getItem('worldr_election_surveys');
+      if (surveysRaw) {
+        const surveys = JSON.parse(surveysRaw);
+        const partySurveys = surveys.filter((s: any) => s.partyId === ctx.partyId);
+        if (partySurveys.length > 0) setLatestSurvey(partySurveys[0]);
       }
     } catch (e) {}
   }, [ctx.countryName, ctx.partyId]);
@@ -1761,6 +1809,43 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
                 Allocate Election Funds
               </button>
               <p className="text-[9px] text-zinc-600 text-center mt-2">Registration enters the election. Allocated funds power your campaign strength.</p>
+            </div>
+          </div>
+
+          {/* Latest Voter Survey */}
+          <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+            <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: BORDER }}>
+              <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Latest Voter Survey</h3>
+              {latestSurvey && <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">{new Date(latestSurvey.createdAt).toLocaleDateString()}</span>}
+            </div>
+            <div className="p-5">
+              {latestSurvey ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Polling Accuracy</div>
+                    <div className={`text-xs font-bold ${latestSurvey.surveyData.pollingAccuracy === 'Excellent' || latestSurvey.surveyData.pollingAccuracy === 'High' ? 'text-emerald-400' : latestSurvey.surveyData.pollingAccuracy === 'Good' || latestSurvey.surveyData.pollingAccuracy === 'Moderate' ? 'text-amber-400' : 'text-red-400'}`}>
+                      {latestSurvey.surveyData.pollingAccuracy}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Margin of Error</div>
+                    <div className="text-xs font-mono text-zinc-300">±{latestSurvey.surveyData.voteShareMargin.toFixed(1)}%</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Proj. Vote Share</div>
+                    <div className="text-xs font-bold text-amber-400">{latestSurvey.surveyData.projectedVoteShareLow.toFixed(1)}% – {latestSurvey.surveyData.projectedVoteShareHigh.toFixed(1)}%</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Proj. Seats</div>
+                    <div className="text-xs font-bold text-amber-400">{latestSurvey.surveyData.projectedSeatsLow} – {latestSurvey.surveyData.projectedSeatsHigh} seats</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-[11px] text-zinc-500 italic mb-2">No voter survey data available.</p>
+                  <p className="text-[10px] text-zinc-400">Assign your Campaign & Media Manager to run a Voter Survey action to project election outcomes.</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -2262,7 +2347,7 @@ function ActionExecutionModal({
 
   if (!position || !action || !staff) return null;
 
-  const implementedIds = ['mo_recruit', 'smallDonationDrive', 'pl_promise', 'cm_rally', 'meo_statement', 'doorToDoorCampaign', 'giveInterview', 'openMembershipBooth'];
+  const implementedIds = ['mo_recruit', 'smallDonationDrive', 'pl_promise', 'cm_rally', 'meo_statement', 'doorToDoorCampaign', 'giveInterview', 'openMembershipBooth', 'cm_survey'];
   const isImplemented = implementedIds.includes(actionId);
   
   if (!isImplemented) {
@@ -2312,6 +2397,15 @@ function ActionExecutionModal({
     ];
   }
 
+  if (actionId === 'cm_survey') {
+    baseTiers = [
+      { base: 25000, mult: 1.00 },
+      { base: 75000, mult: 1.25 },
+      { base: 150000, mult: 1.60 },
+      { base: 300000, mult: 2.10 },
+    ];
+  }
+
   const tiers = baseTiers.map(t => ({ cost: Math.round((t.base * costIndex) / 100) * 100, mult: t.mult }));
   const currentTier = tiers[selectedTier];
 
@@ -2331,6 +2425,7 @@ function ActionExecutionModal({
         'doorToDoorCampaign': ['Charismatic', 'Relatable', 'Popular'],
         'giveInterview': ['Charismatic', 'Articulate', 'Media Savvy'],
         'openMembershipBooth': ['Charismatic', 'Friendly', 'Popular'],
+        'cm_survey': ['Analytical', 'Strategic', 'Connected'],
       };
       
       let traitBonus = 0;
@@ -2351,7 +2446,9 @@ function ActionExecutionModal({
       let supportGain = 0;
       let controversyGain = 0;
       let mediaPresenceGain = 0;
-      
+      let campaignStrengthGain = 0;
+      let surveyData: any = null;
+
 
       let updatedMainPromise = ctx.partyStats?.mainPromise || '';
       
@@ -2575,6 +2672,106 @@ function ActionExecutionModal({
         publicTrustGain = 0.24 + Math.random() * 0.12;
         supportGain = 0.015 + Math.random() * 0.010;
       }
+    } else if (actionId === 'cm_survey') {
+      let pollingAccuracy = 'Very Low';
+      let voteShareMargin = 8.0;
+
+      if (finalScore < 0) {
+        pollingAccuracy = 'Very Low';
+        voteShareMargin = 8.0;
+      } else if (finalScore < 2) {
+        pollingAccuracy = 'Low';
+        voteShareMargin = 6.0;
+        campaignStrengthGain = 0.05 + Math.random() * 0.05; // 0.05-0.10
+      } else if (finalScore < 4) {
+        pollingAccuracy = 'Basic';
+        voteShareMargin = 4.5;
+        campaignStrengthGain = 0.10 + Math.random() * 0.15; // 0.10-0.25
+        supportGain = Math.random() * 0.002;
+      } else if (finalScore < 6) {
+        pollingAccuracy = 'Moderate';
+        voteShareMargin = 3.0;
+        campaignStrengthGain = 0.25 + Math.random() * 0.20; // 0.25-0.45
+        supportGain = 0.002 + Math.random() * 0.004;
+      } else if (finalScore < 8) {
+        pollingAccuracy = 'Good';
+        voteShareMargin = 2.0;
+        campaignStrengthGain = 0.45 + Math.random() * 0.25; // 0.45-0.70
+        supportGain = 0.006 + Math.random() * 0.006;
+      } else if (finalScore < 9.5) {
+        pollingAccuracy = 'High';
+        voteShareMargin = 1.2;
+        campaignStrengthGain = 0.70 + Math.random() * 0.30; // 0.70-1.00
+        supportGain = 0.012 + Math.random() * 0.008;
+      } else {
+        pollingAccuracy = 'Excellent';
+        voteShareMargin = 0.8;
+        campaignStrengthGain = 1.00 + Math.random() * 0.30; // 1.00-1.30
+        supportGain = 0.020 + Math.random() * 0.015;
+      }
+
+      // Projection calculation
+      const cpRaw = localStorage.getItem('worldr_current_party');
+      let isRegistered = false;
+      let allocatedFunds = 0;
+      if (cpRaw) {
+        const cp = JSON.parse(cpRaw);
+        const campaignsRaw = localStorage.getItem('worldr_election_campaigns');
+        if (campaignsRaw) {
+          const campaigns = JSON.parse(campaignsRaw);
+          const currentCampaign = campaigns.find((c: any) => c.partyId === cp.partyId);
+          if (currentCampaign) {
+            isRegistered = true;
+            allocatedFunds = currentCampaign.allocatedElectionFunds || 0;
+          }
+        }
+      }
+
+      // Default registered part count / recog
+      const rpRaw = localStorage.getItem('worldr_registered_parties');
+      const allRegisteredParties = rpRaw ? JSON.parse(rpRaw) : [];
+      let totalPlayerRecognition = 0;
+      if (ctx.partyStats?.recognition) totalPlayerRecognition += ctx.partyStats.recognition;
+      // In multiplayer, you'd add up all parties' recognition here.
+
+      const registeredPlayerPartiesCount = Math.max(1, allRegisteredParties.length);
+
+      const strengthResult = calculateElectionStrength({
+        partyStats: ctx.partyStats,
+        allocatedFunds,
+        hasMainPromise: !!(ctx.partyStats?.mainPromise),
+      });
+
+      const independentStrength = calculateIndependentStrength({
+        registeredPlayerPartiesCount,
+        totalPlayerRecognition
+      });
+
+      // Temporary local logic - omitting other player parties
+      const otherPlayerPartyStrengths = 0;
+      
+      const projectedVoteShareBase = (strengthResult.baseStrength / (strengthResult.baseStrength + independentStrength + otherPlayerPartyStrengths)) * 100;
+      
+      const projectedVoteShareLow = Math.max(0, projectedVoteShareBase - voteShareMargin);
+      const projectedVoteShareHigh = Math.min(100, projectedVoteShareBase + voteShareMargin);
+      
+      const totalSeats = 120;
+      const projectedSeatsLow = Math.floor((projectedVoteShareLow / 100) * totalSeats);
+      const projectedSeatsHigh = Math.ceil((projectedVoteShareHigh / 100) * totalSeats);
+
+      // We attach these specifically to the result object
+      surveyData = {
+        pollingAccuracy,
+        voteShareMargin,
+        projectedVoteShareBase,
+        projectedVoteShareLow,
+        projectedVoteShareHigh,
+        projectedSeatsLow,
+        projectedSeatsHigh,
+        partyStrength: strengthResult.baseStrength,
+        independentStrength,
+        campaignStrengthGain
+      };
     }
   
     const result = {
@@ -2601,6 +2798,8 @@ function ActionExecutionModal({
       supportGain,
       controversyGain,
       mediaPresenceGain,
+      campaignStrengthGain,
+      surveyData,
 
       updatedMainPromise,
     };
@@ -2841,6 +3040,31 @@ function ActionResultsModal({
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-400">Main Promise</span>
                 <span className="text-emerald-400">{result.updatedMainPromise}</span>
+              </div>
+            )}
+            {result.surveyData && (
+              <div className="mt-4 pt-3 border-t border-white/[0.05] space-y-2">
+                <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2">Survey Results</div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-400">Polling Accuracy</span>
+                  <span className={`font-bold ${result.surveyData.pollingAccuracy === 'Excellent' || result.surveyData.pollingAccuracy === 'High' ? 'text-emerald-400' : result.surveyData.pollingAccuracy === 'Good' || result.surveyData.pollingAccuracy === 'Moderate' ? 'text-amber-400' : 'text-red-400'}`}>{result.surveyData.pollingAccuracy}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-400">Margin of Error</span>
+                  <span className="font-mono text-zinc-300">±{result.surveyData.voteShareMargin.toFixed(1)}%</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-400">Projected Vote Share</span>
+                  <span className="font-bold text-amber-400">{result.surveyData.projectedVoteShareLow.toFixed(1)}% – {result.surveyData.projectedVoteShareHigh.toFixed(1)}%</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-400">Projected Seats</span>
+                  <span className="font-bold text-amber-400">{result.surveyData.projectedSeatsLow} – {result.surveyData.projectedSeatsHigh}</span>
+                </div>
+                <div className="flex justify-between text-xs mt-2">
+                  <span className="text-zinc-400">Campaign Strength Gain</span>
+                  <span className="font-bold text-emerald-400">+{result.surveyData.campaignStrengthGain.toFixed(2)}</span>
+                </div>
               </div>
             )}
             <div className="flex justify-between text-xs font-bold pt-1 border-t border-white/[0.05] mt-1">
@@ -3163,6 +3387,7 @@ export default function ActionsPage() {
          if (result.actionId === 'doorToDoorCampaign' || result.actionId === 'cm_rally') txCat = "Campaign";
          if (result.actionId === 'giveInterview' || result.actionId === 'meo_statement') txCat = "Media";
          if (result.actionId === 'openMembershipBooth') txCat = "Recruitment";
+         if (result.actionId === 'cm_survey') txCat = "Research";
          
          transactions.unshift({
            id: Math.random().toString(36).substring(2, 9),
@@ -3178,6 +3403,18 @@ export default function ActionsPage() {
       localStorage.setItem('worldr_party_transactions', JSON.stringify(transactions));
 
       // Developer Comment: Temporary local activity log. In multiplayer, logs must be generated server-side.
+      if (result.actionId === 'cm_survey' && result.surveyData) {
+        const surveysRaw = localStorage.getItem('worldr_election_surveys');
+        const surveys = surveysRaw ? JSON.parse(surveysRaw) : [];
+        surveys.unshift({
+          id: Math.random().toString(36).substring(2, 9),
+          partyId: ctx.partyId,
+          surveyData: result.surveyData,
+          createdAt: new Date().toISOString()
+        });
+        localStorage.setItem('worldr_election_surveys', JSON.stringify(surveys));
+      }
+
       const logRaw = localStorage.getItem('worldr_activity_log');
       const logs = logRaw ? JSON.parse(logRaw) : [];
       let summaryStr = `Action executed with score ${result.finalScore.toFixed(2)}. ${result.membersJoined > 0 ? '+' + result.membersJoined + ' members. ' : ''}${result.moneyRaised > 0 ? 'Raised ' + formatMoney(result.moneyRaised) + '. ' : ''}`;
@@ -3200,6 +3437,8 @@ export default function ActionsPage() {
         summaryStr = `Campaign & Media Manager gave an interview and expanded media presence.`;
       } else if (result.actionId === 'openMembershipBooth') {
         summaryStr = `Membership Officer opened a membership booth and recruited new members.`;
+      } else if (result.actionId === 'cm_survey') {
+        summaryStr = `Campaign & Media Manager conducted a voter survey with ${result.surveyData?.pollingAccuracy || 'Unknown'} accuracy.`;
       }
 
       const newLog = {
