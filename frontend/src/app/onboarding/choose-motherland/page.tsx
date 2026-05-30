@@ -325,8 +325,8 @@ export default function ChooseMotherlandPage() {
         flagPath: DRENNIA.flagPath,
       }),
     );
-    // Navigate forward (placeholder — game dashboard not yet built)
-    router.push('/onboarding/start-life');
+    // Navigate to citizenship confirmation
+    router.push('/onboarding/citizenship-confirmed');
   };
 
   return (
