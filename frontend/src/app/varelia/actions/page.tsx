@@ -57,6 +57,7 @@ interface PlayerCtx {
   selectedPath: string;
   partyId?: string;
   partyFunds: number;
+  partyStats?: any;
 }
 
 interface PartyAction {
@@ -75,9 +76,13 @@ interface Position {
   filledBy?: {
     name: string;
     age: number | string;
-    skill: string;
+    skill: number | string;
     loyalty: number;
     status: string;
+    type?: string;
+    salary?: number;
+    risk?: string;
+    trait?: string;
   };
 }
 
@@ -256,6 +261,68 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ACTION MATH HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function getNationActionCostIndex(countryInfo: any) {
+  const gdpPerCapita = Number(countryInfo?.gdpPerCapita) || 28400;
+  const gdpInBillions = Number(countryInfo?.gdp) ? Number(countryInfo.gdp) / 1e9 : 88;
+  const populationInMillions = Number(countryInfo?.population) ? Number(countryInfo.population) / 1e6 : 3.1;
+  const idx = Math.pow(gdpPerCapita / 28400, 0.7) * Math.pow(gdpInBillions / 88, 0.2) * Math.pow(populationInMillions / 3.1, 0.1);
+  return Math.max(0.35, Math.min(4.0, idx));
+}
+
+export function rollStaffOutcome(skillVal: number | string): number {
+  const skill = Number(skillVal) || 50;
+  const r = Math.random() * 100;
+  if (skill <= 30) {
+    if (r < 25) return -1; if (r < 60) return 0; if (r < 85) return 1; if (r < 95) return 2; return 3;
+  } else if (skill <= 50) {
+    if (r < 15) return -1; if (r < 45) return 0; if (r < 75) return 1; if (r < 95) return 2; return 3;
+  } else if (skill <= 60) {
+    if (r < 10) return -1; if (r < 35) return 0; if (r < 65) return 1; if (r < 90) return 2; return 3;
+  } else if (skill <= 70) {
+    if (r < 5) return -1; if (r < 25) return 0; if (r < 50) return 1; if (r < 80) return 2; if (r < 95) return 3; return 4;
+  } else if (skill <= 80) {
+    if (r < 3) return -1; if (r < 15) return 0; if (r < 35) return 1; if (r < 65) return 2; if (r < 90) return 3; return 4;
+  } else if (skill <= 90) {
+    if (r < 2) return -1; if (r < 10) return 0; if (r < 25) return 1; if (r < 50) return 2; if (r < 75) return 3; if (r < 90) return 4; return 5;
+  } else {
+    if (r < 5) return 0; if (r < 15) return 1; if (r < 35) return 2; if (r < 60) return 3; if (r < 80) return 4; if (r < 92) return 5; return 6;
+  }
+}
+
+export function calculateActionOutcomeScore(staffRoll: number, investmentMultiplier: number, traitBonus: number, loyalty: number, risk: string, stability: number): number {
+  let loyaltyMod = 0;
+  if (loyalty >= 80) loyaltyMod = 0.2;
+  else if (loyalty >= 60) loyaltyMod = 0.1;
+  else if (loyalty >= 40) loyaltyMod = 0;
+  else if (loyalty >= 25) loyaltyMod = -0.3;
+  else loyaltyMod = -0.5;
+
+  let riskMod = 0;
+  if (risk === 'Very Low') riskMod = 0.1;
+  else if (risk === 'Low') riskMod = 0;
+  else if (risk === 'Medium') riskMod = -0.2;
+  else if (risk === 'High') riskMod = -0.4;
+
+  const stabilityMod = Math.max(-0.3, Math.min(0.3, (stability - 50) / 100));
+
+  const finalScore = (staffRoll * investmentMultiplier) + traitBonus + loyaltyMod + stabilityMod + riskMod;
+  return Math.max(-1, Math.min(10, finalScore));
+}
+
+export function getResultQuality(score: number): string {
+  if (score < 0) return 'Failed';
+  if (score < 2) return 'Weak';
+  if (score < 4) return 'Small';
+  if (score < 6) return 'Normal';
+  if (score < 8) return 'Strong';
+  if (score < 9.5) return 'Major';
+  return 'Exceptional';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -367,6 +434,14 @@ function HireStaffModal({ positionId, positionTitle, onClose, onHireSuccess, cou
       const age = Math.floor(25 + Math.random() * 40);
       const finalSalary = calculateStaffSalary(countryInfo, positionId, skill, type);
 
+      let risk = 'Low';
+      if (type === 'Safe') risk = Math.random() < 0.5 ? 'Very Low' : 'Low';
+      else if (type === 'Skilled') risk = Math.random() < 0.5 ? 'Low' : 'Medium';
+      else risk = 'High';
+
+      const allTraits = ['Charismatic', 'Connected', 'Organized', 'Ruthless', 'Popular', 'Wealthy', 'Respected'];
+      const trait = allTraits[Math.floor(Math.random() * allTraits.length)];
+
       cands.push({
         id: Math.random().toString(36).substring(2, 9),
         name: `${fn} ${ln}`,
@@ -375,7 +450,9 @@ function HireStaffModal({ positionId, positionTitle, onClose, onHireSuccess, cou
         loyalty,
         salary: finalSalary,
         status: 'Hired',
-        type
+        type,
+        risk,
+        trait
       });
     });
     setCandidates(cands);
@@ -534,7 +611,7 @@ function PositionList({
 // DUTY ROW (full-width horizontal)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DutyRow({ action, positionTitle, accentColor, onTrigger }: { action: PartyAction; positionTitle: string; accentColor: string; onTrigger?: (id: string) => void }) {
+function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger }: { action: PartyAction; positionTitle: string; accentColor: string; isFilled?: boolean; onTrigger?: (id: string) => void }) {
   const catColor = CATEGORY_COLORS[action.category] ?? '#3a4238';
   const isDissolve = action.id === 'pl_dissolve';
   const isRedoChar = action.id === 'pl_redo_char';
@@ -684,15 +761,19 @@ function DutyRow({ action, positionTitle, accentColor, onTrigger }: { action: Pa
             Edit Party
           </button>
         ) : (
-          <span className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1"
+          <button type="button"
+            disabled={!isFilled}
+            onClick={() => onTrigger && onTrigger(action.id)}
+            className="text-[8.5px] font-mono uppercase tracking-[0.18em] px-2.5 py-1 transition-colors hover:bg-white/10"
             style={{
-              color: '#3d4238',
-              background: 'rgba(255,255,255,0.02)',
-              border: `1px solid ${BORDER}`,
+              color: isFilled ? '#b8bcb4' : '#3d4238',
+              background: isFilled ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',
+              border: `1px solid ${isFilled ? '#5a6058' : BORDER}`,
               borderRadius: '2px',
+              cursor: isFilled ? 'pointer' : 'not-allowed',
             }}>
-            Coming Soon
-          </span>
+            {isFilled ? 'Execute Action' : `Locked - Hire ${positionTitle.split(' ')[0]}`}
+          </button>
         )}
       </div>
     </div>
@@ -815,7 +896,7 @@ function PositionCenter({
       <div className="flex-1 overflow-y-auto mx-5 mb-4"
         style={{ border: `1px solid ${BORDER}`, borderRadius: '2px', background: PANEL }}>
         {position.actions.map((action) => (
-          <DutyRow key={action.id} action={action} positionTitle={position.title} accentColor={accentColor} onTrigger={onTrigger} />
+          <DutyRow key={action.id} action={action} positionTitle={position.title} accentColor={accentColor} isFilled={isFilled} onTrigger={onTrigger} />
         ))}
         {/* Coming soon footer note */}
         <div className="px-4 py-2.5 flex items-center gap-2"
@@ -824,7 +905,7 @@ function PositionCenter({
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <p className="font-mono text-[8.5px]" style={{ color: '#3d4238' }}>
-            Action effects, costs, and results will be activated in a future gameplay phase.
+            Actions require investment, staff loyalty, and country conditions.
           </p>
         </div>
       </div>
@@ -1334,11 +1415,23 @@ function ActivityLogView() {
           details: `Allegiance sworn to the motherland ${c.countryName} inside the continent of ${c.continentName}.`
         });
       }
+      // 4. Activity Log (Actions)
+      const logsRaw = localStorage.getItem('worldr_activity_log');
+      if (logsRaw) {
+        const actionLogs = JSON.parse(logsRaw);
+        actionLogs.forEach((l: any) => {
+          items.push({
+            title: `Action: ${l.actionName}`,
+            time: new Date(l.createdAt).toLocaleDateString(),
+            details: `Executed by ${l.roleName} (${l.officialName}). Result: ${l.resultQuality} (Score: ${l.finalScore.toFixed(2)}). ${l.summary}`
+          });
+        });
+      }
     } catch (e) {
       console.error(e);
     }
 
-    setLogItems(items);
+    setLogItems(items.reverse());
   }, []);
 
   return (
@@ -1383,6 +1476,352 @@ function ActivityLogView() {
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ACTION EXECUTION MODALS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ActionExecutionModal({
+  actionId,
+  positions,
+  ctx,
+  onClose,
+  onExecute,
+}: {
+  actionId: string;
+  positions: Position[];
+  ctx: PlayerCtx;
+  onClose: () => void;
+  onExecute: (result: any) => void;
+}) {
+  const [selectedTier, setSelectedTier] = useState<number>(0);
+  
+  const position = positions.find(p => p.actions.some(a => a.id === actionId));
+  const action = position?.actions.find(a => a.id === actionId);
+  const staff = position?.filledBy;
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [onClose]);
+
+  if (!position || !action || !staff) return null;
+
+  const isImplemented = actionId === 'mo_recruit' || actionId === 'tr_donation';
+  
+  if (!isImplemented) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className="w-full max-w-sm overflow-hidden p-6 text-center"
+          style={{ background: PANEL, border: `1px solid ${BORDER}`, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', borderRadius: '2px' }}>
+          <div className="w-12 h-12 mx-auto rounded-sm flex items-center justify-center mb-4" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}` }}>
+            <svg className="w-5 h-5" style={{ color: MUTED }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+          </div>
+          <div className="font-bold text-sm text-zinc-100 mb-2">{action.name}</div>
+          <p className="text-[11px] leading-relaxed text-zinc-500 mb-6">
+            This action is currently under development and will be available in a future gameplay phase.
+          </p>
+          <button type="button" onClick={onClose}
+            className="w-full py-2.5 text-xs font-semibold uppercase tracking-widest transition-opacity hover:opacity-75"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa', borderRadius: '2px' }}>
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Cost Index
+  // Drennia => 88B GDP, 3.1M Pop, 28400 GDP per Capita
+  const countryInfo = { gdp: 88000000000, population: 3100000, gdpPerCapita: 28400, stability: 67 }; // mock drennia
+  const costIndex = getNationActionCostIndex(countryInfo);
+
+  const tiers = [
+    { base: 20000, mult: 1.00 },
+    { base: 60000, mult: 1.25 },
+    { base: 120000, mult: 1.60 },
+    { base: 300000, mult: 2.10 },
+  ].map(t => ({ cost: Math.round((t.base * costIndex) / 100) * 100, mult: t.mult }));
+
+  const currentTier = tiers[selectedTier];
+  const canAfford = ctx.partyFunds >= currentTier.cost;
+
+  const handleExecute = () => {
+    if (!canAfford) return;
+
+    // Developer Comment: Temporary local action execution. In multiplayer, action execution, random rolls, costs, and results must be performed server-side to prevent cheating.
+    const roll = rollStaffOutcome(staff.skill);
+    
+    const traitMatches: Record<string, string[]> = {
+      'mo_recruit': ['Charismatic', 'Popular', 'Connected'],
+      'tr_donation': ['Wealthy', 'Connected', 'Respected'],
+    };
+    
+    let traitBonus = 0;
+    if (traitMatches[actionId]?.includes(staff.trait || '')) {
+      traitBonus = 0.5; // Strong match for now
+    }
+
+    const finalScore = calculateActionOutcomeScore(roll, currentTier.mult, traitBonus, staff.loyalty, staff.risk || 'Low', countryInfo.stability);
+    const quality = getResultQuality(finalScore);
+
+    // Specific logic
+    let membersJoined = 0;
+    let recognitionGain = 0;
+    let publicTrustGain = 0;
+    let moneyRaised = 0;
+    
+    if (actionId === 'mo_recruit') {
+      if (finalScore < 0) {
+        membersJoined = Math.floor(Math.random() * 6);
+      } else if (finalScore < 2) {
+        membersJoined = Math.floor(5 + Math.random() * 26);
+        recognitionGain = 0.1 + Math.random() * 0.2;
+        publicTrustGain = Math.random() * 0.2;
+      } else if (finalScore < 4) {
+        membersJoined = Math.floor(30 + Math.random() * 71);
+        recognitionGain = 0.3 + Math.random() * 0.5;
+        publicTrustGain = 0.2 + Math.random() * 0.3;
+      } else if (finalScore < 6) {
+        membersJoined = Math.floor(100 + Math.random() * 151);
+        recognitionGain = 0.8 + Math.random() * 0.7;
+        publicTrustGain = 0.5 + Math.random() * 0.5;
+      } else if (finalScore < 8) {
+        membersJoined = Math.floor(250 + Math.random() * 401);
+        recognitionGain = 1.5 + Math.random() * 1.3;
+        publicTrustGain = 1.0 + Math.random() * 1.0;
+      } else if (finalScore < 9.5) {
+        membersJoined = Math.floor(650 + Math.random() * 651);
+        recognitionGain = 2.8 + Math.random() * 1.7;
+        publicTrustGain = 2.0 + Math.random() * 1.5;
+      } else {
+        membersJoined = Math.floor(1300 + Math.random() * 1201);
+        recognitionGain = 4.5 + Math.random() * 1.5;
+        publicTrustGain = 3.5 + Math.random() * 1.5;
+      }
+    } else if (actionId === 'tr_donation') {
+      let percent = 0;
+      if (finalScore < 0) percent = 0.1 + Math.random() * 0.3;
+      else if (finalScore < 2) { percent = 0.5 + Math.random() * 0.4; recognitionGain = Math.random() * 0.2; }
+      else if (finalScore < 4) { percent = 0.9 + Math.random() * 0.5; recognitionGain = 0.2 + Math.random() * 0.3; }
+      else if (finalScore < 6) { percent = 1.5 + Math.random() * 0.8; recognitionGain = 0.5 + Math.random() * 0.5; }
+      else if (finalScore < 8) { percent = 2.5 + Math.random() * 1.5; recognitionGain = 1.0 + Math.random() * 0.8; }
+      else if (finalScore < 9.5) { percent = 4.5 + Math.random() * 2.0; recognitionGain = 1.8 + Math.random() * 1.0; }
+      else { percent = 7.0 + Math.random() * 3.0; recognitionGain = 2.8 + Math.random() * 1.2; }
+      
+      moneyRaised = Math.round((currentTier.cost * percent) / 100) * 100;
+    }
+
+    const result = {
+      actionId,
+      actionName: action.name,
+      roleName: position.title,
+      officialName: staff.name,
+      staffSkill: staff.skill,
+      staffRoll: roll,
+      investment: currentTier.cost,
+      multiplier: currentTier.mult,
+      traitBonus,
+      loyalty: staff.loyalty,
+      risk: staff.risk || 'Low',
+      stabilityMod: countryInfo.stability,
+      finalScore,
+      quality,
+      membersJoined,
+      recognitionGain,
+      publicTrustGain,
+      moneyRaised,
+    };
+
+    onExecute(result);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full max-w-md overflow-hidden flex flex-col"
+        style={{ background: PANEL, border: `1px solid ${BORDER}`, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', borderRadius: '2px', maxHeight: '90vh' }}>
+        {/* Header */}
+        <div className="px-5 py-4 flex items-center gap-3 shrink-0" style={{ borderBottom: `1px solid ${BORDER}` }}>
+          <div>
+            <div className="font-bold text-sm" style={{ color: TEXT }}>{action.name}</div>
+            <div className="text-[9px] font-mono uppercase tracking-[0.18em] mt-0.5" style={{ color: MUTED }}>Action Execution</div>
+          </div>
+        </div>
+        
+        <div className="p-5 overflow-y-auto space-y-5">
+          {/* Official */}
+          <div className="p-3" style={{ background: PANEL2, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">{position.title}</span>
+              <span className="text-xs font-bold text-zinc-200">{staff.name}</span>
+            </div>
+            <div className="flex gap-4">
+              <div className="text-[10px]"><span className="text-zinc-500">Skill:</span> <span className="text-amber-500 font-mono font-bold">{staff.skill}</span></div>
+              <div className="text-[10px]"><span className="text-zinc-500">Loyalty:</span> <span className="text-blue-400 font-mono font-bold">{staff.loyalty}%</span></div>
+              <div className="text-[10px]"><span className="text-zinc-500">Trait:</span> <span className="text-zinc-300 font-mono">{staff.trait || 'None'}</span></div>
+              <div className="text-[10px]"><span className="text-zinc-500">Risk:</span> <span className="text-red-400 font-mono">{staff.risk || 'Low'}</span></div>
+            </div>
+          </div>
+
+          {/* Investment */}
+          <div>
+            <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2">Investment Tier</div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {tiers.map((t, idx) => (
+                <button key={idx} type="button" onClick={() => setSelectedTier(idx)}
+                  className="p-2 text-center border transition-colors rounded-sm"
+                  style={{
+                    background: selectedTier === idx ? `${ACCENT}14` : PANEL2,
+                    borderColor: selectedTier === idx ? ACCENT : BORDER,
+                  }}>
+                  <div className="text-xs font-bold" style={{ color: selectedTier === idx ? ACCENT : TEXT }}>${(t.cost / 1000).toFixed(0)}K</div>
+                  <div className="text-[9px] font-mono mt-0.5" style={{ color: MUTED }}>{t.mult.toFixed(2)}x Mult</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tip */}
+          <div className="p-3" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+             <p className="text-[10px] leading-relaxed text-zinc-500">
+               Actions use staff skill, investment, loyalty, risk, traits, and country conditions. Final outcome score ranges from -1 to 10. Higher investment improves potential results but cannot guarantee success.
+             </p>
+          </div>
+        </div>
+
+        <div className="px-5 py-4 shrink-0 flex gap-3" style={{ borderTop: `1px solid ${BORDER}` }}>
+          <button type="button" onClick={onClose}
+            className="flex-1 py-2.5 text-xs font-semibold uppercase tracking-widest transition-opacity hover:opacity-75"
+            style={{ color: MUTED, border: `1px solid ${BORDER}` }}>
+            Cancel
+          </button>
+          <button type="button" onClick={handleExecute} disabled={!canAfford}
+            className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity hover:opacity-75"
+            style={{ 
+              background: canAfford ? `${ACCENT}14` : 'transparent', 
+              border: `1px solid ${canAfford ? ACCENT : BORDER}`, 
+              color: canAfford ? ACCENT : MUTED,
+              opacity: canAfford ? 1 : 0.5,
+              cursor: canAfford ? 'pointer' : 'not-allowed'
+            }}>
+            {canAfford ? 'Execute Action' : 'Insufficient Funds'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActionResultsModal({
+  result,
+  onClose
+}: {
+  result: any;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape' || e.key === 'Enter') onClose(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [onClose]);
+
+  if (!result) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full max-w-md overflow-hidden flex flex-col"
+        style={{ background: PANEL, border: `1px solid ${BORDER}`, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', borderRadius: '2px' }}>
+        {/* Header */}
+        <div className="px-5 py-4 flex items-center gap-3 shrink-0" style={{ borderBottom: `1px solid ${BORDER}` }}>
+          <div>
+            <div className="font-bold text-sm" style={{ color: TEXT }}>Action Completed: {result.actionName}</div>
+            <div className="text-[9px] font-mono uppercase tracking-[0.18em] mt-0.5 text-emerald-500">{result.quality} Result</div>
+          </div>
+        </div>
+        
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Final Score</div>
+              <div className="text-2xl font-bold text-white">{result.finalScore.toFixed(2)}</div>
+              <div className="text-[9px] text-zinc-500">Max: 10.00</div>
+            </div>
+            <div>
+              <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Staff Roll (Base)</div>
+              <div className="text-lg font-bold text-zinc-300">{result.staffRoll}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-[10px]">
+             <div className="flex justify-between"><span className="text-zinc-500">Investment Mult:</span> <span className="text-emerald-400 font-mono">x{result.multiplier.toFixed(2)}</span></div>
+             <div className="flex justify-between"><span className="text-zinc-500">Trait Bonus:</span> <span className="text-emerald-400 font-mono">+{result.traitBonus.toFixed(1)}</span></div>
+             <div className="flex justify-between"><span className="text-zinc-500">Loyalty Mod:</span> <span className="text-zinc-300 font-mono">{result.loyalty >= 60 ? '+' : ''}—</span></div>
+             <div className="flex justify-between"><span className="text-zinc-500">Risk Mod:</span> <span className="text-zinc-300 font-mono">—</span></div>
+          </div>
+
+          <div className="h-px w-full" style={{ background: BORDER }} />
+
+          <div className="space-y-2">
+            <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2">Outcome Effects</div>
+            <div className="flex justify-between text-xs">
+              <span className="text-zinc-400">Investment Cost</span>
+              <span className="text-red-400 font-mono">-${result.investment.toLocaleString()}</span>
+            </div>
+            {result.moneyRaised > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-zinc-400">Gross Money Raised</span>
+                <span className="text-emerald-400 font-mono">+${result.moneyRaised.toLocaleString()}</span>
+              </div>
+            )}
+            {result.moneyRaised > 0 && (
+              <div className="flex justify-between text-xs font-bold pt-1 border-t border-white/[0.05] mt-1">
+                <span className="text-zinc-300">Net Funds Gain</span>
+                <span className={result.moneyRaised - result.investment >= 0 ? "text-emerald-500 font-mono" : "text-red-500 font-mono"}>
+                  {result.moneyRaised - result.investment >= 0 ? '+' : ''}${(result.moneyRaised - result.investment).toLocaleString()}
+                </span>
+              </div>
+            )}
+            {result.membersJoined > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-zinc-400">New Members</span>
+                <span className="text-emerald-400 font-mono">+{result.membersJoined.toLocaleString()}</span>
+              </div>
+            )}
+            {result.recognitionGain > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-zinc-400">Recognition</span>
+                <span className="text-emerald-400 font-mono">+{result.recognitionGain.toFixed(2)}</span>
+              </div>
+            )}
+            {result.publicTrustGain > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-zinc-400">Public Trust</span>
+                <span className="text-emerald-400 font-mono">+{result.publicTrustGain.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="px-5 py-4 shrink-0" style={{ borderTop: `1px solid ${BORDER}` }}>
+          <button type="button" onClick={onClose}
+            className="w-full py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity hover:opacity-75"
+            style={{ background: `${ACCENT}14`, border: `1px solid ${ACCENT}`, color: ACCENT }}>
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ActionsPage() {
   const router = useRouter();
   const { character } = useCharacterStore();
@@ -1395,6 +1834,8 @@ export default function ActionsPage() {
   const [hireTarget, setHireTarget] = useState<string | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [activeSubtab, setActiveSubtab] = useState<'Party HQ' | 'Party Staff' | 'Party Strategy' | 'Budget' | 'Elections' | 'Past Elections' | 'Activity Log'>('Party HQ');
+  const [activeActionId, setActiveActionId] = useState<string | null>(null);
+  const [activeResult, setActiveResult] = useState<any>(null);
 
   const [ctx, setCtx] = useState<PlayerCtx>({
     characterName: '—', characterAge: '—',
@@ -1444,6 +1885,7 @@ export default function ActionsPage() {
     const selectedPath = pathLabels[pathRaw ?? ''] ?? 'Politician';
 
     let partyFunds = 2000000;
+    let partyStats: any = { members: 1, recognition: 0, support: 0.1 };
     try {
       const budgetRaw = localStorage.getItem('worldr_party_budget');
       if (budgetRaw) {
@@ -1452,9 +1894,27 @@ export default function ActionsPage() {
         const defaultBudget = { partyId, partyFunds: 2000000, monthlyRevenue: 0, otherExpenses: 0 };
         localStorage.setItem('worldr_party_budget', JSON.stringify(defaultBudget));
       }
+
+      const statsRaw = localStorage.getItem('worldr_party_stats');
+      if (statsRaw) {
+        partyStats = JSON.parse(statsRaw);
+      } else if (partyId) {
+        partyStats = {
+          partyId, members: 1, volunteers: 0, recognition: 0, support: 0.1, internalUnity: 100, controversy: 0,
+          publicTrust: 0, manifestoStatus: "Not Written", legalReadiness: 0, campaignStrength: 0, mediaPresence: 0,
+          regionalReach: 0, businessFavorability: 0, ruralFavorability: 0, youthFavorability: 0,
+          workerFavorability: 0, traditionalFavorability: 0
+        };
+        localStorage.setItem('worldr_party_stats', JSON.stringify(partyStats));
+      }
+
+      const logRaw = localStorage.getItem('worldr_activity_log');
+      if (!logRaw && partyId) {
+        localStorage.setItem('worldr_activity_log', JSON.stringify([]));
+      }
     } catch(e) {}
 
-    setCtx({ characterName: charName, characterAge: charAge, countryName, continentName, partyName, partyAbbreviation, partyColor, partyLogoId, ideologyIds, partyDescription, partyCreatedAt, selectedPath, partyId, partyFunds });
+    setCtx({ characterName: charName, characterAge: charAge, countryName, continentName, partyName, partyAbbreviation, partyColor, partyLogoId, ideologyIds, partyDescription, partyCreatedAt, selectedPath, partyId, partyFunds, partyStats });
 
     // Build positions
     const staffRaw = localStorage.getItem('worldr_party_staff');
@@ -1498,7 +1958,54 @@ export default function ActionsPage() {
       setShowRedoCharModal(true);
     } else if (actionId === 'pl_rebrand_party') {
       setShowRebrandPartyModal(true);
+    } else {
+      setActiveActionId(actionId);
     }
+  };
+
+  const handleActionExecute = (result: any) => {
+    setActiveActionId(null);
+    
+    // Developer Comment: Temporary frontend economy update. In multiplayer, party funds and stats must be validated and stored in backend/database.
+    let updatedFunds = ctx.partyFunds - result.investment + result.moneyRaised;
+    let updatedStats = { ...ctx.partyStats };
+    
+    updatedStats.members = (updatedStats.members || 0) + result.membersJoined;
+    updatedStats.recognition = (updatedStats.recognition || 0) + result.recognitionGain;
+    updatedStats.publicTrust = (updatedStats.publicTrust || 0) + result.publicTrustGain;
+
+    try {
+      const budgetRaw = localStorage.getItem('worldr_party_budget');
+      if (budgetRaw) {
+        const budget = JSON.parse(budgetRaw);
+        budget.partyFunds = updatedFunds;
+        localStorage.setItem('worldr_party_budget', JSON.stringify(budget));
+      }
+      localStorage.setItem('worldr_party_stats', JSON.stringify(updatedStats));
+
+      // Developer Comment: Temporary local activity log. In multiplayer, logs must be generated server-side.
+      const logRaw = localStorage.getItem('worldr_activity_log');
+      const logs = logRaw ? JSON.parse(logRaw) : [];
+      const newLog = {
+        id: Math.random().toString(36).substring(2, 9),
+        partyId: ctx.partyId,
+        countryName: ctx.countryName,
+        continentName: ctx.continentName,
+        actionName: result.actionName,
+        roleName: result.roleName,
+        officialName: result.officialName,
+        investment: result.investment,
+        finalScore: result.finalScore,
+        resultQuality: result.quality,
+        summary: `Action executed with score ${result.finalScore.toFixed(2)}. ${result.membersJoined > 0 ? '+' + result.membersJoined + ' members. ' : ''}${result.moneyRaised > 0 ? 'Raised $' + result.moneyRaised.toLocaleString() + '. ' : ''}`,
+        createdAt: new Date().toISOString()
+      };
+      logs.unshift(newLog);
+      localStorage.setItem('worldr_activity_log', JSON.stringify(logs));
+    } catch(e) {}
+    
+    setCtx({ ...ctx, partyFunds: updatedFunds, partyStats: updatedStats });
+    setActiveResult(result);
   };
 
   const handleConfirmRedoChar = () => {
@@ -1569,6 +2076,23 @@ export default function ActionsPage() {
       {showDissolveModal && <DissolvePartyModal onCancel={() => setShowDissolveModal(false)} onConfirm={handleConfirmDissolve} />}
       {showRedoCharModal && <RedoCharModal onCancel={() => setShowRedoCharModal(false)} onConfirm={handleConfirmRedoChar} />}
       {showRebrandPartyModal && <RebrandPartyModal onCancel={() => setShowRebrandPartyModal(false)} onConfirm={handleConfirmRebrandParty} />}
+      
+      {activeActionId && (
+        <ActionExecutionModal 
+          actionId={activeActionId} 
+          positions={positions} 
+          ctx={ctx} 
+          onClose={() => setActiveActionId(null)} 
+          onExecute={handleActionExecute} 
+        />
+      )}
+      
+      {activeResult && (
+        <ActionResultsModal 
+          result={activeResult} 
+          onClose={() => setActiveResult(null)} 
+        />
+      )}
 
       <div className="h-screen flex flex-col overflow-hidden transition-opacity duration-500"
         style={{ opacity: revealed ? 1 : 0, background: BG }}>
@@ -1686,6 +2210,28 @@ export default function ActionsPage() {
             <>
               {/* Mobile: stacked */}
               <div className="h-full flex flex-col lg:hidden overflow-y-auto" style={{ background: BG }}>
+                {/* Compact Stats */}
+                <div className="shrink-0 flex items-center justify-between px-4 py-2" style={{ background: PANEL, borderBottom: `1px solid ${BORDER}` }}>
+                  <div className="flex gap-4 items-center">
+                    <div>
+                       <div className="text-[8px] font-mono uppercase tracking-[0.15em]" style={{ color: MUTED }}>Funds</div>
+                       <div className="text-[11px] font-bold text-emerald-500">${(ctx.partyFunds / 1000).toFixed(0)}K</div>
+                    </div>
+                    <div>
+                       <div className="text-[8px] font-mono uppercase tracking-[0.15em]" style={{ color: MUTED }}>Members</div>
+                       <div className="text-[11px] font-bold text-zinc-200">{(ctx.partyStats?.members || 0).toLocaleString()}</div>
+                    </div>
+                    <div>
+                       <div className="text-[8px] font-mono uppercase tracking-[0.15em]" style={{ color: MUTED }}>Recog.</div>
+                       <div className="text-[11px] font-bold text-zinc-200">{(ctx.partyStats?.recognition || 0).toFixed(1)}</div>
+                    </div>
+                    <div>
+                       <div className="text-[8px] font-mono uppercase tracking-[0.15em]" style={{ color: MUTED }}>Support</div>
+                       <div className="text-[11px] font-bold text-zinc-200">{(ctx.partyStats?.support || 0.1).toFixed(1)}%</div>
+                    </div>
+                  </div>
+                </div>
+
                 {positions.length > 0 && (
                   <div style={{ minHeight: '260px', maxHeight: '340px', borderBottom: `1px solid ${BORDER}` }}>
                     <PositionList positions={positions} selectedId={selectedPosId} onSelect={setSelectedPosId} accentColor={ctx.partyColor} />
@@ -1697,13 +2243,37 @@ export default function ActionsPage() {
               </div>
 
               {/* Desktop: 2-column */}
-              <div className="h-full hidden lg:grid" style={{ gridTemplateColumns: '224px 1fr' }}>
-                {positions.length > 0 && (
-                  <PositionList positions={positions} selectedId={selectedPosId} onSelect={setSelectedPosId} accentColor={ctx.partyColor} />
-                )}
-                {selectedPos && (
-                  <PositionCenter position={selectedPos} accentColor={ctx.partyColor} partyName={ctx.partyName} countryName={ctx.countryName} onHire={setHireTarget} onTrigger={handleTriggerAction} />
-                )}
+              <div className="h-full hidden lg:flex flex-col">
+                <div className="shrink-0 flex items-center gap-6 px-5 py-2.5" style={{ background: PANEL, borderBottom: `1px solid ${BORDER}` }}>
+                    <div>
+                       <div className="text-[8.5px] font-mono uppercase tracking-[0.15em]" style={{ color: MUTED }}>Party Funds</div>
+                       <div className="text-[13px] font-bold text-emerald-500">${(ctx.partyFunds / 1000000).toFixed(2)}M</div>
+                    </div>
+                    <div className="w-px h-6" style={{ background: BORDER }} />
+                    <div>
+                       <div className="text-[8.5px] font-mono uppercase tracking-[0.15em]" style={{ color: MUTED }}>Total Members</div>
+                       <div className="text-[13px] font-bold text-zinc-100">{(ctx.partyStats?.members || 0).toLocaleString()}</div>
+                    </div>
+                    <div className="w-px h-6" style={{ background: BORDER }} />
+                    <div>
+                       <div className="text-[8.5px] font-mono uppercase tracking-[0.15em]" style={{ color: MUTED }}>Recognition</div>
+                       <div className="text-[13px] font-bold text-zinc-100">{(ctx.partyStats?.recognition || 0).toFixed(1)}</div>
+                    </div>
+                    <div className="w-px h-6" style={{ background: BORDER }} />
+                    <div>
+                       <div className="text-[8.5px] font-mono uppercase tracking-[0.15em]" style={{ color: MUTED }}>Polling Support</div>
+                       <div className="text-[13px] font-bold text-zinc-100">{(ctx.partyStats?.support || 0.1).toFixed(1)}%</div>
+                    </div>
+                </div>
+
+                <div className="flex-1 min-h-0 grid" style={{ gridTemplateColumns: '224px 1fr' }}>
+                  {positions.length > 0 && (
+                    <PositionList positions={positions} selectedId={selectedPosId} onSelect={setSelectedPosId} accentColor={ctx.partyColor} />
+                  )}
+                  {selectedPos && (
+                    <PositionCenter position={selectedPos} accentColor={ctx.partyColor} partyName={ctx.partyName} countryName={ctx.countryName} onHire={setHireTarget} onTrigger={handleTriggerAction} />
+                  )}
+                </div>
               </div>
             </>
           ) : activeSubtab === 'Party Staff' ? (
