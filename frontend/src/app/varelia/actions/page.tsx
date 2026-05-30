@@ -511,9 +511,6 @@ function PositionList({
                   {isFilled ? pos.filledBy!.name : 'Vacant'}
                 </div>
               </div>
-              {/* Status dot */}
-              <div className="w-1.5 h-1.5 rounded-full shrink-0"
-                style={{ background: isFilled ? accentColor : '#2d3228' }} />
             </button>
           );
         })}
@@ -1464,13 +1461,20 @@ function getCurrentCountryElection(selectedCountry: { countryName: string, conti
 function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: PlayerCtx) => void }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [registrations, setRegistrations] = useState<any[]>([]);
+  const [countryParties, setCountryParties] = useState<any[]>([]);
 
   useEffect(() => {
     try {
       const regsRaw = localStorage.getItem('worldr_election_registrations');
       if (regsRaw) setRegistrations(JSON.parse(regsRaw));
+      
+      const rpRaw = localStorage.getItem('worldr_registered_parties');
+      if (rpRaw) {
+        const allParties = JSON.parse(rpRaw);
+        setCountryParties(allParties.filter((p: any) => p.countryName === ctx.countryName));
+      }
     } catch(e) {}
-  }, []);
+  }, [ctx.countryName]);
 
   const selectedCountry = { countryName: ctx.countryName, continentName: ctx.continentName };
   const election = getCurrentCountryElection(selectedCountry);
@@ -1591,6 +1595,36 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
         <div>
           <h2 className="text-xl font-bold text-white tracking-tight">{isRegistered ? 'Registered for Election' : 'Elections'}</h2>
           <p className="text-zinc-500 text-xs mt-1">Register your party for upcoming elections and prepare for national competition.</p>
+        </div>
+
+        {/* Multiplayer Info */}
+        <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }} className="p-5">
+           <h3 className="font-bold text-zinc-100 text-sm mb-1">{election.countryName} Parliamentary Election</h3>
+           
+           <div className="flex items-center gap-3 mt-4 mb-2">
+             <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Politician Slots:</div>
+             <div className="text-xs font-bold text-emerald-400">{Math.min(countryParties.length, 8)} / 8 filled</div>
+           </div>
+           
+           <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2">Registered Player Parties:</div>
+           <div className="flex flex-wrap gap-2 mb-4">
+             {countryParties.slice(0, 8).map(p => (
+               <span key={p.partyId} className="px-2 py-1 border rounded-sm text-[10px] text-zinc-300 font-semibold" style={{ background: 'rgba(255,255,255,0.03)', borderColor: BORDER }}>
+                 {p.partyName} ({p.partyAbbreviation})
+               </span>
+             ))}
+             {countryParties.length === 0 && <span className="text-[10px] text-zinc-500 italic">None yet...</span>}
+           </div>
+
+           <div className="p-4 rounded-sm" style={{ background: 'rgba(212,169,31,0.08)', border: '1px solid rgba(212,169,31,0.2)' }}>
+             <div className="text-xs font-bold mb-1.5" style={{ color: '#d4a91f' }}>Independent Individuals</div>
+             <div className="text-[10px] leading-relaxed mb-3" style={{ color: '#a18017' }}>
+               Any seats not won by registered player-created parties will be represented by Independent Individuals. They are not AI parties; they represent non-party elected figures and unaligned political space.
+             </div>
+             <div className="text-[10px] font-bold leading-relaxed" style={{ color: '#b58e11' }}>
+               Election participation does not guarantee majority control. If few player parties compete, Independent Individuals will fill the remaining political space.
+             </div>
+           </div>
         </div>
 
         <div className="hidden">
@@ -1745,6 +1779,28 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
                 <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Main Promise</span><span className="text-xs font-semibold text-zinc-300">{ctx.partyStats?.mainPromise || 'None Declared'}</span></div>
              </div>
           </div>
+        </div>
+
+        {/* Future Results Info */}
+        <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+           <div className="px-4 py-3 border-b flex justify-between items-center" style={{ borderColor: BORDER }}>
+             <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Future Parliament Projections</h3>
+           </div>
+           <div className="p-4">
+             <div className="flex items-center gap-6 mb-5">
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Total Seats</span><span className="text-xs font-semibold text-zinc-300">120 seats</span></div>
+               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Majority Needed</span><span className="text-xs font-bold text-emerald-400">61 seats</span></div>
+             </div>
+             
+             <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-3">Possible future outcomes:</div>
+             <div className="flex flex-wrap gap-2">
+               {["Failed to enter parliament", "Tiny parliamentary presence", "Minor party", "Rising party", "Major party", "Minority government possible", "Majority government"].map(outcome => (
+                  <span key={outcome} className="px-2 py-1 rounded-sm text-[10px] text-zinc-400 font-semibold" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BORDER}` }}>
+                    {outcome}
+                  </span>
+               ))}
+             </div>
+           </div>
         </div>
       </div>
 
@@ -3020,6 +3076,29 @@ export default function ActionsPage() {
           localStorage.setItem('worldr_registered_parties', JSON.stringify(filtered));
         }
       } catch (e) {}
+      
+      // Clear direct single-party stats
+      localStorage.removeItem('worldr_party_staff');
+      localStorage.removeItem('worldr_party_stats');
+      localStorage.removeItem('worldr_party_budget');
+      localStorage.removeItem('worldr_party_transactions');
+      
+      // Filter out array-based records
+      const filterByParty = (key: string) => {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const arr = JSON.parse(raw);
+            if (Array.isArray(arr)) {
+              localStorage.setItem(key, JSON.stringify(arr.filter((item: any) => item.partyId !== ctx.partyId)));
+            }
+          }
+        } catch(e) {}
+      };
+      
+      filterByParty('worldr_activity_log');
+      filterByParty('worldr_election_registrations');
+      filterByParty('worldr_election_promises');
     }
 
     // 3. Keep worldr_character, keep worldr_selected_path as Politician
