@@ -143,7 +143,6 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     actions: [
       { id: 'tr_donation', name: 'Small Donation Drive', description: 'Run a small public donation campaign to grow party funds.', category: 'Funding' },
       { id: 'tr_fees', name: 'Membership Fee Collection', description: 'Collect monthly dues from registered party members.', category: 'Funding' },
-      { id: 'tr_dinner', name: 'Donor Dinner', description: 'Host a private dinner event to cultivate major donors.', category: 'Funding' },
       { id: 'tr_business', name: 'Business Funding Meeting', description: 'Meet business owners to secure financial backing.', category: 'Funding' },
       { id: 'tr_audit', name: 'Audit Party Accounts', description: 'Review financial records to ensure accuracy and compliance.', category: 'Admin' },
     ],
@@ -156,14 +155,9 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     actions: [
       { id: 'cm_door', name: 'Door-to-Door Campaign', description: 'Canvass residential areas to meet voters directly.', category: 'Campaign' },
       { id: 'cm_rally', name: 'Hold Local Rally', description: 'Organize a public rally to energize supporters.', category: 'Campaign' },
-      { id: 'cm_hall', name: 'Town Hall Meeting', description: 'Host an open forum where citizens can engage the party.', category: 'Outreach' },
-      { id: 'cm_rural', name: 'Rural Visit', description: 'Travel to rural areas to build support outside cities.', category: 'Campaign' },
-      { id: 'cm_poster', name: 'Poster Campaign', description: 'Distribute posters and flyers in key public locations.', category: 'Campaign' },
       { id: 'cm_survey', name: 'Voter Survey', description: 'Conduct surveys to understand voter priorities.', category: 'Research' },
       { id: 'meo_statement', name: 'Publish Party Statement', description: 'Issue a formal written declaration from the party.', category: 'Media' },
       { id: 'sp_interview', name: 'Give Interview', description: 'Participate in a media interview to communicate party stance.', category: 'Media' },
-      { id: 'sp_respond', name: 'Respond to Criticism', description: 'Publicly address and counter negative press or attacks.', category: 'Media' },
-      { id: 'meo_message', name: 'Launch Public Message', description: 'Distribute a mass message to citizens on party priorities.', category: 'Media' },
     ],
   },
   {
@@ -174,7 +168,6 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     actions: [
       { id: 'pd_manifesto', name: 'Write Party Manifesto', description: "Draft the party's official comprehensive policy platform.", category: 'Policy' },
       { id: 'pd_economic', name: 'Draft Economic Policy', description: 'Prepare a formal economic strategy and fiscal direction.', category: 'Policy' },
-      { id: 'pd_welfare', name: 'Draft Welfare Policy', description: 'Design a social protection and public services policy.', category: 'Policy' },
       { id: 'pd_corruption', name: 'Draft Anti-Corruption Plan', description: 'Develop a formal plan to address government corruption.', category: 'Policy' },
       { id: 'pd_bill', name: 'Prepare Bill Idea', description: 'Draft a preliminary legislative bill concept for review.', category: 'Policy' },
     ],
@@ -186,10 +179,8 @@ const POSITION_DEFINITIONS: Omit<Position, 'filledBy'>[] = [
     description: "Grows party membership, recruits volunteers, expands grassroots organization, and manages supporter recruitment.",
     actions: [
       { id: 'mo_recruit', name: 'Recruit Members', description: 'Run a targeted campaign to attract new party members.', category: 'Growth' },
-      { id: 'mo_volunteers', name: 'Recruit Volunteers', description: 'Build a volunteer base to support party activities.', category: 'Growth' },
       { id: 'mo_youth', name: 'Start Youth Membership Drive', description: 'Target young citizens for party membership enrollment.', category: 'Growth' },
       { id: 'mo_booth', name: 'Open Membership Booth', description: 'Set up a public registration booth in a busy location.', category: 'Outreach' },
-      { id: 'mo_activists', name: 'Invite Independent Activists', description: 'Reach out to unaffiliated political activists.', category: 'Growth' },
     ],
   },
 ];
