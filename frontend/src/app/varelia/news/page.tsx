@@ -6,7 +6,7 @@ import { useCharacterStore } from '../../../store/character.store';
 import { LogoSVG } from '../../../components/LogoSVG';
 import { PARTY_COLORS } from '../../../data/political-parties/partyLogos';
 import type { RegisteredPoliticalParty } from '../../../data/political-parties/partyTypes';
-import { getLivePartyRegistryData, initializeCurrentPartyStatsIfNeeded, formatMoney } from '../../../lib/partyHelpers';
+import { getLivePartyRegistryData, initializeCurrentPartyStatsIfNeeded, formatMoney, getLiveMemberCountForParty } from '../../../lib/partyHelpers';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -162,7 +162,10 @@ function getCountryArticleKey(countryName: string): string {
 function getPartiesByContinent(continentName: string): RegisteredPoliticalParty[] {
   const all = getLivePartyRegistryData();
   const filtered = all.filter((p: any) => p.continentName === continentName);
-  return filtered.sort((a: any, b: any) => (b.members || 0) - (a.members || 0));
+  const withMembers = filtered.map((p: any) => {
+    return { ...p, computedMembers: getLiveMemberCountForParty(p) };
+  });
+  return withMembers.sort((a: any, b: any) => b.computedMembers - a.computedMembers);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -801,9 +804,10 @@ function PartyDetailModal({ party, onClose }: { party: any; onClose: () => void 
             {field('Leader', party.leaderName || 'Not recorded')}
             {field('Country', party.countryName ?? '—')}
             {field('Continent', party.continentName ?? '—')}
-            {field('Members', (party.members ?? 1).toLocaleString(), true)}
+            {field('Members', (party.computedMembers ?? party.members ?? 1).toLocaleString(), true)}
             {field('Recognition', party.recognition != null ? `${(party.recognition).toFixed(2)}%` : 'Not recorded')}
             {field('Polling Support', party.support != null ? `${(party.support).toFixed(2)}%` : 'Not recorded')}
+            {field('Funds', party.funds != null ? formatMoney(party.funds) : 'Not recorded', true)}
             {field('Main Promise', (party as any).mainPromise || 'None declared')}
             {field('Registered', party.createdAt ? formatGameDate(party.createdAt) : 'Not recorded')}
           </div>
@@ -840,7 +844,7 @@ function PublicNoticesSection() {
   }, [activeContinent]);
 
   return (
-    <div className="flex-1 overflow-y-auto" style={{ background: '#11140f' }}>
+    <div className="flex-1 overflow-y-auto" style={{ background: '#06060e' }}>
 
       {/* Header */}
       <div className="px-4 md:px-8 pt-8 pb-6 max-w-4xl mx-auto">
@@ -893,7 +897,7 @@ function PublicNoticesSection() {
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: '2px' }}>
+          <div className="overflow-hidden" style={{ background: 'rgba(10,10,22,0.6)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '2px' }}>
             {/* Table header */}
             <div className="grid grid-cols-[48px_80px_1fr_72px] gap-0 px-4 py-2.5"
               style={{ background: 'rgba(192,160,96,0.07)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>

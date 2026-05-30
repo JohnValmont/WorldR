@@ -15,6 +15,32 @@ export function formatMoney(value: number): string {
   return '$' + rounded.toLocaleString('en-US');
 }
 
+export function getLiveMemberCountForParty(party: any): number {
+  if (typeof window === 'undefined') return party.members || party.memberCount || 1;
+
+  try {
+    const cpRaw = localStorage.getItem('worldr_current_party');
+    const psRaw = localStorage.getItem('worldr_party_stats');
+    
+    if (cpRaw && psRaw) {
+      const currentParty = JSON.parse(cpRaw);
+      const stats = JSON.parse(psRaw);
+      
+      const isMatch = 
+        party.partyId === currentParty.partyId ||
+        party.partyAbbreviation === currentParty.partyAbbreviation ||
+        party.abbreviation === currentParty.partyAbbreviation ||
+        (party.partyName === currentParty.partyName && party.countryName === currentParty.countryName);
+
+      if (isMatch && stats.members != null) {
+        return Math.round(stats.members);
+      }
+    }
+  } catch (e) {}
+
+  return Math.round(party.members || party.memberCount || 1);
+}
+
 export function getLivePartyRegistryData() {
   if (typeof window === 'undefined') return [];
 
@@ -50,7 +76,16 @@ export function getLivePartyRegistryData() {
   } catch (e) {}
 
   const resultParties = registeredParties.map((rp: any) => {
-    if (!currentParty || rp.partyId !== currentParty.partyId) {
+    let isMatch = false;
+    if (currentParty) {
+      isMatch = 
+        rp.partyId === currentParty.partyId ||
+        rp.partyAbbreviation === currentParty.partyAbbreviation ||
+        rp.abbreviation === currentParty.partyAbbreviation ||
+        (rp.partyName === currentParty.partyName && rp.countryName === currentParty.countryName);
+    }
+
+    if (!isMatch) {
       const isRegistered = electionRegistrations.some((r: any) => r.partyId === rp.partyId);
       const camp = electionCampaigns.find((c: any) => c.partyId === rp.partyId);
       return {
@@ -82,7 +117,7 @@ export function getLivePartyRegistryData() {
       leaderName,
       countryName: currentParty.countryName,
       continentName: currentParty.continentName,
-      members: pStats.members ?? currentParty.members ?? currentParty.memberCount ?? 1,
+      members: pStats.members != null ? Math.round(pStats.members) : (currentParty.members ?? currentParty.memberCount ?? 1),
       recognition: pStats.recognition ?? currentParty.recognition ?? 0,
       support: pStats.support ?? currentParty.support ?? 0.1,
       publicTrust: pStats.publicTrust ?? 0,
@@ -90,7 +125,7 @@ export function getLivePartyRegistryData() {
       campaignStrength: pStats.campaignStrength ?? 0,
       controversy: pStats.controversy ?? 0,
       mainPromise: pStats.mainPromise || '',
-      funds: pBudget.partyFunds ?? 0,
+      funds: pBudget.partyFunds != null ? Math.round(pBudget.partyFunds) : 0,
       registeredForElection: isRegistered,
       electionFundsAllocated: camp?.allocatedFunds || 0,
       color: currentParty.color || '#D4A91F',
@@ -128,19 +163,31 @@ export function syncCurrentPartyStatsToRegisteredParties() {
     }
     if (!leaderName) leaderName = 'Unknown';
 
-    const idx = registeredParties.findIndex((rp: any) => rp.partyId === currentParty.partyId);
+    let idx = registeredParties.findIndex((rp: any) => rp.partyId === currentParty.partyId);
+    
+    // Fallbacks
+    if (idx === -1) {
+      idx = registeredParties.findIndex((rp: any) => rp.partyAbbreviation === currentParty.partyAbbreviation);
+    }
+    if (idx === -1) {
+      idx = registeredParties.findIndex((rp: any) => rp.abbreviation === currentParty.partyAbbreviation);
+    }
+    if (idx === -1) {
+      idx = registeredParties.findIndex((rp: any) => rp.partyName === currentParty.partyName && rp.countryName === currentParty.countryName);
+    }
+
     if (idx !== -1) {
       registeredParties[idx] = {
         ...registeredParties[idx],
-        members: partyStats.members ?? registeredParties[idx].members,
-        memberCount: partyStats.members ?? registeredParties[idx].memberCount,
+        members: partyStats.members != null ? Math.round(partyStats.members) : registeredParties[idx].members,
+        memberCount: partyStats.members != null ? Math.round(partyStats.members) : registeredParties[idx].memberCount,
         recognition: partyStats.recognition ?? registeredParties[idx].recognition,
         support: partyStats.support ?? registeredParties[idx].support,
         publicTrust: partyStats.publicTrust ?? registeredParties[idx].publicTrust,
         mediaPresence: partyStats.mediaPresence ?? registeredParties[idx].mediaPresence,
         campaignStrength: partyStats.campaignStrength ?? registeredParties[idx].campaignStrength,
         controversy: partyStats.controversy ?? registeredParties[idx].controversy,
-        funds: partyBudget.partyFunds ?? registeredParties[idx].funds,
+        funds: partyBudget.partyFunds != null ? Math.round(partyBudget.partyFunds) : registeredParties[idx].funds,
         leaderName,
         mainPromise: partyStats.mainPromise ?? registeredParties[idx].mainPromise,
       };
