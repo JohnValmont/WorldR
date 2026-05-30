@@ -844,27 +844,27 @@ function PublicNoticesSection() {
   }, [activeContinent]);
 
   return (
-    <div className="flex-1 overflow-y-auto" style={{ background: '#06060e' }}>
+    <div className="flex-1 overflow-y-auto" style={{ background: '#f0ebe0' }}>
 
       {/* Header */}
       <div className="px-4 md:px-8 pt-8 pb-6 max-w-4xl mx-auto">
         <div className="flex items-center gap-3 mb-1">
           <div className="w-1 h-5 rounded-sm" style={{ background: 'linear-gradient(180deg, #c0a060, #7a6030)' }} />
-          <h2 className="text-white font-bold text-lg tracking-tight">Public Notices</h2>
+          <h2 className="text-gray-900 font-bold text-lg tracking-tight">Public Notices</h2>
         </div>
-        <p className="text-zinc-600 text-[11px] font-mono uppercase tracking-widest ml-4">
+        <p className="text-zinc-500 text-[11px] font-mono uppercase tracking-widest ml-4">
           World Political Registry · Official Public Record
         </p>
       </div>
 
       {/* Continent subtabs */}
-      <div className="border-b border-white/[0.06]" style={{ background: 'rgba(10,10,20,0.98)' }}>
+      <div className="border-b" style={{ background: '#1a1a2e', borderColor: 'rgba(26,26,46,0.15)' }}>
         <div className="max-w-4xl mx-auto px-4 md:px-8 flex items-center">
           {CONTINENTS.map((ct) => (
             <button key={ct} id={`public-notices-${ct.toLowerCase()}`} type="button"
               onClick={() => setActiveContinent(ct)}
               className="relative px-5 py-3 text-[10px] font-bold uppercase tracking-[0.18em] transition-all duration-150"
-              style={activeContinent === ct ? { color: '#c0a060' } : { color: '#3f3f46' }}>
+              style={activeContinent === ct ? { color: '#c0a060' } : { color: 'rgba(243,239,230,0.4)' }}>
               {ct}
               {activeContinent === ct && <span className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: '#c0a060' }} />}
             </button>
@@ -875,10 +875,10 @@ function PublicNoticesSection() {
       {/* Table */}
       <div className="max-w-4xl mx-auto px-4 md:px-8 py-6 pb-20">
         <div className="mb-5">
-          <h3 className="text-white font-bold text-base mb-0.5">
+          <h3 className="text-gray-900 font-bold text-base mb-0.5">
             Registered Political Parties of {activeContinent}
           </h3>
-          <p className="text-zinc-600 font-mono text-[9px] uppercase tracking-widest">
+          <p className="text-zinc-500 font-mono text-[9px] uppercase tracking-widest">
             {parties.length} {parties.length === 1 ? 'party' : 'parties'} on record · ranked by membership
           </p>
         </div>
@@ -892,12 +892,12 @@ function PublicNoticesSection() {
               </svg>
             </div>
             <p className="text-zinc-600 text-sm">No registered parties in {activeContinent} yet.</p>
-            <p className="text-zinc-700 font-mono text-[9px] uppercase tracking-widest mt-2">
+            <p className="text-zinc-500 font-mono text-[9px] uppercase tracking-widest mt-2">
               Parties appear here once registered with a country in this continent.
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden" style={{ background: 'rgba(10,10,22,0.6)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '2px' }}>
+          <div className="overflow-hidden shadow-xl" style={{ background: '#1a1a2e', border: '1px solid rgba(26,26,46,0.1)', borderRadius: '2px' }}>
             {/* Table header */}
             <div className="grid grid-cols-[48px_80px_1fr_72px] gap-0 px-4 py-2.5"
               style={{ background: 'rgba(192,160,96,0.07)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -936,7 +936,7 @@ function PublicNoticesSection() {
           </div>
         )}
 
-        <p className="text-zinc-700 font-mono text-[8px] uppercase tracking-widest mt-4">
+        <p className="text-zinc-500 font-mono text-[8px] uppercase tracking-widest mt-4">
           Click a party name to view full details · Parties ranked by registered members
         </p>
       </div>
