@@ -11,6 +11,12 @@ export type RegisteredPoliticalParty = {
   colorId: string;
   leaderName: string;
   createdAt: string;
+  /** Country the party is registered in — enriched after motherland selection */
+  countryName?: string;
+  /** Continent the party belongs to — enriched after motherland selection */
+  continentName?: string;
+  /** Number of registered members. Defaults to 1 for the founder/leader. */
+  registeredMembers?: number;
 };
 
 export type PartyColor = {
