@@ -56,6 +56,7 @@ interface PlayerCtx {
   partyCreatedAt: string;
   selectedPath: string;
   partyId?: string;
+  partyFunds: number;
 }
 
 interface PartyAction {
@@ -263,6 +264,75 @@ function getInitials(name: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SALARY LOGIC HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function parseMoneyToNumber(money: number | string): number {
+  const num = Number(money);
+  return isNaN(num) ? 0 : num;
+}
+
+function parseGDPInBillions(gdp: number | string): number {
+  const num = Number(gdp);
+  return isNaN(num) ? 88 : num / 1e9;
+}
+
+function parsePopulationInMillions(pop: number | string): number {
+  const num = Number(pop);
+  return isNaN(num) ? 3.1 : num / 1e6;
+}
+
+function calculateNationSalaryIndex(countryInfo: any) {
+  const gdpInBillions = parseGDPInBillions(countryInfo?.gdp || 88000000000);
+  const populationInMillions = parsePopulationInMillions(countryInfo?.population || 3100000);
+  const stability = Number(countryInfo?.stability) || 67;
+  const government = countryInfo?.government || 'Parliamentary';
+
+  const economyScaleMultiplier = Math.max(0.75, Math.min(2.5, Math.sqrt(gdpInBillions / 100)));
+  const populationComplexityMultiplier = Math.max(0.75, Math.min(2.0, Math.sqrt(populationInMillions / 5)));
+  const stabilityMultiplier = Math.max(0.85, Math.min(1.25, 0.85 + (stability / 100) * 0.35));
+
+  let governmentMultiplier = 1.00;
+  if (government === 'Parliamentary') governmentMultiplier = 1.08;
+  else if (government === 'Presidential') governmentMultiplier = 1.05;
+  else if (government === 'Constitutional Monarchy') governmentMultiplier = 1.10;
+  else if (government === 'Monarchy') governmentMultiplier = 1.00;
+  else if (government === 'Military Government') governmentMultiplier = 0.95;
+  else if (government === 'Transitional Government') governmentMultiplier = 0.90;
+
+  return { economyScaleMultiplier, populationComplexityMultiplier, stabilityMultiplier, governmentMultiplier };
+}
+
+function calculateStaffSalary(countryInfo: any, positionId: string, skill: number, candidateType: 'Safe' | 'Skilled' | 'Risky Elite'): number {
+  // Developer Comment: Temporary frontend salary model. In multiplayer, staff salary must be calculated or validated server-side using nation GDP, GDP per capita, population, stability, and government type.
+  const gdpPerCapita = Number(countryInfo?.gdpPerCapita) || 28400;
+  const averageMonthlyIncome = gdpPerCapita / 12;
+
+  const { economyScaleMultiplier, populationComplexityMultiplier, stabilityMultiplier, governmentMultiplier } = calculateNationSalaryIndex(countryInfo);
+
+  let rolePrestigeMultiplier = 1.00;
+  if (positionId === 'treasurer') rolePrestigeMultiplier = 1.35;
+  else if (positionId === 'campaign_manager') rolePrestigeMultiplier = 1.30;
+  else if (positionId === 'spokesperson') rolePrestigeMultiplier = 1.15;
+  else if (positionId === 'policy_director') rolePrestigeMultiplier = 1.45;
+  else if (positionId === 'legal_officer') rolePrestigeMultiplier = 1.65;
+  else if (positionId === 'public_network_officer') rolePrestigeMultiplier = 1.25;
+  else if (positionId === 'media_officer') rolePrestigeMultiplier = 1.15;
+  else if (positionId === 'regional_organizer') rolePrestigeMultiplier = 1.25;
+
+  const skillMultiplier = 0.75 + (skill / 100) * 0.95;
+
+  let candidateTypeMultiplier = 1.0;
+  if (candidateType === 'Safe') candidateTypeMultiplier = 0.95;
+  else if (candidateType === 'Skilled') candidateTypeMultiplier = 1.20;
+  else if (candidateType === 'Risky Elite') candidateTypeMultiplier = 1.55;
+
+  const salary = averageMonthlyIncome * rolePrestigeMultiplier * skillMultiplier * candidateTypeMultiplier * economyScaleMultiplier * populationComplexityMultiplier * stabilityMultiplier * governmentMultiplier;
+  
+  return Math.round(salary / 50) * 50;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // HIRE STAFF MODAL
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -270,31 +340,32 @@ function HireStaffModal({ positionId, positionTitle, onClose, onHireSuccess, cou
   const [candidates, setCandidates] = useState<any[]>([]);
 
   useEffect(() => {
-    // Generate candidates on mount
-    const gdp = countryInfo?.gdp || 88000000000; // default Drennia
-    const perCap = countryInfo?.gdpPerCapita || 28400;
-    
-    const perCapitaIndex = perCap / 35000;
-    const gdpScaleIndex = gdp / 500e9;
-    
-    let nationSalaryIndex = (perCapitaIndex * 0.75) + (gdpScaleIndex * 0.25);
-    nationSalaryIndex = Math.max(0.45, Math.min(2.5, nationSalaryIndex));
-
-    const baseSalary = 3000 + Math.random() * 2000; 
-    
-    const cands = [];
+    const cands: any[] = [];
     const firstNames = ['Aris', 'Bane', 'Cael', 'Dora', 'Elara', 'Fenn', 'Gael', 'Hale', 'Ira', 'Jace', 'Lyra', 'Nia', 'Orin', 'Quinn', 'Sia', 'Uri', 'Wren', 'Yara'];
     const lastNames = ['Voss', 'Tarn', 'Kest', 'Renn', 'Vale', 'Thorn', 'Lest', 'Gant', 'Vane', 'Sorn', 'Karn', 'Vell', 'Tess'];
     
-    for(let i=0; i<3; i++) {
+    const types: ('Safe' | 'Skilled' | 'Risky Elite')[] = ['Safe', 'Skilled', 'Risky Elite'];
+    
+    types.forEach((type) => {
       const fn = firstNames[Math.floor(Math.random() * firstNames.length)];
       const ln = lastNames[Math.floor(Math.random() * lastNames.length)];
-      const skill = Math.floor(50 + Math.random() * 40); 
-      const loyalty = Math.floor(40 + Math.random() * 50); 
-      const age = Math.floor(25 + Math.random() * 40);
       
-      const skillMultiplier = skill / 70;
-      const finalSalary = Math.floor(baseSalary * nationSalaryIndex * skillMultiplier / 100) * 100;
+      let skill = 50;
+      let loyalty = 50;
+      
+      if (type === 'Safe') {
+        skill = Math.floor(40 + Math.random() * 30); // 40-69
+        loyalty = Math.floor(80 + Math.random() * 20); // 80-99
+      } else if (type === 'Skilled') {
+        skill = Math.floor(70 + Math.random() * 15); // 70-84
+        loyalty = Math.floor(50 + Math.random() * 30); // 50-79
+      } else { // Risky Elite
+        skill = Math.floor(85 + Math.random() * 15); // 85-99
+        loyalty = Math.floor(10 + Math.random() * 30); // 10-39
+      }
+      
+      const age = Math.floor(25 + Math.random() * 40);
+      const finalSalary = calculateStaffSalary(countryInfo, positionId, skill, type);
 
       cands.push({
         id: Math.random().toString(36).substring(2, 9),
@@ -303,11 +374,12 @@ function HireStaffModal({ positionId, positionTitle, onClose, onHireSuccess, cou
         skill,
         loyalty,
         salary: finalSalary,
-        status: 'Hired'
+        status: 'Hired',
+        type
       });
-    }
+    });
     setCandidates(cands);
-  }, [countryInfo]);
+  }, [countryInfo, positionId]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -353,8 +425,10 @@ function HireStaffModal({ positionId, positionTitle, onClose, onHireSuccess, cou
                 <div className="flex items-center gap-3 mt-1.5">
                    <div className="text-[10px]"><span className="text-zinc-500">Age:</span> <span className="text-zinc-300 font-mono">{c.age}</span></div>
                    <div className="text-[10px]"><span className="text-zinc-500">Skill:</span> <span className="text-amber-500 font-mono font-bold">{c.skill}</span></div>
-                   <div className="text-[10px]"><span className="text-zinc-500">Salary:</span> <span className="text-emerald-500 font-mono font-bold">${c.salary.toLocaleString()}/mo</span></div>
+                   <div className="text-[10px]"><span className="text-zinc-500">Loyalty:</span> <span className="text-blue-400 font-mono font-bold">{c.loyalty}</span></div>
                 </div>
+                <div className="text-[10px] mt-1.5"><span className="text-zinc-500">Type:</span> <span className="text-zinc-300 font-mono">{c.type}</span></div>
+                <div className="text-[10px] mt-0.5"><span className="text-zinc-500">Salary:</span> <span className="text-emerald-500 font-mono font-bold">${c.salary.toLocaleString()} / month</span></div>
               </div>
               <button type="button" onClick={() => handleHire(c)}
                 className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75 shrink-0"
@@ -1013,8 +1087,11 @@ function PartyStaffView({ positions, onHire, onFire, accentColor }: { positions:
 }
 
 function BudgetView() {
-  const [budgetData, setBudgetData] = useState({ staffCost: 0, balance: 50000 });
+  const [budget, setBudget] = useState({ partyFunds: 2000000, monthlyRevenue: 0, otherExpenses: 0 });
+  const [staffCost, setStaffCost] = useState(0);
+
   useEffect(() => {
+    // Developer Comment: Temporary party budget model. In multiplayer, party funds, revenue, expenses, and salary payments must be stored and validated by backend/database.
     let cost = 0;
     try {
       const staffRaw = localStorage.getItem('worldr_party_staff');
@@ -1025,8 +1102,31 @@ function BudgetView() {
         });
       }
     } catch(e){}
-    setBudgetData({ staffCost: cost, balance: 50000 });
+    setStaffCost(cost);
+
+    let partyId = '';
+    try {
+      const pRaw = localStorage.getItem('worldr_current_party');
+      if (pRaw) {
+        partyId = JSON.parse(pRaw).partyId;
+      }
+    } catch(e) {}
+
+    try {
+      const budgetRaw = localStorage.getItem('worldr_party_budget');
+      if (budgetRaw) {
+        setBudget(JSON.parse(budgetRaw));
+      } else {
+        const defaultBudget = { partyId, partyFunds: 2000000, monthlyRevenue: 0, otherExpenses: 0 };
+        localStorage.setItem('worldr_party_budget', JSON.stringify(defaultBudget));
+        setBudget(defaultBudget);
+      }
+    } catch(e) {}
   }, []);
+
+  const monthlyExpenses = staffCost + budget.otherExpenses;
+  const netProfit = budget.monthlyRevenue - monthlyExpenses;
+  const projectedMonthlyBalance = budget.partyFunds + netProfit;
 
   return (
     <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
@@ -1036,19 +1136,44 @@ function BudgetView() {
           <p className="text-zinc-500 text-xs mt-1">Manage your political organization's finances and staff salaries.</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 p-5 mb-6" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
-            <div>
-              <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Treasury Balance</div>
-              <div className="text-lg font-bold text-emerald-500">${budgetData.balance.toLocaleString()}</div>
+        <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="p-5" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+              <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Party Funds</div>
+              <div className="text-xl font-bold text-emerald-500">${(budget.partyFunds / 1000000).toFixed(1)}M</div>
             </div>
-            <div>
-              <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Monthly Staff Costs</div>
-              <div className="text-lg font-bold text-red-400">-${budgetData.staffCost.toLocaleString()}</div>
+            <div className="p-5" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+              <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Projected Monthly Balance</div>
+              <div className="text-lg font-bold text-emerald-400">${projectedMonthlyBalance.toLocaleString()}</div>
             </div>
+        </div>
+
+        <div className="space-y-4" style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px', padding: '16px' }}>
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.03]">
+            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Monthly Revenue</span>
+            <span className="text-xs font-semibold text-zinc-300">${budget.monthlyRevenue.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.03]">
+            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Staff Salary Expenses</span>
+            <span className="text-xs font-semibold text-red-400">-${staffCost.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.03]">
+            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Other Expenses</span>
+            <span className="text-xs font-semibold text-red-400">-${budget.otherExpenses.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.03]">
+            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Monthly Expenses</span>
+            <span className="text-xs font-semibold text-red-400">-${monthlyExpenses.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Net Profit</span>
+            <span className={`text-xs font-semibold ${netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+              {netProfit >= 0 ? '+' : ''}${netProfit.toLocaleString()}
+            </span>
+          </div>
         </div>
         
         <p className="text-[10px] text-zinc-700 text-center mt-6 italic">
-          Income sources and donations will be implemented in a future gameplay phase.
+          Budget is currently view-only. Salaries are not yet deducted.
         </p>
       </div>
     </div>
@@ -1279,6 +1404,7 @@ export default function ActionsPage() {
     ideologyIds: [], partyDescription: '', partyCreatedAt: '',
     selectedPath: 'Politician',
     partyId: '',
+    partyFunds: 2000000,
   });
 
   useEffect(() => {
@@ -1317,7 +1443,18 @@ export default function ActionsPage() {
     };
     const selectedPath = pathLabels[pathRaw ?? ''] ?? 'Politician';
 
-    setCtx({ characterName: charName, characterAge: charAge, countryName, continentName, partyName, partyAbbreviation, partyColor, partyLogoId, ideologyIds, partyDescription, partyCreatedAt, selectedPath, partyId });
+    let partyFunds = 2000000;
+    try {
+      const budgetRaw = localStorage.getItem('worldr_party_budget');
+      if (budgetRaw) {
+        partyFunds = JSON.parse(budgetRaw).partyFunds;
+      } else if (partyId) {
+        const defaultBudget = { partyId, partyFunds: 2000000, monthlyRevenue: 0, otherExpenses: 0 };
+        localStorage.setItem('worldr_party_budget', JSON.stringify(defaultBudget));
+      }
+    } catch(e) {}
+
+    setCtx({ characterName: charName, characterAge: charAge, countryName, continentName, partyName, partyAbbreviation, partyColor, partyLogoId, ideologyIds, partyDescription, partyCreatedAt, selectedPath, partyId, partyFunds });
 
     // Build positions
     const staffRaw = localStorage.getItem('worldr_party_staff');
@@ -1466,8 +1603,8 @@ export default function ActionsPage() {
             </button>
             <div className="hidden sm:flex items-center gap-1.5 px-3 h-8 rounded-sm"
               style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
-              <span className="text-[8.5px] font-mono uppercase tracking-widest" style={{ color: MUTED }}>Cash</span>
-              <span className="text-[11px] font-bold font-mono text-emerald-600">$0</span>
+              <span className="text-[8.5px] font-mono uppercase tracking-widest" style={{ color: MUTED }}>Funds</span>
+              <span className="text-[11px] font-bold font-mono text-emerald-600">${(ctx.partyFunds / 1000000).toFixed(1)}M</span>
             </div>
             <div className="relative">
               <button id="party-menu-btn" type="button" onClick={() => setShowPartyMenu((v) => !v)}
