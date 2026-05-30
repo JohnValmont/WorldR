@@ -539,7 +539,7 @@ function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger, ctx 
   const isRedoChar = action.id === 'pim_redo_char';
   const isRebrandParty = action.id === 'pim_rebrand_party';
   
-  const implementedIds = ['mo_recruit', 'smallDonationDrive', 'pl_promise', 'cm_rally', 'meo_statement', 'doorToDoorCampaign', 'giveInterview', 'openMembershipBooth'];
+  const implementedIds = ['mo_recruit', 'smallDonationDrive', 'pl_promise', 'cm_rally', 'meo_statement', 'doorToDoorCampaign', 'giveInterview', 'openMembershipBooth', 'pim_redo_char', 'pim_rebrand_party', 'pl_dissolve'];
   const isImplementedAction = implementedIds.includes(action.id);
   
   let preconditionError = '';
@@ -547,19 +547,61 @@ function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger, ctx 
   const isLockedByPrecondition = !!preconditionError;
 
   const ACTION_HINTS: Record<string, string> = {
-    'mo_recruit': 'Main effects: +Members, small +Recognition, tiny +Public Trust',
-    'smallDonationDrive': 'Main effects: +Party Funds, tiny +Recognition',
-    'cm_rally': 'Main effects: +Recognition, +Polling Support, small +Public Trust',
-    'meo_statement': 'Main effects: +Media Presence, small +Recognition',
-    'doorToDoorCampaign': 'Main effects: +Public Trust, +Polling Support, small +Recognition',
-    'giveInterview': 'Main effects: +Media Presence, +Recognition, possible +Controversy on poor result',
-    'openMembershipBooth': 'Main effects: +Members, small +Recognition',
-    'pl_promise': 'Main effects: sets one Main Promise for this election, small +Recognition, small +Polling Support on strong result',
-    'pim_redo_char': 'Management action: costs $500,000 and edits character identity',
-    'pim_rebrand_party': 'Management action: costs $500,000 and edits party identity',
-    'pl_dissolve': 'Danger action: permanently dissolves party and releases abbreviation',
+    'mo_recruit': '[Members ++++] [Recognition ++] [Party Funds --] [Internal Unity -]',
+    'smallDonationDrive': '[Party Funds +++] [Recognition +] [Public Trust -]',
+    'pl_promise': '[Recognition ++] [Polling Support +] [Party Funds -] [Flexibility -]',
+    'cm_rally': '[Recognition +++] [Polling Support ++] [Public Trust +] [Party Funds --] [Controversy -]',
+    'meo_statement': '[Media Presence ++] [Recognition +] [Controversy -] [Polling Support -]',
+    'doorToDoorCampaign': '[Public Trust +++] [Polling Support ++] [Recognition +] [Party Funds -] [Controversy -]',
+    'giveInterview': '[Media Presence ++++] [Recognition ++] [Polling Support +] [Controversy -] [Public Trust -]',
+    'openMembershipBooth': '[Members +++] [Recognition +] [Public Trust +] [Party Funds -] [Polling Support -]',
+    'pim_redo_char': '[Identity Refresh +] [Leader Image +] [Party Funds ----]',
+    'pim_rebrand_party': '[Party Identity +++] [Recognition +] [Party Funds ----] [Internal Unity -]',
+    'pl_dissolve': '[Delete Party]'
   };
   const effectHint = ACTION_HINTS[action.id] || 'Effect hint: Coming soon';
+
+  const renderEffectHint = (hintString: string) => {
+    if (!hintString || hintString === 'Effect hint: Coming soon') {
+      return <p className="text-[9px] mt-0.5 leading-snug truncate" style={{ color: '#68735b' }}>{hintString}</p>;
+    }
+    
+    // Split by tags e.g. "[Public Trust +++]"
+    const parts = hintString.split(/(?=\[)|(?<=\])/g);
+    
+    return (
+      <div className="mt-1.5 flex flex-wrap gap-1 items-center">
+        <span className="text-[9px] text-zinc-500 mr-0.5">Effects:</span>
+        {parts.map((p, i) => {
+          const str = p.trim();
+          if (!str) return null;
+          if (str.startsWith('[') && str.endsWith(']')) {
+            const inner = str.slice(1, -1);
+            let colorClass = 'text-zinc-400';
+            let bgClass = 'bg-zinc-500/10 border-zinc-500/20';
+            
+            if (inner === 'Delete Party') {
+              colorClass = 'text-red-500 font-bold';
+              bgClass = 'bg-red-500/20 border-red-500/40';
+            } else if (inner.includes('+')) {
+              colorClass = 'text-emerald-400';
+              bgClass = 'bg-emerald-500/10 border-emerald-500/20';
+            } else if (inner.includes('-')) {
+              colorClass = 'text-red-400';
+              bgClass = 'bg-red-500/10 border-red-500/20';
+            }
+            
+            return (
+              <span key={i} className={`inline-block px-1.5 py-[1px] rounded-sm text-[8px] font-mono tracking-wide border ${colorClass} ${bgClass}`}>
+                {inner}
+              </span>
+            );
+          }
+          return null; // Ignore plain text between tags if any
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="flex items-center gap-4 px-4 py-3 transition-colors duration-100"
@@ -584,78 +626,19 @@ function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger, ctx 
                   border: '1px solid rgba(239,68,68,0.25)',
                   borderRadius: '2px',
                 }}>
-                Leadership
-              </span>
-              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
-                style={{
-                  background: 'rgba(239,68,68,0.12)',
-                  color: '#f87171',
-                  border: '1px solid rgba(239,68,68,0.25)',
-                  borderRadius: '2px',
-                }}>
-                Critical
+                Danger
               </span>
             </>
-          ) : isRedoChar ? (
-            <>
-              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
-                style={{
-                  background: 'rgba(212,169,31,0.12)',
-                  color: '#d4a91f',
-                  border: '1px solid rgba(212,169,31,0.25)',
-                  borderRadius: '2px',
-                }}>
-                Leader
-              </span>
-              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
-                style={{
-                  background: 'rgba(212,169,31,0.12)',
-                  color: '#d4a91f',
-                  border: '1px solid rgba(212,169,31,0.25)',
-                  borderRadius: '2px',
-                }}>
-                Identity
-              </span>
-              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
-                style={{
-                  background: 'rgba(212,169,31,0.12)',
-                  color: '#d4a91f',
-                  border: '1px solid rgba(212,169,31,0.25)',
-                  borderRadius: '2px',
-                }}>
-                Public Image Manager
-              </span>
-            </>
-          ) : isRebrandParty ? (
-            <>
-              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
-                style={{
-                  background: 'rgba(212,169,31,0.12)',
-                  color: '#d4a91f',
-                  border: '1px solid rgba(212,169,31,0.25)',
-                  borderRadius: '2px',
-                }}>
-                Leadership
-              </span>
-              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
-                style={{
-                  background: 'rgba(212,169,31,0.12)',
-                  color: '#d4a91f',
-                  border: '1px solid rgba(212,169,31,0.25)',
-                  borderRadius: '2px',
-                }}>
-                Party Identity
-              </span>
-              <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
-                style={{
-                  background: 'rgba(212,169,31,0.12)',
-                  color: '#d4a91f',
-                  border: '1px solid rgba(212,169,31,0.25)',
-                  borderRadius: '2px',
-                }}>
-                Public Image Manager
-              </span>
-            </>
+          ) : isRedoChar || isRebrandParty ? (
+            <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
+              style={{
+                background: 'rgba(212,169,31,0.12)',
+                color: '#d4a91f',
+                border: '1px solid rgba(212,169,31,0.25)',
+                borderRadius: '2px',
+              }}>
+              Image
+            </span>
           ) : (
             <span className="text-[8px] font-mono font-bold uppercase tracking-[0.15em] px-1.5 py-0.5"
               style={{
@@ -679,7 +662,7 @@ function DutyRow({ action, positionTitle, accentColor, isFilled, onTrigger, ctx 
           </span>
         </div>
         <p className="text-[11px] leading-snug truncate" style={{ color: MUTED }}>{action.description}</p>
-        <p className="text-[9px] mt-0.5 leading-snug truncate" style={{ color: '#68735b' }}>{effectHint}</p>
+        {renderEffectHint(effectHint)}
       </div>
 
       {/* Right: Coming Soon or Danger Action */}
@@ -2185,87 +2168,102 @@ function ActionExecutionModal({
       }
     } else if (actionId === 'doorToDoorCampaign') {
       if (finalScore < 0) {
-        recognitionGain = 0.02;
-        controversyGain = 0.05;
+        recognitionGain = 0.01 + Math.random() * 0.02; // +0.01 to +0.03
+        controversyGain = 0.08 + Math.random() * 0.07; // +0.08 to +0.15
       } else if (finalScore < 2) {
         publicTrustGain = 0.05 + Math.random() * 0.10;
         supportGain = 0.002 + Math.random() * 0.004;
         recognitionGain = 0.03 + Math.random() * 0.05;
+        controversyGain = 0.02 + Math.random() * 0.04;
       } else if (finalScore < 4) {
         publicTrustGain = 0.15 + Math.random() * 0.20;
         supportGain = 0.006 + Math.random() * 0.006;
-        recognitionGain = 0.08 + Math.random() * 0.10;
+        recognitionGain = 0.08 + Math.random() * 0.08;
+        controversyGain = Math.random() * 0.02;
       } else if (finalScore < 6) {
-        publicTrustGain = 0.35 + Math.random() * 0.35;
-        supportGain = 0.012 + Math.random() * 0.013;
-        recognitionGain = 0.18 + Math.random() * 0.17;
+        publicTrustGain = 0.35 + Math.random() * 0.30;
+        supportGain = 0.012 + Math.random() * 0.010;
+        recognitionGain = 0.16 + Math.random() * 0.14;
       } else if (finalScore < 8) {
-        publicTrustGain = 0.70 + Math.random() * 0.50;
-        supportGain = 0.025 + Math.random() * 0.020;
-        recognitionGain = 0.35 + Math.random() * 0.25;
+        publicTrustGain = 0.65 + Math.random() * 0.40;
+        supportGain = 0.022 + Math.random() * 0.018;
+        recognitionGain = 0.30 + Math.random() * 0.25;
       } else if (finalScore < 9.5) {
-        publicTrustGain = 1.20 + Math.random() * 0.60;
-        supportGain = 0.045 + Math.random() * 0.030;
-        recognitionGain = 0.60 + Math.random() * 0.35;
+        publicTrustGain = 1.05 + Math.random() * 0.55;
+        supportGain = 0.040 + Math.random() * 0.030;
+        recognitionGain = 0.55 + Math.random() * 0.35;
       } else {
-        publicTrustGain = 1.80 + Math.random() * 0.70;
-        supportGain = 0.075 + Math.random() * 0.045;
-        recognitionGain = 0.95 + Math.random() * 0.35;
+        publicTrustGain = 1.60 + Math.random() * 0.60;
+        supportGain = 0.070 + Math.random() * 0.040;
+        recognitionGain = 0.90 + Math.random() * 0.30;
       }
     } else if (actionId === 'giveInterview') {
       if (finalScore < 0) {
-        controversyGain = 0.4;
+        controversyGain = 0.25 + Math.random() * 0.20;
+        publicTrustGain = -(0.10 + Math.random() * 0.10);
       } else if (finalScore < 2) {
-        mediaPresenceGain = 0.2 + Math.random() * 0.3;
+        mediaPresenceGain = 0.20 + Math.random() * 0.30;
         recognitionGain = 0.03 + Math.random() * 0.05;
-        controversyGain = 0.1;
+        supportGain = Math.random() * 0.004;
+        controversyGain = 0.08 + Math.random() * 0.07;
+        publicTrustGain = -(0.04 + Math.random() * 0.06);
       } else if (finalScore < 4) {
-        mediaPresenceGain = 0.5 + Math.random() * 0.5;
+        mediaPresenceGain = 0.50 + Math.random() * 0.50;
         recognitionGain = 0.08 + Math.random() * 0.10;
-        supportGain = 0.002 + Math.random() * 0.004;
+        supportGain = 0.004 + Math.random() * 0.004;
+        controversyGain = 0.02 + Math.random() * 0.03;
+        publicTrustGain = -(0.02 + Math.random() * 0.03);
       } else if (finalScore < 6) {
-        mediaPresenceGain = 1.0 + Math.random() * 0.8;
+        mediaPresenceGain = 1.00 + Math.random() * 0.80;
         recognitionGain = 0.18 + Math.random() * 0.17;
-        supportGain = 0.006 + Math.random() * 0.006;
+        supportGain = 0.008 + Math.random() * 0.007;
+        controversyGain = Math.random() * 0.02;
+        publicTrustGain = -(Math.random() * 0.02);
       } else if (finalScore < 8) {
-        mediaPresenceGain = 1.8 + Math.random() * 1.0;
+        mediaPresenceGain = 1.80 + Math.random() * 1.00;
         recognitionGain = 0.35 + Math.random() * 0.30;
-        supportGain = 0.012 + Math.random() * 0.013;
+        supportGain = 0.015 + Math.random() * 0.013;
       } else if (finalScore < 9.5) {
-        mediaPresenceGain = 2.8 + Math.random() * 1.2;
+        mediaPresenceGain = 2.80 + Math.random() * 1.20;
         recognitionGain = 0.65 + Math.random() * 0.35;
-        supportGain = 0.025 + Math.random() * 0.020;
+        supportGain = 0.028 + Math.random() * 0.022;
       } else {
-        mediaPresenceGain = 4.0 + Math.random() * 1.5;
-        recognitionGain = 1.00 + Math.random() * 0.50;
-        supportGain = 0.045 + Math.random() * 0.030;
+        mediaPresenceGain = 4.00 + Math.random() * 1.30;
+        recognitionGain = 1.00 + Math.random() * 0.45;
+        supportGain = 0.050 + Math.random() * 0.030;
       }
     } else if (actionId === 'openMembershipBooth') {
       if (finalScore < 0) {
         membersJoined = Math.floor(Math.random() * 6);
+        supportGain = -(0.001 + Math.random() * 0.002);
       } else if (finalScore < 2) {
         membersJoined = Math.floor(5 + Math.random() * 21);
         recognitionGain = 0.01 + Math.random() * 0.03;
+        supportGain = -(Math.random() * 0.002);
       } else if (finalScore < 4) {
         membersJoined = Math.floor(25 + Math.random() * 56);
         recognitionGain = 0.04 + Math.random() * 0.06;
         publicTrustGain = 0.01 + Math.random() * 0.02;
       } else if (finalScore < 6) {
         membersJoined = Math.floor(80 + Math.random() * 101);
-        recognitionGain = 0.10 + Math.random() * 0.12;
-        publicTrustGain = 0.03 + Math.random() * 0.05;
+        recognitionGain = 0.10 + Math.random() * 0.10;
+        publicTrustGain = 0.03 + Math.random() * 0.04;
+        supportGain = Math.random() * 0.003;
       } else if (finalScore < 8) {
-        membersJoined = Math.floor(180 + Math.random() * 221);
-        recognitionGain = 0.22 + Math.random() * 0.23;
-        publicTrustGain = 0.08 + Math.random() * 0.07;
+        membersJoined = Math.floor(180 + Math.random() * 201);
+        recognitionGain = 0.20 + Math.random() * 0.22;
+        publicTrustGain = 0.07 + Math.random() * 0.07;
+        supportGain = 0.003 + Math.random() * 0.005;
       } else if (finalScore < 9.5) {
-        membersJoined = Math.floor(400 + Math.random() * 401);
-        recognitionGain = 0.45 + Math.random() * 0.30;
-        publicTrustGain = 0.15 + Math.random() * 0.10;
+        membersJoined = Math.floor(380 + Math.random() * 381);
+        recognitionGain = 0.42 + Math.random() * 0.28;
+        publicTrustGain = 0.14 + Math.random() * 0.10;
+        supportGain = 0.008 + Math.random() * 0.007;
       } else {
-        membersJoined = Math.floor(800 + Math.random() * 601);
-        recognitionGain = 0.75 + Math.random() * 0.35;
-        publicTrustGain = 0.25 + Math.random() * 0.15;
+        membersJoined = Math.floor(760 + Math.random() * 491);
+        recognitionGain = 0.70 + Math.random() * 0.30;
+        publicTrustGain = 0.24 + Math.random() * 0.12;
+        supportGain = 0.015 + Math.random() * 0.010;
       }
     }
   
@@ -2467,46 +2465,60 @@ function ActionResultsModal({
                 </span>
               </div>
             )}
-            {result.membersJoined > 0 && (
+            {result.membersJoined !== 0 && (
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-400">New Members</span>
-                <span className="text-emerald-400 font-mono">+{result.membersJoined.toLocaleString()}</span>
+                <span className={`font-mono ${result.membersJoined > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {result.membersJoined > 0 ? '+' : ''}{result.membersJoined.toLocaleString()}
+                </span>
               </div>
             )}
-            {result.recognitionGain > 0 && (
+            {result.recognitionGain !== 0 && (
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-400">Recognition</span>
-                <span className="text-emerald-400 font-mono">+{result.recognitionGain.toFixed(2)}</span>
+                <span className={`font-mono ${result.recognitionGain > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {result.recognitionGain > 0 ? '+' : ''}{result.recognitionGain.toFixed(2)}
+                </span>
               </div>
             )}
-            {result.publicTrustGain > 0 && (
+            {result.publicTrustGain !== 0 && (
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-400">Public Trust</span>
-                <span className="text-emerald-400 font-mono">+{result.publicTrustGain.toFixed(2)}</span>
+                <span className={`font-mono ${result.publicTrustGain > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {result.publicTrustGain > 0 ? '+' : ''}{result.publicTrustGain.toFixed(2)}
+                </span>
               </div>
             )}
-            {result.policyCredibilityGain > 0 && (
+            {result.policyCredibilityGain !== 0 && (
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-400">Policy Credibility</span>
-                <span className="text-emerald-400 font-mono">+{result.policyCredibilityGain.toFixed(2)}</span>
+                <span className={`font-mono ${result.policyCredibilityGain > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {result.policyCredibilityGain > 0 ? '+' : ''}{result.policyCredibilityGain.toFixed(2)}
+                </span>
               </div>
             )}
-            {result.supportGain > 0 && (
+            {result.supportGain !== 0 && (
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-400">Polling Support</span>
-                <span className="text-emerald-400 font-mono">+{result.supportGain.toFixed(2)}%</span>
+                <span className={`font-mono ${result.supportGain > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {result.supportGain > 0 ? '+' : ''}{result.supportGain.toFixed(2)}%
+                </span>
               </div>
             )}
-            {result.mediaPresenceGain > 0 && (
+            {result.mediaPresenceGain !== 0 && (
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-400">Media Presence</span>
-                <span className="text-emerald-400 font-mono">+{result.mediaPresenceGain.toFixed(2)}</span>
+                <span className={`font-mono ${result.mediaPresenceGain > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {result.mediaPresenceGain > 0 ? '+' : ''}{result.mediaPresenceGain.toFixed(2)}
+                </span>
               </div>
             )}
-            {result.internalUnityGain > 0 && (
+            {result.internalUnityGain !== 0 && (
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-400">Internal Unity</span>
-                <span className="text-emerald-400 font-mono">+{result.internalUnityGain.toFixed(2)}</span>
+                <span className={`font-mono ${result.internalUnityGain > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {result.internalUnityGain > 0 ? '+' : ''}{result.internalUnityGain.toFixed(2)}
+                </span>
               </div>
             )}
             {result.controversyGain > 0 && (
