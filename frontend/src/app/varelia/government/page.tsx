@@ -172,7 +172,7 @@ export default function GovernmentPage() {
     });
   }, [character]);
 
-  const [activeGovSubtab, setActiveGovSubtab] = useState<'Overview'|'Parliament'|'Ministries'|'My Ministries'|'Bills & Debate'|'Propose Bill'|'Lawbook'|'Voting Record'>('Overview');
+  const [activeGovSubtab, setActiveGovSubtab] = useState<'Administration'|'Parliament'|'Cabinet'|'My Ministries'|'Bills & Debate'|'Propose Bill'|'Lawbook'|'Voting Record'>('Administration');
   const [pastElection, setPastElection] = useState<any>(null);
   const [govRecord, setGovRecord] = useState<any>(null);
   const [selectedMinId, setSelectedMinId] = useState<string>('pm');
@@ -286,6 +286,7 @@ export default function GovernmentPage() {
           ministerAge: age,
           ministerSkill: skill,
           ministerLoyalty: loyalty,
+          ministerApproval: loyalty,
           skillLabel: off.label,
           origin,
           status: governingParty ? 'Active' : 'Inactive'
@@ -332,6 +333,7 @@ export default function GovernmentPage() {
           ministerAge: null,
           ministerSkill: null,
           ministerLoyalty: null,
+          ministerApproval: null,
           status: 'Vacant'
         };
       }
@@ -609,7 +611,7 @@ export default function GovernmentPage() {
       {/* Sub-nav */}
       <div className="shrink-0 flex items-center px-4 overflow-x-auto" style={{ height: '38px', background: PANEL, borderBottom: `1px solid ${BORDER}` }}>
         <div className="flex gap-1 h-full">
-          {(['Overview', 'Parliament', 'Ministries', 'My Ministries', 'Bills & Debate', 'Propose Bill', 'Lawbook', 'Voting Record'] as const).map(tab => (
+          {(['Administration', 'Parliament', 'Cabinet', 'My Ministries', 'Bills & Debate', 'Propose Bill', 'Lawbook', 'Voting Record'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveGovSubtab(tab)}
               className="px-3 h-full flex items-center text-[10px] font-bold uppercase tracking-[0.12em] transition-all whitespace-nowrap"
               style={{
@@ -633,62 +635,189 @@ export default function GovernmentPage() {
           </div>
         )}
 
-        {activeGovSubtab === 'Overview' && (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="flex flex-col gap-6">
-              {/* Top Panel - Stats */}
-              <div className="w-full p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h2 className="text-lg font-bold text-zinc-100">{ctx.countryName} Government</h2>
-                    <p className="text-[10px] uppercase font-mono tracking-widest text-zinc-500 mt-1">Parliament formed after the latest national election.</p>
+        {activeGovSubtab === 'Administration' && (
+          <div className="max-w-6xl mx-auto space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* LEFT COLUMN: Administration & Head of Government */}
+              <div className="space-y-6">
+                <div className="p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
+                  <div className="text-[10px] uppercase font-mono tracking-widest text-zinc-500 mb-6 w-full text-center border-b pb-2" style={{ borderColor: BORDER }}>
+                    Current Administration
                   </div>
-                  <div className="text-right">
-                    <div className="text-[10px] font-mono text-emerald-500 uppercase tracking-widest">{govRecord.governmentType}</div>
+                  
+                  {govRecord.governingPartyId ? (
+                    <>
+                      <h2 className="text-xl font-bold text-zinc-100 mb-1">
+                        {govRecord.ministries?.find((m:any) => m.ministryId === 'pm')?.ministerName?.split(' ').pop() || govRecord.governingPartyName} Administration
+                      </h2>
+                      <div className="text-[10px] font-mono text-emerald-500 uppercase tracking-widest mb-6">{govRecord.governmentType}</div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <div className="text-[9px] uppercase font-mono text-zinc-500 mb-0.5">Term</div>
+                          <div className="text-xs font-bold text-zinc-300">48 Months</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] uppercase font-mono text-zinc-500 mb-0.5">Governing Party</div>
+                          <div className="text-xs font-bold" style={{ color: ACCENT }}>{govRecord.governingPartyAbbreviation} &middot; {govRecord.governingPartyName}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] uppercase font-mono text-zinc-500 mb-0.5">Parliament Control</div>
+                          <div className="text-xs font-bold text-zinc-300">{formatNumberUS(currentPartySeats)} / {formatNumberUS((pastElection?.parliamentSeats || 120))} seats</div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/[0.05]">
+                          <div>
+                            <div className="text-[9px] uppercase font-mono text-zinc-500 mb-0.5">Public Approval</div>
+                            <div className="text-sm font-bold text-emerald-400">53%</div>
+                          </div>
+                          <div>
+                            <div className="text-[9px] uppercase font-mono text-zinc-500 mb-0.5">State Apparatus</div>
+                            <div className="text-sm font-bold text-amber-500">54 / 100</div>
+                          </div>
+                        </div>
+                        <p className="text-[8px] text-zinc-600 italic leading-tight mt-2">
+                          Approval Rating and State Apparatus are display-only for now and will affect future government legitimacy and elections later.
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-zinc-400 text-sm font-bold mb-2">No Administration Formed Yet</div>
+                      <div className="text-[10px] text-zinc-600">A player-led party must win government control to form an administration.</div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
+                  <div className="text-[10px] uppercase font-mono tracking-widest text-zinc-500 mb-4 w-full text-center border-b pb-2" style={{ borderColor: BORDER }}>
+                    Head of Government
+                  </div>
+                  
+                  {govRecord.governingPartyId ? (
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-sm shrink-0 bg-black/40 border border-white/10 flex items-center justify-center">
+                         <span className="text-lg font-bold text-zinc-600">PM</span>
+                      </div>
+                      <div>
+                        <div className="text-[9px] uppercase font-mono text-amber-500 mb-0.5 tracking-widest">Prime Minister</div>
+                        <div className="text-sm font-bold text-zinc-100">{govRecord.ministries?.find((m:any) => m.ministryId === 'pm')?.ministerName}</div>
+                        <div className="text-[10px] text-zinc-400 mt-0.5">{govRecord.governingPartyAbbreviation} &middot; {govRecord.governingPartyName}</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center text-[10px] text-zinc-500 py-4">Vacant</div>
+                  )}
+                </div>
+              </div>
+
+              {/* CENTER COLUMN: Issues & Timeline */}
+              <div className="space-y-6">
+                <div className="p-5 rounded-sm h-[200px]" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
+                  <div className="text-[11px] uppercase font-mono tracking-widest text-zinc-300 font-bold mb-1">Pressing Issues</div>
+                  <div className="text-[9px] text-zinc-500 mb-6">Time-sensitive decisions will appear here when national events are triggered.</div>
+                  
+                  <div className="text-center text-[10px] text-zinc-600 mt-8 max-w-[80%] mx-auto">
+                    No pressing issues right now. Time-sensitive national decisions will appear here when triggered.
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                  <div className="p-3" style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
-                    <div className="text-[9px] uppercase font-mono text-zinc-500 mb-1">System</div>
-                    <div className="text-xs font-bold text-zinc-300">Parliamentary</div>
+                <div className="p-5 rounded-sm min-h-[300px]" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
+                  <div className="flex justify-between items-center mb-6">
+                    <div className="text-[11px] uppercase font-mono tracking-widest text-zinc-300 font-bold">Executive Timeline</div>
+                    <div className="flex gap-2">
+                      {['All', 'Bills', 'Policy', 'Cabinet', 'Crisis'].map((f, i) => (
+                        <div key={f} className={`text-[8px] uppercase font-mono px-1.5 py-0.5 rounded-sm cursor-default ${i === 0 ? 'bg-amber-500/20 text-amber-500' : 'text-zinc-600'}`}>
+                          {f}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="p-3" style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
-                    <div className="text-[9px] uppercase font-mono text-zinc-500 mb-1">Latest Election</div>
-                    <div className="text-xs font-bold text-zinc-300 truncate">{pastElection.electionName}</div>
-                  </div>
-                  <div className="p-3" style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
-                    <div className="text-[9px] uppercase font-mono text-zinc-500 mb-1">Governing Party</div>
-                    <div className="text-xs font-bold" style={{ color: ACCENT }}>{govRecord.governingPartyAbbreviation || 'None'}</div>
-                  </div>
-                  <div className="p-3" style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
-                    <div className="text-[9px] uppercase font-mono text-zinc-500 mb-1">Your Seats</div>
-                    <div className="text-xs font-bold text-zinc-300">{formatNumberUS(currentPartySeats)}</div>
-                  </div>
-                </div>
-
-                {/* Developer comment per TASK 15 */}
-                <div className="p-3 mt-4 border-l-2 border-emerald-900" style={{ background: '#0a100c' }}>
-                  <div className="text-[10px] text-emerald-600/70 italic mb-1">Developer Note:</div>
-                  <div className="text-[10px] text-emerald-500/50 leading-relaxed">
-                    Government foundation is local-only. In multiplayer, government formation, cabinet ownership, ministry actions, and bill voting must be server-side. Independent Individuals are not AI parties. They represent non-party parliamentary seats and follow fixed bill voting behavior. Coalition mechanics are not implemented yet. Alpha rule: largest player party with seats forms government.
+                  
+                  <div className="space-y-4">
+                    {govRecord.governingPartyId ? (
+                      <>
+                        <div className="flex gap-3">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                          <div>
+                            <div className="text-xs text-zinc-300">{govRecord.governingPartyName} formed a {govRecord.governmentType}</div>
+                            <div className="text-[9px] text-zinc-500 font-mono mt-0.5">Recent</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-3">
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                          <div>
+                            <div className="text-xs text-zinc-300">{govRecord.ministries?.find((m:any) => m.ministryId === 'pm')?.ministerName} became Prime Minister</div>
+                            <div className="text-[9px] text-zinc-500 font-mono mt-0.5">Recent</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-3">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                          <div>
+                            <div className="text-xs text-zinc-300">Drennia Parliamentary Election concluded</div>
+                            <div className="text-[9px] text-zinc-500 font-mono mt-0.5">Past</div>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center text-[10px] text-zinc-600 mt-8">
+                        No executive events recorded yet.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Bottom Panel - Visual */}
-              <div className="w-full p-6 md:p-8 rounded-sm flex flex-col items-center" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
-                <div className="text-sm uppercase font-mono tracking-widest text-zinc-300 font-bold mb-8 w-full text-center border-b pb-4" style={{ borderColor: BORDER }}>
-                  Seat Distribution
+              {/* RIGHT COLUMN: Cabinet Quick List */}
+              <div className="space-y-6">
+                <div className="p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
+                  <div className="text-[11px] uppercase font-mono tracking-widest text-zinc-300 font-bold mb-6 border-b pb-2" style={{ borderColor: BORDER }}>
+                    Cabinet &middot; 8
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {govRecord.ministries?.map((min: any) => (
+                      <div key={min.ministryId} className="flex items-center gap-3 p-2 hover:bg-white/[0.02] rounded-sm transition-colors">
+                        <div className="w-8 h-8 rounded-sm bg-black/40 border flex items-center justify-center shrink-0" style={{ borderColor: min.ministryId === 'pm' ? ACCENT : 'rgba(255,255,255,0.05)' }}>
+                          <span className="text-[10px] font-bold" style={{ color: min.ministryId === 'pm' ? ACCENT : '#a1a1aa' }}>
+                            {min.ministerName?.split(' ').map((n: string) => n[0]).join('').substring(0,2) || '?'}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[11px] font-bold text-zinc-200 truncate">{min.ministerName}</div>
+                          <div className="text-[9px] text-zinc-500 font-mono uppercase truncate">{min.ministryId === 'pm' ? 'Prime Minister' : min.officeName.replace(' Minister', '')}</div>
+                        </div>
+                        <div className="text-right shrink-0 w-16">
+                          <div className="text-[8px] text-zinc-500 font-mono uppercase mb-0.5">Approval</div>
+                          <div className="text-[10px] font-bold text-emerald-400">{min.ministerApproval || min.ministerLoyalty || 0}%</div>
+                          <div className="w-full h-1 bg-black/50 mt-1 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500" style={{ width: `${min.ministerApproval || min.ministerLoyalty || 0}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {!govRecord.ministries?.length && (
+                      <div className="text-center text-[10px] text-zinc-500 py-4">Cabinet empty</div>
+                    )}
+                  </div>
                 </div>
-                {renderSeatChart()}
               </div>
+              
             </div>
           </div>
         )}
 
         {activeGovSubtab === 'Parliament' && (
           <div className="max-w-4xl mx-auto space-y-6">
+            <div className="w-full p-6 md:p-8 rounded-sm flex flex-col items-center" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
+              <div className="text-sm uppercase font-mono tracking-widest text-zinc-300 font-bold mb-8 w-full text-center border-b pb-4" style={{ borderColor: BORDER }}>
+                Seat Distribution
+              </div>
+              {renderSeatChart()}
+            </div>
+
             <div className="p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
               <div className="flex justify-between items-end mb-6">
                 <div>
@@ -777,7 +906,7 @@ export default function GovernmentPage() {
           </div>
         )}
 
-        {activeGovSubtab === 'Ministries' && (
+        {activeGovSubtab === 'Cabinet' && (
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="mb-6">
               <h2 className="text-lg font-bold text-zinc-100">National Ministries</h2>
