@@ -1148,7 +1148,8 @@ export default function VareliaNewsPage() {
           {MAIN_TABS.map((tab) => {
             const isHome    = tab === 'Home';
             const isActions = tab === 'Actions';
-            const isEnabled = isHome || isActions;
+            const isGovernment = tab === 'Government';
+            const isEnabled = isHome || isActions || isGovernment;
             const isCurrent = isHome; // we ARE on Home/News
             return (
               <button key={tab} id={`main-tab-${tab.toLowerCase()}`} type="button"
