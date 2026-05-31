@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 
-const DISCORD_URL = 'https://discord.gg/2a58vcek7K';
+const DISCORD_URL = 'https://discord.gg/K64Ff8fN';
 
 const FEATURES = [
   {

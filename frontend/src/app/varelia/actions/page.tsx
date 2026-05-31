@@ -2086,6 +2086,8 @@ function ElectionsView({ ctx, onUpdateCtx, onNavigatePastElections }: { ctx: Pla
   const [latestSurvey, setLatestSurvey] = useState<any>(null);
   const [electionCompleted, setElectionCompleted] = useState(false);
   const [completedResult, setCompletedResult] = useState<ElectionResult | null>(null);
+  const [activeCycle, setActiveCycle] = useState<any>(null);
+  const [showNextElectionConfirm, setShowNextElectionConfirm] = useState(false);
 
   const TOTAL_SEATS = 120;
   const MAJORITY_SEATS = 61;
@@ -2234,6 +2236,60 @@ function ElectionsView({ ctx, onUpdateCtx, onNavigatePastElections }: { ctx: Pla
 
   const PRESET_AMOUNTS = [100000, 250000, 500000, 1000000, 2000000];
 
+  const handleNextElection = () => {
+    const nextCycleNumber = (activeCycle?.electionCycleNumber || 1) + 1;
+    const nextElectionRunId = `drennia_parliamentary_y${nextCycleNumber}_${ctx.partyId}_${Date.now()}`;
+    
+    const newCycle = {
+       countryName: ctx.countryName,
+       electionId: 'drennia_parliamentary_y0',
+       electionRunId: nextElectionRunId,
+       electionCycleNumber: nextCycleNumber,
+       partyId: ctx.partyId,
+       partyName: ctx.partyName,
+       partyAbbreviation: ctx.partyAbbreviation,
+       status: 'registration_open',
+       createdAt: new Date().toISOString()
+    };
+    
+    let activeCycles: any[] = [];
+    try { const r = localStorage.getItem('worldr_active_election_cycle'); if (r) activeCycles = JSON.parse(r); } catch(e) {}
+    
+    const cycleIdx = activeCycles.findIndex((c: any) => c.partyId === ctx.partyId && c.countryName === ctx.countryName);
+    if (cycleIdx >= 0) activeCycles[cycleIdx] = newCycle;
+    else activeCycles.push(newCycle);
+    
+    localStorage.setItem('worldr_active_election_cycle', JSON.stringify(activeCycles));
+    
+    try {
+      let regs: any[] = [];
+      const rReg = localStorage.getItem('worldr_election_registrations');
+      if (rReg) regs = JSON.parse(rReg);
+      regs = regs.filter((r: any) => !(r.partyId === ctx.partyId && r.electionId === 'drennia_parliamentary_y0'));
+      localStorage.setItem('worldr_election_registrations', JSON.stringify(regs));
+      setRegistrations(regs);
+      
+      let camps: any[] = [];
+      const rCamp = localStorage.getItem('worldr_election_campaigns');
+      if (rCamp) camps = JSON.parse(rCamp);
+      camps = camps.filter((c: any) => !(c.partyId === ctx.partyId && c.electionId === 'drennia_parliamentary_y0'));
+      localStorage.setItem('worldr_election_campaigns', JSON.stringify(camps));
+      setCampaign(null);
+      
+      let surveys: any[] = [];
+      const rSur = localStorage.getItem('worldr_election_surveys');
+      if (rSur) surveys = JSON.parse(rSur);
+      surveys = surveys.filter((s: any) => !(s.partyId === ctx.partyId && s.electionId === 'drennia_parliamentary_y0'));
+      localStorage.setItem('worldr_election_surveys', JSON.stringify(surveys));
+      setLatestSurvey(null);
+    } catch(e) {}
+    
+    setActiveCycle(newCycle);
+    setElectionCompleted(false);
+    setCompletedResult(null);
+    setShowNextElectionConfirm(false);
+  };
+
   const handleAllocateFunds = (amount: number) => {
     if (amount < 50000 || amount > ctx.partyFunds) return;
     // Temporary local election fund allocation. In multiplayer, campaign allocation must be
@@ -2277,7 +2333,17 @@ function ElectionsView({ ctx, onUpdateCtx, onNavigatePastElections }: { ctx: Pla
     let txs: any[] = []; try { const r = localStorage.getItem('worldr_party_transactions'); if (r) txs = JSON.parse(r); } catch (e) {}
     txs.unshift({ id: Math.random().toString(36).slice(2, 9), partyId: ctx.partyId, type: 'expense', category: 'Election Registration', source: election.electionName, amount: election.registrationFee, actionName: 'Register for Election', createdAt: now });
     const electionRunId = `${election.electionId}_${ctx.partyId}_${Date.now()}`;
-    const newReg = { registrationId: Math.random().toString(36).slice(2, 9), electionId: election.electionId, electionRunId, electionName: election.electionName, partyId: ctx.partyId, partyName: ctx.partyName, partyAbbreviation: ctx.partyAbbreviation, countryName: election.countryName, continentName: election.continentName, electionType: election.electionType, registrationFeePaid: election.registrationFee, recognitionAtRegistration: recognition, fundsAfterRegistration: updatedFunds, registeredAt: now, status: 'Registered' };
+    const actualRunId = activeCycle ? activeCycle.electionRunId : electionRunId;
+    const newReg = { registrationId: Math.random().toString(36).slice(2, 9), electionId: election.electionId, electionRunId: actualRunId, electionName: election.electionName, partyId: ctx.partyId, partyName: ctx.partyName, partyAbbreviation: ctx.partyAbbreviation, countryName: election.countryName, continentName: election.continentName, electionType: election.electionType, registrationFeePaid: election.registrationFee, recognitionAtRegistration: recognition, fundsAfterRegistration: updatedFunds, registeredAt: now, status: 'Registered' };
+    
+    let activeCycles: any[] = [];
+    try { const r = localStorage.getItem('worldr_active_election_cycle'); if (r) activeCycles = JSON.parse(r); } catch(e) {}
+    const cycleIdx = activeCycles.findIndex((c: any) => c.partyId === ctx.partyId && c.countryName === ctx.countryName);
+    if (cycleIdx >= 0) {
+       activeCycles[cycleIdx].status = 'registered';
+       localStorage.setItem('worldr_active_election_cycle', JSON.stringify(activeCycles));
+       setActiveCycle(activeCycles[cycleIdx]);
+    }
     const updatedRegs = [newReg, ...registrations];
     let logs: any[] = []; try { const r = localStorage.getItem('worldr_activity_log'); if (r) logs = JSON.parse(r); } catch (e) {}
     logs.unshift({ id: Math.random().toString(36).slice(2, 9), partyId: ctx.partyId, countryName: ctx.countryName, continentName: ctx.continentName, actionName: 'Election Registration', roleName: 'Party Leader', officialName: ctx.characterName, investment: election.registrationFee, finalScore: 10, resultQuality: 'Success', summary: `Party registered for the ${election.electionName} after paying the ${formatMoney(election.registrationFee)} registration fee.`, createdAt: now });
@@ -2649,6 +2715,45 @@ function ElectionsView({ ctx, onUpdateCtx, onNavigatePastElections }: { ctx: Pla
         )}
 
 
+      {/* Next Election Modal */}
+      {showNextElectionConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowNextElectionConfirm(false); }}>
+          <div className="w-full max-w-sm overflow-hidden"
+            style={{ background: '#1b1f1a', border: `1px solid #2d3329`, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', borderRadius: '2px' }}>
+            <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid #2d3329` }}>
+              <div className="w-9 h-9 rounded-sm flex items-center justify-center shrink-0" style={{ background: 'rgba(212,169,31,0.12)', border: '1px solid rgba(212,169,31,0.25)' }}>
+                <svg className="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              <div>
+                <div className="font-bold text-sm text-zinc-100">Start Next Election?</div>
+                <div className="text-[9px] font-mono uppercase tracking-[0.18em] mt-0.5 text-zinc-500">Requires Confirmation</div>
+              </div>
+            </div>
+            <div className="px-5 py-6">
+              <p className="text-[11px] leading-relaxed text-zinc-400">
+                This will open a fresh election cycle for the current party. Past election results will remain saved, but the current Elections tab will reset for the new cycle.
+              </p>
+            </div>
+            <div className="px-5 pb-5 flex gap-3">
+              <button type="button" onClick={() => setShowNextElectionConfirm(false)}
+                className="flex-1 py-2.5 text-xs font-semibold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa', borderRadius: '2px' }}>
+                Cancel
+              </button>
+              <button type="button" onClick={handleNextElection}
+                className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity duration-150 hover:opacity-75"
+                style={{ background: 'rgba(212,169,31,0.14)', border: '1px solid rgba(212,169,31,0.40)', color: '#d4a91f', borderRadius: '2px' }}>
+                Start Next Election
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Fund Allocation Modal */}
       {showFundModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -2969,7 +3074,7 @@ function PastElectionsView({ partyId, partyColor }: { partyId: string; partyColo
               <div className="px-5 py-4 flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-600">{election.countryName} · {new Date(election.createdAt).getFullYear()}</span>
+                    <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-600">{election.countryName} · {new Date(election.createdAt).getFullYear()}{election.electionCycleNumber ? ` · Cycle ${election.electionCycleNumber}` : ''}</span>
                     {hasMajority && <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(52,211,153,0.10)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}>Majority</span>}
                     {!hasMajority && hasWon && <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.10)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)' }}>Opposition</span>}
                     {!hasWon && <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(239,68,68,0.10)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}>Not Elected</span>}
@@ -4626,6 +4731,7 @@ export default function ActionsPage() {
       filterByPartyId('worldr_bills', 'proposedByPartyId');
       filterByPartyId('worldr_lawbook', 'governingPartyId');
       filterByPartyId('worldr_voting_record');
+      filterByPartyId('worldr_active_election_cycle');
 
       // Purge from News/Public Notices (uses authorPartyId or tags)
       try {

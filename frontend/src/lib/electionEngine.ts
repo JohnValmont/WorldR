@@ -116,6 +116,7 @@ export interface ElectionResult {
   resultId: string;
   electionId: string;
   electionRunId?: string;
+  electionCycleNumber?: number;
   partyId?: string;
   primeMinisterName?: string;
   electionName: string;
