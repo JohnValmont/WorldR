@@ -615,7 +615,7 @@ export default function GovernmentPage() {
                           </td>
                           <td className="py-3 text-zinc-300">{p.leaderName}</td>
                           <td className="py-3 text-right font-bold text-zinc-100">{formatNumberUS(p.seats)}</td>
-                          <td className="py-3 text-right text-zinc-400 font-mono">{p.voteSharePercent.toFixed(1)}%</td>
+                          <td className="py-3 text-right text-zinc-400 font-mono">{p.voteShare.toFixed(1)}%</td>
                           <td className="py-3 text-right text-zinc-400 font-mono">{((p.seats / pastElection.parliamentSeats) * 100).toFixed(1)}%</td>
                           <td className="py-3 pl-4 text-emerald-500/80 font-mono text-[9px] uppercase">{pStatus}</td>
                         </tr>
