@@ -1155,9 +1155,9 @@ export default function VareliaNewsPage() {
               <button key={tab} id={`main-tab-${tab.toLowerCase()}`} type="button"
                 disabled={!isEnabled}
                 onClick={() => {
-                  if (isActions) router.push('/varelia/actions');
-                  // Home is current page — no-op
-                }}
+                    if (isActions) router.push('/varelia/actions');
+                    else if (isGovernment) router.push('/varelia/government');
+                  }}
                 className="relative px-4 h-full flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors duration-150"
                 style={{ color: isCurrent ? '#e4e4e7' : isEnabled ? '#71717a' : '#3f3f46', cursor: isEnabled ? 'pointer' : 'not-allowed', borderBottom: isCurrent ? '2px solid #c0a060' : '2px solid transparent' }}>
                 {tab}

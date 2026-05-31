@@ -323,18 +323,44 @@ export default function GovernmentPage() {
 
   const renderTopNav = () => (
     <>
-      <header className="shrink-0 h-14 flex items-center justify-between px-4 md:px-5 relative z-30" style={{ background: PANEL, borderBottom: `1px solid ${BORDER}` }}>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-sm flex items-center justify-center shrink-0" style={{ background: ACCENT }}>
-            <LogoSVG logoId={ctx.partyLogoId || 'flag'} color={ctx.partyColor || '#4a5045'} size={20} />
+      <header className="shrink-0 flex items-center justify-between px-4 md:px-5 gap-3"
+        style={{ height: '48px', background: PANEL, borderBottom: `1px solid ${BORDER}`, zIndex: 30 }}>
+        {/* Left */}
+        <div className="flex items-center gap-3 min-w-0">
+          <img src="/assets/flags/varelia/drennia.svg" alt="Drennia"
+            style={{ width: '28px', height: '19px', objectFit: 'cover', borderRadius: '1px', border: `1px solid ${BORDER}`, flexShrink: 0 }} />
+          <div className="flex flex-col leading-none">
+            <span className="font-bold text-[12px] tracking-wide" style={{ color: TEXT }}>{ctx.countryName}</span>
+            <span className="text-[8.5px] font-mono uppercase tracking-widest" style={{ color: MUTED }}>{ctx.continentName}</span>
           </div>
-          <div>
-            <h1 className="text-sm md:text-base font-black tracking-widest uppercase text-white">WORLDr</h1>
-            <div className="text-[9px] md:text-[10px] font-mono tracking-widest text-zinc-500 uppercase">Alpha 0.1 • {ctx.countryName}</div>
+          <div className="h-3.5 w-px hidden md:block" style={{ background: BORDER }} />
+          <div className="hidden md:flex flex-col leading-none">
+            <span className="text-[10.5px] font-mono font-semibold tracking-wide" style={{ color: MUTED }}>Year 0 · Month 1 · Day 1</span>
+            <span className="text-[8px] font-mono uppercase tracking-widest" style={{ color: '#3d4238' }}>00:00 · Game Start</span>
           </div>
         </div>
-
-        <div className="flex items-center gap-3">
+        {/* Right */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button id="topbar-bell" type="button" title="Notifications"
+            className="w-8 h-8 flex items-center justify-center rounded-sm transition-colors"
+            style={{ background: `${PANEL2}`, border: `1px solid ${BORDER}`, color: MUTED }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = TEXT)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = MUTED)}>
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+          </button>
+          <div className="hidden sm:flex items-center gap-1.5 px-3 h-8 rounded-sm"
+            style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
+            <span className="text-[8.5px] font-mono uppercase tracking-widest" style={{ color: MUTED }}>Funds</span>
+            <span className="text-[11px] font-bold font-mono text-emerald-600">{formatNumberUS(ctx.partyFunds)}</span>
+          </div>
+          <div className="relative">
+            <div className="flex items-center gap-1.5 px-3 h-8 rounded-sm transition-opacity duration-150"
+              style={{ background: `${ctx.partyColor}14`, border: `1px solid ${ctx.partyColor}35`, color: ctx.partyColor }}>
+              <span className="font-mono text-[10px] font-bold tracking-[0.18em]">{ctx.partyAbbreviation}</span>
+            </div>
+          </div>
           <button id="topbar-logout" type="button" title="Logout" onClick={handleLogout}
             className="hidden sm:flex items-center gap-1.5 px-3 h-8 rounded-sm text-[10px] font-mono uppercase tracking-widest transition-colors"
             style={{ background: PANEL2, border: `1px solid ${BORDER}`, color: MUTED }}
@@ -360,30 +386,17 @@ export default function GovernmentPage() {
             <button key={tab} id={`main-tab-${tab.toLowerCase()}`} type="button"
               disabled={!isEnabled}
               onClick={() => {
-                if (isHome) router.push('/varelia/news');
-                else if (isActions) router.push('/varelia/actions');
-              }}
+              if (isHome) router.push('/varelia/news');
+              else if (isActions) router.push('/varelia/actions');
+            }}
               className="relative px-4 h-full flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors duration-100"
               style={{
-                color: isCurrent ? ACCENT : isEnabled ? MUTED : '#3a4a3a',
+                color: isCurrent ? TEXT : isEnabled ? MUTED : '#2d3228',
                 cursor: isEnabled ? 'pointer' : 'not-allowed',
-                background: isCurrent ? `${ACCENT}11` : 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                if (!isCurrent && isEnabled) e.currentTarget.style.color = '#a0b0a0';
-              }}
-              onMouseLeave={(e) => {
-                if (!isCurrent && isEnabled) e.currentTarget.style.color = MUTED;
+                borderBottom: isCurrent ? `2px solid ${ACCENT}` : '2px solid transparent',
               }}>
               {tab}
-              {isCurrent && (
-                <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ background: ACCENT }} />
-              )}
-              {!isEnabled && (
-                <span className="ml-1.5 text-[8px] bg-black/40 px-1 py-0.5 rounded-sm border" style={{ color: '#5a6b5a', borderColor: '#2a3a2a' }}>
-                  SOON
-                </span>
-              )}
+              {!isEnabled && <span className="text-[7px] font-mono normal-case tracking-normal hidden lg:inline" style={{ color: '#2d3228' }}>soon</span>}
             </button>
           );
         })}
@@ -394,7 +407,7 @@ export default function GovernmentPage() {
    
   if (!ctx.partyId) {
     return (
-      <div className="min-h-screen flex flex-col font-sans select-none" style={{ background: BG, color: TEXT }}>
+      <div className="h-screen flex flex-col overflow-hidden font-sans select-none" style={{ background: BG, color: TEXT }}>
         {renderTopNav()}
         <main className="flex-1 relative overflow-hidden flex">
           <div className="flex-1 flex flex-col items-center justify-center p-8 h-full">
@@ -410,7 +423,7 @@ export default function GovernmentPage() {
 
   if (!pastElection || !govRecord) {
     return (
-    <div className="min-h-screen flex flex-col font-sans select-none" style={{ background: BG, color: TEXT }}>
+    <div className="h-screen flex flex-col overflow-hidden font-sans select-none" style={{ background: BG, color: TEXT }}>
       {renderTopNav()}
       <main className="flex-1 relative overflow-hidden flex">
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative border-r" style={{ borderColor: BORDER }}>
