@@ -6,7 +6,7 @@ import { useCharacterStore } from '../../../store/character.store';
 import { LogoSVG } from '../../../components/LogoSVG';
 import { PARTY_COLORS } from '../../../data/political-parties/partyLogos';
 import type { RegisteredPoliticalParty } from '../../../data/political-parties/partyTypes';
-import { getLivePartyRegistryData, initializeCurrentPartyStatsIfNeeded, formatMoney, getLiveMemberCountForParty, syncCurrentPartyStatsToRegisteredParties } from '../../../lib/partyHelpers';
+import { getLivePartyRegistryData, initializeCurrentPartyStatsIfNeeded, formatMoney, getLiveMemberCountForParty, syncCurrentPartyStatsToRegisteredParties, formatNumberUS } from '../../../lib/partyHelpers';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -804,7 +804,7 @@ function PartyDetailModal({ party, onClose }: { party: any; onClose: () => void 
             {field('Leader', party.leaderName || 'Not recorded')}
             {field('Country', party.countryName ?? '—')}
             {field('Continent', party.continentName ?? '—')}
-            {field('Members', (party.computedMembers ?? party.members ?? 1).toLocaleString(), true)}
+            {field('Members', formatNumberUS(party.computedMembers ?? party.members ?? 1), true)}
             {field('Recognition', party.recognition != null ? `${(party.recognition).toFixed(2)}%` : 'Not recorded')}
             {field('Polling Support', party.support != null ? `${(party.support).toFixed(2)}%` : 'Not recorded')}
             {field('Funds', party.funds != null ? formatMoney(party.funds) : 'Not recorded', true)}
@@ -934,7 +934,7 @@ function PublicNoticesSection() {
                   </button>
                   {/* Members */}
                   <div className="font-mono text-[10px] font-bold" style={{ color: 'rgba(52,211,153,0.9)' }}>
-                    {((party as any).computedMembers ?? (party as any).members ?? 1).toLocaleString()}
+                    {formatNumberUS((party as any).computedMembers ?? (party as any).members ?? 1)}
                   </div>
                 </div>
               );

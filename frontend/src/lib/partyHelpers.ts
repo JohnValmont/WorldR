@@ -6,14 +6,34 @@ export function roundActionMoney(value: number): number {
   return Math.round(value / 100) * 100;
 }
 
+export function formatNumberUS(value: number): string {
+  if (value === null || value === undefined || isNaN(value)) return '0';
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.round(value));
+}
+
+export function formatPercent(value: number, decimals = 1): string {
+  if (value === null || value === undefined || isNaN(value)) return '0.0%';
+  return value.toFixed(decimals) + '%';
+}
+
+export function formatMoneyUS(value: number, compact = false): string {
+  if (value === null || value === undefined || isNaN(value)) return '$0';
+  const rounded = Math.round(value);
+  if (compact) {
+    const millions = rounded / 1000000;
+    return '$' + millions.toFixed(1) + 'M';
+  }
+  return '$' + new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(rounded);
+}
+
 export function formatMoney(value: number): string {
   const rounded = Math.round(value);
   if (rounded >= 1000000) {
-    const m = rounded / 1000000;
-    return '$' + m.toFixed(1) + 'M';
+    return formatMoneyUS(rounded, true);
   }
-  return '$' + rounded.toLocaleString('en-US');
+  return formatMoneyUS(rounded, false);
 }
+
 
 export function getLiveMemberCountForParty(party: any): number {
   if (typeof window === 'undefined') return party.members || party.memberCount || 1;

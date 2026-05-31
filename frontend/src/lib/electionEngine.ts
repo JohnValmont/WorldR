@@ -1,11 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// WORLDR ELECTION ENGINE
-// Temporary local election simulation. In multiplayer, final election results
-// must be calculated server-side from validated party stats, election
-// registrations, campaign funds, and country election config.
+// WORLDR ELECTION ENGINE — bloc_dhondt_v1
+// One shared engine for projection, survey, and final result.
+// All modes use identical voter bloc competition + D'Hondt seat allocation.
+// Only mode="final" applies random per-bloc swing.
 // ─────────────────────────────────────────────────────────────────────────────
-// This engine is reusable for all future nations by swapping CountryElectionConfig.
-// Only hard country data should change per nation.
 
 import {
   getSocietyProfile,
@@ -15,6 +13,12 @@ import {
   MAIN_PROMISE_BLOC_EFFECTS,
   type VoterBloc,
 } from './voterBlocs';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VERSION
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const ELECTION_CALC_VERSION = 'bloc_dhondt_v1';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -35,9 +39,8 @@ export interface CountryElectionConfig {
   notaBase: number;
   electionType: string;
   votingAge: number;
-  stabilityDefault: number; // fallback if country stability not available
+  stabilityDefault: number;
   independentBaseStrength: number;
-  // Per-bloc political independence modifiers (keyed by bloc.id)
   independentBlocModifiers: Record<string, number>;
 }
 
@@ -107,6 +110,7 @@ export interface NotaBreakdown {
   finalPercent: number;
 }
 
+// Stored in worldr_past_elections
 export interface ElectionResult {
   resultId: string;
   electionId: string;
@@ -131,14 +135,82 @@ export interface ElectionResult {
   turnoutBreakdown: TurnoutBreakdown;
   notaBreakdown: NotaBreakdown;
   createdAt: string;
+  calculationVersion: string;
+}
+
+// Options for the unified projection engine
+export type ElectionMode = 'projection' | 'survey' | 'final';
+
+export interface ElectionProjectionOptions {
+  mode: ElectionMode;
+  // When false (projection/survey): deterministic base; low/high use uniform ±swingPercent scaling
+  applyRandomSwing: boolean;
+  // Percentage for uniform swing on low/high scenarios (default 6)
+  swingPercent?: number;
+}
+
+// Output of calculateElectionProjection
+export interface ElectionProjectionResult {
+  // Base scenario (no swing / deterministic)
+  baseVoteShare: number;       // percent
+  baseSeats: number;
+  baseIndepVoteShare: number;
+  baseIndepSeats: number;
+  baseStatus: string;
+
+  // Low scenario (base - swingPercent%)
+  lowVoteShare: number;
+  lowSeats: number;
+
+  // High scenario (base + swingPercent%)
+  highVoteShare: number;
+  highSeats: number;
+
+  // Turnout / NOTA context
+  turnoutPercent: number;
+  notaPercent: number;
+  validVotes: number;
+  eligibleVoters: number;
+
+  // Debug info
+  partyBlocShare: number;     // party's raw bloc share before normalization
+  independentBlocShare: number;
+  calculationVersion: string;
+}
+
+// Survey snapshot saved to worldr_election_surveys
+export interface ElectionSurveySnapshot {
+  surveyId: string;
+  electionId: string;
+  partyId: string;
+  createdAt: string;
+  inputSnapshot: {
+    recognition: number;
+    support: number;
+    members: number;
+    publicTrust: number;
+    mediaPresence: number;
+    campaignStrength: number;
+    controversy: number;
+    electionFundsAllocated: number;
+    mainPromise: string | null;
+    ideologies: string[];
+  };
+  pollingAccuracy: string;
+  voteShareMargin: number;
+  projectedVoteShareBase: number;
+  projectedVoteShareLow: number;
+  projectedVoteShareHigh: number;
+  projectedSeatsBase: number;
+  projectedSeatsLow: number;
+  projectedSeatsHigh: number;
+  independentSeatsBase: number;
+  calculationVersion: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DRENNIA ELECTION CONFIG
 // ─────────────────────────────────────────────────────────────────────────────
-// Drennia is a middle-class Varelian parliamentary nation. Varelia has stable
-// institutions, civic culture, educated cities, and old political traditions,
-// giving Drennia a positive civic turnout bonus.
 
 export const DRENNIA_ELECTION_CONFIG: CountryElectionConfig = {
   countryId: 'drennia',
@@ -157,8 +229,6 @@ export const DRENNIA_ELECTION_CONFIG: CountryElectionConfig = {
   votingAge: 18,
   stabilityDefault: 67,
   independentBaseStrength: 500,
-  // Per-bloc modifiers for Independent Individuals in Drennia
-  // (higher = independents are more competitive in that bloc)
   independentBlocModifiers: {
     old_establishment: 1.10,
     rural_farmers: 1.05,
@@ -184,7 +254,7 @@ export function getElectionConfig(countryName: string): CountryElectionConfig | 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TURNOUT CALCULATION (Task 8)
+// TURNOUT CALCULATION
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function calculateTurnout(
@@ -239,9 +309,8 @@ export function calculateTurnout(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NOTA CALCULATION (Task 9)
+// NOTA CALCULATION
 // ─────────────────────────────────────────────────────────────────────────────
-// NOTA means voters who show up but reject all options.
 
 export function calculateNOTA(
   config: CountryElectionConfig,
@@ -273,17 +342,17 @@ export function calculateNOTA(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PARTY BLOC COMPETITION SCORE (Task 11)
+// PARTY BLOC COMPETITION SCORE
 // ─────────────────────────────────────────────────────────────────────────────
+// swingMultiplier: 1.0 = base, 0.94 = low, 1.06 = high, or random for final mode
 
 function calculatePartyBlocScore(
   party: ElectionPartyInput,
   bloc: VoterBloc,
-  applySwing: boolean,
+  swingMultiplier: number,
 ): number {
   const ideologies = party.ideologyIds || [];
 
-  // Ideology appeal for this bloc
   let ideologyScore = 0;
   for (const ideology of ideologies) {
     const effectMap = IDEOLOGY_BLOC_EFFECTS[ideology] || IDEOLOGY_BLOC_EFFECTS[ideology.toLowerCase().replace(/\s+/g, '_')];
@@ -292,7 +361,6 @@ function calculatePartyBlocScore(
     }
   }
 
-  // Main promise effect
   let mainPromiseScore = 0;
   if (party.mainPromise) {
     const promiseMap = MAIN_PROMISE_BLOC_EFFECTS[party.mainPromise];
@@ -331,20 +399,12 @@ function calculatePartyBlocScore(
     electionFundPower -
     controversyPenalty;
 
-  // Election swing: ±6% of base score
-  const swing = applySwing
-    ? baseScore * (Math.random() * 0.12 - 0.06)
-    : 0;
-
-  return Math.max(1, baseScore + swing);
+  return Math.max(1, baseScore * swingMultiplier);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// INDEPENDENT INDIVIDUALS BLOC SCORE (Task 12)
+// INDEPENDENT INDIVIDUALS BLOC SCORE
 // ─────────────────────────────────────────────────────────────────────────────
-// Independent Individuals are NOT AI parties. They represent non-party elected
-// figures, local independents, unaligned civic candidates, and voters not
-// captured by player parties.
 
 function calculateIndependentBlocScore(
   config: CountryElectionConfig,
@@ -372,10 +432,8 @@ function calculateIndependentBlocScore(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// D'HONDT SEAT ALLOCATION (Task 15)
+// D'HONDT SEAT ALLOCATION
 // ─────────────────────────────────────────────────────────────────────────────
-// Drennia uses D'Hondt because it's a Varelian parliamentary system. D'Hondt is
-// proportional and slightly favours stronger parties — realistic for this system.
 
 export function runDHondt(
   participants: { id: string; votes: number }[],
@@ -384,7 +442,6 @@ export function runDHondt(
   const seats: Record<string, number> = {};
   for (const p of participants) seats[p.id] = 0;
 
-  // Generate all quotients
   const quotients: { id: string; quotient: number }[] = [];
   for (const p of participants) {
     for (let divisor = 1; divisor <= totalSeats; divisor++) {
@@ -392,7 +449,6 @@ export function runDHondt(
     }
   }
 
-  // Sort descending and pick top N
   quotients.sort((a, b) => b.quotient - a.quotient);
   for (let i = 0; i < totalSeats; i++) {
     if (quotients[i]) seats[quotients[i].id] = (seats[quotients[i].id] || 0) + 1;
@@ -402,7 +458,7 @@ export function runDHondt(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RESULT STATUS (Task 16)
+// RESULT STATUS
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function getPartyResultStatus(seats: number, totalSeats: number, majoritySeats: number): string {
@@ -410,37 +466,50 @@ export function getPartyResultStatus(seats: number, totalSeats: number, majority
   if (seats <= 4) return 'Small entry';
   if (seats <= 14) return 'Minor party';
   if (seats <= 29) return 'Rising party';
-  if (seats <= majoritySeats - 1) return 'Major party — minority government possible';
+  if (seats <= majoritySeats - 1) return 'Opposition';
   return 'Majority government';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MAIN SIMULATION (Tasks 7–15)
+// CORE SHARED ENGINE — ONE SCENARIO PASS
 // ─────────────────────────────────────────────────────────────────────────────
+// swingMultiplier: 1.0 = base/deterministic, 0.94 = low, 1.06 = high
+// For final mode, pass swingMultiplier = random (0.94–1.06) per call
 
-export function simulateElectionDay(
+interface ScenarioResult {
+  partySeats: Record<string, number>;
+  partyVoteShares: Record<string, number>;
+  partyVotes: Record<string, number>;
+  indepSeats: number;
+  indepVoteShare: number;
+  indepVotes: number;
+  validVotes: number;
+  votesCast: number;
+  turnoutPercent: number;
+  notaPercent: number;
+  eligibleVoters: number;
+  adultPopulation: number;
+  partyRawBlocShare: Record<string, number>;
+  indepRawBlocShare: number;
+  independentTotalBlocScore: number;
+}
+
+function runOneScenario(
   config: CountryElectionConfig,
-  electionId: string,
-  electionName: string,
   parties: ElectionPartyInput[],
+  swingMultiplier: number,  // uniform multiplier applied to ALL party bloc scores
   countryStability?: number,
-): ElectionResult {
-  // ── ADULT POPULATION & ELIGIBLE VOTERS (Task 7) ───────────────────────────
-  // Future versions may add residency, legal restrictions, diaspora voting, and voter registration systems.
+): ScenarioResult {
   const adultPopulation = Math.round(config.population * config.adultRatio);
   const eligibleVoters = adultPopulation;
 
-  // ── TURNOUT (Task 8) ──────────────────────────────────────────────────────
   const turnoutBreakdown = calculateTurnout(config, parties, countryStability);
   const votesCast = Math.round(eligibleVoters * turnoutBreakdown.finalPercent / 100);
-  const nonVoters = eligibleVoters - votesCast;
 
-  // ── NOTA (Task 9) ─────────────────────────────────────────────────────────
   const notaBreakdown = calculateNOTA(config, parties);
   const notaVotes = Math.round(votesCast * notaBreakdown.finalPercent / 100);
   const validVotes = votesCast - notaVotes;
 
-  // ── VOTER BLOC COMPETITION ENGINE (Task 10–13) ────────────────────────────
   const society = getSocietyProfile(config.countryName);
   const blocs = society?.blocs || [];
 
@@ -450,12 +519,9 @@ export function simulateElectionDay(
   );
   const registeredCount = Math.max(1, parties.length);
 
-  // For each bloc: calculate party scores + independent score
-  // Then split that bloc's population share proportionally
   const partyBlocShares: Record<string, number> = {};
   for (const p of parties) partyBlocShares[p.partyId] = 0;
   let independentTotalShare = 0;
-
   let independentTotalBlocScore = 0;
 
   for (const bloc of blocs) {
@@ -463,7 +529,7 @@ export function simulateElectionDay(
     let totalBlocScore = 0;
 
     for (const party of parties) {
-      const score = calculatePartyBlocScore(party, bloc, true);
+      const score = calculatePartyBlocScore(party, bloc, swingMultiplier);
       partyBlocScores.push({ partyId: party.partyId, score });
       totalBlocScore += score;
     }
@@ -479,7 +545,6 @@ export function simulateElectionDay(
 
     if (totalBlocScore <= 0) continue;
 
-    // Distribute this bloc's population share by score ratio
     for (const ps of partyBlocScores) {
       partyBlocShares[ps.partyId] +=
         bloc.populationShare * (ps.score / totalBlocScore);
@@ -488,49 +553,161 @@ export function simulateElectionDay(
       bloc.populationShare * (indepScore / totalBlocScore);
   }
 
-  // Ensure independent floor (Task 12)
-  // If total bloc score for independents is very low, floor is guaranteed by
-  // the calculateIndependentBlocScore floor logic above.
-
-  // ── NORMALIZE VOTE SHARES (Task 13) ──────────────────────────────────────
+  // Normalize
   const totalShareBeforeNorm =
     Object.values(partyBlocShares).reduce((a, b) => a + b, 0) +
     independentTotalShare;
 
   const normFactor = totalShareBeforeNorm > 0 ? 100 / totalShareBeforeNorm : 1;
 
+  const normalizedPartyShares: Record<string, number> = {};
   for (const pid of Object.keys(partyBlocShares)) {
-    partyBlocShares[pid] = Math.round(partyBlocShares[pid] * normFactor * 100) / 100;
+    normalizedPartyShares[pid] = Math.round(partyBlocShares[pid] * normFactor * 100) / 100;
   }
   const independentVoteShare =
     Math.round(independentTotalShare * normFactor * 100) / 100;
 
-  // ── RAW VOTES (Task 14) ───────────────────────────────────────────────────
-  // Use validVotes, not total population
+  // Raw votes
   const partyVotes: Record<string, number> = {};
   let totalPartyVotes = 0;
   for (const party of parties) {
-    const v = Math.round(validVotes * partyBlocShares[party.partyId] / 100);
+    const v = Math.round(validVotes * normalizedPartyShares[party.partyId] / 100);
     partyVotes[party.partyId] = v;
     totalPartyVotes += v;
   }
-  // Independents get remainder to ensure total = validVotes
   const independentVotes = Math.max(0, validVotes - totalPartyVotes);
 
-  // ── D'HONDT SEAT ALLOCATION (Task 15) ────────────────────────────────────
+  // D'Hondt
   const dhondtParticipants = [
     ...parties.map((p) => ({ id: p.partyId, votes: partyVotes[p.partyId] || 0 })),
     { id: '__independent__', votes: independentVotes },
   ];
-
   const seatAllocation = runDHondt(dhondtParticipants, config.parliamentSeats);
 
-  // ── ASSEMBLE RESULTS ──────────────────────────────────────────────────────
-  const partyResults: ElectionPartyResult[] = parties.map((party) => {
-    const seats = seatAllocation[party.partyId] || 0;
+  // Vote shares as % of valid votes
+  const partyVoteShares: Record<string, number> = {};
+  for (const party of parties) {
     const votes = partyVotes[party.partyId] || 0;
-    const voteShare =
+    partyVoteShares[party.partyId] =
       validVotes > 0 ? Math.round((votes / validVotes) * 1000) / 10 : 0;
+  }
+
+  const indepSeats = seatAllocation['__independent__'] || 0;
+  const indepVoteShare =
+    validVotes > 0 ? Math.round((independentVotes / validVotes) * 1000) / 10 : 0;
+
+  const partySeats: Record<string, number> = {};
+  for (const p of parties) {
+    partySeats[p.partyId] = seatAllocation[p.partyId] || 0;
+  }
+
+  return {
+    partySeats,
+    partyVoteShares,
+    partyVotes,
+    indepSeats,
+    indepVoteShare,
+    indepVotes: independentVotes,
+    validVotes,
+    votesCast,
+    turnoutPercent: turnoutBreakdown.finalPercent,
+    notaPercent: notaBreakdown.finalPercent,
+    eligibleVoters,
+    adultPopulation,
+    partyRawBlocShare: normalizedPartyShares,
+    indepRawBlocShare: independentVoteShare,
+    independentTotalBlocScore,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UNIFIED PROJECTION ENGINE — PUBLIC API
+// ─────────────────────────────────────────────────────────────────────────────
+// For a single current party input. Returns base/low/high scenarios.
+// mode="final" is handled by simulateElectionDay instead.
+
+export function calculateElectionProjection(
+  config: CountryElectionConfig,
+  parties: ElectionPartyInput[],
+  currentPartyId: string,
+  options: ElectionProjectionOptions,
+  countryStability?: number,
+): ElectionProjectionResult {
+  const swing = options.swingPercent ?? 6;
+
+  let baseMultiplier = 1.0;
+  let lowMultiplier = 1 - swing / 100;   // 0.94 for swing=6
+  let highMultiplier = 1 + swing / 100;  // 1.06 for swing=6
+
+  if (options.applyRandomSwing) {
+    // Final mode: single random pass
+    const r = 1 + (Math.random() * swing * 2 / 100) - (swing / 100);
+    baseMultiplier = r;
+    lowMultiplier = r;
+    highMultiplier = r;
+  }
+
+  const base = runOneScenario(config, parties, baseMultiplier, countryStability);
+  const low  = options.applyRandomSwing ? base : runOneScenario(config, parties, lowMultiplier,  countryStability);
+  const high = options.applyRandomSwing ? base : runOneScenario(config, parties, highMultiplier, countryStability);
+
+  const baseSeats = base.partySeats[currentPartyId] ?? 0;
+  const lowSeats  = low.partySeats[currentPartyId]  ?? 0;
+  const highSeats = high.partySeats[currentPartyId] ?? 0;
+
+  const baseVoteShare = base.partyVoteShares[currentPartyId] ?? 0;
+  const lowVoteShare  = low.partyVoteShares[currentPartyId]  ?? 0;
+  const highVoteShare = high.partyVoteShares[currentPartyId] ?? 0;
+
+  return {
+    baseVoteShare,
+    baseSeats,
+    baseIndepVoteShare: base.indepVoteShare,
+    baseIndepSeats: base.indepSeats,
+    baseStatus: getPartyResultStatus(baseSeats, config.parliamentSeats, config.majoritySeats),
+    lowVoteShare,
+    lowSeats,
+    highVoteShare,
+    highSeats,
+    turnoutPercent: base.turnoutPercent,
+    notaPercent: base.notaPercent,
+    validVotes: base.validVotes,
+    eligibleVoters: base.eligibleVoters,
+    partyBlocShare: base.partyRawBlocShare[currentPartyId] ?? 0,
+    independentBlocShare: base.indepRawBlocShare,
+    calculationVersion: ELECTION_CALC_VERSION,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ELECTION DAY SIMULATION — wraps the unified engine
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function simulateElectionDay(
+  config: CountryElectionConfig,
+  electionId: string,
+  electionName: string,
+  parties: ElectionPartyInput[],
+  countryStability?: number,
+): ElectionResult {
+  // Use a single random swing multiplier per-party-per-bloc is NOT done here to
+  // keep things simple and fair. Instead, we apply one uniform random multiplier
+  // for the final result so it is near but not identical to the projection.
+  const swingPct = 6;
+  const swingMultiplier = 1 + (Math.random() * swingPct * 2 / 100) - (swingPct / 100);
+
+  const scenario = runOneScenario(config, parties, swingMultiplier, countryStability);
+
+  const resultId =
+    `er_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+
+  const turnoutBreakdown = calculateTurnout(config, parties, countryStability);
+  const notaBreakdown = calculateNOTA(config, parties);
+
+  const partyResults: ElectionPartyResult[] = parties.map((party) => {
+    const seats = scenario.partySeats[party.partyId] || 0;
+    const votes = scenario.partyVotes[party.partyId] || 0;
+    const voteShare = scenario.partyVoteShares[party.partyId] || 0;
     return {
       partyId: party.partyId,
       partyName: party.partyName,
@@ -554,13 +731,6 @@ export function simulateElectionDay(
     };
   });
 
-  const indepSeats = seatAllocation['__independent__'] || 0;
-  const indepVoteShare =
-    validVotes > 0 ? Math.round((independentVotes / validVotes) * 1000) / 10 : 0;
-
-  const resultId =
-    `er_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-
   return {
     resultId,
     electionId,
@@ -568,29 +738,65 @@ export function simulateElectionDay(
     countryName: config.countryName,
     continentName: config.continentName,
     electionType: config.electionType,
-    gameDate: { year: 0, month: 1, day: 1 }, // Alpha: game calendar not implemented yet
+    gameDate: { year: 0, month: 1, day: 1 },
     parliamentSeats: config.parliamentSeats,
     majoritySeats: config.majoritySeats,
     population: config.population,
-    adultPopulation,
-    eligibleVoters,
-    turnoutPercent: turnoutBreakdown.finalPercent,
-    votesCast,
-    notaPercent: notaBreakdown.finalPercent,
-    notaVotes,
-    validVotes,
-    nonVoters,
+    adultPopulation: scenario.adultPopulation,
+    eligibleVoters: scenario.eligibleVoters,
+    turnoutPercent: scenario.turnoutPercent,
+    votesCast: scenario.votesCast,
+    notaPercent: scenario.notaPercent,
+    notaVotes: Math.round(scenario.votesCast * scenario.notaPercent / 100),
+    validVotes: scenario.validVotes,
+    nonVoters: scenario.eligibleVoters - scenario.votesCast,
     parties: partyResults,
     independentIndividuals: {
-      voteShare: indepVoteShare,
-      votes: independentVotes,
-      seats: indepSeats,
-      strength: Math.round(independentTotalBlocScore * 10) / 10,
+      voteShare: scenario.indepVoteShare,
+      votes: scenario.indepVotes,
+      seats: scenario.indepSeats,
+      strength: Math.round(scenario.independentTotalBlocScore * 10) / 10,
     },
     turnoutBreakdown,
     notaBreakdown,
     createdAt: new Date().toISOString(),
+    calculationVersion: ELECTION_CALC_VERSION,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SURVEY OUTDATED DETECTION
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function surveyIsOutdated(
+  inputSnapshot: ElectionSurveySnapshot['inputSnapshot'],
+  currentStats: {
+    recognition?: number;
+    support?: number;
+    members?: number;
+    publicTrust?: number;
+    mediaPresence?: number;
+    campaignStrength?: number;
+    controversy?: number;
+    electionFundsAllocated?: number;
+    mainPromise?: string | null;
+    ideologies?: string[];
+  },
+): boolean {
+  const eps = 0.01; // floating point tolerance
+  if (Math.abs((inputSnapshot.recognition ?? 0) - (currentStats.recognition ?? 0)) > eps) return true;
+  if (Math.abs((inputSnapshot.support ?? 0) - (currentStats.support ?? 0)) > eps) return true;
+  if ((inputSnapshot.members ?? 0) !== (currentStats.members ?? 0)) return true;
+  if (Math.abs((inputSnapshot.publicTrust ?? 0) - (currentStats.publicTrust ?? 0)) > eps) return true;
+  if (Math.abs((inputSnapshot.mediaPresence ?? 0) - (currentStats.mediaPresence ?? 0)) > eps) return true;
+  if (Math.abs((inputSnapshot.campaignStrength ?? 0) - (currentStats.campaignStrength ?? 0)) > eps) return true;
+  if (Math.abs((inputSnapshot.controversy ?? 0) - (currentStats.controversy ?? 0)) > eps) return true;
+  if (Math.abs((inputSnapshot.electionFundsAllocated ?? 0) - (currentStats.electionFundsAllocated ?? 0)) > eps) return true;
+  if ((inputSnapshot.mainPromise ?? null) !== (currentStats.mainPromise ?? null)) return true;
+  const snapIdeologies = (inputSnapshot.ideologies ?? []).slice().sort().join(',');
+  const currIdeologies = (currentStats.ideologies ?? []).slice().sort().join(',');
+  if (snapIdeologies !== currIdeologies) return true;
+  return false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -612,7 +818,6 @@ export function loadPastElections(): ElectionResult[] {
 export function savePastElection(result: ElectionResult): void {
   if (typeof window === 'undefined') return;
   const existing = loadPastElections();
-  // Prevent duplicates: remove any existing result for same electionId + countryName
   const filtered = existing.filter(
     (r) => !(r.electionId === result.electionId && r.countryName === result.countryName),
   );

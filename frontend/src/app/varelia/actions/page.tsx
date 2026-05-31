@@ -1,11 +1,11 @@
-﻿'use client';
+'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCharacterStore } from '../../../store/character.store';
 import { LogoSVG } from '../../../components/LogoSVG';
 import { PARTY_COLORS } from '../../../data/political-parties/partyLogos';
 import type { RegisteredPoliticalParty } from '../../../data/political-parties/partyTypes';
-import { syncCurrentPartyStatsToRegisteredParties, getLivePartyRegistryData, initializeCurrentPartyStatsIfNeeded, formatMoney, roundMoney, roundActionMoney } from '../../../lib/partyHelpers';
+import { syncCurrentPartyStatsToRegisteredParties, getLivePartyRegistryData, initializeCurrentPartyStatsIfNeeded, formatMoney, roundMoney, roundActionMoney, formatNumberUS, formatMoneyUS, formatPercent } from '../../../lib/partyHelpers';
 import {
   DRENNIA_SOCIETY,
   getSocietyProfile,
@@ -23,14 +23,19 @@ import {
 } from '../../../lib/voterBlocs';
 import {
   simulateElectionDay,
+  calculateElectionProjection,
+  surveyIsOutdated,
   loadPastElections,
   savePastElection,
   getElectionConfig,
   getPartyResultStatus,
   PAST_ELECTIONS_KEY,
   DRENNIA_ELECTION_CONFIG,
+  ELECTION_CALC_VERSION,
   type ElectionResult,
   type ElectionPartyInput,
+  type ElectionProjectionResult,
+  type ElectionSurveySnapshot,
 } from '../../../lib/electionEngine';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -366,6 +371,45 @@ export function getElectionStatusLabel(seatMidpoint: number, independentSeats: n
   if (seatMidpoint >= 61) return 'Majority government';
   if (independentSeats > totalSeats / 2) return 'Independent-dominated parliament likely';
   return 'Minor party';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ELECTION DEBUG DETAILS COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ElectionDebugDetails({ projection, partyName }: { projection: ElectionProjectionResult | null; partyName: string }) {
+  const [open, setOpen] = useState(false);
+  if (!projection) return null;
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className="w-full text-[9px] font-mono uppercase tracking-widest text-zinc-600 hover:text-zinc-400 transition-colors flex items-center justify-center gap-1 py-1">
+        {open ? '▲ Hide Details' : '▼ Why this projection?'}
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2 text-[10px]" style={{ color: '#7a8070' }}>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <span className="text-zinc-600">Vote share source:</span><span className="text-zinc-400">Voter Bloc Competition</span>
+            <span className="text-zinc-600">Seat method:</span><span className="text-zinc-400">D'Hondt proportional</span>
+            <span className="text-zinc-600">Turnout model:</span><span className="text-zinc-400">Adult eligible + stability + civic</span>
+            <span className="text-zinc-600">NOTA model:</span><span className="text-zinc-400">Trust + controversy + choice level</span>
+            <span className="text-zinc-600">Independent Individuals:</span><span className="text-zinc-400">Non-party political space</span>
+          </div>
+          <div className="h-px" style={{ background: '#2d3329' }} />
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <span className="text-zinc-600">{partyName} base vote share:</span><span className="font-mono text-zinc-300">{projection.baseVoteShare.toFixed(1)}%</span>
+            <span className="text-zinc-600">Indep. base vote share:</span><span className="font-mono text-zinc-300">{projection.baseIndepVoteShare.toFixed(1)}%</span>
+            <span className="text-zinc-600">{partyName} base seats:</span><span className="font-mono text-zinc-300">{projection.baseSeats}</span>
+            <span className="text-zinc-600">Indep. base seats:</span><span className="font-mono text-zinc-300">{projection.baseIndepSeats}</span>
+            <span className="text-zinc-600">Eligible voters:</span><span className="font-mono text-zinc-300">{formatNumberUS(projection.eligibleVoters)}</span>
+            <span className="text-zinc-600">Turnout:</span><span className="font-mono text-zinc-300">{projection.turnoutPercent}%</span>
+            <span className="text-zinc-600">NOTA:</span><span className="font-mono text-zinc-300">{projection.notaPercent}%</span>
+            <span className="text-zinc-600">Calc. version:</span><span className="font-mono text-zinc-600">bloc_dhondt_v1</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1676,12 +1720,53 @@ function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
   const stratStrongest = stratBlocResults.length > 0 ? [...stratBlocResults].sort((a, b) => b.finalScore - a.finalScore)[0] : null;
   const stratWeakest = stratBlocResults.length > 0 ? [...stratBlocResults].sort((a, b) => a.finalScore - b.finalScore)[0] : null;
 
-  const elStrength = calculateElectionStrength({ partyStats: stats, allocatedFunds: allocatedElectionFunds, hasMainPromise: !!(stats.mainPromise), voterBlocAppealPower: stratVBAPower } as any);
-  const indepStrength = calculateIndependentStrength({ registeredPlayerPartiesCount: 1, totalPlayerRecognition: recognition });
-  const lowVS = (elStrength.lowStrength / (elStrength.lowStrength + indepStrength)) * 100;
-  const highVS = (elStrength.highStrength / (elStrength.highStrength + indepStrength)) * 100;
-  const seatLow = Math.floor((lowVS / 100) * 120);
-  const seatHigh = Math.ceil((highVS / 100) * 120);
+  // ── UNIFIED ELECTION PROJECTION (bloc competition + D'Hondt) ──────────────
+  const elConfig = getElectionConfig(ctx.countryName);
+  let stratProjection: ElectionProjectionResult | null = null;
+  if (elConfig) {
+    const stratPartyInput: ElectionPartyInput = {
+      partyId: ctx.partyId || '',
+      partyName: ctx.partyName,
+      partyAbbreviation: ctx.partyAbbreviation,
+      leaderName: ctx.characterName || '',
+      ideologyIds: stratIdeologies,
+      mainPromise: stratMainPromise,
+      members: Math.max(1, stats?.members || 1),
+      recognition: stats?.recognition || 0,
+      support: stats?.support || 0.1,
+      publicTrust: stats?.publicTrust || 0,
+      mediaPresence: stats?.mediaPresence || 0,
+      campaignStrength: stats?.campaignStrength || 0,
+      controversy: stats?.controversy || 0,
+      electionFundsAllocated: allocatedElectionFunds,
+      isCurrentParty: true,
+    };
+    stratProjection = calculateElectionProjection(
+      elConfig, [stratPartyInput], ctx.partyId || '',
+      { mode: 'projection', applyRandomSwing: false }
+    );
+  }
+  const seatLow = stratProjection?.lowSeats ?? 0;
+  const seatHigh = stratProjection?.highSeats ?? 0;
+  const lowVS = stratProjection?.lowVoteShare ?? 0;
+  const highVS = stratProjection?.highVoteShare ?? 0;
+
+  // ── SURVEY OUTDATED DETECTION (strategy view) ─────────────────────────────
+  let stratSurveyOutdated = false;
+  if (latestSurvey?.inputSnapshot) {
+    stratSurveyOutdated = surveyIsOutdated(latestSurvey.inputSnapshot, {
+      recognition: stats?.recognition,
+      support: stats?.support,
+      members: stats?.members,
+      publicTrust: stats?.publicTrust,
+      mediaPresence: stats?.mediaPresence,
+      campaignStrength: stats?.campaignStrength,
+      controversy: stats?.controversy,
+      electionFundsAllocated: allocatedElectionFunds,
+      mainPromise: stratMainPromise,
+      ideologies: stratIdeologies,
+    });
+  }
 
   const fundsBonus = Math.min(funds / 1000000, 5);
   
@@ -1734,26 +1819,42 @@ function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
           <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
             <div className="px-4 py-3 border-b flex justify-between items-center" style={{ borderColor: BORDER }}>
                <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Latest Voter Survey</h3>
-               <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">{new Date(latestSurvey.createdAt).toLocaleDateString()}</span>
+               <div className="flex items-center gap-2">
+                 {stratSurveyOutdated ? (
+                   <span className="text-[9px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-2 py-0.5 border border-amber-500/30" style={{ borderRadius: '2px' }}>Survey Outdated</span>
+                 ) : (
+                   <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/30" style={{ borderRadius: '2px' }}>Survey Current</span>
+                 )}
+                 <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">{new Date(latestSurvey.createdAt).toLocaleDateString()}</span>
+               </div>
             </div>
+            {stratSurveyOutdated && (
+              <div className="px-4 pt-3 pb-1">
+                <p className="text-[10px] text-amber-600 leading-relaxed">Your party has changed since this survey. Run a new Voter Survey for an updated estimate.</p>
+              </div>
+            )}
             <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Polling Accuracy</div>
-                <div className={`text-sm font-bold ${latestSurvey.surveyData.pollingAccuracy === 'Excellent' || latestSurvey.surveyData.pollingAccuracy === 'High' ? 'text-emerald-400' : latestSurvey.surveyData.pollingAccuracy === 'Good' || latestSurvey.surveyData.pollingAccuracy === 'Moderate' ? 'text-amber-400' : 'text-red-400'}`}>
-                  {latestSurvey.surveyData.pollingAccuracy}
+                <div className={`text-sm font-bold ${latestSurvey.surveyData?.pollingAccuracy === 'Excellent' || latestSurvey.surveyData?.pollingAccuracy === 'High' ? 'text-emerald-400' : latestSurvey.surveyData?.pollingAccuracy === 'Good' || latestSurvey.surveyData?.pollingAccuracy === 'Moderate' ? 'text-amber-400' : 'text-red-400'}`}>
+                  {latestSurvey.surveyData?.pollingAccuracy ?? latestSurvey.pollingAccuracy ?? '—'}
                 </div>
               </div>
               <div>
                 <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Proj. Vote Share</div>
-                <div className="text-sm font-bold text-amber-400">{latestSurvey.surveyData.projectedVoteShareLow.toFixed(1)}% – {latestSurvey.surveyData.projectedVoteShareHigh.toFixed(1)}%</div>
+                <div className="text-sm font-bold text-amber-400">
+                  {((latestSurvey.surveyData?.projectedVoteShareLow ?? latestSurvey.projectedVoteShareLow) ?? 0).toFixed(1)}% – {((latestSurvey.surveyData?.projectedVoteShareHigh ?? latestSurvey.projectedVoteShareHigh) ?? 0).toFixed(1)}%
+                </div>
               </div>
               <div>
                 <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Proj. Seats</div>
-                <div className="text-sm font-bold text-amber-400">{latestSurvey.surveyData.projectedSeatsLow} – {latestSurvey.surveyData.projectedSeatsHigh} seats</div>
+                <div className="text-sm font-bold text-amber-400">
+                  {(latestSurvey.surveyData?.projectedSeatsLow ?? latestSurvey.projectedSeatsLow) ?? 0} – {(latestSurvey.surveyData?.projectedSeatsHigh ?? latestSurvey.projectedSeatsHigh) ?? 0} seats
+                </div>
               </div>
               <div>
                 <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Campaign Gain</div>
-                <div className="text-sm font-bold text-emerald-400">+{latestSurvey.surveyData.campaignStrengthGain.toFixed(2)}</div>
+                <div className="text-sm font-bold text-emerald-400">+{(latestSurvey.surveyData?.campaignStrengthGain ?? 0).toFixed(2)}</div>
               </div>
             </div>
           </div>
@@ -1785,9 +1886,9 @@ function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-1">
                     <div><div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-0.5">Election Funds</div><div className="text-xs font-bold text-amber-400">{formatMoney(allocatedElectionFunds)}</div></div>
-                    <div><div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-0.5">Electoral Strength</div><div className="text-xs font-bold text-zinc-200">{elStrength.baseStrength.toFixed(1)}</div></div>
                     <div><div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-0.5">Projected Vote Share</div><div className="text-xs font-bold text-amber-400">{lowVS.toFixed(1)}% – {highVS.toFixed(1)}%</div></div>
                     <div><div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-0.5">Projected Seats</div><div className="text-xs font-bold text-amber-400">{seatLow} – {seatHigh}</div></div>
+                    <div><div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-0.5">Indep. Seats</div><div className="text-xs font-bold text-amber-700">~{stratProjection?.baseIndepSeats ?? '—'}</div></div>
                   </div>
                 </div>
               );
@@ -2010,7 +2111,7 @@ function ElectionsView({ ctx, onUpdateCtx, onNavigatePastElections }: { ctx: Pla
   const allocatedFunds = campaign?.allocatedFunds || 0;
   const hasMainPromise = !!(ctx.partyStats?.mainPromise);
 
-  // Voter Bloc Appeal Power integration
+  // Voter Bloc Appeal — for Strength Breakdown display (kept for informational breakdown rows)
   let elRawParty: any = null;
   try {
     const cpRaw = typeof window !== 'undefined' ? localStorage.getItem('worldr_current_party') : null;
@@ -2022,22 +2123,61 @@ function ElectionsView({ ctx, onUpdateCtx, onNavigatePastElections }: { ctx: Pla
   const elBlocResults = elSociety ? calculateBlocAppeal(elSociety.blocs, elIdeologies, elMainPromise) : [];
   const elAppealScore = calculateVoterBlocAppealScore(elBlocResults);
   const elVBAPower = voterBlocAppealPower(elAppealScore);
-
+  // Keep strength object for the breakdown display rows (renamed section)
   const strength = calculateElectionStrength({ partyStats: ctx.partyStats, allocatedFunds, hasMainPromise, voterBlocAppealPower: elVBAPower } as any);
-  const totalPlayerRecognition = countryParties.reduce((acc: number, p: any) => acc + (p.recognition || 0), 0);
-  const independentStrength = calculateIndependentStrength({
-    registeredPlayerPartiesCount: Math.max(1, countryParties.length),
-    totalPlayerRecognition,
-  });
 
-  const lowVoteShare = (strength.lowStrength / (strength.lowStrength + independentStrength)) * 100;
-  const highVoteShare = (strength.highStrength / (strength.highStrength + independentStrength)) * 100;
-  const midVoteShare = (lowVoteShare + highVoteShare) / 2;
-  const seatLow = Math.floor((lowVoteShare / 100) * TOTAL_SEATS);
-  const seatHigh = Math.ceil((highVoteShare / 100) * TOTAL_SEATS);
-  const seatMid = Math.round((seatLow + seatHigh) / 2);
-  const indepSeats = TOTAL_SEATS - Math.round((midVoteShare / 100) * TOTAL_SEATS);
-  const statusLabel = getElectionStatusLabel(seatMid, indepSeats, TOTAL_SEATS);
+  // ── UNIFIED ELECTION PROJECTION (bloc competition + D'Hondt) ──────────────
+  // Same engine as Election Day. applyRandomSwing=false for deterministic estimate.
+  const elConfigForView = getElectionConfig(ctx.countryName);
+  let elProjection: ElectionProjectionResult | null = null;
+  if (elConfigForView) {
+    const elPartyInput: ElectionPartyInput = {
+      partyId: ctx.partyId || '',
+      partyName: ctx.partyName,
+      partyAbbreviation: ctx.partyAbbreviation,
+      leaderName: ctx.characterName || (elRawParty?.leaderName || ''),
+      ideologyIds: elIdeologies,
+      mainPromise: elMainPromise,
+      members: Math.max(1, ctx.partyStats?.members || 1),
+      recognition: ctx.partyStats?.recognition || 0,
+      support: ctx.partyStats?.support || 0.1,
+      publicTrust: ctx.partyStats?.publicTrust || 0,
+      mediaPresence: ctx.partyStats?.mediaPresence || 0,
+      campaignStrength: ctx.partyStats?.campaignStrength || 0,
+      controversy: ctx.partyStats?.controversy || 0,
+      electionFundsAllocated: allocatedFunds,
+      isCurrentParty: true,
+    };
+    elProjection = calculateElectionProjection(
+      elConfigForView, [elPartyInput], ctx.partyId || '',
+      { mode: 'projection', applyRandomSwing: false }
+    );
+  }
+  const lowVoteShare = elProjection?.lowVoteShare ?? 0;
+  const highVoteShare = elProjection?.highVoteShare ?? 0;
+  const midVoteShare = elProjection?.baseVoteShare ?? 0;
+  const seatLow = elProjection?.lowSeats ?? 0;
+  const seatHigh = elProjection?.highSeats ?? 0;
+  const seatMid = elProjection?.baseSeats ?? 0;
+  const indepSeats = elProjection?.baseIndepSeats ?? 0;
+  const statusLabel = elProjection?.baseStatus ?? 'Unknown';
+
+  // ── SURVEY OUTDATED DETECTION (elections view) ────────────────────────────
+  let elSurveyOutdated = false;
+  if (latestSurvey?.inputSnapshot) {
+    elSurveyOutdated = surveyIsOutdated(latestSurvey.inputSnapshot, {
+      recognition: ctx.partyStats?.recognition,
+      support: ctx.partyStats?.support,
+      members: ctx.partyStats?.members,
+      publicTrust: ctx.partyStats?.publicTrust,
+      mediaPresence: ctx.partyStats?.mediaPresence,
+      campaignStrength: ctx.partyStats?.campaignStrength,
+      controversy: ctx.partyStats?.controversy,
+      electionFundsAllocated: allocatedFunds,
+      mainPromise: elMainPromise,
+      ideologies: elIdeologies,
+    });
+  }
 
   const PRESET_AMOUNTS = [100000, 250000, 500000, 1000000, 2000000];
 
@@ -2275,11 +2415,11 @@ function ElectionsView({ ctx, onUpdateCtx, onNavigatePastElections }: { ctx: Pla
             </div>
           </div>
 
-          {/* Election Strength Breakdown */}
+          {/* General Campaign Strength Breakdown */}
           <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
             <div className="px-5 py-3 border-b" style={{ borderColor: BORDER }}>
-              <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Election Strength Breakdown</h3>
-              <p className="text-[10px] text-zinc-500 mt-0.5 leading-relaxed">Election results are not based on polling alone. WORLDr calculates electoral strength from polling support, recognition, members, election funds, public trust, campaign strength, media presence, main promise, controversy, and election swing.</p>
+              <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">General Campaign Strength Breakdown</h3>
+              <p className="text-[10px] text-zinc-500 mt-0.5 leading-relaxed">Shows your party's campaign inputs. These drive bloc-based vote share and seat allocation via D'Hondt — not a simple score ratio.</p>
             </div>
             <div className="p-5">
               <div className="mb-4">
@@ -2298,44 +2438,37 @@ function ElectionsView({ ctx, onUpdateCtx, onNavigatePastElections }: { ctx: Pla
                 </div>
                 <BreakdownRow label={`Voter Bloc Appeal${elAppealScore === 0 ? ' (no ideology/promise)' : ''}`} value={elVBAPower} color={elVBAPower > 0 ? 'text-emerald-400' : elVBAPower < 0 ? 'text-red-400' : 'text-zinc-600'} />
               </div>
-              <div className="pt-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">Total Electoral Strength</span>
-                  <span className="text-sm font-bold text-white">{strength.baseStrength.toFixed(1)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">Swing Range (±6%)</span>
-                  <span className="text-xs font-mono text-zinc-300">{strength.lowStrength.toFixed(1)} – {strength.highStrength.toFixed(1)}</span>
-                </div>
-                <div className="h-px w-full" style={{ background: BORDER }} />
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">Projected Vote Share</span>
-                  <span className="text-sm font-bold text-amber-400">{lowVoteShare.toFixed(1)}% – {highVoteShare.toFixed(1)}%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">Projected Seats</span>
-                  <span className="text-sm font-bold text-amber-400">{seatLow} – {seatHigh} seats</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">Projected Status</span>
-                  <span className="text-xs font-bold text-zinc-200">{statusLabel}</span>
-                </div>
-              </div>
-              <div className="mt-4 p-3 rounded-sm" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BORDER}` }}>
+              <div className="mt-2 p-3 rounded-sm" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BORDER}` }}>
                 <p className="text-[9px] text-zinc-500 leading-relaxed">Allocated election funds are used for election strength. General party funds are not counted directly. Allocate more funds to increase electoral power.</p>
               </div>
             </div>
           </div>
 
-          {/* Independent Individuals */}
-          <div className="p-4 rounded-sm" style={{ background: 'rgba(212,169,31,0.07)', border: '1px solid rgba(212,169,31,0.18)' }}>
-            <div className="text-xs font-bold mb-1.5" style={{ color: '#d4a91f' }}>Independent Individuals</div>
-            <p className="text-[10px] leading-relaxed mb-2" style={{ color: '#a18017' }}>
-              Independent Individuals are not AI parties. They represent non-party elected figures and unaligned political space. Seats not won by player-created parties may be held by Independent Individuals.
-            </p>
-            <div className="flex gap-6">
-              <div><div className="text-[9px] font-mono uppercase tracking-widest text-amber-700 mb-0.5">Independent Strength</div><div className="text-xs font-bold text-amber-500">{independentStrength.toFixed(1)}</div></div>
-              <div><div className="text-[9px] font-mono uppercase tracking-widest text-amber-700 mb-0.5">Approx. Independent Seats</div><div className="text-xs font-bold text-amber-500">~{indepSeats} / {TOTAL_SEATS}</div></div>
+          {/* Bloc-Based Election Projection */}
+          <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+            <div className="px-5 py-3 border-b" style={{ borderColor: BORDER }}>
+              <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Bloc-Based Election Projection</h3>
+              <p className="text-[10px] text-zinc-500 mt-0.5">Projection uses the same engine as Election Day, without final random swing.</p>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">Projected Vote Share</span>
+                <span className="text-sm font-bold text-amber-400">{lowVoteShare.toFixed(1)}% – {highVoteShare.toFixed(1)}%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">Projected Seats</span>
+                <span className="text-sm font-bold text-amber-400">{seatLow} – {seatHigh} seats</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">Projected Indep. Seats</span>
+                <span className="text-xs font-bold text-amber-700">~{indepSeats} / {TOTAL_SEATS}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">Projected Status</span>
+                <span className="text-xs font-bold text-zinc-200">{statusLabel}</span>
+              </div>
+              <div className="h-px w-full" style={{ background: BORDER }} />
+              <ElectionDebugDetails projection={elProjection} partyName={ctx.partyAbbreviation} />
             </div>
           </div>
 
@@ -2640,7 +2773,7 @@ function ElectionsView({ ctx, onUpdateCtx, onNavigatePastElections }: { ctx: Pla
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Recognition</span><span className="text-xs font-semibold text-zinc-300">{recognition.toFixed(2)}%</span></div>
               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Polling Support</span><span className="text-xs font-semibold text-zinc-300">{support.toFixed(1)}%</span></div>
-              <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Members</span><span className="text-xs font-semibold text-zinc-300">{members.toLocaleString()}</span></div>
+              <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Members</span><span className="text-xs font-semibold text-zinc-300">{formatNumberUS(members)}</span></div>
               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Party Funds</span><span className="text-xs font-semibold text-zinc-300">{formatMoney(funds)}</span></div>
               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Public Trust</span><span className="text-xs font-semibold text-zinc-300">{publicTrust.toFixed(1)}</span></div>
               <div><span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Campaign Strength</span><span className="text-xs font-semibold text-zinc-300">{campaignStrength.toFixed(1)}</span></div>
@@ -2762,12 +2895,13 @@ function PastElectionsView({ partyId, partyColor }: { partyId: string; partyColo
                     {hasMajority && <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(52,211,153,0.10)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}>Majority</span>}
                     {!hasMajority && hasWon && <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.10)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)' }}>Opposition</span>}
                     {!hasWon && <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(239,68,68,0.10)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}>Not Elected</span>}
+                    {!(election as any).calculationVersion && <span className="text-[8px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(113,113,122,0.08)', color: '#71717a', border: '1px solid rgba(113,113,122,0.20)' }}>Legacy Result</span>}
                   </div>
                   <h3 className="text-sm font-bold text-white truncate">{election.electionName}</h3>
                   <div className="flex gap-4 mt-1.5">
                     <span className="text-[10px] text-zinc-500">Turnout: <span className="text-zinc-300 font-mono">{election.turnoutPercent}%</span></span>
                     <span className="text-[10px] text-zinc-500">NOTA: <span className="text-zinc-400 font-mono">{election.notaPercent}%</span></span>
-                    <span className="text-[10px] text-zinc-500">Valid: <span className="text-zinc-300 font-mono">{election.validVotes.toLocaleString()}</span></span>
+                    <span className="text-[10px] text-zinc-500">Valid: <span className="text-zinc-300 font-mono">{formatNumberUS(election.validVotes)}</span></span>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
@@ -2831,7 +2965,7 @@ function PastElectionsView({ partyId, partyColor }: { partyId: string; partyColo
                                 <span className="font-bold" style={{ color: isMe ? partyColor : TEXT }}>{p.partyAbbreviation}</span>
                                 <span className="text-zinc-600 ml-1.5 text-[9px]">{p.partyName}{isMe ? ' ★' : ''}</span>
                               </td>
-                              <td className="px-4 py-2 text-right font-mono text-zinc-500">{p.votes.toLocaleString()}</td>
+                              <td className="px-4 py-2 text-right font-mono text-zinc-500">{formatNumberUS(p.votes)}</td>
                               <td className="px-4 py-2 text-right font-mono text-zinc-300">{p.voteShare}%</td>
                               <td className="px-4 py-2 text-right font-bold" style={{ color: isMe ? partyColor : TEXT }}>{p.seats}</td>
                               <td className="px-4 py-2 text-[9px] font-semibold uppercase tracking-widest" style={{ color: sc }}>{status}</td>
@@ -2840,7 +2974,7 @@ function PastElectionsView({ partyId, partyColor }: { partyId: string; partyColo
                         })}
                         <tr style={{ borderBottom: `1px solid ${BORDER}20`, background: 'rgba(146,64,14,0.04)' }}>
                           <td className="px-4 py-2"><span className="font-bold text-amber-800 text-[9px]">IND</span><span className="text-zinc-600 ml-1.5 text-[9px]">Independent Individuals</span></td>
-                          <td className="px-4 py-2 text-right font-mono text-zinc-500">{election.independentIndividuals.votes.toLocaleString()}</td>
+                          <td className="px-4 py-2 text-right font-mono text-zinc-500">{formatNumberUS(election.independentIndividuals.votes)}</td>
                           <td className="px-4 py-2 text-right font-mono text-zinc-500">{election.independentIndividuals.voteShare}%</td>
                           <td className="px-4 py-2 text-right font-bold text-amber-800">{election.independentIndividuals.seats}</td>
                           <td className="px-4 py-2 text-[9px] font-semibold uppercase tracking-widest text-zinc-600">Non-Party</td>
@@ -2851,10 +2985,10 @@ function PastElectionsView({ partyId, partyColor }: { partyId: string; partyColo
                   <div className="px-5 py-4" style={{ borderTop: `1px solid ${BORDER}` }}>
                     <div className="text-[9px] font-mono uppercase tracking-widest text-zinc-600 mb-2">Turnout Breakdown</div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div><div className="text-[9px] text-zinc-600">Eligible</div><div className="text-xs font-mono font-bold text-zinc-300">{election.eligibleVoters.toLocaleString()}</div></div>
-                      <div><div className="text-[9px] text-zinc-600">Voted</div><div className="text-xs font-mono font-bold text-zinc-300">{election.votesCast.toLocaleString()}</div></div>
-                      <div><div className="text-[9px] text-zinc-600">NOTA</div><div className="text-xs font-mono font-bold text-zinc-400">{election.notaVotes.toLocaleString()} ({election.notaPercent}%)</div></div>
-                      <div><div className="text-[9px] text-zinc-600">Valid</div><div className="text-xs font-mono font-bold text-zinc-300">{election.validVotes.toLocaleString()}</div></div>
+                      <div><div className="text-[9px] text-zinc-600">Eligible</div><div className="text-xs font-mono font-bold text-zinc-300">{formatNumberUS(election.eligibleVoters)}</div></div>
+                      <div><div className="text-[9px] text-zinc-600">Voted</div><div className="text-xs font-mono font-bold text-zinc-300">{formatNumberUS(election.votesCast)}</div></div>
+                      <div><div className="text-[9px] text-zinc-600">NOTA</div><div className="text-xs font-mono font-bold text-zinc-400">{formatNumberUS(election.notaVotes)} ({election.notaPercent}%)</div></div>
+                      <div><div className="text-[9px] text-zinc-600">Valid</div><div className="text-xs font-mono font-bold text-zinc-300">{formatNumberUS(election.validVotes)}</div></div>
                     </div>
                   </div>
                 </div>
@@ -3369,49 +3503,80 @@ function ActionExecutionModal({
         supportGain = 0.020 + Math.random() * 0.015;
       }
 
-      // Projection calculation
+      // ── UNIFIED ELECTION PROJECTION for survey ────────────────────────────
+      // Uses the same bloc competition + D'Hondt engine as Election Day.
+      // Only the margin width varies by accuracy tier.
+      const surveyElConfig = getElectionConfig(ctx.countryName);
+      let projectedVoteShareBase = 0;
+      let projectedVoteShareLow = 0;
+      let projectedVoteShareHigh = 0;
+      let projectedSeatsBase = 0;
+      let projectedSeatsLow = 0;
+      let projectedSeatsHigh = 0;
+      let independentSeatsBase = 0;
+
       const cpRaw = localStorage.getItem('worldr_current_party');
-      let isRegistered = false;
-      let allocatedFunds = 0;
+      let surveyAllocatedFunds = 0;
       if (cpRaw) {
-        const cp = JSON.parse(cpRaw);
-        const campaignsRaw = localStorage.getItem('worldr_election_campaigns');
-        if (campaignsRaw) {
-          const campaigns = JSON.parse(campaignsRaw);
-          const currentCampaign = campaigns.find((c: any) => c.partyId === cp.partyId);
-          if (currentCampaign) {
-            isRegistered = true;
-            allocatedFunds = currentCampaign.allocatedElectionFunds || 0;
+        try {
+          const cp = JSON.parse(cpRaw);
+          const campaignsRaw = localStorage.getItem('worldr_election_campaigns');
+          if (campaignsRaw) {
+            const campaigns = JSON.parse(campaignsRaw);
+            const camp = campaigns.find((c: any) => c.partyId === (ctx.partyId || cp.partyId));
+            if (camp) surveyAllocatedFunds = camp.allocatedFunds || 0;
           }
-        }
+        } catch (e) {}
       }
 
-      const allRegisteredParties = getLivePartyRegistryData().filter((p: any) => p.countryName === ctx.countryName);
-      let totalPlayerRecognition = allRegisteredParties.reduce((acc: number, p: any) => acc + (p.recognition || 0), 0);
-      const registeredPlayerPartiesCount = Math.max(1, allRegisteredParties.length);
+      const surveyIdeologies = extractIdeologies(cpRaw ? (() => { try { return JSON.parse(cpRaw); } catch { return ctx; } })() : ctx);
+      const surveyMainPromise = getMainPromise(ctx.partyId, ctx.partyStats);
 
-      const strengthResult = calculateElectionStrength({
-        partyStats: ctx.partyStats,
-        allocatedFunds,
-        hasMainPromise: !!(ctx.partyStats?.mainPromise),
-      });
+      if (surveyElConfig) {
+        const surveyPartyInput: ElectionPartyInput = {
+          partyId: ctx.partyId || '',
+          partyName: ctx.partyName,
+          partyAbbreviation: ctx.partyAbbreviation,
+          leaderName: ctx.characterName || '',
+          ideologyIds: surveyIdeologies,
+          mainPromise: surveyMainPromise,
+          members: Math.max(1, ctx.partyStats?.members || 1),
+          recognition: ctx.partyStats?.recognition || 0,
+          support: ctx.partyStats?.support || 0.1,
+          publicTrust: ctx.partyStats?.publicTrust || 0,
+          mediaPresence: ctx.partyStats?.mediaPresence || 0,
+          campaignStrength: ctx.partyStats?.campaignStrength || 0,
+          controversy: ctx.partyStats?.controversy || 0,
+          electionFundsAllocated: surveyAllocatedFunds,
+          isCurrentParty: true,
+        };
+        const surveyProj = calculateElectionProjection(
+          surveyElConfig, [surveyPartyInput], ctx.partyId || '',
+          { mode: 'survey', applyRandomSwing: false }
+        );
+        projectedVoteShareBase = surveyProj.baseVoteShare;
+        projectedVoteShareLow = Math.max(0, surveyProj.baseVoteShare - voteShareMargin);
+        projectedVoteShareHigh = Math.min(100, surveyProj.baseVoteShare + voteShareMargin);
+        projectedSeatsBase = surveyProj.baseSeats;
+        // Low/high seat scenarios: use the D'Hondt swing range seats
+        projectedSeatsLow = surveyProj.lowSeats;
+        projectedSeatsHigh = surveyProj.highSeats;
+        independentSeatsBase = surveyProj.baseIndepSeats;
+      }
 
-      const independentStrength = calculateIndependentStrength({
-        registeredPlayerPartiesCount,
-        totalPlayerRecognition
-      });
-
-      // Temporary local logic - omitting other player parties
-      const otherPlayerPartyStrengths = 0;
-      
-      const projectedVoteShareBase = (strengthResult.baseStrength / (strengthResult.baseStrength + independentStrength + otherPlayerPartyStrengths)) * 100;
-      
-      const projectedVoteShareLow = Math.max(0, projectedVoteShareBase - voteShareMargin);
-      const projectedVoteShareHigh = Math.min(100, projectedVoteShareBase + voteShareMargin);
-      
-      const totalSeats = 120;
-      const projectedSeatsLow = Math.floor((projectedVoteShareLow / 100) * totalSeats);
-      const projectedSeatsHigh = Math.ceil((projectedVoteShareHigh / 100) * totalSeats);
+      // Full input snapshot for outdated detection
+      const inputSnapshot = {
+        recognition: ctx.partyStats?.recognition || 0,
+        support: ctx.partyStats?.support || 0.1,
+        members: ctx.partyStats?.members || 1,
+        publicTrust: ctx.partyStats?.publicTrust || 0,
+        mediaPresence: ctx.partyStats?.mediaPresence || 0,
+        campaignStrength: ctx.partyStats?.campaignStrength || 0,
+        controversy: ctx.partyStats?.controversy || 0,
+        electionFundsAllocated: surveyAllocatedFunds,
+        mainPromise: surveyMainPromise,
+        ideologies: surveyIdeologies,
+      };
 
       // We attach these specifically to the result object
       surveyData = {
@@ -3420,11 +3585,13 @@ function ActionExecutionModal({
         projectedVoteShareBase,
         projectedVoteShareLow,
         projectedVoteShareHigh,
+        projectedSeatsBase,
         projectedSeatsLow,
         projectedSeatsHigh,
-        partyStrength: strengthResult.baseStrength,
-        independentStrength,
-        campaignStrengthGain
+        independentSeatsBase,
+        inputSnapshot,
+        calculationVersion: ELECTION_CALC_VERSION,
+        campaignStrengthGain,
       };
     }
   
@@ -3632,7 +3799,7 @@ function ActionResultsModal({
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-400">New Members</span>
                 <span className={`font-mono ${result.membersJoined > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {result.membersJoined > 0 ? '+' : ''}{result.membersJoined.toLocaleString()}
+                  {result.membersJoined > 0 ? '+' : ''}{formatNumberUS(result.membersJoined)}
                 </span>
               </div>
             )}
@@ -4062,10 +4229,24 @@ export default function ActionsPage() {
         const surveysRaw = localStorage.getItem('worldr_election_surveys');
         const surveys = surveysRaw ? JSON.parse(surveysRaw) : [];
         surveys.unshift({
-          id: Math.random().toString(36).substring(2, 9),
+          surveyId: Math.random().toString(36).substring(2, 9),
+          electionId: 'drennia_parliamentary_y0',
           partyId: ctx.partyId,
+          createdAt: new Date().toISOString(),
+          // Hoist inputSnapshot to top level for surveyIsOutdated() detection
+          inputSnapshot: result.surveyData.inputSnapshot,
+          pollingAccuracy: result.surveyData.pollingAccuracy,
+          voteShareMargin: result.surveyData.voteShareMargin,
+          projectedVoteShareBase: result.surveyData.projectedVoteShareBase,
+          projectedVoteShareLow: result.surveyData.projectedVoteShareLow,
+          projectedVoteShareHigh: result.surveyData.projectedVoteShareHigh,
+          projectedSeatsBase: result.surveyData.projectedSeatsBase,
+          projectedSeatsLow: result.surveyData.projectedSeatsLow,
+          projectedSeatsHigh: result.surveyData.projectedSeatsHigh,
+          independentSeatsBase: result.surveyData.independentSeatsBase,
+          calculationVersion: result.surveyData.calculationVersion ?? ELECTION_CALC_VERSION,
+          // Keep surveyData nested for backward compat with older code paths
           surveyData: result.surveyData,
-          createdAt: new Date().toISOString()
         });
         localStorage.setItem('worldr_election_surveys', JSON.stringify(surveys));
       }
@@ -4075,7 +4256,7 @@ export default function ActionsPage() {
       let summaryStr = `Action executed with score ${result.finalScore.toFixed(2)}. ${result.membersJoined > 0 ? '+' + result.membersJoined + ' members. ' : ''}${result.moneyRaised > 0 ? 'Raised ' + formatMoney(result.moneyRaised) + '. ' : ''}`;
       
       if (result.actionId === 'mo_recruit') {
-        summaryStr = `Membership Officer recruited ${result.membersJoined.toLocaleString()} new members with a ${result.quality.toLowerCase()} recruitment result.`;
+        summaryStr = `Membership Officer recruited ${formatNumberUS(result.membersJoined)} new members with a ${result.quality.toLowerCase()} recruitment result.`;
       } else if (result.actionId === 'smallDonationDrive') {
         const net = result.moneyRaised - result.investment;
         summaryStr = `Treasurer raised ${formatMoney(result.moneyRaised)} from a small donation drive. Net funds changed by ${net >= 0 ? '+' : '-'}${formatMoney(Math.abs(net))}.`;
@@ -4436,7 +4617,7 @@ export default function ActionsPage() {
                     </div>
                     <div>
                        <div className="text-[8px] font-mono uppercase tracking-[0.15em]" style={{ color: MUTED }}>Members</div>
-                       <div className="text-[11px] font-bold text-zinc-200">{(ctx.partyStats?.members || 0).toLocaleString()}</div>
+                       <div className="text-[11px] font-bold text-zinc-200">{formatNumberUS(ctx.partyStats?.members || 0)}</div>
                     </div>
                     <div>
                        <div className="text-[8px] font-mono uppercase tracking-[0.15em]" style={{ color: MUTED }}>Recog.</div>
@@ -4469,7 +4650,7 @@ export default function ActionsPage() {
                     <div className="w-px h-6" style={{ background: BORDER }} />
                     <div>
                        <div className="text-[8.5px] font-mono uppercase tracking-[0.15em]" style={{ color: MUTED }}>Total Members</div>
-                       <div className="text-[13px] font-bold text-zinc-100">{(ctx.partyStats?.members || 0).toLocaleString()}</div>
+                       <div className="text-[13px] font-bold text-zinc-100">{formatNumberUS(ctx.partyStats?.members || 0)}</div>
                     </div>
                     <div className="w-px h-6" style={{ background: BORDER }} />
                     <div>
