@@ -525,6 +525,73 @@ export function calculateVoterBlocAppealScore(results: BlocAppealResult[]): numb
   return score;
 }
 
+export function calculateCompetitiveVoterBlocAppeal(
+  societyProfile: CountrySocietyProfile,
+  parties: any[]
+): Record<string, number> {
+  const partyVBAPower: Record<string, number> = {};
+  
+  for (const p of parties) {
+    if (p && p.partyId) partyVBAPower[p.partyId] = 0;
+  }
+
+  for (const bloc of societyProfile.blocs) {
+    let totalPositiveScore = 0;
+    const partyScores: { partyId: string, score: number }[] = [];
+
+    for (const party of parties) {
+      if (!party || !party.partyId) continue;
+      
+      const ideologies = extractIdeologies(party);
+      
+      let mainPromise = party.mainPromise || party.partyStats?.mainPromise || null;
+      // Try to read from promises storage directly if needed
+      if (!mainPromise && typeof window !== 'undefined') {
+        try {
+          const promisesRaw = localStorage.getItem('worldr_election_promises');
+          if (promisesRaw) {
+            const promises = JSON.parse(promisesRaw);
+            const partyPromise = promises.find((p: any) => p.partyId === party.partyId);
+            if (partyPromise?.mainPromise) mainPromise = partyPromise.mainPromise;
+          }
+        } catch (e) {}
+      }
+
+      let ideologyScore = 0;
+      for (const ideology of ideologies) {
+        const effectMap = IDEOLOGY_BLOC_EFFECTS[ideology];
+        if (effectMap && effectMap[bloc.id] != null) {
+          ideologyScore += effectMap[bloc.id];
+        }
+      }
+
+      let mainPromiseScore = 0;
+      if (mainPromise) {
+        const promiseMap = MAIN_PROMISE_BLOC_EFFECTS[mainPromise];
+        if (promiseMap && promiseMap[bloc.id] != null) {
+          mainPromiseScore = promiseMap[bloc.id];
+        }
+      }
+
+      const finalScore = ideologyScore + mainPromiseScore;
+      
+      if (finalScore > 0) {
+        partyScores.push({ partyId: party.partyId, score: finalScore });
+        totalPositiveScore += finalScore;
+      }
+    }
+
+    if (totalPositiveScore > 0) {
+      for (const ps of partyScores) {
+        const share = (ps.score / totalPositiveScore) * bloc.populationShare;
+        partyVBAPower[ps.partyId] += share;
+      }
+    }
+  }
+
+  return partyVBAPower;
+}
+
 // voterBlocAppealPower = voterBlocAppealScore * 2  (for election strength)
 export function voterBlocAppealPower(appealScore: number): number {
   return appealScore * 2;

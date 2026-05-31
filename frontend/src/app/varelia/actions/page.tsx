@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCharacterStore } from '../../../store/character.store';
@@ -21,6 +21,17 @@ import {
   type BlocAppealResult,
   type AppealLabel,
 } from '../../../lib/voterBlocs';
+import {
+  simulateElectionDay,
+  loadPastElections,
+  savePastElection,
+  getElectionConfig,
+  getPartyResultStatus,
+  PAST_ELECTIONS_KEY,
+  DRENNIA_ELECTION_CONFIG,
+  type ElectionResult,
+  type ElectionPartyInput,
+} from '../../../lib/electionEngine';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PALETTE  (calm dark olive / charcoal political-strategy style)
@@ -1929,15 +1940,18 @@ function getCurrentCountryElection(selectedCountry: { countryName: string, conti
   return null;
 }
 
-function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: PlayerCtx) => void }) {
+function ElectionsView({ ctx, onUpdateCtx, onNavigatePastElections }: { ctx: PlayerCtx; onUpdateCtx: (c: PlayerCtx) => void; onNavigatePastElections?: () => void }) {
   const [showRegConfirm, setShowRegConfirm] = useState(false);
   const [showFundModal, setShowFundModal] = useState(false);
+  const [showElectionDayConfirm, setShowElectionDayConfirm] = useState(false);
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [countryParties, setCountryParties] = useState<any[]>([]);
   const [campaign, setCampaign] = useState<any>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
   const [latestSurvey, setLatestSurvey] = useState<any>(null);
+  const [electionCompleted, setElectionCompleted] = useState(false);
+  const [completedResult, setCompletedResult] = useState<ElectionResult | null>(null);
 
   const TOTAL_SEATS = 120;
   const MAJORITY_SEATS = 61;
@@ -1962,6 +1976,13 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
         const surveys = JSON.parse(surveysRaw);
         const partySurveys = surveys.filter((s: any) => s.partyId === ctx.partyId);
         if (partySurveys.length > 0) setLatestSurvey(partySurveys[0]);
+      }
+      // Check if election has already been simulated
+      const pastRaw = localStorage.getItem(PAST_ELECTIONS_KEY);
+      if (pastRaw) {
+        const past: ElectionResult[] = JSON.parse(pastRaw);
+        const done = past.find(r => r.electionId === 'drennia_parliamentary_y0' && r.countryName === 'Drennia');
+        if (done) { setElectionCompleted(true); setCompletedResult(done); }
       }
     } catch (e) {}
   }, [ctx.countryName, ctx.partyId]);
@@ -2078,6 +2099,97 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
     setShowRegConfirm(false);
   };
 
+  // ─── ELECTION DAY SIMULATION HANDLER ─────────────────────────────────────
+  const handleSimulateElectionDay = () => {
+    if (electionCompleted) return;
+    const elConfig = getElectionConfig(ctx.countryName);
+    if (!elConfig || !election) return;
+
+    let allRegsRaw: any[] = [];
+    try { const r = localStorage.getItem('worldr_election_registrations'); if (r) allRegsRaw = JSON.parse(r); } catch (e) {}
+    const electionRegs = allRegsRaw.filter((r: any) => r.electionId === election.electionId);
+
+    let cpRaw: any = null;
+    try { const r = localStorage.getItem('worldr_current_party'); if (r) cpRaw = JSON.parse(r); } catch (e) {}
+    let statsRaw: any = null;
+    try { const r = localStorage.getItem('worldr_party_stats'); if (r) statsRaw = JSON.parse(r); } catch (e) {}
+    let campFunds = 0;
+    try {
+      const r = localStorage.getItem('worldr_election_campaigns');
+      if (r) {
+        const camps = JSON.parse(r);
+        const c = camps.find((c: any) => c.partyId === ctx.partyId && c.electionId === election.electionId);
+        if (c) campFunds = c.allocatedFunds || 0;
+      }
+    } catch (e) {}
+    const liveMainPromise = getMainPromise(ctx.partyId, statsRaw);
+
+    const currentPartyInput: ElectionPartyInput = {
+      partyId: ctx.partyId || '',
+      partyName: ctx.partyName,
+      partyAbbreviation: ctx.partyAbbreviation,
+      leaderName: ctx.characterName || (cpRaw?.leaderName || ''),
+      ideologyIds: extractIdeologies(cpRaw || ctx),
+      mainPromise: liveMainPromise,
+      members: Math.max(1, statsRaw?.members || ctx.partyStats?.members || 1),
+      recognition: statsRaw?.recognition || ctx.partyStats?.recognition || 0,
+      support: statsRaw?.support || ctx.partyStats?.support || 0.1,
+      publicTrust: statsRaw?.publicTrust || ctx.partyStats?.publicTrust || 0,
+      mediaPresence: statsRaw?.mediaPresence || ctx.partyStats?.mediaPresence || 0,
+      campaignStrength: statsRaw?.campaignStrength || ctx.partyStats?.campaignStrength || 0,
+      controversy: statsRaw?.controversy || ctx.partyStats?.controversy || 0,
+      electionFundsAllocated: campFunds,
+      isCurrentParty: true,
+    };
+
+    const allRegisteredData = getLivePartyRegistryData().filter((p: any) => p.countryName === ctx.countryName);
+    const partyInputs: ElectionPartyInput[] = [currentPartyInput];
+    for (const reg of electionRegs) {
+      if (reg.partyId === ctx.partyId) continue;
+      const storedParty = allRegisteredData.find((p: any) => p.partyId === reg.partyId);
+      if (storedParty) {
+        partyInputs.push({
+          partyId: storedParty.partyId,
+          partyName: storedParty.partyName,
+          partyAbbreviation: storedParty.partyAbbreviation,
+          leaderName: storedParty.leaderName || '—',
+          ideologyIds: extractIdeologies(storedParty),
+          mainPromise: storedParty.mainPromise || null,
+          members: Math.max(1, storedParty.members || 1),
+          recognition: storedParty.recognition || 0,
+          support: storedParty.support || 0.1,
+          publicTrust: storedParty.publicTrust || 0,
+          mediaPresence: storedParty.mediaPresence || 0,
+          campaignStrength: storedParty.campaignStrength || 0,
+          controversy: storedParty.controversy || 0,
+          electionFundsAllocated: 0,
+          isCurrentParty: false,
+        });
+      }
+    }
+
+    const result = simulateElectionDay(elConfig, election.electionId, election.electionName, partyInputs);
+    savePastElection(result);
+    setElectionCompleted(true);
+    setCompletedResult(result);
+
+    // Add activity log entry
+    try {
+      const myPartyResult = result.parties.find(p => p.partyId === ctx.partyId);
+      const seats = myPartyResult?.seats ?? 0;
+      const voteShare = myPartyResult?.voteShare ?? 0;
+      const title = seats >= 1
+        ? `${ctx.partyAbbreviation} Enters Parliament with ${seats} Seats`
+        : `${ctx.partyAbbreviation} Fails to Enter Parliament`;
+      const body = `${result.electionName}: ${result.turnoutPercent}% turnout. ${ctx.partyName} won ${seats} seats (${voteShare}% vote share).`;
+      let logs: any[] = [];
+      try { const r = localStorage.getItem('worldr_activity_log'); if (r) logs = JSON.parse(r); } catch (e) {}
+      logs.unshift({ id: Math.random().toString(36).slice(2, 9), partyId: ctx.partyId, countryName: ctx.countryName, continentName: ctx.continentName, actionName: title, roleName: 'Election', officialName: ctx.characterName, investment: 0, finalScore: seats >= 1 ? 8 : 2, resultQuality: seats >= 1 ? 'Success' : 'Weak', summary: body, category: 'Politics', createdAt: new Date().toISOString() });
+      localStorage.setItem('worldr_activity_log', JSON.stringify(logs));
+    } catch (e) {}
+    setShowElectionDayConfirm(false);
+  };
+
   // ─── REGISTERED: CAMPAIGN PREP VIEW ──────────────────────────────────────
   if (isRegistered) {
     const customNum = parseInt(customAmount.replace(/[^0-9]/g, ''), 10) || 0;
@@ -2092,6 +2204,7 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
     );
 
     return (
+
       <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
         <div className="max-w-2xl mx-auto space-y-6">
           <div>
@@ -2280,74 +2393,160 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
           </div>
         </div>
 
-        {/* Fund Allocation Modal */}
-        {showFundModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
-            onClick={(e) => { if (e.target === e.currentTarget) { setShowFundModal(false); setSelectedPreset(null); setCustomAmount(''); } }}>
-            <div className="w-full max-w-sm overflow-hidden" style={{ background: '#1b1f1a', border: `1px solid #2d3329`, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', borderRadius: '2px' }}>
-              <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid #2d3329` }}>
-                <div className="w-9 h-9 rounded-sm flex items-center justify-center shrink-0" style={{ background: 'rgba(212,169,31,0.12)', border: '1px solid rgba(212,169,31,0.25)' }}>
-                  <svg className="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="font-bold text-sm text-zinc-100">Allocate Election Funds</div>
-                  <div className="text-[9px] font-mono uppercase tracking-[0.18em] mt-0.5 text-zinc-500">Campaign Investment</div>
-                </div>
+        {/* ═══ ELECTION DAY ═══════════════════════════════════════════════════ */}
+        {electionCompleted && completedResult ? (
+          <div style={{ background: 'rgba(16,120,60,0.07)', border: '1px solid rgba(16,120,60,0.28)', borderRadius: '2px' }} className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-sm flex items-center justify-center shrink-0" style={{ background: 'rgba(16,120,60,0.18)', border: '1px solid rgba(16,120,60,0.3)' }}>
+                <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               </div>
-              <div className="px-5 py-4 space-y-4">
-                <p className="text-[10px] leading-relaxed text-zinc-400">Election funds improve your party's campaign strength during election calculation. Allocated money leaves general party funds and cannot be used for normal party expenses in this alpha version.</p>
-                <div className="flex justify-between text-[10px]">
-                  <span className="text-zinc-500">Available Party Funds</span>
-                  <span className="text-emerald-400 font-bold font-mono">{formatMoney(ctx.partyFunds)}</span>
-                </div>
-                <div className="flex justify-between text-[10px]">
-                  <span className="text-zinc-500">Already Allocated</span>
-                  <span className="text-amber-400 font-bold font-mono">{formatMoney(allocatedFunds)}</span>
-                </div>
-                <div className="h-px" style={{ background: BORDER }} />
-                <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Quick Amounts</div>
-                <div className="grid grid-cols-3 gap-2">
-                  {PRESET_AMOUNTS.map((amt) => {
-                    const affordable = ctx.partyFunds >= amt;
-                    const isSel = selectedPreset === amt;
-                    return (
-                      <button key={amt} type="button" disabled={!affordable}
-                        onClick={() => { setSelectedPreset(amt); setCustomAmount(''); }}
-                        className={`py-2 text-[10px] font-bold rounded-sm transition-opacity ${!affordable ? 'opacity-30 cursor-not-allowed' : 'hover:opacity-80'}`}
-                        style={{ background: isSel ? 'rgba(212,169,31,0.2)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isSel ? 'rgba(212,169,31,0.5)' : BORDER}`, color: isSel ? '#d4a91f' : '#7a8070' }}>
-                        {formatMoney(amt)}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div>
-                  <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">Custom Amount (min $50,000)</div>
-                  <input type="number" min={50000} max={ctx.partyFunds} placeholder="e.g. 750000"
-                    value={customAmount}
-                    onChange={(e) => { setCustomAmount(e.target.value); setSelectedPreset(null); }}
-                    className="w-full px-3 py-2 text-xs text-zinc-200 outline-none"
-                    style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${BORDER}`, borderRadius: '2px' }} />
-                </div>
+              <div>
+                <div className="text-sm font-bold text-emerald-400">Election Completed</div>
+                <div className="text-[10px] text-zinc-500">The Drennia Parliamentary Election has been concluded.</div>
               </div>
-              <div className="px-5 pb-5 flex gap-3">
-                <button type="button" onClick={() => { setShowFundModal(false); setSelectedPreset(null); setCustomAmount(''); }}
-                  className="flex-1 py-2.5 text-xs font-semibold uppercase tracking-widest transition-opacity hover:opacity-75"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa', borderRadius: '2px' }}>
-                  Cancel
-                </button>
-                <button type="button" onClick={() => handleAllocateFunds(allocAmount)} disabled={!canAllocate}
-                  className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-80"
-                  style={{ background: 'rgba(212,169,31,0.14)', border: '1px solid rgba(212,169,31,0.40)', color: '#d4a91f', borderRadius: '2px' }}>
-                  {allocAmount >= 50000 ? `Allocate ${formatMoney(allocAmount)}` : 'Allocate Funds'}
-                </button>
+            </div>
+            {(() => {
+              const myResult = completedResult.parties.find(p => p.partyId === ctx.partyId);
+              return (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  <div><div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-0.5">Your Seats</div><div className="text-sm font-bold text-emerald-400">{myResult?.seats ?? 0} / {completedResult.parliamentSeats}</div></div>
+                  <div><div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-0.5">Vote Share</div><div className="text-sm font-bold text-amber-400">{myResult?.voteShare?.toFixed(1) ?? '0.0'}%</div></div>
+                  <div><div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-0.5">Turnout</div><div className="text-sm font-bold text-zinc-200">{completedResult.turnoutPercent}%</div></div>
+                  <div><div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-0.5">Indep. Seats</div><div className="text-sm font-bold text-zinc-200">{completedResult.independentIndividuals.seats}</div></div>
+                </div>
+              );
+            })()}
+            <button type="button" onClick={() => onNavigatePastElections && onNavigatePastElections()}
+              className="w-full py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity hover:opacity-80"
+              style={{ background: 'rgba(16,120,60,0.14)', border: '1px solid rgba(16,120,60,0.4)', color: '#34d399', borderRadius: '2px' }}>
+              View Full Election Results →
+            </button>
+          </div>
+        ) : (
+          <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+            <div className="px-5 py-3 border-b" style={{ borderColor: BORDER }}>
+              <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Election Day</h3>
+              <p className="text-[10px] text-zinc-500 mt-0.5 leading-relaxed">Simulate the final election. Turnout, vote shares, and seat allocation are calculated using the voter bloc competition engine and D'Hondt method.</p>
+            </div>
+            <div className="p-5">
+              <div className="p-3 mb-4 rounded-sm text-[10px] text-amber-700 leading-relaxed" style={{ background: 'rgba(212,169,31,0.06)', border: '1px solid rgba(212,169,31,0.15)' }}>
+                <span className="font-bold text-amber-500">Alpha Note:</span> In multiplayer, election day will be controlled by the server. Allocating funds, running voter surveys, and building recognition all improve your outcome.
               </div>
+              <button id="btn-simulate-election-day" type="button" onClick={() => setShowElectionDayConfirm(true)}
+                className="w-full py-3.5 text-sm font-bold uppercase tracking-widest transition-opacity hover:opacity-80"
+                style={{ background: 'rgba(212,169,31,0.12)', border: '1px solid rgba(212,169,31,0.45)', color: '#d4a91f', borderRadius: '2px', letterSpacing: '0.12em' }}>
+                ⚑ &nbsp; Simulate Election Day
+              </button>
+              <p className="text-[9px] text-zinc-600 text-center mt-2">Results will be saved to Past Elections and cannot be reversed.</p>
             </div>
           </div>
         )}
-      </div>
+
+
+      {/* Fund Allocation Modal */}
+      {showFundModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowFundModal(false); setSelectedPreset(null); setCustomAmount(''); } }}>
+          <div className="w-full max-w-sm overflow-hidden" style={{ background: '#1b1f1a', border: `1px solid #2d3329`, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', borderRadius: '2px' }}>
+            <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid #2d3329` }}>
+              <div className="w-9 h-9 rounded-sm flex items-center justify-center shrink-0" style={{ background: 'rgba(212,169,31,0.12)', border: '1px solid rgba(212,169,31,0.25)' }}>
+                <svg className="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <div className="font-bold text-sm text-zinc-100">Allocate Election Funds</div>
+                <div className="text-[9px] font-mono uppercase tracking-[0.18em] mt-0.5 text-zinc-500">Campaign Investment</div>
+              </div>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <p className="text-[10px] leading-relaxed text-zinc-400">Election funds improve your party's campaign strength during election calculation. Allocated money leaves general party funds and cannot be used for normal party expenses in this alpha version.</p>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500">Available Party Funds</span>
+                <span className="text-emerald-400 font-bold font-mono">{formatMoney(ctx.partyFunds)}</span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500">Already Allocated</span>
+                <span className="text-amber-400 font-bold font-mono">{formatMoney(allocatedFunds)}</span>
+              </div>
+              <div className="h-px" style={{ background: BORDER }} />
+              <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Quick Amounts</div>
+              <div className="grid grid-cols-3 gap-2">
+                {PRESET_AMOUNTS.map((amt) => {
+                  const affordable = ctx.partyFunds >= amt;
+                  const isSel = selectedPreset === amt;
+                  return (
+                    <button key={amt} type="button" disabled={!affordable}
+                      onClick={() => { setSelectedPreset(amt); setCustomAmount(''); }}
+                      className={`py-2 text-[10px] font-bold rounded-sm transition-opacity ${!affordable ? 'opacity-30 cursor-not-allowed' : 'hover:opacity-80'}`}
+                      style={{ background: isSel ? 'rgba(212,169,31,0.2)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isSel ? 'rgba(212,169,31,0.5)' : BORDER}`, color: isSel ? '#d4a91f' : '#7a8070' }}>
+                      {formatMoney(amt)}
+                    </button>
+                  );
+                })}
+              </div>
+              <div>
+                <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">Custom Amount (min $50,000)</div>
+                <input type="number" min={50000} max={ctx.partyFunds} placeholder="e.g. 750000"
+                  value={customAmount}
+                  onChange={(e) => { setCustomAmount(e.target.value); setSelectedPreset(null); }}
+                  className="w-full px-3 py-2 text-xs text-zinc-200 outline-none"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${BORDER}`, borderRadius: '2px' }} />
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-3">
+              <button type="button" onClick={() => { setShowFundModal(false); setSelectedPreset(null); setCustomAmount(''); }}
+                className="flex-1 py-2.5 text-xs font-semibold uppercase tracking-widest transition-opacity hover:opacity-75"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa', borderRadius: '2px' }}>
+                Cancel
+              </button>
+              <button type="button" onClick={() => handleAllocateFunds(allocAmount)} disabled={!canAllocate}
+                className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-80"
+                style={{ background: 'rgba(212,169,31,0.14)', border: '1px solid rgba(212,169,31,0.40)', color: '#d4a91f', borderRadius: '2px' }}>
+                {allocAmount >= 50000 ? `Allocate ${formatMoney(allocAmount)}` : 'Allocate Funds'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Election Day Confirmation Modal */}
+      {showElectionDayConfirm && election && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(6px)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowElectionDayConfirm(false); }}>
+          <div className="w-full max-w-md overflow-hidden" style={{ background: '#1b1f1a', border: `1px solid #2d3329`, boxShadow: '0 20px 60px rgba(0,0,0,0.9)', borderRadius: '2px' }}>
+            <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid #2d3329` }}>
+              <div className="w-9 h-9 rounded-sm flex items-center justify-center shrink-0" style={{ background: 'rgba(212,169,31,0.12)', border: '1px solid rgba(212,169,31,0.3)' }}>
+                <svg className="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
+              </div>
+              <div>
+                <div className="font-bold text-sm text-zinc-100">Simulate {election.electionName}?</div>
+                <div className="text-[9px] font-mono uppercase tracking-[0.16em] mt-0.5 text-zinc-500">Election Day Simulation</div>
+              </div>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-[11px] leading-relaxed text-zinc-400 mb-3">This will calculate turnout, NOTA votes, valid votes, bloc-based vote share, Independent Individuals, and seat distribution using the D'Hondt method. The result will be saved to Past Elections.</p>
+              <p className="text-[10px] leading-relaxed text-zinc-500">In multiplayer, election day will later be controlled by the server and game calendar.</p>
+            </div>
+            <div className="px-5 pb-5 flex gap-3">
+              <button type="button" onClick={() => setShowElectionDayConfirm(false)}
+                className="flex-1 py-2.5 text-xs font-semibold uppercase tracking-widest transition-opacity hover:opacity-75"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa', borderRadius: '2px' }}>
+                Cancel
+              </button>
+              <button type="button" onClick={handleSimulateElectionDay}
+                className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-opacity hover:opacity-80"
+                style={{ background: 'rgba(212,169,31,0.14)', border: '1px solid rgba(212,169,31,0.50)', color: '#d4a91f', borderRadius: '2px' }}>
+                Simulate Election Day
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+
     );
   }
 
@@ -2498,25 +2697,171 @@ function ElectionsView({ ctx, onUpdateCtx }: { ctx: PlayerCtx; onUpdateCtx: (c: 
   );
 }
 
-function PastElectionsView() {
+function PastElectionsView({ partyId, partyColor }: { partyId: string; partyColor: string }) {
+  const [pastElections, setPastElections] = useState<ElectionResult[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PAST_ELECTIONS_KEY);
+      if (raw) {
+        const data: ElectionResult[] = JSON.parse(raw);
+        setPastElections(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      }
+    } catch (e) {}
+  }, []);
+
+  if (pastElections.length === 0) {
+    return (
+      <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
+        <div className="max-w-xl mx-auto text-center py-12">
+          <h2 className="text-xl font-bold text-white tracking-tight mb-1">Past Elections</h2>
+          <p className="text-zinc-500 text-xs mb-8">Review previous election results and your party's historical performance.</p>
+          <div className="w-16 h-16 mx-auto mb-5 flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+            <svg className="w-8 h-8 text-zinc-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <p className="font-semibold text-sm mb-2" style={{ color: TEXT }}>No past elections recorded.</p>
+          <p className="text-[11px] leading-relaxed max-w-[280px] mx-auto" style={{ color: MUTED }}>
+            Go to Elections tab and simulate Election Day to record your first result.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-y-auto px-5 py-6" style={{ background: BG }}>
-      <div className="max-w-xl mx-auto text-center py-12">
-        {/* Header/Title */}
-        <h2 className="text-xl font-bold text-white tracking-tight mb-1">Past Elections</h2>
-        <p className="text-zinc-500 text-xs mb-8">Review previous election results and your party’s historical performance.</p>
-
-        {/* Empty state icon & text */}
-        <div className="w-16 h-16 mx-auto mb-5 flex items-center justify-center"
-          style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
-          <svg className="w-8 h-8 text-zinc-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div>
+          <h2 className="text-xl font-bold text-white tracking-tight">Past Elections</h2>
+          <p className="text-zinc-500 text-xs mt-1">Historical election results and parliamentary seat allocation.</p>
         </div>
-        <p className="font-semibold text-sm mb-2" style={{ color: TEXT }}>No past elections recorded.</p>
-        <p className="text-[11px] leading-relaxed max-w-[280px] mx-auto" style={{ color: MUTED }}>
-          Election results will appear here after the first election is completed.
-        </p>
+
+        {pastElections.map((election) => {
+          const myPartyResult = election.parties.find(p => p.partyId === partyId);
+          const isExpanded = expandedId === election.electionId;
+          const majoritySeats = DRENNIA_ELECTION_CONFIG.majoritySeats;
+          const totalSeats = election.parliamentSeats;
+          const mySeats = myPartyResult?.seats ?? 0;
+          const hasWon = mySeats > 0;
+          const hasMajority = mySeats >= majoritySeats;
+
+          const allSegments = [
+            ...election.parties.map(p => ({ name: p.partyAbbreviation, seats: p.seats, color: p.partyId === partyId ? partyColor : '#6b7280', isMe: p.partyId === partyId })),
+            { name: 'IND', seats: election.independentIndividuals.seats, color: '#92400e', isMe: false },
+          ].filter(s => s.seats > 0);
+
+          return (
+            <div key={election.electionId} style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+              <div className="px-5 py-4 flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-600">{election.countryName} · {new Date(election.createdAt).getFullYear()}</span>
+                    {hasMajority && <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(52,211,153,0.10)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}>Majority</span>}
+                    {!hasMajority && hasWon && <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.10)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)' }}>Opposition</span>}
+                    {!hasWon && <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(239,68,68,0.10)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}>Not Elected</span>}
+                  </div>
+                  <h3 className="text-sm font-bold text-white truncate">{election.electionName}</h3>
+                  <div className="flex gap-4 mt-1.5">
+                    <span className="text-[10px] text-zinc-500">Turnout: <span className="text-zinc-300 font-mono">{election.turnoutPercent}%</span></span>
+                    <span className="text-[10px] text-zinc-500">NOTA: <span className="text-zinc-400 font-mono">{election.notaPercent}%</span></span>
+                    <span className="text-[10px] text-zinc-500">Valid: <span className="text-zinc-300 font-mono">{election.validVotes.toLocaleString()}</span></span>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-2xl font-bold" style={{ color: hasWon ? partyColor : '#6b7280' }}>{mySeats}</div>
+                  <div className="text-[9px] font-mono text-zinc-500 uppercase">/ {totalSeats} seats</div>
+                  {myPartyResult && <div className="text-[10px] text-zinc-400 mt-0.5 font-mono">{myPartyResult.voteShare}%</div>}
+                </div>
+              </div>
+
+              <div className="px-5 pb-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">Seats</span>
+                  <span className="text-[9px] text-zinc-700">· majority: {majoritySeats}</span>
+                </div>
+                <div className="h-5 flex rounded-sm overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+                  {allSegments.map((seg, i) => (
+                    <div key={i} className="relative" style={{ width: `${(seg.seats / totalSeats) * 100}%`, background: seg.isMe ? seg.color : seg.color + '55', flexShrink: 0 }}>
+                      {seg.seats >= 4 && <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-white/80">{seg.seats}</span>}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-3 mt-1.5">
+                  {allSegments.map((seg, i) => (
+                    <div key={i} className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-sm shrink-0" style={{ background: seg.isMe ? seg.color : seg.color + '55' }} />
+                      <span className="text-[9px] font-mono text-zinc-500">{seg.name} {seg.seats}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="px-5 pb-4">
+                <button type="button" onClick={() => setExpandedId(isExpanded ? null : election.electionId)}
+                  className="w-full text-[9px] font-mono uppercase tracking-widest text-zinc-600 hover:text-zinc-400 transition-colors flex items-center justify-center gap-1 py-1.5"
+                  style={{ border: `1px solid ${BORDER}`, borderRadius: '2px' }}>
+                  {isExpanded ? '▲ Hide Details' : '▼ Full Results'}
+                </button>
+              </div>
+
+              {isExpanded && (
+                <div style={{ borderTop: `1px solid ${BORDER}` }}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[10px]">
+                      <thead>
+                        <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                          <th className="px-4 py-2 text-left font-mono text-zinc-600 uppercase tracking-widest">Party</th>
+                          <th className="px-4 py-2 text-right font-mono text-zinc-600 uppercase tracking-widest">Votes</th>
+                          <th className="px-4 py-2 text-right font-mono text-zinc-600 uppercase tracking-widest">Share</th>
+                          <th className="px-4 py-2 text-right font-mono text-zinc-600 uppercase tracking-widest">Seats</th>
+                          <th className="px-4 py-2 text-left font-mono text-zinc-600 uppercase tracking-widest">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {election.parties.map((p) => {
+                          const isMe = p.partyId === partyId;
+                          const status = getPartyResultStatus(p.seats, totalSeats, majoritySeats);
+                          const sc = status === 'Majority' ? '#34d399' : status === 'Opposition' ? '#f59e0b' : status === 'Not Elected' ? '#ef4444' : '#6b7280';
+                          return (
+                            <tr key={p.partyId} style={{ borderBottom: `1px solid ${BORDER}20`, background: isMe ? `${partyColor}0a` : 'transparent' }}>
+                              <td className="px-4 py-2">
+                                <span className="font-bold" style={{ color: isMe ? partyColor : TEXT }}>{p.partyAbbreviation}</span>
+                                <span className="text-zinc-600 ml-1.5 text-[9px]">{p.partyName}{isMe ? ' ★' : ''}</span>
+                              </td>
+                              <td className="px-4 py-2 text-right font-mono text-zinc-500">{p.votes.toLocaleString()}</td>
+                              <td className="px-4 py-2 text-right font-mono text-zinc-300">{p.voteShare}%</td>
+                              <td className="px-4 py-2 text-right font-bold" style={{ color: isMe ? partyColor : TEXT }}>{p.seats}</td>
+                              <td className="px-4 py-2 text-[9px] font-semibold uppercase tracking-widest" style={{ color: sc }}>{status}</td>
+                            </tr>
+                          );
+                        })}
+                        <tr style={{ borderBottom: `1px solid ${BORDER}20`, background: 'rgba(146,64,14,0.04)' }}>
+                          <td className="px-4 py-2"><span className="font-bold text-amber-800 text-[9px]">IND</span><span className="text-zinc-600 ml-1.5 text-[9px]">Independent Individuals</span></td>
+                          <td className="px-4 py-2 text-right font-mono text-zinc-500">{election.independentIndividuals.votes.toLocaleString()}</td>
+                          <td className="px-4 py-2 text-right font-mono text-zinc-500">{election.independentIndividuals.voteShare}%</td>
+                          <td className="px-4 py-2 text-right font-bold text-amber-800">{election.independentIndividuals.seats}</td>
+                          <td className="px-4 py-2 text-[9px] font-semibold uppercase tracking-widest text-zinc-600">Non-Party</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="px-5 py-4" style={{ borderTop: `1px solid ${BORDER}` }}>
+                    <div className="text-[9px] font-mono uppercase tracking-widest text-zinc-600 mb-2">Turnout Breakdown</div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div><div className="text-[9px] text-zinc-600">Eligible</div><div className="text-xs font-mono font-bold text-zinc-300">{election.eligibleVoters.toLocaleString()}</div></div>
+                      <div><div className="text-[9px] text-zinc-600">Voted</div><div className="text-xs font-mono font-bold text-zinc-300">{election.votesCast.toLocaleString()}</div></div>
+                      <div><div className="text-[9px] text-zinc-600">NOTA</div><div className="text-xs font-mono font-bold text-zinc-400">{election.notaVotes.toLocaleString()} ({election.notaPercent}%)</div></div>
+                      <div><div className="text-[9px] text-zinc-600">Valid</div><div className="text-xs font-mono font-bold text-zinc-300">{election.validVotes.toLocaleString()}</div></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -4157,9 +4502,9 @@ export default function ActionsPage() {
           ) : activeSubtab === 'Budget' ? (
             <BudgetView budget={ctx.partyBudget} partyId={ctx.partyId || ''} />
           ) : activeSubtab === 'Elections' ? (
-            <ElectionsView ctx={ctx} onUpdateCtx={setCtx} />
+            <ElectionsView ctx={ctx} onUpdateCtx={setCtx} onNavigatePastElections={() => setActiveSubtab('Past Elections')} />
           ) : activeSubtab === 'Past Elections' ? (
-            <PastElectionsView />
+            <PastElectionsView partyId={ctx.partyId || ''} partyColor={ctx.partyColor} />
           ) : (
             <ActivityLogView />
           )}

@@ -6,7 +6,7 @@ import { useCharacterStore } from '../../../store/character.store';
 import { LogoSVG } from '../../../components/LogoSVG';
 import { PARTY_COLORS } from '../../../data/political-parties/partyLogos';
 import type { RegisteredPoliticalParty } from '../../../data/political-parties/partyTypes';
-import { getLivePartyRegistryData, initializeCurrentPartyStatsIfNeeded, formatMoney, getLiveMemberCountForParty } from '../../../lib/partyHelpers';
+import { getLivePartyRegistryData, initializeCurrentPartyStatsIfNeeded, formatMoney, getLiveMemberCountForParty, syncCurrentPartyStatsToRegisteredParties } from '../../../lib/partyHelpers';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -840,7 +840,13 @@ function PublicNoticesSection() {
   const [parties, setParties] = useState<RegisteredPoliticalParty[]>([]);
 
   useEffect(() => {
-    setParties(getPartiesByContinent(activeContinent));
+    const update = () => {
+      syncCurrentPartyStatsToRegisteredParties();
+      setParties(getPartiesByContinent(activeContinent));
+    };
+    update();
+    const interval = setInterval(update, 2000);
+    return () => clearInterval(interval);
   }, [activeContinent]);
 
   return (
@@ -858,13 +864,13 @@ function PublicNoticesSection() {
       </div>
 
       {/* Continent subtabs */}
-      <div className="border-b" style={{ background: '#1a1a2e', borderColor: 'rgba(26,26,46,0.15)' }}>
+      <div className="border-b" style={{ background: '#f7f3e8', borderColor: 'rgba(26,26,46,0.15)' }}>
         <div className="max-w-4xl mx-auto px-4 md:px-8 flex items-center">
           {CONTINENTS.map((ct) => (
             <button key={ct} id={`public-notices-${ct.toLowerCase()}`} type="button"
               onClick={() => setActiveContinent(ct)}
               className="relative px-5 py-3 text-[10px] font-bold uppercase tracking-[0.18em] transition-all duration-150"
-              style={activeContinent === ct ? { color: '#c0a060' } : { color: 'rgba(243,239,230,0.4)' }}>
+              style={activeContinent === ct ? { color: '#8a7a5a' } : { color: 'rgba(26,26,46,0.4)' }}>
               {ct}
               {activeContinent === ct && <span className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: '#c0a060' }} />}
             </button>
@@ -886,8 +892,8 @@ function PublicNoticesSection() {
         {parties.length === 0 ? (
           <div className="py-16 text-center">
             <div className="w-16 h-16 mx-auto mb-5 flex items-center justify-center"
-              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '2px' }}>
-              <svg className="w-8 h-8 text-zinc-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1}>
+              style={{ background: 'rgba(26,26,46,0.03)', border: '1px solid rgba(26,26,46,0.06)', borderRadius: '2px' }}>
+              <svg className="w-8 h-8 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
@@ -897,12 +903,12 @@ function PublicNoticesSection() {
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden shadow-xl" style={{ background: '#1a1a2e', border: '1px solid rgba(26,26,46,0.1)', borderRadius: '2px' }}>
+          <div className="overflow-hidden shadow-sm" style={{ background: '#f7f3e8', border: '1px solid rgba(26,26,46,0.15)', borderRadius: '2px' }}>
             {/* Table header */}
             <div className="grid grid-cols-[48px_80px_1fr_72px] gap-0 px-4 py-2.5"
-              style={{ background: 'rgba(192,160,96,0.07)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              style={{ background: 'rgba(26,26,46,0.03)', borderBottom: '1px solid rgba(26,26,46,0.1)' }}>
               {['Rank', 'Party ABB', 'Party Name', 'Members'].map((h) => (
-                <div key={h} className="text-[8px] font-mono uppercase tracking-[0.2em]" style={{ color: '#c0a060' }}>{h}</div>
+                <div key={h} className="text-[8px] font-mono uppercase tracking-[0.2em]" style={{ color: '#8a7a5a' }}>{h}</div>
               ))}
             </div>
             {/* Rows */}
@@ -910,8 +916,8 @@ function PublicNoticesSection() {
               const color = PARTY_COLORS.find((c) => c.id === party.colorId)?.hex ?? '#c0a060';
               return (
                 <div key={party.partyId}
-                  className="grid grid-cols-[48px_80px_1fr_72px] gap-0 px-4 py-3 transition-all duration-150 hover:bg-white/[0.02]"
-                  style={{ borderBottom: idx < parties.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                  className="grid grid-cols-[48px_80px_1fr_72px] gap-0 px-4 py-3 transition-all duration-150 hover:bg-black/[0.02]"
+                  style={{ borderBottom: idx < parties.length - 1 ? '1px solid rgba(26,26,46,0.06)' : 'none' }}>
                   {/* Rank */}
                   <div className="font-mono text-[10px] font-bold text-zinc-500">#{idx + 1}</div>
                   {/* Abbreviation */}
@@ -922,13 +928,13 @@ function PublicNoticesSection() {
                   <button type="button"
                     id={`party-name-${party.partyId}`}
                     onClick={() => setSelectedParty(party)}
-                    className="text-left text-sm font-semibold text-zinc-200 hover:underline transition-colors truncate pr-3"
-                    style={{ color: 'rgba(255,255,255,0.88)', cursor: 'pointer' }}>
+                    className="text-left text-sm font-semibold text-gray-900 hover:underline transition-colors truncate pr-3"
+                    style={{ cursor: 'pointer' }}>
                     {party.partyName}
                   </button>
                   {/* Members */}
-                  <div className="font-mono text-[10px] font-bold" style={{ color: 'rgba(52,211,153,0.8)' }}>
-                    {((party as any).computedMembers ?? 0).toLocaleString()}
+                  <div className="font-mono text-[10px] font-bold" style={{ color: 'rgba(52,211,153,0.9)' }}>
+                    {((party as any).computedMembers ?? (party as any).members ?? 1).toLocaleString()}
                   </div>
                 </div>
               );
@@ -973,6 +979,7 @@ export default function VareliaNewsPage() {
 
   useEffect(() => {
     initializeCurrentPartyStatsIfNeeded();
+    syncCurrentPartyStatsToRegisteredParties();
     const t = setTimeout(() => setRevealed(true), 80);
 
     const charName = [character.firstName, character.middleName, character.lastName].filter(Boolean).join(' ') || '—';
