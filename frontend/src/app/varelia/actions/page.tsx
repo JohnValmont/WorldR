@@ -2115,7 +2115,27 @@ function ElectionsView({ ctx, onUpdateCtx, onNavigatePastElections }: { ctx: Pla
       const pastRaw = localStorage.getItem(PAST_ELECTIONS_KEY);
       if (pastRaw) {
         const past: ElectionResult[] = JSON.parse(pastRaw);
-        const done = past.find(r => r.electionId === 'drennia_parliamentary_y0' && r.countryName === 'Drennia');
+        
+        let regsRaw = localStorage.getItem('worldr_election_registrations');
+        let currentReg = null;
+        if (regsRaw) {
+          const regs = JSON.parse(regsRaw);
+          currentReg = regs.find((r: any) => r.partyId === ctx.partyId && r.electionId === 'drennia_parliamentary_y0');
+        }
+
+        let done = null;
+        if (currentReg && currentReg.electionRunId) {
+          done = past.find(r => r.electionRunId === currentReg.electionRunId && r.partyId === ctx.partyId);
+        }
+        if (!done) {
+          const partyPast = past.filter(r => r.partyId === ctx.partyId).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          if (partyPast.length > 0) done = partyPast[0];
+        }
+        if (!done) {
+          const abbPast = past.filter(r => r.parties?.some(p => p.partyAbbreviation === ctx.partyAbbreviation && p.isCurrentParty && !p.dissolved)).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          if (abbPast.length > 0) done = abbPast[0];
+        }
+
         if (done) { setElectionCompleted(true); setCompletedResult(done); }
       }
     } catch (e) {}
@@ -2256,7 +2276,8 @@ function ElectionsView({ ctx, onUpdateCtx, onNavigatePastElections }: { ctx: Pla
     const now = new Date().toISOString();
     let txs: any[] = []; try { const r = localStorage.getItem('worldr_party_transactions'); if (r) txs = JSON.parse(r); } catch (e) {}
     txs.unshift({ id: Math.random().toString(36).slice(2, 9), partyId: ctx.partyId, type: 'expense', category: 'Election Registration', source: election.electionName, amount: election.registrationFee, actionName: 'Register for Election', createdAt: now });
-    const newReg = { registrationId: Math.random().toString(36).slice(2, 9), electionId: election.electionId, electionName: election.electionName, partyId: ctx.partyId, partyName: ctx.partyName, partyAbbreviation: ctx.partyAbbreviation, countryName: election.countryName, continentName: election.continentName, electionType: election.electionType, registrationFeePaid: election.registrationFee, recognitionAtRegistration: recognition, fundsAfterRegistration: updatedFunds, registeredAt: now, status: 'Registered' };
+    const electionRunId = `${election.electionId}_${ctx.partyId}_${Date.now()}`;
+    const newReg = { registrationId: Math.random().toString(36).slice(2, 9), electionId: election.electionId, electionRunId, electionName: election.electionName, partyId: ctx.partyId, partyName: ctx.partyName, partyAbbreviation: ctx.partyAbbreviation, countryName: election.countryName, continentName: election.continentName, electionType: election.electionType, registrationFeePaid: election.registrationFee, recognitionAtRegistration: recognition, fundsAfterRegistration: updatedFunds, registeredAt: now, status: 'Registered' };
     const updatedRegs = [newReg, ...registrations];
     let logs: any[] = []; try { const r = localStorage.getItem('worldr_activity_log'); if (r) logs = JSON.parse(r); } catch (e) {}
     logs.unshift({ id: Math.random().toString(36).slice(2, 9), partyId: ctx.partyId, countryName: ctx.countryName, continentName: ctx.continentName, actionName: 'Election Registration', roleName: 'Party Leader', officialName: ctx.characterName, investment: election.registrationFee, finalScore: 10, resultQuality: 'Success', summary: `Party registered for the ${election.electionName} after paying the ${formatMoney(election.registrationFee)} registration fee.`, createdAt: now });
@@ -2341,10 +2362,29 @@ function ElectionsView({ ctx, onUpdateCtx, onNavigatePastElections }: { ctx: Pla
       }
     }
 
+    const currentReg = electionRegs.find((r: any) => r.partyId === ctx.partyId);
+    const activeRunId = currentReg?.electionRunId || `${election.electionId}_${ctx.partyId}_${Date.now()}`;
+
     const result = simulateElectionDay(elConfig, election.electionId, election.electionName, partyInputs);
+    result.electionRunId = activeRunId;
+    result.partyId = ctx.partyId;
+    
+    let pm = "None";
+    const largestParty = [...result.parties].sort((a,b) => b.seats - a.seats)[0];
+    if (largestParty && largestParty.seats > 0) {
+      pm = largestParty.leaderName || "Unknown";
+    }
+    result.primeMinisterName = pm;
+
     savePastElection(result);
     setElectionCompleted(true);
     setCompletedResult(result);
+
+    if (currentReg) {
+      currentReg.status = 'Completed';
+      currentReg.completed = true;
+      localStorage.setItem('worldr_election_registrations', JSON.stringify(allRegsRaw));
+    }
 
     // Add activity log entry
     try {
@@ -2906,7 +2946,7 @@ function PastElectionsView({ partyId, partyColor }: { partyId: string; partyColo
         </div>
 
         {pastElections.map((election) => {
-          const myPartyResult = election.parties.find(p => p.partyId === partyId);
+          const myPartyResult = election.parties.find(p => p.partyId === partyId && !p.dissolved);
           const isExpanded = expandedId === election.electionId;
           const majoritySeats = DRENNIA_ELECTION_CONFIG.majoritySeats;
           const totalSeats = election.parliamentSeats;
@@ -2915,7 +2955,12 @@ function PastElectionsView({ partyId, partyColor }: { partyId: string; partyColo
           const hasMajority = mySeats >= majoritySeats;
 
           const allSegments = [
-            ...election.parties.map(p => ({ name: p.partyAbbreviation, seats: p.seats, color: p.partyId === partyId ? partyColor : '#6b7280', isMe: p.partyId === partyId })),
+            ...election.parties.map(p => ({ 
+              name: p.partyAbbreviation, 
+              seats: p.seats, 
+              color: p.dissolved ? '#4b5563' : (p.partyId === partyId ? partyColor : '#6b7280'), 
+              isMe: p.partyId === partyId && !p.dissolved 
+            })),
             { name: 'IND', seats: election.independentIndividuals.seats, color: '#92400e', isMe: false },
           ].filter(s => s.seats > 0);
 
@@ -2931,6 +2976,9 @@ function PastElectionsView({ partyId, partyColor }: { partyId: string; partyColo
                     {!(election as any).calculationVersion && <span className="text-[8px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(113,113,122,0.08)', color: '#71717a', border: '1px solid rgba(113,113,122,0.20)' }}>Legacy Result</span>}
                   </div>
                   <h3 className="text-sm font-bold text-white truncate">{election.electionName}</h3>
+                  {election.primeMinisterName && election.primeMinisterName !== 'None' && (
+                    <div className="text-[10px] text-zinc-400 mt-0.5">Prime Minister: <span className="font-semibold text-zinc-300">{election.primeMinisterName}</span></div>
+                  )}
                   <div className="flex gap-4 mt-1.5">
                     <span className="text-[10px] text-zinc-500">Turnout: <span className="text-zinc-300 font-mono">{election.turnoutPercent}%</span></span>
                     <span className="text-[10px] text-zinc-500">NOTA: <span className="text-zinc-400 font-mono">{election.notaPercent}%</span></span>
@@ -2989,18 +3037,19 @@ function PastElectionsView({ partyId, partyColor }: { partyId: string; partyColo
                       </thead>
                       <tbody>
                         {election.parties.map((p) => {
-                          const isMe = p.partyId === partyId;
+                          const isMe = p.partyId === partyId && !p.dissolved;
+                          const isDissolved = p.dissolved;
                           const status = getPartyResultStatus(p.seats, totalSeats, majoritySeats);
-                          const sc = status === 'Majority' ? '#34d399' : status === 'Opposition' ? '#f59e0b' : status === 'Not Elected' ? '#ef4444' : '#6b7280';
+                          const sc = isDissolved ? '#6b7280' : (status === 'Majority' ? '#34d399' : status === 'Opposition' ? '#f59e0b' : status === 'Not Elected' ? '#ef4444' : '#6b7280');
                           return (
                             <tr key={p.partyId} style={{ borderBottom: `1px solid ${BORDER}20`, background: isMe ? `${partyColor}0a` : 'transparent' }}>
                               <td className="px-4 py-2">
-                                <span className="font-bold" style={{ color: isMe ? partyColor : TEXT }}>{p.partyAbbreviation}</span>
-                                <span className="text-zinc-600 ml-1.5 text-[9px]">{p.partyName}{isMe ? ' ★' : ''}</span>
+                                <span className="font-bold" style={{ color: isDissolved ? '#9ca3af' : (isMe ? partyColor : TEXT) }}>{p.partyAbbreviation}</span>
+                                <span className="text-zinc-600 ml-1.5 text-[9px]">{p.partyName}{isDissolved ? ' (Dissolved)' : ''}{isMe ? ' ★' : ''}</span>
                               </td>
                               <td className="px-4 py-2 text-right font-mono text-zinc-500">{formatNumberUS(p.votes)}</td>
                               <td className="px-4 py-2 text-right font-mono text-zinc-300">{p.voteShare}%</td>
-                              <td className="px-4 py-2 text-right font-bold" style={{ color: isMe ? partyColor : TEXT }}>{p.seats}</td>
+                              <td className="px-4 py-2 text-right font-bold" style={{ color: isDissolved ? '#9ca3af' : (isMe ? partyColor : TEXT) }}>{p.seats}</td>
                               <td className="px-4 py-2 text-[9px] font-semibold uppercase tracking-widest" style={{ color: sc }}>{status}</td>
                             </tr>
                           );
@@ -4602,15 +4651,14 @@ export default function ActionsPage() {
             let updatedElections = [];
             for (let election of elections) {
               if (election.parties && Array.isArray(election.parties)) {
-                // Remove the dissolved party from the parties list
-                election.parties = election.parties.filter((p: any) => p.partyId !== dissolvePartyId);
-                
-                // If it was a local alpha human election and the human party is gone, drop the election entirely
-                // (Since we only have one human party right now, if the parties list drops below total seats or human is gone, drop it)
-                const hasPlayerParty = election.parties.some((p: any) => p.partyId !== 'independent');
-                if (hasPlayerParty) {
-                  updatedElections.push(election);
-                }
+                // Mark the dissolved party as dissolved instead of removing it
+                election.parties = election.parties.map((p: any) => {
+                  if (p.partyId === dissolvePartyId || p.partyAbbreviation === dissolveAbbreviation) {
+                    p.dissolved = true;
+                  }
+                  return p;
+                });
+                updatedElections.push(election);
               } else {
                 updatedElections.push(election);
               }

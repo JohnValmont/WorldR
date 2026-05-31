@@ -82,6 +82,7 @@ export interface ElectionPartyResult {
   campaignStrength: number;
   controversy: number;
   isCurrentParty?: boolean;
+  dissolved?: boolean;
 }
 
 export interface IndependentResult {
@@ -114,6 +115,9 @@ export interface NotaBreakdown {
 export interface ElectionResult {
   resultId: string;
   electionId: string;
+  electionRunId?: string;
+  partyId?: string;
+  primeMinisterName?: string;
   electionName: string;
   countryName: string;
   continentName: string;
