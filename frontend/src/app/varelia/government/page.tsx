@@ -281,7 +281,7 @@ export default function GovernmentPage() {
       // Generate new government record
       
       // Find party with highest seats
-      const sortedParties = [...latestElection.parties].sort((a, b) => b.seats - a.seats);
+      const sortedParties = [...(latestElection.parties || [])].sort((a, b) => b.seats - a.seats);
       let governingParty = null;
       let govType = 'Independent-Dominated Parliament';
       
@@ -389,6 +389,23 @@ export default function GovernmentPage() {
     setGovRecord(currentGov);
   }, [ctx.countryName, ctx.partyId, ctx.characterName]);
 
+
+  if (!ctx.partyId) {
+    return (
+      <div className="min-h-screen flex flex-col font-sans select-none" style={{ background: BG, color: TEXT }}>
+        {renderTopNav()}
+        <main className="flex-1 relative overflow-hidden flex">
+          <div className="flex-1 flex flex-col items-center justify-center p-8 h-full">
+            <div className="text-sm font-bold tracking-widest text-zinc-300 uppercase mb-2 text-center">No Party Found</div>
+            <div className="text-[11px] text-zinc-500 text-center max-w-md leading-relaxed">
+              Government data is unavailable. Create or load a political party first.
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (!pastElection || !govRecord) {
     return (
     <div className="min-h-screen flex flex-col font-sans select-none" style={{ background: BG, color: TEXT }}>
@@ -419,9 +436,14 @@ export default function GovernmentPage() {
   }
 
   // Calculate party status
-  const currentPartySeats = pastElection.parties.find((p: any) => p.partyId === ctx.partyId)?.seats || 0;
+  const currentPartyRow = (pastElection.parties || []).find((p: any) => 
+    (p.partyId && p.partyId === ctx.partyId) ||
+    (p.partyAbbreviation && p.partyAbbreviation === ctx.partyAbbreviation) ||
+    (p.partyName && p.partyName === ctx.partyName)
+  );
+  const currentPartySeats = currentPartyRow?.seats || 0;
   let partyStatus = 'Outside Parliament';
-  if (currentPartySeats >= pastElection.majoritySeats) partyStatus = 'Majority Government';
+  if (currentPartySeats >= (pastElection?.majoritySeats || 61)) partyStatus = 'Majority Government';
   else if (currentPartySeats >= 30) partyStatus = 'Major Party';
   else if (currentPartySeats >= 15) partyStatus = 'Rising Party';
   else if (currentPartySeats >= 5) partyStatus = 'Minor Party';
@@ -429,7 +451,7 @@ export default function GovernmentPage() {
 
   const renderSeatChart = () => {
     // Grid of 120 blocks representing seats
-    const sortedParties = [...pastElection.parties].sort((a, b) => b.seats - a.seats);
+    const sortedParties = [...(pastElection.parties || [])].sort((a, b) => b.seats - a.seats);
     let blocks = [];
     sortedParties.forEach(p => {
        for(let i=0; i<p.seats; i++) {
@@ -450,7 +472,7 @@ export default function GovernmentPage() {
   };
 
   const currentPartyGov = govRecord.governingPartyId === ctx.partyId;
-  const controlledMinistries = govRecord.ministries.filter((m: any) => m.controllingPartyId === ctx.partyId);
+  const controlledMinistries = (govRecord.ministries || []).filter((m: any) => m.controllingPartyId === ctx.partyId);
   const selectedMin = controlledMinistries.find((m: any) => m.ministryId === selectedMinId) || controlledMinistries[0];
 
   const getMinistryActions = (minId: string) => {
@@ -522,11 +544,11 @@ export default function GovernmentPage() {
                   </div>
                   <div className="p-3" style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
                     <div className="text-[9px] uppercase font-mono text-zinc-500 mb-1">Parliament Seats</div>
-                    <div className="text-xs font-bold text-zinc-300">{formatNumberUS(pastElection.parliamentSeats)}</div>
+                    <div className="text-xs font-bold text-zinc-300">{formatNumberUS((pastElection?.parliamentSeats || 120))}</div>
                   </div>
                   <div className="p-3" style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
                     <div className="text-[9px] uppercase font-mono text-zinc-500 mb-1">Majority Required</div>
-                    <div className="text-xs font-bold text-amber-500">{formatNumberUS(pastElection.majoritySeats)}</div>
+                    <div className="text-xs font-bold text-amber-500">{formatNumberUS((pastElection?.majoritySeats || 61))}</div>
                   </div>
                 </div>
 
@@ -577,7 +599,7 @@ export default function GovernmentPage() {
                   <p className="text-[10px] uppercase font-mono text-zinc-500 mt-1">{ctx.countryName} National Assembly</p>
                 </div>
                 <div className="text-[10px] uppercase font-mono text-emerald-500 border border-emerald-900 px-2 py-1 bg-emerald-950/20">
-                  Total Seats: {formatNumberUS(pastElection.parliamentSeats)}
+                  Total Seats: {formatNumberUS((pastElection?.parliamentSeats || 120))}
                 </div>
               </div>
 
@@ -595,10 +617,10 @@ export default function GovernmentPage() {
                   </thead>
                   <tbody>
                     {/* Player Parties */}
-                    {[...pastElection.parties].sort((a, b) => b.seats - a.seats).map((p: any) => {
+                    {[...(pastElection.parties || [])].sort((a, b) => b.seats - a.seats).map((p: any) => {
                       const isMe = p.partyId === ctx.partyId;
                       let pStatus = 'Outside Parliament';
-                      if (p.seats >= pastElection.majoritySeats) pStatus = 'Majority Government';
+                      if (p.seats >= (pastElection?.majoritySeats || 61)) pStatus = 'Majority Government';
                       else if (p.seats >= 30) pStatus = 'Major Party';
                       else if (p.seats >= 15) pStatus = 'Rising Party';
                       else if (p.seats >= 5) pStatus = 'Minor Party';
@@ -616,7 +638,7 @@ export default function GovernmentPage() {
                           <td className="py-3 text-zinc-300">{p.leaderName}</td>
                           <td className="py-3 text-right font-bold text-zinc-100">{formatNumberUS(p.seats)}</td>
                           <td className="py-3 text-right text-zinc-400 font-mono">{p.voteShare.toFixed(1)}%</td>
-                          <td className="py-3 text-right text-zinc-400 font-mono">{((p.seats / pastElection.parliamentSeats) * 100).toFixed(1)}%</td>
+                          <td className="py-3 text-right text-zinc-400 font-mono">{((p.seats / (pastElection?.parliamentSeats || 120)) * 100).toFixed(1)}%</td>
                           <td className="py-3 pl-4 text-emerald-500/80 font-mono text-[9px] uppercase">{pStatus}</td>
                         </tr>
                       );
@@ -633,7 +655,7 @@ export default function GovernmentPage() {
                       <td className="py-3 text-zinc-600">ΓÇö</td>
                       <td className="py-3 text-right font-bold text-zinc-400">{formatNumberUS((pastElection.independentIndividuals?.seats || 0))}</td>
                       <td className="py-3 text-right text-zinc-500 font-mono">{pastElection.notaPercent?.toFixed(1) || '0.0'}%</td>
-                      <td className="py-3 text-right text-zinc-500 font-mono">{(((pastElection.independentIndividuals?.seats || 0) / pastElection.parliamentSeats) * 100).toFixed(1)}%</td>
+                      <td className="py-3 text-right text-zinc-500 font-mono">{(((pastElection.independentIndividuals?.seats || 0) / (pastElection?.parliamentSeats || 120)) * 100).toFixed(1)}%</td>
                       <td className="py-3 pl-4 text-zinc-600 font-mono text-[9px] uppercase">Non-party bloc</td>
                     </tr>
                   </tbody>
@@ -651,7 +673,7 @@ export default function GovernmentPage() {
               <div className="p-4 rounded-sm border-l-2" style={{ background: PANEL2, borderLeftColor: ACCENT, borderTop: `1px solid ${BORDER}`, borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
                 <h4 className="text-[10px] uppercase font-mono tracking-widest text-amber-500/80 mb-2">Legislative Rule</h4>
                 <p className="text-[10px] text-zinc-400 leading-relaxed">
-                  Ordinary bills will require <strong className="text-zinc-200">{formatNumberUS(pastElection.majoritySeats)} Yes votes</strong> to pass in DrenniaΓÇÖs {formatNumberUS(pastElection.parliamentSeats)}-seat parliament.
+                  Ordinary bills will require <strong className="text-zinc-200">{formatNumberUS((pastElection?.majoritySeats || 61))} Yes votes</strong> to pass in DrenniaΓÇÖs {formatNumberUS((pastElection?.parliamentSeats || 120))}-seat parliament.
                 </p>
               </div>
             </div>
@@ -671,7 +693,7 @@ export default function GovernmentPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {govRecord.ministries.map((min: any) => (
+                {(govRecord.ministries || []).map((min: any) => (
                   <div key={min.ministryId} className="p-4 rounded-sm relative overflow-hidden group" style={{ background: PANEL, border: `1px solid ${min.ministryId === 'pm' ? ACCENT : BORDER}` }}>
                     {min.ministryId === 'pm' && <div className="absolute top-0 left-0 w-full h-1" style={{ background: ACCENT }} />}
                     
