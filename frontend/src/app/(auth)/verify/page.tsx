@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '../../../lib/api';
 import { useAuthStore } from '../../../store/auth.store';
+import { getFlowRedirectPath } from '../../../lib/flow';
 
 const OTP_LENGTH = 6;
 
@@ -59,8 +60,7 @@ function VerifyForm() {
       if (user) setUser({ ...user, is_verified: true });
       setSuccess(true);
       setTimeout(() => {
-        const granted = typeof window !== 'undefined' && localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-        router.push(granted ? '/drennia/home' : '/pre-alpha-access');
+        router.push(getFlowRedirectPath());
       }, 2000);
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Invalid or expired code. Please try again.');

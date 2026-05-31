@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getFlowRedirectPath } from '../../lib/flow';
 
 export default function PreAlphaAccessPage() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function PreAlphaAccessPage() {
     if (typeof window !== 'undefined') {
       const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1');
       if (granted === 'true') {
-        router.replace('/drennia/home');
+        router.replace(getFlowRedirectPath());
       }
     }
   }, [router]);
@@ -32,7 +33,7 @@ export default function PreAlphaAccessPage() {
       
       // Artificial delay for feel
       setTimeout(() => {
-        router.push('/drennia/home');
+        router.push(getFlowRedirectPath());
       }, 800);
     } else {
       setError('Invalid pre-alpha access code.');

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authApi } from '../../../lib/api';
 import { useAuthStore } from '../../../store/auth.store';
+import { getFlowRedirectPath } from '../../../lib/flow';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,14 +26,7 @@ export default function LoginPage() {
       if (!user.is_verified) {
         router.push(`/verify?email=${encodeURIComponent(user.email)}`);
       } else {
-        const getRedirectPath = (): string => {
-          if (typeof window === 'undefined') return '/pre-alpha-access';
-          if (localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true') {
-            return '/drennia/home';
-          }
-          return '/pre-alpha-access';
-        };
-        router.push(getRedirectPath());
+        router.push(getFlowRedirectPath());
       }
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Invalid credentials. Please try again.');

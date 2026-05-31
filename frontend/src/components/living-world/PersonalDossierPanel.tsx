@@ -15,15 +15,38 @@ export default function PersonalDossierPanel() {
       charisma: 40,
       influence: 25,
       resources: 20
+    },
+    story: {
+      firstNpcContact: 'Pending...',
+      firstObligation: 'Pending...',
+      firstVulnerability: 'Pending...'
     }
   });
 
   useEffect(() => {
     try {
-      const charV2 = localStorage.getItem('worldr_character_v2');
-      const originV1 = localStorage.getItem('worldr_character_origin_v1');
-      const motherland = localStorage.getItem('worldr_selected_motherland');
-      // Logic for fallback handled mostly by initial state.
+      const citizenFile = localStorage.getItem('worldr_citizen_file_v1');
+      if (citizenFile) {
+        const parsed = JSON.parse(citizenFile);
+        setCharData({
+          name: parsed.name || 'New Citizen',
+          age: parsed.age || 18,
+          status: 'New Citizen',
+          homeState: parsed.homeState || 'Drennport State',
+          motherland: parsed.motherland || 'Drennia',
+          factors: parsed.factors || {
+            credibility: 35,
+            charisma: 35,
+            influence: 20,
+            resources: 15
+          },
+          story: {
+            firstNpcContact: parsed.firstNpcContact || 'Pending selection',
+            firstObligation: parsed.firstObligation || 'Pending selection',
+            firstVulnerability: parsed.firstVulnerability || 'Pending selection',
+          }
+        });
+      }
     } catch (e) {
       console.warn("Error reading dossier data", e);
     }
@@ -122,7 +145,7 @@ export default function PersonalDossierPanel() {
               First Contact
             </div>
             <div style={{ fontSize: '13px', color: theme.colors.text.textPrimary }}>
-              Teacher Mentor
+              {(charData as any).story?.firstNpcContact || 'Pending...'}
             </div>
           </div>
           <div>
@@ -130,7 +153,7 @@ export default function PersonalDossierPanel() {
               First Obligation
             </div>
             <div style={{ fontSize: '13px', color: theme.colors.text.textPrimary }}>
-              Family Debt
+              {(charData as any).story?.firstObligation || 'Pending...'}
             </div>
           </div>
           <div>
@@ -138,7 +161,7 @@ export default function PersonalDossierPanel() {
               First Vulnerability
             </div>
             <div style={{ fontSize: '13px', color: theme.colors.text.textPrimary }}>
-              Low Resources
+              {(charData as any).story?.firstVulnerability || 'Pending...'}
             </div>
           </div>
         </div>

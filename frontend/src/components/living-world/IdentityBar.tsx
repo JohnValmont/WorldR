@@ -15,15 +15,16 @@ export default function IdentityBar() {
 
   useEffect(() => {
     try {
-      // Future integration points for character data
-      const charV2 = localStorage.getItem('worldr_character_v2');
-      const originV1 = localStorage.getItem('worldr_character_origin_v1');
-      const motherland = localStorage.getItem('worldr_selected_motherland');
-
-      if (charV2 || originV1 || motherland) {
-        // Parse if available, otherwise use fallbacks. We keep fallbacks for now.
-        // let parsedChar = charV2 ? JSON.parse(charV2) : {};
-        // let parsedOrigin = originV1 ? JSON.parse(originV1) : {};
+      const citizenFile = localStorage.getItem('worldr_citizen_file_v1');
+      if (citizenFile) {
+        const parsed = JSON.parse(citizenFile);
+        setCharData(prev => ({
+          ...prev,
+          name: parsed.name || prev.name,
+          age: parsed.age || prev.age,
+          homeState: parsed.homeState || prev.homeState,
+          motherland: parsed.motherland || prev.motherland,
+        }));
       }
     } catch (e) {
       console.warn("Failed to load character data", e);
