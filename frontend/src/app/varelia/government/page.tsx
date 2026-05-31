@@ -114,6 +114,371 @@ interface PlayerCtx {
   partyStats?: any;
 }
 
+function getActiveGovernmentState(ctx: any) {
+  if (!ctx || !ctx.countryName) return null;
+
+  const rawElections = localStorage.getItem('worldr_past_elections');
+  if (!rawElections) return null;
+  const elections: any[] = JSON.parse(rawElections);
+  const activeElections = elections.filter(e => e.countryName === ctx.countryName && e.parties?.some((p:any) => p.partyId === ctx.partyId && !p.dissolved)).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  
+  if (activeElections.length === 0) return null;
+  const latestElection = activeElections[0];
+
+  const rawGov = localStorage.getItem('worldr_government_cabinet');
+  let govList: any[] = rawGov ? JSON.parse(rawGov) : [];
+  
+  if (govList.length === 0) {
+    const oldGov = localStorage.getItem('worldr_government_ministries');
+    if (oldGov) govList = JSON.parse(oldGov);
+  }
+
+  let currentGov = govList.find(g => g.resultId === latestElection.resultId && g.countryName === ctx.countryName);
+
+  const sortedParties = [...(latestElection.parties || [])].filter((p:any) => !p.dissolved).sort((a:any, b:any) => b.seats - a.seats);
+  let governingParty = null;
+  let govType = 'Independent-Dominated Parliament';
+  const majorityReq = latestElection.majoritySeats || 61;
+  const parliamentSeats = latestElection.parliamentSeats || 120;
+  
+  if (sortedParties.length > 0 && sortedParties[0].seats > 0) {
+    governingParty = sortedParties[0];
+    if (governingParty.seats >= majorityReq) {
+      govType = 'Majority Government';
+    } else {
+      govType = 'Minority Government';
+    }
+  }
+
+  const offices = [
+    { id: 'pm', name: 'Prime Minister', policyArea: ['government direction', 'national leadership', 'mandate management'] },
+    { id: 'finance', name: 'Finance Minister', policyArea: ['taxes', 'budget', 'spending', 'debt', 'fiscal credibility'] },
+    { id: 'interior', name: 'Interior Minister', policyArea: ['administration', 'public order', 'bureaucracy', 'local government'] },
+    { id: 'economy', name: 'Economy Minister', policyArea: ['jobs', 'industry', 'business', 'trade inside economy'] },
+    { id: 'social', name: 'Social Minister', policyArea: ['health', 'education', 'welfare', 'labour', 'youth'] },
+    { id: 'justice', name: 'Justice Minister', policyArea: ['courts', 'corruption', 'legal reform', 'public integrity'] },
+    { id: 'defence', name: 'Defence Minister', policyArea: ['military', 'readiness', 'veterans', 'national security'] },
+    { id: 'foreign', name: 'Foreign Minister', policyArea: ['diplomacy', 'treaties', 'foreign reputation', 'external trade relations'] },
+  ];
+
+  if (!currentGov) {
+    const generateName = () => {
+      const fns = ['Aris', 'Bane', 'Cael', 'Dora', 'Elara', 'Fenn', 'Gael', 'Hale', 'Ira', 'Jace', 'Lyra', 'Nia', 'Orin', 'Quinn', 'Sia', 'Uri', 'Wren', 'Yara'];
+      const lns = ['Voss', 'Tarn', 'Kest', 'Renn', 'Vale', 'Thorn', 'Lest', 'Gant', 'Vane', 'Sorn', 'Karn', 'Vell', 'Tess'];
+      return `${fns[Math.floor(Math.random() * fns.length)]} ${lns[Math.floor(Math.random() * lns.length)]}`;
+    };
+
+    let localStaff: any = {};
+    let isPlayerGov = governingParty && governingParty.partyId === ctx.partyId;
+    if (isPlayerGov) {
+       try {
+         const sRaw = localStorage.getItem('worldr_party_staff');
+         if (sRaw) localStaff = JSON.parse(sRaw);
+       } catch(e) {}
+    }
+
+    const cabinet = offices.map((off) => {
+      let ministerName = generateName();
+      let age = Math.floor(35 + Math.random() * 33);
+      let skill = Math.floor(45 + Math.random() * 40);
+      let loyalty = Math.floor(45 + Math.random() * 50);
+
+      if (governingParty) {
+        if (off.id === 'pm') {
+          ministerName = isPlayerGov ? ctx.characterName : governingParty.leaderName;
+          skill = 85; loyalty = 100;
+        } else if (isPlayerGov) {
+           let matchingStaff = null;
+           if (off.id === 'finance' && localStaff['treasurer']) matchingStaff = localStaff['treasurer'];
+           if (off.id === 'interior' && localStaff['membershipOfficer']) matchingStaff = localStaff['membershipOfficer'];
+           if (off.id === 'economy' && localStaff['campaignMediaManager']) matchingStaff = localStaff['campaignMediaManager'];
+           if (off.id === 'justice' && localStaff['publicImageManager']) matchingStaff = localStaff['publicImageManager'];
+           if (matchingStaff) {
+             ministerName = matchingStaff.name;
+             age = matchingStaff.age; skill = matchingStaff.skill; loyalty = matchingStaff.loyalty;
+           }
+        }
+      }
+      return {
+        officeId: off.id,
+        officeName: off.name,
+        controllingPartyId: governingParty ? governingParty.partyId : null,
+        ministerName: governingParty ? ministerName : 'Vacant',
+        ministerSkill: skill,
+        ministerLoyalty: loyalty,
+        ministerApproval: loyalty,
+        policyArea: off.policyArea,
+        status: governingParty ? 'Active' : 'Vacant'
+      };
+    });
+
+    currentGov = {
+      governmentId: Math.random().toString(36).substring(2, 10),
+      electionId: latestElection.electionId,
+      resultId: latestElection.resultId,
+      countryName: ctx.countryName,
+      continentName: ctx.continentName,
+      formedAt: new Date().toISOString(),
+      governingPartyId: governingParty ? governingParty.partyId : null,
+      governingPartyName: governingParty ? governingParty.partyName : null,
+      governingPartyAbbreviation: governingParty ? governingParty.partyAbbreviation : null,
+      governmentType: govType,
+      cabinet,
+      ministries: cabinet
+    };
+    
+    govList.push(currentGov);
+    localStorage.setItem('worldr_government_cabinet', JSON.stringify(govList));
+  }
+
+  if (currentGov.cabinet || currentGov.ministries) {
+    const cab = currentGov.cabinet || currentGov.ministries;
+    currentGov.cabinet = cab.map((m:any) => {
+      let readinessScore = 0;
+      let readinessLabel = 'Vacant';
+      if (m.status === 'Vacant' || m.ministerName === 'Vacant') {
+        readinessLabel = 'Vacant';
+      } else {
+        readinessScore = (m.ministerSkill * 0.45) + (m.ministerApproval * 0.35) + (m.ministerLoyalty * 0.20);
+        if (readinessScore >= 80) readinessLabel = 'Strong';
+        else if (readinessScore >= 65) readinessLabel = 'Stable';
+        else if (readinessScore >= 50) readinessLabel = 'Unsteady';
+        else readinessLabel = 'Weak';
+      }
+      
+      const staticOffice = offices.find(o => o.id === m.officeId || o.id === m.ministryId);
+      return {
+        ...m,
+        ministryId: m.officeId || m.ministryId,
+        officeId: m.officeId || m.ministryId,
+        readinessScore,
+        readinessLabel,
+        policyArea: staticOffice?.policyArea || [],
+        activeIssueLoad: 0
+      };
+    });
+    currentGov.ministries = currentGov.cabinet;
+  }
+
+  const getOrGenerate = (key: string, generator: () => any) => {
+    const raw = localStorage.getItem(key);
+    let list = raw ? JSON.parse(raw) : [];
+    let record = list.find((item:any) => item.governmentId === currentGov.governmentId);
+    if (!record && currentGov.governingPartyId) {
+      record = generator();
+      if (record) {
+        list.push(record);
+        localStorage.setItem(key, JSON.stringify(list));
+      }
+    }
+    return record;
+  };
+
+  const mandate = getOrGenerate('worldr_government_mandates', () => {
+    let strength = 'Moderate';
+    if (governingParty && governingParty.seats >= majorityReq && (governingParty.voteShare || 0) > 40) strength = 'Strong';
+    else if (governingParty && governingParty.seats < 30) strength = 'Weak';
+
+    return {
+      mandateId: Math.random().toString(36).substring(2, 10),
+      governmentId: currentGov.governmentId,
+      title: 'Economic Renewal',
+      strength,
+      publicExpectation: 'Citizens expect visible action on jobs, industry, business confidence, and cost-of-living pressure.',
+      priorityBlocs: ['Urban Professionals', 'Industrial Workers', 'Small Business Owners'],
+      responsibleOffices: ['Economy Minister', 'Finance Minister', 'Social Minister'],
+      recommendedPolicyAreas: ['Industrialisation', 'Jobs & Skills', 'Small Business Support', 'Cost of Living Relief'],
+      patience: 'Medium',
+      ignoredRisk: 'Promise failure risk increases if no economy/jobs policy is advanced.',
+      fulfilledScore: 0,
+      createdAt: new Date().toISOString()
+    };
+  });
+
+  const getOrGenerateList = (key: string, generator: () => any[]) => {
+    const raw = localStorage.getItem(key);
+    let list = raw ? JSON.parse(raw) : [];
+    let records = list.filter((item:any) => item.governmentId === currentGov.governmentId);
+    if (records.length === 0 && currentGov.governingPartyId) {
+      records = generator();
+      list.push(...records);
+      localStorage.setItem(key, JSON.stringify(list));
+    }
+    return records;
+  };
+
+  const nationalIssues = getOrGenerateList('worldr_government_issues', () => {
+    return [
+      {
+        issueId: Math.random().toString(36).substring(2, 10),
+        governmentId: currentGov.governmentId,
+        title: 'Industrial Modernization Gap',
+        severity: 'Moderate',
+        status: 'Active',
+        responsibleOffice: 'Economy Minister',
+        officeId: 'economy',
+        affectedBlocs: ['Industrial Workers', 'Urban Professionals', 'Small Business Owners'],
+        recommendedResponses: ['Industrialisation Act', 'Jobs & Skills Program', 'Small Business Modernization'],
+        riskIfIgnored: 'Employment confidence weakens and industry-focused voters become impatient.',
+        timePressure: 'Medium',
+        createdAt: new Date().toISOString()
+      },
+      {
+        issueId: Math.random().toString(36).substring(2, 10),
+        governmentId: currentGov.governmentId,
+        title: 'Cost of Living Pressure',
+        severity: 'High',
+        status: 'Urgent',
+        responsibleOffice: 'Finance Minister',
+        officeId: 'finance',
+        affectedBlocs: ['Urban Professionals', 'Rural Workers'],
+        recommendedResponses: ['Tax Relief', 'Price Controls'],
+        riskIfIgnored: 'Public approval will sink rapidly across all working-class demographics.',
+        timePressure: 'High',
+        createdAt: new Date().toISOString()
+      },
+      {
+        issueId: Math.random().toString(36).substring(2, 10),
+        governmentId: currentGov.governmentId,
+        title: 'Bureaucratic Inefficiency',
+        severity: 'Mild',
+        status: 'Watching',
+        responsibleOffice: 'Interior Minister',
+        officeId: 'interior',
+        affectedBlocs: ['Middle Class', 'Small Business Owners'],
+        recommendedResponses: ['Administrative Reform', 'Digital Government Act'],
+        riskIfIgnored: 'Slight drag on overall government efficiency and baseline approval.',
+        timePressure: 'Low',
+        createdAt: new Date().toISOString()
+      },
+      {
+        issueId: Math.random().toString(36).substring(2, 10),
+        governmentId: currentGov.currentGov,
+        title: 'Youth Employment Concern',
+        severity: 'Moderate',
+        status: 'Active',
+        responsibleOffice: 'Social Minister',
+        officeId: 'social',
+        affectedBlocs: ['Youth', 'Urban Professionals'],
+        recommendedResponses: ['Youth Skills File', 'Education Subsidies'],
+        riskIfIgnored: 'Youth support evaporates entirely and crime may tick up.',
+        timePressure: 'Medium',
+        createdAt: new Date().toISOString()
+      }
+    ];
+  });
+
+  if (currentGov.cabinet) {
+    currentGov.cabinet.forEach((m:any) => {
+      m.activeIssueLoad = nationalIssues.filter((i:any) => i.officeId === m.officeId).length;
+    });
+  }
+
+  const policyPipeline = getOrGenerateList('worldr_policy_pipeline', () => {
+    return [
+      {
+        fileId: Math.random().toString(36).substring(2, 10),
+        governmentId: currentGov.governmentId,
+        title: 'Industrial Modernization File',
+        source: 'National Issue',
+        relatedIssueId: nationalIssues.find((i:any) => i.officeId === 'economy')?.issueId || null,
+        responsibleOffice: 'Economy Minister',
+        officeId: 'economy',
+        readiness: 'Medium',
+        stage: 'Under Review',
+        expectedBenefits: ['+15 Industry', '+10 Jobs'],
+        risks: ['-5 Budget'],
+        createdAt: new Date().toISOString()
+      },
+      {
+        fileId: Math.random().toString(36).substring(2, 10),
+        governmentId: currentGov.governmentId,
+        title: 'Cost of Living Response File',
+        source: 'Mandate',
+        responsibleOffice: 'Finance Minister',
+        officeId: 'finance',
+        readiness: 'Low',
+        stage: 'Concept',
+        createdAt: new Date().toISOString()
+      },
+      {
+        fileId: Math.random().toString(36).substring(2, 10),
+        governmentId: currentGov.governmentId,
+        title: 'Administrative Efficiency File',
+        source: 'National Issue',
+        responsibleOffice: 'Interior Minister',
+        officeId: 'interior',
+        readiness: 'Medium',
+        stage: 'Under Review',
+        createdAt: new Date().toISOString()
+      },
+      {
+        fileId: Math.random().toString(36).substring(2, 10),
+        governmentId: currentGov.governmentId,
+        title: 'Youth Skills File',
+        source: 'National Issue',
+        responsibleOffice: 'Social Minister',
+        officeId: 'social',
+        readiness: 'Low',
+        stage: 'Concept',
+        createdAt: new Date().toISOString()
+      }
+    ];
+  });
+
+  const publicNarrative = getOrGenerate('worldr_government_narratives', () => {
+    return {
+      narrativeId: Math.random().toString(36).substring(2, 10),
+      governmentId: currentGov.governmentId,
+      mediaTone: 'Cautiously optimistic',
+      citizenExpectation: 'Deliver visible economic results early.',
+      oppositionLine: 'Too much power concentrated in one party.',
+      governmentImage: 'Strong mandate, untested in office.',
+      recentShift: 'Election victory has raised expectations.',
+      createdAt: new Date().toISOString()
+    };
+  });
+
+  const executiveTimeline = getOrGenerateList('worldr_executive_timeline', () => {
+    const leaderName = governingParty ? governingParty.leaderName : 'A leader';
+    const partyAbb = governingParty ? governingParty.partyAbbreviation : 'IND';
+    
+    return [
+      { eventId: Math.random().toString(36).substring(2, 10), governmentId: currentGov.governmentId, type: 'election', title: 'Drennia Parliamentary Election concluded.', gameDate: 'May 2026', createdAt: new Date().toISOString() },
+      { eventId: Math.random().toString(36).substring(2, 10), governmentId: currentGov.governmentId, type: 'formation', title: `${partyAbb} formed a ${govType}.`, gameDate: 'May 2026', createdAt: new Date().toISOString() },
+      { eventId: Math.random().toString(36).substring(2, 10), governmentId: currentGov.governmentId, type: 'pm', title: `${leaderName} became Prime Minister.`, gameDate: 'May 2026', createdAt: new Date().toISOString() },
+      { eventId: Math.random().toString(36).substring(2, 10), governmentId: currentGov.governmentId, type: 'cabinet', title: `Cabinet sworn into office.`, gameDate: 'May 2026', createdAt: new Date().toISOString() },
+      { eventId: Math.random().toString(36).substring(2, 10), governmentId: currentGov.governmentId, type: 'mandate', title: `Governing mandate established: Economic Renewal.`, gameDate: 'May 2026', createdAt: new Date().toISOString() },
+      { eventId: Math.random().toString(36).substring(2, 10), governmentId: currentGov.governmentId, type: 'issues', title: `National issues briefing opened.`, gameDate: 'May 2026', createdAt: new Date().toISOString() },
+    ];
+  });
+
+  const governmentRisk = [
+    { riskId: 'promise', label: 'Promise Failure Risk', level: mandate ? 'Medium' : 'Low', reason: 'No laws/policies advanced yet to address mandate.' },
+    { riskId: 'budget', label: 'Budget Pressure', level: 'Medium', reason: 'Mandate recommendations require high spending.' },
+    { riskId: 'cabinet', label: 'Cabinet Instability', level: currentGov.cabinet?.some((m:any) => m.readinessLabel === 'Weak' || m.readinessLabel === 'Vacant') ? 'Medium' : 'Low', reason: 'Several ministries are weak or vacant.' },
+    { riskId: 'public', label: 'Public Disappointment', level: 'Low', reason: 'Honeymoon period maintains baseline approval.' },
+    { riskId: 'admin', label: 'Administrative Weakness', level: currentGov.cabinet?.find((m:any) => m.officeId === 'interior')?.readinessLabel === 'Weak' ? 'Medium' : 'Low', reason: 'Interior ministry state.' },
+    { riskId: 'opposition', label: 'Opposition Pressure', level: govType === 'Minority Government' ? 'High' : 'Low', reason: govType === 'Minority Government' ? 'Relying on confidence supply.' : 'Strong majority.' },
+    { riskId: 'scandal', label: 'Scandal Exposure', level: 'Low', reason: 'No active corruption.' },
+  ];
+
+  return {
+    ...currentGov,
+    pastElection: latestElection,
+    parties: sortedParties,
+    independentIndividuals: latestElection.independentIndividuals,
+    parliamentSeats,
+    majoritySeats: majorityReq,
+    mandate,
+    nationalIssues,
+    publicNarrative,
+    governmentRisk,
+    policyPipeline,
+    executiveTimeline
+  };
+}
+
 export default function GovernmentPage() {
   const router = useRouter();
   const { character } = useCharacterStore();
@@ -172,7 +537,7 @@ export default function GovernmentPage() {
     });
   }, [character]);
 
-  const [activeGovSubtab, setActiveGovSubtab] = useState<'Administration'|'Parliament'|'Cabinet'|'My Ministries'|'Bills & Debate'|'Propose Bill'|'Lawbook'|'Voting Record'>('Administration');
+  const [activeGovSubtab, setActiveGovSubtab] = useState<'Administration'|'Parliament'|'Cabinet'|'My Offices'|'Legislation'|'Lawbook'|'Records'>('Administration');
   const [pastElection, setPastElection] = useState<any>(null);
   const [govRecord, setGovRecord] = useState<any>(null);
   const [selectedMinId, setSelectedMinId] = useState<string>('pm');
@@ -319,13 +684,13 @@ export default function GovernmentPage() {
     if (!ctx || !govRecord || !ctx.partyId) return;
     
     // Find ministry to ensure we control it
-    const min = govRecord.ministries?.find((m: any) => m.ministryId === ministryId);
+    const min = (govRecord.cabinet || govRecord.ministries)?.find((m: any) => m.ministryId === ministryId);
     if (!min || min.controllingPartyId !== ctx.partyId || min.ministryId === 'pm') return;
 
     if (!window.confirm(`Are you sure you want ${min.ministerName} to resign as ${min.officeName}? This office will become vacant.`)) return;
 
     const updatedGov = { ...govRecord };
-    const updatedMinistries = updatedGov.ministries.map((m: any) => {
+    const updatedMinistries = (updatedGov.cabinet || updatedGov.ministries).map((m: any) => {
       if (m.ministryId === ministryId) {
         return {
           ...m,
@@ -340,6 +705,7 @@ export default function GovernmentPage() {
       return m;
     });
 
+    updatedGov.cabinet = updatedMinistries;
     updatedGov.ministries = updatedMinistries;
     
     // Save
@@ -358,7 +724,7 @@ export default function GovernmentPage() {
   const handleAppointMinister = (ministryId: string) => {
     if (!ctx || !govRecord || !ctx.partyId) return;
     
-    const min = govRecord.ministries?.find((m: any) => m.ministryId === ministryId);
+    const min = (govRecord.cabinet || govRecord.ministries)?.find((m: any) => m.ministryId === ministryId);
     if (!min || min.controllingPartyId !== ctx.partyId || min.status !== 'Vacant') return;
 
     const fns = ['Aris', 'Bane', 'Cael', 'Dora', 'Elara', 'Fenn', 'Gael', 'Hale', 'Ira', 'Jace', 'Lyra', 'Nia', 'Orin', 'Quinn', 'Sia', 'Uri', 'Wren', 'Yara'];
@@ -369,11 +735,11 @@ export default function GovernmentPage() {
     let isDuplicate = true;
     while(isDuplicate) {
       newName = `${fns[Math.floor(Math.random() * fns.length)]} ${lns[Math.floor(Math.random() * lns.length)]}`;
-      isDuplicate = govRecord.ministries.some((m: any) => m.ministerName === newName);
+      isDuplicate = (govRecord.cabinet || govRecord.ministries).some((m: any) => m.ministerName === newName);
     }
 
     const updatedGov = { ...govRecord };
-    const updatedMinistries = updatedGov.ministries.map((m: any) => {
+    const updatedMinistries = (updatedGov.cabinet || updatedGov.ministries).map((m: any) => {
       if (m.ministryId === ministryId) {
         return {
           ...m,
@@ -387,6 +753,7 @@ export default function GovernmentPage() {
       return m;
     });
 
+    updatedGov.cabinet = updatedMinistries;
     updatedGov.ministries = updatedMinistries;
     
     // Save
@@ -590,7 +957,7 @@ export default function GovernmentPage() {
   };
 
   const currentPartyGov = govRecord.governingPartyId === ctx.partyId;
-  const controlledMinistries = (govRecord.ministries || []).filter((m: any) => m.controllingPartyId === ctx.partyId);
+  const controlledMinistries = (govRecord.cabinet || []).filter((m: any) => m.controllingPartyId === ctx.partyId);
   const selectedMin = controlledMinistries.find((m: any) => m.ministryId === selectedMinId) || controlledMinistries[0];
 
   const getMinistryActions = (minId: string) => {
@@ -613,7 +980,7 @@ export default function GovernmentPage() {
       {/* Sub-nav */}
       <div className="shrink-0 flex items-center px-4 overflow-x-auto" style={{ height: '38px', background: PANEL, borderBottom: `1px solid ${BORDER}` }}>
         <div className="flex gap-1 h-full">
-          {(['Administration', 'Parliament', 'Cabinet', 'My Ministries', 'Bills & Debate', 'Propose Bill', 'Lawbook', 'Voting Record'] as const).map(tab => (
+          {(['Administration', 'Parliament', 'Cabinet', 'My Offices', 'Legislation', 'Lawbook', 'Records'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveGovSubtab(tab)}
               className="px-3 h-full flex items-center text-[10px] font-bold uppercase tracking-[0.12em] transition-all whitespace-nowrap"
               style={{
@@ -628,7 +995,7 @@ export default function GovernmentPage() {
 
       <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-20">
         
-        {['Bills & Debate', 'Propose Bill', 'Lawbook', 'Voting Record'].includes(activeGovSubtab) && (
+        {['Legislation', 'Lawbook', 'Records'].includes(activeGovSubtab) && (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="text-xs font-bold uppercase text-zinc-500 tracking-widest mb-2">Coming Soon</div>
             <div className="text-[11px] text-zinc-600 max-w-sm text-center">
@@ -638,10 +1005,10 @@ export default function GovernmentPage() {
         )}
 
         {activeGovSubtab === 'Administration' && (
-          <div className="max-w-6xl mx-auto space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="max-w-[1400px] mx-auto space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr_300px] gap-6">
               
-              {/* LEFT COLUMN: Administration & Head of Government */}
+              {/* LEFT COLUMN: Administration & Mandate */}
               <div className="space-y-6">
                 <div className="p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
                   <div className="text-[10px] uppercase font-mono tracking-widest text-zinc-500 mb-6 w-full text-center border-b pb-2" style={{ borderColor: BORDER }}>
@@ -651,13 +1018,13 @@ export default function GovernmentPage() {
                   {govRecord.governingPartyId ? (
                     <>
                       <h2 className="text-xl font-bold text-zinc-100 mb-1">
-                        {govRecord.ministries?.find((m:any) => m.ministryId === 'pm')?.ministerName?.split(' ').pop() || govRecord.governingPartyName} Administration
+                        {govRecord.cabinet?.find((m:any) => m.officeId === 'pm')?.ministerName?.split(' ').pop() || govRecord.governingPartyName} Administration
                       </h2>
                       <div className="text-[10px] font-mono text-emerald-500 uppercase tracking-widest mb-6">{govRecord.governmentType}</div>
 
                       <div className="space-y-4">
                         <div>
-                          <div className="text-[9px] uppercase font-mono text-zinc-500 mb-0.5">Term</div>
+                          <div className="text-[9px] uppercase font-mono text-zinc-500 mb-0.5">Term Length</div>
                           <div className="text-xs font-bold text-zinc-300">48 Months</div>
                         </div>
                         <div>
@@ -665,145 +1032,220 @@ export default function GovernmentPage() {
                           <div className="text-xs font-bold" style={{ color: ACCENT }}>{govRecord.governingPartyAbbreviation} &middot; {govRecord.governingPartyName}</div>
                         </div>
                         <div>
-                          <div className="text-[9px] uppercase font-mono text-zinc-500 mb-0.5">Parliament Control</div>
-                          <div className="text-xs font-bold text-zinc-300">{formatNumberUS(currentPartySeats)} / {formatNumberUS((pastElection?.parliamentSeats || 120))} seats</div>
+                          <div className="text-[9px] uppercase font-mono text-zinc-500 mb-0.5">Mandate Strength</div>
+                          <div className="text-xs font-bold text-zinc-300">{govRecord.mandate?.strength || 'Unknown'}</div>
                         </div>
-                        
-                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/[0.05]">
-                          <div>
-                            <div className="text-[9px] uppercase font-mono text-zinc-500 mb-0.5">Public Approval</div>
-                            <div className="text-sm font-bold text-emerald-400">53%</div>
-                          </div>
-                          <div>
-                            <div className="text-[9px] uppercase font-mono text-zinc-500 mb-0.5">State Apparatus</div>
-                            <div className="text-sm font-bold text-amber-500">54 / 100</div>
-                          </div>
-                        </div>
-                        <p className="text-[8px] text-zinc-600 italic leading-tight mt-2">
-                          Approval Rating and State Apparatus are display-only for now and will affect future government legitimacy and elections later.
-                        </p>
                       </div>
                     </>
                   ) : (
                     <div className="text-center py-8">
-                      <div className="text-zinc-400 text-sm font-bold mb-2">No Administration Formed Yet</div>
+                      <div className="text-zinc-400 text-sm font-bold mb-2">No Administration</div>
                       <div className="text-[10px] text-zinc-600">A player-led party must win government control to form an administration.</div>
                     </div>
                   )}
                 </div>
 
-                <div className="p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
-                  <div className="text-[10px] uppercase font-mono tracking-widest text-zinc-500 mb-4 w-full text-center border-b pb-2" style={{ borderColor: BORDER }}>
-                    Head of Government
-                  </div>
-                  
-                  {govRecord.governingPartyId ? (
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-sm shrink-0 bg-black/40 border border-white/10 flex items-center justify-center">
-                         <span className="text-lg font-bold text-zinc-600">PM</span>
+                {govRecord.mandate && (
+                  <div className="p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
+                    <div className="text-[10px] uppercase font-mono tracking-widest text-zinc-500 mb-4 w-full text-center border-b pb-2" style={{ borderColor: BORDER }}>
+                      Governing Mandate
+                    </div>
+                    
+                    <div className="text-[13px] font-bold text-zinc-100 mb-2">{govRecord.mandate.title}</div>
+                    <div className="text-[10px] text-zinc-400 mb-4 leading-relaxed">{govRecord.mandate.publicExpectation}</div>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <div className="text-[8px] uppercase font-mono text-zinc-500 mb-1">Priority Demographics</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {govRecord.mandate.priorityBlocs.map((b:any, i:number) => (
+                             <div key={i} className="text-[9px] font-mono px-1.5 py-0.5 bg-black/30 border border-white/5 rounded-sm text-zinc-400">{b}</div>
+                          ))}
+                        </div>
                       </div>
                       <div>
-                        <div className="text-[9px] uppercase font-mono text-amber-500 mb-0.5 tracking-widest">Prime Minister</div>
-                        <div className="text-sm font-bold text-zinc-100">{govRecord.ministries?.find((m:any) => m.ministryId === 'pm')?.ministerName}</div>
-                        <div className="text-[10px] text-zinc-400 mt-0.5">{govRecord.governingPartyAbbreviation} &middot; {govRecord.governingPartyName}</div>
+                        <div className="text-[8px] uppercase font-mono text-zinc-500 mb-1">Mandate Failure Risk</div>
+                        <div className="text-[10px] text-red-400/80">{govRecord.mandate.ignoredRisk}</div>
                       </div>
                     </div>
-                  ) : (
-                    <div className="text-center text-[10px] text-zinc-500 py-4">Vacant</div>
-                  )}
+                  </div>
+                )}
+                
+                <div className="p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
+                  <div className="text-[10px] uppercase font-mono tracking-widest text-zinc-500 mb-4 w-full text-center border-b pb-2" style={{ borderColor: BORDER }}>
+                    Government Risk Factors
+                  </div>
+                  <div className="space-y-3">
+                    {govRecord.governmentRisk?.map((r:any, i:number) => {
+                      let color = 'text-emerald-500';
+                      if (r.level === 'Medium') color = 'text-amber-500';
+                      if (r.level === 'High') color = 'text-red-500';
+                      return (
+                        <div key={i} className="flex justify-between items-start">
+                          <div>
+                            <div className="text-[10px] font-bold text-zinc-300">{r.label}</div>
+                            {r.level !== 'Low' && <div className="text-[9px] text-zinc-500 mt-0.5 max-w-[150px] leading-tight">{r.reason}</div>}
+                          </div>
+                          <div className={`text-[9px] uppercase font-mono font-bold ${color}`}>{r.level}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
 
-              {/* CENTER COLUMN: Issues & Timeline */}
+              {/* CENTER COLUMN: Issues & Policy Pipeline */}
               <div className="space-y-6">
-                <div className="p-5 rounded-sm h-[200px]" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
-                  <div className="text-[11px] uppercase font-mono tracking-widest text-zinc-300 font-bold mb-1">Pressing Issues</div>
-                  <div className="text-[9px] text-zinc-500 mb-6">Time-sensitive decisions will appear here when national events are triggered.</div>
-                  
-                  <div className="text-center text-[10px] text-zinc-600 mt-8 max-w-[80%] mx-auto">
-                    No pressing issues right now. Time-sensitive national decisions will appear here when triggered.
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Issues Board */}
+                  <div className="p-5 rounded-sm min-h-[300px]" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
+                    <div className="flex justify-between items-center mb-6 border-b pb-3" style={{ borderColor: BORDER }}>
+                      <div className="text-[11px] uppercase font-mono tracking-widest text-zinc-300 font-bold">National Issues</div>
+                      <div className="text-[10px] font-mono text-zinc-500">{govRecord.nationalIssues?.length || 0} Active</div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {govRecord.nationalIssues?.map((issue:any, i:number) => {
+                         let statusColor = 'bg-zinc-800 text-zinc-400';
+                         if (issue.status === 'Urgent') statusColor = 'bg-red-500/20 text-red-500 border border-red-500/20';
+                         if (issue.status === 'Active') statusColor = 'bg-amber-500/20 text-amber-500 border border-amber-500/20';
+                         return (
+                           <div key={i} className="p-3 bg-black/20 border border-white/5 rounded-sm">
+                             <div className="flex justify-between items-start mb-2">
+                               <div className="text-xs font-bold text-zinc-200">{issue.title}</div>
+                               <div className={`text-[8px] uppercase font-mono px-1.5 py-0.5 rounded-sm ${statusColor}`}>{issue.status}</div>
+                             </div>
+                             <div className="flex gap-4 mt-3">
+                               <div>
+                                 <div className="text-[8px] uppercase font-mono text-zinc-500 mb-0.5">Responsible</div>
+                                 <div className="text-[10px] text-zinc-400">{issue.responsibleOffice}</div>
+                               </div>
+                               <div>
+                                 <div className="text-[8px] uppercase font-mono text-zinc-500 mb-0.5">Time Pressure</div>
+                                 <div className="text-[10px] text-zinc-400">{issue.timePressure}</div>
+                               </div>
+                             </div>
+                           </div>
+                         )
+                      })}
+                      {!govRecord.nationalIssues?.length && (
+                        <div className="text-center text-[10px] text-zinc-600 mt-8">No national issues reported.</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Policy Pipeline */}
+                  <div className="p-5 rounded-sm min-h-[300px]" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
+                    <div className="flex justify-between items-center mb-6 border-b pb-3" style={{ borderColor: BORDER }}>
+                      <div className="text-[11px] uppercase font-mono tracking-widest text-zinc-300 font-bold">Policy Pipeline</div>
+                      <div className="text-[10px] font-mono text-zinc-500">{govRecord.policyPipeline?.length || 0} Files</div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {govRecord.policyPipeline?.map((pipe:any, i:number) => {
+                         return (
+                           <div key={i} className="p-3 bg-black/20 border border-white/5 rounded-sm flex items-center justify-between">
+                             <div>
+                               <div className="text-xs font-bold text-zinc-300 mb-1">{pipe.title}</div>
+                               <div className="text-[9px] text-zinc-500 font-mono">By: {pipe.responsibleOffice}</div>
+                             </div>
+                             <div className="text-right">
+                               <div className="text-[8px] uppercase font-mono text-zinc-500 mb-1">Stage</div>
+                               <div className="text-[10px] font-bold text-emerald-400">{pipe.stage}</div>
+                             </div>
+                           </div>
+                         )
+                      })}
+                      {!govRecord.policyPipeline?.length && (
+                        <div className="text-center text-[10px] text-zinc-600 mt-8">Policy pipeline empty.</div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="p-5 rounded-sm min-h-[300px]" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
-                  <div className="flex justify-between items-center mb-6">
+                <div className="p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
+                  <div className="flex justify-between items-center mb-6 border-b pb-3" style={{ borderColor: BORDER }}>
                     <div className="text-[11px] uppercase font-mono tracking-widest text-zinc-300 font-bold">Executive Timeline</div>
-                    <div className="flex gap-2">
-                      {['All', 'Bills', 'Policy', 'Cabinet', 'Crisis'].map((f, i) => (
-                        <div key={f} className={`text-[8px] uppercase font-mono px-1.5 py-0.5 rounded-sm cursor-default ${i === 0 ? 'bg-amber-500/20 text-amber-500' : 'text-zinc-600'}`}>
-                          {f}
-                        </div>
-                      ))}
-                    </div>
+                    <div className="text-[10px] font-mono text-zinc-500">Record of actions</div>
                   </div>
                   
-                  <div className="space-y-4">
-                    {govRecord.governingPartyId ? (
-                      <>
-                        <div className="flex gap-3">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-                          <div>
-                            <div className="text-xs text-zinc-300">{govRecord.governingPartyName} formed a {govRecord.governmentType}</div>
-                            <div className="text-[9px] text-zinc-500 font-mono mt-0.5">Recent</div>
-                          </div>
+                  <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+                    {govRecord.executiveTimeline ? govRecord.executiveTimeline.map((ev:any, i:number) => (
+                      <div key={i} className="flex gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: ev.type === 'formation' ? ACCENT : '#52525b' }} />
+                        <div>
+                          <div className="text-xs text-zinc-300">{ev.title}</div>
+                          <div className="text-[9px] text-zinc-500 font-mono mt-0.5">{ev.gameDate}</div>
                         </div>
-                        <div className="flex gap-3">
-                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
-                          <div>
-                            <div className="text-xs text-zinc-300">{govRecord.ministries?.find((m:any) => m.ministryId === 'pm')?.ministerName} became Prime Minister</div>
-                            <div className="text-[9px] text-zinc-500 font-mono mt-0.5">Recent</div>
-                          </div>
-                        </div>
-                        <div className="flex gap-3">
-                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                          <div>
-                            <div className="text-xs text-zinc-300">Drennia Parliamentary Election concluded</div>
-                            <div className="text-[9px] text-zinc-500 font-mono mt-0.5">Past</div>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-center text-[10px] text-zinc-600 mt-8">
-                        No executive events recorded yet.
                       </div>
+                    )) : (
+                      <div className="text-center text-[10px] text-zinc-600 mt-8">No executive events recorded yet.</div>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* RIGHT COLUMN: Cabinet Quick List */}
+              {/* RIGHT COLUMN: Cabinet Readiness */}
               <div className="space-y-6">
                 <div className="p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
                   <div className="text-[11px] uppercase font-mono tracking-widest text-zinc-300 font-bold mb-6 border-b pb-2" style={{ borderColor: BORDER }}>
-                    Cabinet &middot; 8
+                    Cabinet Readiness
                   </div>
                   
                   <div className="space-y-3">
-                    {govRecord.ministries?.map((min: any) => (
-                      <div key={min.ministryId} className="flex items-center gap-3 p-2 hover:bg-white/[0.02] rounded-sm transition-colors">
-                        <div className="w-8 h-8 rounded-sm bg-black/40 border flex items-center justify-center shrink-0" style={{ borderColor: min.ministryId === 'pm' ? ACCENT : 'rgba(255,255,255,0.05)' }}>
-                          <span className="text-[10px] font-bold" style={{ color: min.ministryId === 'pm' ? ACCENT : '#a1a1aa' }}>
-                            {min.ministerName?.split(' ').map((n: string) => n[0]).join('').substring(0,2) || '?'}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[11px] font-bold text-zinc-200 truncate">{min.ministerName}</div>
-                          <div className="text-[9px] text-zinc-500 font-mono uppercase truncate">{min.ministryId === 'pm' ? 'Prime Minister' : min.officeName.replace(' Minister', '')}</div>
-                        </div>
-                        <div className="text-right shrink-0 w-16">
-                          <div className="text-[8px] text-zinc-500 font-mono uppercase mb-0.5">Approval</div>
-                          <div className="text-[10px] font-bold text-emerald-400">{min.ministerApproval || min.ministerLoyalty || 0}%</div>
-                          <div className="w-full h-1 bg-black/50 mt-1 rounded-full overflow-hidden">
-                            <div className="h-full bg-emerald-500" style={{ width: `${min.ministerApproval || min.ministerLoyalty || 0}%` }} />
+                    {govRecord.cabinet?.map((min: any) => {
+                      let rColor = '#a1a1aa';
+                      if (min.readinessLabel === 'Strong') rColor = '#10b981';
+                      if (min.readinessLabel === 'Stable') rColor = '#3b82f6';
+                      if (min.readinessLabel === 'Unsteady') rColor = '#f59e0b';
+                      if (min.readinessLabel === 'Weak') rColor = '#ef4444';
+                      
+                      return (
+                        <div key={min.officeId} className="flex items-center gap-3 p-2 hover:bg-white/[0.02] rounded-sm transition-colors border border-transparent hover:border-white/5">
+                          <div className="w-8 h-8 rounded-sm bg-black/40 border flex items-center justify-center shrink-0" style={{ borderColor: min.officeId === 'pm' ? ACCENT : 'rgba(255,255,255,0.05)' }}>
+                            <span className="text-[10px] font-bold" style={{ color: min.officeId === 'pm' ? ACCENT : '#a1a1aa' }}>
+                              {min.ministerName?.split(' ').map((n: string) => n[0]).join('').substring(0,2) || '?'}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-bold text-zinc-200 truncate">{min.ministerName}</div>
+                            <div className="text-[9px] text-zinc-500 font-mono uppercase truncate">{min.officeId === 'pm' ? 'Prime Minister' : min.officeName.replace(' Minister', '')}</div>
+                          </div>
+                          <div className="text-right shrink-0 w-16">
+                            <div className="text-[8px] text-zinc-500 font-mono uppercase mb-0.5">State</div>
+                            <div className="text-[10px] font-bold" style={{ color: rColor }}>{min.readinessLabel}</div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                     
-                    {!govRecord.ministries?.length && (
+                    {!govRecord.cabinet?.length && (
                       <div className="text-center text-[10px] text-zinc-500 py-4">Cabinet empty</div>
                     )}
                   </div>
+                </div>
+
+                <div className="p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
+                  <div className="text-[10px] uppercase font-mono tracking-widest text-zinc-500 mb-4 w-full text-center border-b pb-2" style={{ borderColor: BORDER }}>
+                    Public Narrative
+                  </div>
+                  {govRecord.publicNarrative ? (
+                    <div className="space-y-4">
+                      <div>
+                        <div className="text-[8px] uppercase font-mono text-zinc-500 mb-1">Media Tone</div>
+                        <div className="text-xs font-bold text-zinc-300">{govRecord.publicNarrative.mediaTone}</div>
+                      </div>
+                      <div>
+                        <div className="text-[8px] uppercase font-mono text-zinc-500 mb-1">Citizen Expectation</div>
+                        <div className="text-xs font-bold text-zinc-300">{govRecord.publicNarrative.citizenExpectation}</div>
+                      </div>
+                      <div className="p-3 bg-black/20 border border-white/5 rounded-sm italic text-[10px] text-zinc-400">
+                        "{govRecord.publicNarrative.oppositionLine}"
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center text-[10px] text-zinc-500 py-4">No data</div>
+                  )}
                 </div>
               </div>
               
@@ -891,7 +1333,7 @@ export default function GovernmentPage() {
                         <button className="text-[9px] uppercase font-mono px-3 py-2 rounded-sm border border-amber-500 text-amber-500 bg-amber-500/10">Active Bills</button>
                         <button className="text-[9px] uppercase font-mono px-3 py-2 rounded-sm border border-zinc-700 text-zinc-400 hover:bg-white/5">Resolved</button>
                         <button className="text-[9px] uppercase font-mono px-3 py-2 rounded-sm border border-zinc-700 text-zinc-400 hover:bg-white/5">All Laws</button>
-                        <button onClick={() => setActiveGovSubtab('Propose Bill')} className="text-[9px] uppercase font-bold tracking-widest px-4 py-2 rounded-sm bg-amber-500 text-black hover:bg-amber-400 ml-2">Propose Bill</button>
+                        <button onClick={() => setActiveGovSubtab('Legislation')} className="text-[9px] uppercase font-bold tracking-widest px-4 py-2 rounded-sm bg-amber-500 text-black hover:bg-amber-400 ml-2">Propose Bill</button>
                       </div>
                     </div>
                     
@@ -1004,7 +1446,7 @@ export default function GovernmentPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {(govRecord.ministries || []).map((min: any) => (
+                {(govRecord.cabinet || []).map((min: any) => (
                   <div key={min.ministryId} className="p-4 rounded-sm relative overflow-hidden flex flex-col group" style={{ background: PANEL, border: `1px solid ${min.ministryId === 'pm' ? ACCENT : BORDER}` }}>
                     {min.ministryId === 'pm' && <div className="absolute top-0 left-0 w-full h-1" style={{ background: ACCENT }} />}
                     
@@ -1070,7 +1512,7 @@ export default function GovernmentPage() {
           </div>
         )}
 
-        {activeGovSubtab === 'My Ministries' && (
+        {activeGovSubtab === 'My Offices' && (
           <div className="max-w-5xl mx-auto h-full min-h-[400px]">
             {controlledMinistries.length === 0 ? (
               <div className="p-8 text-center border rounded-sm flex flex-col items-center justify-center h-64" style={{ background: PANEL, borderColor: BORDER }}>
