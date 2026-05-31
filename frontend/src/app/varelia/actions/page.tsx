@@ -1741,8 +1741,39 @@ function PartyStrategyView({ ctx }: { ctx: PlayerCtx }) {
       electionFundsAllocated: allocatedElectionFunds,
       isCurrentParty: true,
     };
+    
+    let allRegsRaw: any[] = [];
+    try { const r = localStorage.getItem('worldr_election_registrations'); if (r) allRegsRaw = JSON.parse(r); } catch (e) {}
+    const electionRegs = allRegsRaw.filter((r: any) => r.electionName === 'Drennia Parliamentary Election');
+    const allRegisteredData = getLivePartyRegistryData().filter((p: any) => p.countryName === ctx.countryName);
+    const stratPartyInputs: ElectionPartyInput[] = [stratPartyInput];
+    
+    for (const reg of electionRegs) {
+      if (reg.partyId === ctx.partyId) continue;
+      const storedParty = allRegisteredData.find((p: any) => p.partyId === reg.partyId);
+      if (storedParty) {
+        stratPartyInputs.push({
+          partyId: storedParty.partyId,
+          partyName: storedParty.partyName,
+          partyAbbreviation: storedParty.partyAbbreviation,
+          leaderName: storedParty.leaderName || '—',
+          ideologyIds: extractIdeologies(storedParty),
+          mainPromise: storedParty.mainPromise || null,
+          members: Math.max(1, storedParty.members || 1),
+          recognition: storedParty.recognition || 0,
+          support: storedParty.support || 0.1,
+          publicTrust: storedParty.publicTrust || 0,
+          mediaPresence: storedParty.mediaPresence || 0,
+          campaignStrength: storedParty.campaignStrength || 0,
+          controversy: storedParty.controversy || 0,
+          electionFundsAllocated: storedParty.electionFundsAllocated || 0,
+          isCurrentParty: false,
+        });
+      }
+    }
+
     stratProjection = calculateElectionProjection(
-      elConfig, [stratPartyInput], ctx.partyId || '',
+      elConfig, stratPartyInputs, ctx.partyId || '',
       { mode: 'projection', applyRandomSwing: false }
     );
   }
@@ -3256,22 +3287,27 @@ function ActionExecutionModal({
         membersJoined = Math.floor(60 + Math.random() * 121);
         recognitionGain = 0.05 + Math.random() * 0.10;
         publicTrustGain = 0.02 + Math.random() * 0.08;
+        campaignStrengthGain = 0.02 + Math.random() * 0.03;
       } else if (finalScore < 6) {
         membersJoined = Math.floor(180 + Math.random() * 321);
         recognitionGain = 0.15 + Math.random() * 0.20;
         publicTrustGain = 0.05 + Math.random() * 0.15;
+        campaignStrengthGain = 0.05 + Math.random() * 0.05;
       } else if (finalScore < 8) {
         membersJoined = Math.floor(500 + Math.random() * 701);
         recognitionGain = 0.35 + Math.random() * 0.35;
         publicTrustGain = 0.15 + Math.random() * 0.20;
+        campaignStrengthGain = 0.10 + Math.random() * 0.10;
       } else if (finalScore < 9.5) {
         membersJoined = Math.floor(1200 + Math.random() * 1301);
         recognitionGain = 0.70 + Math.random() * 0.50;
         publicTrustGain = 0.30 + Math.random() * 0.30;
+        campaignStrengthGain = 0.20 + Math.random() * 0.15;
       } else {
         membersJoined = Math.floor(2500 + Math.random() * 2501);
         recognitionGain = 1.20 + Math.random() * 0.80;
         publicTrustGain = 0.60 + Math.random() * 0.40;
+        campaignStrengthGain = 0.35 + Math.random() * 0.25;
       }
     } else if (actionId === 'smallDonationDrive') {
       let percent = 0;
@@ -3320,26 +3356,32 @@ function ActionExecutionModal({
       } else if (finalScore < 2) {
         recognitionGain = 0.10;
         supportGain = 0.005;
+        campaignStrengthGain = 0.05 + Math.random() * 0.05;
       } else if (finalScore < 4) {
         recognitionGain = 0.25;
         supportGain = 0.01;
         publicTrustGain = 0.05;
+        campaignStrengthGain = 0.15 + Math.random() * 0.10;
       } else if (finalScore < 6) {
         recognitionGain = 0.60;
         supportGain = 0.03;
         publicTrustGain = 0.10;
+        campaignStrengthGain = 0.30 + Math.random() * 0.20;
       } else if (finalScore < 8) {
         recognitionGain = 1.10;
         supportGain = 0.06;
         publicTrustGain = 0.30;
+        campaignStrengthGain = 0.60 + Math.random() * 0.30;
       } else if (finalScore < 9.5) {
         recognitionGain = 1.80;
         supportGain = 0.10;
         publicTrustGain = 0.50;
+        campaignStrengthGain = 1.00 + Math.random() * 0.40;
       } else {
         recognitionGain = 2.50;
         supportGain = 0.18;
         publicTrustGain = 0.80;
+        campaignStrengthGain = 1.50 + Math.random() * 0.50;
       }
     } else if (actionId === 'meo_statement') {
       if (finalScore < 0) {
@@ -3349,22 +3391,27 @@ function ActionExecutionModal({
       } else if (finalScore < 4) {
         mediaPresenceGain = 0.5;
         recognitionGain = 0.05;
+        campaignStrengthGain = 0.05 + Math.random() * 0.05;
       } else if (finalScore < 6) {
         mediaPresenceGain = 1.0;
         recognitionGain = 0.15;
         policyCredibilityGain = 0.1;
+        campaignStrengthGain = 0.10 + Math.random() * 0.10;
       } else if (finalScore < 8) {
         mediaPresenceGain = 1.8;
         recognitionGain = 0.35;
         policyCredibilityGain = 0.3;
+        campaignStrengthGain = 0.25 + Math.random() * 0.15;
       } else if (finalScore < 9.5) {
         mediaPresenceGain = 2.8;
         recognitionGain = 0.60;
         policyCredibilityGain = 0.5;
+        campaignStrengthGain = 0.40 + Math.random() * 0.20;
       } else {
         mediaPresenceGain = 4.0;
         recognitionGain = 0.90;
         policyCredibilityGain = 0.8;
+        campaignStrengthGain = 0.60 + Math.random() * 0.20;
       }
     } else if (actionId === 'doorToDoorCampaign') {
       if (finalScore < 0) {
@@ -3375,27 +3422,33 @@ function ActionExecutionModal({
         supportGain = 0.002 + Math.random() * 0.004;
         recognitionGain = 0.03 + Math.random() * 0.05;
         controversyGain = 0.02 + Math.random() * 0.04;
+        campaignStrengthGain = 0.10 + Math.random() * 0.10;
       } else if (finalScore < 4) {
         publicTrustGain = 0.15 + Math.random() * 0.20;
         supportGain = 0.006 + Math.random() * 0.006;
         recognitionGain = 0.08 + Math.random() * 0.08;
         controversyGain = Math.random() * 0.02;
+        campaignStrengthGain = 0.25 + Math.random() * 0.15;
       } else if (finalScore < 6) {
         publicTrustGain = 0.35 + Math.random() * 0.30;
         supportGain = 0.012 + Math.random() * 0.010;
         recognitionGain = 0.16 + Math.random() * 0.14;
+        campaignStrengthGain = 0.45 + Math.random() * 0.25;
       } else if (finalScore < 8) {
         publicTrustGain = 0.65 + Math.random() * 0.40;
         supportGain = 0.022 + Math.random() * 0.018;
         recognitionGain = 0.30 + Math.random() * 0.25;
+        campaignStrengthGain = 0.80 + Math.random() * 0.30;
       } else if (finalScore < 9.5) {
         publicTrustGain = 1.05 + Math.random() * 0.55;
         supportGain = 0.040 + Math.random() * 0.030;
         recognitionGain = 0.55 + Math.random() * 0.35;
+        campaignStrengthGain = 1.20 + Math.random() * 0.40;
       } else {
         publicTrustGain = 1.60 + Math.random() * 0.60;
         supportGain = 0.070 + Math.random() * 0.040;
         recognitionGain = 0.90 + Math.random() * 0.30;
+        campaignStrengthGain = 1.80 + Math.random() * 0.50;
       }
     } else if (actionId === 'giveInterview') {
       if (finalScore < 0) {
@@ -3413,24 +3466,29 @@ function ActionExecutionModal({
         supportGain = 0.004 + Math.random() * 0.004;
         controversyGain = 0.02 + Math.random() * 0.03;
         publicTrustGain = -(0.02 + Math.random() * 0.03);
+        campaignStrengthGain = 0.05 + Math.random() * 0.05;
       } else if (finalScore < 6) {
         mediaPresenceGain = 1.00 + Math.random() * 0.80;
         recognitionGain = 0.18 + Math.random() * 0.17;
         supportGain = 0.008 + Math.random() * 0.007;
         controversyGain = Math.random() * 0.02;
         publicTrustGain = -(Math.random() * 0.02);
+        campaignStrengthGain = 0.15 + Math.random() * 0.10;
       } else if (finalScore < 8) {
         mediaPresenceGain = 1.80 + Math.random() * 1.00;
         recognitionGain = 0.35 + Math.random() * 0.30;
         supportGain = 0.015 + Math.random() * 0.013;
+        campaignStrengthGain = 0.30 + Math.random() * 0.20;
       } else if (finalScore < 9.5) {
         mediaPresenceGain = 2.80 + Math.random() * 1.20;
         recognitionGain = 0.65 + Math.random() * 0.35;
         supportGain = 0.028 + Math.random() * 0.022;
+        campaignStrengthGain = 0.50 + Math.random() * 0.30;
       } else {
         mediaPresenceGain = 4.00 + Math.random() * 1.30;
         recognitionGain = 1.00 + Math.random() * 0.45;
         supportGain = 0.050 + Math.random() * 0.030;
+        campaignStrengthGain = 0.80 + Math.random() * 0.30;
       }
     } else if (actionId === 'openMembershipBooth') {
       if (finalScore < 0) {
@@ -3444,26 +3502,31 @@ function ActionExecutionModal({
         membersJoined = Math.floor(25 + Math.random() * 56);
         recognitionGain = 0.04 + Math.random() * 0.06;
         publicTrustGain = 0.01 + Math.random() * 0.02;
+        campaignStrengthGain = 0.02 + Math.random() * 0.02;
       } else if (finalScore < 6) {
         membersJoined = Math.floor(80 + Math.random() * 101);
         recognitionGain = 0.10 + Math.random() * 0.10;
         publicTrustGain = 0.03 + Math.random() * 0.04;
         supportGain = Math.random() * 0.003;
+        campaignStrengthGain = 0.05 + Math.random() * 0.05;
       } else if (finalScore < 8) {
         membersJoined = Math.floor(180 + Math.random() * 201);
         recognitionGain = 0.20 + Math.random() * 0.22;
         publicTrustGain = 0.07 + Math.random() * 0.07;
         supportGain = 0.003 + Math.random() * 0.005;
+        campaignStrengthGain = 0.15 + Math.random() * 0.10;
       } else if (finalScore < 9.5) {
         membersJoined = Math.floor(380 + Math.random() * 381);
         recognitionGain = 0.42 + Math.random() * 0.28;
         publicTrustGain = 0.14 + Math.random() * 0.10;
         supportGain = 0.008 + Math.random() * 0.007;
+        campaignStrengthGain = 0.25 + Math.random() * 0.15;
       } else {
         membersJoined = Math.floor(760 + Math.random() * 491);
         recognitionGain = 0.70 + Math.random() * 0.30;
         publicTrustGain = 0.24 + Math.random() * 0.12;
         supportGain = 0.015 + Math.random() * 0.010;
+        campaignStrengthGain = 0.40 + Math.random() * 0.20;
       }
     } else if (actionId === 'cm_survey') {
       let pollingAccuracy = 'Very Low';
@@ -3550,8 +3613,39 @@ function ActionExecutionModal({
           electionFundsAllocated: surveyAllocatedFunds,
           isCurrentParty: true,
         };
+        
+        let allRegsRaw: any[] = [];
+        try { const r = localStorage.getItem('worldr_election_registrations'); if (r) allRegsRaw = JSON.parse(r); } catch (e) {}
+        const electionRegs = allRegsRaw.filter((r: any) => r.electionName === 'Drennia Parliamentary Election');
+        const allRegisteredData = getLivePartyRegistryData().filter((p: any) => p.countryName === ctx.countryName);
+        const surveyPartyInputs: ElectionPartyInput[] = [surveyPartyInput];
+        
+        for (const reg of electionRegs) {
+          if (reg.partyId === ctx.partyId) continue;
+          const storedParty = allRegisteredData.find((p: any) => p.partyId === reg.partyId);
+          if (storedParty) {
+            surveyPartyInputs.push({
+              partyId: storedParty.partyId,
+              partyName: storedParty.partyName,
+              partyAbbreviation: storedParty.partyAbbreviation,
+              leaderName: storedParty.leaderName || '—',
+              ideologyIds: extractIdeologies(storedParty),
+              mainPromise: storedParty.mainPromise || null,
+              members: Math.max(1, storedParty.members || 1),
+              recognition: storedParty.recognition || 0,
+              support: storedParty.support || 0.1,
+              publicTrust: storedParty.publicTrust || 0,
+              mediaPresence: storedParty.mediaPresence || 0,
+              campaignStrength: storedParty.campaignStrength || 0,
+              controversy: storedParty.controversy || 0,
+              electionFundsAllocated: storedParty.electionFundsAllocated || 0,
+              isCurrentParty: false,
+            });
+          }
+        }
+
         const surveyProj = calculateElectionProjection(
-          surveyElConfig, [surveyPartyInput], ctx.partyId || '',
+          surveyElConfig, surveyPartyInputs, ctx.partyId || '',
           { mode: 'survey', applyRandomSwing: false }
         );
         projectedVoteShareBase = surveyProj.baseVoteShare;
@@ -3857,6 +3951,14 @@ function ActionResultsModal({
                 <span className="text-red-400 font-mono">+{result.controversyGain.toFixed(2)}</span>
               </div>
             )}
+            {result.campaignStrengthGain !== 0 && result.actionId !== 'cm_survey' && (
+              <div className="flex justify-between text-xs">
+                <span className="text-zinc-400">Campaign Strength</span>
+                <span className={`font-mono ${result.campaignStrengthGain > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {result.campaignStrengthGain > 0 ? '+' : ''}{result.campaignStrengthGain.toFixed(2)}
+                </span>
+              </div>
+            )}
             {result.actionId === 'pl_promise' && result.updatedMainPromise && (
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-400">Main Promise</span>
@@ -4137,6 +4239,12 @@ export default function ActionsPage() {
     updatedStats.support = (updatedStats.support || 0.1) + result.supportGain;
     updatedStats.controversy = (updatedStats.controversy || 0) + result.controversyGain;
     updatedStats.mediaPresence = (updatedStats.mediaPresence || 0) + result.mediaPresenceGain;
+    updatedStats.campaignStrength = (updatedStats.campaignStrength || 0) + result.campaignStrengthGain;
+    
+    // Safety clamp
+    if (updatedStats.campaignStrength > 100) updatedStats.campaignStrength = 100;
+    if (updatedStats.publicTrust > 100) updatedStats.publicTrust = 100;
+    if (updatedStats.mediaPresence > 100) updatedStats.mediaPresence = 100;
     
 
     if (result.updatedMainPromise) updatedStats.mainPromise = result.updatedMainPromise;
