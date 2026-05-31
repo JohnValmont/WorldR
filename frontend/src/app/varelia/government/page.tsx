@@ -171,97 +171,13 @@ export default function GovernmentPage() {
     });
   }, [character]);
 
-  if (!mounted || !ctx) return null;
-
-  const handleNavigateElections = () => {
-    router.push('/varelia/actions');
-  };
-  
-  
-
-  const handleLogout = () => {
-    useCharacterStore.getState().resetCharacter();
-    localStorage.removeItem('worldr_character');
-    router.push('/');
-  };
-
-  const renderTopNav = () => (
-    <>
-      <header className="shrink-0 h-14 flex items-center justify-between px-4 md:px-5 relative z-30" style={{ background: PANEL, borderBottom: `1px solid ${BORDER}` }}>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-sm flex items-center justify-center shrink-0" style={{ background: ACCENT }}>
-            <LogoSVG logoId={ctx.partyLogoId || 'flag'} color={ctx.partyColor || '#4a5045'} size={20} />
-          </div>
-          <div>
-            <h1 className="text-sm md:text-base font-black tracking-widest uppercase text-white">WORLDr</h1>
-            <div className="text-[9px] md:text-[10px] font-mono tracking-widest text-zinc-500 uppercase">Alpha 0.1 • {ctx.countryName}</div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button id="topbar-logout" type="button" title="Logout" onClick={handleLogout}
-            className="hidden sm:flex items-center gap-1.5 px-3 h-8 rounded-sm text-[10px] font-mono uppercase tracking-widest transition-colors"
-            style={{ background: PANEL2, border: `1px solid ${BORDER}`, color: MUTED }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#c04040')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = MUTED)}>
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            <span className="hidden md:block">Logout</span>
-          </button>
-        </div>
-      </header>
-
-      <nav className="shrink-0 flex items-center px-4 md:px-5"
-        style={{ height: '38px', background: PANEL, borderBottom: `1px solid ${BORDER}`, zIndex: 20 }}>
-        {(MAIN_TABS as readonly string[]).map((tab) => {
-          const isHome = tab === 'Home';
-          const isActions = tab === 'Actions';
-          const isGovernment = tab === 'Government';
-          const isEnabled = isHome || isActions || isGovernment;
-          const isCurrent = isGovernment;
-          return (
-            <button key={tab} id={`main-tab-${tab.toLowerCase()}`} type="button"
-              disabled={!isEnabled}
-              onClick={() => {
-                if (isHome) router.push('/varelia/news');
-                else if (isActions) router.push('/varelia/actions');
-              }}
-              className="relative px-4 h-full flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors duration-100"
-              style={{
-                color: isCurrent ? ACCENT : isEnabled ? MUTED : '#3a4a3a',
-                cursor: isEnabled ? 'pointer' : 'not-allowed',
-                background: isCurrent ? `${ACCENT}11` : 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                if (!isCurrent && isEnabled) e.currentTarget.style.color = '#a0b0a0';
-              }}
-              onMouseLeave={(e) => {
-                if (!isCurrent && isEnabled) e.currentTarget.style.color = MUTED;
-              }}>
-              {tab}
-              {isCurrent && (
-                <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ background: ACCENT }} />
-              )}
-              {!isEnabled && (
-                <span className="ml-1.5 text-[8px] bg-black/40 px-1 py-0.5 rounded-sm border" style={{ color: '#5a6b5a', borderColor: '#2a3a2a' }}>
-                  SOON
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
-    </>
-  );
-
-   
   const [activeGovSubtab, setActiveGovSubtab] = useState<'Overview'|'Parliament'|'Ministries'|'My Ministries'|'Bills & Debate'|'Propose Bill'|'Lawbook'|'Voting Record'>('Overview');
   const [pastElection, setPastElection] = useState<any>(null);
   const [govRecord, setGovRecord] = useState<any>(null);
   const [selectedMinId, setSelectedMinId] = useState<string>('pm');
   
   useEffect(() => {
+    if (!ctx) return;
     // 1. Fetch latest past election
     const rawElections = localStorage.getItem('worldr_past_elections');
     if (!rawElections) return;
@@ -387,9 +303,95 @@ export default function GovernmentPage() {
     }
     
     setGovRecord(currentGov);
-  }, [ctx.countryName, ctx.partyId, ctx.characterName]);
+  }, [ctx?.countryName, ctx?.partyId, ctx?.characterName, ctx?.continentName]);
 
 
+  
+  if (!mounted || !ctx) return null;
+
+  const handleNavigateElections = () => {
+    router.push('/varelia/actions');
+  };
+  
+  
+
+  const handleLogout = () => {
+    useCharacterStore.getState().resetCharacter();
+    localStorage.removeItem('worldr_character');
+    router.push('/');
+  };
+
+  const renderTopNav = () => (
+    <>
+      <header className="shrink-0 h-14 flex items-center justify-between px-4 md:px-5 relative z-30" style={{ background: PANEL, borderBottom: `1px solid ${BORDER}` }}>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-sm flex items-center justify-center shrink-0" style={{ background: ACCENT }}>
+            <LogoSVG logoId={ctx.partyLogoId || 'flag'} color={ctx.partyColor || '#4a5045'} size={20} />
+          </div>
+          <div>
+            <h1 className="text-sm md:text-base font-black tracking-widest uppercase text-white">WORLDr</h1>
+            <div className="text-[9px] md:text-[10px] font-mono tracking-widest text-zinc-500 uppercase">Alpha 0.1 • {ctx.countryName}</div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button id="topbar-logout" type="button" title="Logout" onClick={handleLogout}
+            className="hidden sm:flex items-center gap-1.5 px-3 h-8 rounded-sm text-[10px] font-mono uppercase tracking-widest transition-colors"
+            style={{ background: PANEL2, border: `1px solid ${BORDER}`, color: MUTED }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#c04040')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = MUTED)}>
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span className="hidden md:block">Logout</span>
+          </button>
+        </div>
+      </header>
+
+      <nav className="shrink-0 flex items-center px-4 md:px-5"
+        style={{ height: '38px', background: PANEL, borderBottom: `1px solid ${BORDER}`, zIndex: 20 }}>
+        {(MAIN_TABS as readonly string[]).map((tab) => {
+          const isHome = tab === 'Home';
+          const isActions = tab === 'Actions';
+          const isGovernment = tab === 'Government';
+          const isEnabled = isHome || isActions || isGovernment;
+          const isCurrent = isGovernment;
+          return (
+            <button key={tab} id={`main-tab-${tab.toLowerCase()}`} type="button"
+              disabled={!isEnabled}
+              onClick={() => {
+                if (isHome) router.push('/varelia/news');
+                else if (isActions) router.push('/varelia/actions');
+              }}
+              className="relative px-4 h-full flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors duration-100"
+              style={{
+                color: isCurrent ? ACCENT : isEnabled ? MUTED : '#3a4a3a',
+                cursor: isEnabled ? 'pointer' : 'not-allowed',
+                background: isCurrent ? `${ACCENT}11` : 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                if (!isCurrent && isEnabled) e.currentTarget.style.color = '#a0b0a0';
+              }}
+              onMouseLeave={(e) => {
+                if (!isCurrent && isEnabled) e.currentTarget.style.color = MUTED;
+              }}>
+              {tab}
+              {isCurrent && (
+                <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ background: ACCENT }} />
+              )}
+              {!isEnabled && (
+                <span className="ml-1.5 text-[8px] bg-black/40 px-1 py-0.5 rounded-sm border" style={{ color: '#5a6b5a', borderColor: '#2a3a2a' }}>
+                  SOON
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+    </>
+  );
+
+   
   if (!ctx.partyId) {
     return (
       <div className="min-h-screen flex flex-col font-sans select-none" style={{ background: BG, color: TEXT }}>
