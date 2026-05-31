@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { FEATURES } from '../../../config/features';
 
 const TAGLINES = [
   'Every leader, citizen, tycoon, officer,',
@@ -43,7 +44,7 @@ export default function StartLifePage() {
       } catch {}
 
       if (hasChar && path && hasParty && hasCountry) {
-        router.replace('/varelia/news');
+        router.replace(FEATURES.LEGACY_DRENNIA_FRONTEND_ENABLED ? '/varelia/news' : '/world-locked');
         return;
       }
 

@@ -1,0 +1,16 @@
+export const FEATURES = {
+  // Legacy Prototype Game UI & Systems
+  LEGACY_DRENNIA_FRONTEND_ENABLED: false,
+  LEGACY_PARTY_DASHBOARD_ENABLED: false,
+  LEGACY_TAP_ACTIONS_ENABLED: false,
+  LEGACY_ELECTION_SIM_ENABLED: false,
+  LEGACY_GOVERNMENT_ENABLED: false,
+
+  // Core Platform
+  AUTH_ENABLED: true,
+  ONBOARDING_ENABLED: true,
+
+  // Future Foundation
+  LIVING_WORLD_FOUNDATION_ENABLED: false,
+  NEW_DRENNIA_WORLD_ENABLED: false,
+};

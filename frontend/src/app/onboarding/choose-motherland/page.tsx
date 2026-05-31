@@ -6,6 +6,7 @@ import { LogoSVG } from '../../../components/LogoSVG';
 import { PARTY_COLORS } from '../../../data/political-parties/partyLogos';
 import { DRENNIA } from '../../../data/countries/varelia/drennia';
 import type { RegisteredPoliticalParty } from '../../../data/political-parties/partyTypes';
+import { FEATURES } from '../../../config/features';
 
 // ── Continent data ─────────────────────────────────────────────────────────────
 
@@ -294,7 +295,7 @@ export default function ChooseMotherlandPage() {
       } catch {}
 
       if (hasChar && path && hasParty && hasCountry) {
-        router.replace('/varelia/news');
+        router.replace(FEATURES.LEGACY_DRENNIA_FRONTEND_ENABLED ? '/varelia/news' : '/world-locked');
         return () => clearTimeout(t);
       }
 

@@ -5,6 +5,7 @@ import { useCharacterStore } from '../../../store/character.store';
 import { LogoSVG } from '../../../components/LogoSVG';
 import { PARTY_COLORS } from '../../../data/political-parties/partyLogos';
 import type { RegisteredPoliticalParty } from '../../../data/political-parties/partyTypes';
+import { FEATURES } from '../../../config/features';
 
 // ── Ideology name map ─────────────────────────────────────────────────────────
 
@@ -69,7 +70,7 @@ export default function PartyRegisteredPage() {
       } catch {}
 
       if (hasChar && path && hasParty && hasCountry) {
-        router.replace('/varelia/news');
+        router.replace(FEATURES.LEGACY_DRENNIA_FRONTEND_ENABLED ? '/varelia/news' : '/world-locked');
         return () => clearTimeout(t);
       }
     }
@@ -248,7 +249,7 @@ export default function PartyRegisteredPage() {
       <button
         id="enter-drennia-btn"
         type="button"
-        onClick={() => router.push('/varelia/news')}
+        onClick={() => router.push(FEATURES.LEGACY_DRENNIA_FRONTEND_ENABLED ? '/varelia/news' : '/world-locked')}
         className="group relative inline-flex items-center gap-2.5 px-10 py-3.5 text-sm font-bold uppercase tracking-[0.18em] rounded-sm overflow-hidden transition-all duration-200"
         style={{
           background: `linear-gradient(135deg, ${partyColor}, ${partyColor}cc)`,

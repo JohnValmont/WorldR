@@ -2,6 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useCharacterStore } from '../../../store/character.store';
+import { FEATURES } from '../../../config/features';
 
 const GENDER_LABELS: Record<string, string> = { male: 'Male', female: 'Female', other: 'Other' };
 
@@ -54,7 +55,7 @@ export default function CitizenshipConfirmedPage() {
       } catch {}
 
       if (hasChar && path && hasParty && hasCountry) {
-        router.replace('/varelia/news');
+        router.replace(FEATURES.LEGACY_DRENNIA_FRONTEND_ENABLED ? '/varelia/news' : '/world-locked');
         return () => clearTimeout(t);
       }
     }

@@ -1,4 +1,5 @@
 'use client';
+// LEGACY QUARANTINED — old Drennia prototype. Do not import into active game flow unless explicitly re-enabled.
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCharacterStore } from '../../../store/character.store';
