@@ -28,7 +28,7 @@ export default function LoginPage() {
         const getRedirectPath = (): string => {
           if (typeof window === 'undefined') return '/pre-alpha-access';
           if (localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true') {
-            return '/start';
+            return '/drennia/home';
           }
           return '/pre-alpha-access';
         };

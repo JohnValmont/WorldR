@@ -60,7 +60,7 @@ function VerifyForm() {
       setSuccess(true);
       setTimeout(() => {
         const granted = typeof window !== 'undefined' && localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-        router.push(granted ? '/start' : '/pre-alpha-access');
+        router.push(granted ? '/drennia/home' : '/pre-alpha-access');
       }, 2000);
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Invalid or expired code. Please try again.');

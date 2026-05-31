@@ -15,7 +15,7 @@ export default function PreAlphaAccessPage() {
     if (typeof window !== 'undefined') {
       const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1');
       if (granted === 'true') {
-        router.replace('/start');
+        router.replace('/drennia/home');
       }
     }
   }, [router]);
@@ -32,7 +32,7 @@ export default function PreAlphaAccessPage() {
       
       // Artificial delay for feel
       setTimeout(() => {
-        router.push('/start');
+        router.push('/drennia/home');
       }, 800);
     } else {
       setError('Invalid pre-alpha access code.');
