@@ -4536,11 +4536,14 @@ export default function ActionsPage() {
 
     // 2. Remove this party from worldr_registered_parties by partyId
     if (ctx.partyId) {
+      const dissolvePartyId = ctx.partyId;
+      const dissolveAbbreviation = ctx.partyAbbreviation;
+
       try {
         const raw = localStorage.getItem('worldr_registered_parties');
         if (raw) {
           const registry: RegisteredPoliticalParty[] = JSON.parse(raw);
-          const filtered = registry.filter((p) => p.partyId !== ctx.partyId);
+          const filtered = registry.filter((p) => p.partyId !== dissolvePartyId);
           localStorage.setItem('worldr_registered_parties', JSON.stringify(filtered));
         }
       } catch (e) {}
@@ -4551,22 +4554,83 @@ export default function ActionsPage() {
       localStorage.removeItem('worldr_party_budget');
       localStorage.removeItem('worldr_party_transactions');
       
-      // Filter out array-based records
-      const filterByParty = (key: string) => {
+      // Filter out array-based records where partyId matches
+      const filterByPartyId = (key: string, idField: string = 'partyId') => {
         try {
           const raw = localStorage.getItem(key);
           if (raw) {
             const arr = JSON.parse(raw);
             if (Array.isArray(arr)) {
-              localStorage.setItem(key, JSON.stringify(arr.filter((item: any) => item.partyId !== ctx.partyId)));
+              localStorage.setItem(key, JSON.stringify(arr.filter((item: any) => item[idField] !== dissolvePartyId)));
             }
           }
         } catch(e) {}
       };
       
-      filterByParty('worldr_activity_log');
-      filterByParty('worldr_election_registrations');
-      filterByParty('worldr_election_promises');
+      filterByPartyId('worldr_activity_log');
+      filterByPartyId('worldr_party_actions');
+      filterByPartyId('worldr_action_results');
+      filterByPartyId('worldr_election_registrations');
+      filterByPartyId('worldr_election_campaigns');
+      filterByPartyId('worldr_election_surveys');
+      filterByPartyId('worldr_election_promises');
+      filterByPartyId('worldr_bills', 'proposedByPartyId');
+      filterByPartyId('worldr_lawbook', 'governingPartyId');
+      filterByPartyId('worldr_voting_record');
+
+      // Purge from News/Public Notices (uses authorPartyId or tags)
+      try {
+        const keys = ['worldr_news_articles', 'worldr_country_articles', 'worldr_continental_articles'];
+        keys.forEach(key => {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const arr = JSON.parse(raw);
+            if (Array.isArray(arr)) {
+              const filtered = arr.filter((item: any) => item.authorPartyId !== dissolvePartyId);
+              localStorage.setItem(key, JSON.stringify(filtered));
+            }
+          }
+        });
+      } catch (e) {}
+
+      // Surgical purge from past elections
+      try {
+        const rawPast = localStorage.getItem('worldr_past_elections');
+        if (rawPast) {
+          let elections = JSON.parse(rawPast);
+          if (Array.isArray(elections)) {
+            let updatedElections = [];
+            for (let election of elections) {
+              if (election.parties && Array.isArray(election.parties)) {
+                // Remove the dissolved party from the parties list
+                election.parties = election.parties.filter((p: any) => p.partyId !== dissolvePartyId);
+                
+                // If it was a local alpha human election and the human party is gone, drop the election entirely
+                // (Since we only have one human party right now, if the parties list drops below total seats or human is gone, drop it)
+                const hasPlayerParty = election.parties.some((p: any) => p.partyId !== 'independent');
+                if (hasPlayerParty) {
+                  updatedElections.push(election);
+                }
+              } else {
+                updatedElections.push(election);
+              }
+            }
+            localStorage.setItem('worldr_past_elections', JSON.stringify(updatedElections));
+          }
+        }
+      } catch (e) {}
+
+      // Remove any government ministries controlled by this party
+      try {
+        const rawGov = localStorage.getItem('worldr_government_ministries');
+        if (rawGov) {
+          const govList = JSON.parse(rawGov);
+          if (Array.isArray(govList)) {
+            const filteredGov = govList.filter((m: any) => m.controllingPartyId !== dissolvePartyId && m.governingPartyId !== dissolvePartyId);
+            localStorage.setItem('worldr_government_ministries', JSON.stringify(filteredGov));
+          }
+        }
+      } catch(e) {}
     }
 
     // 3. Keep worldr_character, keep worldr_selected_path as Politician

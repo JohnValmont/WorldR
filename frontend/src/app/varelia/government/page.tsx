@@ -307,7 +307,92 @@ export default function GovernmentPage() {
   }, [ctx?.countryName, ctx?.partyId, ctx?.characterName, ctx?.continentName]);
 
 
-  
+  const handleResignMinister = (ministryId: string) => {
+    if (!ctx || !govRecord || !ctx.partyId) return;
+    
+    // Find ministry to ensure we control it
+    const min = govRecord.ministries?.find((m: any) => m.ministryId === ministryId);
+    if (!min || min.controllingPartyId !== ctx.partyId || min.ministryId === 'pm') return;
+
+    if (!window.confirm(`Are you sure you want ${min.ministerName} to resign as ${min.officeName}? This office will become vacant.`)) return;
+
+    const updatedGov = { ...govRecord };
+    const updatedMinistries = updatedGov.ministries.map((m: any) => {
+      if (m.ministryId === ministryId) {
+        return {
+          ...m,
+          ministerName: 'Vacant',
+          ministerAge: null,
+          ministerSkill: null,
+          ministerLoyalty: null,
+          status: 'Vacant'
+        };
+      }
+      return m;
+    });
+
+    updatedGov.ministries = updatedMinistries;
+    
+    // Save
+    try {
+      const rawGov = localStorage.getItem('worldr_government_ministries');
+      if (rawGov) {
+        const govList = JSON.parse(rawGov);
+        const newGovList = govList.map((g: any) => g.governmentId === govRecord.governmentId ? updatedGov : g);
+        localStorage.setItem('worldr_government_ministries', JSON.stringify(newGovList));
+      }
+    } catch(e) {}
+    
+    setGovRecord(updatedGov);
+  };
+
+  const handleAppointMinister = (ministryId: string) => {
+    if (!ctx || !govRecord || !ctx.partyId) return;
+    
+    const min = govRecord.ministries?.find((m: any) => m.ministryId === ministryId);
+    if (!min || min.controllingPartyId !== ctx.partyId || min.status !== 'Vacant') return;
+
+    const fns = ['Aris', 'Bane', 'Cael', 'Dora', 'Elara', 'Fenn', 'Gael', 'Hale', 'Ira', 'Jace', 'Lyra', 'Nia', 'Orin', 'Quinn', 'Sia', 'Uri', 'Wren', 'Yara'];
+    const lns = ['Voss', 'Tarn', 'Kest', 'Renn', 'Vale', 'Thorn', 'Lest', 'Gant', 'Vane', 'Sorn', 'Karn', 'Vell', 'Tess'];
+    
+    // Prevent duplicate names in current cabinet
+    let newName = '';
+    let isDuplicate = true;
+    while(isDuplicate) {
+      newName = `${fns[Math.floor(Math.random() * fns.length)]} ${lns[Math.floor(Math.random() * lns.length)]}`;
+      isDuplicate = govRecord.ministries.some((m: any) => m.ministerName === newName);
+    }
+
+    const updatedGov = { ...govRecord };
+    const updatedMinistries = updatedGov.ministries.map((m: any) => {
+      if (m.ministryId === ministryId) {
+        return {
+          ...m,
+          ministerName: newName,
+          ministerAge: Math.floor(35 + Math.random() * 33),
+          ministerSkill: Math.floor(45 + Math.random() * 40),
+          ministerLoyalty: Math.floor(45 + Math.random() * 50),
+          status: 'Active'
+        };
+      }
+      return m;
+    });
+
+    updatedGov.ministries = updatedMinistries;
+    
+    // Save
+    try {
+      const rawGov = localStorage.getItem('worldr_government_ministries');
+      if (rawGov) {
+        const govList = JSON.parse(rawGov);
+        const newGovList = govList.map((g: any) => g.governmentId === govRecord.governmentId ? updatedGov : g);
+        localStorage.setItem('worldr_government_ministries', JSON.stringify(newGovList));
+      }
+    } catch(e) {}
+    
+    setGovRecord(updatedGov);
+  };
+
   if (!mounted || !ctx) return null;
 
   const handleNavigateElections = () => {
@@ -373,23 +458,87 @@ export default function GovernmentPage() {
   else if (currentPartySeats >= 1) partyStatus = 'Small Entry';
 
   const renderSeatChart = () => {
-    // Grid of 120 blocks representing seats
+    // Collect groups
     const sortedParties = [...(pastElection.parties || [])].sort((a, b) => b.seats - a.seats);
-    let blocks = [];
-    sortedParties.forEach(p => {
-       for(let i=0; i<p.seats; i++) {
-         blocks.push({ color: p.partyId === ctx.partyId ? ACCENT : p.partyColor || '#4a5045', id: p.partyId });
-       }
-    });
-    for(let i=0; i<(pastElection.independentIndividuals?.seats || 0); i++) {
-       blocks.push({ color: '#555555', id: 'indep' });
-    }
+    let groups: {id: string, seats: number, color: string}[] = [];
     
+    sortedParties.forEach(p => {
+      if (p.seats > 0) {
+        groups.push({ 
+          id: p.partyId, 
+          seats: p.seats, 
+          color: p.partyId === ctx.partyId ? ACCENT : p.partyColor || '#4a5045' 
+        });
+      }
+    });
+    
+    if (pastElection.independentIndividuals?.seats > 0) {
+      groups.push({
+        id: 'independent',
+        seats: pastElection.independentIndividuals.seats,
+        color: '#555555'
+      });
+    }
+
+    const totalSeats = pastElection?.parliamentSeats || 120;
+    
+    // Generate concentric arcs for seats
+    const rows = 5;
+    const rowRadii = [80, 100, 120, 140, 160];
+    const seatsPerRow = [14, 19, 24, 29, 34]; // sums to 120
+    const cx = 200;
+    const cy = 180;
+    
+    let dots: {x: number, y: number, color: string, id: string}[] = [];
+    let currentGroupIdx = 0;
+    let seatsPlacedForGroup = 0;
+
+    for (let r = 0; r < rows; r++) {
+      const radius = rowRadii[r];
+      const count = seatsPerRow[r];
+      // Angle spans from 180 to 0 degrees (Math.PI to 0 in radians)
+      for (let i = 0; i < count; i++) {
+        // distribute evenly from left to right along the arc
+        const angle = Math.PI - (i / (count - 1)) * Math.PI;
+        const x = cx + radius * Math.cos(angle);
+        const y = cy - radius * Math.sin(angle);
+        
+        let color = '#333';
+        let id = 'empty';
+        
+        if (currentGroupIdx < groups.length) {
+          color = groups[currentGroupIdx].color;
+          id = groups[currentGroupIdx].id;
+          seatsPlacedForGroup++;
+          if (seatsPlacedForGroup >= groups[currentGroupIdx].seats) {
+            currentGroupIdx++;
+            seatsPlacedForGroup = 0;
+          }
+        }
+        
+        dots.push({ x, y, color, id });
+      }
+    }
+
     return (
-      <div className="flex flex-wrap gap-1 max-w-[280px]">
-        {blocks.map((b, i) => (
-          <div key={i} className="w-2.5 h-2.5 rounded-sm" style={{ background: b.color, opacity: b.color === ACCENT ? 1 : 0.8 }} />
-        ))}
+      <div className="relative w-full max-w-sm mx-auto flex flex-col items-center">
+        <svg width="400" height="220" viewBox="0 0 400 220" className="w-full h-auto drop-shadow-md">
+          {dots.map((d, i) => (
+            <circle key={i} cx={d.x} cy={d.y} r={4.5} fill={d.color} opacity={d.color === ACCENT ? 1 : 0.8} />
+          ))}
+          <text x="200" y="160" textAnchor="middle" className="text-2xl font-bold font-mono" fill="#d4d4d8">
+            {formatNumberUS(totalSeats)}
+          </text>
+          <text x="200" y="175" textAnchor="middle" className="text-[10px] font-mono tracking-widest uppercase" fill="#71717a">
+            Total Seats
+          </text>
+          
+          {/* Majority Marker line */}
+          <line x1="200" y1="130" x2="200" y2="70" stroke="#71717a" strokeWidth="1" strokeDasharray="2 2" opacity="0.5" />
+          <text x="200" y="60" textAnchor="middle" className="text-[9px] font-mono uppercase tracking-widest" fill="#71717a">
+            Majority {(pastElection?.majoritySeats || 61)}
+          </text>
+        </svg>
       </div>
     );
   };
@@ -638,9 +787,38 @@ export default function GovernmentPage() {
                         <span className="text-blue-400">{min.ministerLoyalty}</span>
                       </div>
                     </div>
-                    
-                    <div className="text-[8px] uppercase font-mono tracking-widest text-zinc-600 bg-black/20 text-center py-1 rounded-sm border border-white/[0.05]">
-                      {min.status}
+                    <div className="mt-2 text-center border-t border-white/[0.05] pt-3">
+                      {min.controllingPartyId === ctx.partyId ? (
+                        <>
+                          {min.status === 'Vacant' ? (
+                            <button
+                              onClick={() => handleAppointMinister(min.ministryId)}
+                              className="w-full text-[9px] uppercase font-bold tracking-widest bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 transition-colors py-1.5 rounded-sm border border-amber-500/30"
+                            >
+                              Appoint Minister
+                            </button>
+                          ) : (
+                            <>
+                              {min.ministryId === 'pm' ? (
+                                <div className="text-[8px] uppercase font-mono tracking-widest text-emerald-500 bg-emerald-500/10 py-1.5 rounded-sm border border-emerald-500/20">
+                                  Head of Government
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleResignMinister(min.ministryId)}
+                                  className="w-full text-[9px] uppercase font-bold tracking-widest bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors py-1.5 rounded-sm border border-red-500/20"
+                                >
+                                  Resign
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <div className="text-[8px] uppercase font-mono tracking-widest text-zinc-600 bg-black/20 py-1.5 rounded-sm border border-white/[0.05]">
+                          {min.status}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -697,24 +875,47 @@ export default function GovernmentPage() {
                       </div>
                       <div className="text-right">
                         <div className="text-[10px] uppercase font-mono text-zinc-500 mb-1">Status</div>
-                        <div className="text-[11px] font-bold text-emerald-400">{selectedMin.status}</div>
+                        <div className="text-[11px] font-bold text-emerald-400 mb-2">{selectedMin.status}</div>
+                        
+                        {selectedMin.status === 'Vacant' ? (
+                          <button
+                            onClick={() => handleAppointMinister(selectedMin.ministryId)}
+                            className="px-4 py-1.5 text-[9px] uppercase font-bold tracking-widest bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 transition-colors rounded-sm border border-amber-500/30"
+                          >
+                            Appoint Minister
+                          </button>
+                        ) : selectedMin.ministryId !== 'pm' ? (
+                          <button
+                            onClick={() => handleResignMinister(selectedMin.ministryId)}
+                            className="px-4 py-1.5 text-[9px] uppercase font-bold tracking-widest bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors rounded-sm border border-red-500/20"
+                          >
+                            Resign
+                          </button>
+                        ) : null}
                       </div>
                     </div>
 
                     <div>
                       <h3 className="text-[11px] uppercase font-bold text-zinc-300 tracking-widest mb-4">Available Actions</h3>
                       <div className="space-y-3">
-                        {getMinistryActions(selectedMin.ministryId).map((act, i) => (
-                          <div key={i} className="p-4 rounded-sm flex items-center justify-between opacity-50" style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
-                            <div>
-                              <div className="text-xs font-bold text-zinc-300">{act}</div>
-                              <div className="text-[10px] text-zinc-500 mt-0.5 font-mono">Requires Government Module Expansion</div>
-                            </div>
-                            <button disabled className="px-4 py-1.5 text-[9px] uppercase font-mono tracking-widest bg-black/40 border border-zinc-700 text-zinc-500 rounded-sm cursor-not-allowed">
-                              Coming Soon
-                            </button>
+                        {selectedMin.status === 'Vacant' ? (
+                          <div className="p-6 rounded-sm text-center border" style={{ background: PANEL2, borderColor: BORDER }}>
+                            <div className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest">Ministry is Vacant</div>
+                            <div className="text-[9px] text-zinc-600 mt-1">Appoint a minister to unlock actions.</div>
                           </div>
-                        ))}
+                        ) : (
+                          getMinistryActions(selectedMin.ministryId).map((act, i) => (
+                            <div key={i} className="p-4 rounded-sm flex items-center justify-between opacity-50" style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
+                              <div>
+                                <div className="text-xs font-bold text-zinc-300">{act}</div>
+                                <div className="text-[10px] text-zinc-500 mt-0.5 font-mono">Requires Government Module Expansion</div>
+                              </div>
+                              <button disabled className="px-4 py-1.5 text-[9px] uppercase font-mono tracking-widest bg-black/40 border border-zinc-700 text-zinc-500 rounded-sm cursor-not-allowed">
+                                Coming Soon
+                              </button>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
                   </div>
