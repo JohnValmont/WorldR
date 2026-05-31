@@ -6,6 +6,7 @@ import { LogoSVG } from '../../../components/LogoSVG';
 import { PARTY_COLORS } from '../../../data/political-parties/partyLogos';
 import type { RegisteredPoliticalParty } from '../../../data/political-parties/partyTypes';
 import { syncCurrentPartyStatsToRegisteredParties, getLivePartyRegistryData, initializeCurrentPartyStatsIfNeeded, formatMoney, roundMoney, roundActionMoney, formatNumberUS, formatMoneyUS, formatPercent } from '../../../lib/partyHelpers';
+import { VareliaGameShell } from '../../../components/VareliaGameShell';
 import {
   DRENNIA_SOCIETY,
   getSocietyProfile,
@@ -4611,95 +4612,8 @@ export default function ActionsPage() {
         />
       )}
 
-      <div className="h-screen flex flex-col overflow-hidden transition-opacity duration-500"
-        style={{ opacity: revealed ? 1 : 0, background: BG }}>
-
-        {/* ══ TOP GAME BAR ═════════════════════════════════════════════════ */}
-        <header className="shrink-0 flex items-center justify-between px-4 md:px-5 gap-3"
-          style={{ height: '48px', background: PANEL, borderBottom: `1px solid ${BORDER}`, zIndex: 30 }}>
-          {/* Left */}
-          <div className="flex items-center gap-3 min-w-0">
-            <img src="/assets/flags/varelia/drennia.svg" alt="Drennia"
-              style={{ width: '28px', height: '19px', objectFit: 'cover', borderRadius: '1px', border: `1px solid ${BORDER}`, flexShrink: 0 }} />
-            <div className="flex flex-col leading-none">
-              <span className="font-bold text-[12px] tracking-wide" style={{ color: TEXT }}>{ctx.countryName}</span>
-              <span className="text-[8.5px] font-mono uppercase tracking-widest" style={{ color: MUTED }}>{ctx.continentName}</span>
-            </div>
-            <div className="h-3.5 w-px hidden md:block" style={{ background: BORDER }} />
-            <div className="hidden md:flex flex-col leading-none">
-              <span className="text-[10.5px] font-mono font-semibold tracking-wide" style={{ color: MUTED }}>Year 0 · Month 1 · Day 1</span>
-              <span className="text-[8px] font-mono uppercase tracking-widest" style={{ color: '#3d4238' }}>00:00 · Game Start</span>
-            </div>
-          </div>
-          {/* Right */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button id="topbar-bell" type="button" title="Notifications"
-              className="w-8 h-8 flex items-center justify-center rounded-sm transition-colors"
-              style={{ background: `${PANEL2}`, border: `1px solid ${BORDER}`, color: MUTED }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = TEXT)}
-              onMouseLeave={(e) => (e.currentTarget.style.color = MUTED)}>
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-            </button>
-            <div className="hidden sm:flex items-center gap-1.5 px-3 h-8 rounded-sm"
-              style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
-              <span className="text-[8.5px] font-mono uppercase tracking-widest" style={{ color: MUTED }}>Funds</span>
-              <span className="text-[11px] font-bold font-mono text-emerald-600">{formatMoney(ctx.partyFunds)}</span>
-            </div>
-            <div className="relative">
-              <button id="party-menu-btn" type="button" onClick={() => setShowPartyMenu((v) => !v)}
-                className="flex items-center gap-1.5 px-3 h-8 rounded-sm transition-opacity duration-150 hover:opacity-80"
-                style={{ background: `${ctx.partyColor}14`, border: `1px solid ${ctx.partyColor}35`, color: ctx.partyColor }}>
-                <span className="font-mono text-[10px] font-bold tracking-[0.18em]">{ctx.partyAbbreviation}</span>
-                <svg className={`w-2.5 h-2.5 transition-transform duration-150 ${showPartyMenu ? 'rotate-180' : ''}`}
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {showPartyMenu && <PartyDropdown ctx={ctx} onClose={() => setShowPartyMenu(false)} />}
-            </div>
-            <button id="topbar-logout" type="button" title="Logout"
-              className="hidden sm:flex items-center gap-1.5 px-3 h-8 rounded-sm text-[10px] font-mono uppercase tracking-widest transition-colors"
-              style={{ background: PANEL2, border: `1px solid ${BORDER}`, color: MUTED }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#c04040')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = MUTED)}>
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              <span className="hidden md:block">Logout</span>
-            </button>
-          </div>
-        </header>
-
-        {/* ══ MAIN NAV TABS ══════════════════════════════════════════════ */}
-        <nav className="shrink-0 flex items-center px-4 md:px-5"
-          style={{ height: '38px', background: PANEL, borderBottom: `1px solid ${BORDER}`, zIndex: 20 }}>
-          {(MAIN_TABS as readonly string[]).map((tab) => {
-            const isHome = tab === 'Home';
-            const isActions = tab === 'Actions';
-            const isGovernment = tab === 'Government';
-            const isEnabled = isHome || isActions || isGovernment;
-            const isCurrent = isActions;
-            return (
-              <button key={tab} id={`main-tab-${tab.toLowerCase()}`} type="button"
-                disabled={!isEnabled}
-                onClick={() => {
-                if (isHome) router.push('/varelia/news');
-                else if (isGovernment) router.push('/varelia/government');
-              }}
-                className="relative px-4 h-full flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors duration-100"
-                style={{
-                  color: isCurrent ? TEXT : isEnabled ? MUTED : '#2d3228',
-                  cursor: isEnabled ? 'pointer' : 'not-allowed',
-                  borderBottom: isCurrent ? `2px solid ${ACCENT}` : '2px solid transparent',
-                }}>
-                {tab}
-                {!isEnabled && <span className="text-[7px] font-mono normal-case tracking-normal hidden lg:inline" style={{ color: '#2d3228' }}>soon</span>}
-              </button>
-            );
-          })}
-        </nav>
+      <div className="transition-opacity duration-500 h-full w-full" style={{ opacity: revealed ? 1 : 0 }}>
+        <VareliaGameShell activeMainTab="Actions" ctx={ctx}>
 
         {/* ══ ACTIONS SUBTAB ROW ════════════════════════════════════════ */}
         <div className="shrink-0 flex items-center px-4 md:px-5 border-b overflow-x-auto"
@@ -4813,6 +4727,7 @@ export default function ActionsPage() {
             <ActivityLogView />
           )}
         </div>
+        </VareliaGameShell>
       </div>
     </>
   );
