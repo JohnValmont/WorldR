@@ -499,10 +499,10 @@ export default function GovernmentPage() {
     const totalSeats = pastElection?.parliamentSeats || 120;
     
     const rows = 5;
-    const rowRadii = [100, 130, 160, 190, 220];
+    const rowRadii = [90, 115, 140, 165, 190];
     const seatsPerRow = [14, 19, 24, 29, 34]; // sums to 120
-    const cx = 250;
-    const cy = 260;
+    const cx = 190;
+    const cy = 200;
     
     let dots: {x: number, y: number, color: string, id: string, isGov: boolean}[] = [];
     let currentGroupIdx = 0;
@@ -540,45 +540,47 @@ export default function GovernmentPage() {
 
     return (
       <div className="w-full flex flex-col items-center">
-        <svg width="500" height="280" viewBox="0 0 500 280" className="w-full h-auto drop-shadow-xl" style={{ filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.5))' }}>
+        <svg width="380" height="230" viewBox="0 0 380 230" className="w-full h-auto drop-shadow-xl" style={{ filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.5))' }}>
           {dots.map((d, i) => (
-            <circle key={i} cx={d.x} cy={d.y} r={6} fill={d.color} opacity={d.isGov ? 1 : 0.6} stroke={d.isGov ? 'rgba(212,169,31,0.5)' : 'none'} strokeWidth={d.isGov ? 1.5 : 0} />
+            <circle key={i} cx={d.x} cy={d.y} r={5} fill={d.color} opacity={d.isGov ? 1 : 0.6} stroke={d.isGov ? 'rgba(212,169,31,0.5)' : 'none'} strokeWidth={d.isGov ? 1.5 : 0}>
+              <title>{d.id === 'independent' ? 'IND · Independent Individuals' : 'MP · Party Member'}</title>
+            </circle>
           ))}
-          <text x="250" y="210" textAnchor="middle" className="text-4xl font-bold font-mono" fill="#d4d4d8">
+          <text x={cx} y={cy - 40} textAnchor="middle" className="text-3xl font-bold font-mono" fill="#d4d4d8">
             {formatNumberUS(totalSeats)}
           </text>
-          <text x="250" y="235" textAnchor="middle" className="text-[12px] font-mono tracking-[0.2em] uppercase" fill="#71717a">
+          <text x={cx} y={cy - 15} textAnchor="middle" className="text-[10px] font-mono tracking-[0.2em] uppercase" fill="#71717a">
             Total Seats
           </text>
           
-          <line x1="250" y1="160" x2="250" y2="70" stroke="#71717a" strokeWidth="1" strokeDasharray="4 4" opacity="0.3" />
-          <text x="250" y="60" textAnchor="middle" className="text-[10px] font-mono uppercase tracking-widest" fill="#71717a">
-            Majority {(pastElection?.majoritySeats || 61)}
+          <line x1={cx} y1={cy - 90} x2={cx} y2="40" stroke="#71717a" strokeWidth="1" strokeDasharray="4 4" opacity="0.3" />
+          <text x={cx} y="30" textAnchor="middle" className="text-[9px] font-mono uppercase tracking-widest" fill="#71717a">
+            Target {(pastElection?.majoritySeats || 61)}
           </text>
         </svg>
 
-        <div className="w-full mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t" style={{ borderColor: BORDER }}>
+        <div className="w-full mt-4 flex flex-col gap-4">
           <div>
-            <div className="text-[10px] uppercase font-mono tracking-widest text-emerald-500/80 mb-3 font-bold">Governing Party</div>
+            <div className="text-[9px] uppercase font-mono tracking-widest text-emerald-500/80 mb-2 font-bold">Governing Party</div>
             {govGroups.length > 0 ? govGroups.map(g => (
-              <div key={g.id} className="flex justify-between items-center mb-2">
+              <div key={g.id} className="flex justify-between items-center mb-1.5">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: g.color }} />
-                  <span className="text-xs font-bold text-zinc-200">{g.name} ({g.abb})</span>
+                  <span className="text-xs font-bold text-zinc-200">{g.abb} &middot; {g.name}</span>
                 </div>
-                <span className="text-xs font-mono font-bold text-amber-500">{g.seats}</span>
+                <span className="text-xs font-mono font-bold text-amber-500">{g.seats} seats</span>
               </div>
             )) : <div className="text-[11px] text-zinc-500">None</div>}
           </div>
           <div>
-            <div className="text-[10px] uppercase font-mono tracking-widest text-zinc-500 mb-3 font-bold">Opposition / Independents</div>
+            <div className="text-[9px] uppercase font-mono tracking-widest text-zinc-500 mb-2 font-bold">Opposition / Non-Party</div>
             {oppGroups.length > 0 ? oppGroups.map(g => (
-              <div key={g.id} className="flex justify-between items-center mb-2">
+              <div key={g.id} className="flex justify-between items-center mb-1.5">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: g.color }} />
-                  <span className="text-xs font-bold text-zinc-400">{g.name} ({g.abb})</span>
+                  <span className="text-xs font-bold text-zinc-400">{g.abb} &middot; {g.name}</span>
                 </div>
-                <span className="text-xs font-mono text-zinc-500">{g.seats}</span>
+                <span className="text-xs font-mono text-zinc-500">{g.seats} seats</span>
               </div>
             )) : <div className="text-[11px] text-zinc-500">None</div>}
           </div>
@@ -809,102 +811,185 @@ export default function GovernmentPage() {
           </div>
         )}
 
-        {activeGovSubtab === 'Parliament' && (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="w-full p-6 md:p-8 rounded-sm flex flex-col items-center" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
-              <div className="text-sm uppercase font-mono tracking-widest text-zinc-300 font-bold mb-8 w-full text-center border-b pb-4" style={{ borderColor: BORDER }}>
-                Seat Distribution
-              </div>
-              {renderSeatChart()}
-            </div>
+        {activeGovSubtab === 'Parliament' && (() => {
+          const govPartyId = govRecord?.governingPartyId;
+          const govPartyObj = (pastElection?.parties || []).find((p:any) => p.partyId === govPartyId);
+          const governingSeats = govPartyObj ? govPartyObj.seats : 0;
+          const majorityReq = pastElection?.majoritySeats || 61;
+          const totalSeats = pastElection?.parliamentSeats || 120;
+          
+          let majorityStatusTitle = 'NO PLAYER-LED GOVERNMENT';
+          let majorityStatusColor = '#a1a1aa'; // zinc-400
+          let majorityStatusText = 'No government has been formed.';
+          
+          if (govPartyId) {
+            if (governingSeats >= majorityReq) {
+              majorityStatusTitle = 'MAJORITY SECURED';
+              majorityStatusColor = ACCENT;
+              majorityStatusText = `+${governingSeats - majorityReq} above majority`;
+            } else {
+              majorityStatusTitle = 'MINORITY GOVERNMENT';
+              majorityStatusColor = '#f59e0b'; // amber-500
+              majorityStatusText = `${majorityReq - governingSeats} seats short of majority`;
+            }
+          }
 
-            <div className="p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
-              <div className="flex justify-between items-end mb-6">
-                <div>
-                  <h3 className="text-sm font-bold text-zinc-200">Parliament Composition</h3>
-                  <p className="text-[10px] uppercase font-mono text-zinc-500 mt-1">{ctx.countryName} National Assembly</p>
+          return (
+            <div className="mx-auto" style={{ maxWidth: '1560px', padding: '0 24px', marginBottom: '48px' }}>
+              <div className="grid grid-cols-1 gap-5" style={{ gridTemplateColumns: 'minmax(0, 1fr)', '@media (min-width: 1050px)': { gridTemplateColumns: '420px 1fr' } } as any} 
+                ref={(el) => { if(el) { if(window.innerWidth >= 1050) el.style.gridTemplateColumns = '420px 1fr'; else el.style.gridTemplateColumns = 'minmax(0, 1fr)'; } }}>
+                
+                {/* LEFT COLUMN: 420px Fixed on desktop */}
+                <div className="space-y-5" style={{ minWidth: '0' }}>
+                  {/* Chamber Makeup Card */}
+                  <div className="p-5 rounded-sm flex flex-col" style={{ background: PANEL, border: `1px solid ${BORDER}`, minHeight: '520px' }}>
+                    <div className="text-[11px] uppercase font-mono tracking-widest text-zinc-300 font-bold mb-4 w-full border-b pb-3" style={{ borderColor: BORDER }}>
+                      CURRENT PARLIAMENTARY MAKEUP
+                    </div>
+                    {renderSeatChart()}
+                  </div>
+
+                  {/* Majority Status Card */}
+                  <div className="p-5 rounded-sm flex flex-col justify-center" style={{ background: PANEL, border: `1px solid ${BORDER}`, minHeight: '120px' }}>
+                    <div className="text-[10px] uppercase font-mono tracking-widest font-bold mb-2" style={{ color: majorityStatusColor }}>
+                      {majorityStatusTitle}
+                    </div>
+                    {govPartyId ? (
+                      <div>
+                        <div className="text-xl font-bold text-zinc-100 mb-1">{governingSeats} / {totalSeats} seats</div>
+                        <div className="text-xs text-zinc-400">{majorityStatusText}</div>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-zinc-400">{majorityStatusText}</div>
+                    )}
+                  </div>
+
+                  {/* Independent Rule Card */}
+                  <div className="p-5 rounded-sm flex flex-col justify-center" style={{ background: PANEL, border: `1px solid ${BORDER}`, minHeight: '110px' }}>
+                    <div className="text-[10px] uppercase font-mono tracking-widest text-zinc-300 font-bold mb-2">
+                      INDEPENDENT INDIVIDUALS
+                    </div>
+                    <p className="text-[10px] text-zinc-500 leading-relaxed mb-3">
+                      Independent Individuals are not AI parties. They do not negotiate, hold ministries, or join coalitions.
+                    </p>
+                    <div className="text-[9px] font-mono text-zinc-400 bg-black/20 p-2 rounded-sm border border-white/5 inline-block">
+                      Future bills: 30% Yes &middot; 30% No &middot; 40% NOTA
+                    </div>
+                  </div>
                 </div>
-                <div className="text-[10px] uppercase font-mono text-emerald-500 border border-emerald-900 px-2 py-1 bg-emerald-950/20">
-                  Total Seats: {formatNumberUS((pastElection?.parliamentSeats || 120))}
+
+                {/* RIGHT COLUMN: Flexible 1fr */}
+                <div className="space-y-5" style={{ minWidth: '0' }}>
+                  {/* Legislative Floor Card */}
+                  <div className="p-5 rounded-sm flex flex-col" style={{ background: PANEL, border: `1px solid ${BORDER}`, minHeight: '300px' }}>
+                    <div className="flex justify-between items-start mb-6">
+                      <div>
+                        <h2 className="text-[13px] uppercase font-mono tracking-widest text-zinc-100 font-bold">LEGISLATIVE FLOOR</h2>
+                        <p className="text-[10px] text-zinc-500 mt-1">Bills and laws currently before Drennia’s parliament.</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button className="text-[9px] uppercase font-mono px-3 py-2 rounded-sm border border-amber-500 text-amber-500 bg-amber-500/10">Active Bills</button>
+                        <button className="text-[9px] uppercase font-mono px-3 py-2 rounded-sm border border-zinc-700 text-zinc-400 hover:bg-white/5">Resolved</button>
+                        <button className="text-[9px] uppercase font-mono px-3 py-2 rounded-sm border border-zinc-700 text-zinc-400 hover:bg-white/5">All Laws</button>
+                        <button onClick={() => setActiveGovSubtab('Propose Bill')} className="text-[9px] uppercase font-bold tracking-widest px-4 py-2 rounded-sm bg-amber-500 text-black hover:bg-amber-400 ml-2">Propose Bill</button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-6 mb-8 border-b pb-4" style={{ borderColor: BORDER }}>
+                      <div>
+                        <div className="text-[9px] uppercase font-mono text-zinc-500 mb-1">Active Bills</div>
+                        <div className="text-xl font-bold text-zinc-200">0</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] uppercase font-mono text-zinc-500 mb-1">Voting Open</div>
+                        <div className="text-xl font-bold text-zinc-200">0</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] uppercase font-mono text-zinc-500 mb-1">Passed Laws</div>
+                        <div className="text-xl font-bold text-zinc-200">0</div>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
+                      <div className="text-sm font-bold text-zinc-400 mb-2">No active bills.</div>
+                      <div className="text-[11px] text-zinc-500">Use Propose Bill to introduce legislation.</div>
+                    </div>
+                  </div>
+
+                  {/* Party Seat Table Card */}
+                  <div className="p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}`, minHeight: '300px' }}>
+                    <div className="text-[11px] uppercase font-mono tracking-widest text-zinc-300 font-bold mb-6 w-full border-b pb-3" style={{ borderColor: BORDER }}>
+                      PARLIAMENTARY GROUPS
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-[11px]">
+                        <thead>
+                          <tr className="border-b text-zinc-500 uppercase font-mono tracking-wider" style={{ borderColor: BORDER }}>
+                            <th className="pb-2 font-normal w-1/3">Group / Party</th>
+                            <th className="pb-2 font-normal">Leader</th>
+                            <th className="pb-2 font-normal text-right">Seats</th>
+                            <th className="pb-2 font-normal text-right">Share</th>
+                            <th className="pb-2 font-normal pl-4">Position</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {/* Player Parties */}
+                          {[...(pastElection.parties || [])].sort((a, b) => b.seats - a.seats).map((p: any) => {
+                            if (p.seats === 0) return null;
+                            const isMe = p.partyId === ctx.partyId;
+                            const isGov = p.partyId === govRecord?.governingPartyId;
+                            
+                            return (
+                              <tr key={p.partyId} className="border-b last:border-0" style={{ borderColor: BORDER }}>
+                                <td className="py-3 pr-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: isGov ? ACCENT : p.partyColor || '#4a5045' }} />
+                                    <span className={`font-bold ${isMe ? 'text-amber-400' : 'text-zinc-200'} truncate`}>{p.partyAbbreviation} &middot; {p.partyName}</span>
+                                    {isMe && <span className="text-[8px] bg-amber-500/20 text-amber-500 px-1 py-0.5 rounded-sm font-mono tracking-widest ml-1">YOU</span>}
+                                  </div>
+                                </td>
+                                <td className="py-3 text-zinc-300">{p.leaderName}</td>
+                                <td className="py-3 text-right font-bold text-zinc-100">{formatNumberUS(p.seats)}</td>
+                                <td className="py-3 text-right text-zinc-400 font-mono">{((p.seats / totalSeats) * 100).toFixed(1)}%</td>
+                                <td className="py-3 pl-4">
+                                  {isGov ? (
+                                    <span className="text-[9px] bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded-sm font-mono tracking-widest border border-emerald-500/20">GOVERNMENT</span>
+                                  ) : (
+                                    <span className="text-[9px] text-zinc-500 font-mono tracking-widest">OPPOSITION</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+
+                          {/* Independents */}
+                          {(pastElection.independentIndividuals?.seats > 0) && (
+                            <tr className="border-b last:border-0 bg-white/[0.01]" style={{ borderColor: BORDER }}>
+                              <td className="py-3 pr-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: '#3f3f46' }} />
+                                  <span className="font-bold text-zinc-400 truncate">IND &middot; Independent Individuals</span>
+                                </div>
+                              </td>
+                              <td className="py-3 text-zinc-600">ΓÇö</td>
+                              <td className="py-3 text-right font-bold text-zinc-400">{formatNumberUS((pastElection.independentIndividuals?.seats || 0))}</td>
+                              <td className="py-3 text-right text-zinc-500 font-mono">{(((pastElection.independentIndividuals?.seats || 0) / totalSeats) * 100).toFixed(1)}%</td>
+                              <td className="py-3 pl-4">
+                                <span className="text-[9px] text-zinc-500 font-mono tracking-widest border border-zinc-700/50 px-1.5 py-0.5 rounded-sm bg-black/20">NON-PARTY</span>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
                 </div>
               </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-[11px]">
-                  <thead>
-                    <tr className="border-b text-zinc-500 uppercase font-mono tracking-wider" style={{ borderColor: BORDER }}>
-                      <th className="pb-2 font-normal w-1/3">Group / Party</th>
-                      <th className="pb-2 font-normal">Leader</th>
-                      <th className="pb-2 font-normal text-right">Seats</th>
-                      <th className="pb-2 font-normal text-right">Vote Share</th>
-                      <th className="pb-2 font-normal text-right">Parl. Share</th>
-                      <th className="pb-2 font-normal pl-4">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* Player Parties */}
-                    {[...(pastElection.parties || [])].sort((a, b) => b.seats - a.seats).map((p: any) => {
-                      const isMe = p.partyId === ctx.partyId;
-                      let pStatus = 'Outside Parliament';
-                      if (p.seats >= (pastElection?.majoritySeats || 61)) pStatus = 'Majority Government';
-                      else if (p.seats >= 30) pStatus = 'Major Party';
-                      else if (p.seats >= 15) pStatus = 'Rising Party';
-                      else if (p.seats >= 5) pStatus = 'Minor Party';
-                      else if (p.seats >= 1) pStatus = 'Small Entry';
-                      
-                      return (
-                        <tr key={p.partyId} className="border-b last:border-0" style={{ borderColor: BORDER }}>
-                          <td className="py-3 pr-2">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: isMe ? ACCENT : p.partyColor || '#4a5045' }} />
-                              <span className={`font-bold ${isMe ? 'text-amber-400' : 'text-zinc-200'} truncate`}>{p.partyName} ({p.partyAbbreviation})</span>
-                              {isMe && <span className="text-[8px] bg-amber-500/20 text-amber-500 px-1 py-0.5 rounded-sm font-mono tracking-widest ml-1">YOU</span>}
-                            </div>
-                          </td>
-                          <td className="py-3 text-zinc-300">{p.leaderName}</td>
-                          <td className="py-3 text-right font-bold text-zinc-100">{formatNumberUS(p.seats)}</td>
-                          <td className="py-3 text-right text-zinc-400 font-mono">{p.voteShare.toFixed(1)}%</td>
-                          <td className="py-3 text-right text-zinc-400 font-mono">{((p.seats / (pastElection?.parliamentSeats || 120)) * 100).toFixed(1)}%</td>
-                          <td className="py-3 pl-4 text-emerald-500/80 font-mono text-[9px] uppercase">{pStatus}</td>
-                        </tr>
-                      );
-                    })}
-
-                    {/* Independents */}
-                    <tr className="border-b last:border-0 bg-white/[0.01]" style={{ borderColor: BORDER }}>
-                      <td className="py-3 pr-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: '#555555' }} />
-                          <span className="font-bold text-zinc-400 truncate">Independent Individuals</span>
-                        </div>
-                      </td>
-                      <td className="py-3 text-zinc-600">ΓÇö</td>
-                      <td className="py-3 text-right font-bold text-zinc-400">{formatNumberUS((pastElection.independentIndividuals?.seats || 0))}</td>
-                      <td className="py-3 text-right text-zinc-500 font-mono">{pastElection.notaPercent?.toFixed(1) || '0.0'}%</td>
-                      <td className="py-3 text-right text-zinc-500 font-mono">{(((pastElection.independentIndividuals?.seats || 0) / (pastElection?.parliamentSeats || 120)) * 100).toFixed(1)}%</td>
-                      <td className="py-3 pl-4 text-zinc-600 font-mono text-[9px] uppercase">Non-party bloc</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 rounded-sm border-l-2" style={{ background: PANEL2, borderLeftColor: MUTED, borderTop: `1px solid ${BORDER}`, borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
-                <h4 className="text-[10px] uppercase font-mono tracking-widest text-zinc-400 mb-2">Independent Individuals Rule</h4>
-                <p className="text-[10px] text-zinc-500 leading-relaxed">
-                  Independent Individuals are not AI parties and cannot be negotiated with. On future bills they will automatically vote 30% Yes, 30% No, and 40% NOTA.
-                </p>
-              </div>
-              <div className="p-4 rounded-sm border-l-2" style={{ background: PANEL2, borderLeftColor: ACCENT, borderTop: `1px solid ${BORDER}`, borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
-                <h4 className="text-[10px] uppercase font-mono tracking-widest text-amber-500/80 mb-2">Legislative Rule</h4>
-                <p className="text-[10px] text-zinc-400 leading-relaxed">
-                  Ordinary bills will require <strong className="text-zinc-200">{formatNumberUS((pastElection?.majoritySeats || 61))} Yes votes</strong> to pass in DrenniaΓÇÖs {formatNumberUS((pastElection?.parliamentSeats || 120))}-seat parliament.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {activeGovSubtab === 'Cabinet' && (
           <div className="max-w-4xl mx-auto space-y-6">
