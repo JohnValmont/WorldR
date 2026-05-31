@@ -181,18 +181,24 @@ export default function GovernmentPage() {
     if (!ctx) return;
     // 1. Fetch latest past election
     const rawElections = localStorage.getItem('worldr_past_elections');
-    if (!rawElections) return;
+    if (!rawElections) { setPastElection(null); return; }
     const elections: any[] = JSON.parse(rawElections);
-    const countryElections = elections.filter(e => e.countryName === ctx.countryName).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    if (countryElections.length === 0) return;
-    const latestElection = countryElections[0];
+    // Find the latest election where the player party participated and is not dissolved
+    const activeElections = elections.filter(e => e.countryName === ctx.countryName && e.parties?.some((p:any) => p.partyId === ctx.partyId && !p.dissolved)).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+    if (activeElections.length === 0) {
+      setPastElection(null);
+      return;
+    }
+    const latestElection = activeElections[0];
     setPastElection(latestElection);
 
     // 2. Load or generate Ministry Data
     const rawGov = localStorage.getItem('worldr_government_ministries');
     let govList: any[] = rawGov ? JSON.parse(rawGov) : [];
     
-    let currentGov = govList.find(g => g.electionId === latestElection.id && g.countryName === ctx.countryName);
+    // Ensure we match by resultId so new elections correctly create new government records
+    let currentGov = govList.find(g => g.resultId === latestElection.resultId && g.countryName === ctx.countryName);
     
     if (!currentGov) {
       // Generate new government record
@@ -204,7 +210,7 @@ export default function GovernmentPage() {
       
       if (sortedParties.length > 0 && sortedParties[0].seats > 0) {
         governingParty = sortedParties[0];
-        if (governingParty.seats >= latestElection.majoritySeats) {
+        if (governingParty.seats >= (latestElection.majoritySeats || 61)) {
           govType = 'Majority Government';
         } else {
           govType = 'Minority Government';
@@ -288,7 +294,8 @@ export default function GovernmentPage() {
 
       currentGov = {
         governmentId: Math.random().toString(36).substring(2, 10),
-        electionId: latestElection.id,
+        electionId: latestElection.electionId,
+        resultId: latestElection.resultId,
         countryName: ctx.countryName,
         continentName: ctx.continentName,
         formedAt: new Date().toISOString(),
@@ -460,14 +467,18 @@ export default function GovernmentPage() {
   const renderSeatChart = () => {
     // Collect groups
     const sortedParties = [...(pastElection.parties || [])].sort((a, b) => b.seats - a.seats);
-    let groups: {id: string, seats: number, color: string}[] = [];
+    let groups: {id: string, name: string, abb: string, seats: number, color: string, isGov: boolean}[] = [];
     
     sortedParties.forEach(p => {
       if (p.seats > 0) {
+        const isGov = p.partyId === govRecord?.governingPartyId;
         groups.push({ 
           id: p.partyId, 
+          name: p.partyName,
+          abb: p.partyAbbreviation,
           seats: p.seats, 
-          color: p.partyId === ctx.partyId ? ACCENT : p.partyColor || '#4a5045' 
+          color: isGov ? ACCENT : '#4a5045',
+          isGov
         });
       }
     });
@@ -475,40 +486,42 @@ export default function GovernmentPage() {
     if (pastElection.independentIndividuals?.seats > 0) {
       groups.push({
         id: 'independent',
+        name: 'Independent Individuals',
+        abb: 'IND',
         seats: pastElection.independentIndividuals.seats,
-        color: '#555555'
+        color: '#3f3f46',
+        isGov: false
       });
     }
 
     const totalSeats = pastElection?.parliamentSeats || 120;
     
-    // Generate concentric arcs for seats
     const rows = 5;
-    const rowRadii = [80, 100, 120, 140, 160];
+    const rowRadii = [100, 130, 160, 190, 220];
     const seatsPerRow = [14, 19, 24, 29, 34]; // sums to 120
-    const cx = 200;
-    const cy = 180;
+    const cx = 250;
+    const cy = 260;
     
-    let dots: {x: number, y: number, color: string, id: string}[] = [];
+    let dots: {x: number, y: number, color: string, id: string, isGov: boolean}[] = [];
     let currentGroupIdx = 0;
     let seatsPlacedForGroup = 0;
 
     for (let r = 0; r < rows; r++) {
       const radius = rowRadii[r];
       const count = seatsPerRow[r];
-      // Angle spans from 180 to 0 degrees (Math.PI to 0 in radians)
       for (let i = 0; i < count; i++) {
-        // distribute evenly from left to right along the arc
         const angle = Math.PI - (i / (count - 1)) * Math.PI;
         const x = cx + radius * Math.cos(angle);
         const y = cy - radius * Math.sin(angle);
         
         let color = '#333';
         let id = 'empty';
+        let isGov = false;
         
         if (currentGroupIdx < groups.length) {
           color = groups[currentGroupIdx].color;
           id = groups[currentGroupIdx].id;
+          isGov = groups[currentGroupIdx].isGov;
           seatsPlacedForGroup++;
           if (seatsPlacedForGroup >= groups[currentGroupIdx].seats) {
             currentGroupIdx++;
@@ -516,29 +529,58 @@ export default function GovernmentPage() {
           }
         }
         
-        dots.push({ x, y, color, id });
+        dots.push({ x, y, color, id, isGov });
       }
     }
 
+    const govGroups = groups.filter(g => g.isGov);
+    const oppGroups = groups.filter(g => !g.isGov);
+
     return (
-      <div className="relative w-full max-w-sm mx-auto flex flex-col items-center">
-        <svg width="400" height="220" viewBox="0 0 400 220" className="w-full h-auto drop-shadow-md">
+      <div className="w-full flex flex-col items-center">
+        <svg width="500" height="280" viewBox="0 0 500 280" className="w-full h-auto drop-shadow-xl" style={{ filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.5))' }}>
           {dots.map((d, i) => (
-            <circle key={i} cx={d.x} cy={d.y} r={4.5} fill={d.color} opacity={d.color === ACCENT ? 1 : 0.8} />
+            <circle key={i} cx={d.x} cy={d.y} r={6} fill={d.color} opacity={d.isGov ? 1 : 0.6} stroke={d.isGov ? 'rgba(212,169,31,0.5)' : 'none'} strokeWidth={d.isGov ? 1.5 : 0} />
           ))}
-          <text x="200" y="160" textAnchor="middle" className="text-2xl font-bold font-mono" fill="#d4d4d8">
+          <text x="250" y="210" textAnchor="middle" className="text-4xl font-bold font-mono" fill="#d4d4d8">
             {formatNumberUS(totalSeats)}
           </text>
-          <text x="200" y="175" textAnchor="middle" className="text-[10px] font-mono tracking-widest uppercase" fill="#71717a">
+          <text x="250" y="235" textAnchor="middle" className="text-[12px] font-mono tracking-[0.2em] uppercase" fill="#71717a">
             Total Seats
           </text>
           
-          {/* Majority Marker line */}
-          <line x1="200" y1="130" x2="200" y2="70" stroke="#71717a" strokeWidth="1" strokeDasharray="2 2" opacity="0.5" />
-          <text x="200" y="60" textAnchor="middle" className="text-[9px] font-mono uppercase tracking-widest" fill="#71717a">
+          <line x1="250" y1="160" x2="250" y2="70" stroke="#71717a" strokeWidth="1" strokeDasharray="4 4" opacity="0.3" />
+          <text x="250" y="60" textAnchor="middle" className="text-[10px] font-mono uppercase tracking-widest" fill="#71717a">
             Majority {(pastElection?.majoritySeats || 61)}
           </text>
         </svg>
+
+        <div className="w-full mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t" style={{ borderColor: BORDER }}>
+          <div>
+            <div className="text-[10px] uppercase font-mono tracking-widest text-emerald-500/80 mb-3 font-bold">Governing Party</div>
+            {govGroups.length > 0 ? govGroups.map(g => (
+              <div key={g.id} className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: g.color }} />
+                  <span className="text-xs font-bold text-zinc-200">{g.name} ({g.abb})</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-amber-500">{g.seats}</span>
+              </div>
+            )) : <div className="text-[11px] text-zinc-500">None</div>}
+          </div>
+          <div>
+            <div className="text-[10px] uppercase font-mono tracking-widest text-zinc-500 mb-3 font-bold">Opposition / Independents</div>
+            {oppGroups.length > 0 ? oppGroups.map(g => (
+              <div key={g.id} className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: g.color }} />
+                  <span className="text-xs font-bold text-zinc-400">{g.name} ({g.abb})</span>
+                </div>
+                <span className="text-xs font-mono text-zinc-500">{g.seats}</span>
+              </div>
+            )) : <div className="text-[11px] text-zinc-500">None</div>}
+          </div>
+        </div>
       </div>
     );
   };
@@ -593,9 +635,9 @@ export default function GovernmentPage() {
 
         {activeGovSubtab === 'Overview' && (
           <div className="max-w-4xl mx-auto space-y-6">
-            <div className="flex flex-col md:flex-row gap-6">
-              {/* Left Panel */}
-              <div className="flex-1 p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
+            <div className="flex flex-col gap-6">
+              {/* Top Panel - Stats */}
+              <div className="w-full p-5 rounded-sm" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
                 <div className="flex justify-between items-start mb-6">
                   <div>
                     <h2 className="text-lg font-bold text-zinc-100">{ctx.countryName} Government</h2>
@@ -606,7 +648,7 @@ export default function GovernmentPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                   <div className="p-3" style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
                     <div className="text-[9px] uppercase font-mono text-zinc-500 mb-1">System</div>
                     <div className="text-xs font-bold text-zinc-300">Parliamentary</div>
@@ -616,12 +658,12 @@ export default function GovernmentPage() {
                     <div className="text-xs font-bold text-zinc-300 truncate">{pastElection.electionName}</div>
                   </div>
                   <div className="p-3" style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
-                    <div className="text-[9px] uppercase font-mono text-zinc-500 mb-1">Parliament Seats</div>
-                    <div className="text-xs font-bold text-zinc-300">{formatNumberUS((pastElection?.parliamentSeats || 120))}</div>
+                    <div className="text-[9px] uppercase font-mono text-zinc-500 mb-1">Governing Party</div>
+                    <div className="text-xs font-bold" style={{ color: ACCENT }}>{govRecord.governingPartyAbbreviation || 'None'}</div>
                   </div>
                   <div className="p-3" style={{ background: PANEL2, border: `1px solid ${BORDER}` }}>
-                    <div className="text-[9px] uppercase font-mono text-zinc-500 mb-1">Majority Required</div>
-                    <div className="text-xs font-bold text-amber-500">{formatNumberUS((pastElection?.majoritySeats || 61))}</div>
+                    <div className="text-[9px] uppercase font-mono text-zinc-500 mb-1">Your Seats</div>
+                    <div className="text-xs font-bold text-zinc-300">{formatNumberUS(currentPartySeats)}</div>
                   </div>
                 </div>
 
@@ -634,30 +676,12 @@ export default function GovernmentPage() {
                 </div>
               </div>
 
-              {/* Right Panel - Visual */}
-              <div className="w-full md:w-72 p-5 rounded-sm flex flex-col items-center justify-center" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
-                <div className="text-[10px] uppercase font-mono tracking-widest text-zinc-500 mb-6 w-full text-center border-b pb-2" style={{ borderColor: BORDER }}>
+              {/* Bottom Panel - Visual */}
+              <div className="w-full p-6 md:p-8 rounded-sm flex flex-col items-center" style={{ background: PANEL, border: `1px solid ${BORDER}` }}>
+                <div className="text-sm uppercase font-mono tracking-widest text-zinc-300 font-bold mb-8 w-full text-center border-b pb-4" style={{ borderColor: BORDER }}>
                   Seat Distribution
                 </div>
                 {renderSeatChart()}
-                <div className="w-full mt-6 space-y-2">
-                  <div className="flex justify-between items-center text-[10px] uppercase font-mono">
-                    <span className="text-zinc-500">Your Seats</span>
-                    <span className="font-bold text-zinc-300">{formatNumberUS(currentPartySeats)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[10px] uppercase font-mono">
-                    <span className="text-zinc-500">Governing Party</span>
-                    <span className="font-bold" style={{ color: ACCENT }}>{govRecord.governingPartyAbbreviation || 'None'}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[10px] uppercase font-mono">
-                    <span className="text-zinc-500">Independent Seats</span>
-                    <span className="font-bold text-zinc-400">{formatNumberUS((pastElection.independentIndividuals?.seats || 0))}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[10px] uppercase font-mono">
-                    <span className="text-zinc-500">Ministries Controlled</span>
-                    <span className="font-bold text-emerald-500">{currentPartyGov ? 8 : 0}</span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -767,27 +791,32 @@ export default function GovernmentPage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {(govRecord.ministries || []).map((min: any) => (
-                  <div key={min.ministryId} className="p-4 rounded-sm relative overflow-hidden group" style={{ background: PANEL, border: `1px solid ${min.ministryId === 'pm' ? ACCENT : BORDER}` }}>
+                  <div key={min.ministryId} className="p-4 rounded-sm relative overflow-hidden flex flex-col group" style={{ background: PANEL, border: `1px solid ${min.ministryId === 'pm' ? ACCENT : BORDER}` }}>
                     {min.ministryId === 'pm' && <div className="absolute top-0 left-0 w-full h-1" style={{ background: ACCENT }} />}
                     
-                    <div className="text-[9px] uppercase font-mono tracking-widest text-zinc-500 mb-1">{min.officeName}</div>
-                    <div className="text-[13px] font-bold text-zinc-100 truncate mb-3">{min.ministerName}</div>
-                    
-                    <div className="space-y-1.5 mb-4">
-                      <div className="flex justify-between text-[10px] font-mono">
-                        <span className="text-zinc-600">Party</span>
-                        <span className="text-emerald-500 font-bold">{min.controllingPartyAbbreviation}</span>
+                    <div className="flex-1">
+                      <div className="text-[9px] uppercase font-mono tracking-widest text-zinc-500 mb-1">{min.officeName}</div>
+                      <div className="text-[13px] font-bold truncate mb-3" style={{ color: min.status === 'Vacant' ? '#a1a1aa' : '#f4f4f5' }}>
+                        {min.ministerName}
                       </div>
-                      <div className="flex justify-between text-[10px] font-mono">
-                        <span className="text-zinc-600">Skill ({min.skillLabel})</span>
-                        <span className="text-amber-500">{min.ministerSkill}</span>
-                      </div>
-                      <div className="flex justify-between text-[10px] font-mono">
-                        <span className="text-zinc-600">Loyalty</span>
-                        <span className="text-blue-400">{min.ministerLoyalty}</span>
+                      
+                      <div className="space-y-1.5 mb-4 p-2.5 rounded-sm bg-black/20 border border-white/5">
+                        <div className="flex justify-between items-center text-[10px] font-mono">
+                          <span className="text-zinc-600">Party</span>
+                          <span className="text-emerald-500 font-bold">{min.controllingPartyAbbreviation}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] font-mono">
+                          <span className="text-zinc-600">Skill</span>
+                          <span className="text-amber-500">{min.ministerSkill || '—'}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] font-mono">
+                          <span className="text-zinc-600">Loyalty</span>
+                          <span className="text-blue-400">{min.ministerLoyalty || '—'}</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="mt-2 text-center border-t border-white/[0.05] pt-3">
+
+                    <div className="mt-auto text-center border-t border-white/[0.05] pt-3">
                       {min.controllingPartyId === ctx.partyId ? (
                         <>
                           {min.status === 'Vacant' ? (
@@ -815,8 +844,8 @@ export default function GovernmentPage() {
                           )}
                         </>
                       ) : (
-                        <div className="text-[8px] uppercase font-mono tracking-widest text-zinc-600 bg-black/20 py-1.5 rounded-sm border border-white/[0.05]">
-                          {min.status}
+                        <div className="text-[8px] uppercase font-mono tracking-widest text-zinc-500 bg-black/20 py-1.5 rounded-sm border border-white/[0.1]">
+                          {min.status === 'Vacant' ? 'Vacant' : 'Occupied'}
                         </div>
                       )}
                     </div>
@@ -829,7 +858,7 @@ export default function GovernmentPage() {
 
         {activeGovSubtab === 'My Ministries' && (
           <div className="max-w-5xl mx-auto h-full min-h-[400px]">
-            {!currentPartyGov ? (
+            {controlledMinistries.length === 0 ? (
               <div className="p-8 text-center border rounded-sm flex flex-col items-center justify-center h-64" style={{ background: PANEL, borderColor: BORDER }}>
                 <div className="text-sm font-bold text-zinc-300 uppercase tracking-widest mb-2">No Ministries Controlled</div>
                 <div className="text-[11px] text-zinc-500 max-w-sm">Your party does not currently control any national ministries. Win government in an election to control ministries.</div>
