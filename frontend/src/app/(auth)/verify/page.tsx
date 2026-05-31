@@ -58,7 +58,10 @@ function VerifyForm() {
       await authApi.verifyEmail(email, otp);
       if (user) setUser({ ...user, is_verified: true });
       setSuccess(true);
-      setTimeout(() => router.push('/settings'), 2000);
+      setTimeout(() => {
+        const granted = typeof window !== 'undefined' && localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
+        router.push(granted ? '/start' : '/pre-alpha-access');
+      }, 2000);
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Invalid or expired code. Please try again.');
       // Shake the inputs and clear them
