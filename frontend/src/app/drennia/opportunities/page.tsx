@@ -15,6 +15,7 @@ export default function OpportunitiesPage() {
   const [citizenFile, setCitizenFile] = useState<CitizenFile | null>(null);
   const [activeOpportunities, setActiveOpportunities] = useState<Opportunity[]>([]);
   
+  const [featuredOppId, setFeaturedOppId] = useState<string | null>(null);
   const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
   const [oppResult, setOppResult] = useState<OpportunityResult | null>(null);
 
@@ -49,10 +50,13 @@ export default function OpportunitiesPage() {
         // load or generate opportunities
         const activeOppsStr = localStorage.getItem('worldr_active_opportunities_v1');
         if (activeOppsStr) {
-          setActiveOpportunities(JSON.parse(activeOppsStr));
+          const opps = JSON.parse(activeOppsStr);
+          setActiveOpportunities(opps);
+          if (opps.length > 0) setFeaturedOppId(opps[0].id);
         } else {
           const newOpps = generateAvailableOpportunities(file);
           setActiveOpportunities(newOpps);
+          if (newOpps.length > 0) setFeaturedOppId(newOpps[0].id);
           localStorage.setItem('worldr_active_opportunities_v1', JSON.stringify(newOpps));
         }
       }
@@ -70,6 +74,7 @@ export default function OpportunitiesPage() {
   const handleRefreshBoard = () => {
     const newOpps = generateAvailableOpportunities(citizenFile);
     setActiveOpportunities(newOpps);
+    if (newOpps.length > 0) setFeaturedOppId(newOpps[0].id);
     localStorage.setItem('worldr_active_opportunities_v1', JSON.stringify(newOpps));
   };
 
@@ -142,6 +147,7 @@ export default function OpportunitiesPage() {
     // Refresh Board (remove taken, generate new)
     const newBoard = generateAvailableOpportunities(updatedFile);
     setActiveOpportunities(newBoard);
+    if (newBoard.length > 0) setFeaturedOppId(newBoard[0].id);
     localStorage.setItem('worldr_active_opportunities_v1', JSON.stringify(newBoard));
 
     setSelectedOpp(null);
@@ -184,6 +190,8 @@ export default function OpportunitiesPage() {
           <OpportunityBoardPanel 
             opportunities={activeOpportunities}
             citizenFile={citizenFile}
+            featuredOppId={featuredOppId}
+            onSelectFeatured={setFeaturedOppId}
             onTakeOpportunity={handleTakeOpportunity}
             onRefresh={handleRefreshBoard}
           />

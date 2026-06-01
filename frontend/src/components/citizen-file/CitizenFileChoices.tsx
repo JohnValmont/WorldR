@@ -11,46 +11,63 @@ interface CitizenFileChoicesProps {
 
 const STATES = [
   { id: 'Drennport State', desc: 'Capital politics, royal institutions, bureaucracy, universities, finance, and national media.' },
-  { id: 'Ironvale State', desc: 'Industrial workers, factories, unions, manufacturing, and labour politics.' },
-  { id: 'Greenmere State', desc: 'Rural farmers, local councils, religious/community power, and agriculture.' },
-  { id: 'Westport State', desc: 'Business, ports, trade, companies, stock market, finance, and exporters.' }
+  { id: 'Ironvale State', desc: 'Factories, unions, industrial towns, manufacturing, and labour politics.' },
+  { id: 'Greenmere State', desc: 'Rural communities, farms, local councils, religion, agriculture, and family networks.' },
+  { id: 'Westport State', desc: 'Ports, trade, companies, stock market, finance, exporters, and business patrons.' }
 ];
 
 const HOUSEHOLDS = [
-  { id: 'Struggling Household', chips: ['Credibility ↑', 'Charisma ↑', 'Resources ↓', 'Family Pressure'] },
-  { id: 'Stable Middle-Class Household', chips: ['Credibility ↑', 'Resources ↑', 'Limited Network'] },
-  { id: 'Business Household', chips: ['Influence ↑', 'Resources ↑', 'Business Obligation'] },
-  { id: 'Civil Service Household', chips: ['Credibility ↑', 'Influence ↑', 'Institutional Loyalty'] },
-  { id: 'Military Household', chips: ['Credibility ↑', 'Influence ↑', 'Rigid Image'] },
-  { id: 'Political Household', chips: ['Influence ↑', 'Resources ↑', 'Nepotism Risk'] }
+  { id: 'Struggling Household', chips: ['Credibility ↑', 'Charisma ↑', 'Resources ↓', 'Family pressure'] },
+  { id: 'Stable Middle-Class Household', chips: ['Balanced start', 'Credibility ↑', 'Resources slight ↑'] },
+  { id: 'Business Household', chips: ['Resources ↑', 'Influence ↑', 'Business obligation risk'] },
+  { id: 'Civil Service Household', chips: ['Credibility ↑', 'Influence ↑', 'Insider reputation risk'] },
+  { id: 'Military Household', chips: ['Credibility ↑', 'Influence ↑', 'Security establishment tie'] },
+  { id: 'Political Household', chips: ['Influence ↑↑', 'Resources ↑', 'Nepotism attack risk'] }
+];
+
+const CHILDHOOD_MARKS = [
+  { id: 'Always Watching Adults Talk Power', desc: 'You learned early that decisions are made behind closed doors.', chips: ['Influence leaning', 'Political awareness'] },
+  { id: 'Had to Earn Money Early', desc: 'You understood cost, debt, and survival before adulthood.', chips: ['Resources leaning', 'Family pressure'] },
+  { id: 'Protected Younger Family Members', desc: 'Responsibility arrived early.', chips: ['Credibility leaning', 'Obligation'] },
+  { id: 'Moved Between Towns', desc: 'You learned to adapt quickly but never felt fully rooted.', chips: ['Charisma leaning', 'Lower home familiarity'] },
+  { id: 'Lived Near Institutions', desc: 'Courts, ministries, universities, or offices shaped your imagination.', chips: ['Credibility leaning', 'Influence leaning'] }
 ];
 
 const REPUTATIONS = [
   { id: 'School Representative', chips: ['Credibility ↑', 'Charisma ↑', 'Influence ↑'] },
-  { id: 'Debate Winner', chips: ['Credibility ↑', 'Charisma ↑↑'] },
+  { id: 'Debate Winner', chips: ['Charisma ↑↑', 'Credibility ↑'] },
   { id: 'Community Helper', chips: ['Credibility ↑↑', 'Influence ↑'] },
-  { id: 'Young Hustler', chips: ['Resources ↑↑', 'Charisma ↑'] },
-  { id: 'Top Student', chips: ['Credibility ↑↑'] },
-  { id: 'Cadet / Youth Corps', chips: ['Credibility ↑', 'Influence ↑'] },
-  { id: 'Online Creator', chips: ['Charisma ↑↑', 'Controversy Risk'] }
+  { id: 'Young Hustler', chips: ['Resources ↑', 'Charisma ↑', 'Credibility slight ↓'] },
+  { id: 'Top Student', chips: ['Credibility ↑↑', 'Charisma slight ↓'] },
+  { id: 'Cadet / Youth Corps', chips: ['Credibility ↑', 'Influence ↑', 'Security leaning'] },
+  { id: 'Online Creator', chips: ['Charisma ↑↑', 'Influence ↑', 'Public controversy risk'] }
 ];
 
 const SUPPORTERS = [
-  { id: 'Teacher Mentor', chips: ['Credibility ↑'] },
-  { id: 'Local Councillor', chips: ['Influence ↑', 'Political Favor'] },
-  { id: 'Business Patron', chips: ['Resources ↑', 'Business Patron'] },
-  { id: 'Union Organizer', chips: ['Influence ↑', 'Labour Network'] },
-  { id: 'Journalist Contact', chips: ['Charisma ↑', 'Media Exposure'] },
-  { id: 'Military Officer', chips: ['Credibility ↑', 'Influence ↑'] },
-  { id: 'Religious / Community Elder', chips: ['Credibility ↑', 'Influence ↑'] }
+  { id: 'Teacher Mentor', chips: ['Credibility ↑', 'First Contact'] },
+  { id: 'Local Councillor', chips: ['Influence ↑', 'Political favor obligation'] },
+  { id: 'Business Patron', chips: ['Resources ↑', 'Influence ↑', 'Business obligation'] },
+  { id: 'Union Organizer', chips: ['Influence ↑', 'Charisma ↑', 'Labour obligation'] },
+  { id: 'Journalist Contact', chips: ['Charisma ↑', 'Influence ↑', 'Media exposure risk'] },
+  { id: 'Military Officer', chips: ['Credibility ↑', 'Influence ↑', 'First Contact'] },
+  { id: 'Religious / Community Elder', chips: ['Credibility ↑', 'Influence ↑', 'Community expectation'] }
 ];
 
 const BURDENS = [
-  { id: 'Family Debt', chips: ['Resources ↓↓', 'Money Pressure'] },
-  { id: 'Sick Parent / Family Care', chips: ['Credibility ↑', 'Resources ↓', 'High Expenses'] },
-  { id: 'Public Embarrassment', chips: ['Credibility ↓', 'Charisma ↓'] },
-  { id: 'Scholarship Pressure', chips: ['Credibility ↑', 'Academic Pressure'] },
-  { id: 'No Major Burden', chips: ['Resources ↑'] }
+  { id: 'Family Debt', chips: ['Resources ↓', 'Obligation: Family debt', 'Vulnerability: Money pressure'] },
+  { id: 'Sick Parent / Family Care', chips: ['Credibility ↑', 'Resources ↓', 'Obligation: Family care'] },
+  { id: 'Public Embarrassment', chips: ['Credibility ↓', 'Charisma ↓', 'Vulnerability: Public embarrassment'] },
+  { id: 'Scholarship Pressure', chips: ['Credibility ↑', 'Resources slight ↓', 'Obligation: Academic pressure'] },
+  { id: 'No Major Burden', chips: ['Resources slight ↑', 'No major vulnerability'] }
+];
+
+const AMBITIONS = [
+  { id: 'To Be Respected', chips: ['Leans Credibility'] },
+  { id: 'To Be Heard', chips: ['Leans Charisma'] },
+  { id: 'To Know Powerful People', chips: ['Leans Influence'] },
+  { id: 'To Never Be Poor Again', chips: ['Leans Resources'] },
+  { id: 'To Build Something Own', chips: ['Leans Business path'] },
+  { id: 'To Change the Country', chips: ['Leans Politics path'] }
 ];
 
 export default function CitizenFileChoices({ currentStep, formData, onUpdate, onNext, onPrev }: CitizenFileChoicesProps) {
@@ -71,7 +88,7 @@ export default function CitizenFileChoices({ currentStep, formData, onUpdate, on
             color = theme.colors.accents.dangerRed;
             bg = 'rgba(189,61,61,0.1)';
             border = '1px solid rgba(189,61,61,0.3)';
-          } else if (chip.includes('Obligation') || chip.includes('Network') || chip.includes('Favor') || chip.includes('Patron')) {
+          } else if (chip.includes('Obligation') || chip.includes('Network') || chip.includes('favor') || chip.includes('patron')) {
             color = theme.colors.accents.gold;
             bg = 'rgba(214,179,95,0.1)';
             border = '1px solid rgba(214,179,95,0.3)';
@@ -107,16 +124,16 @@ export default function CitizenFileChoices({ currentStep, formData, onUpdate, on
         onClick={() => onUpdate(key, id)}
         className="cursor-pointer transition-all duration-200"
         style={{
-          minHeight: '100px',
-          padding: '18px',
-          borderRadius: '20px',
-          background: isSelected ? 'rgba(214,179,95,0.10)' : 'rgba(255,255,255,0.035)',
-          border: isSelected ? '1px solid rgba(214,179,95,0.44)' : '1px solid rgba(139,164,155,0.16)',
+          minHeight: '110px',
+          padding: '18px 20px',
+          borderRadius: '22px',
+          background: isSelected ? 'rgba(214,179,95,0.11)' : 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018))',
+          border: isSelected ? '1px solid rgba(214,179,95,0.48)' : '1px solid rgba(139,164,155,0.16)',
           transform: isSelected ? 'translateY(-2px)' : 'none',
           boxShadow: isSelected ? '0 4px 20px rgba(0,0,0,0.2)' : 'none'
         }}
         onMouseOver={(e) => {
-          if (!isSelected) e.currentTarget.style.borderColor = 'rgba(214,179,95,0.32)';
+          if (!isSelected) e.currentTarget.style.borderColor = 'rgba(214,179,95,0.34)';
         }}
         onMouseOut={(e) => {
           if (!isSelected) e.currentTarget.style.borderColor = 'rgba(139,164,155,0.16)';
@@ -140,25 +157,27 @@ export default function CitizenFileChoices({ currentStep, formData, onUpdate, on
       className="w-full flex flex-col h-full"
       style={{
         padding: '28px',
-        borderRadius: '24px',
-        background: 'linear-gradient(145deg, rgba(20,35,29,0.96), rgba(9,19,15,0.96))',
-        border: '1px solid rgba(139,164,155,0.16)',
+        borderRadius: '28px',
+        background: 'rgba(11,22,18,0.88)',
+        border: '1px solid rgba(219,191,128,0.16)',
+        minHeight: '640px'
       }}
     >
       {/* STEP 1 */}
       {currentStep === 1 && (
         <div className="flex-1 flex flex-col animate-fade-in">
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
-            Basic Identity
+          <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: theme.colors.text.textMuted, textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>CHAPTER 01</div>
+          <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
+            Who enters WORLDr?
           </h2>
           <p style={{ color: theme.colors.text.textSecondary, fontSize: '14px', marginBottom: '32px' }}>
-            Enter your official registry name. Age is locked to 18 as you begin your adult journey. Motherland is pre-selected as Drennia.
+            Every rise begins as a file in the world.
           </p>
 
           <div className="space-y-6">
             <div>
               <label style={{ display: 'block', fontSize: '13px', color: theme.colors.text.textSecondary, marginBottom: '8px' }}>
-                Full Name
+                Character Name
               </label>
               <input
                 type="text"
@@ -198,23 +217,6 @@ export default function CitizenFileChoices({ currentStep, formData, onUpdate, on
                   18
                 </div>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', color: theme.colors.text.textSecondary, marginBottom: '8px' }}>
-                  Motherland
-                </label>
-                <div 
-                  style={{
-                    background: 'rgba(255,255,255,0.02)',
-                    border: '1px dashed rgba(255,255,255,0.1)',
-                    borderRadius: '12px',
-                    padding: '14px 18px',
-                    color: theme.colors.text.textMuted,
-                    fontSize: '16px',
-                  }}
-                >
-                  Drennia
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -223,14 +225,18 @@ export default function CitizenFileChoices({ currentStep, formData, onUpdate, on
       {/* STEP 2 */}
       {currentStep === 2 && (
         <div className="flex-1 flex flex-col animate-fade-in">
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
-            Home State
+          <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: theme.colors.text.textMuted, textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>CHAPTER 02</div>
+          <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
+            Motherland Confirmation
           </h2>
           <p style={{ color: theme.colors.text.textSecondary, fontSize: '14px', marginBottom: '24px' }}>
-            Where did you grow up? This shapes your early familiarity with different types of power networks.
+            You chose Drennia as your motherland. Your first contacts, politics, economy, and public record will begin here.
           </p>
-          <div className="grid grid-cols-1 gap-4 overflow-y-auto pr-2 pb-4">
-            {STATES.map(s => renderChoiceCard('homeState', s.id, s.desc))}
+          <div className="p-6 rounded-[22px]" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018))', border: '1px solid rgba(139,164,155,0.16)' }}>
+             <div style={{ fontSize: '16px', fontWeight: 'bold', color: theme.colors.text.textPrimary }}>Drennia</div>
+             <div style={{ fontSize: '13px', color: theme.colors.text.textSecondary, marginTop: '8px' }}>Capital: Drennport</div>
+             <div style={{ fontSize: '13px', color: theme.colors.text.textSecondary, marginTop: '4px' }}>Continent: Varelia</div>
+             <div style={{ fontSize: '13px', color: theme.colors.text.textSecondary, marginTop: '4px' }}>System: Constitutional Monarchy</div>
           </div>
         </div>
       )}
@@ -238,14 +244,12 @@ export default function CitizenFileChoices({ currentStep, formData, onUpdate, on
       {/* STEP 3 */}
       {currentStep === 3 && (
         <div className="flex-1 flex flex-col animate-fade-in">
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
-            Household Background
+          <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: theme.colors.text.textMuted, textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>CHAPTER 03</div>
+          <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
+            Home State
           </h2>
-          <p style={{ color: theme.colors.text.textSecondary, fontSize: '14px', marginBottom: '24px' }}>
-            What was your family's situation? This dictates your starting resources and early obligations.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto pr-2 pb-4">
-            {HOUSEHOLDS.map(h => renderChoiceCard('householdBackground', h.id, undefined, h.chips))}
+          <div className="grid grid-cols-1 gap-4 overflow-y-auto pr-2 pb-4">
+            {STATES.map(s => renderChoiceCard('homeState', s.id, s.desc))}
           </div>
         </div>
       )}
@@ -253,14 +257,12 @@ export default function CitizenFileChoices({ currentStep, formData, onUpdate, on
       {/* STEP 4 */}
       {currentStep === 4 && (
         <div className="flex-1 flex flex-col animate-fade-in">
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
-            Pre-18 Reputation
+          <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: theme.colors.text.textMuted, textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>CHAPTER 04</div>
+          <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
+            Household Background
           </h2>
-          <p style={{ color: theme.colors.text.textSecondary, fontSize: '14px', marginBottom: '24px' }}>
-            How were you known before adulthood? This affects your starting credibility and charisma.
-          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto pr-2 pb-4">
-            {REPUTATIONS.map(r => renderChoiceCard('pre18Reputation', r.id, undefined, r.chips))}
+            {HOUSEHOLDS.map(h => renderChoiceCard('householdBackground', h.id, undefined, h.chips))}
           </div>
         </div>
       )}
@@ -268,14 +270,12 @@ export default function CitizenFileChoices({ currentStep, formData, onUpdate, on
       {/* STEP 5 */}
       {currentStep === 5 && (
         <div className="flex-1 flex flex-col animate-fade-in">
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
-            First Supporter
+          <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: theme.colors.text.textMuted, textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>CHAPTER 05</div>
+          <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
+            What shaped your early character before anyone knew your name?
           </h2>
-          <p style={{ color: theme.colors.text.textSecondary, fontSize: '14px', marginBottom: '24px' }}>
-            Who believed in you early on? This provides your first NPC contact in the world.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto pr-2 pb-4">
-            {SUPPORTERS.map(s => renderChoiceCard('firstSupporter', s.id, undefined, s.chips))}
+          <div className="grid grid-cols-1 gap-4 overflow-y-auto pr-2 pb-4">
+            {CHILDHOOD_MARKS.map(c => renderChoiceCard('childhoodMark', c.id, c.desc, c.chips))}
           </div>
         </div>
       )}
@@ -283,14 +283,51 @@ export default function CitizenFileChoices({ currentStep, formData, onUpdate, on
       {/* STEP 6 */}
       {currentStep === 6 && (
         <div className="flex-1 flex flex-col animate-fade-in">
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
+          <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: theme.colors.text.textMuted, textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>CHAPTER 06</div>
+          <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
+            Pre-18 Public Reputation
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto pr-2 pb-4">
+            {REPUTATIONS.map(r => renderChoiceCard('pre18Reputation', r.id, undefined, r.chips))}
+          </div>
+        </div>
+      )}
+
+      {/* STEP 7 */}
+      {currentStep === 7 && (
+        <div className="flex-1 flex flex-col animate-fade-in">
+          <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: theme.colors.text.textMuted, textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>CHAPTER 07</div>
+          <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
+            First Supporter
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto pr-2 pb-4">
+            {SUPPORTERS.map(s => renderChoiceCard('firstSupporter', s.id, undefined, s.chips))}
+          </div>
+        </div>
+      )}
+
+      {/* STEP 8 */}
+      {currentStep === 8 && (
+        <div className="flex-1 flex flex-col animate-fade-in">
+          <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: theme.colors.text.textMuted, textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>CHAPTER 08</div>
+          <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
             Early Burden
           </h2>
-          <p style={{ color: theme.colors.text.textSecondary, fontSize: '14px', marginBottom: '24px' }}>
-            No one rises without weight. What holds you back as you start?
-          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto pr-2 pb-4">
             {BURDENS.map(b => renderChoiceCard('earlyBurden', b.id, undefined, b.chips))}
+          </div>
+        </div>
+      )}
+
+      {/* STEP 9 */}
+      {currentStep === 9 && (
+        <div className="flex-1 flex flex-col animate-fade-in">
+          <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: theme.colors.text.textMuted, textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>CHAPTER 09</div>
+          <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: theme.colors.text.textPrimary, marginBottom: '12px' }}>
+            What did you secretly want before adult life began?
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto pr-2 pb-4">
+            {AMBITIONS.map(a => renderChoiceCard('firstAmbition', a.id, undefined, a.chips))}
           </div>
         </div>
       )}
@@ -311,10 +348,18 @@ export default function CitizenFileChoices({ currentStep, formData, onUpdate, on
           Back
         </button>
         
-        {currentStep < 6 && (
+        {currentStep < 9 && (
           <button
             onClick={onNext}
-            disabled={currentStep === 1 && !formData.name.trim()}
+            disabled={
+              (currentStep === 1 && !formData.name.trim()) ||
+              (currentStep === 3 && !formData.homeState) ||
+              (currentStep === 4 && !formData.householdBackground) ||
+              (currentStep === 5 && !formData.childhoodMark) ||
+              (currentStep === 6 && !formData.pre18Reputation) ||
+              (currentStep === 7 && !formData.firstSupporter) ||
+              (currentStep === 8 && !formData.earlyBurden)
+            }
             style={{
               padding: '12px 28px',
               background: 'rgba(255,255,255,0.1)',
@@ -326,7 +371,7 @@ export default function CitizenFileChoices({ currentStep, formData, onUpdate, on
               cursor: (currentStep === 1 && !formData.name.trim()) ? 'not-allowed' : 'pointer',
             }}
           >
-            Continue
+            {currentStep === 2 ? 'Confirm Motherland' : 'Continue'}
           </button>
         )}
       </div>

@@ -17,21 +17,31 @@ export const calculateFactors = (data: any) => {
   let obligation = 'Pending selection';
   let vuln = 'Pending selection';
   let fam = 'Pending selection';
+  let earlyLeaning = 'Pending selection';
 
   // State
-  if (data.homeState === 'Drennport State') fam = 'Civic/political institutions';
-  else if (data.homeState === 'Ironvale State') fam = 'Labour/industry networks';
-  else if (data.homeState === 'Greenmere State') fam = 'Rural/community networks';
-  else if (data.homeState === 'Westport State') fam = 'Business/trade networks';
+  if (data.homeState === 'Drennport State') fam = 'Capital politics, royal institutions, bureaucracy';
+  else if (data.homeState === 'Ironvale State') fam = 'Factories, unions, manufacturing';
+  else if (data.homeState === 'Greenmere State') fam = 'Rural communities, local councils, farms';
+  else if (data.homeState === 'Westport State') fam = 'Ports, trade, stock market';
 
   // Household
   switch(data.householdBackground) {
     case 'Struggling Household': cred+=2; cha+=2; inf-=3; res-=6; obligation='Family pressure'; vuln='Low resources'; break;
     case 'Stable Middle-Class Household': cred+=3; cha+=1; inf+=1; res+=2; obligation='None'; vuln='Limited network'; break;
-    case 'Business Household': cred+=1; inf+=5; res+=8; obligation='Business expectations'; vuln='Corporate-backed attack risk'; break;
-    case 'Civil Service Household': cred+=5; cha-=1; inf+=4; res+=1; obligation='Institutional loyalty'; vuln='Insider reputation'; break;
-    case 'Military Household': cred+=3; inf+=3; res+=1; obligation='Security establishment'; vuln='Rigid public image'; break;
+    case 'Business Household': cred+=1; inf+=5; res+=8; obligation='Business obligation risk'; vuln='Corporate-backed attack risk'; break;
+    case 'Civil Service Household': cred+=5; cha-=1; inf+=4; res+=1; obligation='Institutional loyalty'; vuln='Insider reputation risk'; break;
+    case 'Military Household': cred+=3; inf+=3; res+=1; obligation='Security establishment tie'; vuln='Rigid public image'; break;
     case 'Political Household': cred+=1; cha+=1; inf+=8; res+=3; obligation='Family political network'; vuln='Nepotism attack risk'; break;
+  }
+
+  // Childhood Mark
+  switch(data.childhoodMark) {
+    case 'Always Watching Adults Talk Power': inf+=2; cred+=1; break;
+    case 'Had to Earn Money Early': res+=2; cred+=1; break;
+    case 'Protected Younger Family Members': cred+=3; res-=1; break;
+    case 'Moved Between Towns': cha+=3; inf+=1; break;
+    case 'Lived Near Institutions': cred+=2; inf+=2; break;
   }
 
   // Reputation
@@ -48,12 +58,12 @@ export const calculateFactors = (data: any) => {
   // Supporter
   switch(data.firstSupporter) {
     case 'Teacher Mentor': cred+=3; npc='Teacher Mentor'; break;
-    case 'Local Councillor': inf+=4; npc='Local Councillor'; obligation=obligation==='None'||obligation==='Pending selection'?'Political favor':obligation; break;
-    case 'Business Patron': res+=5; inf+=3; npc='Business Patron'; obligation=obligation==='None'||obligation==='Pending selection'?'Business patron':obligation; break;
-    case 'Union Organizer': inf+=3; cha+=2; npc='Union Organizer'; obligation=obligation==='None'||obligation==='Pending selection'?'Labour network':obligation; break;
-    case 'Journalist Contact': cha+=3; inf+=2; npc='Journalist Contact'; vuln=vuln==='None'||vuln==='Pending selection'?'Media exposure':vuln; break;
+    case 'Local Councillor': inf+=4; npc='Local Councillor'; obligation=obligation==='None'||obligation==='Pending selection'?'Political favor obligation':obligation; break;
+    case 'Business Patron': res+=5; inf+=3; npc='Business Patron'; obligation=obligation==='None'||obligation==='Pending selection'?'Business obligation':obligation; break;
+    case 'Union Organizer': inf+=3; cha+=2; npc='Union Organizer'; obligation=obligation==='None'||obligation==='Pending selection'?'Labour obligation':obligation; break;
+    case 'Journalist Contact': cha+=3; inf+=2; npc='Journalist Contact'; vuln=vuln==='None'||vuln==='Pending selection'?'Media exposure risk':vuln; break;
     case 'Military Officer': cred+=2; inf+=3; npc='Military Officer'; break;
-    case 'Religious / Community Elder': cred+=2; inf+=2; cha+=1; npc='Community Elder'; break;
+    case 'Religious / Community Elder': cred+=2; cha+=1; inf+=2; npc='Community Elder'; break;
   }
 
   // Burden
@@ -65,20 +75,30 @@ export const calculateFactors = (data: any) => {
     case 'No Major Burden': res+=1; vuln=vuln==='Pending selection'?'None recorded':vuln; break;
   }
 
+  // First Ambition
+  switch(data.firstAmbition) {
+    case 'To Be Respected': cred+=2; earlyLeaning='Credibility focused'; break;
+    case 'To Be Heard': cha+=2; earlyLeaning='Charisma focused'; break;
+    case 'To Know Powerful People': inf+=2; earlyLeaning='Influence focused'; break;
+    case 'To Never Be Poor Again': res+=2; earlyLeaning='Resource focused'; break;
+    case 'To Build Something Own': res+=1; inf+=1; earlyLeaning='Business path'; break;
+    case 'To Change the Country': cred+=1; cha+=1; earlyLeaning='Politics path'; break;
+  }
+
   // Clamp
   const clamp = (val: number) => Math.max(0, Math.min(100, val));
   
   return {
     factors: { credibility: clamp(cred), charisma: clamp(cha), influence: clamp(inf), resources: clamp(res) },
-    story: { firstNpcContact: npc, firstObligation: obligation, firstVulnerability: vuln, homeStateFamiliarity: fam }
+    story: { firstNpcContact: npc, firstObligation: obligation, firstVulnerability: vuln, homeStateFamiliarity: fam, earlyLeaning }
   };
 };
 
-export default function CitizenFileLivePreview({ formData }: CitizenFileLivePreviewProps) {
+export default function LiveCitizenDossier({ formData }: CitizenFileLivePreviewProps) {
   const router = useRouter();
   const { factors, story } = calculateFactors(formData);
 
-  const isComplete = formData.name && formData.homeState && formData.householdBackground && formData.pre18Reputation && formData.firstSupporter && formData.earlyBurden;
+  const isComplete = formData.name && formData.homeState && formData.householdBackground && formData.childhoodMark && formData.pre18Reputation && formData.firstSupporter && formData.earlyBurden && formData.firstAmbition;
 
   const handleCreate = () => {
     if (!isComplete) return;
@@ -88,15 +108,26 @@ export default function CitizenFileLivePreview({ formData }: CitizenFileLivePrev
       name: formData.name,
       age: 18,
       motherland: 'Drennia',
+      capital: 'Drennport',
       continent: 'Varelia',
       homeState: formData.homeState,
       householdBackground: formData.householdBackground,
+      childhoodMark: formData.childhoodMark,
       pre18Reputation: formData.pre18Reputation,
       firstSupporter: formData.firstSupporter,
       earlyBurden: formData.earlyBurden,
+      firstAmbition: formData.firstAmbition,
       factors,
-      ...story,
-      createdAt: new Date().toISOString()
+      firstNpcContact: story.firstNpcContact,
+      firstObligation: story.firstObligation,
+      firstVulnerability: story.firstVulnerability,
+      homeStateFamiliarity: story.homeStateFamiliarity,
+      earlyLeaning: story.earlyLeaning,
+      personalMoney: 0,
+      obligations: [],
+      vulnerabilities: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(file));
@@ -128,13 +159,13 @@ export default function CitizenFileLivePreview({ formData }: CitizenFileLivePrev
 
   return (
     <div 
-      className="w-full flex flex-col"
+      className="w-full flex flex-col sticky top-7"
       style={{
-        padding: '22px',
+        padding: '20px',
         borderRadius: '24px',
-        background: 'rgba(16, 28, 23, 0.88)',
+        background: 'rgba(16, 28, 23, 0.90)',
         border: '1px solid rgba(219,191,128,0.16)',
-        minHeight: '600px'
+        minHeight: '640px'
       }}
     >
       <div 
@@ -147,7 +178,7 @@ export default function CitizenFileLivePreview({ formData }: CitizenFileLivePrev
           marginBottom: '20px'
         }}
       >
-        LIVE CITIZEN FILE
+        LIVE DOSSIER
       </div>
 
       <div className="flex-1 flex flex-col">
@@ -160,7 +191,7 @@ export default function CitizenFileLivePreview({ formData }: CitizenFileLivePrev
             Age 18 · {formData.homeState || 'Unknown State'}
           </div>
           <div style={{ fontSize: '13px', color: theme.colors.text.textSecondary, marginTop: '2px' }}>
-            Motherland: Drennia
+            Motherland: Drennia · Capital: Drennport
           </div>
         </div>
 
@@ -187,8 +218,12 @@ export default function CitizenFileLivePreview({ formData }: CitizenFileLivePrev
             <div style={{ fontSize: '13px', color: theme.colors.text.textPrimary }}>{story.firstVulnerability}</div>
           </div>
           <div>
-            <div style={{ fontSize: '10px', color: theme.colors.text.textMuted, textTransform: 'uppercase' }}>State Familiarity</div>
+            <div style={{ fontSize: '10px', color: theme.colors.text.textMuted, textTransform: 'uppercase' }}>Home-State Familiarity</div>
             <div style={{ fontSize: '13px', color: theme.colors.text.textPrimary }}>{story.homeStateFamiliarity}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '10px', color: theme.colors.text.textMuted, textTransform: 'uppercase' }}>Early Leaning</div>
+            <div style={{ fontSize: '13px', color: theme.colors.text.textPrimary }}>{story.earlyLeaning}</div>
           </div>
         </div>
 

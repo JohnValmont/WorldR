@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { livingWorldTheme as theme } from '../../../styles/livingWorldTheme';
-import CitizenFileProgress from '../../../components/citizen-file/CitizenFileProgress';
+import CitizenFileTimeline from '../../../components/citizen-file/CitizenFileTimeline';
 import CitizenFileChoices from '../../../components/citizen-file/CitizenFileChoices';
-import CitizenFileLivePreview from '../../../components/citizen-file/CitizenFileLivePreview';
+import LiveCitizenDossier from '../../../components/citizen-file/LiveCitizenDossier';
 
 export default function CitizenFilePage() {
   const router = useRouter();
@@ -16,13 +16,15 @@ export default function CitizenFilePage() {
     name: '',
     homeState: '',
     householdBackground: '',
+    childhoodMark: '',
     pre18Reputation: '',
     firstSupporter: '',
     earlyBurden: '',
+    firstAmbition: '',
   });
 
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 6;
+  const totalSteps = 9;
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -69,13 +71,13 @@ export default function CitizenFilePage() {
 
   return (
     <div 
-      className="min-h-screen w-full relative overflow-x-hidden"
+      className="min-h-[100vh] w-full relative overflow-x-hidden"
       style={{
         backgroundColor: '#07100D',
-        backgroundImage: 'radial-gradient(circle at 50% -20%, rgba(35, 60, 48, 0.4) 0%, rgba(7, 16, 13, 0) 50%)',
+        backgroundImage: 'linear-gradient(180deg, #07100D 0%, #0B1612 100%)',
       }}
     >
-      <div className="max-w-[1480px] mx-auto p-4 sm:p-7 z-10 relative">
+      <div className="max-w-[1500px] mx-auto p-[28px] z-10 relative">
         
         {/* Header */}
         <div className="mb-8">
@@ -93,11 +95,11 @@ export default function CitizenFilePage() {
           </p>
         </div>
 
-        <div className="flex flex-col lg:grid lg:grid-cols-[330px_minmax(0,1fr)_360px] gap-[22px]">
+        <div className="flex flex-col lg:grid lg:grid-cols-[300px_minmax(0,1fr)_360px] gap-[22px]">
           
           {/* Left Column - Progress Timeline */}
           <div className="w-full">
-            <CitizenFileProgress currentStep={currentStep} formData={formData} />
+            <CitizenFileTimeline currentStep={currentStep} formData={formData} />
           </div>
 
           {/* Center Column - Choice Panel */}
@@ -113,7 +115,7 @@ export default function CitizenFilePage() {
 
           {/* Right Column - Live Preview */}
           <div className="w-full">
-            <CitizenFileLivePreview formData={formData} />
+            <LiveCitizenDossier formData={formData} />
           </div>
 
         </div>

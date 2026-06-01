@@ -1,29 +1,33 @@
 'use client';
 import { livingWorldTheme as theme } from '../../styles/livingWorldTheme';
 
-interface CitizenFileProgressProps {
+interface CitizenFileTimelineProps {
   currentStep: number;
   formData: any;
 }
 
 const STEPS = [
-  { id: 1, label: 'Basic Identity', key: 'name' },
-  { id: 2, label: 'Home State', key: 'homeState' },
-  { id: 3, label: 'Household Background', key: 'householdBackground' },
-  { id: 4, label: 'Pre-18 Reputation', key: 'pre18Reputation' },
-  { id: 5, label: 'First Supporter', key: 'firstSupporter' },
-  { id: 6, label: 'Early Burden', key: 'earlyBurden' },
+  { id: 1, label: 'Identity', key: 'name' },
+  { id: 2, label: 'Motherland', key: 'motherland' },
+  { id: 3, label: 'Home State', key: 'homeState' },
+  { id: 4, label: 'Household', key: 'householdBackground' },
+  { id: 5, label: 'Childhood Mark', key: 'childhoodMark' },
+  { id: 6, label: 'Public Reputation', key: 'pre18Reputation' },
+  { id: 7, label: 'First Supporter', key: 'firstSupporter' },
+  { id: 8, label: 'Early Burden', key: 'earlyBurden' },
+  { id: 9, label: 'First Ambition', key: 'firstAmbition' },
 ];
 
-export default function CitizenFileProgress({ currentStep, formData }: CitizenFileProgressProps) {
+export default function CitizenFileTimeline({ currentStep, formData }: CitizenFileTimelineProps) {
   return (
     <div 
       className="w-full flex flex-col"
       style={{
-        padding: '22px',
+        padding: '20px',
         borderRadius: '24px',
         background: 'rgba(16, 28, 23, 0.88)',
         border: '1px solid rgba(219,191,128,0.16)',
+        minHeight: '640px'
       }}
     >
       <div 
@@ -36,14 +40,17 @@ export default function CitizenFileProgress({ currentStep, formData }: CitizenFi
           marginBottom: '20px'
         }}
       >
-        ASSEMBLY PROGRESS
+        CITIZEN FILE
+        <div style={{ fontSize: '10px', color: theme.colors.text.textFaint, marginTop: '2px', textTransform: 'none', letterSpacing: 'normal', fontWeight: 'normal' }}>
+          Pre-18 life record
+        </div>
       </div>
 
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4">
         {STEPS.map((step, idx) => {
           const isActive = step.id === currentStep;
           const isPast = step.id < currentStep;
-          const isComplete = !!formData[step.key];
+          const isComplete = step.key === 'motherland' ? true : !!formData[step.key];
 
           return (
             <div key={step.id} className="flex items-start gap-4">
@@ -67,7 +74,7 @@ export default function CitizenFileProgress({ currentStep, formData }: CitizenFi
                   <div 
                     style={{
                       width: '2px',
-                      height: '32px',
+                      height: '24px',
                       background: (isPast || isComplete) ? 'rgba(214,179,95,0.3)' : 'rgba(255,255,255,0.05)',
                       marginTop: '4px'
                     }}
@@ -80,7 +87,7 @@ export default function CitizenFileProgress({ currentStep, formData }: CitizenFi
                   style={{ 
                     fontSize: '14px', 
                     fontWeight: isActive ? '600' : '500',
-                    color: isActive ? theme.colors.text.textPrimary : (isPast || isComplete) ? theme.colors.text.textSecondary : theme.colors.text.textMuted
+                    color: isActive ? theme.colors.accents.gold : (isPast || isComplete) ? theme.colors.text.textSecondary : theme.colors.text.textMuted
                   }}
                 >
                   {step.label}
@@ -97,7 +104,7 @@ export default function CitizenFileProgress({ currentStep, formData }: CitizenFi
                       maxWidth: '180px'
                     }}
                   >
-                    {formData[step.key] || 'Selected'}
+                    {step.key === 'motherland' ? 'Drennia' : (formData[step.key] || 'Selected')}
                   </div>
                 )}
               </div>

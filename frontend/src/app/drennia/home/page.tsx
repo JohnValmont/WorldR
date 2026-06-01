@@ -1,4 +1,6 @@
 'use client';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { livingWorldTheme as theme } from '../../../styles/livingWorldTheme';
 import PersonalDossierPanel from '../../../components/living-world/PersonalDossierPanel';
 import OpportunityPreviewPanel from '../../../components/living-world/OpportunityPreviewPanel';
@@ -6,6 +8,32 @@ import WorldPulsePanel from '../../../components/living-world/WorldPulsePanel';
 import RecordsStrip from '../../../components/living-world/RecordsStrip';
 
 export default function DrenniaHomePage() {
+  const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
+      const fileStr = localStorage.getItem('worldr_citizen_file_v1');
+      
+      if (!granted) {
+        router.replace('/pre-alpha-access');
+      } else if (!fileStr) {
+        router.replace('/start/citizen-file');
+      } else {
+        setAuthorized(true);
+      }
+    }
+  }, [router]);
+
+  if (!authorized) {
+    return (
+      <div className="w-full h-[600px] flex items-center justify-center">
+        <div className="w-6 h-6 rounded-full border-2 border-amber-500/20 border-t-amber-500 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full flex flex-col pb-12">
       {/* Page Title Area */}
