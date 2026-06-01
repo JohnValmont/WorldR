@@ -1,15 +1,29 @@
 'use client';
+import { useState, useEffect } from 'react';
 import { livingWorldTheme as theme } from '../../styles/livingWorldTheme';
 
-const TIMELINE_ITEMS = [
-  { title: 'Account verified', desc: 'Secure connection established', status: 'completed' },
-  { title: 'Entered pre-alpha', desc: 'Access granted via ROSE5037', status: 'completed' },
-  { title: 'Drennia selected', desc: 'Motherland assignment logged', status: 'completed' },
-  { title: 'Origin pending', desc: 'Awaiting birth data', status: 'pending' },
-  { title: 'First opportunity awaiting', desc: 'No moves recorded yet', status: 'pending' }
-];
-
 export default function RecordsStrip() {
+  const [records, setRecords] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const recordsStr = localStorage.getItem('worldr_life_records_v1');
+      if (recordsStr) {
+        setRecords(JSON.parse(recordsStr));
+      }
+    }
+  }, []);
+
+  const displayRecords = records.length > 0 
+    ? records.slice(0, 5) 
+    : [
+        { title: 'Account verified', summary: 'Secure connection established', status: 'completed' },
+        { title: 'Entered pre-alpha', summary: 'Access granted via ROSE5037', status: 'completed' },
+        { title: 'Drennia selected', summary: 'Motherland assignment logged', status: 'completed' },
+        { title: 'Origin pending', summary: 'Awaiting birth data', status: 'pending' },
+        { title: 'First opportunity awaiting', summary: 'No moves recorded yet', status: 'pending' }
+      ];
+
   return (
     <div 
       className="w-full"
@@ -50,10 +64,10 @@ export default function RecordsStrip() {
           style={{ background: theme.colors.borders.borderMuted }} 
         />
 
-        {TIMELINE_ITEMS.map((item, idx) => (
+        {displayRecords.map((item, idx) => (
           <div key={idx} className="relative z-10 flex flex-row md:flex-col items-start gap-4 md:gap-3 flex-1">
             {/* Vertical line for mobile connecting items */}
-            {idx < TIMELINE_ITEMS.length - 1 && (
+            {idx < displayRecords.length - 1 && (
               <div 
                 className="md:hidden absolute left-[4px] top-4 bottom-[-24px] w-px z-0" 
                 style={{ background: theme.colors.borders.borderMuted }} 
@@ -65,8 +79,8 @@ export default function RecordsStrip() {
                 width: '9px',
                 height: '9px',
                 borderRadius: '50%',
-                background: item.status === 'completed' ? theme.colors.accents.gold : theme.colors.text.textMuted,
-                boxShadow: item.status === 'completed' ? `0 0 10px ${theme.colors.accents.gold}80` : 'none',
+                background: (item.status === 'completed' || item.result) ? theme.colors.accents.gold : theme.colors.text.textMuted,
+                boxShadow: (item.status === 'completed' || item.result) ? `0 0 10px ${theme.colors.accents.gold}80` : 'none',
                 marginTop: '4px',
                 flexShrink: 0
               }}
@@ -76,14 +90,14 @@ export default function RecordsStrip() {
                 style={{ 
                   fontSize: '13px', 
                   fontWeight: '600',
-                  color: item.status === 'completed' ? theme.colors.text.textPrimary : theme.colors.text.textMuted,
+                  color: (item.status === 'completed' || item.result) ? theme.colors.text.textPrimary : theme.colors.text.textMuted,
                   marginBottom: '2px'
                 }}
               >
                 {item.title}
               </div>
               <div style={{ fontSize: '11px', color: theme.colors.text.textFaint }}>
-                {item.desc}
+                {item.summary || item.desc}
               </div>
             </div>
           </div>

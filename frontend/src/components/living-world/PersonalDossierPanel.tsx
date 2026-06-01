@@ -4,7 +4,7 @@ import FactorMeter from './FactorMeter';
 import { livingWorldTheme as theme } from '../../styles/livingWorldTheme';
 
 export default function PersonalDossierPanel() {
-  const [charData, setCharData] = useState({
+  const [charData, setCharData] = useState<any>({
     name: 'New Citizen',
     age: 18,
     status: 'New Citizen',
@@ -16,6 +16,8 @@ export default function PersonalDossierPanel() {
       influence: 25,
       resources: 20
     },
+    obligations: [],
+    vulnerabilities: [],
     story: {
       firstNpcContact: 'Pending...',
       firstObligation: 'Pending...',
@@ -40,10 +42,12 @@ export default function PersonalDossierPanel() {
             influence: 20,
             resources: 15
           },
+          obligations: parsed.obligations || [],
+          vulnerabilities: parsed.vulnerabilities || [],
           story: {
-            firstNpcContact: parsed.firstNpcContact || 'Pending selection',
-            firstObligation: parsed.firstObligation || 'Pending selection',
-            firstVulnerability: parsed.firstVulnerability || 'Pending selection',
+            firstNpcContact: parsed.story?.firstNpcContact || parsed.firstNpcContact || 'Pending selection',
+            firstObligation: parsed.story?.firstObligation || parsed.firstObligation || 'Pending selection',
+            firstVulnerability: parsed.story?.firstVulnerability || parsed.firstVulnerability || 'Pending selection',
           }
         });
       }
@@ -150,18 +154,34 @@ export default function PersonalDossierPanel() {
           </div>
           <div>
             <div style={{ fontSize: '11px', textTransform: 'uppercase', color: theme.colors.text.textMuted, fontWeight: '600', marginBottom: '2px' }}>
-              First Obligation
+              Active Obligations
             </div>
-            <div style={{ fontSize: '13px', color: theme.colors.text.textPrimary }}>
-              {(charData as any).story?.firstObligation || 'Pending...'}
+            <div className="flex flex-col gap-1">
+              {((charData as any).obligations && (charData as any).obligations.length > 0) ? (charData as any).obligations.map((o: any, idx: number) => (
+                <div key={idx} style={{ fontSize: '13px', color: theme.colors.accents.gold }}>
+                  {o.label} <span style={{color: theme.colors.text.textFaint, fontSize: '11px'}}>from {o.source}</span>
+                </div>
+              )) : (
+                <div style={{ fontSize: '13px', color: theme.colors.text.textPrimary }}>
+                  {(charData as any).story?.firstObligation || 'None'}
+                </div>
+              )}
             </div>
           </div>
           <div>
             <div style={{ fontSize: '11px', textTransform: 'uppercase', color: theme.colors.text.textMuted, fontWeight: '600', marginBottom: '2px' }}>
-              First Vulnerability
+              Vulnerabilities
             </div>
-            <div style={{ fontSize: '13px', color: theme.colors.text.textPrimary }}>
-              {(charData as any).story?.firstVulnerability || 'Pending...'}
+            <div className="flex flex-col gap-1">
+              {((charData as any).vulnerabilities && (charData as any).vulnerabilities.length > 0) ? (charData as any).vulnerabilities.map((v: any, idx: number) => (
+                <div key={idx} style={{ fontSize: '13px', color: theme.colors.accents.dangerRed }}>
+                  {v.label} <span style={{color: theme.colors.text.textFaint, fontSize: '11px'}}>from {v.source}</span>
+                </div>
+              )) : (
+                <div style={{ fontSize: '13px', color: theme.colors.text.textPrimary }}>
+                  {(charData as any).story?.firstVulnerability || 'None'}
+                </div>
+              )}
             </div>
           </div>
         </div>

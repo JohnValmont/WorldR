@@ -24,6 +24,7 @@ export default function IdentityBar() {
           age: parsed.age || prev.age,
           homeState: parsed.homeState || prev.homeState,
           motherland: parsed.motherland || prev.motherland,
+          cash: parsed.personalMoney !== undefined ? `$${parsed.personalMoney}` : prev.cash
         }));
       }
     } catch (e) {
