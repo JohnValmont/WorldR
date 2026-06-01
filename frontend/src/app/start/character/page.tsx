@@ -4,801 +4,1176 @@ import { useState, useEffect, useCallback } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Factors {
-  Credibility: number;
-  Charisma: number;
-  Influence: number;
-  Resources: number;
+interface Factors { Credibility: number; Charisma: number; Influence: number; Resources: number; }
+
+interface ChoiceOption {
+  id: string;
+  title: string;
+  story: string;
+  perception: string;
+  chips: string[];
+  effects: Partial<Factors>;
+  obligation?: string;
+  vulnerability?: string;
+  tag?: string;
 }
 
-interface FormData {
-  firstName: string;
-  lastName: string;
+// ─── Scene Data ───────────────────────────────────────────────────────────────
+
+const STATES: ChoiceOption[] = [
+  {
+    id: 'Drennport State',
+    title: 'Drennport State',
+    story: 'You grew up near ministries, universities, royal ceremonies, finance houses, and national media.',
+    perception: 'People see you as someone familiar with the language of institutions.',
+    chips: ['Civic familiarity', 'Institutional world', 'Public record culture'],
+    effects: { Credibility: 1, Influence: 1 },
+    tag: 'civic',
+  },
+  {
+    id: 'Ironvale State',
+    title: 'Ironvale State',
+    story: 'You grew up around factories, unions, industrial towns, and families who understood work before politics.',
+    perception: 'People see you as grounded, direct, and not easily impressed by ceremony.',
+    chips: ['Labour familiarity', 'Working-town instinct', 'Union adjacent'],
+    effects: { Credibility: 1, Charisma: 1 },
+    tag: 'labour',
+  },
+  {
+    id: 'Greenmere State',
+    title: 'Greenmere State',
+    story: 'You grew up among farms, local councils, religious communities, and families where reputation travelled fast.',
+    perception: 'People see you as someone with deep community roots and local trust.',
+    chips: ['Community familiarity', 'Rural trust', 'Close network loyalty'],
+    effects: { Credibility: 1, Charisma: 1 },
+    tag: 'community',
+  },
+  {
+    id: 'Westport State',
+    title: 'Westport State',
+    story: 'You grew up near ports, exporters, banks, traders, and people who measured ambition in deals.',
+    perception: 'People see you as commercially aware and comfortable with money and risk.',
+    chips: ['Business familiarity', 'Trade networks', 'Port economy instinct'],
+    effects: { Resources: 1, Influence: 1 },
+    tag: 'commercial',
+  },
+];
+
+const HOUSEHOLDS: ChoiceOption[] = [
+  {
+    id: 'Struggling Household',
+    title: 'Struggling Household',
+    story: 'Money was counted carefully. You learned that dignity and survival are not always the same thing.',
+    perception: 'People may later see your ambition as shaped by personal scarcity.',
+    chips: ['Family pressure', 'Survival instinct', 'Self-reliance'],
+    effects: { Credibility: 1, Charisma: 1 },
+    tag: 'struggle',
+  },
+  {
+    id: 'Stable Middle-Class Household',
+    title: 'Stable Middle-Class',
+    story: 'Your home was not powerful, but it was steady. Expectations were clear, and failure was quietly feared.',
+    perception: 'People see you as someone with respectable — if unspectacular — origins.',
+    chips: ['Stable upbringing', 'Respectability', 'Cautious risk profile'],
+    effects: { Credibility: 1, Resources: 1 },
+    tag: 'stable',
+  },
+  {
+    id: 'Business Household',
+    title: 'Business Household',
+    story: 'Trade, profit, and risk were normal conversation. You learned that money can open doors before speeches do.',
+    perception: 'People may see you as commercially connected — or commercially obligated.',
+    chips: ['Business expectation', 'Commercial network seed', 'Corporate adjacent'],
+    effects: { Resources: 2 },
+    obligation: 'Business expectation',
+    tag: 'business',
+  },
+  {
+    id: 'Civil Service Household',
+    title: 'Civil Service Household',
+    story: 'Rules, offices, exams, procedure, and caution shaped the rhythm of your home.',
+    perception: 'People may see you as someone who understands the state from the inside.',
+    chips: ['Institutional familiarity', 'Insider reputation risk', 'Procedural thinking'],
+    effects: { Credibility: 1, Influence: 1 },
+    vulnerability: 'Insider reputation risk',
+    tag: 'civil_service',
+  },
+  {
+    id: 'Military Household',
+    title: 'Military Household',
+    story: 'Discipline, hierarchy, service, and reputation were treated as family values.',
+    perception: 'People may see you as rigid, reliable, or tied to the security establishment.',
+    chips: ['Security familiarity', 'Rigid public image', 'Hierarchy instinct'],
+    effects: { Credibility: 1, Influence: 1 },
+    vulnerability: 'Rigid public image',
+    tag: 'military',
+  },
+  {
+    id: 'Political Household',
+    title: 'Political Household',
+    story: 'Politics was not distant. Names, favors, elections, and loyalty were part of dinner-table conversation.',
+    perception: 'People may see you as privileged — or suspect you of carrying old debts.',
+    chips: ['Political family network', 'Nepotism risk', 'Party adjacent'],
+    effects: { Influence: 2 },
+    vulnerability: 'Nepotism attack risk',
+    obligation: 'Political family expectation',
+    tag: 'political',
+  },
+];
+
+const CHILDHOOD_MARKS: ChoiceOption[] = [
+  {
+    id: 'Top Student',
+    title: 'Top Student',
+    story: 'You were known for marks, discipline, and being called when adults needed a responsible example.',
+    perception: 'People remember you as serious and capable from a young age.',
+    chips: ['Academic reputation', 'Trusted by institutions', 'High expectation burden'],
+    effects: { Credibility: 2 },
+    tag: 'academic',
+  },
+  {
+    id: 'Debate Voice',
+    title: 'Debate Voice',
+    story: 'You learned that a room can shift when someone speaks with timing and nerve.',
+    perception: 'People remember you as someone who could always find the argument.',
+    chips: ['Speaking reputation', 'Persuasion instinct', 'Public voice seed'],
+    effects: { Charisma: 2 },
+    tag: 'speaker',
+  },
+  {
+    id: 'Community Helper',
+    title: 'Community Helper',
+    story: 'You became useful before you became famous. People remembered you because you showed up.',
+    perception: 'People see you as genuinely trustworthy — not just socially skilled.',
+    chips: ['Community goodwill', 'Volunteer reputation', 'Grassroots network'],
+    effects: { Credibility: 1, Charisma: 1 },
+    tag: 'helper',
+  },
+  {
+    id: 'Quiet Survivor',
+    title: 'Quiet Survivor',
+    story: 'You were not always noticed, but you watched carefully and learned how to endure.',
+    perception: 'People may underestimate you — which is occasionally useful.',
+    chips: ['Resilience', 'Low visibility', 'Observation instinct'],
+    effects: { Credibility: 1, Resources: 1 },
+    tag: 'survivor',
+  },
+  {
+    id: 'Young Hustler',
+    title: 'Young Hustler',
+    story: 'You found small ways to earn, trade, arrange, and survive before others understood money.',
+    perception: 'People see you as resourceful — or as someone who bends rules when needed.',
+    chips: ['Street commerce', 'Risk appetite', 'Informal network'],
+    effects: { Resources: 1, Influence: 1 },
+    tag: 'hustler',
+  },
+  {
+    id: 'Cadet / Discipline Track',
+    title: 'Cadet / Discipline Track',
+    story: 'You entered structured youth programs where order, uniform, and rank mattered.',
+    perception: 'People see you as disciplined and connected to the security world.',
+    chips: ['Security familiarity', 'Rank instinct', 'Structured background'],
+    effects: { Credibility: 1, Influence: 1 },
+    tag: 'cadet',
+  },
+  {
+    id: 'Local Organizer',
+    title: 'Local Organizer',
+    story: 'You were the one who gathered people, settled disputes, and convinced others to move.',
+    perception: 'People see you as a natural coordinator — with the obligations that brings.',
+    chips: ['Organizer seed', 'Community trust', 'Leadership expectation'],
+    effects: { Charisma: 1, Influence: 1 },
+    tag: 'organizer',
+  },
+];
+
+const NPC_CONTACTS: ChoiceOption[] = [
+  {
+    id: 'Teacher Mentor',
+    title: 'Mara Velden',
+    story: 'She noticed your effort before anyone with power did. A teacher who marked your essays and told you to aim further.',
+    perception: 'People will see you as someone who earned early support through merit.',
+    chips: ['Academic validation', 'Credibility foundation', 'Educator network'],
+    effects: { Credibility: 1 },
+    tag: 'teacher',
+  },
+  {
+    id: 'Local Councillor',
+    title: 'Jonas Kest',
+    story: 'He knew the local political machinery and taught you that power begins before election day.',
+    perception: 'People will see you as politically connected at the local level.',
+    chips: ['Political favour', 'Local authority tie', 'Council obligation'],
+    effects: { Influence: 1 },
+    obligation: 'Political favour owed to Jonas Kest',
+    tag: 'councillor',
+  },
+  {
+    id: 'Business Patron',
+    title: 'Elric Voss',
+    story: 'He saw ambition and offered help that was never completely free. A director who expected returns.',
+    perception: 'People will wonder what Voss got in return. They will not be wrong to wonder.',
+    chips: ['Commercial backing', 'Business obligation', 'Corporate expectation'],
+    effects: { Resources: 1 },
+    obligation: 'Business expectation from Elric Voss',
+    tag: 'patron',
+  },
+  {
+    id: 'Union Organizer',
+    title: 'Sera Dunne',
+    story: 'She introduced you to rooms where workers spoke honestly about power. She expected the same honesty.',
+    perception: 'People in labour circles will know your name. People in business circles will note it.',
+    chips: ['Labour network tie', 'Working-class credibility', 'Business suspicion risk'],
+    effects: { Charisma: 1 },
+    tag: 'union',
+  },
+  {
+    id: 'Journalist Contact',
+    title: 'Talia Renn',
+    story: 'She understood how stories travel, and how reputations are made or broken in a single paragraph.',
+    perception: 'People will know you have a press contact. That is both protection and exposure.',
+    chips: ['Media exposure risk', 'Story access', 'Press relationship'],
+    effects: { Charisma: 1 },
+    vulnerability: 'Media exposure risk via Talia Renn',
+    tag: 'journalist',
+  },
+  {
+    id: 'Military Officer',
+    title: 'Captain Edrin Holt',
+    story: 'He respected discipline and opened a small door into security and establishment circles.',
+    perception: 'People will see you as connected to the security world — not always a neutral signal.',
+    chips: ['Security establishment tie', 'Military credibility', 'Hierarchy access'],
+    effects: { Influence: 1 },
+    tag: 'military',
+  },
+  {
+    id: 'Community Elder',
+    title: 'Corin Vale',
+    story: 'He carried trust in places where official titles mattered less than memory and reputation.',
+    perception: 'People in your community will see you as blessed by a respected name.',
+    chips: ['Community expectation', 'Faith network', 'Local moral authority'],
+    effects: { Credibility: 1 },
+    tag: 'elder',
+  },
+];
+
+const BURDENS: ChoiceOption[] = [
+  {
+    id: 'Family Debt',
+    title: 'Family Debt',
+    story: 'Money owed by others still shaped your choices before you had a choice of your own.',
+    perception: 'People who know may see it as character-building. Or as a liability.',
+    chips: ['Money pressure', 'Family debt', 'Financial vulnerability'],
+    effects: { Credibility: 1 },
+    obligation: 'Family financial debt',
+    vulnerability: 'Money pressure visible to adversaries',
+    tag: 'debt',
+  },
+  {
+    id: 'Sick Parent / Family Care',
+    title: 'Family Care',
+    story: 'Responsibility entered your life through care, not ambition. You became an adult through necessity.',
+    perception: 'People who know may see you as unusually self-sufficient — or as someone who sacrificed.',
+    chips: ['Family care', 'High personal expense risk', 'Empathy reputation'],
+    effects: { Credibility: 1 },
+    obligation: 'Ongoing family care responsibility',
+    tag: 'care',
+  },
+  {
+    id: 'Public Embarrassment',
+    title: 'Public Embarrassment',
+    story: 'Something went wrong publicly enough that people remembered it. It taught you how fast stories travel.',
+    perception: 'People who know may bring it up. It also gave you a kind of resilience others lack.',
+    chips: ['Image risk', 'Comeback story', 'Public memory vulnerability'],
+    effects: { Charisma: 1 },
+    vulnerability: 'Public embarrassment on record',
+    tag: 'embarrassment',
+  },
+  {
+    id: 'Scholarship Pressure',
+    title: 'Scholarship Pressure',
+    story: 'Every opportunity felt conditional. Every result felt like a referendum on whether you deserved it.',
+    perception: 'People see you as driven. Some will ask why you always seem to need to prove something.',
+    chips: ['Academic pressure', 'Conditional access', 'High-performance expectation'],
+    effects: { Credibility: 1 },
+    tag: 'scholarship',
+  },
+  {
+    id: 'No Major Burden',
+    title: 'No Major Burden',
+    story: 'You entered adulthood with fewer visible burdens. That too shaped how you see others who carry more.',
+    perception: 'People will not see obvious vulnerabilities. That does not mean none exist.',
+    chips: ['Stable start', 'Limited early hardship', 'Unproven resilience'],
+    effects: { Resources: 1 },
+    tag: 'clean',
+  },
+];
+
+const AMBITIONS: ChoiceOption[] = [
+  {
+    id: 'To Be Respected',
+    title: 'To Be Respected',
+    story: 'You want people to believe you can carry responsibility. Not fame — trust.',
+    perception: 'People will see someone careful about reputation above all else.',
+    chips: ['Public trust leaning', 'Credibility-first strategy', 'Conservative image'],
+    effects: { Credibility: 1 },
+    tag: 'respect',
+  },
+  {
+    id: 'To Be Heard',
+    title: 'To Be Heard',
+    story: 'You want your voice to matter in rooms that usually ignore people like you.',
+    perception: 'People will see someone who keeps finding a microphone.',
+    chips: ['Public voice leaning', 'Platform seeking', 'Charisma-first strategy'],
+    effects: { Charisma: 1 },
+    tag: 'voice',
+  },
+  {
+    id: 'To Know Powerful People',
+    title: 'To Know Powerful People',
+    story: 'You understand that doors open faster when the right names know yours.',
+    perception: 'People will see a careful networker — or an opportunist, depending on who they are.',
+    chips: ['Network power leaning', 'Influence-first strategy', 'Access driven'],
+    effects: { Influence: 1 },
+    tag: 'network',
+  },
+  {
+    id: 'To Never Be Poor Again',
+    title: 'To Never Be Poor Again',
+    story: 'You want money not for luxury first, but for control over your own life.',
+    perception: 'People will see someone motivated. They may also see hunger that is hard to hide.',
+    chips: ['Wealth drive', 'Resources-first strategy', 'Financial security priority'],
+    effects: { Resources: 1 },
+    tag: 'wealth',
+  },
+  {
+    id: 'To Build Something of My Own',
+    title: 'Build Something of My Own',
+    story: 'You want an institution, company, or movement that answers to you — not inherited.',
+    perception: 'People will see a builder. They will wait to see what gets built — and what gets broken.',
+    chips: ['Builder leaning', 'Enterprise drive', 'Independence priority'],
+    effects: { Resources: 1, Influence: 1 },
+    tag: 'builder',
+  },
+  {
+    id: 'To Change the Country',
+    title: 'Change the Country',
+    story: 'You are drawn to the machinery of Drennia itself. Something in it needs fixing and you believe you can help fix it.',
+    perception: 'People will see idealism. Some will appreciate it. Others will try to use it.',
+    chips: ['Political reform leaning', 'Civic drive', 'Idealist profile'],
+    effects: { Credibility: 1, Charisma: 1 },
+    tag: 'reform',
+  },
+];
+
+// ─── Helper functions ─────────────────────────────────────────────────────────
+
+interface Choices {
   homeState: string;
   household: string;
   childhoodMark: string;
   npcContact: string;
-  npcContactName: string;
-  npcContactType: string;
   earlyBurden: string;
   firstAmbition: string;
 }
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
-
-const STATES = [
-  {
-    id: 'Drennport State',
-    desc: 'Capital of Drennia. Royal institutions, ministries, universities, and national media.',
-    flavor: 'You grew up in the shadow of Drennia\'s institutions — parliament buildings, old ministries, and people who spoke about power as if they owned it.',
-  },
-  {
-    id: 'Ironvale State',
-    desc: 'Industrial heartland. Factories, unions, workers\' movements, and manufacturing towns.',
-    flavor: 'You grew up where the smoke never quite cleared — Ironvale\'s factories ran through the night and its workers expected nothing to be given freely.',
-  },
-  {
-    id: 'Greenmere State',
-    desc: 'Rural heartland. Farms, local councils, religious communities, and family networks.',
-    flavor: 'You grew up where everybody knew everybody — Greenmere\'s villages ran on trust, obligation, and the rhythm of seasons.',
-  },
-  {
-    id: 'Westport State',
-    desc: 'Trade and commerce hub. Ports, companies, stock markets, and business circles.',
-    flavor: 'You grew up where money moved constantly — Westport\'s docks never slept and its merchants spoke of opportunity the way others spoke of fate.',
-  },
-];
-
-const STATE_EFFECTS: Record<string, Partial<Factors>> = {
-  'Drennport State':  { Credibility: 1, Influence: 1 },
-  'Ironvale State':   { Charisma: 1, Credibility: 1 },
-  'Greenmere State':  { Credibility: 1, Charisma: 1 },
-  'Westport State':   { Resources: 1, Influence: 1 },
-};
-
-const HOUSEHOLDS = [
-  { id: 'Struggling Household',         desc: 'Limited money, family pressure, and early lessons in survival.' },
-  { id: 'Stable Middle-Class Household', desc: 'Modest comfort. Expectations were clear, life was predictable.' },
-  { id: 'Business Household',            desc: 'Trade, commerce, or enterprise defined the household dynamic.' },
-  { id: 'Civil Service Household',       desc: 'A parent worked for the state. Order, procedure, and caution.' },
-  { id: 'Military Household',            desc: 'Discipline, hierarchy, and service were core values.' },
-  { id: 'Political Household',           desc: 'Politics was dinner table conversation. Connections came early.' },
-];
-
-const HOUSEHOLD_EFFECTS: Record<string, Partial<Factors>> = {
-  'Struggling Household':          { Credibility: 1, Charisma: 1 },
-  'Stable Middle-Class Household': { Credibility: 1, Resources: 1 },
-  'Business Household':            { Resources: 2 },
-  'Civil Service Household':       { Credibility: 1, Influence: 1 },
-  'Military Household':            { Credibility: 1, Influence: 1 },
-  'Political Household':           { Influence: 1, Resources: 1 },
-};
-
-const CHILDHOOD_MARKS = [
-  { id: 'Top Student',              desc: 'Grades opened doors before you could speak with authority.' },
-  { id: 'Debate Voice',             desc: 'You learned early how to hold a room with words alone.' },
-  { id: 'Community Helper',         desc: 'People trusted you before they had reason to.' },
-  { id: 'Quiet Survivor',           desc: 'You adapted fast and asked for nothing. That was enough.' },
-  { id: 'Young Hustler',            desc: 'You found angles others missed. Not always quietly.' },
-  { id: 'Cadet / Discipline Track', desc: 'Structure gave you confidence. Rules gave you standing.' },
-  { id: 'Local Organizer',          desc: 'You got people moving before you had a title.' },
-];
-
-const CHILDHOOD_EFFECTS: Record<string, Partial<Factors>> = {
-  'Top Student':              { Credibility: 2 },
-  'Debate Voice':             { Charisma: 2 },
-  'Community Helper':         { Credibility: 1, Charisma: 1 },
-  'Quiet Survivor':           { Credibility: 1, Resources: 1 },
-  'Young Hustler':            { Resources: 1, Influence: 1 },
-  'Cadet / Discipline Track': { Credibility: 1, Influence: 1 },
-  'Local Organizer':          { Charisma: 1, Influence: 1 },
-};
-
-const NPC_CONTACTS = [
-  { id: 'Teacher Mentor',     name: 'Mara Velden',    title: 'Secondary School Teacher',     desc: 'She marked your essays carefully and then told you to aim further.' },
-  { id: 'Local Councillor',   name: 'Jonas Kest',     title: 'District Councillor',          desc: 'He gave you your first handshake in a room that mattered.' },
-  { id: 'Business Patron',    name: 'Elric Voss',     title: 'Trade Company Director',       desc: 'He believed in you for reasons that were never entirely clear.' },
-  { id: 'Journalist Contact', name: 'Talia Renn',     title: 'Regional Press Reporter',      desc: 'She showed you that the right story at the right time could move anything.' },
-  { id: 'Community Elder',    name: 'Father Corin Vale', title: 'Parish Community Leader',  desc: 'He vouched for your character before you had done much to earn it.' },
-  { id: 'Military Officer',   name: 'Captain Edrin Holt', title: 'Army Reserve Officer',    desc: 'He told you that preparation was the only kind of luck worth having.' },
-  { id: 'Union Organizer',    name: 'Sera Dunne',     title: 'Workers\' Union Representative', desc: 'She taught you that collective voice moves what individual pleading cannot.' },
-];
-
-const NPC_EFFECTS: Record<string, Partial<Factors>> = {
-  'Teacher Mentor':     { Credibility: 1 },
-  'Local Councillor':   { Influence: 1 },
-  'Business Patron':    { Resources: 1 },
-  'Journalist Contact': { Charisma: 1 },
-  'Community Elder':    { Credibility: 1 },
-  'Military Officer':   { Influence: 1 },
-  'Union Organizer':    { Charisma: 1 },
-};
-
-const BURDENS = [
-  { id: 'Family Debt',              desc: 'Money owed that the household could not hide or ignore.' },
-  { id: 'Sick Parent / Family Care', desc: 'You stepped in before you were old enough to understand what that meant.' },
-  { id: 'Public Embarrassment',     desc: 'Something happened that gave others a story about you before you could write one yourself.' },
-  { id: 'Scholarship Pressure',     desc: 'Your opportunity was conditional. You knew it every day.' },
-  { id: 'No Major Burden',          desc: 'You carried less than most. That too shaped how you saw the world.' },
-];
-
-const BURDEN_EFFECTS: Record<string, Partial<Factors>> = {
-  'Family Debt':               { Credibility: 1 },
-  'Sick Parent / Family Care': { Credibility: 1 },
-  'Public Embarrassment':      { Charisma: 1 },
-  'Scholarship Pressure':      { Credibility: 1 },
-  'No Major Burden':           { Resources: 1 },
-};
-
-const AMBITIONS = [
-  { id: 'To Be Respected',             desc: 'More than money. More than power. You want to be taken seriously.', leaning: 'credibility' },
-  { id: 'To Be Heard',                 desc: 'You have something to say. You intend to find an audience.', leaning: 'charisma' },
-  { id: 'To Know Powerful People',     desc: 'You understand that access matters more than talent.', leaning: 'influence' },
-  { id: 'To Never Be Poor Again',      desc: 'You have felt what scarcity does. You will not return to it.', leaning: 'resources' },
-  { id: 'To Build Something of My Own', desc: 'An institution, a company, a movement — yours, not inherited.', leaning: 'enterprise' },
-  { id: 'To Change the Country',       desc: 'You believe Drennia could be better. You want to be part of that.', leaning: 'politics' },
-];
-
-const AMBITION_EFFECTS: Record<string, Partial<Factors>> = {
-  'To Be Respected':             { Credibility: 1 },
-  'To Be Heard':                 { Charisma: 1 },
-  'To Know Powerful People':     { Influence: 1 },
-  'To Never Be Poor Again':      { Resources: 1 },
-  'To Build Something of My Own': { Resources: 1, Influence: 1 },
-  'To Change the Country':       { Credibility: 1, Charisma: 1 },
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function applyEffects(base: Factors, effects: Partial<Factors>): Factors {
-  return {
-    Credibility: base.Credibility + (effects.Credibility || 0),
-    Charisma:    base.Charisma    + (effects.Charisma    || 0),
-    Influence:   base.Influence   + (effects.Influence   || 0),
-    Resources:   base.Resources   + (effects.Resources   || 0),
-  };
-}
-
-function calcFactors(form: FormData): Factors {
+function calcFactors(choices: Choices): Factors {
   let f: Factors = { Credibility: 0, Charisma: 0, Influence: 0, Resources: 0 };
-  if (form.homeState)     f = applyEffects(f, STATE_EFFECTS[form.homeState] || {});
-  if (form.household)     f = applyEffects(f, HOUSEHOLD_EFFECTS[form.household] || {});
-  if (form.childhoodMark) f = applyEffects(f, CHILDHOOD_EFFECTS[form.childhoodMark] || {});
-  if (form.npcContact)    f = applyEffects(f, NPC_EFFECTS[form.npcContact] || {});
-  if (form.earlyBurden)   f = applyEffects(f, BURDEN_EFFECTS[form.earlyBurden] || {});
-  if (form.firstAmbition) f = applyEffects(f, AMBITION_EFFECTS[form.firstAmbition] || {});
+  const apply = (opts: ChoiceOption[], val?: string) => {
+    if (!val) return;
+    const found = opts.find(o => o.id === val);
+    if (found) {
+      for (const [k, v] of Object.entries(found.effects || {})) {
+        f[k as keyof Factors] += (v as number);
+      }
+    }
+  };
+  apply(STATES,          choices.homeState);
+  apply(HOUSEHOLDS,      choices.household);
+  apply(CHILDHOOD_MARKS, choices.childhoodMark);
+  apply(NPC_CONTACTS,    choices.npcContact);
+  apply(BURDENS,         choices.earlyBurden);
+  apply(AMBITIONS,       choices.firstAmbition);
   return f;
 }
 
-function getStateFlavorText(state: string, name: string): string {
-  const flavors: Record<string, string> = {
-    'Drennport State': `${name ? name + ' grew' : 'You grew'} up where Drennia's institutions cast long shadows — parliament, ministries, and universities shaped what ambition looked like.`,
-    'Ironvale State':  `${name ? name + ' grew' : 'You grew'} up in Ironvale, where the factories defined the rhythm of life and hard work was both expectation and identity.`,
-    'Greenmere State': `${name ? name + ' grew' : 'You grew'} up in Greenmere's close-knit world — farms, local churches, and councils where your family name mattered more than any credential.`,
-    'Westport State':  `${name ? name + ' grew' : 'You grew'} up in Westport, where cargo moved constantly and everyone seemed to be calculating what they could buy, sell, or trade next.`,
-  };
-  return flavors[state] || 'Your early life shaped how you see the world.';
+function getChronicleFragments(choices: Choices, firstName: string): string[] {
+  const name = firstName || 'The citizen';
+  const frags: string[] = [];
+
+  frags.push(`${name}'s file begins in Drennia, age 18, under the shadow of Drennport's record halls.`);
+
+  if (choices.homeState) {
+    const stateStory: Record<string, string> = {
+      'Drennport State': `Raised in Drennport State, ${name} grew up close to politics, offices, and the language of national ambition.`,
+      'Ironvale State':  `Raised in Ironvale State, ${name} grew up around factories, unions, and people for whom work was identity.`,
+      'Greenmere State': `Raised in Greenmere State, ${name} grew up in a world of community obligation and close-held reputation.`,
+      'Westport State':  `Raised in Westport State, ${name} grew up around trade, ports, and people who spoke in deals.`,
+    };
+    frags.push(stateStory[choices.homeState] || '');
+  }
+  if (choices.household) {
+    const hhStory: Record<string, string> = {
+      'Struggling Household':         `The household taught that dignity and survival are not always the same lesson.`,
+      'Stable Middle-Class Household': `The household was steady, if not powerful. Expectations mattered more than ambition.`,
+      'Business Household':            `The household spoke of money as language, leverage, and expectation.`,
+      'Civil Service Household':       `The household ran on rules, procedure, and the quiet weight of the state.`,
+      'Military Household':            `The household treated discipline and reputation as inherited values.`,
+      'Political Household':           `The household treated politics as normal life. Names and favours were familiar currency.`,
+    };
+    frags.push(hhStory[choices.household] || '');
+  }
+  if (choices.childhoodMark) {
+    const markStory: Record<string, string> = {
+      'Top Student':              `Before adult life, ${name} was known for discipline, marks, and being called when responsible examples were needed.`,
+      'Debate Voice':             `Before adult life, ${name} learned that a room can shift when someone speaks with timing and nerve.`,
+      'Community Helper':         `Before adult life, ${name} became useful before becoming well known. People remembered because ${name} showed up.`,
+      'Quiet Survivor':           `Before adult life, ${name} watched carefully and endured. Not always noticed — which had its own value.`,
+      'Young Hustler':            `Before adult life, ${name} found angles others missed and understood money before most understood the rules.`,
+      'Cadet / Discipline Track': `Before adult life, ${name} entered structured programs where rank and order shaped the world.`,
+      'Local Organizer':          `Before adult life, ${name} was already gathering people and settling what others left unresolved.`,
+    };
+    frags.push(markStory[choices.childhoodMark] || '');
+  }
+  if (choices.npcContact) {
+    const contact = NPC_CONTACTS.find(c => c.id === choices.npcContact);
+    if (contact) {
+      const cStory: Record<string, string> = {
+        'Teacher Mentor':   `${contact.title} noticed ${name}'s effort before anyone with power did. A first door, quietly opened.`,
+        'Local Councillor': `${contact.title} showed ${name} that local politics is where larger careers begin.`,
+        'Business Patron':  `${contact.title} extended help that carried its own expectations. ${name} understood the terms.`,
+        'Union Organizer':  `${contact.title} introduced ${name} to rooms where workers spoke honestly about power.`,
+        'Journalist Contact': `${contact.title} taught ${name} that stories travel faster than facts.`,
+        'Military Officer': `${contact.title} opened a door into circles where discipline was the only currency accepted.`,
+        'Community Elder':  `${contact.title} vouched for ${name} in places where trust matters more than title.`,
+      };
+      frags.push(cStory[choices.npcContact] || '');
+    }
+  }
+  if (choices.earlyBurden) {
+    const bStory: Record<string, string> = {
+      'Family Debt':              `Entering adulthood, ${name} carries family debt — an obligation that shapes every decision about money.`,
+      'Sick Parent / Family Care': `Entering adulthood, ${name} carries the weight of family care — responsibility arrived before ambition.`,
+      'Public Embarrassment':     `Entering adulthood, ${name} carries the memory of a public stumble — and the resilience it built.`,
+      'Scholarship Pressure':     `Entering adulthood, ${name} carries the pressure of conditional access — every opportunity feels borrowed.`,
+      'No Major Burden':          `Entering adulthood, ${name} carries fewer obvious burdens — and fewer easy explanations for what drives them.`,
+    };
+    frags.push(bStory[choices.earlyBurden] || '');
+  }
+  if (choices.firstAmbition) {
+    const aStory: Record<string, string> = {
+      'To Be Respected':             `${name} wants, above all, to be taken seriously. Not famous — trusted.`,
+      'To Be Heard':                 `${name} wants to reach rooms that usually ignore people like them.`,
+      'To Know Powerful People':     `${name} understands that the right introduction can change a career before it starts.`,
+      'To Never Be Poor Again':      `${name} wants control over their own life, beginning with money.`,
+      'To Build Something of My Own': `${name} wants an institution or enterprise that answers only to them.`,
+      'To Change the Country':       `${name} is drawn to Drennia's machinery. Something needs fixing. They believe they can help.`,
+    };
+    frags.push(aStory[choices.firstAmbition] || '');
+  }
+  return frags.filter(Boolean);
 }
 
-function generateSummaryParagraph(form: FormData): string {
-  const name = [form.firstName, form.lastName].filter(Boolean).join(' ') || 'This person';
-  const contact = NPC_CONTACTS.find(c => c.id === form.npcContact);
-  const contactName = contact?.name || 'an early mentor';
-  
-  const burdenPhrase = form.earlyBurden === 'No Major Burden'
-    ? 'without heavy obligations to carry'
-    : `carrying the weight of ${form.earlyBurden.toLowerCase()}`;
+function generateSummary(choices: Choices, firstName: string): string {
+  const name = firstName || 'This citizen';
+  const contact = NPC_CONTACTS.find(c => c.id === choices.npcContact);
+  const contactName = contact?.title || 'an early mentor';
+  const burden = choices.earlyBurden || '';
+  const burdenPhrase = burden === 'No Major Burden'
+    ? 'without heavy obligations to carry into adult life'
+    : `carrying the weight of ${burden.toLowerCase()}`;
+  const ambition = choices.firstAmbition ? choices.firstAmbition.toLowerCase() : 'find a path forward';
 
-  return `Raised in ${form.homeState} in a ${form.household.toLowerCase()}, ${name} enters adult life ${burdenPhrase}. Shaped by a childhood defined by ${form.childhoodMark ? form.childhoodMark.toLowerCase() : 'early experience'}, and encouraged early by ${contactName}, ${name} holds the ambition to ${form.firstAmbition.toLowerCase() || 'find a path forward'}. Drennia is already moving. The question is whether ${form.firstName || 'they'} can find a way into it.`;
+  return `Raised in ${choices.homeState || 'Drennia'} in a ${(choices.household || 'household').toLowerCase()}, ${name} enters adult life ${burdenPhrase}. Shaped early by a reputation as a ${(choices.childhoodMark || 'young person').toLowerCase()} and encouraged by ${contactName}, ${name} arrives at age 18 with the ambition to ${ambition}. Drennia's record halls have opened a file. What fills it is still unwritten.`;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function FactorStrip({ factors }: { factors: Factors }) {
-  const bars = [
-    { label: 'Cred', value: factors.Credibility, color: '#818cf8' },
-    { label: 'Char', value: factors.Charisma,    color: '#34d399' },
-    { label: 'Infl', value: factors.Influence,   color: '#f59e0b' },
-    { label: 'Rsrc', value: factors.Resources,   color: '#60a5fa' },
-  ];
-  const maxVal = 20;
-  return (
-    <div className="flex items-center gap-4 px-6 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.3)' }}>
-      {bars.map(b => (
-        <div key={b.label} className="flex items-center gap-2 flex-1">
-          <span className="text-[9px] font-mono uppercase tracking-widest shrink-0" style={{ color: b.color, opacity: 0.7, width: '28px' }}>{b.label}</span>
-          <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-            <div
-              className="h-full rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${Math.min(100, (b.value / maxVal) * 100)}%`, background: b.color }}
-            />
-          </div>
-          <span className="text-[10px] font-mono font-bold" style={{ color: b.color, minWidth: '14px' }}>{b.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
+const GOLD = '#D6B35F';
 
-function ProgressDots({ total, current }: { total: number; current: number }) {
+function FactorRow({ label, value, delta }: { label: string; value: number; delta?: number }) {
+  const maxBar = 16;
+  const pct = Math.min(100, (value / maxBar) * 100);
   return (
-    <div className="flex items-center gap-2">
-      {Array.from({ length: total }).map((_, i) => (
-        <div
-          key={i}
-          className="transition-all duration-300"
-          style={{
-            width:  i === current ? '20px' : '6px',
-            height: '6px',
-            borderRadius: '3px',
-            background: i < current ? 'rgba(245,158,11,0.6)' : i === current ? '#f59e0b' : 'rgba(255,255,255,0.1)',
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-interface ChoiceCardProps {
-  label: string;
-  desc?: string;
-  selected: boolean;
-  onClick: () => void;
-  effect?: string;
-}
-
-function ChoiceCard({ label, desc, selected, onClick, effect }: ChoiceCardProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full text-left rounded-sm transition-all duration-200 group"
-      style={{
-        padding: '16px 20px',
-        background: selected ? 'rgba(245,158,11,0.08)' : 'rgba(255,255,255,0.02)',
-        border: selected ? '1.5px solid rgba(245,158,11,0.5)' : '1px solid rgba(255,255,255,0.07)',
-        boxShadow: selected ? '0 0 20px rgba(245,158,11,0.06)' : 'none',
-      }}
-    >
-      <div className="flex items-start gap-3">
-        <div
-          className="shrink-0 mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all"
-          style={{
-            borderColor: selected ? '#f59e0b' : 'rgba(255,255,255,0.2)',
-            background: selected ? '#f59e0b' : 'transparent',
-          }}
-        >
-          {selected && (
-            <svg className="w-2 h-2" viewBox="0 0 8 8" fill="none">
-              <path d="M1.5 4L3 5.5L6.5 2" stroke="#000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: '#B9B09B' }}>{label}</span>
+        <div className="flex items-center gap-1.5">
+          {delta != null && delta > 0 && (
+            <span className="text-[9px] font-mono" style={{ color: '#86efac' }}>+{delta}</span>
           )}
-        </div>
-        <div className="flex-1">
-          <div className="text-sm font-semibold leading-snug" style={{ color: selected ? '#fef3c7' : '#d4d4d8' }}>{label}</div>
-          {desc && <div className="text-[11px] mt-1 leading-relaxed" style={{ color: selected ? 'rgba(253,230,138,0.6)' : 'rgba(255,255,255,0.3)' }}>{desc}</div>}
-          {effect && <div className="text-[10px] mt-1.5 font-mono" style={{ color: selected ? '#86efac' : 'rgba(134,239,172,0.3)' }}>{effect}</div>}
+          <span className="text-base font-bold" style={{ color: '#F4EBD6' }}>{value}</span>
         </div>
       </div>
-    </button>
+      <div className="h-[3px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${GOLD}88, ${GOLD})` }}
+        />
+      </div>
+    </div>
   );
 }
 
-function NpcChoiceCard({ npc, selected, onClick }: { npc: typeof NPC_CONTACTS[0]; selected: boolean; onClick: () => void }) {
+function LedgerRow({ label, value }: { label: string; value: string }) {
+  const isPending = !value || value === 'Pending';
+  return (
+    <div className="flex items-start justify-between gap-2 py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+      <span className="text-[9px] font-mono uppercase tracking-[0.15em] shrink-0 mt-0.5" style={{ color: '#7E8378' }}>{label}</span>
+      <span className="text-[11px] text-right leading-snug" style={{ color: isPending ? '#3f4b47' : '#B9B09B' }}>
+        {isPending ? '—' : value}
+      </span>
+    </div>
+  );
+}
+
+function ChipBadge({ label }: { label: string }) {
+  return (
+    <span
+      className="text-[9px] px-2 py-0.5 rounded-sm font-mono whitespace-nowrap"
+      style={{ background: 'rgba(214,179,95,0.08)', border: '1px solid rgba(214,179,95,0.2)', color: '#B9B09B' }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function SceneChoiceCard({ option, selected, onClick }: { option: ChoiceOption; selected: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="w-full text-left rounded-sm transition-all duration-200"
+      className="w-full text-left rounded-sm transition-all duration-200 flex flex-col"
       style={{
-        padding: '16px 20px',
-        background: selected ? 'rgba(245,158,11,0.08)' : 'rgba(255,255,255,0.02)',
-        border: selected ? '1.5px solid rgba(245,158,11,0.5)' : '1px solid rgba(255,255,255,0.07)',
-        boxShadow: selected ? '0 0 20px rgba(245,158,11,0.06)' : 'none',
+        padding: '14px 16px',
+        background: selected ? 'rgba(214,179,95,0.07)' : 'rgba(13,24,20,0.6)',
+        border: selected ? `1.5px solid rgba(214,179,95,0.55)` : '1px solid rgba(214,179,95,0.12)',
+        boxShadow: selected ? '0 0 24px rgba(214,179,95,0.08)' : 'none',
+        minHeight: '130px',
       }}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2.5 mb-2">
         <div
-          className="shrink-0 w-8 h-8 rounded-sm flex items-center justify-center text-xs font-bold font-mono"
-          style={{ background: selected ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)', color: selected ? '#f59e0b' : '#71717a' }}
+          className="shrink-0 mt-0.5 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-all"
+          style={{ borderColor: selected ? GOLD : 'rgba(255,255,255,0.2)', background: selected ? GOLD : 'transparent' }}
         >
-          {npc.name.charAt(0)}
+          {selected && <div className="w-1.5 h-1.5 rounded-full bg-[#06100D]" />}
         </div>
-        <div className="flex-1">
-          <div className="text-sm font-semibold leading-none mb-0.5" style={{ color: selected ? '#fef3c7' : '#d4d4d8' }}>{npc.name}</div>
-          <div className="text-[10px] font-mono mb-1.5" style={{ color: selected ? 'rgba(245,158,11,0.6)' : 'rgba(255,255,255,0.25)' }}>{npc.title}</div>
-          <div className="text-[11px] leading-relaxed" style={{ color: selected ? 'rgba(253,230,138,0.6)' : 'rgba(255,255,255,0.3)' }}>{npc.desc}</div>
-        </div>
+        <span className="text-sm font-bold leading-snug" style={{ color: selected ? '#F4EBD6' : '#B9B09B' }}>{option.title}</span>
       </div>
+      <p className="text-[11px] leading-relaxed mb-2.5 pl-[22px]" style={{ color: selected ? 'rgba(244,235,214,0.55)' : 'rgba(255,255,255,0.22)' }}>
+        {option.story}
+      </p>
+      {option.chips && (
+        <div className="flex flex-wrap gap-1.5 pl-[22px] mt-auto">
+          {option.chips.slice(0, 3).map(c => <ChipBadge key={c} label={c} />)}
+          {option.effects && Object.entries(option.effects).map(([k, v]) => (
+            <span key={k} className="text-[9px] px-1.5 py-0.5 rounded-sm font-mono" style={{ background: 'rgba(134,239,172,0.08)', border: '1px solid rgba(134,239,172,0.2)', color: '#86efac' }}>
+              +{v} {k.slice(0, 4)}
+            </span>
+          ))}
+        </div>
+      )}
     </button>
   );
 }
 
-// ─── Scene layouts ────────────────────────────────────────────────────────────
-
-const TOTAL_STEPS = 7;
+function NpcChoiceCard({ option, selected, onClick }: { option: ChoiceOption; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left rounded-sm transition-all duration-200 flex flex-col"
+      style={{
+        padding: '14px 16px',
+        background: selected ? 'rgba(214,179,95,0.07)' : 'rgba(13,24,20,0.6)',
+        border: selected ? `1.5px solid rgba(214,179,95,0.55)` : '1px solid rgba(214,179,95,0.12)',
+        boxShadow: selected ? '0 0 24px rgba(214,179,95,0.08)' : 'none',
+        minHeight: '130px',
+      }}
+    >
+      <div className="flex items-center gap-2.5 mb-2">
+        <div
+          className="shrink-0 w-7 h-7 rounded-sm flex items-center justify-center text-xs font-bold font-mono"
+          style={{ background: selected ? 'rgba(214,179,95,0.15)' : 'rgba(255,255,255,0.04)', color: selected ? GOLD : '#7E8378', border: `1px solid ${selected ? 'rgba(214,179,95,0.3)' : 'rgba(255,255,255,0.06)'}` }}
+        >
+          {option.title.charAt(0)}
+        </div>
+        <div>
+          <div className="text-sm font-bold leading-none" style={{ color: selected ? '#F4EBD6' : '#B9B09B' }}>{option.title}</div>
+          <div className="text-[9px] font-mono mt-0.5" style={{ color: selected ? `${GOLD}80` : '#3f4b47' }}>{option.id}</div>
+        </div>
+      </div>
+      <p className="text-[11px] leading-relaxed mb-2.5" style={{ color: selected ? 'rgba(244,235,214,0.55)' : 'rgba(255,255,255,0.22)' }}>
+        {option.story}
+      </p>
+      {option.chips && (
+        <div className="flex flex-wrap gap-1.5 mt-auto">
+          {option.chips.slice(0, 2).map(c => <ChipBadge key={c} label={c} />)}
+          {option.effects && Object.entries(option.effects).map(([k, v]) => (
+            <span key={k} className="text-[9px] px-1.5 py-0.5 rounded-sm font-mono" style={{ background: 'rgba(134,239,172,0.08)', border: '1px solid rgba(134,239,172,0.2)', color: '#86efac' }}>
+              +{v} {k.slice(0, 4)}
+            </span>
+          ))}
+        </div>
+      )}
+    </button>
+  );
+}
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+const TOTAL_SCENES = 7;
+
+interface Choices {
+  homeState: string;
+  household: string;
+  childhoodMark: string;
+  npcContact: string;
+  earlyBurden: string;
+  firstAmbition: string;
+}
+
 export default function CreateCharacterPage() {
   const router = useRouter();
-  const [step, setStep] = useState(0);
-  const [transitioning, setTransitioning] = useState(false);
+  const [scene, setScene] = useState(0);
+  const [fading, setFading] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [authorized, setAuthorized] = useState(false);
 
-  const [form, setForm] = useState<FormData>({
-    firstName: '',
-    lastName: '',
-    homeState: '',
-    household: '',
-    childhoodMark: '',
-    npcContact: '',
-    npcContactName: '',
-    npcContactType: '',
-    earlyBurden: '',
-    firstAmbition: '',
+  const [firstName, setFirstName] = useState('');
+  const [lastName,  setLastName]  = useState('');
+  const [choices, setChoices] = useState<Choices>({
+    homeState: '', household: '', childhoodMark: '',
+    npcContact: '', earlyBurden: '', firstAmbition: '',
   });
 
-  const factors = calcFactors(form);
+  const prevFactors = useCallback(() => {
+    const prev = { ...choices };
+    // remove current scene's choice to compute delta
+    return prev;
+  }, [choices]);
+
+  const factors = calcFactors(choices);
+  const chronicle = getChronicleFragments(choices, firstName);
+  const contact = NPC_CONTACTS.find(c => c.id === choices.npcContact);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-      if (!granted) {
-        router.replace('/pre-alpha-access');
-      } else {
-        setAuthorized(true);
-      }
-    }
-    const t = setTimeout(() => setRevealed(true), 80);
+    if (typeof window === 'undefined') return;
+    const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
+    if (!granted) { router.replace('/pre-alpha-access'); return; }
+    setAuthorized(true);
+    const t = setTimeout(() => setRevealed(true), 60);
     return () => clearTimeout(t);
   }, [router]);
 
-  const pick = useCallback((key: keyof FormData, val: string, extra?: Partial<FormData>) => {
-    setForm(p => ({ ...p, [key]: val, ...extra }));
+  const pick = useCallback((key: keyof Choices, val: string) => {
+    setChoices(p => ({ ...p, [key]: val }));
   }, []);
 
   const goNext = () => {
-    setTransitioning(true);
-    setTimeout(() => {
-      setStep(s => s + 1);
-      setTransitioning(false);
-    }, 220);
+    setFading(true);
+    setTimeout(() => { setScene(s => s + 1); setFading(false); }, 200);
   };
 
   const goPrev = () => {
-    if (step === 0) { router.push('/world-entry'); return; }
-    setTransitioning(true);
-    setTimeout(() => {
-      setStep(s => s - 1);
-      setTransitioning(false);
-    }, 220);
+    if (scene === 0) { router.push('/world-entry'); return; }
+    setFading(true);
+    setTimeout(() => { setScene(s => s - 1); setFading(false); }, 200);
+  };
+
+  const canAdvance = (): boolean => {
+    if (scene === 0) return firstName.trim().length > 1 && lastName.trim().length > 1;
+    if (scene === 1) return !!choices.homeState;
+    if (scene === 2) return !!choices.household;
+    if (scene === 3) return !!choices.childhoodMark;
+    if (scene === 4) return !!choices.npcContact;
+    if (scene === 5) return !!choices.earlyBurden;
+    if (scene === 6) return !!choices.firstAmbition;
+    return false;
   };
 
   const handleFinish = () => {
-    const contact = NPC_CONTACTS.find(c => c.id === form.npcContact);
-    const ambitionData = AMBITIONS.find(a => a.id === form.firstAmbition);
+    const contactObj = NPC_CONTACTS.find(c => c.id === choices.npcContact);
+    const ambitionObj = AMBITIONS.find(a => a.id === choices.firstAmbition);
+    const burdenObj   = BURDENS.find(b => b.id === choices.earlyBurden);
+    const hhObj       = HOUSEHOLDS.find(h => h.id === choices.household);
 
     const citizenFile = {
-      name: { first: form.firstName, last: form.lastName },
+      name: { first: firstName, last: lastName },
       age: 18,
       motherland: 'Drennia',
       capital: 'Drennport',
       continent: 'Varelia',
-      homeState: form.homeState,
-      householdBackground: form.household,
-      childhoodMark: form.childhoodMark,
-      firstNpcContact: form.npcContact,
-      firstNpcContactName: contact?.name || '',
-      firstNpcContactType: form.npcContact,
-      earlyBurden: form.earlyBurden,
-      firstAmbition: form.firstAmbition,
-      firstObligation: form.earlyBurden !== 'No Major Burden' ? form.earlyBurden : null,
-      firstVulnerability: form.earlyBurden === 'Public Embarrassment' ? 'Public image risk' : 'Inexperience in adult life',
-      earlyLeaning: ambitionData?.leaning || '',
-      factors: {
-        Credibility: factors.Credibility,
-        Charisma:    factors.Charisma,
-        Influence:   factors.Influence,
-        Resources:   factors.Resources,
-      },
+      homeState: choices.homeState,
+      householdBackground: choices.household,
+      childhoodMark: choices.childhoodMark,
+      firstNpcContact: choices.npcContact,
+      firstNpcContactName: contactObj?.title || '',
+      firstNpcContactType: choices.npcContact,
+      earlyBurden: choices.earlyBurden,
+      firstAmbition: choices.firstAmbition,
+      firstObligation: contactObj?.obligation || burdenObj?.obligation || hhObj?.obligation || null,
+      firstVulnerability: contactObj?.vulnerability || burdenObj?.vulnerability || hhObj?.vulnerability || 'Inexperience in public life',
+      homeStateFamiliarity: STATES.find(s => s.id === choices.homeState)?.tag || '',
+      earlyLeaning: ambitionObj?.tag || '',
+      originChronicle: getChronicleFragments(choices, firstName),
+      factors,
       contact: {
         id: 'c1',
-        name: contact?.name || '',
-        role: contact?.title || '',
-        type: form.npcContact,
+        name: contactObj?.title || '',
+        role: choices.npcContact,
+        type: choices.npcContact,
         strength: 20,
       },
-      obligation: form.earlyBurden !== 'No Major Burden' ? {
-        type: form.earlyBurden.toLowerCase().replace(/[/ ]+/g, '_'),
-        description: form.earlyBurden,
+      obligation: contactObj?.obligation || burdenObj?.obligation || hhObj?.obligation ? {
+        type: (contactObj?.obligation || burdenObj?.obligation || hhObj?.obligation || '').toLowerCase().replace(/[/ ]+/g, '_'),
+        description: contactObj?.obligation || burdenObj?.obligation || hhObj?.obligation || '',
         severity: 'minor',
       } : null,
       vulnerability: {
         type: 'inexperienced',
-        description: form.earlyBurden === 'Public Embarrassment' ? 'A past public embarrassment follows you.' : 'New to adult public life.',
+        description: contactObj?.vulnerability || burdenObj?.vulnerability || hhObj?.vulnerability || 'New to adult public life.',
         severity: 'minor',
       },
+      personalMoney: 200 + factors.Resources * 30,
       money: 200 + factors.Resources * 30,
-      summaryParagraph: generateSummaryParagraph(form),
+      summaryParagraph: generateSummary(choices, firstName),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(citizenFile));
-    localStorage.setItem('worldr_character_origin_v1', JSON.stringify({ homeState: form.homeState, household: form.household, motherland: 'Drennia' }));
+    localStorage.setItem('worldr_character_origin_v1', JSON.stringify({
+      homeState: choices.homeState,
+      household: choices.household,
+      motherland: 'Drennia',
+    }));
     router.push('/start/confirm-citizen');
   };
 
-  const canAdvance = (): boolean => {
-    if (step === 0) return form.firstName.trim().length > 0 && form.lastName.trim().length > 0;
-    if (step === 1) return !!form.homeState;
-    if (step === 2) return !!form.household;
-    if (step === 3) return !!form.childhoodMark;
-    if (step === 4) return !!form.npcContact;
-    if (step === 5) return !!form.earlyBurden;
-    if (step === 6) return !!form.firstAmbition;
-    return false;
+  // ── Dynamic scene text ──────────────────────────────────────────────────────
+
+  const getSceneContext = (): string => {
+    if (scene === 2) {
+      const map: Record<string, string> = {
+        'Drennport State': 'In Drennport\'s world of offices and ambition, the household you came from set the ceiling others assumed you had.',
+        'Ironvale State':  'In Ironvale, whether your household owned the factory or worked in it changed everything about your early life.',
+        'Greenmere State': 'In Greenmere, family name and household standing were currency before any credential mattered.',
+        'Westport State':  'In Westport, your household\'s relationship with money was the first lesson you ever received.',
+      };
+      return map[choices.homeState] || 'Before you could choose anything, the household you were born into chose for you.';
+    }
+    if (scene === 3) {
+      const nm = firstName || 'You';
+      const hh = choices.household;
+      if (hh === 'Struggling Household') return `In a household with limited means, ${nm} still found a way to be noticed before adulthood arrived.`;
+      if (hh === 'Political Household') return `With politics already in the household, ${nm} was being watched before there was anything to watch.`;
+      if (hh === 'Business Household') return `In a household built on enterprise, ${nm} found their own edge before anyone assigned one.`;
+      return `Before any official opportunity arrived, ${firstName || 'you'} had already built something of a reputation.`;
+    }
+    if (scene === 4) {
+      const nm = firstName || 'You';
+      const stateMap: Record<string, string> = {
+        'Drennport State': `In Drennport, first contacts come from institutions. ${nm} met someone who saw potential before the records did.`,
+        'Ironvale State':  `In Ironvale, doors opened through effort or someone who witnessed it. ${nm}'s first real door came from a person.`,
+        'Greenmere State': `In Greenmere, community ties matter more than credentials. ${nm}'s first contact was woven into that fabric.`,
+        'Westport State':  `In Westport, the right introduction can change a career before it starts. ${nm}'s came unexpectedly.`,
+      };
+      return stateMap[choices.homeState] || `${nm} did not begin alone. Someone opened the first door.`;
+    }
+    if (scene === 5) {
+      const nm = firstName || 'You';
+      const contactName = contact?.title || 'their contact';
+      const markMap: Record<string, string> = {
+        'Top Student':              `Even as ${nm} built a reputation for excellence, something else weighed on the years before adulthood.`,
+        'Debate Voice':             `${nm}'s voice carried early — but something from before shaped what it was carrying.`,
+        'Community Helper':         `${nm} gave freely to others. But ${nm} also carried something personal that was less visible.`,
+        'Quiet Survivor':           `${nm} adapted and endured. Survival always has a cost. So does silence.`,
+        'Young Hustler':            `${nm} moved fast and found angles. Not everything moved on their own terms.`,
+        'Cadet / Discipline Track': `Discipline kept ${nm} steady. It was also what they needed to carry something quietly.`,
+        'Local Organizer':          `${nm} helped others find direction while navigating something personal of their own.`,
+      };
+      return (markMap[choices.childhoodMark] || `Even with ${contactName}'s support, not everything in ${nm}'s early life was simple.`);
+    }
+    if (scene === 6) {
+      const nm = firstName || 'You';
+      const contactName = contact?.title || 'their first contact';
+      const burden = choices.earlyBurden;
+      if (burden === 'No Major Burden') {
+        return `${nm} enters adult life relatively unencumbered — supported by ${contactName} and shaped by everything that came before. The question of what to do with this freedom now stands.`;
+      }
+      return `${nm} carries the weight of ${burden ? burden.toLowerCase() : 'the past'} into adulthood. Encouraged by ${contactName}, shaped by experience — the question now is what ${nm} wants most from the life ahead.`;
+    }
+    return '';
   };
 
   if (!authorized) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#07100D' }}>
-        <div className="w-6 h-6 rounded-full border-2 border-amber-500/20 border-t-amber-500 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#06100D' }}>
+        <div className="w-5 h-5 rounded-full border-2 border-[#D6B35F]/20 border-t-[#D6B35F] animate-spin" />
       </div>
     );
   }
 
-  const stateFlavor = form.homeState ? STATES.find(s => s.id === form.homeState)?.flavor || '' : '';
-  const contact = NPC_CONTACTS.find(c => c.id === form.npcContact);
-
-  // Dynamic scene context text
-  const getStep3Context = () => {
-    if (!form.homeState) return 'Before you could choose anything, the household you were born into chose for you.';
-    const map: Record<string, string> = {
-      'Drennport State': 'In Drennport\'s world of institutions and ambition, the household you came from set the ceiling others assumed you had.',
-      'Ironvale State':   'In Ironvale, whether your household owned the factory or worked in it changed everything.',
-      'Greenmere State':  'In Greenmere, family name and household history were common currency before talent was.',
-      'Westport State':   'In Westport, your household\'s relationship with money was the first lesson you ever received.',
-    };
-    return map[form.homeState] || 'Before you could choose anything, the household you were born into chose for you.';
+  // ── Scene options to render ─────────────────────────────────────────────────
+  const sceneOptionsMap: Record<number, ChoiceOption[]> = {
+    1: STATES, 2: HOUSEHOLDS, 3: CHILDHOOD_MARKS,
+    4: NPC_CONTACTS, 5: BURDENS, 6: AMBITIONS,
+  };
+  const currentOptions = sceneOptionsMap[scene] || [];
+  const currentChoice: string = (() => {
+    if (scene === 1) return choices.homeState;
+    if (scene === 2) return choices.household;
+    if (scene === 3) return choices.childhoodMark;
+    if (scene === 4) return choices.npcContact;
+    if (scene === 5) return choices.earlyBurden;
+    if (scene === 6) return choices.firstAmbition;
+    return '';
+  })();
+  const onChoose = (id: string) => {
+    if (scene === 1) pick('homeState', id);
+    else if (scene === 2) pick('household', id);
+    else if (scene === 3) pick('childhoodMark', id);
+    else if (scene === 4) pick('npcContact', id);
+    else if (scene === 5) pick('earlyBurden', id);
+    else if (scene === 6) pick('firstAmbition', id);
   };
 
-  const getStep4Context = () => {
-    const nameStr = form.firstName || 'You';
-    if (!form.childhoodMark) return `${nameStr} had to become something before adult life began.`;
-    const hh = form.household;
-    if (hh === 'Struggling Household') return `In a household with limited means, ${nameStr} still found a way to be noticed.`;
-    if (hh === 'Political Household') return `With politics at the dinner table, ${nameStr} was already being watched.`;
-    if (hh === 'Business Household') return `In a household built on enterprise, ${nameStr} found their own edge early.`;
-    return `Before any official opportunity arrived, ${nameStr} had already built a reputation of a kind.`;
-  };
+  const sceneTitle = [
+    'Your Life Begins',
+    'Where were you raised?',
+    'What kind of home shaped you?',
+    'What first made people notice you?',
+    'Who first opened a door for you?',
+    'What weighed on you before adulthood?',
+    'What do you want most?',
+  ][scene] || '';
 
-  const getStep5Context = () => {
-    const nameStr = form.firstName || 'You';
-    const stateCtx: Record<string, string> = {
-      'Drennport State': `In Drennport, first contacts came from institutions. ${nameStr} met someone who saw potential before the records did.`,
-      'Ironvale State':   `In Ironvale, doors opened through either effort or someone who witnessed it. ${nameStr}'s first door came from a person.`,
-      'Greenmere State':  `In Greenmere, community ties mattered more than credentials. ${nameStr}'s first real contact was part of that fabric.`,
-      'Westport State':   `In Westport, the right introduction could change a career before it started. ${nameStr}'s came from an unexpected source.`,
-    };
-    return stateCtx[form.homeState] || `${nameStr} did not rise alone. Someone opened the first door.`;
-  };
-
-  const getStep6Context = () => {
-    const nameStr = form.firstName || 'You';
-    const markCtx: Record<string, string> = {
-      'Top Student':              `Even as ${nameStr} built a reputation for excellence, something weighed on the years before adulthood.`,
-      'Debate Voice':             `${nameStr}'s voice carried early, but something from before shaped what it was carrying.`,
-      'Community Helper':         `${nameStr} gave freely to others, while carrying something of their own.`,
-      'Quiet Survivor':           `${nameStr} adapted and survived. But survival always has a cost.`,
-      'Young Hustler':            `${nameStr} moved fast and found angles. But not everything moved on their own terms.`,
-      'Cadet / Discipline Track': `Discipline kept ${nameStr} steady. It was also what they needed to carry something quietly.`,
-      'Local Organizer':          `${nameStr} helped others find direction while navigating something personal of their own.`,
-    };
-    return markCtx[form.childhoodMark] || `Before ${nameStr}'s adult life could begin cleanly, something had to be carried first.`;
-  };
-
-  const getStep7Context = () => {
-    const nameStr = form.firstName || 'You';
-    const contactName = contact?.name || 'their contact';
-    const burden = form.earlyBurden;
-    if (burden === 'No Major Burden') {
-      return `${nameStr} enters adult life relatively unencumbered — supported by ${contactName} and shaped by everything that came before. But the question of what to do with freedom still stands.`;
-    }
-    return `${nameStr} carries the weight of ${burden.toLowerCase()} into adulthood. Encouraged by ${contactName}, and shaped by experience, the question now is: what does ${nameStr} want most from the life ahead?`;
-  };
+  const sceneLabel = [
+    'Life Opening',
+    'Scene 1 — Origin',
+    'Scene 2 — Background',
+    'Scene 3 — Character',
+    'Scene 4 — First Contact',
+    'Scene 5 — Burden',
+    'Scene 6 — Ambition',
+  ][scene] || '';
 
   return (
     <div
-      className="min-h-screen flex flex-col"
+      className="fixed inset-0 overflow-hidden"
       style={{
-        background: 'radial-gradient(ellipse at 50% 0%, rgba(30, 30, 60, 0.6) 0%, #07100D 60%)',
+        background: 'radial-gradient(ellipse at 40% 0%, rgba(25,40,35,0.9) 0%, #06100D 55%)',
         opacity: revealed ? 1 : 0,
         transition: 'opacity 0.4s ease',
       }}
     >
-      {/* Header bar */}
-      <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={goPrev}
-            className="text-zinc-600 hover:text-zinc-400 transition-colors flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest"
-          >
-            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12" /></svg>
-            {step === 0 ? 'Back to Map' : 'Back'}
-          </button>
-        </div>
-
-        <ProgressDots total={TOTAL_STEPS} current={step} />
-
-        <div className="text-[10px] font-mono text-zinc-700 uppercase tracking-widest">
-          Scene {step + 1} / {TOTAL_STEPS}
-        </div>
-      </div>
-
-      {/* Main scene area */}
       <div
-        className="flex-1 flex flex-col items-center justify-center px-4 py-12"
-        style={{
-          opacity: transitioning ? 0 : 1,
-          transform: transitioning ? 'translateY(8px)' : 'translateY(0)',
-          transition: 'opacity 0.22s ease, transform 0.22s ease',
-        }}
+        className="w-full h-full grid"
+        style={{ gridTemplateColumns: '320px minmax(0,1fr) 320px', gap: '0px' }}
       >
-        <div className="w-full max-w-xl">
 
-          {/* ── STEP 0 — LIFE OPENING ── */}
-          {step === 0 && (
-            <div className="flex flex-col gap-8">
-              <div>
-                <div className="text-[10px] font-mono text-amber-500/50 uppercase tracking-[0.3em] mb-3">Life Beginning</div>
-                <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-4 leading-tight">
-                  Your Life Begins
-                </h1>
-                <p className="text-zinc-400 text-sm leading-relaxed">
-                  In Drennia, power is not given to most people. It is earned through reputation, money, contacts, and public record. Before your adult life begins, the country is already moving around you.
+        {/* ── LEFT: Origin Chronicle ───────────────────────────────────────── */}
+        <div
+          className="h-full overflow-hidden flex flex-col"
+          style={{ borderRight: '1px solid rgba(214,179,95,0.10)', background: 'rgba(8,16,13,0.95)' }}
+        >
+          <div className="px-5 py-5 shrink-0" style={{ borderBottom: '1px solid rgba(214,179,95,0.08)' }}>
+            <div className="text-[9px] font-mono uppercase tracking-[0.3em] mb-1" style={{ color: GOLD, opacity: 0.6 }}>Origin Chronicle</div>
+            <div className="text-[10px] font-mono" style={{ color: '#7E8378' }}>Your pre-18 life record</div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+            {chronicle.length === 0 ? (
+              <p className="text-[11px] leading-relaxed italic" style={{ color: '#3f4b47' }}>
+                Your story has not been written yet.
+              </p>
+            ) : (
+              chronicle.map((frag, i) => (
+                <div key={i} className="flex gap-3">
+                  <div className="flex flex-col items-center shrink-0">
+                    <div className="w-1.5 h-1.5 rounded-full mt-1 shrink-0" style={{ background: GOLD, opacity: i === chronicle.length - 1 ? 1 : 0.4 }} />
+                    {i < chronicle.length - 1 && <div className="flex-1 w-px mt-1" style={{ background: 'rgba(214,179,95,0.12)' }} />}
+                  </div>
+                  <p className="text-[11px] leading-relaxed pb-3" style={{ color: i === chronicle.length - 1 ? '#B9B09B' : '#7E8378' }}>
+                    {frag}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* ── CENTER: Current Life Scene ───────────────────────────────────── */}
+        <div className="h-full overflow-hidden flex flex-col" style={{ background: 'rgba(10,18,15,0.85)' }}>
+
+          {/* Scene top bar */}
+          <div
+            className="shrink-0 flex items-center justify-between px-8 py-4"
+            style={{ borderBottom: '1px solid rgba(214,179,95,0.08)' }}
+          >
+            <button
+              type="button"
+              onClick={goPrev}
+              className="flex items-center gap-1.5 transition-colors"
+              style={{ color: '#7E8378' }}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+              </svg>
+              <span className="text-[10px] font-mono uppercase tracking-widest">{scene === 0 ? 'World Map' : 'Back'}</span>
+            </button>
+
+            {/* Progress dots */}
+            <div className="flex items-center gap-2">
+              {Array.from({ length: TOTAL_SCENES }).map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: i === scene ? '20px' : '6px',
+                    height: '5px',
+                    borderRadius: '3px',
+                    background: i < scene ? `${GOLD}60` : i === scene ? GOLD : 'rgba(255,255,255,0.08)',
+                    transition: 'all 0.3s ease',
+                  }}
+                />
+              ))}
+            </div>
+
+            <div className="text-[10px] font-mono" style={{ color: '#3f4b47' }}>
+              {scene + 1} / {TOTAL_SCENES}
+            </div>
+          </div>
+
+          {/* Scene content */}
+          <div
+            className="flex-1 overflow-y-auto flex flex-col px-8 py-8"
+            style={{
+              opacity: fading ? 0 : 1,
+              transform: fading ? 'translateY(6px)' : 'translateY(0)',
+              transition: 'opacity 0.2s ease, transform 0.2s ease',
+            }}
+          >
+            {/* Scene label + title */}
+            <div className="shrink-0 mb-6">
+              <div className="text-[9px] font-mono uppercase tracking-[0.3em] mb-3" style={{ color: `${GOLD}70` }}>{sceneLabel}</div>
+              <h1 className="text-2xl md:text-3xl font-bold mb-4 leading-tight" style={{ color: '#F4EBD6' }}>{sceneTitle}</h1>
+              {scene > 0 && scene < 7 && (
+                <p className="text-sm leading-relaxed" style={{ color: '#7E8378' }}>{getSceneContext()}</p>
+              )}
+              {scene === 0 && (
+                <p className="text-sm leading-relaxed" style={{ color: '#7E8378' }}>
+                  In Drennia, most people are not born powerful. They are noticed, tested, helped, used, trusted, doubted, and recorded. Before adult life begins, your file starts here.
                 </p>
-              </div>
+              )}
+            </div>
 
-              <div className="p-4 rounded-sm text-[11px] font-mono text-zinc-600 flex flex-col gap-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div className="flex justify-between"><span className="text-zinc-700">Motherland</span><span className="text-zinc-400">Drennia</span></div>
-                <div className="flex justify-between"><span className="text-zinc-700">Capital</span><span className="text-zinc-400">Drennport</span></div>
-                <div className="flex justify-between"><span className="text-zinc-700">Starting Age</span><span className="text-zinc-400">18</span></div>
-              </div>
-
-              <div className="flex flex-col gap-4">
+            {/* Scene 0: Name input */}
+            {scene === 0 && (
+              <div className="flex flex-col gap-4 max-w-sm">
+                <div
+                  className="p-4 rounded-sm mb-2 grid grid-cols-3 gap-3"
+                  style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(214,179,95,0.1)' }}
+                >
+                  {[['Motherland', 'Drennia'], ['Capital', 'Drennport'], ['Age', '18']].map(([l, v]) => (
+                    <div key={l}>
+                      <div className="text-[8px] font-mono uppercase tracking-widest mb-0.5" style={{ color: '#3f4b47' }}>{l}</div>
+                      <div className="text-[11px] font-semibold" style={{ color: '#B9B09B' }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
                 <div>
-                  <label className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500 mb-2">First Name <span className="text-amber-500">*</span></label>
+                  <label className="block text-[9px] font-mono uppercase tracking-[0.2em] mb-2" style={{ color: '#7E8378' }}>
+                    First Name <span style={{ color: GOLD }}>*</span>
+                  </label>
                   <input
-                    id="char-first-name"
                     autoFocus
-                    className="w-full rounded-sm px-4 py-3 text-base font-sans outline-none transition-all duration-200 placeholder:text-zinc-700 bg-black/30 border border-white/[0.07] text-white focus:border-amber-500/70 focus:ring-1 focus:ring-amber-500/15"
+                    className="w-full rounded-sm px-4 py-3 text-base font-sans outline-none transition-all duration-200"
+                    style={{ background: 'rgba(13,24,20,0.8)', border: `1px solid rgba(214,179,95,0.15)`, color: '#F4EBD6' }}
                     placeholder="e.g. Arven"
-                    value={form.firstName}
-                    onChange={e => pick('firstName', e.target.value)}
+                    value={firstName}
+                    onChange={e => setFirstName(e.target.value)}
+                    onFocus={e => (e.target.style.borderColor = `rgba(214,179,95,0.5)`)}
+                    onBlur={e => (e.target.style.borderColor = `rgba(214,179,95,0.15)`)}
                     onKeyDown={e => { if (e.key === 'Enter' && canAdvance()) goNext(); }}
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500 mb-2">Last Name <span className="text-amber-500">*</span></label>
+                  <label className="block text-[9px] font-mono uppercase tracking-[0.2em] mb-2" style={{ color: '#7E8378' }}>
+                    Last Name <span style={{ color: GOLD }}>*</span>
+                  </label>
                   <input
-                    id="char-last-name"
-                    className="w-full rounded-sm px-4 py-3 text-base font-sans outline-none transition-all duration-200 placeholder:text-zinc-700 bg-black/30 border border-white/[0.07] text-white focus:border-amber-500/70 focus:ring-1 focus:ring-amber-500/15"
+                    className="w-full rounded-sm px-4 py-3 text-base font-sans outline-none transition-all duration-200"
+                    style={{ background: 'rgba(13,24,20,0.8)', border: `1px solid rgba(214,179,95,0.15)`, color: '#F4EBD6' }}
                     placeholder="e.g. Veyran"
-                    value={form.lastName}
-                    onChange={e => pick('lastName', e.target.value)}
+                    value={lastName}
+                    onChange={e => setLastName(e.target.value)}
+                    onFocus={e => (e.target.style.borderColor = `rgba(214,179,95,0.5)`)}
+                    onBlur={e => (e.target.style.borderColor = `rgba(214,179,95,0.15)`)}
                     onKeyDown={e => { if (e.key === 'Enter' && canAdvance()) goNext(); }}
                   />
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* ── STEP 1 — HOME STATE ── */}
-          {step === 1 && (
-            <div className="flex flex-col gap-8">
-              <div>
-                <div className="text-[10px] font-mono text-amber-500/50 uppercase tracking-[0.3em] mb-3">Scene 1 — Origin</div>
-                <h1 className="text-3xl font-bold text-white tracking-tight mb-4 leading-tight">
-                  Where were you raised?
-                </h1>
-                <p className="text-zinc-400 text-sm leading-relaxed">
-                  Your state shaped your accent, your expectations, and the kind of people you grew up around.
-                </p>
+            {/* Scenes 1–6: Choice grid */}
+            {scene > 0 && scene < 7 && currentOptions.length > 0 && (
+              <div
+                className="grid gap-3 mt-2"
+                style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}
+              >
+                {currentOptions.map(opt =>
+                  scene === 4 ? (
+                    <NpcChoiceCard
+                      key={opt.id}
+                      option={opt}
+                      selected={currentChoice === opt.id}
+                      onClick={() => onChoose(opt.id)}
+                    />
+                  ) : (
+                    <SceneChoiceCard
+                      key={opt.id}
+                      option={opt}
+                      selected={currentChoice === opt.id}
+                      onClick={() => onChoose(opt.id)}
+                    />
+                  )
+                )}
               </div>
-              <div className="flex flex-col gap-3">
-                {STATES.map(s => (
-                  <ChoiceCard
-                    key={s.id}
-                    label={s.id}
-                    desc={s.desc}
-                    selected={form.homeState === s.id}
-                    onClick={() => pick('homeState', s.id)}
-                    effect={Object.entries(STATE_EFFECTS[s.id] || {}).map(([k, v]) => `+${v} ${k}`).join('  ')}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* ── STEP 2 — HOUSEHOLD ── */}
-          {step === 2 && (
-            <div className="flex flex-col gap-8">
-              <div>
-                <div className="text-[10px] font-mono text-amber-500/50 uppercase tracking-[0.3em] mb-3">Scene 2 — Background</div>
-                <h1 className="text-3xl font-bold text-white tracking-tight mb-4 leading-tight">
-                  What kind of home shaped you?
-                </h1>
-                <p className="text-zinc-400 text-sm leading-relaxed">
-                  {getStep3Context()}
-                </p>
-              </div>
-              <div className="flex flex-col gap-3">
-                {HOUSEHOLDS.map(h => (
-                  <ChoiceCard
-                    key={h.id}
-                    label={h.id}
-                    desc={h.desc}
-                    selected={form.household === h.id}
-                    onClick={() => pick('household', h.id)}
-                    effect={Object.entries(HOUSEHOLD_EFFECTS[h.id] || {}).map(([k, v]) => `+${v} ${k}`).join('  ')}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── STEP 3 — CHILDHOOD MARK ── */}
-          {step === 3 && (
-            <div className="flex flex-col gap-8">
-              <div>
-                <div className="text-[10px] font-mono text-amber-500/50 uppercase tracking-[0.3em] mb-3">Scene 3 — Character</div>
-                <h1 className="text-3xl font-bold text-white tracking-tight mb-4 leading-tight">
-                  What first made people notice you?
-                </h1>
-                <p className="text-zinc-400 text-sm leading-relaxed">
-                  {getStep4Context()}
-                </p>
-              </div>
-              <div className="flex flex-col gap-3">
-                {CHILDHOOD_MARKS.map(c => (
-                  <ChoiceCard
-                    key={c.id}
-                    label={c.id}
-                    desc={c.desc}
-                    selected={form.childhoodMark === c.id}
-                    onClick={() => pick('childhoodMark', c.id)}
-                    effect={Object.entries(CHILDHOOD_EFFECTS[c.id] || {}).map(([k, v]) => `+${v} ${k}`).join('  ')}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── STEP 4 — NPC CONTACT ── */}
-          {step === 4 && (
-            <div className="flex flex-col gap-8">
-              <div>
-                <div className="text-[10px] font-mono text-amber-500/50 uppercase tracking-[0.3em] mb-3">Scene 4 — First Contact</div>
-                <h1 className="text-3xl font-bold text-white tracking-tight mb-4 leading-tight">
-                  Who first opened a door for you?
-                </h1>
-                <p className="text-zinc-400 text-sm leading-relaxed">
-                  {getStep5Context()}
-                </p>
-              </div>
-              <div className="flex flex-col gap-3">
-                {NPC_CONTACTS.map(npc => (
-                  <NpcChoiceCard
-                    key={npc.id}
-                    npc={npc}
-                    selected={form.npcContact === npc.id}
-                    onClick={() => pick('npcContact', npc.id, { npcContactName: npc.name, npcContactType: npc.id })}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── STEP 5 — EARLY BURDEN ── */}
-          {step === 5 && (
-            <div className="flex flex-col gap-8">
-              <div>
-                <div className="text-[10px] font-mono text-amber-500/50 uppercase tracking-[0.3em] mb-3">Scene 5 — Burden</div>
-                <h1 className="text-3xl font-bold text-white tracking-tight mb-4 leading-tight">
-                  What weighed on you before adulthood?
-                </h1>
-                <p className="text-zinc-400 text-sm leading-relaxed">
-                  {getStep6Context()}
-                </p>
-              </div>
-              <div className="flex flex-col gap-3">
-                {BURDENS.map(b => (
-                  <ChoiceCard
-                    key={b.id}
-                    label={b.id}
-                    desc={b.desc}
-                    selected={form.earlyBurden === b.id}
-                    onClick={() => pick('earlyBurden', b.id)}
-                    effect={Object.entries(BURDEN_EFFECTS[b.id] || {}).map(([k, v]) => `+${v} ${k}`).join('  ')}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── STEP 6 — FIRST AMBITION ── */}
-          {step === 6 && (
-            <div className="flex flex-col gap-8">
-              <div>
-                <div className="text-[10px] font-mono text-amber-500/50 uppercase tracking-[0.3em] mb-3">Scene 6 — Ambition</div>
-                <h1 className="text-3xl font-bold text-white tracking-tight mb-4 leading-tight">
-                  What do you want most?
-                </h1>
-                <p className="text-zinc-400 text-sm leading-relaxed">
-                  {getStep7Context()}
-                </p>
-              </div>
-              <div className="flex flex-col gap-3">
-                {AMBITIONS.map(a => (
-                  <ChoiceCard
-                    key={a.id}
-                    label={a.id}
-                    desc={a.desc}
-                    selected={form.firstAmbition === a.id}
-                    onClick={() => pick('firstAmbition', a.id)}
-                    effect={Object.entries(AMBITION_EFFECTS[a.id] || {}).map(([k, v]) => `+${v} ${k}`).join('  ')}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
+          {/* Continue bar */}
+          <div
+            className="shrink-0 flex items-center justify-end px-8 py-4 gap-4"
+            style={{ borderTop: '1px solid rgba(214,179,95,0.08)', background: 'rgba(6,16,13,0.6)' }}
+          >
+            {scene < TOTAL_SCENES - 1 ? (
+              <button
+                type="button"
+                onClick={goNext}
+                disabled={!canAdvance()}
+                className="group relative inline-flex items-center gap-2 px-7 py-2.5 text-[11px] font-bold uppercase tracking-[0.2em] rounded-sm overflow-hidden transition-all duration-200 disabled:opacity-25 disabled:cursor-not-allowed"
+                style={{
+                  background: canAdvance() ? `linear-gradient(135deg, ${GOLD}, #b8944a)` : 'rgba(214,179,95,0.06)',
+                  color: canAdvance() ? '#06100D' : '#7E8378',
+                  boxShadow: canAdvance() ? `0 4px 20px rgba(214,179,95,0.18)` : 'none',
+                }}
+              >
+                {canAdvance() && (
+                  <span className="absolute inset-0 translate-x-[-110%] group-hover:translate-x-[110%] transition-transform duration-500 ease-in-out" style={{ background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.2) 50%, transparent 60%)' }} />
+                )}
+                Continue
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleFinish}
+                disabled={!canAdvance()}
+                className="group relative inline-flex items-center gap-2 px-7 py-2.5 text-[11px] font-bold uppercase tracking-[0.2em] rounded-sm overflow-hidden transition-all duration-200 disabled:opacity-25 disabled:cursor-not-allowed"
+                style={{
+                  background: canAdvance() ? `linear-gradient(135deg, ${GOLD}, #b8944a)` : 'rgba(214,179,95,0.06)',
+                  color: canAdvance() ? '#06100D' : '#7E8378',
+                  boxShadow: canAdvance() ? `0 4px 20px rgba(214,179,95,0.18)` : 'none',
+                }}
+              >
+                {canAdvance() && (
+                  <span className="absolute inset-0 translate-x-[-110%] group-hover:translate-x-[110%] transition-transform duration-500 ease-in-out" style={{ background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.2) 50%, transparent 60%)' }} />
+                )}
+                Confirm Life
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Factor strip + Continue bar */}
-      <div style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-        <FactorStrip factors={factors} />
+        {/* ── RIGHT: Live Life Ledger ──────────────────────────────────────── */}
+        <div
+          className="h-full overflow-hidden flex flex-col"
+          style={{ borderLeft: '1px solid rgba(214,179,95,0.10)', background: 'rgba(8,16,13,0.95)' }}
+        >
+          <div className="px-5 py-5 shrink-0" style={{ borderBottom: '1px solid rgba(214,179,95,0.08)' }}>
+            <div className="text-[9px] font-mono uppercase tracking-[0.3em] mb-1" style={{ color: GOLD, opacity: 0.6 }}>Life Ledger</div>
+            <div className="text-[10px] font-mono" style={{ color: '#7E8378' }}>Building in real time</div>
+          </div>
 
-        <div className="flex items-center justify-end px-6 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: 'rgba(0,0,0,0.2)' }}>
-          {step < TOTAL_STEPS - 1 ? (
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={!canAdvance()}
-              className="group relative inline-flex items-center gap-2.5 px-8 py-3 text-sm font-bold uppercase tracking-[0.15em] rounded-sm overflow-hidden transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
-              style={{
-                background: canAdvance() ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(245,158,11,0.08)',
-                color: canAdvance() ? '#000' : '#78716c',
-                boxShadow: canAdvance() ? '0 4px 20px rgba(245,158,11,0.2)' : 'none',
-              }}
-            >
-              {canAdvance() && <span className="absolute inset-0 translate-x-[-110%] group-hover:translate-x-[110%] transition-transform duration-500 ease-in-out" style={{ background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.2) 50%, transparent 60%)' }} />}
-              Continue
-              <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleFinish}
-              disabled={!canAdvance()}
-              className="group relative inline-flex items-center gap-2.5 px-8 py-3 text-sm font-bold uppercase tracking-[0.15em] rounded-sm overflow-hidden transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
-              style={{
-                background: canAdvance() ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : 'rgba(99,102,241,0.08)',
-                color: canAdvance() ? '#fff' : '#78716c',
-                boxShadow: canAdvance() ? '0 4px 20px rgba(99,102,241,0.25)' : 'none',
-              }}
-            >
-              {canAdvance() && <span className="absolute inset-0 translate-x-[-110%] group-hover:translate-x-[110%] transition-transform duration-500 ease-in-out" style={{ background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.2) 50%, transparent 60%)' }} />}
-              Confirm Life
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </button>
-          )}
+          <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-5">
+
+            {/* Identity */}
+            <div>
+              <div className="text-[9px] font-mono uppercase tracking-[0.2em] mb-3" style={{ color: '#7E8378' }}>Identity</div>
+              <div className="space-y-0">
+                <LedgerRow label="Name"      value={[firstName, lastName].filter(Boolean).join(' ')} />
+                <LedgerRow label="Age"       value="18" />
+                <LedgerRow label="Motherland" value="Drennia" />
+                <LedgerRow label="Capital"   value="Drennport" />
+                <LedgerRow label="Scene"     value={sceneLabel} />
+              </div>
+            </div>
+
+            {/* Visible Factors */}
+            <div>
+              <div className="text-[9px] font-mono uppercase tracking-[0.2em] mb-4" style={{ color: '#7E8378' }}>Visible Factors</div>
+              <div className="space-y-3.5">
+                <FactorRow label="Credibility" value={factors.Credibility} />
+                <FactorRow label="Charisma"    value={factors.Charisma} />
+                <FactorRow label="Influence"   value={factors.Influence} />
+                <FactorRow label="Resources"   value={factors.Resources} />
+              </div>
+            </div>
+
+            {/* Origin Record */}
+            <div>
+              <div className="text-[9px] font-mono uppercase tracking-[0.2em] mb-3" style={{ color: '#7E8378' }}>Origin Record</div>
+              <div className="space-y-0">
+                <LedgerRow label="Home State"  value={choices.homeState} />
+                <LedgerRow label="Household"   value={choices.household} />
+                <LedgerRow label="Known For"   value={choices.childhoodMark} />
+                <LedgerRow label="Contact"     value={NPC_CONTACTS.find(c => c.id === choices.npcContact)?.title || ''} />
+                <LedgerRow label="Burden"      value={choices.earlyBurden} />
+                <LedgerRow label="Ambition"    value={choices.firstAmbition} />
+              </div>
+            </div>
+
+            {/* Obligation / Vulnerability if any */}
+            {(choices.npcContact || choices.household || choices.earlyBurden) && (() => {
+              const contactObj = NPC_CONTACTS.find(c => c.id === choices.npcContact);
+              const hhObj = HOUSEHOLDS.find(h => h.id === choices.household);
+              const burdenObj = BURDENS.find(b => b.id === choices.earlyBurden);
+              const obl = contactObj?.obligation || burdenObj?.obligation || hhObj?.obligation;
+              const vuln = contactObj?.vulnerability || burdenObj?.vulnerability || hhObj?.vulnerability;
+              if (!obl && !vuln) return null;
+              return (
+                <div>
+                  <div className="text-[9px] font-mono uppercase tracking-[0.2em] mb-3" style={{ color: '#7E8378' }}>Emerging Record</div>
+                  {obl && (
+                    <div className="p-2.5 rounded-sm mb-2" style={{ background: 'rgba(214,179,95,0.05)', border: '1px solid rgba(214,179,95,0.12)' }}>
+                      <div className="text-[8px] font-mono uppercase tracking-widest mb-1" style={{ color: `${GOLD}60` }}>Obligation</div>
+                      <div className="text-[10px] leading-relaxed" style={{ color: '#B9B09B' }}>{obl}</div>
+                    </div>
+                  )}
+                  {vuln && (
+                    <div className="p-2.5 rounded-sm" style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.12)' }}>
+                      <div className="text-[8px] font-mono uppercase tracking-widest mb-1" style={{ color: 'rgba(248,113,113,0.5)' }}>Vulnerability</div>
+                      <div className="text-[10px] leading-relaxed" style={{ color: '#B9B09B' }}>{vuln}</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* WORLDr mark */}
+          <div className="px-5 py-3 shrink-0" style={{ borderTop: '1px solid rgba(214,179,95,0.06)' }}>
+            <div className="text-[8px] font-mono uppercase tracking-widest" style={{ color: '#3f4b47' }}>WORLDr · Pre-Alpha · {new Date().getFullYear()}</div>
+          </div>
         </div>
+
       </div>
     </div>
   );
