@@ -25,16 +25,19 @@ export default function PersonalDossierPanel() {
       const citizenFile = localStorage.getItem('worldr_citizen_file_v1');
       if (citizenFile) {
         const parsed = JSON.parse(citizenFile);
+        // Support both old nested origin and new flat structure
+        const state = parsed.homeState || parsed.origin?.state || 'Drennport State';
+        const nation = parsed.motherland || parsed.origin?.nation || 'Drennia';
         setCharData({
           name: parsed.name || { first: 'New', last: 'Citizen' },
           age: parsed.age || 18,
           status: 'New Citizen',
-          origin: parsed.origin || { state: 'Drennport State', nation: 'Drennia' },
+          origin: { state, nation },
           factors: parsed.factors || {
-            Credibility: 35,
-            Charisma: 35,
-            Influence: 20,
-            Resources: 15
+            Credibility: 0,
+            Charisma: 0,
+            Influence: 0,
+            Resources: 0
           },
           contact: parsed.contact || { name: 'Pending...', role: 'Pending...' },
           obligation: parsed.obligation || null,
