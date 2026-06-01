@@ -5,24 +5,19 @@ import { livingWorldTheme as theme } from '../../styles/livingWorldTheme';
 
 export default function PersonalDossierPanel() {
   const [charData, setCharData] = useState<any>({
-    name: 'New Citizen',
+    name: { first: 'New', last: 'Citizen' },
     age: 18,
     status: 'New Citizen',
-    homeState: 'Drennport State',
-    motherland: 'Drennia',
+    origin: { state: 'Drennport State', nation: 'Drennia' },
     factors: {
-      credibility: 40,
-      charisma: 40,
-      influence: 25,
-      resources: 20
+      Credibility: 40,
+      Charisma: 40,
+      Influence: 25,
+      Resources: 20
     },
-    obligations: [],
-    vulnerabilities: [],
-    story: {
-      firstNpcContact: 'Pending...',
-      firstObligation: 'Pending...',
-      firstVulnerability: 'Pending...'
-    }
+    contact: { name: 'Pending...', role: 'Pending...' },
+    obligation: null,
+    vulnerability: null
   });
 
   useEffect(() => {
@@ -31,30 +26,27 @@ export default function PersonalDossierPanel() {
       if (citizenFile) {
         const parsed = JSON.parse(citizenFile);
         setCharData({
-          name: parsed.name || 'New Citizen',
+          name: parsed.name || { first: 'New', last: 'Citizen' },
           age: parsed.age || 18,
           status: 'New Citizen',
-          homeState: parsed.homeState || 'Drennport State',
-          motherland: parsed.motherland || 'Drennia',
+          origin: parsed.origin || { state: 'Drennport State', nation: 'Drennia' },
           factors: parsed.factors || {
-            credibility: 35,
-            charisma: 35,
-            influence: 20,
-            resources: 15
+            Credibility: 35,
+            Charisma: 35,
+            Influence: 20,
+            Resources: 15
           },
-          obligations: parsed.obligations || [],
-          vulnerabilities: parsed.vulnerabilities || [],
-          story: {
-            firstNpcContact: parsed.story?.firstNpcContact || parsed.firstNpcContact || 'Pending selection',
-            firstObligation: parsed.story?.firstObligation || parsed.firstObligation || 'Pending selection',
-            firstVulnerability: parsed.story?.firstVulnerability || parsed.firstVulnerability || 'Pending selection',
-          }
+          contact: parsed.contact || { name: 'Pending...', role: 'Pending...' },
+          obligation: parsed.obligation || null,
+          vulnerability: parsed.vulnerability || null
         });
       }
     } catch (e) {
       console.warn("Error reading dossier data", e);
     }
   }, []);
+
+  const fullName = [charData.name.first, charData.name.last].filter(Boolean).join(' ') || 'New Citizen';
 
   return (
     <div 
@@ -69,117 +61,78 @@ export default function PersonalDossierPanel() {
         boxShadow: theme.effects.shadowPanel
       }}
     >
-      <div 
-        style={{
-          fontSize: '11px',
-          letterSpacing: '0.14em',
-          color: theme.colors.accents.gold,
-          textTransform: 'uppercase',
-          fontWeight: 'bold'
-        }}
-      >
+      <div style={{ fontSize: '11px', letterSpacing: '0.14em', color: theme.colors.accents.gold, textTransform: 'uppercase', fontWeight: 'bold' }}>
         Personal Dossier
       </div>
 
-      <h2 
-        className="tracking-tight"
-        style={{
-          fontSize: '24px',
-          fontWeight: 700,
-          color: theme.colors.text.textPrimary,
-          marginTop: '12px'
-        }}
-      >
-        {charData.name}
+      <h2 className="tracking-tight" style={{ fontSize: '24px', fontWeight: 700, color: theme.colors.text.textPrimary, marginTop: '12px' }}>
+        {fullName}
       </h2>
 
-      <div 
-        style={{
-          fontSize: '13px',
-          color: theme.colors.text.textSecondary,
-          lineHeight: 1.6,
-          marginTop: '4px'
-        }}
-      >
+      <div style={{ fontSize: '13px', color: theme.colors.text.textSecondary, lineHeight: 1.6, marginTop: '4px' }}>
         Age {charData.age} · {charData.status}<br/>
-        Home State: {charData.homeState}<br/>
-        Motherland: {charData.motherland}
+        Home State: {charData.origin.state}<br/>
+        Motherland: {charData.origin.nation}
       </div>
 
-      <div 
-        style={{
-          margin: '18px 0',
-          borderTop: `1px solid ${theme.colors.borders.borderMuted}`
-        }}
-      />
+      <div style={{ margin: '18px 0', borderTop: `1px solid ${theme.colors.borders.borderMuted}` }} />
 
-      <div 
-        style={{
-          fontSize: '11px',
-          letterSpacing: '0.1em',
-          color: theme.colors.text.textMuted,
-          textTransform: 'uppercase',
-          fontWeight: '600',
-          marginBottom: '8px'
-        }}
-      >
+      <div style={{ fontSize: '11px', letterSpacing: '0.1em', color: theme.colors.text.textMuted, textTransform: 'uppercase', fontWeight: '600', marginBottom: '8px' }}>
         Visible Power Factors
       </div>
 
       <div className="flex flex-col gap-1 mb-2">
-        <FactorMeter label="Credibility" value={charData.factors.credibility} />
-        <FactorMeter label="Charisma" value={charData.factors.charisma} />
-        <FactorMeter label="Influence" value={charData.factors.influence} />
-        <FactorMeter label="Resources" value={charData.factors.resources} />
+        <FactorMeter label="Credibility" value={charData.factors.Credibility || charData.factors.credibility || 0} />
+        <FactorMeter label="Charisma" value={charData.factors.Charisma || charData.factors.charisma || 0} />
+        <FactorMeter label="Influence" value={charData.factors.Influence || charData.factors.influence || 0} />
+        <FactorMeter label="Resources" value={charData.factors.Resources || charData.factors.resources || 0} />
       </div>
 
-      <div 
-        className="mt-auto"
-        style={{
-          marginTop: '18px',
-          padding: '14px',
-          borderRadius: theme.effects.radiusMedium,
-          background: 'rgba(255,255,255,0.035)',
-          border: `1px solid ${theme.colors.borders.borderCool}`
-        }}
-      >
+      <div className="mt-auto" style={{ marginTop: '18px', padding: '14px', borderRadius: theme.effects.radiusMedium, background: 'rgba(255,255,255,0.035)', border: `1px solid ${theme.colors.borders.borderCool}` }}>
         <div className="flex flex-col gap-3">
           <div>
             <div style={{ fontSize: '11px', textTransform: 'uppercase', color: theme.colors.text.textMuted, fontWeight: '600', marginBottom: '2px' }}>
               First Contact
             </div>
             <div style={{ fontSize: '13px', color: theme.colors.text.textPrimary }}>
-              {(charData as any).story?.firstNpcContact || 'Pending...'}
+              {charData.contact?.name || 'Pending...'}
             </div>
+            {charData.contact?.role && (
+              <div style={{ fontSize: '11px', color: theme.colors.text.textSecondary }}>
+                {charData.contact.role}
+              </div>
+            )}
           </div>
+          
           <div>
             <div style={{ fontSize: '11px', textTransform: 'uppercase', color: theme.colors.text.textMuted, fontWeight: '600', marginBottom: '2px' }}>
               Active Obligations
             </div>
             <div className="flex flex-col gap-1">
-              {((charData as any).obligations && (charData as any).obligations.length > 0) ? (charData as any).obligations.map((o: any, idx: number) => (
-                <div key={idx} style={{ fontSize: '13px', color: theme.colors.accents.gold }}>
-                  {o.label} <span style={{color: theme.colors.text.textFaint, fontSize: '11px'}}>from {o.source}</span>
+              {charData.obligation ? (
+                <div style={{ fontSize: '13px', color: theme.colors.accents.gold }}>
+                  {charData.obligation.description}
                 </div>
-              )) : (
+              ) : (
                 <div style={{ fontSize: '13px', color: theme.colors.text.textPrimary }}>
-                  {(charData as any).story?.firstObligation || 'None'}
+                  None
                 </div>
               )}
             </div>
           </div>
+          
           <div>
             <div style={{ fontSize: '11px', textTransform: 'uppercase', color: theme.colors.text.textMuted, fontWeight: '600', marginBottom: '2px' }}>
               Vulnerabilities
             </div>
             <div className="flex flex-col gap-1">
-              {((charData as any).vulnerabilities && (charData as any).vulnerabilities.length > 0) ? (charData as any).vulnerabilities.map((v: any, idx: number) => (
-                <div key={idx} style={{ fontSize: '13px', color: theme.colors.accents.dangerRed }}>
-                  {v.label} <span style={{color: theme.colors.text.textFaint, fontSize: '11px'}}>from {v.source}</span>
+              {charData.vulnerability ? (
+                <div style={{ fontSize: '13px', color: theme.colors.accents.dangerRed }}>
+                  {charData.vulnerability.description}
                 </div>
-              )) : (
+              ) : (
                 <div style={{ fontSize: '13px', color: theme.colors.text.textPrimary }}>
-                  {(charData as any).story?.firstVulnerability || 'None'}
+                  None
                 </div>
               )}
             </div>
@@ -187,13 +140,7 @@ export default function PersonalDossierPanel() {
         </div>
       </div>
 
-      <div 
-        className="mt-4 text-center leading-relaxed"
-        style={{
-          fontSize: '12px',
-          color: theme.colors.text.textMuted
-        }}
-      >
+      <div className="mt-4 text-center leading-relaxed" style={{ fontSize: '12px', color: theme.colors.text.textMuted }}>
         Power in WORLDr is earned through opportunities, relationships, money, records, and institutions.
       </div>
     </div>

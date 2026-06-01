@@ -32,7 +32,7 @@ export default function OpportunitiesPage() {
       } else if (!hasMotherland) {
         router.replace('/world-entry');
       } else if (!fileStr) {
-        router.replace('/start/citizen-file');
+        router.replace('/start/character');
       } else {
         const file = JSON.parse(fileStr);
         // ensure personalMoney exists
