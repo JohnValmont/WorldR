@@ -625,62 +625,95 @@ export function runMonthlyAutoOperations(companyId: string): { success: boolean;
   if (cIdx < 0) return { success: false, message: 'Company not found.', results: [] };
   const company = companies[cIdx];
 
-  const fleet = getFleet(companyId).filter(v => v.assignedAutoOpPool);
-  if (fleet.length === 0) return { success: false, message: 'No vehicles assigned to Auto Operations.', results: [] };
+  const fleet = getFleet(companyId);
+  if (fleet.length === 0) return { success: false, message: 'No vehicles in fleet.', results: [] };
 
   const results: any[] = [];
   let totalGross = 0;
   let totalCost = 0;
+  let totalMaintenance = 0;
+
+  // Group by pool for reporting
+  const poolStats: Record<string, { gross: number, cost: number, maintenance: number, condDrop: number }> = {};
+  let idleMaintenance = 0;
+  let contractMaintenance = 0;
 
   fleet.forEach(v => {
-    // Determine state based on pool
-    let demandMod = 1.0;
-    let poolState = 'Drennport State';
-    let baseDemand = 8000;
-    let condDrop = 3;
+    const maint = v.monthlyMaintenance || 0;
+    totalMaintenance += maint;
 
-    if (v.assignedAutoOpPool === 'Port Shuttle Pool') {
-      demandMod = 1.2; // Westport high demand
-      poolState = 'Westport State';
-      baseDemand = 10000;
-      condDrop = 4;
-    } else if (v.assignedAutoOpPool === 'Local Delivery Pool') {
-      demandMod = 1.0; // High pop, but high comp
-      poolState = 'Drennport State';
-      baseDemand = 7000;
-      condDrop = 2;
+    if (v.assignedAutoOpPool) {
+      const pool = v.assignedAutoOpPool;
+      if (!poolStats[pool]) poolStats[pool] = { gross: 0, cost: 0, maintenance: 0, condDrop: 0 };
+      
+      let demandMod = 1.0;
+      let baseDemand = 8000;
+      let condDrop = 3;
+
+      if (pool === 'Port Shuttle Pool') {
+        demandMod = 1.2;
+        baseDemand = 10000;
+        condDrop = 4;
+      } else if (pool === 'Local Delivery Pool') {
+        demandMod = 1.0;
+        baseDemand = 7000;
+        condDrop = 2;
+      }
+
+      const relMod = company.reliability === 'Preferred Carrier' ? 1.2 : company.reliability === 'Reliable' ? 1.1 : 1.0;
+      const condMod = v.condition / 100;
+
+      const gross = Math.round(baseDemand * v.capacity * demandMod * relMod * condMod);
+      const cost = Math.round(gross * 0.2); // 20% operating cost
+
+      poolStats[pool].gross += gross;
+      poolStats[pool].cost += cost;
+      poolStats[pool].maintenance += maint;
+      poolStats[pool].condDrop += condDrop;
+
+      totalGross += gross;
+      totalCost += cost;
+
+      v.condition = Math.max(0, v.condition - condDrop);
+    } else if (v.assignedContractId) {
+      contractMaintenance += maint;
+    } else {
+      idleMaintenance += maint;
     }
 
-    const relMod = company.reliability === 'Preferred Carrier' ? 1.2 : company.reliability === 'Reliable' ? 1.1 : 1.0;
-    const condMod = v.condition / 100;
-
-    const gross = Math.round(baseDemand * v.capacity * demandMod * relMod * condMod);
-    const cost = Math.round(gross * 0.2); // 20% operating cost
-    const net = gross - cost;
-
-    totalGross += gross;
-    totalCost += cost;
-
-    // Apply condition drop
-    v.condition = Math.max(0, v.condition - condDrop);
-    saveVehicle(v); // Update vehicle
-
-    const recordText = `${company.name} completed regular work in ${v.assignedAutoOpPool}. Gross: ${formatMoney(gross)}. Cost: ${formatMoney(cost)}. Net: ${formatMoney(net)}.`;
-    addRecord(recordText, 'auto_op');
-    
-    results.push({ pool: v.assignedAutoOpPool, gross, cost, net, conditionDrop: condDrop, recordText });
+    saveVehicle(v);
   });
 
-  company.companyCash += (totalGross - totalCost);
+  // Generate records for pools
+  Object.keys(poolStats).forEach(pool => {
+    const stats = poolStats[pool];
+    const net = stats.gross - stats.cost - stats.maintenance;
+    const recordText = `${company.name} completed recurring work in ${pool}. Gross revenue: ${formatMoney(stats.gross)}. Operating cost: ${formatMoney(stats.cost)}. Maintenance expense: ${formatMoney(stats.maintenance)}. Net income: ${formatMoney(net)}.`;
+    addRecord(recordText, 'auto_op');
+    results.push({ pool, ...stats, net, recordText });
+  });
+
+  // Generate record for idle/contract maintenance if any
+  if (idleMaintenance > 0 || contractMaintenance > 0) {
+    const totalOtherMaint = idleMaintenance + contractMaintenance;
+    const recordText = `${company.name} paid monthly fleet maintenance for vehicles not in auto operations: ${formatMoney(totalOtherMaint)}.`;
+    addRecord(recordText, 'business');
+    results.push({ pool: 'Other Maintenance', gross: 0, cost: 0, maintenance: totalOtherMaint, net: -totalOtherMaint, recordText });
+  }
+
+  const netIncome = totalGross - totalCost - totalMaintenance;
+  company.companyCash += netIncome;
+  company.monthlyRevenue = totalGross;
+  company.monthlyCosts = totalCost + totalMaintenance;
+  company.profit = netIncome;
   
-  // Reputation upgrade slowly
-  if (company.reputation === 'New') company.reputation = 'Known Locally';
-  else if (company.reputation === 'Known Locally') company.reputation = 'Trusted Carrier';
+  if (company.reputation === 'New' && totalGross > 0) company.reputation = 'Known Locally';
+  else if (company.reputation === 'Known Locally' && totalGross > 100000) company.reputation = 'Trusted Carrier';
 
   companies[cIdx] = company;
   localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
 
-  return { success: true, message: `Auto Operations complete. Net income: ${formatMoney(totalGross - totalCost)}.`, results };
+  return { success: true, message: `Operations processed. Net income: ${formatMoney(netIncome)}.`, results };
 }
 
 // ─── Routes Tab Logic ─────────────────────────────────────────────────────────

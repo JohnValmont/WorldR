@@ -133,6 +133,7 @@ export default function BusinessPage() {
   const [playerCash, setPlayerCash] = useState(0);
   const [company, setCompany] = useState<Company | null>(null);
   const [activeTab, setActiveTab] = useState<SubTab>('overview');
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
   // Contracts state
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -288,38 +289,93 @@ export default function BusinessPage() {
         <h1 style={{ fontSize: '20px', fontWeight: 700, color: T.ivory, margin: 0 }}>Business</h1>
       </div>
 
-      {/* ── Subtabs ── */}
-      <div style={{ display: 'flex', gap: '0', padding: '0 24px', borderBottom: `1px solid ${T.border}`, flexShrink: 0, overflowX: 'auto' }}>
-        {SUB_TABS.map(tab => {
-          const locked = tab.requiresCompany && !company;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => !locked && setActiveTab(tab.id)}
-              style={{
-                padding: '10px 16px', fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em',
-                fontWeight: isActive ? 700 : 500, color: locked ? T.faint : isActive ? T.gold : T.muted,
-                background: 'transparent', border: 'none', borderBottom: isActive ? `2px solid ${T.gold}` : '2px solid transparent',
-                cursor: locked ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', transition: 'color 0.15s',
-              }}
-              title={locked ? 'Register a company to unlock' : undefined}
-            >
-              {tab.label}{locked ? ' 🔒' : ''}
-            </button>
-          );
-        })}
+      {/* ── Subtabs & Breadcrumbs ── */}
+      <div style={{ padding: '0 24px', borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+        {/* Dynamic Breadcrumbs */}
+        <div style={{ display: 'flex', gap: '8px', padding: '12px 0 4px', fontSize: '10px', fontFamily: 'monospace', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          <span style={{ cursor: 'pointer', color: activeTab === 'overview' ? T.gold : T.muted }} onClick={() => { setActiveTab('overview'); setSelectedCompanyId(null); }}>Business Desk</span>
+          {activeTab === 'companies' && (
+            <>
+              <span>→</span>
+              <span style={{ cursor: 'pointer', color: !selectedCompanyId ? T.gold : T.muted }} onClick={() => setSelectedCompanyId(null)}>My Companies</span>
+            </>
+          )}
+          {activeTab === 'companies' && selectedCompanyId && company && (
+            <>
+              <span>→</span>
+              <span style={{ color: T.gold }}>{company.name}</span>
+            </>
+          )}
+        </div>
+
+        {/* Subtabs */}
+        <div style={{ display: 'flex', gap: '0', overflowX: 'auto', marginTop: '8px' }}>
+          {SUB_TABS.map(tab => {
+            const locked = tab.requiresCompany && !company;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  if (!locked) {
+                    setActiveTab(tab.id);
+                    if (tab.id !== 'companies') setSelectedCompanyId(null);
+                  }
+                }}
+                style={{
+                  padding: '10px 16px', fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em',
+                  fontWeight: isActive ? 700 : 500, color: locked ? T.faint : isActive ? T.gold : T.muted,
+                  background: 'transparent', border: 'none', borderBottom: isActive ? `2px solid ${T.gold}` : '2px solid transparent',
+                  cursor: locked ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', transition: 'color 0.15s',
+                }}
+                title={locked ? 'Register a company to unlock' : undefined}
+              >
+                {tab.label}{locked ? ' 🔒' : ''}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Tab Content ── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-        {activeTab === 'overview'  && <OverviewTab company={company} playerCash={playerCash} netWorth={netWorth} onStartBusiness={() => setActiveTab('start')} onViewContracts={() => setActiveTab('companies')} onViewRegistry={() => setActiveTab('registry')} />}
+        {activeTab === 'overview'  && <OverviewTab company={company} playerCash={playerCash} netWorth={netWorth} onStartBusiness={() => setActiveTab('start')} onViewContracts={() => { setActiveTab('companies'); setSelectedCompanyId(null); }} onViewRegistry={() => setActiveTab('registry')} />}
         {activeTab === 'start'     && <StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} />}
-        {activeTab === 'companies' && company && <CompanyDeskTab company={company} fleet={fleet} contracts={contracts} playerCash={playerCash} characterName={characterName} onTabChange={setActiveTab} onRefresh={refreshAll} />}
+        
+        {activeTab === 'companies' && company && !selectedCompanyId && (
+          <div style={{ maxWidth: '860px' }}>
+            <SectionHeader stamp="PORTFOLIO">My Companies</SectionHeader>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+              <div style={{ background: T.paper, border: `1px solid ${T.border}`, padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: `3px solid ${T.gold}` }}>
+                <div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: T.ivory, marginBottom: '6px' }}>{company.name}</div>
+                  <div style={{ fontSize: '12px', color: T.muted, marginBottom: '12px' }}>{company.legalStructure} · {company.sector} · HQ: {company.state}</div>
+                  <div style={{ display: 'flex', gap: '16px', fontSize: '11px', fontFamily: 'monospace', color: T.faint }}>
+                    <span>Cash: <span style={{ color: T.mint }}>₯{company.companyCash.toLocaleString()}</span></span>
+                    <span>Fleet: {fleet.length}</span>
+                    <span>Active Contracts: {company.activeContracts?.length || 0}</span>
+                  </div>
+                </div>
+                <div>
+                  <GoldButton onClick={() => setSelectedCompanyId(company.id)}>Manage Company →</GoldButton>
+                </div>
+              </div>
+            </div>
+            
+            <div style={{ marginTop: '32px' }}>
+              <SectionHeader stamp="LOCKED">Multiple Companies</SectionHeader>
+              <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, fontSize: '11px', color: T.faint, lineHeight: 1.6 }}>
+                Holding multiple companies or subsidiaries will be unlocked in a future update. You can currently operate one active business.
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {activeTab === 'companies' && company && selectedCompanyId === company.id && (
+          <CompanyDeskTab company={company} fleet={fleet} contracts={contracts} playerCash={playerCash} characterName={characterName} onRefresh={refreshAll} />
+        )}
         
         {activeTab === 'registry'  && <RegistryTab company={company} />}
-        
-        
       </div>
     </div>
   );
@@ -620,11 +676,11 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPANY DESK TAB (Shipping & Logistics)
 // ─────────────────────────────────────────────────────────────────────────────
-type CompanyDeskTab = 'overview' | 'fleet' | 'contracts' | 'contractHistory' | 'routes' | 'finance' | 'records' | 'equity';
+type CompanyDeskTab = 'overview' | 'fleet' | 'contracts' | 'operations' | 'contractHistory' | 'routes' | 'finance' | 'records' | 'equity';
 
-function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, onTabChange, onRefresh }: {
+function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, onRefresh }: {
   company: Company; fleet: Vehicle[]; contracts: Contract[]; playerCash: number; characterName: string;
-  onTabChange: (tab: any) => void; onRefresh: () => void;
+  onRefresh: () => void;
 }) {
   const [deskTab, setDeskTab] = useState<CompanyDeskTab>('overview');
   const [notification, setNotification] = useState<{ msg: string; success: boolean } | null>(null);
@@ -637,6 +693,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
 
   const DESK_TABS: { id: CompanyDeskTab; label: string }[] = [
     { id: 'overview',   label: 'Overview'   },
+    { id: 'operations', label: 'Operations' },
     { id: 'fleet',      label: 'Fleet'      },
     { id: 'contracts',  label: 'Contracts'  },
     { id: 'contractHistory', label: 'Contract History' },
@@ -761,14 +818,13 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <PanelBox>
-              <SectionHeader>Fleet Status</SectionHeader>
-              {fleet.length === 0 ? (
-                <p style={{ fontSize: '12px', color: T.faint }}>No vehicles. Go to Fleet tab to buy your first vehicle.</p>
-              ) : (
-                fleet.map(v => (
-                  <FieldRow key={v.id} label={v.type} value={`Capacity ${v.capacity} · ${v.condition}%${v.assignedContractId ? ' · ACTIVE' : v.assignedAutoOpPool ? ' · AUTO' : ' · Available'}`} valueColor={v.assignedContractId || v.assignedAutoOpPool ? T.gold : T.mint} />
-                ))
-              )}
+              <SectionHeader>Operations Summary</SectionHeader>
+              <FieldRow label="Total Fleet" value={fleet.length} />
+              <FieldRow label="Assigned Vehicles" value={fleet.filter(v => v.assignedContractId || v.assignedAutoOpPool).length} valueColor={T.mint} />
+              <FieldRow label="Idle Vehicles" value={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length} valueColor={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length > 0 ? T.red : T.muted} />
+              <div style={{ height: '1px', background: T.border, margin: '12px 0' }} />
+              <FieldRow label="Active Contracts" value={activeContracts.length} />
+              <FieldRow label="Auto Ops Pools Active" value={new Set(fleet.filter(v => v.assignedAutoOpPool).map(v => v.assignedAutoOpPool)).size} />
             </PanelBox>
             <PanelBox>
               <SectionHeader>Contract Pipeline</SectionHeader>
@@ -776,6 +832,70 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
               <FieldRow label="Completed" value={contractHistory.filter(h => h.result === 'completed').length} />
               <FieldRow label="Reliability" value={company.reliability} />
             </PanelBox>
+          </div>
+        </div>
+      )}
+
+      {deskTab === 'operations' && (
+        <div>
+          <SectionHeader>Operations Desk</SectionHeader>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+            <PanelBox>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Fleet Assignment</div>
+              <FieldRow label="Total Vehicles" value={fleet.length} />
+              <FieldRow label="On Contracts" value={fleet.filter(v => v.assignedContractId).length} valueColor={T.mint} />
+              <FieldRow label="On Auto Ops" value={fleet.filter(v => v.assignedAutoOpPool).length} valueColor={T.gold} />
+              <FieldRow label="Idle (Unassigned)" value={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length} valueColor={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length > 0 ? T.red : T.muted} />
+            </PanelBox>
+            <PanelBox>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Run Operations</div>
+              <p style={{ fontSize: '11px', color: T.muted, marginBottom: '16px' }}>Run monthly auto operations to process recurring revenue, operating costs, and fixed maintenance. Idle vehicles still incur maintenance.</p>
+              <GoldButton onClick={handleRunAutoOps} disabled={fleet.length === 0}>
+                Run Monthly Operations (Test)
+              </GoldButton>
+            </PanelBox>
+          </div>
+
+          <SectionHeader stamp="RECURRING">Auto Operations Pools</SectionHeader>
+          <p style={{ fontSize: '11px', color: T.muted, marginBottom: '16px' }}>Assign idle vehicles to recurring local pools. This generates steady monthly income but wears down vehicle condition.</p>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            {['Local Delivery Pool', 'Port Shuttle Pool'].map(pool => {
+              const marketDemand = pool === 'Port Shuttle Pool' ? 'High' : 'Moderate';
+              const marketComp = pool === 'Port Shuttle Pool' ? 'Moderate' : 'High';
+              return (
+              <PanelBox key={pool}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>{pool}</div>
+                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>
+                  {pool === 'Local Delivery Pool' ? 'High volume local courier work around Drennport. Steady demand, high competition.' : 'Container and crate movement around Westport docks. High demand.'}
+                </div>
+                
+                <div style={{ display: 'flex', gap: '16px', fontSize: '10px', fontFamily: 'monospace', color: T.faint, marginBottom: '12px' }}>
+                  <span>Demand: <span style={{ color: marketDemand === 'High' ? T.mint : T.gold }}>{marketDemand}</span></span>
+                  <span>Competition: <span style={{ color: marketComp === 'High' ? T.red : T.gold }}>{marketComp}</span></span>
+                </div>
+                
+                {fleet.filter(v => v.assignedAutoOpPool === pool).map(v => (
+                  <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', background: 'rgba(255,255,255,0.05)', marginBottom: '8px', fontSize: '11px' }}>
+                    <span>{v.type} ({v.condition}%)</span>
+                    <GhostButton onClick={() => handleAssignAutoOp(v.id, null)} color={T.red}>Remove</GhostButton>
+                  </div>
+                ))}
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                  <select id={`pool-sel-${pool.replace(/\s+/g, '')}`} style={{ padding: '6px', background: T.panel, color: T.ivory, border: `1px solid ${T.border}`, fontSize: '11px', flex: 1 }}>
+                    <option value="">Select available vehicle...</option>
+                    {fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).map(v => (
+                      <option key={v.id} value={v.id}>{v.type} ({v.condition}%)</option>
+                    ))}
+                  </select>
+                  <GhostButton onClick={() => {
+                    const sel = document.getElementById(`pool-sel-${pool.replace(/\s+/g, '')}`) as HTMLSelectElement;
+                    if (sel && sel.value) handleAssignAutoOp(sel.value, pool as any);
+                  }}>Assign</GhostButton>
+                </div>
+              </PanelBox>
+            )})}
           </div>
         </div>
       )}
@@ -973,46 +1093,6 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
               </div>
             )}
           </div>
-
-          <div>
-            <SectionHeader stamp="RECURRING">Auto Operations</SectionHeader>
-            <p style={{ fontSize: '11px', color: T.muted, marginBottom: '16px' }}>Assign idle vehicles to recurring local pools. This generates steady monthly income but wears down vehicle condition.</p>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              {['Local Delivery Pool', 'Port Shuttle Pool'].map(pool => (
-                <PanelBox key={pool}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>{pool}</div>
-                  <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>
-                    {pool === 'Local Delivery Pool' ? 'High volume local courier work around Drennport. Steady demand, high competition.' : 'Container and crate movement around Westport docks. High demand.'}
-                  </div>
-                  
-                  {fleet.filter(v => v.assignedAutoOpPool === pool).map(v => (
-                    <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', background: 'rgba(255,255,255,0.05)', marginBottom: '8px', fontSize: '11px' }}>
-                      <span>{v.type} ({v.condition}%)</span>
-                      <GhostButton onClick={() => handleAssignAutoOp(v.id, null)} color={T.red}>Remove</GhostButton>
-                    </div>
-                  ))}
-
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                    <select id={`pool-sel-${pool.replace(/\s+/g, '')}`} style={{ padding: '6px', background: T.panel, color: T.ivory, border: `1px solid ${T.border}`, fontSize: '11px', flex: 1 }}>
-                      <option value="">Select available vehicle...</option>
-                      {fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).map(v => (
-                        <option key={v.id} value={v.id}>{v.type} ({v.condition}%)</option>
-                      ))}
-                    </select>
-                    <GhostButton onClick={() => {
-                      const sel = document.getElementById(`pool-sel-${pool.replace(/\s+/g, '')}`) as HTMLSelectElement;
-                      if (sel && sel.value) handleAssignAutoOp(sel.value, pool as any);
-                    }}>Assign</GhostButton>
-                  </div>
-                </PanelBox>
-              ))}
-            </div>
-
-            <GoldButton onClick={handleRunAutoOps} disabled={fleet.filter(v => v.assignedAutoOpPool).length === 0}>
-              Run Monthly Auto Operations (Test)
-            </GoldButton>
-          </div>
         </div>
       )}
 
@@ -1076,13 +1156,32 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
       {deskTab === 'finance' && (
         <div>
           <SectionHeader>Finance</SectionHeader>
-          <PanelBox>
-            <FieldRow label="Company Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
-            <FieldRow label="Monthly Revenue Estimate" value={formatMoney(company.monthlyRevenue)} valueColor={T.mint} />
-            <FieldRow label="Monthly Fixed Costs" value={formatMoney(company.monthlyCosts)} valueColor={T.red} />
-            <FieldRow label="Projected Profit" value={formatMoney(company.profit)} valueColor={company.profit >= 0 ? T.mint : T.red} />
-            <FieldRow label="Current Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.red : T.muted} />
-          </PanelBox>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <PanelBox>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Company Position</div>
+              <FieldRow label="Company Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
+              <FieldRow label="Current Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.red : T.muted} />
+              <FieldRow label="Total Fleet Value" value={formatMoney(companyValue - company.companyCash + company.debt)} valueColor={T.steel} />
+            </PanelBox>
+            <PanelBox>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Monthly Estimate</div>
+              <FieldRow label="Monthly Revenue" value={formatMoney(company.monthlyRevenue)} valueColor={T.mint} />
+              <FieldRow label="Operating Costs" value={formatMoney(company.monthlyCosts - fleet.reduce((acc, v) => acc + v.monthlyMaintenance, 0))} valueColor={T.red} />
+              <FieldRow label="Fleet Maintenance" value={formatMoney(fleet.reduce((acc, v) => acc + v.monthlyMaintenance, 0))} valueColor={T.red} />
+              <div style={{ height: '1px', background: T.border, margin: '12px 0' }} />
+              <FieldRow label="Projected Profit" value={formatMoney(company.profit)} valueColor={company.profit >= 0 ? T.mint : T.red} />
+            </PanelBox>
+          </div>
+          
+          <div style={{ marginTop: '24px' }}>
+            <SectionHeader>Recent Financial Activity</SectionHeader>
+            {records.filter((r: any) => r.type === 'auto_op' || r.type === 'contract').slice(0, 5).map((r: any) => (
+              <div key={r.id} style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderLeft: `2px solid ${T.gold}`, fontSize: '12px', color: T.ivory, lineHeight: 1.6, marginBottom: '8px' }}>
+                {r.summary}
+                <div style={{ fontSize: '10px', color: T.faint, marginTop: '6px' }}>{new Date(r.createdAt).toLocaleString()}</div>
+              </div>
+            ))}
+          </div>
           <p style={{ fontSize: '11px', color: T.muted, marginTop: '16px' }}>Finance sector features including loans, credit lines, and taxation will unlock in a future update.</p>
         </div>
       )}
