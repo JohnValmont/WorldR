@@ -4,12 +4,12 @@ import { usePathname } from 'next/navigation';
 import { livingWorldTheme as theme } from '../../styles/livingWorldTheme';
 
 const TABS = [
-  { name: 'Home', path: '/drennia/home' },
-  { name: 'Opportunities', path: '/drennia/opportunities' },
+  { name: 'Home',    path: '/drennia/home' },
+  { name: 'Rooms',   path: '/drennia/rooms' },
   { name: 'Network', path: '/drennia/network' },
-  { name: 'Money', path: '/drennia/money' },
+  { name: 'Money',   path: '/drennia/money' },
   { name: 'Records', path: '/drennia/records' },
-  { name: 'World', path: '/drennia/world' },
+  { name: 'World',   path: '/drennia/world' },
 ];
 
 export default function LivingWorldNav() {

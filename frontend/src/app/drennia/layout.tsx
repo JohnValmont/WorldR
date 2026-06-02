@@ -12,13 +12,14 @@ export default function DrenniaLayout({ children }: { children: React.ReactNode 
       const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1');
       const hasMotherland = !!localStorage.getItem('worldr_selected_motherland');
       const hasCitizenFile = !!localStorage.getItem('worldr_citizen_file_v1');
+      const hasEntry = localStorage.getItem('worldr_living_world_entry_v1') === 'true';
 
       if (granted !== 'true') {
         router.replace('/pre-alpha-access');
       } else if (!hasMotherland) {
         router.replace('/world-entry');
-      } else if (!hasCitizenFile) {
-        router.replace('/start/citizen-file');
+      } else if (!hasCitizenFile || !hasEntry) {
+        router.replace('/start/character');
       } else {
         setAuthorized(true);
       }
