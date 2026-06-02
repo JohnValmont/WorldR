@@ -2,42 +2,33 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const GOLD = '#D6B35F';
+const T = {
+  bg: '#090A0F', panel: '#11131A', paper: '#1E1A15',
+  border: '#2A2630', borderGold: 'rgba(201,162,74,0.22)',
+  gold: '#C9A24A', ivory: '#F4EBD6', muted: '#A79D8C', faint: '#6B6358',
+  mint: '#36D399', steel: '#4B6382', burgundy: '#8F3D3D',
+};
 
-interface LifeRecord {
-  id: string;
-  type: string;
-  summary: string;
-  createdAt: string;
-}
+interface LifeRecord { id: string; type: string; summary: string; createdAt: string; }
 
-function RecordCard({ record }: { record: LifeRecord }) {
-  const date = new Date(record.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const FILTER_TABS = [
+  { id: 'all', label: 'All' },
+  { id: 'business', label: 'Business' },
+  { id: 'contract', label: 'Contracts' },
+  { id: 'financial', label: 'Financial' },
+  { id: 'offer', label: 'Offers' },
+  { id: 'failure', label: 'Failures' },
+];
 
-  return (
-    <div className="rounded-sm p-4 flex flex-col gap-2.5" style={{
-      background: 'rgba(12,22,18,0.7)',
-      border: '1px solid rgba(255,255,255,0.06)'
-    }}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[8px] font-mono px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(255,255,255,0.04)', color: '#7E8378', border: '1px solid rgba(255,255,255,0.07)' }}>
-            {record.type.toUpperCase()}
-          </span>
-        </div>
-        <span className="text-[9px] font-mono shrink-0" style={{ color: '#3f4b47' }}>{date}</span>
-      </div>
-
-      <p className="text-[12px] leading-relaxed" style={{ color: '#F4EBD6' }}>{record.summary}</p>
-    </div>
-  );
-}
+const TYPE_COLOR: Record<string, string> = {
+  business: T.gold, contract: T.mint, financial: T.steel, offer: '#60a5fa', failure: T.burgundy,
+};
 
 export default function RecordsPage() {
   const router = useRouter();
-  const [records, setRecords] = useState<LifeRecord[]>([]);
-  const [filter, setFilter] = useState<string>('all');
   const [authorized, setAuthorized] = useState(false);
+  const [records, setRecords] = useState<LifeRecord[]>([]);
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -48,88 +39,73 @@ export default function RecordsPage() {
     if (raw) setRecords(JSON.parse(raw));
   }, [router]);
 
-  if (!authorized) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="text-[10px] font-mono uppercase tracking-widest animate-pulse" style={{ color: GOLD }}>
-          Loading records…
-        </div>
-      </div>
-    );
-  }
+  if (!authorized) return null;
 
   const filtered = filter === 'all' ? records : records.filter(r => r.type === filter);
-  
-  const FILTER_TABS = [
-    { id: 'all', label: 'All' },
-    { id: 'business', label: 'Business Filing' },
-    { id: 'contract', label: 'Contract' },
-    { id: 'financial', label: 'Financial' },
-    { id: 'offer', label: 'Offer' },
-    { id: 'failure', label: 'Failure' }
-  ];
 
   return (
-    <div className="flex flex-col h-full p-6 text-white overflow-hidden max-w-4xl mx-auto w-full">
-
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: T.bg, color: T.ivory, overflow: 'hidden' }}>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-1" style={{ color: '#F4EBD6' }}>Public & Private Records</h1>
-        <p className="text-[12px] mt-1" style={{ color: '#B9B09B' }}>
-          Your history of business filings, registry actions, executed contracts, and market movements.
-        </p>
+      <div style={{ padding: '24px 24px 16px', flexShrink: 0 }}>
+        <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '4px' }}>Permanent Archive</div>
+        <h1 style={{ fontSize: '22px', fontWeight: 700, color: T.ivory, margin: '0 0 4px' }}>Records</h1>
+        <p style={{ fontSize: '12px', color: T.muted }}>Your permanent biography: business filings, contracts, registry actions, and financial movements.</p>
       </div>
 
-      {/* Stats row */}
-      <div className="flex gap-3 flex-wrap mb-6">
-        <div className="px-4 py-3 rounded-sm flex-1" style={{ background: 'rgba(12,22,18,0.8)', border: '1px solid rgba(214,179,95,0.1)' }}>
-          <div className="text-[8px] font-mono uppercase tracking-widest mb-0.5" style={{ color: '#7E8378' }}>Total Records</div>
-          <div className="text-xl font-bold" style={{ color: '#F4EBD6' }}>{records.length}</div>
-        </div>
-        <div className="px-4 py-3 rounded-sm flex-1" style={{ background: 'rgba(12,22,18,0.8)', border: '1px solid rgba(255,255,255,0.04)' }}>
-          <div className="text-[8px] font-mono uppercase tracking-widest mb-0.5" style={{ color: '#7E8378' }}>Contracts Won</div>
-          <div className="text-xl font-bold" style={{ color: '#34d399' }}>{records.filter(r => r.type === 'contract').length}</div>
-        </div>
+      {/* Stats */}
+      <div style={{ display: 'flex', gap: '12px', padding: '0 24px 16px', flexShrink: 0 }}>
+        {[
+          { label: 'Total Records', value: records.length, color: T.ivory },
+          { label: 'Business Filings', value: records.filter(r => r.type === 'business').length, color: T.gold },
+          { label: 'Contracts Won', value: records.filter(r => r.type === 'contract').length, color: T.mint },
+        ].map(s => (
+          <div key={s.label} style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '12px 20px', flex: 1 }}>
+            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>{s.label}</div>
+            <div style={{ fontSize: '20px', fontFamily: 'monospace', fontWeight: 700, color: s.color }}>{s.value}</div>
+          </div>
+        ))}
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-2 mb-6 flex-wrap">
+      <div style={{ display: 'flex', gap: '0', padding: '0 24px', borderBottom: `1px solid ${T.border}`, flexShrink: 0, overflowX: 'auto' }}>
         {FILTER_TABS.map(tab => {
           const count = tab.id === 'all' ? records.length : records.filter(r => r.type === tab.id).length;
+          const isActive = filter === tab.id;
           return (
-            <button key={tab.id} type="button" onClick={() => setFilter(tab.id)}
-              className="px-4 py-1.5 text-[10px] font-mono uppercase tracking-widest rounded-sm transition-all"
-              style={{
-                background: filter === tab.id ? 'rgba(214,179,95,0.12)' : 'transparent',
-                border: `1px solid ${filter === tab.id ? 'rgba(214,179,95,0.4)' : 'rgba(255,255,255,0.07)'}`,
-                color: filter === tab.id ? GOLD : '#7E8378',
-              }}>
+            <button key={tab.id} onClick={() => setFilter(tab.id)} style={{ padding: '10px 16px', fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: isActive ? 700 : 500, color: isActive ? T.gold : T.muted, background: 'transparent', border: 'none', borderBottom: isActive ? `2px solid ${T.gold}` : '2px solid transparent', cursor: 'pointer', whiteSpace: 'nowrap' }}>
               {tab.label} ({count})
             </button>
-          )
+          );
         })}
       </div>
 
-      {/* Records list */}
-      <div className="flex-1 overflow-y-auto pr-4 pb-12">
+      {/* Records */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
         {filtered.length === 0 ? (
-          <div className="py-16 flex flex-col items-center gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(214,179,95,0.06)', border: '1px solid rgba(214,179,95,0.12)' }}>
-              <span style={{ color: `${GOLD}60` }}>📋</span>
-            </div>
-            <p className="text-sm" style={{ color: '#3f4b47' }}>
-              {filter === 'all' ? 'No records yet. Incorporate a business or win a contract.' : `No ${filter} records yet.`}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '200px', gap: '12px' }}>
+            <div style={{ fontSize: '24px' }}>📋</div>
+            <p style={{ fontSize: '12px', color: T.faint, textAlign: 'center' }}>
+              {filter === 'all' ? 'No records yet. Incorporate a business or win a contract to start building your file.' : `No ${filter} records yet.`}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {filtered.map(record => (
-              <RecordCard key={record.id} record={record} />
-            ))}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            {filtered.map(record => {
+              const date = new Date(record.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+              const typeColor = TYPE_COLOR[record.type] || T.muted;
+              return (
+                <div key={record.id} style={{ background: T.paper, border: `1px solid ${T.border}`, padding: '16px', borderLeft: `3px solid ${typeColor}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: typeColor }}>{record.type}</span>
+                    <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>{date}</span>
+                  </div>
+                  <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.6, margin: 0 }}>{record.summary}</p>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
-
     </div>
   );
 }

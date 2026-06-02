@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DrenniaMapSvg from '../../../components/maps/DrenniaMapSvg';
 
+const T = { bg: '#090A0F', panel: '#11131A', border: '#2A2630', gold: '#C9A24A', ivory: '#F4EBD6', muted: '#A79D8C', faint: '#6B6358' };
+
 export default function WorldPage() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
@@ -17,20 +19,17 @@ export default function WorldPage() {
   if (!authorized) return null;
 
   return (
-    <div className="w-full flex flex-col h-full overflow-hidden text-white">
-      <div className="p-6 pb-2">
-        <h1 className="text-2xl font-bold" style={{ color: '#F4EBD6' }}>World Map</h1>
-        <p className="text-[12px] mt-1" style={{ color: '#B9B09B' }}>
-          Drennia's sovereign states, institutions, and geographic boundaries.
-        </p>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: T.bg, color: T.ivory, overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ padding: '20px 24px 12px', flexShrink: 0 }}>
+        <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '4px' }}>Sovereign Territory</div>
+        <h1 style={{ fontSize: '22px', fontWeight: 700, color: T.ivory, margin: '0 0 4px' }}>World Map</h1>
+        <p style={{ fontSize: '12px', color: T.muted }}>Drennia's sovereign states, institutions, and geographic boundaries.</p>
       </div>
-
-      <div className="flex-1 w-full h-full p-4">
-        <div className="w-full h-full rounded-sm overflow-hidden relative" style={{ background: 'rgba(12,18,14,0.9)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <DrenniaMapSvg
-            selectedState={null}
-            onStateSelect={() => {}}
-          />
+      {/* Map */}
+      <div style={{ flex: 1, padding: '0 24px 24px', overflow: 'hidden' }}>
+        <div style={{ width: '100%', height: '100%', border: `1px solid ${T.border}`, background: 'rgba(9,10,15,0.95)', overflow: 'hidden' }}>
+          <DrenniaMapSvg selectedState={null} onStateSelect={() => {}} />
         </div>
       </div>
     </div>

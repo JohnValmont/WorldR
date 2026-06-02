@@ -1,120 +1,63 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { livingWorldTheme as theme } from '../../styles/livingWorldTheme';
 
-// ─── Active Chronicle Navigation ──────────────────────────────────────────────
-// Business-First path tabs.
+// ─── WORLDr Active Navigation ──────────────────────────────────────────────────
 // FROZEN: Government, Elections, Party, Parliament, Ministries (later Politics module).
+// Active top-level tabs: Chronicle, Business, Market, Records, Network, World.
+// Company / Contracts / Registry now live INSIDE the Business tab.
+
+const GOLD = '#C9A24A';
+const GOLD_BG = 'rgba(201,162,74,0.10)';
+const GOLD_BORDER = 'rgba(201,162,74,0.30)';
+const MUTED = '#A79D8C';
+
+const TABS = [
+  { name: 'Chronicle', path: '/drennia/chronicle' },
+  { name: 'Business',  path: '/drennia/business'  },
+  { name: 'Market',    path: '/drennia/market'    },
+  { name: 'Records',   path: '/drennia/records'   },
+  { name: 'Network',   path: '/drennia/network'   },
+  { name: 'World',     path: '/drennia/world'     },
+];
 
 export default function LivingWorldNav() {
   const pathname = usePathname();
-  const [hasCompany, setHasCompany] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const companies = JSON.parse(localStorage.getItem('worldr_companies_v1') || '[]');
-      const fileStr = localStorage.getItem('worldr_citizen_file_v1');
-      if (fileStr) {
-        const cf = JSON.parse(fileStr);
-        const playerCharacterId = typeof cf.name === 'object' ? `${cf.name.first} ${cf.name.last}` : cf.name;
-        // Simple check for now: any company in array is ours or we just check if companies > 0 and assume we own one if we created it.
-        // Actually, we can just check if any company has our name as ownerCharacterId, or simply if we've registered one.
-        const ownsCompany = companies.some((c: any) => c.ownerCharacterId === cf.name);
-        setHasCompany(ownsCompany);
-      }
-    }
-  }, [pathname]); // Re-check on nav
-
-  const TABS = [
-    { name: 'Chronicle', path: '/drennia/chronicle', locked: false },
-    { name: 'Company',   path: '/drennia/company',   locked: !hasCompany },
-    { name: 'Contracts', path: '/drennia/contracts', locked: !hasCompany },
-    { name: 'Registry',  path: '/drennia/registry',  locked: false },
-    { name: 'Market',    path: '/drennia/market',    locked: false, placeholder: true },
-    { name: 'Records',   path: '/drennia/records',   locked: false },
-    { name: 'Network',   path: '/drennia/network',   locked: false },
-    { name: 'World',     path: '/drennia/world',     locked: false },
-  ];
 
   return (
-    <div
-      className="w-full flex items-center overflow-x-auto overflow-y-hidden scrollbar-hide z-20"
-      style={{ height: '48px', marginBottom: '22px', gap: '4px' }}
+    <nav
+      className="w-full flex items-center overflow-x-auto scrollbar-hide"
+      style={{ height: '48px', marginBottom: '20px', gap: '2px', borderBottom: '1px solid rgba(201,162,74,0.08)' }}
     >
       {TABS.map((tab) => {
         const isActive = pathname === tab.path || pathname?.startsWith(`${tab.path}/`);
-
-        if (tab.locked) {
-          return (
-            <div
-              key={tab.name}
-              className="flex items-center justify-center whitespace-nowrap cursor-not-allowed"
-              style={{
-                height: '42px',
-                padding: '0 16px',
-                borderRadius: '999px',
-                fontSize: '13px',
-                fontWeight: '500',
-                color: 'rgba(255,255,255,0.2)',
-                background: 'transparent',
-                border: '1px solid transparent',
-              }}
-              title="Register a Sole Trader company to unlock"
-            >
-              {tab.name} 🔒
-            </div>
-          );
-        }
-
-        if ((tab as any).placeholder) {
-          return (
-            <div
-              key={tab.name}
-              className="flex items-center justify-center whitespace-nowrap cursor-not-allowed"
-              style={{
-                height: '42px',
-                padding: '0 16px',
-                borderRadius: '999px',
-                fontSize: '13px',
-                fontWeight: '500',
-                color: 'rgba(255,255,255,0.4)',
-                background: 'transparent',
-                border: '1px solid transparent',
-              }}
-              title="Coming Soon"
-            >
-              {tab.name}
-            </div>
-          );
-        }
-
         return (
           <Link
             key={tab.name}
             href={tab.path}
-            className="flex items-center justify-center whitespace-nowrap transition-all duration-200"
+            className="flex items-center justify-center whitespace-nowrap transition-all duration-150"
             style={{
               height: '42px',
-              padding: '0 16px',
-              borderRadius: '999px',
-              fontSize: '13px',
-              fontWeight: isActive ? '600' : '500',
-              color: isActive ? theme.colors.accents.gold : theme.colors.text.textMuted,
-              background: isActive ? 'rgba(201,168,76,0.12)' : 'transparent',
-              border: `1px solid ${isActive ? theme.colors.borders.borderStrong : 'transparent'}`,
+              padding: '0 18px',
+              fontSize: '12px',
+              fontWeight: isActive ? '700' : '500',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: isActive ? GOLD : MUTED,
+              background: isActive ? GOLD_BG : 'transparent',
+              borderBottom: isActive ? `2px solid ${GOLD}` : '2px solid transparent',
+              borderRadius: '0',
             }}
             onMouseEnter={(e) => {
               if (!isActive) {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                e.currentTarget.style.color = theme.colors.text.textSecondary;
+                e.currentTarget.style.color = '#F4EBD6';
+                e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
               }
             }}
             onMouseLeave={(e) => {
               if (!isActive) {
+                e.currentTarget.style.color = MUTED;
                 e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = theme.colors.text.textMuted;
               }
             }}
           >
@@ -122,6 +65,6 @@ export default function LivingWorldNav() {
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }
