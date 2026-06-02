@@ -124,6 +124,7 @@ export default function LiveCitizenDossier({ formData }: CitizenFileLivePreviewP
       homeStateFamiliarity: story.homeStateFamiliarity,
       earlyLeaning: story.earlyLeaning,
       personalMoney: 1000000,
+      money: 1000000,
       wealth: 1000000, // alias — business layer reads `wealth`
       obligations: [],
       vulnerabilities: [],

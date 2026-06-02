@@ -27,9 +27,8 @@ const STATES: ChoiceOption[] = [
     title: 'Drennport State',
     story: 'You grew up near ministries, universities, royal ceremonies, finance houses, and national media.',
     perception: 'People see you as someone familiar with the language of institutions.',
-    chips: ['Civic familiarity', 'Institutional world', 'Public record culture', '+₯20'],
+    chips: ['Civic familiarity', 'Institutional world', 'Public record culture'],
     effects: { Credibility: 1 },
-    cash: 20,
     tag: 'civic',
   },
   {
@@ -37,9 +36,8 @@ const STATES: ChoiceOption[] = [
     title: 'Ironvale State',
     story: 'You grew up around factories, unions, industrial towns, and families who understood work before politics.',
     perception: 'People see you as grounded, direct, and not easily impressed by ceremony.',
-    chips: ['Labour familiarity', 'Working-town instinct', 'Union adjacent', '+₯20'],
+    chips: ['Labour familiarity', 'Working-town instinct', 'Union adjacent'],
     effects: { Charisma: 1 },
-    cash: 20,
     tag: 'labour',
   },
   {
@@ -47,9 +45,8 @@ const STATES: ChoiceOption[] = [
     title: 'Greenmere State',
     story: 'You grew up among farms, local councils, religious communities, and families where reputation travelled fast.',
     perception: 'People see you as someone with deep community roots and local trust.',
-    chips: ['Community familiarity', 'Rural trust', 'Close network loyalty', '+₯20'],
+    chips: ['Community familiarity', 'Rural trust', 'Close network loyalty'],
     effects: { Credibility: 1 },
-    cash: 20,
     tag: 'community',
   },
   {
@@ -57,9 +54,8 @@ const STATES: ChoiceOption[] = [
     title: 'Westport State',
     story: 'You grew up near ports, exporters, banks, traders, and people who measured ambition in deals.',
     perception: 'People see you as commercially aware and comfortable with money and risk.',
-    chips: ['Business familiarity', 'Trade networks', 'Port economy instinct', '+₯60'],
+    chips: ['Business familiarity', 'Trade networks', 'Port economy instinct'],
     effects: { Influence: 1 },
-    cash: 60,
     tag: 'commercial',
   },
 ];
@@ -72,7 +68,6 @@ const HOUSEHOLDS: ChoiceOption[] = [
     perception: 'People may later see your ambition as shaped by personal scarcity.',
     chips: ['Family pressure', 'Survival instinct', 'Self-reliance'],
     effects: { Charisma: 1 },
-    cash: 80,
     tag: 'struggle',
   },
   {
@@ -82,7 +77,6 @@ const HOUSEHOLDS: ChoiceOption[] = [
     perception: 'People see you as someone with respectable — if unspectacular — origins.',
     chips: ['Stable upbringing', 'Respectability', 'Cautious risk profile'],
     effects: { Credibility: 1 },
-    cash: 150,
     tag: 'stable',
   },
   {
@@ -92,7 +86,6 @@ const HOUSEHOLDS: ChoiceOption[] = [
     perception: 'People may see you as commercially connected — or commercially obligated.',
     chips: ['Business expectation', 'Commercial network seed', 'Corporate adjacent'],
     effects: { Influence: 1 },
-    cash: 350,
     tag: 'business',
   },
   {
@@ -102,7 +95,6 @@ const HOUSEHOLDS: ChoiceOption[] = [
     perception: 'People may see you as someone who understands the state from the inside.',
     chips: ['Institutional familiarity', 'Insider reputation risk', 'Procedural thinking'],
     effects: { Credibility: 1 },
-    cash: 200,
     tag: 'civil_service',
   },
   {
@@ -112,7 +104,6 @@ const HOUSEHOLDS: ChoiceOption[] = [
     perception: 'People may see you as rigid, reliable, or tied to the security establishment.',
     chips: ['Security familiarity', 'Rigid public image', 'Hierarchy instinct'],
     effects: { Credibility: 1 },
-    cash: 170,
     tag: 'military',
   },
   {
@@ -122,7 +113,6 @@ const HOUSEHOLDS: ChoiceOption[] = [
     perception: 'People may see you as privileged — or suspect you of carrying old debts.',
     chips: ['Political family network', 'Nepotism risk', 'Party adjacent'],
     effects: { Influence: 1 },
-    cash: 220,
     tag: 'political',
   },
 ];
@@ -161,7 +151,7 @@ const CHILDHOOD_MARKS: ChoiceOption[] = [
     story: 'You were not always noticed, but you watched carefully and learned how to endure.',
     perception: 'People may underestimate you — which is occasionally useful.',
     chips: ['Resilience', 'Low visibility', 'Observation instinct'],
-    effects: { Credibility: 1, Cash: 0 },
+    effects: { Credibility: 1, },
     tag: 'survivor',
   },
   {
@@ -170,7 +160,7 @@ const CHILDHOOD_MARKS: ChoiceOption[] = [
     story: 'You found small ways to earn, trade, arrange, and survive before others understood money.',
     perception: 'People see you as resourceful — or as someone who bends rules when needed.',
     chips: ['Street commerce', 'Risk appetite', 'Informal network'],
-    effects: { Cash: 0, Influence: 1 },
+    effects: { Influence: 1 },
     tag: 'hustler',
   },
   {
@@ -308,7 +298,7 @@ const BURDENS: ChoiceOption[] = [
     story: 'You entered adulthood with fewer visible burdens. That too shaped how you see others who carry more.',
     perception: 'People will not see obvious vulnerabilities. That does not mean none exist.',
     chips: ['Stable start', 'Limited early hardship', 'Unproven resilience'],
-    effects: { Cash: 0 },
+    effects: { },
     tag: 'clean',
   },
 ];
@@ -330,7 +320,6 @@ const AMBITIONS: ChoiceOption[] = [
     perception: 'People will see someone motivated. They may also see hunger that is hard to hide.',
     chips: ['Wealth drive', 'Survival instinct', 'Financial security priority'],
     effects: {},
-    cash: 50,
     tag: 'wealth',
   },
   {
@@ -486,7 +475,7 @@ function generateSummary(choices: Choices, firstName: string): string {
   const contactName = contactObj?.title || 'an early contact';
   const state = choices.homeState ? choices.homeState.replace(' State', '') : 'Drennia';
   const hh = choices.household ? choices.household.replace(' Household', '').toLowerCase() : 'household';
-  const cashPhrase = (hh === 'struggling') ? 'modest cash' : (hh === 'business' || hh === 'stable middle-class') ? 'a solid financial footing' : 'some starting capital';
+  const cashPhrase = '₯1,000,000 in starting capital';
   const ambition = choices.firstAmbition ? choices.firstAmbition.toLowerCase() : 'find a path forward';
 
   return `Raised in ${state} in a ${hh} household, ${name} enters adulthood with ${cashPhrase}, a first contact in ${contactName}, and a public record that has not yet earned trust. Driven by the ambition to ${ambition.replace('to ', '')}, Drennia's record halls have opened a file. What fills it is still unwritten.`;
@@ -741,8 +730,9 @@ export default function CreateCharacterPage() {
         description: contactObj?.vulnerability || burdenObj?.vulnerability || hhObj?.vulnerability || 'New to adult public life.',
         severity: 'minor',
       },
-      personalMoney: factors.Cash,
-      money: factors.Cash,
+      personalMoney: 1000000,
+      money: 1000000,
+      wealth: 1000000,
       summaryParagraph: generateSummary(choices, firstName),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
