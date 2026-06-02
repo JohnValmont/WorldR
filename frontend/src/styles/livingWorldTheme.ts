@@ -29,8 +29,9 @@ export const livingWorldTheme = {
       goldBright: '#E0B85A',
       goldSoft: '#8A6E2A',
       cashMint: '#36D399',
-      emerald: '#36D399', // alias kept for backward-compat (same as cashMint)
+      emerald: '#36D399',    // alias kept for backward-compat
       steelBlue: '#4B6382',
+      dangerRed: '#B85555',  // alias kept for backward-compat
       burgundy: '#8F3D3D',
       burgundyLight: '#B85555',
       warningAmber: '#C08B3D',
