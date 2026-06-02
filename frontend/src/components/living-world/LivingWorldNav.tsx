@@ -3,26 +3,29 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { livingWorldTheme as theme } from '../../styles/livingWorldTheme';
 
+// ─── Active Chronicle Navigation ──────────────────────────────────────────────
+// Business-First path tabs.
+// FROZEN: Government, Elections, Party, Parliament, Ministries (later Politics module).
+
 const TABS = [
-  { name: 'Home',    path: '/drennia/home' },
-  { name: 'Rooms',   path: '/drennia/rooms' },
-  { name: 'Network', path: '/drennia/network' },
-  { name: 'Money',   path: '/drennia/money' },
-  { name: 'Records', path: '/drennia/records' },
-  { name: 'World',   path: '/drennia/world' },
+  { name: 'Chronicle', path: '/drennia/chronicle' },
+  { name: 'Records',   path: '/drennia/records' },
+  { name: 'Network',   path: '/drennia/network' },
+  { name: 'Business',  path: '/drennia/business' },
+  { name: 'World',     path: '/drennia/world' },
 ];
 
 export default function LivingWorldNav() {
   const pathname = usePathname();
 
   return (
-    <div 
+    <div
       className="w-full flex items-center overflow-x-auto overflow-y-hidden scrollbar-hide z-20"
       style={{ height: '48px', marginBottom: '22px', gap: '4px' }}
     >
       {TABS.map((tab) => {
         const isActive = pathname === tab.path || pathname?.startsWith(`${tab.path}/`);
-        
+
         return (
           <Link
             key={tab.name}
@@ -35,7 +38,7 @@ export default function LivingWorldNav() {
               fontSize: '13px',
               fontWeight: isActive ? '600' : '500',
               color: isActive ? theme.colors.accents.gold : theme.colors.text.textMuted,
-              background: isActive ? 'rgba(214,179,95,0.12)' : 'transparent',
+              background: isActive ? 'rgba(201,168,76,0.12)' : 'transparent',
               border: `1px solid ${isActive ? theme.colors.borders.borderStrong : 'transparent'}`,
             }}
             onMouseEnter={(e) => {

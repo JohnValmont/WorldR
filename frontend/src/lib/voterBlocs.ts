@@ -1,3 +1,4 @@
+// FROZEN POLITICS PROTOTYPE — preserve for later politics module. Do not use as active post-login core.
 // ─────────────────────────────────────────────────────────────────────────────
 // WORLDR VOTER BLOCS SYSTEM
 // ─────────────────────────────────────────────────────────────────────────────

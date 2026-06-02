@@ -33,12 +33,12 @@ const STATE_META: Record<DrenniaGameplayState, { labelX: number; labelY: number;
 };
 
 const FALLBACK_ROOM_PINS: DrenniaRoomPin[] = [
-  { id: "drennport-youth-debate", title: "Drennport Youth Debate", state: "Drennport State", type: "debate", x: 735, y: 330, participants: 6, npc: "Mara Velden" },
-  { id: "civic-order-local-meeting", title: "Civic Order Local Meeting", state: "Drennport State", type: "politics", x: 665, y: 260, participants: 4, npc: "Jonas Kest" },
-  { id: "temporary-clerk-contract", title: "Temporary Clerk Contract", state: "Drennport State", type: "work", x: 805, y: 405, participants: 4, npc: "Harlan Graye" },
-  { id: "workers-renewal-forum", title: "Workers’ Renewal Forum", state: "Ironvale State", type: "politics", x: 385, y: 165, participants: 5, npc: "Sera Dunne" },
-  { id: "greenmere-water-dispute", title: "Greenmere Water Dispute", state: "Greenmere State", type: "community", x: 485, y: 470, participants: 5, npc: "Corin Vale" },
-  { id: "westport-business-circle", title: "Westport Business Circle", state: "Westport State", type: "business", x: 220, y: 390, participants: 3, npc: "Elric Voss" }
+  { id: 'saltgate-trade-morning', title: 'Saltgate Trade Morning', state: 'Westport State', type: 'business', x: 185, y: 320, participants: 4, npc: 'Fen Arras Jr.' },
+  { id: 'port-ledger-shift', title: 'Port Ledger Shift', state: 'Westport State', type: 'business', x: 155, y: 380, participants: 2, npc: 'Shift Supervisor' },
+  { id: 'westport-business-circle', title: 'Westport Business Circle', state: 'Westport State', type: 'business', x: 225, y: 420, participants: 2, npc: 'Tira Vance' },
+  { id: 'greenmere-market-day', title: 'Greenmere Market Day', state: 'Greenmere State', type: 'business', x: 490, y: 480, participants: 2, npc: 'Ysella Murn' },
+  { id: 'ironvale-supplier-dispute', title: 'Ironvale Supplier Dispute', state: 'Ironvale State', type: 'business', x: 385, y: 185, participants: 2, npc: 'Director Kovath' },
+  { id: 'drennport-finance-reception', title: 'Drennport Finance Reception', state: 'Drennport State', type: 'business', x: 720, y: 280, participants: 3, npc: 'Cassiel Vourne' },
 ];
 
 function pinColor(type: DrenniaRoomPin["type"]) {

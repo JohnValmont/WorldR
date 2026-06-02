@@ -143,7 +143,8 @@ export interface ElectionResult {
   calculationVersion: string;
 }
 
-// Options for the unified projection engine
+// FROZEN POLITICS PROTOTYPE — preserve for later politics module. Do not use as active post-login core.
+// Election Engine
 export type ElectionMode = 'projection' | 'survey' | 'final';
 
 export interface ElectionProjectionOptions {

@@ -58,7 +58,7 @@ export default function ConfirmCitizenPage() {
 
   const handleEnterWorld = () => {
     localStorage.setItem('worldr_living_world_entry_v1', 'true');
-    router.push('/drennia/home');
+    router.push('/drennia/chronicle');
   };
 
   const handleGoBack = () => {
@@ -154,12 +154,11 @@ export default function ConfirmCitizenPage() {
 
             <div className="h-px mb-5 bg-white/[0.04]" />
 
-            {/* Factor bars */}
+            {/* Factor bars — Visible: Credibility, Charisma, Influence, Cash ₯ only */}
             <div className="space-y-3">
               <FactorBar label="Credibility" value={factors.Credibility || 0} color="#818cf8" />
               <FactorBar label="Charisma"    value={factors.Charisma    || 0} color="#34d399" />
               <FactorBar label="Influence"   value={factors.Influence   || 0} color="#f59e0b" />
-              <FactorBar label="Resources"   value={factors.Resources   || 0} color="#60a5fa" />
             </div>
 
             {/* Obligation / Contact */}
@@ -186,10 +185,10 @@ export default function ConfirmCitizenPage() {
 
             <div className="h-px mt-5 mb-5 bg-white/[0.04]" />
 
-            {/* Starting money */}
+            {/* Starting money in ₯ Drennian Marks */}
             <div className="flex items-center justify-between mb-5">
               <span className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">Starting Funds</span>
-              <span className="text-emerald-400 text-sm font-bold font-mono">${(citizenFile.money || 0).toLocaleString()}</span>
+              <span className="text-emerald-400 text-sm font-bold font-mono">₯{(citizenFile.money || 0).toLocaleString()}</span>
             </div>
 
             {/* Action buttons */}

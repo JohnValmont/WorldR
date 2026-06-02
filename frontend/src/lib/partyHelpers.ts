@@ -1,3 +1,4 @@
+// FROZEN POLITICS PROTOTYPE — preserve for later politics module. Do not use as active post-login core.
 export function roundMoney(value: number): number {
   return Math.round(value);
 }
