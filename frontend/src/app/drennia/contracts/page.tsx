@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getContracts, getPlayerCompany, initializeContractsIfEmpty, saveContract, type Contract, type Company } from '../../../lib/businessCore';
+import { getContracts, getPlayerCompany, initializeContractsIfEmpty, saveContract, evaluateContractBids, type Contract, type Company } from '../../../lib/businessCore';
 import Link from 'next/link';
 
 const GOLD = '#c9a84c';
@@ -55,6 +55,13 @@ export default function ContractsPage() {
     setBidNote('');
   };
 
+  const handleEvaluateAll = () => {
+    openContracts.forEach(c => {
+      evaluateContractBids(c.id);
+    });
+    setContracts(getContracts());
+  };
+
   if (!authorized) return null;
 
   if (!company) {
@@ -71,12 +78,18 @@ export default function ContractsPage() {
   }
 
   const openContracts = contracts.filter(c => c.status === 'open');
+  const awardedContracts = contracts.filter(c => c.status === 'awarded');
 
   return (
     <div className="flex flex-col h-full p-6 text-white overflow-hidden max-w-4xl mx-auto w-full">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: '#F4EBD6' }}>Public Contract Board</h1>
-        <p className="text-[12px] mt-1" style={{ color: '#B9B09B' }}>Available tenders and logistics runs posted by state and private operators.</p>
+      <div className="mb-6 flex justify-between items-end">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: '#F4EBD6' }}>Public Contract Board</h1>
+          <p className="text-[12px] mt-1" style={{ color: '#B9B09B' }}>Available tenders and logistics runs posted by state and private operators.</p>
+        </div>
+        <button onClick={handleEvaluateAll} className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded-sm" style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', color: GOLD }}>
+          Simulate Issuer Reviews
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto pr-4">
@@ -138,6 +151,26 @@ export default function ContractsPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {awardedContracts.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-lg font-bold mb-4" style={{ color: '#F4EBD6' }}>Recently Awarded</h2>
+            <div className="flex flex-col gap-2">
+              {awardedContracts.map(ctr => (
+                <div key={ctr.id} className="p-3 rounded-sm flex justify-between items-center" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <div>
+                    <div className="text-xs font-bold" style={{ color: '#7E8378' }}>{ctr.title}</div>
+                    <div className="text-[9px] font-mono mt-0.5" style={{ color: '#B9B09B' }}>Issued by {ctr.issuerName}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] font-mono" style={{ color: GOLD }}>Awarded to: {ctr.awardedToCompanyId === company.id ? 'You' : 'Another Firm'}</div>
+                    <div className="text-[9px] font-mono" style={{ color: '#34d399' }}>Status: In Progress</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

@@ -170,3 +170,133 @@ export function initializeContractsIfEmpty(): void {
     localStorage.setItem('worldr_contracts_v1', JSON.stringify(STARTER_NPC_CONTRACTS));
   }
 }
+
+// ─── Contract Resolution Engine ───────────────────────────────────────────────
+
+export function evaluateContractBids(contractId: string): { success: boolean; message: string; awardedTo?: string } {
+  if (typeof window === 'undefined') return { success: false, message: 'No window object' };
+
+  const contracts = getContracts();
+  const contractIndex = contracts.findIndex(c => c.id === contractId);
+  if (contractIndex === -1) return { success: false, message: 'Contract not found' };
+
+  const contract = contracts[contractIndex];
+  if (contract.status !== 'open') return { success: false, message: 'Contract is not open for bids' };
+
+  const companies = getCompanies();
+  const allCompanies = [...companies, ...NPC_COMPANIES];
+
+  // If no bids, simulate some NPC bids if it's an NPC issuer
+  if (contract.bids.length === 0 && contract.issuerType === 'npc') {
+    // Pick 1-2 random NPC companies that match the sector
+    const matchingNPCs = NPC_COMPANIES.filter(c => c.sector === contract.requiredSector && c.id !== contract.issuerCompanyId);
+    if (matchingNPCs.length > 0) {
+      const numBids = Math.floor(Math.random() * 2) + 1; // 1 or 2 bids
+      for (let i = 0; i < Math.min(numBids, matchingNPCs.length); i++) {
+        const npc = matchingNPCs[i];
+        // NPC bids somewhere between 80% and 100% of max payment
+        const bidAmount = Math.floor(contract.payment * (0.8 + Math.random() * 0.2));
+        contract.bids.push({
+          companyId: npc.id,
+          amount: bidAmount,
+          note: 'Standard market rate.',
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+  }
+
+  if (contract.bids.length === 0) {
+    return { success: false, message: 'No bids to evaluate.' };
+  }
+
+  // Score each bid
+  let bestBid: ContractBid | null = null;
+  let bestScore = -9999;
+
+  for (const bid of contract.bids) {
+    const bidder = allCompanies.find(c => c.id === bid.companyId);
+    if (!bidder) continue;
+
+    let score = 0;
+
+    // Base score is based on how much lower the bid is than the max payment
+    // Every 10% below max gives +10 points
+    const discountPercent = (contract.payment - bid.amount) / contract.payment;
+    score += discountPercent * 100;
+
+    // Sector match is critical
+    if (bidder.sector === contract.requiredSector) {
+      score += 50;
+    } else {
+      score -= 100; // Heavy penalty for wrong sector
+    }
+
+    // Capacity check
+    if (bidder.capacity >= contract.requiredCapacity) {
+      score += 20;
+    } else {
+      score -= 50; // Penalty for insufficient capacity
+    }
+
+    // Reputation bonus
+    if (bidder.reputation === 'Established') score += 30;
+    else if (bidder.reputation === 'Known' || bidder.reputation === 'Local') score += 15;
+    else if (bidder.reputation === 'New') score += 0;
+
+    // Reliability bonus
+    if (bidder.reliability === 'Ironclad') score += 30;
+    else if (bidder.reliability === 'Proven') score += 20;
+    else if (bidder.reliability === 'Reliable') score += 10;
+    else if (bidder.reliability === 'Unproven') score += 0;
+
+    // Add some random variance (0 to 20 points)
+    score += Math.floor(Math.random() * 20);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestBid = bid;
+    }
+  }
+
+  if (!bestBid) {
+    return { success: false, message: 'Could not determine a winner.' };
+  }
+
+  // Award the contract
+  contract.status = 'awarded';
+  contract.awardedToCompanyId = bestBid.companyId;
+
+  // Save contract
+  contracts[contractIndex] = contract;
+  localStorage.setItem('worldr_contracts_v1', JSON.stringify(contracts));
+
+  // Update company if it's a player company
+  const winningCompanyIndex = companies.findIndex(c => c.id === bestBid!.companyId);
+  if (winningCompanyIndex !== -1) {
+    const winningCompany = companies[winningCompanyIndex];
+    if (!winningCompany.activeContracts.includes(contract.id)) {
+      winningCompany.activeContracts.push(contract.id);
+      companies[winningCompanyIndex] = winningCompany;
+      localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
+
+      // Create a record for the player
+      const rec = {
+        id: `rec_awarded_${Date.now()}`, type: 'contract',
+        summary: `Awarded contract "${contract.title}" issued by ${contract.issuerName} for ₯${bestBid.amount}.`,
+        createdAt: new Date().toISOString()
+      };
+      const recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
+      localStorage.setItem('worldr_records_v1', JSON.stringify([rec, ...recs]));
+    }
+  }
+
+  const winnerName = allCompanies.find(c => c.id === bestBid!.companyId)?.name || 'Unknown Company';
+
+  return { 
+    success: true, 
+    message: `Contract awarded to ${winnerName} for ₯${bestBid.amount}.`,
+    awardedTo: bestBid.companyId
+  };
+}
+
