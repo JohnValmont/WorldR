@@ -32,32 +32,9 @@ const STATE_META: Record<DrenniaGameplayState, { labelX: number; labelY: number;
   "Westport State": { labelX: 205, labelY: 350, fill: "rgba(40, 112, 94, 0.42)", stroke: "rgba(214,179,95,0.22)" }
 };
 
-const FALLBACK_ROOM_PINS: DrenniaRoomPin[] = [
-  { id: 'saltgate-trade-morning', title: 'Saltgate Trade Morning', state: 'Westport State', type: 'business', x: 185, y: 320, participants: 4, npc: 'Fen Arras Jr.' },
-  { id: 'port-ledger-shift', title: 'Port Ledger Shift', state: 'Westport State', type: 'business', x: 155, y: 380, participants: 2, npc: 'Shift Supervisor' },
-  { id: 'westport-business-circle', title: 'Westport Business Circle', state: 'Westport State', type: 'business', x: 225, y: 420, participants: 2, npc: 'Tira Vance' },
-  { id: 'greenmere-market-day', title: 'Greenmere Market Day', state: 'Greenmere State', type: 'business', x: 490, y: 480, participants: 2, npc: 'Ysella Murn' },
-  { id: 'ironvale-supplier-dispute', title: 'Ironvale Supplier Dispute', state: 'Ironvale State', type: 'business', x: 385, y: 185, participants: 2, npc: 'Director Kovath' },
-  { id: 'drennport-finance-reception', title: 'Drennport Finance Reception', state: 'Drennport State', type: 'business', x: 720, y: 280, participants: 3, npc: 'Cassiel Vourne' },
-];
-
-function pinColor(type: DrenniaRoomPin["type"]) {
-  switch (type) {
-    case "politics": return "#D6B35F";
-    case "business": return "#2AC58B";
-    case "work": return "#6D8797";
-    case "community": return "#B9853D";
-    case "debate": return "#F4EBD6";
-    default: return "#D6B35F";
-  }
-}
-
 export function DrenniaMapSvg({
   selectedState = null,
-  selectedRoomId = null,
-  roomPins = FALLBACK_ROOM_PINS,
   onStateSelect,
-  onRoomSelect
 }: Props) {
   const countryPath = "M 448.6 279.5 L 411 295.5 L 345.9 282.7 L 253.4 282.7 L 208.9 295.5 L 143.8 289.1 L 106.2 308.4 L 68.5 356.6 L 89 424 L 61.6 462.6 L 75.3 494.7 L 133.6 517.2 L 157.5 562.2 L 229.5 542.9 L 256.8 559 L 321.9 542.9 L 274 494.7 L 308.2 465.8 L 260.3 411.2 L 270.5 369.4 L 339 350.2 L 448.6 382.3 L 482.9 411.2 L 616.4 427.3 L 633.6 440.1 L 753.4 436.9 L 804.8 420.8 L 832.2 398.3 L 856.2 398.3 L 873.3 379.1 L 869.9 340.5 L 887 324.5 L 893.8 279.5 L 931.5 260.2 L 938.4 208.8 L 904.1 186.3 L 904.1 154.2 L 856.2 128.5 L 832.2 131.7 L 794.5 102.8 L 780.8 106 L 753.4 73.9 L 722.6 80.3 L 684.9 57.8 L 623.3 61 L 609.6 70.7 L 565.1 70.7 L 547.9 89.9 L 500 96.4 L 517.1 138.1 L 411 215.2 L 448.6 279.5 Z";
 
@@ -154,25 +131,6 @@ export function DrenniaMapSvg({
         <text x="848" y="333" fill="#D6B35F" fontSize="10" fontWeight="700" letterSpacing="0.12em">CAPITAL</text>
       </g>
 
-      {roomPins.map((pin) => {
-        const color = pinColor(pin.type);
-        const active = selectedRoomId === pin.id;
-        return (
-          <g
-            key={pin.id}
-            transform={`translate(${pin.x} ${pin.y})`}
-            onClick={() => onRoomSelect?.(pin.id)}
-            style={{ cursor: "pointer" }}
-          >
-            <circle r={active ? 17 : 14} fill={color} fillOpacity="0.18" stroke={color} strokeWidth="2">
-              <animate attributeName="r" values="10;18;10" dur="2.4s" repeatCount="indefinite" />
-              <animate attributeName="opacity" values="0.9;0.35;0.9" dur="2.4s" repeatCount="indefinite" />
-            </circle>
-            <circle r="6" fill={color} stroke="#07100D" strokeWidth="3" />
-            <title>{`${pin.title} — ${pin.state} — ${pin.participants ?? 0} present${pin.npc ? ` · ${pin.npc} watching` : ""}`}</title>
-          </g>
-        );
-      })}
     </svg>
   );
 }
