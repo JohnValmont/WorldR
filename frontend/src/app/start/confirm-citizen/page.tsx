@@ -187,7 +187,7 @@ export default function ConfirmCitizenPage() {
 
             {/* Starting money in ₯ Drennian Marks */}
             <div className="flex items-center justify-between mb-5">
-              <span className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">Starting Funds</span>
+              <span className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">Starting Cash</span>
               <span className="text-emerald-400 text-sm font-bold font-mono">₯{(citizenFile.money || 0).toLocaleString()}</span>
             </div>
 

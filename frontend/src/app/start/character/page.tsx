@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Factors { Credibility: number; Charisma: number; Influence: number; Resources: number; }
+interface Factors { Credibility: number; Charisma: number; Influence: number; Cash: number; }
 
 interface ChoiceOption {
   id: string;
@@ -13,6 +13,7 @@ interface ChoiceOption {
   perception: string;
   chips: string[];
   effects: Partial<Factors>;
+  cash?: number;
   obligation?: string;
   vulnerability?: string;
   tag?: string;
@@ -26,8 +27,9 @@ const STATES: ChoiceOption[] = [
     title: 'Drennport State',
     story: 'You grew up near ministries, universities, royal ceremonies, finance houses, and national media.',
     perception: 'People see you as someone familiar with the language of institutions.',
-    chips: ['Civic familiarity', 'Institutional world', 'Public record culture'],
-    effects: { Credibility: 1, Influence: 1 },
+    chips: ['Civic familiarity', 'Institutional world', 'Public record culture', '+₯20'],
+    effects: { Credibility: 1 },
+    cash: 20,
     tag: 'civic',
   },
   {
@@ -35,8 +37,9 @@ const STATES: ChoiceOption[] = [
     title: 'Ironvale State',
     story: 'You grew up around factories, unions, industrial towns, and families who understood work before politics.',
     perception: 'People see you as grounded, direct, and not easily impressed by ceremony.',
-    chips: ['Labour familiarity', 'Working-town instinct', 'Union adjacent'],
-    effects: { Credibility: 1, Charisma: 1 },
+    chips: ['Labour familiarity', 'Working-town instinct', 'Union adjacent', '+₯20'],
+    effects: { Charisma: 1 },
+    cash: 20,
     tag: 'labour',
   },
   {
@@ -44,8 +47,9 @@ const STATES: ChoiceOption[] = [
     title: 'Greenmere State',
     story: 'You grew up among farms, local councils, religious communities, and families where reputation travelled fast.',
     perception: 'People see you as someone with deep community roots and local trust.',
-    chips: ['Community familiarity', 'Rural trust', 'Close network loyalty'],
-    effects: { Credibility: 1, Charisma: 1 },
+    chips: ['Community familiarity', 'Rural trust', 'Close network loyalty', '+₯20'],
+    effects: { Credibility: 1 },
+    cash: 20,
     tag: 'community',
   },
   {
@@ -53,8 +57,9 @@ const STATES: ChoiceOption[] = [
     title: 'Westport State',
     story: 'You grew up near ports, exporters, banks, traders, and people who measured ambition in deals.',
     perception: 'People see you as commercially aware and comfortable with money and risk.',
-    chips: ['Business familiarity', 'Trade networks', 'Port economy instinct'],
-    effects: { Resources: 1, Influence: 1 },
+    chips: ['Business familiarity', 'Trade networks', 'Port economy instinct', '+₯60'],
+    effects: { Influence: 1 },
+    cash: 60,
     tag: 'commercial',
   },
 ];
@@ -66,7 +71,8 @@ const HOUSEHOLDS: ChoiceOption[] = [
     story: 'Money was counted carefully. You learned that dignity and survival are not always the same thing.',
     perception: 'People may later see your ambition as shaped by personal scarcity.',
     chips: ['Family pressure', 'Survival instinct', 'Self-reliance'],
-    effects: { Credibility: 1, Charisma: 1 },
+    effects: { Charisma: 1 },
+    cash: 80,
     tag: 'struggle',
   },
   {
@@ -75,7 +81,8 @@ const HOUSEHOLDS: ChoiceOption[] = [
     story: 'Your home was not powerful, but it was steady. Expectations were clear, and failure was quietly feared.',
     perception: 'People see you as someone with respectable — if unspectacular — origins.',
     chips: ['Stable upbringing', 'Respectability', 'Cautious risk profile'],
-    effects: { Credibility: 1, Resources: 1 },
+    effects: { Credibility: 1 },
+    cash: 150,
     tag: 'stable',
   },
   {
@@ -84,8 +91,8 @@ const HOUSEHOLDS: ChoiceOption[] = [
     story: 'Trade, profit, and risk were normal conversation. You learned that money can open doors before speeches do.',
     perception: 'People may see you as commercially connected — or commercially obligated.',
     chips: ['Business expectation', 'Commercial network seed', 'Corporate adjacent'],
-    effects: { Resources: 2 },
-    obligation: 'Business expectation',
+    effects: { Influence: 1 },
+    cash: 350,
     tag: 'business',
   },
   {
@@ -94,8 +101,8 @@ const HOUSEHOLDS: ChoiceOption[] = [
     story: 'Rules, offices, exams, procedure, and caution shaped the rhythm of your home.',
     perception: 'People may see you as someone who understands the state from the inside.',
     chips: ['Institutional familiarity', 'Insider reputation risk', 'Procedural thinking'],
-    effects: { Credibility: 1, Influence: 1 },
-    vulnerability: 'Insider reputation risk',
+    effects: { Credibility: 1 },
+    cash: 200,
     tag: 'civil_service',
   },
   {
@@ -104,8 +111,8 @@ const HOUSEHOLDS: ChoiceOption[] = [
     story: 'Discipline, hierarchy, service, and reputation were treated as family values.',
     perception: 'People may see you as rigid, reliable, or tied to the security establishment.',
     chips: ['Security familiarity', 'Rigid public image', 'Hierarchy instinct'],
-    effects: { Credibility: 1, Influence: 1 },
-    vulnerability: 'Rigid public image',
+    effects: { Credibility: 1 },
+    cash: 170,
     tag: 'military',
   },
   {
@@ -114,9 +121,8 @@ const HOUSEHOLDS: ChoiceOption[] = [
     story: 'Politics was not distant. Names, favors, elections, and loyalty were part of dinner-table conversation.',
     perception: 'People may see you as privileged — or suspect you of carrying old debts.',
     chips: ['Political family network', 'Nepotism risk', 'Party adjacent'],
-    effects: { Influence: 2 },
-    vulnerability: 'Nepotism attack risk',
-    obligation: 'Political family expectation',
+    effects: { Influence: 1 },
+    cash: 220,
     tag: 'political',
   },
 ];
@@ -155,7 +161,7 @@ const CHILDHOOD_MARKS: ChoiceOption[] = [
     story: 'You were not always noticed, but you watched carefully and learned how to endure.',
     perception: 'People may underestimate you — which is occasionally useful.',
     chips: ['Resilience', 'Low visibility', 'Observation instinct'],
-    effects: { Credibility: 1, Resources: 1 },
+    effects: { Credibility: 1, Cash: 0 },
     tag: 'survivor',
   },
   {
@@ -164,7 +170,7 @@ const CHILDHOOD_MARKS: ChoiceOption[] = [
     story: 'You found small ways to earn, trade, arrange, and survive before others understood money.',
     perception: 'People see you as resourceful — or as someone who bends rules when needed.',
     chips: ['Street commerce', 'Risk appetite', 'Informal network'],
-    effects: { Resources: 1, Influence: 1 },
+    effects: { Cash: 0, Influence: 1 },
     tag: 'hustler',
   },
   {
@@ -189,66 +195,65 @@ const CHILDHOOD_MARKS: ChoiceOption[] = [
 
 const NPC_CONTACTS: ChoiceOption[] = [
   {
-    id: 'Teacher Mentor',
+    id: 'Fen Arras Jr.',
+    title: 'Fen Arras Jr.',
+    story: 'Operator at Saltgate Counting House. He notices young talent and trades in access before money.',
+    perception: 'People will know you have a foot in Westport docks and commerce.',
+    chips: ['Business contact', 'Westport access', 'Commercial obligation'],
+    effects: { Influence: 1 },
+    obligation: 'Owe a favor to Fen Arras Jr.',
+    tag: 'trade',
+  },
+  {
+    id: 'Mara Velden',
     title: 'Mara Velden',
-    story: 'She noticed your effort before anyone with power did. A teacher who marked your essays and told you to aim further.',
+    story: 'A teacher or early mentor who noticed your effort before anyone with power did. She told you to aim further.',
     perception: 'People will see you as someone who earned early support through merit.',
     chips: ['Academic validation', 'Credibility foundation', 'Educator network'],
     effects: { Credibility: 1 },
     tag: 'teacher',
   },
   {
-    id: 'Local Councillor',
-    title: 'Jonas Kest',
-    story: 'He knew the local political machinery and taught you that power begins before election day.',
-    perception: 'People will see you as politically connected at the local level.',
-    chips: ['Political favour', 'Local authority tie', 'Council obligation'],
+    id: 'Junior Finance Clerk',
+    title: 'Junior Finance Clerk',
+    story: 'A clerk at the Drennport Credit House who occasionally passes you information others pay for.',
+    perception: 'People see you as someone who understands the inside of financial institutions.',
+    chips: ['Finance contact', 'Institutional network', 'Credit access'],
     effects: { Influence: 1 },
-    obligation: 'Political favour owed to Jonas Kest',
-    tag: 'councillor',
+    tag: 'finance',
   },
   {
-    id: 'Business Patron',
-    title: 'Elric Voss',
-    story: 'He saw ambition and offered help that was never completely free. A director who expected returns.',
-    perception: 'People will wonder what Voss got in return. They will not be wrong to wonder.',
-    chips: ['Commercial backing', 'Business obligation', 'Corporate expectation'],
-    effects: { Resources: 1 },
-    obligation: 'Business expectation from Elric Voss',
-    tag: 'patron',
-  },
-  {
-    id: 'Union Organizer',
-    title: 'Sera Dunne',
-    story: 'She introduced you to rooms where workers spoke honestly about power. She expected the same honesty.',
-    perception: 'People in labour circles will know your name. People in business circles will note it.',
+    id: 'Sera Duvall',
+    title: 'Sera Duvall',
+    story: 'Union Organizer in Ironvale. She introduced you to rooms where workers spoke honestly about power.',
+    perception: 'People in labour circles will know your name. Business circles will note it cautiously.',
     chips: ['Labour network tie', 'Working-class credibility', 'Business suspicion risk'],
     effects: { Charisma: 1 },
     tag: 'union',
   },
   {
-    id: 'Journalist Contact',
-    title: 'Talia Renn',
-    story: 'She understood how stories travel, and how reputations are made or broken in a single paragraph.',
-    perception: 'People will know you have a press contact. That is both protection and exposure.',
-    chips: ['Media exposure risk', 'Story access', 'Press relationship'],
-    effects: { Charisma: 1 },
-    vulnerability: 'Media exposure risk via Talia Renn',
-    tag: 'journalist',
-  },
-  {
-    id: 'Military Officer',
-    title: 'Captain Edrin Holt',
-    story: 'He respected discipline and opened a small door into security and establishment circles.',
-    perception: 'People will see you as connected to the security world — not always a neutral signal.',
-    chips: ['Security establishment tie', 'Military credibility', 'Hierarchy access'],
+    id: 'Director Kovath',
+    title: 'Director Kovath',
+    story: 'Owner of the Ironvale Industrial Plant. He saw ambition and offered help that was never completely free.',
+    perception: 'People will wonder what Kovath got in return. They will not be wrong to wonder.',
+    chips: ['Commercial backing', 'Business obligation', 'Corporate expectation'],
     effects: { Influence: 1 },
-    tag: 'military',
+    obligation: 'Business expectation from Director Kovath',
+    tag: 'director',
   },
   {
-    id: 'Community Elder',
-    title: 'Corin Vale',
-    story: 'He carried trust in places where official titles mattered less than memory and reputation.',
+    id: 'Ysella Murn',
+    title: 'Ysella Murn',
+    story: 'Director of the Greenmere Agricultural Co-op. She manages the market and watches who builds trust.',
+    perception: 'People in the local community economy will trust you because she does.',
+    chips: ['Community commerce', 'Local business trust', 'Agriculture network'],
+    effects: { Credibility: 1 },
+    tag: 'coop',
+  },
+  {
+    id: 'Elder Corvan Ashfell',
+    title: 'Corvan Ashfell',
+    story: 'He carries trust in places where official titles matter less than memory and reputation.',
     perception: 'People in your community will see you as blessed by a respected name.',
     chips: ['Community expectation', 'Faith network', 'Local moral authority'],
     effects: { Credibility: 1 },
@@ -303,12 +308,31 @@ const BURDENS: ChoiceOption[] = [
     story: 'You entered adulthood with fewer visible burdens. That too shaped how you see others who carry more.',
     perception: 'People will not see obvious vulnerabilities. That does not mean none exist.',
     chips: ['Stable start', 'Limited early hardship', 'Unproven resilience'],
-    effects: { Resources: 1 },
+    effects: { Cash: 0 },
     tag: 'clean',
   },
 ];
 
 const AMBITIONS: ChoiceOption[] = [
+  {
+    id: 'To Build Something of My Own',
+    title: 'Build Something of My Own',
+    story: 'You want an institution, company, or movement that answers to you — not inherited.',
+    perception: 'People will see a builder. They will wait to see what gets built — and what gets broken.',
+    chips: ['Builder leaning', 'Enterprise drive', 'Independence priority'],
+    effects: { Influence: 1 },
+    tag: 'builder',
+  },
+  {
+    id: 'To Never Be Poor Again',
+    title: 'To Never Be Poor Again',
+    story: 'You want money not for luxury first, but for control over your own life.',
+    perception: 'People will see someone motivated. They may also see hunger that is hard to hide.',
+    chips: ['Wealth drive', 'Survival instinct', 'Financial security priority'],
+    effects: {},
+    cash: 50,
+    tag: 'wealth',
+  },
   {
     id: 'To Be Respected',
     title: 'To Be Respected',
@@ -317,15 +341,6 @@ const AMBITIONS: ChoiceOption[] = [
     chips: ['Public trust leaning', 'Credibility-first strategy', 'Conservative image'],
     effects: { Credibility: 1 },
     tag: 'respect',
-  },
-  {
-    id: 'To Be Heard',
-    title: 'To Be Heard',
-    story: 'You want your voice to matter in rooms that usually ignore people like you.',
-    perception: 'People will see someone who keeps finding a microphone.',
-    chips: ['Public voice leaning', 'Platform seeking', 'Charisma-first strategy'],
-    effects: { Charisma: 1 },
-    tag: 'voice',
   },
   {
     id: 'To Know Powerful People',
@@ -337,30 +352,21 @@ const AMBITIONS: ChoiceOption[] = [
     tag: 'network',
   },
   {
-    id: 'To Never Be Poor Again',
-    title: 'To Never Be Poor Again',
-    story: 'You want money not for luxury first, but for control over your own life.',
-    perception: 'People will see someone motivated. They may also see hunger that is hard to hide.',
-    chips: ['Wealth drive', 'Resources-first strategy', 'Financial security priority'],
-    effects: { Resources: 1 },
-    tag: 'wealth',
-  },
-  {
-    id: 'To Build Something of My Own',
-    title: 'Build Something of My Own',
-    story: 'You want an institution, company, or movement that answers to you — not inherited.',
-    perception: 'People will see a builder. They will wait to see what gets built — and what gets broken.',
-    chips: ['Builder leaning', 'Enterprise drive', 'Independence priority'],
-    effects: { Resources: 1, Influence: 1 },
-    tag: 'builder',
+    id: 'To Be Heard',
+    title: 'To Be Heard',
+    story: 'You want your voice to matter in rooms that usually ignore people like you.',
+    perception: 'People will see someone who keeps finding a microphone.',
+    chips: ['Public voice leaning', 'Platform seeking', 'Charisma-first strategy'],
+    effects: { Charisma: 1 },
+    tag: 'voice',
   },
   {
     id: 'To Change the Country',
     title: 'Change the Country',
     story: 'You are drawn to the machinery of Drennia itself. Something in it needs fixing and you believe you can help fix it.',
     perception: 'People will see idealism. Some will appreciate it. Others will try to use it.',
-    chips: ['Political reform leaning', 'Civic drive', 'Idealist profile'],
-    effects: { Credibility: 1, Charisma: 1 },
+    chips: ['Civic reform leaning', 'Civic drive', 'Idealist profile'],
+    effects: { Credibility: 1 },
     tag: 'reform',
   },
 ];
@@ -377,7 +383,7 @@ interface Choices {
 }
 
 function calcFactors(choices: Choices): Factors {
-  let f: Factors = { Credibility: 0, Charisma: 0, Influence: 0, Resources: 0 };
+  let f: Factors = { Credibility: 0, Charisma: 0, Influence: 0, Cash: 0 };
   const apply = (opts: ChoiceOption[], val?: string) => {
     if (!val) return;
     const found = opts.find(o => o.id === val);
@@ -385,6 +391,7 @@ function calcFactors(choices: Choices): Factors {
       for (const [k, v] of Object.entries(found.effects || {})) {
         f[k as keyof Factors] += (v as number);
       }
+      if (found.cash) f.Cash += found.cash;
     }
   };
   apply(STATES,          choices.homeState);
@@ -475,15 +482,14 @@ function getChronicleFragments(choices: Choices, firstName: string): string[] {
 
 function generateSummary(choices: Choices, firstName: string): string {
   const name = firstName || 'This citizen';
-  const contact = NPC_CONTACTS.find(c => c.id === choices.npcContact);
-  const contactName = contact?.title || 'an early mentor';
-  const burden = choices.earlyBurden || '';
-  const burdenPhrase = burden === 'No Major Burden'
-    ? 'without heavy obligations to carry into adult life'
-    : `carrying the weight of ${burden.toLowerCase()}`;
+  const contactObj = NPC_CONTACTS.find(c => c.id === choices.npcContact);
+  const contactName = contactObj?.title || 'an early contact';
+  const state = choices.homeState ? choices.homeState.replace(' State', '') : 'Drennia';
+  const hh = choices.household ? choices.household.replace(' Household', '').toLowerCase() : 'household';
+  const cashPhrase = (hh === 'struggling') ? 'modest cash' : (hh === 'business' || hh === 'stable middle-class') ? 'a solid financial footing' : 'some starting capital';
   const ambition = choices.firstAmbition ? choices.firstAmbition.toLowerCase() : 'find a path forward';
 
-  return `Raised in ${choices.homeState || 'Drennia'} in a ${(choices.household || 'household').toLowerCase()}, ${name} enters adult life ${burdenPhrase}. Shaped early by a reputation as a ${(choices.childhoodMark || 'young person').toLowerCase()} and encouraged by ${contactName}, ${name} arrives at age 18 with the ambition to ${ambition}. Drennia's record halls have opened a file. What fills it is still unwritten.`;
+  return `Raised in ${state} in a ${hh} household, ${name} enters adulthood with ${cashPhrase}, a first contact in ${contactName}, and a public record that has not yet earned trust. Driven by the ambition to ${ambition.replace('to ', '')}, Drennia's record halls have opened a file. What fills it is still unwritten.`;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -735,8 +741,8 @@ export default function CreateCharacterPage() {
         description: contactObj?.vulnerability || burdenObj?.vulnerability || hhObj?.vulnerability || 'New to adult public life.',
         severity: 'minor',
       },
-      personalMoney: 200 + factors.Resources * 30,
-      money: 200 + factors.Resources * 30,
+      personalMoney: factors.Cash,
+      money: factors.Cash,
       summaryParagraph: generateSummary(choices, firstName),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -1123,7 +1129,7 @@ export default function CreateCharacterPage() {
                 <FactorRow label="Credibility" value={factors.Credibility} />
                 <FactorRow label="Charisma"    value={factors.Charisma} />
                 <FactorRow label="Influence"   value={factors.Influence} />
-                <FactorRow label="Resources"   value={factors.Resources} />
+                
               </div>
             </div>
 
