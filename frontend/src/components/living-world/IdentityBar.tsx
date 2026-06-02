@@ -18,17 +18,26 @@ export default function IdentityBar() {
       const citizenFile = localStorage.getItem('worldr_citizen_file_v1');
       if (citizenFile) {
         const parsed = JSON.parse(citizenFile);
+        // name may be { first, last } object or legacy string
+        let displayName = 'New Citizen';
+        if (parsed.name && typeof parsed.name === 'object') {
+          displayName = [parsed.name.first as string, parsed.name.last as string].filter(Boolean).join(' ') || 'New Citizen';
+        } else if (typeof parsed.name === 'string' && parsed.name) {
+          displayName = parsed.name;
+        }
+        const money = parsed.personalMoney ?? parsed.money;
         setCharData(prev => ({
           ...prev,
-          name: parsed.name || prev.name,
-          age: parsed.age || prev.age,
-          homeState: parsed.homeState || prev.homeState,
-          motherland: parsed.motherland || prev.motherland,
-          cash: parsed.personalMoney !== undefined ? `$${parsed.personalMoney}` : prev.cash
+          name: displayName,
+          age: (parsed.age as number) || prev.age,
+          homeState: (parsed.homeState as string) || (parsed.origin as any)?.state || prev.homeState,
+          motherland: (parsed.motherland as string) || prev.motherland,
+          capital: (parsed.capital as string) || prev.capital,
+          cash: money !== undefined ? `$${Number(money).toLocaleString()}` : prev.cash,
         }));
       }
     } catch (e) {
-      console.warn("Failed to load character data", e);
+      console.warn('Failed to load character data', e);
     }
   }, []);
 
