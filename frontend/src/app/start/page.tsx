@@ -2,7 +2,7 @@
 
 export default function StartPage() {
   return (
-    <div className="min-h-screen bg-[#111311] flex flex-col items-center justify-center p-6 selection:bg-amber-900/50">
+    <div className="min-h-screen bg-[#11131A] flex flex-col items-center justify-center p-6 selection:bg-amber-900/50">
       <div className="max-w-md w-full text-center">
         
         <div className="w-16 h-16 mx-auto mb-6 flex items-center justify-center rounded-full bg-amber-500/10 border border-amber-500/20">

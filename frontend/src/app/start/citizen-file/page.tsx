@@ -52,7 +52,7 @@ export default function CitizenFilePage() {
 
   if (!authorized || !citizenFile) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#07100D' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#090A0F' }}>
         <div className="w-6 h-6 rounded-full border-2 border-amber-500/20 border-t-amber-500 animate-spin" />
       </div>
     );
@@ -66,7 +66,7 @@ export default function CitizenFilePage() {
     <div
       className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 transition-all duration-500"
       style={{
-        background: 'radial-gradient(ellipse at 50% 0%, rgba(30,30,60,0.5) 0%, #07100D 60%)',
+        background: 'radial-gradient(ellipse at 50% 0%, rgba(30,30,60,0.5) 0%, #090A0F 60%)',
         opacity: revealed ? 1 : 0,
         transform: revealed ? 'translateY(0)' : 'translateY(14px)',
       }}

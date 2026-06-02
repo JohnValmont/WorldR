@@ -90,8 +90,8 @@ export default function CitizenFileChoices({ currentStep, formData, onUpdate, on
             border = '1px solid rgba(189,61,61,0.3)';
           } else if (chip.includes('Obligation') || chip.includes('Network') || chip.includes('favor') || chip.includes('patron')) {
             color = theme.colors.accents.gold;
-            bg = 'rgba(214,179,95,0.1)';
-            border = '1px solid rgba(214,179,95,0.3)';
+            bg = 'rgba(201,162,74,0.1)';
+            border = '1px solid rgba(201,162,74,0.3)';
           }
 
           return (
@@ -127,13 +127,13 @@ export default function CitizenFileChoices({ currentStep, formData, onUpdate, on
           minHeight: '110px',
           padding: '18px 20px',
           borderRadius: '22px',
-          background: isSelected ? 'rgba(214,179,95,0.11)' : 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018))',
-          border: isSelected ? '1px solid rgba(214,179,95,0.48)' : '1px solid rgba(139,164,155,0.16)',
+          background: isSelected ? 'rgba(201,162,74,0.11)' : 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018))',
+          border: isSelected ? '1px solid rgba(201,162,74,0.48)' : '1px solid rgba(139,164,155,0.16)',
           transform: isSelected ? 'translateY(-2px)' : 'none',
           boxShadow: isSelected ? '0 4px 20px rgba(0,0,0,0.2)' : 'none'
         }}
         onMouseOver={(e) => {
-          if (!isSelected) e.currentTarget.style.borderColor = 'rgba(214,179,95,0.34)';
+          if (!isSelected) e.currentTarget.style.borderColor = 'rgba(201,162,74,0.34)';
         }}
         onMouseOut={(e) => {
           if (!isSelected) e.currentTarget.style.borderColor = 'rgba(139,164,155,0.16)';

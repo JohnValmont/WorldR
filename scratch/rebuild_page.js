@@ -95,7 +95,7 @@ const GhostButton = ({ onClick, children, color }: { onClick?: () => void; child
 );
 
 // ─── Sub-tab types ────────────────────────────────────────────────────────────
-type SubTab = 'overview' | 'start' | 'companies' | 'market' | 'registry';
+type SubTab = 'overview' | 'start' | 'companies' | 'registry';
 
 const SUB_TABS: { id: SubTab; label: string; requiresCompany?: boolean }[] = [
     { id: 'overview',   label: 'Overview' },
@@ -125,168 +125,6 @@ const HQ_OPTIONS = [
 ];
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
-
-function MarketTab({ playerCash, onRefresh }: { playerCash: number, onRefresh: () => void }) {
-  const [subTab, setSubTab] = React.useState<'vehicles'|'property'>('vehicles');
-  const companies = getCompanies();
-  const [selectedCompanyId, setSelectedCompanyId] = React.useState<string>(companies[0]?.id || '');
-  const [notification, setNotification] = React.useState<{ msg: string; success: boolean } | null>(null);
-
-  const company = companies.find(c => c.id === selectedCompanyId);
-
-  const showNotif = (msg: string, success: boolean) => {
-    setNotification({ msg, success });
-    setTimeout(() => setNotification(null), 4000);
-  };
-
-  const handlePurchaseVehicle = (spec: any) => {
-    if (!company) {
-      showNotif('You need an active company before buying business vehicles.', false);
-      return;
-    }
-    const result = purchaseVehicle(company.id, spec.type);
-    showNotif(result.message, result.success);
-    if (result.success) onRefresh();
-  };
-
-  const handleLease = (type: string, cost: number, state: string) => {
-    if (!company) {
-      showNotif('You need an active company before leasing business facilities.', false);
-      return;
-    }
-    const result = leaseFacility(company.id, type as any, state, cost);
-    showNotif(result.message, result.success);
-    if (result.success) onRefresh();
-  };
-
-  return (
-    <div className="flex flex-col h-full w-full">
-      <div className="flex items-center gap-6 px-8 py-3 border-b" style={{ borderColor: T.border, background: 'rgba(0,0,0,0.2)' }}>
-        {['vehicles', 'property'].map(t => (
-          <button key={t} onClick={() => setSubTab(t as any)} style={{ color: subTab === t ? T.gold : T.muted, borderBottom: subTab === t ? `2px solid ${T.gold}` : '2px solid transparent' }} className="text-[11px] font-mono uppercase tracking-widest pb-1">
-            {t}
-          </button>
-        ))}
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-[10px] font-mono text-zinc-500 uppercase">Buy for:</span>
-          <select 
-            value={selectedCompanyId} 
-            onChange={e => setSelectedCompanyId(e.target.value)}
-            className="text-[11px] font-mono px-2 py-1 rounded-sm"
-            style={{ background: T.panel, color: T.gold, border: `1px solid ${T.border}` }}
-          >
-            <option value="">-- Select Company --</option>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {notification && (
-        <div className="mx-8 mt-6 px-4 py-3 rounded-sm" style={{ background: notification.success ? 'rgba(54, 211, 153, 0.1)' : 'rgba(184, 85, 85, 0.1)', border: `1px solid ${notification.success ? T.mint : T.red}` }}>
-          <div className="text-sm font-bold" style={{ color: notification.success ? T.mint : T.red }}>
-            {notification.success ? 'Success' : 'Notice'}
-          </div>
-          <div className="text-xs mt-1" style={{ color: T.ivory }}>{notification.msg}</div>
-        </div>
-      )}
-
-      <div className="business-content-grid p-8 gap-8 overflow-y-auto">
-        <div className="flex flex-col gap-6">
-          {subTab === 'vehicles' && (
-            <>
-              <SectionHeader>🚚 New Vehicle Listings</SectionHeader>
-              <div className="grid grid-cols-2 gap-4">
-                {VEHICLE_CATALOGUE.map(spec => {
-                  const canAfford = company && company.companyCash >= spec.cost;
-                  return (
-                    <div key={spec.type} className="p-4 border rounded-sm flex flex-col" style={{ background: T.panel, borderColor: T.border }}>
-                      <div className="text-sm font-bold text-ivory mb-1">{spec.type}</div>
-                      <div className="text-[11px] text-zinc-400 mb-4">{spec.desc}</div>
-                      <div className="flex items-center justify-between mt-auto">
-                        <div>
-                          <div className="text-sm font-mono font-bold" style={{ color: canAfford ? T.mint : T.red }}>{formatMoney(spec.cost)}</div>
-                          <div className="text-[10px] font-mono" style={{ color: T.faint }}>Maint: {formatMoney(spec.maintenance)}/mo</div>
-                        </div>
-                        <GoldButton onClick={() => handlePurchaseVehicle(spec)}>Order New</GoldButton>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <SectionHeader>🏷️ Used Vehicle Listings</SectionHeader>
-              <div className="p-4 border rounded-sm text-center" style={{ borderColor: T.border, background: 'rgba(0,0,0,0.2)' }}>
-                <div className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest">No used listings currently available on the market.</div>
-              </div>
-
-              <SectionHeader>🏭 Player Manufacturing</SectionHeader>
-              <div className="p-4 border border-dashed rounded-sm text-center" style={{ borderColor: T.border }}>
-                <div className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest">Player manufacturing companies will be able to list vehicles here later.</div>
-              </div>
-            </>
-          )}
-
-          {subTab === 'property' && (
-            <>
-              <SectionHeader>🏢 Available Properties & Facilities</SectionHeader>
-              <div className="grid grid-cols-1 gap-4">
-                {[
-                  { type: 'Office', state: 'Drennport State', cost: 10000, benefit: 'Provides legitimacy and client trust later.' },
-                  { type: 'Vehicle Yard', state: 'Drennport State', cost: 15000, benefit: '+2 vehicle support capacity in selected state.' },
-                  { type: 'Small Depot', state: 'Drennport State', cost: 25000, benefit: 'Improves local courier and port shuttle operations.' },
-                  { type: 'Warehouse', state: 'Westport State', cost: 40000, benefit: 'Unlocks storage and larger retail restock contracts.' },
-                  { type: 'Regional Branch Office', state: 'Ironvale State', cost: 30000, benefit: 'Expands business presence to another state.' }
-                ].map((fac, i) => {
-                  const canAfford = company && company.companyCash >= fac.cost;
-                  return (
-                    <div key={i} className="flex flex-row items-center justify-between p-4 border rounded-sm" style={{ background: T.panel, borderColor: T.border }}>
-                      <div>
-                        <div className="text-sm font-bold text-ivory flex items-center gap-2">
-                          {fac.type}
-                          <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(255,255,255,0.05)', color: T.faint }}>{fac.state}</span>
-                        </div>
-                        <div className="text-[11px] text-zinc-400 mt-1">{fac.benefit}</div>
-                      </div>
-                      <div className="text-right flex items-center gap-4">
-                        <div>
-                          <div className="text-sm font-mono font-bold" style={{ color: canAfford ? T.mint : T.red }}>{formatMoney(fac.cost)}/mo</div>
-                        </div>
-                        <GoldButton onClick={() => handleLease(fac.type, fac.cost, fac.state)}>Lease Facility</GoldButton>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <SectionHeader>🔒 Locked Markets</SectionHeader>
-              <div className="flex gap-4">
-                <div className="flex-1 p-3 border border-dashed text-center" style={{ borderColor: T.border }}><span className="text-[10px] font-mono text-zinc-500">Port Facilities</span></div>
-                <div className="flex-1 p-3 border border-dashed text-center" style={{ borderColor: T.border }}><span className="text-[10px] font-mono text-zinc-500">Land Purchase</span></div>
-                <div className="flex-1 p-3 border border-dashed text-center" style={{ borderColor: T.border }}><span className="text-[10px] font-mono text-zinc-500">Construction</span></div>
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-6">
-          <SectionHeader>📋 Selected Buyer Context</SectionHeader>
-          <div className="p-5 border rounded-sm" style={{ background: T.panel, borderColor: T.border }}>
-            {company ? (
-              <div className="flex flex-col gap-3">
-                <FieldRow label="Company" value={company.name} valueColor={T.ivory} />
-                <FieldRow label="Cash Available" value={formatMoney(company.companyCash)} valueColor={T.mint} />
-                <FieldRow label="Current Status" value={company.status} valueColor={T.steel} />
-              </div>
-            ) : (
-              <div className="text-[11px] font-mono text-zinc-500 italic">No active company selected. Buying disabled.</div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function BusinessPage() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
@@ -519,11 +357,7 @@ export default function BusinessPage() {
             ← Back to My Companies
           </span>
         )}
-        {activeTab === 'start' && (
-          <span style={{ cursor: 'pointer', color: T.gold, fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }} onClick={() => { setActiveTab('overview'); setStep(1); }}>
-            ← Back to Business Overview
-          </span>
-        )}
+        
         {activeTab === 'registry' && (
           <span style={{ cursor: 'pointer', color: T.gold, fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }} onClick={() => setActiveTab('overview')}>
             ← Back to Registry
@@ -538,7 +372,8 @@ export default function BusinessPage() {
         {activeTab === 'start'     && <StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} selectedModel={selectedModel} setSelectedModel={setSelectedModel} />}
         
         {activeTab === 'companies' && company && !selectedCompanyId && (
-          <div style={{ maxWidth: '860px' }}>
+          <div className="business-content-grid">
+            <div>
             <SectionHeader stamp="PORTFOLIO">My Companies</SectionHeader>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
               <div style={{ background: T.paper, border: `1px solid ${T.border}`, padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: `3px solid ${T.gold}` }}>
@@ -579,11 +414,9 @@ export default function BusinessPage() {
           <CompanyDeskTab company={company} fleet={fleet} contracts={contracts} playerCash={playerCash} characterName={characterName} onRefresh={refreshAll} />
         )}
         
-        
-        {activeTab === 'market' && <MarketTab playerCash={playerCash} onRefresh={refreshAll} />}
-{activeTab === 'registry'  && <RegistryTab company={company} />}
+        {activeTab === 'registry'  && <RegistryTab company={company} />}
+        </div>
       </div>
-    </div>
     </div>
   );
 }
@@ -953,7 +786,6 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   const [fleetSubTab, setFleetSubTab] = useState<'current' | 'procurement' | 'market' | 'locked'>('current');
   const [notification, setNotification] = useState<{ msg: string; success: boolean } | null>(null);
   const [contractFilter, setContractFilter] = useState<string>('All');
-  const [contractSearch, setContractSearch] = useState<string>('');
 
   const showNotif = (msg: string, success: boolean) => {
     setNotification({ msg, success });
@@ -1036,7 +868,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   if (['Player Contracts', 'Government', 'International'].includes(contractFilter)) filteredContracts = []; // Locked for v1
 
   return (
-    <div style={{ width: '100%' }}>
+    <div style={{ maxWidth: '900px' }}>
       {notification && (
         <div style={{ marginBottom: '16px', padding: '12px 16px', background: notification.success ? 'rgba(54,211,153,0.08)' : 'rgba(184,85,85,0.08)', border: `1px solid ${notification.success ? T.mint : T.red}`, color: notification.success ? T.mint : T.red, fontSize: '12px', lineHeight: 1.6 }}>
           {notification.msg}
@@ -1055,28 +887,26 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
       </div>
 
       {deskTab === 'overview' && (
-        <div className="business-content-grid">
-          <div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              <PanelBox>
-                <SectionHeader stamp="COMPANY FILE">Company Details</SectionHeader>
-                <FieldRow label="Name" value={company.name} />
-                <FieldRow label={company.legalStructure === 'Corporation' ? "Chairperson & CEO" : "Founder & CEO"} value={company.ownerName} />
-                <FieldRow label="Sector" value={company.sector} />
-                <FieldRow label="HQ" value={company.state} />
-                <FieldRow label="Status" value={company.status} valueColor={T.mint} />
-                <FieldRow label="Reputation" value={company.reputation} valueColor={T.gold} />
-                <FieldRow label="Reliability" value={company.reliability} />
-              </PanelBox>
-              <PanelBox>
-                <SectionHeader stamp="LEDGER">Financials</SectionHeader>
-                <FieldRow label="Company Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
-                <FieldRow label="Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.red : T.muted} />
-                <FieldRow label="Fleet Assets" value={formatMoney(companyValue - company.companyCash + company.debt)} valueColor={T.steel} />
-                <FieldRow label="Company Value" value={formatMoney(companyValue)} valueColor={T.gold} />
-                <FieldRow label="Net Worth" value={formatMoney(netWorth)} valueColor={T.gold} />
-              </PanelBox>
-            </div>
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <PanelBox>
+              <SectionHeader stamp="COMPANY FILE">Company Details</SectionHeader>
+              <FieldRow label="Name" value={company.name} />
+              <FieldRow label={company.legalStructure === 'Corporation' ? "Chairperson & CEO" : "Founder & CEO"} value={company.ownerName} />
+              <FieldRow label="Sector" value={company.sector} />
+              <FieldRow label="HQ" value={company.state} />
+              <FieldRow label="Status" value={company.status} valueColor={T.mint} />
+              <FieldRow label="Reputation" value={company.reputation} valueColor={T.gold} />
+              <FieldRow label="Reliability" value={company.reliability} />
+            </PanelBox>
+            <PanelBox>
+              <SectionHeader stamp="LEDGER">Financials</SectionHeader>
+              <FieldRow label="Company Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
+              <FieldRow label="Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.red : T.muted} />
+              <FieldRow label="Fleet Assets" value={formatMoney(companyValue - company.companyCash + company.debt)} valueColor={T.steel} />
+              <FieldRow label="Company Value" value={formatMoney(companyValue)} valueColor={T.gold} />
+              <FieldRow label="Net Worth" value={formatMoney(netWorth)} valueColor={T.gold} />
+            </PanelBox>
             <PanelBox style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(54,211,153,0.03)', border: `1px solid ${T.mint}40` }}>
               <div style={{ width: '120px', height: '120px', borderRadius: '50%', border: `6px solid ${T.mint}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', boxShadow: '0 0 20px rgba(54,211,153,0.1)' }}>
                 <span style={{ fontSize: '24px', fontWeight: 700, color: T.ivory }}>100%</span>
@@ -1088,8 +918,8 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
               </div>
             </PanelBox>
           </div>
-          <div>
-            <PanelBox style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <PanelBox>
               <SectionHeader>Operations Summary</SectionHeader>
               <FieldRow label="Total Fleet" value={fleet.length} />
               <FieldRow label="Assigned Vehicles" value={fleet.filter(v => v.assignedContractId || v.assignedAutoOpPool).length} valueColor={T.mint} />
@@ -1098,32 +928,28 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
               <FieldRow label="Active Contracts" value={activeContracts.length} />
               <FieldRow label="Auto Ops Pools Active" value={new Set(fleet.filter(v => v.assignedAutoOpPool).map(v => v.assignedAutoOpPool)).size} />
             </PanelBox>
-            <PanelBox style={{ marginBottom: '16px' }}>
+            <PanelBox>
               <SectionHeader>Contract Pipeline</SectionHeader>
               <FieldRow label="Active Contracts" value={activeContracts.length} />
               <FieldRow label="Completed" value={contractHistory.filter(h => h.result === 'completed').length} />
-              <FieldRow label="Failed" value={contractHistory.filter(h => h.result === 'failed').length} valueColor={T.red} />
-            </PanelBox>
-            <PanelBox>
-              <SectionHeader stamp="RECORDS">Recent Records</SectionHeader>
-              {records.filter((r:any) => r.companyId === company.id).slice(0, 3).map((r:any, i:number) => (
-                <div key={i} style={{ fontSize: '11px', color: T.muted, marginBottom: '8px', paddingBottom: '8px', borderBottom: i < 2 ? `1px solid ${T.border}` : 'none' }}>
-                  {r.text || r.msg}
-                </div>
-              ))}
-              {records.filter((r:any) => r.companyId === company.id).length === 0 && (
-                <div style={{ fontSize: '11px', color: T.faint }}>No recent records.</div>
-              )}
+              <FieldRow label="Reliability" value={company.reliability} />
             </PanelBox>
           </div>
         </div>
       )}
 
       {deskTab === 'operations' && (
-        <div className="business-content-grid">
-          <div>
-            <SectionHeader>Operations Desk</SectionHeader>
-            <PanelBox style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <div>
+          <SectionHeader>Operations Desk</SectionHeader>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+            <PanelBox>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Fleet Utilization</div>
+              <FieldRow label="Total Vehicles Owned" value={fleet.length} />
+              <FieldRow label="Idle (Unassigned) Vehicles" value={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length} valueColor={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length > 0 ? T.red : T.muted} />
+              <FieldRow label="Assigned to Contracts" value={fleet.filter(v => v.assignedContractId).length} valueColor={T.mint} />
+              <FieldRow label="Assigned to Auto Operations" value={fleet.filter(v => v.assignedAutoOpPool).length} valueColor={T.gold} />
+            </PanelBox>
+            <PanelBox style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Monthly Dispatch Console</div>
                 <p style={{ fontSize: '11px', color: T.muted, lineHeight: 1.5, margin: '0 0 16px' }}>
@@ -1134,350 +960,466 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                 ⚡ Dispatch & Process Operations
               </GoldButton>
             </PanelBox>
-
-            <SectionHeader stamp="FACILITIES">Facility Support & Asset Yield Boosts</SectionHeader>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-              {(() => {
-                const hasWestport = (company.facilities || []).some(f => f.state === 'Westport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
-                const hasDrennport = (company.facilities || []).some(f => f.state === 'Drennport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
-                const branchCount = (company.facilities || []).filter(f => f.type === 'Regional Branch Office').length;
-                return (
-                  <>
-                    <PanelBox style={{ background: hasWestport ? 'rgba(54,211,153,0.02)' : T.panel, border: `1px solid ${hasWestport ? T.mint : T.border}` }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: hasWestport ? T.mint : T.ivory }}>Westport Depot</span>
-                        <span style={{ fontSize: '9px', fontFamily: 'monospace', color: hasWestport ? T.mint : T.faint, border: `1px solid ${hasWestport ? T.mint : T.border}`, padding: '1px 5px' }}>{hasWestport ? 'Active' : 'Missing'}</span>
-                      </div>
-                      <div style={{ fontSize: '11px', color: T.muted, lineHeight: 1.4 }}>
-                        {hasWestport ? '✓ Port Shuttle yield increased by 35% across Westport routes.' : 'Lease Westport Depot/Warehouse to boost Port Shuttle yield by 35%.'}
-                      </div>
-                    </PanelBox>
-                    <PanelBox style={{ background: hasDrennport ? 'rgba(54,211,153,0.02)' : T.panel, border: `1px solid ${hasDrennport ? T.mint : T.border}` }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: hasDrennport ? T.mint : T.ivory }}>Drennport Depot</span>
-                        <span style={{ fontSize: '9px', fontFamily: 'monospace', color: hasDrennport ? T.mint : T.faint, border: `1px solid ${hasDrennport ? T.mint : T.border}`, padding: '1px 5px' }}>{hasDrennport ? 'Active' : 'Missing'}</span>
-                      </div>
-                      <div style={{ fontSize: '11px', color: T.muted, lineHeight: 1.4 }}>
-                        {hasDrennport ? '✓ Courier yield increased by 25% across Drennport routes.' : 'Lease Drennport Depot/Warehouse to boost Local Courier yield by 25%.'}
-                      </div>
-                    </PanelBox>
-                    <PanelBox style={{ background: branchCount > 0 ? 'rgba(54,211,153,0.02)' : T.panel, border: `1px solid ${branchCount > 0 ? T.mint : T.border}`, gridColumn: 'span 2' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: branchCount > 0 ? T.mint : T.ivory }}>Branch Network</span>
-                        <span style={{ fontSize: '9px', fontFamily: 'monospace', color: branchCount > 0 ? T.mint : T.faint, border: `1px solid ${branchCount > 0 ? T.mint : T.border}`, padding: '1px 5px' }}>{branchCount > 0 ? `${branchCount} Active` : 'Inactive'}</span>
-                      </div>
-                      <div style={{ fontSize: '11px', color: T.muted, lineHeight: 1.4 }}>
-                        {branchCount > 0 ? `✓ Unlocks multi-state operations and lowers interstate route dispatch cost.` : 'Lease Regional Branch Offices to establish multi-state presence.'}
-                      </div>
-                    </PanelBox>
-                  </>
-                );
-              })()}
-            </div>
-
-            <SectionHeader stamp="RECURRING">Auto Operations Pools</SectionHeader>
-            <p style={{ fontSize: '11px', color: T.muted, marginBottom: '16px' }}>Assign idle vehicles to recurring local pools. This generates steady monthly income but wears down vehicle condition.</p>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '16px' }}>
-              {['Local Delivery Pool', 'Port Shuttle Pool'].map(pool => {
-                const marketDemand = pool === 'Port Shuttle Pool' ? 'High' : 'Moderate';
-                const marketComp = pool === 'Port Shuttle Pool' ? 'Moderate' : 'High';
-                const hasWestport = (company.facilities || []).some(f => f.state === 'Westport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
-                const hasDrennport = (company.facilities || []).some(f => f.state === 'Drennport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
-                const isBoosted = (pool === 'Port Shuttle Pool' && hasWestport) || (pool === 'Local Delivery Pool' && hasDrennport);
-                const boostPct = pool === 'Port Shuttle Pool' ? '+35%' : '+25%';
-                return (
-                <PanelBox key={pool}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory }}>{pool}</div>
-                    {isBoosted && (
-                      <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.mint, background: 'rgba(54,211,153,0.1)', border: `1px solid ${T.mint}`, padding: '1px 6px' }}>
-                        ⚡ Boosted {boostPct}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>
-                    {pool === 'Local Delivery Pool' ? 'High volume local courier work around Drennport. Steady demand, high competition.' : 'Container and crate movement around Westport docks. High demand.'}
-                  </div>
-                  
-                  <div style={{ display: 'flex', gap: '16px', fontSize: '10px', fontFamily: 'monospace', color: T.faint, marginBottom: '12px' }}>
-                    <span>Demand: <span style={{ color: marketDemand === 'High' ? T.mint : T.gold }}>{marketDemand}</span></span>
-                    <span>Competition: <span style={{ color: marketComp === 'High' ? T.red : T.gold }}>{marketComp}</span></span>
-                  </div>
-                  
-                  {fleet.filter(v => v.assignedAutoOpPool === pool).map(v => (
-                    <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', background: 'rgba(255,255,255,0.05)', marginBottom: '8px', fontSize: '11px' }}>
-                      <span>{v.type} ({v.condition}%)</span>
-                      <GhostButton onClick={() => handleAssignAutoOp(v.id, null)} color={T.red}>Remove</GhostButton>
-                    </div>
-                  ))}
-
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                    <select id={`pool-sel-${pool.replace(/\s+/g, '')}`} style={{ padding: '6px', background: T.panel, color: T.ivory, border: `1px solid ${T.border}`, fontSize: '11px', flex: 1 }}>
-                      <option value="">Select available vehicle...</option>
-                      {fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).map(v => (
-                        <option key={v.id} value={v.id}>{v.type} ({v.condition}%)</option>
-                      ))}
-                    </select>
-                    <GhostButton onClick={() => {
-                      const sel = document.getElementById(`pool-sel-${pool.replace(/\s+/g, '')}`) as HTMLSelectElement;
-                      if (sel && sel.value) handleAssignAutoOp(sel.value, pool as any);
-                    }}>Assign</GhostButton>
-                  </div>
-                </PanelBox>
-              )})}
-            </div>
           </div>
-          <div>
-            <PanelBox style={{ marginBottom: '16px' }}>
-              <SectionHeader>Fleet Utilization</SectionHeader>
-              <FieldRow label="Total Vehicles" value={fleet.length} />
-              <FieldRow label="Assigned to Auto Ops" value={fleet.filter(v => v.assignedAutoOpPool).length} valueColor={T.gold} />
-              <FieldRow label="Assigned to Contracts" value={fleet.filter(v => v.assignedContractId).length} valueColor={T.mint} />
-              <FieldRow label="Idle Vehicles" value={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length} valueColor={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length > 0 ? T.red : T.muted} />
-            </PanelBox>
-            <PanelBox style={{ marginBottom: '16px' }}>
-              <SectionHeader>Monthly Estimate</SectionHeader>
-              <FieldRow label="Est. Auto Revenue" value="Varies" valueColor={T.mint} />
-              <FieldRow label="Operating Costs" value={formatMoney(company.monthlyCosts)} valueColor={T.red} />
-              <FieldRow label="Fleet Maintenance" value={formatMoney(fleet.reduce((sum, v) => sum + v.monthlyMaintenance, 0))} valueColor={T.red} />
-              <div style={{ marginTop: '12px', padding: '10px 0', borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: T.ivory }}>Projected Net</span>
-                <span style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.muted }}>?</span>
-              </div>
-            </PanelBox>
-            {fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length > 0 && (
-              <PanelBox style={{ marginBottom: '16px', background: 'rgba(184,85,85,0.05)', border: `1px solid ${T.red}` }}>
-                <SectionHeader>Idle Fleet Warning</SectionHeader>
-                <div style={{ fontSize: '11px', color: T.red }}>You have idle vehicles. They cost maintenance without generating revenue.</div>
+
+          {/* Facility Support Panel */}
+          <SectionHeader stamp="FACILITIES">Facility Support & Asset Yield Boosts</SectionHeader>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+            {(() => {
+              const hasWestport = (company.facilities || []).some(f => f.state === 'Westport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
+              const hasDrennport = (company.facilities || []).some(f => f.state === 'Drennport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
+              const branchCount = (company.facilities || []).filter(f => f.type === 'Regional Branch Office').length;
+              return (
+                <>
+                  <PanelBox style={{ background: hasWestport ? 'rgba(54,211,153,0.02)' : T.panel, border: `1px solid ${hasWestport ? T.mint : T.border}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: hasWestport ? T.mint : T.ivory }}>Westport Depot</span>
+                      <span style={{ fontSize: '9px', fontFamily: 'monospace', color: hasWestport ? T.mint : T.faint, border: `1px solid ${hasWestport ? T.mint : T.border}`, padding: '1px 5px' }}>{hasWestport ? 'Active' : 'Missing'}</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: T.muted, lineHeight: 1.4 }}>
+                      {hasWestport ? '✓ Port Shuttle yield increased by 35% across Westport routes.' : 'Lease Westport Depot/Warehouse to boost Port Shuttle yield by 35%.'}
+                    </div>
+                  </PanelBox>
+                  <PanelBox style={{ background: hasDrennport ? 'rgba(54,211,153,0.02)' : T.panel, border: `1px solid ${hasDrennport ? T.mint : T.border}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: hasDrennport ? T.mint : T.ivory }}>Drennport Depot</span>
+                      <span style={{ fontSize: '9px', fontFamily: 'monospace', color: hasDrennport ? T.mint : T.faint, border: `1px solid ${hasDrennport ? T.mint : T.border}`, padding: '1px 5px' }}>{hasDrennport ? 'Active' : 'Missing'}</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: T.muted, lineHeight: 1.4 }}>
+                      {hasDrennport ? '✓ Courier yield increased by 25% across Drennport routes.' : 'Lease Drennport Depot/Warehouse to boost Local Courier yield by 25%.'}
+                    </div>
+                  </PanelBox>
+                  <PanelBox style={{ background: branchCount > 0 ? 'rgba(54,211,153,0.02)' : T.panel, border: `1px solid ${branchCount > 0 ? T.mint : T.border}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: branchCount > 0 ? T.mint : T.ivory }}>Branch Network</span>
+                      <span style={{ fontSize: '9px', fontFamily: 'monospace', color: branchCount > 0 ? T.mint : T.faint, border: `1px solid ${branchCount > 0 ? T.mint : T.border}`, padding: '1px 5px' }}>{branchCount > 0 ? `${branchCount} Active` : 'Inactive'}</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: T.muted, lineHeight: 1.4 }}>
+                      {branchCount > 0 ? `✓ Unlocks multi-state operations and lowers interstate route dispatch cost.` : 'Lease Regional Branch Offices to establish multi-state presence.'}
+                    </div>
+                  </PanelBox>
+                </>
+              );
+            })()}
+          </div>
+
+          <SectionHeader stamp="RECURRING">Auto Operations Pools</SectionHeader>
+          <p style={{ fontSize: '11px', color: T.muted, marginBottom: '16px' }}>Assign idle vehicles to recurring local pools. This generates steady monthly income but wears down vehicle condition.</p>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            {['Local Delivery Pool', 'Port Shuttle Pool'].map(pool => {
+              const marketDemand = pool === 'Port Shuttle Pool' ? 'High' : 'Moderate';
+              const marketComp = pool === 'Port Shuttle Pool' ? 'Moderate' : 'High';
+              const hasWestport = (company.facilities || []).some(f => f.state === 'Westport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
+              const hasDrennport = (company.facilities || []).some(f => f.state === 'Drennport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
+              const isBoosted = (pool === 'Port Shuttle Pool' && hasWestport) || (pool === 'Local Delivery Pool' && hasDrennport);
+              const boostPct = pool === 'Port Shuttle Pool' ? '+35%' : '+25%';
+              return (
+              <PanelBox key={pool}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory }}>{pool}</div>
+                  {isBoosted && (
+                    <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.mint, background: 'rgba(54,211,153,0.1)', border: `1px solid ${T.mint}`, padding: '1px 6px' }}>
+                      ⚡ Boosted {boostPct}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>
+                  {pool === 'Local Delivery Pool' ? 'High volume local courier work around Drennport. Steady demand, high competition.' : 'Container and crate movement around Westport docks. High demand.'}
+                </div>
+                
+                <div style={{ display: 'flex', gap: '16px', fontSize: '10px', fontFamily: 'monospace', color: T.faint, marginBottom: '12px' }}>
+                  <span>Demand: <span style={{ color: marketDemand === 'High' ? T.mint : T.gold }}>{marketDemand}</span></span>
+                  <span>Competition: <span style={{ color: marketComp === 'High' ? T.red : T.gold }}>{marketComp}</span></span>
+                </div>
+                
+                {fleet.filter(v => v.assignedAutoOpPool === pool).map(v => (
+                  <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', background: 'rgba(255,255,255,0.05)', marginBottom: '8px', fontSize: '11px' }}>
+                    <span>{v.type} ({v.condition}%)</span>
+                    <GhostButton onClick={() => handleAssignAutoOp(v.id, null)} color={T.red}>Remove</GhostButton>
+                  </div>
+                ))}
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                  <select id={`pool-sel-${pool.replace(/\s+/g, '')}`} style={{ padding: '6px', background: T.panel, color: T.ivory, border: `1px solid ${T.border}`, fontSize: '11px', flex: 1 }}>
+                    <option value="">Select available vehicle...</option>
+                    {fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).map(v => (
+                      <option key={v.id} value={v.id}>{v.type} ({v.condition}%)</option>
+                    ))}
+                  </select>
+                  <GhostButton onClick={() => {
+                    const sel = document.getElementById(`pool-sel-${pool.replace(/\s+/g, '')}`) as HTMLSelectElement;
+                    if (sel && sel.value) handleAssignAutoOp(sel.value, pool as any);
+                  }}>Assign</GhostButton>
+                </div>
               </PanelBox>
-            )}
-            <PanelBox>
-              <SectionHeader>Contract Pipeline</SectionHeader>
-              <FieldRow label="Active Contracts" value={activeContracts.length} />
-            </PanelBox>
+            )})}
           </div>
         </div>
       )}
 
       {deskTab === 'fleet' && (
-        <div className="business-content-grid">
-          <div>
-            <SectionHeader>Fleet Control & Logistics Desk</SectionHeader>
-            
-            <PanelBox style={{ marginBottom: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>Current Active Fleet</div>
-                  <div style={{ fontSize: '11px', color: T.muted }}>Manage vehicles owned by the company.</div>
+        <div>
+          <SectionHeader>Fleet Control & Logistics Logistics Desk</SectionHeader>
+          
+          {/* Fleet Sub-navigation (Part 11) */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: `1px solid ${T.border}`, overflowX: 'auto', paddingBottom: '4px' }}>
+            {[
+              { id: 'current', label: 'Current Fleet' },
+              { id: 'procurement', label: 'Vehicle Procurement' },
+              { id: 'market', label: 'Vehicle Market' },
+              { id: 'locked', label: 'Manufacturer Listings 🔒' },
+            ].map(sub => (
+              <button
+                key={sub.id}
+                onClick={() => setFleetSubTab(sub.id as any)}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '9px',
+                  fontFamily: 'monospace',
+                  textTransform: 'uppercase',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: fleetSubTab === sub.id ? `2px solid ${T.gold}` : '2px solid transparent',
+                  color: fleetSubTab === sub.id ? T.gold : T.muted,
+                  cursor: 'pointer',
+                  fontWeight: fleetSubTab === sub.id ? 700 : 500,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {sub.label}
+              </button>
+            ))}
+          </div>
+
+          {fleetSubTab === 'current' && (
+            <div>
+              {fleet.length === 0 ? (
+                <div style={{ padding: '30px', textAlign: 'center', background: 'rgba(255,255,255,0.01)', border: `1px solid ${T.border}`, color: T.faint, fontSize: '12px' }}>
+                  Your fleet is currently empty. Buy brand new vehicles from the <strong>Vehicle Procurement</strong> tab or used workhorses from the <strong>Vehicle Market</strong>.
                 </div>
-                <div style={{ textAlign: 'right', fontSize: '11px' }}>
-                  Total Capacity: <strong style={{ color: T.gold }}>{fleet.reduce((sum, v) => sum + v.capacity, 0)} items</strong>
+              ) : (
+                <div style={{ marginBottom: '24px' }}>
+                  {fleet.map(v => {
+                    const assetValue = Math.round(v.purchaseCost * (v.condition / 100));
+                    return (
+                      <div key={v.id} style={{ background: T.paper, border: `1px solid ${T.border}`, padding: '16px', marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                          <div>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>{v.type}</div>
+                            <div style={{ fontSize: '11px', color: T.muted }}>Capacity {v.capacity} · Depreciated Value {formatMoney(assetValue)} · Upkeep {formatMoney(v.monthlyMaintenance)}/mo</div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>Condition</div>
+                            <div style={{ fontSize: '18px', fontFamily: 'monospace', fontWeight: 700, color: v.condition > 60 ? T.mint : v.condition > 30 ? T.gold : T.red }}>{v.condition}%</div>
+                          </div>
+                        </div>
+                        <div style={{ height: '4px', background: 'rgba(255,255,255,0.06)', marginBottom: '12px' }}>
+                          <div style={{ height: '100%', width: `${v.condition}%`, background: v.condition > 60 ? T.mint : v.condition > 30 ? T.gold : T.red, transition: 'width 0.3s' }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ fontSize: '11px', color: v.assignedContractId || v.assignedAutoOpPool ? T.gold : T.mint }}>
+                            {v.assignedContractId ? '⚡ Assigned to contract' : v.assignedAutoOpPool ? `⚙ Assigned to ${v.assignedAutoOpPool}` : '✓ Available'}
+                          </div>
+                          {!v.assignedContractId && !v.assignedAutoOpPool && (
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <GhostButton onClick={() => handleMaintenance(v.id, 'basic')} color={T.muted}>
+                                Basic Maintenance {formatMoney(5000)} (+10%)
+                              </GhostButton>
+                              <GhostButton onClick={() => handleMaintenance(v.id, 'full')} color={T.gold}>
+                                Full Service {formatMoney(15000)} (+30%)
+                              </GhostButton>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {fleetSubTab === 'procurement' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '20px' }}>
+              <div>
+                <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint, marginBottom: '12px' }}>Factory Direct Catalog</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {VEHICLE_CATALOGUE.map(spec => {
+                    const canAfford = company.companyCash >= spec.cost;
+                    const dealer = spec.type === 'Used Delivery Van' ? 'Drennport Motor Works' : spec.type === 'Box Truck' ? 'Kovath Industrial Motors' : 'Ironvale Heavy Machines';
+                    return (
+                      <div key={spec.type} style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.gold, marginBottom: '4px' }}>{dealer}</div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, marginBottom: '4px' }}>{spec.type} (Brand New)</div>
+                          <div style={{ fontSize: '11px', color: T.muted }}>Capacity {spec.capacity} · Upkeep {formatMoney(spec.maintenance)}/mo · Cond: 100%</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '16px', fontFamily: 'monospace', fontWeight: 700, color: canAfford ? T.mint : T.red, marginBottom: '8px' }}>{formatMoney(spec.cost)}</div>
+                          <GoldButton onClick={() => handleBuyVehicle(spec.type)} disabled={!canAfford}>Direct Purchase</GoldButton>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {fleet.length === 0 && (
-                <div style={{ padding: '30px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', border: `1px dashed ${T.border}`, color: T.muted, fontSize: '12px' }}>
-                  No vehicles in fleet. Purchase vehicles below to start operating contracts.
-                </div>
-              )}
+              {/* Secondary Procurement Panel (Part 11) */}
+              <div>
+                <SectionHeader stamp="FACTORY">Order Vehicles</SectionHeader>
+                <PanelBox style={{ background: T.paper }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: T.gold, marginBottom: '8px' }}>Fleet Orders</div>
+                  <p style={{ fontSize: '11px', color: T.muted, lineHeight: 1.6, margin: 0 }}>
+                    “Order vehicles directly from manufacturers or buy available units from the market. Future player manufacturers will supply this market.”
+                  </p>
+                </PanelBox>
+              </div>
+            </div>
+          )}
 
-              {fleet.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {fleet.map((v:any, idx:number) => (
-                    <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.panel, border: `1px solid ${T.border}`, padding: '12px', fontSize: '11px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <div>
-                          <div style={{ fontWeight: 700, color: T.ivory }}>{v.type}</div>
-                          <div style={{ color: T.faint }}>ID: {v.id.substring(0, 8)} • Capacity: {v.capacity}</div>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span style={{ color: v.condition > 80 ? T.mint : v.condition > 50 ? T.gold : T.red }}>Cond: {v.condition}%</span>
-                          <span style={{ color: T.muted }}>Maint: {formatMoney(v.maintenance)}/mo</span>
-                        </div>
+          {fleetSubTab === 'market' && (
+            <div>
+              <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint, marginBottom: '12px' }}>Pre-Owned Vehicle Dealerships</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {[
+                  {
+                    type: 'Used Delivery Van' as const,
+                    condition: 45,
+                    price: 32000,
+                    dealer: 'Westport Wharf Used Autos',
+                    tagline: 'High mileage delivery van. Scuffed body but runs fine. Perfect for local courier work.'
+                  },
+                  {
+                    type: 'Box Truck' as const,
+                    condition: 68,
+                    price: 98000,
+                    dealer: 'Drennport Industrial Exchange',
+                    tagline: 'Returned lease Box Truck. Serviced well, perfect intermediate vehicle.'
+                  },
+                  {
+                    type: 'Used Freight Truck' as const,
+                    condition: 75,
+                    price: 185000,
+                    dealer: 'Ironvale Heavy Salvage',
+                    tagline: 'Factory second freight truck. Minor paint blemishes, chassis is fully sound.'
+                  }
+                ].map((item, idx) => {
+                  const canAfford = company.companyCash >= item.price;
+                  return (
+                    <div key={idx} style={{ padding: '16px', background: T.paper, border: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: `3px solid ${item.condition > 60 ? T.mint : T.gold}` }}>
+                      <div>
+                        <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.gold, marginBottom: '4px' }}>{item.dealer}</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, marginBottom: '2px' }}>{item.type} (Used)</div>
+                        <div style={{ fontSize: '11px', color: T.muted, marginBottom: '6px' }}>{item.tagline}</div>
+                        <div style={{ fontSize: '11px', color: T.faint }}>Condition: <strong style={{ color: item.condition > 60 ? T.mint : T.gold }}>{item.condition}%</strong> · Capacity: {item.type === 'Used Delivery Van' ? 1 : item.type === 'Box Truck' ? 2 : 3}</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        {v.assignedContractId && <span style={{ color: T.mint, border: `1px solid ${T.mint}`, padding: '2px 6px', background: 'rgba(54,211,153,0.1)' }}>On Contract</span>}
-                        {v.assignedAutoOpPool && <span style={{ color: T.gold, border: `1px solid ${T.gold}`, padding: '2px 6px', background: 'rgba(224,185,83,0.1)' }}>{v.assignedAutoOpPool}</span>}
-                        {!v.assignedContractId && !v.assignedAutoOpPool && <span style={{ color: T.faint }}>Idle</span>}
+                        <div style={{ fontSize: '16px', fontFamily: 'monospace', fontWeight: 700, color: canAfford ? T.mint : T.red, marginBottom: '8px' }}>{formatMoney(item.price)}</div>
+                        <GoldButton
+                          disabled={!canAfford}
+                          onClick={() => {
+                            if (company.companyCash < item.price) return;
+                            company.companyCash -= item.price;
+                            saveCompany(company);
+                            const newVeh: Vehicle = {
+                              id: `veh_${Date.now()}_${idx}`,
+                              companyId: company.id,
+                              type: item.type,
+                              capacity: item.type === 'Used Delivery Van' ? 1 : item.type === 'Box Truck' ? 2 : 3,
+                              condition: item.condition,
+                              purchaseCost: item.price,
+                              monthlyMaintenance: item.type === 'Used Delivery Van' ? 3000 : item.type === 'Box Truck' ? 7000 : 12000,
+                              purchasedAt: new Date().toISOString()
+                            };
+                            saveVehicle(newVeh);
+                            showNotif(`Purchased Used ${item.type} for ${formatMoney(item.price)}.`, true);
+                            onRefresh();
+                          }}
+                        >
+                          Acquire Unit
+                        </GoldButton>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </PanelBox>
-
-            <SectionHeader stamp="PROCURE">Vehicle Procurement Market</SectionHeader>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              {VEHICLE_CATALOGUE.map((v, i) => (
-                <PanelBox key={i}>
-                  <div style={{ fontWeight: 700, fontSize: '13px', color: T.ivory, marginBottom: '4px' }}>{v.type}</div>
-                  <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px', minHeight: '34px' }}>{v.desc}</div>
-                  
-                  <FieldRow label="Capacity" value={v.capacity} />
-                  <FieldRow label="Maint /mo" value={formatMoney(v.maintenance)} valueColor={T.red} />
-                  
-                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: T.gold }}>{formatMoney(v.cost)}</div>
-                    <GoldButton 
-                      onClick={() => handleBuyVehicle(v.type as any)}
-                      disabled={company.companyCash < v.cost}
-                    >
-                      Buy Asset
-                    </GoldButton>
-                  </div>
-                </PanelBox>
-              ))}
-            </div>
-
-            <div style={{ marginTop: '40px', borderTop: `1px solid ${T.border}`, paddingTop: '24px' }}>
-              <SectionHeader stamp="USED MARKET">Player Used Market</SectionHeader>
-              <div style={{ padding: '30px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', border: `1px dashed ${T.border}`, color: T.muted, fontSize: '12px' }}>
-                Used vehicle listings from other players will appear here in Beta.
+                  );
+                })}
               </div>
             </div>
-          </div>
-          <div>
-            <PanelBox style={{ marginBottom: '16px' }}>
-              <SectionHeader>Fleet Summary</SectionHeader>
-              <FieldRow label="Vehicles Owned" value={fleet.length} />
-              <FieldRow label="Total Capacity" value={fleet.reduce((s, v) => s + v.capacity, 0)} />
-              <FieldRow label="Available Capacity" value={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).reduce((s, v) => s + v.capacity, 0)} valueColor={T.mint} />
-              <FieldRow label="Assigned Vehicles" value={fleet.filter(v => v.assignedContractId || v.assignedAutoOpPool).length} />
+          )}
+
+          {fleetSubTab === 'locked' && (
+            <PanelBox style={{ background: T.paper, padding: '24px', textAlign: 'center' }}>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: T.muted, marginBottom: '8px' }}>Player Manufacturer Listings</div>
+              <p style={{ fontSize: '11px', color: T.faint, lineHeight: 1.6, maxWidth: '500px', margin: '0 auto' }}>
+                “Future player-run manufacturing corporations will list factory-new heavy vehicles and custom-ordered trailers here. Player logistics corporations will buy directly from player manufacturers.”
+              </p>
             </PanelBox>
-            <PanelBox style={{ marginBottom: '16px' }}>
-              <SectionHeader>Maintenance Burden</SectionHeader>
-              <FieldRow label="Monthly Fleet Maintenance" value={formatMoney(fleet.reduce((sum, v) => sum + v.monthlyMaintenance, 0))} valueColor={T.red} />
-              <FieldRow label="Vehicles < 60% Cond" value={fleet.filter(v => v.condition < 60).length} valueColor={fleet.filter(v => v.condition < 60).length > 0 ? T.red : T.muted} />
-            </PanelBox>
-            <PanelBox>
-              <SectionHeader>Fleet Orders / Procurement</SectionHeader>
-              <FieldRow label="Player Listings" value="Locked" valueColor={T.faint} />
-              <FieldRow label="NPC Stock" value="Available" valueColor={T.mint} />
-            </PanelBox>
+          )}
+
+          {/* Locked Future Logistics Modes (Part 12) */}
+          <div style={{ marginTop: '40px', borderTop: `1px solid ${T.border}`, paddingTop: '24px' }}>
+            <SectionHeader stamp="LOGISTICS PIPELINE">Future Transport Modes</SectionHeader>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+              {[
+                { name: 'Road Freight', status: 'Active Now', desc: 'Vans and box trucks moving cargo on Drennian motorways.', active: true },
+                { name: 'Rail Freight', status: 'Locked (Requires Freight Yard)', desc: 'Bulk heavy cargo movement using cargo railways. Massive capacity.', active: false },
+                { name: 'Port Freight', status: 'Locked (Requires Port Warehouse)', desc: 'Westport dock adjacent container imports/exports and maritime shuttle.', active: false },
+                { name: 'Coastal Shipping', status: 'Locked (Requires Port Terminal)', desc: 'Domestic barge and container ship routes linking Drennian cities.', active: false },
+                { name: 'International Shipping', status: 'Locked (Requires Port Terminal)', desc: 'Cross-border container carrier transport. Requires high insurance.', active: false },
+                { name: 'Air Cargo', status: 'Locked (End-game)', desc: 'High-value urgent cargo transport using aircraft routes.', active: false },
+              ].map((m, i) => (
+                <div key={i} style={{ padding: '16px', background: m.active ? 'rgba(54,211,153,0.03)' : 'rgba(255,255,255,0.01)', border: `1px solid ${m.active ? T.mint : T.border}`, opacity: m.active ? 1 : 0.5 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: m.active ? T.mint : T.ivory }}>{m.name}</span>
+                    <span style={{ fontSize: '8px', fontFamily: 'monospace', color: m.active ? T.mint : T.faint, border: `1px solid ${m.active ? T.mint : T.border}`, padding: '1px 5px' }}>{m.status}</span>
+                  </div>
+                  <p style={{ fontSize: '11px', color: T.muted, lineHeight: 1.5, margin: 0 }}>{m.desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
       {deskTab === 'contracts' && (
-        <div className="business-content-grid">
-          <div>
-            {activeContracts.length > 0 && (
-              <PanelBox style={{ marginBottom: '24px', border: `1px solid ${T.mint}` }}>
-                <SectionHeader stamp="ACTIVE">Current In-Progress Contracts</SectionHeader>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {activeContracts.map((c:any) => (
-                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(54,211,153,0.05)', padding: '12px', border: `1px solid ${T.mint}40` }}>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: T.mint, marginBottom: '4px' }}>{c.title}</div>
-                        <div style={{ fontSize: '11px', color: T.ivory }}>From: {c.issuer}</div>
+        <div>
+          {activeContracts.length > 0 && (
+            <div style={{ marginBottom: '32px' }}>
+              <SectionHeader stamp="IN PROGRESS">Active Contracts</SectionHeader>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {activeContracts.map(c => {
+                  const v = fleet.find(f => f.id === c.assignedVehicleId);
+                  return (
+                    <PanelBox key={c.id}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>{c.title}</div>
+                          <div style={{ fontSize: '11px', color: T.muted }}>{c.originState} → {c.destinationState}</div>
+                        </div>
+                        <div style={{ textAlign: 'right', fontSize: '14px', fontFamily: 'monospace', color: T.mint }}>{formatMoney(c.payment)}</div>
                       </div>
-                      <div style={{ textAlign: 'right', fontSize: '11px' }}>
-                        <div style={{ color: T.gold, fontWeight: 700 }}>{formatMoney(c.reward)}</div>
-                        <div style={{ color: T.muted }}>Assigned: {c.assignedVehicleType || 'Vehicle'}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </PanelBox>
-            )}
-
-            <SectionHeader stamp="BOARD">Open Contract Board</SectionHeader>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <input 
-                type="text" 
-                placeholder="Search contracts..." 
-                value={contractSearch}
-                onChange={e => setContractSearch(e.target.value)}
-                style={{ flex: 1, padding: '8px', background: T.panel, border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px' }}
-              />
-              <select 
-                value={contractFilter} 
-                onChange={e => setContractFilter(e.target.value)}
-                style={{ padding: '8px', background: T.panel, border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px' }}
-              >
-                <option value="all">All Types</option>
-                <option value="delivery">Delivery</option>
-                <option value="logistics">Logistics</option>
-                <option value="freight">Freight</option>
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {filteredContracts.map((c:any) => {
-                const canAccept = fleet.some(v => v.capacity >= c.requiredCapacity && !v.assignedContractId && !v.assignedAutoOpPool);
-                return (
-                  <PanelBox key={c.id}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                      <div>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, marginBottom: '4px' }}>{c.title}</div>
-                        <div style={{ fontSize: '11px', color: T.faint }}>Issuer: <strong style={{ color: T.muted }}>{c.issuer}</strong></div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: T.gold }}>{formatMoney(c.reward)}</div>
-                        <div style={{ fontSize: '10px', color: T.red }}>Pen: {formatMoney(c.penalty)}</div>
-                      </div>
-                    </div>
-                    
-                    <p style={{ fontSize: '11px', color: T.muted, lineHeight: 1.5, margin: '0 0 16px 0' }}>
-                      {c.description}
-                    </p>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '11px', marginBottom: '16px', background: 'rgba(255,255,255,0.02)', padding: '8px', border: `1px solid ${T.border}` }}>
-                      <div><span style={{ color: T.faint }}>Type:</span> {c.type}</div>
-                      <div><span style={{ color: T.faint }}>Req Cap:</span> {c.requiredCapacity}</div>
-                      <div><span style={{ color: T.faint }}>Duration:</span> {c.durationMonths}mo</div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <select id={`assign-${c.id}`} style={{ flex: 1, padding: '8px', background: T.panel, color: T.ivory, border: `1px solid ${T.border}`, fontSize: '12px' }}>
-                        <option value="">Select available vehicle...</option>
-                        {fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).map(v => (
-                          <option key={v.id} value={v.id} disabled={v.capacity < c.requiredCapacity}>
-                            {v.type} (Cap: {v.capacity}) {v.capacity < c.requiredCapacity ? '- Too Small' : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <GoldButton 
-                        onClick={() => {
-                          const sel = document.getElementById(`assign-${c.id}`) as HTMLSelectElement;
-                          if (sel && sel.value) handleDirectAccept(c.id, sel.value);
-                        }}
-                        disabled={!canAccept}
-                      >
-                        Accept & Dispatch
-                      </GoldButton>
-                    </div>
-                  </PanelBox>
-                );
-              })}
-              {filteredContracts.length === 0 && (
-                <div style={{ padding: '30px', textAlign: 'center', color: T.faint, fontSize: '12px', border: `1px dashed ${T.border}` }}>
-                  No contracts found matching your filters.
-                </div>
-              )}
-            </div>
-          </div>
-          <div>
-            <PanelBox style={{ marginBottom: '16px' }}>
-              <SectionHeader>Eligibility Summary</SectionHeader>
-              <FieldRow label="Available Vehicles" value={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length} />
-              <FieldRow label="Total Capacity" value={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).reduce((s, v) => s + v.capacity, 0)} />
-              <FieldRow label="Highest Avail Capacity" value={Math.max(0, ...fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).map(v => v.capacity))} />
-              <FieldRow label="Company Reliability" value={company.reliability} />
-            </PanelBox>
-            <PanelBox style={{ marginBottom: '16px' }}>
-              <SectionHeader>Contract Pipeline</SectionHeader>
-              <FieldRow label="Active" value={activeContracts.length} valueColor={T.gold} />
-              <FieldRow label="Completed" value={contractHistory.filter(h => h.result === 'completed').length} />
-              <FieldRow label="Failed" value={contractHistory.filter(h => h.result === 'failed').length} valueColor={T.red} />
-            </PanelBox>
-            <PanelBox>
-              <SectionHeader>Suggested Contracts</SectionHeader>
-              <div style={{ fontSize: '11px', color: T.faint }}>
-                {filteredContracts.filter(c => fleet.some(v => v.capacity >= c.requiredCapacity)).length} contracts match your current fleet capacity.
+                      <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>Assigned: {v?.type || 'Unknown'} (Cond: {v?.condition || 0}%)</div>
+                      <GoldButton onClick={() => handleResolve(c.id)}>Resolve (Test Skip Time)</GoldButton>
+                    </PanelBox>
+                  );
+                })}
               </div>
-            </PanelBox>
+            </div>
+          )}
+
+          <div style={{ marginBottom: '32px' }}>
+            <SectionHeader stamp="PUBLIC BOARD">Contract Board</SectionHeader>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+              {['All', 'NPC Public', 'Player Contracts', 'Government', 'International', 'Local', 'Interstate', 'Requires Bid', 'Direct Accept'].map(f => (
+                <button
+                  key={f}
+                  onClick={() => setContractFilter(f)}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '10px',
+                    fontFamily: 'monospace',
+                    textTransform: 'uppercase',
+                    background: contractFilter === f ? 'rgba(201,162,74,0.1)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${contractFilter === f ? T.gold : T.border}`,
+                    color: contractFilter === f ? T.gold : T.muted,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+
+            {filteredContracts.length === 0 ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: T.faint, fontSize: '12px', border: `1px solid ${T.border}` }}>
+                {['Player Contracts', 'Government', 'International'].includes(contractFilter) ? 'Sector locked. Feature coming in future update.' : 'No open contracts match these filters.'}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {filteredContracts.map(c => {
+                  const isEligible = company.sector === c.requiredSector;
+                  const availableFleet = fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool);
+                  const suitableVehicle = availableFleet.find(v => v.capacity >= c.requiredCapacity && v.condition >= 40);
+                  
+                  return (
+                    <div key={c.id} style={{ background: T.paper, border: `1px solid ${T.border}`, padding: '16px' }}>
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '9px', padding: '2px 6px', background: 'rgba(255,255,255,0.05)', color: T.faint, fontFamily: 'monospace' }}>{c.issuerType === 'npc' ? 'NPC Public' : c.issuerType}</span>
+                        <span style={{ fontSize: '9px', padding: '2px 6px', background: 'rgba(255,255,255,0.05)', color: T.faint, fontFamily: 'monospace' }}>{c.originState === c.destinationState ? 'Local' : 'Interstate'}</span>
+                        <span style={{ fontSize: '9px', padding: '2px 6px', background: c.bidType === 'direct' ? 'rgba(54,211,153,0.1)' : 'rgba(201,162,74,0.1)', color: c.bidType === 'direct' ? T.mint : T.gold, fontFamily: 'monospace' }}>{c.bidType === 'direct' ? 'Direct Accept' : 'Requires Bid'}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, marginBottom: '2px' }}>{c.title}</div>
+                          <div style={{ fontSize: '11px', color: T.muted }}>Issuer: {c.issuerName}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '16px', fontFamily: 'monospace', fontWeight: 700, color: T.mint }}>{formatMoney(c.payment)}</div>
+                          <div style={{ fontSize: '10px', color: T.red }}>Penalty: {formatMoney(c.penalty)}</div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px', lineHeight: 1.6 }}>{c.description}</div>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px', marginBottom: '16px' }}>
+                        <div><span style={{ color: T.faint }}>Type:</span> {c.contractType || 'Freight'}</div>
+                        <div><span style={{ color: T.faint }}>Cargo:</span> {c.cargo}</div>
+                        <div><span style={{ color: T.faint }}>Route:</span> {c.originState} → {c.destinationState}</div>
+                        <div><span style={{ color: T.faint }}>Capacity Required:</span> {c.requiredCapacity}</div>
+                      </div>
+
+                      {/* Locked future asset requirements (Part 15) */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px', padding: '8px', background: 'rgba(201,162,74,0.03)', border: `1px solid ${T.borderGold}` }}>
+                        <div style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: T.gold }}>◈ Future Asset Pipeline Requirements</div>
+                        {c.contractType === 'Port Transfer' && (
+                          <div style={{ fontSize: '11px', color: T.muted }}>🔒 Port Transfer Premium: <strong style={{ color: T.gold }}>Requires Port Warehouse</strong> (Locked - Pre-Alpha allows bypass)</div>
+                        )}
+                        {c.contractType === 'Produce Delivery' && (
+                          <div style={{ fontSize: '11px', color: T.muted }}>🔒 Storage Contract: <strong style={{ color: T.gold }}>Requires Warehouse</strong> (Locked - Pre-Alpha allows bypass)</div>
+                        )}
+                        {c.contractType === 'Industrial Freight' && (
+                          <div style={{ fontSize: '11px', color: T.muted }}>🔒 Large Industrial Freight: <strong style={{ color: T.gold }}>Requires Freight Yard</strong> (Locked - Pre-Alpha allows bypass)</div>
+                        )}
+                        {c.contractType !== 'Port Transfer' && c.contractType !== 'Produce Delivery' && c.contractType !== 'Industrial Freight' && (
+                          <div style={{ fontSize: '11px', color: T.muted }}>✓ Standard Route: <strong style={{ color: T.mint }}>No special facility assets required</strong> (Starter road freight only)</div>
+                        )}
+                      </div>
+
+                      <div style={{ padding: '12px', background: 'rgba(0,0,0,0.2)', borderTop: `1px solid ${T.border}` }}>
+                        {!isEligible ? (
+                          <div style={{ fontSize: '11px', color: T.red }}>⚠ Ineligible: Requires {c.requiredSector} sector.</div>
+                        ) : !suitableVehicle ? (
+                          <div style={{ fontSize: '11px', color: T.red }}>⚠ Ineligible: No available vehicle with capacity {c.requiredCapacity} and condition &gt; 40%.</div>
+                        ) : (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <select id={`assign-${c.id}`} style={{ padding: '8px', background: T.panel, color: T.ivory, border: `1px solid ${T.border}`, outline: 'none', fontSize: '12px', flex: 1 }}>
+                              {availableFleet.map(v => (
+                                <option key={v.id} value={v.id} disabled={v.capacity < c.requiredCapacity || v.condition < 40}>{v.type} (Cap {v.capacity}, Cond {v.condition}%)</option>
+                              ))}
+                            </select>
+                            {c.bidType === 'direct' ? (
+                              <GoldButton onClick={() => {
+                                const sel = document.getElementById(`assign-${c.id}`) as HTMLSelectElement;
+                                if (sel) handleDirectAccept(c.id, sel.value);
+                              }}>Accept directly</GoldButton>
+                            ) : (
+                              <GoldButton onClick={() => {
+                                const sel = document.getElementById(`assign-${c.id}`) as HTMLSelectElement;
+                                if (sel) {
+                                  const res = evaluatePlayerBid(c.id, company.id, c.payment);
+                                  showNotif(res.message, res.accepted);
+                                  if (res.accepted) assignVehicleToContract(c.id, sel.value);
+                                  onRefresh();
+                                }
+                              }}>Submit Bid</GoldButton>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

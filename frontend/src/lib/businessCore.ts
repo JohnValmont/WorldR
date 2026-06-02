@@ -646,7 +646,6 @@ export function runMonthlyAutoOperations(companyId: string): { success: boolean;
   let totalCost = 0;
   let totalMaintenance = 0;
 
-  // Group by pool for reporting
   const poolStats: Record<string, { gross: number, cost: number, maintenance: number, condDrop: number }> = {};
   let idleMaintenance = 0;
   let contractMaintenance = 0;
@@ -660,35 +659,37 @@ export function runMonthlyAutoOperations(companyId: string): { success: boolean;
       if (!poolStats[pool]) poolStats[pool] = { gross: 0, cost: 0, maintenance: 0, condDrop: 0 };
       
       let demandMod = 1.0;
-      let baseDemand = 8000;
+      let baseDemand = 10000;
       let condDrop = 3;
+      let costRate = 0.25;
 
       if (pool === 'Port Shuttle Pool') {
         demandMod = 1.2;
-        baseDemand = 10000;
+        baseDemand = 18000;
         condDrop = 4;
+        costRate = 0.30;
       } else if (pool === 'Local Delivery Pool') {
         demandMod = 1.0;
-        baseDemand = 7000;
+        baseDemand = 12000;
         condDrop = 2;
+        costRate = 0.25;
       }
 
-      // Add benefits from facilities
       const hasWestportDepot = (company.facilities || []).some(f => f.state === 'Westport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
       const hasDrennportDepot = (company.facilities || []).some(f => f.state === 'Drennport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
       
       if (pool === 'Port Shuttle Pool' && hasWestportDepot) {
-        demandMod *= 1.35; // Westport depots increase shuttle yield by 35%
+        demandMod *= 1.35;
       }
       if (pool === 'Local Delivery Pool' && hasDrennportDepot) {
-        demandMod *= 1.25; // Drennport depots increase courier yield by 25%
+        demandMod *= 1.25;
       }
 
       const relMod = company.reliability === 'Preferred Carrier' ? 1.2 : company.reliability === 'Reliable' ? 1.1 : 1.0;
       const condMod = v.condition / 100;
 
       const gross = Math.round(baseDemand * v.capacity * demandMod * relMod * condMod);
-      const cost = Math.round(gross * 0.2); // 20% operating cost
+      const cost = Math.round(gross * costRate);
 
       poolStats[pool].gross += gross;
       poolStats[pool].cost += cost;
@@ -708,16 +709,15 @@ export function runMonthlyAutoOperations(companyId: string): { success: boolean;
     saveVehicle(v);
   });
 
-  // Generate records for pools
   Object.keys(poolStats).forEach(pool => {
     const stats = poolStats[pool];
     const net = stats.gross - stats.cost - stats.maintenance;
-    const recordText = `${company.name} completed recurring work in ${pool}. Gross revenue: ${formatMoney(stats.gross)}. Operating cost: ${formatMoney(stats.cost)}. Maintenance expense: ${formatMoney(stats.maintenance)}. Net income: ${formatMoney(net)}.`;
+    const label = net >= 0 ? 'Net profit' : 'Operating loss';
+    const recordText = `${company.name} completed recurring work in ${pool}. Gross revenue: ${formatMoney(stats.gross)}. Operating cost: ${formatMoney(stats.cost)}. Maintenance expense: ${formatMoney(stats.maintenance)}. ${label}: ${formatMoney(Math.abs(net))}.`;
     addRecord(recordText, 'auto_op');
     results.push({ pool, ...stats, net, recordText });
   });
 
-  // Generate record for idle/contract maintenance if any
   if (idleMaintenance > 0 || contractMaintenance > 0) {
     const totalOtherMaint = idleMaintenance + contractMaintenance;
     const recordText = `${company.name} paid monthly fleet maintenance for vehicles not in auto operations: ${formatMoney(totalOtherMaint)}.`;
@@ -725,7 +725,6 @@ export function runMonthlyAutoOperations(companyId: string): { success: boolean;
     results.push({ pool: 'Other Maintenance', gross: 0, cost: 0, maintenance: totalOtherMaint, net: -totalOtherMaint, recordText });
   }
 
-  // Deduct facility leases
   const facilityLeaseCost = (company.facilities || []).reduce((sum, f) => sum + f.leaseCost, 0);
   if (facilityLeaseCost > 0) {
     const leaseRecordText = `${company.name} paid monthly lease expenses for properties/facilities: ${formatMoney(facilityLeaseCost)}.`;
@@ -745,9 +744,18 @@ export function runMonthlyAutoOperations(companyId: string): { success: boolean;
   companies[cIdx] = company;
   localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
 
-  return { success: true, message: `Operations processed. Net income: ${formatMoney(netIncome)}.`, results };
-}
+  let finalMessage = '';
+  if (Object.keys(poolStats).length === 0) {
+    finalMessage = 'No active auto operations. Fleet maintenance and leases remain due in monthly finance, but no dispatch revenue was generated.';
+  } else {
+    const label = netIncome >= 0 ? 'Net profit' : 'Operating loss';
+    finalMessage = `Operations processed. Gross revenue: ${formatMoney(totalGross)}. Operating cost: ${formatMoney(totalCost)}. Fleet maintenance: ${formatMoney(totalMaintenance)}.`;
+    if (facilityLeaseCost > 0) finalMessage += ` Facility lease: ${formatMoney(facilityLeaseCost)}.`;
+    finalMessage += ` ${label}: ${formatMoney(Math.abs(netIncome))}.`;
+  }
 
+  return { success: true, message: finalMessage, results };
+}
 // ─── Routes Tab Logic ─────────────────────────────────────────────────────────
 export interface RouteFamiliarity {
   id: string; // Origin-Destination e.g., "Drennport State-Westport State"

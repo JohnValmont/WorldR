@@ -1,79 +1,18 @@
 const fs = require('fs');
+let code = fs.readFileSync('frontend/src/app/drennia/business/page.tsx', 'utf8');
 
-function build() {
-  let code = fs.readFileSync('frontend/src/app/drennia/business/page.tsx', 'utf8');
-  let originalCode = code;
-  
-  // 1. StartBusiness Grid Wrapper
-  code = code.replace(/(function StartBusinessTab[\s\S]*?return \(\s*)(<div style=\{\{ maxWidth: '620px' \}\}>)/, 
-    `$1<div className="business-content-grid">\n      $2`
-  );
+// The simplest way to implement the user's detailed right rails is to inject them into the respective JSX blocks.
 
-  // 2. StartBusiness Right Rail
-  code = code.replace(/(Step 7 — Confirm[\s\S]*?Next: Confirm Filing →[\s\S]*?<\/div>\s*\}?)\s*(<\/div>\s*\)\;\s*\})/,
-`$1
-  {/* Right Rail: Filing Summary */}
-  <div>
-    <PanelBox style={{ position: 'sticky', top: '24px' }}>
-      <SectionHeader stamp="SUMMARY">Filing Application</SectionHeader>
-      <FieldRow label="Name" value={companyNameInput || 'Pending'} />
-      <FieldRow label="Sector" value={selectedSector || 'Pending'} />
-      <FieldRow label="HQ State" value={selectedHQ || 'Pending'} />
-      <FieldRow label="Structure" value="Sole Trader" />
-      <FieldRow label="Operating Model" value={selectedModel || 'Pending'} valueColor={T.gold} />
-      <div style={{ margin: '16px 0', borderTop: \`1px solid \${T.border}\` }} />
-      <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor={T.mint} />
-      <FieldRow label="Filing Fee" value={formatMoney(5000)} valueColor={T.red} />
-      <div style={{ marginTop: '12px', padding: '10px 0', borderTop: \`1px solid \${T.border}\`, display: 'flex', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '12px', fontWeight: 700, color: T.ivory }}>Total Cost</span>
-        <span style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.gold }}>{formatMoney(chosenCapital + 5000)}</span>
-      </div>
-      <FieldRow label="Remaining Cash" value={formatMoney(playerCash - (chosenCapital + 5000))} valueColor={playerCash >= (chosenCapital + 5000) ? T.mint : T.red} />
-    </PanelBox>
-  </div>
-$2`
-  );
+// ─── 1. Overview Tab ───
+// Replace the overview layout with the new one.
+// We'll locate {deskTab === 'overview' && ( ... )}
+const overviewOld = `{deskTab === 'overview' && (
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>`;
+// It's easier to use a regex to match the entire overview block up to the start of operations block.
+let regexOverview = /\{deskTab === 'overview' && \(\s*<div>\s*<div style=\{\{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr'[\s\S]*?\{deskTab === 'operations' && \(/;
 
-  // 3. My Companies Right Rail
-  let myCompRegex = /(“Multiple company ownership, subsidiaries, holding companies, and cross-sector business groups will unlock later. Pre-alpha currently supports one active company.”\s*<\/p>\s*<\/div>\s*<\/div>\s*<\/div>\s*)(<\/div>\s*\}\))/g;
-  code = code.replace(myCompRegex, `$1</div>
-            <div>
-              <PanelBox style={{ marginBottom: '16px' }}>
-                <SectionHeader stamp="PORTFOLIO">Ownership Summary</SectionHeader>
-                <FieldRow label="Companies Owned" value="1 / 1" />
-                <FieldRow label="Total Company Value" value={formatMoney(calcCompanyValue(company))} valueColor={T.gold} />
-                <FieldRow label="Total Company Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
-              </PanelBox>
-              <PanelBox style={{ marginBottom: '16px', borderLeft: \`2px dashed \${T.faint}\`, opacity: 0.8 }}>
-                <SectionHeader>Expansion Locked</SectionHeader>
-                <p style={{ fontSize: '11px', color: T.muted }}>Multiple companies, subsidiaries, and holding structures coming soon.</p>
-              </PanelBox>
-              <PanelBox>
-                <SectionHeader stamp="ACTIONS">Quick Actions</SectionHeader>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <GoldButton onClick={() => setSelectedCompanyId(company.id)}>Manage Active Company</GoldButton>
-                  <GhostButton onClick={() => setActiveTab('registry')}>Open Registry</GhostButton>
-                </div>
-              </PanelBox>
-            </div>
-          </div>
-        )}`
-  );
-
-  // 4. BusinessPage Extra Closing Div (Fix line 419)
-  // Wait, let's just find `        {activeTab === 'registry'  && <RegistryTab company={company} />}\r\n      </div>\r\n    </div>\r\n  );\r\n}`
-  // and replace it with `        {activeTab === 'registry'  && <RegistryTab company={company} />}\r\n      </div>\r\n    </div>\r\n    </div>\r\n  );\r\n}`
-  code = code.replace(/(\{activeTab === 'registry'  && <RegistryTab company=\{company\} \/>\}\s*<\/div>\s*<\/div>\s*)(\)\;\s*\})/, `$1</div>\n  $2`);
-
-  // 5. CompanyDeskTab
-  let deskRegex = /(function CompanyDeskTab[\s\S]*?)(?=function RegistryTab)/;
-  let deskMatch = deskRegex.exec(code);
-  if (deskMatch) {
-    let desk = deskMatch[1];
-    
-    // Overview tab within Desk
-    let regexOverview = /\{deskTab === 'overview' && \(\s*<div>\s*<div style=\{\{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr'[\s\S]*?\{deskTab === 'operations' && \(/;
-    let newOverview = `{deskTab === 'overview' && (
+let newOverview = `{deskTab === 'overview' && (
         <div className="business-content-grid">
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -139,11 +78,12 @@ $2`
       )}
 
       {deskTab === 'operations' && (`;
-    desk = desk.replace(regexOverview, newOverview);
 
-    // Operations Tab
-    let regexOperations = /\{deskTab === 'operations' && \(\s*<div>\s*<SectionHeader>Operations Desk<\/SectionHeader>[\s\S]*?\{deskTab === 'fleet' && \(/;
-    let newOperations = `{deskTab === 'operations' && (
+code = code.replace(regexOverview, newOverview);
+
+// ─── 2. Operations Tab ───
+let regexOperations = /\{deskTab === 'operations' && \(\s*<div>\s*<SectionHeader>Operations Desk<\/SectionHeader>[\s\S]*?\{deskTab === 'fleet' && \(/;
+let newOperations = `{deskTab === 'operations' && (
         <div className="business-content-grid">
           <div>
             <SectionHeader>Operations Desk</SectionHeader>
@@ -159,6 +99,7 @@ $2`
               </GoldButton>
             </PanelBox>
 
+            {/* Facility Support Panel */}
             <SectionHeader stamp="FACILITIES">Facility Support & Asset Yield Boosts</SectionHeader>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
               {(() => {
@@ -285,114 +226,7 @@ $2`
       )}
 
       {deskTab === 'fleet' && (`;
-    desk = desk.replace(regexOperations, newOperations);
 
-    // Fleet Tab
-    let regexFleet = /\{deskTab === 'fleet' && \(\s*<div>\s*<SectionHeader>Fleet Control & Logistics Desk<\/SectionHeader>[\s\S]*?\{deskTab === 'contracts' && \(/;
-    let newFleetMatch = regexFleet.exec(desk);
-    if (newFleetMatch) {
-      let fleetContent = newFleetMatch[0];
-      fleetContent = fleetContent.replace(/\{deskTab === 'fleet' && \(\s*<div>/, '{deskTab === \'fleet\' && (\n        <div className="business-content-grid">\n          <div>');
-      fleetContent = fleetContent.replace(/(<div style=\{\{ marginTop: '40px', borderTop: \`1px solid \$\{T\.border\}\`, paddingTop: '24px' \}\}>[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*\)\})/, 
-        `$1\n          </div>\n          <div>
-            <PanelBox style={{ marginBottom: '16px' }}>
-              <SectionHeader>Fleet Summary</SectionHeader>
-              <FieldRow label="Vehicles Owned" value={fleet.length} />
-              <FieldRow label="Total Capacity" value={fleet.reduce((s, v) => s + v.capacity, 0)} />
-              <FieldRow label="Available Capacity" value={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).reduce((s, v) => s + v.capacity, 0)} valueColor={T.mint} />
-              <FieldRow label="Assigned Vehicles" value={fleet.filter(v => v.assignedContractId || v.assignedAutoOpPool).length} />
-            </PanelBox>
-            <PanelBox style={{ marginBottom: '16px' }}>
-              <SectionHeader>Maintenance Burden</SectionHeader>
-              <FieldRow label="Monthly Fleet Maintenance" value={formatMoney(fleet.reduce((sum, v) => sum + v.monthlyMaintenance, 0))} valueColor={T.red} />
-              <FieldRow label="Vehicles < 60% Cond" value={fleet.filter(v => v.condition < 60).length} valueColor={fleet.filter(v => v.condition < 60).length > 0 ? T.red : T.muted} />
-            </PanelBox>
-            <PanelBox>
-              <SectionHeader>Fleet Orders / Procurement</SectionHeader>
-              <FieldRow label="Player Listings" value="Locked" valueColor={T.faint} />
-              <FieldRow label="NPC Stock" value="Available" valueColor={T.mint} />
-            </PanelBox>
-          </div>\n        </div>\n      )}`);
-      desk = desk.replace(regexFleet, fleetContent);
-    }
+code = code.replace(regexOperations, newOperations);
 
-    // Contracts Tab
-    let regexContracts = /\{deskTab === 'contracts' && \(\s*<div>\s*(?:\{activeContracts\.length > 0 && \()?/;
-    desk = desk.replace(regexContracts, `{deskTab === 'contracts' && (\n        <div className="business-content-grid">\n          <div>\n            {activeContracts.length > 0 && (`);
-
-    let regexContractsEnd = /(<\/div>\s*\)\;\s*\}\)}\s*<\/div>\s*\)\}\s*<\/div>\s*<\/div>\s*)(?=\{deskTab === 'contractHistory')/;
-    desk = desk.replace(regexContractsEnd, `$1\n          </div>\n          <div>
-            <PanelBox style={{ marginBottom: '16px' }}>
-              <SectionHeader>Eligibility Summary</SectionHeader>
-              <FieldRow label="Available Vehicles" value={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length} />
-              <FieldRow label="Total Capacity" value={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).reduce((s, v) => s + v.capacity, 0)} />
-              <FieldRow label="Highest Avail Capacity" value={Math.max(0, ...fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).map(v => v.capacity))} />
-              <FieldRow label="Company Reliability" value={company.reliability} />
-            </PanelBox>
-            <PanelBox style={{ marginBottom: '16px' }}>
-              <SectionHeader>Contract Pipeline</SectionHeader>
-              <FieldRow label="Active" value={activeContracts.length} valueColor={T.gold} />
-              <FieldRow label="Completed" value={contractHistory.filter(h => h.result === 'completed').length} />
-              <FieldRow label="Failed" value={contractHistory.filter(h => h.result === 'failed').length} valueColor={T.red} />
-            </PanelBox>
-            <PanelBox>
-              <SectionHeader>Suggested Contracts</SectionHeader>
-              <div style={{ fontSize: '11px', color: T.faint }}>
-                {filteredContracts.filter(c => fleet.some(v => v.capacity >= c.requiredCapacity)).length} contracts match your current fleet capacity.
-              </div>
-            </PanelBox>
-          </div>\n        </div>\n      `);
-
-    // Remove maxWidth: '900px'
-    desk = desk.replace(/return \(\s*<div style=\{\{ maxWidth: '900px' \}\}>/, `return (\n    <div style={{ width: '100%' }}>`);
-
-    code = code.replace(deskRegex, desk);
-  }
-
-  // AssetsTab right rail
-  let assetsStart = /function AssetsTab\(\{ company, fleet, onRefresh, showNotif \}[\s\S]*?return \(\s*<div style=\{\{ maxWidth: '860px' \}\}>/;
-  if (assetsStart.test(code)) {
-    code = code.replace(assetsStart, `function AssetsTab({ company, fleet, onRefresh, showNotif }: { company: Company; fleet: Vehicle[]; onRefresh: () => void; showNotif: (m: string, s: boolean) => void }) {
-  return (
-    <div className="business-content-grid">
-      <div>`);
-    
-    let parts = code.split('function FinanceTab');
-    if (parts.length > 1) {
-      let beforeFinance = parts[0];
-      let endIdx = beforeFinance.lastIndexOf('</div>');
-      if (endIdx !== -1) {
-        // Need to replace the `</div>\n  );\n}` before function FinanceTab. 
-        // We'll replace the last `</div>\n  );\n}` entirely.
-        let fullEndMatch = /<\/div>\s*\)\;\s*\}\s*$/.exec(beforeFinance);
-        if (fullEndMatch) {
-          let rail = `</div>
-      <div>
-        <PanelBox style={{ marginBottom: '16px' }}>
-          <SectionHeader>Facility Benefits</SectionHeader>
-          <div style={{ fontSize: '11px', color: T.muted, marginBottom: '6px' }}>• <strong>Depot:</strong> Unlocks auto-ops and local yield boosts.</div>
-          <div style={{ fontSize: '11px', color: T.muted, marginBottom: '6px' }}>• <strong>Branch Office:</strong> Reduces interstate dispatch penalty.</div>
-        </PanelBox>
-        <PanelBox style={{ marginBottom: '16px' }}>
-          <SectionHeader>Current Lease Burden</SectionHeader>
-          <FieldRow label="Monthly Lease Expense" value={formatMoney((company.facilities || []).reduce((s, f) => s + f.leaseCost, 0))} valueColor={T.red} />
-        </PanelBox>
-        <PanelBox>
-          <SectionHeader>Expansion Readiness</SectionHeader>
-          <FieldRow label="States with Presence" value={new Set((company.facilities || []).map(f => f.state)).size} />
-        </PanelBox>
-      </div>\n    </div>\n  );\n}\n\n`;
-          beforeFinance = beforeFinance.substring(0, fullEndMatch.index) + rail;
-          code = beforeFinance + 'function FinanceTab' + parts[1];
-        }
-      }
-    }
-  }
-
-  if (code !== originalCode) {
-    fs.writeFileSync('frontend/src/app/drennia/business/page.tsx', code);
-    console.log('Update script executed.');
-  }
-}
-
-build();
+fs.writeFileSync('scratch/fix_business_desk.js', code);

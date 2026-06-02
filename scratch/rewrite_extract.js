@@ -1,79 +1,12 @@
 const fs = require('fs');
 
-function build() {
-  let code = fs.readFileSync('frontend/src/app/drennia/business/page.tsx', 'utf8');
-  let originalCode = code;
-  
-  // 1. StartBusiness Grid Wrapper
-  code = code.replace(/(function StartBusinessTab[\s\S]*?return \(\s*)(<div style=\{\{ maxWidth: '620px' \}\}>)/, 
-    `$1<div className="business-content-grid">\n      $2`
-  );
+function rewrite() {
+  let content = fs.readFileSync('scratch/extract.js', 'utf8');
 
-  // 2. StartBusiness Right Rail
-  code = code.replace(/(Step 7 — Confirm[\s\S]*?Next: Confirm Filing →[\s\S]*?<\/div>\s*\}?)\s*(<\/div>\s*\)\;\s*\})/,
-`$1
-  {/* Right Rail: Filing Summary */}
-  <div>
-    <PanelBox style={{ position: 'sticky', top: '24px' }}>
-      <SectionHeader stamp="SUMMARY">Filing Application</SectionHeader>
-      <FieldRow label="Name" value={companyNameInput || 'Pending'} />
-      <FieldRow label="Sector" value={selectedSector || 'Pending'} />
-      <FieldRow label="HQ State" value={selectedHQ || 'Pending'} />
-      <FieldRow label="Structure" value="Sole Trader" />
-      <FieldRow label="Operating Model" value={selectedModel || 'Pending'} valueColor={T.gold} />
-      <div style={{ margin: '16px 0', borderTop: \`1px solid \${T.border}\` }} />
-      <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor={T.mint} />
-      <FieldRow label="Filing Fee" value={formatMoney(5000)} valueColor={T.red} />
-      <div style={{ marginTop: '12px', padding: '10px 0', borderTop: \`1px solid \${T.border}\`, display: 'flex', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '12px', fontWeight: 700, color: T.ivory }}>Total Cost</span>
-        <span style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.gold }}>{formatMoney(chosenCapital + 5000)}</span>
-      </div>
-      <FieldRow label="Remaining Cash" value={formatMoney(playerCash - (chosenCapital + 5000))} valueColor={playerCash >= (chosenCapital + 5000) ? T.mint : T.red} />
-    </PanelBox>
-  </div>
-$2`
-  );
-
-  // 3. My Companies Right Rail
-  let myCompRegex = /(“Multiple company ownership, subsidiaries, holding companies, and cross-sector business groups will unlock later. Pre-alpha currently supports one active company.”\s*<\/p>\s*<\/div>\s*<\/div>\s*<\/div>\s*)(<\/div>\s*\}\))/g;
-  code = code.replace(myCompRegex, `$1</div>
-            <div>
-              <PanelBox style={{ marginBottom: '16px' }}>
-                <SectionHeader stamp="PORTFOLIO">Ownership Summary</SectionHeader>
-                <FieldRow label="Companies Owned" value="1 / 1" />
-                <FieldRow label="Total Company Value" value={formatMoney(calcCompanyValue(company))} valueColor={T.gold} />
-                <FieldRow label="Total Company Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
-              </PanelBox>
-              <PanelBox style={{ marginBottom: '16px', borderLeft: \`2px dashed \${T.faint}\`, opacity: 0.8 }}>
-                <SectionHeader>Expansion Locked</SectionHeader>
-                <p style={{ fontSize: '11px', color: T.muted }}>Multiple companies, subsidiaries, and holding structures coming soon.</p>
-              </PanelBox>
-              <PanelBox>
-                <SectionHeader stamp="ACTIONS">Quick Actions</SectionHeader>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <GoldButton onClick={() => setSelectedCompanyId(company.id)}>Manage Active Company</GoldButton>
-                  <GhostButton onClick={() => setActiveTab('registry')}>Open Registry</GhostButton>
-                </div>
-              </PanelBox>
-            </div>
-          </div>
-        )}`
-  );
-
-  // 4. BusinessPage Extra Closing Div (Fix line 419)
-  // Wait, let's just find `        {activeTab === 'registry'  && <RegistryTab company={company} />}\r\n      </div>\r\n    </div>\r\n  );\r\n}`
-  // and replace it with `        {activeTab === 'registry'  && <RegistryTab company={company} />}\r\n      </div>\r\n    </div>\r\n    </div>\r\n  );\r\n}`
-  code = code.replace(/(\{activeTab === 'registry'  && <RegistryTab company=\{company\} \/>\}\s*<\/div>\s*<\/div>\s*)(\)\;\s*\})/, `$1</div>\n  $2`);
-
-  // 5. CompanyDeskTab
-  let deskRegex = /(function CompanyDeskTab[\s\S]*?)(?=function RegistryTab)/;
-  let deskMatch = deskRegex.exec(code);
-  if (deskMatch) {
-    let desk = deskMatch[1];
-    
-    // Overview tab within Desk
-    let regexOverview = /\{deskTab === 'overview' && \(\s*<div>\s*<div style=\{\{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr'[\s\S]*?\{deskTab === 'operations' && \(/;
-    let newOverview = `{deskTab === 'overview' && (
+  // 1. Rewrite deskTab === 'overview'
+  content = content.replace(
+    /\{deskTab === 'overview' && \([\s\S]*?(?=\{deskTab === 'operations' && \()/m,
+    `{deskTab === 'overview' && (
         <div className="business-content-grid">
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -138,12 +71,13 @@ $2`
         </div>
       )}
 
-      {deskTab === 'operations' && (`;
-    desk = desk.replace(regexOverview, newOverview);
+      `
+  );
 
-    // Operations Tab
-    let regexOperations = /\{deskTab === 'operations' && \(\s*<div>\s*<SectionHeader>Operations Desk<\/SectionHeader>[\s\S]*?\{deskTab === 'fleet' && \(/;
-    let newOperations = `{deskTab === 'operations' && (
+  // 2. Rewrite deskTab === 'operations'
+  content = content.replace(
+    /\{deskTab === 'operations' && \([\s\S]*?(?=\{deskTab === 'fleet' && \()/m,
+    `{deskTab === 'operations' && (
         <div className="business-content-grid">
           <div>
             <SectionHeader>Operations Desk</SectionHeader>
@@ -284,17 +218,90 @@ $2`
         </div>
       )}
 
-      {deskTab === 'fleet' && (`;
-    desk = desk.replace(regexOperations, newOperations);
+      `
+  );
 
-    // Fleet Tab
-    let regexFleet = /\{deskTab === 'fleet' && \(\s*<div>\s*<SectionHeader>Fleet Control & Logistics Desk<\/SectionHeader>[\s\S]*?\{deskTab === 'contracts' && \(/;
-    let newFleetMatch = regexFleet.exec(desk);
-    if (newFleetMatch) {
-      let fleetContent = newFleetMatch[0];
-      fleetContent = fleetContent.replace(/\{deskTab === 'fleet' && \(\s*<div>/, '{deskTab === \'fleet\' && (\n        <div className="business-content-grid">\n          <div>');
-      fleetContent = fleetContent.replace(/(<div style=\{\{ marginTop: '40px', borderTop: \`1px solid \$\{T\.border\}\`, paddingTop: '24px' \}\}>[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*\)\})/, 
-        `$1\n          </div>\n          <div>
+  // 3. Rewrite deskTab === 'fleet'
+  content = content.replace(
+    /\{deskTab === 'fleet' && \([\s\S]*?(?=\{deskTab === 'contracts' && \()/m,
+    `{deskTab === 'fleet' && (
+        <div className="business-content-grid">
+          <div>
+            <SectionHeader>Fleet Control & Logistics Desk</SectionHeader>
+            
+            <PanelBox style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>Current Active Fleet</div>
+                  <div style={{ fontSize: '11px', color: T.muted }}>Manage vehicles owned by the company.</div>
+                </div>
+                <div style={{ textAlign: 'right', fontSize: '11px' }}>
+                  Total Capacity: <strong style={{ color: T.gold }}>{fleet.reduce((sum, v) => sum + v.capacity, 0)} items</strong>
+                </div>
+              </div>
+
+              {fleet.length === 0 && (
+                <div style={{ padding: '30px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', border: \`1px dashed \${T.border}\`, color: T.muted, fontSize: '12px' }}>
+                  No vehicles in fleet. Purchase vehicles below to start operating contracts.
+                </div>
+              )}
+
+              {fleet.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {fleet.map((v:any, idx:number) => (
+                    <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.panel, border: \`1px solid \${T.border}\`, padding: '12px', fontSize: '11px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div>
+                          <div style={{ fontWeight: 700, color: T.ivory }}>{v.type}</div>
+                          <div style={{ color: T.faint }}>ID: {v.id.substring(0, 8)} • Capacity: {v.capacity}</div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{ color: v.condition > 80 ? T.mint : v.condition > 50 ? T.gold : T.red }}>Cond: {v.condition}%</span>
+                          <span style={{ color: T.muted }}>Maint: {formatMoney(v.monthlyMaintenance)}/mo</span>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        {v.assignedContractId && <span style={{ color: T.mint, border: \`1px solid \${T.mint}\`, padding: '2px 6px', background: 'rgba(54,211,153,0.1)' }}>On Contract</span>}
+                        {v.assignedAutoOpPool && <span style={{ color: T.gold, border: \`1px solid \${T.gold}\`, padding: '2px 6px', background: 'rgba(224,185,83,0.1)' }}>{v.assignedAutoOpPool}</span>}
+                        {!v.assignedContractId && !v.assignedAutoOpPool && <span style={{ color: T.faint }}>Idle</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </PanelBox>
+
+            <SectionHeader stamp="PROCURE">Vehicle Procurement Market</SectionHeader>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              {VVEHICLES.map((v, i) => (
+                <PanelBox key={i}>
+                  <div style={{ fontWeight: 700, fontSize: '13px', color: T.ivory, marginBottom: '4px' }}>{v.type}</div>
+                  <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px', minHeight: '34px' }}>{v.description}</div>
+                  
+                  <FieldRow label="Capacity" value={v.capacity} />
+                  <FieldRow label="Maint /mo" value={formatMoney(v.monthlyMaintenance)} valueColor={T.red} />
+                  
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: \`1px solid \${T.border}\`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: T.gold }}>{formatMoney(v.purchaseCost)}</div>
+                    <GoldButton 
+                      onClick={() => handlePurchaseVehicle(v.type, v.capacity, v.purchaseCost, v.monthlyMaintenance)}
+                      disabled={company.companyCash < v.purchaseCost}
+                    >
+                      Buy Asset
+                    </GoldButton>
+                  </div>
+                </PanelBox>
+              ))}
+            </div>
+
+            <div style={{ marginTop: '40px', borderTop: \`1px solid \${T.border}\`, paddingTop: '24px' }}>
+              <SectionHeader stamp="USED MARKET">Player Used Market</SectionHeader>
+              <div style={{ padding: '30px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', border: \`1px dashed \${T.border}\`, color: T.muted, fontSize: '12px' }}>
+                Used vehicle listings from other players will appear here in Beta.
+              </div>
+            </div>
+          </div>
+          <div>
             <PanelBox style={{ marginBottom: '16px' }}>
               <SectionHeader>Fleet Summary</SectionHeader>
               <FieldRow label="Vehicles Owned" value={fleet.length} />
@@ -312,16 +319,116 @@ $2`
               <FieldRow label="Player Listings" value="Locked" valueColor={T.faint} />
               <FieldRow label="NPC Stock" value="Available" valueColor={T.mint} />
             </PanelBox>
-          </div>\n        </div>\n      )}`);
-      desk = desk.replace(regexFleet, fleetContent);
-    }
+          </div>
+        </div>
+      )}
 
-    // Contracts Tab
-    let regexContracts = /\{deskTab === 'contracts' && \(\s*<div>\s*(?:\{activeContracts\.length > 0 && \()?/;
-    desk = desk.replace(regexContracts, `{deskTab === 'contracts' && (\n        <div className="business-content-grid">\n          <div>\n            {activeContracts.length > 0 && (`);
+      `
+  );
 
-    let regexContractsEnd = /(<\/div>\s*\)\;\s*\}\)}\s*<\/div>\s*\)\}\s*<\/div>\s*<\/div>\s*)(?=\{deskTab === 'contractHistory')/;
-    desk = desk.replace(regexContractsEnd, `$1\n          </div>\n          <div>
+  // 4. Rewrite deskTab === 'contracts'
+  content = content.replace(
+    /\{deskTab === 'contracts' && \([\s\S]*?(?=\{deskTab === 'contractHistory' && \()/m,
+    `{deskTab === 'contracts' && (
+        <div className="business-content-grid">
+          <div>
+            {activeContracts.length > 0 && (
+              <PanelBox style={{ marginBottom: '24px', border: \`1px solid \${T.mint}\` }}>
+                <SectionHeader stamp="ACTIVE">Current In-Progress Contracts</SectionHeader>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {activeContracts.map((c:any) => (
+                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(54,211,153,0.05)', padding: '12px', border: \`1px solid \${T.mint}40\` }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: T.mint, marginBottom: '4px' }}>{c.title}</div>
+                        <div style={{ fontSize: '11px', color: T.ivory }}>From: {c.issuer}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: '11px' }}>
+                        <div style={{ color: T.gold, fontWeight: 700 }}>{formatMoney(c.reward)}</div>
+                        <div style={{ color: T.muted }}>Assigned: {c.assignedVehicleType || 'Vehicle'}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </PanelBox>
+            )}
+
+            <SectionHeader stamp="BOARD">Open Contract Board</SectionHeader>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <input 
+                type="text" 
+                placeholder="Search contracts..." 
+                value={contractSearch}
+                onChange={e => setContractSearch(e.target.value)}
+                style={{ flex: 1, padding: '8px', background: T.panel, border: \`1px solid \${T.border}\`, color: T.ivory, fontSize: '12px' }}
+              />
+              <select 
+                value={contractFilter} 
+                onChange={e => setContractFilter(e.target.value)}
+                style={{ padding: '8px', background: T.panel, border: \`1px solid \${T.border}\`, color: T.ivory, fontSize: '12px' }}
+              >
+                <option value="all">All Types</option>
+                <option value="delivery">Delivery</option>
+                <option value="logistics">Logistics</option>
+                <option value="freight">Freight</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {filteredContracts.map((c:any) => {
+                const canAccept = fleet.some(v => v.capacity >= c.requiredCapacity && !v.assignedContractId && !v.assignedAutoOpPool);
+                return (
+                  <PanelBox key={c.id}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, marginBottom: '4px' }}>{c.title}</div>
+                        <div style={{ fontSize: '11px', color: T.faint }}>Issuer: <strong style={{ color: T.muted }}>{c.issuer}</strong></div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: T.gold }}>{formatMoney(c.reward)}</div>
+                        <div style={{ fontSize: '10px', color: T.red }}>Pen: {formatMoney(c.penalty)}</div>
+                      </div>
+                    </div>
+                    
+                    <p style={{ fontSize: '11px', color: T.muted, lineHeight: 1.5, margin: '0 0 16px 0' }}>
+                      {c.description}
+                    </p>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '11px', marginBottom: '16px', background: 'rgba(255,255,255,0.02)', padding: '8px', border: \`1px solid \${T.border}\` }}>
+                      <div><span style={{ color: T.faint }}>Type:</span> {c.type}</div>
+                      <div><span style={{ color: T.faint }}>Req Cap:</span> {c.requiredCapacity}</div>
+                      <div><span style={{ color: T.faint }}>Duration:</span> {c.durationMonths}mo</div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select id={\`assign-\${c.id}\`} style={{ flex: 1, padding: '8px', background: T.panel, color: T.ivory, border: \`1px solid \${T.border}\`, fontSize: '12px' }}>
+                        <option value="">Select available vehicle...</option>
+                        {fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).map(v => (
+                          <option key={v.id} value={v.id} disabled={v.capacity < c.requiredCapacity}>
+                            {v.type} (Cap: {v.capacity}) {v.capacity < c.requiredCapacity ? '- Too Small' : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <GoldButton 
+                        onClick={() => {
+                          const sel = document.getElementById(\`assign-\${c.id}\`) as HTMLSelectElement;
+                          if (sel && sel.value) handleAcceptContract(c.id, sel.value);
+                        }}
+                        disabled={!canAccept}
+                      >
+                        Accept & Dispatch
+                      </GoldButton>
+                    </div>
+                  </PanelBox>
+                );
+              })}
+              {filteredContracts.length === 0 && (
+                <div style={{ padding: '30px', textAlign: 'center', color: T.faint, fontSize: '12px', border: \`1px dashed \${T.border}\` }}>
+                  No contracts found matching your filters.
+                </div>
+              )}
+            </div>
+          </div>
+          <div>
             <PanelBox style={{ marginBottom: '16px' }}>
               <SectionHeader>Eligibility Summary</SectionHeader>
               <FieldRow label="Available Vehicles" value={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length} />
@@ -341,58 +448,18 @@ $2`
                 {filteredContracts.filter(c => fleet.some(v => v.capacity >= c.requiredCapacity)).length} contracts match your current fleet capacity.
               </div>
             </PanelBox>
-          </div>\n        </div>\n      `);
+          </div>
+        </div>
+      )}
 
-    // Remove maxWidth: '900px'
-    desk = desk.replace(/return \(\s*<div style=\{\{ maxWidth: '900px' \}\}>/, `return (\n    <div style={{ width: '100%' }}>`);
+      `
+  );
 
-    code = code.replace(deskRegex, desk);
-  }
+  // Also replace `<div style={{ maxWidth: '900px' }}>` with `<div style={{ width: '100%' }}>`
+  content = content.replace(/<div style=\{\{ maxWidth: '900px' \}\}>/g, `<div style={{ width: '100%' }}>`);
 
-  // AssetsTab right rail
-  let assetsStart = /function AssetsTab\(\{ company, fleet, onRefresh, showNotif \}[\s\S]*?return \(\s*<div style=\{\{ maxWidth: '860px' \}\}>/;
-  if (assetsStart.test(code)) {
-    code = code.replace(assetsStart, `function AssetsTab({ company, fleet, onRefresh, showNotif }: { company: Company; fleet: Vehicle[]; onRefresh: () => void; showNotif: (m: string, s: boolean) => void }) {
-  return (
-    <div className="business-content-grid">
-      <div>`);
-    
-    let parts = code.split('function FinanceTab');
-    if (parts.length > 1) {
-      let beforeFinance = parts[0];
-      let endIdx = beforeFinance.lastIndexOf('</div>');
-      if (endIdx !== -1) {
-        // Need to replace the `</div>\n  );\n}` before function FinanceTab. 
-        // We'll replace the last `</div>\n  );\n}` entirely.
-        let fullEndMatch = /<\/div>\s*\)\;\s*\}\s*$/.exec(beforeFinance);
-        if (fullEndMatch) {
-          let rail = `</div>
-      <div>
-        <PanelBox style={{ marginBottom: '16px' }}>
-          <SectionHeader>Facility Benefits</SectionHeader>
-          <div style={{ fontSize: '11px', color: T.muted, marginBottom: '6px' }}>• <strong>Depot:</strong> Unlocks auto-ops and local yield boosts.</div>
-          <div style={{ fontSize: '11px', color: T.muted, marginBottom: '6px' }}>• <strong>Branch Office:</strong> Reduces interstate dispatch penalty.</div>
-        </PanelBox>
-        <PanelBox style={{ marginBottom: '16px' }}>
-          <SectionHeader>Current Lease Burden</SectionHeader>
-          <FieldRow label="Monthly Lease Expense" value={formatMoney((company.facilities || []).reduce((s, f) => s + f.leaseCost, 0))} valueColor={T.red} />
-        </PanelBox>
-        <PanelBox>
-          <SectionHeader>Expansion Readiness</SectionHeader>
-          <FieldRow label="States with Presence" value={new Set((company.facilities || []).map(f => f.state)).size} />
-        </PanelBox>
-      </div>\n    </div>\n  );\n}\n\n`;
-          beforeFinance = beforeFinance.substring(0, fullEndMatch.index) + rail;
-          code = beforeFinance + 'function FinanceTab' + parts[1];
-        }
-      }
-    }
-  }
-
-  if (code !== originalCode) {
-    fs.writeFileSync('frontend/src/app/drennia/business/page.tsx', code);
-    console.log('Update script executed.');
-  }
+  fs.writeFileSync('scratch/extract.js', content);
+  console.log("Rewrote extract.js successfully.");
 }
 
-build();
+rewrite();

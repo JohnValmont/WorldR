@@ -483,7 +483,7 @@ function generateSummary(choices: Choices, firstName: string): string {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-const GOLD = '#D6B35F';
+const GOLD = '#C9A24A';
 
 function FactorRow({ label, value, delta }: { label: string; value: number; delta?: number }) {
   const maxBar = 16;
@@ -525,7 +525,7 @@ function ChipBadge({ label }: { label: string }) {
   return (
     <span
       className="text-[9px] px-2 py-0.5 rounded-sm font-mono whitespace-nowrap"
-      style={{ background: 'rgba(214,179,95,0.08)', border: '1px solid rgba(214,179,95,0.2)', color: '#B9B09B' }}
+      style={{ background: 'rgba(201,162,74,0.08)', border: '1px solid rgba(201,162,74,0.2)', color: '#B9B09B' }}
     >
       {label}
     </span>
@@ -540,9 +540,9 @@ function SceneChoiceCard({ option, selected, onClick }: { option: ChoiceOption; 
       className="w-full text-left rounded-sm transition-all duration-200 flex flex-col"
       style={{
         padding: '14px 16px',
-        background: selected ? 'rgba(214,179,95,0.07)' : 'rgba(13,24,20,0.6)',
-        border: selected ? `1.5px solid rgba(214,179,95,0.55)` : '1px solid rgba(214,179,95,0.12)',
-        boxShadow: selected ? '0 0 24px rgba(214,179,95,0.08)' : 'none',
+        background: selected ? 'rgba(201,162,74,0.07)' : 'rgba(17,19,26,0.6)',
+        border: selected ? `1.5px solid rgba(201,162,74,0.55)` : '1px solid rgba(201,162,74,0.12)',
+        boxShadow: selected ? '0 0 24px rgba(201,162,74,0.08)' : 'none',
         minHeight: '130px',
       }}
     >
@@ -551,7 +551,7 @@ function SceneChoiceCard({ option, selected, onClick }: { option: ChoiceOption; 
           className="shrink-0 mt-0.5 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-all"
           style={{ borderColor: selected ? GOLD : 'rgba(255,255,255,0.2)', background: selected ? GOLD : 'transparent' }}
         >
-          {selected && <div className="w-1.5 h-1.5 rounded-full bg-[#06100D]" />}
+          {selected && <div className="w-1.5 h-1.5 rounded-full bg-[#090A0F]" />}
         </div>
         <span className="text-sm font-bold leading-snug" style={{ color: selected ? '#F4EBD6' : '#B9B09B' }}>{option.title}</span>
       </div>
@@ -580,16 +580,16 @@ function NpcChoiceCard({ option, selected, onClick }: { option: ChoiceOption; se
       className="w-full text-left rounded-sm transition-all duration-200 flex flex-col"
       style={{
         padding: '14px 16px',
-        background: selected ? 'rgba(214,179,95,0.07)' : 'rgba(13,24,20,0.6)',
-        border: selected ? `1.5px solid rgba(214,179,95,0.55)` : '1px solid rgba(214,179,95,0.12)',
-        boxShadow: selected ? '0 0 24px rgba(214,179,95,0.08)' : 'none',
+        background: selected ? 'rgba(201,162,74,0.07)' : 'rgba(17,19,26,0.6)',
+        border: selected ? `1.5px solid rgba(201,162,74,0.55)` : '1px solid rgba(201,162,74,0.12)',
+        boxShadow: selected ? '0 0 24px rgba(201,162,74,0.08)' : 'none',
         minHeight: '130px',
       }}
     >
       <div className="flex items-center gap-2.5 mb-2">
         <div
           className="shrink-0 w-7 h-7 rounded-sm flex items-center justify-center text-xs font-bold font-mono"
-          style={{ background: selected ? 'rgba(214,179,95,0.15)' : 'rgba(255,255,255,0.04)', color: selected ? GOLD : '#7E8378', border: `1px solid ${selected ? 'rgba(214,179,95,0.3)' : 'rgba(255,255,255,0.06)'}` }}
+          style={{ background: selected ? 'rgba(201,162,74,0.15)' : 'rgba(255,255,255,0.04)', color: selected ? GOLD : '#7E8378', border: `1px solid ${selected ? 'rgba(201,162,74,0.3)' : 'rgba(255,255,255,0.06)'}` }}
         >
           {option.title.charAt(0)}
         </div>
@@ -805,8 +805,8 @@ export default function CreateCharacterPage() {
 
   if (!authorized) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#06100D' }}>
-        <div className="w-5 h-5 rounded-full border-2 border-[#D6B35F]/20 border-t-[#D6B35F] animate-spin" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#090A0F' }}>
+        <div className="w-5 h-5 rounded-full border-2 border-[#C9A24A]/20 border-t-[#C9A24A] animate-spin" />
       </div>
     );
   }
@@ -859,7 +859,7 @@ export default function CreateCharacterPage() {
     <div
       className="fixed inset-0 overflow-hidden"
       style={{
-        background: 'radial-gradient(ellipse at 40% 0%, rgba(25,40,35,0.9) 0%, #06100D 55%)',
+        background: 'radial-gradient(ellipse at 40% 0%, rgba(17,19,26,0.9) 0%, #090A0F 55%)',
         opacity: revealed ? 1 : 0,
         transition: 'opacity 0.4s ease',
       }}
@@ -872,9 +872,9 @@ export default function CreateCharacterPage() {
         {/* ── LEFT: Origin Chronicle ───────────────────────────────────────── */}
         <div
           className="h-full overflow-hidden flex flex-col"
-          style={{ borderRight: '1px solid rgba(214,179,95,0.10)', background: 'rgba(8,16,13,0.95)' }}
+          style={{ borderRight: '1px solid rgba(201,162,74,0.10)', background: 'rgba(17,19,26,0.95)' }}
         >
-          <div className="px-5 py-5 shrink-0" style={{ borderBottom: '1px solid rgba(214,179,95,0.08)' }}>
+          <div className="px-5 py-5 shrink-0" style={{ borderBottom: '1px solid rgba(201,162,74,0.08)' }}>
             <div className="text-[9px] font-mono uppercase tracking-[0.3em] mb-1" style={{ color: GOLD, opacity: 0.6 }}>Origin Chronicle</div>
             <div className="text-[10px] font-mono" style={{ color: '#7E8378' }}>Your pre-18 life record</div>
           </div>
@@ -889,7 +889,7 @@ export default function CreateCharacterPage() {
                 <div key={i} className="flex gap-3">
                   <div className="flex flex-col items-center shrink-0">
                     <div className="w-1.5 h-1.5 rounded-full mt-1 shrink-0" style={{ background: GOLD, opacity: i === chronicle.length - 1 ? 1 : 0.4 }} />
-                    {i < chronicle.length - 1 && <div className="flex-1 w-px mt-1" style={{ background: 'rgba(214,179,95,0.12)' }} />}
+                    {i < chronicle.length - 1 && <div className="flex-1 w-px mt-1" style={{ background: 'rgba(201,162,74,0.12)' }} />}
                   </div>
                   <p className="text-[11px] leading-relaxed pb-3" style={{ color: i === chronicle.length - 1 ? '#B9B09B' : '#7E8378' }}>
                     {frag}
@@ -901,12 +901,12 @@ export default function CreateCharacterPage() {
         </div>
 
         {/* ── CENTER: Current Life Scene ───────────────────────────────────── */}
-        <div className="h-full overflow-hidden flex flex-col" style={{ background: 'rgba(10,18,15,0.85)' }}>
+        <div className="h-full overflow-hidden flex flex-col" style={{ background: 'rgba(17,19,26,0.85)' }}>
 
           {/* Scene top bar */}
           <div
             className="shrink-0 flex items-center justify-between px-8 py-4"
-            style={{ borderBottom: '1px solid rgba(214,179,95,0.08)' }}
+            style={{ borderBottom: '1px solid rgba(201,162,74,0.08)' }}
           >
             <button
               type="button"
@@ -969,7 +969,7 @@ export default function CreateCharacterPage() {
               <div className="flex flex-col gap-4 max-w-sm">
                 <div
                   className="p-4 rounded-sm mb-2 grid grid-cols-3 gap-3"
-                  style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(214,179,95,0.1)' }}
+                  style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(201,162,74,0.1)' }}
                 >
                   {[['Motherland', 'Drennia'], ['Capital', 'Drennport'], ['Age', '18']].map(([l, v]) => (
                     <div key={l}>
@@ -985,12 +985,12 @@ export default function CreateCharacterPage() {
                   <input
                     autoFocus
                     className="w-full rounded-sm px-4 py-3 text-base font-sans outline-none transition-all duration-200"
-                    style={{ background: 'rgba(13,24,20,0.8)', border: `1px solid rgba(214,179,95,0.15)`, color: '#F4EBD6' }}
+                    style={{ background: 'rgba(17,19,26,0.8)', border: `1px solid rgba(201,162,74,0.15)`, color: '#F4EBD6' }}
                     placeholder="e.g. Arven"
                     value={firstName}
                     onChange={e => setFirstName(e.target.value)}
-                    onFocus={e => (e.target.style.borderColor = `rgba(214,179,95,0.5)`)}
-                    onBlur={e => (e.target.style.borderColor = `rgba(214,179,95,0.15)`)}
+                    onFocus={e => (e.target.style.borderColor = `rgba(201,162,74,0.5)`)}
+                    onBlur={e => (e.target.style.borderColor = `rgba(201,162,74,0.15)`)}
                     onKeyDown={e => { if (e.key === 'Enter' && canAdvance()) goNext(); }}
                   />
                 </div>
@@ -1000,12 +1000,12 @@ export default function CreateCharacterPage() {
                   </label>
                   <input
                     className="w-full rounded-sm px-4 py-3 text-base font-sans outline-none transition-all duration-200"
-                    style={{ background: 'rgba(13,24,20,0.8)', border: `1px solid rgba(214,179,95,0.15)`, color: '#F4EBD6' }}
+                    style={{ background: 'rgba(17,19,26,0.8)', border: `1px solid rgba(201,162,74,0.15)`, color: '#F4EBD6' }}
                     placeholder="e.g. Veyran"
                     value={lastName}
                     onChange={e => setLastName(e.target.value)}
-                    onFocus={e => (e.target.style.borderColor = `rgba(214,179,95,0.5)`)}
-                    onBlur={e => (e.target.style.borderColor = `rgba(214,179,95,0.15)`)}
+                    onFocus={e => (e.target.style.borderColor = `rgba(201,162,74,0.5)`)}
+                    onBlur={e => (e.target.style.borderColor = `rgba(201,162,74,0.15)`)}
                     onKeyDown={e => { if (e.key === 'Enter' && canAdvance()) goNext(); }}
                   />
                 </div>
@@ -1042,7 +1042,7 @@ export default function CreateCharacterPage() {
           {/* Continue bar */}
           <div
             className="shrink-0 flex items-center justify-end px-8 py-4 gap-4"
-            style={{ borderTop: '1px solid rgba(214,179,95,0.08)', background: 'rgba(6,16,13,0.6)' }}
+            style={{ borderTop: '1px solid rgba(201,162,74,0.08)', background: 'rgba(17,19,26,0.6)' }}
           >
             {scene < TOTAL_SCENES - 1 ? (
               <button
@@ -1051,9 +1051,9 @@ export default function CreateCharacterPage() {
                 disabled={!canAdvance()}
                 className="group relative inline-flex items-center gap-2 px-7 py-2.5 text-[11px] font-bold uppercase tracking-[0.2em] rounded-sm overflow-hidden transition-all duration-200 disabled:opacity-25 disabled:cursor-not-allowed"
                 style={{
-                  background: canAdvance() ? `linear-gradient(135deg, ${GOLD}, #b8944a)` : 'rgba(214,179,95,0.06)',
-                  color: canAdvance() ? '#06100D' : '#7E8378',
-                  boxShadow: canAdvance() ? `0 4px 20px rgba(214,179,95,0.18)` : 'none',
+                  background: canAdvance() ? `linear-gradient(135deg, ${GOLD}, #C9A24A)` : 'rgba(201,162,74,0.06)',
+                  color: canAdvance() ? '#090A0F' : '#7E8378',
+                  boxShadow: canAdvance() ? `0 4px 20px rgba(201,162,74,0.18)` : 'none',
                 }}
               >
                 {canAdvance() && (
@@ -1071,9 +1071,9 @@ export default function CreateCharacterPage() {
                 disabled={!canAdvance()}
                 className="group relative inline-flex items-center gap-2 px-7 py-2.5 text-[11px] font-bold uppercase tracking-[0.2em] rounded-sm overflow-hidden transition-all duration-200 disabled:opacity-25 disabled:cursor-not-allowed"
                 style={{
-                  background: canAdvance() ? `linear-gradient(135deg, ${GOLD}, #b8944a)` : 'rgba(214,179,95,0.06)',
-                  color: canAdvance() ? '#06100D' : '#7E8378',
-                  boxShadow: canAdvance() ? `0 4px 20px rgba(214,179,95,0.18)` : 'none',
+                  background: canAdvance() ? `linear-gradient(135deg, ${GOLD}, #C9A24A)` : 'rgba(201,162,74,0.06)',
+                  color: canAdvance() ? '#090A0F' : '#7E8378',
+                  boxShadow: canAdvance() ? `0 4px 20px rgba(201,162,74,0.18)` : 'none',
                 }}
               >
                 {canAdvance() && (
@@ -1091,9 +1091,9 @@ export default function CreateCharacterPage() {
         {/* ── RIGHT: Live Life Ledger ──────────────────────────────────────── */}
         <div
           className="h-full overflow-hidden flex flex-col"
-          style={{ borderLeft: '1px solid rgba(214,179,95,0.10)', background: 'rgba(8,16,13,0.95)' }}
+          style={{ borderLeft: '1px solid rgba(201,162,74,0.10)', background: 'rgba(17,19,26,0.95)' }}
         >
-          <div className="px-5 py-5 shrink-0" style={{ borderBottom: '1px solid rgba(214,179,95,0.08)' }}>
+          <div className="px-5 py-5 shrink-0" style={{ borderBottom: '1px solid rgba(201,162,74,0.08)' }}>
             <div className="text-[9px] font-mono uppercase tracking-[0.3em] mb-1" style={{ color: GOLD, opacity: 0.6 }}>Life Ledger</div>
             <div className="text-[10px] font-mono" style={{ color: '#7E8378' }}>Building in real time</div>
           </div>
@@ -1148,7 +1148,7 @@ export default function CreateCharacterPage() {
                 <div>
                   <div className="text-[9px] font-mono uppercase tracking-[0.2em] mb-3" style={{ color: '#7E8378' }}>Emerging Record</div>
                   {obl && (
-                    <div className="p-2.5 rounded-sm mb-2" style={{ background: 'rgba(214,179,95,0.05)', border: '1px solid rgba(214,179,95,0.12)' }}>
+                    <div className="p-2.5 rounded-sm mb-2" style={{ background: 'rgba(201,162,74,0.05)', border: '1px solid rgba(201,162,74,0.12)' }}>
                       <div className="text-[8px] font-mono uppercase tracking-widest mb-1" style={{ color: `${GOLD}60` }}>Obligation</div>
                       <div className="text-[10px] leading-relaxed" style={{ color: '#B9B09B' }}>{obl}</div>
                     </div>
@@ -1165,7 +1165,7 @@ export default function CreateCharacterPage() {
           </div>
 
           {/* WORLDr mark */}
-          <div className="px-5 py-3 shrink-0" style={{ borderTop: '1px solid rgba(214,179,95,0.06)' }}>
+          <div className="px-5 py-3 shrink-0" style={{ borderTop: '1px solid rgba(201,162,74,0.06)' }}>
             <div className="text-[8px] font-mono uppercase tracking-widest" style={{ color: '#3f4b47' }}>WORLDr · Pre-Alpha · {new Date().getFullYear()}</div>
           </div>
         </div>

@@ -19,7 +19,7 @@ export default function StartLayout({ children }: { children: React.ReactNode })
 
   if (!authorized) {
     return (
-      <div className="min-h-screen bg-[#111311] flex items-center justify-center">
+      <div className="min-h-screen bg-[#11131A] flex items-center justify-center">
         <div className="w-6 h-6 rounded-full border-2 border-amber-500/20 border-t-amber-500 animate-spin" />
       </div>
     );
