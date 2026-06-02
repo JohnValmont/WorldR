@@ -260,6 +260,32 @@ function DeleteModal({ onClose, onRestartCharacter, onRestartMotherland }: {
   );
 }
 
+function RoomDockCardCompact({ room, onClick }: { room: PowerRoom; onClick: () => void }) {
+  const typeColor = ROOM_TYPE_COLORS[room.type] || GOLD;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="shrink-0 text-left transition-all duration-200 flex items-center gap-3"
+      style={{
+        borderRadius: '12px',
+        padding: '10px 14px',
+        background: 'rgba(12,22,18,0.95)',
+        border: '1px solid rgba(139,164,155,0.2)',
+        backdropFilter: 'blur(4px)'
+      }}
+      onMouseEnter={e => { e.currentTarget.style.border = `1px solid rgba(214,179,95,0.4)`; }}
+      onMouseLeave={e => { e.currentTarget.style.border = '1px solid rgba(139,164,155,0.2)'; }}
+    >
+      <div className="w-2 h-2 rounded-full" style={{ background: typeColor, boxShadow: `0 0 8px ${typeColor}` }} />
+      <div>
+        <div className="text-[11px] font-semibold leading-none" style={{ color: '#F4EBD6' }}>{room.title}</div>
+        <div className="text-[9px] mt-1 font-mono" style={{ color: '#7E8378' }}>{room.state}</div>
+      </div>
+    </button>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DrenniaHomePage() {
@@ -303,12 +329,7 @@ export default function DrenniaHomePage() {
     setTicker([...events.slice(0, 3).map((e: any) => e.text || ''), ...defaults].filter(Boolean).slice(0, 5));
   }, [router]);
 
-  const factors = citizenFile?.factors || { Credibility: 0, Charisma: 0, Influence: 0, Resources: 0 };
-  const money = citizenFile?.personalMoney ?? citizenFile?.money ?? 0;
-  const fullName = citizenFile ? [citizenFile.name?.first, citizenFile.name?.last].filter(Boolean).join(' ') : '—';
-  const homeState = citizenFile?.homeState || '—';
-
-  const stateRooms = selectedState ? getRoomsForState(selectedState) : DRENNIA_POWER_ROOMS;
+  const stateRooms = selectedState ? getRoomsForState(selectedState) : [];
   const dockRooms = selectedState ? getRoomsForState(selectedState) : DRENNIA_POWER_ROOMS.slice(0, 6);
 
   const handleResolve = useCallback(() => {
@@ -367,9 +388,10 @@ export default function DrenniaHomePage() {
     localStorage.setItem('worldr_room_history_v1', JSON.stringify([histEntry, ...hist]));
 
     // World event
+    const first = typeof citizenFile.name === 'object' ? citizenFile.name.first : citizenFile.name.split(' ')[0];
     const evText = result.resultType === 'success'
-      ? `${citizenFile.name?.first || 'A citizen'} ${selectedRole.label.toLowerCase()}d at ${selectedRoom.title} and gained notice.`
-      : `${citizenFile.name?.first || 'A citizen'} attended ${selectedRoom.title}.`;
+      ? `${first || 'A citizen'} ${selectedRole.label.toLowerCase()}d at ${selectedRoom.title} and gained notice.`
+      : `${first || 'A citizen'} attended ${selectedRoom.title}.`;
     const events = JSON.parse(localStorage.getItem('worldr_recent_world_events_v1') || '[]');
     localStorage.setItem('worldr_recent_world_events_v1', JSON.stringify([{ text: evText, at: new Date().toISOString() }, ...events].slice(0, 20)));
     setTicker(prev => [evText, ...prev].slice(0, 5));
@@ -391,8 +413,7 @@ export default function DrenniaHomePage() {
   if (!authorized) return <Spinner />;
 
   return (
-    <div className="w-full flex flex-col gap-4 pb-6">
-
+    <div className="w-full flex flex-col gap-4 pb-4 h-[calc(100vh-110px)] overflow-hidden">
       {/* Modals */}
       {outcomeResult && (
         <OutcomeModal
@@ -409,215 +430,206 @@ export default function DrenniaHomePage() {
         />
       )}
 
-      {/* ── TOP IDENTITY BAR ── */}
-      <div className="flex items-center justify-between gap-4 flex-wrap px-1"
-        style={{ background: 'rgba(16,28,23,0.88)', border: '1px solid rgba(214,179,95,0.16)', borderRadius: '18px', padding: '12px 18px', minHeight: '72px' }}>
-        <div className="flex items-center gap-4">
-          <div>
-            <div className="text-[9px] font-mono uppercase tracking-[0.3em] mb-0.5" style={{ color: `${GOLD}60` }}>WORLDr</div>
-            <div className="text-base font-bold leading-none" style={{ color: '#F4EBD6' }}>{fullName}</div>
-            <div className="text-[10px] font-mono mt-0.5" style={{ color: '#7E8378' }}>Age 18 · {homeState} · Drennia</div>
+      {/* Main Single-Screen Layout */}
+      <div className="w-full h-full flex flex-col sm:flex-row gap-4">
+        
+        {/* LEFT: Live Map Area */}
+        <div className="flex-1 relative rounded-[20px] overflow-hidden flex flex-col" style={{ background: 'rgba(12,22,18,0.92)', border: '1px solid rgba(214,179,95,0.14)' }}>
+          
+          {/* Top Ticker Overlay */}
+          <div className="absolute top-4 left-4 right-4 z-10 pointer-events-none">
+            <div className="pointer-events-auto inline-flex overflow-hidden max-w-[90%]" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', borderRadius: '10px', padding: '8px 14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
+                <span className="shrink-0 text-[8px] font-bold font-mono uppercase tracking-[0.22em]" style={{ color: GOLD }}>Live</span>
+                {ticker.map((t, i) => (
+                  <span key={i} className="shrink-0 text-[10px]" style={{ color: '#B9B09B' }}>{t}</span>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="hidden sm:flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#34d399' }} />
-            <span className="text-[9px] font-mono uppercase tracking-widest" style={{ color: '#34d399' }}>New Citizen</span>
+
+          <div className="absolute top-4 right-4 z-10">
+            <button onClick={() => setShowDeleteModal(true)}
+              className="px-3 py-1.5 text-[9px] font-mono uppercase tracking-widest rounded-sm transition-all"
+              style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5' }}>
+              Delete Character
+            </button>
           </div>
-        </div>
 
-        {/* Factor strip */}
-        <div className="flex items-center gap-2">
-          <FactorPill label="Credibility" value={factors.Credibility} />
-          <FactorPill label="Charisma"    value={factors.Charisma} />
-          <FactorPill label="Influence"   value={factors.Influence} />
-          <FactorPill label="Resources"   value={factors.Resources} />
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <div className="text-[9px] font-mono uppercase tracking-widest" style={{ color: '#7E8378' }}>Funds</div>
-            <div className="text-sm font-bold font-mono" style={{ color: '#34d399' }}>${money.toLocaleString()}</div>
-          </div>
-          <button onClick={() => setShowDeleteModal(true)}
-            className="px-3 py-1.5 text-[9px] font-mono uppercase tracking-widest rounded-sm transition-all"
-            style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
-            Delete
-          </button>
-        </div>
-      </div>
-
-      {/* ── WORLD TICKER ── */}
-      <div className="overflow-hidden" style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '10px', padding: '8px 14px', border: '1px solid rgba(255,255,255,0.04)' }}>
-        <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
-          <span className="shrink-0 text-[8px] font-mono uppercase tracking-[0.22em]" style={{ color: `${GOLD}60` }}>Live</span>
-          {ticker.map((t, i) => (
-            <span key={i} className="shrink-0 text-[10px]" style={{ color: '#7E8378' }}>{t}</span>
-          ))}
-        </div>
-      </div>
-
-      {/* ── DRENNIA INTERACTIVE MAP ── */}
-      <div>
-        <div className="text-[9px] font-mono uppercase tracking-[0.25em] mb-3" style={{ color: '#7E8378' }}>
-          Drennia Live Map
-        </div>
-        <div className="w-full relative rounded-[20px] overflow-hidden" style={{ background: 'rgba(12,22,18,0.92)', border: '1px solid rgba(214,179,95,0.14)' }}>
-          <DrenniaMapSvg 
-            selectedState={selectedState}
-            selectedRoomId={selectedRoom?.id}
-            roomPins={drenniaRoomPins}
-            onStateSelect={(state) => {
-              setSelectedState(prev => prev === state ? null : state);
-              setSelectedRoom(null);
-              setSelectedRole(null);
-            }}
-            onRoomSelect={(roomId) => {
-              const room = DRENNIA_POWER_ROOMS.find(r => r.id === roomId);
-              if (room) {
-                setSelectedRoom(room);
+          {/* SVG Map Container */}
+          <div className="flex-1 w-full h-full relative">
+            <DrenniaMapSvg 
+              selectedState={selectedState}
+              selectedRoomId={selectedRoom?.id}
+              roomPins={drenniaRoomPins}
+              onStateSelect={(state) => {
+                setSelectedState(prev => prev === state ? null : state);
+                setSelectedRoom(null);
                 setSelectedRole(null);
-                setSelectedState(room.state);
-              }
-            }}
-          />
-        </div>
-      </div>
+              }}
+              onRoomSelect={(roomId) => {
+                const room = DRENNIA_POWER_ROOMS.find(r => r.id === roomId);
+                if (room) {
+                  setSelectedRoom(room);
+                  setSelectedRole(null);
+                  setSelectedState(room.state);
+                }
+              }}
+            />
+          </div>
 
-      {/* ── SELECTED STATE INFO BAR ── */}
-      {selectedState && (
-        <div className="rounded-sm px-5 py-4" style={{ background: 'rgba(12,22,18,0.7)', border: '1px solid rgba(214,179,95,0.12)' }}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="text-[9px] font-mono uppercase tracking-[0.22em] mb-1" style={{ color: `${GOLD}60` }}>Selected State</div>
-              <div className="text-base font-bold mb-1" style={{ color: '#F4EBD6' }}>{selectedState}</div>
-              <div className="text-[11px]" style={{ color: '#7E8378' }}>
-                {DRENNIA_STATES.find(s => s.id === selectedState)?.identity}
+          {/* Bottom Compact Rail Overlay */}
+          <div className="absolute bottom-4 left-4 right-4 z-10 pointer-events-none flex gap-2 overflow-x-auto scrollbar-hide">
+             {dockRooms.map(room => (
+               <div className="pointer-events-auto" key={room.id}>
+                 <RoomDockCardCompact 
+                   room={room} 
+                   onClick={() => { setSelectedRoom(room); setSelectedRole(null); setSelectedState(room.state); }} 
+                 />
+               </div>
+             ))}
+          </div>
+        </div>
+
+        {/* RIGHT: Context Drawer (380px) */}
+        <div className="w-full sm:w-[420px] shrink-0 h-full overflow-y-auto rounded-xl flex flex-col relative" 
+          style={{ background: 'rgba(9,19,15,0.85)', border: '1px solid rgba(214,179,95,0.18)', boxShadow: '-10px 0 40px rgba(0,0,0,0.2)' }}>
+          
+          {selectedRoom ? (
+            // --- ROOM DETAILS ---
+            <div className="p-6 flex flex-col">
+              <button onClick={() => { setSelectedRoom(null); setSelectedRole(null); }}
+                className="self-end text-[10px] font-mono uppercase tracking-widest transition-colors mb-4"
+                style={{ color: '#7E8378' }}>
+                ✕ Close Room
+              </button>
+              
+              <div className="mb-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[8px] font-mono px-1.5 py-0.5 rounded-sm"
+                    style={{ background: `${ROOM_TYPE_COLORS[selectedRoom.type]}18`, color: ROOM_TYPE_COLORS[selectedRoom.type], border: `1px solid ${ROOM_TYPE_COLORS[selectedRoom.type]}40` }}>
+                    {ROOM_TYPE_LABELS[selectedRoom.type]}
+                  </span>
+                  <span className="text-[8px] font-mono" style={{ color: '#3f4b47' }}>
+                    {selectedRoom.visibility} · {selectedRoom.timeRemainingLabel}
+                  </span>
+                </div>
+                <h2 className="text-xl font-bold mb-1" style={{ color: '#F4EBD6' }}>{selectedRoom.title}</h2>
+                <div className="text-[10px] font-mono mb-3" style={{ color: '#7E8378' }}>{selectedRoom.state} · {selectedRoom.durationLabel}</div>
+                <p className="text-[11px] leading-relaxed" style={{ color: '#B9B09B' }}>{selectedRoom.story}</p>
+              </div>
+
+              <div className="mb-4">
+                <div className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: '#7E8378' }}>NPCs Present</div>
+                {selectedRoom.npcPresence.map(npc => (
+                  <div key={npc.name} className="flex items-center gap-2 py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div className="w-6 h-6 rounded-sm flex items-center justify-center text-[10px] font-bold font-mono shrink-0"
+                      style={{ background: 'rgba(214,179,95,0.1)', color: GOLD, border: `1px solid rgba(214,179,95,0.2)` }}>
+                      {npc.name.charAt(0)}
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-semibold" style={{ color: '#F4EBD6' }}>{npc.name}</div>
+                      <div className="text-[9px] font-mono" style={{ color: '#3f4b47' }}>{npc.role} · {npc.institution}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mb-4">
+                <div className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: '#7E8378' }}>Simulated Citizens</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedRoom.simulatedPlayers.map(p => (
+                    <div key={p.name} className="text-[9px] px-2 py-0.5 rounded-sm"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#7E8378' }}>
+                      {p.name} · {p.roleHint}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-5 p-3 rounded-sm" style={{ background: 'rgba(214,179,95,0.05)', border: '1px solid rgba(214,179,95,0.12)' }}>
+                <div className="text-[9px] font-mono uppercase tracking-widest mb-1" style={{ color: `${GOLD}70` }}>Stakes</div>
+                <div className="text-[11px]" style={{ color: '#B9B09B' }}>{selectedRoom.stakes}</div>
+              </div>
+
+              <div className="mb-5">
+                <div className="text-[9px] font-mono uppercase tracking-widest mb-3" style={{ color: '#7E8378' }}>Select Your Role</div>
+                <div className="flex flex-col gap-2.5">
+                  {selectedRoom.roles.map(role => (
+                    <RoleCard key={role.id} role={role} selected={selectedRole?.id === role.id} onClick={() => setSelectedRole(role)} />
+                  ))}
+                </div>
+              </div>
+
+              <button type="button" onClick={handleResolve} disabled={!selectedRole || resolving}
+                className="w-full py-3 mt-auto text-[11px] font-bold uppercase tracking-[0.18em] rounded-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{
+                  background: selectedRole ? `linear-gradient(135deg, ${GOLD}, #b8944a)` : 'rgba(214,179,95,0.06)',
+                  color: selectedRole ? '#06100D' : '#7E8378',
+                  boxShadow: selectedRole ? `0 4px 20px rgba(214,179,95,0.18)` : 'none',
+                }}>
+                {resolving ? 'Resolving…' : selectedRole ? `Enter Room · ${selectedRole.label}` : 'Select a Role'}
+              </button>
+            </div>
+          ) : selectedState ? (
+            // --- STATE DETAILS ---
+            <div className="p-6 flex flex-col h-full">
+              <button onClick={() => setSelectedState(null)}
+                className="self-end text-[10px] font-mono uppercase tracking-widest transition-colors mb-4"
+                style={{ color: '#7E8378' }}>
+                ✕ Close State
+              </button>
+
+              <div className="mb-6">
+                <div className="text-[9px] font-mono uppercase tracking-[0.22em] mb-1" style={{ color: `${GOLD}60` }}>Territory</div>
+                <div className="text-2xl font-bold mb-2" style={{ color: '#F4EBD6' }}>{selectedState}</div>
+                <div className="text-[12px] leading-relaxed" style={{ color: '#B9B09B' }}>
+                  {DRENNIA_STATES.find(s => s.id === selectedState)?.identity}
+                </div>
+                <div className="text-[10px] mt-3 font-mono p-2 rounded-sm" style={{ background: 'rgba(214,179,95,0.05)', color: '#D6B35F', border: '1px solid rgba(214,179,95,0.1)' }}>
+                  {DRENNIA_STATES.find(s => s.id === selectedState)?.powerMood}
+                </div>
+              </div>
+
+              <div className="text-[9px] font-mono uppercase tracking-[0.25em] mb-3" style={{ color: '#7E8378' }}>
+                Active Opportunities ({stateRooms.length})
+              </div>
+              
+              <div className="flex flex-col gap-3">
+                {stateRooms.map(room => (
+                  <button key={room.id} onClick={() => { setSelectedRoom(room); setSelectedRole(null); }}
+                    className="w-full text-left p-4 rounded-md transition-all group"
+                    style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
+                    onMouseEnter={e => { e.currentTarget.style.border = `1px solid rgba(214,179,95,0.3)`; }}
+                    onMouseLeave={e => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.05)'; }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[8px] font-mono px-1.5 py-0.5 rounded-sm" style={{ background: `${ROOM_TYPE_COLORS[room.type]}18`, color: ROOM_TYPE_COLORS[room.type] }}>
+                        {ROOM_TYPE_LABELS[room.type]}
+                      </span>
+                      <span className="text-[8px] font-mono" style={{ color: '#7E8378' }}>{room.visibility}</span>
+                    </div>
+                    <div className="text-[13px] font-semibold mb-1" style={{ color: '#F4EBD6' }}>{room.title}</div>
+                    <div className="text-[9px] font-mono" style={{ color: '#3f4b47' }}>
+                      {room.roles.length} roles · {room.timeRemainingLabel}
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="text-right shrink-0">
-              <div className="text-[9px] font-mono" style={{ color: '#7E8378' }}>Active Rooms</div>
-              <div className="text-xl font-bold" style={{ color: GOLD }}>{getRoomsForState(selectedState).length}</div>
+          ) : (
+            // --- DEFAULT EMPTY STATE ---
+            <div className="p-8 flex flex-col items-center justify-center h-full text-center opacity-50">
+              <div className="w-12 h-12 rounded-full mb-4 border border-dashed flex items-center justify-center" style={{ borderColor: '#7E8378' }}>
+                <span className="text-xl" style={{ color: '#7E8378' }}>⌖</span>
+              </div>
+              <h3 className="text-sm font-bold mb-2" style={{ color: '#B9B09B' }}>Awaiting Directive</h3>
+              <p className="text-[11px] max-w-[200px]" style={{ color: '#7E8378' }}>
+                Select a state or an active room pin on the map to begin.
+              </p>
             </div>
-          </div>
-          <div className="text-[9px] mt-2 font-mono" style={{ color: '#3f4b47' }}>
-            {DRENNIA_STATES.find(s => s.id === selectedState)?.npcPresence}
-          </div>
-        </div>
-      )}
-
-      {/* ── LIVE ROOMS DOCK ── */}
-      <div>
-        <div className="text-[9px] font-mono uppercase tracking-[0.25em] mb-3" style={{ color: '#7E8378' }}>
-          {selectedState ? `Live Rooms · ${selectedState}` : 'Live Rooms Near You'}
-        </div>
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-          {dockRooms.map(room => (
-            <RoomDockCard key={room.id} room={room} onClick={() => { setSelectedRoom(room); setSelectedRole(null); }} />
-          ))}
+          )}
         </div>
       </div>
-
-      {/* ── ROOM DETAIL SLIDE-OVER ── */}
-      {selectedRoom && (
-        <div className="fixed inset-y-0 right-0 z-40 flex flex-col overflow-y-auto"
-          style={{ width: '420px', background: 'rgba(9,19,15,0.98)', borderLeft: '1px solid rgba(214,179,95,0.18)', boxShadow: '-20px 0 60px rgba(0,0,0,0.42)', padding: '22px', paddingTop: '80px' }}>
-          <button onClick={() => { setSelectedRoom(null); setSelectedRole(null); }}
-            className="absolute top-5 right-5 text-[10px] font-mono uppercase tracking-widest transition-colors"
-            style={{ color: '#7E8378' }}>
-            ✕ Close
-          </button>
-
-          {/* Room header */}
-          <div className="mb-5">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[8px] font-mono px-1.5 py-0.5 rounded-sm"
-                style={{ background: `${ROOM_TYPE_COLORS[selectedRoom.type]}18`, color: ROOM_TYPE_COLORS[selectedRoom.type], border: `1px solid ${ROOM_TYPE_COLORS[selectedRoom.type]}40` }}>
-                {ROOM_TYPE_LABELS[selectedRoom.type]}
-              </span>
-              <span className="text-[8px] font-mono" style={{ color: '#3f4b47' }}>
-                {selectedRoom.visibility} · {selectedRoom.timeRemainingLabel}
-              </span>
-            </div>
-            <h2 className="text-xl font-bold mb-1" style={{ color: '#F4EBD6' }}>{selectedRoom.title}</h2>
-            <div className="text-[10px] font-mono mb-3" style={{ color: '#7E8378' }}>{selectedRoom.state} · {selectedRoom.durationLabel}</div>
-            <p className="text-[11px] leading-relaxed" style={{ color: '#B9B09B' }}>{selectedRoom.story}</p>
-          </div>
-
-          {/* NPCs */}
-          <div className="mb-4">
-            <div className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: '#7E8378' }}>NPCs Present</div>
-            {selectedRoom.npcPresence.map(npc => (
-              <div key={npc.name} className="flex items-center gap-2 py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                <div className="w-6 h-6 rounded-sm flex items-center justify-center text-[10px] font-bold font-mono shrink-0"
-                  style={{ background: 'rgba(214,179,95,0.1)', color: GOLD, border: `1px solid rgba(214,179,95,0.2)` }}>
-                  {npc.name.charAt(0)}
-                </div>
-                <div>
-                  <div className="text-[11px] font-semibold" style={{ color: '#F4EBD6' }}>{npc.name}</div>
-                  <div className="text-[9px] font-mono" style={{ color: '#3f4b47' }}>{npc.role} · {npc.institution}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Simulated players */}
-          <div className="mb-4">
-            <div className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: '#7E8378' }}>
-              Simulated Citizens Present
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {selectedRoom.simulatedPlayers.map(p => (
-                <div key={p.name} className="text-[9px] px-2 py-0.5 rounded-sm"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#7E8378' }}>
-                  {p.name} · {p.roleHint}
-                </div>
-              ))}
-            </div>
-            <div className="text-[8px] mt-1 font-mono italic" style={{ color: '#3f4b47' }}>
-              Simulated citizens — not real players in pre-alpha v1.
-            </div>
-          </div>
-
-          {/* Stakes */}
-          <div className="mb-5 p-3 rounded-sm" style={{ background: 'rgba(214,179,95,0.05)', border: '1px solid rgba(214,179,95,0.12)' }}>
-            <div className="text-[9px] font-mono uppercase tracking-widest mb-1" style={{ color: `${GOLD}70` }}>Stakes</div>
-            <div className="text-[11px]" style={{ color: '#B9B09B' }}>{selectedRoom.stakes}</div>
-          </div>
-
-          {/* Role selection */}
-          <div className="mb-5">
-            <div className="text-[9px] font-mono uppercase tracking-widest mb-3" style={{ color: '#7E8378' }}>Select Your Role</div>
-            <div className="flex flex-col gap-2.5">
-              {selectedRoom.roles.map(role => (
-                <RoleCard
-                  key={role.id}
-                  role={role}
-                  selected={selectedRole?.id === role.id}
-                  onClick={() => setSelectedRole(role)}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Pre-alpha note */}
-          <div className="mb-5 p-3 rounded-sm text-[9px] leading-relaxed font-mono" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', color: '#3f4b47' }}>
-            Pre-alpha v1: rooms resolve immediately. Later versions will include timers, real players, NPC competition, and public deadlines.
-          </div>
-
-          {/* Resolve button */}
-          <button
-            type="button"
-            onClick={handleResolve}
-            disabled={!selectedRole || resolving}
-            className="w-full py-3 text-[11px] font-bold uppercase tracking-[0.18em] rounded-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-            style={{
-              background: selectedRole ? `linear-gradient(135deg, ${GOLD}, #b8944a)` : 'rgba(214,179,95,0.06)',
-              color: selectedRole ? '#06100D' : '#7E8378',
-              boxShadow: selectedRole ? `0 4px 20px rgba(214,179,95,0.18)` : 'none',
-            }}>
-            {resolving ? 'Resolving…' : selectedRole ? `Enter Room · ${selectedRole.label}` : 'Select a Role'}
-          </button>
-        </div>
-      )}
     </div>
   );
 }

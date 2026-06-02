@@ -26,7 +26,7 @@ type Props = {
 };
 
 const STATE_META: Record<DrenniaGameplayState, { labelX: number; labelY: number; fill: string; stroke: string }> = {
-  "Drennport State": { labelX: 725, labelY: 330, fill: "rgba(47, 112, 121, 0.52)", stroke: "rgba(214,179,95,0.34)" },
+  "Drennport State": { labelX: 720, labelY: 230, fill: "rgba(47, 112, 121, 0.52)", stroke: "rgba(214,179,95,0.34)" },
   "Ironvale State": { labelX: 430, labelY: 150, fill: "rgba(123, 98, 57, 0.46)", stroke: "rgba(214,179,95,0.26)" },
   "Greenmere State": { labelX: 445, labelY: 460, fill: "rgba(45, 103, 70, 0.48)", stroke: "rgba(214,179,95,0.24)" },
   "Westport State": { labelX: 205, labelY: 350, fill: "rgba(40, 112, 94, 0.42)", stroke: "rgba(214,179,95,0.22)" }
@@ -82,11 +82,12 @@ export function DrenniaMapSvg({
 
   return (
     <svg
-      viewBox="0 0 1000 620"
+      viewBox="-20 -20 1040 660"
+      preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label="Interactive map of Drennia"
       className="w-full h-full"
-      style={{ display: "block", minHeight: 420 }}
+      style={{ display: "block", minHeight: "100%", maxHeight: "100%" }}
     >
       <defs>
         <radialGradient id="drenniaSeaGlow" cx="62%" cy="34%" r="65%">
@@ -137,7 +138,7 @@ export function DrenniaMapSvg({
                 fontWeight="800"
                 style={{ pointerEvents: "none", letterSpacing: "0.02em" }}
               >
-                {region.id.replace(" State", "")}
+                {region.id}
               </text>
             </g>
           );
@@ -147,10 +148,10 @@ export function DrenniaMapSvg({
       <path d={countryPath} fill="none" stroke="rgba(244,235,214,0.70)" strokeWidth="3" />
 
       <g aria-label="Capital marker Drennport">
-        <circle cx="811.6" cy="323.3" r="9" fill="#D6B35F" stroke="#08120F" strokeWidth="4" />
-        <circle cx="811.6" cy="323.3" r="18" fill="none" stroke="#D6B35F" strokeOpacity="0.32" strokeWidth="3" />
-        <text x="833.6" y="311.3" fill="#F4EBD6" fontSize="19" fontWeight="800">Drennport</text>
-        <text x="833.6" y="333.3" fill="#B9B09B" fontSize="12" letterSpacing="0.12em">CAPITAL</text>
+        <circle cx="831.6" cy="323.3" r="8" fill="#D6B35F" stroke="#08120F" strokeWidth="3" />
+        <circle cx="831.6" cy="323.3" r="16" fill="none" stroke="#D6B35F" strokeOpacity="0.32" strokeWidth="2" />
+        <text x="848" y="316" fill="#F4EBD6" fontSize="16" fontWeight="800">Drennport</text>
+        <text x="848" y="333" fill="#D6B35F" fontSize="10" fontWeight="700" letterSpacing="0.12em">CAPITAL</text>
       </g>
 
       {roomPins.map((pin) => {
