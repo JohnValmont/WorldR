@@ -96,16 +96,23 @@ export default function CompanyPage() {
         </div>
 
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: '#F4EBD6' }}>Next Actions</div>
-          <div className="flex gap-3">
-            <Link href="/drennia/contracts" className="flex-1 py-3 text-center text-[10px] font-bold uppercase tracking-widest rounded-sm" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#F4EBD6' }}>
-              View Contract Board
+          <div className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: '#7E8378' }}>Suggested Next Actions</div>
+          <div className="grid grid-cols-2 gap-3">
+            <Link href="/drennia/contracts" className="flex flex-col items-center justify-center p-4 rounded-sm transition-colors hover:bg-white/5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: GOLD }}>View Contract Board</span>
+              <span className="text-[9px] text-gray-500 mt-1">Bid on public tenders</span>
             </Link>
-            <Link href="/drennia/registry" className="flex-1 py-3 text-center text-[10px] font-bold uppercase tracking-widest rounded-sm" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#F4EBD6' }}>
-              View Public Registry
+            <Link href="/drennia/registry" className="flex flex-col items-center justify-center p-4 rounded-sm transition-colors hover:bg-white/5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#F4EBD6' }}>View Public Registry</span>
+              <span className="text-[9px] text-gray-500 mt-1">Scout competitors</span>
             </Link>
-            <button disabled className="flex-1 py-3 text-center text-[10px] font-bold uppercase tracking-widest rounded-sm opacity-30" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#F4EBD6' }}>
-              Open Bank Account (Locked)
+            <button className="flex flex-col items-center justify-center p-4 rounded-sm transition-colors hover:bg-white/5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#34d399' }}>Create Contract</span>
+              <span className="text-[9px] text-gray-500 mt-1">Post a tender</span>
+            </button>
+            <button className="flex flex-col items-center justify-center p-4 rounded-sm transition-colors hover:bg-white/5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#60a5fa' }}>Send Business Offer</span>
+              <span className="text-[9px] text-gray-500 mt-1">Direct B2B</span>
             </button>
           </div>
         </div>

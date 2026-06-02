@@ -25,6 +25,21 @@ export interface Company {
   riskFlags: string[];
 }
 
+export interface BusinessOffer {
+  id: string;
+  senderCompanyId: string;
+  senderName: string;
+  targetCompanyId: string;
+  targetName: string;
+  title: string;
+  description: string;
+  price: number;
+  deadlineDays: number;
+  note: string;
+  status: 'sent' | 'accepted' | 'rejected' | 'countered';
+  createdAt: string;
+}
+
 export interface ContractBid {
   companyId: string;
   amount: number;
@@ -76,6 +91,30 @@ export function getPlayerCompany(characterId: string): Company | undefined {
   return getCompanies().find(c => c.ownerCharacterId === characterId);
 }
 
+// ─── Reserved Names Management ──────────────────────────────────────────────────
+
+export function getReservedNames(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  return JSON.parse(localStorage.getItem('worldr_reserved_business_names_v1') || '{}');
+}
+
+export function reserveName(characterId: string, name: string): void {
+  if (typeof window === 'undefined') return;
+  const names = getReservedNames();
+  names[name.toLowerCase()] = characterId;
+  localStorage.setItem('worldr_reserved_business_names_v1', JSON.stringify(names));
+}
+
+export function isNameReserved(name: string): boolean {
+  const names = getReservedNames();
+  return !!names[name.toLowerCase()];
+}
+
+export function isNameReservedByPlayer(characterId: string, name: string): boolean {
+  const names = getReservedNames();
+  return names[name.toLowerCase()] === characterId;
+}
+
 // ─── Contract Management ──────────────────────────────────────────────────────
 
 export function getContracts(): Contract[] {
@@ -93,6 +132,37 @@ export function saveContract(contract: Contract): void {
     contracts.push(contract);
   }
   localStorage.setItem('worldr_contracts_v1', JSON.stringify(contracts));
+}
+
+export function createPlayerContract(contract: Omit<Contract, 'id' | 'createdAt' | 'status' | 'bids' | 'issuerType'>): void {
+  const newContract: Contract = {
+    ...contract,
+    id: `ctr_${Date.now()}`,
+    issuerType: 'player',
+    status: 'open',
+    bids: [],
+    createdAt: new Date().toISOString()
+  };
+  saveContract(newContract);
+}
+
+// ─── Business Offers Management ────────────────────────────────────────────────
+
+export function getBusinessOffers(): BusinessOffer[] {
+  if (typeof window === 'undefined') return [];
+  return JSON.parse(localStorage.getItem('worldr_business_offers_v1') || '[]');
+}
+
+export function saveBusinessOffer(offer: BusinessOffer): void {
+  if (typeof window === 'undefined') return;
+  const offers = getBusinessOffers();
+  const index = offers.findIndex(o => o.id === offer.id);
+  if (index >= 0) {
+    offers[index] = offer;
+  } else {
+    offers.push(offer);
+  }
+  localStorage.setItem('worldr_business_offers_v1', JSON.stringify(offers));
 }
 
 // ─── NPC Data (for multiplayer feel) ──────────────────────────────────────────

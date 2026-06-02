@@ -1,510 +1,396 @@
-
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { DRENNIA_STATES, getDistrictsForState, type State, type District, type Place, type BusinessAction } from '../../../data/business/drenniaDistricts';
-import { getLetters, markLetterRead, getUnreadCount, createWelcomeLetter, hasWelcomeLetter, type Letter, addLetter } from '../../../data/livingWorld/letterSystem';
-import DrenniaMapSvg from '../../../components/maps/DrenniaMapSvg';
+import { DRENNIA_STATES, type State, type District, type Place } from '../../../data/business/drenniaDistricts';
+import { reserveName, isNameReserved, saveCompany, getCompanies } from '../../../lib/businessCore';
 
-const GOLD = '#c9a84c';
-const BG = '#0a0b0f';
-const PANEL = '#0f1714';
-
-const KEYS_TO_CLEAR = [
-  'worldr_citizen_file_v1', 'worldr_character_origin_v1', 'worldr_living_world_entry_v1',
-  'worldr_records_v1', 'worldr_letters_v1', 'worldr_business_rooms_v1',
-  'worldr_room_history_v1', 'worldr_companies_v1', 'worldr_recent_world_events_v1',
-  'worldr_life_records_v1', 'worldr_opportunity_history_v1', 'worldr_active_opportunities_v1',
-  'worldr_power_rooms_v1', 'worldr_room_participation_v1',
-  'worldr_reserved_business_names_v1', 'worldr_business_filings_v1',
-  'worldr_contracts_v1', 'worldr_contract_bids_v1', 'worldr_business_offers_v1'
-];
-
-function Spinner() {
-  return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: BG }}>
-      <div className="text-[10px] font-mono uppercase tracking-widest animate-pulse" style={{ color: GOLD }}>
-        Opening The Chronicle…
-      </div>
-    </div>
-  );
-}
-
-function FactorChip({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className="flex flex-col items-center px-3 py-1.5 rounded-sm" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <span className="text-[7px] font-mono uppercase tracking-widest mb-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>{label}</span>
-      <span className="text-sm font-bold font-mono" style={{ color }}>{value}</span>
-    </div>
-  );
-}
-
-function DeleteModal({ onClose, onRestartCharacter, onRestartMotherland }: any) {
-  const [input, setInput] = useState('');
-  const confirmed = input.trim().toUpperCase() === 'RESTART';
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
-      <div className="w-full max-w-sm rounded-sm p-6 flex flex-col gap-4" style={{ background: 'rgba(10,10,16,0.99)', border: '1px solid rgba(239,68,68,0.3)' }}>
-        <div className="text-white font-bold text-sm">Restart Life?</div>
-        <div className="text-[10px] font-mono leading-relaxed" style={{ color: '#3f4b47' }}>
-          Type <strong style={{ color: '#f87171' }}>RESTART</strong> to confirm. This clears your citizen file, companies, contracts, records, and letters. Login and pre-alpha access are kept.
-        </div>
-        <input type="text" placeholder="RESTART" value={input} onChange={e => setInput(e.target.value)}
-          className="w-full rounded-sm px-4 py-2.5 text-sm outline-none bg-black/30 border border-white/[0.07] text-white uppercase focus:border-red-500/70 placeholder:normal-case"
-        />
-        <div className="flex flex-col gap-2">
-          <button type="button" disabled={!confirmed} onClick={onRestartCharacter}
-            className="w-full py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-sm disabled:opacity-40"
-            style={{ background: 'rgba(245,158,11,0.14)', border: '1px solid rgba(245,158,11,0.4)', color: '#fbbf24' }}>
-            Restart Character Only
-          </button>
-          <button type="button" disabled={!confirmed} onClick={onRestartMotherland}
-            className="w-full py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-sm disabled:opacity-40"
-            style={{ background: 'rgba(239,68,68,0.14)', border: '1px solid rgba(239,68,68,0.4)', color: '#f87171' }}>
-            Restart From Motherland
-          </button>
-          <button type="button" onClick={onClose}
-            className="w-full py-2.5 text-[10px] font-semibold uppercase tracking-widest rounded-sm"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa' }}>
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── ACTION VIEWS ─────────────────────────────────────────────────────────────
-
-function ActionResultModal({ title, prose, onClose }: { title: string; prose: string; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}>
-      <div className="w-full max-w-lg rounded-sm p-6 flex flex-col gap-4" style={{ background: 'rgba(10,11,15,0.99)', border: `1px solid ${GOLD}40`, boxShadow: `0 0 50px ${GOLD}14, 0 20px 60px rgba(0,0,0,0.8)` }}>
-        <div className="text-[11px] font-mono uppercase tracking-[0.25em]" style={{ color: GOLD }}>{title}</div>
-        <p className="text-sm leading-relaxed" style={{ color: '#B9B09B', fontStyle: 'italic', borderLeft: `2px solid ${GOLD}40`, paddingLeft: '12px' }}>
-          {prose}
-        </p>
-        <div className="flex justify-end pt-2">
-          <button onClick={onClose} className="px-6 py-2 text-[10px] font-bold uppercase tracking-widest rounded-sm" style={{ background: `linear-gradient(135deg, ${GOLD}, #a8882e)`, color: BG }}>
-            Acknowledge
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── REGISTRY VIEWS ───────────────────────────────────────────────────────────
-
-function RegistryActionView({ action, citizenFile, onComplete, onBack }: any) {
-  const [reservedName, setReservedName] = useState('');
-  const [sector, setSector] = useState('Shipping & Logistics');
-  const [startingCapital, setStartingCapital] = useState(500);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const cash = citizenFile?.personalMoney ?? citizenFile?.money ?? 0;
-
-  // Load reserved names
-  const reservedNames = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('worldr_reserved_business_names_v1') || '[]') : [];
-  const myReservedNames = reservedNames.filter((r: any) => r.owner === citizenFile.name);
-  const currentReservation = myReservedNames[0]?.name || '';
-
-  const SECTORS = ['Retail & Consumer', 'Shipping & Logistics', 'Agriculture & Food', 'Manufacturing', 'Finance'];
-
-  if (action.id === 'check-registration-reqs') {
-    return (
-      <div className="flex flex-col gap-4">
-        <button onClick={onBack} className="text-left text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: '#7E8378' }}>← Back to Registry Office</button>
-        <div className="text-lg font-bold" style={{ color: '#F4EBD6' }}>Registration Requirements</div>
-        <div className="text-[12px] leading-relaxed" style={{ color: '#B9B09B' }}>
-          To operate a legal business in Drennia, you must incorporate under a recognized structure. For independent citizens, this begins with a <strong>Sole Trader</strong> registration.
-        </div>
-        <div className="p-3 rounded-sm" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <ul className="text-[11px] list-disc list-inside flex flex-col gap-2" style={{ color: '#7E8378' }}>
-            <li><strong style={{ color: '#F4EBD6' }}>Name Reservation:</strong> A unique business name must be reserved on the public ledger. Cost: <span style={{ color: '#f59e0b' }}>₯10</span></li>
-            <li><strong style={{ color: '#F4EBD6' }}>Filing Fee:</strong> Administrative cost to the state. Cost: <span style={{ color: '#f59e0b' }}>₯25</span></li>
-            <li><strong style={{ color: '#F4EBD6' }}>Starting Capital:</strong> Minimum liquidity required to prove solvency. Cost: <span style={{ color: '#34d399' }}>₯500</span> (held by the company)</li>
-          </ul>
-        </div>
-        <div className="text-[10px] font-mono mt-2" style={{ color: '#3f4b47' }}>Total initial cash required: ₯535</div>
-      </div>
-    );
-  }
-
-  if (action.id === 'reserve-company-name') {
-    const handleReserve = () => {
-      if (cash < 10) return setErrorMsg('Insufficient cash (₯10 required)');
-      if (reservedName.trim().length < 3) return setErrorMsg('Name must be at least 3 characters');
-      if (myReservedNames.length > 0) return setErrorMsg('You already hold a reserved name');
-
-      const updated = { ...citizenFile };
-      updated.personalMoney = (updated.personalMoney || updated.money || 0) - 10;
-      updated.money = updated.personalMoney;
-      
-      const newReservation = { name: reservedName.trim(), owner: citizenFile.name, reservedAt: new Date().toISOString() };
-      localStorage.setItem('worldr_reserved_business_names_v1', JSON.stringify([...reservedNames, newReservation]));
-      
-      // Save record
-      const rec = {
-        id: `rec_${Date.now()}`, type: 'business',
-        summary: `Reserved the business name ${newReservation.name} at Drennport Company Registry.`,
-        createdAt: new Date().toISOString()
-      };
-      const recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
-      localStorage.setItem('worldr_records_v1', JSON.stringify([rec, ...recs]));
-      
-      onComplete(updated, 'Name Reserved', `You paid the ₯10 filing fee and reserved the name "${newReservation.name}" on the public ledger. It is yours to register.`);
-    };
-
-    return (
-      <div className="flex flex-col gap-4">
-        <button onClick={onBack} className="text-left text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: '#7E8378' }}>← Back</button>
-        <div className="text-lg font-bold" style={{ color: '#F4EBD6' }}>Reserve Company Name</div>
-        
-        {myReservedNames.length > 0 ? (
-          <div className="p-3 text-[11px]" style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)', color: '#34d399' }}>
-            You already hold the reserved name: <strong>{currentReservation}</strong>.
-          </div>
-        ) : (
-          <>
-            <div className="text-[11px]" style={{ color: '#B9B09B' }}>Securing a name prevents competitors from operating under it. Fee is ₯10.</div>
-            <input type="text" value={reservedName} onChange={e => { setReservedName(e.target.value); setErrorMsg(null); }} placeholder="e.g. Arras & Partners"
-              className="w-full rounded-sm px-3 py-2 text-sm outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#F4EBD6' }} />
-            {errorMsg && <div className="text-[10px]" style={{ color: '#f87171' }}>{errorMsg}</div>}
-            <button onClick={handleReserve} className="w-full py-3 mt-2 text-[11px] font-bold uppercase tracking-widest rounded-sm"
-              style={{ background: `linear-gradient(135deg, ${GOLD}, #a8882e)`, color: BG }}>
-              Reserve Name — ₯10
-            </button>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  if (action.id === 'register-sole-trader') {
-    const handleRegister = () => {
-      const required = 25 + startingCapital;
-      if (cash < required) return setErrorMsg(`Insufficient cash (₯${required} required)`);
-      if (!currentReservation) return setErrorMsg('You must reserve a name first.');
-      if (startingCapital < 500) return setErrorMsg('Minimum starting capital is ₯500');
-
-      const updated = { ...citizenFile };
-      updated.personalMoney = (updated.personalMoney || updated.money || 0) - required;
-      updated.money = updated.personalMoney;
-
-      // Create company
-      const company = {
-        id: `co_${Date.now()}`,
-        ownerCharacterId: citizenFile.name,
-        ownerName: typeof citizenFile.name === 'object' ? `${citizenFile.name.first} ${citizenFile.name.last}` : citizenFile.name,
-        name: currentReservation,
-        legalStructure: 'Sole Trader',
-        state: 'Drennport State', // Always Drennport in v1
-        sector: sector,
-        registeredAt: new Date().toISOString(),
-        companyCash: startingCapital,
-        monthlyRevenue: 0,
-        monthlyCosts: 0,
-        profit: 0,
-        capacity: 1,
-        reputation: 'New',
-        reliability: 'Unproven',
-        debt: 0,
-        status: 'Active',
-        activeContracts: [],
-        publicRecords: [],
-        riskFlags: []
-      };
-      const companies = JSON.parse(localStorage.getItem('worldr_companies_v1') || '[]');
-      localStorage.setItem('worldr_companies_v1', JSON.stringify([...companies, company]));
-
-      // Clear reservation
-      const newReservations = reservedNames.filter((r: any) => r.name !== currentReservation);
-      localStorage.setItem('worldr_reserved_business_names_v1', JSON.stringify(newReservations));
-
-      // Save record
-      const rec = {
-        id: `rec_${Date.now()}`, type: 'business',
-        summary: `Registered ${company.name} as a Sole Trader in Drennport. Initial capital filed: ₯${startingCapital.toLocaleString()}.`,
-        createdAt: new Date().toISOString()
-      };
-      const recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
-      localStorage.setItem('worldr_records_v1', JSON.stringify([rec, ...recs]));
-
-      onComplete(updated, 'Company Registered', `You have successfully registered ${company.name}. The ₯25 fee has been paid, and ₯${startingCapital} has been deposited into your new commercial accounts. You can now view your company in the Navigation.`);
-    };
-
-    return (
-      <div className="flex flex-col gap-4">
-        <button onClick={onBack} className="text-left text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: '#7E8378' }}>← Back</button>
-        <div className="text-lg font-bold" style={{ color: '#F4EBD6' }}>Register Sole Trader</div>
-        
-        {!currentReservation ? (
-          <div className="p-3 text-[11px]" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5' }}>
-            You do not hold a reserved business name. Reserve one first.
-          </div>
-        ) : (
-          <>
-            <div className="p-3 mb-2 rounded-sm" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div className="text-[9px] font-mono uppercase" style={{ color: '#7E8378' }}>Reserved Name</div>
-              <div className="text-[14px] font-bold" style={{ color: '#F4EBD6' }}>{currentReservation}</div>
-            </div>
-            
-            <div>
-              <label className="text-[9px] font-mono uppercase tracking-widest block mb-1" style={{ color: '#7E8378' }}>Sector</label>
-              <select value={sector} onChange={e => setSector(e.target.value)} className="w-full rounded-sm px-3 py-2 text-sm outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#F4EBD6' }}>
-                {SECTORS.map(s => <option key={s} value={s} style={{ background: '#0a0b0f' }}>{s}</option>)}
-              </select>
-            </div>
-            
-            <div>
-              <label className="text-[9px] font-mono uppercase tracking-widest block mb-1" style={{ color: '#7E8378' }}>Starting Capital (₯)</label>
-              <input type="number" min={500} max={cash - 25} value={startingCapital} onChange={e => setStartingCapital(Number(e.target.value))}
-                className="w-full rounded-sm px-3 py-2 text-sm outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#34d399' }} />
-              <div className="text-[9px] mt-1 font-mono flex justify-between" style={{ color: '#3f4b47' }}>
-                <span>Min: ₯500</span><span>Filing Fee: ₯25</span>
-              </div>
-            </div>
-            
-            {errorMsg && <div className="text-[10px]" style={{ color: '#f87171' }}>{errorMsg}</div>}
-            <button onClick={handleRegister} className="w-full py-3 mt-2 text-[11px] font-bold uppercase tracking-widest rounded-sm"
-              style={{ background: `linear-gradient(135deg, ${GOLD}, #a8882e)`, color: BG }}>
-              File Registration — ₯{startingCapital + 25}
-            </button>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  // Fallback for View Registry or others (will route to actual registry page later)
-  return (
-    <div className="flex flex-col gap-4">
-      <button onClick={onBack} className="text-left text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: '#7E8378' }}>← Back</button>
-      <div className="text-sm font-bold" style={{ color: '#F4EBD6' }}>Action: {action.name}</div>
-      <div className="text-[11px]" style={{ color: '#7E8378' }}>This desk is currently closed or being updated.</div>
-    </div>
-  );
-}
-
-// ─── MAIN CHRONICLE COMPONENT ─────────────────────────────────────────────────
+const GOLD = '#D6B35F';
 
 export default function ChroniclePage() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
   const [citizenFile, setCitizenFile] = useState<any>(null);
-
-  // New Selection State
+  
+  // Navigation State
   const [selectedState, setSelectedState] = useState<State | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<District | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-  const [selectedAction, setSelectedAction] = useState<BusinessAction | null>(null);
-  
-  const [actionResult, setActionResult] = useState<{title: string, prose: string} | null>(null);
 
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // Business State
+  const [hasCompany, setHasCompany] = useState(false);
+  const [playerCash, setPlayerCash] = useState(0);
+
+  // Registration State
+  const [reserveInput, setReserveInput] = useState('');
+  const [registerSector, setRegisterSector] = useState('Trade & Commerce');
+  const [recentRecords, setRecentRecords] = useState<any[]>([]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-    const motherland = localStorage.getItem('worldr_selected_motherland');
+    if (!granted) { router.replace('/pre-alpha-access'); return; }
+    
     const fileStr = localStorage.getItem('worldr_citizen_file_v1');
-    const entered = localStorage.getItem('worldr_living_world_entry_v1') === 'true';
+    if (fileStr) {
+      const cf = JSON.parse(fileStr);
+      setCitizenFile(cf);
+      setPlayerCash(cf.wealth || 0);
 
-    if (!granted)    { router.replace('/pre-alpha-access'); return; }
-    if (!motherland) { router.replace('/world-entry'); return; }
-    if (!fileStr || !entered) { router.replace('/start/character'); return; }
+      const characterId = typeof cf.name === 'object' ? `${cf.name.first} ${cf.name.last}` : cf.name;
+      const companies = getCompanies();
+      setHasCompany(companies.some(c => c.ownerCharacterId === characterId));
+      
+      // Load initial state
+      const homeState = DRENNIA_STATES.find(s => s.name === cf.motherland) || DRENNIA_STATES.find(s => s.name === 'Drennport State');
+      if (homeState) {
+        setSelectedState(homeState);
+        setSelectedDistrict(homeState.districts[0]);
+      }
+    }
 
-    setCitizenFile(JSON.parse(fileStr));
+    const recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
+    setRecentRecords(recs.slice(0, 5));
+
     setAuthorized(true);
   }, [router]);
 
-  const handleRestartCharacter = () => {
-    KEYS_TO_CLEAR.forEach(k => localStorage.removeItem(k));
-    router.push('/start/character');
-  };
-  const handleRestartMotherland = () => {
-    KEYS_TO_CLEAR.forEach(k => localStorage.removeItem(k));
-    ['worldr_selected_continent', 'worldr_selected_motherland'].forEach(k => localStorage.removeItem(k));
-    router.push('/world-entry');
-  };
-
-  const handleActionComplete = (updatedCitizen: any, title: string, prose: string) => {
-    localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(updatedCitizen));
-    setCitizenFile(updatedCitizen);
-    setSelectedAction(null);
-    setActionResult({ title, prose });
+  const updateCash = (amount: number) => {
+    const newCash = playerCash + amount;
+    setPlayerCash(newCash);
+    if (citizenFile) {
+      const updated = { ...citizenFile, wealth: newCash };
+      setCitizenFile(updated);
+      localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(updated));
+    }
   };
 
-  if (!authorized) return <Spinner />;
+  const addRecord = (summary: string) => {
+    const rec = { id: `rec_${Date.now()}`, type: 'business', summary, createdAt: new Date().toISOString() };
+    const recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
+    const newRecs = [rec, ...recs];
+    localStorage.setItem('worldr_records_v1', JSON.stringify(newRecs));
+    setRecentRecords(newRecs.slice(0, 5));
+  };
 
-  const factors = citizenFile?.factors || { Credibility: 0, Charisma: 0, Influence: 0 };
-  const cash = citizenFile?.personalMoney ?? citizenFile?.money ?? 0;
-  const firstName = citizenFile ? (typeof citizenFile.name === 'object' ? citizenFile.name.first : citizenFile.name.split(' ')[0]) : '';
-  const fullName = citizenFile ? (typeof citizenFile.name === 'object' ? [citizenFile.name.first, citizenFile.name.last].filter(Boolean).join(' ') : citizenFile.name) : '—';
+  const handleRestartLife = () => {
+    if (typeof window !== 'undefined') {
+      const keysToClear = [
+        'worldr_citizen_file_v1', 'worldr_character_origin_v1', 'worldr_living_world_entry_v1',
+        'worldr_records_v1', 'worldr_life_records_v1', 'worldr_letters_v1',
+        'worldr_business_rooms_v1', 'worldr_room_history_v1', 'worldr_room_participation_v1',
+        'worldr_companies_v1', 'worldr_reserved_business_names_v1', 'worldr_business_filings_v1',
+        'worldr_contracts_v1', 'worldr_contract_bids_v1', 'worldr_business_offers_v1', 'worldr_recent_world_events_v1'
+      ];
+      keysToClear.forEach(k => localStorage.removeItem(k));
+      window.location.href = '/start';
+    }
+  };
+
+  if (!authorized) return null;
+
+  const characterName = citizenFile ? (typeof citizenFile.name === 'object' ? `${citizenFile.name.first} ${citizenFile.name.last}` : citizenFile.name) : '';
+
+  // Company Actions
+  const handleReserveName = () => {
+    if (!reserveInput.trim()) return alert('Enter a name.');
+    if (playerCash < 10) return alert('Not enough cash.');
+    if (isNameReserved(reserveInput)) return alert('Name already reserved or used.');
+    
+    updateCash(-10);
+    reserveName(characterName, reserveInput);
+    addRecord(`Reserved the business name ${reserveInput} at Drennport Company Registry.`);
+    setReserveInput('');
+    alert('Name reserved successfully!');
+  };
+
+  const handleRegisterCompany = () => {
+    if (playerCash < 525) return alert('Not enough cash to register.');
+    const reservedNames = JSON.parse(localStorage.getItem('worldr_reserved_business_names_v1') || '{}');
+    const myReservedName = Object.keys(reservedNames).find(k => reservedNames[k] === characterName);
+    
+    if (!myReservedName) return alert('You must reserve a name first.');
+    
+    // Original capitalization if possible, otherwise capitalized key
+    const finalName = myReservedName.charAt(0).toUpperCase() + myReservedName.slice(1);
+    
+    updateCash(-525);
+    
+    const newCompany = {
+      id: `comp_${Date.now()}`,
+      ownerCharacterId: characterName,
+      ownerName: characterName,
+      name: finalName,
+      legalStructure: 'Sole Trader' as const,
+      state: selectedState?.name || 'Drennport State',
+      sector: registerSector,
+      registeredAt: new Date().toISOString(),
+      companyCash: 500,
+      monthlyRevenue: 0,
+      monthlyCosts: 0,
+      profit: 0,
+      capacity: 1,
+      reputation: 'New',
+      reliability: 'Unproven',
+      debt: 0,
+      status: 'Active',
+      activeContracts: [],
+      publicRecords: [],
+      riskFlags: []
+    };
+    
+    saveCompany(newCompany);
+    setHasCompany(true);
+    addRecord(`Registered ${finalName} as a Sole Trader in ${selectedState?.name || 'Drennport'}. Initial capital filed: ₯500.`);
+    alert('Company registered successfully!');
+  };
 
   return (
-    <div className="w-full h-screen flex flex-col overflow-hidden" style={{ background: BG, fontFamily: 'sans-serif' }}>
+    <div className="flex flex-col h-full w-full overflow-hidden text-white" style={{ background: '#0a0b0f' }}>
       
-      {/* Modals */}
-      {actionResult && <ActionResultModal title={actionResult.title} prose={actionResult.prose} onClose={() => setActionResult(null)} />}
-      {showDeleteModal && <DeleteModal onClose={() => setShowDeleteModal(false)} onRestartCharacter={handleRestartCharacter} onRestartMotherland={handleRestartMotherland} />}
+      {/* ─── TOP PLAYER BAR ─── */}
+      <div className="flex justify-between items-center px-6 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(12,18,14,0.9)' }}>
+        <div className="flex items-center gap-4">
+          <div className="text-[12px] font-bold tracking-widest" style={{ color: GOLD }}>WORLDr</div>
+          <div className="h-4 w-px" style={{ background: 'rgba(255,255,255,0.2)' }} />
+          <div className="text-sm font-semibold">{characterName}</div>
+          <div className="text-[10px] font-mono text-gray-400">Age 18</div>
+          <div className="text-[10px] font-mono text-gray-400">{citizenFile?.motherland || 'Drennia'}</div>
+        </div>
+        
+        <div className="flex items-center gap-6">
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] uppercase tracking-widest text-gray-400">Credibility</span>
+            <span className="text-xs font-mono">{citizenFile?.credibility || 50}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] uppercase tracking-widest text-gray-400">Charisma</span>
+            <span className="text-xs font-mono">{citizenFile?.charisma || 50}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] uppercase tracking-widest text-gray-400">Influence</span>
+            <span className="text-xs font-mono">{citizenFile?.influence || 10}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] uppercase tracking-widest text-gray-400">Cash</span>
+            <span className="text-xs font-bold font-mono" style={{ color: '#34d399' }}>₯{playerCash}</span>
+          </div>
+        </div>
 
-      {/* ── TOP BAR ── */}
-      <div className="shrink-0 w-full flex items-center gap-3 px-4" style={{ height: '54px', background: 'rgba(15,23,19,0.95)', borderBottom: '1px solid rgba(201,168,76,0.12)', backdropFilter: 'blur(8px)' }}>
-        <div className="font-serif font-bold uppercase tracking-widest text-xs shrink-0" style={{ color: GOLD }}><span style={{ fontSize: '1.1em' }}>W</span>ORLDr</div>
-        <div className="w-px h-5 shrink-0" style={{ background: 'rgba(255,255,255,0.1)' }} />
-        <div className="shrink-0">
-          <div className="text-xs font-semibold leading-none" style={{ color: '#F4EBD6' }}>{fullName}</div>
-          <div className="text-[9px] font-mono mt-0.5" style={{ color: '#7E8378' }}>Age {citizenFile?.age ?? 18} · {citizenFile?.homeState ?? '—'} · Drennia</div>
+        <div className="flex items-center gap-4">
+          <button className="text-[10px] font-bold uppercase tracking-widest hover:text-white transition-colors" style={{ color: GOLD }}>
+            Letters
+          </button>
+          <button onClick={handleRestartLife} className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300 transition-colors">
+            Restart Life
+          </button>
         </div>
-        <div className="w-px h-5 shrink-0" style={{ background: 'rgba(255,255,255,0.07)' }} />
-        <div className="hidden sm:flex items-center gap-1.5">
-          <FactorChip label="Credibility" value={factors.Credibility ?? 0} color="#818cf8" />
-          <FactorChip label="Charisma"    value={factors.Charisma ?? 0}    color="#34d399" />
-          <FactorChip label="Influence"   value={factors.Influence ?? 0}   color="#f59e0b" />
-        </div>
-        <div className="w-px h-5 shrink-0 hidden sm:block" style={{ background: 'rgba(255,255,255,0.07)' }} />
-        <div className="hidden sm:flex flex-col shrink-0">
-          <span className="text-[7px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.3)' }}>Cash</span>
-          <span className="text-sm font-bold font-mono" style={{ color: '#34d399' }}>₯{cash.toLocaleString()}</span>
-        </div>
-        <div className="flex-1" />
-        <button onClick={() => setShowDeleteModal(true)} className="px-3 py-1.5 text-[9px] font-mono uppercase tracking-widest rounded-sm" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5' }}>
-          Restart Life
-        </button>
       </div>
 
-      {/* ── MAIN CONTENT ── */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* ─── MAIN NAV is injected by Layout, so it's above this component ─── */}
+      {/* We assume LivingWorldNav is already rendered outside. Wait, no, we need space below nav. The Layout provides the nav. */}
+
+      <div className="flex flex-col flex-1 overflow-hidden px-6 pb-6 pt-2">
         
-        {/* MAP AREA */}
-        <div className="flex-1 relative overflow-hidden" style={{ background: 'rgba(12,18,14,0.9)' }}>
-          <div className="w-full h-full">
-            <DrenniaMapSvg
-              selectedState={(selectedState?.name as any) || null}
-              selectedRoomId={null} // Removed room pins
-              roomPins={[]} // Removed room pins
-              onStateSelect={(stateName) => {
-                const stateObj = DRENNIA_STATES.find(s => s.name === stateName);
-                if (stateObj) {
-                  setSelectedState(stateObj);
-                  setSelectedDistrict(null);
-                  setSelectedPlace(null);
-                  setSelectedAction(null);
-                } else {
-                  setSelectedState(null);
-                }
-              }}
-              onRoomSelect={() => {}}
-            />
-          </div>
-          
-          {/* Ledger Ticker */}
-          <div className="absolute bottom-4 left-4 right-4 z-10 pointer-events-none">
-            <div className="pointer-events-auto inline-flex overflow-hidden" style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', borderRadius: '10px', padding: '7px 14px', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <div className="flex items-center gap-3 text-[10px]" style={{ color: '#B9B09B' }}>
-                <span className="font-bold font-mono uppercase tracking-[0.22em]" style={{ color: GOLD }}>Ledger</span>
-                <span>Drennport Commercial Bank reports steady liquidity.</span>
-                <span>Port tariffs remain unchanged.</span>
+        {/* ─── STATE TABS ─── */}
+        <div className="flex gap-1 mb-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          {DRENNIA_STATES.map(s => (
+            <button key={s.name} onClick={() => { setSelectedState(s); setSelectedDistrict(s.districts[0]); setSelectedPlace(null); }}
+              className={`px-5 py-3 flex flex-col items-start rounded-t-sm transition-colors ${selectedState?.name === s.name ? 'bg-white/5' : 'hover:bg-white/5'}`}
+              style={{ borderBottom: selectedState?.name === s.name ? `2px solid ${GOLD}` : '2px solid transparent' }}
+            >
+              <div className="text-[13px] font-bold" style={{ color: selectedState?.name === s.name ? '#F4EBD6' : '#7E8378' }}>{s.name.replace(' State', '')}</div>
+              <div className="text-[9px] font-mono text-left" style={{ color: selectedState?.name === s.name ? '#B9B09B' : '#5f6560' }}>
+                {s.name === 'Drennport State' ? 'Administration & Finance' : s.name === 'Westport State' ? 'Ports & Trade' : s.name === 'Ironvale State' ? 'Industry & Labour' : 'Agriculture & Community'}
               </div>
-            </div>
-          </div>
+            </button>
+          ))}
         </div>
 
-        {/* ── RIGHT DRAWER ── */}
-        <div className="shrink-0 flex flex-col overflow-hidden" style={{ width: '400px', borderLeft: '1px solid rgba(201,168,76,0.15)', background: 'rgba(10,12,10,0.95)' }}>
-          <div className="flex-1 overflow-y-auto p-5">
-            
-            {/* ACTION VIEW */}
-            {selectedAction && selectedPlace ? (
-              <RegistryActionView action={selectedAction} citizenFile={citizenFile} onComplete={handleActionComplete} onBack={() => setSelectedAction(null)} />
-            ) : 
-            
-            /* PLACE VIEW */
-            selectedPlace ? (
-              <div className="flex flex-col gap-4">
-                <button onClick={() => setSelectedPlace(null)} className="text-left text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: '#7E8378' }}>← Back to {selectedDistrict?.name}</button>
-                <div>
-                  <div className="text-[9px] font-mono uppercase tracking-widest" style={{ color: GOLD }}>{selectedPlace.type}</div>
-                  <div className="text-xl font-bold" style={{ color: '#F4EBD6' }}>{selectedPlace.name}</div>
-                  <div className="text-[11px] mt-1" style={{ color: '#B9B09B' }}>{selectedPlace.description}</div>
-                </div>
-                {selectedPlace.actions.length === 0 ? (
-                  <div className="text-[10px] mt-4 opacity-50" style={{ color: '#7E8378' }}>No available actions here yet.</div>
-                ) : (
-                  <div className="flex flex-col gap-2 mt-4">
-                    {selectedPlace.actions.map(act => (
-                      <button key={act.id} onClick={() => setSelectedAction(act)} className="w-full text-left p-3 rounded-sm transition-all hover:bg-white/5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        <div className="text-sm font-bold mb-0.5" style={{ color: '#F4EBD6' }}>{act.name}</div>
-                        <div className="text-[10px] mb-2 leading-relaxed" style={{ color: '#7E8378' }}>{act.description}</div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-mono" style={{ color: '#f59e0b' }}>Cost: {act.costLabel}</span>
-                          <span className="text-[9px] font-mono" style={{ color: '#3f4b47' }}>{act.resultType.toUpperCase()}</span>
+        {/* ─── DISTRICT TABS ─── */}
+        <div className="flex gap-2 mb-6 overflow-x-auto scrollbar-hide py-1">
+          {selectedState?.districts.map(d => (
+            <button key={d.name} onClick={() => { setSelectedDistrict(d); setSelectedPlace(null); }}
+              className="px-4 py-1.5 text-[11px] font-mono uppercase tracking-widest rounded-full transition-all whitespace-nowrap"
+              style={{
+                background: selectedDistrict?.name === d.name ? 'rgba(214,179,95,0.12)' : 'transparent',
+                border: `1px solid ${selectedDistrict?.name === d.name ? 'rgba(214,179,95,0.4)' : 'rgba(255,255,255,0.07)'}`,
+                color: selectedDistrict?.name === d.name ? GOLD : '#7E8378',
+              }}
+            >
+              {d.name}
+            </button>
+          ))}
+        </div>
+
+        {/* ─── WORKSPACE GRID ─── */}
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_340px] gap-4 flex-1 min-h-0">
+          
+          {/* LEFT: PLACES */}
+          <div className="flex flex-col gap-2 overflow-y-auto pr-2">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">Places</h3>
+            {selectedDistrict?.places.map(p => (
+              <button key={p.id} onClick={() => setSelectedPlace(p)}
+                className="p-3 rounded-sm text-left transition-colors border"
+                style={{
+                  background: selectedPlace?.id === p.id ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.01)',
+                  borderColor: selectedPlace?.id === p.id ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)'
+                }}
+              >
+                <div className="text-xs font-bold mb-1" style={{ color: selectedPlace?.id === p.id ? '#F4EBD6' : '#B9B09B' }}>{p.name}</div>
+                <div className="text-[9px] font-mono" style={{ color: '#7E8378' }}>{p.type}</div>
+              </button>
+            ))}
+            {selectedDistrict?.places.length === 0 && (
+              <div className="text-[10px] text-gray-500 italic">No places available here yet.</div>
+            )}
+          </div>
+
+          {/* CENTER: ACTION WORKSPACE */}
+          <div className="flex flex-col bg-black/40 border border-white/5 rounded-sm p-6 overflow-y-auto">
+            {!selectedPlace ? (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                <div className="text-2xl mb-2">🏢</div>
+                <div className="text-[11px] uppercase tracking-widest">Select a place to begin</div>
+              </div>
+            ) : (
+              <div>
+                <h2 className="text-xl font-bold mb-2" style={{ color: '#F4EBD6' }}>{selectedPlace.name}</h2>
+                <p className="text-xs mb-8" style={{ color: '#B9B09B' }}>{selectedPlace.description || 'A location in ' + selectedDistrict?.name}</p>
+
+                {selectedPlace.id === 'place_company_registry' && !hasCompany ? (
+                  <div className="flex flex-col gap-6">
+                    {/* Action 1: Reserve Name */}
+                    <div className="p-5 border rounded-sm" style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}>
+                      <div className="flex justify-between items-start mb-3">
+                        <h4 className="text-sm font-bold text-white">Reserve Company Name</h4>
+                        <div className="text-right">
+                          <div className="text-[10px] font-mono" style={{ color: '#f87171' }}>Cost: ₯10</div>
+                          <div className="text-[10px] font-mono text-gray-500">Visibility: Private Filing</div>
                         </div>
+                      </div>
+                      <p className="text-[11px] text-gray-400 mb-4">File paperwork to lock a business name for future use.</p>
+                      
+                      <div className="flex gap-2">
+                        <input type="text" value={reserveInput} onChange={e => setReserveInput(e.target.value)} placeholder="Enter desired name" 
+                          className="flex-1 px-3 py-2 text-xs rounded-sm outline-none" style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }} />
+                        <button onClick={handleReserveName} className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded-sm" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                          Reserve
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Action 2: Register Company */}
+                    <div className="p-5 border rounded-sm" style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}>
+                      <div className="flex justify-between items-start mb-3">
+                        <h4 className="text-sm font-bold text-white">Register Sole Trader</h4>
+                        <div className="text-right">
+                          <div className="text-[10px] font-mono" style={{ color: '#f87171' }}>Cost: ₯525</div>
+                          <div className="text-[10px] font-mono text-gray-500">Visibility: Public Registry</div>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-gray-400 mb-4">Incorporate your business legally. Requires a reserved name and ₯500 starting capital + ₯25 filing fee.</p>
+                      
+                      <div className="flex gap-4 mb-4">
+                        <div className="flex-1">
+                          <label className="text-[9px] uppercase tracking-widest text-gray-500 mb-1 block">Sector</label>
+                          <select value={registerSector} onChange={e => setRegisterSector(e.target.value)} className="w-full px-3 py-2 text-xs rounded-sm outline-none" style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }}>
+                            <option>Trade & Commerce</option>
+                            <option>Shipping & Logistics</option>
+                            <option>Retail & Consumer</option>
+                            <option>Finance</option>
+                            <option>Manufacturing</option>
+                            <option>Agriculture & Food</option>
+                          </select>
+                        </div>
+                      </div>
+                      <button onClick={handleRegisterCompany} className="w-full py-3 text-[10px] font-bold uppercase tracking-widest rounded-sm" style={{ background: `linear-gradient(135deg, ${GOLD}, #a8882e)`, color: '#000' }}>
+                        Register Company
                       </button>
+                    </div>
+                  </div>
+                ) : selectedPlace.id === 'place_company_registry' && hasCompany ? (
+                  <div className="p-6 text-center text-sm text-gray-400 border border-white/10 rounded-sm">
+                    You have already registered a company. See your Company tab for details.
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    {selectedPlace.actions.map(a => (
+                      <div key={a.id} className="p-4 border rounded-sm" style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}>
+                        <h4 className="text-sm font-bold text-white mb-2">{a.name}</h4>
+                        <p className="text-[11px] text-gray-400">{a.description}</p>
+                        <button disabled className="mt-4 px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded-sm opacity-50 cursor-not-allowed" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                          Action Unavailable
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
-            ) : 
+            )}
+          </div>
+
+          {/* RIGHT: LEDGER / NOTICES */}
+          <div className="flex flex-col gap-6 overflow-y-auto pl-2">
             
-            /* DISTRICT VIEW */
-            selectedDistrict ? (
-              <div className="flex flex-col gap-4">
-                <button onClick={() => setSelectedDistrict(null)} className="text-left text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: '#7E8378' }}>← Back to {selectedState?.name}</button>
-                <div>
-                  <div className="text-[9px] font-mono uppercase tracking-widest" style={{ color: GOLD }}>{selectedDistrict.function}</div>
-                  <div className="text-xl font-bold" style={{ color: '#F4EBD6' }}>{selectedDistrict.name}</div>
-                  <div className="text-[11px] mt-1" style={{ color: '#B9B09B' }}>{selectedDistrict.description}</div>
-                </div>
-                <div className="flex flex-col gap-2 mt-4">
-                  {selectedDistrict.places.map(place => (
-                    <button key={place.id} onClick={() => setSelectedPlace(place)} className="w-full text-left p-3 rounded-sm transition-all hover:bg-white/5 flex items-center justify-between" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <div>
-                        <div className="text-sm font-semibold" style={{ color: '#F4EBD6' }}>{place.name}</div>
-                        <div className="text-[9px] font-mono" style={{ color: '#7E8378' }}>{place.type}</div>
-                      </div>
-                      <span className="text-[14px]" style={{ color: GOLD }}>›</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : 
-            
-            /* STATE VIEW */
-            selectedState ? (
-              <div className="flex flex-col gap-4">
-                <div>
-                  <div className="text-[9px] font-mono uppercase tracking-widest" style={{ color: GOLD }}>{selectedState.businessFocus}</div>
-                  <div className="text-xl font-bold" style={{ color: '#F4EBD6' }}>{selectedState.name}</div>
-                  <div className="text-[11px] mt-1" style={{ color: '#B9B09B' }}>{selectedState.description}</div>
-                </div>
-                <div className="flex flex-col gap-2 mt-4">
-                  {selectedState.districts.map(dist => (
-                    <button key={dist.id} onClick={() => setSelectedDistrict(dist)} className="w-full text-left p-3 rounded-sm transition-all hover:bg-white/5 flex items-center justify-between" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <div>
-                        <div className="text-sm font-semibold" style={{ color: '#F4EBD6' }}>{dist.name}</div>
-                        <div className="text-[9px] font-mono" style={{ color: '#7E8378' }}>{dist.function}</div>
-                      </div>
-                      <span className="text-[14px]" style={{ color: GOLD }}>›</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : 
-            
-            /* IDLE VIEW */
-            (
-              <div className="flex flex-col items-center justify-center h-full text-center opacity-60">
-                <div className="text-[11px] font-mono uppercase tracking-widest mb-2" style={{ color: GOLD }}>The Chronicle</div>
-                <div className="text-sm" style={{ color: '#7E8378' }}>Select a state on the map to view districts, offices, markets, and business actions.</div>
-                <div className="text-[10px] mt-8" style={{ color: '#3f4b47' }}>
-                  FROZEN: Old Room Prototype Disabled.
+            {/* Context */}
+            <div className="p-4 rounded-sm border border-white/5 bg-black/40">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-3">Current Selection</h3>
+              <div className="text-xs text-gray-300"><span className="text-gray-500">State:</span> {selectedState?.name || '—'}</div>
+              <div className="text-xs text-gray-300 mt-1"><span className="text-gray-500">District:</span> {selectedDistrict?.name || '—'}</div>
+              <div className="text-xs text-gray-300 mt-1"><span className="text-gray-500">Place:</span> {selectedPlace?.name || '—'}</div>
+            </div>
+
+            {/* Registry Progress */}
+            {!hasCompany && (
+              <div className="p-4 rounded-sm border border-white/5 bg-black/40">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-3">Business Registry Progress</h3>
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Reserved Name</span>
+                    {Object.values(JSON.parse(localStorage.getItem('worldr_reserved_business_names_v1') || '{}')).includes(characterName) ? (
+                      <span className="text-green-400">Yes</span>
+                    ) : (
+                      <span className="text-red-400">No</span>
+                    )}
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Cash Needed</span>
+                    <span className={playerCash >= 525 ? "text-green-400" : "text-red-400"}>₯525</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Company Formed</span>
+                    <span className="text-red-400">No</span>
+                  </div>
                 </div>
               </div>
             )}
-            
+
+            {/* Recent Filings */}
+            <div className="flex-1 flex flex-col p-4 rounded-sm border border-white/5 bg-black/40">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-3">Recent Filings & Records</h3>
+              {recentRecords.length === 0 ? (
+                <div className="text-xs text-gray-600 italic">No recent records.</div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {recentRecords.map(r => (
+                    <div key={r.id} className="text-[11px] leading-relaxed text-gray-300 border-l-2 pl-2" style={{ borderColor: GOLD }}>
+                      {r.summary}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Market Notices */}
+            <div className="p-4 rounded-sm border border-white/5 bg-black/40">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-3">Market Notices</h3>
+              <ul className="list-disc pl-4 text-[10px] text-gray-400 flex flex-col gap-2">
+                <li>Drennport Commercial Bank reports steady liquidity.</li>
+                <li>Port tariffs remain unchanged.</li>
+                <li>Ironvale suppliers warn about material delays.</li>
+              </ul>
+            </div>
+
           </div>
         </div>
       </div>

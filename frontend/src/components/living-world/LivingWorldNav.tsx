@@ -32,6 +32,7 @@ export default function LivingWorldNav() {
     { name: 'Company',   path: '/drennia/company',   locked: !hasCompany },
     { name: 'Contracts', path: '/drennia/contracts', locked: !hasCompany },
     { name: 'Registry',  path: '/drennia/registry',  locked: false },
+    { name: 'Market',    path: '/drennia/market',    locked: false, placeholder: true },
     { name: 'Records',   path: '/drennia/records',   locked: false },
     { name: 'Network',   path: '/drennia/network',   locked: false },
     { name: 'World',     path: '/drennia/world',     locked: false },
@@ -63,6 +64,28 @@ export default function LivingWorldNav() {
               title="Register a Sole Trader company to unlock"
             >
               {tab.name} 🔒
+            </div>
+          );
+        }
+
+        if ((tab as any).placeholder) {
+          return (
+            <div
+              key={tab.name}
+              className="flex items-center justify-center whitespace-nowrap cursor-not-allowed"
+              style={{
+                height: '42px',
+                padding: '0 16px',
+                borderRadius: '999px',
+                fontSize: '13px',
+                fontWeight: '500',
+                color: 'rgba(255,255,255,0.4)',
+                background: 'transparent',
+                border: '1px solid transparent',
+              }}
+              title="Coming Soon"
+            >
+              {tab.name}
             </div>
           );
         }
