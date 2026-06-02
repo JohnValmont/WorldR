@@ -83,6 +83,7 @@ export default function ChroniclePage() {
         'worldr_business_rooms_v1', 'worldr_room_history_v1', 'worldr_room_participation_v1',
         'worldr_companies_v1', 'worldr_reserved_business_names_v1', 'worldr_business_filings_v1',
         'worldr_contracts_v1', 'worldr_contract_bids_v1', 'worldr_business_offers_v1', 'worldr_recent_world_events_v1',
+        'worldr_career_v1',
       ];
       keys.forEach(k => localStorage.removeItem(k));
       window.location.href = '/start';
@@ -146,47 +147,62 @@ export default function ChroniclePage() {
             </div>
           </div>
 
-          {/* Business Callout */}
-          {!hasCompany ? (
-            <div style={{ background: T.paper, border: `1px solid ${T.borderGold}`, padding: '20px' }}>
-              <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '10px' }}>Business Desk</div>
-              <p style={{ fontSize: '13px', color: T.muted, lineHeight: 1.7, margin: '0 0 16px' }}>
-                Business Registry is open. Start your first company from the Business desk.
-              </p>
-              <Link href="/drennia/business" style={{ display: 'inline-block', padding: '10px 24px', background: `linear-gradient(135deg, ${T.gold}, #8A6E2A)`, color: '#0a0709', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700, textDecoration: 'none' }}>
-                Open Business Desk →
-              </Link>
-            </div>
-          ) : (
-            <div style={{ background: T.paper, border: `1px solid ${T.borderGold}`, padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '6px' }}>Business Snapshot</div>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: T.ivory }}>{company.name}</div>
-                  <div style={{ fontSize: '11px', color: T.muted, marginTop: '2px' }}>{company.legalStructure} · {company.sector} · {company.state}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>Company Cash</div>
-                  <div style={{ fontSize: '18px', fontFamily: 'monospace', fontWeight: 700, color: T.mint }}>₯{company.companyCash.toLocaleString()}</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '16px', marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${T.border}` }}>
-                <div>
-                  <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>Reputation</div>
-                  <div style={{ fontSize: '12px', color: T.gold, fontWeight: 600 }}>{company.reputation}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>Reliability</div>
-                  <div style={{ fontSize: '12px', color: T.mint, fontWeight: 600 }}>{company.reliability}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>Active Contracts</div>
-                  <div style={{ fontSize: '12px', color: T.ivory, fontWeight: 600 }}>{activeContracts}</div>
-                </div>
-                <Link href="/drennia/business" style={{ marginLeft: 'auto', padding: '8px 16px', border: `1px solid ${T.borderGold}`, color: T.gold, fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none' }}>
-                  Open Business Desk →
+          {/* Desks */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            {/* Business Desk */}
+            {!hasCompany ? (
+              <div style={{ background: T.paper, border: `1px solid ${T.borderGold}`, padding: '20px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '10px' }}>Business Desk</div>
+                <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.6, flex: 1, margin: '0 0 16px' }}>
+                  Open your company file, register a business, manage contracts, and build market power.
+                </p>
+                <Link href="/drennia/business" style={{ display: 'inline-block', textAlign: 'center', padding: '10px 16px', background: `linear-gradient(135deg, ${T.gold}, #8A6E2A)`, color: '#0a0709', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700, textDecoration: 'none' }}>
+                  Open Business Desk
                 </Link>
               </div>
+            ) : (
+              <div style={{ background: T.paper, border: `1px solid ${T.borderGold}`, padding: '20px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <div>
+                    <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '6px' }}>Business Desk</div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>{company.name}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>Cash</div>
+                    <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.mint }}>₯{company.companyCash.toLocaleString()}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', flex: 1 }}>{company.legalStructure} · {company.sector} · {company.state}</div>
+                <Link href="/drennia/business" style={{ display: 'inline-block', textAlign: 'center', padding: '10px 16px', border: `1px solid ${T.gold}`, color: T.gold, fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none' }}>
+                  Open Business Desk
+                </Link>
+              </div>
+            )}
+
+            {/* Politics Desk */}
+            <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '20px', display: 'flex', flexDirection: 'column', opacity: 0.8 }}>
+              <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: '10px' }}>Politics Desk</div>
+              <p style={{ fontSize: '12px', color: T.faint, lineHeight: 1.6, flex: 1, margin: '0 0 16px' }}>
+                Political life is not open in pre-alpha yet. Parties, elections, offices, campaigns, and public power will unlock after the business foundation is stable.
+              </p>
+              <button disabled style={{ padding: '10px 16px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`, color: T.faint, fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700, cursor: 'not-allowed' }}>
+                Locked
+              </button>
+            </div>
+          </div>
+
+          {/* Career Summary */}
+          {hasCompany && (
+            <div style={{ background: T.paper, border: `1px solid ${T.border}`, padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '6px' }}>Career: Business Founder</div>
+                <div style={{ fontSize: '12px', color: T.muted, lineHeight: 1.5 }}>
+                  {characterName} started {company.name}, a {company.sector} business in {company.state}.
+                </div>
+              </div>
+              <Link href="/drennia/career" style={{ marginLeft: '16px', padding: '8px 16px', border: `1px solid ${T.borderGold}`, color: T.gold, fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                View Career →
+              </Link>
             </div>
           )}
 

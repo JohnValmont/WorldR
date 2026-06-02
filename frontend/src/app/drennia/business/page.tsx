@@ -238,6 +238,25 @@ export default function BusinessPage() {
     saveCompany(newCompany);
     updateCash(playerCash - total);
     addRecord(`Registered ${finalName} as a Sole Trader headquartered in ${selectedHQ}. Initial capital filed: ₯${chosenCapital.toLocaleString()}.`);
+    
+    // Create/update career record
+    const careerData = {
+      activePath: 'Business',
+      startedAtYear: 0,
+      startedAtMonth: 0,
+      entries: [
+        {
+          id: `car_${Date.now()}`,
+          type: 'business_start',
+          year: 0,
+          month: 0,
+          text: `${characterName} started ${finalName}, a ${selectedSector} business headquartered in ${selectedHQ}, in Year 0.`,
+          relatedCompanyId: newCompany.id
+        }
+      ]
+    };
+    localStorage.setItem('worldr_career_v1', JSON.stringify(careerData));
+
     setCompany(newCompany);
     setFleet([]);
     setActiveTab('companies');

@@ -14,6 +14,8 @@ const MUTED = '#A79D8C';
 
 const TABS = [
   { name: 'Chronicle', path: '/drennia/chronicle' },
+  { name: 'Family',    path: '/drennia/family'    },
+  { name: 'Career',    path: '/drennia/career'    },
   { name: 'Business',  path: '/drennia/business'  },
   { name: 'Market',    path: '/drennia/market'    },
   { name: 'Records',   path: '/drennia/records'   },
