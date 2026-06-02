@@ -101,6 +101,7 @@ const SUB_TABS: { id: SubTab; label: string; requiresCompany?: boolean }[] = [
     { id: 'overview',   label: 'Overview' },
     { id: 'start',      label: 'Start Business' },
     { id: 'companies',  label: 'My Companies', requiresCompany: true },
+    { id: 'market',     label: 'Market' },
     { id: 'registry',   label: 'Registry' }
   ];
 
@@ -506,6 +507,7 @@ export default function BusinessPage() {
         </div>
 
         {/* Subtabs */}
+        {!(activeTab === 'companies' && selectedCompanyId) && (
         <div style={{ display: 'flex', gap: '0', overflowX: 'auto', marginTop: '8px' }}>
           {SUB_TABS.map(tab => {
             const locked = tab.requiresCompany && !company;
@@ -532,6 +534,7 @@ export default function BusinessPage() {
             );
           })}
         </div>
+        )}
       </div>
 
       {/* ── Back / Breadcrumb Navigation (Anchors) ── */}
@@ -965,7 +968,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPANY DESK TAB (Shipping & Logistics)
 // ─────────────────────────────────────────────────────────────────────────────
-type CompanyDeskTab = 'overview' | 'fleet' | 'contracts' | 'operations' | 'contractHistory' | 'routes' | 'assets' | 'finance' | 'records' | 'equity';
+type CompanyDeskTab = 'overview' | 'operations' | 'contracts' | 'facilities' | 'assets' | 'fleet' | 'routes' | 'finance' | 'contractHistory' | 'records' | 'equity';
 
 function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, onRefresh }: {
   company: Company; fleet: Vehicle[]; contracts: Contract[]; playerCash: number; characterName: string;
@@ -985,12 +988,13 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   const DESK_TABS: { id: CompanyDeskTab; label: string }[] = [
     { id: 'overview',   label: 'Overview'   },
     { id: 'operations', label: 'Operations' },
-    { id: 'fleet',      label: 'Fleet'      },
     { id: 'contracts',  label: 'Contracts'  },
-    { id: 'contractHistory', label: 'Contract History' },
-    { id: 'routes',     label: 'Routes'     },
+    { id: 'facilities', label: 'Facilities' },
     { id: 'assets',     label: 'Assets'     },
+    { id: 'fleet',      label: 'Fleet'      },
+    { id: 'routes',     label: 'Routes'     },
     { id: 'finance',    label: 'Finance'    },
+    { id: 'contractHistory', label: 'Contract History' },
     { id: 'records',    label: 'Records'    },
     { id: 'equity',     label: 'Equity'     },
   ];
