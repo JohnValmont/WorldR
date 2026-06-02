@@ -123,7 +123,8 @@ export default function LiveCitizenDossier({ formData }: CitizenFileLivePreviewP
       firstVulnerability: story.firstVulnerability,
       homeStateFamiliarity: story.homeStateFamiliarity,
       earlyLeaning: story.earlyLeaning,
-      personalMoney: 0,
+      personalMoney: 1000000,
+      wealth: 1000000, // alias — business layer reads `wealth`
       obligations: [],
       vulnerabilities: [],
       createdAt: new Date().toISOString(),

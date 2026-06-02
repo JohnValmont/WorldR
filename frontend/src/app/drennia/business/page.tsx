@@ -3,12 +3,12 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   getCompanies, saveCompany, getPlayerCompany,
-  getContracts, saveContract, initializeContractsIfEmpty, evaluateContractBids, createPlayerContract,
-  NPC_COMPANIES,
-  type Company, type Contract
+  getContracts, saveContract, initializeContractsIfEmpty,
+  evaluatePlayerBid, assignVehicleToContract, resolveContract,
+  getFleet, purchaseVehicle, performMaintenance, calcNetWorth, calcCompanyValue, addRecord,
+  VEHICLE_CATALOGUE,
+  type Company, type Contract, type Vehicle, type VehicleType,
 } from '../../../lib/businessCore';
-
-type ContractDraft = Omit<Contract, 'id' | 'createdAt' | 'status' | 'bids' | 'issuerType'>;
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 const T = {
@@ -19,7 +19,6 @@ const T = {
   border: '#2A2630',
   borderGold: 'rgba(201,162,74,0.22)',
   gold: '#C9A24A',
-  goldBright: '#E0B85A',
   ivory: '#F4EBD6',
   muted: '#A79D8C',
   faint: '#6B6358',
@@ -84,16 +83,9 @@ const GhostButton = ({ onClick, children, color }: { onClick?: () => void; child
   <button
     onClick={onClick}
     style={{
-      background: 'transparent',
-      color: color || T.muted,
-      border: `1px solid ${T.border}`,
-      padding: '8px 18px',
-      fontSize: '10px',
-      fontFamily: 'monospace',
-      textTransform: 'uppercase',
-      letterSpacing: '0.12em',
-      fontWeight: 600,
-      cursor: 'pointer',
+      background: 'transparent', color: color || T.muted, border: `1px solid ${T.border}`,
+      padding: '8px 18px', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase',
+      letterSpacing: '0.12em', fontWeight: 600, cursor: 'pointer',
     }}
     onMouseEnter={e => { e.currentTarget.style.borderColor = T.gold; e.currentTarget.style.color = T.ivory; }}
     onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = color || T.muted; }}
@@ -102,72 +94,37 @@ const GhostButton = ({ onClick, children, color }: { onClick?: () => void; child
   </button>
 );
 
-const LockedBadge = ({ label }: { label: string }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
-    <span style={{ fontSize: '10px', color: T.faint }}>🔒</span>
-    <span style={{ fontSize: '10px', color: T.faint, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{label}</span>
-  </div>
-);
-
 // ─── Sub-tab types ────────────────────────────────────────────────────────────
 type SubTab = 'overview' | 'start' | 'companies' | 'contracts' | 'registry' | 'finance' | 'equity';
 
 const SUB_TABS: { id: SubTab; label: string; requiresCompany?: boolean }[] = [
   { id: 'overview',   label: 'Overview' },
   { id: 'start',      label: 'Start Business' },
-  { id: 'companies',  label: 'My Companies' },
-  { id: 'contracts',  label: 'Contracts',  requiresCompany: true },
+  { id: 'companies',  label: 'My Companies', requiresCompany: true },
+  { id: 'contracts',  label: 'Contracts',    requiresCompany: true },
   { id: 'registry',   label: 'Registry' },
-  { id: 'finance',    label: 'Finance',   requiresCompany: true },
-  { id: 'equity',     label: 'Equity',    requiresCompany: true },
+  { id: 'finance',    label: 'Finance',      requiresCompany: true },
+  { id: 'equity',     label: 'Equity',       requiresCompany: true },
 ];
 
 // ─── SECTORS ─────────────────────────────────────────────────────────────────
 const SECTORS = [
-  { id: 'Retail & Consumer',    desc: 'Consumer goods, storefronts, and distribution to the public market.', available: true },
   { id: 'Shipping & Logistics', desc: 'Freight, transport, port handling, and supply chain operations.', available: true },
-  { id: 'Agriculture & Food',   desc: 'Farming, processing, and supplying food markets across Drennia.', available: true },
-  { id: 'Manufacturing',        desc: 'Production, parts, assembly, and industrial output.', available: true },
-  { id: 'Finance & Services',   desc: 'Banking, lending, insurance, and advisory.', available: false },
-  { id: 'Construction',         desc: 'Infrastructure, building, and civil development.', available: false },
-  { id: 'Technology',           desc: 'Emerging technologies, manufacturing tools, and communications.', available: false },
-  { id: 'Energy',               desc: 'Fuel, steam, coal, and energy distribution.', available: false },
+  { id: 'Manufacturing',        desc: 'Production, parts, assembly, and industrial output.',              available: false, note: 'Coming Next' },
+  { id: 'Retail & Consumer',    desc: 'Consumer goods, storefronts, and distribution.',                   available: false, note: 'Later' },
+  { id: 'Agriculture & Food',   desc: 'Farming, processing, and food supply chains.',                     available: false, note: 'Later' },
+  { id: 'Finance & Services',   desc: 'Banking, lending, insurance, and advisory.',                       available: false, note: 'Later' },
+  { id: 'Construction',         desc: 'Infrastructure, building, and civil development.',                  available: false, note: 'Later' },
+  { id: 'Technology',           desc: 'Tools, communications, and emerging tech.',                        available: false, note: 'Later' },
+  { id: 'Energy',               desc: 'Fuel, steam, coal, and energy distribution.',                      available: false, note: 'Later' },
 ];
 
 // ─── HQ OPTIONS ──────────────────────────────────────────────────────────────
 const HQ_OPTIONS = [
-  {
-    id: 'Drennport State',
-    city: 'Drennport',
-    tagline: 'Finance, Law & Administration',
-    desc: 'The capital. Excellent registry access, financial services, legal frameworks, and professional demand. Higher operating costs.',
-    costNote: '▲ Higher Costs',
-    costColor: T.red,
-  },
-  {
-    id: 'Westport State',
-    city: 'Westport',
-    tagline: 'Ports, Trade & Export',
-    desc: 'A major port hub with strong shipping, trade, and logistics contracts. High competition, fast-moving market.',
-    costNote: '≈ Moderate Costs',
-    costColor: T.gold,
-  },
-  {
-    id: 'Ironvale State',
-    city: 'Ironvale',
-    tagline: 'Manufacturing & Labour',
-    desc: 'Heavily industrial. Strong supply of materials and factory capacity. Labour dynamics will factor in later.',
-    costNote: '▼ Lower Costs',
-    costColor: T.mint,
-  },
-  {
-    id: 'Greenmere State',
-    city: 'Greenmere',
-    tagline: 'Agriculture & Community',
-    desc: 'Slower market, community reputation-heavy. Strong for food, farming, and local supply chains.',
-    costNote: '▼ Lowest Costs',
-    costColor: T.mint,
-  },
+  { id: 'Drennport State',  city: 'Drennport', tagline: 'Finance, Law & Administration', costNote: '▲ Higher Costs',  costColor: T.red,   desc: 'Capital city. Excellent registry access and professional services. Higher operating costs.' },
+  { id: 'Westport State',   city: 'Westport',  tagline: 'Ports, Trade & Export',         costNote: '≈ Moderate Costs', costColor: T.gold,  desc: 'Major port hub with strong shipping and logistics contracts.' },
+  { id: 'Ironvale State',   city: 'Ironvale',  tagline: 'Manufacturing & Labour',        costNote: '▼ Lower Costs',   costColor: T.mint,  desc: 'Industrial state. Good supply of materials and factory capacity.' },
+  { id: 'Greenmere State',  city: 'Greenmere', tagline: 'Agriculture & Community',       costNote: '▼ Lowest Costs',  costColor: T.mint,  desc: 'Slow but steady market. Strong for food and local logistics.' },
 ];
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
@@ -182,18 +139,17 @@ export default function BusinessPage() {
 
   // Contracts state
   const [contracts, setContracts] = useState<Contract[]>([]);
-  const [biddingOn, setBiddingOn] = useState<string | null>(null);
-  const [bidAmount, setBidAmount] = useState(0);
-  const [bidNote, setBidNote] = useState('');
+  // Fleet state
+  const [fleet, setFleet] = useState<Vehicle[]>([]);
 
   // Start Business state
   const [step, setStep] = useState(1);
   const [selectedSector, setSelectedSector] = useState('');
   const [selectedHQ, setSelectedHQ] = useState('');
-  const [selectedStructure] = useState('Sole Trader');
   const [companyNameInput, setCompanyNameInput] = useState('');
   const [nameError, setNameError] = useState('');
   const [startError, setStartError] = useState('');
+  const [chosenCapital, setChosenCapital] = useState(50000);
 
   const loadData = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -205,9 +161,10 @@ export default function BusinessPage() {
       setCitizenFile(cf);
       const cName = typeof cf.name === 'object' ? `${cf.name.first} ${cf.name.last}` : cf.name;
       setCharacterName(cName);
-      setPlayerCash(cf.wealth || 0);
+      setPlayerCash(cf.wealth ?? cf.personalMoney ?? 0);
       const playerCompany = getPlayerCompany(cName);
       setCompany(playerCompany || null);
+      if (playerCompany) setFleet(getFleet(playerCompany.id));
     }
     initializeContractsIfEmpty();
     setContracts(getContracts());
@@ -217,27 +174,37 @@ export default function BusinessPage() {
   useEffect(() => { loadData(); }, [loadData]);
 
   // ─── Helpers ────────────────────────────────────────────────────────────
-  const updateCash = (delta: number) => {
+  const refreshAll = () => {
+    const fileStr = localStorage.getItem('worldr_citizen_file_v1');
+    if (fileStr) {
+      const cf = JSON.parse(fileStr);
+      setCitizenFile(cf);
+      setPlayerCash(cf.wealth ?? cf.personalMoney ?? 0);
+      const cName = typeof cf.name === 'object' ? `${cf.name.first} ${cf.name.last}` : cf.name;
+      const playerCompany = getPlayerCompany(cName);
+      setCompany(playerCompany || null);
+      if (playerCompany) setFleet(getFleet(playerCompany.id));
+    }
+    setContracts(getContracts());
+  };
+
+  const updateCash = (newCash: number) => {
     if (!citizenFile) return;
-    const newCash = playerCash + delta;
-    setPlayerCash(newCash);
-    const updated = { ...citizenFile, wealth: newCash };
+    const updated = { ...citizenFile, wealth: newCash, personalMoney: newCash };
     setCitizenFile(updated);
+    setPlayerCash(newCash);
     localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(updated));
   };
 
-  const addRecord = (summary: string, type = 'business') => {
-    const rec = { id: `rec_${Date.now()}`, type, summary, createdAt: new Date().toISOString() };
-    const recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
-    localStorage.setItem('worldr_records_v1', JSON.stringify([rec, ...recs]));
-  };
+  // ─── Net Worth ──────────────────────────────────────────────────────────
+  const netWorth = calcNetWorth(playerCash, company);
 
-  // ─── Start Business logic ────────────────────────────────────────────────
+  // ─── Start Business ──────────────────────────────────────────────────────
   const checkName = () => {
     setNameError('');
     if (!companyNameInput.trim()) { setNameError('Company name cannot be blank.'); return false; }
     if (companyNameInput.trim().length < 3) { setNameError('Name must be at least 3 characters.'); return false; }
-    const allCompanies = [...getCompanies(), ...NPC_COMPANIES];
+    const allCompanies = getCompanies();
     const taken = allCompanies.some(c => c.name.toLowerCase() === companyNameInput.trim().toLowerCase());
     if (taken) { setNameError('That name is already registered in the Drennia registry.'); return false; }
     return true;
@@ -245,8 +212,10 @@ export default function BusinessPage() {
 
   const handleRegisterCompany = () => {
     setStartError('');
-    if (playerCash < 525) {
-      setStartError(`Insufficient funds. You need ₯525 (₯500 capital + ₯25 filing fee). You have ₯${playerCash}.`);
+    const FILING_FEE = 5000;
+    const total = chosenCapital + FILING_FEE;
+    if (playerCash < total) {
+      setStartError(`Insufficient cash. You need ₯${total.toLocaleString()} (₯${chosenCapital.toLocaleString()} capital + ₯${FILING_FEE.toLocaleString()} filing fee). You have ₯${playerCash.toLocaleString()}.`);
       return;
     }
     const finalName = companyNameInput.trim();
@@ -259,67 +228,48 @@ export default function BusinessPage() {
       state: selectedHQ,
       sector: selectedSector,
       registeredAt: new Date().toISOString(),
-      companyCash: 500,
+      companyCash: chosenCapital,
       monthlyRevenue: 0, monthlyCosts: 0, profit: 0,
-      capacity: 1,
+      capacity: 0,
       reputation: 'New', reliability: 'Unproven',
       debt: 0, status: 'Active',
       activeContracts: [], publicRecords: [], riskFlags: [],
     };
     saveCompany(newCompany);
-    updateCash(-525);
-    addRecord(`Registered ${finalName} as a Sole Trader headquartered in ${selectedHQ}. Initial capital filed: ₯500.`);
+    updateCash(playerCash - total);
+    addRecord(`Registered ${finalName} as a Sole Trader headquartered in ${selectedHQ}. Initial capital filed: ₯${chosenCapital.toLocaleString()}.`);
     setCompany(newCompany);
+    setFleet([]);
     setActiveTab('companies');
-  };
-
-  // ─── Contract logic ───────────────────────────────────────────────────────
-  const handlePlaceBid = (contractId: string) => {
-    if (!company) return;
-    const contract = contracts.find(c => c.id === contractId);
-    if (!contract) return;
-    const existing = contract.bids.findIndex(b => b.companyId === company.id);
-    const newBid = { companyId: company.id, amount: bidAmount, note: bidNote, timestamp: new Date().toISOString() };
-    const updated = { ...contract, bids: existing >= 0
-      ? contract.bids.map((b, i) => i === existing ? newBid : b)
-      : [...contract.bids, newBid]
-    };
-    saveContract(updated);
-    setContracts(getContracts());
-    setBiddingOn(null); setBidAmount(0); setBidNote('');
-  };
-
-  const handleEvaluateAll = () => {
-    contracts.filter(c => c.status === 'open').forEach(c => evaluateContractBids(c.id));
-    setContracts(getContracts());
   };
 
   if (!authorized) return null;
 
-  // ─── RENDER ───────────────────────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: T.bg, color: T.ivory, overflow: 'hidden' }}>
 
-      {/* ── Top Player Bar ── */}
+      {/* ── Business Header: Net Worth + Cash Only ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 24px', borderBottom: `1px solid ${T.border}`, background: T.panel, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.2em', color: T.gold }}>WORLDr</span>
-          <span style={{ width: '1px', height: '16px', background: T.border }} />
-          <span style={{ fontSize: '13px', fontWeight: 700, color: T.ivory }}>{characterName}</span>
-          <span style={{ fontSize: '10px', color: T.faint, fontFamily: 'monospace' }}>Age 18</span>
+          <span style={{ width: '1px', height: '14px', background: T.border }} />
+          <span style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint }}>Business Desk</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          <StatPill label="Credibility" value={citizenFile?.credibility || 50} />
-          <StatPill label="Charisma" value={citizenFile?.charisma || 50} />
-          <StatPill label="Influence" value={citizenFile?.influence || 10} />
-          <StatPill label="Cash ₯" value={playerCash} color={T.mint} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+            <span style={{ fontSize: '8px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: T.faint }}>Net Worth</span>
+            <span style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.gold }}>₯{netWorth.toLocaleString()}</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+            <span style={{ fontSize: '8px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: T.faint }}>Cash in Hand</span>
+            <span style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.mint }}>₯{playerCash.toLocaleString()}</span>
+          </div>
         </div>
       </div>
 
       {/* ── Page Title ── */}
-      <div style={{ padding: '20px 24px 8px', flexShrink: 0 }}>
-        <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '4px' }}>Business Desk</div>
-        <h1 style={{ fontSize: '22px', fontWeight: 700, color: T.ivory, margin: 0 }}>Business</h1>
+      <div style={{ padding: '16px 24px 8px', flexShrink: 0 }}>
+        <h1 style={{ fontSize: '20px', fontWeight: 700, color: T.ivory, margin: 0 }}>Business</h1>
       </div>
 
       {/* ── Subtabs ── */}
@@ -332,19 +282,10 @@ export default function BusinessPage() {
               key={tab.id}
               onClick={() => !locked && setActiveTab(tab.id)}
               style={{
-                padding: '10px 16px',
-                fontSize: '11px',
-                fontFamily: 'monospace',
-                textTransform: 'uppercase',
-                letterSpacing: '0.1em',
-                fontWeight: isActive ? 700 : 500,
-                color: locked ? T.faint : isActive ? T.gold : T.muted,
-                background: 'transparent',
-                border: 'none',
-                borderBottom: isActive ? `2px solid ${T.gold}` : '2px solid transparent',
-                cursor: locked ? 'not-allowed' : 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'color 0.15s',
+                padding: '10px 16px', fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em',
+                fontWeight: isActive ? 700 : 500, color: locked ? T.faint : isActive ? T.gold : T.muted,
+                background: 'transparent', border: 'none', borderBottom: isActive ? `2px solid ${T.gold}` : '2px solid transparent',
+                cursor: locked ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', transition: 'color 0.15s',
               }}
               title={locked ? 'Register a company to unlock' : undefined}
             >
@@ -356,24 +297,14 @@ export default function BusinessPage() {
 
       {/* ── Tab Content ── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-        {activeTab === 'overview'   && <OverviewTab company={company} playerCash={playerCash} onStartBusiness={() => setActiveTab('start')} onViewContracts={() => setActiveTab('contracts')} onViewRegistry={() => setActiveTab('registry')} />}
-        {activeTab === 'start'      && <StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} onRegister={handleRegisterCompany} checkName={checkName} />}
-        {activeTab === 'companies'  && <CompaniesTab company={company} onGoToContracts={() => setActiveTab('contracts')} onGoToRegistry={() => setActiveTab('registry')} />}
-        {activeTab === 'contracts'  && company && <ContractsTab company={company} contracts={contracts} biddingOn={biddingOn} setBiddingOn={setBiddingOn} bidAmount={bidAmount} setBidAmount={setBidAmount} bidNote={bidNote} setBidNote={setBidNote} onPlaceBid={handlePlaceBid} onEvaluateAll={handleEvaluateAll} onCreateContract={(c: ContractDraft) => { createPlayerContract(c); setContracts(getContracts()); }} />}
-        {activeTab === 'registry'   && <RegistryTab company={company} />}
-        {activeTab === 'finance'    && company && <FinanceTab company={company} />}
-        {activeTab === 'equity'     && company && <EquityTab company={company} characterName={characterName} />}
+        {activeTab === 'overview'  && <OverviewTab company={company} playerCash={playerCash} netWorth={netWorth} onStartBusiness={() => setActiveTab('start')} onViewContracts={() => setActiveTab('contracts')} onViewRegistry={() => setActiveTab('registry')} />}
+        {activeTab === 'start'     && <StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} />}
+        {activeTab === 'companies' && company && <CompanyDeskTab company={company} fleet={fleet} contracts={contracts} playerCash={playerCash} characterName={characterName} onTabChange={setActiveTab} onRefresh={refreshAll} />}
+        {activeTab === 'contracts' && company && <ContractsTab company={company} contracts={contracts} fleet={fleet} onRefresh={refreshAll} />}
+        {activeTab === 'registry'  && <RegistryTab company={company} />}
+        {activeTab === 'finance'   && company && <FinanceTab company={company} fleet={fleet} playerCash={playerCash} netWorth={netWorth} />}
+        {activeTab === 'equity'    && company && <EquityTab company={company} characterName={characterName} fleet={fleet} />}
       </div>
-    </div>
-  );
-}
-
-// ─── StatPill ────────────────────────────────────────────────────────────────
-function StatPill({ label, value, color }: { label: string; value: number | string; color?: string }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <span style={{ fontSize: '8px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint }}>{label}</span>
-      <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 700, color: color || T.ivory }}>{value}</span>
     </div>
   );
 }
@@ -381,24 +312,24 @@ function StatPill({ label, value, color }: { label: string; value: number | stri
 // ─────────────────────────────────────────────────────────────────────────────
 // OVERVIEW TAB
 // ─────────────────────────────────────────────────────────────────────────────
-function OverviewTab({ company, playerCash, onStartBusiness, onViewContracts, onViewRegistry }: {
-  company: Company | null;
-  playerCash: number;
-  onStartBusiness: () => void;
-  onViewContracts: () => void;
-  onViewRegistry: () => void;
+function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewContracts, onViewRegistry }: {
+  company: Company | null; playerCash: number; netWorth: number;
+  onStartBusiness: () => void; onViewContracts: () => void; onViewRegistry: () => void;
 }) {
   if (!company) {
     return (
       <div style={{ maxWidth: '560px' }}>
         <SectionHeader stamp="DRENNIA COMMERCIAL REGISTRY">Business Desk</SectionHeader>
         <PanelBox style={{ marginBottom: '24px' }}>
-          <p style={{ fontSize: '14px', color: T.muted, lineHeight: 1.7, margin: '0 0 24px' }}>
-            You do not own a company yet. Drennia's registry is open, but every filing becomes part of your permanent record.
+          <p style={{ fontSize: '14px', color: T.muted, lineHeight: 1.7, margin: '0 0 8px' }}>
+            Drennia's registry is open. Only <strong style={{ color: T.gold }}>Shipping & Logistics</strong> is available in v1.
+          </p>
+          <p style={{ fontSize: '12px', color: T.faint, lineHeight: 1.6, margin: '0 0 20px' }}>
+            Start a company with a minimum of ₯50,000 capital. No maximum — invest as much as you have.
           </p>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             <GoldButton onClick={onStartBusiness}>Start Business →</GoldButton>
-            <GhostButton onClick={onViewRegistry}>View Public Registry</GhostButton>
+            <GhostButton onClick={onViewRegistry}>Public Registry</GhostButton>
           </div>
         </PanelBox>
         <PanelBox>
@@ -406,17 +337,13 @@ function OverviewTab({ company, playerCash, onStartBusiness, onViewContracts, on
           <FieldRow label="Sole Trader" value="Active" valueColor={T.mint} />
           <FieldRow label="Private Company" value="Locked" valueColor={T.faint} />
           <FieldRow label="Corporation" value="Locked" valueColor={T.faint} />
-          <FieldRow label="Public Corporation" value="Locked" valueColor={T.faint} />
-          <FieldRow label="Holding Company" value="Locked" valueColor={T.faint} />
         </PanelBox>
       </div>
     );
   }
 
-  const activeContracts = getContracts().filter(c => c.status === 'awarded' && c.awardedToCompanyId === company.id);
-
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', maxWidth: '900px' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', maxWidth: '860px' }}>
       <PanelBox>
         <SectionHeader stamp="COMPANY FILE">Empire Summary</SectionHeader>
         <FieldRow label="Company" value={company.name} />
@@ -430,29 +357,8 @@ function OverviewTab({ company, playerCash, onStartBusiness, onViewContracts, on
       <PanelBox>
         <SectionHeader stamp="LEDGER">Financial Position</SectionHeader>
         <FieldRow label="Company Cash" value={`₯${company.companyCash.toLocaleString()}`} valueColor={T.mint} />
-        <FieldRow label="Monthly Revenue" value={`₯${company.monthlyRevenue.toLocaleString()}`} valueColor={T.mint} />
-        <FieldRow label="Monthly Costs" value={`₯${company.monthlyCosts.toLocaleString()}`} valueColor={T.red} />
-        <FieldRow label="Profit" value={`₯${company.profit.toLocaleString()}`} valueColor={company.profit >= 0 ? T.mint : T.red} />
         <FieldRow label="Debt" value={`₯${company.debt.toLocaleString()}`} valueColor={company.debt > 0 ? T.burgundy : T.muted} />
-        <FieldRow label="Active Contracts" value={activeContracts.length} />
-      </PanelBox>
-      <PanelBox style={{ gridColumn: '1 / -1' }}>
-        <SectionHeader>Suggested Actions</SectionHeader>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '10px' }}>
-          {[
-            { label: 'View Contract Board', action: onViewContracts, color: T.gold },
-            { label: 'View Registry', action: onViewRegistry, color: T.ivory },
-            { label: 'Send Business Offer', action: () => {}, color: T.steel },
-            { label: 'Review Finance', action: () => {}, color: T.steel },
-          ].map(a => (
-            <button key={a.label} onClick={a.action} style={{ padding: '14px 12px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, cursor: 'pointer', textAlign: 'left' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderGold; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; }}
-            >
-              <div style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: a.color }}>{a.label}</div>
-            </button>
-          ))}
-        </div>
+        <FieldRow label="Net Worth (total)" value={`₯${netWorth.toLocaleString()}`} valueColor={T.gold} />
       </PanelBox>
     </div>
   );
@@ -461,22 +367,22 @@ function OverviewTab({ company, playerCash, onStartBusiness, onViewContracts, on
 // ─────────────────────────────────────────────────────────────────────────────
 // START BUSINESS TAB
 // ─────────────────────────────────────────────────────────────────────────────
-function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, selectedHQ, setSelectedHQ, companyNameInput, setCompanyNameInput, nameError, setNameError, startError, playerCash, company, onRegister, checkName }: any) {
+function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, selectedHQ, setSelectedHQ, companyNameInput, setCompanyNameInput, nameError, setNameError, startError, playerCash, company, onRegister, checkName, chosenCapital, setChosenCapital }: any) {
   if (company) {
     return (
       <PanelBox style={{ maxWidth: '540px' }}>
         <SectionHeader>Company Already Registered</SectionHeader>
         <p style={{ fontSize: '13px', color: T.muted, lineHeight: 1.7 }}>
-          You have already registered <strong style={{ color: T.ivory }}>{company.name}</strong>. Each citizen may only hold one active sole trader registration at this time.
-        </p>
-        <p style={{ fontSize: '11px', color: T.faint, marginTop: '12px' }}>
-          Conversion to Private Company or Corporation will be available as your business grows.
+          You have already registered <strong style={{ color: T.ivory }}>{company.name}</strong>. Each citizen may hold one active sole trader registration.
         </p>
       </PanelBox>
     );
   }
 
   const STEP_LABELS = ['Sector', 'Headquarters', 'Structure', 'Company Name', 'Starting Capital', 'Confirm Filing'];
+  const FILING_FEE = 5000;
+  const total = chosenCapital + FILING_FEE;
+  const canAfford = playerCash >= total;
 
   return (
     <div style={{ maxWidth: '620px' }}>
@@ -501,7 +407,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
         <div>
           <SectionHeader stamp="STEP 1 OF 6">Select Your Sector</SectionHeader>
           <p style={{ fontSize: '12px', color: T.muted, marginBottom: '20px', lineHeight: 1.7 }}>
-            Your sector determines which contracts you can bid on and which market conditions affect you.
+            Only <strong style={{ color: T.gold }}>Shipping & Logistics</strong> is available in the current version. Other sectors are coming soon.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
             {SECTORS.map(s => (
@@ -520,7 +426,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', fontWeight: 600, color: s.available ? T.ivory : T.faint }}>{s.id}</span>
-                  {!s.available && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint, letterSpacing: '0.1em' }}>LOCKED</span>}
+                  {!s.available && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint, letterSpacing: '0.1em' }}>{(s as any).note || 'LOCKED'}</span>}
                   {selectedSector === s.id && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.gold, letterSpacing: '0.1em' }}>SELECTED ✓</span>}
                 </div>
                 <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px' }}>{s.desc}</div>
@@ -535,7 +441,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {step === 2 && (
         <div>
           <SectionHeader stamp="STEP 2 OF 6">Headquarters Location</SectionHeader>
-          <p style={{ fontSize: '12px', color: T.muted, marginBottom: '20px', lineHeight: 1.7 }}>Your HQ state affects your operating costs, contract access, and market exposure.</p>
+          <p style={{ fontSize: '12px', color: T.muted, marginBottom: '20px', lineHeight: 1.7 }}>Your HQ state affects operating costs, contract access, and market exposure.</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
             {HQ_OPTIONS.map(hq => (
               <button key={hq.id} onClick={() => setSelectedHQ(hq.id)} style={{ padding: '16px 18px', background: selectedHQ === hq.id ? 'rgba(201,162,74,0.08)' : 'rgba(255,255,255,0.02)', border: selectedHQ === hq.id ? `1px solid ${T.gold}` : `1px solid ${T.border}`, cursor: 'pointer', textAlign: 'left' }}>
@@ -545,7 +451,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
                     <span style={{ fontSize: '10px', color: T.muted, marginLeft: '10px' }}>{hq.tagline}</span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '9px', fontFamily: 'monospace', color: hq.costColor, letterSpacing: '0.05em' }}>{hq.costNote}</span>
+                    <span style={{ fontSize: '9px', fontFamily: 'monospace', color: hq.costColor }}>{hq.costNote}</span>
                     {selectedHQ === hq.id && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.gold }}>✓</span>}
                   </div>
                 </div>
@@ -560,18 +466,15 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
         </div>
       )}
 
-      {/* Step 3 — Legal Structure */}
+      {/* Step 3 — Structure (locked at Sole Trader) */}
       {step === 3 && (
         <div>
           <SectionHeader stamp="STEP 3 OF 6">Legal Structure</SectionHeader>
-          <p style={{ fontSize: '12px', color: T.muted, marginBottom: '20px', lineHeight: 1.7 }}>Legal structure determines your liability, equity options, and future conversion paths.</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
             {[
-              { label: 'Sole Trader', desc: 'Simplest structure. You are the business. Full liability, full ownership, lowest filing cost.', active: true },
+              { label: 'Sole Trader', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost.', active: true },
               { label: 'Private Company', desc: 'Separate legal entity. Can add partners and issue shares.', active: false },
               { label: 'Corporation', desc: 'Full liability protection. Required for public trading.', active: false },
-              { label: 'Public Corporation', desc: 'Can list shares on the Westport Bourse.', active: false },
-              { label: 'Holding Company', desc: 'Owns subsidiaries. Group structure.', active: false },
             ].map(s => (
               <div key={s.label} style={{ padding: '14px 18px', background: s.active ? 'rgba(201,162,74,0.08)' : 'rgba(255,255,255,0.01)', border: s.active ? `1px solid ${T.gold}` : `1px solid ${T.border}`, opacity: s.active ? 1 : 0.4 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -594,7 +497,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
         <div>
           <SectionHeader stamp="STEP 4 OF 6">Company Name</SectionHeader>
           <p style={{ fontSize: '12px', color: T.muted, marginBottom: '20px', lineHeight: 1.7 }}>
-            Choose a name for the public registry. This becomes your permanent business identity in Drennia.
+            This becomes your permanent business identity in Drennia. Names are public and cannot be reused.
           </p>
           <div style={{ marginBottom: '20px' }}>
             <Label>Company Name</Label>
@@ -602,7 +505,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
               type="text"
               value={companyNameInput}
               onChange={e => { setCompanyNameInput(e.target.value); setNameError(''); }}
-              placeholder="e.g. Vane & Sons Trading Co."
+              placeholder="e.g. Vane & Sons Freight Co."
               style={{ width: '100%', padding: '12px 16px', background: T.paper, border: `1px solid ${nameError ? T.burgundy : T.border}`, color: T.ivory, fontSize: '14px', fontFamily: 'serif', outline: 'none', boxSizing: 'border-box' }}
             />
             {nameError && <div style={{ fontSize: '11px', color: T.red, marginTop: '6px' }}>{nameError}</div>}
@@ -614,37 +517,54 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
         </div>
       )}
 
-      {/* Step 5 — Capital */}
+      {/* Step 5 — Capital (no max, min ₯50,000) */}
       {step === 5 && (
         <div>
           <SectionHeader stamp="STEP 5 OF 6">Starting Capital</SectionHeader>
-          <PanelBox style={{ marginBottom: '20px' }}>
+          <PanelBox style={{ marginBottom: '16px' }}>
             <FieldRow label="Company Name" value={companyNameInput} />
             <FieldRow label="Sector" value={selectedSector} />
             <FieldRow label="HQ State" value={selectedHQ} />
             <FieldRow label="Legal Structure" value="Sole Trader" />
           </PanelBox>
           <PanelBox style={{ background: T.paper, marginBottom: '24px' }}>
-            <SectionHeader>Filing Costs</SectionHeader>
-            <FieldRow label="Starting Company Capital" value="₯500" valueColor={T.mint} />
-            <FieldRow label="Registry Filing Fee" value="₯25" valueColor={T.red} />
+            <SectionHeader>Starting Capital</SectionHeader>
+            <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, marginBottom: '16px' }}>
+              Minimum: <strong style={{ color: T.gold }}>₯50,000</strong>. No maximum — invest as much as your Cash in Hand allows, minus the ₯5,000 filing fee.
+            </p>
+            <div style={{ marginBottom: '16px' }}>
+              <Label>Company Starting Capital (₯)</Label>
+              <input
+                type="number"
+                min={50000}
+                step={10000}
+                value={chosenCapital}
+                onChange={e => {
+                  const v = parseInt(e.target.value) || 50000;
+                  setChosenCapital(Math.max(50000, v));
+                }}
+                style={{ width: '100%', padding: '12px 16px', background: T.panel, border: `1px solid ${T.border}`, color: T.mint, fontSize: '16px', fontFamily: 'monospace', fontWeight: 700, outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+            <FieldRow label="Chosen Capital" value={`₯${chosenCapital.toLocaleString()}`} valueColor={T.mint} />
+            <FieldRow label="Filing Fee" value="₯5,000" valueColor={T.red} />
             <div style={{ marginTop: '12px', padding: '10px 0', borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '12px', fontWeight: 700, color: T.ivory }}>Total Required</span>
-              <span style={{ fontSize: '16px', fontFamily: 'monospace', fontWeight: 700, color: T.gold }}>₯525</span>
+              <span style={{ fontSize: '16px', fontFamily: 'monospace', fontWeight: 700, color: T.gold }}>₯{total.toLocaleString()}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-              <span style={{ fontSize: '11px', color: T.muted }}>Your Current Cash</span>
-              <span style={{ fontSize: '13px', fontFamily: 'monospace', color: playerCash >= 525 ? T.mint : T.red }}>₯{playerCash}</span>
+              <span style={{ fontSize: '11px', color: T.muted }}>Your Cash in Hand</span>
+              <span style={{ fontSize: '13px', fontFamily: 'monospace', color: canAfford ? T.mint : T.red }}>₯{playerCash.toLocaleString()}</span>
             </div>
-            {playerCash < 525 && (
+            {!canAfford && (
               <div style={{ fontSize: '11px', color: T.red, marginTop: '12px', padding: '8px', background: 'rgba(143,61,61,0.1)', border: `1px solid ${T.burgundy}` }}>
-                ⚠ Insufficient funds. You need ₯{525 - playerCash} more.
+                ⚠ Insufficient cash. You need ₯{(total - playerCash).toLocaleString()} more.
               </div>
             )}
           </PanelBox>
           <div style={{ display: 'flex', gap: '10px' }}>
             <GhostButton onClick={() => setStep(4)}>← Back</GhostButton>
-            <GoldButton onClick={() => setStep(6)} disabled={playerCash < 525}>Next: Confirm →</GoldButton>
+            <GoldButton onClick={() => setStep(6)} disabled={!canAfford || chosenCapital < 50000}>Next: Confirm →</GoldButton>
           </div>
         </div>
       )}
@@ -662,12 +582,12 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
             <FieldRow label="Sector" value={selectedSector} />
             <FieldRow label="Headquarters" value={selectedHQ} />
             <FieldRow label="Filing Date" value={new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })} />
-            <FieldRow label="Capital Filed" value="₯500" valueColor={T.mint} />
-            <FieldRow label="Filing Fee" value="₯25" valueColor={T.red} />
-            <FieldRow label="Total Deducted" value="₯525" valueColor={T.gold} />
+            <FieldRow label="Capital Filed" value={`₯${chosenCapital.toLocaleString()}`} valueColor={T.mint} />
+            <FieldRow label="Filing Fee" value="₯5,000" valueColor={T.red} />
+            <FieldRow label="Total Deducted from Cash" value={`₯${total.toLocaleString()}`} valueColor={T.gold} />
           </PanelBox>
           <p style={{ fontSize: '11px', color: T.muted, marginBottom: '20px', lineHeight: 1.7 }}>
-            By confirming, this filing becomes a permanent public record in the Drennia Commercial Registry. The entry will be visible to all operators.
+            By confirming, this filing becomes a permanent public record in the Drennia Commercial Registry.
           </p>
           {startError && <div style={{ fontSize: '11px', color: T.red, marginBottom: '16px', padding: '10px', background: 'rgba(143,61,61,0.1)', border: `1px solid ${T.burgundy}` }}>{startError}</div>}
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -681,361 +601,549 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MY COMPANIES TAB
+// COMPANY DESK TAB (Shipping & Logistics)
 // ─────────────────────────────────────────────────────────────────────────────
-function CompaniesTab({ company, onGoToContracts, onGoToRegistry }: { company: Company | null; onGoToContracts: () => void; onGoToRegistry: () => void }) {
-  if (!company) {
-    return (
-      <PanelBox style={{ maxWidth: '540px' }}>
-        <SectionHeader>My Companies</SectionHeader>
-        <p style={{ fontSize: '13px', color: T.muted }}>You have not registered a company yet. Go to <strong style={{ color: T.gold }}>Start Business</strong> to incorporate.</p>
-      </PanelBox>
-    );
-  }
+type CompanyDeskTab = 'overview' | 'fleet' | 'contracts' | 'routes' | 'finance' | 'records' | 'equity';
 
-  const records = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]').filter((r: any) => r.type === 'business' || r.type === 'contract').slice(0, 5);
+function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, onTabChange, onRefresh }: {
+  company: Company; fleet: Vehicle[]; contracts: Contract[]; playerCash: number; characterName: string;
+  onTabChange: (tab: any) => void; onRefresh: () => void;
+}) {
+  const [deskTab, setDeskTab] = useState<CompanyDeskTab>('overview');
+  const [notification, setNotification] = useState<{ msg: string; success: boolean } | null>(null);
 
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', maxWidth: '900px' }}>
-      <PanelBox>
-        <SectionHeader stamp="OFFICIAL RECORD">Company File</SectionHeader>
-        <FieldRow label="Company Name" value={company.name} />
-        <FieldRow label="Owner" value={company.ownerName} />
-        <FieldRow label="Legal Structure" value={company.legalStructure} />
-        <FieldRow label="HQ State" value={company.state} />
-        <FieldRow label="Sector" value={company.sector} />
-        <FieldRow label="Status" value={company.status} valueColor={T.mint} />
-        <FieldRow label="Registered" value={new Date(company.registeredAt).toLocaleDateString('en-GB')} />
-      </PanelBox>
+  const showNotif = (msg: string, success: boolean) => {
+    setNotification({ msg, success });
+    setTimeout(() => setNotification(null), 4000);
+  };
 
-      <PanelBox>
-        <SectionHeader stamp="LEDGER">Financial Position</SectionHeader>
-        <FieldRow label="Company Cash" value={`₯${company.companyCash.toLocaleString()}`} valueColor={T.mint} />
-        <FieldRow label="Monthly Revenue" value={`₯${company.monthlyRevenue.toLocaleString()}`} valueColor={T.mint} />
-        <FieldRow label="Monthly Costs" value={`₯${company.monthlyCosts.toLocaleString()}`} valueColor={T.red} />
-        <FieldRow label="Net Profit" value={`₯${company.profit.toLocaleString()}`} valueColor={company.profit >= 0 ? T.mint : T.red} />
-        <FieldRow label="Outstanding Debt" value={`₯${company.debt.toLocaleString()}`} valueColor={company.debt > 0 ? T.burgundy : T.muted} />
-      </PanelBox>
+  const DESK_TABS: { id: CompanyDeskTab; label: string }[] = [
+    { id: 'overview',   label: 'Overview'   },
+    { id: 'fleet',      label: 'Fleet'      },
+    { id: 'contracts',  label: 'Contracts'  },
+    { id: 'routes',     label: 'Routes'     },
+    { id: 'finance',    label: 'Finance'    },
+    { id: 'records',    label: 'Records'    },
+    { id: 'equity',     label: 'Equity'     },
+  ];
 
-      <PanelBox>
-        <SectionHeader stamp="OPERATIONS">Operating Position</SectionHeader>
-        <FieldRow label="Capacity" value={company.capacity} />
-        <FieldRow label="Active Contracts" value={company.activeContracts.length} />
-        <FieldRow label="Reputation" value={company.reputation} valueColor={T.gold} />
-        <FieldRow label="Reliability" value={company.reliability} />
-        {company.riskFlags.length > 0
-          ? company.riskFlags.map(f => <FieldRow key={f} label="Risk Flag" value={f} valueColor={T.burgundy} />)
-          : <FieldRow label="Risk Flags" value="None" valueColor={T.mint} />
-        }
-      </PanelBox>
+  const companyValue = calcCompanyValue(company);
+  const netWorth = calcNetWorth(playerCash, company);
+  const activeContracts = contracts.filter(c => (c.status === 'awarded' || c.status === 'active') && c.awardedToCompanyId === company.id);
+  const completedContracts = contracts.filter(c => c.status === 'completed');
+  const records = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
 
-      <PanelBox>
-        <SectionHeader stamp="PUBLIC FILINGS">Records</SectionHeader>
-        {records.length === 0
-          ? <p style={{ fontSize: '12px', color: T.faint }}>No records yet.</p>
-          : records.map((r: any) => (
-            <div key={r.id} style={{ padding: '8px 0', borderBottom: `1px solid ${T.border}`, fontSize: '11px', color: T.muted, lineHeight: 1.6 }}>
-              {r.summary}
-            </div>
-          ))
-        }
-      </PanelBox>
+  const handleBuyVehicle = (type: VehicleType) => {
+    const result = purchaseVehicle(company.id, type);
+    showNotif(result.message, result.success);
+    if (result.success) {
+      const spec = VEHICLE_CATALOGUE.find(v => v.type === type)!;
+      addRecord(`Purchased a ${type} for ${company.name}. Fleet capacity increased.`);
+      onRefresh();
+    }
+  };
 
-      <PanelBox style={{ gridColumn: '1 / -1' }}>
-        <SectionHeader>Next Actions</SectionHeader>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-          <GhostButton onClick={onGoToContracts} color={T.gold}>View Contract Board</GhostButton>
-          <GhostButton onClick={onGoToContracts} color={T.mint}>Create Contract</GhostButton>
-          <GhostButton onClick={onGoToRegistry} color={T.ivory}>View Public Registry</GhostButton>
-          <GhostButton color={T.steel}>Send Business Offer</GhostButton>
-          <GhostButton color={T.steel}>Review Finance</GhostButton>
-        </div>
-      </PanelBox>
-    </div>
-  );
-}
+  const handleMaintenance = (vehicleId: string, level: 'basic' | 'full') => {
+    const result = performMaintenance(vehicleId, level);
+    showNotif(result.message, result.success);
+    if (result.success) {
+      addRecord(`Performed ${level === 'basic' ? 'basic maintenance' : 'full service'} on vehicle for ${company.name}.`);
+      onRefresh();
+    }
+  };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CONTRACTS TAB
-// ─────────────────────────────────────────────────────────────────────────────
-function ContractsTab({ company, contracts, biddingOn, setBiddingOn, bidAmount, setBidAmount, bidNote, setBidNote, onPlaceBid, onEvaluateAll, onCreateContract }: any) {
-  const [showCreate, setShowCreate] = useState(false);
-  const [newCtr, setNewCtr] = useState({ title: '', description: '', requiredSector: company.sector, payment: 100, deadlineDays: 3, penalty: 20 });
+  const handleAssignVehicle = (contractId: string, vehicleId: string) => {
+    const result = assignVehicleToContract(contractId, vehicleId);
+    showNotif(result.message, result.success);
+    if (result.success) onRefresh();
+  };
 
-  const openContracts = contracts.filter((c: Contract) => c.status === 'open');
-  const myBids = contracts.filter((c: Contract) => c.bids.some((b: any) => b.companyId === company.id));
-  const myIssued = contracts.filter((c: Contract) => c.issuerCompanyId === company.id);
-  const activeContracts = contracts.filter((c: Contract) => c.status === 'awarded' && c.awardedToCompanyId === company.id);
-  const completed = contracts.filter((c: Contract) => c.status === 'completed');
-
-  return (
-    <div style={{ maxWidth: '860px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.gold }}>Public Contract Board</div>
-          <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px' }}>Available tenders and logistics runs. Sector: {company.sector}</div>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <GhostButton onClick={() => setShowCreate(!showCreate)} color={T.mint}>{showCreate ? 'Cancel' : 'Create Tender'}</GhostButton>
-          <GhostButton onClick={onEvaluateAll} color={T.gold}>Simulate Reviews</GhostButton>
-        </div>
-      </div>
-
-      {/* Create Tender Form */}
-      {showCreate && (
-        <PanelBox style={{ marginBottom: '24px', background: T.paper }}>
-          <SectionHeader stamp="PLAYER TENDER">Draft New Contract</SectionHeader>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-            <div>
-              <Label>Contract Title</Label>
-              <input type="text" value={newCtr.title} onChange={e => setNewCtr({ ...newCtr, title: e.target.value })} style={{ width: '100%', padding: '8px 12px', background: T.panel, border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <Label>Required Sector</Label>
-              <select value={newCtr.requiredSector} onChange={e => setNewCtr({ ...newCtr, requiredSector: e.target.value })} style={{ width: '100%', padding: '8px 12px', background: T.panel, border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px' }}>
-                {['Retail & Consumer', 'Shipping & Logistics', 'Agriculture & Food', 'Manufacturing'].map(s => <option key={s}>{s}</option>)}
-              </select>
-            </div>
-          </div>
-          <div style={{ marginBottom: '12px' }}>
-            <Label>Description</Label>
-            <textarea value={newCtr.description} onChange={e => setNewCtr({ ...newCtr, description: e.target.value })} rows={2} style={{ width: '100%', padding: '8px 12px', background: T.panel, border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px', boxSizing: 'border-box', resize: 'none' }} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-            {[
-              { label: 'Max Payment (₯)', key: 'payment', color: T.mint },
-              { label: 'Penalty (₯)', key: 'penalty', color: T.red },
-              { label: 'Deadline (Days)', key: 'deadlineDays', color: T.ivory },
-            ].map(f => (
-              <div key={f.key}>
-                <Label>{f.label}</Label>
-                <input type="number" value={(newCtr as any)[f.key]} onChange={e => setNewCtr({ ...newCtr, [f.key]: Number(e.target.value) })} style={{ width: '100%', padding: '8px 12px', background: T.panel, border: `1px solid ${T.border}`, color: f.color, fontSize: '12px', boxSizing: 'border-box' }} />
-              </div>
-            ))}
-          </div>
-          <GoldButton onClick={() => {
-            if (!newCtr.title.trim()) return;
-            onCreateContract({ issuerCompanyId: company.id, issuerName: company.name, title: newCtr.title, description: newCtr.description, requiredSector: newCtr.requiredSector, payment: newCtr.payment, deadlineDays: newCtr.deadlineDays, penalty: newCtr.penalty, originState: company.state, destinationState: company.state, requiredCapacity: 1, visibility: 'public' as const });
-            setShowCreate(false);
-            setNewCtr({ title: '', description: '', requiredSector: company.sector, payment: 100, deadlineDays: 3, penalty: 20 });
-          }}>Post to Board ◈</GoldButton>
-        </PanelBox>
-      )}
-
-      {/* Sections */}
-      <ContractSection title="Available Contracts" stamp={`${openContracts.length} OPEN`} contracts={openContracts} company={company} biddingOn={biddingOn} setBiddingOn={setBiddingOn} bidAmount={bidAmount} setBidAmount={setBidAmount} bidNote={bidNote} setBidNote={setBidNote} onPlaceBid={onPlaceBid} />
-      {myBids.length > 0 && <ContractSection title="My Bids" stamp={`${myBids.length} BIDS`} contracts={myBids} company={company} biddingOn={null} setBiddingOn={() => {}} bidAmount={0} setBidAmount={() => {}} bidNote="" setBidNote={() => {}} onPlaceBid={() => {}} readOnly />}
-      {myIssued.length > 0 && <ContractSection title="My Issued Contracts" stamp="ISSUER" contracts={myIssued} company={company} biddingOn={null} setBiddingOn={() => {}} bidAmount={0} setBidAmount={() => {}} bidNote="" setBidNote={() => {}} onPlaceBid={() => {}} readOnly />}
-      {activeContracts.length > 0 && <ContractSection title="Active Contracts" stamp="IN PROGRESS" contracts={activeContracts} company={company} biddingOn={null} setBiddingOn={() => {}} bidAmount={0} setBidAmount={() => {}} bidNote="" setBidNote={() => {}} onPlaceBid={() => {}} readOnly />}
-      {completed.length > 0 && <ContractSection title="Completed" stamp={`${completed.length}`} contracts={completed} company={company} biddingOn={null} setBiddingOn={() => {}} bidAmount={0} setBidAmount={() => {}} bidNote="" setBidNote={() => {}} onPlaceBid={() => {}} readOnly />}
-    </div>
-  );
-}
-
-function ContractSection({ title, stamp, contracts, company, biddingOn, setBiddingOn, bidAmount, setBidAmount, bidNote, setBidNote, onPlaceBid, readOnly }: any) {
-  if (contracts.length === 0) return null;
-  return (
-    <div style={{ marginBottom: '28px' }}>
-      <SectionHeader stamp={stamp}>{title}</SectionHeader>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {contracts.map((ctr: Contract) => {
-          const myBid = ctr.bids.find((b: any) => b.companyId === company.id);
-          const isMine = ctr.issuerCompanyId === company.id;
-          return (
-            <div key={ctr.id} style={{ padding: '16px', background: T.panel, border: `1px solid ${isMine ? T.borderGold : T.border}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory }}>{ctr.title}</div>
-                  <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.gold, marginTop: '2px' }}>Issued by {ctr.issuerName}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.mint }}>₯{ctr.payment}</div>
-                  <div style={{ fontSize: '10px', color: T.red }}>Penalty ₯{ctr.penalty}</div>
-                </div>
-              </div>
-              <div style={{ fontSize: '11px', color: T.muted, lineHeight: 1.6, marginBottom: '10px' }}>{ctr.description}</div>
-              <div style={{ display: 'flex', gap: '16px', fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '10px' }}>
-                <span>Sector: {ctr.requiredSector}</span>
-                <span>Deadline: {ctr.deadlineDays}d</span>
-              </div>
-              {!readOnly && !isMine && (
-                myBid ? (
-                  <div style={{ fontSize: '11px', color: T.mint, padding: '8px', background: 'rgba(54,211,153,0.07)', border: '1px solid rgba(54,211,153,0.2)' }}>
-                    Bid submitted: ₯{myBid.amount} — Awaiting issuer review.
-                  </div>
-                ) : biddingOn === ctr.id ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input type="number" min={1} max={ctr.payment} value={bidAmount || ''} onChange={e => setBidAmount(Number(e.target.value))} placeholder="Your bid (₯)" style={{ padding: '8px 12px', background: T.paper, border: `1px solid ${T.border}`, color: T.mint, fontSize: '13px', fontFamily: 'monospace', width: '140px' }} />
-                      <input type="text" value={bidNote} onChange={e => setBidNote(e.target.value)} placeholder="Optional note" style={{ flex: 1, padding: '8px 12px', background: T.paper, border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px' }} />
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <GoldButton onClick={() => onPlaceBid(ctr.id)} disabled={bidAmount <= 0}>Submit Bid ◈</GoldButton>
-                      <GhostButton onClick={() => setBiddingOn(null)}>Cancel</GhostButton>
-                    </div>
-                  </div>
-                ) : (
-                  <GhostButton onClick={() => { setBiddingOn(ctr.id); setBidAmount(Math.floor(ctr.payment * 0.9)); }} color={T.ivory}>Place Bid</GhostButton>
-                )
-              )}
-              {isMine && <div style={{ fontSize: '10px', color: T.faint, fontFamily: 'monospace' }}>Bids received: {ctr.bids.length}</div>}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// REGISTRY TAB
-// ─────────────────────────────────────────────────────────────────────────────
-function RegistryTab({ company }: { company: Company | null }) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const allCompanies = [...getCompanies(), ...NPC_COMPANIES];
+  const handleResolve = (contractId: string) => {
+    const result = resolveContract(contractId);
+    showNotif(result.message, result.success);
+    if (result.success || !result.success) onRefresh();
+  };
 
   return (
     <div style={{ maxWidth: '900px' }}>
-      <SectionHeader stamp="PUBLIC LEDGER">Public Company Registry</SectionHeader>
-      <p style={{ fontSize: '11px', color: T.muted, marginBottom: '20px' }}>The official Drennia ledger of registered operating companies.</p>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-          <thead>
-            <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-              {['Company', 'HQ State', 'Sector', 'Structure', 'Reputation', 'Reliability', 'Status'].map(h => (
-                <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '9px', color: T.faint, fontWeight: 700 }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {allCompanies.map(co => {
-              const isExpanded = expandedId === co.id;
-              const isPlayer = co.ownerCharacterId === company?.ownerCharacterId;
-              return (
-                <React.Fragment key={co.id}>
-                  <tr
-                    onClick={() => setExpandedId(isExpanded ? null : co.id)}
-                    style={{ borderBottom: isExpanded ? 'none' : `1px solid ${T.border}`, cursor: 'pointer', background: isExpanded ? 'rgba(201,162,74,0.04)' : 'transparent' }}
-                    onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
-                    onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = 'transparent'; }}
-                  >
-                    <td style={{ padding: '12px 12px' }}>
-                      <div style={{ fontWeight: 700, color: isPlayer ? T.gold : T.ivory }}>{co.name} {isPlayer && '★'}</div>
-                      <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint, marginTop: '2px' }}>{co.ownerName}</div>
-                    </td>
-                    <td style={{ padding: '12px', color: T.muted }}>{co.state}</td>
-                    <td style={{ padding: '12px', color: T.muted }}>{co.sector}</td>
-                    <td style={{ padding: '12px', color: T.muted }}>{co.legalStructure}</td>
-                    <td style={{ padding: '12px', color: T.gold }}>{co.reputation}</td>
-                    <td style={{ padding: '12px', color: T.mint }}>{co.reliability}</td>
-                    <td style={{ padding: '12px' }}>
-                      <span style={{ fontSize: '9px', fontFamily: 'monospace', padding: '2px 8px', background: 'rgba(54,211,153,0.08)', border: '1px solid rgba(54,211,153,0.2)', color: T.mint }}>{co.status}</span>
-                    </td>
-                  </tr>
-                  {isExpanded && (
-                    <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-                      <td colSpan={7} style={{ padding: '16px 24px', background: T.paper }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px' }}>
-                          <div>
-                            <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '6px' }}>{co.name}</div>
-                            <div style={{ fontSize: '11px', color: T.muted, lineHeight: 1.7, maxWidth: '500px' }}>
-                              Registered on {new Date(co.registeredAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}. 
-                              Operates in {co.sector} from {co.state}. Capacity rating: {co.capacity}. 
-                              Active public contracts: {co.activeContracts.length}.
-                            </div>
-                          </div>
-                          {!isPlayer && company && (
-                            <GhostButton color={T.steel} onClick={() => alert(`Business Offer feature coming next update.`)}>Send Business Offer</GhostButton>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+      {/* Notification */}
+      {notification && (
+        <div style={{ marginBottom: '16px', padding: '12px 16px', background: notification.success ? 'rgba(54,211,153,0.08)' : 'rgba(184,85,85,0.08)', border: `1px solid ${notification.success ? T.mint : T.red}`, color: notification.success ? T.mint : T.red, fontSize: '12px', lineHeight: 1.6 }}>
+          {notification.msg}
+        </div>
+      )}
+
+      {/* Inner tabs */}
+      <div style={{ display: 'flex', gap: '0', marginBottom: '20px', borderBottom: `1px solid ${T.border}`, overflowX: 'auto' }}>
+        {DESK_TABS.map(tab => {
+          const isActive = deskTab === tab.id;
+          return (
+            <button key={tab.id} onClick={() => setDeskTab(tab.id)} style={{ padding: '8px 14px', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: isActive ? 700 : 500, color: isActive ? T.gold : T.muted, background: 'transparent', border: 'none', borderBottom: isActive ? `2px solid ${T.gold}` : '2px solid transparent', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
+
+      {/* OVERVIEW */}
+      {deskTab === 'overview' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <PanelBox>
+            <SectionHeader stamp="COMPANY FILE">Company Details</SectionHeader>
+            <FieldRow label="Name" value={company.name} />
+            <FieldRow label="Owner" value={company.ownerName} />
+            <FieldRow label="Sector" value={company.sector} />
+            <FieldRow label="HQ" value={company.state} />
+            <FieldRow label="Status" value={company.status} valueColor={T.mint} />
+            <FieldRow label="Reputation" value={company.reputation} valueColor={T.gold} />
+            <FieldRow label="Reliability" value={company.reliability} />
+          </PanelBox>
+          <PanelBox>
+            <SectionHeader stamp="LEDGER">Financials</SectionHeader>
+            <FieldRow label="Company Cash" value={`₯${company.companyCash.toLocaleString()}`} valueColor={T.mint} />
+            <FieldRow label="Debt" value={`₯${company.debt.toLocaleString()}`} valueColor={company.debt > 0 ? T.red : T.muted} />
+            <FieldRow label="Fleet Assets" value={`₯${(companyValue - company.companyCash).toLocaleString()}`} valueColor={T.steel} />
+            <FieldRow label="Company Value" value={`₯${companyValue.toLocaleString()}`} valueColor={T.gold} />
+            <FieldRow label="Net Worth" value={`₯${netWorth.toLocaleString()}`} valueColor={T.gold} />
+          </PanelBox>
+          <PanelBox>
+            <SectionHeader>Fleet Status</SectionHeader>
+            {fleet.length === 0 ? (
+              <p style={{ fontSize: '12px', color: T.faint }}>No vehicles. Go to Fleet tab to buy your first vehicle.</p>
+            ) : (
+              fleet.map(v => (
+                <FieldRow key={v.id} label={v.type} value={`Capacity ${v.capacity} · ${v.condition}%${v.assignedContractId ? ' · ACTIVE' : ' · Available'}`} valueColor={v.assignedContractId ? T.gold : T.mint} />
+              ))
+            )}
+          </PanelBox>
+          <PanelBox>
+            <SectionHeader>Contract Pipeline</SectionHeader>
+            <FieldRow label="Active Contracts" value={activeContracts.length} />
+            <FieldRow label="Completed" value={completedContracts.length} />
+            <FieldRow label="Reliability" value={company.reliability} />
+          </PanelBox>
+        </div>
+      )}
+
+      {/* FLEET */}
+      {deskTab === 'fleet' && (
+        <div>
+          <SectionHeader>Fleet</SectionHeader>
+          {/* Current fleet */}
+          {fleet.length > 0 && (
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint, marginBottom: '12px' }}>Current Fleet</div>
+              {fleet.map(v => {
+                const spec = VEHICLE_CATALOGUE.find(s => s.type === v.type)!;
+                const assetValue = Math.round(v.purchaseCost * (v.condition / 100));
+                return (
+                  <div key={v.id} style={{ background: T.paper, border: `1px solid ${T.border}`, padding: '16px', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>{v.type}</div>
+                        <div style={{ fontSize: '11px', color: T.muted }}>Capacity {v.capacity} · Asset value ₯{assetValue.toLocaleString()}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>Condition</div>
+                        <div style={{ fontSize: '18px', fontFamily: 'monospace', fontWeight: 700, color: v.condition > 60 ? T.mint : v.condition > 30 ? T.gold : T.red }}>{v.condition}%</div>
+                      </div>
+                    </div>
+                    {/* Condition bar */}
+                    <div style={{ height: '4px', background: 'rgba(255,255,255,0.06)', marginBottom: '12px' }}>
+                      <div style={{ height: '100%', width: `${v.condition}%`, background: v.condition > 60 ? T.mint : v.condition > 30 ? T.gold : T.red, transition: 'width 0.3s' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '11px', color: v.assignedContractId ? T.gold : T.mint }}>
+                        {v.assignedContractId ? '⚡ Assigned to contract' : '✓ Available'}
+                      </div>
+                      {!v.assignedContractId && (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <GhostButton onClick={() => handleMaintenance(v.id, 'basic')} color={T.muted}>
+                            Basic Maintenance ₯5,000 (+10%)
+                          </GhostButton>
+                          <GhostButton onClick={() => handleMaintenance(v.id, 'full')} color={T.gold}>
+                            Full Service ₯15,000 (+30%)
+                          </GhostButton>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Buy vehicles */}
+          <div>
+            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint, marginBottom: '12px' }}>Purchase Vehicles</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {VEHICLE_CATALOGUE.map(spec => {
+                const canAfford = company.companyCash >= spec.cost;
+                return (
+                  <div key={spec.type} style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, marginBottom: '4px' }}>{spec.type}</div>
+                      <div style={{ fontSize: '11px', color: T.muted, marginBottom: '4px' }}>{spec.desc}</div>
+                      <div style={{ display: 'flex', gap: '16px', fontSize: '10px', fontFamily: 'monospace', color: T.faint }}>
+                        <span>Capacity {spec.capacity}</span>
+                        <span>Maintenance ₯{spec.maintenance.toLocaleString()}/month</span>
+                        <span>Condition 100% on purchase</span>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '24px' }}>
+                      <div style={{ fontSize: '18px', fontFamily: 'monospace', fontWeight: 700, color: canAfford ? T.mint : T.red, marginBottom: '8px' }}>₯{spec.cost.toLocaleString()}</div>
+                      <GoldButton onClick={() => handleBuyVehicle(spec.type)} disabled={!canAfford}>
+                        {canAfford ? 'Purchase' : 'Insufficient Funds'}
+                      </GoldButton>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONTRACTS */}
+      {deskTab === 'contracts' && (
+        <ContractsTabInner company={company} contracts={contracts} fleet={fleet} onRefresh={onRefresh} showNotif={showNotif} handleAssign={handleAssignVehicle} handleResolve={handleResolve} />
+      )}
+
+      {/* ROUTES — placeholder */}
+      {deskTab === 'routes' && (
+        <PanelBox>
+          <SectionHeader>Routes</SectionHeader>
+          <p style={{ fontSize: '12px', color: T.faint, lineHeight: 1.7 }}>
+            Route planning and optimization will unlock once you have active contracts and fleet movements. Define regular run schedules, assign vehicles to recurring deliveries, and track route performance.
+          </p>
+        </PanelBox>
+      )}
+
+      {/* FINANCE */}
+      {deskTab === 'finance' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <PanelBox>
+            <SectionHeader stamp="LEDGER">Company Position</SectionHeader>
+            <FieldRow label="Company Cash" value={`₯${company.companyCash.toLocaleString()}`} valueColor={T.mint} />
+            <FieldRow label="Monthly Revenue" value={`₯${company.monthlyRevenue.toLocaleString()}`} valueColor={T.mint} />
+            <FieldRow label="Monthly Costs" value={`₯${company.monthlyCosts.toLocaleString()}`} valueColor={T.red} />
+            <FieldRow label="Net Profit" value={`₯${company.profit.toLocaleString()}`} valueColor={company.profit >= 0 ? T.mint : T.red} />
+            <FieldRow label="Outstanding Debt" value={`₯${company.debt.toLocaleString()}`} valueColor={company.debt > 0 ? T.burgundy : T.muted} />
+          </PanelBox>
+          <PanelBox>
+            <SectionHeader stamp="ASSETS">Asset Value</SectionHeader>
+            {fleet.length === 0 ? (
+              <p style={{ fontSize: '12px', color: T.faint }}>No vehicles in fleet.</p>
+            ) : (
+              fleet.map(v => {
+                const assetValue = Math.round(v.purchaseCost * (v.condition / 100));
+                return <FieldRow key={v.id} label={v.type} value={`₯${assetValue.toLocaleString()} (${v.condition}%)`} valueColor={T.steel} />;
+              })
+            )}
+            <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '11px', color: T.muted }}>Total Vehicle Assets</span>
+              <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 700, color: T.gold }}>₯{(companyValue - company.companyCash).toLocaleString()}</span>
+            </div>
+          </PanelBox>
+          <PanelBox style={{ gridColumn: '1 / -1' }}>
+            <SectionHeader>Future Finance</SectionHeader>
+            <p style={{ fontSize: '12px', color: T.faint, lineHeight: 1.7 }}>Loans, credit lines, insurance, and tax records will unlock as your company grows. Currently locked — Sole Trader v1.</p>
+          </PanelBox>
+        </div>
+      )}
+
+      {/* RECORDS */}
+      {deskTab === 'records' && (
+        <div>
+          <SectionHeader>Company Records</SectionHeader>
+          {records.length === 0 ? (
+            <PanelBox><p style={{ fontSize: '12px', color: T.faint }}>No records yet.</p></PanelBox>
+          ) : (
+            records.slice(0, 20).map((r: any) => (
+              <div key={r.id} style={{ padding: '12px 0', borderBottom: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: r.type === 'contract' ? T.mint : r.type === 'failure' ? T.red : T.faint, marginBottom: '3px' }}>
+                  {r.type} · {new Date(r.createdAt).toLocaleDateString('en-GB')}
+                </div>
+                <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.6, margin: 0 }}>{r.summary}</p>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* EQUITY */}
+      {deskTab === 'equity' && (
+        <div>
+          <PanelBox>
+            <SectionHeader stamp="EQUITY STRUCTURE">Ownership</SectionHeader>
+            <FieldRow label={characterName} value="100% — Sole Owner" valueColor={T.gold} />
+            <FieldRow label="Company Value" value={`₯${companyValue.toLocaleString()}`} valueColor={T.mint} />
+            <FieldRow label="Your Equity Value" value={`₯${companyValue.toLocaleString()}`} valueColor={T.gold} />
+          </PanelBox>
+          <PanelBox style={{ marginTop: '16px' }}>
+            <SectionHeader>Future Equity Options</SectionHeader>
+            <p style={{ fontSize: '12px', color: T.faint, lineHeight: 1.7 }}>Share issuance, partner buy-in, and public listing require upgrading to Private Company or Corporation structure. Available in later versions.</p>
+          </PanelBox>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FINANCE TAB
+// CONTRACTS TAB (global business tab)
 // ─────────────────────────────────────────────────────────────────────────────
-function FinanceTab({ company }: { company: Company }) {
+function ContractsTab({ company, contracts, fleet, onRefresh }: { company: Company; contracts: Contract[]; fleet: Vehicle[]; onRefresh: () => void }) {
+  const [notification, setNotification] = useState<{ msg: string; success: boolean } | null>(null);
+  const showNotif = (msg: string, success: boolean) => { setNotification({ msg, success }); setTimeout(() => setNotification(null), 4000); };
+  const handleAssign = (contractId: string, vehicleId: string) => { const r = assignVehicleToContract(contractId, vehicleId); showNotif(r.message, r.success); if (r.success) onRefresh(); };
+  const handleResolve = (contractId: string) => { const r = resolveContract(contractId); showNotif(r.message, r.success); onRefresh(); };
   return (
-    <div style={{ maxWidth: '700px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+    <div style={{ maxWidth: '860px' }}>
+      {notification && (
+        <div style={{ marginBottom: '16px', padding: '12px 16px', background: notification.success ? 'rgba(54,211,153,0.08)' : 'rgba(184,85,85,0.08)', border: `1px solid ${notification.success ? T.mint : T.red}`, color: notification.success ? T.mint : T.red, fontSize: '12px' }}>
+          {notification.msg}
+        </div>
+      )}
+      <ContractsTabInner company={company} contracts={contracts} fleet={fleet} onRefresh={onRefresh} showNotif={showNotif} handleAssign={handleAssign} handleResolve={handleResolve} />
+    </div>
+  );
+}
+
+// ─── Shared Contracts Inner Component ────────────────────────────────────────
+function ContractsTabInner({ company, contracts, fleet, onRefresh, showNotif, handleAssign, handleResolve }: {
+  company: Company; contracts: Contract[]; fleet: Vehicle[];
+  onRefresh: () => void;
+  showNotif: (msg: string, success: boolean) => void;
+  handleAssign: (contractId: string, vehicleId: string) => void;
+  handleResolve: (contractId: string) => void;
+}) {
+  const [biddingOn, setBiddingOn] = useState<string | null>(null);
+  const [bidAmount, setBidAmount] = useState(0);
+  const [assigningFor, setAssigningFor] = useState<string | null>(null);
+  const availableFleet = fleet.filter(v => !v.assignedContractId);
+
+  const openContracts = contracts.filter(c => c.status === 'open');
+  const myActive = contracts.filter(c => (c.status === 'awarded' || c.status === 'active') && c.awardedToCompanyId === company.id);
+  const myCompleted = contracts.filter(c => (c.status === 'completed' || c.status === 'failed') && contract_belongsToMe(c, company.id));
+
+  function contract_belongsToMe(c: Contract, compId: string) {
+    return c.awardedToCompanyId === compId || c.bids.some(b => b.companyId === compId);
+  }
+
+  const handleBid = () => {
+    if (!biddingOn) return;
+    const result = evaluatePlayerBid(biddingOn, company.id, bidAmount);
+    showNotif(result.message, result.accepted);
+    setBiddingOn(null);
+    setBidAmount(0);
+    onRefresh();
+  };
+
+  const hasFleet = fleet.length > 0;
+
+  return (
+    <div>
+      {/* OPEN CONTRACTS */}
+      <div style={{ marginBottom: '32px' }}>
+        <SectionHeader stamp={`${openContracts.length} OPEN`}>Public Contract Board</SectionHeader>
+        {!hasFleet && (
+          <div style={{ padding: '12px 16px', background: 'rgba(201,162,74,0.05)', border: `1px solid ${T.borderGold}`, marginBottom: '16px', fontSize: '12px', color: T.gold }}>
+            ⚠ You need at least one vehicle to bid on contracts. Go to My Companies → Fleet.
+          </div>
+        )}
+        {openContracts.length === 0 ? (
+          <PanelBox><p style={{ fontSize: '12px', color: T.faint }}>No open contracts currently.</p></PanelBox>
+        ) : (
+          openContracts.map(c => {
+            const suitableVehicle = availableFleet.find(v => v.capacity >= c.requiredCapacity);
+            const canBid = hasFleet && !!suitableVehicle;
+            const myBid = c.bids.find(b => b.companyId === company.id);
+            return (
+              <div key={c.id} style={{ background: T.paper, border: `1px solid ${T.border}`, padding: '16px', marginBottom: '12px', borderLeft: `3px solid ${T.gold}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, marginBottom: '3px' }}>{c.title}</div>
+                    <div style={{ fontSize: '11px', color: T.muted }}>{c.issuerName} · {c.cargo} · {c.originState} → {c.destinationState}</div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '16px' }}>
+                    <div style={{ fontSize: '18px', fontFamily: 'monospace', fontWeight: 700, color: T.mint }}>₯{c.payment.toLocaleString()}</div>
+                    <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>Penalty: ₯{c.penalty.toLocaleString()}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '20px', marginBottom: '12px', fontSize: '10px', fontFamily: 'monospace', color: T.faint }}>
+                  <span>Capacity {c.requiredCapacity} required</span>
+                  <span>Deadline {c.deadlineDays}d</span>
+                  {!canBid && <span style={{ color: T.red }}>⚠ Need capacity-{c.requiredCapacity} vehicle</span>}
+                  {suitableVehicle && <span style={{ color: T.mint }}>✓ {suitableVehicle.type} eligible</span>}
+                </div>
+                <p style={{ fontSize: '11px', color: T.muted, lineHeight: 1.6, margin: '0 0 12px' }}>{c.description}</p>
+                {myBid ? (
+                  <div style={{ fontSize: '11px', color: T.gold }}>Your bid: ₯{myBid.amount.toLocaleString()} — awaiting decision</div>
+                ) : biddingOn === c.id ? (
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <div>
+                      <Label>Your Bid (₯)</Label>
+                      <input type="number" min={1} value={bidAmount} onChange={e => setBidAmount(parseInt(e.target.value) || 0)}
+                        style={{ padding: '8px 12px', background: T.panel, border: `1px solid ${T.border}`, color: T.mint, fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, outline: 'none', width: '160px' }} />
+                    </div>
+                    <div style={{ marginTop: '14px', display: 'flex', gap: '8px' }}>
+                      <GoldButton onClick={handleBid} disabled={bidAmount <= 0}>Submit Bid</GoldButton>
+                      <GhostButton onClick={() => { setBiddingOn(null); setBidAmount(0); }}>Cancel</GhostButton>
+                    </div>
+                  </div>
+                ) : (
+                  <GoldButton onClick={() => { if (canBid) { setBiddingOn(c.id); setBidAmount(c.payment); } }} disabled={!canBid}>
+                    {canBid ? 'Place Bid →' : 'Insufficient Fleet Capacity'}
+                  </GoldButton>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* ACTIVE CONTRACTS */}
+      {myActive.length > 0 && (
+        <div style={{ marginBottom: '32px' }}>
+          <SectionHeader stamp="ACTIVE">Your Active Contracts</SectionHeader>
+          {myActive.map(c => {
+            const assignedVehicle = fleet.find(v => v.id === c.assignedVehicleId);
+            const bid = c.bids.find(b => b.companyId === company.id);
+            return (
+              <div key={c.id} style={{ background: T.paper, border: `1px solid ${T.mint}30`, padding: '16px', marginBottom: '12px', borderLeft: `3px solid ${T.mint}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, marginBottom: '3px' }}>{c.title}</div>
+                    <div style={{ fontSize: '11px', color: T.muted }}>{c.originState} → {c.destinationState} · Capacity {c.requiredCapacity}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.mint }}>₯{(bid?.amount ?? c.payment).toLocaleString()}</div>
+                    <div style={{ fontSize: '9px', color: T.faint }}>Your bid</div>
+                  </div>
+                </div>
+
+                {/* Assign vehicle */}
+                {!assignedVehicle ? (
+                  <div>
+                    <div style={{ fontSize: '11px', color: T.gold, marginBottom: '8px' }}>⚠ No vehicle assigned — assign before resolving.</div>
+                    {assigningFor === c.id ? (
+                      <div>
+                        <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px' }}>Select available vehicle (min capacity {c.requiredCapacity}):</div>
+                        {availableFleet.filter(v => v.capacity >= c.requiredCapacity).map(v => (
+                          <button key={v.id} onClick={() => { handleAssign(c.id, v.id); setAssigningFor(null); }}
+                            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, color: T.ivory, cursor: 'pointer', marginBottom: '6px', fontSize: '12px' }}>
+                            {v.type} — Capacity {v.capacity} · Condition {v.condition}%
+                          </button>
+                        ))}
+                        {availableFleet.filter(v => v.capacity >= c.requiredCapacity).length === 0 && (
+                          <div style={{ fontSize: '11px', color: T.red }}>No suitable available vehicles.</div>
+                        )}
+                        <GhostButton onClick={() => setAssigningFor(null)}>Cancel</GhostButton>
+                      </div>
+                    ) : (
+                      <GhostButton onClick={() => setAssigningFor(c.id)} color={T.mint}>Assign Vehicle →</GhostButton>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: '11px', color: T.mint, marginBottom: '8px' }}>✓ Vehicle: {assignedVehicle.type} · Condition {assignedVehicle.condition}%</div>
+                    <GoldButton onClick={() => handleResolve(c.id)}>Resolve Contract →</GoldButton>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* HISTORY */}
+      {myCompleted.length > 0 && (
+        <div>
+          <SectionHeader stamp={`${myCompleted.length}`}>Contract History</SectionHeader>
+          {myCompleted.map(c => (
+            <div key={c.id} style={{ padding: '10px 0', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between' }}>
+              <div>
+                <span style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', color: c.status === 'completed' ? T.mint : T.red, marginRight: '8px' }}>{c.status}</span>
+                <span style={{ fontSize: '12px', color: T.muted }}>{c.title}</span>
+              </div>
+              <span style={{ fontSize: '12px', fontFamily: 'monospace', color: c.status === 'completed' ? T.mint : T.red }}>₯{c.payment.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── REGISTRY TAB ─────────────────────────────────────────────────────────────
+function RegistryTab({ company }: { company: Company | null }) {
+  const all = getCompanies();
+  return (
+    <div style={{ maxWidth: '720px' }}>
+      <SectionHeader stamp="PUBLIC RECORD">Drennia Commercial Registry</SectionHeader>
+      {all.length === 0 ? (
+        <PanelBox><p style={{ fontSize: '12px', color: T.faint }}>No companies registered yet.</p></PanelBox>
+      ) : (
+        all.map(c => (
+          <div key={c.id} style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '14px', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: T.ivory }}>{c.name}</div>
+                <div style={{ fontSize: '11px', color: T.muted }}>{c.legalStructure} · {c.sector} · {c.state}</div>
+              </div>
+              <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>{c.id === company?.id ? '(You)' : 'NPC/Player'}</div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ─── FINANCE TAB ─────────────────────────────────────────────────────────────
+function FinanceTab({ company, fleet, playerCash, netWorth }: { company: Company; fleet: Vehicle[]; playerCash: number; netWorth: number }) {
+  const companyValue = calcCompanyValue(company);
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', maxWidth: '760px' }}>
       <PanelBox>
-        <SectionHeader stamp="LIVE">Financial Position</SectionHeader>
+        <SectionHeader stamp="LEDGER">Company Financials</SectionHeader>
         <FieldRow label="Company Cash" value={`₯${company.companyCash.toLocaleString()}`} valueColor={T.mint} />
+        <FieldRow label="Debt" value={`₯${company.debt.toLocaleString()}`} valueColor={company.debt > 0 ? T.red : T.muted} />
         <FieldRow label="Monthly Revenue" value={`₯${company.monthlyRevenue.toLocaleString()}`} valueColor={T.mint} />
         <FieldRow label="Monthly Costs" value={`₯${company.monthlyCosts.toLocaleString()}`} valueColor={T.red} />
         <FieldRow label="Net Profit" value={`₯${company.profit.toLocaleString()}`} valueColor={company.profit >= 0 ? T.mint : T.red} />
-        <FieldRow label="Outstanding Debt" value={`₯${company.debt.toLocaleString()}`} valueColor={company.debt > 0 ? T.burgundy : T.muted} />
       </PanelBox>
       <PanelBox>
-        <SectionHeader stamp="COMING SOON">Credit Profile</SectionHeader>
-        <FieldRow label="Credit Score" value="Unrated" valueColor={T.faint} />
-        <FieldRow label="Bank Relationship" value="None" valueColor={T.faint} />
-        <FieldRow label="Loan Eligible" value="No" valueColor={T.faint} />
-        <FieldRow label="Insurance" value="None" valueColor={T.faint} />
-      </PanelBox>
-      <PanelBox style={{ gridColumn: '1 / -1', background: T.paper }}>
-        <SectionHeader stamp="LOCKED">Future Finance Actions</SectionHeader>
-        <LockedBadge label="Open Business Bank Account" />
-        <LockedBadge label="Request Microloan from Drennport Commercial Bank" />
-        <LockedBadge label="Review Tax Position" />
-        <LockedBadge label="Purchase Business Insurance" />
-        <div style={{ marginTop: '16px', fontSize: '11px', color: T.faint, fontStyle: 'italic' }}>
-          Finance module will expand as your company grows and earns contracts.
+        <SectionHeader stamp="NET WORTH">Personal Balance Sheet</SectionHeader>
+        <FieldRow label="Cash in Hand" value={`₯${playerCash.toLocaleString()}`} valueColor={T.mint} />
+        <FieldRow label="Company Cash" value={`₯${company.companyCash.toLocaleString()}`} valueColor={T.mint} />
+        <FieldRow label="Vehicle Assets" value={`₯${(companyValue - company.companyCash).toLocaleString()}`} valueColor={T.steel} />
+        <FieldRow label="Company Value" value={`₯${companyValue.toLocaleString()}`} valueColor={T.gold} />
+        <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: T.ivory }}>Net Worth</span>
+          <span style={{ fontSize: '16px', fontFamily: 'monospace', fontWeight: 700, color: T.gold }}>₯{netWorth.toLocaleString()}</span>
         </div>
       </PanelBox>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// EQUITY TAB
-// ─────────────────────────────────────────────────────────────────────────────
-function EquityTab({ company, characterName }: { company: Company; characterName: string }) {
+// ─── EQUITY TAB ──────────────────────────────────────────────────────────────
+function EquityTab({ company, characterName, fleet }: { company: Company; characterName: string; fleet: Vehicle[] }) {
+  const companyValue = calcCompanyValue(company);
   return (
-    <div style={{ maxWidth: '700px' }}>
-      <PanelBox style={{ marginBottom: '20px', background: T.paper }}>
-        <SectionHeader stamp="OWNERSHIP LEDGER">Equity Structure</SectionHeader>
-        <div style={{ fontSize: '12px', color: T.muted, marginBottom: '20px' }}>
-          As a Sole Trader, you are the sole owner of this business. All equity, voting rights, and dividends belong to you.
-        </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-          <thead>
-            <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-              {['Shareholder', 'Ownership', 'Voting Power', 'Dividend Right'].map(h => (
-                <th key={h} style={{ padding: '8px 0', textAlign: 'left', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '9px', color: T.faint }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style={{ padding: '14px 0', color: T.ivory, fontWeight: 700 }}>{characterName}</td>
-              <td style={{ padding: '14px 0', color: T.gold, fontFamily: 'monospace', fontWeight: 700 }}>100%</td>
-              <td style={{ padding: '14px 0', color: T.gold, fontFamily: 'monospace', fontWeight: 700 }}>100%</td>
-              <td style={{ padding: '14px 0', color: T.gold, fontFamily: 'monospace', fontWeight: 700 }}>100%</td>
-            </tr>
-          </tbody>
-        </table>
+    <div style={{ maxWidth: '560px' }}>
+      <PanelBox>
+        <SectionHeader stamp="EQUITY STRUCTURE">Ownership Table</SectionHeader>
+        <FieldRow label={characterName} value="100%" valueColor={T.gold} />
+        <FieldRow label="Structure" value="Sole Trader — No share issuance" valueColor={T.muted} />
+        <FieldRow label="Company Value" value={`₯${companyValue.toLocaleString()}`} valueColor={T.mint} />
+        <FieldRow label="Your Equity" value={`₯${companyValue.toLocaleString()} (100%)`} valueColor={T.gold} />
       </PanelBox>
-      <PanelBox style={{ background: T.panel }}>
-        <SectionHeader stamp="LOCKED">Future Equity Actions</SectionHeader>
-        <LockedBadge label="Add Business Partner" />
-        <LockedBadge label="Sell Equity Stake" />
-        <LockedBadge label="Issue Shares" />
-        <LockedBadge label="Convert to Private Company" />
-        <LockedBadge label="Convert to Corporation" />
-        <div style={{ marginTop: '16px', fontSize: '11px', color: T.faint, fontStyle: 'italic' }}>
-          Equity restructuring requires conversion to Private Company or Corporation.
-        </div>
+      <PanelBox style={{ marginTop: '16px' }}>
+        <SectionHeader>Future Equity Options</SectionHeader>
+        <p style={{ fontSize: '12px', color: T.faint, lineHeight: 1.7 }}>Upgrade to Private Company or Corporation to unlock share issuance, partner buy-in, and Westport Bourse listing. Available in a future version.</p>
       </PanelBox>
     </div>
   );
