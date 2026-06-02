@@ -744,7 +744,7 @@ export default function CreateCharacterPage() {
       household: choices.household,
       motherland: 'Drennia',
     }));
-    router.push('/start/confirm-citizen');
+    router.push('/start/citizen-file');
   };
 
   // ── Dynamic scene text ──────────────────────────────────────────────────────
