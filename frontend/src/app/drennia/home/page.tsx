@@ -11,6 +11,7 @@ import {
   type StateInfo,
 } from '../../../data/livingWorld/drenniaPowerRooms';
 import { resolveRoom, type ResolutionResult } from '../../../lib/roomResolution';
+import DrenniaMapSvg from '../../../components/maps/DrenniaMapSvg';
 
 const GOLD = '#D6B35F';
 const KEYS_TO_CLEAR_ON_DELETE = [
@@ -64,55 +65,7 @@ function FactorPill({ label, value }: { label: string; value: number }) {
   );
 }
 
-function StateTile({ state, selected, roomCount, onClick }: {
-  state: StateInfo; selected: boolean; roomCount: number; onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="relative w-full text-left transition-all duration-200 flex flex-col"
-      style={{
-        minHeight: '220px',
-        borderRadius: '20px',
-        padding: '22px',
-        background: `linear-gradient(145deg, ${state.gradientFrom}, ${state.gradientTo}), rgba(12,22,18,0.92)`,
-        border: selected ? `1.5px solid ${GOLD}` : '1px solid rgba(214,179,95,0.14)',
-        boxShadow: selected ? `0 0 28px rgba(214,179,95,0.12), 0 2px 20px rgba(0,0,0,0.4)` : '0 2px 12px rgba(0,0,0,0.3)',
-        transform: selected ? 'translateY(-2px)' : 'none',
-        cursor: 'pointer',
-      }}
-    >
-      {/* Activity dots */}
-      <div className="absolute top-4 right-4 flex gap-1.5">
-        {state.activityDots.map((color, i) => (
-          <div
-            key={i}
-            className="w-2 h-2 rounded-full animate-pulse"
-            style={{ background: DOT_COLORS[color], animationDelay: `${i * 0.3}s`, opacity: 0.85 }}
-          />
-        ))}
-      </div>
-
-      <div className="mb-auto">
-        <div className="text-[9px] font-mono uppercase tracking-[0.22em] mb-2" style={{ color: `${GOLD}70` }}>
-          Drennia · {selected ? 'Selected' : 'State'}
-        </div>
-        <div className="text-lg font-bold mb-2 leading-tight" style={{ color: '#F4EBD6' }}>{state.id}</div>
-        <div className="text-[11px] leading-relaxed mb-3" style={{ color: '#7E8378' }}>{state.identity}</div>
-      </div>
-
-      <div className="border-t pt-3" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[9px] font-mono uppercase tracking-widest" style={{ color: '#7E8378' }}>Active Rooms</span>
-          <span className="text-sm font-bold" style={{ color: GOLD }}>{roomCount}</span>
-        </div>
-        <div className="text-[10px] leading-snug" style={{ color: '#7E8378' }}>{state.powerMood}</div>
-        <div className="text-[9px] mt-1 font-mono" style={{ color: '#3f4b47' }}>{state.npcPresence}</div>
-      </div>
-    </button>
-  );
-}
+// Removed StateTile to use interactive SVG map
 
 function RoomDockCard({ room, onClick }: { room: PowerRoom; onClick: () => void }) {
   const typeColor = ROOM_TYPE_COLORS[room.type] || GOLD;
@@ -502,59 +455,81 @@ export default function DrenniaHomePage() {
         </div>
       </div>
 
-      {/* ── STATE MAP GRID ── */}
-      <div>
-        <div className="text-[9px] font-mono uppercase tracking-[0.25em] mb-3" style={{ color: '#7E8378' }}>
-          Drennia Live Map · Select a State
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          {DRENNIA_STATES.map(state => (
-            <StateTile
-              key={state.id}
-              state={state}
-              selected={selectedState === state.id}
-              roomCount={getRoomsForState(state.id).length}
-              onClick={() => {
-                setSelectedState(prev => prev === state.id ? null : state.id);
+      {/* ── MAP & STATE LAYOUT ── */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        
+        {/* Main Map Area */}
+        <div className="flex-1 flex flex-col gap-4">
+          <div>
+            <div className="text-[9px] font-mono uppercase tracking-[0.25em] mb-3" style={{ color: '#7E8378' }}>
+              Drennia Live Map
+            </div>
+            <DrenniaMapSvg 
+              rooms={DRENNIA_POWER_ROOMS} 
+              selectedState={selectedState} 
+              onStateSelect={(stateId) => {
+                setSelectedState(prev => prev === stateId ? null : stateId);
                 setSelectedRoom(null);
                 setSelectedRole(null);
               }}
+              onRoomSelect={(room) => {
+                setSelectedRoom(room);
+                setSelectedRole(null);
+              }}
             />
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* ── SELECTED STATE INFO BAR ── */}
-      {selectedState && (
-        <div className="rounded-sm px-5 py-4" style={{ background: 'rgba(12,22,18,0.7)', border: '1px solid rgba(214,179,95,0.12)' }}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
+          {/* ── LIVE ROOMS DOCK ── */}
+          <div>
+            <div className="text-[9px] font-mono uppercase tracking-[0.25em] mb-3" style={{ color: '#7E8378' }}>
+              {selectedState ? `Live Rooms · ${selectedState}` : 'Live Rooms Near You'}
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              {dockRooms.map(room => (
+                <RoomDockCard key={room.id} room={room} onClick={() => { setSelectedRoom(room); setSelectedRole(null); }} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── SELECTED STATE INFO BAR (RIGHT PANEL) ── */}
+        <div className="w-full lg:w-[320px] shrink-0 flex flex-col gap-4">
+          {selectedState ? (
+            <div className="rounded-sm px-5 py-4 flex flex-col h-full" style={{ background: 'rgba(12,22,18,0.7)', border: '1px solid rgba(214,179,95,0.12)' }}>
               <div className="text-[9px] font-mono uppercase tracking-[0.22em] mb-1" style={{ color: `${GOLD}60` }}>Selected State</div>
               <div className="text-base font-bold mb-1" style={{ color: '#F4EBD6' }}>{selectedState}</div>
-              <div className="text-[11px]" style={{ color: '#7E8378' }}>
+              <div className="text-[11px] mb-4" style={{ color: '#7E8378' }}>
                 {DRENNIA_STATES.find(s => s.id === selectedState)?.identity}
               </div>
-            </div>
-            <div className="text-right shrink-0">
-              <div className="text-[9px] font-mono" style={{ color: '#7E8378' }}>Active Rooms</div>
-              <div className="text-xl font-bold" style={{ color: GOLD }}>{getRoomsForState(selectedState).length}</div>
-            </div>
-          </div>
-          <div className="text-[9px] mt-2 font-mono" style={{ color: '#3f4b47' }}>
-            {DRENNIA_STATES.find(s => s.id === selectedState)?.npcPresence}
-          </div>
-        </div>
-      )}
+              
+              <div className="border-t border-white/5 py-4">
+                <div className="text-[9px] font-mono mb-1" style={{ color: '#7E8378' }}>Active Rooms</div>
+                <div className="text-xl font-bold mb-2" style={{ color: GOLD }}>{getRoomsForState(selectedState).length}</div>
+                <div className="text-[11px]" style={{ color: '#B9B09B' }}>
+                  {DRENNIA_STATES.find(s => s.id === selectedState)?.powerMood}
+                </div>
+              </div>
 
-      {/* ── LIVE ROOMS DOCK ── */}
-      <div>
-        <div className="text-[9px] font-mono uppercase tracking-[0.25em] mb-3" style={{ color: '#7E8378' }}>
-          {selectedState ? `Live Rooms · ${selectedState}` : 'Live Rooms Near You'}
-        </div>
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-          {dockRooms.map(room => (
-            <RoomDockCard key={room.id} room={room} onClick={() => { setSelectedRoom(room); setSelectedRole(null); }} />
-          ))}
+              <div className="border-t border-white/5 py-4 mb-auto">
+                <div className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: '#7E8378' }}>Notable NPCs</div>
+                <div className="text-[10px] font-mono" style={{ color: '#34d399' }}>
+                  {DRENNIA_STATES.find(s => s.id === selectedState)?.npcPresence}
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => { setSelectedState(null); setSelectedRoom(null); }}
+                className="w-full py-2 text-[9px] font-mono uppercase tracking-widest rounded-sm border border-white/10 text-white/50 hover:bg-white/5"
+              >
+                Deselect State
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-sm px-5 py-4 flex flex-col h-full items-center justify-center text-center opacity-50" style={{ border: '1px dashed rgba(255,255,255,0.1)' }}>
+              <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: '#7E8378' }}>No State Selected</div>
+              <div className="text-[9px] mt-2" style={{ color: '#3f4b47' }}>Click a state on the map to view its details.</div>
+            </div>
+          )}
         </div>
       </div>
 
