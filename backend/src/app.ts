@@ -19,7 +19,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'UP', timestamp: new Date().toISOString() });
+  res.status(200).json({ status: 'ok', service: 'worldr-backend' });
 });
 
 import apiRouter from './api/routes';

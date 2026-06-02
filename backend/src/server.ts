@@ -10,18 +10,25 @@ async function startServer() {
   try {
     logger.info('Initializing server boot sequence...');
 
-    // 1. Check PostgreSQL Database connection
-    await checkDatabaseConnection();
-    logger.info('Database connection established successfully.');
+    // 3. Start listening immediately so Render health checks pass
+    const PORT = Number(process.env.PORT) || 10000;
+    const HOST = '0.0.0.0';
 
-    // 2. Run pending migrations
-    await runMigrationsAndSeeds();
+    logger.info(`Starting WORLDr backend...`);
+    logger.info(`PORT from env: ${process.env.PORT || 'not set, using fallback 10000'}`);
 
-    // 3. Start listening
-    const port = env.PORT;
-    server.listen(port, () => {
-      logger.info(`WORLDr auth API server is online and listening on port ${port} [${env.NODE_ENV}]`);
+    server.listen(PORT, HOST, () => {
+      logger.info(`Server listening on ${HOST}:${PORT}`);
     });
+
+    // Run DB checks after server is listening
+    try {
+      await checkDatabaseConnection();
+      logger.info('Database connection established successfully.');
+      await runMigrationsAndSeeds();
+    } catch (dbError) {
+      logger.error('Database initialization failed, but server is still running:', dbError);
+    }
 
   } catch (error) {
     logger.error('❌ Server boot aborted due to initialization failure:', error);
