@@ -4,7 +4,18 @@
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
 export function formatMoney(value: number): string {
-  return '₯' + new Intl.NumberFormat('en-US').format(value);
+  return '₯' + Number(value || 0).toLocaleString('en-US', {
+    maximumFractionDigits: 0
+  });
+}
+
+// ─── Facilities ───────────────────────────────────────────────────────────────
+export interface Facility {
+  id: string;
+  type: 'Office' | 'Vehicle Yard' | 'Small Depot' | 'Warehouse' | 'Freight Yard' | 'Regional Branch Office' | 'Port Warehouse' | 'Port Terminal';
+  state: string;
+  leaseCost: number;
+  leasedAt: string;
 }
 
 // ─── Company ──────────────────────────────────────────────────────────────────
@@ -29,6 +40,8 @@ export interface Company {
   activeContracts: string[];
   publicRecords: string[];
   riskFlags: string[];
+  facilities?: Facility[];
+  operatingModel?: 'Local Courier Operator' | 'Port Shuttle Operator' | 'Interstate Freight Beginner' | 'Industrial Parts Carrier';
 }
 
 // ─── Vehicle ─────────────────────────────────────────────────────────────────
@@ -660,6 +673,17 @@ export function runMonthlyAutoOperations(companyId: string): { success: boolean;
         condDrop = 2;
       }
 
+      // Add benefits from facilities
+      const hasWestportDepot = (company.facilities || []).some(f => f.state === 'Westport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
+      const hasDrennportDepot = (company.facilities || []).some(f => f.state === 'Drennport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
+      
+      if (pool === 'Port Shuttle Pool' && hasWestportDepot) {
+        demandMod *= 1.35; // Westport depots increase shuttle yield by 35%
+      }
+      if (pool === 'Local Delivery Pool' && hasDrennportDepot) {
+        demandMod *= 1.25; // Drennport depots increase courier yield by 25%
+      }
+
       const relMod = company.reliability === 'Preferred Carrier' ? 1.2 : company.reliability === 'Reliable' ? 1.1 : 1.0;
       const condMod = v.condition / 100;
 
@@ -701,10 +725,18 @@ export function runMonthlyAutoOperations(companyId: string): { success: boolean;
     results.push({ pool: 'Other Maintenance', gross: 0, cost: 0, maintenance: totalOtherMaint, net: -totalOtherMaint, recordText });
   }
 
-  const netIncome = totalGross - totalCost - totalMaintenance;
+  // Deduct facility leases
+  const facilityLeaseCost = (company.facilities || []).reduce((sum, f) => sum + f.leaseCost, 0);
+  if (facilityLeaseCost > 0) {
+    const leaseRecordText = `${company.name} paid monthly lease expenses for properties/facilities: ${formatMoney(facilityLeaseCost)}.`;
+    addRecord(leaseRecordText, 'business');
+    results.push({ pool: 'Facility Leases', gross: 0, cost: 0, maintenance: 0, leaseCost: facilityLeaseCost, net: -facilityLeaseCost, recordText: leaseRecordText });
+  }
+
+  const netIncome = totalGross - totalCost - totalMaintenance - facilityLeaseCost;
   company.companyCash += netIncome;
   company.monthlyRevenue = totalGross;
-  company.monthlyCosts = totalCost + totalMaintenance;
+  company.monthlyCosts = totalCost + totalMaintenance + facilityLeaseCost;
   company.profit = netIncome;
   
   if (company.reputation === 'New' && totalGross > 0) company.reputation = 'Known Locally';
@@ -764,4 +796,42 @@ export function acceptDirectContract(contractId: string, companyId: string, vehi
 
   addRecord(`Directly accepted "${contracts[cIdx].title}".`, 'contract');
   return { success: true, message: 'Contract directly accepted and vehicle assigned.' };
+}
+
+export function leaseFacility(
+  companyId: string,
+  type: Facility['type'],
+  state: string,
+  leaseCost: number
+): { success: boolean; message: string } {
+  const companies = getCompanies();
+  const cIdx = companies.findIndex(c => c.id === companyId);
+  if (cIdx < 0) return { success: false, message: 'Company not found.' };
+  const company = companies[cIdx];
+
+  // Initialize facilities if not present
+  if (!company.facilities) company.facilities = [];
+
+  if (company.companyCash < leaseCost) {
+    return { success: false, message: `Insufficient company cash. Need ${formatMoney(leaseCost)} for first month's lease.` };
+  }
+
+  const facilityId = `fac_${Date.now()}`;
+  const facility: Facility = {
+    id: facilityId,
+    type,
+    state,
+    leaseCost,
+    leasedAt: new Date().toISOString()
+  };
+
+  company.companyCash -= leaseCost;
+  company.facilities.push(facility);
+  companies[cIdx] = company;
+  localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
+
+  const prose = `${company.name} leased a ${type} in ${state} State for ${formatMoney(leaseCost)} per month.`;
+  addRecord(prose, 'business');
+
+  return { success: true, message: `Leased ${type} in ${state} State successfully. First month's payment of ${formatMoney(leaseCost)} deducted.` };
 }

@@ -125,7 +125,7 @@ function buildRecordSummary(
 ): string {
   const base = room.recordTemplates[resultType];
   if (cashChange > 0) {
-    return `${base} Payment received: ₯${cashChange.toLocaleString()}.`;
+    return `${base} Payment received: ₯${cashChange.toLocaleString('en-US')}.`;
   }
   return base;
 }

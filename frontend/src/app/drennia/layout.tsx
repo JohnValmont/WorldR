@@ -24,5 +24,9 @@ export default function DrenniaLayout({ children }: { children: React.ReactNode 
     // else: authorized — let child page render
   }, [router]);
 
-  return <>{children}</>;
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#090A0F', width: '100%' }}>
+      {children}
+    </div>
+  );
 }

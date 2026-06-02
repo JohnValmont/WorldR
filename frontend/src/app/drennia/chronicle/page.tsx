@@ -108,7 +108,7 @@ export default function ChroniclePage() {
             { label: 'Credibility', val: citizenFile?.credibility || 50, color: T.ivory },
             { label: 'Charisma',    val: citizenFile?.charisma || 50,    color: T.ivory },
             { label: 'Influence',   val: citizenFile?.influence || 10,   color: T.ivory },
-            { label: 'Cash ₯',     val: playerCash,                     color: T.mint  },
+            { label: 'Cash ₯',     val: Number(playerCash || 0).toLocaleString('en-US'),                     color: T.mint  },
           ].map(s => (
             <div key={s.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <span style={{ fontSize: '8px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint }}>{s.label}</span>
@@ -169,7 +169,7 @@ export default function ChroniclePage() {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>Cash</div>
-                    <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.mint }}>₯{company.companyCash.toLocaleString()}</div>
+                    <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.mint }}>₯{Number(company.companyCash || 0).toLocaleString('en-US')}</div>
                   </div>
                 </div>
                 <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', flex: 1 }}>{company.legalStructure} · {company.sector} · {company.state}</div>

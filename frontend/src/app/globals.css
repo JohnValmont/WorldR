@@ -6,7 +6,8 @@
 
   /* overflow is managed per-layout: auth layout clips itself, onboarding scrolls freely */
   body {
-    @apply bg-black text-zinc-100 font-sans antialiased;
+    background-color: #090A0F !important;
+    @apply text-zinc-100 font-sans antialiased;
   }
 
   * {
