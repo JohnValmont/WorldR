@@ -95,9 +95,14 @@ const GhostButton = ({ onClick, children, color }: { onClick?: () => void; child
 );
 
 // ─── Sub-tab types ────────────────────────────────────────────────────────────
-type SubTab = 'overview' | 'start' | 'companies' | 'exchange' | 'registry';
+type SubTab = 'overview' | 'start' | 'companies' | 'market' | 'registry';
 
 const SUB_TABS: { id: SubTab; label: string; requiresCompany?: boolean }[] = [
+    { id: 'overview',   label: 'Overview' },
+    { id: 'start',      label: 'Start Business' },
+    { id: 'companies',  label: 'My Companies', requiresCompany: true },
+    { id: 'market',     label: 'Market' },
+    { id: 'registry',   label: 'Registry' }
   ];
 
 // ─── SECTORS ─────────────────────────────────────────────────────────────────
@@ -600,7 +605,7 @@ export default function BusinessPage() {
         )}
         
         
-        {activeTab === 'exchange' && <DrennportExchangeTab />}
+        {activeTab === 'market' && <MarketTab playerCash={playerCash} onRefresh={refreshAll} />}
 {activeTab === 'registry'  && <RegistryTab company={company} />}
       </div>
     </div>
@@ -685,13 +690,10 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
   const FILING_FEE = 5000;
   const total = chosenCapital + FILING_FEE;
   const canAfford = playerCash >= total;
-  const totalCost = 5000 + chosenCapital;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '40px', height: '100%', alignItems: 'start' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-        <div style={{ maxWidth: '620px' }}>
-          {/* Stepper */}
+    <div style={{ maxWidth: '620px' }}>
+      {/* Stepper */}
       <div style={{ display: 'flex', gap: '0', marginBottom: '28px', borderBottom: `1px solid ${T.border}` }}>
         {STEP_LABELS.map((label, i) => {
           const stepNum = i + 1;
@@ -958,28 +960,6 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           </div>
         </div>
       )}
-        </div>
-      </div>
-
-      {/* Right Rail - Filing Summary */}
-      <div style={{ borderLeft: `1px solid ${T.border}`, paddingLeft: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <div style={{ fontSize: '12px', fontFamily: 'monospace', textTransform: 'uppercase', color: T.gold, letterSpacing: '0.15em', borderBottom: `1px solid ${T.border}`, paddingBottom: '8px' }}>
-          Filing Summary
-        </div>
-        <FieldRow label="Company Name" value={companyNameInput || 'TBD'} />
-        <FieldRow label="Legal Structure" value="Sole Trader" />
-        <FieldRow label="Sector" value={selectedSector || 'TBD'} />
-        <FieldRow label="Headquarters" value={selectedHQ || 'TBD'} />
-        <FieldRow label="Operating Model" value={selectedModel || 'TBD'} valueColor={T.gold} />
-        <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor={T.mint} />
-        <FieldRow label="Total Cost" value={formatMoney(totalCost)} valueColor={T.red} />
-        <FieldRow label="Remaining Cash" value={formatMoney(playerCash - totalCost)} valueColor={T.ivory} />
-        <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(54, 211, 153, 0.05)', border: `1px dashed ${T.mint}` }}>
-          <div style={{ fontSize: '10px', color: T.mint, textTransform: 'uppercase', marginBottom: '8px' }}>Recommendation</div>
-          <div style={{ fontSize: '11px', color: T.ivory, lineHeight: 1.5 }}>After filing, your first step should be to visit the Procurement desk to acquire your first operational vehicle.</div>
-        </div>
-      </div>
-
     </div>
   );
 }
@@ -988,7 +968,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPANY DESK TAB (Shipping & Logistics)
 // ─────────────────────────────────────────────────────────────────────────────
-type CompanyDeskTab = 'overview' | 'operations' | 'contracts' | 'procurement' | 'facilities' | 'assets' | 'fleet' | 'routes' | 'finance' | 'contractHistory' | 'records' | 'equity';
+type CompanyDeskTab = 'overview' | 'operations' | 'contracts' | 'facilities' | 'assets' | 'fleet' | 'routes' | 'finance' | 'contractHistory' | 'records' | 'equity';
 
 function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, onRefresh }: {
   company: Company; fleet: Vehicle[]; contracts: Contract[]; playerCash: number; characterName: string;
@@ -1008,8 +988,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   const DESK_TABS: { id: CompanyDeskTab; label: string }[] = [
     { id: 'overview',   label: 'Overview'   },
     { id: 'operations', label: 'Operations' },
-    { id: 'contracts', label: 'Contracts' },
-    { id: 'procurement', label: 'Procurement' },
+    { id: 'contracts',  label: 'Contracts'  },
     { id: 'facilities', label: 'Facilities' },
     { id: 'assets',     label: 'Assets'     },
     { id: 'fleet',      label: 'Fleet'      },
@@ -1075,7 +1054,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
 
   // Filter logic
   let filteredContracts = contracts.filter(c => c.status === 'open');
-  if (contractFilter === 'NPC Public') filteredContracts = filteredContracts.filter(c => c.issuerType === 'NPC Corporation' || c.issuerType === 'Local Business');
+  if (contractFilter === 'NPC Public') filteredContracts = filteredContracts.filter(c => c.issuerType === 'npc');
   if (contractFilter === 'Local') filteredContracts = filteredContracts.filter(c => c.originState === c.destinationState);
   if (contractFilter === 'Interstate') filteredContracts = filteredContracts.filter(c => c.originState !== c.destinationState);
   if (contractFilter === 'Requires Bid') filteredContracts = filteredContracts.filter(c => c.bidType === 'bid');
@@ -1954,158 +1933,6 @@ function EquityTab({ company, characterName, fleet }: { company: Company; charac
         <SectionHeader>Future Equity Options</SectionHeader>
         <p style={{ fontSize: '12px', color: T.faint, lineHeight: 1.7 }}>Upgrade to Private Company or Corporation to unlock share issuance, partner buy-in, and Westport Bourse listing. Available in a future version.</p>
       </PanelBox>
-    </div>
-  );
-}
-
-
-// ─── PROCUREMENT TAB ──────────────────────────────────────────────────────────
-function ProcurementTab({ company, onRefresh, showNotif }: any) {
-  const [procTab, setProcTab] = React.useState<'orders' | 'used' | 'facilities'>('orders');
-
-  const handleOrder = (type: any) => {
-    const result = purchaseVehicle(company.id, type);
-    showNotif(result.message, result.success);
-    if (result.success) onRefresh();
-  };
-
-  const handleLease = (type: string, cost: number, state: string) => {
-    const result = leaseFacility(company.id, type as any, state, cost);
-    showNotif(result.message, result.success);
-    if (result.success) onRefresh();
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{ display: 'flex', gap: '16px', borderBottom: `1px solid ${T.border}`, paddingBottom: '16px' }}>
-        <button onClick={() => setProcTab('orders')} style={{ background: 'none', border: 'none', color: procTab === 'orders' ? T.gold : T.muted, cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', fontSize: '11px' }}>New Vehicle Orders</button>
-        <button onClick={() => setProcTab('used')} style={{ background: 'none', border: 'none', color: procTab === 'used' ? T.gold : T.muted, cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', fontSize: '11px' }}>Used Market (🔒)</button>
-        <button onClick={() => setProcTab('facilities')} style={{ background: 'none', border: 'none', color: procTab === 'facilities' ? T.gold : T.muted, cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', fontSize: '11px' }}>Facility Leasing</button>
-      </div>
-
-      {procTab === 'orders' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-          {VEHICLE_CATALOGUE.map(v => (
-            <PanelBox key={v.type}>
-              <div style={{ fontSize: '10px', color: T.muted, textTransform: 'uppercase', marginBottom: '4px' }}>Drennport Motor Works</div>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: T.ivory, marginBottom: '12px' }}>{v.type}</div>
-              <FieldRow label="Cost" value={formatMoney(v.cost)} valueColor={T.red} />
-              <FieldRow label="Capacity" value={`${v.capacity} Units`} />
-              <FieldRow label="Condition" value="100% (New)" valueColor={T.mint} />
-              <div style={{ marginTop: '16px' }}>
-                <GoldButton onClick={() => handleOrder(v.type)} disabled={company.companyCash < v.cost}>
-                  Order Vehicle
-                </GoldButton>
-              </div>
-            </PanelBox>
-          ))}
-        </div>
-      )}
-
-      {procTab === 'used' && (
-        <PanelBox>
-          <div style={{ textAlign: 'center', padding: '40px' }}>
-            <div style={{ color: T.gold, marginBottom: '8px' }}>Used Vehicle Market Locked</div>
-            <div style={{ color: T.muted, fontSize: '12px' }}>Check back later for discounted, lower-condition fleet additions.</div>
-          </div>
-        </PanelBox>
-      )}
-
-      {procTab === 'facilities' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-          <PanelBox>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: T.ivory, marginBottom: '4px' }}>Drennport Small Depot</div>
-            <p style={{ fontSize: '12px', color: T.muted, marginBottom: '16px' }}>Local storage for up to 3 vehicles.</p>
-            <FieldRow label="Monthly Lease" value={formatMoney(15000)} valueColor={T.red} />
-            <FieldRow label="Vehicle Slots" value="3" />
-            <div style={{ marginTop: '16px' }}>
-              <GoldButton onClick={() => handleLease('Small Depot', 15000, 'Drennport State')} disabled={company.companyCash < 15000}>
-                Sign Lease
-              </GoldButton>
-            </div>
-          </PanelBox>
-          <PanelBox>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: T.ivory, marginBottom: '4px' }}>Westport Medium Yard</div>
-            <p style={{ fontSize: '12px', color: T.muted, marginBottom: '16px' }}>Standard logistics yard with basic maintenance facilities.</p>
-            <FieldRow label="Monthly Lease" value={formatMoney(45000)} valueColor={T.red} />
-            <FieldRow label="Vehicle Slots" value="10" />
-            <div style={{ marginTop: '16px' }}>
-              <GoldButton onClick={() => handleLease('Medium Yard', 45000, 'Westport State')} disabled={company.companyCash < 45000}>
-                Sign Lease
-              </GoldButton>
-            </div>
-          </PanelBox>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── DRENNPORT EXCHANGE TAB ─────────────────────────────────────────────────
-function DrennportExchangeTab() {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', height: '100%', overflowY: 'auto' }}>
-      <SectionHeader stamp="MARKET STATUS: OPEN">Drennport Exchange</SectionHeader>
-      
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-        <PanelBox>
-          <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', marginBottom: '8px' }}>National Index</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: T.mint }}>14,204.50</div>
-          <div style={{ fontSize: '12px', color: T.mint }}>+ 1.2% (Past Quarter)</div>
-        </PanelBox>
-        <PanelBox>
-          <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', marginBottom: '8px' }}>Drennia Govt Bonds (10Y)</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: T.ivory }}>4.25%</div>
-          <div style={{ fontSize: '12px', color: T.faint }}>Stable</div>
-        </PanelBox>
-        <PanelBox>
-          <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', marginBottom: '8px' }}>Total Listed Entities</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: T.gold }}>42</div>
-          <div style={{ fontSize: '12px', color: T.muted }}>8 State-Owned, 34 Private</div>
-        </PanelBox>
-      </div>
-
-      <SectionHeader>Listed Corporations & State Enterprises</SectionHeader>
-      <div style={{ background: T.panel, border: `1px solid ${T.border}` }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-          <thead>
-            <tr style={{ background: 'rgba(0,0,0,0.2)', color: T.muted, borderBottom: `1px solid ${T.border}`, textAlign: 'left', fontFamily: 'monospace', textTransform: 'uppercase' }}>
-              <th style={{ padding: '12px' }}>Ticker</th>
-              <th style={{ padding: '12px' }}>Entity</th>
-              <th style={{ padding: '12px' }}>Sector</th>
-              <th style={{ padding: '12px', textAlign: 'right' }}>Share Price</th>
-              <th style={{ padding: '12px', textAlign: 'center' }}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-              <td style={{ padding: '12px', color: T.gold, fontFamily: 'monospace' }}>DCB</td>
-              <td style={{ padding: '12px', color: T.ivory }}>Drennport Commercial Bank</td>
-              <td style={{ padding: '12px', color: T.muted }}>Finance</td>
-              <td style={{ padding: '12px', textAlign: 'right', color: T.ivory }}>{formatMoney(1450)}</td>
-              <td style={{ padding: '12px', textAlign: 'center' }}><GhostButton>Trade (🔒)</GhostButton></td>
-            </tr>
-            <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-              <td style={{ padding: '12px', color: T.gold, fontFamily: 'monospace' }}>WDA</td>
-              <td style={{ padding: '12px', color: T.ivory }}>Westport Dock Authority</td>
-              <td style={{ padding: '12px', color: T.muted }}>SOE / Port</td>
-              <td style={{ padding: '12px', textAlign: 'right', color: T.ivory }}>{formatMoney(890)}</td>
-              <td style={{ padding: '12px', textAlign: 'center' }}><GhostButton>Trade (🔒)</GhostButton></td>
-            </tr>
-            <tr>
-              <td style={{ padding: '12px', color: T.gold, fontFamily: 'monospace' }}>DRF</td>
-              <td style={{ padding: '12px', color: T.ivory }}>Drennia Rail Freight</td>
-              <td style={{ padding: '12px', color: T.muted }}>SOE / Logistics</td>
-              <td style={{ padding: '12px', textAlign: 'right', color: T.ivory }}>{formatMoney(2100)}</td>
-              <td style={{ padding: '12px', textAlign: 'center' }}><GhostButton>Trade (🔒)</GhostButton></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div style={{ background: 'rgba(0,0,0,0.2)', border: `1px dashed ${T.border}`, padding: '24px', textAlign: 'center', marginTop: '16px' }}>
-        <div style={{ color: T.muted, fontSize: '12px' }}>Public stock trading, corporate bonds, and IPO mechanics are locked in this build.</div>
-      </div>
     </div>
   );
 }

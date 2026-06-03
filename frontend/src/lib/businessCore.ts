@@ -9,6 +9,47 @@ export function formatMoney(value: number): string {
   });
 }
 
+
+// ─── Game Date System ────────────────────────────────────────────────────────
+export interface GameDate {
+  worldYear: number;
+  worldMonth: number;
+  worldDay: number;
+  turn: number;
+}
+
+const INITIAL_GAME_DATE: GameDate = {
+  worldYear: 2026,
+  worldMonth: 6,
+  worldDay: 3,
+  turn: 1
+};
+
+export function getGameDate(): GameDate {
+  if (typeof window === 'undefined') return INITIAL_GAME_DATE;
+  const stored = localStorage.getItem('worldr_game_date_v1');
+  return stored ? JSON.parse(stored) : INITIAL_GAME_DATE;
+}
+
+export function formatGameDate(date: GameDate = getGameDate()): string {
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const d = date.worldDay.toString().padStart(2, '0');
+  const m = monthNames[date.worldMonth - 1];
+  return `${d} ${m} ${date.worldYear}`;
+}
+
+export function advanceGameDate(months: number = 1): void {
+  if (typeof window === 'undefined') return;
+  const date = getGameDate();
+  date.worldMonth += months;
+  while (date.worldMonth > 12) {
+    date.worldMonth -= 12;
+    date.worldYear += 1;
+  }
+  date.turn += 1;
+  localStorage.setItem('worldr_game_date_v1', JSON.stringify(date));
+}
+
 // ─── Facilities ───────────────────────────────────────────────────────────────
 export interface Facility {
   id: string;
@@ -124,7 +165,7 @@ export function purchaseVehicle(companyId: string, type: VehicleType): { success
     condition: 100,
     purchaseCost: spec.cost,
     monthlyMaintenance: spec.maintenance,
-    purchasedAt: new Date().toISOString(),
+    purchasedAt: formatGameDate(),
   };
   saveVehicle(vehicle);
   return { success: true, message: `Purchased ${type} for \${formatMoney(spec.cost)}.` };
@@ -175,7 +216,7 @@ export interface ContractBid {
 // ─── Contract ─────────────────────────────────────────────────────────────────
 export interface Contract {
   id: string;
-  issuerType: 'npc' | 'player' | 'government' | 'international';
+  issuerType: 'Government' | 'State-Owned Enterprise' | 'NPC Corporation' | 'Local Business' | 'Private Client' | 'Player Company';
   issuerCompanyId: string;
   issuerName: string;
   title: string;
@@ -282,7 +323,7 @@ export function saveContract(contract: Contract): void {
 }
 
 export function createPlayerContract(contract: Omit<Contract, 'id' | 'createdAt' | 'status' | 'bids' | 'issuerType'>): void {
-  saveContract({ ...contract, id: `ctr_${Date.now()}`, issuerType: 'player', status: 'open', bids: [], createdAt: new Date().toISOString() });
+  saveContract({ ...contract, id: `ctr_${Date.now()}`, issuerType: 'Player Company', status: 'open', bids: [], createdAt: formatGameDate() });
 }
 
 // ─── Business Offers ─────────────────────────────────────────────────────────
@@ -302,7 +343,7 @@ export function saveBusinessOffer(offer: BusinessOffer): void {
 // ─── Records ─────────────────────────────────────────────────────────────────
 export function addRecord(summary: string, type = 'business'): void {
   if (typeof window === 'undefined') return;
-  const rec = { id: `rec_${Date.now()}`, type, summary, createdAt: new Date().toISOString() };
+  const rec = { id: `rec_${Date.now()}`, type, summary, createdAt: formatGameDate() };
   const recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
   localStorage.setItem('worldr_records_v1', JSON.stringify([rec, ...recs]));
 }
@@ -325,75 +366,45 @@ export function calcNetWorth(playerCash: number, company: Company | null): numbe
 }
 
 // ─── NPC Companies ────────────────────────────────────────────────────────────
-export const NPC_COMPANIES: Company[] = [
-  {
-    id: 'npc-drennport-bank', ownerCharacterId: 'npc', ownerName: 'State Board',
-    name: 'Drennport Commercial Bank', legalStructure: 'Corporation', state: 'Drennport State', sector: 'Finance',
-    registeredAt: new Date().toISOString(), companyCash: 5000000, monthlyRevenue: 100000, monthlyCosts: 20000, profit: 80000,
-    capacity: 100, reputation: 'Established', reliability: 'Ironclad', debt: 0, status: 'Active', activeContracts: [], publicRecords: [], riskFlags: []
-  },
-  {
-    id: 'npc-saltgate', ownerCharacterId: 'npc', ownerName: 'Fen Arras',
-    name: 'Saltgate Counting House', legalStructure: 'Private Company', state: 'Westport State', sector: 'Finance / Trade Services',
-    registeredAt: new Date().toISOString(), companyCash: 250000, monthlyRevenue: 15000, monthlyCosts: 5000, profit: 10000,
-    capacity: 20, reputation: 'Known', reliability: 'Proven', debt: 0, status: 'Active', activeContracts: [], publicRecords: [], riskFlags: []
-  },
-  {
-    id: 'npc-kovath', ownerCharacterId: 'npc', ownerName: 'Director Kovath',
-    name: 'Kovath Ironworks', legalStructure: 'Corporation', state: 'Ironvale State', sector: 'Manufacturing',
-    registeredAt: new Date().toISOString(), companyCash: 120000, monthlyRevenue: 40000, monthlyCosts: 32000, profit: 8000,
-    capacity: 50, reputation: 'Durable', reliability: 'Solid', debt: 100000, status: 'Active', activeContracts: [], publicRecords: [], riskFlags: []
-  },
-  {
-    id: 'npc-greenmere-fresh', ownerCharacterId: 'npc', ownerName: 'Ysella Murn',
-    name: 'Greenmere Fresh Supply', legalStructure: 'Private Company', state: 'Greenmere State', sector: 'Agriculture & Food',
-    registeredAt: new Date().toISOString(), companyCash: 15000, monthlyRevenue: 6000, monthlyCosts: 4000, profit: 2000,
-    capacity: 10, reputation: 'Local', reliability: 'Reliable', debt: 0, status: 'Active', activeContracts: [], publicRecords: [], riskFlags: []
-  },
-  {
-    id: 'npc-crownbridge', ownerCharacterId: 'npc', ownerName: 'Thel Vance',
-    name: 'Crownbridge Retailers', legalStructure: 'Private Company', state: 'Drennport State', sector: 'Retail & Consumer',
-    registeredAt: new Date().toISOString(), companyCash: 8000, monthlyRevenue: 2500, monthlyCosts: 2000, profit: 500,
-    capacity: 5, reputation: 'New', reliability: 'Unproven', debt: 0, status: 'Active', activeContracts: [], publicRecords: [], riskFlags: []
-  }
-];
+import { NPC_COMPANIES } from '../data/drenniaNpcCompanies';
+export { NPC_COMPANIES };
 
 // ─── Starter Logistics Contracts (v1 — bigger money scale) ───────────────────
 export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   {
-    id: 'ctr-drennport-office', issuerType: 'npc', issuerCompanyId: 'npc-crownbridge', issuerName: 'Crownbridge Retailers',
+    id: 'ctr-drennport-office', issuerType: 'Local Business', issuerCompanyId: 'npc-drennport-office', issuerName: 'Drennport Office Suppliers',
     title: 'Drennport Office Supply Run', description: 'Regular delivery of paper, ink, and binding materials from the warehouse district to our main retail front.',
-    cargo: 'Office supplies', contractType: 'Local Delivery', bidType: 'bid',
-    requiredSector: 'Shipping & Logistics', originState: 'Drennport State', destinationState: 'Drennport State',
-    payment: 18000, deadlineDays: 1, penalty: 4000, requiredCapacity: 1, visibility: 'public', status: 'open', bids: [], createdAt: new Date().toISOString()
+    cargo: 'Paper, ink, binding materials', contractType: 'Local Delivery', bidType: 'direct',
+    requiredSector: 'Retail & Consumer', originState: 'Drennport State', destinationState: 'Drennport State',
+    payment: 18000, deadlineDays: 1, penalty: 4000, requiredCapacity: 1, visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
   },
   {
-    id: 'ctr-greenmere-produce', issuerType: 'npc', issuerCompanyId: 'npc-greenmere-fresh', issuerName: 'Greenmere Fresh Supply',
-    title: 'Greenmere Produce Delivery', description: 'Transport 2 tons of root vegetables to Drennport outer markets before spoilage. Time-sensitive.',
-    cargo: 'Produce', contractType: 'Produce Delivery', bidType: 'bid',
-    requiredSector: 'Shipping & Logistics', originState: 'Greenmere State', destinationState: 'Drennport State',
-    payment: 42000, deadlineDays: 3, penalty: 10000, requiredCapacity: 1, visibility: 'public', status: 'open', bids: [], createdAt: new Date().toISOString()
-  },
-  {
-    id: 'ctr-ironvale-parts', issuerType: 'npc', issuerCompanyId: 'npc-kovath', issuerName: 'Kovath Ironworks',
-    title: 'Ironvale Parts Handling', description: 'Sorting and boxing of cast iron parts for railway shipment. Requires 2-capacity vehicle.',
-    cargo: 'Machine parts', contractType: 'Industrial Freight', bidType: 'bid',
-    requiredSector: 'Shipping & Logistics', originState: 'Ironvale State', destinationState: 'Drennport State',
-    payment: 65000, deadlineDays: 3, penalty: 18000, requiredCapacity: 2, visibility: 'public', status: 'open', bids: [], createdAt: new Date().toISOString()
-  },
-  {
-    id: 'ctr-westport-dock', issuerType: 'npc', issuerCompanyId: 'npc-saltgate', issuerName: 'Saltgate Counting House',
+    id: 'ctr-westport-dock', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-saltgate', issuerName: 'Saltgate Counting House',
     title: 'Westport Dock Transfer', description: 'Move import crates from the dock warehouse to the counting house bonded storage.',
-    cargo: 'Import crates', contractType: 'Port Transfer', bidType: 'bid',
-    requiredSector: 'Shipping & Logistics', originState: 'Westport State', destinationState: 'Westport State',
-    payment: 25000, deadlineDays: 1, penalty: 6000, requiredCapacity: 1, visibility: 'public', status: 'open', bids: [], createdAt: new Date().toISOString()
+    cargo: 'Import crates', contractType: 'Port Transfer', bidType: 'direct',
+    requiredSector: 'Port & Trade', originState: 'Westport State', destinationState: 'Westport State',
+    payment: 25000, deadlineDays: 1, penalty: 6000, requiredCapacity: 1, visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
   },
   {
-    id: 'ctr-state-retail-restock', issuerType: 'npc', issuerCompanyId: 'npc-crownbridge', issuerName: 'Crownbridge Retailers',
+    id: 'ctr-greenmere-produce', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-greenmere-fresh', issuerName: 'Greenmere Fresh Supply',
+    title: 'Greenmere Produce Delivery', description: 'Transport 2 tons of root vegetables to Drennport outer markets before spoilage. Time-sensitive.',
+    cargo: 'Root vegetables', contractType: 'Produce Delivery', bidType: 'bid',
+    requiredSector: 'Agriculture & Food', originState: 'Greenmere State', destinationState: 'Drennport State',
+    payment: 42000, deadlineDays: 3, penalty: 10000, requiredCapacity: 1, visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
+  },
+  {
+    id: 'ctr-ironvale-parts', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-kovath', issuerName: 'Kovath Ironworks',
+    title: 'Ironvale Parts Handling', description: 'Sorting and boxing of cast iron parts for railway shipment. Requires 2-capacity vehicle.',
+    cargo: 'Cast iron parts', contractType: 'Industrial Freight', bidType: 'bid',
+    requiredSector: 'Manufacturing', originState: 'Ironvale State', destinationState: 'Drennport State',
+    payment: 65000, deadlineDays: 3, penalty: 18000, requiredCapacity: 2, visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
+  },
+  {
+    id: 'ctr-state-retail-restock', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-crownbridge', issuerName: 'Crownbridge Retailers',
     title: 'State Retail Restock', description: 'Deliver retail goods from Westport distribution centre to Drennport chain outlets.',
     cargo: 'Retail goods', contractType: 'Interstate Freight', bidType: 'bid',
-    requiredSector: 'Shipping & Logistics', originState: 'Westport State', destinationState: 'Drennport State',
-    payment: 72000, deadlineDays: 4, penalty: 20000, requiredCapacity: 2, visibility: 'public', status: 'open', bids: [], createdAt: new Date().toISOString()
+    requiredSector: 'Retail & Consumer', originState: 'Westport State', destinationState: 'Drennport State',
+    payment: 72000, deadlineDays: 4, penalty: 20000, requiredCapacity: 2, visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
   },
 ];
 
@@ -438,7 +449,7 @@ export function evaluatePlayerBid(
   const updated = {
     ...contract,
     status: accepted ? ('awarded' as const) : ('open' as const),
-    bids: [...contract.bids, { companyId, amount: bidAmount, note: '', timestamp: new Date().toISOString() }],
+    bids: [...contract.bids, { companyId, amount: bidAmount, note: '', timestamp: formatGameDate() }],
     ...(accepted ? { awardedToCompanyId: companyId } : {}),
   };
   saveContract(updated);
@@ -733,6 +744,7 @@ export function runMonthlyAutoOperations(companyId: string): { success: boolean;
   }
 
   const netIncome = totalGross - totalCost - totalMaintenance - facilityLeaseCost;
+  advanceGameDate(1);
   company.companyCash += netIncome;
   company.monthlyRevenue = totalGross;
   company.monthlyCosts = totalCost + totalMaintenance + facilityLeaseCost;
@@ -830,7 +842,7 @@ export function leaseFacility(
     type,
     state,
     leaseCost,
-    leasedAt: new Date().toISOString()
+    leasedAt: formatGameDate()
   };
 
   company.companyCash -= leaseCost;
@@ -842,4 +854,43 @@ export function leaseFacility(
   addRecord(prose, 'business');
 
   return { success: true, message: `Leased ${type} in ${state} State successfully. First month's payment of ${formatMoney(leaseCost)} deducted.` };
+}
+
+
+// ─── Capital Movement ────────────────────────────────────────────────────────
+export function injectCapital(companyId: string, amount: number, playerCashRef: { cash: number }): { success: boolean; message: string } {
+  if (amount <= 0) return { success: false, message: 'Amount must be greater than zero.' };
+  if (playerCashRef.cash < amount) return { success: false, message: 'Insufficient personal cash.' };
+  
+  const companies = getCompanies();
+  const cIdx = companies.findIndex(c => c.id === companyId);
+  if (cIdx < 0) return { success: false, message: 'Company not found.' };
+  
+  playerCashRef.cash -= amount;
+  companies[cIdx].companyCash += amount;
+  localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
+  
+  const recordText = `Founder injected ${formatMoney(amount)} into ${companies[cIdx].name} as owner capital.`;
+  addRecord(recordText, 'finance');
+  
+  return { success: true, message: `Successfully injected ${formatMoney(amount)} into company.` };
+}
+
+export function ownerDrawings(companyId: string, amount: number, playerCashRef: { cash: number }): { success: boolean; message: string } {
+  if (amount <= 0) return { success: false, message: 'Amount must be greater than zero.' };
+  
+  const companies = getCompanies();
+  const cIdx = companies.findIndex(c => c.id === companyId);
+  if (cIdx < 0) return { success: false, message: 'Company not found.' };
+  
+  if (companies[cIdx].companyCash < amount) return { success: false, message: 'Insufficient company cash.' };
+  
+  companies[cIdx].companyCash -= amount;
+  playerCashRef.cash += amount;
+  localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
+  
+  const recordText = `Founder withdrew ${formatMoney(amount)} from ${companies[cIdx].name} as owner drawings.`;
+  addRecord(recordText, 'finance');
+  
+  return { success: true, message: `Successfully withdrew ${formatMoney(amount)} from company.` };
 }
