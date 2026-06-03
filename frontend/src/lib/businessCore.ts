@@ -308,21 +308,24 @@ export interface Contract {
   issuerName: string;
   title: string;
   description: string;
-  cargo?: string;
+  cargo: string;
   requiredSector: string;
   originState: string;
   destinationState: string;
+  routeType: 'Local' | 'Interstate' | 'International' | 'Local / Port';
   payment: number;
-  deadlineDays: number;
+  operatingCostEstimate: number;
   penalty: number;
+  durationMonths: number;
   requiredCapacity: number;
   contractType: 'Local Delivery' | 'Interstate Freight' | 'Industrial Freight' | 'Produce Delivery' | 'Port Transfer' | 'Government Supply' | 'International Trade';
-  bidType: 'bid' | 'direct';
+  bidType: 'Direct Accept' | 'Requires Bid';
+  baseRisk: 'Low' | 'Medium' | 'High';
   visibility: 'public' | 'private';
-  status: 'open' | 'awarded' | 'active' | 'completed' | 'failed';
+  status: 'open' | 'awarded' | 'active' | 'completed' | 'failed' | 'Lost Bid';
   bids: ContractBid[];
-  requiredDrivers?: number;
-  recommendedStaff?: string[];
+  requiredDrivers: number;
+  recommendedStaff: string[];
   awardedToCompanyId?: string;
   assignedVehicleId?: string;
   createdAt: string;
@@ -381,7 +384,9 @@ export interface ContractHistoryEntry {
   payment: number;
   operatingCost: number;
   penalty: number;
-  result: "completed" | "failed" | "cancelled";
+  result: "completed" | "failed" | "cancelled" | "Lost Bid";
+  trustImpact: string;
+  reliabilityImpact: string;
   year: number;
   month: number;
   recordText: string;
@@ -466,37 +471,42 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   {
     id: 'ctr-drennport-office', issuerType: 'Local Business', issuerCompanyId: 'npc-drennport-office', issuerName: 'Drennport Office Suppliers',
     title: 'Drennport Office Supply Run', description: 'Regular delivery of paper, ink, and binding materials from the warehouse district to our main retail front.',
-    cargo: 'Paper, ink, binding materials', contractType: 'Local Delivery', bidType: 'direct',
-    requiredSector: 'Retail & Consumer', originState: 'Drennport State', destinationState: 'Drennport State',
-    payment: 18000, deadlineDays: 1, penalty: 4000, requiredCapacity: 1, visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
+    cargo: 'Paper, ink, binding materials', contractType: 'Local Delivery', bidType: 'Direct Accept',
+    requiredSector: 'Retail & Consumer', originState: 'Drennport State', destinationState: 'Drennport State', routeType: 'Local',
+    payment: 18000, operatingCostEstimate: 4200, penalty: 4000, durationMonths: 1, requiredCapacity: 1, requiredDrivers: 1, recommendedStaff: [], baseRisk: 'Low',
+    visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
   },
   {
     id: 'ctr-westport-dock', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-saltgate', issuerName: 'Saltgate Counting House',
     title: 'Westport Dock Transfer', description: 'Move import crates from the dock warehouse to the counting house bonded storage.',
-    cargo: 'Import crates', contractType: 'Port Transfer', bidType: 'direct',
-    requiredSector: 'Port & Trade', originState: 'Westport State', destinationState: 'Westport State',
-    payment: 25000, deadlineDays: 1, penalty: 6000, requiredCapacity: 1, visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
+    cargo: 'Import crates', contractType: 'Port Transfer', bidType: 'Direct Accept',
+    requiredSector: 'Port & Trade', originState: 'Westport State', destinationState: 'Westport State', routeType: 'Local / Port',
+    payment: 25000, operatingCostEstimate: 6250, penalty: 6000, durationMonths: 1, requiredCapacity: 1, requiredDrivers: 1, recommendedStaff: ['Dispatcher'], baseRisk: 'Low',
+    visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
   },
   {
     id: 'ctr-greenmere-produce', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-greenmere-fresh', issuerName: 'Greenmere Fresh Supply',
     title: 'Greenmere Produce Delivery', description: 'Transport 2 tons of root vegetables to Drennport outer markets before spoilage. Time-sensitive.',
-    cargo: 'Root vegetables', contractType: 'Produce Delivery', bidType: 'bid',
-    requiredSector: 'Agriculture & Food', originState: 'Greenmere State', destinationState: 'Drennport State',
-    payment: 42000, deadlineDays: 3, penalty: 10000, requiredCapacity: 1, visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
+    cargo: 'Root vegetables', contractType: 'Produce Delivery', bidType: 'Requires Bid',
+    requiredSector: 'Agriculture & Food', originState: 'Greenmere State', destinationState: 'Drennport State', routeType: 'Interstate',
+    payment: 42000, operatingCostEstimate: 11500, penalty: 10000, durationMonths: 1, requiredCapacity: 1, requiredDrivers: 1, recommendedStaff: ['Dispatcher'], baseRisk: 'Medium',
+    visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
   },
   {
     id: 'ctr-ironvale-parts', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-kovath', issuerName: 'Kovath Ironworks',
     title: 'Ironvale Parts Handling', description: 'Sorting and boxing of cast iron parts for railway shipment. Requires 2-capacity vehicle.',
-    cargo: 'Cast iron parts', contractType: 'Industrial Freight', bidType: 'bid',
-    requiredSector: 'Manufacturing', originState: 'Ironvale State', destinationState: 'Drennport State',
-    payment: 65000, deadlineDays: 3, penalty: 18000, requiredCapacity: 2, visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
+    cargo: 'Cast iron parts', contractType: 'Industrial Freight', bidType: 'Requires Bid',
+    requiredSector: 'Manufacturing', originState: 'Ironvale State', destinationState: 'Drennport State', routeType: 'Interstate',
+    payment: 65000, operatingCostEstimate: 18000, penalty: 18000, durationMonths: 1, requiredCapacity: 2, requiredDrivers: 1, recommendedStaff: ['Dispatcher', 'Mechanic Crew'], baseRisk: 'Medium',
+    visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
   },
   {
     id: 'ctr-state-retail-restock', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-crownbridge', issuerName: 'Crownbridge Retailers',
     title: 'State Retail Restock', description: 'Deliver retail goods from Westport distribution centre to Drennport chain outlets.',
-    cargo: 'Retail goods', contractType: 'Interstate Freight', bidType: 'bid',
-    requiredSector: 'Retail & Consumer', originState: 'Westport State', destinationState: 'Drennport State',
-    payment: 72000, deadlineDays: 4, penalty: 20000, requiredCapacity: 2, visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
+    cargo: 'Retail goods', contractType: 'Interstate Freight', bidType: 'Requires Bid',
+    requiredSector: 'Retail & Consumer', originState: 'Westport State', destinationState: 'Drennport State', routeType: 'Interstate',
+    payment: 72000, operatingCostEstimate: 20000, penalty: 20000, durationMonths: 1, requiredCapacity: 2, requiredDrivers: 1, recommendedStaff: ['Dispatcher'], baseRisk: 'Medium',
+    visibility: 'public', status: 'open', bids: [], createdAt: formatGameDate()
   },
 ];
 
@@ -522,40 +532,61 @@ export function evaluatePlayerBid(
   const company = companies.find(c => c.id === companyId);
   if (!company) return { accepted: false, message: 'Company not found.' };
 
-  const fleet = getFleet(companyId).filter(v => !v.assignedContractId);
+  if (bidAmount < contract.payment * 0.5) return { accepted: false, message: 'Bid too low. Minimum bid is 50% of listed payment.' };
+  if (bidAmount > contract.payment * 1.5) return { accepted: false, message: 'Bid too high. Maximum bid is 150% of listed payment.' };
+
+  const npcBid = Math.floor(contract.payment * (0.8 + Math.random() * 0.4)); // 80% to 120%
+
+  const fleet = getFleet(companyId).filter(v => !v.assignedContractId && !v.assignedAutoOpPool);
   const suitableVehicle = fleet.find(v => v.capacity >= contract.requiredCapacity);
 
   let score = 0;
-  if (company.sector === contract.requiredSector) score += 3;
+  if (company.sector === contract.requiredSector) score += 2;
   if (suitableVehicle) {
     score += 2;
-    if (suitableVehicle.condition > 60) score += 1;
+    if (suitableVehicle.condition > 80) score += 2;
+    else if (suitableVehicle.condition > 60) score += 1;
   } else {
-    score -= 2;
+    score -= 3;
   }
-  if (bidAmount <= contract.payment) score += 2;
+  
+  if (bidAmount <= npcBid) score += 3;
+  else if (bidAmount <= contract.payment) score += 1;
+  else score -= 2;
+
+  const trust = company.clientTrusts?.[contract.issuerCompanyId] || 'Unknown';
+  if (trust === 'Trusted') score += 2;
+  if (trust === 'Preferred') score += 3;
+  if (trust === 'Distrusted') score -= 3;
+
   if (company.reliability === 'Proven' || company.reliability === 'Reliable' || company.reliability === 'Ironclad') score += 1;
   if (company.reliability === 'Bad' || company.reliability === 'Failing') score -= 2;
 
-  const accepted = score >= 4;
+  const originDestStr = contract.originState < contract.destinationState 
+    ? `${contract.originState}-${contract.destinationState}` 
+    : `${contract.destinationState}-${contract.originState}`;
+  const routeFam = getRouteFamiliarity(companyId).find(r => r.id === originDestStr);
+  if (routeFam && routeFam.familiarity > 30) score += 1;
+  if (routeFam && routeFam.familiarity > 70) score += 1;
+
+  if (company.staff && company.staff['Dispatcher'] > 0) score += 1;
+
+  const accepted = score >= 5;
   const updated = {
     ...contract,
-    status: accepted ? ('awarded' as const) : ('open' as const),
+    status: accepted ? ('awarded' as const) : ('Lost Bid' as const),
     bids: [...contract.bids, { companyId, amount: bidAmount, note: '', timestamp: formatGameDate() }],
     ...(accepted ? { awardedToCompanyId: companyId } : {}),
   };
   saveContract(updated);
 
   if (accepted) {
-    addRecord(`Won "${contract.title}" with a bid of \${formatMoney(bidAmount)}.`, 'contract');
+    addRecord(`Won bid for "${contract.title}" with a bid of ${formatMoney(bidAmount)}.`, 'contract');
+    return { accepted: true, message: `Bid Won! Your bid of ${formatMoney(bidAmount)} beat the competition.` };
+  } else {
+    addRecord(`Lost bid for "${contract.title}". NPC competitor bid: ${formatMoney(npcBid)}.`, 'failure');
+    return { accepted: false, message: `Bid Lost. Your score was too low or price too high (NPC bid: ${formatMoney(npcBid)}).` };
   }
-
-  return {
-    accepted,
-    message: accepted
-      ? `Bid accepted. Your bid of \${formatMoney(bidAmount)} was accepted for "${contract.title}".`
-      : `Bid rejected. Score ${score}/10 — improve capacity, reliability, or bid lower.`,
-  };
 }
 
 // ─── Assign Vehicle to Contract ───────────────────────────────────────────────
@@ -594,6 +625,20 @@ function getConditionDrop(contract: Contract): number {
   return 2 + Math.floor(Math.random() * 3); // 2-4
 }
 
+function improveClientTrust(current: string): string {
+  const scale = ['Distrusted', 'Unknown', 'Known', 'Trusted', 'Preferred', 'Exclusive'];
+  const idx = scale.indexOf(current || 'Unknown');
+  if (idx < 0 || idx >= scale.length - 1) return current;
+  return scale[idx + 1];
+}
+
+function worsenClientTrust(current: string): string {
+  const scale = ['Distrusted', 'Unknown', 'Known', 'Trusted', 'Preferred', 'Exclusive'];
+  const idx = scale.indexOf(current || 'Unknown');
+  if (idx <= 0) return 'Distrusted';
+  return scale[idx - 1];
+}
+
 export function resolveContract(contractId: string): { success: boolean; message: string; netPayment?: number } {
   const contracts = getContracts();
   const cIdx = contracts.findIndex(c => c.id === contractId);
@@ -605,6 +650,7 @@ export function resolveContract(contractId: string): { success: boolean; message
   const companies = getCompanies();
   const compIdx = companies.findIndex(c => c.id === contract.awardedToCompanyId);
   if (compIdx < 0) return { success: false, message: 'Company not found.' };
+  const company = companies[compIdx];
 
   const fleet: Vehicle[] = JSON.parse(localStorage.getItem('worldr_fleet_v1') || '[]');
   const vIdx = contract.assignedVehicleId ? fleet.findIndex(v => v.id === contract.assignedVehicleId) : -1;
@@ -613,24 +659,64 @@ export function resolveContract(contractId: string): { success: boolean; message
   const bid = contract.bids.find(b => b.companyId === contract.awardedToCompanyId);
   const bidAmount = bid?.amount ?? contract.payment;
 
-  const operatingRate = getOperatingCostRate(contract);
+  let operatingRate = contract.operatingCostEstimate / contract.payment;
+  // Route familiarity reduces cost
+  const originDestStr = contract.originState < contract.destinationState ? `${contract.originState}-${contract.destinationState}` : `${contract.destinationState}-${contract.originState}`;
+  const routeFam = getRouteFamiliarity(company.id).find(r => r.id === originDestStr)?.familiarity || 0;
+  if (routeFam > 0) {
+     operatingRate *= (1 - (routeFam / 200)); // up to 50% cost reduction at 100% familiarity
+  }
   const operatingCost = Math.round(bidAmount * operatingRate);
 
-  // Failure conditions
-  const hasVehicle = !!vehicle;
-  const hasCapacity = vehicle ? vehicle.capacity >= contract.requiredCapacity : false;
-  const goodCondition = vehicle ? vehicle.condition > 40 : false;
-  const canAffordCost = companies[compIdx].companyCash >= operatingCost;
+  // Success chance evaluation
+  let successChance = 100;
+  if (contract.baseRisk === 'Medium') successChance -= 15;
+  if (contract.baseRisk === 'High') successChance -= 30;
+  if (vehicle) {
+    if (vehicle.condition < 40) successChance -= 50;
+    else if (vehicle.condition < 60) successChance -= 20;
+  } else {
+    successChance = 0;
+  }
+  
+  if (company.staff && company.staff['Dispatcher'] > 0) successChance += 10;
+  if (company.morale && company.morale > 80) successChance += 10;
+  if (company.morale && company.morale < 30) successChance -= 20;
 
-  const success = hasVehicle && hasCapacity && goodCondition && canAffordCost;
+  const driverCount = company.staff ? (company.staff['Driver'] || 0) : 0;
+  const founderOperating = (fleet.length === 1 && driverCount === 0 && fleet[0].capacity <= 2);
+  const totalDriversAvailable = driverCount + (founderOperating ? 1 : 0);
+  
+  const hasDriver = totalDriversAvailable >= contract.requiredDrivers;
+  if (!hasDriver) successChance = 0;
+
+  const hasCapacity = vehicle ? vehicle.capacity >= contract.requiredCapacity : false;
+  if (!hasCapacity) successChance = 0;
+
+  const canAffordCost = company.companyCash >= operatingCost;
+  if (!canAffordCost) successChance = 0;
+
+  const rolled = Math.random() * 100;
+  const success = rolled <= successChance;
 
   const conditionDrop = getConditionDrop(contract);
+  
+  let trustImpact = 'None';
+  let reliabilityImpact = 'None';
 
   if (success) {
     const netPayment = bidAmount - operatingCost;
-    companies[compIdx].companyCash += netPayment;
-    companies[compIdx].reliability = improveReliability(companies[compIdx].reliability);
-    // Update vehicle condition
+    company.companyCash += netPayment;
+    
+    const oldRel = company.reliability;
+    company.reliability = improveReliability(company.reliability);
+    if (oldRel !== company.reliability) reliabilityImpact = 'Improved';
+    
+    if (!company.clientTrusts) company.clientTrusts = {};
+    const oldTrust = company.clientTrusts[contract.issuerCompanyId] || 'Unknown';
+    company.clientTrusts[contract.issuerCompanyId] = improveClientTrust(oldTrust);
+    if (oldTrust !== company.clientTrusts[contract.issuerCompanyId]) trustImpact = 'Improved';
+
     if (vIdx >= 0) {
       fleet[vIdx].condition = Math.max(0, fleet[vIdx].condition - conditionDrop);
       fleet[vIdx].assignedContractId = undefined;
@@ -638,59 +724,77 @@ export function resolveContract(contractId: string): { success: boolean; message
     }
     contracts[cIdx].status = 'completed';
     localStorage.setItem('worldr_contracts_v1', JSON.stringify(contracts));
-    localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
-    const companyActiveContracts = companies[compIdx].activeContracts.filter(id => id !== contractId);
-    companies[compIdx].activeContracts = companyActiveContracts;
+    
+    const companyActiveContracts = company.activeContracts.filter(id => id !== contractId);
+    company.activeContracts = companyActiveContracts;
     localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
     
-    const recordText = `Completed "${contract.title}" on time. Payment received: ${formatMoney(bidAmount)}. Operating cost: ${formatMoney(operatingCost)}.`;
+    const recordText = `Completed "${contract.title}" successfully. Net profit: ${formatMoney(netPayment)}.`;
     addRecord(recordText, 'contract');
-    increaseRouteFamiliarity(companies[compIdx].id, contract.originState, contract.destinationState, 5);
+    
+    let famIncrease = 5;
+    if (contract.routeType === 'Local') famIncrease = 8;
+    else if (contract.routeType === 'Local / Port') famIncrease = 6;
+    else if (contract.routeType === 'Interstate') famIncrease = 5;
+    increaseRouteFamiliarity(company.id, contract.originState, contract.destinationState, famIncrease);
     
     saveContractHistory({
-      id: `hist_${Date.now()}`, companyId: companies[compIdx].id, title: contract.title, issuer: contract.issuerName, issuerType: contract.issuerType,
+      id: `hist_${Date.now()}`, companyId: company.id, title: contract.title, issuer: contract.issuerName, issuerType: contract.issuerType,
       cargo: contract.cargo, originState: contract.originState, destinationState: contract.destinationState,
       vehicleId: vehicle?.id || '', vehicleName: vehicle?.type || 'Unknown', payment: bidAmount, operatingCost, penalty: 0,
-      result: 'completed', year: 290, month: 1, recordText
+      result: 'completed', trustImpact, reliabilityImpact, year: 290, month: 1, recordText
     });
     
-    return { success: true, message: `Contract completed. Net payment: ${formatMoney(netPayment)} (${formatMoney(bidAmount)} minus ${formatMoney(operatingCost)} operating cost).`, netPayment };
+    return { success: true, message: `Contract completed. Net payment: ${formatMoney(netPayment)}.`, netPayment };
   } else {
-    companies[compIdx].companyCash -= contract.penalty;
-    companies[compIdx].reliability = worsenReliability(companies[compIdx].reliability);
+    company.companyCash -= contract.penalty;
+    
+    const oldRel = company.reliability;
+    company.reliability = worsenReliability(company.reliability);
+    if (oldRel !== company.reliability) reliabilityImpact = 'Decreased';
+    
+    if (!company.clientTrusts) company.clientTrusts = {};
+    const oldTrust = company.clientTrusts[contract.issuerCompanyId] || 'Unknown';
+    company.clientTrusts[contract.issuerCompanyId] = worsenClientTrust(oldTrust);
+    if (oldTrust !== company.clientTrusts[contract.issuerCompanyId]) trustImpact = 'Decreased';
+
     if (vIdx >= 0) {
       fleet[vIdx].assignedContractId = undefined;
       localStorage.setItem('worldr_fleet_v1', JSON.stringify(fleet));
     }
     contracts[cIdx].status = 'failed';
     localStorage.setItem('worldr_contracts_v1', JSON.stringify(contracts));
+    
+    const companyActiveContracts = company.activeContracts.filter(id => id !== contractId);
+    company.activeContracts = companyActiveContracts;
     localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
-    const reason = !hasVehicle ? 'no vehicle assigned' : !hasCapacity ? 'vehicle capacity too low' : !goodCondition ? 'vehicle condition too low' : 'insufficient cash for operating cost';
-    const recordText = `Failed to complete "${contract.title}". Penalty deducted: ${formatMoney(contract.penalty)}. Reason: ${reason}.`;
+    
+    const reason = !hasVehicle ? 'No vehicle assigned' : !hasCapacity ? 'Vehicle capacity too low' : !hasDriver ? 'Driver shortage' : !canAffordCost ? 'Insufficient cash for ops' : 'Operational failure during transit';
+    const recordText = `Failed "${contract.title}". Penalty: ${formatMoney(contract.penalty)}. Reason: ${reason}.`;
     addRecord(recordText, 'failure');
     
     saveContractHistory({
-      id: `hist_${Date.now()}`, companyId: companies[compIdx].id, title: contract.title, issuer: contract.issuerName, issuerType: contract.issuerType,
+      id: `hist_${Date.now()}`, companyId: company.id, title: contract.title, issuer: contract.issuerName, issuerType: contract.issuerType,
       cargo: contract.cargo, originState: contract.originState, destinationState: contract.destinationState,
       vehicleId: vehicle?.id || '', vehicleName: vehicle?.type || 'Unknown', payment: bidAmount, operatingCost, penalty: contract.penalty,
-      result: 'failed', year: 290, month: 1, recordText
+      result: 'failed', trustImpact, reliabilityImpact, year: 290, month: 1, recordText
     });
     
-    return { success: false, message: `Contract failed — ${reason}. Penalty of ${formatMoney(contract.penalty)} deducted.` };
+    return { success: false, message: `Contract failed: ${reason}. Penalty: ${formatMoney(contract.penalty)}.` };
   }
 }
 
 function improveReliability(current: string): string {
   const scale = ['Contract Breaker', 'Late Delivery Record', 'Unproven', 'First Delivery Completed', 'Reliable', 'Preferred Carrier'];
-  const idx = scale.indexOf(current);
+  const idx = scale.indexOf(current || 'Unproven');
   if (idx < 0 || idx >= scale.length - 1) return current;
   return scale[idx + 1];
 }
 
 function worsenReliability(current: string): string {
   const scale = ['Contract Breaker', 'Late Delivery Record', 'Unproven', 'First Delivery Completed', 'Reliable', 'Preferred Carrier'];
-  const idx = scale.indexOf(current);
-  if (idx <= 0) return 'Bad';
+  const idx = scale.indexOf(current || 'Unproven');
+  if (idx <= 0) return 'Contract Breaker';
   return scale[idx - 1];
 }
 

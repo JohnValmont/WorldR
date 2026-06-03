@@ -1416,11 +1416,12 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                     <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(54,211,153,0.05)', padding: '12px', border: `1px solid ${T.mint}40` }}>
                       <div>
                         <div style={{ fontSize: '13px', fontWeight: 700, color: T.mint, marginBottom: '4px' }}>{c.title}</div>
-                        <div style={{ fontSize: '11px', color: T.ivory }}>From: {c.issuer}</div>
+                        <div style={{ fontSize: '11px', color: T.ivory }}>From: {c.issuerName}</div>
                       </div>
                       <div style={{ textAlign: 'right', fontSize: '11px' }}>
-                        <div style={{ color: T.gold, fontWeight: 700 }}>{formatMoney(c.reward)}</div>
-                        <div style={{ color: T.muted }}>Assigned: {c.assignedVehicleType || 'Vehicle'}</div>
+                        <div style={{ color: T.gold, fontWeight: 700 }}>{formatMoney(c.payment)}</div>
+                        <div style={{ color: T.muted }}>Risk: {c.baseRisk}</div>
+                        <div style={{ color: T.muted }}>Assigned: {fleet.find(v => v.id === c.assignedVehicleId)?.type || 'Vehicle'}</div>
                       </div>
                     </div>
                   ))}
@@ -1451,18 +1452,31 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {filteredContracts.map((c:any) => {
-                const canAccept = fleet.some(v => v.capacity >= c.requiredCapacity && !v.assignedContractId && !v.assignedAutoOpPool);
+                const driverCount = company.staff ? (company.staff['Driver'] || 0) : 0;
+                const founderOperating = (fleet.length === 1 && driverCount === 0 && fleet[0].capacity <= 2);
+                const totalDriversAvailable = driverCount + (founderOperating ? 1 : 0);
+                
+                const hasDriver = totalDriversAvailable >= c.requiredDrivers;
+                const hasCapacity = fleet.some(v => v.capacity >= c.requiredCapacity && !v.assignedContractId && !v.assignedAutoOpPool);
+                const hasCondition = fleet.some(v => v.capacity >= c.requiredCapacity && !v.assignedContractId && !v.assignedAutoOpPool && v.condition > 40);
+                const canAffordCost = company.companyCash >= c.operatingCostEstimate;
+                
+                const canAccept = hasDriver && hasCapacity && hasCondition && canAffordCost;
+                const clientTrust = company.clientTrusts?.[c.issuerCompanyId] || 'Unknown';
+                
                 return (
-                  <PanelBox key={c.id}>
+                  <PanelBox key={c.id} style={{ borderLeft: c.bidType === 'Requires Bid' ? `3px solid ${T.gold}` : `3px solid ${T.mint}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                       <div>
                         <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, marginBottom: '4px' }}>{c.title}</div>
                         <div style={{ fontSize: '11px', color: T.faint }}>
-                          Issuer: <strong style={{ color: T.ivory }}>{c.issuer}</strong> {c.issuerType ? `(${c.issuerType})` : ''}
+                          Issuer: <strong style={{ color: T.ivory }}>{c.issuerName}</strong> {c.issuerType ? `(${c.issuerType})` : ''} <span style={{ color: clientTrust === 'Unknown' ? T.faint : clientTrust === 'Distrusted' ? T.red : T.mint, paddingLeft: '4px' }}>[{clientTrust}]</span>
                         </div>
+                        <div style={{ fontSize: '11px', color: T.muted, marginTop: '2px' }}>Cargo: {c.cargo} • Route: {c.routeType}</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: T.gold }}>{formatMoney(c.reward)}</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: T.gold }}>{formatMoney(c.payment)}</div>
+                        <div style={{ fontSize: '10px', color: T.muted }}>Est Cost: {formatMoney(c.operatingCostEstimate)}</div>
                         <div style={{ fontSize: '10px', color: T.red }}>Pen: {formatMoney(c.penalty)}</div>
                       </div>
                     </div>
@@ -1471,35 +1485,70 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                       {c.description}
                     </p>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '11px', marginBottom: '16px', background: 'rgba(255,255,255,0.02)', padding: '8px', border: `1px solid ${T.border}` }}>
-                      <div><span style={{ color: T.faint }}>Type:</span> {c.type}</div>
-                      <div><span style={{ color: T.faint }}>Req Cap:</span> {c.requiredCapacity}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', fontSize: '11px', marginBottom: '16px', background: 'rgba(255,255,255,0.02)', padding: '8px', border: `1px solid ${T.border}` }}>
+                      <div><span style={{ color: T.faint }}>Type:</span> {c.contractType}</div>
+                      <div><span style={{ color: T.faint }}>Capacity:</span> {c.requiredCapacity}</div>
                       <div><span style={{ color: T.faint }}>Duration:</span> {c.durationMonths}mo</div>
+                      <div><span style={{ color: T.faint }}>Risk:</span> <span style={{ color: c.baseRisk === 'High' ? T.red : c.baseRisk === 'Medium' ? T.gold : T.mint }}>{c.baseRisk}</span></div>
+                    </div>
+                    
+                    {/* Eligibility Messages */}
+                    <div style={{ fontSize: '10px', marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {!hasCapacity && <div style={{ color: T.red }}>✖ Requires idle vehicle with capacity {c.requiredCapacity}+</div>}
+                      {!hasCondition && hasCapacity && <div style={{ color: T.red }}>✖ Requires idle vehicle with condition &gt; 40%</div>}
+                      {!hasDriver && <div style={{ color: T.red }}>✖ Driver shortage. Hire a driver. {fleet.length === 1 && driverCount === 0 ? '(Founder exception requires 1 capacity vehicle)' : ''}</div>}
+                      {!canAffordCost && <div style={{ color: T.red }}>✖ Insufficient cash for operating cost estimate.</div>}
+                      {canAccept && <div style={{ color: T.mint }}>✓ Eligible to {c.bidType === 'Requires Bid' ? 'bid' : 'accept'}. {founderOperating && '(Using founder-operator exception)'}</div>}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <select id={`assign-${c.id}`} disabled={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length === 0} style={{ flex: 1, padding: '8px', background: T.panel, color: T.ivory, border: `1px solid ${T.border}`, fontSize: '12px' }}>
-                        {fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length === 0 ? (
-                          <option value="">No idle vehicles available</option>
-                        ) : (
-                          <option value="">Select available vehicle...</option>
-                        )}
-                        {fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).map(v => (
-                          <option key={v.id} value={v.id} disabled={v.capacity < c.requiredCapacity}>
-                            {v.type} (Cap: {v.capacity}) {v.capacity < c.requiredCapacity ? '- Too Small' : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <GoldButton 
-                        onClick={() => {
-                          const sel = document.getElementById(`assign-${c.id}`) as HTMLSelectElement;
-                          if (sel && sel.value) handleDirectAccept(c.id, sel.value);
-                        }}
-                        disabled={!canAccept}
-                      >
-                        Accept & Dispatch
-                      </GoldButton>
-                    </div>
+                    {/* Action Area */}
+                    {c.bidType === 'Direct Accept' ? (
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <select id={`assign-${c.id}`} disabled={!canAccept} style={{ flex: 1, padding: '8px', background: T.panel, color: T.ivory, border: `1px solid ${T.border}`, fontSize: '12px' }}>
+                          {fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length === 0 ? (
+                            <option value="">No idle vehicles available</option>
+                          ) : (
+                            <option value="">Select available vehicle...</option>
+                          )}
+                          {fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).map(v => (
+                            <option key={v.id} value={v.id} disabled={v.capacity < c.requiredCapacity || v.condition <= 40}>
+                              {v.type} (Cap: {v.capacity}, Cond: {v.condition}%) {v.capacity < c.requiredCapacity ? '- Too Small' : v.condition <= 40 ? '- Needs Repair' : ''}
+                            </option>
+                          ))}
+                        </select>
+                        <GoldButton 
+                          onClick={() => {
+                            const sel = document.getElementById(`assign-${c.id}`) as HTMLSelectElement;
+                            if (sel && sel.value) handleDirectAccept(c.id, sel.value);
+                          }}
+                          disabled={!canAccept}
+                        >
+                          Accept & Dispatch
+                        </GoldButton>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '11px', color: T.muted }}>Bid Amount: ₯</span>
+                          <input type="number" id={`bid-${c.id}`} defaultValue={c.payment} style={{ flex: 1, padding: '8px', background: T.panel, color: T.gold, border: `1px solid ${T.border}`, fontSize: '12px' }} disabled={!canAccept} />
+                        </div>
+                        <GoldButton 
+                          onClick={() => {
+                            const bidEl = document.getElementById(`bid-${c.id}`) as HTMLInputElement;
+                            if (bidEl && bidEl.value) {
+                              const bidAmount = parseInt(bidEl.value);
+                              const { evaluatePlayerBid } = require('@/lib/businessCore');
+                              const res = evaluatePlayerBid(c.id, company.id, bidAmount);
+                              showNotif(res.message, res.accepted);
+                              onRefresh();
+                            }
+                          }}
+                          disabled={!canAccept}
+                        >
+                          Submit Bid
+                        </GoldButton>
+                      </div>
+                    )}
                   </PanelBox>
                 );
               })}
@@ -1553,6 +1602,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                     <div style={{ fontSize: '11px', color: T.muted }}>Issuer: {h.issuer}</div>
                     <div style={{ fontSize: '11px', color: T.muted }}>Route: {h.originState} → {h.destinationState}</div>
                     <div style={{ fontSize: '11px', color: T.muted }}>Vehicle: {h.vehicleName}</div>
+                    {h.trustImpact && <div style={{ fontSize: '11px', color: h.trustImpact === 'Improved' ? T.mint : h.trustImpact === 'Decreased' ? T.red : T.faint }}>Trust: {h.trustImpact}</div>}
                   </div>
                   <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                     <div style={{ fontSize: '14px', fontFamily: 'monospace', color: h.result === 'completed' ? T.mint : T.muted }}>Pay: {formatMoney(h.payment)}</div>
