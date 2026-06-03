@@ -218,6 +218,47 @@ export function purchaseVehicle(companyId: string, type: VehicleType): { success
   return { success: true, message: `Purchased ${type} for \${formatMoney(spec.cost)}.` };
 }
 
+export function buyVehicleFromNpc(
+  companyId: string,
+  type: VehicleType,
+  price: number,
+  condition: number,
+  capacity: number,
+  monthlyMaintenance: number,
+  sourceName: string
+): { success: boolean; message: string } {
+  if (typeof window === 'undefined') return { success: false, message: 'Server env' };
+  
+  const companies = getCompanies();
+  const idx = companies.findIndex(c => c.id === companyId);
+  if (idx < 0) return { success: false, message: 'Company not found.' };
+  const company = companies[idx];
+  
+  if (company.companyCash < price) {
+    return { success: false, message: 'Insufficient company cash. Inject capital or choose a cheaper vehicle.' };
+  }
+  
+  company.companyCash -= price;
+  companies[idx] = company;
+  localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
+  
+  const vehicle: Vehicle = {
+    id: `veh_${Date.now()}`,
+    companyId,
+    type,
+    capacity,
+    condition,
+    purchaseCost: price,
+    monthlyMaintenance,
+    purchasedAt: formatGameDate(),
+  };
+  saveVehicle(vehicle);
+  
+  addRecord(`${company.name} ordered a ${type} from ${sourceName} for ${formatMoney(price)}.`, 'finance');
+  
+  return { success: true, message: `Purchased ${type} from ${sourceName} for ${formatMoney(price)}.` };
+}
+
 export function performMaintenance(vehicleId: string, level: 'basic' | 'full'): { success: boolean; message: string } {
   const cost = level === 'basic' ? 5000 : 15000;
   const restore = level === 'basic' ? 10 : 30;
@@ -752,6 +793,15 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
 
   const fleet = getFleet(companyId);
   
+  if (fleet.length === 0) {
+    return { success: false, message: 'No fleet available. Purchase or order a vehicle through Procurement before running logistics operations.' };
+  }
+
+  const hasAssigned = fleet.some(v => v.assignedAutoOpPool || v.assignedContractId);
+  if (!hasAssigned) {
+    return { success: false, message: 'Your fleet is idle. Assign a vehicle to an auto operation or contract before dispatching.' };
+  }
+  
   // Initialization of new fields
   if (!company.staff) company.staff = {} as Record<StaffRole, number>;
   if (!company.wagePolicy) company.wagePolicy = 'Standard';
@@ -990,39 +1040,58 @@ export function leaseFacility(
 
 
 // ─── Capital Movement ────────────────────────────────────────────────────────
-export function injectCapital(companyId: string, amount: number, playerCashRef: { cash: number }): { success: boolean; message: string } {
-  if (amount <= 0) return { success: false, message: 'Amount must be greater than zero.' };
-  if (playerCashRef.cash < amount) return { success: false, message: 'Insufficient personal cash.' };
+export function injectCapital(companyId: string, amount: number): { success: boolean; message: string; newPersonalCash?: number } {
+  if (typeof window === 'undefined') return { success: false, message: 'Server env' };
+  if (amount <= 0 || isNaN(amount)) return { success: false, message: 'Amount must be greater than zero.' };
+  
+  const cfStr = localStorage.getItem('worldr_citizen_file_v1');
+  if (!cfStr) return { success: false, message: 'No citizen file found.' };
+  const cf = JSON.parse(cfStr);
+  const personalCash = cf.wealth ?? cf.personalMoney ?? 0;
+  
+  if (personalCash < amount) return { success: false, message: 'Cannot inject more than personal cash in hand.' };
   
   const companies = getCompanies();
   const cIdx = companies.findIndex(c => c.id === companyId);
   if (cIdx < 0) return { success: false, message: 'Company not found.' };
   
-  playerCashRef.cash -= amount;
+  cf.wealth = personalCash - amount;
+  cf.personalMoney = personalCash - amount;
+  localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(cf));
+  
   companies[cIdx].companyCash += amount;
   localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
   
   const recordText = `Founder injected ${formatMoney(amount)} into ${companies[cIdx].name} as owner capital.`;
   addRecord(recordText, 'finance');
   
-  return { success: true, message: `Successfully injected ${formatMoney(amount)} into company.` };
+  return { success: true, message: `Injected ${formatMoney(amount)} into ${companies[cIdx].name} as owner capital.`, newPersonalCash: cf.wealth };
 }
 
-export function ownerDrawings(companyId: string, amount: number, playerCashRef: { cash: number }): { success: boolean; message: string } {
-  if (amount <= 0) return { success: false, message: 'Amount must be greater than zero.' };
+export function ownerDrawings(companyId: string, amount: number): { success: boolean; message: string; newPersonalCash?: number } {
+  if (typeof window === 'undefined') return { success: false, message: 'Server env' };
+  if (amount <= 0 || isNaN(amount)) return { success: false, message: 'Amount must be greater than zero.' };
+  
+  const cfStr = localStorage.getItem('worldr_citizen_file_v1');
+  if (!cfStr) return { success: false, message: 'No citizen file found.' };
+  const cf = JSON.parse(cfStr);
+  const personalCash = cf.wealth ?? cf.personalMoney ?? 0;
   
   const companies = getCompanies();
   const cIdx = companies.findIndex(c => c.id === companyId);
   if (cIdx < 0) return { success: false, message: 'Company not found.' };
   
-  if (companies[cIdx].companyCash < amount) return { success: false, message: 'Insufficient company cash.' };
+  if (companies[cIdx].companyCash < amount) return { success: false, message: 'Cannot withdraw more than company cash.' };
   
   companies[cIdx].companyCash -= amount;
-  playerCashRef.cash += amount;
   localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
+  
+  cf.wealth = personalCash + amount;
+  cf.personalMoney = personalCash + amount;
+  localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(cf));
   
   const recordText = `Founder withdrew ${formatMoney(amount)} from ${companies[cIdx].name} as owner drawings.`;
   addRecord(recordText, 'finance');
   
-  return { success: true, message: `Successfully withdrew ${formatMoney(amount)} from company.` };
+  return { success: true, message: `Withdrew ${formatMoney(amount)} from ${companies[cIdx].name} as owner drawings.`, newPersonalCash: cf.wealth };
 }

@@ -822,6 +822,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   const [contractFilter, setContractFilter] = useState<string>('All');
   const [contractSearch, setContractSearch] = useState<string>('');
   const [procurementSubTab, setProcurementSubTab] = useState<'vehicles'|'used'|'facilities'|'equipment'|'materials'|'suppliers'>('vehicles');
+  const [routeFilter, setRouteFilter] = useState<'All'|'Local'|'Interstate'|'International'>('All');
 
   const showNotif = (msg: string, success: boolean) => {
     setNotification({ msg, success });
@@ -1017,6 +1018,23 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                   Run monthly auto operations to dispatch your active fleet, process contract completions, collect recurring revenue, pay facility leases, and deduct fleet maintenance costs.
                 </p>
               </div>
+
+              {fleet.length === 0 ? (
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', border: `1px dashed ${T.border}`, textAlign: 'center', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '12px', color: T.gold, marginBottom: '8px' }}>No fleet available.</div>
+                  <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px' }}>Order a vehicle from Procurement to begin logistics operations.</div>
+                  <GoldButton onClick={() => setDeskTab('procurement')}>Open Procurement</GoldButton>
+                </div>
+              ) : !fleet.some(v => v.assignedAutoOpPool || v.assignedContractId) ? (
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', border: `1px dashed ${T.border}`, textAlign: 'center', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '12px', color: T.gold, marginBottom: '8px' }}>Fleet idle.</div>
+                  <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px' }}>Assign a vehicle to an auto operation pool or contract before dispatching.</div>
+                  <GhostButton color={T.ivory} onClick={() => {
+                    document.getElementById('auto-ops-pools')?.scrollIntoView({ behavior: 'smooth' });
+                  }}>Assign Vehicle</GhostButton>
+                </div>
+              ) : null}
+
               <GoldButton onClick={handleRunAutoOps}>
                 ⚡ Dispatch & Process Operations
               </GoldButton>
@@ -1062,7 +1080,9 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
               })()}
             </div>
 
-            <SectionHeader stamp="RECURRING">Auto Operations Pools</SectionHeader>
+            <div id="auto-ops-pools">
+              <SectionHeader stamp="RECURRING">Auto Operations Pools</SectionHeader>
+            </div>
             <p style={{ fontSize: '11px', color: T.muted, marginBottom: '16px' }}>Assign idle vehicles to recurring local pools. This generates steady monthly income but wears down vehicle condition.</p>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '16px' }}>
@@ -1147,6 +1167,164 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
         </div>
       )}
 
+      {deskTab === 'procurement' && (
+        <div className="business-content-grid">
+          <div>
+            <SectionHeader>Procurement Desk</SectionHeader>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <GhostButton color={procurementSubTab === 'vehicles' ? T.ivory : T.faint} onClick={() => setProcurementSubTab('vehicles')}>NPC Manufacturers</GhostButton>
+              <GhostButton color={procurementSubTab === 'used' ? T.ivory : T.faint} onClick={() => setProcurementSubTab('used')}>Used Vehicle Market</GhostButton>
+            </div>
+            
+            {procurementSubTab === 'vehicles' && (
+              <div style={{ display: 'grid', gap: '16px' }}>
+                <PanelBox>
+                  <SectionHeader stamp="NEW">Drennport Motor Works</SectionHeader>
+                  <FieldRow label="Vehicle" value="Used Delivery Van" />
+                  <FieldRow label="Price" value={formatMoney(70000)} valueColor={T.mint} />
+                  <FieldRow label="Condition" value="100%" />
+                  <FieldRow label="Capacity" value="1" />
+                  <FieldRow label="Monthly Maintenance" value={formatMoney(3000)} />
+                  <FieldRow label="Stock" value="5" />
+                  <FieldRow label="Delivery" value="Immediate" />
+                  <FieldRow label="Source Type" value="NPC Manufacturer" />
+                  <div style={{ marginTop: '16px' }}>
+                    <GoldButton onClick={() => {
+                       const { buyVehicleFromNpc } = require('@/lib/businessCore');
+                       const res = buyVehicleFromNpc(company.id, 'Used Delivery Van', 70000, 100, 1, 3000, 'Drennport Motor Works');
+                       showNotif(res.message, res.success);
+                       if (res.success) onRefresh();
+                    }}>Order Vehicle</GoldButton>
+                  </div>
+                </PanelBox>
+                <PanelBox>
+                  <SectionHeader stamp="NEW">Kovath Industrial Motors</SectionHeader>
+                  <FieldRow label="Vehicle" value="Box Truck" />
+                  <FieldRow label="Price" value={formatMoney(160000)} valueColor={T.mint} />
+                  <FieldRow label="Condition" value="100%" />
+                  <FieldRow label="Capacity" value="2" />
+                  <FieldRow label="Monthly Maintenance" value={formatMoney(7000)} />
+                  <FieldRow label="Stock" value="3" />
+                  <FieldRow label="Delivery" value="Immediate" />
+                  <FieldRow label="Source Type" value="NPC Manufacturer" />
+                  <div style={{ marginTop: '16px' }}>
+                    <GoldButton onClick={() => {
+                       const { buyVehicleFromNpc } = require('@/lib/businessCore');
+                       const res = buyVehicleFromNpc(company.id, 'Box Truck', 160000, 100, 2, 7000, 'Kovath Industrial Motors');
+                       showNotif(res.message, res.success);
+                       if (res.success) onRefresh();
+                    }}>Order Vehicle</GoldButton>
+                  </div>
+                </PanelBox>
+                <PanelBox>
+                  <SectionHeader stamp="NEW">Ironvale Heavy Machines</SectionHeader>
+                  <FieldRow label="Vehicle" value="Used Freight Truck" />
+                  <FieldRow label="Price" value={formatMoney(280000)} valueColor={T.mint} />
+                  <FieldRow label="Condition" value="100%" />
+                  <FieldRow label="Capacity" value="3" />
+                  <FieldRow label="Monthly Maintenance" value={formatMoney(12000)} />
+                  <FieldRow label="Stock" value="1" />
+                  <FieldRow label="Delivery" value="Immediate" />
+                  <FieldRow label="Source Type" value="NPC Manufacturer" />
+                  <div style={{ marginTop: '16px' }}>
+                    <GoldButton onClick={() => {
+                       const { buyVehicleFromNpc } = require('@/lib/businessCore');
+                       const res = buyVehicleFromNpc(company.id, 'Used Freight Truck', 280000, 100, 3, 12000, 'Ironvale Heavy Machines');
+                       showNotif(res.message, res.success);
+                       if (res.success) onRefresh();
+                    }}>Order Vehicle</GoldButton>
+                  </div>
+                </PanelBox>
+              </div>
+            )}
+            
+            {procurementSubTab === 'used' && (
+              <div style={{ display: 'grid', gap: '16px' }}>
+                <PanelBox>
+                  <SectionHeader stamp="USED">Westport Dealer Yard</SectionHeader>
+                  <FieldRow label="Vehicle" value="Used Delivery Van" />
+                  <FieldRow label="Price" value={formatMoney(48000)} valueColor={T.mint} />
+                  <FieldRow label="Condition" value="72%" valueColor={T.gold} />
+                  <FieldRow label="Capacity" value="1" />
+                  <FieldRow label="Monthly Maintenance" value={formatMoney(3000)} />
+                  <FieldRow label="Stock" value="2" />
+                  <FieldRow label="Source Type" value="NPC Dealer" />
+                  <div style={{ marginTop: '16px' }}>
+                    <GoldButton onClick={() => {
+                       const { buyVehicleFromNpc } = require('@/lib/businessCore');
+                       const res = buyVehicleFromNpc(company.id, 'Used Delivery Van', 48000, 72, 1, 3000, 'Westport Dealer Yard');
+                       showNotif(res.message, res.success);
+                       if (res.success) onRefresh();
+                    }}>Buy Used Vehicle</GoldButton>
+                  </div>
+                </PanelBox>
+                <PanelBox>
+                  <SectionHeader stamp="USED">Ironvale Resale Depot</SectionHeader>
+                  <FieldRow label="Vehicle" value="Box Truck" />
+                  <FieldRow label="Price" value={formatMoney(112000)} valueColor={T.mint} />
+                  <FieldRow label="Condition" value="68%" valueColor={T.gold} />
+                  <FieldRow label="Capacity" value="2" />
+                  <FieldRow label="Monthly Maintenance" value={formatMoney(7000)} />
+                  <FieldRow label="Stock" value="1" />
+                  <FieldRow label="Source Type" value="NPC Dealer" />
+                  <div style={{ marginTop: '16px' }}>
+                    <GoldButton onClick={() => {
+                       const { buyVehicleFromNpc } = require('@/lib/businessCore');
+                       const res = buyVehicleFromNpc(company.id, 'Box Truck', 112000, 68, 2, 7000, 'Ironvale Resale Depot');
+                       showNotif(res.message, res.success);
+                       if (res.success) onRefresh();
+                    }}>Buy Used Vehicle</GoldButton>
+                  </div>
+                </PanelBox>
+                <PanelBox>
+                  <SectionHeader stamp="USED">Drennport Auction Yard</SectionHeader>
+                  <FieldRow label="Vehicle" value="Used Freight Truck" />
+                  <FieldRow label="Price" value={formatMoney(190000)} valueColor={T.mint} />
+                  <FieldRow label="Condition" value="61%" valueColor={T.gold} />
+                  <FieldRow label="Capacity" value="3" />
+                  <FieldRow label="Monthly Maintenance" value={formatMoney(12000)} />
+                  <FieldRow label="Stock" value="1" />
+                  <FieldRow label="Source Type" value="NPC Dealer" />
+                  <div style={{ marginTop: '16px' }}>
+                    <GoldButton onClick={() => {
+                       const { buyVehicleFromNpc } = require('@/lib/businessCore');
+                       const res = buyVehicleFromNpc(company.id, 'Used Freight Truck', 190000, 61, 3, 12000, 'Drennport Auction Yard');
+                       showNotif(res.message, res.success);
+                       if (res.success) onRefresh();
+                    }}>Buy Used Vehicle</GoldButton>
+                  </div>
+                </PanelBox>
+              </div>
+            )}
+          </div>
+          
+          <div>
+            <PanelBox style={{ marginBottom: '16px' }}>
+              <SectionHeader>Company Resources</SectionHeader>
+              <FieldRow label="Available Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
+              <FieldRow label="Fleet Size" value={fleet.length} />
+              <div style={{ height: '1px', background: T.border, margin: '12px 0' }} />
+              <div style={{ fontSize: '11px', color: T.muted }}>
+                Need more capital to expand your fleet? You can inject cash via the Finance Desk.
+              </div>
+              <div style={{ marginTop: '12px' }}>
+                <GhostButton onClick={() => setDeskTab('finance')}>Open Finance →</GhostButton>
+              </div>
+            </PanelBox>
+            
+            <PanelBox style={{ marginBottom: '16px' }}>
+              <SectionHeader>Other Procurement</SectionHeader>
+              <div style={{ display: 'grid', gap: '8px' }}>
+                <GhostButton onClick={() => setDeskTab('facilities')}>Facility Leasing →</GhostButton>
+                <div style={{ padding: '8px', border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.02)', color: T.faint, fontSize: '11px', textAlign: 'center' }}>Equipment (Locked)</div>
+                <div style={{ padding: '8px', border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.02)', color: T.faint, fontSize: '11px', textAlign: 'center' }}>Materials (Locked)</div>
+                <div style={{ padding: '8px', border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.02)', color: T.faint, fontSize: '11px', textAlign: 'center' }}>Player Suppliers (Future)</div>
+              </div>
+            </PanelBox>
+          </div>
+        </div>
+      )}
+
       {deskTab === 'fleet' && (
         <div className="business-content-grid">
           <div>
@@ -1165,7 +1343,8 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
 
               {fleet.length === 0 && (
                 <div style={{ padding: '30px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', border: `1px dashed ${T.border}`, color: T.muted, fontSize: '12px' }}>
-                  No vehicles in fleet. Purchase vehicles below to start operating contracts.
+                  <div style={{ marginBottom: '16px' }}>No vehicles in fleet. Purchase vehicles through Procurement.</div>
+                  <GoldButton onClick={() => setDeskTab('procurement')}>Open Procurement</GoldButton>
                 </div>
               )}
 
@@ -1278,7 +1457,9 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                       <div>
                         <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, marginBottom: '4px' }}>{c.title}</div>
-                        <div style={{ fontSize: '11px', color: T.faint }}>Issuer: <strong style={{ color: T.muted }}>{c.issuer}</strong></div>
+                        <div style={{ fontSize: '11px', color: T.faint }}>
+                          Issuer: <strong style={{ color: T.ivory }}>{c.issuer}</strong> {c.issuerType ? `(${c.issuerType})` : ''}
+                        </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '14px', fontWeight: 700, color: T.gold }}>{formatMoney(c.reward)}</div>
@@ -1297,8 +1478,12 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                     </div>
 
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <select id={`assign-${c.id}`} style={{ flex: 1, padding: '8px', background: T.panel, color: T.ivory, border: `1px solid ${T.border}`, fontSize: '12px' }}>
-                        <option value="">Select available vehicle...</option>
+                      <select id={`assign-${c.id}`} disabled={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length === 0} style={{ flex: 1, padding: '8px', background: T.panel, color: T.ivory, border: `1px solid ${T.border}`, fontSize: '12px' }}>
+                        {fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length === 0 ? (
+                          <option value="">No idle vehicles available</option>
+                        ) : (
+                          <option value="">Select available vehicle...</option>
+                        )}
                         {fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).map(v => (
                           <option key={v.id} value={v.id} disabled={v.capacity < c.requiredCapacity}>
                             {v.type} (Cap: {v.capacity}) {v.capacity < c.requiredCapacity ? '- Too Small' : ''}
@@ -1448,8 +1633,8 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                     if (el && el.value) {
                       const amount = parseInt(el.value);
                       if (amount > 0) {
-                        const { withdrawOwnerDrawings } = require('@/lib/businessCore');
-                        const res = withdrawOwnerDrawings(company.id, amount);
+                        const { ownerDrawings } = require('@/lib/businessCore');
+                        const res = ownerDrawings(company.id, amount);
                         showNotif(res.message, res.success);
                         if (res.success) { el.value = ''; onRefresh(); }
                       }
@@ -1545,16 +1730,23 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
 
       {deskTab === 'routes' && (
         <div>
-          <SectionHeader>Route Matrix</SectionHeader>
+          <SectionHeader>Logistics Route Network</SectionHeader>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            <GhostButton color={routeFilter === 'All' ? T.ivory : T.faint} onClick={() => setRouteFilter('All')}>All Routes</GhostButton>
+            <GhostButton color={routeFilter === 'Local' ? T.ivory : T.faint} onClick={() => setRouteFilter('Local')}>Local Routes</GhostButton>
+            <GhostButton color={routeFilter === 'Interstate' ? T.ivory : T.faint} onClick={() => setRouteFilter('Interstate')}>Interstate Routes</GhostButton>
+            <GhostButton color={routeFilter === 'International' ? T.ivory : T.faint} onClick={() => setRouteFilter('International')}>International Routes</GhostButton>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
-            {['Drennport State → Westport State', 'Drennport State → Ironvale State', 'Drennport State → Greenmere State', 'Westport State → Ironvale State', 'Westport State → Greenmere State', 'Ironvale State → Greenmere State'].map(rName => {
+            
+            {(routeFilter === 'All' || routeFilter === 'Local') && ['Drennport State → Drennport State', 'Westport State → Westport State', 'Ironvale State → Ironvale State', 'Greenmere State → Greenmere State'].map(rName => {
               const rId = rName.replace(/ State/g, '').replace(' → ', '-');
               const fam = routes.find(r => r.id === rId)?.familiarity || 0;
               return (
                 <div key={rName} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: T.paper, border: `1px solid ${T.border}` }}>
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: T.ivory, marginBottom: '6px' }}>{rName}</div>
-                    <div style={{ fontSize: '10px', color: T.muted, fontFamily: 'monospace' }}>Distance: Medium · Risk: Low · Demand: Variable</div>
+                    <div style={{ fontSize: '10px', color: T.muted, fontFamily: 'monospace' }}>Type: Local · Distance: Short · Risk: Low · Demand: Stable</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.faint }}>Familiarity</div>
@@ -1563,6 +1755,44 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                 </div>
               );
             })}
+
+            {(routeFilter === 'All' || routeFilter === 'Interstate') && ['Westport State → Drennport State', 'Ironvale State → Drennport State', 'Greenmere State → Drennport State', 'Drennport State → Westport State', 'Westport State → Ironvale State'].map(rName => {
+              const rId = rName.replace(/ State/g, '').replace(' → ', '-');
+              const fam = routes.find(r => r.id === rId)?.familiarity || 0;
+              return (
+                <div key={rName} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: T.paper, border: `1px solid ${T.border}` }}>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: T.ivory, marginBottom: '6px' }}>{rName}</div>
+                    <div style={{ fontSize: '10px', color: T.muted, fontFamily: 'monospace' }}>Type: Interstate · Distance: Medium · Risk: Low · Demand: Variable</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.faint }}>Familiarity</div>
+                    <div style={{ fontSize: '16px', fontFamily: 'monospace', color: fam > 0 ? T.mint : T.faint }}>{fam}%</div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {(routeFilter === 'All' || routeFilter === 'International') && (
+              <>
+                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', border: `1px dashed ${T.border}`, marginBottom: '8px' }}>
+                  <div style={{ fontSize: '11px', color: T.muted, textAlign: 'center' }}>
+                    International routes will unlock later through port facilities, customs clearance, shipping permits, and cross-border trade contracts.
+                  </div>
+                </div>
+                {['Drennia → Varelia trade corridor', 'Westport Port → foreign port routes', 'International corporate freight', 'Government trade missions'].map(rName => {
+                  return (
+                    <div key={rName} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, opacity: 0.7 }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: T.faint, marginBottom: '6px' }}>{rName}</div>
+                        <div style={{ fontSize: '10px', color: T.muted, fontFamily: 'monospace' }}>Type: International · Status: <span style={{color: T.red}}>Locked</span></div>
+                        <div style={{ fontSize: '10px', color: T.faint, fontFamily: 'monospace', marginTop: '4px' }}>Requirement: Port Warehouse, Port Terminal, customs permit, shipping fleet</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
           </div>
           <p style={{ fontSize: '11px', color: T.muted, marginTop: '16px' }}>Higher familiarity will reduce operating costs in future updates.</p>
         </div>
