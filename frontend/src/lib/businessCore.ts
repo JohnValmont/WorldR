@@ -769,7 +769,7 @@ export function resolveContract(contractId: string): { success: boolean; message
     company.activeContracts = companyActiveContracts;
     localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
     
-    const reason = !hasVehicle ? 'No vehicle assigned' : !hasCapacity ? 'Vehicle capacity too low' : !hasDriver ? 'Driver shortage' : !canAffordCost ? 'Insufficient cash for ops' : 'Operational failure during transit';
+    const reason = !vehicle ? 'No vehicle assigned' : !hasCapacity ? 'Vehicle capacity too low' : !hasDriver ? 'Driver shortage' : !canAffordCost ? 'Insufficient cash for ops' : 'Operational failure during transit';
     const recordText = `Failed "${contract.title}". Penalty: ${formatMoney(contract.penalty)}. Reason: ${reason}.`;
     addRecord(recordText, 'failure');
     
