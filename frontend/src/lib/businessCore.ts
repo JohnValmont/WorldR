@@ -1084,7 +1084,7 @@ export function acceptDirectContract(contractId: string, companyId: string, vehi
   const contracts = getContracts();
   const cIdx = contracts.findIndex(c => c.id === contractId);
   if (cIdx < 0) return { success: false, message: 'Contract not found.' };
-  if (contracts[cIdx].bidType !== 'direct') return { success: false, message: 'Not a direct accept contract.' };
+  if (contracts[cIdx].bidType !== 'Direct Accept') return { success: false, message: 'Not a direct accept contract.' };
   
   const allVehicles: Vehicle[] = JSON.parse(localStorage.getItem('worldr_fleet_v1') || '[]');
   const vIdx = allVehicles.findIndex(v => v.id === vehicleId);

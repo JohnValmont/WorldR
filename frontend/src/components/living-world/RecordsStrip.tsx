@@ -18,7 +18,7 @@ export default function RecordsStrip() {
     ? records.slice(0, 5) 
     : [
         { title: 'Account verified', summary: 'Secure connection established', status: 'completed' },
-        { title: 'Entered pre-alpha', summary: 'Access granted via ROSE5037', status: 'completed' },
+        { title: 'Entered pre-alpha', summary: 'Access granted via ROSE1551', status: 'completed' },
         { title: 'Drennia selected', summary: 'Motherland assignment logged', status: 'completed' },
         { title: 'Origin pending', summary: 'Awaiting birth data', status: 'pending' },
         { title: 'First opportunity awaiting', summary: 'No moves recorded yet', status: 'pending' }

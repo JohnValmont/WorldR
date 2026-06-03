@@ -26,7 +26,7 @@ export default function PreAlphaAccessPage() {
     setError('');
     const cleanCode = code.trim().toUpperCase();
 
-    if (cleanCode === 'ROSE5037') {
+    if (cleanCode === 'ROSE1551') {
       setLoading(true);
       localStorage.setItem('worldr_pre_alpha_access_granted_v1', 'true');
       localStorage.setItem('worldr_pre_alpha_access_granted_at', new Date().toISOString());

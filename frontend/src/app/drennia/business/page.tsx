@@ -918,9 +918,9 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   } else if (contractFilter === 'Retail') {
     filteredContracts = filteredContracts.filter(c => c.contractType === 'Local Delivery' || c.contractType === 'Interstate Freight');
   } else if (contractFilter === 'Requires Bid') {
-    filteredContracts = filteredContracts.filter(c => c.bidType === 'bid');
+    filteredContracts = filteredContracts.filter(c => c.bidType === 'Requires Bid');
   } else if (contractFilter === 'Direct Accept') {
-    filteredContracts = filteredContracts.filter(c => c.bidType === 'direct');
+    filteredContracts = filteredContracts.filter(c => c.bidType === 'Direct Accept');
   }
 
   return (
