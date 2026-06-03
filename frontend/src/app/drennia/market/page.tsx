@@ -53,10 +53,12 @@ export default function MarketPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: T.bg, color: T.ivory, overflow: 'hidden' }}>
 
       {/* Header */}
-      <div style={{ padding: '8px 24px 8px', flexShrink: 0 }}>
-        <span style={{ cursor: 'pointer', color: T.gold, fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'inline-block', marginBottom: '16px' }} onClick={() => router.push('/drennia/chronicle')}>
+      <div style={{ padding: '16px 24px 0', flexShrink: 0 }}>
+        <span style={{ cursor: 'pointer', color: T.muted, fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }} onClick={() => router.push('/drennia/chronicle')}>
           ← Back to Chronicle
         </span>
+      </div>
+      <div style={{ padding: '8px 24px 8px', flexShrink: 0 }}>
         <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '4px' }}>Drennia Commerce Division</div>
         <h1 style={{ fontSize: '22px', fontWeight: 700, color: T.ivory, margin: '0 0 4px' }}>Market Intelligence</h1>
         <p style={{ fontSize: '12px', color: T.muted, margin: 0 }}>Sector demand, average contract prices, and state market conditions.</p>

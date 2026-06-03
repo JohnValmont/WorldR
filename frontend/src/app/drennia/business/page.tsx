@@ -6,7 +6,7 @@ import {
   getContracts, saveContract, initializeContractsIfEmpty,
   evaluatePlayerBid, assignVehicleToContract, resolveContract,
   getFleet, purchaseVehicle, performMaintenance, calcNetWorth, calcCompanyValue, addRecord,
-  VEHICLE_CATALOGUE, formatMoney, getContractHistory, acceptDirectContract, assignVehicleToAutoOp, runMonthlyAutoOperations, getRouteFamiliarity, leaseFacility, saveVehicle,
+  VEHICLE_CATALOGUE, formatMoney, getContractHistory, acceptDirectContract, assignVehicleToAutoOp, processMonthlyOperations, hireStaff, fireStaff, STAFF_WAGES, getRouteFamiliarity, leaseFacility, saveVehicle,
   type Company, type Contract, type Vehicle, type VehicleType, type ContractHistoryEntry, type RouteFamiliarity, type AutoOpPoolType
 } from '../../../lib/businessCore';
 
@@ -98,7 +98,12 @@ const GhostButton = ({ onClick, children, color }: { onClick?: () => void; child
 type SubTab = 'overview' | 'start' | 'companies' | 'exchange' | 'registry';
 
 const SUB_TABS: { id: SubTab; label: string; requiresCompany?: boolean }[] = [
-  ];
+  { id: 'overview', label: 'Overview' },
+  { id: 'start', label: 'Start Business' },
+  { id: 'companies', label: 'My Companies', requiresCompany: true },
+  { id: 'exchange', label: 'Drennport Exchange' },
+  { id: 'registry', label: 'Registry' }
+];
 
 // ─── SECTORS ─────────────────────────────────────────────────────────────────
 const SECTORS = [
@@ -121,189 +126,6 @@ const HQ_OPTIONS = [
 ];
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
-
-function MarketTab({ playerCash, onRefresh }: { playerCash: number, onRefresh: () => void }) {
-  const [subTab, setSubTab] = React.useState<'vehicles'|'property'|'equipment'|'materials'|'contracts'|'shares'>('vehicles');
-  const companies = getCompanies();
-  const [selectedCompanyId, setSelectedCompanyId] = React.useState<string>(companies[0]?.id || '');
-  const [notification, setNotification] = React.useState<{ msg: string; success: boolean } | null>(null);
-
-  const company = companies.find(c => c.id === selectedCompanyId);
-
-  const showNotif = (msg: string, success: boolean) => {
-    setNotification({ msg, success });
-    setTimeout(() => setNotification(null), 4000);
-  };
-
-  const handlePurchaseVehicle = (spec: any) => {
-    if (!company) {
-      showNotif('You need an active company before buying business vehicles.', false);
-      return;
-    }
-    const result = purchaseVehicle(company.id, spec.type);
-    showNotif(result.message, result.success);
-    if (result.success) onRefresh();
-  };
-
-  const handleLease = (type: string, cost: number, state: string) => {
-    if (!company) {
-      showNotif('You need an active company before leasing business facilities.', false);
-      return;
-    }
-    const result = leaseFacility(company.id, type as any, state, cost);
-    showNotif(result.message, result.success);
-    if (result.success) onRefresh();
-  };
-
-  const lockedTab = (name: string) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <SectionHeader>{name}</SectionHeader>
-      <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px dashed ' + T.border, padding: '40px', textAlign: 'center' }}>
-        <div style={{ fontSize: '12px', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Locked / Coming Later</div>
-        <div style={{ fontSize: '11px', color: T.faint, marginTop: '8px' }}>This market section is not yet available in pre-alpha.</div>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="flex flex-col h-full w-full">
-      <div className="flex items-center gap-6 px-8 py-3 border-b" style={{ borderColor: T.border, background: 'rgba(0,0,0,0.2)', overflowX: 'auto' }}>
-        {[
-          { id: 'vehicles', label: 'Vehicles' },
-          { id: 'property', label: 'Property' },
-          { id: 'equipment', label: 'Equipment 🔒' },
-          { id: 'materials', label: 'Materials 🔒' },
-          { id: 'contracts', label: 'Contract Exchange 🔒' },
-          { id: 'shares', label: 'Company Shares 🔒' },
-        ].map(t => (
-          <button key={t.id} onClick={() => setSubTab(t.id as any)} style={{ color: subTab === t.id ? T.gold : T.muted, borderBottom: subTab === t.id ? '2px solid ' + T.gold : '2px solid transparent', whiteSpace: 'nowrap' }} className="text-[11px] font-mono uppercase tracking-widest pb-1">
-            {t.label}
-          </button>
-        ))}
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-[10px] font-mono text-zinc-500 uppercase">Buy for:</span>
-          <select 
-            value={selectedCompanyId} 
-            onChange={e => setSelectedCompanyId(e.target.value)}
-            className="text-[11px] font-mono px-2 py-1 rounded-sm"
-            style={{ background: T.panel, color: T.gold, border: '1px solid ' + T.border }}
-          >
-            <option value="">-- Select Company --</option>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {notification && (
-        <div className="mx-8 mt-6 px-4 py-3 rounded-sm" style={{ background: notification.success ? 'rgba(54, 211, 153, 0.1)' : 'rgba(184, 85, 85, 0.1)', border: '1px solid ' + (notification.success ? T.mint : T.red) }}>
-          <div className="text-sm font-bold" style={{ color: notification.success ? T.mint : T.red }}>
-            {notification.success ? 'Success' : 'Notice'}
-          </div>
-          <div className="text-xs mt-1" style={{ color: T.ivory }}>{notification.msg}</div>
-        </div>
-      )}
-
-      <div className="business-content-grid p-8 gap-8 overflow-y-auto">
-        <div className="flex flex-col gap-6">
-          {subTab === 'vehicles' && (
-            <>
-              <SectionHeader>🚚 New Vehicle Listings</SectionHeader>
-              <div className="grid grid-cols-2 gap-4">
-                {VEHICLE_CATALOGUE.map(spec => {
-                  const canAfford = company && company.companyCash >= spec.cost;
-                  return (
-                    <div key={spec.type} className="p-4 border rounded-sm flex flex-col" style={{ background: T.panel, borderColor: T.border }}>
-                      <div className="text-sm font-bold text-ivory mb-1">{spec.type}</div>
-                      <div className="text-[11px] text-zinc-400 mb-4">{spec.desc}</div>
-                      <div className="flex items-center justify-between mt-auto">
-                        <div>
-                          <div className="text-sm font-mono font-bold" style={{ color: canAfford ? T.mint : T.red }}>{formatMoney(spec.cost)}</div>
-                          <div className="text-[10px] font-mono" style={{ color: T.faint }}>Maint: {formatMoney(spec.maintenance)}/mo</div>
-                        </div>
-                        <GoldButton onClick={() => handlePurchaseVehicle(spec)}>Order New</GoldButton>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <SectionHeader>🏷️ Used Vehicle Listings</SectionHeader>
-              <div className="p-4 border rounded-sm text-center" style={{ borderColor: T.border, background: 'rgba(0,0,0,0.2)' }}>
-                <div className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest">No used listings currently available on the market.</div>
-              </div>
-
-              <SectionHeader>🏭 Player Manufacturing</SectionHeader>
-              <div className="p-4 border border-dashed rounded-sm text-center" style={{ borderColor: T.border }}>
-                <div className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest">Player manufacturing companies will be able to list vehicles here later.</div>
-              </div>
-            </>
-          )}
-
-          {subTab === 'property' && (
-            <>
-              <SectionHeader>🏢 Available Properties & Facilities</SectionHeader>
-              <div className="grid grid-cols-1 gap-4">
-                {[
-                  { type: 'Office', state: 'Drennport State', cost: 10000, benefit: 'Provides legitimacy and client trust later.' },
-                  { type: 'Vehicle Yard', state: 'Drennport State', cost: 15000, benefit: '+2 vehicle support capacity in selected state.' },
-                  { type: 'Small Depot', state: 'Drennport State', cost: 25000, benefit: 'Improves local courier and port shuttle operations.' },
-                  { type: 'Warehouse', state: 'Westport State', cost: 40000, benefit: 'Unlocks storage and larger retail restock contracts.' },
-                  { type: 'Regional Branch Office', state: 'Ironvale State', cost: 30000, benefit: 'Expands business presence to another state.' }
-                ].map((fac, i) => {
-                  const canAfford = company && company.companyCash >= fac.cost;
-                  return (
-                    <div key={i} className="flex flex-row items-center justify-between p-4 border rounded-sm" style={{ background: T.panel, borderColor: T.border }}>
-                      <div>
-                        <div className="text-sm font-bold text-ivory flex items-center gap-2">
-                          {fac.type}
-                          <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(255,255,255,0.05)', color: T.faint }}>{fac.state}</span>
-                        </div>
-                        <div className="text-[11px] text-zinc-400 mt-1">{fac.benefit}</div>
-                      </div>
-                      <div className="text-right flex items-center gap-4">
-                        <div>
-                          <div className="text-sm font-mono font-bold" style={{ color: canAfford ? T.mint : T.red }}>{formatMoney(fac.cost)}/mo</div>
-                        </div>
-                        <GoldButton onClick={() => handleLease(fac.type, fac.cost, fac.state)}>Lease Facility</GoldButton>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <SectionHeader>🔒 Locked Markets</SectionHeader>
-              <div className="flex gap-4">
-                <div className="flex-1 p-3 border border-dashed text-center" style={{ borderColor: T.border }}><span className="text-[10px] font-mono text-zinc-500">Port Facilities</span></div>
-                <div className="flex-1 p-3 border border-dashed text-center" style={{ borderColor: T.border }}><span className="text-[10px] font-mono text-zinc-500">Land Purchase</span></div>
-                <div className="flex-1 p-3 border border-dashed text-center" style={{ borderColor: T.border }}><span className="text-[10px] font-mono text-zinc-500">Construction</span></div>
-              </div>
-            </>
-          )}
-
-          {subTab === 'equipment' && lockedTab('Equipment Market')}
-          {subTab === 'materials' && lockedTab('Materials Market')}
-          {subTab === 'contracts' && lockedTab('Contract Exchange')}
-          {subTab === 'shares' && lockedTab('Company Shares')}
-        </div>
-
-        <div className="flex flex-col gap-6">
-          <SectionHeader>📋 Selected Buyer Context</SectionHeader>
-          <div className="p-5 border rounded-sm" style={{ background: T.panel, borderColor: T.border }}>
-            {company ? (
-              <div className="flex flex-col gap-3">
-                <FieldRow label="Company" value={company.name} valueColor={T.ivory} />
-                <FieldRow label="Cash Available" value={formatMoney(company.companyCash)} valueColor={T.mint} />
-                <FieldRow label="Current Status" value={company.status} valueColor={T.steel} />
-              </div>
-            ) : (
-              <div className="text-[11px] font-mono text-zinc-500 italic">No active company selected. Buying disabled.</div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function BusinessPage() {
   const router = useRouter();
@@ -976,7 +798,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
         <FieldRow label="Remaining Cash" value={formatMoney(playerCash - totalCost)} valueColor={T.ivory} />
         <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(54, 211, 153, 0.05)', border: `1px dashed ${T.mint}` }}>
           <div style={{ fontSize: '10px', color: T.mint, textTransform: 'uppercase', marginBottom: '8px' }}>Recommendation</div>
-          <div style={{ fontSize: '11px', color: T.ivory, lineHeight: 1.5 }}>After filing, your first step should be to visit the Procurement desk to acquire your first operational vehicle.</div>
+          <div style={{ fontSize: '11px', color: T.ivory, lineHeight: 1.5 }}>After filing, your first step should be to visit the Procurement desk to acquire your first operational asset: {selectedModel === 'Port Shuttle Operator' || selectedModel === 'Local Courier Operator' ? 'Used Delivery Van' : 'Box Truck'}.</div>
         </div>
       </div>
 
@@ -988,7 +810,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPANY DESK TAB (Shipping & Logistics)
 // ─────────────────────────────────────────────────────────────────────────────
-type CompanyDeskTab = 'overview' | 'operations' | 'contracts' | 'procurement' | 'facilities' | 'assets' | 'fleet' | 'routes' | 'finance' | 'contractHistory' | 'records' | 'equity';
+type CompanyDeskTab = 'overview' | 'operations' | 'staff' | 'contracts' | 'procurement' | 'facilities' | 'assets' | 'fleet' | 'routes' | 'finance' | 'contractHistory' | 'records' | 'equity';
 
 function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, onRefresh }: {
   company: Company; fleet: Vehicle[]; contracts: Contract[]; playerCash: number; characterName: string;
@@ -999,6 +821,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   const [notification, setNotification] = useState<{ msg: string; success: boolean } | null>(null);
   const [contractFilter, setContractFilter] = useState<string>('All');
   const [contractSearch, setContractSearch] = useState<string>('');
+  const [procurementSubTab, setProcurementSubTab] = useState<'vehicles'|'used'|'facilities'|'equipment'|'materials'|'suppliers'>('vehicles');
 
   const showNotif = (msg: string, success: boolean) => {
     setNotification({ msg, success });
@@ -1008,8 +831,9 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   const DESK_TABS: { id: CompanyDeskTab; label: string }[] = [
     { id: 'overview',   label: 'Overview'   },
     { id: 'operations', label: 'Operations' },
-    { id: 'contracts', label: 'Contracts' },
-    { id: 'procurement', label: 'Procurement' },
+    { id: 'staff', label: 'Staff' },
+    { id: 'contracts',  label: 'Contracts' },
+    { id: 'procurement',label: 'Procurement' },
     { id: 'facilities', label: 'Facilities' },
     { id: 'assets',     label: 'Assets'     },
     { id: 'fleet',      label: 'Fleet'      },
@@ -1068,19 +892,35 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   };
 
   const handleRunAutoOps = () => {
-    const result = runMonthlyAutoOperations(company.id);
+    const result = processMonthlyOperations(company.id);
     showNotif(result.message, result.success);
     if (result.success) onRefresh();
   };
 
   // Filter logic
   let filteredContracts = contracts.filter(c => c.status === 'open');
-  if (contractFilter === 'NPC Public') filteredContracts = filteredContracts.filter(c => c.issuerType === 'NPC Corporation' || c.issuerType === 'Local Business');
-  if (contractFilter === 'Local') filteredContracts = filteredContracts.filter(c => c.originState === c.destinationState);
-  if (contractFilter === 'Interstate') filteredContracts = filteredContracts.filter(c => c.originState !== c.destinationState);
-  if (contractFilter === 'Requires Bid') filteredContracts = filteredContracts.filter(c => c.bidType === 'bid');
-  if (contractFilter === 'Direct Accept') filteredContracts = filteredContracts.filter(c => c.bidType === 'direct');
-  if (['Player Contracts', 'Government', 'International'].includes(contractFilter)) filteredContracts = []; // Locked for v1
+  if (contractSearch) {
+    filteredContracts = filteredContracts.filter(c => c.title.toLowerCase().includes(contractSearch.toLowerCase()) || c.issuerName.toLowerCase().includes(contractSearch.toLowerCase()));
+  }
+  if (['Government', 'State-Owned Enterprise', 'NPC Corporation', 'Local Business', 'Private Client', 'Player Company'].includes(contractFilter)) {
+    filteredContracts = filteredContracts.filter(c => c.issuerType === contractFilter);
+  } else if (contractFilter === 'Local') {
+    filteredContracts = filteredContracts.filter(c => c.originState === c.destinationState);
+  } else if (contractFilter === 'Interstate') {
+    filteredContracts = filteredContracts.filter(c => c.originState !== c.destinationState);
+  } else if (contractFilter === 'Industrial') {
+    filteredContracts = filteredContracts.filter(c => c.contractType === 'Industrial Freight');
+  } else if (contractFilter === 'Produce') {
+    filteredContracts = filteredContracts.filter(c => c.contractType === 'Produce Delivery');
+  } else if (contractFilter === 'Port') {
+    filteredContracts = filteredContracts.filter(c => c.contractType === 'Port Transfer');
+  } else if (contractFilter === 'Retail') {
+    filteredContracts = filteredContracts.filter(c => c.contractType === 'Local Delivery' || c.contractType === 'Interstate Freight');
+  } else if (contractFilter === 'Requires Bid') {
+    filteredContracts = filteredContracts.filter(c => c.bidType === 'bid');
+  } else if (contractFilter === 'Direct Accept') {
+    filteredContracts = filteredContracts.filter(c => c.bidType === 'direct');
+  }
 
   return (
     <div style={{ width: '100%' }}>
@@ -1177,7 +1017,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                   Run monthly auto operations to dispatch your active fleet, process contract completions, collect recurring revenue, pay facility leases, and deduct fleet maintenance costs.
                 </p>
               </div>
-              <GoldButton onClick={handleRunAutoOps} disabled={fleet.length === 0}>
+              <GoldButton onClick={handleRunAutoOps}>
                 ⚡ Dispatch & Process Operations
               </GoldButton>
             </PanelBox>
@@ -1354,37 +1194,17 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
               )}
             </PanelBox>
 
-            <SectionHeader stamp="PROCURE">Vehicle Procurement Market</SectionHeader>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              {VEHICLE_CATALOGUE.map((v, i) => (
-                <PanelBox key={i}>
-                  <div style={{ fontWeight: 700, fontSize: '13px', color: T.ivory, marginBottom: '4px' }}>{v.type}</div>
-                  <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px', minHeight: '34px' }}>{v.desc}</div>
-                  
-                  <FieldRow label="Capacity" value={v.capacity} />
-                  <FieldRow label="Maint /mo" value={formatMoney(v.maintenance)} valueColor={T.red} />
-                  
-                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: T.gold }}>{formatMoney(v.cost)}</div>
-                    <GoldButton 
-                      onClick={() => handleBuyVehicle(v.type as any)}
-                      disabled={company.companyCash < v.cost}
-                    >
-                      Buy Asset
-                    </GoldButton>
-                  </div>
-                </PanelBox>
-              ))}
-            </div>
-
-            <div style={{ marginTop: '40px', borderTop: `1px solid ${T.border}`, paddingTop: '24px' }}>
-              <SectionHeader stamp="USED MARKET">Player Used Market</SectionHeader>
-              <div style={{ padding: '30px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', border: `1px dashed ${T.border}`, color: T.muted, fontSize: '12px' }}>
-                Used vehicle listings from other players will appear here in Beta.
-              </div>
-            </div>
+            
           </div>
           <div>
+            <PanelBox style={{ marginBottom: '16px' }}>
+              <SectionHeader>Procurement Market</SectionHeader>
+              <FieldRow label="Player Listings" value="Locked" valueColor={T.faint} />
+              <FieldRow label="NPC Stock" value="Available" valueColor={T.mint} />
+              <div style={{ marginTop: '16px' }}>
+                <GhostButton onClick={() => setDeskTab('procurement')}>Open Procurement →</GhostButton>
+              </div>
+            </PanelBox>
             <PanelBox style={{ marginBottom: '16px' }}>
               <SectionHeader>Fleet Summary</SectionHeader>
               <FieldRow label="Vehicles Owned" value={fleet.length} />
@@ -1524,6 +1344,168 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
               <div style={{ fontSize: '11px', color: T.faint }}>
                 {filteredContracts.filter(c => fleet.some(v => v.capacity >= c.requiredCapacity)).length} contracts match your current fleet capacity.
               </div>
+            </PanelBox>
+          </div>
+        </div>
+      )}
+
+      {deskTab === 'contractHistory' && (
+        <div>
+          <SectionHeader stamp="RECORDS">Contract History</SectionHeader>
+          {contractHistory.length === 0 ? (
+            <div style={{ padding: '24px', textAlign: 'center', color: T.faint, fontSize: '12px', border: `1px solid ${T.border}` }}>
+              No contracts resolved yet.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {contractHistory.map(h => (
+                <div key={h.id} style={{ background: T.paper, border: `1px solid ${T.border}`, padding: '16px', display: 'flex', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: h.result === 'completed' ? T.mint : T.red }}>{h.result}</span>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>{h.title}</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: T.muted }}>Issuer: {h.issuer}</div>
+                    <div style={{ fontSize: '11px', color: T.muted }}>Route: {h.originState} → {h.destinationState}</div>
+                    <div style={{ fontSize: '11px', color: T.muted }}>Vehicle: {h.vehicleName}</div>
+                  </div>
+                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ fontSize: '14px', fontFamily: 'monospace', color: h.result === 'completed' ? T.mint : T.muted }}>Pay: {formatMoney(h.payment)}</div>
+                    <div style={{ fontSize: '11px', fontFamily: 'monospace', color: T.faint }}>Cost: {formatMoney(h.operatingCost)}</div>
+                    {h.penalty > 0 && <div style={{ fontSize: '11px', fontFamily: 'monospace', color: T.red }}>Penalty: {formatMoney(h.penalty)}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {deskTab === 'routes' && (
+        <div>
+          <SectionHeader>Route Matrix</SectionHeader>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+            {['Drennport State → Westport State', 'Drennport State → Ironvale State', 'Drennport State → Greenmere State', 'Westport State → Ironvale State', 'Westport State → Greenmere State', 'Ironvale State → Greenmere State'].map(rName => {
+              const rId = rName.replace(/ State/g, '').replace(' → ', '-');
+              const fam = routes.find(r => r.id === rId)?.familiarity || 0;
+              return (
+                <div key={rName} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: T.paper, border: `1px solid ${T.border}` }}>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: T.ivory, marginBottom: '6px' }}>{rName}</div>
+                    <div style={{ fontSize: '10px', color: T.muted, fontFamily: 'monospace' }}>Distance: Medium · Risk: Low · Demand: Variable</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.faint }}>Familiarity</div>
+                    <div style={{ fontSize: '16px', fontFamily: 'monospace', color: fam > 0 ? T.mint : T.faint }}>{fam}%</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p style={{ fontSize: '11px', color: T.muted, marginTop: '16px' }}>Higher familiarity will reduce operating costs in future updates.</p>
+        </div>
+      )}
+
+      {deskTab === 'finance' && (
+        <div className="business-content-grid">
+          <div>
+            <SectionHeader>Finance Desk</SectionHeader>
+            <PanelBox style={{ marginBottom: '24px' }}>
+              <SectionHeader stamp="LEDGER">Company Financials</SectionHeader>
+              <FieldRow label="Available Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
+              <FieldRow label="Monthly Operating Costs" value={formatMoney(company.monthlyCosts)} valueColor={T.red} />
+              <FieldRow label="Outstanding Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.burgundy : T.muted} />
+            </PanelBox>
+            
+            <SectionHeader stamp="OWNERSHIP">Owner Capital Movement</SectionHeader>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+              <PanelBox>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Inject Capital</div>
+                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', minHeight: '34px' }}>Transfer personal cash into the company's ledger.</div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input type="number" id="inject-amount" placeholder="₯ Amount" style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px' }} />
+                  <GoldButton onClick={() => {
+                    const el = document.getElementById('inject-amount') as HTMLInputElement;
+                    if (el && el.value) {
+                      const amount = parseInt(el.value);
+                      if (amount > 0) {
+                        const { injectCapital } = require('@/lib/businessCore');
+                        const res = injectCapital(company.id, amount);
+                        showNotif(res.message, res.success);
+                        if (res.success) { el.value = ''; onRefresh(); }
+                      }
+                    }
+                  }}>Inject</GoldButton>
+                </div>
+              </PanelBox>
+              <PanelBox>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Owner Drawings</div>
+                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', minHeight: '34px' }}>Withdraw company cash to your personal holdings.</div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input type="number" id="withdraw-amount" placeholder="₯ Amount" style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.gold, fontSize: '12px' }} />
+                  <GhostButton color={T.gold} onClick={() => {
+                    const el = document.getElementById('withdraw-amount') as HTMLInputElement;
+                    if (el && el.value) {
+                      const amount = parseInt(el.value);
+                      if (amount > 0) {
+                        const { withdrawOwnerDrawings } = require('@/lib/businessCore');
+                        const res = withdrawOwnerDrawings(company.id, amount);
+                        showNotif(res.message, res.success);
+                        if (res.success) { el.value = ''; onRefresh(); }
+                      }
+                    }
+                  }}>Withdraw</GhostButton>
+                </div>
+              </PanelBox>
+            </div>
+
+            <SectionHeader stamp="POLICIES">Company Financial Policies</SectionHeader>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
+              <PanelBox>
+                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px' }}>Maintenance Policy</div>
+                <select value={company.maintenancePolicy || 'Standard'} onChange={(e) => { company.maintenancePolicy = e.target.value as any; saveCompany(company); onRefresh(); }} style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
+                  <option value="Minimal">Minimal (Cost x0.70, Wear x1.35)</option>
+                  <option value="Standard">Standard (Cost x1.00, Wear x1.00)</option>
+                  <option value="Preventive">Preventive (Cost x1.30, Wear x0.75)</option>
+                  <option value="Premium">Premium Fleet Care (Cost x1.60, Wear x0.55)</option>
+                </select>
+              </PanelBox>
+              <PanelBox>
+                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px' }}>Contract Strategy</div>
+                <select value={company.contractStrategy || 'Balanced Freight'} onChange={(e) => { company.contractStrategy = e.target.value as any; saveCompany(company); onRefresh(); }} style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
+                  <option value="Safe Local">Safe Local Work (Low Risk)</option>
+                  <option value="Balanced Freight">Balanced Freight (Normal)</option>
+                  <option value="Aggressive Growth">Aggressive Growth (High Risk/Reward)</option>
+                </select>
+              </PanelBox>
+              <PanelBox>
+                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px' }}>Cash Reserve Policy</div>
+                <select value={company.cashReservePolicy || 'Growth'} onChange={(e) => { company.cashReservePolicy = e.target.value as any; saveCompany(company); onRefresh(); }} style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
+                  <option value="Conservative">Conservative Reserve</option>
+                  <option value="Growth">Growth Focus</option>
+                  <option value="Aggressive">Aggressive Expansion</option>
+                </select>
+              </PanelBox>
+            </div>
+            
+            <SectionHeader stamp="LENDING">Debt & Financing</SectionHeader>
+            <PanelBox>
+              <div style={{ padding: '20px', textAlign: 'center', border: '1px dashed ' + T.border, background: 'rgba(255,255,255,0.02)', color: T.muted, fontSize: '12px' }}>
+                Bank loans, corporate bonds, and credit facilities are currently unavailable.
+              </div>
+            </PanelBox>
+          </div>
+          <div>
+            <PanelBox style={{ marginBottom: '16px' }}>
+              <SectionHeader>Performance</SectionHeader>
+              <FieldRow label="Company Value" value={formatMoney(calcCompanyValue(company))} valueColor={T.gold} />
+              <FieldRow label="Last Month Profit" value={formatMoney(company.profit)} valueColor={company.profit >= 0 ? T.mint : T.red} />
+              <FieldRow label="Credit Rating" value="Unrated" />
+            </PanelBox>
+            <PanelBox>
+              <SectionHeader>Your Personal Finances</SectionHeader>
+              <FieldRow label="Cash in Hand" value={formatMoney(playerCash)} valueColor={T.ivory} />
+              <FieldRow label="Net Worth" value={formatMoney(playerCash + calcCompanyValue(company))} valueColor={T.gold} />
             </PanelBox>
           </div>
         </div>
