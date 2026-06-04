@@ -1210,9 +1210,8 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
     moraleChangeStr = "Dropped (Cash Insolvency)";
   }
 
-  // Update Game Date
+  // Format Date (No longer advancing here, done globally)
   const dateStr = formatGameDate();
-  advanceGameDate(1);
   
   // Build Report
   const report: MonthlyReport = {
@@ -1409,4 +1408,27 @@ export function ownerDrawings(companyId: string, amount: number): { success: boo
   addRecord(recordText, 'finance');
   
   return { success: true, message: `Withdrew ${formatMoney(amount)} from ${companies[cIdx].name} as owner drawings.`, newPersonalCash: cf.wealth };
+}
+
+// ─── Global World Operations ──────────────────────────────────────────────────
+export function advanceWorldArcAndProcess(): string {
+  const previousDateStr = formatGameDate();
+  const companies = getCompanies();
+  let processedCount = 0;
+
+  for (const company of companies) {
+    const result = processMonthlyOperations(company.id);
+    if (result.success && result.report) {
+      processedCount++;
+    }
+  }
+
+  advanceGameDate(1);
+  const newDateStr = formatGameDate();
+
+  if (processedCount > 0) {
+    return `Arc Advanced\n\nPrevious Date:\n${previousDateStr}\n\nCurrent Date:\n${newDateStr}\n\nBusiness operations processed successfully.`;
+  } else {
+    return `Arc advanced. No active business operations were processed.\n\nPrevious Date:\n${previousDateStr}\n\nCurrent Date:\n${newDateStr}`;
+  }
 }

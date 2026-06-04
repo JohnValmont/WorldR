@@ -6,10 +6,11 @@ import {
   getContracts, saveContract, initializeContractsIfEmpty,
   evaluatePlayerBid, assignVehicleToContract, resolveContract,
   getFleet, purchaseVehicle, performMaintenance, calcNetWorth, calcCompanyValue, addRecord,
-  VEHICLE_CATALOGUE, formatMoney, getContractHistory, acceptDirectContract, assignVehicleToAutoOp, processMonthlyOperations, hireStaff, fireStaff, STAFF_WAGES, getRouteFamiliarity, leaseFacility, saveVehicle,
+  VEHICLE_CATALOGUE, formatMoney, getContractHistory, acceptDirectContract, assignVehicleToAutoOp, hireStaff, fireStaff, STAFF_WAGES, getRouteFamiliarity, leaseFacility, saveVehicle,
   getLedger, getFinanceHistory, getGameDate, formatGameDate, getVehicleDisplayLabel, getRouteFamiliarityPercent, getClientTrustLabel,
   type Company, type Contract, type Vehicle, type VehicleType, type ContractHistoryEntry, type RouteFamiliarity, type AutoOpPoolType, type StaffRole, type WagePolicy, type MonthlyFinanceSnapshot, type LedgerEntry
 } from '../../../lib/businessCore';
+import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 const T = {
@@ -363,6 +364,7 @@ export default function BusinessPage() {
             <span style={{ fontSize: '8px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: T.faint }}>Cash in Hand</span>
             <span style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.mint }}>{formatMoney(playerCash)}</span>
           </div>
+          <WorldTimeControl />
         </div>
       </div>
 
@@ -964,43 +966,14 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
     if (result.success) onRefresh();
   };
 
-  const [isProcessingMonth, setIsProcessingMonth] = useState(false);
+
 
   const handleRunAutoOps = () => {
     // Just a UI confirmation that assignments are set. No time advancement.
     showNotif("Operation assignments successfully saved. They will be processed at the end of the month.", true);
   };
 
-  const handleAdvanceMonth = () => {
-    if (isProcessingMonth) return;
 
-    if (fleet.length === 0) {
-      showNotif("No fleet available. Purchase a vehicle through Procurement before advancing operations.", false);
-      return;
-    }
-    
-    const assignedVehicles = fleet.filter(v => v.assignedContractId || v.assignedAutoOpPool);
-    if (assignedVehicles.length === 0) {
-      showNotif("Fleet is idle. Assign a vehicle to an operation or contract before advancing the Arc.", false);
-      return;
-    }
-
-    setIsProcessingMonth(true);
-    const result = processMonthlyOperations(company.id);
-    if (result.success && result.report) {
-      const rep = result.report;
-      const profitStr = rep.netProfit >= 0 ? `Net Profit: ${formatMoney(rep.netProfit)}` : `Operating Loss: ${formatMoney(Math.abs(rep.netProfit))}`;
-      
-      const arcStr = rep.gameDateStr.split('·')[1]?.trim() || 'Arc';
-      const msg = `${arcStr} Operations Complete\n\nContract Revenue: ${formatMoney(rep.manualRevenue)}\nAuto Operations Revenue: ${formatMoney(rep.autoRevenue)}\nTotal Revenue: ${formatMoney(rep.manualRevenue + rep.autoRevenue)}\n\nOperating Costs: ${formatMoney(rep.operatingCosts)}\nStaff Wages: ${formatMoney(rep.payrollExpense)}\nFleet Maintenance: ${formatMoney(rep.totalMaintenance)}\nFacility Leases: ${formatMoney(rep.facilityLeaseExpense)}\nPenalties: ${formatMoney(rep.penalties)}\n\n${profitStr}\n\nWorld Date Advanced To:\n${formatGameDate()}`;
-      
-      alert(msg);
-      onRefresh();
-    } else {
-      showNotif(result.message, result.success);
-    }
-    setIsProcessingMonth(false);
-  };
 
   // Filter logic
   let filteredContracts = contracts.filter(c => c.status === 'open');
@@ -1018,17 +991,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
         </div>
       )}
 
-      {process.env.NEXT_PUBLIC_ENABLE_DEV_MONTH_ADVANCE === 'true' && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '16px', gap: '16px', padding: '8px', background: 'rgba(255,255,255,0.02)', border: `1px dashed ${T.gold}` }}>
-          <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'right' }}>
-            <div>MERIDIAN STANDARD</div>
-            <div>{formatGameDate()}</div>
-          </div>
-          <GoldButton onClick={handleAdvanceMonth} disabled={isProcessingMonth} style={{ padding: '6px 12px' }}>
-            ADVANCE ARC — TEST
-          </GoldButton>
-        </div>
-      )}
+
 
       <div style={{ display: 'flex', gap: '0', marginBottom: '20px', borderBottom: `1px solid ${T.border}`, overflowX: 'auto' }}>
         {DESK_TABS.map(tab => {

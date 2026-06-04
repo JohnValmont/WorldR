@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 
 const T = {
   bg: '#090A0F',
@@ -53,10 +54,11 @@ export default function MarketPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: T.bg, color: T.ivory, overflow: 'hidden' }}>
 
       {/* Header */}
-      <div style={{ padding: '16px 24px 0', flexShrink: 0 }}>
+      <div style={{ padding: '16px 24px 0', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ cursor: 'pointer', color: T.muted, fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }} onClick={() => router.push('/drennia/chronicle')}>
           ← Back to Chronicle
         </span>
+        <WorldTimeControl />
       </div>
       <div style={{ padding: '8px 24px 8px', flexShrink: 0 }}>
         <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '4px' }}>Drennia Commerce Division</div>

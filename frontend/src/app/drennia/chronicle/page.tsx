@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getCompanies, getContracts } from '../../../lib/businessCore';
+import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 
 const T = {
   bg: '#090A0F',
@@ -123,7 +124,8 @@ export default function ChroniclePage() {
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <WorldTimeControl />
           <button style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.gold, background: 'none', border: 'none', cursor: 'pointer' }}>Letters</button>
           <button onClick={handleRestartLife} style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.red, background: 'none', border: 'none', cursor: 'pointer' }}>Restart Life</button>
         </div>
@@ -144,7 +146,7 @@ export default function ChroniclePage() {
                 { label: 'Name', value: characterName },
                 { label: 'Age', value: '18' },
                 { label: 'Motherland', value: citizenFile?.motherland || 'Drennia' },
-                { label: 'Citizen Since', value: new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) },
+                { label: 'Citizen Since', value: citizenFile?.gameDateStr || 'Mark 1 · Arc 1 · Orbit 842 M.E.' },
               ].map(f => (
                 <div key={f.label}>
                   <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '3px' }}>{f.label}</div>
