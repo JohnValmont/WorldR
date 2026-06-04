@@ -52,16 +52,16 @@ export function advanceGameDate(months: number = 1): void {
 
 
 // ─── Staff & Policies ────────────────────────────────────────────────────────
-export type StaffRole = 'Driver' | 'Dispatcher' | 'Mechanic Crew' | 'Warehouse Worker' | 'Admin Clerk' | 'Operations Manager';
-
-export const STAFF_WAGES: Record<StaffRole, number> = {
+export const STAFF_WAGES = {
   'Driver': 18000,
   'Dispatcher': 28000,
   'Mechanic Crew': 30000,
   'Warehouse Worker': 22000,
   'Admin Clerk': 20000,
   'Operations Manager': 50000
-};
+} as const;
+
+export type StaffRole = keyof typeof STAFF_WAGES;
 
 export type WagePolicy = 'Low' | 'Standard' | 'Generous' | 'Premium';
 export type MaintenancePolicy = 'Minimal' | 'Standard' | 'Preventive' | 'Premium';
