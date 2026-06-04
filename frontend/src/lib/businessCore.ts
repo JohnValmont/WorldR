@@ -152,6 +152,37 @@ export type MaintenancePolicy = 'Minimal' | 'Standard' | 'Preventive' | 'Premium
 export type ContractStrategy = 'Safe Local' | 'Balanced Freight' | 'Aggressive Growth';
 export type CashReservePolicy = 'Conservative' | 'Growth' | 'Aggressive';
 
+export function hireStaff(companyId: string, role: StaffRole): { success: boolean; message: string } {
+  if (typeof window === 'undefined') return { success: false, message: 'Server-side operation not supported.' };
+  let companies: any[] = [];
+  try {
+    companies = JSON.parse(localStorage.getItem('worldr_companies_v1') || '[]');
+  } catch(e) {}
+  const cIdx = companies.findIndex(c => c.id === companyId);
+  if (cIdx === -1) return { success: false, message: 'Company not found.' };
+  
+  if (!companies[cIdx].staff) companies[cIdx].staff = {};
+  companies[cIdx].staff[role] = (companies[cIdx].staff[role] || 0) + 1;
+  localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
+  return { success: true, message: `Hired 1 ${role}.` };
+}
+
+export function fireStaff(companyId: string, role: StaffRole): { success: boolean; message: string } {
+  if (typeof window === 'undefined') return { success: false, message: 'Server-side operation not supported.' };
+  let companies: any[] = [];
+  try {
+    companies = JSON.parse(localStorage.getItem('worldr_companies_v1') || '[]');
+  } catch(e) {}
+  const cIdx = companies.findIndex(c => c.id === companyId);
+  if (cIdx === -1) return { success: false, message: 'Company not found.' };
+  
+  if (!companies[cIdx].staff) companies[cIdx].staff = {};
+  if ((companies[cIdx].staff[role] || 0) <= 0) return { success: false, message: 'No staff in this role to dismiss.' };
+  
+  companies[cIdx].staff[role]--;
+  localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
+  return { success: true, message: `Dismissed 1 ${role}.` };
+}
 export interface MonthlyReport {
   gameDateStr: string;
   autoRevenue: number;

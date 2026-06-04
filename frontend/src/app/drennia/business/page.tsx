@@ -1314,13 +1314,11 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                      </div>
                      <div style={{ display: 'flex', gap: '8px' }}>
                        <GhostButton onClick={() => {
-                         const { fireStaff } = require('@/lib/businessCore');
                          const res = fireStaff(company.id, role);
                          showNotif(res.message, res.success);
                          if (res.success) onRefresh();
                        }} color={T.red} disabled={count === 0}>-</GhostButton>
                        <GhostButton onClick={() => {
-                         const { hireStaff } = require('@/lib/businessCore');
                          const res = hireStaff(company.id, role);
                          showNotif(res.message, res.success);
                          if (res.success) onRefresh();
