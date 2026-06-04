@@ -7,7 +7,7 @@ import {
   evaluatePlayerBid, assignVehicleToContract, resolveContract,
   getFleet, purchaseVehicle, performMaintenance, calcNetWorth, calcCompanyValue, addRecord,
   VEHICLE_CATALOGUE, formatMoney, getContractHistory, acceptDirectContract, assignVehicleToAutoOp, processMonthlyOperations, hireStaff, fireStaff, STAFF_WAGES, getRouteFamiliarity, leaseFacility, saveVehicle,
-  getLedger, getFinanceHistory, getGameDate, formatGameDate,
+  getLedger, getFinanceHistory, getGameDate, formatGameDate, getVehicleDisplayLabel,
   type Company, type Contract, type Vehicle, type VehicleType, type ContractHistoryEntry, type RouteFamiliarity, type AutoOpPoolType, type StaffRole, type WagePolicy, type MonthlyFinanceSnapshot, type LedgerEntry
 } from '../../../lib/businessCore';
 
@@ -1612,7 +1612,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '12px', color: T.muted, marginBottom: '16px', background: 'rgba(255,255,255,0.03)', padding: '12px', border: `1px dashed ${T.border}` }}>
                           <div>
-                            <div style={{ marginBottom: '4px' }}>Assigned Vehicle: <span style={{ color: assignedVehicle ? T.ivory : T.red, fontWeight: 700 }}>{assignedVehicle ? assignedVehicle.name : 'Not Assigned'}</span></div>
+                            <div style={{ marginBottom: '4px' }}>Assigned Vehicle: <span style={{ color: assignedVehicle ? T.ivory : T.red, fontWeight: 700 }}>{assignedVehicle ? getVehicleDisplayLabel(assignedVehicle) : 'Not Assigned'}</span></div>
                             <div style={{ marginBottom: '4px' }}>Capacity: <span style={{ color: T.ivory }}>{assignedVehicle ? assignedVehicle.capacity : '-'}</span></div>
                             <div style={{ marginBottom: '4px' }}>Condition: <span style={{ color: assignedVehicle ? (assignedVehicle.condition > 40 ? T.mint : T.red) : T.muted }}>{assignedVehicle ? assignedVehicle.condition + '%' : '-'}</span></div>
                             <div style={{ marginBottom: '4px' }}>Risk: <span style={{ color: T.ivory }}>{c.baseRisk}</span></div>

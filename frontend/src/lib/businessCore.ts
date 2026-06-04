@@ -296,11 +296,14 @@ export const VEHICLE_CATALOGUE: {
   },
 ];
 
-// Fleet management
 export function getFleet(companyId: string): Vehicle[] {
   if (typeof window === 'undefined') return [];
   const all: Vehicle[] = JSON.parse(localStorage.getItem('worldr_fleet_v1') || '[]');
   return all.filter(v => v.companyId === companyId);
+}
+
+export function getVehicleDisplayLabel(vehicle: Vehicle): string {
+  return vehicle.type;
 }
 
 export function saveVehicle(vehicle: Vehicle): void {
