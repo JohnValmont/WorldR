@@ -97,12 +97,15 @@ export interface Facility {
 }
 
 // ─── Company ──────────────────────────────────────────────────────────────────
+export type CompanyLegalStructure = 'Sole Trader' | 'Private Company' | 'Corporation';
+export type CompanyOperatingModel = 'Local Courier Operator' | 'Port Shuttle Operator' | 'Interstate Freight Beginner' | 'Industrial Parts Carrier';
+
 export interface Company {
   id: string;
   ownerCharacterId: string;
   ownerName: string;
   name: string;
-  legalStructure: 'Sole Trader' | 'Private Company' | 'Corporation';
+  legalStructure: CompanyLegalStructure;
   state: string;
   sector: string;
   registeredAt: string;
@@ -119,7 +122,7 @@ export interface Company {
   publicRecords: string[];
   riskFlags: string[];
   facilities?: Facility[];
-  operatingModel?: 'Local Courier Operator' | 'Port Shuttle Operator' | 'Interstate Freight Beginner' | 'Industrial Parts Carrier';
+  operatingModel?: CompanyOperatingModel;
   
   // v8 Additions
   staff?: Record<StaffRole, number>;
@@ -301,9 +304,17 @@ export interface ContractBid {
   timestamp: string;
 }
 
+export type ContractIssuerType = 'Government' | 'State-Owned Enterprise' | 'NPC Corporation' | 'Local Business' | 'Private Client' | 'Player Company';
+export type ContractRouteType = 'Local' | 'Interstate' | 'International' | 'Local / Port';
+export type ContractType = 'Local Delivery' | 'Interstate Freight' | 'Industrial Freight' | 'Produce Delivery' | 'Port Transfer' | 'Government Supply' | 'International Trade';
+export type ContractBidType = 'Direct Accept' | 'Requires Bid';
+export type ContractBaseRisk = 'Low' | 'Medium' | 'High';
+export type ContractVisibility = 'public' | 'private';
+export type ContractStatus = 'open' | 'awarded' | 'active' | 'completed' | 'failed' | 'Lost Bid';
+
 export interface Contract {
   id: string;
-  issuerType: 'Government' | 'State-Owned Enterprise' | 'NPC Corporation' | 'Local Business' | 'Private Client' | 'Player Company';
+  issuerType: ContractIssuerType;
   issuerCompanyId: string;
   issuerName: string;
   title: string;
@@ -312,17 +323,17 @@ export interface Contract {
   requiredSector: string;
   originState: string;
   destinationState: string;
-  routeType: 'Local' | 'Interstate' | 'International' | 'Local / Port';
+  routeType: ContractRouteType;
   payment: number;
   operatingCostEstimate: number;
   penalty: number;
   durationMonths: number;
   requiredCapacity: number;
-  contractType: 'Local Delivery' | 'Interstate Freight' | 'Industrial Freight' | 'Produce Delivery' | 'Port Transfer' | 'Government Supply' | 'International Trade';
-  bidType: 'Direct Accept' | 'Requires Bid';
-  baseRisk: 'Low' | 'Medium' | 'High';
-  visibility: 'public' | 'private';
-  status: 'open' | 'awarded' | 'active' | 'completed' | 'failed' | 'Lost Bid';
+  contractType: ContractType;
+  bidType: ContractBidType;
+  baseRisk: ContractBaseRisk;
+  visibility: ContractVisibility;
+  status: ContractStatus;
   bids: ContractBid[];
   requiredDrivers: number;
   recommendedStaff: string[];

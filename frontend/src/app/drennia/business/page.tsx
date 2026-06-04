@@ -7,7 +7,7 @@ import {
   evaluatePlayerBid, assignVehicleToContract, resolveContract,
   getFleet, purchaseVehicle, performMaintenance, calcNetWorth, calcCompanyValue, addRecord,
   VEHICLE_CATALOGUE, formatMoney, getContractHistory, acceptDirectContract, assignVehicleToAutoOp, processMonthlyOperations, hireStaff, fireStaff, STAFF_WAGES, getRouteFamiliarity, leaseFacility, saveVehicle,
-  type Company, type Contract, type Vehicle, type VehicleType, type ContractHistoryEntry, type RouteFamiliarity, type AutoOpPoolType, type StaffRole
+  type Company, type Contract, type Vehicle, type VehicleType, type ContractHistoryEntry, type RouteFamiliarity, type AutoOpPoolType, type StaffRole, type WagePolicy
 } from '../../../lib/businessCore';
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
@@ -130,6 +130,32 @@ const GhostButton = ({
     {children}
   </button>
 );
+
+// ─── Filter types & Constants ──────────────────────────────────────────────────
+export type RouteFilter = 'All' | 'Local' | 'Interstate' | 'International';
+export const ROUTE_FILTER_OPTIONS: Array<{ label: string; value: RouteFilter }> = [
+  { label: 'All Routes', value: 'All' },
+  { label: 'Local Routes', value: 'Local' },
+  { label: 'Interstate Routes', value: 'Interstate' },
+  { label: 'International Routes', value: 'International' },
+];
+
+export type ContractSourceFilter = 'All' | 'Government' | 'State-Owned Enterprise' | 'NPC Corporation' | 'Local Business' | 'Private Client' | 'Player Company';
+export const CONTRACT_SOURCE_FILTER_OPTIONS: Array<{ label: string; value: ContractSourceFilter; disabled?: boolean }> = [
+  { label: 'All Sources', value: 'All' },
+  { label: 'Government', value: 'Government' },
+  { label: 'NPC Corporations', value: 'NPC Corporation' },
+  { label: 'Local Businesses', value: 'Local Business' },
+  { label: 'Player Companies (Locked)', value: 'Player Company', disabled: true },
+];
+
+
+export const WAGE_POLICY_OPTIONS: Array<{ label: string; value: WagePolicy }> = [
+  { label: 'Low Wages (0.8x)', value: 'Low' },
+  { label: 'Standard Wages (1.0x)', value: 'Standard' },
+  { label: 'Generous Wages (1.2x)', value: 'Generous' },
+  { label: 'Premium Wages (1.45x)', value: 'Premium' },
+];
 
 // ─── Sub-tab types ────────────────────────────────────────────────────────────
 type SubTab = 'overview' | 'start' | 'companies' | 'exchange' | 'registry';
@@ -856,10 +882,11 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   const [deskTab, setDeskTab] = useState<CompanyDeskTab>('overview');
   const [fleetSubTab, setFleetSubTab] = useState<'current' | 'procurement' | 'market' | 'locked'>('current');
   const [notification, setNotification] = useState<{ msg: string; success: boolean } | null>(null);
-  const [contractFilter, setContractFilter] = useState<string>('All');
+  const [contractFilter, setContractFilter] = useState<ContractSourceFilter>('All');
   const [contractSearch, setContractSearch] = useState<string>('');
   const [procurementSubTab, setProcurementSubTab] = useState<'vehicles'|'used'|'facilities'|'equipment'|'materials'|'suppliers'>('vehicles');
-  const [routeFilter, setRouteFilter] = useState<'All'|'Local'|'Interstate'|'International'>('All');
+  const [procurementSubTab, setProcurementSubTab] = useState<'vehicles'|'used'|'facilities'|'equipment'|'materials'|'suppliers'>('vehicles');
+  const [routeFilter, setRouteFilter] = useState<RouteFilter>('All');
 
   const showNotif = (msg: string, success: boolean) => {
     setNotification({ msg, success });
@@ -940,26 +967,9 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   if (contractSearch) {
     filteredContracts = filteredContracts.filter(c => c.title.toLowerCase().includes(contractSearch.toLowerCase()) || c.issuerName.toLowerCase().includes(contractSearch.toLowerCase()));
   }
-  if (['Government', 'State-Owned Enterprise', 'NPC Corporation', 'Local Business', 'Private Client', 'Player Company'].includes(contractFilter)) {
+  if (contractFilter !== 'All') {
     filteredContracts = filteredContracts.filter(c => c.issuerType === contractFilter);
-  } else if (contractFilter === 'Local') {
-    filteredContracts = filteredContracts.filter(c => c.originState === c.destinationState);
-  } else if (contractFilter === 'Interstate') {
-    filteredContracts = filteredContracts.filter(c => c.originState !== c.destinationState);
-  } else if (contractFilter === 'Industrial') {
-    filteredContracts = filteredContracts.filter(c => c.contractType === 'Industrial Freight');
-  } else if (contractFilter === 'Produce') {
-    filteredContracts = filteredContracts.filter(c => c.contractType === 'Produce Delivery');
-  } else if (contractFilter === 'Port') {
-    filteredContracts = filteredContracts.filter(c => c.contractType === 'Port Transfer');
-  } else if (contractFilter === 'Retail') {
-    filteredContracts = filteredContracts.filter(c => c.contractType === 'Local Delivery' || c.contractType === 'Interstate Freight');
-  } else if (contractFilter === 'Requires Bid') {
-    filteredContracts = filteredContracts.filter(c => c.bidType === 'Requires Bid');
-  } else if (contractFilter === 'Direct Accept') {
-    filteredContracts = filteredContracts.filter(c => c.bidType === 'Direct Accept');
   }
-
   return (
     <div style={{ width: '100%' }}>
       {notification && (
@@ -1223,19 +1233,18 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
             <PanelBox style={{ marginBottom: '16px' }}>
               <SectionHeader>Staff Summary</SectionHeader>
               <FieldRow label="Total Employees" value={Object.values(company.staff || {}).reduce((a,b)=>a+b,0)} />
-              <FieldRow label="Monthly Payroll" value={formatMoney(Object.keys(company.staff || {}).reduce((sum, k) => sum + ((company.staff as any)[k] || 0) * (STAFF_WAGES as any)[k], 0) * (company.wagePolicy === 'Low' ? 0.8 : company.wagePolicy === 'Generous' ? 1.2 : company.wagePolicy === 'Premium' ? 1.45 : 1.0))} valueColor={T.red} />
+              <FieldRow label="Monthly Payroll" value={formatMoney((Object.keys(company.staff || {}) as StaffRole[]).reduce((sum, k) => sum + (company.staff?.[k] || 0) * STAFF_WAGES[k], 0) * (company.wagePolicy === 'Low' ? 0.8 : company.wagePolicy === 'Generous' ? 1.2 : company.wagePolicy === 'Premium' ? 1.45 : 1.0))} valueColor={T.red} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '7px 0', borderBottom: `1px solid ${T.border}` }}>
                 <span style={{ fontSize: '11px', color: T.muted }}>Wage Policy</span>
                 <select value={company.wagePolicy || 'Standard'} onChange={(e) => {
                   const { updateWagePolicy } = require('@/lib/businessCore');
-                  const res = updateWagePolicy(company.id, e.target.value as any);
+                  const res = updateWagePolicy(company.id, e.target.value as WagePolicy);
                   showNotif(res.message, res.success);
                   if (res.success) onRefresh();
                 }} style={{ background: T.panelSoft, color: T.ivory, border: `1px solid ${T.border}`, padding: '2px 4px', fontSize: '11px', fontFamily: 'monospace' }}>
-                  <option value="Low">Low Wages (0.8x)</option>
-                  <option value="Standard">Standard Wages (1.0x)</option>
-                  <option value="Generous">Generous Wages (1.2x)</option>
-                  <option value="Premium">Premium Wages (1.45x)</option>
+                  {WAGE_POLICY_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
                 </select>
               </div>
               <FieldRow label="Morale" value={company.morale ? (company.morale >= 80 ? 'High' : company.morale <= 20 ? 'Low' : 'Stable') : 'Stable'} valueColor={company.morale && company.morale >= 80 ? T.mint : company.morale && company.morale <= 20 ? T.red : T.ivory} />
@@ -1563,14 +1572,12 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
               />
               <select 
                 value={contractFilter} 
-                onChange={e => setContractFilter(e.target.value)}
+                onChange={e => setContractFilter(e.target.value as ContractSourceFilter)}
                 style={{ padding: '8px', background: T.panel, border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px' }}
               >
-                <option value="All">All Sources</option>
-                <option value="Government">Government</option>
-                <option value="NPC Corporation">NPC Corporations</option>
-                <option value="Local Business">Local Businesses</option>
-                <option value="Player Company" disabled>Player Companies (Locked)</option>
+                {CONTRACT_SOURCE_FILTER_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value} disabled={opt.disabled}>{opt.label}</option>
+                ))}
               </select>
             </div>
 
@@ -1745,20 +1752,20 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
         <div>
           <SectionHeader>Route Matrix</SectionHeader>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto' }}>
-            {['All', 'Local Routes', 'Interstate Routes', 'International Routes'].map(f => (
-              <GhostButton key={f} color={routeFilter === f ? T.ivory : T.faint} onClick={() => setRouteFilter(f as any)}>{f}</GhostButton>
+            {ROUTE_FILTER_OPTIONS.map(opt => (
+              <GhostButton key={opt.value} color={routeFilter === opt.value ? T.ivory : T.faint} onClick={() => setRouteFilter(opt.value)}>{opt.label}</GhostButton>
             ))}
           </div>
-          {routeFilter === 'International Routes' && (
+          {routeFilter === 'International' && (
             <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', border: `1px dashed ${T.border}`, textAlign: 'center', marginBottom: '16px' }}>
               <div style={{ fontSize: '12px', color: T.muted }}>International logistics will unlock later through ports, customs, shipping fleets, and cross-country trade contracts.</div>
             </div>
           )}
-          {routeFilter !== 'International Routes' && (
+          {routeFilter !== 'International' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
               {Array.from(new Set([...routes.map(r => r.id), 'Drennport-Westport', 'Drennport-Ironvale', 'Drennport-Greenmere', 'Westport-Ironvale', 'Westport-Greenmere', 'Ironvale-Greenmere', 'Drennport-Drennport', 'Westport-Westport', 'Ironvale-Ironvale', 'Greenmere-Greenmere'])).filter(rId => {
-                if (routeFilter === 'Local Routes') return rId.split('-')[0] === rId.split('-')[1];
-                if (routeFilter === 'Interstate Routes') return rId.split('-')[0] !== rId.split('-')[1];
+                if (routeFilter === 'Local') return rId.split('-')[0] === rId.split('-')[1];
+                if (routeFilter === 'Interstate') return rId.split('-')[0] !== rId.split('-')[1];
                 return true;
               }).map(rId => {
                 const rName = rId.replace('-', ' State → ') + ' State';
@@ -1923,10 +1930,9 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
         <div>
           <SectionHeader>Logistics Route Network</SectionHeader>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-            <GhostButton color={routeFilter === 'All' ? T.ivory : T.faint} onClick={() => setRouteFilter('All')}>All Routes</GhostButton>
-            <GhostButton color={routeFilter === 'Local' ? T.ivory : T.faint} onClick={() => setRouteFilter('Local')}>Local Routes</GhostButton>
-            <GhostButton color={routeFilter === 'Interstate' ? T.ivory : T.faint} onClick={() => setRouteFilter('Interstate')}>Interstate Routes</GhostButton>
-            <GhostButton color={routeFilter === 'International' ? T.ivory : T.faint} onClick={() => setRouteFilter('International')}>International Routes</GhostButton>
+            {ROUTE_FILTER_OPTIONS.map(opt => (
+              <GhostButton key={opt.value} color={routeFilter === opt.value ? T.ivory : T.faint} onClick={() => setRouteFilter(opt.value)}>{opt.label}</GhostButton>
+            ))}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
             
