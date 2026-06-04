@@ -79,16 +79,53 @@ const GoldButton = ({ onClick, children, disabled }: { onClick?: () => void; chi
   </button>
 );
 
-const GhostButton = ({ onClick, children, color }: { onClick?: () => void; children: React.ReactNode; color?: string }) => (
+type GhostButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  color?: string;
+};
+
+const GhostButton = ({
+  children,
+  color,
+  disabled,
+  style,
+  type = 'button',
+  onMouseEnter,
+  onMouseLeave,
+  ...buttonProps
+}: GhostButtonProps) => (
   <button
-    onClick={onClick}
+    {...buttonProps}
+    type={type}
+    disabled={disabled}
+    aria-disabled={disabled}
     style={{
-      background: 'transparent', color: color || T.muted, border: `1px solid ${T.border}`,
-      padding: '8px 18px', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase',
-      letterSpacing: '0.12em', fontWeight: 600, cursor: 'pointer',
+      background: 'transparent',
+      color: disabled ? T.muted : (color || T.muted),
+      border: `1px solid ${T.border}`,
+      padding: '8px 18px',
+      fontSize: '10px',
+      fontFamily: 'monospace',
+      textTransform: 'uppercase',
+      letterSpacing: '0.12em',
+      fontWeight: 600,
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      opacity: disabled ? 0.45 : 1,
+      ...style,
     }}
-    onMouseEnter={e => { e.currentTarget.style.borderColor = T.gold; e.currentTarget.style.color = T.ivory; }}
-    onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = color || T.muted; }}
+    onMouseEnter={e => {
+      if (!disabled) {
+        e.currentTarget.style.borderColor = T.gold;
+        e.currentTarget.style.color = T.ivory;
+      }
+      if (onMouseEnter) onMouseEnter(e);
+    }}
+    onMouseLeave={e => {
+      if (!disabled) {
+        e.currentTarget.style.borderColor = T.border;
+        e.currentTarget.style.color = color || T.muted;
+      }
+      if (onMouseLeave) onMouseLeave(e);
+    }}
   >
     {children}
   </button>
