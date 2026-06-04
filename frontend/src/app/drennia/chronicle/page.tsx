@@ -93,7 +93,7 @@ export default function ChroniclePage() {
       }
       
       keysToRemove.forEach(k => localStorage.removeItem(k));
-      window.location.href = '/start';
+      window.location.href = '/world-entry';
     }
   };
 

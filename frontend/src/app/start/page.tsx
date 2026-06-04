@@ -22,7 +22,7 @@ export default function StartPage() {
     if (hasCharacter) {
       router.push('/drennia/chronicle');
     } else {
-      router.push('/start/character');
+      router.push('/world-entry');
     }
   };
 
