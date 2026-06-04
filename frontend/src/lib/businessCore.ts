@@ -1148,9 +1148,51 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
   });
   const payrollExpense = Math.floor(basePayroll * payrollMultiplier);
 
+  // 9. Calculate Vehicle Maintenance
+  let vehicleMaintenanceExpense = 0;
+  fleet.forEach(v => {
+    let base = v.monthlyMaintenance || 0;
+    if (company.maintenancePolicy === 'Minimal') base = Math.floor(base * 0.5);
+    else if (company.maintenancePolicy === 'Preventive') base = Math.floor(base * 1.5);
+    else if (company.maintenancePolicy === 'Premium') base = Math.floor(base * 2.0);
+    vehicleMaintenanceExpense += base;
+  });
+
+  // 10. Calculate Facility Leases
+  let facilityLeaseExpense = 0;
+  if (company.facilities) {
+    company.facilities.forEach(f => {
+      facilityLeaseExpense += f.leaseCost || 0;
+    });
+  }
+
+  // 11. Final Ledgers
+  if (vehicleMaintenanceExpense > 0) {
+    saveLedgerEntry({
+      id: crypto.randomUUID(), companyId, gameMonth: gameDate.worldMonth, gameYear: gameDate.worldYear,
+      gameDateStr, type: 'Vehicle Maintenance', description: `Monthly fleet maintenance`,
+      incomeAmount: 0, expenseAmount: vehicleMaintenanceExpense, balanceAfter: 0, timestamp: new Date().toISOString()
+    });
+  }
+  if (facilityLeaseExpense > 0) {
+    saveLedgerEntry({
+      id: crypto.randomUUID(), companyId, gameMonth: gameDate.worldMonth, gameYear: gameDate.worldYear,
+      gameDateStr, type: 'Facility Leases', description: `Monthly facility leases`,
+      incomeAmount: 0, expenseAmount: facilityLeaseExpense, balanceAfter: 0, timestamp: new Date().toISOString()
+    });
+  }
+  if (payrollExpense > 0) {
+    saveLedgerEntry({
+      id: crypto.randomUUID(), companyId, gameMonth: gameDate.worldMonth, gameYear: gameDate.worldYear,
+      gameDateStr, type: 'Staff Salaries', description: `Monthly payroll`,
+      incomeAmount: 0, expenseAmount: payrollExpense, balanceAfter: 0, timestamp: new Date().toISOString()
+    });
+  }
+
   const totalRevenue = autoOperationsRevenue + contractRevenue;
   const totalOperatingCosts = autoOperationsCosts + contractOperatingCosts;
-  const netProfit = totalRevenue - totalOperatingCosts - totalMaintenance - facilityLeaseExpense - payrollExpense - penalties;
+  const totalExpenses = totalOperatingCosts + vehicleMaintenanceExpense + facilityLeaseExpense + payrollExpense + penalties;
+  const netProfit = totalRevenue - totalExpenses;
 
   company.companyCash += netProfit;
 
@@ -1185,10 +1227,10 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
     autoRevenue: autoOperationsRevenue,
     manualRevenue: contractRevenue,
     operatingCosts: totalOperatingCosts,
-    totalMaintenance: totalMaintenance,
+    totalMaintenance: vehicleMaintenanceExpense,
     facilityLeaseExpense,
     payrollExpense,
-    penalties: 0,
+    penalties,
     netProfit,
     fleetConditionChanges,
     staffCount: Object.values(company.staff).reduce((a,b)=>a+b,0),
@@ -1201,7 +1243,7 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
 
   company.lastMonthlyReport = report;
   company.monthlyRevenue = totalRevenue;
-  company.monthlyCosts = totalOperatingCosts + totalMaintenance + facilityLeaseExpense + payrollExpense + penalties;
+  company.monthlyCosts = totalExpenses;
   company.profit = netProfit;
 
   companies[cIdx] = company;
