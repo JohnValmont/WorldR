@@ -58,9 +58,10 @@ const PanelBox = ({ children, style }: { children: React.ReactNode; style?: Reac
   </div>
 );
 
-const GoldButton = ({ onClick, children, disabled }: { onClick?: () => void; children: React.ReactNode; disabled?: boolean }) => (
+type GoldButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
+
+const GoldButton = ({ children, disabled, style, ...props }: GoldButtonProps) => (
   <button
-    onClick={onClick}
     disabled={disabled}
     style={{
       background: disabled ? 'rgba(255,255,255,0.03)' : `linear-gradient(135deg, ${T.gold}, #8A6E2A)`,
@@ -74,7 +75,9 @@ const GoldButton = ({ onClick, children, disabled }: { onClick?: () => void; chi
       fontWeight: 700,
       cursor: disabled ? 'not-allowed' : 'pointer',
       opacity: disabled ? 0.5 : 1,
+      ...style,
     }}
+    {...props}
   >
     {children}
   </button>
