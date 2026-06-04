@@ -82,7 +82,8 @@ export default function ChroniclePage() {
         'worldr_access_token',
         'worldr_refresh_token',
         'worldr_pre_alpha_access_granted_v1',
-        'worldr_account_settings'
+        'worldr_account_settings',
+        'worldr_world_clock_v1'
       ];
       
       const keysToRemove = [];
