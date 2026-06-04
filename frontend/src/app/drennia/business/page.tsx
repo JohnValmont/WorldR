@@ -7,7 +7,7 @@ import {
   evaluatePlayerBid, assignVehicleToContract, resolveContract,
   getFleet, purchaseVehicle, performMaintenance, calcNetWorth, calcCompanyValue, addRecord,
   VEHICLE_CATALOGUE, formatMoney, getContractHistory, acceptDirectContract, assignVehicleToAutoOp, processMonthlyOperations, hireStaff, fireStaff, STAFF_WAGES, getRouteFamiliarity, leaseFacility, saveVehicle,
-  getLedger, getFinanceHistory, getGameDate, formatGameDate, getVehicleDisplayLabel, getRouteFamiliarityPercent,
+  getLedger, getFinanceHistory, getGameDate, formatGameDate, getVehicleDisplayLabel, getRouteFamiliarityPercent, getClientTrustLabel,
   type Company, type Contract, type Vehicle, type VehicleType, type ContractHistoryEntry, type RouteFamiliarity, type AutoOpPoolType, type StaffRole, type WagePolicy, type MonthlyFinanceSnapshot, type LedgerEntry
 } from '../../../lib/businessCore';
 
@@ -1668,7 +1668,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                 const canAffordCost = company.companyCash >= c.operatingCostEstimate;
                 
                 const canAccept = hasDriver && hasCapacity && hasCondition && canAffordCost;
-                const clientTrust = company.clientTrusts?.[c.issuerCompanyId] || 'Unknown';
+                const clientTrust = getClientTrustLabel(company.clientTrusts?.[c.issuerCompanyId] ?? 0);
                 
                 return (
                   <PanelBox key={c.id} style={{ borderLeft: c.bidType === 'Requires Bid' ? `3px solid ${T.gold}` : `3px solid ${T.mint}` }}>

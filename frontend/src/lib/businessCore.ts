@@ -246,7 +246,7 @@ export interface Company {
   contractStrategy?: ContractStrategy;
   cashReservePolicy?: CashReservePolicy;
   morale?: number; // 0 to 100
-  clientTrusts?: Record<string, string>; // issuerId -> trust label
+  clientTrusts?: Record<string, number>; // issuerId -> trust score
   lastMonthlyReport?: MonthlyReport;
 }
 
@@ -470,7 +470,16 @@ export interface Contract {
 // ─── Company Management ───────────────────────────────────────────────────────
 export function getCompanies(): Company[] {
   if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem('worldr_companies_v1') || '[]');
+  const companies: Company[] = JSON.parse(localStorage.getItem('worldr_companies_v1') || '[]');
+  companies.forEach(company => {
+    company.clientTrusts = Object.fromEntries(
+      Object.entries(company.clientTrusts ?? {}).map(([issuer, value]) => [
+        issuer,
+        Number(value) || 0,
+      ])
+    );
+  });
+  return companies;
 }
 
 export function saveCompany(company: Company): void {
@@ -687,10 +696,10 @@ export function evaluatePlayerBid(
   else if (bidAmount <= contract.payment) score += 1;
   else score -= 2;
 
-  const trust = company.clientTrusts?.[contract.issuerCompanyId] || 'Unknown';
-  if (trust === 'Trusted') score += 2;
-  if (trust === 'Preferred') score += 3;
-  if (trust === 'Distrusted') score -= 3;
+  const trust = company.clientTrusts?.[contract.issuerCompanyId] ?? 0;
+  if (trust >= 80) score += 3;
+  else if (trust >= 50) score += 2;
+  else if (trust <= 10) score -= 3;
 
   if (company.reliability === 'Proven' || company.reliability === 'Reliable' || company.reliability === 'Ironclad') score += 1;
   if (company.reliability === 'Bad' || company.reliability === 'Failing') score -= 2;
@@ -758,18 +767,11 @@ function getConditionDrop(contract: Contract): number {
   return 2 + Math.floor(Math.random() * 3); // 2-4
 }
 
-function improveClientTrust(current: string): string {
-  const scale = ['Distrusted', 'Unknown', 'Known', 'Trusted', 'Preferred', 'Exclusive'];
-  const idx = scale.indexOf(current || 'Unknown');
-  if (idx < 0 || idx >= scale.length - 1) return current;
-  return scale[idx + 1];
-}
-
-function worsenClientTrust(current: string): string {
-  const scale = ['Distrusted', 'Unknown', 'Known', 'Trusted', 'Preferred', 'Exclusive'];
-  const idx = scale.indexOf(current || 'Unknown');
-  if (idx <= 0) return 'Distrusted';
-  return scale[idx - 1];
+export function getClientTrustLabel(score: number): string {
+  if (score >= 80) return 'Preferred Client';
+  if (score >= 50) return 'Trusted';
+  if (score >= 20) return 'Known';
+  return 'New Relationship';
 }
 
 export function resolveContract(contractId: string): { success: boolean; message: string; netPayment?: number } {
@@ -845,10 +847,11 @@ export function resolveContract(contractId: string): { success: boolean; message
     company.reliability = improveReliability(company.reliability);
     if (oldRel !== company.reliability) reliabilityImpact = 'Improved';
     
-    if (!company.clientTrusts) company.clientTrusts = {};
-    const oldTrust = company.clientTrusts[contract.issuerCompanyId] || 'Unknown';
-    company.clientTrusts[contract.issuerCompanyId] = improveClientTrust(oldTrust);
-    if (oldTrust !== company.clientTrusts[contract.issuerCompanyId]) trustImpact = 'Improved';
+    company.clientTrusts ??= {};
+    const currentClientTrust = Number(company.clientTrusts[contract.issuerCompanyId] ?? 0);
+    const newTrust = Math.min(100, Math.max(0, currentClientTrust + 10));
+    company.clientTrusts[contract.issuerCompanyId] = newTrust;
+    if (currentClientTrust !== newTrust) trustImpact = 'Improved';
 
     if (vIdx >= 0) {
       fleet[vIdx].condition = Math.max(0, fleet[vIdx].condition - conditionDrop);
@@ -886,10 +889,11 @@ export function resolveContract(contractId: string): { success: boolean; message
     company.reliability = worsenReliability(company.reliability);
     if (oldRel !== company.reliability) reliabilityImpact = 'Decreased';
     
-    if (!company.clientTrusts) company.clientTrusts = {};
-    const oldTrust = company.clientTrusts[contract.issuerCompanyId] || 'Unknown';
-    company.clientTrusts[contract.issuerCompanyId] = worsenClientTrust(oldTrust);
-    if (oldTrust !== company.clientTrusts[contract.issuerCompanyId]) trustImpact = 'Decreased';
+    company.clientTrusts ??= {};
+    const currentClientTrust = Number(company.clientTrusts[contract.issuerCompanyId] ?? 0);
+    const newTrust = Math.min(100, Math.max(0, currentClientTrust - 15));
+    company.clientTrusts[contract.issuerCompanyId] = newTrust;
+    if (currentClientTrust !== newTrust) trustImpact = 'Decreased';
 
     if (vIdx >= 0) {
       fleet[vIdx].assignedContractId = undefined;
@@ -1048,7 +1052,9 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
     recordsCreated.push(`Contract Completed: ${contract.title}. Revenue: ${formatMoney(contract.payment)}`);
     
     updateRouteFamiliarity(companyId, contract.originState, contract.destinationState, 10);
-    company.clientTrusts![contract.issuerName] = Math.min(100, (company.clientTrusts![contract.issuerName] || 50) + 5);
+    company.clientTrusts ??= {};
+    const currentClientTrust = Number(company.clientTrusts[contract.issuerName] ?? 0);
+    company.clientTrusts[contract.issuerName] = Math.min(100, Math.max(0, currentClientTrust + 10));
 
     saveLedgerEntry({
       id: crypto.randomUUID(), companyId, gameMonth: gameDate.worldMonth, gameYear: gameDate.worldYear,
