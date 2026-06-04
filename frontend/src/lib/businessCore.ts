@@ -2,13 +2,19 @@
 // v2: Added Vehicle, Fleet, Logistics contracts, vehicle-based bid evaluation.
 // Still backed by localStorage for v1, designed for backend swap.
 
+import { getCurrencyConfig } from '../world/currencies/currencyRegistry';
+
 // ─── Formatting ───────────────────────────────────────────────────────────────
-export function formatMoney(value: number): string {
-  return '₯' + Number(value || 0).toLocaleString('en-US', {
-    maximumFractionDigits: 0
+export function formatMoney(value: number, currencyId: string = 'drennian-mark'): string {
+  const config = getCurrencyConfig(currencyId);
+  return config.symbol + Number(value || 0).toLocaleString(config.locale, {
+    maximumFractionDigits: config.decimalPlaces
   });
 }
 
+export function formatCompanyMoney(company: { currencyId?: string }, value: number): string {
+  return formatMoney(value, company.currencyId || 'drennian-mark');
+}
 
 import { getWorldDate, advanceWorldArc, formatWorldDate } from './worldTime';
 
@@ -198,10 +204,20 @@ export interface MonthlyReport {
 // ─── Facilities ───────────────────────────────────────────────────────────────
 export interface Facility {
   id: string;
-  type: 'Office' | 'Vehicle Yard' | 'Small Depot' | 'Warehouse' | 'Freight Yard' | 'Regional Branch Office' | 'Port Warehouse' | 'Port Terminal';
-  state: string;
-  leaseCost: number;
-  leasedAt: string;
+  facilityTypeId: string;
+  countryId: string;
+  stateId: string;
+  ownerCompanyId?: string;
+  leaseHolderCompanyId?: string;
+  capacity: number;
+  leaseCostPerArc: number;
+  currencyId: string;
+
+  // Legacy fields (kept optional to not break existing strict references until fully purged)
+  type?: string;
+  state?: string;
+  leaseCost?: number;
+  leasedAt?: string;
 }
 
 // ─── Company ──────────────────────────────────────────────────────────────────
@@ -213,9 +229,18 @@ export interface Company {
   ownerCharacterId: string;
   ownerName: string;
   name: string;
-  legalStructure: CompanyLegalStructure;
-  state: string;
-  sector: string;
+
+  countryId: string;
+  headquartersStateId: string;
+  sectorId: string;
+  industryId: string;
+  legalStructureId: string;
+  currencyId: string;
+
+  // Legacy fields preserved for migration/UI
+  legalStructure?: CompanyLegalStructure;
+  state?: string;
+  sector?: string;
   registeredAt: string;
   companyCash: number;
   monthlyRevenue: number;
@@ -428,13 +453,26 @@ export interface Contract {
   issuerType: ContractIssuerType;
   issuerCompanyId: string;
   issuerName: string;
+
+  originCountryId: string;
+  originStateId: string;
+  destinationCountryId: string;
+  destinationStateId: string;
+  industryId: string;
+  contractTypeId: string;
+  cargoTypeId?: string;
+  paymentCurrencyId: string;
+
   title: string;
   description: string;
   cargo: string;
   requiredSector: string;
-  originState: string;
-  destinationState: string;
-  routeType: ContractRouteType;
+  
+  // Legacy fields preserved for migration/UI
+  originState?: string;
+  destinationState?: string;
+  routeType?: ContractRouteType;
+  
   payment: number;
   operatingCostEstimate: number;
   penalty: number;
@@ -460,9 +498,108 @@ export interface Contract {
 // ─── Owner Capital Movement ──────────────────────────────────────────────────
 
 
+// ─── Universal Engine Functions ────────────────────────────────────────────────
+export function createCompany(params: {
+  ownerCharacterId: string;
+  ownerName: string;
+  name: string;
+  countryId: string;
+  headquartersStateId: string;
+  industryId: string;
+  sectorId: string;
+  legalStructureId: string;
+  currencyId: string;
+  companyCash: number;
+  operatingModel?: CompanyOperatingModel;
+}): Company {
+  const newCompany: Company = {
+    id: `comp_${Date.now()}`,
+    ownerCharacterId: params.ownerCharacterId,
+    ownerName: params.ownerName,
+    name: params.name,
+    countryId: params.countryId,
+    headquartersStateId: params.headquartersStateId,
+    industryId: params.industryId,
+    sectorId: params.sectorId,
+    legalStructureId: params.legalStructureId,
+    currencyId: params.currencyId,
+    registeredAt: new Date().toISOString(),
+    companyCash: params.companyCash,
+    monthlyRevenue: 0,
+    monthlyCosts: 0,
+    profit: 0,
+    capacity: 0,
+    reputation: 'New',
+    reliability: 'Unproven',
+    debt: 0,
+    status: 'Active',
+    activeContracts: [],
+    publicRecords: [],
+    riskFlags: [],
+    facilities: [],
+    operatingModel: params.operatingModel
+  };
+  saveCompany(newCompany);
+  return newCompany;
+}
+
+export function generateContracts(params: { countryId: string; stateId: string; industryId: string }): void {
+  // To be expanded with dynamic generation logic later
+  initializeContractsIfEmpty();
+}
+
+export function getAvailableFacilities(params: { countryId: string; stateId: string; industryId: string }) {
+  // Placeholder for when dynamic facility leasing is built
+  return [];
+}
+
 // ─── Company Management ───────────────────────────────────────────────────────
+export function migrateLegacyBusinessData() {
+  if (typeof window === 'undefined') return;
+  const companies: Company[] = JSON.parse(localStorage.getItem('worldr_companies_v1') || '[]');
+  let cModified = false;
+  companies.forEach(company => {
+    if (!company.countryId) {
+      company.countryId = 'drennia';
+      company.currencyId = 'drennian-mark';
+      company.headquartersStateId = company.state === 'Westport State' ? 'drennia-westport' : 
+                                    company.state === 'Drennport State' ? 'drennia-drennport' :
+                                    company.state === 'Ironvale State' ? 'drennia-ironvale' :
+                                    company.state === 'Greenmere State' ? 'drennia-greenmere' : 'drennia-westport';
+      company.sectorId = 'services';
+      company.industryId = 'shipping-logistics';
+      company.legalStructureId = company.legalStructure === 'Sole Trader' ? 'sole-trader' :
+                                 company.legalStructure === 'Private Company' ? 'private-company' : 'corporation';
+      cModified = true;
+    }
+  });
+  if (cModified) localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
+
+  const contracts: Contract[] = JSON.parse(localStorage.getItem('worldr_contracts_v1') || '[]');
+  let modified = false;
+  contracts.forEach(contract => {
+    if (!contract.originCountryId) {
+      contract.originCountryId = 'drennia';
+      contract.destinationCountryId = 'drennia';
+      contract.paymentCurrencyId = 'drennian-mark';
+      contract.industryId = 'shipping-logistics';
+      contract.contractTypeId = 'local-delivery';
+      
+      const mapState = (st?: string) => st === 'Westport State' ? 'drennia-westport' : 
+                                       st === 'Drennport State' ? 'drennia-drennport' :
+                                       st === 'Ironvale State' ? 'drennia-ironvale' :
+                                       st === 'Greenmere State' ? 'drennia-greenmere' : 'drennia-westport';
+      contract.originStateId = mapState(contract.originState);
+      contract.destinationStateId = mapState(contract.destinationState);
+      modified = true;
+    }
+  });
+  if (modified) localStorage.setItem('worldr_contracts_v1', JSON.stringify(contracts));
+}
+
 export function getCompanies(): Company[] {
   if (typeof window === 'undefined') return [];
+  migrateLegacyBusinessData();
   const companies: Company[] = JSON.parse(localStorage.getItem('worldr_companies_v1') || '[]');
   companies.forEach(company => {
     company.clientTrusts = Object.fromEntries(

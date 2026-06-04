@@ -12,6 +12,22 @@ import {
 } from '../../../lib/businessCore';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 
+// Helpers to resolve standard IDs to display names in v1
+const getStateName = (id?: string) => {
+  if (!id) return 'Unknown State';
+  if (id === 'drennia-drennport') return 'Drennport State';
+  if (id === 'drennia-westport') return 'Westport State';
+  if (id === 'drennia-ironvale') return 'Ironvale State';
+  if (id === 'drennia-greenmere') return 'Greenmere State';
+  return id;
+};
+
+const getSectorName = (id?: string) => {
+  if (id === 'services') return 'Shipping & Logistics';
+  if (id === 'retail') return 'Retail & Consumer';
+  return id || 'Unknown Sector';
+};
+
 // ─── Theme ───────────────────────────────────────────────────────────────────
 const T = {
   bg: '#090A0F',
@@ -187,10 +203,10 @@ const SECTORS = [
 
 // ─── HQ OPTIONS ──────────────────────────────────────────────────────────────
 const HQ_OPTIONS = [
-  { id: 'Drennport State',  city: 'Drennport', tagline: 'Finance, Law & Administration', costNote: '▲ Higher Costs',  costColor: T.red,   desc: 'Capital city. Excellent registry access and professional services. Higher operating costs.' },
-  { id: 'Westport State',   city: 'Westport',  tagline: 'Ports, Trade & Export',         costNote: '≈ Moderate Costs', costColor: T.gold,  desc: 'Major port hub with strong shipping and logistics contracts.' },
-  { id: 'Ironvale State',   city: 'Ironvale',  tagline: 'Manufacturing & Labour',        costNote: '▼ Lower Costs',   costColor: T.mint,  desc: 'Industrial state. Good supply of materials and factory capacity.' },
-  { id: 'Greenmere State',  city: 'Greenmere', tagline: 'Agriculture & Community',       costNote: '▼ Lowest Costs',  costColor: T.mint,  desc: 'Slow but steady market. Strong for food and local logistics.' },
+  { id: 'drennia-drennport',  city: 'Drennport', tagline: 'Finance, Law & Administration', costNote: '▲ Higher Costs',  costColor: T.red,   desc: 'Capital city. Excellent registry access and professional services. Higher operating costs.' },
+  { id: 'drennia-westport',   city: 'Westport',  tagline: 'Ports, Trade & Export',         costNote: '≈ Moderate Costs', costColor: T.gold,  desc: 'Major port hub with strong shipping and logistics contracts.' },
+  { id: 'drennia-ironvale',   city: 'Ironvale',  tagline: 'Manufacturing & Labour',        costNote: '▼ Lower Costs',   costColor: T.mint,  desc: 'Industrial state. Good supply of materials and factory capacity.' },
+  { id: 'drennia-greenmere',  city: 'Greenmere', tagline: 'Agriculture & Community',       costNote: '▼ Lowest Costs',  costColor: T.mint,  desc: 'Slow but steady market. Strong for food and local logistics.' },
 ];
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
@@ -292,25 +308,20 @@ export default function BusinessPage() {
       return;
     }
     const finalName = companyNameInput.trim();
-    const newCompany: Company = {
-      id: `comp_${Date.now()}`,
+    const { createCompany } = require('@/lib/businessCore');
+    const newCompany = createCompany({
       ownerCharacterId: characterName,
       ownerName: characterName,
       name: finalName,
-      legalStructure: 'Sole Trader',
-      state: selectedHQ,
-      sector: selectedSector,
-      registeredAt: new Date().toISOString(),
+      countryId: 'drennia',
+      headquartersStateId: selectedHQ,
+      industryId: 'shipping-logistics',
+      sectorId: selectedSector === 'Shipping & Logistics' ? 'services' : 'retail',
+      legalStructureId: 'sole-trader',
+      currencyId: 'drennian-mark',
       companyCash: chosenCapital,
-      monthlyRevenue: 0, monthlyCosts: 0, profit: 0,
-      capacity: 0,
-      reputation: 'New', reliability: 'Unproven',
-      debt: 0, status: 'Active',
-      activeContracts: [], publicRecords: [], riskFlags: [],
-      facilities: [],
       operatingModel: selectedModel,
-    };
-    saveCompany(newCompany);
+    });
     updateCash(playerCash - total);
     addRecord(`Registered ${finalName} as a Sole Trader (${selectedModel}) headquartered in ${selectedHQ}. Initial capital filed: ${formatMoney(chosenCapital)}.`);
     
@@ -325,7 +336,7 @@ export default function BusinessPage() {
           type: 'business_start',
           year: 0,
           month: 0,
-          text: `${characterName} started ${finalName}, a ${selectedSector} business (${selectedModel}) headquartered in ${selectedHQ}, in Year 0.`,
+          text: `${characterName} started ${finalName} (${selectedModel}) headquartered in ${HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ}, in Year 0.`,
           relatedCompanyId: newCompany.id
         }
       ]
@@ -457,8 +468,8 @@ export default function BusinessPage() {
                   <div style={{ fontSize: '16px', fontWeight: 700, color: T.ivory, marginBottom: '6px' }}>{company.name}</div>
                   <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '12px', fontSize: '11px', color: T.muted }}>
                     <span>Structure: <strong style={{ color: T.gold }}>{company.legalStructure}</strong></span>
-                    <span>Sector: <strong style={{ color: T.gold }}>{company.sector}</strong></span>
-                    <span>HQ State: <strong style={{ color: T.gold }}>{company.state}</strong></span>
+                    <span>Sector: <strong style={{ color: T.gold }}>{getSectorName(company.sectorId) || company.sector}</strong></span>
+                    <span>HQ State: <strong style={{ color: T.gold }}>{getStateName(company.headquartersStateId) || company.state}</strong></span>
                   </div>
                   <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '11px', fontFamily: 'monospace', color: T.faint }}>
                     <span>Company Cash: <span style={{ color: T.mint }}>{formatMoney(company.companyCash)}</span></span>
@@ -538,8 +549,8 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
         <SectionHeader stamp="COMPANY FILE">Empire Summary</SectionHeader>
         <FieldRow label="Company" value={company.name} />
         <FieldRow label="Structure" value={company.legalStructure} />
-        <FieldRow label="Sector" value={company.sector} />
-        <FieldRow label="HQ State" value={company.state} />
+        <FieldRow label="Sector" value={getSectorName(company.sectorId) || company.sector || 'N/A'} />
+        <FieldRow label="HQ State" value={getStateName(company.headquartersStateId) || company.state || 'N/A'} />
         <FieldRow label="Status" value={company.status} valueColor={T.mint} />
         <FieldRow label="Reputation" value={company.reputation} valueColor={T.gold} />
         <FieldRow label="Reliability" value={company.reliability} />
@@ -952,7 +963,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
     const result = acceptDirectContract(contractId, company.id, vehicleId);
     showNotif(result.message, result.success);
     if (result.success) onRefresh();
-  }
+  };
 
   const handleResolve = (contractId: string) => {
     const result = resolveContract(contractId);
@@ -1012,8 +1023,8 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                 <SectionHeader stamp="COMPANY FILE">Company Details</SectionHeader>
                 <FieldRow label="Name" value={company.name} />
                 <FieldRow label={company.legalStructure === 'Corporation' ? "Chairperson & CEO" : "Founder & CEO"} value={company.ownerName} />
-                <FieldRow label="Sector" value={company.sector} />
-                <FieldRow label="HQ" value={company.state} />
+                <FieldRow label="Sector" value={getSectorName(company.sectorId) || company.sector || 'N/A'} />
+                <FieldRow label="HQ" value={getStateName(company.headquartersStateId) || company.state || 'N/A'} />
                 <FieldRow label="Status" value={company.status} valueColor={T.mint} />
                 <FieldRow label="Reputation" value={company.reputation} valueColor={T.gold} />
                 <FieldRow label="Reliability" value={company.reliability} />
@@ -2130,7 +2141,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   );
 }
 
-function AssetsTab({ company, fleet, setDeskTab, onOpenMarket }: any) {
+function AssetsTab({ company, fleet, onRefresh, showNotif }: any) {
   const vehicleAssetValue = fleet.reduce((sum:any, v:any) => sum + Math.round(v.purchaseCost * (v.condition / 100)), 0);
   const totalLeasedCost = (company.facilities || []).reduce((sum:any, f:any) => sum + f.leaseCost, 0);
 
@@ -2182,10 +2193,12 @@ function AssetsTab({ company, fleet, setDeskTab, onOpenMarket }: any) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {(company.facilities || []).map((f:any, i:number) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed ' + T.border, paddingBottom: '4px' }}>
-                    <span style={{ fontSize: '11px', color: T.muted }}>{f.type} <span style={{ color: T.faint }}>({f.state})</span></span>
+                    <span style={{ fontSize: '11px', color: T.muted }}>{f.type} <span style={{ color: T.faint }}>({getStateName(f.stateId || f.state) || f.state})</span></span>
                     <span style={{ fontSize: '11px', fontFamily: 'monospace', color: T.steel }}>{formatMoney(f.leaseCost)}/mo</span>
                   </div>
                 ))}
+              </div>
+            )}
               </div>
             )}
           </div>
@@ -2260,7 +2273,7 @@ function FacilitiesTab({ company, onRefresh, showNotif }: any) {
                 <div>
                   <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {f.type}
-                    <span style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', background: 'rgba(255,255,255,0.05)', color: T.faint, padding: '2px 6px', borderRadius: '2px' }}>{f.state}</span>
+                    <span style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', background: 'rgba(255,255,255,0.05)', color: T.faint, padding: '2px 6px', borderRadius: '2px' }}>{getStateName(f.stateId || f.state) || f.state}</span>
                   </div>
                   <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px' }}>Active Lease</div>
                 </div>
@@ -2292,13 +2305,14 @@ function FacilitiesTab({ company, onRefresh, showNotif }: any) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '10px', fontFamily: 'monospace', color: T.faint, textTransform: 'uppercase' }}>State:</span>
                     <select 
-                      value={selectedStates[fac.type] || company.state}
+                      value={selectedStates[fac.type] || company.headquartersStateId}
                       onChange={e => setSelectedStates({ ...selectedStates, [fac.type]: e.target.value })}
                       style={{ background: T.bg, border: '1px solid ' + T.border, color: T.ivory, fontSize: '11px', padding: '4px 8px', fontFamily: 'monospace' }}
                     >
-                      <option value="Drennport State">Drennport State</option>
-                      <option value="Westport State">Westport State</option>
-                      <option value="Ironvale State">Ironvale State</option>
+                      <option value="drennia-drennport">Drennport State</option>
+                      <option value="drennia-westport">Westport State</option>
+                      <option value="drennia-ironvale">Ironvale State</option>
+                      <option value="drennia-greenmere">Greenmere State</option>
                     </select>
                   </div>
                   <GhostButton onClick={() => handleLease(fac.type, fac.leaseCost)} color={T.mint}>Lease Facility</GhostButton>
