@@ -7,7 +7,8 @@ import {
   evaluatePlayerBid, assignVehicleToContract, resolveContract,
   getFleet, purchaseVehicle, performMaintenance, calcNetWorth, calcCompanyValue, addRecord,
   VEHICLE_CATALOGUE, formatMoney, getContractHistory, acceptDirectContract, assignVehicleToAutoOp, processMonthlyOperations, hireStaff, fireStaff, STAFF_WAGES, getRouteFamiliarity, leaseFacility, saveVehicle,
-  type Company, type Contract, type Vehicle, type VehicleType, type ContractHistoryEntry, type RouteFamiliarity, type AutoOpPoolType, type StaffRole, type WagePolicy
+  getLedger, getFinanceHistory, getGameDate, formatGameDate,
+  type Company, type Contract, type Vehicle, type VehicleType, type ContractHistoryEntry, type RouteFamiliarity, type AutoOpPoolType, type StaffRole, type WagePolicy, type MonthlyFinanceSnapshot, type LedgerEntry
 } from '../../../lib/businessCore';
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
@@ -887,6 +888,10 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   const [procurementSubTab, setProcurementSubTab] = useState<'vehicles'|'used'|'facilities'|'equipment'|'materials'|'suppliers'>('vehicles');
 
   const [routeFilter, setRouteFilter] = useState<RouteFilter>('All');
+  const [financeSubTab, setFinanceSubTab] = useState<'overview' | 'monthly' | 'history' | 'charts' | 'ledger'>('overview');
+  
+  const financeHistory = getFinanceHistory(company.id);
+  const ledger = getLedger(company.id);
 
   const showNotif = (msg: string, success: boolean) => {
     setNotification({ msg, success });
@@ -956,10 +961,29 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
     if (result.success) onRefresh();
   };
 
+  const [isProcessingMonth, setIsProcessingMonth] = useState(false);
+
   const handleRunAutoOps = () => {
+    // Just a UI confirmation that assignments are set. No time advancement.
+    showNotif("Operation assignments successfully saved. They will be processed at the end of the month.", true);
+  };
+
+  const handleAdvanceMonth = () => {
+    if (isProcessingMonth) return;
+    setIsProcessingMonth(true);
     const result = processMonthlyOperations(company.id);
-    showNotif(result.message, result.success);
-    if (result.success) onRefresh();
+    if (result.success && result.report) {
+      const rep = result.report;
+      const profitStr = rep.netProfit >= 0 ? `Net Profit: ${formatMoney(rep.netProfit)}` : `Net Loss: ${formatMoney(Math.abs(rep.netProfit))}`;
+      
+      const msg = `${rep.gameDateStr} Operations Complete\n\nContract Revenue: ${formatMoney(rep.manualRevenue)}\nAuto Operations Revenue: ${formatMoney(rep.autoRevenue)}\nTotal Revenue: ${formatMoney(rep.manualRevenue + rep.autoRevenue)}\n\nOperating Costs: ${formatMoney(rep.operatingCosts)}\nStaff Wages: ${formatMoney(rep.payrollExpense)}\nVehicle Maintenance: ${formatMoney(rep.totalMaintenance)}\nFacility Leases: ${formatMoney(rep.facilityLeaseExpense)}\nPenalties: ${formatMoney(rep.penalties)}\nTotal Expenses: ${formatMoney(rep.operatingCosts + rep.payrollExpense + rep.totalMaintenance + rep.facilityLeaseExpense + rep.penalties)}\n\n${profitStr}`;
+      
+      alert(msg);
+      onRefresh();
+    } else {
+      showNotif(result.message, result.success);
+    }
+    setIsProcessingMonth(false);
   };
 
   // Filter logic
@@ -975,6 +999,17 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
       {notification && (
         <div style={{ marginBottom: '16px', padding: '12px 16px', background: notification.success ? 'rgba(54,211,153,0.08)' : 'rgba(184,85,85,0.08)', border: `1px solid ${notification.success ? T.mint : T.red}`, color: notification.success ? T.mint : T.red, fontSize: '12px', lineHeight: 1.6 }}>
           {notification.msg}
+        </div>
+      )}
+
+      {process.env.NEXT_PUBLIC_ENABLE_DEV_MONTH_ADVANCE === 'true' && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '16px', gap: '16px', padding: '8px', background: 'rgba(255,255,255,0.02)', border: `1px dashed ${T.gold}` }}>
+          <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            Game Date: {formatGameDate()}
+          </div>
+          <GoldButton onClick={handleAdvanceMonth} disabled={isProcessingMonth} style={{ padding: '6px 12px' }}>
+            ADVANCE MONTH (TEST)
+          </GoldButton>
         </div>
       )}
 
@@ -1035,9 +1070,20 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
             </PanelBox>
             <PanelBox style={{ marginBottom: '16px' }}>
               <SectionHeader>Contract Pipeline</SectionHeader>
+              <FieldRow label="Posted Contracts" value={contracts.filter(c => c.status === 'open').length} />
+              <FieldRow label="Bid Submitted" value={0} />
+              <FieldRow label="Awaiting Vehicle Assignment" value={contracts.filter(c => c.status === 'awarded' && !c.assignedVehicleId).length} valueColor={contracts.filter(c => c.status === 'awarded' && !c.assignedVehicleId).length > 0 ? T.red : T.muted} />
               <FieldRow label="Active Contracts" value={activeContracts.length} />
-              <FieldRow label="Completed" value={contractHistory.filter(h => h.result === 'completed').length} />
-              <FieldRow label="Failed" value={contractHistory.filter(h => h.result === 'failed').length} valueColor={T.red} />
+              <FieldRow label="Completed Contracts" value={contractHistory.filter(h => h.result === 'completed').length} />
+              <FieldRow label="Failed Contracts" value={contractHistory.filter(h => h.result === 'failed').length} valueColor={T.red} />
+              <FieldRow label="Lost Bids" value={0} />
+              {activeContracts.length > 0 && (
+                <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: `1px solid ${T.border}` }}>
+                  <div style={{ fontSize: '10px', color: T.gold, fontFamily: 'monospace', textTransform: 'uppercase', marginBottom: '8px' }}>Next Resolution:</div>
+                  <div style={{ fontSize: '12px', color: T.ivory, fontWeight: 700 }}>{activeContracts[0].title}</div>
+                  <div style={{ fontSize: '11px', color: T.muted }}>Due: Month {activeContracts[0].dueMonth || 0}, {activeContracts[0].dueYear || 2026}</div>
+                </div>
+              )}
             </PanelBox>
             <PanelBox>
               <SectionHeader stamp="RECORDS">Recent Records</SectionHeader>
@@ -1083,7 +1129,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
               ) : null}
 
               <GoldButton onClick={handleRunAutoOps}>
-                ⚡ Dispatch & Process Operations
+                💾 SAVE OPERATION ASSIGNMENTS
               </GoldButton>
             </PanelBox>
 
@@ -1543,20 +1589,48 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
             {activeContracts.length > 0 && (
               <PanelBox style={{ marginBottom: '24px', border: `1px solid ${T.mint}` }}>
                 <SectionHeader stamp="ACTIVE">Current In-Progress Contracts</SectionHeader>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {activeContracts.map((c:any) => (
-                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(54,211,153,0.05)', padding: '12px', border: `1px solid ${T.mint}40` }}>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: T.mint, marginBottom: '4px' }}>{c.title}</div>
-                        <div style={{ fontSize: '11px', color: T.ivory }}>From: {c.issuerName}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {activeContracts.map((c:any) => {
+                    const assignedVehicle = fleet.find(v => v.id === c.assignedVehicleId);
+                    const monthsRemaining = c.dueYear && c.dueMonth ? ((c.dueYear - getGameDate().worldYear) * 12 + c.dueMonth - getGameDate().worldMonth) : 0;
+                    return (
+                      <div key={c.id} style={{ background: 'rgba(54,211,153,0.02)', padding: '16px', border: `1px solid ${T.mint}40`, borderRadius: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                          <div>
+                            <div style={{ fontSize: '15px', fontWeight: 700, color: T.mint, marginBottom: '4px' }}>{c.title}</div>
+                            <div style={{ fontSize: '12px', color: T.ivory, marginBottom: '2px' }}>Issuer: {c.issuerName}</div>
+                            <div style={{ fontSize: '11px', color: T.gold }}>Status: Active — Awaiting Month-End Resolution</div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: T.gold }}>Payment: {formatMoney(c.payment)}</div>
+                            <div style={{ fontSize: '11px', color: T.muted }}>Estimated Cost: {formatMoney(c.operatingCostEstimate)}</div>
+                            <div style={{ fontSize: '12px', fontWeight: 700, color: T.mint }}>Estimated Profit: {formatMoney(c.payment - c.operatingCostEstimate)}</div>
+                            <div style={{ fontSize: '11px', color: T.red }}>Penalty: {formatMoney(c.penalty)}</div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '12px', color: T.muted, marginBottom: '16px', background: 'rgba(255,255,255,0.03)', padding: '12px', border: `1px dashed ${T.border}` }}>
+                          <div>
+                            <div style={{ marginBottom: '4px' }}>Assigned Vehicle: <span style={{ color: assignedVehicle ? T.ivory : T.red, fontWeight: 700 }}>{assignedVehicle ? assignedVehicle.name : 'Not Assigned'}</span></div>
+                            <div style={{ marginBottom: '4px' }}>Capacity: <span style={{ color: T.ivory }}>{assignedVehicle ? assignedVehicle.capacity : '-'}</span></div>
+                            <div style={{ marginBottom: '4px' }}>Condition: <span style={{ color: assignedVehicle ? (assignedVehicle.condition > 40 ? T.mint : T.red) : T.muted }}>{assignedVehicle ? assignedVehicle.condition + '%' : '-'}</span></div>
+                            <div style={{ marginBottom: '4px' }}>Risk: <span style={{ color: T.ivory }}>{c.baseRisk}</span></div>
+                          </div>
+                          <div>
+                            <div style={{ marginBottom: '4px' }}>Start Month: <span style={{ color: T.ivory }}>Month {c.startMonth || '-'}, {c.startYear || '-'}</span></div>
+                            <div style={{ marginBottom: '4px' }}>Due Month: <span style={{ color: T.ivory }}>Month {c.dueMonth || '-'}, {c.dueYear || '-'}</span></div>
+                            <div style={{ marginBottom: '4px' }}>Months Remaining: <span style={{ color: T.gold }}>{monthsRemaining}</span></div>
+                            <div style={{ marginBottom: '4px' }}>Route: <span style={{ color: T.ivory }}>{c.originState} → {c.destinationState}</span></div>
+                            <div style={{ marginBottom: '4px' }}>Route Familiarity: <span style={{ color: T.ivory }}>{getRouteFamiliarity(company.id, c.originState, c.destinationState)}%</span></div>
+                          </div>
+                        </div>
+                        
+                        <div style={{ background: 'rgba(201,162,74,0.08)', padding: '12px', border: `1px solid ${T.gold}40`, fontSize: '12px', color: T.gold }}>
+                          <strong>Next Action:</strong> {assignedVehicle ? "Advance the month to resolve this contract." : "Assign an eligible vehicle before this contract can begin."}
+                        </div>
                       </div>
-                      <div style={{ textAlign: 'right', fontSize: '11px' }}>
-                        <div style={{ color: T.gold, fontWeight: 700 }}>{formatMoney(c.payment)}</div>
-                        <div style={{ color: T.muted }}>Risk: {c.baseRisk}</div>
-                        <div style={{ color: T.muted }}>Assigned: {fleet.find(v => v.id === c.assignedVehicleId)?.type || 'Vehicle'}</div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </PanelBox>
             )}
@@ -1791,244 +1865,222 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
 
       {deskTab === 'finance' && (
         <div className="business-content-grid">
-          <div>
-            <SectionHeader>Finance Desk</SectionHeader>
-            <PanelBox style={{ marginBottom: '24px' }}>
-              <SectionHeader stamp="LEDGER">Company Financials</SectionHeader>
-              <FieldRow label="Available Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
-              <FieldRow label="Monthly Operating Costs" value={formatMoney(company.monthlyCosts)} valueColor={T.red} />
-              <FieldRow label="Outstanding Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.burgundy : T.muted} />
-            </PanelBox>
-            
-            <SectionHeader stamp="OWNERSHIP">Owner Capital Movement</SectionHeader>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-              <PanelBox>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Inject Capital</div>
-                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', minHeight: '34px' }}>Transfer personal cash into the company's ledger.</div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <input type="number" id="inject-amount" placeholder="₯ Amount" style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px' }} />
-                  <GoldButton onClick={() => {
-                    const el = document.getElementById('inject-amount') as HTMLInputElement;
-                    if (el && el.value) {
-                      const amount = parseInt(el.value);
-                      if (amount > 0) {
-                        const { injectCapital } = require('@/lib/businessCore');
-                        const res = injectCapital(company.id, amount);
-                        showNotif(res.message, res.success);
-                        if (res.success) { el.value = ''; onRefresh(); }
-                      }
-                    }
-                  }}>Inject</GoldButton>
-                </div>
-              </PanelBox>
-              <PanelBox>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Owner Drawings</div>
-                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', minHeight: '34px' }}>Withdraw company cash to your personal holdings.</div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <input type="number" id="withdraw-amount" placeholder="₯ Amount" style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.gold, fontSize: '12px' }} />
-                  <GhostButton color={T.gold} onClick={() => {
-                    const el = document.getElementById('withdraw-amount') as HTMLInputElement;
-                    if (el && el.value) {
-                      const amount = parseInt(el.value);
-                      if (amount > 0) {
-                        const { ownerDrawings } = require('@/lib/businessCore');
-                        const res = ownerDrawings(company.id, amount);
-                        showNotif(res.message, res.success);
-                        if (res.success) { el.value = ''; onRefresh(); }
-                      }
-                    }
-                  }}>Withdraw</GhostButton>
-                </div>
-              </PanelBox>
-            </div>
-
-            <SectionHeader stamp="POLICIES">Company Financial Policies</SectionHeader>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
-              <PanelBox>
-                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px' }}>Maintenance Policy</div>
-                <select value={company.maintenancePolicy || 'Standard'} onChange={(e) => { company.maintenancePolicy = e.target.value as any; saveCompany(company); onRefresh(); }} style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
-                  <option value="Minimal">Minimal (Cost x0.70, Wear x1.35)</option>
-                  <option value="Standard">Standard (Cost x1.00, Wear x1.00)</option>
-                  <option value="Preventive">Preventive (Cost x1.30, Wear x0.75)</option>
-                  <option value="Premium">Premium Fleet Care (Cost x1.60, Wear x0.55)</option>
-                </select>
-              </PanelBox>
-              <PanelBox>
-                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px' }}>Contract Strategy</div>
-                <select value={company.contractStrategy || 'Balanced Freight'} onChange={(e) => { company.contractStrategy = e.target.value as any; saveCompany(company); onRefresh(); }} style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
-                  <option value="Safe Local">Safe Local Work (Low Risk)</option>
-                  <option value="Balanced Freight">Balanced Freight (Normal)</option>
-                  <option value="Aggressive Growth">Aggressive Growth (High Risk/Reward)</option>
-                </select>
-              </PanelBox>
-              <PanelBox>
-                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px' }}>Cash Reserve Policy</div>
-                <select value={company.cashReservePolicy || 'Growth'} onChange={(e) => { company.cashReservePolicy = e.target.value as any; saveCompany(company); onRefresh(); }} style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
-                  <option value="Conservative">Conservative Reserve</option>
-                  <option value="Growth">Growth Focus</option>
-                  <option value="Aggressive">Aggressive Expansion</option>
-                </select>
-              </PanelBox>
-            </div>
-            
-            <SectionHeader stamp="LENDING">Debt & Financing</SectionHeader>
-            <PanelBox>
-              <div style={{ padding: '20px', textAlign: 'center', border: '1px dashed ' + T.border, background: 'rgba(255,255,255,0.02)', color: T.muted, fontSize: '12px' }}>
-                Bank loans, corporate bonds, and credit facilities are currently unavailable.
-              </div>
-            </PanelBox>
+          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '8px', borderBottom: `1px solid ${T.border}`, paddingBottom: '12px', marginBottom: '16px' }}>
+            <GhostButton color={financeSubTab === 'overview' ? T.ivory : T.faint} onClick={() => setFinanceSubTab('overview')}>Overview & Policies</GhostButton>
+            <GhostButton color={financeSubTab === 'monthly' ? T.ivory : T.faint} onClick={() => setFinanceSubTab('monthly')}>Monthly Report</GhostButton>
+            <GhostButton color={financeSubTab === 'ledger' ? T.ivory : T.faint} onClick={() => setFinanceSubTab('ledger')}>General Ledger</GhostButton>
+            <GhostButton color={financeSubTab === 'history' ? T.ivory : T.faint} onClick={() => setFinanceSubTab('history')}>Finance History</GhostButton>
+            <GhostButton color={financeSubTab === 'charts' ? T.ivory : T.faint} onClick={() => setFinanceSubTab('charts')}>Charts & Data</GhostButton>
           </div>
-          <div>
-            <PanelBox style={{ marginBottom: '16px' }}>
-              <SectionHeader>Performance</SectionHeader>
-              <FieldRow label="Company Value" value={formatMoney(calcCompanyValue(company))} valueColor={T.gold} />
-              <FieldRow label="Last Month Profit" value={formatMoney(company.profit)} valueColor={company.profit >= 0 ? T.mint : T.red} />
-              <FieldRow label="Credit Rating" value="Unrated" />
-            </PanelBox>
-            <PanelBox>
-              <SectionHeader>Your Personal Finances</SectionHeader>
-              <FieldRow label="Cash in Hand" value={formatMoney(playerCash)} valueColor={T.ivory} />
-              <FieldRow label="Net Worth" value={formatMoney(playerCash + calcCompanyValue(company))} valueColor={T.gold} />
-            </PanelBox>
-          </div>
-        </div>
-      )}
 
-      {deskTab === 'contractHistory' && (
-        <div>
-          <SectionHeader stamp="RECORDS">Contract History</SectionHeader>
-          {contractHistory.length === 0 ? (
-            <div style={{ padding: '24px', textAlign: 'center', color: T.faint, fontSize: '12px', border: `1px solid ${T.border}` }}>
-              No contracts resolved yet.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {contractHistory.map(h => (
-                <div key={h.id} style={{ background: T.paper, border: `1px solid ${T.border}`, padding: '16px', display: 'flex', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: h.result === 'completed' ? T.mint : T.red }}>{h.result}</span>
-                      <span style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>{h.title}</span>
+          {financeSubTab === 'overview' && (
+            <>
+              <div>
+                <SectionHeader>Finance Desk</SectionHeader>
+                <PanelBox style={{ marginBottom: '24px' }}>
+                  <SectionHeader stamp="LEDGER">Company Financials</SectionHeader>
+                  <FieldRow label="Available Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
+                  <FieldRow label="Last Month Gross Revenue" value={formatMoney(company.monthlyRevenue || 0)} valueColor={T.mint} />
+                  <FieldRow label="Last Month Operating Costs" value={formatMoney(company.monthlyCosts || 0)} valueColor={T.red} />
+                  <FieldRow label="Last Month Net Profit" value={formatMoney(company.profit || 0)} valueColor={(company.profit || 0) >= 0 ? T.mint : T.red} />
+                  <FieldRow label="Outstanding Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.burgundy : T.muted} />
+                </PanelBox>
+                
+                <SectionHeader stamp="OWNERSHIP">Owner Capital Movement</SectionHeader>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                  <PanelBox>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Inject Capital</div>
+                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', minHeight: '34px' }}>Transfer personal cash into the company's ledger.</div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input type="number" id="inject-amount" placeholder="₯ Amount" style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px' }} />
+                      <GoldButton onClick={() => {
+                        const el = document.getElementById('inject-amount') as HTMLInputElement;
+                        if (el && el.value) {
+                          const amount = parseInt(el.value);
+                          if (amount > 0) {
+                            const { injectCapital } = require('@/lib/businessCore');
+                            const res = injectCapital(company.id, amount);
+                            showNotif(res.message, res.success);
+                            if (res.success) { el.value = ''; onRefresh(); }
+                          }
+                        }
+                      }}>Inject</GoldButton>
                     </div>
-                    <div style={{ fontSize: '11px', color: T.muted }}>Issuer: {h.issuer}</div>
-                    <div style={{ fontSize: '11px', color: T.muted }}>Route: {h.originState} → {h.destinationState}</div>
-                    <div style={{ fontSize: '11px', color: T.muted }}>Vehicle: {h.vehicleName}</div>
-                  </div>
-                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <div style={{ fontSize: '14px', fontFamily: 'monospace', color: h.result === 'completed' ? T.mint : T.muted }}>Pay: {formatMoney(h.payment)}</div>
-                    <div style={{ fontSize: '11px', fontFamily: 'monospace', color: T.faint }}>Cost: {formatMoney(h.operatingCost)}</div>
-                    {h.penalty > 0 && <div style={{ fontSize: '11px', fontFamily: 'monospace', color: T.red }}>Penalty: {formatMoney(h.penalty)}</div>}
-                  </div>
+                  </PanelBox>
+                  <PanelBox>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Owner Drawings</div>
+                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', minHeight: '34px' }}>Withdraw company cash to your personal holdings.</div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input type="number" id="withdraw-amount" placeholder="₯ Amount" style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.gold, fontSize: '12px' }} />
+                      <GhostButton color={T.gold} onClick={() => {
+                        const el = document.getElementById('withdraw-amount') as HTMLInputElement;
+                        if (el && el.value) {
+                          const amount = parseInt(el.value);
+                          if (amount > 0) {
+                            const { ownerDrawings } = require('@/lib/businessCore');
+                            const res = ownerDrawings(company.id, amount);
+                            showNotif(res.message, res.success);
+                            if (res.success) { el.value = ''; onRefresh(); }
+                          }
+                        }
+                      }}>Withdraw</GhostButton>
+                    </div>
+                  </PanelBox>
                 </div>
-              ))}
+
+                <SectionHeader stamp="POLICIES">Company Financial Policies</SectionHeader>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
+                  <PanelBox>
+                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px' }}>Maintenance Policy</div>
+                    <select value={company.maintenancePolicy || 'Standard'} onChange={(e) => { company.maintenancePolicy = e.target.value as any; saveCompany(company); onRefresh(); }} style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
+                      <option value="Minimal">Minimal (Cost x0.70, Wear x1.35)</option>
+                      <option value="Standard">Standard (Cost x1.00, Wear x1.00)</option>
+                      <option value="Preventive">Preventive (Cost x1.30, Wear x0.75)</option>
+                      <option value="Premium">Premium Fleet Care (Cost x1.60, Wear x0.55)</option>
+                    </select>
+                  </PanelBox>
+                  <PanelBox>
+                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px' }}>Cash Reserve Policy</div>
+                    <select value={company.cashReservePolicy || 'Growth'} onChange={(e) => { company.cashReservePolicy = e.target.value as any; saveCompany(company); onRefresh(); }} style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
+                      <option value="Conservative">Conservative Reserve</option>
+                      <option value="Growth">Growth Focus</option>
+                      <option value="Aggressive">Aggressive Expansion</option>
+                    </select>
+                  </PanelBox>
+                </div>
+              </div>
+              
+              <div>
+                <PanelBox style={{ marginBottom: '16px' }}>
+                  <SectionHeader>Performance</SectionHeader>
+                  <FieldRow label="Company Value" value={formatMoney(calcCompanyValue(company))} valueColor={T.gold} />
+                  <FieldRow label="Total Fleet Value" value={formatMoney(fleet.reduce((acc, v) => acc + Math.round(v.purchaseCost * (v.condition / 100)), 0))} valueColor={T.steel} />
+                  <FieldRow label="Credit Rating" value="Unrated" />
+                </PanelBox>
+                <PanelBox style={{ marginBottom: '24px' }}>
+                  <SectionHeader>Your Personal Finances</SectionHeader>
+                  <FieldRow label="Cash in Hand" value={formatMoney(playerCash)} valueColor={T.ivory} />
+                  <FieldRow label="Net Worth" value={formatMoney(playerCash + calcCompanyValue(company))} valueColor={T.gold} />
+                </PanelBox>
+
+                <SectionHeader stamp="LENDING">Debt & Financing</SectionHeader>
+                <PanelBox>
+                  <div style={{ padding: '20px', textAlign: 'center', border: '1px dashed ' + T.border, background: 'rgba(255,255,255,0.02)', color: T.muted, fontSize: '12px' }}>
+                    Bank loans, corporate bonds, and credit facilities are currently unavailable.
+                  </div>
+                </PanelBox>
+              </div>
+            </>
+          )}
+
+          {financeSubTab === 'monthly' && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              {company.lastMonthlyReport ? (
+                <PanelBox style={{ border: `1px solid ${T.gold}` }}>
+                  <SectionHeader stamp={company.lastMonthlyReport.gameDateStr}>Most Recent Monthly Report</SectionHeader>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', color: T.mint, fontWeight: 700, marginBottom: '8px' }}>Revenue</div>
+                      <FieldRow label="Auto Operations Revenue" value={formatMoney(company.lastMonthlyReport.autoRevenue)} />
+                      <FieldRow label="Manual Contract Revenue" value={formatMoney(company.lastMonthlyReport.manualRevenue)} />
+                      <div style={{ height: '1px', background: T.border, margin: '8px 0' }} />
+                      <FieldRow label="Total Gross Revenue" value={formatMoney(company.lastMonthlyReport.autoRevenue + company.lastMonthlyReport.manualRevenue)} valueColor={T.mint} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '13px', color: T.red, fontWeight: 700, marginBottom: '8px' }}>Expenses</div>
+                      <FieldRow label="Operating Costs" value={formatMoney(company.lastMonthlyReport.operatingCosts)} />
+                      <FieldRow label="Staff Payroll" value={formatMoney(company.lastMonthlyReport.payrollExpense)} />
+                      <FieldRow label="Fleet Maintenance" value={formatMoney(company.lastMonthlyReport.totalMaintenance)} />
+                      <FieldRow label="Facility Leases" value={formatMoney(company.lastMonthlyReport.facilityLeaseExpense)} />
+                      {company.lastMonthlyReport.penalties > 0 && <FieldRow label="Penalties" value={formatMoney(company.lastMonthlyReport.penalties)} valueColor={T.red} />}
+                      <div style={{ height: '1px', background: T.border, margin: '8px 0' }} />
+                      <FieldRow label="Total Expenses" value={formatMoney(company.lastMonthlyReport.operatingCosts + company.lastMonthlyReport.payrollExpense + company.lastMonthlyReport.totalMaintenance + company.lastMonthlyReport.facilityLeaseExpense + company.lastMonthlyReport.penalties)} valueColor={T.red} />
+                    </div>
+                  </div>
+                  <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: `2px solid ${T.border}` }}>
+                    <FieldRow label={company.lastMonthlyReport.netProfit >= 0 ? "Net Profit" : "Operating Loss"} value={formatMoney(company.lastMonthlyReport.netProfit)} valueColor={company.lastMonthlyReport.netProfit >= 0 ? T.mint : T.red} />
+                  </div>
+                </PanelBox>
+              ) : (
+                <div style={{ padding: '24px', textAlign: 'center', color: T.faint, border: `1px solid ${T.border}` }}>
+                  No monthly reports available yet. Advance the month to generate the first report.
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {deskTab === 'routes' && (
-        <div>
-          <SectionHeader>Logistics Route Network</SectionHeader>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-            {ROUTE_FILTER_OPTIONS.map(opt => (
-              <GhostButton key={opt.value} color={routeFilter === opt.value ? T.ivory : T.faint} onClick={() => setRouteFilter(opt.value)}>{opt.label}</GhostButton>
-            ))}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
-            
-            {(routeFilter === 'All' || routeFilter === 'Local') && ['Drennport State → Drennport State', 'Westport State → Westport State', 'Ironvale State → Ironvale State', 'Greenmere State → Greenmere State'].map(rName => {
-              const rId = rName.replace(/ State/g, '').replace(' → ', '-');
-              const fam = routes.find(r => r.id === rId)?.familiarity || 0;
-              return (
-                <div key={rName} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: T.paper, border: `1px solid ${T.border}` }}>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: T.ivory, marginBottom: '6px' }}>{rName}</div>
-                    <div style={{ fontSize: '10px', color: T.muted, fontFamily: 'monospace' }}>Type: Local · Distance: Short · Risk: Low · Demand: Stable</div>
+          {financeSubTab === 'ledger' && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <SectionHeader stamp="TRANSACTIONS">General Ledger</SectionHeader>
+              {ledger.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: T.faint, border: `1px solid ${T.border}` }}>No ledger entries found.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '100px 150px 2fr 100px 100px', padding: '8px', borderBottom: `1px solid ${T.border}`, fontSize: '10px', color: T.faint, textTransform: 'uppercase', fontFamily: 'monospace' }}>
+                    <div>Date</div>
+                    <div>Type</div>
+                    <div>Description</div>
+                    <div style={{ textAlign: 'right' }}>Income</div>
+                    <div style={{ textAlign: 'right' }}>Expense</div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.faint }}>Familiarity</div>
-                    <div style={{ fontSize: '16px', fontFamily: 'monospace', color: fam > 0 ? T.mint : T.faint }}>{fam}%</div>
-                  </div>
+                  {ledger.map(entry => (
+                    <div key={entry.id} style={{ display: 'grid', gridTemplateColumns: '100px 150px 2fr 100px 100px', padding: '12px 8px', background: T.panel, borderBottom: `1px solid ${T.border}`, fontSize: '12px', alignItems: 'center' }}>
+                      <div style={{ color: T.muted }}>{entry.gameDateStr}</div>
+                      <div style={{ color: T.gold }}>{entry.type}</div>
+                      <div style={{ color: T.ivory }}>{entry.description}</div>
+                      <div style={{ textAlign: 'right', color: T.mint }}>{entry.incomeAmount > 0 ? formatMoney(entry.incomeAmount) : '-'}</div>
+                      <div style={{ textAlign: 'right', color: T.red }}>{entry.expenseAmount > 0 ? formatMoney(entry.expenseAmount) : '-'}</div>
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
+              )}
+            </div>
+          )}
 
-            {(routeFilter === 'All' || routeFilter === 'Interstate') && ['Westport State → Drennport State', 'Ironvale State → Drennport State', 'Greenmere State → Drennport State', 'Drennport State → Westport State', 'Westport State → Ironvale State'].map(rName => {
-              const rId = rName.replace(/ State/g, '').replace(' → ', '-');
-              const fam = routes.find(r => r.id === rId)?.familiarity || 0;
-              return (
-                <div key={rName} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: T.paper, border: `1px solid ${T.border}` }}>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: T.ivory, marginBottom: '6px' }}>{rName}</div>
-                    <div style={{ fontSize: '10px', color: T.muted, fontFamily: 'monospace' }}>Type: Interstate · Distance: Medium · Risk: Low · Demand: Variable</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.faint }}>Familiarity</div>
-                    <div style={{ fontSize: '16px', fontFamily: 'monospace', color: fam > 0 ? T.mint : T.faint }}>{fam}%</div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {(routeFilter === 'All' || routeFilter === 'International') && (
-              <>
-                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', border: `1px dashed ${T.border}`, marginBottom: '8px' }}>
-                  <div style={{ fontSize: '11px', color: T.muted, textAlign: 'center' }}>
-                    International routes will unlock later through port facilities, customs clearance, shipping permits, and cross-border trade contracts.
-                  </div>
-                </div>
-                {['Drennia → Varelia trade corridor', 'Westport Port → foreign port routes', 'International corporate freight', 'Government trade missions'].map(rName => {
-                  return (
-                    <div key={rName} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, opacity: 0.7 }}>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: T.faint, marginBottom: '6px' }}>{rName}</div>
-                        <div style={{ fontSize: '10px', color: T.muted, fontFamily: 'monospace' }}>Type: International · Status: <span style={{color: T.red}}>Locked</span></div>
-                        <div style={{ fontSize: '10px', color: T.faint, fontFamily: 'monospace', marginTop: '4px' }}>Requirement: Port Warehouse, Port Terminal, customs permit, shipping fleet</div>
+          {financeSubTab === 'history' && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <SectionHeader stamp="SNAPSHOTS">Monthly Finance History</SectionHeader>
+              {financeHistory.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: T.faint, border: `1px solid ${T.border}` }}>No financial history available yet.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {financeHistory.map(snapshot => (
+                    <div key={snapshot.id} style={{ border: `1px solid ${T.border}`, padding: '16px', background: T.panel }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>{snapshot.label}</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: snapshot.netProfit >= 0 ? T.mint : T.red }}>{snapshot.netProfit >= 0 ? '+' : ''}{formatMoney(snapshot.netProfit)}</div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', fontSize: '12px' }}>
+                        <div>
+                          <div style={{ color: T.muted, marginBottom: '4px' }}>Revenue</div>
+                          <div style={{ color: T.mint }}>{formatMoney(snapshot.totalOperatingRevenue)}</div>
+                        </div>
+                        <div>
+                          <div style={{ color: T.muted, marginBottom: '4px' }}>Expenses</div>
+                          <div style={{ color: T.red }}>{formatMoney(snapshot.totalOperatingExpenses)}</div>
+                        </div>
+                        <div>
+                          <div style={{ color: T.muted, marginBottom: '4px' }}>Ending Cash</div>
+                          <div style={{ color: T.ivory }}>{formatMoney(snapshot.endingCash)}</div>
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
-              </>
-            )}
-          </div>
-          <p style={{ fontSize: '11px', color: T.muted, marginTop: '16px' }}>Higher familiarity will reduce operating costs in future updates.</p>
-        </div>
-      )}
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-      {deskTab === 'finance' && (
-        <div>
-          <SectionHeader>Finance Ledger</SectionHeader>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <PanelBox>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Company Position</div>
-              <FieldRow label="Company Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
-              <FieldRow label="Current Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.red : T.muted} />
-              <FieldRow label="Total Fleet Value" value={formatMoney(fleet.reduce((acc, v) => acc + Math.round(v.purchaseCost * (v.condition / 100)), 0))} valueColor={T.steel} />
-              <FieldRow label="Lease Roster Value" value={formatMoney((company.facilities || []).length * 10000)} valueColor={T.muted} />
-              <div style={{ height: '1px', background: T.border, margin: '12px 0' }} />
-              <FieldRow label="Company Net Value" value={formatMoney(calcCompanyValue(company))} valueColor={T.gold} />
-            </PanelBox>
-            <PanelBox>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Monthly Estimate</div>
-              <FieldRow label="Monthly Revenue" value={formatMoney(company.monthlyRevenue)} valueColor={T.mint} />
-              <FieldRow label="Operating Costs" value={formatMoney(Math.max(0, company.monthlyCosts - fleet.reduce((acc, v) => acc + v.monthlyMaintenance, 0) - (company.facilities || []).reduce((acc, f) => acc + f.leaseCost, 0)))} valueColor={T.red} />
-              <FieldRow label="Fleet Maintenance" value={formatMoney(fleet.reduce((acc, v) => acc + v.monthlyMaintenance, 0))} valueColor={T.red} />
-              <FieldRow label="Facility Lease Expense" value={formatMoney((company.facilities || []).reduce((acc, f) => acc + f.leaseCost, 0))} valueColor={T.red} />
-              <div style={{ height: '1px', background: T.border, margin: '12px 0' }} />
-              <FieldRow label="Projected Profit" value={formatMoney(company.profit)} valueColor={company.profit >= 0 ? T.mint : T.red} />
-            </PanelBox>
-          </div>
-          
-          <div style={{ marginTop: '24px' }}>
-            <SectionHeader>Recent Financial Activity</SectionHeader>
-            {records.filter((r: any) => r.type === 'auto_op' || r.type === 'contract' || r.type === 'business').slice(0, 5).map((r: any) => (
-              <div key={r.id} style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderLeft: `2px solid ${T.gold}`, fontSize: '12px', color: T.ivory, lineHeight: 1.6, marginBottom: '8px' }}>
-                {r.summary}
-                <div style={{ fontSize: '10px', color: T.faint, marginTop: '6px' }}>{new Date(r.createdAt).toLocaleString()}</div>
-              </div>
-            ))}
-          </div>
-          <p style={{ fontSize: '11px', color: T.muted, marginTop: '16px' }}>Finance sector features including loans, credit lines, and taxation will unlock in a future update.</p>
+          {financeSubTab === 'charts' && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <SectionHeader stamp="VISUALS">Charts & Analysis</SectionHeader>
+              <PanelBox style={{ textAlign: 'center', padding: '40px 20px', color: T.muted, fontStyle: 'italic' }}>
+                <div style={{ fontSize: '24px', marginBottom: '16px' }}>📊</div>
+                <div>Advanced financial charting is currently locked in the pre-alpha build.</div>
+                <div style={{ fontSize: '11px', marginTop: '8px', color: T.faint }}>Visual analytics will become available in a future update.</div>
+              </PanelBox>
+            </div>
+          )}
         </div>
       )}
 

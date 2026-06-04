@@ -51,6 +51,90 @@ export function advanceGameDate(months: number = 1): void {
 }
 
 
+// ─── Finance History & Ledger ──────────────────────────────────────────────────
+export type LedgerEntryType = 'Contract Revenue' | 'Auto Operations Revenue' | 'Other Revenue' | 'Staff Salaries' | 'Vehicle Maintenance' | 'Facility Leases' | 'Penalties' | 'Taxes' | 'Capital Injected' | 'Owner Drawings' | 'Loans Received' | 'Loan Repayments' | 'Asset Purchases' | 'Asset Sales';
+
+export interface LedgerEntry {
+  id: string;
+  companyId: string;
+  gameMonth: number;
+  gameYear: number;
+  gameDateStr: string;
+  type: LedgerEntryType;
+  description: string;
+  incomeAmount: number;
+  expenseAmount: number;
+  balanceAfter: number;
+  timestamp: string;
+}
+
+export interface MonthlyFinanceSnapshot {
+  id: string;
+  companyId: string;
+  gameMonth: number;
+  gameYear: number;
+  label: string;
+
+  startingCash: number;
+
+  contractRevenue: number;
+  autoOperationsRevenue: number;
+  otherOperatingRevenue: number;
+  totalOperatingRevenue: number;
+
+  contractOperatingCosts: number;
+  autoOperationsCosts: number;
+  staffSalaries: number;
+  vehicleMaintenance: number;
+  facilityLeases: number;
+  penalties: number;
+  taxes: number;
+  totalOperatingExpenses: number;
+
+  netProfit: number;
+
+  capitalInjected: number;
+  ownerDrawings: number;
+  loansReceived: number;
+  loanRepayments: number;
+  assetPurchases: number;
+  assetSales: number;
+
+  endingCash: number;
+}
+
+export function getLedger(companyId: string): LedgerEntry[] {
+  if (typeof window === 'undefined') return [];
+  const all: LedgerEntry[] = JSON.parse(localStorage.getItem('worldr_ledger_v1') || '[]');
+  return all.filter(l => l.companyId === companyId).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
+
+export function saveLedgerEntry(entry: LedgerEntry): void {
+  if (typeof window === 'undefined') return;
+  const all: LedgerEntry[] = JSON.parse(localStorage.getItem('worldr_ledger_v1') || '[]');
+  all.push(entry);
+  localStorage.setItem('worldr_ledger_v1', JSON.stringify(all));
+}
+
+export function getFinanceHistory(companyId: string): MonthlyFinanceSnapshot[] {
+  if (typeof window === 'undefined') return [];
+  const all: MonthlyFinanceSnapshot[] = JSON.parse(localStorage.getItem('worldr_finance_history_v1') || '[]');
+  return all.filter(s => s.companyId === companyId).sort((a, b) => {
+    if (a.gameYear !== b.gameYear) return b.gameYear - a.gameYear;
+    return b.gameMonth - a.gameMonth;
+  });
+}
+
+export function saveFinanceSnapshot(snapshot: MonthlyFinanceSnapshot): void {
+  if (typeof window === 'undefined') return;
+  const all: MonthlyFinanceSnapshot[] = JSON.parse(localStorage.getItem('worldr_finance_history_v1') || '[]');
+  const existingIndex = all.findIndex(s => s.companyId === snapshot.companyId && s.gameYear === snapshot.gameYear && s.gameMonth === snapshot.gameMonth);
+  if (existingIndex >= 0) all[existingIndex] = snapshot;
+  else all.push(snapshot);
+  localStorage.setItem('worldr_finance_history_v1', JSON.stringify(all));
+}
+
+
 // ─── Staff & Policies ────────────────────────────────────────────────────────
 export const STAFF_WAGES = {
   'Driver': 18000,
@@ -339,6 +423,10 @@ export interface Contract {
   recommendedStaff: string[];
   awardedToCompanyId?: string;
   assignedVehicleId?: string;
+  startMonth?: number;
+  startYear?: number;
+  dueMonth?: number;
+  dueYear?: number;
   createdAt: string;
 }
 
@@ -822,8 +910,19 @@ export function evaluateContractBids(contractId: string): { success: boolean; me
   for (const bid of contract.bids) {
     if (bid.amount < bestBid.amount) bestBid = bid;
   }
+  const gameDate = getGameDate();
   contract.status = 'awarded';
   contract.awardedToCompanyId = bestBid.companyId;
+  contract.startMonth = gameDate.worldMonth;
+  contract.startYear = gameDate.worldYear;
+      
+  let dueM = gameDate.worldMonth + contract.durationMonths;
+  let dueY = gameDate.worldYear;
+  while(dueM > 12) { dueM -= 12; dueY += 1; }
+  contract.dueMonth = dueM;
+  contract.dueYear = dueY;
+
+  addRecord(`Won contract bid: "${contract.title}".`, 'contract');
   contracts[contractIndex] = contract;
   localStorage.setItem('worldr_contracts_v1', JSON.stringify(contracts));
   return { success: true, message: `Awarded to ${bestBid.companyId} for ₯${bestBid.amount}`, awardedTo: bestBid.companyId };
@@ -850,95 +949,27 @@ export function assignVehicleToAutoOp(vehicleId: string, poolType: AutoOpPoolTyp
   }
 }
 
-
-export function hireStaff(companyId: string, role: StaffRole, playerCashRef: { cash: number }): { success: boolean; message: string } {
-  if (typeof window === 'undefined') return { success: false, message: 'Server environment' };
-  const companies = getCompanies();
-  const cIdx = companies.findIndex(c => c.id === companyId);
-  if (cIdx < 0) return { success: false, message: 'Company not found.' };
-  
-  const company = companies[cIdx];
-  if (!company.staff) company.staff = {} as Record<StaffRole, number>;
-  
-  const baseWage = STAFF_WAGES[role];
-  if (company.companyCash < baseWage) {
-    return { success: false, message: `Insufficient company cash to hire ${role}. Need ${formatMoney(baseWage)} for first month's wage.` };
-  }
-
-  company.companyCash -= baseWage;
-  company.staff[role] = (company.staff[role] || 0) + 1;
-  companies[cIdx] = company;
-  localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
-
-  addRecord(`${company.name} hired 1 ${role}. Monthly payroll increased by ${formatMoney(baseWage)}.`);
-
-  return { success: true, message: `Successfully hired 1 ${role}.` };
-}
-
-export function fireStaff(companyId: string, role: StaffRole): { success: boolean; message: string } {
-  if (typeof window === 'undefined') return { success: false, message: 'Server environment' };
-  const companies = getCompanies();
-  const cIdx = companies.findIndex(c => c.id === companyId);
-  if (cIdx < 0) return { success: false, message: 'Company not found.' };
-  
-  const company = companies[cIdx];
-  if (!company.staff || !company.staff[role] || company.staff[role] === 0) {
-    return { success: false, message: `No ${role}s to dismiss.` };
-  }
-
-  company.staff[role] -= 1;
-  
-  // Decrease morale slightly
-  company.morale = Math.max(0, (company.morale || 50) - 2);
-
-  companies[cIdx] = company;
-  localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
-
-  addRecord(`${company.name} dismissed 1 ${role}. Payroll decreased, but staff morale weakened.`);
-
-  return { success: true, message: `Successfully dismissed 1 ${role}.` };
-}
-
-export function updateWagePolicy(companyId: string, policy: WagePolicy): { success: boolean; message: string } {
-  if (typeof window === 'undefined') return { success: false, message: 'Server environment' };
-  const companies = getCompanies();
-  const cIdx = companies.findIndex(c => c.id === companyId);
-  if (cIdx < 0) return { success: false, message: 'Company not found.' };
-  
-  const company = companies[cIdx];
-  company.wagePolicy = policy;
-  
-  companies[cIdx] = company;
-  localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
-  
-  addRecord(`${company.name} updated Wage Policy to ${policy}.`);
-  return { success: true, message: `Wage Policy updated to ${policy}.` };
-}
-
 export function processMonthlyOperations(companyId: string): { success: boolean; message: string; report?: MonthlyReport } {
   if (typeof window === 'undefined') return { success: false, message: 'Server environment' };
+  
   const companies = getCompanies();
   const cIdx = companies.findIndex(c => c.id === companyId);
   if (cIdx < 0) return { success: false, message: 'Company not found.' };
   const company = companies[cIdx];
 
   const fleet = getFleet(companyId);
+  const allContracts = getContracts();
   
-  if (fleet.length === 0) {
-    return { success: false, message: 'No fleet available. Purchase or order a vehicle through Procurement before running logistics operations.' };
-  }
+  // 1. Validate active vehicle assignments
+  const autoOpVehicles = fleet.filter(v => v.assignedAutoOpPool);
+  
+  const companyContracts = allContracts.filter(c => c.awardedToCompanyId === companyId);
+  const activeContracts = companyContracts.filter(c => c.status === 'active' && c.assignedVehicleId);
 
-  const hasAssigned = fleet.some(v => v.assignedAutoOpPool || v.assignedContractId);
-  if (!hasAssigned) {
-    return { success: false, message: 'Your fleet is idle. Assign a vehicle to an auto operation or contract before dispatching.' };
-  }
-  
-  // Initialization of new fields
+  // Initialize fields
   if (!company.staff) company.staff = {} as Record<StaffRole, number>;
   if (!company.wagePolicy) company.wagePolicy = 'Standard';
   if (!company.maintenancePolicy) company.maintenancePolicy = 'Standard';
-  if (!company.contractStrategy) company.contractStrategy = 'Balanced Freight';
-  if (!company.cashReservePolicy) company.cashReservePolicy = 'Growth';
   if (company.morale === undefined) company.morale = 50;
   if (!company.clientTrusts) company.clientTrusts = {};
 
@@ -946,24 +977,76 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
   const dispatcherCount = company.staff['Dispatcher'] || 0;
   const mechanicCount = company.staff['Mechanic Crew'] || 0;
 
-  // Active vehicles
-  const autoOpVehicles = fleet.filter(v => v.assignedAutoOpPool);
-  
-  let autoRevenue = 0;
-  let operatingCosts = 0;
-  let fleetConditionChanges: string[] = [];
-
-  // Founder exception
   const founderOperating = (fleet.length === 1 && driverCount === 0 && fleet[0].capacity <= 2);
   const totalDriversAvailable = driverCount + (founderOperating ? 1 : 0);
-  
   let driversUsed = 0;
 
-  // Process Auto Operations
+  let contractRevenue = 0;
+  let autoOperationsRevenue = 0;
+  let contractOperatingCosts = 0;
+  let autoOperationsCosts = 0;
+  let penalties = 0;
+  let fleetConditionChanges: string[] = [];
+  let recordsCreated: string[] = [];
+  
+  const gameDate = getGameDate();
+  const gameDateStr = formatGameDate(gameDate);
+
+  // 2. Process active contracts
+  activeContracts.forEach(contract => {
+    if (driversUsed + contract.requiredDrivers > totalDriversAvailable) {
+      penalties += contract.penalty;
+      contract.status = 'failed';
+      recordsCreated.push(`Contract Failed (No Driver): ${contract.title}. Penalty: ${formatMoney(contract.penalty)}`);
+      
+      saveLedgerEntry({
+        id: crypto.randomUUID(), companyId, gameMonth: gameDate.worldMonth, gameYear: gameDate.worldYear,
+        gameDateStr, type: 'Penalties', description: `Failed contract: ${contract.title}`,
+        incomeAmount: 0, expenseAmount: contract.penalty, balanceAfter: 0, timestamp: new Date().toISOString()
+      });
+      return;
+    }
+    
+    driversUsed += contract.requiredDrivers;
+    contractRevenue += contract.payment;
+    contractOperatingCosts += contract.operatingCostEstimate;
+    contract.status = 'completed';
+    recordsCreated.push(`Contract Completed: ${contract.title}. Revenue: ${formatMoney(contract.payment)}`);
+    
+    updateRouteFamiliarity(companyId, contract.originState, contract.destinationState, 10);
+    company.clientTrusts![contract.issuerName] = Math.min(100, (company.clientTrusts![contract.issuerName] || 50) + 5);
+
+    saveLedgerEntry({
+      id: crypto.randomUUID(), companyId, gameMonth: gameDate.worldMonth, gameYear: gameDate.worldYear,
+      gameDateStr, type: 'Contract Revenue', description: `Completed: ${contract.title}`,
+      incomeAmount: contract.payment, expenseAmount: 0, balanceAfter: 0, timestamp: new Date().toISOString()
+    });
+    saveLedgerEntry({
+      id: crypto.randomUUID(), companyId, gameMonth: gameDate.worldMonth, gameYear: gameDate.worldYear,
+      gameDateStr, type: 'Contract Operating Costs' as any, description: `Op Costs: ${contract.title}`,
+      incomeAmount: 0, expenseAmount: contract.operatingCostEstimate, balanceAfter: 0, timestamp: new Date().toISOString()
+    });
+    
+    const vehicle = fleet.find(v => v.id === contract.assignedVehicleId);
+    if (vehicle) {
+      vehicle.assignedContractId = undefined;
+      let wear = Math.floor(Math.random() * 4) + 1;
+      if (mechanicCount > 0) wear = Math.max(1, wear - 1);
+      if (company.maintenancePolicy === 'Minimal') wear = Math.floor(wear * 1.35);
+      else if (company.maintenancePolicy === 'Preventive') wear = Math.floor(wear * 0.75);
+      else if (company.maintenancePolicy === 'Premium') wear = Math.floor(wear * 0.55);
+      const oldCond = vehicle.condition;
+      vehicle.condition = Math.max(0, vehicle.condition - wear);
+      fleetConditionChanges.push(`${vehicle.type} (Contract) condition: ${oldCond}% → ${vehicle.condition}%`);
+      saveVehicle(vehicle);
+    }
+  });
+
+  // 3. Process auto operations
   autoOpVehicles.forEach(v => {
     if (driversUsed >= totalDriversAvailable) {
       fleetConditionChanges.push(`${v.type} stayed idle (Driver Shortage)`);
-      return; // Skip if no driver
+      return;
     }
     driversUsed++;
 
@@ -981,41 +1064,38 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
       opCost = v.capacity * 12000;
     }
     
-    // Dispatcher Bonus
     if (dispatcherCount > 0) baseRevenue *= 1.08;
-    
-    // Morale Bonus
     if ((company.morale || 50) >= 80) baseRevenue *= 1.05;
     else if ((company.morale || 50) <= 20) baseRevenue *= 0.92;
     
-    // Facility bonuses could be applied here
+    autoOperationsRevenue += Math.floor(baseRevenue);
+    autoOperationsCosts += opCost;
     
-    autoRevenue += Math.floor(baseRevenue);
-    operatingCosts += opCost;
-    
-    // Vehicle wear
-    let wear = Math.floor(Math.random() * 4) + 1; // 1-4
+    let wear = Math.floor(Math.random() * 4) + 1;
     if (mechanicCount > 0) wear = Math.max(1, wear - 1);
-    
     if (company.maintenancePolicy === 'Minimal') wear = Math.floor(wear * 1.35);
     else if (company.maintenancePolicy === 'Preventive') wear = Math.floor(wear * 0.75);
     else if (company.maintenancePolicy === 'Premium') wear = Math.floor(wear * 0.55);
-
     const oldCond = v.condition;
     v.condition = Math.max(0, v.condition - wear);
-    fleetConditionChanges.push(`${v.type} condition: ${oldCond}% → ${v.condition}%`);
+    fleetConditionChanges.push(`${v.type} (Auto) condition: ${oldCond}% → ${v.condition}%`);
     saveVehicle(v);
   });
 
-  // Calculate Fixed Costs
-  const facilityLeaseExpense = (company.facilities || []).reduce((sum, f) => sum + f.leaseCost, 0);
-  
-  let totalMaintenance = fleet.reduce((sum, v) => sum + v.monthlyMaintenance, 0);
-  if (company.maintenancePolicy === 'Minimal') totalMaintenance *= 0.70;
-  else if (company.maintenancePolicy === 'Preventive') totalMaintenance *= 1.30;
-  else if (company.maintenancePolicy === 'Premium') totalMaintenance *= 1.60;
-  totalMaintenance = Math.floor(totalMaintenance);
+  if (autoOperationsRevenue > 0) {
+    saveLedgerEntry({
+      id: crypto.randomUUID(), companyId, gameMonth: gameDate.worldMonth, gameYear: gameDate.worldYear,
+      gameDateStr, type: 'Auto Operations Revenue', description: `Monthly auto operations`,
+      incomeAmount: autoOperationsRevenue, expenseAmount: 0, balanceAfter: 0, timestamp: new Date().toISOString()
+    });
+    saveLedgerEntry({
+      id: crypto.randomUUID(), companyId, gameMonth: gameDate.worldMonth, gameYear: gameDate.worldYear,
+      gameDateStr, type: 'Auto Operations Costs' as any, description: `Auto operations costs`,
+      incomeAmount: 0, expenseAmount: autoOperationsCosts, balanceAfter: 0, timestamp: new Date().toISOString()
+    });
+  }
 
+  // 8. Deduct staff wages
   let payrollMultiplier = 1.0;
   if (company.wagePolicy === 'Low') payrollMultiplier = 0.8;
   else if (company.wagePolicy === 'Generous') payrollMultiplier = 1.2;
@@ -1135,6 +1215,17 @@ export function acceptDirectContract(contractId: string, companyId: string, vehi
   contracts[cIdx].status = 'active';
   contracts[cIdx].awardedToCompanyId = companyId;
   contracts[cIdx].assignedVehicleId = vehicleId;
+  
+  const gameDate = getGameDate();
+  contracts[cIdx].startMonth = gameDate.worldMonth;
+  contracts[cIdx].startYear = gameDate.worldYear;
+  
+  let dueM = gameDate.worldMonth + contracts[cIdx].durationMonths;
+  let dueY = gameDate.worldYear;
+  while(dueM > 12) { dueM -= 12; dueY += 1; }
+  contracts[cIdx].dueMonth = dueM;
+  contracts[cIdx].dueYear = dueY;
+
   localStorage.setItem('worldr_contracts_v1', JSON.stringify(contracts));
 
   addRecord(`Directly accepted "${contracts[cIdx].title}".`, 'contract');
