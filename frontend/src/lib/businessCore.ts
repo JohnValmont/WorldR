@@ -1218,6 +1218,13 @@ export function getRouteFamiliarity(companyId: string): RouteFamiliarity[] {
   return all.filter(r => r.companyId === companyId);
 }
 
+export function getRouteFamiliarityPercent(companyId: string, origin: string, dest: string): number {
+  const routes = getRouteFamiliarity(companyId);
+  const id = origin < dest ? `${origin}-${dest}` : `${dest}-${origin}`;
+  const route = routes.find(r => r.id === id);
+  return route?.familiarity ?? 0;
+}
+
 export function increaseRouteFamiliarity(companyId: string, origin: string, dest: string, amount: number) {
   if (typeof window === 'undefined') return;
   const all: RouteFamiliarity[] = JSON.parse(localStorage.getItem('worldr_route_familiarity_v1') || '[]');

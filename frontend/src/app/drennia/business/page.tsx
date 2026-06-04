@@ -7,7 +7,7 @@ import {
   evaluatePlayerBid, assignVehicleToContract, resolveContract,
   getFleet, purchaseVehicle, performMaintenance, calcNetWorth, calcCompanyValue, addRecord,
   VEHICLE_CATALOGUE, formatMoney, getContractHistory, acceptDirectContract, assignVehicleToAutoOp, processMonthlyOperations, hireStaff, fireStaff, STAFF_WAGES, getRouteFamiliarity, leaseFacility, saveVehicle,
-  getLedger, getFinanceHistory, getGameDate, formatGameDate, getVehicleDisplayLabel,
+  getLedger, getFinanceHistory, getGameDate, formatGameDate, getVehicleDisplayLabel, getRouteFamiliarityPercent,
   type Company, type Contract, type Vehicle, type VehicleType, type ContractHistoryEntry, type RouteFamiliarity, type AutoOpPoolType, type StaffRole, type WagePolicy, type MonthlyFinanceSnapshot, type LedgerEntry
 } from '../../../lib/businessCore';
 
@@ -1622,7 +1622,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                             <div style={{ marginBottom: '4px' }}>Due Month: <span style={{ color: T.ivory }}>Month {c.dueMonth || '-'}, {c.dueYear || '-'}</span></div>
                             <div style={{ marginBottom: '4px' }}>Months Remaining: <span style={{ color: T.gold }}>{monthsRemaining}</span></div>
                             <div style={{ marginBottom: '4px' }}>Route: <span style={{ color: T.ivory }}>{c.originState} → {c.destinationState}</span></div>
-                            <div style={{ marginBottom: '4px' }}>Route Familiarity: <span style={{ color: T.ivory }}>{getRouteFamiliarity(company.id, c.originState, c.destinationState)}%</span></div>
+                            <div style={{ marginBottom: '4px' }}>Route Familiarity: <span style={{ color: T.ivory }}>{getRouteFamiliarityPercent(company.id, c.originState, c.destinationState)}%</span></div>
                           </div>
                         </div>
                         
