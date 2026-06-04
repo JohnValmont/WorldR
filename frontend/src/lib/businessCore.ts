@@ -1108,10 +1108,10 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
   });
   const payrollExpense = Math.floor(basePayroll * payrollMultiplier);
 
-  const netProfit = autoRevenue - operatingCosts - totalMaintenance - facilityLeaseExpense - payrollExpense;
+  const totalRevenue = autoOperationsRevenue + contractRevenue;
+  const totalOperatingCosts = autoOperationsCosts + contractOperatingCosts;
+  const netProfit = totalRevenue - totalOperatingCosts - totalMaintenance - facilityLeaseExpense - payrollExpense - penalties;
 
-  let recordsCreated: string[] = [];
-  
   company.companyCash += netProfit;
 
   let moraleChangeStr = "Stable";
@@ -1142,9 +1142,9 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
   // Build Report
   const report: MonthlyReport = {
     gameDateStr: dateStr,
-    autoRevenue,
-    manualRevenue: 0,
-    operatingCosts,
+    autoRevenue: autoOperationsRevenue,
+    manualRevenue: contractRevenue,
+    operatingCosts: totalOperatingCosts,
     totalMaintenance: totalMaintenance,
     facilityLeaseExpense,
     payrollExpense,
@@ -1160,8 +1160,8 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
   };
 
   company.lastMonthlyReport = report;
-  company.monthlyRevenue = autoRevenue;
-  company.monthlyCosts = operatingCosts + totalMaintenance + facilityLeaseExpense + payrollExpense;
+  company.monthlyRevenue = totalRevenue;
+  company.monthlyCosts = totalOperatingCosts + totalMaintenance + facilityLeaseExpense + payrollExpense + penalties;
   company.profit = netProfit;
 
   companies[cIdx] = company;
