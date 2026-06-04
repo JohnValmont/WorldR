@@ -77,15 +77,22 @@ export default function ChroniclePage() {
 
   const handleRestartLife = () => {
     if (typeof window !== 'undefined') {
-      const keys = [
-        'worldr_citizen_file_v1', 'worldr_character_origin_v1', 'worldr_living_world_entry_v1',
-        'worldr_records_v1', 'worldr_life_records_v1', 'worldr_letters_v1',
-        'worldr_business_rooms_v1', 'worldr_room_history_v1', 'worldr_room_participation_v1',
-        'worldr_companies_v1', 'worldr_reserved_business_names_v1', 'worldr_business_filings_v1',
-        'worldr_contracts_v1', 'worldr_contract_bids_v1', 'worldr_business_offers_v1', 'worldr_recent_world_events_v1',
-        'worldr_career_v1',
+      const preserveKeys = [
+        'worldr_access_token',
+        'worldr_refresh_token',
+        'worldr_pre_alpha_access_granted_v1',
+        'worldr_account_settings'
       ];
-      keys.forEach(k => localStorage.removeItem(k));
+      
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('worldr_') && !preserveKeys.includes(key)) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(k => localStorage.removeItem(k));
       window.location.href = '/start';
     }
   };

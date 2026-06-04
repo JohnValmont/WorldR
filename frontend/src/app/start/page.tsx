@@ -1,6 +1,31 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+
 export default function StartPage() {
+  const router = useRouter();
+  const [hasCharacter, setHasCharacter] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const fileStr = localStorage.getItem('worldr_citizen_file_v1');
+      if (fileStr) {
+        setHasCharacter(true);
+      }
+      setLoading(false);
+    }
+  }, []);
+
+  const handleStart = () => {
+    if (hasCharacter) {
+      router.push('/drennia/chronicle');
+    } else {
+      router.push('/start/character');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#11131A] flex flex-col items-center justify-center p-6 selection:bg-amber-900/50">
       <div className="max-w-md w-full text-center">
@@ -16,15 +41,17 @@ export default function StartPage() {
         </h1>
         
         <p className="text-zinc-400 text-sm leading-relaxed mb-8">
-          Character creation and Living World onboarding will appear here next.
+          {hasCharacter ? 'You already have an active character.' : 'Character creation and Living World onboarding begins here.'}
         </p>
 
-        <button 
-          disabled 
-          className="bg-zinc-800 text-zinc-500 font-semibold uppercase tracking-widest text-xs px-8 py-3.5 rounded-sm cursor-not-allowed border border-zinc-700/50"
-        >
-          Begin Character Creation
-        </button>
+        {!loading && (
+          <button 
+            onClick={handleStart}
+            className="bg-amber-600/20 hover:bg-amber-600/30 text-amber-500 font-semibold uppercase tracking-widest text-xs px-8 py-3.5 rounded-sm border border-amber-500/50 transition-colors"
+          >
+            {hasCharacter ? 'Continue Life' : 'Begin Character Creation'}
+          </button>
+        )}
 
       </div>
     </div>
