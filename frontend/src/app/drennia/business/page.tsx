@@ -885,7 +885,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   const [contractFilter, setContractFilter] = useState<ContractSourceFilter>('All');
   const [contractSearch, setContractSearch] = useState<string>('');
   const [procurementSubTab, setProcurementSubTab] = useState<'vehicles'|'used'|'facilities'|'equipment'|'materials'|'suppliers'>('vehicles');
-  const [procurementSubTab, setProcurementSubTab] = useState<'vehicles'|'used'|'facilities'|'equipment'|'materials'|'suppliers'>('vehicles');
+
   const [routeFilter, setRouteFilter] = useState<RouteFilter>('All');
 
   const showNotif = (msg: string, success: boolean) => {
