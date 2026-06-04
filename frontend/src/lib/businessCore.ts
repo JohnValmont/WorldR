@@ -10,7 +10,9 @@ export function formatMoney(value: number): string {
 }
 
 
-// ─── Game Date System ────────────────────────────────────────────────────────
+import { getWorldDate, advanceWorldArc, formatWorldDate } from './worldTime';
+
+// ─── Game Date System (Adapter to World Time) ───────────────────────────────
 export interface GameDate {
   worldYear: number;
   worldMonth: number;
@@ -18,36 +20,27 @@ export interface GameDate {
   turn: number;
 }
 
-const INITIAL_GAME_DATE: GameDate = {
-  worldYear: 2026,
-  worldMonth: 6,
-  worldDay: 3,
-  turn: 1
-};
-
 export function getGameDate(): GameDate {
-  if (typeof window === 'undefined') return INITIAL_GAME_DATE;
-  const stored = localStorage.getItem('worldr_game_date_v1');
-  return stored ? JSON.parse(stored) : INITIAL_GAME_DATE;
+  const wd = getWorldDate();
+  return {
+    worldYear: wd.orbit,
+    worldMonth: wd.arc,
+    worldDay: wd.mark,
+    turn: 1
+  };
 }
 
-export function formatGameDate(date: GameDate = getGameDate()): string {
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const d = date.worldDay.toString().padStart(2, '0');
-  const m = monthNames[date.worldMonth - 1];
-  return `${d} ${m} ${date.worldYear}`;
+export function formatGameDate(date?: GameDate): string {
+  if (date) {
+    return `Mark ${date.worldDay} · Arc ${date.worldMonth} · Orbit ${date.worldYear} M.E.`;
+  }
+  return formatWorldDate();
 }
 
 export function advanceGameDate(months: number = 1): void {
-  if (typeof window === 'undefined') return;
-  const date = getGameDate();
-  date.worldMonth += months;
-  while (date.worldMonth > 12) {
-    date.worldMonth -= 12;
-    date.worldYear += 1;
+  for (let i = 0; i < months; i++) {
+    advanceWorldArc();
   }
-  date.turn += 1;
-  localStorage.setItem('worldr_game_date_v1', JSON.stringify(date));
 }
 
 
