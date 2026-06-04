@@ -1040,6 +1040,19 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
               </GoldButton>
             </PanelBox>
 
+            {company.lastMonthlyReport && (
+              <PanelBox style={{ marginBottom: '24px', border: `1px solid ${T.gold}` }}>
+                <SectionHeader stamp={company.lastMonthlyReport.gameDateStr}>Last Monthly Report</SectionHeader>
+                <FieldRow label="Gross Revenue" value={formatMoney(company.lastMonthlyReport.autoRevenue + company.lastMonthlyReport.manualRevenue)} valueColor={T.mint} />
+                <FieldRow label="Operating Costs" value={'-' + formatMoney(company.lastMonthlyReport.operatingCosts)} valueColor={T.muted} />
+                <FieldRow label="Payroll" value={'-' + formatMoney(company.lastMonthlyReport.payrollExpense)} valueColor={T.muted} />
+                <FieldRow label="Maintenance" value={'-' + formatMoney(company.lastMonthlyReport.totalMaintenance)} valueColor={T.muted} />
+                <FieldRow label="Facility Leases" value={'-' + formatMoney(company.lastMonthlyReport.facilityLeaseExpense)} valueColor={T.muted} />
+                <div style={{ height: '1px', background: T.border, margin: '12px 0' }} />
+                <FieldRow label={company.lastMonthlyReport.netProfit >= 0 ? "Net Profit" : "Operating Loss"} value={formatMoney(company.lastMonthlyReport.netProfit)} valueColor={company.lastMonthlyReport.netProfit >= 0 ? T.mint : T.red} />
+              </PanelBox>
+            )}
+
             <SectionHeader stamp="FACILITIES">Facility Support & Asset Yield Boosts</SectionHeader>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
               {(() => {
@@ -1167,6 +1180,68 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
         </div>
       )}
 
+      {deskTab === 'staff' && (
+        <div className="business-content-grid">
+          <div>
+            <PanelBox style={{ marginBottom: '16px' }}>
+              <SectionHeader>Staff Summary</SectionHeader>
+              <FieldRow label="Total Employees" value={Object.values(company.staff || {}).reduce((a,b)=>a+b,0)} />
+              <FieldRow label="Monthly Payroll" value={formatMoney(Object.keys(company.staff || {}).reduce((sum, k) => sum + ((company.staff as any)[k] || 0) * (STAFF_WAGES as any)[k], 0) * (company.wagePolicy === 'Low' ? 0.8 : company.wagePolicy === 'Generous' ? 1.2 : company.wagePolicy === 'Premium' ? 1.45 : 1.0))} valueColor={T.red} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '7px 0', borderBottom: `1px solid ${T.border}` }}>
+                <span style={{ fontSize: '11px', color: T.muted }}>Wage Policy</span>
+                <select value={company.wagePolicy || 'Standard'} onChange={(e) => {
+                  const { updateWagePolicy } = require('@/lib/businessCore');
+                  const res = updateWagePolicy(company.id, e.target.value as any);
+                  showNotif(res.message, res.success);
+                  if (res.success) onRefresh();
+                }} style={{ background: T.panelSoft, color: T.ivory, border: `1px solid ${T.border}`, padding: '2px 4px', fontSize: '11px', fontFamily: 'monospace' }}>
+                  <option value="Low">Low Wages (0.8x)</option>
+                  <option value="Standard">Standard Wages (1.0x)</option>
+                  <option value="Generous">Generous Wages (1.2x)</option>
+                  <option value="Premium">Premium Wages (1.45x)</option>
+                </select>
+              </div>
+              <FieldRow label="Morale" value={company.morale ? (company.morale >= 80 ? 'High' : company.morale <= 20 ? 'Low' : 'Stable') : 'Stable'} valueColor={company.morale && company.morale >= 80 ? T.mint : company.morale && company.morale <= 20 ? T.red : T.ivory} />
+              <FieldRow label="Employer Reputation" value="New Employer" />
+              <FieldRow label="Staff Quality" value="Basic" />
+              <FieldRow label="Turnover Risk" value="Normal" />
+            </PanelBox>
+          </div>
+          <div>
+            <PanelBox>
+              <SectionHeader>Staff Roster</SectionHeader>
+              {(Object.keys(STAFF_WAGES) as StaffRole[]).map(role => {
+                 const count = company.staff?.[role] || 0;
+                 const cost = count * STAFF_WAGES[role] * (company.wagePolicy === 'Low' ? 0.8 : company.wagePolicy === 'Generous' ? 1.2 : company.wagePolicy === 'Premium' ? 1.45 : 1.0);
+                 return (
+                   <div key={role} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${T.border}` }}>
+                     <div>
+                       <div style={{ fontSize: '12px', fontWeight: 600, color: T.ivory }}>{role} <span style={{ color: T.gold, marginLeft: '4px' }}>x{count}</span></div>
+                       <div style={{ fontSize: '10px', color: T.muted }}>Base: {formatMoney(STAFF_WAGES[role])}/mo</div>
+                       <div style={{ fontSize: '10px', color: T.red }}>Total: {formatMoney(cost)}/mo</div>
+                     </div>
+                     <div style={{ display: 'flex', gap: '8px' }}>
+                       <GhostButton onClick={() => {
+                         const { fireStaff } = require('@/lib/businessCore');
+                         const res = fireStaff(company.id, role);
+                         showNotif(res.message, res.success);
+                         if (res.success) onRefresh();
+                       }} color={T.red} disabled={count === 0}>-</GhostButton>
+                       <GhostButton onClick={() => {
+                         const { hireStaff } = require('@/lib/businessCore');
+                         const res = hireStaff(company.id, role);
+                         showNotif(res.message, res.success);
+                         if (res.success) onRefresh();
+                       }} color={T.mint}>+</GhostButton>
+                     </div>
+                   </div>
+                 );
+              })}
+            </PanelBox>
+          </div>
+        </div>
+      )}
+
       {deskTab === 'procurement' && (
         <div className="business-content-grid">
           <div>
@@ -1179,57 +1254,68 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
             {procurementSubTab === 'vehicles' && (
               <div style={{ display: 'grid', gap: '16px' }}>
                 <PanelBox>
-                  <SectionHeader stamp="NEW">Drennport Motor Works</SectionHeader>
+                  <SectionHeader stamp="NEW">Drennia Motors</SectionHeader>
                   <FieldRow label="Vehicle" value="Used Delivery Van" />
-                  <FieldRow label="Price" value={formatMoney(70000)} valueColor={T.mint} />
+                  <FieldRow label="Price" value={formatMoney(35000)} valueColor={T.mint} />
                   <FieldRow label="Condition" value="100%" />
                   <FieldRow label="Capacity" value="1" />
                   <FieldRow label="Monthly Maintenance" value={formatMoney(3000)} />
-                  <FieldRow label="Stock" value="5" />
-                  <FieldRow label="Delivery" value="Immediate" />
                   <FieldRow label="Source Type" value="NPC Manufacturer" />
                   <div style={{ marginTop: '16px' }}>
                     <GoldButton onClick={() => {
                        const { buyVehicleFromNpc } = require('@/lib/businessCore');
-                       const res = buyVehicleFromNpc(company.id, 'Used Delivery Van', 70000, 100, 1, 3000, 'Drennport Motor Works');
+                       const res = buyVehicleFromNpc(company.id, 'Used Delivery Van', 35000, 100, 1, 3000, 'Drennia Motors');
                        showNotif(res.message, res.success);
                        if (res.success) onRefresh();
                     }}>Order Vehicle</GoldButton>
                   </div>
                 </PanelBox>
                 <PanelBox>
-                  <SectionHeader stamp="NEW">Kovath Industrial Motors</SectionHeader>
+                  <SectionHeader stamp="NEW">Westport Commercial Vehicles</SectionHeader>
                   <FieldRow label="Vehicle" value="Box Truck" />
-                  <FieldRow label="Price" value={formatMoney(160000)} valueColor={T.mint} />
+                  <FieldRow label="Price" value={formatMoney(75000)} valueColor={T.mint} />
                   <FieldRow label="Condition" value="100%" />
                   <FieldRow label="Capacity" value="2" />
                   <FieldRow label="Monthly Maintenance" value={formatMoney(7000)} />
-                  <FieldRow label="Stock" value="3" />
-                  <FieldRow label="Delivery" value="Immediate" />
                   <FieldRow label="Source Type" value="NPC Manufacturer" />
                   <div style={{ marginTop: '16px' }}>
                     <GoldButton onClick={() => {
                        const { buyVehicleFromNpc } = require('@/lib/businessCore');
-                       const res = buyVehicleFromNpc(company.id, 'Box Truck', 160000, 100, 2, 7000, 'Kovath Industrial Motors');
+                       const res = buyVehicleFromNpc(company.id, 'Box Truck', 75000, 100, 2, 7000, 'Westport Commercial Vehicles');
                        showNotif(res.message, res.success);
                        if (res.success) onRefresh();
                     }}>Order Vehicle</GoldButton>
                   </div>
                 </PanelBox>
                 <PanelBox>
-                  <SectionHeader stamp="NEW">Ironvale Heavy Machines</SectionHeader>
+                  <SectionHeader stamp="NEW">Ironvale Heavy Industries</SectionHeader>
                   <FieldRow label="Vehicle" value="Used Freight Truck" />
-                  <FieldRow label="Price" value={formatMoney(280000)} valueColor={T.mint} />
+                  <FieldRow label="Price" value={formatMoney(180000)} valueColor={T.mint} />
                   <FieldRow label="Condition" value="100%" />
-                  <FieldRow label="Capacity" value="3" />
+                  <FieldRow label="Capacity" value="4" />
                   <FieldRow label="Monthly Maintenance" value={formatMoney(12000)} />
-                  <FieldRow label="Stock" value="1" />
-                  <FieldRow label="Delivery" value="Immediate" />
                   <FieldRow label="Source Type" value="NPC Manufacturer" />
                   <div style={{ marginTop: '16px' }}>
                     <GoldButton onClick={() => {
                        const { buyVehicleFromNpc } = require('@/lib/businessCore');
-                       const res = buyVehicleFromNpc(company.id, 'Used Freight Truck', 280000, 100, 3, 12000, 'Ironvale Heavy Machines');
+                       const res = buyVehicleFromNpc(company.id, 'Used Freight Truck', 180000, 100, 4, 12000, 'Ironvale Heavy Industries');
+                       showNotif(res.message, res.success);
+                       if (res.success) onRefresh();
+                    }}>Order Vehicle</GoldButton>
+                  </div>
+                </PanelBox>
+                <PanelBox>
+                  <SectionHeader stamp="NEW">Greenmere Utility Works</SectionHeader>
+                  <FieldRow label="Vehicle" value="Box Truck" />
+                  <FieldRow label="Price" value={formatMoney(75000)} valueColor={T.mint} />
+                  <FieldRow label="Condition" value="100%" />
+                  <FieldRow label="Capacity" value="2" />
+                  <FieldRow label="Monthly Maintenance" value={formatMoney(7000)} />
+                  <FieldRow label="Source Type" value="NPC Manufacturer" />
+                  <div style={{ marginTop: '16px' }}>
+                    <GoldButton onClick={() => {
+                       const { buyVehicleFromNpc } = require('@/lib/businessCore');
+                       const res = buyVehicleFromNpc(company.id, 'Box Truck', 75000, 100, 2, 7000, 'Greenmere Utility Works');
                        showNotif(res.message, res.success);
                        if (res.success) onRefresh();
                     }}>Order Vehicle</GoldButton>
@@ -1443,10 +1529,11 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                 onChange={e => setContractFilter(e.target.value)}
                 style={{ padding: '8px', background: T.panel, border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px' }}
               >
-                <option value="all">All Types</option>
-                <option value="delivery">Delivery</option>
-                <option value="logistics">Logistics</option>
-                <option value="freight">Freight</option>
+                <option value="All">All Sources</option>
+                <option value="Government">Government</option>
+                <option value="NPC Corporation">NPC Corporations</option>
+                <option value="Local Business">Local Businesses</option>
+                <option value="Player Company" disabled>Player Companies (Locked)</option>
               </select>
             </div>
 
@@ -1475,9 +1562,10 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                         <div style={{ fontSize: '11px', color: T.muted, marginTop: '2px' }}>Cargo: {c.cargo} • Route: {c.routeType}</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: T.gold }}>{formatMoney(c.payment)}</div>
-                        <div style={{ fontSize: '10px', color: T.muted }}>Est Cost: {formatMoney(c.operatingCostEstimate)}</div>
-                        <div style={{ fontSize: '10px', color: T.red }}>Pen: {formatMoney(c.penalty)}</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: T.gold }}>Payment: {formatMoney(c.payment)}</div>
+                        <div style={{ fontSize: '11px', color: T.muted }}>Est Cost: {formatMoney(c.operatingCostEstimate)}</div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: T.mint }}>Profit: {formatMoney(c.payment - c.operatingCostEstimate)}</div>
+                        <div style={{ fontSize: '11px', color: T.red }}>Penalty: {formatMoney(c.penalty)}</div>
                       </div>
                     </div>
                     
@@ -1619,24 +1707,40 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
       {deskTab === 'routes' && (
         <div>
           <SectionHeader>Route Matrix</SectionHeader>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
-            {['Drennport State → Westport State', 'Drennport State → Ironvale State', 'Drennport State → Greenmere State', 'Westport State → Ironvale State', 'Westport State → Greenmere State', 'Ironvale State → Greenmere State'].map(rName => {
-              const rId = rName.replace(/ State/g, '').replace(' → ', '-');
-              const fam = routes.find(r => r.id === rId)?.familiarity || 0;
-              return (
-                <div key={rName} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: T.paper, border: `1px solid ${T.border}` }}>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: T.ivory, marginBottom: '6px' }}>{rName}</div>
-                    <div style={{ fontSize: '10px', color: T.muted, fontFamily: 'monospace' }}>Distance: Medium · Risk: Low · Demand: Variable</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.faint }}>Familiarity</div>
-                    <div style={{ fontSize: '16px', fontFamily: 'monospace', color: fam > 0 ? T.mint : T.faint }}>{fam}%</div>
-                  </div>
-                </div>
-              );
-            })}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto' }}>
+            {['All', 'Local Routes', 'Interstate Routes', 'International Routes'].map(f => (
+              <GhostButton key={f} color={routeFilter === f ? T.ivory : T.faint} onClick={() => setRouteFilter(f as any)}>{f}</GhostButton>
+            ))}
           </div>
+          {routeFilter === 'International Routes' && (
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', border: `1px dashed ${T.border}`, textAlign: 'center', marginBottom: '16px' }}>
+              <div style={{ fontSize: '12px', color: T.muted }}>International logistics will unlock later through ports, customs, shipping fleets, and cross-country trade contracts.</div>
+            </div>
+          )}
+          {routeFilter !== 'International Routes' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+              {Array.from(new Set([...routes.map(r => r.id), 'Drennport-Westport', 'Drennport-Ironvale', 'Drennport-Greenmere', 'Westport-Ironvale', 'Westport-Greenmere', 'Ironvale-Greenmere', 'Drennport-Drennport', 'Westport-Westport', 'Ironvale-Ironvale', 'Greenmere-Greenmere'])).filter(rId => {
+                if (routeFilter === 'Local Routes') return rId.split('-')[0] === rId.split('-')[1];
+                if (routeFilter === 'Interstate Routes') return rId.split('-')[0] !== rId.split('-')[1];
+                return true;
+              }).map(rId => {
+                const rName = rId.replace('-', ' State → ') + ' State';
+                const fam = routes.find(r => r.id === rId)?.familiarity || 0;
+                return (
+                  <div key={rId} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: T.paper, border: `1px solid ${T.border}` }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: T.ivory, marginBottom: '6px' }}>{rName}</div>
+                      <div style={{ fontSize: '10px', color: T.muted, fontFamily: 'monospace' }}>Distance: Variable · Risk: Low · Demand: Variable</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.faint }}>Familiarity</div>
+                      <div style={{ fontSize: '16px', fontFamily: 'monospace', color: fam > 0 ? T.mint : T.faint }}>{fam}%</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <p style={{ fontSize: '11px', color: T.muted, marginTop: '16px' }}>Higher familiarity will reduce operating costs in future updates.</p>
         </div>
       )}

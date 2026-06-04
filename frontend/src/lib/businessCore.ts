@@ -820,7 +820,7 @@ export function evaluateContractBids(contractId: string): { success: boolean; me
 
 
 // ─── Auto Operations ──────────────────────────────────────────────────────────
-export type AutoOpPoolType = 'Local Delivery Pool' | 'Retail Restock Pool' | 'Port Shuttle Pool' | 'Farm Collection Pool' | 'Industrial Supply Pool';
+export type AutoOpPoolType = 'Local Delivery Pool' | 'Retail Restock Pool' | 'Port Shuttle Pool' | 'Farm Collection Pool' | 'Industrial Supply Pool' | 'Regional Freight Pool';
 
 export function assignVehicleToAutoOp(vehicleId: string, poolType: AutoOpPoolType | null): { success: boolean; message: string } {
   const all: Vehicle[] = JSON.parse(localStorage.getItem('worldr_fleet_v1') || '[]');
@@ -888,6 +888,22 @@ export function fireStaff(companyId: string, role: StaffRole): { success: boolea
   return { success: true, message: `Successfully dismissed 1 ${role}.` };
 }
 
+export function updateWagePolicy(companyId: string, policy: WagePolicy): { success: boolean; message: string } {
+  if (typeof window === 'undefined') return { success: false, message: 'Server environment' };
+  const companies = getCompanies();
+  const cIdx = companies.findIndex(c => c.id === companyId);
+  if (cIdx < 0) return { success: false, message: 'Company not found.' };
+  
+  const company = companies[cIdx];
+  company.wagePolicy = policy;
+  
+  companies[cIdx] = company;
+  localStorage.setItem('worldr_companies_v1', JSON.stringify(companies));
+  
+  addRecord(`${company.name} updated Wage Policy to ${policy}.`);
+  return { success: true, message: `Wage Policy updated to ${policy}.` };
+}
+
 export function processMonthlyOperations(companyId: string): { success: boolean; message: string; report?: MonthlyReport } {
   if (typeof window === 'undefined') return { success: false, message: 'Server environment' };
   const companies = getCompanies();
@@ -941,6 +957,18 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
     driversUsed++;
 
     let baseRevenue = v.capacity * 8000;
+    let opCost = v.capacity * 2000;
+
+    if (v.assignedAutoOpPool === 'Local Delivery Pool') {
+      baseRevenue = v.capacity * 18000;
+      opCost = v.capacity * 4500;
+    } else if (v.assignedAutoOpPool === 'Port Shuttle Pool') {
+      baseRevenue = v.capacity * 28000;
+      opCost = v.capacity * 8000;
+    } else if (v.assignedAutoOpPool === 'Regional Freight Pool') {
+      baseRevenue = v.capacity * 38000;
+      opCost = v.capacity * 12000;
+    }
     
     // Dispatcher Bonus
     if (dispatcherCount > 0) baseRevenue *= 1.08;
@@ -948,8 +976,6 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
     // Morale Bonus
     if ((company.morale || 50) >= 80) baseRevenue *= 1.05;
     else if ((company.morale || 50) <= 20) baseRevenue *= 0.92;
-
-    const opCost = v.capacity * 2000;
     
     // Facility bonuses could be applied here
     
@@ -1052,7 +1078,7 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
   
   addRecord(`${company.name} closed month ${dateStr}. Net Result: ${formatMoney(netProfit)}.`);
 
-  return { success: true, message: `Monthly operations processed. Net result: ${formatMoney(netProfit)}`, report };
+  return { success: true, message: `Monthly operations processed successfully.`, report };
 }
 
 export interface RouteFamiliarity {
