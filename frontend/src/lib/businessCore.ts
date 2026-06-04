@@ -869,7 +869,7 @@ export function resolveContract(contractId: string): { success: boolean; message
     if (contract.routeType === 'Local') famIncrease = 8;
     else if (contract.routeType === 'Local / Port') famIncrease = 6;
     else if (contract.routeType === 'Interstate') famIncrease = 5;
-    increaseRouteFamiliarity(company.id, contract.originState, contract.destinationState, famIncrease);
+    updateRouteFamiliarity(company.id, contract.originState, contract.destinationState, famIncrease);
     
     saveContractHistory({
       id: `hist_${Date.now()}`, companyId: company.id, title: contract.title, issuer: contract.issuerName, issuerType: contract.issuerType,
@@ -1225,8 +1225,8 @@ export function getRouteFamiliarityPercent(companyId: string, origin: string, de
   return route?.familiarity ?? 0;
 }
 
-export function increaseRouteFamiliarity(companyId: string, origin: string, dest: string, amount: number) {
-  if (typeof window === 'undefined') return;
+export function updateRouteFamiliarity(companyId: string, origin: string, dest: string, amount: number): RouteFamiliarity {
+  if (typeof window === 'undefined') return { id: '', companyId, familiarity: 0 };
   const all: RouteFamiliarity[] = JSON.parse(localStorage.getItem('worldr_route_familiarity_v1') || '[]');
   const id = origin < dest ? `${origin}-${dest}` : `${dest}-${origin}`;
   let route = all.find(r => r.companyId === companyId && r.id === id);
@@ -1234,8 +1234,9 @@ export function increaseRouteFamiliarity(companyId: string, origin: string, dest
     route = { id, companyId, familiarity: 0 };
     all.push(route);
   }
-  route.familiarity = Math.min(100, route.familiarity + amount);
+  route.familiarity = Math.min(100, Math.max(0, route.familiarity + amount));
   localStorage.setItem('worldr_route_familiarity_v1', JSON.stringify(all));
+  return route;
 }
 
 export function acceptDirectContract(contractId: string, companyId: string, vehicleId: string): { success: boolean; message: string } {
