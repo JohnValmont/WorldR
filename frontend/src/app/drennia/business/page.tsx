@@ -294,6 +294,7 @@ export default function BusinessPage() {
                   state: myCompany.headquarters_state_id,
                   legalStructure: myCompany.legal_structure_id,
                   companyCash: myCompany.finances?.available_cash,
+                  maintenancePolicy: myCompany.finances?.maintenance_policy || 'Standard',
                   staff: staffRecord
                 });
                 setFleet(mappedFleet);
@@ -1719,7 +1720,7 @@ function CompanyDeskTab({ company, fleet, ledger, contracts, playerCash, charact
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <span style={{ color: v.condition > 80 ? T.mint : v.condition > 50 ? T.gold : T.red }}>Cond: {v.condition}%</span>
-                          <span style={{ color: T.muted }}>Maint: {formatMoney(v.maintenance)}/mo</span>
+                          <span style={{ color: T.muted }}>Maintenance: {formatMoney(v.monthlyMaintenance)} / Arc</span>
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
@@ -2114,11 +2115,21 @@ function CompanyDeskTab({ company, fleet, ledger, contracts, playerCash, charact
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
                   <PanelBox>
                     <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px' }}>Maintenance Policy</div>
-                    <select value={company.maintenancePolicy || 'Standard'} onChange={(e) => { company.maintenancePolicy = e.target.value as any; saveCompany(company); onRefresh(); }} style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
-                      <option value="Minimal">Minimal (Cost x0.70, Wear x1.35)</option>
+                    <select 
+                      value={company.maintenancePolicy || 'Standard'} 
+                      onChange={async (e) => { 
+                        const newPolicy = e.target.value;
+                        company.maintenancePolicy = newPolicy as any;
+                        saveCompany(company);
+                        onRefresh();
+                        import('../../../lib/api').then(({ companyApi }) => {
+                          companyApi.updateFinances(company.id, { maintenance_policy: newPolicy });
+                        });
+                      }} 
+                      style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
+                      <option value="Low">Low (Cost x0.75, Wear x1.25)</option>
                       <option value="Standard">Standard (Cost x1.00, Wear x1.00)</option>
-                      <option value="Preventive">Preventive (Cost x1.30, Wear x0.75)</option>
-                      <option value="Premium">Premium Fleet Care (Cost x1.60, Wear x0.55)</option>
+                      <option value="Generous">Generous (Cost x1.25, Wear x0.75)</option>
                     </select>
                   </PanelBox>
                   <PanelBox>

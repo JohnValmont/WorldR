@@ -10,5 +10,6 @@ router.get('/my', CompanyController.getMyCompanies);
 router.post('/', CompanyController.createCompany);
 router.get('/:id', CompanyController.getCompany);
 router.post('/:id/withdraw-capital', CompanyController.withdrawCapital);
+router.patch('/:id/finances', CompanyController.updateFinances);
 
 export default router;

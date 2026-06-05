@@ -194,4 +194,33 @@ export class CompanyController {
       next(error);
     }
   }
+  public static async updateFinances(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const companyId = req.params.id;
+      const { maintenance_policy } = req.body;
+
+      if (!userId) throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+
+      const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 404, 'NOT_FOUND');
+
+      const company = await db('companies').where({ id: companyId, owner_character_id: character.id }).first();
+      if (!company) throw new AppError('Company not found or unauthorized', 404, 'NOT_FOUND');
+
+      if (maintenance_policy && !['Low', 'Standard', 'Generous'].includes(maintenance_policy)) {
+        throw new AppError('Invalid maintenance policy', 400, 'BAD_REQUEST');
+      }
+
+      if (maintenance_policy) {
+        await db('company_finances')
+          .where({ company_id: companyId })
+          .update({ maintenance_policy });
+      }
+
+      res.status(200).json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

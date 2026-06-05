@@ -133,7 +133,9 @@ export const companyApi = {
   create: (data: { name: string; country_id: string; headquarters_state_id: string; industry_id: string; legal_structure_id: string; currency_id: string; starting_capital: number }) =>
     api.post('/companies', data),
   withdrawCapital: (id: string, amount: number) =>
-    api.post(`/companies/${id}/withdraw-capital`, { amount })
+    api.post(`/companies/${id}/withdraw-capital`, { amount }),
+  updateFinances: (id: string, data: any) =>
+    api.patch(`/companies/${id}/finances`, data)
 };
 
 // Registry

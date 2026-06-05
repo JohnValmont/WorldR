@@ -281,31 +281,70 @@ export class LogisticsController {
         const company = await trx('companies').where({ id: companyId, owner_character_id: character.id }).first();
         if (!company) throw new AppError('Company not found', 404, 'NOT_FOUND');
 
-        // Fetch assigned vehicles
+        const finances = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
+        const policy = finances.maintenance_policy || 'Standard';
+
+        let policyCostMultiplier = 1.0;
+        let policyWearMultiplier = 1.0;
+        if (policy === 'Low') {
+          policyCostMultiplier = 0.75;
+          policyWearMultiplier = 1.25;
+        } else if (policy === 'Generous') {
+          policyCostMultiplier = 1.25;
+          policyWearMultiplier = 0.75;
+        }
+
+        // Fetch ALL vehicles (assigned and idle)
         const vehicles = await trx('company_vehicles')
           .join('procurement_vehicles', 'company_vehicles.catalog_vehicle_id', 'procurement_vehicles.id')
           .where('company_vehicles.company_id', companyId)
-          .whereNotNull('company_vehicles.assigned_operation_pool_id')
-          .select('company_vehicles.*', 'procurement_vehicles.type', 'procurement_vehicles.monthly_maintenance');
+          .select('company_vehicles.*', 'procurement_vehicles.type', 'procurement_vehicles.monthly_maintenance', 'procurement_vehicles.purchase_cost');
 
-        // Sum revenue based on pools
         let totalRevenue = 0;
         let totalMaintenance = 0;
+        let totalDepreciation = 0;
         
         for (const v of vehicles) {
-          const pool = await trx('operation_pools').where({ id: v.assigned_operation_pool_id }).first();
-          if (pool) {
-            totalRevenue += Number(pool.base_revenue_per_arc);
+          const isAssigned = !!v.assigned_operation_pool_id;
+          
+          if (isAssigned) {
+            const pool = await trx('operation_pools').where({ id: v.assigned_operation_pool_id }).first();
+            if (pool) {
+              totalRevenue += Number(pool.base_revenue_per_arc);
+            }
           }
-          totalMaintenance += Number(v.monthly_maintenance);
+
+          // Maintenance Cost calculation
+          let baseMaint = Number(v.monthly_maintenance);
+          let vehicleMaint = isAssigned ? baseMaint : (baseMaint * 0.25);
+          vehicleMaint = Math.floor(vehicleMaint * policyCostMultiplier);
+          totalMaintenance += vehicleMaint;
+
+          // Condition Wear Calculation
+          let baseWear = isAssigned ? 3 : 1;
+          let wear = baseWear * policyWearMultiplier;
+          
+          let oldCondition = Number(v.condition);
+          let newCondition = Math.max(0, oldCondition - wear);
+
+          // Value Depreciation
+          let purchaseCost = Number(v.purchase_cost);
+          let oldValue = purchaseCost * (oldCondition / 100);
+          let newValue = purchaseCost * (newCondition / 100);
+          totalDepreciation += (oldValue - newValue);
+
+          // Update Vehicle Condition
+          await trx('company_vehicles')
+            .where({ id: v.id })
+            .update({ condition: newCondition, updated_at: trx.fn.now() });
         }
 
         const netProfit = totalRevenue - totalMaintenance;
 
-        const finances = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
         const [updatedFinances] = await trx('company_finances')
           .where({ company_id: companyId })
           .increment('available_cash', netProfit)
+          .decrement('company_value', totalDepreciation)
           .update({ last_arc_profit: netProfit })
           .returning('*');
 
@@ -318,7 +357,7 @@ export class LogisticsController {
             game_arc: clock?.current_arc || 1,
             game_mark: clock?.current_mark || 1,
             entry_type: 'Revenue',
-            description: `Operation Revenue from ${vehicles.length} vehicle(s)`,
+            description: `Operation Revenue from assigned vehicles`,
             amount: totalRevenue,
             balance_after: Number(finances.available_cash) + totalRevenue
           });
@@ -330,8 +369,8 @@ export class LogisticsController {
             game_orbit: clock?.current_orbit || 1,
             game_arc: clock?.current_arc || 1,
             game_mark: clock?.current_mark || 1,
-            entry_type: 'Expense',
-            description: `Fleet Maintenance`,
+            entry_type: 'vehicle_maintenance',
+            description: `Fleet Maintenance (Policy: ${policy})`,
             amount: -totalMaintenance,
             balance_after: Number(finances.available_cash) + totalRevenue - totalMaintenance
           });
