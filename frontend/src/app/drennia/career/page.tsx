@@ -131,8 +131,8 @@ export default function CareerPage() {
             {company ? (
               <div>
                 <FieldRow label="Role" value="Founder / Owner" />
-                <FieldRow label="Sector" value={company.sector} />
-                <FieldRow label="HQ State" value={company.state} />
+                <FieldRow label="Sector" value={company.sector || 'N/A'} />
+                <FieldRow label="HQ State" value={company.state || 'N/A'} />
                 <FieldRow label="Companies Owned" value={1} />
                 <FieldRow label="Reputation" value={company.reputation} />
               </div>

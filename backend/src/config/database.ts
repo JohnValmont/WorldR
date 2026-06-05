@@ -113,4 +113,23 @@ export async function runMigrationsAndSeeds(): Promise<void> {
       }
     }
   }
+
+  // Run seeds
+  const seedsDir = path.join(dbDir, 'seeds');
+  if (fs.existsSync(seedsDir)) {
+    logger.info(`Running seeds from ${seedsDir}`);
+    const seedFiles = fs.readdirSync(seedsDir).filter(f => f.endsWith('.sql')).sort();
+    for (const file of seedFiles) {
+      logger.info(`Applying seed: ${file}`);
+      const filePath = path.join(seedsDir, file);
+      const sql = fs.readFileSync(filePath, 'utf8');
+      try {
+        await db.raw(sql);
+        logger.info(`Successfully applied seed: ${file}`);
+      } catch (err) {
+        logger.error(`Failed to apply seed ${file}:`, err);
+        throw err;
+      }
+    }
+  }
 }

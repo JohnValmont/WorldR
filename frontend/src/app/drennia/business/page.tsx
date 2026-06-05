@@ -548,7 +548,7 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
       <PanelBox>
         <SectionHeader stamp="COMPANY FILE">Empire Summary</SectionHeader>
         <FieldRow label="Company" value={company.name} />
-        <FieldRow label="Structure" value={company.legalStructure} />
+        <FieldRow label="Structure" value={company.legalStructure || 'Unknown'} />
         <FieldRow label="Sector" value={getSectorName(company.sectorId) || company.sector || 'N/A'} />
         <FieldRow label="HQ State" value={getStateName(company.headquartersStateId) || company.state || 'N/A'} />
         <FieldRow label="Status" value={company.status} valueColor={T.mint} />
@@ -2074,7 +2074,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
       )}
 
       {deskTab === 'assets' && (
-        <AssetsTab company={company} fleet={fleet} onRefresh={onRefresh} showNotif={showNotif} />
+        <AssetsTab company={company} fleet={fleet} onRefresh={onRefresh} showNotif={showNotif} setDeskTab={setDeskTab} />
       )}
 
       {deskTab === 'records' && (
@@ -2141,7 +2141,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   );
 }
 
-function AssetsTab({ company, fleet, onRefresh, showNotif }: any) {
+function AssetsTab({ company, fleet, onRefresh, showNotif, setDeskTab }: any) {
   const vehicleAssetValue = fleet.reduce((sum:any, v:any) => sum + Math.round(v.purchaseCost * (v.condition / 100)), 0);
   const totalLeasedCost = (company.facilities || []).reduce((sum:any, f:any) => sum + f.leaseCost, 0);
 
@@ -2199,8 +2199,6 @@ function AssetsTab({ company, fleet, onRefresh, showNotif }: any) {
                 ))}
               </div>
             )}
-              </div>
-            )}
           </div>
           <div style={{ border: '1px solid ' + T.border, background: 'rgba(0,0,0,0.2)', padding: '16px' }}>
             <div style={{ fontSize: '12px', color: T.faint, fontWeight: 700, marginBottom: '12px' }}>Expansion Sites</div>
@@ -2218,7 +2216,7 @@ function AssetsTab({ company, fleet, onRefresh, showNotif }: any) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <GhostButton onClick={() => setDeskTab('facilities')}>Open Facilities</GhostButton>
             <GhostButton onClick={() => setDeskTab('fleet')}>Open Fleet</GhostButton>
-            <GhostButton onClick={onOpenMarket}>Open Market</GhostButton>
+            <GhostButton onClick={() => {}}>Open Market</GhostButton>
           </div>
         </PanelBox>
       </div>

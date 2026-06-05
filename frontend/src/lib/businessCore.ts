@@ -742,6 +742,8 @@ export { NPC_COMPANIES };
 export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   {
     id: 'ctr-drennport-office', issuerType: 'Local Business', issuerCompanyId: 'npc-drennport-office', issuerName: 'Drennport Office Suppliers',
+    originCountryId: 'drennia', originStateId: 'drennia-drennport', destinationCountryId: 'drennia', destinationStateId: 'drennia-drennport',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-mark',
     title: 'Drennport Office Supply Run', description: 'Regular delivery of paper, ink, and binding materials from the warehouse district to our main retail front.',
     cargo: 'Paper, ink, binding materials', contractType: 'Local Delivery', bidType: 'Direct Accept',
     requiredSector: 'Retail & Consumer', originState: 'Drennport State', destinationState: 'Drennport State', routeType: 'Local',
@@ -750,6 +752,8 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   },
   {
     id: 'ctr-westport-dock', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-saltgate', issuerName: 'Saltgate Counting House',
+    originCountryId: 'drennia', originStateId: 'drennia-westport', destinationCountryId: 'drennia', destinationStateId: 'drennia-westport',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-mark',
     title: 'Westport Dock Transfer', description: 'Move import crates from the dock warehouse to the counting house bonded storage.',
     cargo: 'Import crates', contractType: 'Port Transfer', bidType: 'Direct Accept',
     requiredSector: 'Port & Trade', originState: 'Westport State', destinationState: 'Westport State', routeType: 'Local / Port',
@@ -758,6 +762,8 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   },
   {
     id: 'ctr-greenmere-produce', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-greenmere-fresh', issuerName: 'Greenmere Fresh Supply',
+    originCountryId: 'drennia', originStateId: 'drennia-greenmere', destinationCountryId: 'drennia', destinationStateId: 'drennia-drennport',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-mark',
     title: 'Greenmere Produce Delivery', description: 'Transport 2 tons of root vegetables to Drennport outer markets before spoilage. Time-sensitive.',
     cargo: 'Root vegetables', contractType: 'Produce Delivery', bidType: 'Requires Bid',
     requiredSector: 'Agriculture & Food', originState: 'Greenmere State', destinationState: 'Drennport State', routeType: 'Interstate',
@@ -766,6 +772,8 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   },
   {
     id: 'ctr-ironvale-parts', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-kovath', issuerName: 'Kovath Ironworks',
+    originCountryId: 'drennia', originStateId: 'drennia-ironvale', destinationCountryId: 'drennia', destinationStateId: 'drennia-drennport',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-mark',
     title: 'Ironvale Parts Handling', description: 'Sorting and boxing of cast iron parts for railway shipment. Requires 2-capacity vehicle.',
     cargo: 'Cast iron parts', contractType: 'Industrial Freight', bidType: 'Requires Bid',
     requiredSector: 'Manufacturing', originState: 'Ironvale State', destinationState: 'Drennport State', routeType: 'Interstate',
@@ -774,6 +782,8 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   },
   {
     id: 'ctr-state-retail-restock', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-crownbridge', issuerName: 'Crownbridge Retailers',
+    originCountryId: 'drennia', originStateId: 'drennia-westport', destinationCountryId: 'drennia', destinationStateId: 'drennia-drennport',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-mark',
     title: 'State Retail Restock', description: 'Deliver retail goods from Westport distribution centre to Drennport chain outlets.',
     cargo: 'Retail goods', contractType: 'Interstate Freight', bidType: 'Requires Bid',
     requiredSector: 'Retail & Consumer', originState: 'Westport State', destinationState: 'Drennport State', routeType: 'Interstate',
@@ -834,9 +844,11 @@ export function evaluatePlayerBid(
   if (company.reliability === 'Proven' || company.reliability === 'Reliable' || company.reliability === 'Ironclad') score += 1;
   if (company.reliability === 'Bad' || company.reliability === 'Failing') score -= 2;
 
-  const originDestStr = contract.originState < contract.destinationState 
-    ? `${contract.originState}-${contract.destinationState}` 
-    : `${contract.destinationState}-${contract.originState}`;
+  const originStateStr = contract.originState || '';
+  const destinationStateStr = contract.destinationState || '';
+  const originDestStr = originStateStr < destinationStateStr 
+    ? `${originStateStr}-${destinationStateStr}` 
+    : `${destinationStateStr}-${originStateStr}`;
   const routeFam = getRouteFamiliarity(companyId).find(r => r.id === originDestStr);
   if (routeFam && routeFam.familiarity > 30) score += 1;
   if (routeFam && routeFam.familiarity > 70) score += 1;
@@ -882,7 +894,7 @@ export function assignVehicleToContract(contractId: string, vehicleId: string): 
 
 // ─── Resolve Contract ─────────────────────────────────────────────────────────
 function getOperatingCostRate(contract: Contract): number {
-  const stateToState = contract.originState !== contract.destinationState;
+  const stateToState = (contract.originState || '') !== (contract.destinationState || '');
   const heavy = contract.requiredCapacity >= 3;
   if (heavy) return 0.25;
   if (stateToState) return 0.20;
@@ -891,7 +903,7 @@ function getOperatingCostRate(contract: Contract): number {
 
 function getConditionDrop(contract: Contract): number {
   const heavy = contract.requiredCapacity >= 3;
-  const stateToState = contract.originState !== contract.destinationState;
+  const stateToState = (contract.originState || '') !== (contract.destinationState || '');
   if (heavy) return 8 + Math.floor(Math.random() * 5); // 8-12
   if (stateToState) return 5 + Math.floor(Math.random() * 4); // 5-8
   return 2 + Math.floor(Math.random() * 3); // 2-4
@@ -926,7 +938,9 @@ export function resolveContract(contractId: string): { success: boolean; message
 
   let operatingRate = contract.operatingCostEstimate / contract.payment;
   // Route familiarity reduces cost
-  const originDestStr = contract.originState < contract.destinationState ? `${contract.originState}-${contract.destinationState}` : `${contract.destinationState}-${contract.originState}`;
+  const originStateStr = contract.originState || '';
+  const destStateStr = contract.destinationState || '';
+  const originDestStr = originStateStr < destStateStr ? `${originStateStr}-${destStateStr}` : `${destStateStr}-${originStateStr}`;
   const routeFam = getRouteFamiliarity(company.id).find(r => r.id === originDestStr)?.familiarity || 0;
   if (routeFam > 0) {
      operatingRate *= (1 - (routeFam / 200)); // up to 50% cost reduction at 100% familiarity
@@ -1002,11 +1016,11 @@ export function resolveContract(contractId: string): { success: boolean; message
     if (contract.routeType === 'Local') famIncrease = 8;
     else if (contract.routeType === 'Local / Port') famIncrease = 6;
     else if (contract.routeType === 'Interstate') famIncrease = 5;
-    updateRouteFamiliarity(company.id, contract.originState, contract.destinationState, famIncrease);
+    updateRouteFamiliarity(company.id, contract.originState || '', contract.destinationState || '', famIncrease);
     
     saveContractHistory({
       id: `hist_${Date.now()}`, companyId: company.id, title: contract.title, issuer: contract.issuerName, issuerType: contract.issuerType,
-      cargo: contract.cargo, originState: contract.originState, destinationState: contract.destinationState,
+      cargo: contract.cargo, originState: contract.originState || '', destinationState: contract.destinationState || '',
       vehicleId: vehicle?.id || '', vehicleName: vehicle?.type || 'Unknown', payment: bidAmount, operatingCost, penalty: 0,
       result: 'completed', trustImpact, reliabilityImpact, year: 290, month: 1, recordText
     });
@@ -1042,7 +1056,7 @@ export function resolveContract(contractId: string): { success: boolean; message
     
     saveContractHistory({
       id: `hist_${Date.now()}`, companyId: company.id, title: contract.title, issuer: contract.issuerName, issuerType: contract.issuerType,
-      cargo: contract.cargo, originState: contract.originState, destinationState: contract.destinationState,
+      cargo: contract.cargo, originState: contract.originState || '', destinationState: contract.destinationState || '',
       vehicleId: vehicle?.id || '', vehicleName: vehicle?.type || 'Unknown', payment: bidAmount, operatingCost, penalty: contract.penalty,
       result: 'failed', trustImpact, reliabilityImpact, year: 290, month: 1, recordText
     });
@@ -1181,7 +1195,7 @@ export function processMonthlyOperations(companyId: string): { success: boolean;
     contract.status = 'completed';
     recordsCreated.push(`Contract Completed: ${contract.title}. Revenue: ${formatMoney(contract.payment)}`);
     
-    updateRouteFamiliarity(companyId, contract.originState, contract.destinationState, 10);
+    updateRouteFamiliarity(companyId, contract.originState || '', contract.destinationState || '', 10);
     company.clientTrusts ??= {};
     const currentClientTrust = Number(company.clientTrusts[contract.issuerName] ?? 0);
     company.clientTrusts[contract.issuerName] = Math.min(100, Math.max(0, currentClientTrust + 10));
@@ -1472,6 +1486,12 @@ export function leaseFacility(
   const facilityId = `fac_${Date.now()}`;
   const facility: Facility = {
     id: facilityId,
+    facilityTypeId: 'warehouse',
+    countryId: 'drennia',
+    stateId: state,
+    capacity: 10,
+    leaseCostPerArc: leaseCost,
+    currencyId: 'drennian-mark',
     type,
     state,
     leaseCost,
