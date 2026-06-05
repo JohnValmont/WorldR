@@ -138,6 +138,6 @@ export const companyApi = {
 
 // Registry
 export const registryApi = {
-  getCompanies: () => api.get('/registry/companies'),
-  getCompany: (id: string) => api.get(`/registry/companies/${id}`)
+  getCompanies: () => api.get(`/registry/companies?t=${Date.now()}`),
+  getCompany: (id: string) => api.get(`/registry/companies/${id}?t=${Date.now()}`)
 };
