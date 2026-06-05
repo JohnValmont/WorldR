@@ -4,6 +4,7 @@ import worldRoutes from './world.routes';
 import characterRoutes from './character.routes';
 import companyRoutes from './company.routes';
 import registryRoutes from './registry.routes';
+import logisticsRoutes from './logistics.routes';
 
 const apiRouter = Router();
 
@@ -12,5 +13,6 @@ apiRouter.use('/world', worldRoutes);
 apiRouter.use('/characters', characterRoutes);
 apiRouter.use('/companies', companyRoutes);
 apiRouter.use('/registry', registryRoutes);
+apiRouter.use('/logistics', logisticsRoutes);
 
 export default apiRouter;

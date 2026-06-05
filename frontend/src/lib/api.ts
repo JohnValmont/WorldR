@@ -141,3 +141,15 @@ export const registryApi = {
   getCompanies: () => api.get(`/registry/companies?t=${Date.now()}`),
   getCompany: (id: string) => api.get(`/registry/companies/${id}?t=${Date.now()}`)
 };
+
+// Logistics
+export const logisticsApi = {
+  getProcurement: () => api.get('/logistics/procurement'),
+  getCompanyLogistics: (companyId: string) => api.get(`/logistics/company/${companyId}?t=${Date.now()}`),
+  hireStaff: (companyId: string, role: string) => api.post(`/logistics/company/${companyId}/staff/hire`, { role }),
+  fireStaff: (companyId: string, role: string) => api.post(`/logistics/company/${companyId}/staff/fire`, { role }),
+  purchaseVehicle: (companyId: string, catalogVehicleId: string) => api.post(`/logistics/company/${companyId}/vehicles/purchase`, { catalogVehicleId }),
+  leaseFacility: (companyId: string, catalogFacilityId: string) => api.post(`/logistics/company/${companyId}/facilities/lease`, { catalogFacilityId }),
+  assignOperation: (companyId: string, vehicleId: string, poolId: string) => api.post(`/logistics/company/${companyId}/operations/assign`, { vehicleId, poolId }),
+  processTest: (companyId: string) => api.post(`/logistics/company/${companyId}/operations/process-test`)
+};

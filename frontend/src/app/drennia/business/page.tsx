@@ -243,14 +243,13 @@ export default function BusinessPage() {
     const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
     if (!granted) { router.replace('/pre-alpha-access'); return; }
 
-    import('../../../lib/api').then(({ characterApi, companyApi }) => {
+    import('../../../lib/api').then(({ characterApi, companyApi, logisticsApi }) => {
       characterApi.getMe()
         .then(res => {
           const char = res.data;
           setCharacterName(char.name);
           setPlayerCash(Number(char.finances?.cash_in_hand || 0));
 
-          // For backward compatibility of flavor text
           const fileStr = localStorage.getItem('worldr_citizen_file_v1');
           if (fileStr) setCitizenFile(JSON.parse(fileStr));
           else setCitizenFile({ motherland: 'Drennia' });
@@ -259,14 +258,45 @@ export default function BusinessPage() {
             const companies = compRes.data;
             if (companies.length > 0) {
               const myCompany = companies[0];
-              setCompany({
-                ...myCompany,
-                sector: myCompany.industry_id,
-                state: myCompany.headquarters_state_id,
-                legalStructure: myCompany.legal_structure_id,
-                companyCash: myCompany.finances?.available_cash
+              
+              logisticsApi.getCompanyLogistics(myCompany.id).then(logRes => {
+                const { staff, vehicles, facilities, ledger } = logRes.data;
+                
+                // Map staff to a record
+                const staffRecord: Record<string, number> = {};
+                staff.forEach((s: any) => staffRecord[s.role] = s.quantity);
+
+                // Map fleet
+                const mappedFleet = vehicles.map((v: any) => ({
+                  id: v.id,
+                  companyId: v.company_id,
+                  type: v.type, // Comes from JOIN
+                  catalogId: v.catalog_vehicle_id,
+                  condition: Number(v.condition),
+                  assignedAutoOpPool: v.assigned_operation_pool_id,
+                  purchasedAt: v.purchased_at
+                }));
+
+                setCompany({
+                  ...myCompany,
+                  sector: myCompany.industry_id,
+                  state: myCompany.headquarters_state_id,
+                  legalStructure: myCompany.legal_structure_id,
+                  companyCash: myCompany.finances?.available_cash,
+                  staff: staffRecord
+                });
+                setFleet(mappedFleet);
+              }).catch(err => {
+                console.error("Logistics fetch error", err);
+                setCompany({
+                  ...myCompany,
+                  sector: myCompany.industry_id,
+                  state: myCompany.headquarters_state_id,
+                  legalStructure: myCompany.legal_structure_id,
+                  companyCash: myCompany.finances?.available_cash,
+                });
               });
-              setFleet(getFleet(myCompany.id));
+
             } else {
               setCompany(null);
             }
@@ -278,6 +308,7 @@ export default function BusinessPage() {
           }
         })
         .finally(() => {
+          const { initializeContractsIfEmpty, getContracts } = require('../../../lib/businessCore');
           initializeContractsIfEmpty();
           setContracts(getContracts());
           setAuthorized(true);
@@ -952,10 +983,23 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   const records = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
   const routes = getRouteFamiliarity(company.id);
 
-  const handleBuyVehicle = async (type: VehicleType) => {
-    const result = await purchaseVehicle(company.id, type);
-    showNotif(result.message, result.success);
-    if (result.success) onRefresh();
+  const handleBuyVehicle = async (type: string) => {
+    try {
+      const { logisticsApi } = require('../../../lib/api');
+      const proc = await logisticsApi.getProcurement();
+      const catalogItem = proc.data.vehicles.find((v: any) => v.type === type);
+      
+      if (!catalogItem) {
+        showNotif('Vehicle not found in catalog', false);
+        return;
+      }
+
+      await logisticsApi.purchaseVehicle(company.id, catalogItem.id);
+      showNotif(`Purchased ${type} successfully.`, true);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.message || 'Purchase failed', false);
+    }
   };
 
   const handleMaintenance = async (vehicleId: string, level: 'basic' | 'full') => {
@@ -985,17 +1029,35 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
     if (result.success || !result.success) onRefresh();
   };
 
-  const handleAssignAutoOp = (vehicleId: string, poolType: AutoOpPoolType | null) => {
-    const result = assignVehicleToAutoOp(vehicleId, poolType);
-    showNotif(result.message, result.success);
-    if (result.success) onRefresh();
+  const handleAssignAutoOp = async (vehicleId: string, poolType: string | null) => {
+    try {
+      const { logisticsApi } = require('../../../lib/api');
+      let poolId = null;
+      if (poolType) {
+        const proc = await logisticsApi.getProcurement();
+        const pool = proc.data.pools.find((p: any) => p.name === poolType);
+        if (!pool) throw new Error('Pool not found');
+        poolId = pool.id;
+      }
+      await logisticsApi.assignOperation(company.id, vehicleId, poolId);
+      showNotif('Operation assigned.', true);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.message || err.message || 'Assignment failed', false);
+    }
   };
 
 
 
-  const handleRunAutoOps = () => {
-    // Just a UI confirmation that assignments are set. No time advancement.
-    showNotif("Operation assignments successfully saved. They will be processed at the end of the month.", true);
+  const handleRunAutoOps = async () => {
+    try {
+      const { logisticsApi } = require('../../../lib/api');
+      const res = await logisticsApi.processTest(company.id);
+      showNotif(`Test Processed: Net Profit $${res.data.netProfit}`, true);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.message || 'Processing failed', false);
+    }
   };
 
 
@@ -1357,11 +1419,18 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                   <FieldRow label="Maintenance per Arc" value={formatMoney(3000)} />
                   <FieldRow label="Source Type" value="NPC Manufacturer" />
                   <div style={{ marginTop: '16px' }}>
-                    <GoldButton onClick={() => {
-                       const { buyVehicleFromNpc } = require('@/lib/businessCore');
-                       const res = buyVehicleFromNpc(company.id, 'Used Delivery Van', 35000, 100, 1, 3000, 'Drennia Motors');
-                       showNotif(res.message, res.success);
-                       if (res.success) onRefresh();
+                    <GoldButton onClick={async () => {
+                       try {
+                         const { logisticsApi } = require('../../../lib/api');
+                         const proc = await logisticsApi.getProcurement();
+                         const catalogItem = proc.data.vehicles.find((v: any) => v.type === 'Used Delivery Van');
+                         if (!catalogItem) { showNotif('Vehicle catalog item not found', false); return; }
+                         await logisticsApi.purchaseVehicle(company.id, catalogItem.id);
+                         showNotif('Vehicle purchased successfully.', true);
+                         onRefresh();
+                       } catch (err: any) {
+                         showNotif(err?.response?.data?.message || 'Purchase failed', false);
+                       }
                     }}>Order Vehicle</GoldButton>
                   </div>
                 </PanelBox>
@@ -1374,11 +1443,18 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                   <FieldRow label="Maintenance per Arc" value={formatMoney(7000)} />
                   <FieldRow label="Source Type" value="NPC Manufacturer" />
                   <div style={{ marginTop: '16px' }}>
-                    <GoldButton onClick={() => {
-                       const { buyVehicleFromNpc } = require('@/lib/businessCore');
-                       const res = buyVehicleFromNpc(company.id, 'Box Truck', 75000, 100, 2, 7000, 'Westport Commercial Vehicles');
-                       showNotif(res.message, res.success);
-                       if (res.success) onRefresh();
+                    <GoldButton onClick={async () => {
+                       try {
+                         const { logisticsApi } = require('../../../lib/api');
+                         const proc = await logisticsApi.getProcurement();
+                         const catalogItem = proc.data.vehicles.find((v: any) => v.type === 'Box Truck');
+                         if (!catalogItem) { showNotif('Vehicle catalog item not found', false); return; }
+                         await logisticsApi.purchaseVehicle(company.id, catalogItem.id);
+                         showNotif('Vehicle purchased successfully.', true);
+                         onRefresh();
+                       } catch (err: any) {
+                         showNotif(err?.response?.data?.message || 'Purchase failed', false);
+                       }
                     }}>Order Vehicle</GoldButton>
                   </div>
                 </PanelBox>
@@ -1391,11 +1467,18 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                   <FieldRow label="Maintenance per Arc" value={formatMoney(12000)} />
                   <FieldRow label="Source Type" value="NPC Manufacturer" />
                   <div style={{ marginTop: '16px' }}>
-                    <GoldButton onClick={() => {
-                       const { buyVehicleFromNpc } = require('@/lib/businessCore');
-                       const res = buyVehicleFromNpc(company.id, 'Used Freight Truck', 180000, 100, 4, 12000, 'Ironvale Heavy Industries');
-                       showNotif(res.message, res.success);
-                       if (res.success) onRefresh();
+                    <GoldButton onClick={async () => {
+                       try {
+                         const { logisticsApi } = require('../../../lib/api');
+                         const proc = await logisticsApi.getProcurement();
+                         const catalogItem = proc.data.vehicles.find((v: any) => v.type === 'Used Freight Truck');
+                         if (!catalogItem) { showNotif('Vehicle catalog item not found', false); return; }
+                         await logisticsApi.purchaseVehicle(company.id, catalogItem.id);
+                         showNotif('Vehicle purchased successfully.', true);
+                         onRefresh();
+                       } catch (err: any) {
+                         showNotif(err?.response?.data?.message || 'Purchase failed', false);
+                       }
                     }}>Order Vehicle</GoldButton>
                   </div>
                 </PanelBox>
@@ -1431,11 +1514,18 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                   <FieldRow label="Stock" value="2" />
                   <FieldRow label="Source Type" value="NPC Dealer" />
                   <div style={{ marginTop: '16px' }}>
-                    <GoldButton onClick={() => {
-                       const { buyVehicleFromNpc } = require('@/lib/businessCore');
-                       const res = buyVehicleFromNpc(company.id, 'Used Delivery Van', 48000, 72, 1, 3000, 'Westport Dealer Yard');
-                       showNotif(res.message, res.success);
-                       if (res.success) onRefresh();
+                    <GoldButton onClick={async () => {
+                       try {
+                         const { logisticsApi } = require('../../../lib/api');
+                         const proc = await logisticsApi.getProcurement();
+                         const catalogItem = proc.data.vehicles.find((v: any) => v.type === 'Used Delivery Van');
+                         if (!catalogItem) { showNotif('Vehicle catalog item not found', false); return; }
+                         await logisticsApi.purchaseVehicle(company.id, catalogItem.id);
+                         showNotif('Vehicle purchased successfully.', true);
+                         onRefresh();
+                       } catch (err: any) {
+                         showNotif(err?.response?.data?.message || 'Purchase failed', false);
+                       }
                     }}>Buy Used Vehicle</GoldButton>
                   </div>
                 </PanelBox>
@@ -1449,11 +1539,18 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                   <FieldRow label="Stock" value="1" />
                   <FieldRow label="Source Type" value="NPC Dealer" />
                   <div style={{ marginTop: '16px' }}>
-                    <GoldButton onClick={() => {
-                       const { buyVehicleFromNpc } = require('@/lib/businessCore');
-                       const res = buyVehicleFromNpc(company.id, 'Box Truck', 112000, 68, 2, 7000, 'Ironvale Resale Depot');
-                       showNotif(res.message, res.success);
-                       if (res.success) onRefresh();
+                    <GoldButton onClick={async () => {
+                       try {
+                         const { logisticsApi } = require('../../../lib/api');
+                         const proc = await logisticsApi.getProcurement();
+                         const catalogItem = proc.data.vehicles.find((v: any) => v.type === 'Box Truck');
+                         if (!catalogItem) { showNotif('Vehicle catalog item not found', false); return; }
+                         await logisticsApi.purchaseVehicle(company.id, catalogItem.id);
+                         showNotif('Vehicle purchased successfully.', true);
+                         onRefresh();
+                       } catch (err: any) {
+                         showNotif(err?.response?.data?.message || 'Purchase failed', false);
+                       }
                     }}>Buy Used Vehicle</GoldButton>
                   </div>
                 </PanelBox>
@@ -1467,11 +1564,18 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                   <FieldRow label="Stock" value="1" />
                   <FieldRow label="Source Type" value="NPC Dealer" />
                   <div style={{ marginTop: '16px' }}>
-                    <GoldButton onClick={() => {
-                       const { buyVehicleFromNpc } = require('@/lib/businessCore');
-                       const res = buyVehicleFromNpc(company.id, 'Used Freight Truck', 190000, 61, 3, 12000, 'Drennport Auction Yard');
-                       showNotif(res.message, res.success);
-                       if (res.success) onRefresh();
+                    <GoldButton onClick={async () => {
+                       try {
+                         const { logisticsApi } = require('../../../lib/api');
+                         const proc = await logisticsApi.getProcurement();
+                         const catalogItem = proc.data.vehicles.find((v: any) => v.type === 'Used Freight Truck');
+                         if (!catalogItem) { showNotif('Vehicle catalog item not found', false); return; }
+                         await logisticsApi.purchaseVehicle(company.id, catalogItem.id);
+                         showNotif('Vehicle purchased successfully.', true);
+                         onRefresh();
+                       } catch (err: any) {
+                         showNotif(err?.response?.data?.message || 'Purchase failed', false);
+                       }
                     }}>Buy Used Vehicle</GoldButton>
                   </div>
                 </PanelBox>
@@ -2248,15 +2352,29 @@ function FacilitiesTab({ company, onRefresh, showNotif }: any) {
   });
 
   const handleLease = async (type: any, leaseCost: number) => {
-    const state = selectedStates[type] || company.state;
-    const alreadyLeased = (company.facilities || []).some((f:any) => f.type === type && f.state === state);
-    if (alreadyLeased) {
-      showNotif(`You already lease a ${type} in ${state}.`, false);
-      return;
+    try {
+      const state = selectedStates[type] || company.state;
+      const alreadyLeased = (company.facilities || []).some((f:any) => f.type === type && f.state === state);
+      if (alreadyLeased) {
+        showNotif(`You already lease a ${type} in ${state}.`, false);
+        return;
+      }
+      
+      const { logisticsApi } = require('../../../lib/api');
+      const proc = await logisticsApi.getProcurement();
+      const catalogItem = proc.data.facilities.find((f: any) => f.type === type);
+      
+      if (!catalogItem) {
+        showNotif('Facility not found in catalog', false);
+        return;
+      }
+
+      await logisticsApi.leaseFacility(company.id, catalogItem.id);
+      showNotif(`Leased ${type} successfully.`, true);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.message || 'Lease failed', false);
     }
-    const res = await leaseFacility(company.id, type, state, leaseCost);
-    showNotif(res.message, res.success);
-    if (res.success) onRefresh();
   };
 
   const availableProperties = [
@@ -2477,16 +2595,42 @@ function EquityTab({ company, characterName, fleet }: { company: Company; charac
 function ProcurementTab({ company, onRefresh, showNotif }: any) {
   const [procTab, setProcTab] = React.useState<'orders' | 'used' | 'facilities'>('orders');
 
-  const handleOrder = async (type: any) => {
-    const result = await purchaseVehicle(company.id, type);
-    showNotif(result.message, result.success);
-    if (result.success) onRefresh();
+  const handleOrder = async (type: string) => {
+    try {
+      const { logisticsApi } = require('../../../lib/api');
+      const proc = await logisticsApi.getProcurement();
+      const catalogItem = proc.data.vehicles.find((v: any) => v.type === type);
+      
+      if (!catalogItem) {
+        showNotif('Vehicle not found in catalog', false);
+        return;
+      }
+
+      await logisticsApi.purchaseVehicle(company.id, catalogItem.id);
+      showNotif(`Purchased ${type} successfully.`, true);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.message || 'Purchase failed', false);
+    }
   };
 
   const handleLease = async (type: string, cost: number, state: string) => {
-    const result = await leaseFacility(company.id, type as any, state, cost);
-    showNotif(result.message, result.success);
-    if (result.success) onRefresh();
+    try {
+      const { logisticsApi } = require('../../../lib/api');
+      const proc = await logisticsApi.getProcurement();
+      const catalogItem = proc.data.facilities.find((f: any) => f.type === type);
+      
+      if (!catalogItem) {
+        showNotif('Facility not found in catalog', false);
+        return;
+      }
+
+      await logisticsApi.leaseFacility(company.id, catalogItem.id);
+      showNotif(`Leased ${type} successfully.`, true);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.message || 'Lease failed', false);
+    }
   };
 
   return (
