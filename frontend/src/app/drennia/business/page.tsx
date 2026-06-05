@@ -219,14 +219,12 @@ export default function BusinessPage() {
   const [characterName, setCharacterName] = useState('');
   const [playerCash, setPlayerCash] = useState(0);
   const [company, setCompany] = useState<Company | null>(null);
+  const [fleet, setFleet] = useState<Vehicle[]>([]);
+  const [ledger, setLedger] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
   const [activeTab, setActiveTab] = useState<SubTab>('overview');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [registryKey, setRegistryKey] = useState(0);
-
-  // Contracts state
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  // Fleet state
-  const [fleet, setFleet] = useState<Vehicle[]>([]);
 
   // Start Business state
   const [step, setStep] = useState(1);
@@ -268,15 +266,27 @@ export default function BusinessPage() {
                 staff.forEach((s: any) => staffRecord[s.role] = s.quantity);
 
                 // Map fleet
-                const mappedFleet = vehicles.map((v: any) => ({
-                  id: v.id,
-                  companyId: v.company_id,
-                  type: v.type, // Comes from JOIN
-                  catalogId: v.catalog_vehicle_id,
-                  condition: Number(v.condition),
-                  assignedAutoOpPool: v.assigned_operation_pool_id,
-                  purchasedAt: v.purchased_at
-                }));
+                const mappedFleet = vehicles.map((v: any, index: number) => {
+                  let tagPrefix = 'VEH';
+                  if (v.type.includes('Van')) tagPrefix = 'VAN';
+                  else if (v.type.includes('Box')) tagPrefix = 'BOX';
+                  else if (v.type.includes('Freight')) tagPrefix = 'FRT';
+                  
+                  return {
+                    id: v.id,
+                    companyId: v.company_id,
+                    type: v.type, // Comes from JOIN
+                    catalogId: v.catalog_vehicle_id,
+                    condition: Number(v.condition),
+                    assignedAutoOpPool: v.assigned_operation_pool_id,
+                    purchasedAt: v.purchased_at,
+                    capacity: Number(v.capacity) || 0,
+                    purchaseCost: Number(v.purchase_cost) || 0,
+                    monthlyMaintenance: Number(v.monthly_maintenance) || 0,
+                    currentValue: Number(v.current_value) || 0,
+                    assetTag: `${tagPrefix}-00${index + 1}`
+                  };
+                });
 
                 setCompany({
                   ...myCompany,
@@ -287,6 +297,7 @@ export default function BusinessPage() {
                   staff: staffRecord
                 });
                 setFleet(mappedFleet);
+                setLedger(ledger);
               }).catch(err => {
                 console.error("Logistics fetch error", err);
                 setCompany({
@@ -325,7 +336,11 @@ export default function BusinessPage() {
   };
 
   // ─── Net Worth ──────────────────────────────────────────────────────────
-  const netWorth = calcNetWorth(playerCash, company);
+  const calcCompanyValue = (comp: any) => {
+    const fleetVal = fleet.reduce((acc, v) => acc + (v.currentValue || 0), 0);
+    return Number(comp.companyCash || 0) + fleetVal - Number(comp.debt || 0);
+  };
+  const netWorth = playerCash + (company ? calcCompanyValue(company) : 0);
 
   // ─── Start Business ──────────────────────────────────────────────────────
   const checkName = () => {
@@ -362,8 +377,6 @@ export default function BusinessPage() {
         currency_id: 'drennian-mark',
         starting_capital: chosenCapital
       }).then((res: any) => {
-        addRecord(`Registered ${finalName} as a Sole Trader (${selectedModel}) headquartered in ${selectedHQ}. Initial capital filed: ${formatMoney(chosenCapital)}.`);
-        
         // Create/update career record
         const careerData = {
           activePath: 'Business',
@@ -530,26 +543,25 @@ export default function BusinessPage() {
                   <GoldButton onClick={() => setSelectedCompanyId(company.id)}>Manage Company →</GoldButton>
                 </div>
               </div>
-
-              {/* Additional Companies Card (Part 4) */}
-              <div style={{ background: 'rgba(255,255,255,0.01)', border: `1px solid ${T.border}`, padding: '20px', borderLeft: `3px dashed ${T.faint}`, opacity: 0.7 }}>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: T.muted, marginBottom: '6px' }}>Additional Companies</div>
-                <div style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: T.gold, letterSpacing: '0.1em', marginBottom: '10px' }}>Coming Soon</div>
-                <p style={{ fontSize: '11px', color: T.faint, lineHeight: 1.6, margin: 0 }}>
-                  “Multiple company ownership, subsidiaries, holding companies, and cross-sector business groups will unlock later. Pre-alpha currently supports one active company.”
-                </p>
-              </div>
             </div>
           </div>
         )}
         
         {activeTab === 'companies' && company && selectedCompanyId === company.id && (
-          <CompanyDeskTab company={company} fleet={fleet} contracts={contracts} playerCash={playerCash} characterName={characterName} onRefresh={refreshAll} />
+          <CompanyDeskTab 
+            company={company} 
+            fleet={fleet} 
+            ledger={ledger}
+            contracts={contracts} 
+            playerCash={playerCash}
+            onRefresh={loadData}
+            characterName={characterName}
+          />
         )}
         
         
         {activeTab === 'exchange' && <DrennportExchangeTab />}
-{activeTab === 'registry'  && <RegistryTab key={registryKey} company={company} onRefresh={() => setRegistryKey(k => k + 1)} />}
+        {activeTab === 'registry'  && <RegistryTab key={registryKey} company={company} onRefresh={() => setRegistryKey(k => k + 1)} />}
       </div>
     </div>
     </div>
@@ -938,8 +950,8 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
 // ─────────────────────────────────────────────────────────────────────────────
 type CompanyDeskTab = 'overview' | 'operations' | 'staff' | 'contracts' | 'procurement' | 'facilities' | 'assets' | 'fleet' | 'routes' | 'finance' | 'contractHistory' | 'records' | 'equity';
 
-function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, onRefresh }: {
-  company: Company; fleet: Vehicle[]; contracts: Contract[]; playerCash: number; characterName: string;
+function CompanyDeskTab({ company, fleet, ledger, contracts, playerCash, characterName, onRefresh }: {
+  company: Company; fleet: Vehicle[]; ledger: any[]; contracts: Contract[]; playerCash: number; characterName: string;
   onRefresh: () => void;
 }) {
   const [deskTab, setDeskTab] = useState<CompanyDeskTab>('overview');
@@ -952,8 +964,42 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   const [routeFilter, setRouteFilter] = useState<RouteFilter>('All');
   const [financeSubTab, setFinanceSubTab] = useState<'overview' | 'monthly' | 'history' | 'charts' | 'ledger'>('overview');
   
-  const financeHistory = getFinanceHistory(company.id);
-  const ledger = getLedger(company.id);
+  // Derive financeHistory and lastMonthlyReport from ledger
+  const arcs = new Map<string, any>();
+  if (ledger && Array.isArray(ledger)) {
+    ledger.forEach((entry: any) => {
+      const key = `Orbit ${entry.game_orbit}, Arc ${entry.game_arc}`;
+      if (!arcs.has(key)) {
+        arcs.set(key, { 
+          id: key, 
+          label: key, 
+          netProfit: 0, 
+          gameDateStr: key,
+          autoRevenue: 0,
+          manualRevenue: 0,
+          operatingCosts: 0,
+          payrollExpense: 0,
+          totalMaintenance: 0,
+          facilityLeaseExpense: 0,
+          penalties: 0
+        });
+      }
+      const arc = arcs.get(key)!;
+      if (entry.entry_type === 'Revenue') {
+        arc.autoRevenue += Number(entry.amount);
+        arc.netProfit += Number(entry.amount);
+      } else {
+        if (entry.description?.includes('Maintenance')) arc.totalMaintenance += Math.abs(Number(entry.amount));
+        else if (entry.description?.includes('Payroll')) arc.payrollExpense += Math.abs(Number(entry.amount));
+        else if (entry.description?.includes('Lease')) arc.facilityLeaseExpense += Math.abs(Number(entry.amount));
+        arc.operatingCosts += Math.abs(Number(entry.amount));
+        arc.netProfit -= Math.abs(Number(entry.amount));
+      }
+    });
+  }
+
+  const financeHistory = Array.from(arcs.values());
+  const computedLastReport = financeHistory.length > 0 ? financeHistory[0] : null;
 
   const showNotif = (msg: string, success: boolean) => {
     setNotification({ msg, success });
@@ -976,8 +1022,9 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
     { id: 'equity',     label: 'Equity'     },
   ];
 
-  const companyValue = calcCompanyValue(company);
-  const netWorth = calcNetWorth(playerCash, company);
+  const fleetValue = fleet.reduce((acc: any, v: any) => acc + (v.currentValue || Math.round(v.purchaseCost * (v.condition / 100))), 0);
+  const companyValue = Number(company.companyCash || 0) + fleetValue - Number(company.debt || 0);
+  const netWorth = playerCash + companyValue;
   const activeContracts = contracts.filter(c => (c.status === 'awarded' || c.status === 'active') && c.awardedToCompanyId === company.id);
   const completedContracts = contracts.filter(c => c.status === 'completed');
   const contractHistory = getContractHistory(company.id);
@@ -1108,7 +1155,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                 <SectionHeader stamp="LEDGER">Financials</SectionHeader>
                 <FieldRow label="Company Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
                 <FieldRow label="Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.red : T.muted} />
-                <FieldRow label="Fleet Assets" value={formatMoney(companyValue - company.companyCash + company.debt)} valueColor={T.steel} />
+                <FieldRow label="Fleet Assets" value={formatMoney(fleetValue)} valueColor={T.steel} />
                 <FieldRow label="Company Value" value={formatMoney(companyValue)} valueColor={T.gold} />
                 <FieldRow label="Net Worth" value={formatMoney(netWorth)} valueColor={T.gold} />
               </PanelBox>
@@ -1202,22 +1249,28 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                   💾 SAVE OPERATION ASSIGNMENTS
                 </GoldButton>
 
-                <GoldButton onClick={handleRunAutoOps}>
-                  ⚡ PROCESS COMPANY OPERATIONS — TEST
-                </GoldButton>
+                {process.env.NODE_ENV === 'development' && (
+                  <GoldButton onClick={handleRunAutoOps} color="#8A6E2A">
+                    DEV ONLY — Process Company Arc
+                  </GoldButton>
+                )}
+              </div>
+              
+              <div style={{ fontSize: '11px', color: T.faint, marginTop: '16px', fontStyle: 'italic' }}>
+                Operations are processed automatically at Arc Close.
               </div>
             </PanelBox>
 
             {company.lastMonthlyReport && (
               <PanelBox style={{ marginBottom: '24px', border: `1px solid ${T.gold}` }}>
-                <SectionHeader stamp={company.lastMonthlyReport.gameDateStr}>Last Arc Report</SectionHeader>
-                <FieldRow label="Gross Revenue" value={formatMoney(company.lastMonthlyReport.autoRevenue + company.lastMonthlyReport.manualRevenue)} valueColor={T.mint} />
-                <FieldRow label="Operating Costs" value={'-' + formatMoney(company.lastMonthlyReport.operatingCosts)} valueColor={T.muted} />
-                <FieldRow label="Payroll" value={'-' + formatMoney(company.lastMonthlyReport.payrollExpense)} valueColor={T.muted} />
-                <FieldRow label="Maintenance" value={'-' + formatMoney(company.lastMonthlyReport.totalMaintenance)} valueColor={T.muted} />
-                <FieldRow label="Facility Leases" value={'-' + formatMoney(company.lastMonthlyReport.facilityLeaseExpense)} valueColor={T.muted} />
+                <SectionHeader stamp={computedLastReport.gameDateStr}>Last Arc Report</SectionHeader>
+                <FieldRow label="Gross Revenue" value={formatMoney(computedLastReport.autoRevenue + computedLastReport.manualRevenue)} valueColor={T.mint} />
+                <FieldRow label="Operating Costs" value={'-' + formatMoney(computedLastReport.operatingCosts)} valueColor={T.muted} />
+                <FieldRow label="Payroll" value={'-' + formatMoney(computedLastReport.payrollExpense)} valueColor={T.muted} />
+                <FieldRow label="Maintenance" value={'-' + formatMoney(computedLastReport.totalMaintenance)} valueColor={T.muted} />
+                <FieldRow label="Facility Leases" value={'-' + formatMoney(computedLastReport.facilityLeaseExpense)} valueColor={T.muted} />
                 <div style={{ height: '1px', background: T.border, margin: '12px 0' }} />
-                <FieldRow label={company.lastMonthlyReport.netProfit >= 0 ? "Net Profit" : "Operating Loss"} value={formatMoney(company.lastMonthlyReport.netProfit)} valueColor={company.lastMonthlyReport.netProfit >= 0 ? T.mint : T.red} />
+                <FieldRow label={computedLastReport.netProfit >= 0 ? "Net Profit" : "Operating Loss"} value={formatMoney(computedLastReport.netProfit)} valueColor={computedLastReport.netProfit >= 0 ? T.mint : T.red} />
               </PanelBox>
             )}
 
@@ -1662,7 +1715,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <div>
                           <div style={{ fontWeight: 700, color: T.ivory }}>{v.type}</div>
-                          <div style={{ color: T.faint }}>ID: {v.id.substring(0, 8)} • Capacity: {v.capacity}</div>
+                          <div style={{ color: T.faint }}>Asset Tag: {v.assetTag || v.id.substring(0,8)} • Capacity: {v.capacity}</div>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <span style={{ color: v.condition > 80 ? T.mint : v.condition > 50 ? T.gold : T.red }}>Cond: {v.condition}%</span>
@@ -2082,14 +2135,14 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
               <div>
                 <PanelBox style={{ marginBottom: '16px' }}>
                   <SectionHeader>Performance</SectionHeader>
-                  <FieldRow label="Company Value" value={formatMoney(calcCompanyValue(company))} valueColor={T.gold} />
-                  <FieldRow label="Total Fleet Value" value={formatMoney(fleet.reduce((acc, v) => acc + Math.round(v.purchaseCost * (v.condition / 100)), 0))} valueColor={T.steel} />
+                  <FieldRow label="Company Value" value={formatMoney(companyValue)} valueColor={T.gold} />
+                  <FieldRow label="Total Fleet Value" value={formatMoney(fleetValue)} valueColor={T.steel} />
                   <FieldRow label="Credit Rating" value="Unrated" />
                 </PanelBox>
                 <PanelBox style={{ marginBottom: '24px' }}>
                   <SectionHeader>Your Personal Finances</SectionHeader>
                   <FieldRow label="Cash in Hand" value={formatMoney(playerCash)} valueColor={T.ivory} />
-                  <FieldRow label="Net Worth" value={formatMoney(playerCash + calcCompanyValue(company))} valueColor={T.gold} />
+                  <FieldRow label="Net Worth" value={formatMoney(netWorth)} valueColor={T.gold} />
                 </PanelBox>
 
                 <SectionHeader stamp="LENDING">Debt & Financing</SectionHeader>
@@ -2566,22 +2619,31 @@ function RegistryTab({ company, onRefresh }: { company: Company | null; onRefres
 
 // ─── FINANCE TAB ─────────────────────────────────────────────────────────────
 function FinanceTab({ company, fleet, playerCash, netWorth }: { company: Company; fleet: Vehicle[]; playerCash: number; netWorth: number }) {
-  const companyValue = calcCompanyValue(company);
+  const fleetValue = fleet.reduce((acc: any, v: any) => acc + (v.currentValue || Math.round(v.purchaseCost * (v.condition / 100))), 0);
+  const companyValue = Number(company.companyCash || 0) + fleetValue - Number(company.debt || 0);
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', maxWidth: '760px' }}>
       <PanelBox>
         <SectionHeader stamp="LEDGER">Company Financials</SectionHeader>
         <FieldRow label="Company Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
         <FieldRow label="Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.red : T.muted} />
-        <FieldRow label="Arc Revenue" value={formatMoney(company.monthlyRevenue)} valueColor={T.mint} />
-        <FieldRow label="Arc Costs" value={formatMoney(company.monthlyCosts)} valueColor={T.red} />
-        <FieldRow label="Net Profit" value={formatMoney(company.profit)} valueColor={company.profit >= 0 ? T.mint : T.red} />
+        {company.lastMonthlyReport ? (
+          <>
+            <FieldRow label="Last Arc Gross Revenue" value={formatMoney(company.lastMonthlyReport.autoRevenue + company.lastMonthlyReport.manualRevenue)} valueColor={T.mint} />
+            <FieldRow label="Last Arc Operating Costs" value={formatMoney(company.lastMonthlyReport.operatingCosts + company.lastMonthlyReport.payrollExpense + company.lastMonthlyReport.totalMaintenance + company.lastMonthlyReport.facilityLeaseExpense)} valueColor={T.red} />
+            <FieldRow label="Last Arc Net Profit" value={formatMoney(company.lastMonthlyReport.netProfit)} valueColor={company.lastMonthlyReport.netProfit >= 0 ? T.mint : T.red} />
+          </>
+        ) : (
+          <div style={{ fontSize: '11px', color: T.faint, fontStyle: 'italic', marginTop: '12px', padding: '8px', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}>
+            No Arc processed yet.
+          </div>
+        )}
       </PanelBox>
       <PanelBox>
         <SectionHeader stamp="NET WORTH">Personal Balance Sheet</SectionHeader>
         <FieldRow label="Cash in Hand" value={formatMoney(playerCash)} valueColor={T.mint} />
         <FieldRow label="Company Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
-        <FieldRow label="Vehicle Assets" value={formatMoney(companyValue - company.companyCash)} valueColor={T.steel} />
+        <FieldRow label="Vehicle Assets" value={formatMoney(fleetValue)} valueColor={T.steel} />
         <FieldRow label="Company Value" value={formatMoney(companyValue)} valueColor={T.gold} />
         <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ fontSize: '12px', fontWeight: 700, color: T.ivory }}>Net Worth</span>
@@ -2594,7 +2656,8 @@ function FinanceTab({ company, fleet, playerCash, netWorth }: { company: Company
 
 // ─── EQUITY TAB ──────────────────────────────────────────────────────────────
 function EquityTab({ company, characterName, fleet }: { company: Company; characterName: string; fleet: Vehicle[] }) {
-  const companyValue = calcCompanyValue(company);
+  const fleetValue = fleet.reduce((acc: any, v: any) => acc + (v.currentValue || Math.round(v.purchaseCost * (v.condition / 100))), 0);
+  const companyValue = Number(company.companyCash || 0) + fleetValue - Number(company.debt || 0);
   return (
     <div style={{ maxWidth: '560px' }}>
       <PanelBox>

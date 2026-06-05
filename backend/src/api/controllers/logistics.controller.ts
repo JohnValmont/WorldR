@@ -36,7 +36,13 @@ export class LogisticsController {
       const vehicles = await db('company_vehicles')
         .join('procurement_vehicles', 'company_vehicles.catalog_vehicle_id', 'procurement_vehicles.id')
         .where('company_vehicles.company_id', companyId)
-        .select('company_vehicles.*', 'procurement_vehicles.type');
+        .select(
+          'company_vehicles.*', 
+          'procurement_vehicles.type', 
+          'procurement_vehicles.capacity', 
+          'procurement_vehicles.monthly_maintenance', 
+          'procurement_vehicles.purchase_cost'
+        );
       const facilities = await db('company_facilities')
         .join('procurement_facilities', 'company_facilities.catalog_facility_id', 'procurement_facilities.id')
         .where('company_facilities.company_id', companyId)

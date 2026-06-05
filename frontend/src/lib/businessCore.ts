@@ -282,6 +282,8 @@ export interface Vehicle {
   condition: number;          // 0–100
   purchaseCost: number;
   monthlyMaintenance: number;
+  currentValue?: number;
+  assetTag?: string;
   assignedContractId?: string; // undefined = available
   assignedAutoOpPool?: string;
   purchasedAt: string;
