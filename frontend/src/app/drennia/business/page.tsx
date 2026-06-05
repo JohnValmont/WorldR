@@ -6,10 +6,11 @@ import {
   getContracts, saveContract, initializeContractsIfEmpty,
   evaluatePlayerBid, assignVehicleToContract, resolveContract,
   getFleet, purchaseVehicle, performMaintenance, calcNetWorth, calcCompanyValue, addRecord,
-  VEHICLE_CATALOGUE, formatMoney, getContractHistory, acceptDirectContract, assignVehicleToAutoOp, hireStaff, fireStaff, STAFF_WAGES, getRouteFamiliarity, leaseFacility, saveVehicle,
+  VEHICLE_CATALOGUE, formatMoney, getContractHistory, acceptDirectContract, assignVehicleToAutoOp, STAFF_WAGES, getRouteFamiliarity, leaseFacility, saveVehicle,
   getLedger, getFinanceHistory, getGameDate, formatGameDate, getVehicleDisplayLabel, getRouteFamiliarityPercent, getClientTrustLabel,
   type Company, type Contract, type Vehicle, type VehicleType, type ContractHistoryEntry, type RouteFamiliarity, type AutoOpPoolType, type StaffRole, type WagePolicy, type MonthlyFinanceSnapshot, type LedgerEntry
 } from '../../../lib/businessCore';
+import { logisticsApi } from '../../../lib/api';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 
 // Helpers to resolve standard IDs to display names in v1
@@ -1031,7 +1032,6 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
 
   const handleAssignAutoOp = async (vehicleId: string, poolType: string | null) => {
     try {
-      const { logisticsApi } = require('../../../lib/api');
       let poolId = null;
       if (poolType) {
         const proc = await logisticsApi.getProcurement();
@@ -1051,7 +1051,6 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
 
   const handleRunAutoOps = async () => {
     try {
-      const { logisticsApi } = require('../../../lib/api');
       const res = await logisticsApi.processTest(company.id);
       showNotif(`Test Processed: Net Profit $${res.data.netProfit}`, true);
       onRefresh();
@@ -1195,9 +1194,18 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                 </div>
               ) : null}
 
-              <GoldButton onClick={handleRunAutoOps}>
-                💾 SAVE OPERATION ASSIGNMENTS
-              </GoldButton>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <GoldButton onClick={() => {
+                  showNotif('Operation assignments saved.', true);
+                  onRefresh();
+                }}>
+                  💾 SAVE OPERATION ASSIGNMENTS
+                </GoldButton>
+
+                <GoldButton onClick={handleRunAutoOps}>
+                  ⚡ PROCESS COMPANY OPERATIONS — TEST
+                </GoldButton>
+              </div>
             </PanelBox>
 
             {company.lastMonthlyReport && (
@@ -1382,7 +1390,6 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                      <div style={{ display: 'flex', gap: '8px' }}>
                        <GhostButton onClick={async () => {
                          try {
-                           const { logisticsApi } = require('../../../lib/api');
                            await logisticsApi.fireStaff(company.id, role);
                            showNotif(`Fired 1 ${role}.`, true);
                            onRefresh();
@@ -1392,7 +1399,6 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                        }} color={T.red} disabled={count === 0}>-</GhostButton>
                        <GhostButton onClick={async () => {
                          try {
-                           const { logisticsApi } = require('../../../lib/api');
                            await logisticsApi.hireStaff(company.id, role);
                            showNotif(`Hired 1 ${role}.`, true);
                            onRefresh();
@@ -1431,7 +1437,6 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                   <div style={{ marginTop: '16px' }}>
                     <GoldButton onClick={async () => {
                        try {
-                         const { logisticsApi } = require('../../../lib/api');
                          const proc = await logisticsApi.getProcurement();
                          const catalogItem = proc.data.vehicles.find((v: any) => v.type === 'Used Delivery Van');
                          if (!catalogItem) { showNotif('Vehicle catalog item not found', false); return; }
