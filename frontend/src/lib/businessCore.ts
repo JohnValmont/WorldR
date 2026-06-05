@@ -3,13 +3,16 @@
 // Still backed by localStorage for v1, designed for backend swap.
 
 import { getCurrencyConfig } from '../world/currencies/currencyRegistry';
+import { companyApi } from './api';
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
 export function formatMoney(value: number, currencyId: string = 'drennian-mark'): string {
   const config = getCurrencyConfig(currencyId);
-  return config.symbol + Number(value || 0).toLocaleString(config.locale, {
+  const formatter = new Intl.NumberFormat(config.locale || 'en-US', {
+    minimumFractionDigits: 0,
     maximumFractionDigits: config.decimalPlaces
   });
+  return config.symbol + formatter.format(value || 0);
 }
 
 export function formatCompanyMoney(company: { currencyId?: string }, value: number): string {
@@ -332,9 +335,16 @@ export function saveVehicle(vehicle: Vehicle): void {
   localStorage.setItem('worldr_fleet_v1', JSON.stringify(all));
 }
 
-export function purchaseVehicle(companyId: string, type: VehicleType): { success: boolean; message: string } {
+export async function purchaseVehicle(companyId: string, type: VehicleType): Promise<{ success: boolean; message: string }> {
   const spec = VEHICLE_CATALOGUE.find(v => v.type === type);
   if (!spec) return { success: false, message: 'Unknown vehicle type.' };
+
+  try {
+    await companyApi.withdrawCapital(companyId, spec.cost);
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.error || 'Failed to purchase vehicle.' };
+  }
+
   const companies = getCompanies();
   const idx = companies.findIndex(c => c.id === companyId);
   if (idx < 0) return { success: false, message: 'Company not found.' };
@@ -357,7 +367,7 @@ export function purchaseVehicle(companyId: string, type: VehicleType): { success
   return { success: true, message: `Purchased ${type} for \${formatMoney(spec.cost)}.` };
 }
 
-export function buyVehicleFromNpc(
+export async function buyVehicleFromNpc(
   companyId: string,
   type: VehicleType,
   price: number,
@@ -365,17 +375,19 @@ export function buyVehicleFromNpc(
   capacity: number,
   monthlyMaintenance: number,
   sourceName: string
-): { success: boolean; message: string } {
+): Promise<{ success: boolean; message: string }> {
   if (typeof window === 'undefined') return { success: false, message: 'Server env' };
+  
+  try {
+    await companyApi.withdrawCapital(companyId, price);
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.error || 'Failed to purchase vehicle.' };
+  }
   
   const companies = getCompanies();
   const idx = companies.findIndex(c => c.id === companyId);
   if (idx < 0) return { success: false, message: 'Company not found.' };
   const company = companies[idx];
-  
-  if (company.companyCash < price) {
-    return { success: false, message: 'Insufficient company cash. Inject capital or choose a cheaper vehicle.' };
-  }
   
   company.companyCash -= price;
   companies[idx] = company;
@@ -398,7 +410,7 @@ export function buyVehicleFromNpc(
   return { success: true, message: `Purchased ${type} from ${sourceName} for ${formatMoney(price)}.` };
 }
 
-export function performMaintenance(vehicleId: string, level: 'basic' | 'full'): { success: boolean; message: string } {
+export async function performMaintenance(vehicleId: string, level: 'basic' | 'full'): Promise<{ success: boolean; message: string }> {
   const cost = level === 'basic' ? 5000 : 15000;
   const restore = level === 'basic' ? 10 : 30;
   const all: Vehicle[] = JSON.parse(localStorage.getItem('worldr_fleet_v1') || '[]');
@@ -1465,12 +1477,12 @@ export function acceptDirectContract(contractId: string, companyId: string, vehi
   return { success: true, message: 'Contract directly accepted and vehicle assigned.' };
 }
 
-export function leaseFacility(
+export async function leaseFacility(
   companyId: string,
   type: Facility['type'],
   state: string,
   leaseCost: number
-): { success: boolean; message: string } {
+): Promise<{ success: boolean; message: string }> {
   const companies = getCompanies();
   const cIdx = companies.findIndex(c => c.id === companyId);
   if (cIdx < 0) return { success: false, message: 'Company not found.' };
@@ -1478,6 +1490,12 @@ export function leaseFacility(
 
   // Initialize facilities if not present
   if (!company.facilities) company.facilities = [];
+
+  try {
+    await companyApi.withdrawCapital(companyId, leaseCost);
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.error || 'Failed to lease facility.' };
+  }
 
   if (company.companyCash < leaseCost) {
     return { success: false, message: `Insufficient company cash. Need ${formatMoney(leaseCost)} for first month's lease.` };

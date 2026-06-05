@@ -52,28 +52,48 @@ export default function ChroniclePage() {
     const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
     if (!granted) { router.replace('/pre-alpha-access'); return; }
 
-    const fileStr = localStorage.getItem('worldr_citizen_file_v1');
-    if (fileStr) {
-      const cf = JSON.parse(fileStr);
-      setCitizenFile(cf);
-      const cName = typeof cf.name === 'object' ? `${cf.name.first} ${cf.name.last}` : cf.name;
-      setCharacterName(cName);
-      setPlayerCash(cf.wealth || 0);
+    import('../../../lib/api').then(({ characterApi, companyApi }) => {
+      characterApi.getMe()
+        .then(res => {
+          const char = res.data;
+          setCharacterName(char.name);
+          setPlayerCash(Number(char.finances?.cash_in_hand || 0));
 
-      const companies = getCompanies();
-      const myCompany = companies.find(c => c.ownerCharacterId === cName);
-      setCompany(myCompany || null);
-      setHasCompany(!!myCompany);
+          // For backward compatibility of flavor text
+          const fileStr = localStorage.getItem('worldr_citizen_file_v1');
+          if (fileStr) setCitizenFile(JSON.parse(fileStr));
+          else setCitizenFile({ motherland: 'Drennia' });
 
-      if (myCompany) {
-        const contracts = getContracts();
-        setActiveContracts(contracts.filter(c => c.status === 'awarded' && c.awardedToCompanyId === myCompany.id).length);
-      }
-    }
+          companyApi.getMy().then(compRes => {
+            const companies = compRes.data;
+            if (companies.length > 0) {
+              const myCompany = companies[0];
+              setCompany({
+                ...myCompany,
+                sector: myCompany.industry_id,
+                state: myCompany.headquarters_state_id,
+                legalStructure: myCompany.legal_structure_id,
+                companyCash: myCompany.finances?.available_cash
+              });
+              setHasCompany(true);
+              
+              const contracts = getContracts();
+              setActiveContracts(contracts.filter(c => c.status === 'awarded' && c.awardedToCompanyId === myCompany.id).length);
+            }
+          });
+        })
+        .catch(err => {
+          if (err.response?.status === 404) {
+             router.replace('/start/character');
+          }
+        })
+        .finally(() => {
+          setAuthorized(true);
+        });
+    });
 
     const recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
     setRecentRecords(recs.slice(0, 6));
-    setAuthorized(true);
   }, [router]);
 
   const handleRestartLife = () => {

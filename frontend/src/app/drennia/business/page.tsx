@@ -240,45 +240,54 @@ export default function BusinessPage() {
     if (typeof window === 'undefined') return;
     const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
     if (!granted) { router.replace('/pre-alpha-access'); return; }
-    const fileStr = localStorage.getItem('worldr_citizen_file_v1');
-    if (fileStr) {
-      const cf = JSON.parse(fileStr);
-      setCitizenFile(cf);
-      const cName = typeof cf.name === 'object' ? `${cf.name.first} ${cf.name.last}` : cf.name;
-      setCharacterName(cName);
-      setPlayerCash(cf.wealth ?? cf.personalMoney ?? 0);
-      const playerCompany = getPlayerCompany(cName);
-      setCompany(playerCompany || null);
-      if (playerCompany) setFleet(getFleet(playerCompany.id));
-    }
-    initializeContractsIfEmpty();
-    setContracts(getContracts());
-    setAuthorized(true);
+
+    import('../../../lib/api').then(({ characterApi, companyApi }) => {
+      characterApi.getMe()
+        .then(res => {
+          const char = res.data;
+          setCharacterName(char.name);
+          setPlayerCash(Number(char.finances?.cash_in_hand || 0));
+
+          // For backward compatibility of flavor text
+          const fileStr = localStorage.getItem('worldr_citizen_file_v1');
+          if (fileStr) setCitizenFile(JSON.parse(fileStr));
+          else setCitizenFile({ motherland: 'Drennia' });
+
+          companyApi.getMy().then(compRes => {
+            const companies = compRes.data;
+            if (companies.length > 0) {
+              const myCompany = companies[0];
+              setCompany({
+                ...myCompany,
+                sector: myCompany.industry_id,
+                state: myCompany.headquarters_state_id,
+                legalStructure: myCompany.legal_structure_id,
+                companyCash: myCompany.finances?.available_cash
+              });
+              setFleet(getFleet(myCompany.id));
+            } else {
+              setCompany(null);
+            }
+          });
+        })
+        .catch(err => {
+          if (err.response?.status === 404) {
+             router.replace('/start/character');
+          }
+        })
+        .finally(() => {
+          initializeContractsIfEmpty();
+          setContracts(getContracts());
+          setAuthorized(true);
+        });
+    });
   }, [router]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   // ─── Helpers ────────────────────────────────────────────────────────────
   const refreshAll = () => {
-    const fileStr = localStorage.getItem('worldr_citizen_file_v1');
-    if (fileStr) {
-      const cf = JSON.parse(fileStr);
-      setCitizenFile(cf);
-      setPlayerCash(cf.wealth ?? cf.personalMoney ?? 0);
-      const cName = typeof cf.name === 'object' ? `${cf.name.first} ${cf.name.last}` : cf.name;
-      const playerCompany = getPlayerCompany(cName);
-      setCompany(playerCompany || null);
-      if (playerCompany) setFleet(getFleet(playerCompany.id));
-    }
-    setContracts(getContracts());
-  };
-
-  const updateCash = (newCash: number) => {
-    if (!citizenFile) return;
-    const updated = { ...citizenFile, wealth: newCash, personalMoney: newCash };
-    setCitizenFile(updated);
-    setPlayerCash(newCash);
-    localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(updated));
+    loadData();
   };
 
   // ─── Net Worth ──────────────────────────────────────────────────────────
@@ -295,7 +304,7 @@ export default function BusinessPage() {
     return true;
   };
 
-  const handleRegisterCompany = () => {
+  const handleRegisterCompany = async () => {
     setStartError('');
     const FILING_FEE = 5000;
     const total = chosenCapital + FILING_FEE;
@@ -308,44 +317,44 @@ export default function BusinessPage() {
       return;
     }
     const finalName = companyNameInput.trim();
-    const { createCompany } = require('@/lib/businessCore');
-    const newCompany = createCompany({
-      ownerCharacterId: characterName,
-      ownerName: characterName,
-      name: finalName,
-      countryId: 'drennia',
-      headquartersStateId: selectedHQ,
-      industryId: 'shipping-logistics',
-      sectorId: selectedSector === 'Shipping & Logistics' ? 'services' : 'retail',
-      legalStructureId: 'sole-trader',
-      currencyId: 'drennian-mark',
-      companyCash: chosenCapital,
-      operatingModel: selectedModel,
-    });
-    updateCash(playerCash - total);
-    addRecord(`Registered ${finalName} as a Sole Trader (${selectedModel}) headquartered in ${selectedHQ}. Initial capital filed: ${formatMoney(chosenCapital)}.`);
-    
-    // Create/update career record
-    const careerData = {
-      activePath: 'Business',
-      startedAtYear: 0,
-      startedAtMonth: 0,
-      entries: [
-        {
-          id: `car_${Date.now()}`,
-          type: 'business_start',
-          year: 0,
-          month: 0,
-          text: `${characterName} started ${finalName} (${selectedModel}) headquartered in ${HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ}, in Year 0.`,
-          relatedCompanyId: newCompany.id
-        }
-      ]
-    };
-    localStorage.setItem('worldr_career_v1', JSON.stringify(careerData));
 
-    setCompany(newCompany);
-    setFleet([]);
-    setActiveTab('companies');
+    import('../../../lib/api').then(({ companyApi }) => {
+      companyApi.create({
+        name: finalName,
+        country_id: 'drennia',
+        headquarters_state_id: selectedHQ,
+        industry_id: selectedSector === 'Shipping & Logistics' ? 'services' : 'retail',
+        legal_structure_id: 'sole-trader',
+        currency_id: 'drennian-mark',
+        starting_capital: chosenCapital
+      }).then((res: any) => {
+        addRecord(`Registered ${finalName} as a Sole Trader (${selectedModel}) headquartered in ${selectedHQ}. Initial capital filed: ${formatMoney(chosenCapital)}.`);
+        
+        // Create/update career record
+        const careerData = {
+          activePath: 'Business',
+          startedAtYear: 0,
+          startedAtMonth: 0,
+          entries: [
+            {
+              id: `car_${Date.now()}`,
+              type: 'business_start',
+              year: 0,
+              month: 0,
+              text: `${characterName} started ${finalName} (${selectedModel}) headquartered in ${HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ}, in Year 0.`,
+              relatedCompanyId: res.data?.id
+            }
+          ]
+        };
+        localStorage.setItem('worldr_career_v1', JSON.stringify(careerData));
+
+        loadData();
+        setStep(5);
+        setActiveTab('companies');
+      }).catch((err: any) => {
+        setStartError(err.response?.data?.error || 'Failed to register company.');
+      });
+    });
   };
 
   if (!authorized) return null;
@@ -938,14 +947,14 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
   const records = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
   const routes = getRouteFamiliarity(company.id);
 
-  const handleBuyVehicle = (type: VehicleType) => {
-    const result = purchaseVehicle(company.id, type);
+  const handleBuyVehicle = async (type: VehicleType) => {
+    const result = await purchaseVehicle(company.id, type);
     showNotif(result.message, result.success);
     if (result.success) onRefresh();
   };
 
-  const handleMaintenance = (vehicleId: string, level: 'basic' | 'full') => {
-    const result = performMaintenance(vehicleId, level);
+  const handleMaintenance = async (vehicleId: string, level: 'basic' | 'full') => {
+    const result = await performMaintenance(vehicleId, level);
     showNotif(result.message, result.success);
     if (result.success) {
       // Record added inside core now or we add here if missing
@@ -2233,14 +2242,14 @@ function FacilitiesTab({ company, onRefresh, showNotif }: any) {
     'Regional Branch Office': company.state,
   });
 
-  const handleLease = (type: any, leaseCost: number) => {
+  const handleLease = async (type: any, leaseCost: number) => {
     const state = selectedStates[type] || company.state;
     const alreadyLeased = (company.facilities || []).some((f:any) => f.type === type && f.state === state);
     if (alreadyLeased) {
       showNotif(`You already lease a ${type} in ${state}.`, false);
       return;
     }
-    const res = leaseFacility(company.id, type, state, leaseCost);
+    const res = await leaseFacility(company.id, type, state, leaseCost);
     showNotif(res.message, res.success);
     if (res.success) onRefresh();
   };
@@ -2338,7 +2347,14 @@ function FacilitiesTab({ company, onRefresh, showNotif }: any) {
 }
 
 function RegistryTab({ company }: { company: Company | null }) {
-  const all = getCompanies();
+  const [all, setAll] = React.useState<any[]>([]);
+  
+  React.useEffect(() => {
+    import('../../../lib/api').then(({ registryApi }) => {
+      registryApi.getCompanies().then(res => setAll(res.data)).catch(err => console.error(err));
+    });
+  }, []);
+
   return (
     <div style={{ maxWidth: '720px' }}>
       <SectionHeader stamp="PUBLIC RECORD">Drennia Commercial Registry</SectionHeader>
@@ -2350,7 +2366,7 @@ function RegistryTab({ company }: { company: Company | null }) {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: T.ivory }}>{c.name}</div>
-                <div style={{ fontSize: '11px', color: T.muted }}>{c.legalStructure} · {c.sector} · {c.state}</div>
+                <div style={{ fontSize: '11px', color: T.muted }}>{c.legal_structure_id} · {c.industry_id} · {c.headquarters_state_id}</div>
               </div>
               <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>{c.id === company?.id ? '(You)' : 'NPC/Player'}</div>
             </div>
@@ -2414,14 +2430,14 @@ function EquityTab({ company, characterName, fleet }: { company: Company; charac
 function ProcurementTab({ company, onRefresh, showNotif }: any) {
   const [procTab, setProcTab] = React.useState<'orders' | 'used' | 'facilities'>('orders');
 
-  const handleOrder = (type: any) => {
-    const result = purchaseVehicle(company.id, type);
+  const handleOrder = async (type: any) => {
+    const result = await purchaseVehicle(company.id, type);
     showNotif(result.message, result.success);
     if (result.success) onRefresh();
   };
 
-  const handleLease = (type: string, cost: number, state: string) => {
-    const result = leaseFacility(company.id, type as any, state, cost);
+  const handleLease = async (type: string, cost: number, state: string) => {
+    const result = await leaseFacility(company.id, type as any, state, cost);
     showNotif(result.message, result.success);
     if (result.success) onRefresh();
   };

@@ -118,3 +118,26 @@ export const authApi = {
   resetPassword: (data: any) =>
     api.post('/auth/reset-password', data)
 };
+
+// Characters
+export const characterApi = {
+  getMe: () => api.get('/characters/me'),
+  create: (data: { name: string; motherland_country_id: string; home_state_id?: string; currency_id: string }) =>
+    api.post('/characters', data)
+};
+
+// Companies
+export const companyApi = {
+  getMy: () => api.get('/companies/my'),
+  getById: (id: string) => api.get(`/companies/${id}`),
+  create: (data: { name: string; country_id: string; headquarters_state_id: string; industry_id: string; legal_structure_id: string; currency_id: string; starting_capital: number }) =>
+    api.post('/companies', data),
+  withdrawCapital: (id: string, amount: number) =>
+    api.post(`/companies/${id}/withdraw-capital`, { amount })
+};
+
+// Registry
+export const registryApi = {
+  getCompanies: () => api.get('/registry/companies'),
+  getCompany: (id: string) => api.get(`/registry/companies/${id}`)
+};

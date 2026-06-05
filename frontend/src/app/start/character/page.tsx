@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
+import { characterApi } from '../../../lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -656,9 +657,26 @@ export default function CreateCharacterPage() {
     if (typeof window === 'undefined') return;
     const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
     if (!granted) { router.replace('/pre-alpha-access'); return; }
-    setAuthorized(true);
-    const t = setTimeout(() => setRevealed(true), 60);
-    return () => clearTimeout(t);
+    
+    characterApi.getMe()
+      .then(res => {
+        if (res.data && res.data.id) {
+          router.replace('/drennia/business');
+        }
+      })
+      .catch(err => {
+        if (err.response?.status === 404) {
+          if (localStorage.getItem('worldr_character') || localStorage.getItem('worldr_citizen_file_v1')) {
+            alert('This pre-alpha build now uses online world saves. Please create a fresh online character.');
+            localStorage.removeItem('worldr_character');
+            localStorage.removeItem('worldr_citizen_file_v1');
+          }
+        }
+      })
+      .finally(() => {
+        setAuthorized(true);
+        setTimeout(() => setRevealed(true), 60);
+      });
   }, [router]);
 
   const pick = useCallback((key: keyof Choices, val: string) => {
@@ -687,64 +705,80 @@ export default function CreateCharacterPage() {
     return false;
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     const contactObj = NPC_CONTACTS.find(c => c.id === choices.npcContact);
     const ambitionObj = AMBITIONS.find(a => a.id === choices.firstAmbition);
     const burdenObj   = BURDENS.find(b => b.id === choices.earlyBurden);
     const hhObj       = HOUSEHOLDS.find(h => h.id === choices.household);
 
-    const citizenFile = {
-      name: { first: firstName, last: lastName },
-      age: 18,
-      motherland: 'Drennia',
-      capital: 'Drennport',
-      continent: 'Varelia',
-      homeState: choices.homeState,
-      householdBackground: choices.household,
-      childhoodMark: choices.childhoodMark,
-      firstNpcContact: choices.npcContact,
-      firstNpcContactName: contactObj?.title || '',
-      firstNpcContactType: choices.npcContact,
-      earlyBurden: choices.earlyBurden,
-      firstAmbition: choices.firstAmbition,
-      firstObligation: contactObj?.obligation || burdenObj?.obligation || hhObj?.obligation || null,
-      firstVulnerability: contactObj?.vulnerability || burdenObj?.vulnerability || hhObj?.vulnerability || 'Inexperience in public life',
-      homeStateFamiliarity: STATES.find(s => s.id === choices.homeState)?.tag || '',
-      earlyLeaning: ambitionObj?.tag || '',
-      originChronicle: getChronicleFragments(choices, firstName),
-      factors,
-      contact: {
-        id: 'c1',
-        name: contactObj?.title || '',
-        role: choices.npcContact,
-        type: choices.npcContact,
-        strength: 20,
-      },
-      obligation: contactObj?.obligation || burdenObj?.obligation || hhObj?.obligation ? {
-        type: (contactObj?.obligation || burdenObj?.obligation || hhObj?.obligation || '').toLowerCase().replace(/[/ ]+/g, '_'),
-        description: contactObj?.obligation || burdenObj?.obligation || hhObj?.obligation || '',
-        severity: 'minor',
-      } : null,
-      vulnerability: {
-        type: 'inexperienced',
-        description: contactObj?.vulnerability || burdenObj?.vulnerability || hhObj?.vulnerability || 'New to adult public life.',
-        severity: 'minor',
-      },
-      personalMoney: 1000000,
-      money: 1000000,
-      wealth: 1000000,
-      summaryParagraph: generateSummary(choices, firstName),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    try {
+      setFading(true);
+      const payload = {
+        name: `${firstName} ${lastName}`.trim(),
+        motherland_country_id: 'drennia', // Temporary hardcode for v1
+        home_state_id: choices.homeState ? `drennia-${choices.homeState.toLowerCase().split(' ')[0]}` : undefined,
+        currency_id: 'drennian-mark'
+      };
+      
+      await characterApi.create(payload);
 
-    localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(citizenFile));
-    localStorage.setItem('worldr_character_origin_v1', JSON.stringify({
-      homeState: choices.homeState,
-      household: choices.household,
-      motherland: 'Drennia',
-    }));
-    router.push('/start/citizen-file');
+      // Save flavor text and context info for the frontend UI
+      const citizenFile = {
+        name: { first: firstName, last: lastName },
+        age: 18,
+        motherland: 'Drennia',
+        capital: 'Drennport',
+        continent: 'Varelia',
+        homeState: choices.homeState,
+        householdBackground: choices.household,
+        childhoodMark: choices.childhoodMark,
+        firstNpcContact: choices.npcContact,
+        firstNpcContactName: contactObj?.title || '',
+        firstNpcContactType: choices.npcContact,
+        earlyBurden: choices.earlyBurden,
+        firstAmbition: choices.firstAmbition,
+        firstObligation: contactObj?.obligation || burdenObj?.obligation || hhObj?.obligation || null,
+        firstVulnerability: contactObj?.vulnerability || burdenObj?.vulnerability || hhObj?.vulnerability || 'Inexperience in public life',
+        homeStateFamiliarity: STATES.find(s => s.id === choices.homeState)?.tag || '',
+        earlyLeaning: ambitionObj?.tag || '',
+        originChronicle: getChronicleFragments(choices, firstName),
+        factors,
+        contact: {
+          id: 'c1',
+          name: contactObj?.title || '',
+          role: choices.npcContact,
+          type: choices.npcContact,
+          strength: 20,
+        },
+        obligation: contactObj?.obligation || burdenObj?.obligation || hhObj?.obligation ? {
+          type: (contactObj?.obligation || burdenObj?.obligation || hhObj?.obligation || '').toLowerCase().replace(/[/ ]+/g, '_'),
+          description: contactObj?.obligation || burdenObj?.obligation || hhObj?.obligation || '',
+          severity: 'minor',
+        } : null,
+        vulnerability: {
+          type: 'inexperienced',
+          description: contactObj?.vulnerability || burdenObj?.vulnerability || hhObj?.vulnerability || 'New to adult public life.',
+          severity: 'minor',
+        },
+        personalMoney: 1000000,
+        money: 1000000,
+        wealth: 1000000,
+        summaryParagraph: generateSummary(choices, firstName),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(citizenFile));
+      localStorage.setItem('worldr_character_origin_v1', JSON.stringify({
+        homeState: choices.homeState,
+        household: choices.household,
+        motherland: 'Drennia',
+      }));
+      router.push('/start/citizen-file');
+    } catch (err: any) {
+      setFading(false);
+      alert(err.response?.data?.error || err.message || 'Failed to save character to network');
+    }
   };
 
   // ── Dynamic scene text ──────────────────────────────────────────────────────

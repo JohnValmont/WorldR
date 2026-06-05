@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatGameDate, advanceWorldArcAndProcess } from '../../lib/businessCore';
 
-export const ENABLE_ADVANCE_ARC_TEST = true;
+export const ENABLE_ADVANCE_ARC_TEST = process.env.NODE_ENV === 'development';
 
 const T = {
   gold: '#C9A24A',
