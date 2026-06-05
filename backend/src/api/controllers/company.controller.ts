@@ -91,8 +91,19 @@ export class CompanyController {
 
       const result = await db.transaction(async (trx) => {
         // Check character cash with a lock
-        const characterFinances = await trx('character_finances').where({ character_id: character.id }).forUpdate().first();
+        let characterFinances = await trx('character_finances').where({ character_id: character.id }).forUpdate().first();
         
+        if (!characterFinances) {
+          // Fallback repair for old accounts without finances
+          const [newFinances] = await trx('character_finances').insert({
+            character_id: character.id,
+            currency_id: 'drennian-mark',
+            cash_in_hand: 1000000,
+            net_worth: 1000000
+          }).returning('*');
+          characterFinances = newFinances;
+        }
+
         const filingFee = 5000;
         const totalCost = Number(starting_capital) + filingFee;
 

@@ -233,6 +233,7 @@ export default function BusinessPage() {
   const [companyNameInput, setCompanyNameInput] = useState('');
   const [nameError, setNameError] = useState('');
   const [startError, setStartError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [chosenCapital, setChosenCapital] = useState(50000);
   const [selectedModel, setSelectedModel] = useState<'Local Courier Operator' | 'Port Shuttle Operator' | 'Interstate Freight Beginner' | 'Industrial Parts Carrier' | ''>('');
 
@@ -318,12 +319,13 @@ export default function BusinessPage() {
     }
     const finalName = companyNameInput.trim();
 
+    setIsSubmitting(true);
     import('../../../lib/api').then(({ companyApi }) => {
       companyApi.create({
         name: finalName,
         country_id: 'drennia',
         headquarters_state_id: selectedHQ,
-        industry_id: selectedSector === 'Shipping & Logistics' ? 'services' : 'retail',
+        industry_id: selectedSector === 'Shipping & Logistics' ? 'shipping-logistics' : 'manufacturing',
         legal_structure_id: 'sole-trader',
         currency_id: 'drennian-mark',
         starting_capital: chosenCapital
@@ -351,8 +353,10 @@ export default function BusinessPage() {
         loadData();
         setStep(5);
         setActiveTab('companies');
+        setIsSubmitting(false);
       }).catch((err: any) => {
         setStartError(err.response?.data?.error || 'Failed to register company.');
+        setIsSubmitting(false);
       });
     });
   };
@@ -466,7 +470,7 @@ export default function BusinessPage() {
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <div className="business-page-inner">
         {activeTab === 'overview'  && <OverviewTab company={company} playerCash={playerCash} netWorth={netWorth} onStartBusiness={() => setActiveTab('start')} onViewContracts={() => { setActiveTab('companies'); setSelectedCompanyId(null); }} onViewRegistry={() => setActiveTab('registry')} />}
-        {activeTab === 'start'     && <StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} selectedModel={selectedModel} setSelectedModel={setSelectedModel} />}
+        {activeTab === 'start'     && <StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} selectedModel={selectedModel} setSelectedModel={setSelectedModel} isSubmitting={isSubmitting} />}
         
         {activeTab === 'companies' && company && !selectedCompanyId && (
           <div style={{ maxWidth: '860px' }}>
@@ -578,9 +582,7 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
 // ─────────────────────────────────────────────────────────────────────────────
 // START BUSINESS TAB
 // ─────────────────────────────────────────────────────────────────────────────
-// START BUSINESS TAB
-// ─────────────────────────────────────────────────────────────────────────────
-function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, selectedHQ, setSelectedHQ, companyNameInput, setCompanyNameInput, nameError, setNameError, startError, playerCash, company, onRegister, checkName, chosenCapital, setChosenCapital, selectedModel, setSelectedModel }: any) {
+function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, selectedHQ, setSelectedHQ, companyNameInput, setCompanyNameInput, nameError, setNameError, startError, playerCash, company, onRegister, checkName, chosenCapital, setChosenCapital, selectedModel, setSelectedModel, isSubmitting }: any) {
   if (company) {
     return (
       <PanelBox style={{ maxWidth: '540px' }}>
@@ -864,8 +866,10 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           </p>
           {startError && <div style={{ fontSize: '11px', color: T.red, marginBottom: '16px', padding: '10px', background: 'rgba(143,61,61,0.1)', border: `1px solid ${T.burgundy}` }}>{startError}</div>}
           <div style={{ display: 'flex', gap: '10px' }}>
-            <GhostButton onClick={() => setStep(6)}>← Back</GhostButton>
-            <GoldButton onClick={onRegister}>◈ Confirm Filing & Register</GoldButton>
+            <GhostButton onClick={() => setStep(6)} disabled={isSubmitting}>← Back</GhostButton>
+            <GoldButton onClick={onRegister} disabled={isSubmitting}>
+              {isSubmitting ? 'Registering...' : '◈ Confirm Filing & Register'}
+            </GoldButton>
           </div>
         </div>
       )}
