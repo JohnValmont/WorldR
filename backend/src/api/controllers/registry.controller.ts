@@ -20,7 +20,7 @@ export class RegistryController {
           'created_at_world_arc',
           'created_at_world_mark'
         )
-        .where({ status: 'active' });
+        .where({ status: 'active', world_instance_id: 'pre-alpha-world-1' });
 
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       res.setHeader('Pragma', 'no-cache');
