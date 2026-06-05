@@ -220,6 +220,7 @@ export default function BusinessPage() {
   const [company, setCompany] = useState<Company | null>(null);
   const [activeTab, setActiveTab] = useState<SubTab>('overview');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [registryKey, setRegistryKey] = useState(0);
 
   // Contracts state
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -299,9 +300,8 @@ export default function BusinessPage() {
     setNameError('');
     if (!companyNameInput.trim()) { setNameError('Company name cannot be blank.'); return false; }
     if (companyNameInput.trim().length < 3) { setNameError('Name must be at least 3 characters.'); return false; }
-    const allCompanies = getCompanies();
-    const taken = allCompanies.some(c => c.name.toLowerCase() === companyNameInput.trim().toLowerCase());
-    if (taken) { setNameError('That name is already registered in the Drennia registry.'); return false; }
+    // NOTE: Name uniqueness is enforced server-side. We skip the localStorage check
+    // to avoid blocking valid registrations when localStorage is stale or empty.
     return true;
   };
 
@@ -351,6 +351,7 @@ export default function BusinessPage() {
         localStorage.setItem('worldr_career_v1', JSON.stringify(careerData));
 
         loadData();
+        setRegistryKey(k => k + 1); // force registry to refetch from DB
         setStep(5);
         setActiveTab('companies');
         setIsSubmitting(false);
@@ -516,7 +517,7 @@ export default function BusinessPage() {
         
         
         {activeTab === 'exchange' && <DrennportExchangeTab />}
-{activeTab === 'registry'  && <RegistryTab company={company} />}
+{activeTab === 'registry'  && <RegistryTab key={registryKey} company={company} onRefresh={() => setRegistryKey(k => k + 1)} />}
       </div>
     </div>
     </div>
@@ -2350,32 +2351,74 @@ function FacilitiesTab({ company, onRefresh, showNotif }: any) {
   );
 }
 
-function RegistryTab({ company }: { company: Company | null }) {
+function RegistryTab({ company, onRefresh }: { company: Company | null; onRefresh?: () => void }) {
   const [all, setAll] = React.useState<any[]>([]);
-  
+  const [loading, setLoading] = React.useState(true);
+  const [fetchError, setFetchError] = React.useState<string | null>(null);
+
   React.useEffect(() => {
+    setLoading(true);
+    setFetchError(null);
     import('../../../lib/api').then(({ registryApi }) => {
-      registryApi.getCompanies().then(res => setAll(res.data)).catch(err => console.error(err));
+      registryApi.getCompanies()
+        .then(res => {
+          setAll(Array.isArray(res.data) ? res.data : []);
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error('Registry fetch failed:', err);
+          setFetchError(err?.response?.data?.message || 'Failed to load registry. Check your connection.');
+          setLoading(false);
+        });
     });
   }, []);
 
   return (
     <div style={{ maxWidth: '720px' }}>
-      <SectionHeader stamp="PUBLIC RECORD">Drennia Commercial Registry</SectionHeader>
-      {all.length === 0 ? (
-        <PanelBox><p style={{ fontSize: '12px', color: T.faint }}>No companies registered yet.</p></PanelBox>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <SectionHeader stamp="PUBLIC RECORD">Drennia Commercial Registry</SectionHeader>
+        <button
+          onClick={onRefresh}
+          style={{ background: 'transparent', border: `1px solid ${T.border}`, color: T.muted, fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '4px 12px', cursor: 'pointer' }}
+        >
+          ↺ Refresh
+        </button>
+      </div>
+      {loading ? (
+        <PanelBox><p style={{ fontSize: '12px', color: T.muted }}>Loading registry from server…</p></PanelBox>
+      ) : fetchError ? (
+        <PanelBox>
+          <p style={{ fontSize: '12px', color: T.red, marginBottom: '8px' }}>⚠ {fetchError}</p>
+          <p style={{ fontSize: '11px', color: T.faint }}>Try clicking Refresh above. If the problem persists, please report it.</p>
+        </PanelBox>
+      ) : all.length === 0 ? (
+        <PanelBox><p style={{ fontSize: '12px', color: T.faint }}>No companies registered yet. Be the first to file!</p></PanelBox>
       ) : (
-        all.map(c => (
-          <div key={c.id} style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '14px', marginBottom: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: T.ivory }}>{c.name}</div>
-                <div style={{ fontSize: '11px', color: T.muted }}>{c.legal_structure_id} · {c.industry_id} · {c.headquarters_state_id}</div>
+        <>
+          <p style={{ fontSize: '10px', fontFamily: 'monospace', color: T.faint, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            {all.length} registered {all.length === 1 ? 'company' : 'companies'} — all active businesses in pre-alpha world
+          </p>
+          {all.map(c => (
+            <div key={c.id} style={{ background: T.panel, border: `1px solid ${c.id === company?.id ? T.gold : T.border}`, padding: '14px', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: c.id === company?.id ? T.gold : T.ivory }}>
+                    {c.name} {c.id === company?.id && <span style={{ fontSize: '9px', color: T.gold, fontFamily: 'monospace' }}>(Your Company)</span>}
+                  </div>
+                  <div style={{ fontSize: '11px', color: T.muted, marginTop: '3px' }}>
+                    {c.legal_structure_id} · {getSectorName(c.industry_id)} · {getStateName(c.headquarters_state_id)}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.mint, textTransform: 'uppercase' }}>{c.status}</div>
+                  {c.created_at_world_orbit && (
+                    <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>Orbit {c.created_at_world_orbit}, Arc {c.created_at_world_arc}</div>
+                  )}
+                </div>
               </div>
-              <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>{c.id === company?.id ? '(You)' : 'NPC/Player'}</div>
             </div>
-          </div>
-        ))
+          ))}
+        </>
       )}
     </div>
   );
