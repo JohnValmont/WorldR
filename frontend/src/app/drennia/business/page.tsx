@@ -998,7 +998,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
       showNotif(`Purchased ${type} successfully.`, true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Purchase failed', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Purchase failed', false);
     }
   };
 
@@ -1380,15 +1380,25 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                        <div style={{ fontSize: '10px', color: T.red }}>Total: {formatMoney(cost)}/mo</div>
                      </div>
                      <div style={{ display: 'flex', gap: '8px' }}>
-                       <GhostButton onClick={() => {
-                         const res = fireStaff(company.id, role);
-                         showNotif(res.message, res.success);
-                         if (res.success) onRefresh();
+                       <GhostButton onClick={async () => {
+                         try {
+                           const { logisticsApi } = require('../../../lib/api');
+                           await logisticsApi.fireStaff(company.id, role);
+                           showNotif(`Fired 1 ${role}.`, true);
+                           onRefresh();
+                         } catch (err: any) {
+                           showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to fire staff', false);
+                         }
                        }} color={T.red} disabled={count === 0}>-</GhostButton>
-                       <GhostButton onClick={() => {
-                         const res = hireStaff(company.id, role);
-                         showNotif(res.message, res.success);
-                         if (res.success) onRefresh();
+                       <GhostButton onClick={async () => {
+                         try {
+                           const { logisticsApi } = require('../../../lib/api');
+                           await logisticsApi.hireStaff(company.id, role);
+                           showNotif(`Hired 1 ${role}.`, true);
+                           onRefresh();
+                         } catch (err: any) {
+                           showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to hire staff', false);
+                         }
                        }} color={T.mint}>+</GhostButton>
                      </div>
                    </div>
@@ -1429,7 +1439,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                          showNotif('Vehicle purchased successfully.', true);
                          onRefresh();
                        } catch (err: any) {
-                         showNotif(err?.response?.data?.message || 'Purchase failed', false);
+                         showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Purchase failed', false);
                        }
                     }}>Order Vehicle</GoldButton>
                   </div>
@@ -1453,7 +1463,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                          showNotif('Vehicle purchased successfully.', true);
                          onRefresh();
                        } catch (err: any) {
-                         showNotif(err?.response?.data?.message || 'Purchase failed', false);
+                         showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Purchase failed', false);
                        }
                     }}>Order Vehicle</GoldButton>
                   </div>
@@ -1477,7 +1487,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                          showNotif('Vehicle purchased successfully.', true);
                          onRefresh();
                        } catch (err: any) {
-                         showNotif(err?.response?.data?.message || 'Purchase failed', false);
+                         showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Purchase failed', false);
                        }
                     }}>Order Vehicle</GoldButton>
                   </div>
@@ -1491,11 +1501,18 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                   <FieldRow label="Maintenance per Arc" value={formatMoney(7000)} />
                   <FieldRow label="Source Type" value="NPC Manufacturer" />
                   <div style={{ marginTop: '16px' }}>
-                    <GoldButton onClick={() => {
-                       const { buyVehicleFromNpc } = require('@/lib/businessCore');
-                       const res = buyVehicleFromNpc(company.id, 'Box Truck', 75000, 100, 2, 7000, 'Greenmere Utility Works');
-                       showNotif(res.message, res.success);
-                       if (res.success) onRefresh();
+                    <GoldButton onClick={async () => {
+                       try {
+                         const { logisticsApi } = require('../../../lib/api');
+                         const proc = await logisticsApi.getProcurement();
+                         const catalogItem = proc.data.vehicles.find((v: any) => v.type === 'Box Truck');
+                         if (!catalogItem) { showNotif('Vehicle catalog item not found', false); return; }
+                         await logisticsApi.purchaseVehicle(company.id, catalogItem.id);
+                         showNotif('Vehicle purchased successfully.', true);
+                         onRefresh();
+                       } catch (err: any) {
+                         showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Purchase failed', false);
+                       }
                     }}>Order Vehicle</GoldButton>
                   </div>
                 </PanelBox>
@@ -1524,7 +1541,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                          showNotif('Vehicle purchased successfully.', true);
                          onRefresh();
                        } catch (err: any) {
-                         showNotif(err?.response?.data?.message || 'Purchase failed', false);
+                         showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Purchase failed', false);
                        }
                     }}>Buy Used Vehicle</GoldButton>
                   </div>
@@ -1549,7 +1566,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                          showNotif('Vehicle purchased successfully.', true);
                          onRefresh();
                        } catch (err: any) {
-                         showNotif(err?.response?.data?.message || 'Purchase failed', false);
+                         showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Purchase failed', false);
                        }
                     }}>Buy Used Vehicle</GoldButton>
                   </div>
@@ -1574,7 +1591,7 @@ function CompanyDeskTab({ company, fleet, contracts, playerCash, characterName, 
                          showNotif('Vehicle purchased successfully.', true);
                          onRefresh();
                        } catch (err: any) {
-                         showNotif(err?.response?.data?.message || 'Purchase failed', false);
+                         showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Purchase failed', false);
                        }
                     }}>Buy Used Vehicle</GoldButton>
                   </div>
@@ -2610,7 +2627,7 @@ function ProcurementTab({ company, onRefresh, showNotif }: any) {
       showNotif(`Purchased ${type} successfully.`, true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Purchase failed', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.error || err?.response?.data?.message || 'Purchase failed', false);
     }
   };
 
@@ -2629,7 +2646,7 @@ function ProcurementTab({ company, onRefresh, showNotif }: any) {
       showNotif(`Leased ${type} successfully.`, true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Lease failed', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Lease failed', false);
     }
   };
 

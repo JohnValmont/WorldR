@@ -3,9 +3,9 @@
 -- 1. PROCUREMENT VEHICLES
 INSERT INTO procurement_vehicles (type, purchase_cost, capacity, monthly_maintenance, description)
 VALUES 
-('Used Delivery Van', 70000, 1, 3000, 'Best for local delivery and small cargo. Low operating cost.'),
-('Box Truck', 160000, 2, 7000, 'Medium freight, produce delivery, retail restock. Versatile workhorse.'),
-('Used Freight Truck', 280000, 3, 12000, 'Industrial parts, state-to-state freight. High capacity, higher upkeep.')
+('Used Delivery Van', 35000, 1, 3000, 'Best for local delivery and small cargo. Low operating cost.'),
+('Box Truck', 75000, 2, 7000, 'Medium freight, produce delivery, retail restock. Versatile workhorse.'),
+('Used Freight Truck', 180000, 3, 12000, 'Industrial parts, state-to-state freight. High capacity, higher upkeep.')
 ON CONFLICT (type) DO UPDATE SET 
     purchase_cost = EXCLUDED.purchase_cost,
     capacity = EXCLUDED.capacity,
