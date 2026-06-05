@@ -278,7 +278,7 @@ export default function BusinessPage() {
                     type: v.type, // Comes from JOIN
                     catalogId: v.catalog_vehicle_id,
                     condition: Number(v.condition),
-                    assignedAutoOpPool: v.assigned_operation_pool_id,
+                    assignedAutoOpPool: v.assigned_operation_pool_name, // Fix: use the joined name, not the UUID
                     purchasedAt: v.purchased_at,
                     capacity: Number(v.capacity) || 0,
                     purchaseCost: Number(v.purchase_cost) || 0,
