@@ -109,7 +109,17 @@ export class AuthController {
     try {
       if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
       const user = await authService.getUserProfile(req.user.id);
-      res.status(200).json(user);
+      
+      const safeUser = {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        display_name: user.display_name,
+        role: user.role,
+        isAdmin: user.role === 'admin'
+      };
+
+      res.status(200).json(safeUser);
     } catch (error) {
       next(error);
     }

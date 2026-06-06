@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { LogisticsController } from '../controllers/logistics.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
+import { authMiddleware, requireAdmin } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -11,6 +11,6 @@ router.post('/company/:companyId/staff/fire', authMiddleware, LogisticsControlle
 router.post('/company/:companyId/vehicles/purchase', authMiddleware, LogisticsController.purchaseVehicle);
 router.post('/company/:companyId/facilities/lease', authMiddleware, LogisticsController.leaseFacility);
 router.post('/company/:companyId/operations/assign', authMiddleware, LogisticsController.assignOperation);
-router.post('/company/:companyId/operations/process-test', authMiddleware, LogisticsController.processTest);
+router.post('/company/:companyId/operations/process-test', [authMiddleware, requireAdmin], LogisticsController.processTest);
 
 export default router;

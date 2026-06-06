@@ -155,3 +155,16 @@ export const logisticsApi = {
   assignOperation: (companyId: string, vehicleId: string, poolId: string) => api.post(`/logistics/company/${companyId}/operations/assign`, { vehicleId, poolId }),
   processTest: (companyId: string) => api.post(`/logistics/company/${companyId}/operations/process-test`)
 };
+
+// Manufacturing
+export const manufacturingApi = {
+  getBootstrap: () => api.get('/manufacturing/bootstrap'),
+  getCompanyData: (companyId: string) => api.get(`/companies/${companyId}/manufacturing/data?t=${Date.now()}`),
+  leaseFactory: (companyId: string, factoryTypeId: string) => api.post(`/companies/${companyId}/manufacturing/factories/lease`, { factoryTypeId }),
+  createModel: (companyId: string, data: any) => api.post(`/companies/${companyId}/manufacturing/models`, data),
+  updateModelPrice: (companyId: string, modelId: string, salePrice: number) => api.patch(`/companies/${companyId}/manufacturing/models/${modelId}/price`, { salePrice }),
+  saveProductionPlan: (companyId: string, data: { lineId: string, modelId: string | null, qualitySetting: string, targetUnitsPerArc: number }) => api.post(`/companies/${companyId}/manufacturing/production/save-plan`, data),
+  hireStaff: (companyId: string, role: string) => api.post(`/companies/${companyId}/manufacturing/staff/hire`, { role }),
+  fireStaff: (companyId: string, role: string) => api.post(`/companies/${companyId}/manufacturing/staff/fire`, { role }),
+  processArcAdmin: (companyId: string) => api.post(`/admin/manufacturing/process-company/${companyId}`)
+};

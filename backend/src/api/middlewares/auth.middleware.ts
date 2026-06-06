@@ -44,3 +44,5 @@ export function requireRole(allowedRoles: string[]) {
     next();
   };
 }
+
+export const requireAdmin = requireRole(['admin']);

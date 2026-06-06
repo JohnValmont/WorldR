@@ -10,8 +10,9 @@ import {
   getLedger, getFinanceHistory, getGameDate, formatGameDate, getVehicleDisplayLabel, getRouteFamiliarityPercent, getClientTrustLabel,
   type Company, type Contract, type Vehicle, type VehicleType, type ContractHistoryEntry, type RouteFamiliarity, type AutoOpPoolType, type StaffRole, type WagePolicy, type MonthlyFinanceSnapshot, type LedgerEntry
 } from '../../../lib/businessCore';
-import { logisticsApi } from '../../../lib/api';
+import { logisticsApi, manufacturingApi } from '../../../lib/api';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
+import ManufacturingDeskTab from './ManufacturingDeskTab';
 
 // Helpers to resolve standard IDs to display names in v1
 const getStateName = (id?: string) => {
@@ -193,7 +194,7 @@ const SUB_TABS: { id: SubTab; label: string; requiresCompany?: boolean }[] = [
 // ─── SECTORS ─────────────────────────────────────────────────────────────────
 const SECTORS = [
   { id: 'Shipping & Logistics', desc: 'Freight, transport, port handling, and supply chain operations.', available: true },
-  { id: 'Manufacturing',        desc: 'Production, parts, assembly, and industrial output.',              available: false, note: 'Coming Next' },
+  { id: 'Manufacturing',        desc: 'Production, parts, assembly, and industrial output.',              available: true },
   { id: 'Retail & Consumer',    desc: 'Consumer goods, storefronts, and distribution.',                   available: false, note: 'Later' },
   { id: 'Agriculture & Food',   desc: 'Farming, processing, and food supply chains.',                     available: false, note: 'Later' },
   { id: 'Finance & Services',   desc: 'Banking, lending, insurance, and advisory.',                       available: false, note: 'Later' },
@@ -225,6 +226,8 @@ export default function BusinessPage() {
   const [activeTab, setActiveTab] = useState<SubTab>('overview');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [registryKey, setRegistryKey] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [mfgData, setMfgData] = useState<any>(null);
 
   // Start Business state
   const [step, setStep] = useState(1);
@@ -242,7 +245,8 @@ export default function BusinessPage() {
     const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
     if (!granted) { router.replace('/pre-alpha-access'); return; }
 
-    import('../../../lib/api').then(({ characterApi, companyApi, logisticsApi }) => {
+    import('../../../lib/api').then(({ authApi, characterApi, companyApi, logisticsApi }) => {
+      authApi.me().then(res => setIsAdmin(res.data.isAdmin)).catch(() => {});
       characterApi.getMe()
         .then(res => {
           const char = res.data;
@@ -258,57 +262,82 @@ export default function BusinessPage() {
             if (companies.length > 0) {
               const myCompany = companies[0];
               
-              logisticsApi.getCompanyLogistics(myCompany.id).then(logRes => {
-                const { staff, vehicles, facilities, ledger } = logRes.data;
-                
-                // Map staff to a record
-                const staffRecord: Record<string, number> = {};
-                staff.forEach((s: any) => staffRecord[s.role] = s.quantity);
-
-                // Map fleet
-                const mappedFleet = vehicles.map((v: any, index: number) => {
-                  let tagPrefix = 'VEH';
-                  if (v.type.includes('Van')) tagPrefix = 'VAN';
-                  else if (v.type.includes('Box')) tagPrefix = 'BOX';
-                  else if (v.type.includes('Freight')) tagPrefix = 'FRT';
+              if (myCompany.industry_id === 'manufacturing') {
+                import('../../../lib/api').then(({ manufacturingApi }) => {
+                  manufacturingApi.getCompanyData(myCompany.id).then(mfgRes => {
+                    setCompany({
+                      ...myCompany,
+                      sector: myCompany.industry_id,
+                      state: myCompany.headquarters_state_id,
+                      legalStructure: myCompany.legal_structure_id,
+                      companyCash: myCompany.finances?.available_cash,
+                      maintenancePolicy: myCompany.finances?.maintenance_policy || 'Standard',
+                    });
+                    setMfgData(mfgRes.data);
+                  }).catch(err => {
+                    console.error("Manufacturing fetch error", err);
+                    setCompany({
+                      ...myCompany,
+                      sector: myCompany.industry_id,
+                      state: myCompany.headquarters_state_id,
+                      legalStructure: myCompany.legal_structure_id,
+                      companyCash: myCompany.finances?.available_cash,
+                    });
+                  });
+                });
+              } else {
+                logisticsApi.getCompanyLogistics(myCompany.id).then(logRes => {
+                  const { staff, vehicles, facilities, ledger } = logRes.data;
                   
-                  return {
-                    id: v.id,
-                    companyId: v.company_id,
-                    type: v.type, // Comes from JOIN
-                    catalogId: v.catalog_vehicle_id,
-                    condition: Number(v.condition),
-                    assignedAutoOpPool: v.assigned_operation_pool_name, // Fix: use the joined name, not the UUID
-                    purchasedAt: v.purchased_at,
-                    capacity: Number(v.capacity) || 0,
-                    purchaseCost: Number(v.purchase_cost) || 0,
-                    monthlyMaintenance: Number(v.monthly_maintenance) || 0,
-                    currentValue: Number(v.current_value) || 0,
-                    assetTag: `${tagPrefix}-00${index + 1}`
-                  };
-                });
+                  // Map staff to a record
+                  const staffRecord: Record<string, number> = {};
+                  staff.forEach((s: any) => staffRecord[s.role] = s.quantity);
 
-                setCompany({
-                  ...myCompany,
-                  sector: myCompany.industry_id,
-                  state: myCompany.headquarters_state_id,
-                  legalStructure: myCompany.legal_structure_id,
-                  companyCash: myCompany.finances?.available_cash,
-                  maintenancePolicy: myCompany.finances?.maintenance_policy || 'Standard',
-                  staff: staffRecord
+                  // Map fleet
+                  const mappedFleet = vehicles.map((v: any, index: number) => {
+                    let tagPrefix = 'VEH';
+                    if (v.type.includes('Van')) tagPrefix = 'VAN';
+                    else if (v.type.includes('Box')) tagPrefix = 'BOX';
+                    else if (v.type.includes('Freight')) tagPrefix = 'FRT';
+                    
+                    return {
+                      id: v.id,
+                      companyId: v.company_id,
+                      type: v.type, // Comes from JOIN
+                      catalogId: v.catalog_vehicle_id,
+                      condition: Number(v.condition),
+                      assignedAutoOpPool: v.assigned_operation_pool_name, // Fix: use the joined name, not the UUID
+                      purchasedAt: v.purchased_at,
+                      capacity: Number(v.capacity) || 0,
+                      purchaseCost: Number(v.purchase_cost) || 0,
+                      monthlyMaintenance: Number(v.monthly_maintenance) || 0,
+                      currentValue: Number(v.current_value) || 0,
+                      assetTag: `${tagPrefix}-00${index + 1}`
+                    };
+                  });
+
+                  setCompany({
+                    ...myCompany,
+                    sector: myCompany.industry_id,
+                    state: myCompany.headquarters_state_id,
+                    legalStructure: myCompany.legal_structure_id,
+                    companyCash: myCompany.finances?.available_cash,
+                    maintenancePolicy: myCompany.finances?.maintenance_policy || 'Standard',
+                    staff: staffRecord
+                  });
+                  setFleet(mappedFleet);
+                  setLedger(ledger);
+                }).catch(err => {
+                  console.error("Logistics fetch error", err);
+                  setCompany({
+                    ...myCompany,
+                    sector: myCompany.industry_id,
+                    state: myCompany.headquarters_state_id,
+                    legalStructure: myCompany.legal_structure_id,
+                    companyCash: myCompany.finances?.available_cash,
+                  });
                 });
-                setFleet(mappedFleet);
-                setLedger(ledger);
-              }).catch(err => {
-                console.error("Logistics fetch error", err);
-                setCompany({
-                  ...myCompany,
-                  sector: myCompany.industry_id,
-                  state: myCompany.headquarters_state_id,
-                  legalStructure: myCompany.legal_structure_id,
-                  companyCash: myCompany.finances?.available_cash,
-                });
-              });
+              }
 
             } else {
               setCompany(null);
@@ -523,25 +552,48 @@ export default function BusinessPage() {
           <div style={{ maxWidth: '860px' }}>
             <SectionHeader stamp="PORTFOLIO">My Companies</SectionHeader>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
-              <div style={{ background: T.paper, border: `1px solid ${T.border}`, padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: `3px solid ${T.gold}` }}>
+              <div style={{ background: '#0a0a0a', border: `1px solid #333333`, padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', borderLeft: `3px solid #d4af37` }}>
                 <div>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: T.ivory, marginBottom: '6px' }}>{company.name}</div>
-                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '12px', fontSize: '11px', color: T.muted }}>
-                    <span>Structure: <strong style={{ color: T.gold }}>{company.legalStructure}</strong></span>
-                    <span>Sector: <strong style={{ color: T.gold }}>{getSectorName(company.sectorId) || company.sector}</strong></span>
-                    <span>HQ State: <strong style={{ color: T.gold }}>{getStateName(company.headquartersStateId) || company.state}</strong></span>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#fffff0', marginBottom: '6px' }}>{company.name}</div>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '12px', fontSize: '11px', color: '#888888' }}>
+                    <span>Structure: <strong style={{ color: '#d4af37' }}>{company.legalStructure}</strong></span>
+                    <span>Sector: <strong style={{ color: '#d4af37' }}>{getSectorName(company.sectorId) || company.sector}</strong></span>
+                    <span>HQ State: <strong style={{ color: '#d4af37' }}>{getStateName(company.headquartersStateId) || company.state}</strong></span>
                   </div>
-                  <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '11px', fontFamily: 'monospace', color: T.faint }}>
-                    <span>Company Cash: <span style={{ color: T.mint }}>{formatMoney(company.companyCash)}</span></span>
-                    <span>Company Value: <span style={{ color: T.gold }}>{formatMoney(calcCompanyValue(company))}</span></span>
-                    <span>Reputation: <span style={{ color: T.gold }}>{company.reputation}</span></span>
-                    <span>Reliability: <span style={{ color: T.ivory }}>{company.reliability}</span></span>
-                    <span>Vehicles: <span style={{ color: T.mint }}>{fleet.length}</span></span>
-                    <span>Active Contracts: <span style={{ color: T.gold }}>{company.activeContracts?.length || 0}</span></span>
+                  <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '11px', fontFamily: 'monospace', color: '#555555' }}>
+                    <span>Company Cash: <span style={{ color: '#36d399' }}>{formatMoney(company.companyCash)}</span></span>
+                    <span>Reputation: <span style={{ color: '#d4af37' }}>{company.reputation}</span></span>
+                    <span>Reliability: <span style={{ color: '#fffff0' }}>{company.reliability}</span></span>
+                    {company.sector !== 'manufacturing' && company.sectorId !== 'manufacturing' && (
+                      <>
+                        <span>Vehicles: <span style={{ color: '#36d399' }}>{fleet.length}</span></span>
+                        <span>Active Contracts: <span style={{ color: '#d4af37' }}>{company.activeContracts?.length || 0}</span></span>
+                      </>
+                    )}
                   </div>
                 </div>
-                <div>
-                  <GoldButton onClick={() => setSelectedCompanyId(company.id)}>Manage Company →</GoldButton>
+                <div style={{ borderTop: '1px solid #222', paddingTop: '20px' }}>
+                  {company.sector === 'manufacturing' || company.sectorId === 'manufacturing' ? (
+                    <ManufacturingDeskTab 
+                      company={company} 
+                      mfgData={mfgData} 
+                      playerCash={playerCash} 
+                      characterName={characterName} 
+                      onRefresh={loadData} 
+                      isAdmin={isAdmin} 
+                    />
+                  ) : (
+                    <CompanyDeskTab 
+                      company={company} 
+                      fleet={fleet} 
+                      ledger={ledger}
+                      contracts={contracts} 
+                      playerCash={playerCash}
+                      onRefresh={loadData}
+                      characterName={characterName}
+                      isAdmin={isAdmin}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -549,15 +601,27 @@ export default function BusinessPage() {
         )}
         
         {activeTab === 'companies' && company && selectedCompanyId === company.id && (
-          <CompanyDeskTab 
-            company={company} 
-            fleet={fleet} 
-            ledger={ledger}
-            contracts={contracts} 
-            playerCash={playerCash}
-            onRefresh={loadData}
-            characterName={characterName}
-          />
+          company.sector === 'manufacturing' || company.sectorId === 'manufacturing' ? (
+            <ManufacturingDeskTab 
+              company={company} 
+              mfgData={mfgData} 
+              playerCash={playerCash} 
+              characterName={characterName} 
+              onRefresh={loadData} 
+              isAdmin={isAdmin} 
+            />
+          ) : (
+            <CompanyDeskTab 
+              company={company} 
+              fleet={fleet} 
+              ledger={ledger}
+              contracts={contracts} 
+              playerCash={playerCash}
+              onRefresh={loadData}
+              characterName={characterName}
+              isAdmin={isAdmin}
+            />
+          )
         )}
         
         
@@ -745,7 +809,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
                   <span style={{ fontSize: '13px', fontWeight: 600, color: s.active ? T.ivory : T.faint }}>{s.label}</span>
                   {s.active ? <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.gold }}>ACTIVE ✓</span> : <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>LOCKED</span>}
                 </div>
-                <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px' }}>{s.desc}</div>
+                <div style={{ fontSize: '11px', color: s.active ? T.muted : T.faint, marginTop: '4px' }}>{s.desc}</div>
               </div>
             ))}
           </div>
@@ -951,9 +1015,18 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
 // ─────────────────────────────────────────────────────────────────────────────
 type CompanyDeskTab = 'overview' | 'operations' | 'staff' | 'contracts' | 'procurement' | 'facilities' | 'assets' | 'fleet' | 'routes' | 'finance' | 'contractHistory' | 'records' | 'equity';
 
-function CompanyDeskTab({ company, fleet, ledger, contracts, playerCash, characterName, onRefresh }: {
+function CompanyDeskTab({ 
+  company, 
+  fleet, 
+  ledger, 
+  contracts, 
+  playerCash, 
+  characterName, 
+  onRefresh, 
+  isAdmin 
+}: {
   company: Company; fleet: Vehicle[]; ledger: any[]; contracts: Contract[]; playerCash: number; characterName: string;
-  onRefresh: () => void;
+  onRefresh: () => void; isAdmin: boolean;
 }) {
   const [deskTab, setDeskTab] = useState<CompanyDeskTab>('overview');
   const [fleetSubTab, setFleetSubTab] = useState<'current' | 'procurement' | 'market' | 'locked'>('current');
@@ -1250,9 +1323,9 @@ function CompanyDeskTab({ company, fleet, ledger, contracts, playerCash, charact
                   💾 SAVE OPERATION ASSIGNMENTS
                 </GoldButton>
 
-                {process.env.NODE_ENV === 'development' && (
+                {isAdmin && (
                   <GoldButton onClick={handleRunAutoOps} color="#8A6E2A">
-                    DEV ONLY — Process Company Arc
+                    DEV ADMIN — Close Current Arc
                   </GoldButton>
                 )}
               </div>
