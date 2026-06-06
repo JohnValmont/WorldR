@@ -244,6 +244,8 @@ export interface Company {
   legalStructure?: CompanyLegalStructure;
   state?: string;
   sector?: string;
+  subsector?: string;
+  subsectorId?: string;
   registeredAt: string;
   companyCash: number;
   monthlyRevenue: number;

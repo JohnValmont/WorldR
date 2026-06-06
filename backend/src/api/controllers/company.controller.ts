@@ -66,7 +66,7 @@ export class CompanyController {
         return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
       }
 
-      const { name, country_id, headquarters_state_id, industry_id, legal_structure_id, currency_id, starting_capital } = req.body;
+      const { name, country_id, headquarters_state_id, industry_id, subsector_id, legal_structure_id, currency_id, starting_capital } = req.body;
 
       if (!name || !country_id || !headquarters_state_id || !industry_id || !legal_structure_id || !currency_id || starting_capital === undefined) {
         return next(new AppError('Missing required fields', 400, 'BAD_REQUEST'));
@@ -124,6 +124,7 @@ export class CompanyController {
           country_id,
           headquarters_state_id,
           industry_id,
+          subsector_id,
           legal_structure_id,
           currency_id,
           name,

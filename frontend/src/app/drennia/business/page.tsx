@@ -25,9 +25,15 @@ const getStateName = (id?: string) => {
 };
 
 const getSectorName = (id?: string) => {
-  if (id === 'services') return 'Shipping & Logistics';
+  if (id === 'services' || id === 'shipping-logistics') return 'Shipping & Logistics';
   if (id === 'retail') return 'Retail & Consumer';
+  if (id === 'manufacturing') return 'Manufacturing';
   return id || 'Unknown Sector';
+};
+
+const getSubsectorName = (id?: string) => {
+  if (id === 'automobile-manufacturing') return 'Automobile Manufacturing';
+  return id;
 };
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
@@ -238,7 +244,7 @@ export default function BusinessPage() {
   const [startError, setStartError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [chosenCapital, setChosenCapital] = useState(50000);
-  const [selectedModel, setSelectedModel] = useState<'Local Courier Operator' | 'Port Shuttle Operator' | 'Interstate Freight Beginner' | 'Industrial Parts Carrier' | ''>('');
+  const [selectedModel, setSelectedModel] = useState<string>('');
 
   const loadData = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -268,6 +274,7 @@ export default function BusinessPage() {
                     setCompany({
                       ...myCompany,
                       sector: myCompany.industry_id,
+                      subsector: myCompany.subsector_id,
                       state: myCompany.headquarters_state_id,
                       legalStructure: myCompany.legal_structure_id,
                       companyCash: myCompany.finances?.available_cash,
@@ -279,6 +286,7 @@ export default function BusinessPage() {
                     setCompany({
                       ...myCompany,
                       sector: myCompany.industry_id,
+                      subsector: myCompany.subsector_id,
                       state: myCompany.headquarters_state_id,
                       legalStructure: myCompany.legal_structure_id,
                       companyCash: myCompany.finances?.available_cash,
@@ -398,11 +406,13 @@ export default function BusinessPage() {
 
     setIsSubmitting(true);
     import('../../../lib/api').then(({ companyApi }) => {
+      const isLogistics = selectedSector === 'Shipping & Logistics';
       companyApi.create({
         name: finalName,
         country_id: 'drennia',
         headquarters_state_id: selectedHQ,
-        industry_id: selectedSector === 'Shipping & Logistics' ? 'shipping-logistics' : 'manufacturing',
+        industry_id: isLogistics ? 'shipping-logistics' : 'manufacturing',
+        subsector_id: isLogistics ? null : selectedModel,
         legal_structure_id: 'sole-trader',
         currency_id: 'drennian-mark',
         starting_capital: chosenCapital
@@ -557,43 +567,22 @@ export default function BusinessPage() {
                   <div style={{ fontSize: '16px', fontWeight: 700, color: '#fffff0', marginBottom: '6px' }}>{company.name}</div>
                   <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '12px', fontSize: '11px', color: '#888888' }}>
                     <span>Structure: <strong style={{ color: '#d4af37' }}>{company.legalStructure}</strong></span>
-                    <span>Sector: <strong style={{ color: '#d4af37' }}>{getSectorName(company.sectorId) || company.sector}</strong></span>
-                    <span>HQ State: <strong style={{ color: '#d4af37' }}>{getStateName(company.headquartersStateId) || company.state}</strong></span>
+                    <span>Sector: <strong style={{ color: '#d4af37' }}>{getSectorName(company.sectorId) || getSectorName(company.sector)}</strong></span>
+                    {company.subsector && (
+                      <span>Subsector: <strong style={{ color: '#d4af37' }}>{getSubsectorName(company.subsector)}</strong></span>
+                    )}
+                    <span>HQ State: <strong style={{ color: '#d4af37' }}>{getStateName(company.headquartersStateId) || getStateName(company.state)}</strong></span>
                   </div>
                   <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '11px', fontFamily: 'monospace', color: '#555555' }}>
                     <span>Company Cash: <span style={{ color: '#36d399' }}>{formatMoney(company.companyCash)}</span></span>
                     <span>Reputation: <span style={{ color: '#d4af37' }}>{company.reputation}</span></span>
                     <span>Reliability: <span style={{ color: '#fffff0' }}>{company.reliability}</span></span>
-                    {company.sector !== 'manufacturing' && company.sectorId !== 'manufacturing' && (
-                      <>
-                        <span>Vehicles: <span style={{ color: '#36d399' }}>{fleet.length}</span></span>
-                        <span>Active Contracts: <span style={{ color: '#d4af37' }}>{company.activeContracts?.length || 0}</span></span>
-                      </>
-                    )}
                   </div>
                 </div>
                 <div style={{ borderTop: '1px solid #222', paddingTop: '20px' }}>
-                  {company.sector === 'manufacturing' || company.sectorId === 'manufacturing' ? (
-                    <ManufacturingDeskTab 
-                      company={company} 
-                      mfgData={mfgData} 
-                      playerCash={playerCash} 
-                      characterName={characterName} 
-                      onRefresh={loadData} 
-                      isAdmin={isAdmin} 
-                    />
-                  ) : (
-                    <CompanyDeskTab 
-                      company={company} 
-                      fleet={fleet} 
-                      ledger={ledger}
-                      contracts={contracts} 
-                      playerCash={playerCash}
-                      onRefresh={loadData}
-                      characterName={characterName}
-                      isAdmin={isAdmin}
-                    />
-                  )}
+                  <GoldButton onClick={() => setSelectedCompanyId(company.id)}>
+                    Open Company →
+                  </GoldButton>
                 </div>
               </div>
             </div>
@@ -672,12 +661,13 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
         <SectionHeader stamp="COMPANY FILE">Empire Summary</SectionHeader>
         <FieldRow label="Company" value={company.name} />
         <FieldRow label="Structure" value={company.legalStructure || 'Unknown'} />
-        <FieldRow label="Sector" value={getSectorName(company.sectorId) || company.sector || 'N/A'} />
-        <FieldRow label="HQ State" value={getStateName(company.headquartersStateId) || company.state || 'N/A'} />
+        <FieldRow label="Sector" value={getSectorName(company.sectorId) || getSectorName(company.sector) || 'N/A'} />
+        {company.subsector && <FieldRow label="Subsector" value={getSubsectorName(company.subsector) || 'N/A'} />}
+        <FieldRow label="HQ State" value={getStateName(company.headquartersStateId) || getStateName(company.state) || 'N/A'} />
         <FieldRow label="Status" value={company.status} valueColor={T.mint} />
         <FieldRow label="Reputation" value={company.reputation} valueColor={T.gold} />
         <FieldRow label="Reliability" value={company.reliability} />
-        {company.operatingModel && <FieldRow label="Operating Model" value={company.operatingModel} valueColor={T.gold} />}
+        {company.operatingModel && !company.subsector && <FieldRow label="Operating Model" value={company.operatingModel} valueColor={T.gold} />}
       </PanelBox>
       <PanelBox>
         <SectionHeader stamp="LEDGER">Financial Position</SectionHeader>
@@ -704,7 +694,8 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
     );
   }
 
-  const STEP_LABELS = ['Sector', 'Headquarters', 'Structure', 'Company Name', 'Starting Capital', 'Operating Model', 'Confirm Filing'];
+  const isLogistics = selectedSector === 'Shipping & Logistics';
+  const STEP_LABELS = ['Sector', 'Headquarters', 'Structure', 'Company Name', 'Starting Capital', isLogistics ? 'Operating Model' : 'Subsector', 'Confirm Filing'];
   const FILING_FEE = 5000;
   const total = chosenCapital + FILING_FEE;
   const canAfford = playerCash >= total;
@@ -897,50 +888,69 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
         </div>
       )}
 
-      {/* Step 6 — Operating Model */}
+      {/* Step 6 — Operating Model / Subsector */}
       {step === 6 && (
         <div>
-          <SectionHeader stamp="STEP 6 OF 7">Select Operating Model</SectionHeader>
+          <SectionHeader stamp="STEP 6 OF 7">{isLogistics ? 'Select Operating Model' : 'Select Manufacturing Subsector'}</SectionHeader>
           <p style={{ fontSize: '12px', color: T.muted, marginBottom: '20px', lineHeight: 1.7 }}>
-            Choose your company's initial logistics operating model. This shapes your career trajectory, suggested contracts, and unlocks tailored equipment.
+            {isLogistics 
+              ? "Choose your company's initial logistics operating model. This shapes your career trajectory, suggested contracts, and unlocks tailored equipment."
+              : "Choose your primary manufacturing subsector. This unlocks specific blueprints, materials, and facility types."}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
-            {[
-              {
-                id: 'Local Courier Operator',
-                title: 'Local Courier Operator',
-                desc: 'Small local delivery, office errands, shop movement. Best for Drennport or Greenmere. Good with Used Delivery Van.'
-              },
-              {
-                id: 'Port Shuttle Operator',
-                title: 'Port Shuttle Operator',
-                desc: 'Dock, warehouse, and container-adjacent movement. Best for Westport. Good with Used Delivery Van or Box Truck.'
-              },
-              {
-                id: 'Interstate Freight Beginner',
-                title: 'Interstate Freight Beginner',
-                desc: 'State-to-state freight. Best after owning Box Truck. Higher pay, more wear.'
-              },
-              {
-                id: 'Industrial Parts Carrier',
-                title: 'Industrial Parts Carrier',
-                desc: 'Factory parts and industrial supply. Best for Ironvale. Needs Box Truck or Freight Truck.'
-              }
+            {isLogistics ? [
+              { id: 'Local Courier Operator', title: 'Local Courier Operator', desc: 'Small local delivery, office errands, shop movement. Best for Drennport or Greenmere. Good with Used Delivery Van.', available: true },
+              { id: 'Port Shuttle Operator', title: 'Port Shuttle Operator', desc: 'Dock, warehouse, and container-adjacent movement. Best for Westport. Good with Used Delivery Van or Box Truck.', available: true },
+              { id: 'Interstate Freight Beginner', title: 'Interstate Freight Beginner', desc: 'State-to-state freight. Best after owning Box Truck. Higher pay, more wear.', available: true },
+              { id: 'Industrial Parts Carrier', title: 'Industrial Parts Carrier', desc: 'Factory parts and industrial supply. Best for Ironvale. Needs Box Truck or Freight Truck.', available: true }
             ].map(model => (
               <button
                 key={model.id}
                 onClick={() => setSelectedModel(model.id as any)}
+                disabled={!model.available}
                 style={{
                   padding: '16px 18px',
                   background: selectedModel === model.id ? 'rgba(201,162,74,0.08)' : 'rgba(255,255,255,0.02)',
                   border: selectedModel === model.id ? `1px solid ${T.gold}` : `1px solid ${T.border}`,
-                  cursor: 'pointer',
+                  cursor: model.available ? 'pointer' : 'not-allowed',
+                  opacity: model.available ? 1 : 0.4,
                   textAlign: 'left'
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', fontWeight: 600, color: T.ivory }}>{model.title}</span>
                   {selectedModel === model.id && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.gold }}>SELECTED ✓</span>}
+                  {!model.available && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>COMING SOON</span>}
+                </div>
+                <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px', lineHeight: 1.5 }}>{model.desc}</div>
+              </button>
+            )) : [
+              { id: 'automobile-manufacturing', title: 'Automobile Manufacturing', desc: 'Design and mass-produce consumer vehicles, trucks, and specialist transports.', available: true },
+              { id: 'electronics-manufacturing', title: 'Electronics Manufacturing', desc: 'Computers, appliances, and high-tech components.', available: false },
+              { id: 'aircraft-manufacturing', title: 'Aircraft Manufacturing', desc: 'Commercial jets and aviation components.', available: false },
+              { id: 'shipbuilding', title: 'Shipbuilding', desc: 'Vessels for deep sea freight and coastal transport.', available: false },
+              { id: 'heavy-machinery', title: 'Heavy Machinery', desc: 'Mining, agricultural, and industrial equipment.', available: false },
+              { id: 'consumer-goods', title: 'Consumer Goods', desc: 'Everyday household items and clothing.', available: false },
+              { id: 'steel-and-materials', title: 'Steel and Materials', desc: 'Refined metals, synthetics, and construction supplies.', available: false },
+              { id: 'energy-equipment', title: 'Energy Equipment', desc: 'Generators, turbines, and grid hardware.', available: false }
+            ].map(model => (
+              <button
+                key={model.id}
+                onClick={() => setSelectedModel(model.id as any)}
+                disabled={!model.available}
+                style={{
+                  padding: '16px 18px',
+                  background: selectedModel === model.id ? 'rgba(201,162,74,0.08)' : 'rgba(255,255,255,0.02)',
+                  border: selectedModel === model.id ? `1px solid ${T.gold}` : `1px solid ${T.border}`,
+                  cursor: model.available ? 'pointer' : 'not-allowed',
+                  opacity: model.available ? 1 : 0.4,
+                  textAlign: 'left'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: T.ivory }}>{model.title}</span>
+                  {selectedModel === model.id && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.gold }}>SELECTED ✓</span>}
+                  {!model.available && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>COMING SOON</span>}
                 </div>
                 <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px', lineHeight: 1.5 }}>{model.desc}</div>
               </button>
@@ -964,8 +974,8 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
             <FieldRow label="Company Name" value={companyNameInput} />
             <FieldRow label="Legal Structure" value="Sole Trader" />
             <FieldRow label="Sector" value={selectedSector} />
-            <FieldRow label="Headquarters" value={selectedHQ} />
-            <FieldRow label="Operating Model" value={selectedModel} valueColor={T.gold} />
+            <FieldRow label="Headquarters" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ} />
+            <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={isLogistics ? selectedModel : getSubsectorName(selectedModel)} valueColor={T.gold} />
             <FieldRow label="Filing Date" value={new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })} />
             <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor={T.mint} />
             <FieldRow label="Filing Fee" value={formatMoney(5000)} valueColor={T.red} />
@@ -994,8 +1004,8 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
         <FieldRow label="Company Name" value={companyNameInput || 'TBD'} />
         <FieldRow label="Legal Structure" value="Sole Trader" />
         <FieldRow label="Sector" value={selectedSector || 'TBD'} />
-        <FieldRow label="Headquarters" value={selectedHQ || 'TBD'} />
-        <FieldRow label="Operating Model" value={selectedModel || 'TBD'} valueColor={T.gold} />
+        <FieldRow label="Headquarters" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ || 'TBD'} />
+        <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={selectedModel ? (isLogistics ? selectedModel : getSubsectorName(selectedModel)) : 'TBD'} valueColor={T.gold} />
         <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor={T.mint} />
         <FieldRow label="Total Cost" value={formatMoney(totalCost)} valueColor={T.red} />
         <FieldRow label="Remaining Cash" value={formatMoney(playerCash - totalCost)} valueColor={T.ivory} />

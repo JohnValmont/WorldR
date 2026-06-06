@@ -2,7 +2,7 @@ import { Client } from 'pg';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-const BASE_URL = 'http://localhost:4000/api/v1';
+const BASE_URL = 'https://worldr.onrender.com/api/v1';
 
 async function run() {
   console.log('--- STARTING MANUFACTURING V0.1 E2E TEST ---');

@@ -130,7 +130,7 @@ export const characterApi = {
 export const companyApi = {
   getMy: () => api.get('/companies/my'),
   getById: (id: string) => api.get(`/companies/${id}`),
-  create: (data: { name: string; country_id: string; headquarters_state_id: string; industry_id: string; legal_structure_id: string; currency_id: string; starting_capital: number }) =>
+  create: (data: { name: string; country_id: string; headquarters_state_id: string; industry_id: string; subsector_id?: string | null; legal_structure_id: string; currency_id: string; starting_capital: number }) =>
     api.post('/companies', data),
   withdrawCapital: (id: string, amount: number) =>
     api.post(`/companies/${id}/withdraw-capital`, { amount }),
