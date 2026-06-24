@@ -181,6 +181,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const [dSalePrice,    setDSalePrice]    = useState(0);
   const [designSaving,  setDesignSaving]  = useState(false);
 
+  // R&D portfolio state
+  const [showDesignModal,  setShowDesignModal]  = useState(false);
+  const [selectedModelId,  setSelectedModelId]  = useState<string|null>(null);
+  const [launchingModelId, setLaunchingModelId] = useState<string|null>(null);
+
   // Production line state
   const [editingLineId, setEditingLineId] = useState<string|null>(null);
   const [planModelId,   setPlanModelId]   = useState('');
@@ -234,17 +239,29 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         name: modelName.trim(), vehicleClass: dClass, platform: dPlatform,
         powerUnit: dEngine, drivetrain: dDrivetrain, interiorTier: dInterior,
         safetyTier: dSafety, qualityTarget: dQuality,
+        salePrice: dSalePrice, targetSegment: dSegment,
       });
-      // Save the price the player entered
-      const saved = await manufacturingApi.getBootstrap(); // just to get back after save — we refetch via onRefresh
-      showNotif(`Model "${modelName}" designed and saved.`, true);
+      showNotif(`Development started for "${modelName}". Launch it when ready.`, true);
       setModelName(''); setDClass('Compact Car'); setDPlatform('economy'); setDEngine('small-i4');
       setDDrivetrain('fwd'); setDInterior('basic'); setDSafety('standard'); setDQuality('standard');
+      setDSegment('budget');
+      setShowDesignModal(false);
       onRefresh();
-      setDeskTab('production');
     } catch (err: any) {
       showNotif(err?.response?.data?.message || 'Design failed.', false);
     } finally { setDesignSaving(false); }
+  };
+
+  const handleLaunchModel = async (modelId: string) => {
+    setLaunchingModelId(modelId);
+    try {
+      await manufacturingApi.launchModel(company.id, modelId);
+      showNotif('Vehicle model launched. It is now available for production.', true);
+      setSelectedModelId(null);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.message || 'Launch failed.', false);
+    } finally { setLaunchingModelId(null); }
   };
 
   const handleSaveProductionPlan = async (lineId: string) => {
@@ -494,87 +511,285 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       )}
 
       {/* ═══════════════════════════════════════════════════════
-          R&D / DESIGN TAB
+          R&D / DESIGN TAB — PORTFOLIO PAGE
       ═══════════════════════════════════════════════════════ */}
-      {deskTab === 'design' && (
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'24px' }}>
-          {/* Design Form */}
+      {deskTab === 'design' && (() => {
+        const selectedModel = selectedModelId ? models.find((m: any) => m.id === selectedModelId) : null;
+
+        // Status badge helper
+        const devBadge = (status: string) => {
+          const cfg: Record<string, { label: string; color: string; bg: string }> = {
+            in_development: { label: 'Development In Progress', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
+            ready_to_launch: { label: 'Ready to Launch',        color: '#6ea8fe', bg: 'rgba(110,168,254,0.08)' },
+            launched:        { label: 'Launched',               color: T.mint,   bg: 'rgba(54,211,153,0.08)' },
+            cancelled:       { label: 'Cancelled',              color: T.red,    bg: 'rgba(184,85,85,0.08)' },
+          };
+          const c = cfg[status] || cfg['in_development'];
+          return (
+            <span style={{ fontSize:'10px', fontFamily:'monospace', textTransform:'uppercase', letterSpacing:'0.08em',
+              color: c.color, background: c.bg, border:`1px solid ${c.color}40`, padding:'2px 8px', borderRadius:'2px' }}>
+              {c.label}
+            </span>
+          );
+        };
+
+        // Detail scores (recompute from stored values)
+        const detailScores = selectedModel ? calcLiveScores({
+          vehicleClass: selectedModel.vehicle_class,
+          platform: selectedModel.platform_type,
+          powerUnit: selectedModel.power_unit_type,
+          drivetrain: selectedModel.drivetrain_type,
+          interiorTier: selectedModel.interior_tier,
+          safetyTier: selectedModel.safety_tier,
+          qualityTarget: selectedModel.production_quality,
+          targetSegment: selectedModel.target_segment,
+          salePrice: selectedModel.sale_price,
+        }) : null;
+
+        return (
           <div>
-            <SectionHeader stamp="R&D DESK">Design Vehicle Model</SectionHeader>
-            <PanelBox>
-              <div style={{ marginBottom:'14px' }}>
-                <label style={{ display:'block', fontSize:'10px', color:T.muted, marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Model Name</label>
-                <input value={modelName} onChange={e => setModelName(e.target.value)} placeholder="e.g. Drennia Compact Mk1" maxLength={60} style={{ width:'100%', boxSizing:'border-box', padding:'9px 10px', background:'#0e0e0e', border:`1px solid ${T.border}`, color:T.ivory, fontSize:'13px' }} />
-              </div>
+            {/* ── VEHICLE DETAIL PANEL ── */}
+            {selectedModel && (
+              <div style={{ position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'flex-start', justifyContent:'flex-end', background:'rgba(0,0,0,0.6)', backdropFilter:'blur(2px)' }}
+                onClick={() => setSelectedModelId(null)}>
+                <div style={{ width:'520px', height:'100vh', overflowY:'auto', background:'#0d0d0d', border:`1px solid ${T.border}`, borderRight:'none', padding:'32px 28px' }}
+                  onClick={e => e.stopPropagation()}>
+                  {/* Header */}
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'20px' }}>
+                    <div>
+                      <div style={{ fontSize:'20px', fontWeight:700, color:T.gold, marginBottom:'6px' }}>{selectedModel.name}</div>
+                      <div style={{ fontSize:'12px', color:T.muted }}>{selectedModel.vehicle_class} · {selectedModel.target_segment}</div>
+                    </div>
+                    <button onClick={() => setSelectedModelId(null)} style={{ background:'none', border:'none', color:T.muted, fontSize:'20px', cursor:'pointer', padding:'0 0 0 12px', lineHeight:1 }}>✕</button>
+                  </div>
 
-              <FormSelect label="Vehicle Class"        value={dClass}      onChange={setDClass}      options={[{id:'Compact Car',label:'Compact Car'},{id:'Sedan',label:'Sedan'},{id:'Utility Van',label:'Utility Van'}]} />
-              <FormSelect label="Platform"             value={dPlatform}   onChange={setDPlatform}   options={[{id:'economy',label:'Economy Platform'},{id:'standard',label:'Standard Platform'},{id:'heavy-duty',label:'Heavy-Duty Platform'}]} />
-              <FormSelect label="Power Unit"           value={dEngine}     onChange={setDEngine}     options={[{id:'small-i4',label:'Small Inline-4'},{id:'standard-i4',label:'Standard Inline-4'},{id:'v6',label:'V6 Engine'},{id:'basic-electric',label:'Basic Electric Motor',locked:true}]} />
-              <FormSelect label="Drivetrain"           value={dDrivetrain} onChange={setDDrivetrain} options={[{id:'fwd',label:'Front-Wheel Drive'},{id:'rwd',label:'Rear-Wheel Drive'},{id:'awd',label:'All-Wheel Drive'}]} />
-              <FormSelect label="Interior"             value={dInterior}   onChange={setDInterior}   options={[{id:'basic',label:'Basic'},{id:'comfort',label:'Comfort'},{id:'premium',label:'Premium'}]} />
-              <FormSelect label="Safety Standard"      value={dSafety}     onChange={setDSafety}     options={[{id:'standard',label:'Standard'},{id:'enhanced',label:'Enhanced'},{id:'advanced',label:'Advanced'}]} />
-              <FormSelect label="Production Quality"   value={dQuality}    onChange={setDQuality}    options={[{id:'budget',label:'Budget'},{id:'standard',label:'Standard'},{id:'premium',label:'Premium'}]} />
-              <FormSelect label="Target Segment"       value={dSegment}    onChange={setDSegment}    options={[{id:'budget',label:'Budget'},{id:'family',label:'Family'},{id:'commercial',label:'Commercial'},{id:'premium',label:'Premium'}]} />
+                  {/* Status */}
+                  <div style={{ marginBottom:'20px' }}>
+                    {devBadge(selectedModel.development_status || 'launched')}
+                  </div>
 
-              <div style={{ marginBottom:'16px' }}>
-                <label style={{ display:'block', fontSize:'10px', color:T.muted, marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Sale Price (₯)</label>
-                <input type="number" value={dSalePrice} onChange={e => setDSalePrice(Number(e.target.value))} style={{ width:'100%', boxSizing:'border-box', padding:'8px', background:'#0e0e0e', border:`1px solid ${T.border}`, color:T.gold, fontSize:'13px', fontFamily:'monospace' }} />
-                <div style={{ fontSize:'10px', color:T.faint, marginTop:'3px' }}>Suggested: {fm(Math.round(liveScore.cost * 1.5))}</div>
-              </div>
-
-              <GoldButton onClick={handleSaveDesign} disabled={!modelName.trim() || modelName.trim().length < 2 || designSaving}>
-                {designSaving ? 'Saving...' : 'Save Vehicle Model'}
-              </GoldButton>
-            </PanelBox>
-          </div>
-
-          {/* Live Preview + Existing Models */}
-          <div style={{ display:'flex', flexDirection:'column', gap:'20px' }}>
-            {/* Live Preview */}
-            <PanelBox style={{ border:`1px solid ${T.gold}33` }}>
-              <SectionHeader stamp="LIVE ESTIMATE">Design Preview</SectionHeader>
-              <FieldRow label="Est. Manufacturing Cost / Unit" value={fm(liveScore.cost)} valueColor={T.red} />
-              <div style={{ marginTop:'10px' }}>
-                <ScoreBadge label="Reliability Score"       value={liveScore.rel}    color={liveScore.rel > 70 ? T.mint : liveScore.rel > 50 ? T.gold : T.red} />
-                <ScoreBadge label="Performance Score"       value={liveScore.perf}   color={liveScore.perf > 70 ? T.mint : T.gold} />
-                <ScoreBadge label="Fuel Efficiency Score"   value={liveScore.fuel}   color={liveScore.fuel > 70 ? T.mint : T.gold} />
-                <ScoreBadge label="Appeal Score"            value={liveScore.appeal} color={liveScore.appeal > 70 ? T.mint : T.gold} />
-                <ScoreBadge label="Cargo Utility Score"     value={liveScore.cargo}  color={liveScore.cargo > 50 ? T.mint : T.faint} />
-              </div>
-              <div style={{ marginTop:'12px', padding:'8px', background:'rgba(212,175,55,0.05)', border:`1px solid ${T.border}` }}>
-                <div style={{ fontSize:'10px', color:T.muted }}>Estimated Margin at Current Price</div>
-                <div style={{ fontSize:'14px', fontWeight:700, color:dSalePrice > liveScore.cost ? T.mint : T.red, fontFamily:'monospace' }}>
-                  {fm(dSalePrice - liveScore.cost)} / unit
-                </div>
-              </div>
-            </PanelBox>
-
-            {/* My Vehicle Models */}
-            <div>
-              <SectionHeader stamp="PORTFOLIO">My Vehicle Models</SectionHeader>
-              {models.length === 0 ? (
-                <div style={{ fontSize:'12px', color:T.faint, padding:'12px 0' }}>No models designed yet. Use the form to create your first model.</div>
-              ) : (
-                <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
-                  {models.map((m: any) => (
-                    <PanelBox key={m.id} style={{ border:`1px solid #2a2a2a` }}>
-                      <div style={{ fontSize:'13px', fontWeight:700, color:T.gold, marginBottom:'4px' }}>{m.name} <span style={{ fontSize:'11px', color:T.muted, fontWeight:400 }}>({m.vehicle_class})</span></div>
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0 16px' }}>
-                        <FieldRow label="Mfg Cost / Unit"  value={fm(m.manufacturing_cost_per_unit)} />
-                        <FieldRow label="Appeal"           value={m.appeal_score} />
-                        <FieldRow label="Sale Price"       value={fm(m.sale_price)} valueColor={T.gold} />
-                        <FieldRow label="Reliability"      value={m.reliability_score} />
-                        <FieldRow label="Target Segment"   value={m.target_segment} />
-                        <FieldRow label="Performance"      value={m.performance_score} />
+                  {/* Development status info box */}
+                  {selectedModel.development_status === 'in_development' && (
+                    <div style={{ background:'rgba(245,158,11,0.06)', border:`1px solid rgba(245,158,11,0.25)`, padding:'14px', marginBottom:'20px', borderRadius:'2px' }}>
+                      <div style={{ fontSize:'11px', color:'#f59e0b', fontFamily:'monospace', textTransform:'uppercase', marginBottom:'6px' }}>Development In Progress</div>
+                      <div style={{ fontSize:'12px', color:T.muted, lineHeight:1.7 }}>
+                        Vehicle development is underway. It will be ready after Arc {selectedModel.development_completes_at_orbit || 1}.{selectedModel.development_completes_at_arc || 1} Close.
                       </div>
+                    </div>
+                  )}
+
+                  {selectedModel.development_status === 'ready_to_launch' && (
+                    <div style={{ background:'rgba(110,168,254,0.06)', border:`1px solid rgba(110,168,254,0.25)`, padding:'14px', marginBottom:'20px', borderRadius:'2px' }}>
+                      <div style={{ fontSize:'11px', color:T.blue, fontFamily:'monospace', textTransform:'uppercase', marginBottom:'6px' }}>Ready to Launch</div>
+                      <div style={{ fontSize:'12px', color:T.muted, lineHeight:1.7 }}>
+                        Development is complete. Review the final specifications, then click <strong style={{ color:T.ivory }}>Launch Model</strong> to make it available for production assignment.
+                      </div>
+                      <div style={{ marginTop:'14px' }}>
+                        <GoldButton
+                          onClick={() => handleLaunchModel(selectedModel.id)}
+                          disabled={launchingModelId === selectedModel.id}
+                        >
+                          {launchingModelId === selectedModel.id ? 'Launching...' : 'Launch Model'}
+                        </GoldButton>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedModel.development_status === 'launched' && (
+                    <div style={{ background:'rgba(54,211,153,0.06)', border:`1px solid rgba(54,211,153,0.2)`, padding:'10px 14px', marginBottom:'20px', borderRadius:'2px', fontSize:'12px', color:T.mint }}>
+                      ✓ Launched — available for production assignment.
+                    </div>
+                  )}
+
+                  {/* Design Specs */}
+                  <div style={{ marginBottom:'20px' }}>
+                    <div style={{ fontSize:'11px', color:T.muted, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'10px' }}>Design Specifications</div>
+                    <PanelBox>
+                      <FieldRow label="Vehicle Class"      value={selectedModel.vehicle_class} />
+                      <FieldRow label="Platform"           value={selectedModel.platform_type} />
+                      <FieldRow label="Power Unit"         value={selectedModel.power_unit_type} />
+                      <FieldRow label="Drivetrain"         value={selectedModel.drivetrain_type} />
+                      <FieldRow label="Interior"           value={selectedModel.interior_tier} />
+                      <FieldRow label="Safety Standard"    value={selectedModel.safety_tier} />
+                      <FieldRow label="Production Quality" value={selectedModel.production_quality} />
+                      <FieldRow label="Target Segment"     value={selectedModel.target_segment} />
                     </PanelBox>
-                  ))}
+                  </div>
+
+                  {/* Financial */}
+                  <div style={{ marginBottom:'20px' }}>
+                    <div style={{ fontSize:'11px', color:T.muted, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'10px' }}>Financial</div>
+                    <PanelBox>
+                      <FieldRow label="Mfg Cost / Unit"        value={fm(selectedModel.manufacturing_cost_per_unit)} valueColor={T.red} />
+                      <FieldRow label="Sale Price"              value={fm(selectedModel.sale_price)} valueColor={T.gold} />
+                      <FieldRow label="Est. Margin / Unit"      value={fm(Number(selectedModel.sale_price) - Number(selectedModel.manufacturing_cost_per_unit))} valueColor={Number(selectedModel.sale_price) > Number(selectedModel.manufacturing_cost_per_unit) ? T.mint : T.red} />
+                      <FieldRow label="Dev. Started (Arc)"      value={`Orbit ${selectedModel.created_at_world_orbit} / Arc ${selectedModel.created_at_world_arc}`} />
+                    </PanelBox>
+                  </div>
+
+                  {/* Performance Scores */}
+                  <div style={{ marginBottom:'20px' }}>
+                    <div style={{ fontSize:'11px', color:T.muted, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'10px' }}>Performance Scores</div>
+                    <PanelBox style={{ border:`1px solid ${T.gold}33` }}>
+                      <ScoreBadge label="Reliability Score"     value={selectedModel.reliability_score}     color={selectedModel.reliability_score > 70 ? T.mint : selectedModel.reliability_score > 50 ? T.gold : T.red} />
+                      <ScoreBadge label="Performance Score"     value={selectedModel.performance_score}     color={selectedModel.performance_score > 70 ? T.mint : T.gold} />
+                      <ScoreBadge label="Fuel Efficiency Score" value={selectedModel.fuel_efficiency_score} color={selectedModel.fuel_efficiency_score > 70 ? T.mint : T.gold} />
+                      <ScoreBadge label="Appeal Score"          value={selectedModel.appeal_score}          color={selectedModel.appeal_score > 70 ? T.mint : T.gold} />
+                      <ScoreBadge label="Cargo Utility Score"   value={selectedModel.cargo_score}           color={selectedModel.cargo_score > 50 ? T.mint : T.faint} />
+                    </PanelBox>
+                  </div>
+
+                  {/* Factory Compatibility */}
+                  <PanelBox>
+                    <div style={{ fontSize:'11px', color:T.muted, marginBottom:'8px', textTransform:'uppercase', letterSpacing:'0.08em' }}>Factory Compatibility</div>
+                    <div style={{ fontSize:'12px', color:T.ivory, lineHeight:1.8 }}>
+                      Compatible with: <span style={{ color:T.gold }}>Small Workshop</span><br/>
+                      {selectedModel.development_status !== 'launched'
+                        ? <span style={{ color:'#f59e0b' }}>⚠ Must be launched before assigning to a production line.</span>
+                        : <span style={{ color:T.mint }}>✓ Ready for production assignment.</span>
+                      }
+                    </div>
+                  </PanelBox>
                 </div>
-              )}
+              </div>
+            )}
+
+            {/* ── DESIGN FORM MODAL ── */}
+            {showDesignModal && (
+              <div style={{ position:'fixed', inset:0, zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.75)', backdropFilter:'blur(3px)' }}
+                onClick={() => setShowDesignModal(false)}>
+                <div style={{ width:'900px', maxWidth:'95vw', maxHeight:'92vh', overflowY:'auto', background:'#0d0d0d', border:`1px solid ${T.gold}55`, padding:'32px', position:'relative' }}
+                  onClick={e => e.stopPropagation()}>
+                  {/* Modal Header */}
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px' }}>
+                    <div>
+                      <div style={{ fontSize:'18px', fontWeight:700, color:T.gold, letterSpacing:'0.05em' }}>Design a Vehicle</div>
+                      <div style={{ fontSize:'11px', color:T.muted, marginTop:'3px', fontFamily:'monospace', textTransform:'uppercase', letterSpacing:'0.08em' }}>R&D Desk — New Model</div>
+                    </div>
+                    <button onClick={() => setShowDesignModal(false)} style={{ background:'none', border:'none', color:T.muted, fontSize:'22px', cursor:'pointer', lineHeight:1 }}>✕</button>
+                  </div>
+
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'28px' }}>
+                    {/* Design Form */}
+                    <div>
+                      <div style={{ marginBottom:'14px' }}>
+                        <label style={{ display:'block', fontSize:'10px', color:T.muted, marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Model Name</label>
+                        <input value={modelName} onChange={e => setModelName(e.target.value)} placeholder="e.g. Drennia Compact Mk1" maxLength={60} style={{ width:'100%', boxSizing:'border-box', padding:'9px 10px', background:'#0e0e0e', border:`1px solid ${T.border}`, color:T.ivory, fontSize:'13px' }} />
+                      </div>
+                      <FormSelect label="Vehicle Class"      value={dClass}      onChange={setDClass}      options={[{id:'Compact Car',label:'Compact Car'},{id:'Sedan',label:'Sedan'},{id:'Utility Van',label:'Utility Van'}]} />
+                      <FormSelect label="Platform"           value={dPlatform}   onChange={setDPlatform}   options={[{id:'economy',label:'Economy Platform'},{id:'standard',label:'Standard Platform'},{id:'heavy-duty',label:'Heavy-Duty Platform'}]} />
+                      <FormSelect label="Power Unit"         value={dEngine}     onChange={setDEngine}     options={[{id:'small-i4',label:'Small Inline-4'},{id:'standard-i4',label:'Standard Inline-4'},{id:'v6',label:'V6 Engine'},{id:'basic-electric',label:'Basic Electric Motor',locked:true}]} />
+                      <FormSelect label="Drivetrain"         value={dDrivetrain} onChange={setDDrivetrain} options={[{id:'fwd',label:'Front-Wheel Drive'},{id:'rwd',label:'Rear-Wheel Drive'},{id:'awd',label:'All-Wheel Drive'}]} />
+                      <FormSelect label="Interior"           value={dInterior}   onChange={setDInterior}   options={[{id:'basic',label:'Basic'},{id:'comfort',label:'Comfort'},{id:'premium',label:'Premium'}]} />
+                      <FormSelect label="Safety Standard"    value={dSafety}     onChange={setDSafety}     options={[{id:'standard',label:'Standard'},{id:'enhanced',label:'Enhanced'},{id:'advanced',label:'Advanced'}]} />
+                      <FormSelect label="Production Quality" value={dQuality}    onChange={setDQuality}    options={[{id:'budget',label:'Budget'},{id:'standard',label:'Standard'},{id:'premium',label:'Premium'}]} />
+                      <FormSelect label="Target Segment"     value={dSegment}    onChange={setDSegment}    options={[{id:'budget',label:'Budget'},{id:'family',label:'Family'},{id:'commercial',label:'Commercial'},{id:'premium',label:'Premium'}]} />
+                      <div style={{ marginBottom:'16px' }}>
+                        <label style={{ display:'block', fontSize:'10px', color:T.muted, marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Sale Price (₯)</label>
+                        <input type="number" value={dSalePrice} onChange={e => setDSalePrice(Number(e.target.value))} style={{ width:'100%', boxSizing:'border-box', padding:'8px', background:'#0e0e0e', border:`1px solid ${T.border}`, color:T.gold, fontSize:'13px', fontFamily:'monospace' }} />
+                        <div style={{ fontSize:'10px', color:T.faint, marginTop:'3px' }}>Suggested: {fm(Math.round(liveScore.cost * 1.5))}</div>
+                      </div>
+                    </div>
+
+                    {/* Live Design Preview */}
+                    <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
+                      <PanelBox style={{ border:`1px solid ${T.gold}33` }}>
+                        <SectionHeader stamp="LIVE ESTIMATE">Design Preview</SectionHeader>
+                        <FieldRow label="Est. Manufacturing Cost / Unit" value={fm(liveScore.cost)} valueColor={T.red} />
+                        <div style={{ marginTop:'10px' }}>
+                          <ScoreBadge label="Reliability Score"     value={liveScore.rel}    color={liveScore.rel > 70 ? T.mint : liveScore.rel > 50 ? T.gold : T.red} />
+                          <ScoreBadge label="Performance Score"     value={liveScore.perf}   color={liveScore.perf > 70 ? T.mint : T.gold} />
+                          <ScoreBadge label="Fuel Efficiency Score" value={liveScore.fuel}   color={liveScore.fuel > 70 ? T.mint : T.gold} />
+                          <ScoreBadge label="Appeal Score"          value={liveScore.appeal} color={liveScore.appeal > 70 ? T.mint : T.gold} />
+                          <ScoreBadge label="Cargo Utility Score"   value={liveScore.cargo}  color={liveScore.cargo > 50 ? T.mint : T.faint} />
+                        </div>
+                        <div style={{ marginTop:'12px', padding:'10px', background:'rgba(212,175,55,0.05)', border:`1px solid ${T.border}` }}>
+                          <div style={{ fontSize:'10px', color:T.muted }}>Estimated Margin at Current Price</div>
+                          <div style={{ fontSize:'16px', fontWeight:700, color:dSalePrice > liveScore.cost ? T.mint : T.red, fontFamily:'monospace' }}>
+                            {fm(dSalePrice - liveScore.cost)} / unit
+                          </div>
+                        </div>
+                      </PanelBox>
+                      <div style={{ fontSize:'11px', color:T.faint, lineHeight:1.7, padding:'0 2px' }}>
+                        <strong style={{ color:T.muted }}>How development works:</strong><br/>
+                        After clicking Start Vehicle Development, the model enters development. Open it from your portfolio and click <em>Launch Model</em> when ready. Only launched models can be assigned to production lines.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Submit */}
+                  <div style={{ marginTop:'28px', paddingTop:'20px', borderTop:`1px solid ${T.border}`, display:'flex', alignItems:'center', gap:'16px' }}>
+                    <GoldButton
+                      onClick={handleSaveDesign}
+                      disabled={!modelName.trim() || modelName.trim().length < 2 || designSaving}
+                      style={{ padding:'11px 28px', fontSize:'12px' }}
+                    >
+                      {designSaving ? 'Starting Development...' : 'Start Vehicle Development'}
+                    </GoldButton>
+                    <GhostButton onClick={() => setShowDesignModal(false)}>Cancel</GhostButton>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── PORTFOLIO PAGE HEADER ── */}
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px' }}>
+              <SectionHeader stamp="R&D DESK">R&D Portfolio</SectionHeader>
+              <GoldButton onClick={() => setShowDesignModal(true)} style={{ padding:'9px 20px' }}>+ Design a Vehicle</GoldButton>
             </div>
+
+            {/* ── VEHICLE MODEL CARDS ── */}
+            {models.length === 0 ? (
+              <EmptyState
+                icon="🔬"
+                title="No vehicle models yet"
+                subtitle="Start your first R&D project. Design a vehicle to begin development, then launch it when it's ready for production."
+                action={<GoldButton onClick={() => setShowDesignModal(true)}>Design a Vehicle</GoldButton>}
+              />
+            ) : (
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'14px' }}>
+                {models.map((m: any) => {
+                  const devStatus = m.development_status || 'launched';
+                  const statusColors: Record<string, string> = {
+                    in_development: '#f59e0b', ready_to_launch: T.blue, launched: T.mint, cancelled: T.red,
+                  };
+                  const statusColor = statusColors[devStatus] || T.mint;
+                  return (
+                    <div key={m.id}
+                      onClick={() => setSelectedModelId(m.id)}
+                      style={{
+                        background:'rgba(255,255,255,0.02)', border:`1px solid ${T.border}`,
+                        padding:'16px', cursor:'pointer', transition:'border-color 0.15s, background 0.15s',
+                        borderRadius:'2px',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = T.gold + '88'; (e.currentTarget as HTMLDivElement).style.background = 'rgba(212,175,55,0.04)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = T.border; (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.02)'; }}
+                    >
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'8px' }}>
+                        <div style={{ fontSize:'14px', fontWeight:700, color:T.gold, lineHeight:1.3 }}>{m.name}</div>
+                        <div style={{ width:'8px', height:'8px', borderRadius:'50%', background:statusColor, marginTop:'4px', flexShrink:0 }} />
+                      </div>
+                      <div style={{ fontSize:'11px', color:T.muted, marginBottom:'12px' }}>
+                        {m.vehicle_class} · {m.target_segment}
+                      </div>
+                      <div style={{ fontSize:'10px', fontFamily:'monospace', textTransform:'uppercase', letterSpacing:'0.07em', color:statusColor, marginBottom:'10px' }}>
+                        {devStatus === 'in_development' ? 'Development In Progress'
+                          : devStatus === 'ready_to_launch' ? 'Ready to Launch'
+                          : devStatus === 'launched' ? 'Launched'
+                          : 'Cancelled'}
+                      </div>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <div style={{ fontSize:'13px', fontWeight:700, color:T.ivory, fontFamily:'monospace' }}>{fm(m.sale_price)}</div>
+                        <div style={{ fontSize:'10px', color:T.faint }}>View Details →</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ═══════════════════════════════════════════════════════
           PRODUCTION TAB
@@ -635,7 +850,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               <label style={{ display:'block', fontSize:'10px', color:T.muted, marginBottom:'4px' }}>Assigned Model</label>
                               <select value={planModelId} onChange={e => { setPlanModelId(e.target.value); }} style={{ width:'100%', padding:'7px', background:'#0e0e0e', border:`1px solid ${T.border}`, color:T.ivory, fontSize:'12px' }}>
                                 <option value="">— Halt Production —</option>
-                                {models.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                {models.filter((m: any) => (m.development_status || 'launched') === 'launched').map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
                               </select>
                             </div>
                             <div>

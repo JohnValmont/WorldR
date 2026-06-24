@@ -399,7 +399,7 @@ export class ManufacturingController {
     try {
       const userId = req.user?.id;
       const { companyId } = req.params;
-      const { name, vehicleClass, platform, powerUnit, drivetrain, interiorTier, safetyTier, qualityTarget } = req.body;
+      const { name, vehicleClass, platform, powerUnit, drivetrain, interiorTier, safetyTier, qualityTarget, salePrice, targetSegment: reqSegment } = req.body;
 
       if (!userId || !companyId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
       if (!name || !vehicleClass || !platform || !powerUnit || !drivetrain || !interiorTier || !safetyTier || !qualityTarget) {
@@ -420,9 +420,15 @@ export class ManufacturingController {
 
         const clock = await trx('world_clock').first();
 
-        const targetSegment = qualityTarget === 'budget' ? 'Economy'
+        const computedSegment = qualityTarget === 'budget' ? 'Economy'
           : qualityTarget === 'premium' ? 'Premium'
           : 'Mid-Range';
+        const finalSegment = reqSegment || computedSegment;
+
+        // Use player-supplied sale price if valid, otherwise suggest 1.5x cost
+        const finalSalePrice = salePrice && Number(salePrice) > 0
+          ? Number(salePrice)
+          : scores.manufacturingCostPerUnit * 1.5;
 
         const [model] = await trx('manufacturing_vehicle_models').insert({
           world_instance_id: company.world_instance_id,
@@ -441,18 +447,74 @@ export class ManufacturingController {
           fuel_efficiency_score: scores.fuelEfficiencyScore,
           appeal_score: scores.appealScore,
           cargo_score: scores.cargoScore,
-          target_segment: targetSegment,
-          sale_price: scores.manufacturingCostPerUnit * 1.5, // default suggested price
+          target_segment: finalSegment,
+          sale_price: finalSalePrice,
           status: 'active',
+          development_status: 'in_development', // new models begin in development
           created_at_world_orbit: clock?.current_orbit || 1,
           created_at_world_arc: clock?.current_arc || 1,
           created_at_world_mark: clock?.current_mark || 1,
+          development_started_at_orbit: clock?.current_orbit || 1,
+          development_started_at_arc: clock?.current_arc || 1,
+          development_completes_at_orbit: clock?.current_orbit || 1,
+          development_completes_at_arc: (clock?.current_arc || 1) + 1,
         }).returning('*');
 
         return model;
       });
 
       res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // POST /companies/:companyId/manufacturing/models/:modelId/launch
+  public static async launchVehicleModel(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { companyId, modelId } = req.params;
+
+      if (!userId || !companyId || !modelId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+
+      const result = await db.transaction(async (trx) => {
+        await verifyManufacturingCompany(trx, userId, companyId);
+
+        const model = await trx('manufacturing_vehicle_models')
+          .where({ id: modelId, company_id: companyId, status: 'active' })
+          .first();
+        if (!model) throw new AppError('Vehicle model not found', 404, 'NOT_FOUND');
+
+        if (model.development_status === 'launched') {
+          throw new AppError('This model is already launched', 400, 'ALREADY_LAUNCHED');
+        }
+        if (model.development_status === 'in_development') {
+          throw new AppError('This model is still in development', 400, 'IN_DEVELOPMENT');
+        }
+        if (model.development_status === 'cancelled') {
+          throw new AppError('This model has been cancelled and cannot be launched', 400, 'CANCELLED');
+        }
+
+        const [updated] = await trx('manufacturing_vehicle_models')
+          .where({ id: modelId })
+          .update({ development_status: 'launched', updated_at: trx.fn.now() })
+          .returning('*');
+
+        const clock = await trx('world_clock').first();
+        await trx('company_records').insert({
+          world_instance_id: model.world_instance_id,
+          company_id: companyId,
+          record_type: 'business',
+          summary: `${model.name} was launched for production.`,
+          created_at_world_orbit: clock?.current_orbit || 1,
+          created_at_world_arc: clock?.current_arc || 1,
+          created_at_world_mark: clock?.current_mark || 1
+        });
+
+        return updated;
+      });
+
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }
@@ -502,10 +564,13 @@ export class ManufacturingController {
         const line = await trx('manufacturing_production_lines').where({ id: lineId, company_id: companyId }).first();
         if (!line) throw new AppError('Production line not found', 404, 'NOT_FOUND');
 
-        // Validate model belongs to company if provided
+        // Validate model belongs to company and is launched
         if (modelId) {
           const model = await trx('manufacturing_vehicle_models').where({ id: modelId, company_id: companyId }).first();
           if (!model) throw new AppError('Vehicle model not found', 404, 'NOT_FOUND');
+          if (model.development_status !== 'launched') {
+            throw new AppError('This vehicle model has not been launched yet. Launch it from the R&D tab before assigning to production.', 400, 'NOT_LAUNCHED');
+          }
         }
 
         // Get factory capacity
@@ -634,6 +699,31 @@ export class ManufacturingController {
 
         // Load staff
         const staff = await trx('company_staff').where({ company_id: companyId });
+
+        // ─── 0. Vehicle Development Updates ──────────────────────────────────
+        const developingModels = await trx('manufacturing_vehicle_models')
+          .where({ company_id: companyId, status: 'active', development_status: 'in_development' });
+
+        for (const model of developingModels) {
+          const completesOrbit = model.development_completes_at_orbit || 1;
+          const completesArc = model.development_completes_at_arc || 1;
+          
+          if (currentOrbit > completesOrbit || (currentOrbit === completesOrbit && currentArc >= completesArc)) {
+            await trx('manufacturing_vehicle_models')
+              .where({ id: model.id })
+              .update({ development_status: 'ready_to_launch', updated_at: trx.fn.now() });
+
+            await trx('company_records').insert({
+              world_instance_id: company.world_instance_id,
+              company_id: companyId,
+              record_type: 'business',
+              summary: `Vehicle development completed: ${model.name}.`,
+              created_at_world_orbit: currentOrbit,
+              created_at_world_arc: currentArc,
+              created_at_world_mark: currentMark
+            });
+          }
+        }
 
         // ─── 1. Production Phase ─────────────────────────────────────────────
         let totalUnitsProduced = 0;

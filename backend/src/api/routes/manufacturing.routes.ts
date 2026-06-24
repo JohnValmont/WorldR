@@ -11,6 +11,7 @@ router.get('/bootstrap', ManufacturingController.getBootstrap);
 router.get('/companies/:companyId/manufacturing/data', authMiddleware, ManufacturingController.getCompanyManufacturingData);
 router.post('/companies/:companyId/manufacturing/factories/lease', authMiddleware, ManufacturingController.leaseFactory);
 router.post('/companies/:companyId/manufacturing/models', authMiddleware, ManufacturingController.createVehicleModel);
+router.post('/companies/:companyId/manufacturing/models/:modelId/launch', authMiddleware, ManufacturingController.launchVehicleModel);
 router.patch('/companies/:companyId/manufacturing/models/:modelId/price', authMiddleware, ManufacturingController.updateModelPrice);
 router.post('/companies/:companyId/manufacturing/production/save-plan', authMiddleware, ManufacturingController.saveProductionPlan);
 router.post('/companies/:companyId/manufacturing/staff/hire', authMiddleware, ManufacturingController.hireStaff);
