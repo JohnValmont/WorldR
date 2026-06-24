@@ -277,6 +277,26 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
     }
   };
 
+  const handlePauseProductionLine = async (lineId: string) => {
+    try {
+      await manufacturingApi.pauseProductionLine(company.id, lineId);
+      showNotif('Production line paused.', true);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.message || 'Failed to pause line.', false);
+    }
+  };
+
+  const handleResumeProductionLine = async (lineId: string) => {
+    try {
+      await manufacturingApi.resumeProductionLine(company.id, lineId);
+      showNotif('Production line resumed.', true);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.message || 'Failed to resume line.', false);
+    }
+  };
+
   const handleHireFire = async (role: string, action: 'hire'|'fire') => {
     try {
       if (action === 'hire') await manufacturingApi.hireStaff(company.id, role);
@@ -798,25 +818,28 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         <div>
           <SectionHeader stamp="PRODUCTION DESK">Production Lines</SectionHeader>
 
+          {/* State 1: No factory */}
           {!hasFactory && (
             <EmptyState
               icon="⚙"
               title="No factory yet"
               subtitle="You need a factory before production can begin."
-              action={<GoldButton onClick={() => setDeskTab('factory')}>Lease Small Workshop</GoldButton>}
+              action={<GoldButton onClick={() => setDeskTab('factory')}>Go to Factory</GoldButton>}
             />
           )}
 
-          {hasFactory && !hasModel && (
+          {/* State 2: Factory, but no launched model */}
+          {hasFactory && !models.some((m: any) => (m.development_status || 'launched') === 'launched') && (
             <EmptyState
               icon="📐"
-              title="No vehicle model designed"
-              subtitle="Design a vehicle model before assigning it to a production line."
+              title="Launch model first"
+              subtitle="Launch a vehicle model before assigning it to a production line."
               action={<GoldButton onClick={() => setDeskTab('design')}>Go to R&D / Design</GoldButton>}
             />
           )}
 
-          {hasFactory && hasModel && factories.map((factory: any) => {
+          {/* State 3: Factory & Launched Model available */}
+          {hasFactory && models.some((m: any) => (m.development_status || 'launched') === 'launched') && factories.map((factory: any) => {
             const lines = productionLines.filter((l: any) => l.factory_id === factory.id);
             return (
               <PanelBox key={factory.id} style={{ marginBottom:'20px' }}>
@@ -832,15 +855,38 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   const assignedModel = models.find((m: any) => m.id === line.assigned_vehicle_model_id);
                   const isEditing = editingLineId === line.id;
                   const editModel = models.find((m: any) => m.id === planModelId);
-                  const estCost = editModel ? Math.round(editModel.manufacturing_cost_per_unit * planTarget) : 0;
-                  const estRev  = editModel ? Math.round(editModel.sale_price * planTarget * 0.8) : 0;
-                  const margin  = estRev - estCost;
+
+                  // Quality display labels mapping
+                  const qualityLabels: Record<string, string> = {
+                    'Budget': 'Economy Output',
+                    'Standard': 'Standard Output',
+                    'Premium': 'Quality Focus',
+                  };
+
+                  // Quality multipliers
+                  const costMult = planQuality === 'Premium' ? 1.15 : planQuality === 'Budget' ? 0.9 : 1.0;
+                  const defectRate = planQuality === 'Premium' ? 0.01 : planQuality === 'Budget' ? 0.05 : 0.03;
+
+                  // Live estimate calculations
+                  const staffingRatio = Math.min(1, totalWorkers / (factory.worker_requirement || 30));
+                  const engineerBonus = 0; // Future
+                  const efficiency = staffingRatio * (1 + engineerBonus) * ((factory.condition || 100) / 100);
+
+                  const estUnitsRaw = Math.floor(planTarget * efficiency);
+                  const estUnitsProd = Math.min(factory.capacity_per_arc, estUnitsRaw);
+                  const estDefects = Math.floor(estUnitsProd * defectRate);
+                  const estInventoryAdded = estUnitsProd - estDefects;
+
+                  const estUnitCost = editModel ? Math.round(editModel.manufacturing_cost_per_unit * costMult) : 0;
+                  const estTotalCost = estUnitCost * estUnitsProd;
 
                   return (
                     <div key={line.id} style={{ border:`1px solid ${T.border}`, padding:'16px', marginBottom:'12px', background:'rgba(0,0,0,0.2)' }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
                         <div style={{ fontSize:'12px', fontWeight:700, color:T.gold }}>Production Line {line.line_number}</div>
-                        <div style={{ fontSize:'10px', color:line.status==='active'?T.mint:T.faint, fontFamily:'monospace', textTransform:'uppercase' }}>● {line.status}</div>
+                        <div style={{ fontSize:'10px', color:line.status==='active'?T.mint:line.status==='paused'?T.red:T.faint, fontFamily:'monospace', textTransform:'uppercase' }}>
+                          ● {!assignedModel ? 'IDLE' : line.status}
+                        </div>
                       </div>
 
                       {isEditing ? (
@@ -860,22 +906,36 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             <div>
                               <label style={{ display:'block', fontSize:'10px', color:T.muted, marginBottom:'4px' }}>Quality Setting</label>
                               <select value={planQuality} onChange={e => setPlanQuality(e.target.value)} style={{ width:'100%', padding:'7px', background:'#0e0e0e', border:`1px solid ${T.border}`, color:T.ivory, fontSize:'12px' }}>
-                                <option value="Budget">Budget</option>
-                                <option value="Standard">Standard</option>
-                                <option value="Premium">Premium</option>
+                                <option value="Budget">Economy Output</option>
+                                <option value="Standard">Standard Output</option>
+                                <option value="Premium">Quality Focus</option>
                               </select>
                             </div>
                           </div>
 
                           {/* Estimates */}
                           {editModel && planTarget > 0 && (
-                            <div style={{ background:'rgba(255,255,255,0.02)', border:`1px solid ${T.border}`, padding:'12px', marginBottom:'12px', display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'8px', fontSize:'11px' }}>
-                              <div><span style={{ color:T.muted }}>Est. Production Cost</span><br/><strong style={{ color:T.red, fontFamily:'monospace' }}>{fm(estCost)}</strong></div>
-                              <div><span style={{ color:T.muted }}>Est. Revenue</span><br/><strong style={{ color:T.mint, fontFamily:'monospace' }}>{fm(estRev)}</strong></div>
-                              <div><span style={{ color:T.muted }}>Est. Gross Margin</span><br/><strong style={{ color:margin>0?T.mint:T.red, fontFamily:'monospace' }}>{fm(margin)}</strong></div>
-                              <div><span style={{ color:T.muted }}>Max Capacity</span><br/><strong style={{ color:T.ivory }}>{factory.capacity_per_arc} units</strong></div>
-                              <div><span style={{ color:T.muted }}>Workers Needed</span><br/><strong style={{ color:T.ivory }}>{factory.worker_requirement || 30}</strong></div>
-                              <div><span style={{ color:T.muted }}>Current Workers</span><br/><strong style={{ color:totalWorkers >= (factory.worker_requirement||30)?T.mint:T.red }}>{totalWorkers}</strong></div>
+                            <div style={{ background:'rgba(255,255,255,0.02)', border:`1px solid ${T.border}`, padding:'12px', marginBottom:'12px' }}>
+                              <div style={{ fontSize:'10px', color:T.gold, marginBottom:'8px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Live Estimate at Arc Close</div>
+                              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:'8px', fontSize:'11px' }}>
+                                <div><span style={{ color:T.muted }}>Factory Condition</span><br/><strong style={{ color:Number(factory.condition)<50?T.red:T.mint }}>{factory.condition}%</strong></div>
+                                <div><span style={{ color:T.muted }}>Efficiency</span><br/><strong style={{ color:efficiency<1?T.red:T.mint }}>{Math.round(efficiency * 100)}%</strong></div>
+                                <div><span style={{ color:T.muted }}>Est. Units Produced</span><br/><strong style={{ color:T.ivory }}>{estUnitsProd}</strong></div>
+                                <div><span style={{ color:T.muted }}>Defect Rate</span><br/><strong style={{ color:defectRate > 0.03 ? T.red : T.mint }}>{defectRate * 100}% (-{estDefects} units)</strong></div>
+
+                                <div style={{ gridColumn:'1 / span 2', marginTop:'8px' }}>
+                                  <span style={{ color:T.muted }}>Net Inventory Added</span><br/>
+                                  <strong style={{ color:T.mint, fontSize:'13px', fontFamily:'monospace' }}>+{estInventoryAdded} units</strong>
+                                </div>
+                                <div style={{ gridColumn:'3 / span 2', marginTop:'8px' }}>
+                                  <span style={{ color:T.muted }}>Est. Total Prod Cost</span><br/>
+                                  <strong style={{ color:T.red, fontSize:'13px', fontFamily:'monospace' }}>{fm(estTotalCost)}</strong>
+                                  <span style={{ color:T.faint, marginLeft:'6px' }}>({fm(estUnitCost)}/u)</span>
+                                </div>
+                              </div>
+                              <div style={{ fontSize:'10px', color:T.faint, marginTop:'12px', fontStyle:'italic' }}>
+                                Note: Revenue estimates will appear after Market &amp; Sales is built.
+                              </div>
                             </div>
                           )}
 
@@ -883,23 +943,41 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             <GoldButton onClick={() => handleSaveProductionPlan(line.id)}>Save Production Plan</GoldButton>
                             <GhostButton onClick={() => setEditingLineId(null)}>Cancel</GhostButton>
                           </div>
-                          <div style={{ fontSize:'10px', color:T.faint, marginTop:'8px' }}>⚠ Saving a plan does not generate money. Revenues are only earned at Arc Close.</div>
                         </div>
                       ) : (
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                           <div style={{ fontSize:'12px', color:T.ivory }}>
                             {assignedModel ? (
-                              <>Producing: <strong style={{ color:T.gold }}>{assignedModel.name}</strong> — {line.target_units_per_arc} units/Arc · {line.quality_setting} quality</>
+                              <div style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
+                                <div>Producing: <strong style={{ color:T.gold }}>{assignedModel.name}</strong></div>
+                                <div style={{ fontSize:'11px', color:T.muted }}>
+                                  Target: {line.target_units_per_arc} units/Arc · {qualityLabels[line.quality_setting] || line.quality_setting}
+                                </div>
+                                {line.status === 'active' && (
+                                  <div style={{ fontSize:'11px', color:T.mint }}>
+                                    Current Efficiency: {Math.round(Math.min(1, totalWorkers / (factory.worker_requirement || 30)) * ((factory.condition || 100) / 100) * 100)}%
+                                  </div>
+                                )}
+                              </div>
                             ) : (
                               <span style={{ color:T.faint }}>No model assigned. Line is idle.</span>
                             )}
                           </div>
-                          <GhostButton onClick={() => {
-                            setEditingLineId(line.id);
-                            setPlanModelId(line.assigned_vehicle_model_id || '');
-                            setPlanTarget(line.target_units_per_arc || 0);
-                            setPlanQuality(line.quality_setting || 'Standard');
-                          }}>Configure Line</GhostButton>
+                          <div style={{ display:'flex', gap:'8px' }}>
+                            <GhostButton onClick={() => {
+                              setEditingLineId(line.id);
+                              setPlanModelId(line.assigned_vehicle_model_id || '');
+                              setPlanTarget(line.target_units_per_arc || 0);
+                              setPlanQuality(line.quality_setting || 'Standard');
+                            }}>Edit Plan</GhostButton>
+
+                            {assignedModel && line.status === 'active' && (
+                              <GhostButton color={T.red} onClick={() => handlePauseProductionLine(line.id)}>Pause Production</GhostButton>
+                            )}
+                            {assignedModel && line.status === 'paused' && (
+                              <GhostButton color={T.mint} onClick={() => handleResumeProductionLine(line.id)}>Resume Production</GhostButton>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>

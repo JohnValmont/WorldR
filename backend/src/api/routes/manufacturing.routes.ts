@@ -17,6 +17,9 @@ router.post('/companies/:companyId/manufacturing/production/save-plan', authMidd
 router.post('/companies/:companyId/manufacturing/staff/hire', authMiddleware, ManufacturingController.hireStaff);
 router.post('/companies/:companyId/manufacturing/staff/fire', authMiddleware, ManufacturingController.fireStaff);
 
+router.patch('/companies/:companyId/manufacturing/production/lines/:lineId/pause', authMiddleware, ManufacturingController.pauseProductionLine);
+router.patch('/companies/:companyId/manufacturing/production/lines/:lineId/resume', authMiddleware, ManufacturingController.resumeProductionLine);
+
 // Admin-only: process manufacturing arc
 router.post('/admin/manufacturing/process-company/:companyId', [authMiddleware, requireAdmin], ManufacturingController.processManufacturingArc);
 

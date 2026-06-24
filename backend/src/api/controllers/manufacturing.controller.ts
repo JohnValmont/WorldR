@@ -793,66 +793,12 @@ export class ManufacturingController {
           });
         }
 
-        // ─── 2. Sales Phase ──────────────────────────────────────────────────
+        // ─── 2. Sales Phase — DISABLED until Market & Sales is built ────────────────
+        // Produced vehicles go to inventory only. No automatic sales or revenue yet.
+        // Market & Sales will be implemented as a separate feature.
         let totalGrossRevenue = 0;
         let totalUnitsSold = 0;
-
-        // Get home state market for now
-        const homeMarket = await trx('manufacturing_region_markets')
-          .where({ state_id: company.headquarters_state_id, status: 'active' })
-          .first();
-
-        if (homeMarket && productionLines.length > 0) {
-          for (const line of productionLines) {
-            const inventoryRecord = await trx('manufacturing_inventory')
-              .where({ company_id: companyId, vehicle_model_id: line.model_id_ref })
-              .first();
-
-            if (!inventoryRecord || inventoryRecord.units_in_stock <= 0) continue;
-
-            const demand = calculateMarketDemand(homeMarket, {
-              vehicle_class: line.vehicle_class,
-              appeal_score: line.appeal_score,
-              sale_price: line.sale_price,
-            });
-
-            const unitsSold = Math.min(inventoryRecord.units_in_stock, demand);
-            if (unitsSold <= 0) continue;
-
-            const revenue = Math.round(unitsSold * Number(line.sale_price));
-            totalGrossRevenue += revenue;
-            totalUnitsSold += unitsSold;
-            runningCash += revenue;
-
-            const costPerUnit = Number(line.manufacturing_cost_per_unit);
-            const remainingStock = inventoryRecord.units_in_stock - unitsSold;
-            const remainingValue = remainingStock * costPerUnit;
-            const remainingStorage = remainingStock > 0 ? Math.round(remainingStock * 150) : 0;
-
-            await trx('manufacturing_inventory').where({ id: inventoryRecord.id }).update({
-              units_in_stock: remainingStock,
-              inventory_value: remainingValue,
-              storage_cost_per_arc: remainingStorage,
-              updated_at: trx.fn.now(),
-            });
-
-            const marketShare = Math.min(1, unitsSold / Math.max(1, demand));
-            await trx('manufacturing_sales_results').insert({
-              world_instance_id: company.world_instance_id,
-              company_id: companyId,
-              vehicle_model_id: line.model_id_ref,
-              region_market_id: homeMarket.id,
-              world_orbit: currentOrbit,
-              world_arc: currentArc,
-              units_sold: unitsSold,
-              sale_price: line.sale_price,
-              revenue: revenue,
-              market_share_estimate: marketShare,
-            });
-          }
-        }
-
-        const totalUnitsUnsold = totalUnitsProduced - totalUnitsSold;
+        const totalUnitsUnsold = totalUnitsProduced;
 
         // ─── 3. Cost Deductions ──────────────────────────────────────────────
         // Staff wages
@@ -987,6 +933,59 @@ export class ManufacturingController {
       });
 
       res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // PATCH /companies/:companyId/manufacturing/production/lines/:lineId/pause
+  public static async pauseProductionLine(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { companyId, lineId } = req.params;
+      if (!userId || !companyId || !lineId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+
+      await db.transaction(async (trx) => {
+        await verifyManufacturingCompany(trx, userId, companyId);
+
+        const line = await trx('manufacturing_production_lines')
+          .where({ id: lineId, company_id: companyId }).first();
+        if (!line) throw new AppError('Production line not found', 404, 'NOT_FOUND');
+        if (line.status !== 'active') throw new AppError('Only active production lines can be paused', 400, 'BAD_REQUEST');
+
+        await trx('manufacturing_production_lines')
+          .where({ id: lineId })
+          .update({ status: 'paused', updated_at: trx.fn.now() });
+      });
+
+      res.status(200).json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // PATCH /companies/:companyId/manufacturing/production/lines/:lineId/resume
+  public static async resumeProductionLine(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { companyId, lineId } = req.params;
+      if (!userId || !companyId || !lineId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+
+      await db.transaction(async (trx) => {
+        await verifyManufacturingCompany(trx, userId, companyId);
+
+        const line = await trx('manufacturing_production_lines')
+          .where({ id: lineId, company_id: companyId }).first();
+        if (!line) throw new AppError('Production line not found', 404, 'NOT_FOUND');
+        if (line.status !== 'paused') throw new AppError('Only paused production lines can be resumed', 400, 'BAD_REQUEST');
+        if (!line.assigned_vehicle_model_id) throw new AppError('No model assigned — configure a production plan first', 400, 'NO_MODEL');
+
+        await trx('manufacturing_production_lines')
+          .where({ id: lineId })
+          .update({ status: 'active', updated_at: trx.fn.now() });
+      });
+
+      res.status(200).json({ success: true });
     } catch (error) {
       next(error);
     }
