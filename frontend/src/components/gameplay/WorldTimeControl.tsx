@@ -39,7 +39,6 @@ export default function WorldTimeControl() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '0 8px' }}>
       <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'right' }}>
-        <div>MERIDIAN STANDARD</div>
         <div style={{ color: T.ivory }}>{dateStr}</div>
       </div>
       {ENABLE_ADVANCE_ARC_TEST && (

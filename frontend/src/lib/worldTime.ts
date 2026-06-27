@@ -1,4 +1,5 @@
 import { WORLD_TIME_CONFIG, type WorldTimeConfig } from '../config/worldTimeConfig';
+import { formatGameDate, formatGameDateShort } from './calendar';
 
 export type WorldDate = {
   orbit: number;
@@ -66,13 +67,13 @@ export function advanceWorldArc(): void {
 }
 
 export function formatWorldDate(date: WorldDate = getWorldDate()): string {
-  return `Mark ${date.mark} · Arc ${date.arc} · Orbit ${date.orbit} M.E.`;
+  return formatGameDate(date.arc);
 }
 
 export function formatWorldArc(date: WorldDate = getWorldDate()): string {
-  return `Arc ${date.arc} · Orbit ${date.orbit} M.E.`;
+  return formatGameDate(date.arc);
 }
 
 export function formatCompactWorldDate(date: WorldDate = getWorldDate()): string {
-  return `A${date.arc} · O${date.orbit} M.E.`;
+  return formatGameDateShort(date.arc);
 }

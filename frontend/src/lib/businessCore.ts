@@ -20,8 +20,9 @@ export function formatCompanyMoney(company: { currencyId?: string }, value: numb
 }
 
 import { getWorldDate, advanceWorldArc, formatWorldDate } from './worldTime';
+import { formatGameDate as formatCalendarDate } from './calendar';
 
-// ─── Game Date System (Adapter to World Time) ───────────────────────────────
+// ─── Game Date System (Adapter to World Time) ─────────────────────────────────────────────────────────────
 export interface GameDate {
   worldYear: number;
   worldMonth: number;
@@ -40,10 +41,8 @@ export function getGameDate(): GameDate {
 }
 
 export function formatGameDate(date?: GameDate): string {
-  if (date) {
-    return `Mark ${date.worldDay} · Arc ${date.worldMonth} · Orbit ${date.worldYear} M.E.`;
-  }
-  return formatWorldDate();
+  const d = date || getGameDate();
+  return formatCalendarDate(d.worldMonth);
 }
 
 export function advanceGameDate(months: number = 1): void {

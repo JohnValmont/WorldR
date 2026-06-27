@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { MARKETING, awarenessGain } from '../constants/marketing';
+import { formatGameDate } from '../utils/calendar';
 import { AppError } from '../../utils/errors';
 import {
   VEHICLE_CLASSES,
@@ -2394,7 +2395,7 @@ export class ManufacturingController {
         // Resolve currency symbol for arc summary
         const arcCurrency = await trx('currencies').where({ id: company.currency_id }).first();
         const arcSym = arcCurrency?.symbol ?? '';
-        let summary = `Arc ${currentOrbit}.${currentArc}: Planned ${totalPlannedUnits}, produced ${totalUnitsProduced + totalDefectiveUnits} (${totalDefectiveUnits} defective). Sold ${totalUnitsSold}. Revenue ${arcSym}${totalGrossRevenue.toLocaleString()}. Net ${netProfit >= 0 ? '+' : ''}${arcSym}${netProfit.toLocaleString()}.${workerNote}${defectNote}${approvedNote}${expansionCompletedNote}`;
+        let summary = `${formatGameDate(currentArc)}: Planned ${totalPlannedUnits}, produced ${totalUnitsProduced + totalDefectiveUnits} (${totalDefectiveUnits} defective). Sold ${totalUnitsSold}. Revenue ${arcSym}${totalGrossRevenue.toLocaleString()}. Net ${netProfit >= 0 ? '+' : ''}${arcSym}${netProfit.toLocaleString()}.${workerNote}${defectNote}${approvedNote}${expansionCompletedNote}`;
         if (localBrandReportLines.length > 0) {
            summary += '\n\n=== Local Brand Updates ===\n' + localBrandReportLines.join('\n');
         }
