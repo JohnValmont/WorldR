@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
+import { MARKETING, awarenessGain } from '../constants/marketing';
 import { AppError } from '../../utils/errors';
 import {
   VEHICLE_CLASSES,
@@ -1048,11 +1049,11 @@ export class ManufacturingController {
       for (const alloc of allocs) {
         const salePrice = Number(alloc.sale_price);
 
-        const localBrand = brandMap.get(market.id);
+        const localBrand = brandMap.get(market.region_market_id);
         const localAwareness = localBrand ? Number(localBrand.awareness) : 0;
         const localTrust = localBrand ? Number(localBrand.reputation) : 0;
         
-        const awarenessMult = Math.max(0.10, localAwareness / 100);
+        const awarenessMult = 0.35 + 0.65 * (localAwareness / 100);
         const trustMult = Math.max(0.20, localTrust / 100);
         const distMult = Number(market.distribution_strength) || 0.7;
 
@@ -1855,6 +1856,25 @@ export class ManufacturingController {
             'manufacturing_region_markets.vehicle_attribute_weights'
           );
 
+        // Pre-sim marketing boost
+        const preSimMktSpend = new Map<string, number>();
+        for (const alloc of marketAllocations) {
+          const mktTier = alloc.marketing_tier || 'none';
+          const cost = MARKETING_COSTS[mktTier] ?? 0;
+          const current = preSimMktSpend.get(alloc.region_market_id) || 0;
+          preSimMktSpend.set(alloc.region_market_id, current + cost);
+        }
+
+        for (const [marketId, spend] of preSimMktSpend.entries()) {
+          const localBrand = brandMap.get(marketId);
+          if (localBrand) {
+            const oldAwareness = Number(localBrand.awareness) || 0;
+            const boosted = Math.min(100, Math.max(0, oldAwareness * MARKETING.RETENTION + awarenessGain(spend)));
+            localBrand.awareness = boosted; // So sim reads the new boosted value
+            localBrand.boostedAwareness = boosted; // To use in post-sim persist
+          }
+        }
+
         // Run the sales simulation helper
         const modelDemandsList = ManufacturingController.simulateSalesDemand(
           marketAllocations,
@@ -2155,17 +2175,14 @@ export class ManufacturingController {
           }
 
           // AWARENESS MATH
-          const countryMarketingNationalCost = MARKETING_COSTS['national'] || 1;
-          const marketingIntensity = Math.min(1.25, mktMarketingSpend / Math.max(countryMarketingNationalCost, 1));
-          const marketingAwarenessGain = 3.0 * Math.sqrt(marketingIntensity) * ms.awarenessSensitivity * ms.distStrength;
           const deliveryAwarenessGain = Math.min(1.0, deliveryExposure * 20);
-          const awarenessDelta = Math.min(4.0, marketingAwarenessGain + deliveryAwarenessGain);
-          const newAwareness = Math.min(100, Math.max(0, oldAwareness + awarenessDelta));
+          
+          const boosted = currBrand ? (brandMap.get(marketId)?.boostedAwareness ?? oldAwareness) : oldAwareness;
+          const newAwareness = Math.min(100, Math.max(0, boosted + deliveryAwarenessGain));
+          const awarenessDelta = newAwareness - oldAwareness;
           
           let primaryAwarenessReason = 'None';
-          if (marketingAwarenessGain > deliveryAwarenessGain && marketingAwarenessGain > 0.1) {
-            primaryAwarenessReason = 'Marketing Campaigns';
-          } else if (deliveryAwarenessGain >= marketingAwarenessGain && deliveryAwarenessGain > 0.1) {
+          if (deliveryAwarenessGain > 0.1) {
             primaryAwarenessReason = 'Market Presence';
           }
           
