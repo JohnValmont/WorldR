@@ -160,8 +160,12 @@ export const logisticsApi = {
 export const manufacturingApi = {
   getBootstrap: () => api.get('/manufacturing/bootstrap'),
   getCompanyData: (companyId: string) => api.get(`/companies/${companyId}/manufacturing/data?t=${Date.now()}`),
+  procureComponents: (companyId: string, data: { component_id: string, units: number }) => api.post(`/companies/${companyId}/manufacturing/components/procure`, data),
   leaseFactory: (companyId: string, factoryTypeId: string) => api.post(`/companies/${companyId}/manufacturing/factories/lease`, { factoryTypeId }),
   createModel: (companyId: string, data: any) => api.post(`/companies/${companyId}/manufacturing/models`, data),
+  createFacelift: (companyId: string, modelId: string, data: any) => api.post(`/companies/${companyId}/manufacturing/models/${modelId}/facelift`, data),
+  discontinueModel: (companyId: string, modelId: string) => api.post(`/companies/${companyId}/manufacturing/models/${modelId}/discontinue`),
+  getModelSnapshots: (companyId: string) => api.get(`/companies/${companyId}/manufacturing/models/snapshots?t=${Date.now()}`),
   launchModel: (companyId: string, modelId: string) => api.post(`/companies/${companyId}/manufacturing/models/${modelId}/launch`),
   updateModelPrice: (companyId: string, modelId: string, salePrice: number) => api.patch(`/companies/${companyId}/manufacturing/models/${modelId}/price`, { salePrice }),
   saveProductionPlan: (companyId: string, data: { lineId: string, modelId: string | null, qualitySetting: string, targetUnitsPerArc: number }) => api.post(`/companies/${companyId}/manufacturing/production/save-plan`, data),
@@ -169,5 +173,15 @@ export const manufacturingApi = {
   resumeProductionLine: (companyId: string, lineId: string) => api.patch(`/companies/${companyId}/manufacturing/production/lines/${lineId}/resume`),
   hireStaff: (companyId: string, role: string) => api.post(`/companies/${companyId}/manufacturing/staff/hire`, { role }),
   fireStaff: (companyId: string, role: string) => api.post(`/companies/${companyId}/manufacturing/staff/fire`, { role }),
-  processArcAdmin: (companyId: string) => api.post(`/admin/manufacturing/process-company/${companyId}`)
+  startEngineeringProgramme: (companyId: string, programmeId: string) => api.post(`/companies/${companyId}/manufacturing/programmes/start`, { programmeId }),
+  startFactoryExpansion: (companyId: string, factoryId: string) => api.post(`/companies/${companyId}/manufacturing/factories/${factoryId}/expand`),
+  processArcAdmin: (companyId: string) => api.post(`/admin/manufacturing/process-company/${companyId}`),
+  // Market & Sales
+  getMarkets: (companyId: string) => api.get(`/companies/${companyId}/manufacturing/markets?t=${Date.now()}`),
+  setAllocation: (companyId: string, data: { vehicleModelId: string, regionMarketId: string, unitsAllocated: number, marketingTier?: string }) => api.post(`/companies/${companyId}/manufacturing/markets/allocate`, data),
+  removeAllocation: (companyId: string, allocId: string) => api.delete(`/companies/${companyId}/manufacturing/markets/allocations/${allocId}`),
+  setMarketingTier: (companyId: string, marketId: string, data: { vehicleModelId: string, marketingTier: string }) => api.patch(`/companies/${companyId}/manufacturing/markets/${marketId}/marketing`, data),
+  // Phase 3: Engineering Report & Knowledge
+  getEngineeringReport: (companyId: string, modelId: string) => api.get(`/companies/${companyId}/manufacturing/models/${modelId}/engineering-report`),
+  getCompanyKnowledge: (companyId: string) => api.get(`/companies/${companyId}/manufacturing/knowledge`),
 };

@@ -25,10 +25,11 @@ const getStateName = (id?: string) => {
 };
 
 const getSectorName = (id?: string) => {
+  if (!id) return '';
   if (id === 'services' || id === 'shipping-logistics') return 'Shipping & Logistics';
   if (id === 'retail') return 'Retail & Consumer';
   if (id === 'manufacturing') return 'Manufacturing';
-  return id || 'Unknown Sector';
+  return id;
 };
 
 const getSubsectorName = (id?: string) => {
@@ -266,7 +267,7 @@ export default function BusinessPage() {
           companyApi.getMy().then(compRes => {
             const companies = compRes.data;
             if (companies.length > 0) {
-              const myCompany = companies[0];
+              const myCompany = companies.sort((a: any, b: any) => new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime())[0];
               
               if (myCompany.industry_id === 'manufacturing') {
                 import('../../../lib/api').then(({ manufacturingApi }) => {
