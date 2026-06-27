@@ -262,9 +262,9 @@ export const REPUTATION_TRAITS = [
 // Base catalog for engineering programmes.
 // Note: 'budget' and 'baseDuration' are now driven by the country config.
 export const ENGINEERING_PROGRAMMES_CATALOG: Record<string, any> = {
-  'economy-tune': { name: 'Economy Powertrain Calibration', minEng: 1, recEng: 2, prereq: null },
-  'safety-arch': { name: 'Reinforced Safety Architecture', minEng: 2, recEng: 3, prereq: null },
-  'durability-val': { name: 'Durability Validation Programme', minEng: 1, recEng: 2, prereq: null },
-  'assembly-time': { name: 'Assembly Time Study', minEng: 1, recEng: 2, prereq: null },
-  'spc': { name: 'Statistical Process Control', minEng: 2, recEng: 3, prereq: 'assembly-time' }
+  'economy-tune': { name: 'Economy Powertrain Calibration', minEng: 1, recEng: 2, prereq: null, budget: 200000, baseDuration: 2 },
+  'safety-arch': { name: 'Reinforced Safety Architecture', minEng: 2, recEng: 3, prereq: null, budget: 350000, baseDuration: 3 },
+  'durability-val': { name: 'Durability Validation Programme', minEng: 1, recEng: 2, prereq: null, budget: 150000, baseDuration: 2 },
+  'assembly-time': { name: 'Assembly Time Study', minEng: 1, recEng: 2, prereq: null, budget: 100000, baseDuration: 1 },
+  'spc': { name: 'Statistical Process Control', minEng: 2, recEng: 3, prereq: 'assembly-time', budget: 250000, baseDuration: 2 }
 };

@@ -32,6 +32,7 @@ import {
   calculateEngineeringAssessment,
   calculateBalanceRating,
 } from '../constants/engineeringEngine';
+import { MARKET_SEGMENTS } from '../constants/marketSegments';
 
 // ── Score Calculation (Original formulas) ─────────────────────────────────────
 function calculateDesignScores(design: {
@@ -163,7 +164,7 @@ export class ManufacturingController {
     try {
       const userId = req.user?.id;
       const { companyId } = req.params;
-      if (!userId || !companyId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId) return next(new AppError('Missing or invalid fields: userId, companyId', 400, 'BAD_REQUEST'));
 
       const { company } = await verifyManufacturingCompany(db, userId, companyId);
 
@@ -287,8 +288,8 @@ export class ManufacturingController {
         const row = knowledgeRows.find((r: any) => r.domain === domain.id);
         const xp = row?.xp_points ?? 0;
         let level = 0;
-        for (let i = KNOWLEDGE_LEVEL_XP.length - 1; i >= 0; i--) {
-          if (xp >= KNOWLEDGE_LEVEL_XP[i]) { level = i; break; }
+        for (const i of KNOWLEDGE_LEVEL_XP.keys()) {
+           if (xp >= KNOWLEDGE_LEVEL_XP[i]) level = i + 1;
         }
         companyKnowledge[domain.id] = { xp, level };
       }
@@ -430,7 +431,7 @@ export class ManufacturingController {
       const { companyId } = req.params;
       const { factoryTypeId } = req.body;
 
-      if (!userId || !companyId || !factoryTypeId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId || !factoryTypeId) return next(new AppError('Missing or invalid fields: userId, companyId, factoryTypeId', 400, 'BAD_REQUEST'));
 
       const result = await db.transaction(async (trx) => {
         const { company, currencySymbol } = await verifyManufacturingCompany(trx, userId, companyId);
@@ -527,7 +528,7 @@ export class ManufacturingController {
         budgetAllocation: rawBudgetAlloc,
       } = req.body;
 
-      if (!userId || !companyId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId) return next(new AppError('Missing or invalid fields: userId, companyId', 400, 'BAD_REQUEST'));
       if (!name || !vehicleClass || !platform || !powerUnit || !drivetrain || !interiorTier || !safetyTier || !qualityTarget) {
         return next(new AppError('All design choices are required', 400, 'BAD_REQUEST'));
       }
@@ -733,7 +734,7 @@ export class ManufacturingController {
       const userId = req.user?.id;
       const { companyId, modelId } = req.params;
 
-      if (!userId || !companyId || !modelId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId || !modelId) return next(new AppError('Missing or invalid fields: userId, companyId, modelId', 400, 'BAD_REQUEST'));
 
       const result = await db.transaction(async (trx) => {
         await verifyManufacturingCompany(trx, userId, companyId);
@@ -820,7 +821,7 @@ export class ManufacturingController {
       const { companyId } = req.params;
       const { lineId, modelId, qualitySetting, targetUnitsPerArc } = req.body;
 
-      if (!userId || !companyId || !lineId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId || !lineId) return next(new AppError('Missing or invalid fields: userId, companyId, lineId', 400, 'BAD_REQUEST'));
 
       await db.transaction(async (trx) => {
         await verifyManufacturingCompany(trx, userId, companyId);
@@ -830,6 +831,7 @@ export class ManufacturingController {
 
         // Validate model belongs to company, is launched, and not discontinued
         if (modelId) {
+          if (targetUnitsPerArc === undefined) throw new AppError('Missing targetUnitsPerArc for active production plan', 400, 'BAD_REQUEST');
           const model = await trx('manufacturing_vehicle_models').where({ id: modelId, company_id: companyId }).first();
           if (!model) throw new AppError('Vehicle model not found', 404, 'NOT_FOUND');
           if (model.development_status === 'discontinued') {
@@ -884,7 +886,7 @@ export class ManufacturingController {
       const { role, quantity: rawQty } = req.body;
       const quantity = Math.max(1, Math.floor(Number(rawQty ?? 1)));
 
-      if (!userId || !companyId || !role) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId || !role) return next(new AppError('Missing or invalid fields: userId, companyId, role', 400, 'BAD_REQUEST'));
 
       const validRole = STAFF_ROLES.find(r => r.id === role);
       if (!validRole) return next(new AppError('Invalid staff role', 400, 'BAD_REQUEST'));
@@ -928,7 +930,7 @@ export class ManufacturingController {
       const { role, quantity: rawQty } = req.body;
       const quantity = Math.max(1, Math.floor(Number(rawQty ?? 1)));
 
-      if (!userId || !companyId || !role) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId || !role) return next(new AppError('Missing or invalid fields: userId, companyId, role', 400, 'BAD_REQUEST'));
 
       const validRole = STAFF_ROLES.find(r => r.id === role);
       if (!validRole) return next(new AppError('Invalid staff role', 400, 'BAD_REQUEST'));
@@ -1021,7 +1023,7 @@ export class ManufacturingController {
     for (const [marketId, allocs] of allocationsByMarket.entries()) {
       const market = allocs[0];
 
-      // Market Capacity Calculation
+      // Market Capacity Calculation (Total)
       const population = Number(market.population);
       const avgHouseholdSize = Number(market.avg_household_size) || 2.8;
       const totalHouseholds = Math.floor(population / avgHouseholdSize);
@@ -1043,72 +1045,8 @@ export class ManufacturingController {
       let combinedDemandTarget = 0;
       const modelDemands = [];
 
-      let attrWeights = { reliability: 1, performance: 1, fuel_efficiency: 1, safety: 1, appeal: 1, cargo_utility: 1 };
-      if (market.vehicle_attribute_weights) {
-        try {
-          attrWeights = typeof market.vehicle_attribute_weights === 'string' 
-            ? JSON.parse(market.vehicle_attribute_weights) 
-            : market.vehicle_attribute_weights;
-        } catch (e) {}
-      }
-
       for (const alloc of allocs) {
         const salePrice = Number(alloc.sale_price);
-        const comfortRatio = Number(market.vehicle_price_comfort_ratio) || 0.8;
-        const priceComfortAmount = Number(market.average_income) * comfortRatio;
-        
-        const priceRatio = salePrice / Math.max(priceComfortAmount, 1);
-        const priceSens = Number(market.price_sensitivity) || 0.7;
-        
-        let affordability = 1.0;
-        if (priceRatio > 1.0) {
-           affordability = Math.max(0.05, 1.0 - ((priceRatio - 1.0) * priceSens));
-        } else {
-           affordability = Math.min(1.10, 1.0 + ((1.0 - priceRatio) * (priceSens * 0.5)));
-        }
-        
-        let classPref = 0.33;
-        if (alloc.vehicle_class === 'Compact Car') classPref = Number(market.preference_compact);
-        else if (alloc.vehicle_class === 'Sedan') classPref = Number(market.preference_sedan);
-        else if (alloc.vehicle_class === 'Utility Van') classPref = Number(market.preference_utility_van);
-        
-        let segmentPref = 0.33;
-        if (alloc.target_segment === 'Economy') segmentPref = Number(market.preference_economy) || 0.33;
-        else if (alloc.target_segment === 'Standard') segmentPref = Number(market.preference_standard) || 0.33;
-        else if (alloc.target_segment === 'Premium') segmentPref = Number(market.preference_premium) || 0.33;
-
-        const scores = [
-          (Number(alloc.reliability_score) / 65) * (attrWeights.reliability || 1.0),
-          (Number(alloc.performance_score) / 65) * (attrWeights.performance || 1.0),
-          (Number(alloc.fuel_efficiency_score) / 65) * (attrWeights.fuel_efficiency || 1.0),
-          (65 / 65) * (attrWeights.safety || 1.0), 
-          (Number(alloc.appeal_score) / 65) * (attrWeights.appeal || 1.0),
-          (Number(alloc.cargo_score || 30) / 65) * (attrWeights.cargo_utility || 1.0),
-        ];
-        const avgAttr = scores.reduce((a,b)=>a+b, 0) / scores.length;
-        
-        const classMult = classPref / 0.33;
-        const segmentMult = segmentPref / 0.33;
-        let rawFit = (classMult * 0.4) + (segmentMult * 0.4) + (avgAttr * 0.2);
-        let fitMultiplier = Math.max(0.20, Math.min(1.15, rawFit));
-
-        // ── Phase 3B Step 2: Score-driven demand modifiers ───────────────
-        const marketMods = deriveMarketModifiers(alloc as any);
-        
-        // Fuel efficiency: economy/budget segment gets an extra boost from high fuel score
-        if (alloc.target_segment === 'Economy' || Number(market.preference_economy) > 0.45) {
-          fitMultiplier = Math.min(1.25, fitMultiplier * marketMods.fuelEconomyBoost);
-        }
-        // Appeal/comfort: premium segment gets extra boost from high appeal score
-        if (alloc.target_segment === 'Premium' || alloc.target_segment === 'Executive') {
-          fitMultiplier = Math.min(1.25, fitMultiplier * marketMods.appealBoost);
-        }
-        // Cargo/practicality: utility van and family segment get extra boost from high cargo score
-        if (alloc.vehicle_class === 'Utility Van' || alloc.target_segment === 'Family') {
-          fitMultiplier = Math.min(1.25, fitMultiplier * marketMods.cargoBoost);
-        }
-        // Clamp after all modifiers
-        fitMultiplier = Math.max(0.20, Math.min(1.25, fitMultiplier));
 
         const localBrand = brandMap.get(market.id);
         const localAwareness = localBrand ? Number(localBrand.awareness) : 0;
@@ -1121,18 +1059,76 @@ export class ManufacturingController {
         const mktTier = alloc.marketing_tier || 'none';
         const mktMult = MARKETING_MULT[mktTier] ?? 1.0;
 
-        const baseInterest = marketPurchaseCapacity * affordability * fitMultiplier * awarenessMult * trustMult * distMult * mktMult * (1 + salesManagerBonus);
-        const rawBuyerInterest = Math.max(0, baseInterest);
+        let totalRawBuyerInterest = 0;
+        const segmentInterest: Record<string, number> = {};
+
+        // NEW: Demographic Segment Loop
+        for (const segmentKey of Object.keys(MARKET_SEGMENTS)) {
+          const segment = MARKET_SEGMENTS[segmentKey];
+
+          // 1. Segment Capacity
+          const segmentCapacity = marketPurchaseCapacity * segment.populationShare;
+
+          // 2. Segment Affordability
+          const baseComfortRatio = Number(market.vehicle_price_comfort_ratio) || 0.8;
+          const segmentBuyingPower = (segment.priceCeiling / 35000) * Number(market.average_income) * baseComfortRatio;
+          
+          const priceRatio = salePrice / Math.max(segmentBuyingPower, 1);
+          const priceSens = segment.priceSensitivity;
+          
+          let affordability = priceRatio <= 1.0
+            ? 1.0
+            : Math.max(0, Math.exp(-priceSens * 2.0 * (priceRatio - 1.0)));
+
+          // 3. Segment Fit (Using car scores and segment score weights)
+          const relScore = (Number(alloc.reliability_score) / 65) * segment.scoreWeights.reliability;
+          const perfScore = (Number(alloc.performance_score) / 65) * segment.scoreWeights.performance;
+          const fuelScore = (Number(alloc.fuel_efficiency_score) / 65) * segment.scoreWeights.fuel_efficiency;
+          const safeScore = (Number(alloc.safety_score ?? 50) / 65) * segment.scoreWeights.safety;
+          const appScore = (Number(alloc.appeal_score) / 65) * segment.scoreWeights.appeal;
+          const cargoScore = (Number(alloc.cargo_score || 30) / 65) * segment.scoreWeights.cargo_utility;
+
+          const weightSum = segment.scoreWeights.reliability + segment.scoreWeights.performance + segment.scoreWeights.fuel_efficiency + segment.scoreWeights.safety + segment.scoreWeights.appeal + segment.scoreWeights.cargo_utility;
+          const fitRaw = (relScore + perfScore + fuelScore + safeScore + appScore + cargoScore) / weightSum;
+
+          // Target segment bonus
+          const allocSegment = (alloc.target_segment || '').toLowerCase();
+          const isTargetMatch = allocSegment === segment.id;
+          
+          const FIT_EXP = 4.0;
+          let fitEff = Math.pow(fitRaw, FIT_EXP) * (isTargetMatch ? segment.targetFitBonus : 1.0);
+          const appealNorm = Number(alloc.appeal_score) / 65;
+          if (segment.minAppeal > 0 && appealNorm < segment.minAppeal) {
+            fitEff *= Math.pow(appealNorm / segment.minAppeal, 2); // prestige gate
+          }
+
+          const VALUE_K = 1.6;
+          const priceLevel = salePrice / segment.priceCeiling;
+          const valueForMoney = Math.max(0, Math.min(1.15, (fitRaw + 0.15) / (priceLevel * VALUE_K + 0.15)));
+
+          // Calculate raw interest for this specific segment
+          const segmentBaseInterest = segmentCapacity * affordability * fitEff * valueForMoney * awarenessMult * trustMult * distMult * mktMult * (1 + salesManagerBonus);
+          const rawSegmentInt = Math.max(0, segmentBaseInterest);
+          segmentInterest[segmentKey] = rawSegmentInt;
+          totalRawBuyerInterest += rawSegmentInt;
+        }
+
         const allocatedUnits = Number(alloc.units_allocated);
-        const modelDemandTarget = Math.min(allocatedUnits, Math.floor(rawBuyerInterest));
+        const modelDemandTarget = Math.min(allocatedUnits, Math.floor(totalRawBuyerInterest));
 
         combinedDemandTarget += modelDemandTarget;
 
         modelDemands.push({
           alloc,
-          affordability, fitMultiplier, awarenessMult, trustMult, distMult, mktMult,
-          rawBuyerInterest, modelDemandTarget, mktTier,
-          finalAssignedDemand: 0
+          affordability: 1.0, 
+          fitMultiplier: 1.0, 
+          awarenessMult, trustMult, distMult, mktMult,
+          rawBuyerInterest: totalRawBuyerInterest, 
+          segmentInterest,
+          modelDemandTarget, mktTier,
+          finalAssignedDemand: 0,
+          totalHouseholds,
+          marketPurchaseCapacity
         });
       }
 
@@ -1163,12 +1159,10 @@ export class ManufacturingController {
 
       for (const md of modelDemands) {
         const alloc = md.alloc;
-        const mktTier = md.mktTier;
         const unitsSold = md.finalAssignedDemand;
 
         let mainReasonCode = 'Balanced';
-        if (md.affordability < 0.3) mainReasonCode = 'Too Expensive';
-        else if (md.fitMultiplier < 0.6) mainReasonCode = 'Poor Market Fit';
+        if (md.rawBuyerInterest < 1.0) mainReasonCode = 'Zero Demand';
         else if (md.awarenessMult < 0.3) mainReasonCode = 'Low Brand Awareness';
         else if (md.distMult < 0.5) mainReasonCode = 'Weak Distribution';
         else if (capacityRatio < 1.0) mainReasonCode = 'Market Capacity Capped (Cannibalised)';
@@ -1197,7 +1191,7 @@ export class ManufacturingController {
   public static async processManufacturingArc(req: Request, res: Response, next: NextFunction) {
     try {
       const { companyId } = req.params;
-      if (!companyId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!companyId) return next(new AppError('Missing or invalid fields: companyId', 400, 'BAD_REQUEST'));
 
       const result = await db.transaction(async (trx) => {
         const company = await trx('companies').where({ id: companyId }).first();
@@ -2435,7 +2429,7 @@ export class ManufacturingController {
     try {
       const userId = req.user?.id;
       const { companyId, lineId } = req.params;
-      if (!userId || !companyId || !lineId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId || !lineId) return next(new AppError('Missing or invalid fields: userId, companyId, lineId', 400, 'BAD_REQUEST'));
 
       await db.transaction(async (trx) => {
         await verifyManufacturingCompany(trx, userId, companyId);
@@ -2461,7 +2455,7 @@ export class ManufacturingController {
     try {
       const userId = req.user?.id;
       const { companyId, lineId } = req.params;
-      if (!userId || !companyId || !lineId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId || !lineId) return next(new AppError('Missing or invalid fields: userId, companyId, lineId', 400, 'BAD_REQUEST'));
 
       await db.transaction(async (trx) => {
         await verifyManufacturingCompany(trx, userId, companyId);
@@ -2487,7 +2481,7 @@ export class ManufacturingController {
     try {
       const userId = req.user?.id;
       const { companyId } = req.params;
-      if (!userId || !companyId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId) return next(new AppError('Missing or invalid fields: userId, companyId', 400, 'BAD_REQUEST'));
 
       const { company } = await verifyManufacturingCompany(db, userId, companyId);
 
@@ -2689,7 +2683,7 @@ export class ManufacturingController {
     try {
       const userId = req.user?.id;
       const { companyId, allocId } = req.params;
-      if (!userId || !companyId || !allocId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId || !allocId) return next(new AppError('Missing or invalid fields: userId, companyId, allocId', 400, 'BAD_REQUEST'));
 
       await db.transaction(async (trx) => {
         await verifyManufacturingCompany(trx, userId, companyId);
@@ -2762,8 +2756,8 @@ export class ManufacturingController {
         
         // Extract budget and duration from config, fallback to defaults if missing
         const progConfig = autoConfig?.engineering_programmes_config?.[programmeId] ?? {};
-        const progBudget = Number(progConfig.budget ?? 200000);
-        const progBaseDuration = Number(progConfig.baseDuration ?? 2);
+        const progBudget = Number(progConfig.budget ?? progDef.budget ?? 200000);
+        const progBaseDuration = Number(progConfig.baseDuration ?? progDef.baseDuration ?? 2);
 
         const finances = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
         if (Number(finances.available_cash) < progBudget) {
@@ -2988,7 +2982,7 @@ export class ManufacturingController {
       const { companyId, modelId } = req.params;
       const { name, qualityTarget, salePrice, targetSegment, appliedEngineeringPackage } = req.body;
 
-      if (!userId || !companyId || !modelId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId || !modelId) return next(new AppError('Missing or invalid fields: userId, companyId, modelId', 400, 'BAD_REQUEST'));
       if (!name || !qualityTarget) {
         return next(new AppError('Name and Quality Target are required', 400, 'BAD_REQUEST'));
       }
@@ -3142,7 +3136,7 @@ export class ManufacturingController {
       const userId = req.user?.id;
       const { companyId, modelId } = req.params;
 
-      if (!userId || !companyId || !modelId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId || !modelId) return next(new AppError('Missing or invalid fields: userId, companyId, modelId', 400, 'BAD_REQUEST'));
 
       await db.transaction(async (trx) => {
         const { company } = await verifyManufacturingCompany(trx, userId, companyId);
@@ -3198,7 +3192,7 @@ export class ManufacturingController {
       const userId = req.user?.id;
       const { companyId } = req.params;
 
-      if (!userId || !companyId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId) return next(new AppError('Missing or invalid fields: userId, companyId', 400, 'BAD_REQUEST'));
 
       await verifyManufacturingCompany(db, userId, companyId);
 
@@ -3221,7 +3215,7 @@ export class ManufacturingController {
       const userId = req.user?.id;
       const { companyId, modelId } = req.params;
 
-      if (!userId || !companyId || !modelId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId || !modelId) return next(new AppError('Missing or invalid fields: userId, companyId, modelId', 400, 'BAD_REQUEST'));
 
       await verifyManufacturingCompany(db, userId, companyId);
 
@@ -3269,7 +3263,7 @@ export class ManufacturingController {
       const userId = req.user?.id;
       const { companyId } = req.params;
 
-      if (!userId || !companyId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!userId || !companyId) return next(new AppError('Missing or invalid fields: userId, companyId', 400, 'BAD_REQUEST'));
       await verifyManufacturingCompany(db, userId, companyId);
 
       const knowledgeRows = await db('manufacturing_company_knowledge')

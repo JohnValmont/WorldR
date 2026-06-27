@@ -455,6 +455,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       return handleCreateFacelift();
     }
 
+    if (!modelName.trim()) {
+      showNotif('Vehicle model name is required.', false);
+      return;
+    }
+
     if (Math.abs(prioritySum - 100) > 2) {
       showNotif(`Engineering priorities must sum to 100 (currently ${prioritySum}). Adjust before proceeding.`, false);
       return;
@@ -483,7 +488,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setFaceliftSourceModelId(null);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Design failed.', false);
+      const msg = err?.response?.data?.message || err?.message || 'Design failed.';
+      showNotif(msg, false);
     } finally { setDesignSaving(false); }
   };
 
@@ -1945,8 +1951,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         </div>
 
                         <div style={{ fontSize: '12px', color: T.muted, marginBottom: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                          <FieldRow label="Budget" value={fm(prog.budget)} valueColor={T.red} />
-                          <FieldRow label="Base Duration" value={`${prog.baseDuration} Arcs`} />
+                          <FieldRow label="Budget" value={fm(prog.budget || 0)} valueColor={T.red} />
+                          <FieldRow label="Base Duration" value={`${prog.baseDuration || 0} Arcs`} />
                           <FieldRow label="Min Engineers" value={prog.minEng} />
                           <FieldRow label="Rec. Engineers" value={prog.recEng} />
                         </div>
