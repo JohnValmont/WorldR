@@ -13,6 +13,8 @@ import {
 import { logisticsApi, manufacturingApi } from '../../../lib/api';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import ManufacturingDeskTab from './ManufacturingDeskTab';
+import { StatChip, StatusDot, Badge } from '../../../components/ui';
+import { ArrowLeft, Briefcase, TrendingUp, Wallet, Lock } from 'lucide-react';
 
 // Helpers to resolve standard IDs to display names in v1
 const getStateName = (id?: string) => {
@@ -452,42 +454,50 @@ export default function BusinessPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: T.bg, color: T.ivory, overflow: 'hidden' }}>
-      {/* ── Global Back to Chronicle ── */}
-      <div style={{ padding: '16px 24px 0', flexShrink: 0 }}>
-        <span style={{ cursor: 'pointer', color: T.muted, fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }} onClick={() => router.push('/drennia/chronicle')}>
-          ← Back to Chronicle
-        </span>
-      </div>
 
-      {/* ── Business Header: Net Worth + Cash Only ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 24px', borderBottom: `1px solid ${T.border}`, background: T.panel, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.2em', color: T.gold }}>WORLDr</span>
-          <span style={{ width: '1px', height: '14px', background: T.border }} />
-          <span style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint }}>Business Desk</span>
+      {/* ── Enhanced Business Header ── */}
+      <header className="flex items-center justify-between px-4 md:px-6 py-2.5 border-b border-[#23232b] bg-[#0c0d13] shrink-0 flex-wrap gap-3">
+        {/* Left: back + brand */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push('/drennia/chronicle')}
+            className="flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-500 hover:text-terminal-amber transition-colors"
+          >
+            <ArrowLeft size={11} /> Chronicle
+          </button>
+          <span className="w-px h-4 bg-[#23232b]" />
+          <span className="text-[10px] font-mono font-black tracking-[0.25em] text-terminal-amber amber-glow">WORLDr</span>
+          <span className="w-px h-4 bg-[#23232b]" />
+          <Briefcase size={12} className="text-zinc-500" />
+          <span className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-500">Business Desk</span>
+          {company && <StatusDot variant="live" label={company.name} />}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-            <span style={{ fontSize: '8px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: T.faint }}>Net Worth</span>
-            <span style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.gold }}>{formatMoney(netWorth)}</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-            <span style={{ fontSize: '8px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: T.faint }}>Cash in Hand</span>
-            <span style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.mint }}>{formatMoney(playerCash)}</span>
-          </div>
+
+        {/* Center: stat chips */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <StatChip label="Net Worth" value={formatMoney(netWorth)} valueColor="amber" />
+          <StatChip label="Cash in Hand" value={formatMoney(playerCash)} valueColor="green" />
+          {company && (
+            <StatChip label="Company Cash" value={formatMoney(company.companyCash ?? 0)} valueColor="amber" />
+          )}
+        </div>
+
+        {/* Right: time control */}
+        <div className="flex items-center gap-3">
           <WorldTimeControl />
         </div>
-      </div>
+      </header>
 
       {/* ── Page Title ── */}
-      <div style={{ padding: '16px 24px 8px', flexShrink: 0 }}>
-        <h1 style={{ fontSize: '20px', fontWeight: 700, color: T.ivory, margin: 0 }}>Business</h1>
+      <div style={{ padding: '14px 24px 6px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <h1 style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, margin: 0, fontFamily: 'serif' }}>Business</h1>
+        {company && <Badge variant="green" dot>{company.sector === 'manufacturing' ? 'Manufacturing' : 'Logistics'}</Badge>}
       </div>
 
       {/* ── Subtabs & Breadcrumbs ── */}
       <div style={{ padding: '0 24px', borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
         {/* Dynamic Breadcrumbs */}
-        <div style={{ display: 'flex', gap: '8px', padding: '12px 0 4px', fontSize: '10px', fontFamily: 'monospace', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+        <div style={{ display: 'flex', gap: '8px', padding: '10px 0 4px', fontSize: '10px', fontFamily: 'monospace', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
           <span style={{ cursor: 'pointer', color: activeTab === 'overview' ? T.gold : T.muted }} onClick={() => { setActiveTab('overview'); setSelectedCompanyId(null); }}>Business Desk</span>
           {activeTab === 'companies' && (
             <>
@@ -505,7 +515,7 @@ export default function BusinessPage() {
 
         {/* Subtabs */}
         {!(activeTab === 'companies' && selectedCompanyId) && (
-        <div style={{ display: 'flex', gap: '0', overflowX: 'auto', marginTop: '8px' }}>
+        <div style={{ display: 'flex', gap: '0', overflowX: 'auto', marginTop: '6px' }}>
           {SUB_TABS.map(tab => {
             const locked = tab.requiresCompany && !company;
             const isActive = activeTab === tab.id;
@@ -518,12 +528,13 @@ export default function BusinessPage() {
                     if (tab.id !== 'companies') setSelectedCompanyId(null);
                   }
                 }}
-                style={{
-                  padding: '10px 16px', fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em',
-                  fontWeight: isActive ? 700 : 500, color: locked ? T.faint : isActive ? T.gold : T.muted,
-                  background: 'transparent', border: 'none', borderBottom: isActive ? `2px solid ${T.gold}` : '2px solid transparent',
-                  cursor: locked ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', transition: 'color 0.15s',
-                }}
+                className={`px-4 py-2.5 text-[10px] font-mono uppercase tracking-[0.1em] whitespace-nowrap transition-colors duration-150 border-b-2 ${
+                  isActive
+                    ? 'text-terminal-amber border-terminal-amber font-bold'
+                    : locked
+                    ? 'text-zinc-700 border-transparent cursor-not-allowed'
+                    : 'text-zinc-500 border-transparent hover:text-zinc-300 cursor-pointer'
+                } bg-transparent border-x-0 border-t-0`}
                 title={locked ? 'Register a company to unlock' : undefined}
               >
                 {tab.label}{locked ? ' 🔒' : ''}

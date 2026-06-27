@@ -1,9 +1,13 @@
 'use client';
 import React from 'react';
+import { LucideIcon } from 'lucide-react';
+import { cn } from './utils';
 
 interface TerminalPanelProps {
   title: string;
   subtitle?: string;
+  /** Lucide icon for the header */
+  icon?: LucideIcon;
   children: React.ReactNode;
   headerAction?: React.ReactNode;
   className?: string;
@@ -11,14 +15,28 @@ interface TerminalPanelProps {
 }
 
 export default function TerminalPanel({
-  title, subtitle, children, headerAction, className = '', fullHeight = false
+  title,
+  subtitle,
+  icon: Icon,
+  children,
+  headerAction,
+  className = '',
+  fullHeight = false,
 }: TerminalPanelProps) {
   return (
-    <div className={`border border-premium-muted bg-[#080907]/90 flex flex-col rounded-sm shadow-lg backdrop-blur-md ${fullHeight ? 'h-full' : ''} ${className}`}>
-      <div className="bg-[#0c0d0b] border-b border-zinc-900/60 px-4 py-2 flex items-center justify-between shrink-0">
+    <div className={cn(
+      'border border-[#23232b] bg-[#0c0d13] flex flex-col rounded-xl shadow-card',
+      fullHeight && 'h-full',
+      className,
+    )}>
+      {/* Header */}
+      <div className="bg-[#0a0b11] border-b border-[#23232b] px-4 py-2.5 flex items-center justify-between shrink-0 rounded-t-xl">
         <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)] animate-pulse shrink-0" />
-          <h3 className="text-zinc-300 font-extrabold text-[10px] uppercase tracking-[0.15em] font-mono leading-none">{title}</h3>
+          <span className="w-1.5 h-1.5 rounded-full bg-terminal-amber shadow-amber-glow animate-pulse-glow shrink-0" />
+          {Icon && <Icon size={11} className="text-terminal-amber opacity-70" />}
+          <h3 className="text-zinc-300 font-bold text-[10px] uppercase tracking-[0.15em] font-mono leading-none">
+            {title}
+          </h3>
           {subtitle && (
             <>
               <span className="text-zinc-700 font-mono text-[9px]">•</span>

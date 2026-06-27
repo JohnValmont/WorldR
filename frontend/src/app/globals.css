@@ -414,3 +414,42 @@ td {
   margin: 0 auto;
   padding: 24px 28px 56px;
 }
+
+/* -- Bar fill animation (market snapshot) --------------------------- */
+@keyframes bar-fill {
+  from { transform: scaleX(0); transform-origin: left; }
+  to   { transform: scaleX(1); transform-origin: left; }
+}
+.animate-bar-fill {
+  animation: bar-fill 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* -- Slide-in animation -------------------------------------------- */
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+/* -- Terminal card refined ----------------------------------------- */
+.terminal-card {
+  @apply border border-[#23232b] bg-[#0c0d13] rounded-xl transition-colors duration-150;
+}
+.terminal-card:hover {
+  @apply border-zinc-700;
+}
+
+/* -- Updated input style ------------------------------------------- */
+.terminal-input {
+  @apply w-full bg-zinc-900 border border-[#23232b] text-zinc-100 font-mono text-sm
+         px-3 py-2 rounded-lg focus:outline-none focus:border-terminal-amber
+         focus:ring-1 focus:ring-terminal-amber/20 placeholder:text-zinc-600
+         transition-colors duration-150;
+}
+
+/* -- Card shadow --------------------------------------------------- */
+.shadow-card {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03);
+}

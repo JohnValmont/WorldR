@@ -1,51 +1,160 @@
 'use client';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getCompanies, getContracts } from '../../../lib/businessCore';
+import {
+  AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, Radar,
+  Tooltip, ResponsiveContainer, XAxis, YAxis,
+} from 'recharts';
+import {
+  ScrollText, Briefcase, TrendingUp, BarChart2, User, Star,
+  Mail, Landmark, ChevronRight, RefreshCw, AlertTriangle, Lock,
+  Activity, Globe, Newspaper,
+} from 'lucide-react';
+import { getContracts } from '../../../lib/businessCore';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
+import {
+  Card, Button, StatChip, DataRow, EmptyState, Badge, StatusDot,
+  SectionHeading, PageShell,
+} from '../../../components/ui';
 
-const T = {
-  bg: '#090A0F',
-  panel: '#11131A',
-  paper: '#1E1A15',
-  border: '#2A2630',
-  borderGold: 'rgba(201,162,74,0.22)',
-  gold: '#C9A24A',
-  ivory: '#F4EBD6',
-  muted: '#A79D8C',
-  faint: '#6B6358',
-  mint: '#36D399',
-  steel: '#4B6382',
-  burgundy: '#8F3D3D',
-  red: '#B85555',
-};
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-const SECTOR_DEMAND: { sector: string; demand: string; color: string }[] = [
-  { sector: 'Shipping & Logistics', demand: 'High',    color: T.mint  },
-  { sector: 'Manufacturing',        demand: 'Rising',  color: T.gold  },
-  { sector: 'Retail & Consumer',    demand: 'Medium',  color: T.muted },
-  { sector: 'Agriculture & Food',   demand: 'Stable',  color: T.steel },
+interface PlayerStats {
+  credibility: number;
+  charisma: number;
+  influence: number;
+  reputation?: number;
+  reliability?: number;
+  motherland: string;
+  gameDateStr?: string;
+}
+
+interface CompanySnapshot {
+  id: string;
+  name: string;
+  sector?: string;
+  industry_id?: string;
+  headquarters_state_id?: string;
+  legal_structure_id?: string;
+  finances?: { available_cash?: number };
+}
+
+// ── Static data (will be replaced by live API data in future arcs) ────────────
+
+const SECTOR_DEMAND = [
+  { sector: 'Shipping & Logistics', demand: 'High',    pct: 82, dir: 'up'   as const },
+  { sector: 'Manufacturing',        demand: 'Rising',  pct: 67, dir: 'up'   as const },
+  { sector: 'Retail & Consumer',    demand: 'Medium',  pct: 48, dir: 'flat' as const },
+  { sector: 'Agriculture & Food',   demand: 'Stable',  pct: 41, dir: 'flat' as const },
 ];
 
 const LEDGER_HEADLINES = [
-  'Drennport Commercial Bank reports stable liquidity for Q2.',
-  'Ironvale suppliers warn of material cost increases.',
-  'Westport Bourse volume up — Trade activity strengthens.',
-  'Greenmere harvest season expected ahead of schedule.',
-  'New registry filings up 12% — Business formation accelerating.',
+  { id: 1, text: 'Drennport Commercial Bank reports stable liquidity for Q2.' },
+  { id: 2, text: 'Ironvale suppliers warn of material cost increases.' },
+  { id: 3, text: 'Westport Bourse volume up — Trade activity strengthens.' },
+  { id: 4, text: 'Greenmere harvest season expected ahead of schedule.' },
+  { id: 5, text: 'New registry filings up 12% — Business formation accelerating.' },
 ];
+
+/** Mock net-worth series — last 12 arcs. Replace with real ledger data when available. */
+const MOCK_NET_WORTH_SERIES = [
+  { arc: 'A1', value: 50000 },
+  { arc: 'A2', value: 48200 },
+  { arc: 'A3', value: 52100 },
+  { arc: 'A4', value: 57300 },
+  { arc: 'A5', value: 61800 },
+  { arc: 'A6', value: 59200 },
+  { arc: 'A7', value: 65000 },
+  { arc: 'A8', value: 72400 },
+  { arc: 'A9', value: 81200 },
+  { arc: 'A10', value: 88700 },
+  { arc: 'A11', value: 95100 },
+  { arc: 'A12', value: 103800 },
+];
+
+const demandColor = {
+  up:   '#30d158',
+  flat: '#ff9f0a',
+  down: '#ff453a',
+} as const;
+
+// ── Custom Tooltip ─────────────────────────────────────────────────────────────
+
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-[#0c0d13] border border-[#23232b] px-3 py-2 rounded-lg text-[10px] font-mono shadow-card">
+      <p className="text-zinc-500 mb-0.5 uppercase tracking-wider">{label}</p>
+      <p className="text-terminal-amber font-bold">₯{Number(payload[0].value).toLocaleString()}</p>
+    </div>
+  );
+}
+
+// ── Sector Demand Bar ──────────────────────────────────────────────────────────
+
+function DemandBar({ sector, demand, pct, dir }: typeof SECTOR_DEMAND[0]) {
+  const color = demandColor[dir];
+  return (
+    <div className="flex items-center gap-3 py-2 border-b border-[#23232b] last:border-0">
+      <span className="text-[11px] text-zinc-400 flex-1 min-w-0 truncate">{sector}</span>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="w-24 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+          <div
+            className="h-full rounded-full animate-bar-fill"
+            style={{ width: `${pct}%`, background: color }}
+          />
+        </div>
+        <span className="text-[10px] font-mono font-bold w-12 text-right" style={{ color }}>
+          {demand}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ChroniclePage() {
   const router = useRouter();
-  const [authorized, setAuthorized] = useState(false);
-  const [citizenFile, setCitizenFile] = useState<any>(null);
+  const [authorized, setAuthorized]       = useState(false);
+  const [citizenFile, setCitizenFile]     = useState<PlayerStats | null>(null);
   const [characterName, setCharacterName] = useState('');
-  const [playerCash, setPlayerCash] = useState(0);
-  const [hasCompany, setHasCompany] = useState(false);
-  const [company, setCompany] = useState<any>(null);
+  const [playerCash, setPlayerCash]       = useState(0);
+  const [company, setCompany]             = useState<CompanySnapshot | null>(null);
   const [recentRecords, setRecentRecords] = useState<any[]>([]);
   const [activeContracts, setActiveContracts] = useState(0);
+  const [netWorthSeries, setNetWorthSeries]   = useState(MOCK_NET_WORTH_SERIES);
+
+  // Build radar data from citizen file stats
+  const radarData = [
+    { attr: 'Credibility', value: citizenFile?.credibility ?? 50 },
+    { attr: 'Charisma',    value: citizenFile?.charisma    ?? 50 },
+    { attr: 'Influence',   value: citizenFile?.influence   ?? 10 },
+    { attr: 'Reputation',  value: citizenFile?.reputation  ?? 30 },
+    { attr: 'Reliability', value: citizenFile?.reliability ?? 60 },
+  ];
+
+  const companyCash = Number(company?.finances?.available_cash ?? 0);
+  const netWorth    = playerCash + companyCash;
+
+  const handleRestartLife = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const preserve = [
+      'worldr_access_token',
+      'worldr_refresh_token',
+      'worldr_pre_alpha_access_granted_v1',
+      'worldr_account_settings',
+      'worldr_world_clock_v1',
+    ];
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith('worldr_') && !preserve.includes(k)) toRemove.push(k);
+    }
+    toRemove.forEach(k => localStorage.removeItem(k));
+    window.location.href = '/world-entry';
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -57,239 +166,323 @@ export default function ChroniclePage() {
         .then(res => {
           const char = res.data;
           setCharacterName(char.name);
-          setPlayerCash(Number(char.finances?.cash_in_hand || 0));
+          setPlayerCash(Number(char.finances?.cash_in_hand ?? 0));
 
-          // For backward compatibility of flavor text
           const fileStr = localStorage.getItem('worldr_citizen_file_v1');
-          if (fileStr) setCitizenFile(JSON.parse(fileStr));
-          else setCitizenFile({ motherland: 'Drennia' });
+          const parsed  = fileStr ? JSON.parse(fileStr) : { motherland: 'Drennia' };
+          setCitizenFile(parsed);
 
           companyApi.getMy().then(compRes => {
             const companies = compRes.data;
             if (companies.length > 0) {
-              const myCompany = companies[0];
-              setCompany({
-                ...myCompany,
-                sector: myCompany.industry_id,
-                state: myCompany.headquarters_state_id,
-                legalStructure: myCompany.legal_structure_id,
-                companyCash: myCompany.finances?.available_cash
-              });
-              setHasCompany(true);
-              
+              const myCompany = companies.sort((a: any, b: any) =>
+                new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+              )[0];
+              setCompany(myCompany);
               const contracts = getContracts();
-              setActiveContracts(contracts.filter(c => c.status === 'awarded' && c.awardedToCompanyId === myCompany.id).length);
+              setActiveContracts(
+                contracts.filter(c => c.status === 'awarded' && c.awardedToCompanyId === myCompany.id).length
+              );
+              // Seed net worth into series tail with live value
+              const liveValue = playerCash + Number(myCompany.finances?.available_cash ?? 0);
+              setNetWorthSeries(prev => [...prev.slice(0, -1), { arc: 'Now', value: liveValue }]);
             }
-          });
+          }).catch(() => {});
         })
         .catch(err => {
-          if (err.response?.status === 404) {
-             router.replace('/start/character');
-          }
+          if (err.response?.status === 404) router.replace('/start/character');
         })
-        .finally(() => {
-          setAuthorized(true);
-        });
+        .finally(() => setAuthorized(true));
     });
 
-    const recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
+    const recs = JSON.parse(localStorage.getItem('worldr_records_v1') ?? '[]');
     setRecentRecords(recs.slice(0, 6));
-  }, [router]);
-
-  const handleRestartLife = () => {
-    if (typeof window !== 'undefined') {
-      const preserveKeys = [
-        'worldr_access_token',
-        'worldr_refresh_token',
-        'worldr_pre_alpha_access_granted_v1',
-        'worldr_account_settings',
-        'worldr_world_clock_v1'
-      ];
-      
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('worldr_') && !preserveKeys.includes(key)) {
-          keysToRemove.push(key);
-        }
-      }
-      
-      keysToRemove.forEach(k => localStorage.removeItem(k));
-      window.location.href = '/world-entry';
-    }
-  };
+  }, [router, playerCash]);
 
   if (!authorized) return null;
 
+  const sectorLabel = company?.industry_id === 'manufacturing' ? 'Manufacturing'
+    : company?.industry_id === 'services' || company?.industry_id === 'shipping-logistics' ? 'Shipping & Logistics'
+    : company?.industry_id ?? '—';
+
+  const stateLabel = (() => {
+    const id = company?.headquarters_state_id;
+    if (!id) return '—';
+    if (id === 'drennia-drennport') return 'Drennport';
+    if (id === 'drennia-westport')  return 'Westport';
+    if (id === 'drennia-ironvale')  return 'Ironvale';
+    if (id === 'drennia-greenmere') return 'Greenmere';
+    return id;
+  })();
+
+  // ── Sidebar ────────────────────────────────────────────────────────────────
+
+  const sidebar = (
+    <>
+      {/* Market Snapshot */}
+      <Card kicker="Market Snapshot" icon={BarChart2}>
+        {SECTOR_DEMAND.map(s => <DemandBar key={s.sector} {...s} />)}
+        <div className="mt-3 flex justify-end">
+          <Link href="/drennia/market" className="text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-600 hover:text-terminal-amber transition-colors">
+            Full Market →
+          </Link>
+        </div>
+      </Card>
+
+      {/* Attribute Radar */}
+      <Card kicker="Attribute Profile" icon={Star}>
+        <ResponsiveContainer width="100%" height={180}>
+          <RadarChart data={radarData} outerRadius={65}>
+            <PolarGrid stroke="#23232b" />
+            <PolarAngleAxis
+              dataKey="attr"
+              tick={{ fill: '#71717a', fontSize: 9, fontFamily: 'monospace' }}
+            />
+            <Radar
+              dataKey="value"
+              stroke="#ff9f0a"
+              fill="#ff9f0a"
+              fillOpacity={0.12}
+              strokeWidth={1.5}
+            />
+          </RadarChart>
+        </ResponsiveContainer>
+      </Card>
+
+      {/* Letters */}
+      <Card kicker="Letters & Correspondence" icon={Mail}>
+        <EmptyState
+          icon={Mail}
+          message="No letters received yet. Business correspondence and official notices will arrive here."
+          className="py-6"
+        />
+      </Card>
+    </>
+  );
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: T.bg, color: T.ivory, overflow: 'hidden' }}>
+    <div className="flex flex-col h-full w-full bg-[#090A0F] text-zinc-100 overflow-hidden scanlines relative">
 
-      {/* Top Player Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 24px', borderBottom: `1px solid ${T.border}`, background: T.panel, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <span style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.2em', color: T.gold }}>WORLDr</span>
-          <span style={{ width: '1px', height: '16px', background: T.border }} />
-          <span style={{ fontSize: '13px', fontWeight: 700, color: T.ivory }}>{characterName}</span>
-          <span style={{ fontSize: '10px', color: T.faint, fontFamily: 'monospace' }}>Age 18 · {citizenFile?.motherland || 'Drennia'}</span>
+      {/* ── Top Player Bar ──────────────────────────────────────────────── */}
+      <header className="flex items-center justify-between px-4 md:px-6 py-2 border-b border-[#23232b] bg-[#0c0d13] shrink-0 gap-4 flex-wrap">
+        {/* Left: brand + character */}
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-mono font-black tracking-[0.25em] text-terminal-amber amber-glow">
+            WORLDr
+          </span>
+          <span className="w-px h-4 bg-[#23232b]" />
+          <StatusDot variant="live" />
+          <span className="text-[13px] font-semibold text-zinc-100">{characterName}</span>
+          <span className="text-[10px] text-zinc-600 font-mono hidden md:inline">
+            Age 18 · {citizenFile?.motherland ?? 'Drennia'}
+          </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          {[
-            { label: 'Credibility', val: citizenFile?.credibility || 50, color: T.ivory },
-            { label: 'Charisma',    val: citizenFile?.charisma || 50,    color: T.ivory },
-            { label: 'Influence',   val: citizenFile?.influence || 10,   color: T.ivory },
-            { label: 'Cash ₯',     val: Number(playerCash || 0).toLocaleString('en-US'),                     color: T.mint  },
-          ].map(s => (
-            <div key={s.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span style={{ fontSize: '8px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint }}>{s.label}</span>
-              <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 700, color: s.color }}>{s.val}</span>
-            </div>
-          ))}
+
+        {/* Center: stat chips */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <StatChip
+            label="Cash ₯"
+            value={playerCash}
+            prefix="₯"
+            valueColor="green"
+            countUp
+          />
+          <StatChip label="Credibility" value={citizenFile?.credibility ?? 50} />
+          <StatChip label="Charisma"    value={citizenFile?.charisma    ?? 50} />
+          <StatChip label="Influence"   value={citizenFile?.influence   ?? 10} />
+          {company && (
+            <StatChip
+              label="Company Cash"
+              value={companyCash}
+              prefix="₯"
+              valueColor="amber"
+              countUp
+            />
+          )}
         </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+
+        {/* Right: controls */}
+        <div className="flex items-center gap-3">
           <WorldTimeControl />
-          <button style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.gold, background: 'none', border: 'none', cursor: 'pointer' }}>Letters</button>
-          <button onClick={handleRestartLife} style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.red, background: 'none', border: 'none', cursor: 'pointer' }}>Restart Life</button>
+          <button className="text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-500 hover:text-terminal-amber transition-colors">
+            Letters
+          </button>
+          <button
+            onClick={handleRestartLife}
+            className="text-[9px] font-mono uppercase tracking-[0.12em] text-terminal-red hover:opacity-80 transition-opacity"
+          >
+            Restart Life
+          </button>
         </div>
-      </div>
+      </header>
 
-      {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '28px 24px', display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px' }}>
-
-        {/* LEFT */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* ── Content ─────────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto py-6">
+        <PageShell sidebar={sidebar}>
 
           {/* Personal Status */}
-          <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '20px' }}>
-            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '6px' }}>Personal Status</div>
-            <h1 style={{ fontSize: '20px', fontWeight: 700, color: T.ivory, margin: '0 0 16px' }}>Chronicle</h1>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+          <Card kicker="Personal Status" icon={User} title="Chronicle">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-1">
               {[
-                { label: 'Name', value: characterName },
-                { label: 'Age', value: '18' },
-                { label: 'Motherland', value: citizenFile?.motherland || 'Drennia' },
-                { label: 'Citizen Since', value: citizenFile?.gameDateStr || 'Mark 1 · Arc 1 · Orbit 842 M.E.' },
+                { label: 'Full Name',      value: characterName },
+                { label: 'Age',            value: '18' },
+                { label: 'Motherland',     value: citizenFile?.motherland ?? 'Drennia' },
+                { label: 'Citizen Since',  value: citizenFile?.gameDateStr ?? 'Mark 1 · Arc 1' },
               ].map(f => (
                 <div key={f.label}>
-                  <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '3px' }}>{f.label}</div>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: T.muted }}>{f.value}</div>
+                  <p className="text-[8px] font-mono uppercase tracking-[0.15em] text-zinc-600 mb-1">{f.label}</p>
+                  <p className="text-[12px] font-medium text-zinc-300">{f.value}</p>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
 
-          {/* Desks */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          {/* Net Worth Chart */}
+          <Card kicker="Net Worth — Last 12 Arcs" icon={TrendingUp}>
+            <div className="flex items-end justify-between mb-3">
+              <div>
+                <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Current Net Worth</p>
+                <p className="text-xl font-mono font-bold text-terminal-amber amber-glow">
+                  ₯{netWorth.toLocaleString()}
+                </p>
+              </div>
+              <Badge variant="green" dot>Active</Badge>
+            </div>
+            <ResponsiveContainer width="100%" height={140}>
+              <AreaChart data={netWorthSeries} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="nwGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#ff9f0a" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#ff9f0a" stopOpacity={0}    />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="arc"
+                  tick={{ fill: '#52525b', fontSize: 9, fontFamily: 'monospace' }}
+                  axisLine={false} tickLine={false}
+                />
+                <YAxis hide />
+                <Tooltip content={<ChartTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#ff9f0a"
+                  strokeWidth={2}
+                  fill="url(#nwGrad)"
+                  dot={false}
+                  activeDot={{ r: 4, fill: '#ff9f0a', stroke: '#090A0F', strokeWidth: 2 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Card>
+
+          {/* Desks Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
             {/* Business Desk */}
-            {!hasCompany ? (
-              <div style={{ background: T.paper, border: `1px solid ${T.borderGold}`, padding: '20px', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '10px' }}>Business Desk</div>
-                <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.6, flex: 1, margin: '0 0 16px' }}>
+            {!company ? (
+              <Card kicker="Business Desk" icon={Briefcase} accent hover>
+                <p className="text-[12px] text-zinc-400 leading-relaxed mb-4">
                   Open your company file, register a business, manage contracts, and build market power.
                 </p>
-                <Link href="/drennia/business" style={{ display: 'inline-block', textAlign: 'center', padding: '10px 16px', background: `linear-gradient(135deg, ${T.gold}, #8A6E2A)`, color: '#0a0709', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700, textDecoration: 'none' }}>
+                <Button href="/drennia/business" variant="primary" icon={ChevronRight} size="sm">
                   Open Business Desk
-                </Link>
-              </div>
+                </Button>
+              </Card>
             ) : (
-              <div style={{ background: T.paper, border: `1px solid ${T.borderGold}`, padding: '20px', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+              <Card kicker="Business Desk" icon={Briefcase} accent hover>
+                <div className="flex items-start justify-between mb-3">
                   <div>
-                    <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '6px' }}>Business Desk</div>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>{company.name}</div>
+                    <p className="text-[14px] font-semibold text-zinc-100">{company.name}</p>
+                    <p className="text-[11px] text-zinc-500 mt-0.5">
+                      {company.legal_structure_id} · {sectorLabel} · {stateLabel}
+                    </p>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>Cash</div>
-                    <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.mint }}>₯{Number(company.companyCash || 0).toLocaleString('en-US')}</div>
+                  <div className="text-right">
+                    <p className="text-[9px] font-mono text-zinc-600">Cash</p>
+                    <p className="text-[14px] font-mono font-bold text-terminal-green terminal-glow">
+                      ₯{companyCash.toLocaleString()}
+                    </p>
                   </div>
                 </div>
-                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', flex: 1 }}>{company.legalStructure} · {company.sector} · {company.state}</div>
-                <Link href="/drennia/business" style={{ display: 'inline-block', textAlign: 'center', padding: '10px 16px', border: `1px solid ${T.gold}`, color: T.gold, fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none' }}>
-                  Open Business Desk
-                </Link>
-              </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <StatusDot variant="live" label="Active" />
+                  {activeContracts > 0 && (
+                    <Badge variant="amber">{activeContracts} contracts</Badge>
+                  )}
+                </div>
+                <Button href="/drennia/business" variant="secondary" size="sm">
+                  Open Business Desk →
+                </Button>
+              </Card>
             )}
 
-            {/* Politics Desk */}
-            <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '20px', display: 'flex', flexDirection: 'column', opacity: 0.8 }}>
-              <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: '10px' }}>Politics Desk</div>
-              <p style={{ fontSize: '12px', color: T.faint, lineHeight: 1.6, flex: 1, margin: '0 0 16px' }}>
+            {/* Politics Desk — locked */}
+            <Card kicker="Politics Desk" icon={Landmark} className="opacity-60">
+              <p className="text-[12px] text-zinc-600 leading-relaxed mb-4">
                 Political life is not open in pre-alpha yet. Parties, elections, offices, campaigns, and public power will unlock after the business foundation is stable.
               </p>
-              <button disabled style={{ padding: '10px 16px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`, color: T.faint, fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700, cursor: 'not-allowed' }}>
+              <Button variant="disabled" icon={Lock} size="sm">
                 Locked
-              </button>
-            </div>
+              </Button>
+            </Card>
           </div>
 
           {/* Career Summary */}
-          {hasCompany && (
-            <div style={{ background: T.paper, border: `1px solid ${T.border}`, padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '6px' }}>Career: Business Founder</div>
-                <div style={{ fontSize: '12px', color: T.muted, lineHeight: 1.5 }}>
-                  {characterName} started {company.name}, a {company.sector} business in {company.state}.
-                </div>
+          {company && (
+            <Card kicker="Career: Business Founder" icon={Activity}>
+              <div className="flex items-center justify-between">
+                <p className="text-[12px] text-zinc-400 leading-relaxed">
+                  {characterName} started{' '}
+                  <strong className="text-zinc-200">{company.name}</strong>, a{' '}
+                  {sectorLabel} business in {stateLabel}.
+                </p>
+                <Button href="/drennia/career" variant="ghost" size="sm" className="ml-4 flex-shrink-0">
+                  View Career →
+                </Button>
               </div>
-              <Link href="/drennia/career" style={{ marginLeft: '16px', padding: '8px 16px', border: `1px solid ${T.borderGold}`, color: T.gold, fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                View Career →
-              </Link>
-            </div>
+            </Card>
           )}
 
           {/* Recent Records */}
-          <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold }}>Recent Records</div>
-              <Link href="/drennia/records" style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, textDecoration: 'none' }}>View All →</Link>
-            </div>
+          <Card kicker="Recent Records" icon={ScrollText} headerSlot={<Link href="/drennia/records" className="text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-500 hover:text-terminal-amber transition-colors">View All →</Link>}>
             {recentRecords.length === 0 ? (
-              <p style={{ fontSize: '12px', color: T.faint, fontStyle: 'italic' }}>No records yet. Your filings, contracts, and actions will appear here.</p>
+              <EmptyState
+                icon={ScrollText}
+                message="No records yet. Your filings, contracts, and actions will appear here."
+                className="py-6"
+              />
             ) : (
-              recentRecords.map(r => (
-                <div key={r.id} style={{ padding: '10px 0', borderBottom: `1px solid ${T.border}`, fontSize: '12px', color: T.muted, lineHeight: 1.6 }}>
-                  <span style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', color: T.faint, marginRight: '8px' }}>{r.type}</span>
-                  {r.summary}
-                </div>
-              ))
+              <div>
+                {recentRecords.map((r, i) => (
+                  <DataRow
+                    key={r.id ?? i}
+                    label={r.summary ?? r.title ?? '—'}
+                    value={r.type ?? ''}
+                    valueVariant="amber"
+                    border={i < recentRecords.length - 1}
+                  />
+                ))}
+              </div>
             )}
-          </div>
-        </div>
+          </Card>
 
-        {/* RIGHT */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-          {/* Drennian Ledger Headlines */}
-          <div style={{ background: T.paper, border: `1px solid ${T.border}`, padding: '20px' }}>
-            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '14px' }}>Drennian Ledger</div>
+          {/* Drennian Ledger */}
+          <Card kicker="Drennian Ledger" icon={Newspaper}>
             {LEDGER_HEADLINES.map((h, i) => (
-              <div key={i} style={{ padding: '8px 0', borderBottom: i < LEDGER_HEADLINES.length - 1 ? `1px solid ${T.border}` : 'none', fontSize: '11px', color: T.muted, lineHeight: 1.6 }}>
-                {h}
+              <div
+                key={h.id}
+                className={`py-2.5 text-[11px] text-zinc-400 leading-relaxed ${
+                  i < LEDGER_HEADLINES.length - 1 ? 'border-b border-[#23232b]' : ''
+                }`}
+              >
+                <Globe size={10} className="inline-block mr-2 text-zinc-600" />
+                {h.text}
               </div>
             ))}
-          </div>
+          </Card>
 
-          {/* Market Snapshot */}
-          <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold }}>Market Snapshot</div>
-              <Link href="/drennia/market" style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, textDecoration: 'none' }}>Full Market →</Link>
-            </div>
-            {SECTOR_DEMAND.map(s => (
-              <div key={s.sector} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${T.border}` }}>
-                <span style={{ fontSize: '11px', color: T.muted }}>{s.sector}</span>
-                <span style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 700, color: s.color }}>{s.demand}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Letters placeholder */}
-          <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '20px' }}>
-            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '10px' }}>Letters & Correspondence</div>
-            <p style={{ fontSize: '11px', color: T.faint, fontStyle: 'italic', lineHeight: 1.6 }}>
-              No letters received yet. Business correspondence and official notices will arrive here.
-            </p>
-          </div>
-        </div>
+        </PageShell>
       </div>
     </div>
   );
