@@ -2,6 +2,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { manufacturingApi } from '../../../lib/api';
+import {
+  Card, Button, StatCard, DataRow, EmptyState as UIEmptyState, Badge, StatusDot, SectionHeading, Tabs, ProgressBar
+} from '@/components/ui';
+import {
+  AreaChart, Area, BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
+} from 'recharts';
+import { LayoutDashboard, Factory, FlaskConical, ShoppingCart, Activity, BarChart3, Users, DollarSign, ScrollText, PieChart } from 'lucide-react';
+
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
 const T = {
@@ -241,22 +250,23 @@ function EmptyState({ icon = '⚙', title, subtitle, action }: { icon?: string; 
   );
 }
 
+
 // ─── Tab type ───────────────────────────────────────────────────────────────
 
 
 type MfgTab = 'overview' | 'factory' | 'design' | 'procurement' | 'production' | 'market' | 'staff' | 'finance' | 'records' | 'equity';
 
-const MFG_TABS: { id: MfgTab; label: string }[] = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'factory', label: 'Factory' },
-  { id: 'design', label: 'R&D / Design' },
-  { id: 'procurement', label: 'Procurement' },
-  { id: 'production', label: 'Production' },
-  { id: 'market', label: 'Market & Sales' },
-  { id: 'staff', label: 'Staffing' },
-  { id: 'finance', label: 'Finance' },
-  { id: 'records', label: 'Records' },
-  { id: 'equity', label: 'Equity' },
+const MFG_TABS: { id: MfgTab; label: string; icon: any }[] = [
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'factory', label: 'Factory', icon: Factory },
+  { id: 'design', label: 'R&D / Design', icon: FlaskConical },
+  { id: 'procurement', label: 'Procurement', icon: ShoppingCart },
+  { id: 'production', label: 'Production', icon: Activity },
+  { id: 'market', label: 'Market & Sales', icon: BarChart3 },
+  { id: 'staff', label: 'Staffing', icon: Users },
+  { id: 'finance', label: 'Finance', icon: DollarSign },
+  { id: 'records', label: 'Records', icon: ScrollText },
+  { id: 'equity', label: 'Equity', icon: PieChart },
 ];
 
 // ─── MAIN COMPONENT ─────────────────────────────────────────────────────────
@@ -710,98 +720,188 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       )}
 
       {/* Tab Bar */}
-      <div style={{ display: 'flex', gap: '0', borderBottom: `1px solid ${T.border}`, overflowX: 'auto', marginBottom: '24px' }}>
-        {MFG_TABS.map(tab => {
-          const isActive = deskTab === tab.id;
-          return (
-            <button key={tab.id} onClick={() => setDeskTab(tab.id)} style={{
-              padding: '9px 14px', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em',
-              fontWeight: isActive ? 700 : 500, color: isActive ? T.gold : T.muted, background: 'transparent', border: 'none',
-              borderBottom: isActive ? `2px solid ${T.gold}` : '2px solid transparent', cursor: 'pointer', whiteSpace: 'nowrap',
-            }}>
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+      <Tabs
+        tabs={MFG_TABS.map(t => ({ id: t.id, label: t.label, icon: t.icon }))}
+        activeId={deskTab}
+        onChange={(id) => setDeskTab(id as MfgTab)}
+        sticky={true}
+      />
 
       {/* ═══════════════════════════════════════════════════════
           OVERVIEW TAB
       ═══════════════════════════════════════════════════════ */}
       {deskTab === 'overview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-          {/* Stats */}
-          <PanelBox>
-            <SectionHeader stamp="MFG DESK">Manufacturing Overview</SectionHeader>
-            <FieldRow label="Active Models" value={models.length} />
-            <FieldRow label="Factories" value={factories.length} />
-            <FieldRow label="Active Production Lines" value={activeLines.length} />
-            <FieldRow label="Total Staff" value={totalStaff} />
-            <FieldRow label="Available Cash" value={fm(finances?.available_cash || 0)} valueColor={T.mint} />
-            <FieldRow label="Last Arc Profit" value={fm(finances?.last_arc_profit || 0)} valueColor={(finances?.last_arc_profit || 0) < 0 ? T.red : T.mint} />
-          </PanelBox>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-slide-in p-2">
+          {/* Top Stats */}
+          <StatCard
+            label="Company Value"
+            value={fm((finances?.available_cash || 0) + inventoryValue)}
+            valueColor="white"
+            trend="up"
+            countUp
+            sparkline={[{value:1},{value:2},{value:4},{value:8},{value:15}]}
+          />
+          <StatCard
+            label="Available Cash"
+            value={fm(finances?.available_cash || 0)}
+            valueColor="green"
+            trend={(finances?.last_arc_profit || 0) >= 0 ? 'up' : 'down'}
+            countUp
+            sparkline={[{value:20},{value:18},{value:22},{value:15},{value:25}]}
+          />
+          <StatCard
+            label="Net Worth"
+            value={fm(1500000)} // Mock for now
+            valueColor="amber"
+            trend="up"
+            countUp
+            sparkline={[{value:40},{value:42},{value:45},{value:48},{value:55}]}
+          />
+          <StatCard
+            label="Reputation"
+            value={company?.reputation || 0}
+            suffix="/100"
+            valueColor="blue"
+            trend="flat"
+            countUp
+          />
 
-          {/* Latest Arc Report */}
-          <PanelBox>
-            <SectionHeader stamp="LATEST REPORT">Last Arc Results</SectionHeader>
+          {/* Charts Row */}
+          <Card className="lg:col-span-3 p-6 flex flex-col min-h-[300px]">
+            <SectionHeading>Financial Trajectory</SectionHeading>
+            <div className="flex-1 flex gap-4 mt-4">
+              <div className="flex-1 h-[250px]">
+                <h4 className="text-[10px] uppercase text-zinc-500 mb-2 font-mono">Revenue vs Expenses (Last 12 Arcs)</h4>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={[...allReports].sort((a,b) => a.arc_number - b.arc_number).slice(-12).map(r => ({
+                    arc: `Arc ${r.arc_number}`,
+                    revenue: Number(r.gross_revenue),
+                    expenses: Number(r.production_costs) + Number(r.staff_wages) + Number(r.factory_lease_costs) + Number(r.factory_maintenance_costs) + Number(r.inventory_storage_costs)
+                  }))}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#23232b" vertical={false} />
+                    <XAxis dataKey="arc" stroke="#888888" fontSize={10} tickMargin={10} />
+                    <YAxis stroke="#888888" fontSize={10} tickFormatter={(val) => fm(val)} />
+                    <RechartsTooltip
+                      contentStyle={{ backgroundColor: '#0c0d13', borderColor: '#23232b', fontSize: '12px', fontFamily: 'monospace' }}
+                      itemStyle={{ color: '#fffff0' }}
+                    />
+                    <Bar dataKey="revenue" fill="#30d158" radius={[2,2,0,0]} name="Revenue" />
+                    <Bar dataKey="expenses" fill="#ff453a" radius={[2,2,0,0]} name="Expenses" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="lg:col-span-1 p-6 flex flex-col min-h-[300px]">
+            <SectionHeading>Company Health</SectionHeading>
+            <div className="flex-1 -mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart outerRadius="70%" data={[
+                  { subject: 'Reputation', A: company?.reputation || 50, fullMark: 100 },
+                  { subject: 'Reliability', A: company?.reliability || 50, fullMark: 100 },
+                  { subject: 'Liquidity', A: Math.min((finances?.available_cash || 0) / 5000, 100), fullMark: 100 },
+                  { subject: 'Growth', A: 75, fullMark: 100 },
+                  { subject: 'Efficiency', A: activeLinesCount > 0 ? 80 : 20, fullMark: 100 },
+                ]}>
+                  <PolarGrid stroke="#23232b" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#888888', fontSize: 10 }} />
+                  <Radar name="Company" dataKey="A" stroke="#0a84ff" fill="#0a84ff" fillOpacity={0.2} />
+                  <RechartsTooltip contentStyle={{ backgroundColor: '#0c0d13', borderColor: '#23232b', fontSize: '10px' }} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
+          {/* Next Steps Checklist */}
+          <Card className="lg:col-span-2 p-0 overflow-hidden border-zinc-800">
+            <div className="p-6 pb-2">
+              <SectionHeading>Executive Guide</SectionHeading>
+            </div>
+            
+            <div className="flex flex-col">
+              <DataRow
+                label={<span className={!hasFactory ? "text-zinc-100" : "text-zinc-500 line-through"}>1. Lease first factory</span>}
+                value={
+                  <Button
+                    variant={!hasFactory ? "primary" : "ghost"}
+                    size="sm"
+                    onClick={() => setDeskTab('factory')}
+                    disabled={hasFactory}
+                  >
+                    {hasFactory ? '✓ Complete' : 'Go to Facilities'}
+                  </Button>
+                }
+              />
+              <DataRow
+                label={<span className={hasFactory && !hasModel ? "text-zinc-100" : (!hasFactory ? "text-zinc-600" : "text-zinc-500 line-through")}>2. Design vehicle model</span>}
+                value={
+                  <Button
+                    variant={hasFactory && !hasModel ? "primary" : "ghost"}
+                    size="sm"
+                    onClick={() => setDeskTab('design')}
+                    disabled={hasModel || !hasFactory}
+                  >
+                    {hasModel ? '✓ Complete' : 'Go to R&D'}
+                  </Button>
+                }
+              />
+              <DataRow
+                label={<span className={hasFactory && hasModel && !hasActivePlan ? "text-zinc-100" : ((hasFactory && hasModel) ? "text-zinc-500 line-through" : "text-zinc-600")}>3. Assign production plan</span>}
+                value={
+                  <Button
+                    variant={hasFactory && hasModel && !hasActivePlan ? "primary" : "ghost"}
+                    size="sm"
+                    onClick={() => setDeskTab('production')}
+                    disabled={hasActivePlan || !hasModel}
+                  >
+                    {hasActivePlan ? '✓ Complete' : 'Go to Production'}
+                  </Button>
+                }
+              />
+            </div>
+            <div className="p-6 bg-[#0a0a0a]/50 border-t border-[#23232b]">
+              <div className="flex justify-between text-[10px] text-zinc-500 font-mono mb-2">
+                <span>Setup Progress</span>
+                <span>{hasActivePlan ? '100' : hasModel ? '66' : hasFactory ? '33' : '0'}%</span>
+              </div>
+              <ProgressBar value={hasActivePlan ? 100 : hasModel ? 66 : hasFactory ? 33 : 0} variant={hasActivePlan ? 'green' : 'amber'} />
+            </div>
+          </Card>
+
+          {/* Last Arc Summary */}
+          <Card className="lg:col-span-2 p-0 overflow-hidden border-zinc-800">
+            <div className="p-6 pb-2">
+              <SectionHeading>Latest Arc Results</SectionHeading>
+            </div>
             {latestReport ? (
-              <>
-                <FieldRow label="Units Produced" value={latestReport.units_produced} />
-                <FieldRow label="Units Sold" value={latestReport.units_sold} />
-                <FieldRow label="Unsold Inventory" value={latestReport.units_unsold || 0} />
-                <FieldRow label="Gross Revenue" value={fm(latestReport.gross_revenue)} valueColor={T.mint} />
-                <FieldRow label="Total Costs" value={fm((Number(latestReport.production_costs || 0)) + (Number(latestReport.staff_wages || 0)) + (Number(latestReport.factory_lease_costs || 0)) + (Number(latestReport.factory_maintenance_costs || 0)) + (Number(latestReport.inventory_storage_costs || 0)))} valueColor={T.red} />
-                <FieldRow label="Net Profit" value={fm(latestReport.net_profit)} valueColor={Number(latestReport.net_profit) < 0 ? T.red : T.mint} />
-                <FieldRow label="Ending Cash" value={fm(latestReport.ending_cash)} valueColor={T.gold} />
-              </>
+              <div className="flex flex-col">
+                <DataRow label="Units Produced" value={latestReport.units_produced} />
+                <DataRow label="Units Sold" value={latestReport.units_sold} />
+                <DataRow label="Gross Revenue" value={fm(latestReport.gross_revenue)} valueVariant="green" />
+                <DataRow label="Total Costs" value={fm(Number(latestReport.production_costs || 0) + Number(latestReport.staff_wages || 0) + Number(latestReport.factory_lease_costs || 0) + Number(latestReport.factory_maintenance_costs || 0) + Number(latestReport.inventory_storage_costs || 0))} valueVariant="red" />
+                <DataRow label="Net Profit" value={fm(latestReport.net_profit)} valueVariant={Number(latestReport.net_profit) < 0 ? 'red' : 'green'} />
+              </div>
             ) : (
-              <div style={{ fontSize: '12px', color: T.faint, padding: '8px 0' }}>No Arc reports available yet. Close an Arc to generate your first report.</div>
+              <UIEmptyState
+                icon={BarChart3}
+                heading="No Data Yet"
+                message="Close an Arc to generate your first financial report."
+              />
             )}
-          </PanelBox>
-
-          {/* Next Steps */}
-          <PanelBox style={{ gridColumn: '1 / -1' }}>
-            <SectionHeader stamp="GUIDE">Next Steps</SectionHeader>
-            {!hasFactory && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
-                <span style={{ fontSize: '12px', color: T.ivory }}>① Lease your first factory to begin production.</span>
-                <GhostButton onClick={() => setDeskTab('factory')}>Go to Factory →</GhostButton>
+            
+            {isAdmin && (
+              <div className="p-4 bg-terminal-red/10 border-t border-dashed border-terminal-red/30 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] text-terminal-red font-mono uppercase tracking-[0.1em] mb-1">Dev Admin</div>
+                  <div className="text-[11px] text-zinc-400">Process Arc manually for this company</div>
+                </div>
+                <Button variant="secondary" size="sm" onClick={handleProcessAdmin} className="border-terminal-red text-terminal-red">
+                  Process Arc
+                </Button>
               </div>
             )}
-            {hasFactory && !hasModel && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
-                <span style={{ fontSize: '12px', color: T.ivory }}>② Design your first vehicle model in R&D.</span>
-                <GhostButton onClick={() => setDeskTab('design')}>Go to R&D / Design →</GhostButton>
-              </div>
-            )}
-            {hasFactory && hasModel && !hasActivePlan && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
-                <span style={{ fontSize: '12px', color: T.ivory }}>③ Assign a model to your production line.</span>
-                <GhostButton onClick={() => setDeskTab('production')}>Go to Production →</GhostButton>
-              </div>
-            )}
-            {hasFactory && hasModel && hasActivePlan && (
-              <div style={{ padding: '8px 0', fontSize: '12px', color: T.mint }}>
-                ✓ Production is configured and ready. Your vehicles will be produced and sold at Arc Close.
-              </div>
-            )}
-          </PanelBox>
-
-          {/* Admin Controls */}
-          {isAdmin && (
-            <PanelBox style={{ gridColumn: '1 / -1', border: `1px dashed ${T.red}`, background: 'rgba(184,85,85,0.04)' }}>
-              <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.red, marginBottom: '8px', letterSpacing: '0.1em' }}>DEV ADMIN — RESTRICTED</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <GoldButton style={{ borderColor: T.red, color: T.red }} onClick={handleProcessAdmin}>Process Manufacturing Arc (Dev)</GoldButton>
-                <span style={{ fontSize: '11px', color: T.faint }}>Simulates Arc Close for this company only.</span>
-              </div>
-            </PanelBox>
-          )}
-          {!isAdmin && (
-            <PanelBox style={{ gridColumn: '1 / -1', background: 'transparent', border: `1px solid ${T.border}` }}>
-              <div style={{ fontSize: '12px', color: T.faint }}>Manufacturing is processed automatically at Arc Close. No manual action required.</div>
-            </PanelBox>
-          )}
+          </Card>
         </div>
       )}
 

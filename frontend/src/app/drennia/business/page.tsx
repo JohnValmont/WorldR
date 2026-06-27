@@ -13,7 +13,9 @@ import {
 import { logisticsApi, manufacturingApi } from '../../../lib/api';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import ManufacturingDeskTab from './ManufacturingDeskTab';
-import { StatChip, StatusDot, Badge } from '../../../components/ui';
+import {
+  Card, Button, StatChip, Badge, StatusDot, SectionHeading, TerminalPanel, Tabs, PageShell
+} from '@/components/ui';
 import { ArrowLeft, Briefcase, TrendingUp, Wallet, Lock } from 'lucide-react';
 
 // Helpers to resolve standard IDs to display names in v1
@@ -475,10 +477,28 @@ export default function BusinessPage() {
 
         {/* Center: stat chips */}
         <div className="flex items-center gap-2 flex-wrap">
-          <StatChip label="Net Worth" value={formatMoney(netWorth)} valueColor="amber" />
-          <StatChip label="Cash in Hand" value={formatMoney(playerCash)} valueColor="green" />
+          <StatChip
+            label="Net Worth"
+            value={formatMoney(netWorth)}
+            valueColor="amber"
+            trend="up"
+            sparkline={[{value:40},{value:45},{value:42},{value:50},{value:55},{value:52},{value:60}]}
+          />
+          <StatChip
+            label="Cash in Hand"
+            value={formatMoney(playerCash)}
+            valueColor="green"
+            trend="up"
+            sparkline={[{value:10},{value:15},{value:12},{value:20},{value:18},{value:25},{value:30}]}
+          />
           {company && (
-            <StatChip label="Company Cash" value={formatMoney(company.companyCash ?? 0)} valueColor="amber" />
+            <StatChip
+              label="Company Cash"
+              value={formatMoney(company.companyCash ?? 0)}
+              valueColor="amber"
+              trend={Number(company.companyCash || 0) > 0 ? "up" : "flat"}
+              sparkline={[{value:5},{value:8},{value:7},{value:12},{value:10},{value:15},{value:18}]}
+            />
           )}
         </div>
 
@@ -515,33 +535,20 @@ export default function BusinessPage() {
 
         {/* Subtabs */}
         {!(activeTab === 'companies' && selectedCompanyId) && (
-        <div style={{ display: 'flex', gap: '0', overflowX: 'auto', marginTop: '6px' }}>
-          {SUB_TABS.map(tab => {
-            const locked = tab.requiresCompany && !company;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  if (!locked) {
-                    setActiveTab(tab.id);
-                    if (tab.id !== 'companies') setSelectedCompanyId(null);
-                  }
-                }}
-                className={`px-4 py-2.5 text-[10px] font-mono uppercase tracking-[0.1em] whitespace-nowrap transition-colors duration-150 border-b-2 ${
-                  isActive
-                    ? 'text-terminal-amber border-terminal-amber font-bold'
-                    : locked
-                    ? 'text-zinc-700 border-transparent cursor-not-allowed'
-                    : 'text-zinc-500 border-transparent hover:text-zinc-300 cursor-pointer'
-                } bg-transparent border-x-0 border-t-0`}
-                title={locked ? 'Register a company to unlock' : undefined}
-              >
-                {tab.label}{locked ? ' 🔒' : ''}
-              </button>
-            );
-          })}
-        </div>
+          <div className="mt-4">
+            <Tabs
+              tabs={SUB_TABS.map(t => ({
+                id: t.id,
+                label: t.label,
+                locked: t.requiresCompany && !company,
+              }))}
+              activeId={activeTab}
+              onChange={(id: string) => {
+                setActiveTab(id as SubTab);
+                if (id !== 'companies') setSelectedCompanyId(null);
+              }}
+            />
+          </div>
         )}
       </div>
 
@@ -549,7 +556,7 @@ export default function BusinessPage() {
       <div style={{ padding: '8px 24px 0', flexShrink: 0 }}>
         {activeTab === 'companies' && selectedCompanyId && company && (
           <span style={{ cursor: 'pointer', color: T.gold, fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }} onClick={() => setSelectedCompanyId(null)}>
-            ← Back to My Companies
+            ← Back to Companies
           </span>
         )}
         {activeTab === 'start' && (
@@ -565,71 +572,76 @@ export default function BusinessPage() {
       </div>
 
       {/* ── Tab Content ── */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        <div className="business-page-inner">
+      <div className="flex-1 overflow-y-auto animate-slide-in">
+        <PageShell className="py-6">
         {activeTab === 'overview'  && <OverviewTab company={company} playerCash={playerCash} netWorth={netWorth} onStartBusiness={() => setActiveTab('start')} onViewContracts={() => { setActiveTab('companies'); setSelectedCompanyId(null); }} onViewRegistry={() => setActiveTab('registry')} />}
         {activeTab === 'start'     && <StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} selectedModel={selectedModel} setSelectedModel={setSelectedModel} isSubmitting={isSubmitting} />}
         
-        {activeTab === 'companies' && company && !selectedCompanyId && (
-          <div style={{ maxWidth: '860px' }}>
-            <SectionHeader stamp="PORTFOLIO">My Companies</SectionHeader>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
-              <div style={{ background: '#0a0a0a', border: `1px solid #333333`, padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', borderLeft: `3px solid #d4af37` }}>
-                <div>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#fffff0', marginBottom: '6px' }}>{company.name}</div>
-                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '12px', fontSize: '11px', color: '#888888' }}>
-                    <span>Structure: <strong style={{ color: '#d4af37' }}>{company.legalStructure}</strong></span>
-                    <span>Sector: <strong style={{ color: '#d4af37' }}>{getSectorName(company.sectorId) || getSectorName(company.sector)}</strong></span>
-                    {company.subsector && (
-                      <span>Subsector: <strong style={{ color: '#d4af37' }}>{getSubsectorName(company.subsector)}</strong></span>
-                    )}
-                    <span>HQ State: <strong style={{ color: '#d4af37' }}>{getStateName(company.headquartersStateId) || getStateName(company.state)}</strong></span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '11px', fontFamily: 'monospace', color: '#555555' }}>
-                    <span>Company Cash: <span style={{ color: '#36d399' }}>{formatMoney(company.companyCash)}</span></span>
-                    <span>Reputation: <span style={{ color: '#d4af37' }}>{company.reputation}</span></span>
-                    <span>Reliability: <span style={{ color: '#fffff0' }}>{company.reliability}</span></span>
-                  </div>
+        {activeTab === 'companies' && (
+            <div style={{ padding: '0 24px' }}>
+              {selectedCompanyId && company ? (
+                <div style={{ marginTop: '16px' }}>
+                  {/* Detailed company view could go here, but usually it delegates to ManufacturingDeskTab */}
+                  {company.sector === 'manufacturing' || company.sectorId === 'manufacturing' ? (
+                    <ManufacturingDeskTab
+                      company={company}
+                      mfgData={mfgData}
+                      playerCash={playerCash}
+                      characterName={characterName}
+                      onRefresh={refreshAll}
+                      isAdmin={isAdmin}
+                    />
+                  ) : (
+                    <CompanyDeskTab 
+                      company={company} 
+                      fleet={fleet} 
+                      ledger={ledger}
+                      contracts={contracts} 
+                      playerCash={playerCash}
+                      onRefresh={loadData}
+                      characterName={characterName}
+                      isAdmin={isAdmin}
+                    />
+                  )}
                 </div>
-                <div style={{ borderTop: '1px solid #222', paddingTop: '20px' }}>
-                  <GoldButton onClick={() => setSelectedCompanyId(company.id)}>
-                    Open Company →
-                  </GoldButton>
+              ) : (
+                <div style={{ marginTop: '16px' }}>
+                  {company ? (
+                    <div
+                      style={{
+                        padding: '16px', background: T.panel, border: `1px solid ${T.border}`,
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer'
+                      }}
+                      onClick={() => setSelectedCompanyId(company.id)}
+                    >
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 'bold', color: T.ivory }}>{company.name}</div>
+                        <div style={{ fontSize: '11px', color: T.muted }}>
+                          {company.sectorId === 'shipping-logistics' || company.sector === 'shipping-logistics' ? 'Logistics' : 'Manufacturing'}
+                          {' • '}
+                          {company.headquartersStateId || company.state}
+                        </div>
+                      </div>
+                      <button style={{
+                        padding: '6px 12px', background: 'transparent', color: T.gold,
+                        border: `1px solid ${T.gold}`, fontSize: '10px', textTransform: 'uppercase'
+                      }}>
+                        Manage
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ color: T.faint, fontSize: '12px' }}>No companies registered.</div>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
-          </div>
-        )}
-        
-        {activeTab === 'companies' && company && selectedCompanyId === company.id && (
-          company.sector === 'manufacturing' || company.sectorId === 'manufacturing' ? (
-            <ManufacturingDeskTab 
-              company={company} 
-              mfgData={mfgData} 
-              playerCash={playerCash} 
-              characterName={characterName} 
-              onRefresh={loadData} 
-              isAdmin={isAdmin} 
-            />
-          ) : (
-            <CompanyDeskTab 
-              company={company} 
-              fleet={fleet} 
-              ledger={ledger}
-              contracts={contracts} 
-              playerCash={playerCash}
-              onRefresh={loadData}
-              characterName={characterName}
-              isAdmin={isAdmin}
-            />
-          )
-        )}
+          )}
         
         
         {activeTab === 'exchange' && <DrennportExchangeTab />}
         {activeTab === 'registry'  && <RegistryTab key={registryKey} company={company} onRefresh={() => setRegistryKey(k => k + 1)} />}
+        </PageShell>
       </div>
-    </div>
     </div>
   );
 }

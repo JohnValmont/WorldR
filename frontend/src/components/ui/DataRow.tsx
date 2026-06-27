@@ -4,7 +4,7 @@ import { LucideIcon } from 'lucide-react';
 import { cn } from './utils';
 
 interface DataRowProps {
-  label: string;
+  label: React.ReactNode;
   value: React.ReactNode;
   /** Color variant for value */
   valueVariant?: 'default' | 'green' | 'red' | 'amber' | 'blue' | 'muted';
