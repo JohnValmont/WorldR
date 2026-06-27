@@ -113,7 +113,6 @@ export class AuthController {
       const safeUser = {
         id: user.id,
         email: user.email,
-        player_number: user.player_number,
         display_name: user.display_name,
         role: user.role,
         isAdmin: user.role === 'admin'

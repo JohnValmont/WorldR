@@ -1,6 +1,5 @@
 export interface User {
-  id: string;
-  player_number: number;
+  id: number;
   email: string;
   password_hash: string;
   role: 'user' | 'admin' | 'moderator';
@@ -14,7 +13,7 @@ export interface User {
 
 export interface RefreshToken {
   token_hash: string;
-  user_id: string;
+  user_id: number;
   expires_at: Date;
   is_revoked: boolean;
   created_at: Date;
@@ -22,7 +21,7 @@ export interface RefreshToken {
 
 export interface EmailVerificationToken {
   id: string;
-  user_id: string;
+  user_id: number;
   token: string;
   expires_at: Date;
   is_used: boolean;

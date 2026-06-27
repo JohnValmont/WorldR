@@ -90,7 +90,7 @@ ALTER TABLE legal_structures ENABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS characters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     world_instance_id VARCHAR(50) NOT NULL REFERENCES world_instances(id) ON DELETE RESTRICT,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     motherland_country_id VARCHAR(50) NOT NULL REFERENCES countries(id) ON DELETE RESTRICT,
     home_state_id VARCHAR(50) REFERENCES states(id) ON DELETE SET NULL,
     name VARCHAR(100) NOT NULL,

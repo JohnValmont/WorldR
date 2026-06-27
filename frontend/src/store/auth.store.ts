@@ -3,8 +3,7 @@ import { persist } from 'zustand/middleware';
 import { clearTokens, setAccessToken, setRefreshToken } from '../lib/api';
 
 export interface AuthUser {
-  id: string;
-  player_number: number;
+  id: number;
   email: string;
   role: string;
   is_verified: boolean;

@@ -13,8 +13,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as {
-      id: string;
-      username: string;
+      id: number;
       email: string;
       role: 'user' | 'admin' | 'moderator';
       is_verified: boolean;

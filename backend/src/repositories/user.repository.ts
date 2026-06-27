@@ -3,7 +3,7 @@ import { BaseRepository } from './base.repository';
 import { User } from '../types';
 
 export class UserRepository extends BaseRepository {
-  public async findById(id: string, trx?: Knex.Transaction): Promise<User | null> {
+  public async findById(id: number, trx?: Knex.Transaction): Promise<User | null> {
     const user = await this.getDb(trx)('users').where({ id }).first();
     return user || null;
   }
@@ -16,12 +16,12 @@ export class UserRepository extends BaseRepository {
     return user || null;
   }
 
-  public async create(user: Omit<User, 'id' | 'player_number' | 'created_at' | 'updated_at'>, trx?: Knex.Transaction): Promise<User> {
+  public async create(user: Omit<User, 'id' | 'created_at' | 'updated_at'>, trx?: Knex.Transaction): Promise<User> {
     const [created] = await this.getDb(trx)('users').insert(user).returning('*');
     return created;
   }
 
-  public async markVerified(userId: string, trx?: Knex.Transaction): Promise<void> {
+  public async markVerified(userId: number, trx?: Knex.Transaction): Promise<void> {
     await this.getDb(trx)('users').where({ id: userId }).update({ is_verified: true, updated_at: new Date() });
   }
 }

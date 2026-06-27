@@ -17,7 +17,6 @@ export class AuthService {
     return jwt.sign(
       {
         id: user.id,
-        player_number: user.player_number,
         email: user.email,
         role: user.role,
         is_verified: user.is_verified
@@ -46,7 +45,7 @@ export class AuthService {
   }
 
   /** Stores a new OTP record for the given user, invalidating any previous ones. */
-  private async storeOTP(userId: string): Promise<string> {
+  private async storeOTP(userId: number): Promise<string> {
     const otp = this.generateOTP();
     logger.info(`[AuthService] OTP generated for user ID: ${userId}`);
     const otpHash = await bcrypt.hash(otp, 10);
@@ -94,11 +93,11 @@ export class AuthService {
         reset_token_expires: null
       }, trx);
       
-      // Update display_name to use player_number since it's auto-generated
+      // Update display_name to use the new custom user id
       await trx('users').where({ id: user.id }).update({
-        display_name: `Player #${user.player_number}`
+        display_name: `Player #${user.id}`
       });
-      user.display_name = `Player #${user.player_number}`;
+      user.display_name = `Player #${user.id}`;
 
       // Generate OTP and store it in the database
       const otp = this.generateOTP();
@@ -123,7 +122,7 @@ export class AuthService {
         logger.info(`[AuthService] DEV — OTP for ${email}: ${otp}`);
       }
 
-      await emailService.sendVerificationEmail(email, user.display_name || `Player #${user.player_number}`, otp);
+      await emailService.sendVerificationEmail(email, user.display_name || `Player #${user.id}`, otp);
 
       return user;
     });
@@ -204,7 +203,7 @@ export class AuthService {
       logger.info(`[AuthService] DEV — Resent OTP for ${email}: ${otp}`);
     }
 
-    await emailService.sendVerificationEmail(email, user.display_name || `Player #${user.player_number}`, otp);
+    await emailService.sendVerificationEmail(email, user.display_name || `Player #${user.id}`, otp);
   }
 
   public async forgotPassword(email: string): Promise<string> {
@@ -278,7 +277,7 @@ export class AuthService {
 
   public async refresh(refreshToken: string): Promise<{ accessToken: string }> {
     try {
-      const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as { id: string };
+      const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as { id: number };
       const tokenHash = this.hashToken(refreshToken);
 
       const savedToken = await db('refresh_tokens')
@@ -304,7 +303,7 @@ export class AuthService {
     await db('refresh_tokens').where({ token_hash: tokenHash }).update({ is_revoked: true });
   }
 
-  public async getUserProfile(userId: string): Promise<Omit<User, 'password_hash'>> {
+  public async getUserProfile(userId: number): Promise<Omit<User, 'password_hash'>> {
     const user = await userRepository.findById(userId);
     if (!user) throw new UnauthorizedError('User not found');
     const { password_hash: _, ...userWithoutPassword } = user;
