@@ -9,7 +9,7 @@ import { getFlowRedirectPath } from '../../../lib/flow';
 export default function LoginPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
-  const [form, setForm] = useState({ username: '', password: '' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -60,20 +60,21 @@ export default function LoginPage() {
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="auth-label">Username</label>
+          <label className="auth-label">Email Address</label>
           <div className="relative">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </span>
             <input
-              id="login-username"
+              id="login-email"
+              type="email"
               className="auth-input pl-10"
-              placeholder="Enter your username"
-              value={form.username}
-              onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-              autoComplete="username"
+              placeholder="Enter your email"
+              value={form.email}
+              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+              autoComplete="email"
               required
             />
           </div>

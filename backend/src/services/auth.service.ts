@@ -17,7 +17,7 @@ export class AuthService {
     return jwt.sign(
       {
         id: user.id,
-        username: user.username,
+        player_number: user.player_number,
         email: user.email,
         role: user.role,
         is_verified: user.is_verified
@@ -74,12 +74,9 @@ export class AuthService {
   }
 
   public async register(
-    username: string,
     email: string,
     password: string
   ): Promise<{ user: Omit<User, 'password_hash'> }> {
-    const existingUser = await userRepository.findByUsername(username);
-    if (existingUser) throw new ConflictError('Username already taken');
 
     const existingEmail = await userRepository.findByEmail(email);
     if (existingEmail) throw new ConflictError('Email already registered');
@@ -88,15 +85,20 @@ export class AuthService {
 
     const result = await db.transaction(async (trx) => {
       const user = await userRepository.create({
-        username,
         email,
         password_hash,
         role: 'user',
         is_verified: false,
-        display_name: username,
+        display_name: null,
         reset_token: null,
         reset_token_expires: null
       }, trx);
+      
+      // Update display_name to use player_number since it's auto-generated
+      await trx('users').where({ id: user.id }).update({
+        display_name: `Player #${user.player_number}`
+      });
+      user.display_name = `Player #${user.player_number}`;
 
       // Generate OTP and store it in the database
       const otp = this.generateOTP();
@@ -121,7 +123,7 @@ export class AuthService {
         logger.info(`[AuthService] DEV — OTP for ${email}: ${otp}`);
       }
 
-      await emailService.sendVerificationEmail(email, username, otp);
+      await emailService.sendVerificationEmail(email, user.display_name || `Player #${user.player_number}`, otp);
 
       return user;
     });
@@ -202,7 +204,7 @@ export class AuthService {
       logger.info(`[AuthService] DEV — Resent OTP for ${email}: ${otp}`);
     }
 
-    await emailService.sendVerificationEmail(email, user.username, otp);
+    await emailService.sendVerificationEmail(email, user.display_name || `Player #${user.player_number}`, otp);
   }
 
   public async forgotPassword(email: string): Promise<string> {
@@ -247,13 +249,10 @@ export class AuthService {
   }
 
   public async login(
-    usernameOrEmail: string,
+    email: string,
     password: string
   ): Promise<{ accessToken: string; refreshToken: string; user: Omit<User, 'password_hash'> }> {
-    let user = await userRepository.findByUsername(usernameOrEmail);
-    if (!user) {
-      user = await userRepository.findByEmail(usernameOrEmail);
-    }
+    let user = await userRepository.findByEmail(email);
     if (!user) throw new UnauthorizedError('Invalid credentials');
 
     const passwordValid = await bcrypt.compare(password, user.password_hash);

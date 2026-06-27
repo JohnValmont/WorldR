@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username VARCHAR(50) UNIQUE NOT NULL,
+    player_number SERIAL UNIQUE,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'user',
@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 COMMENT ON TABLE users IS 'User authentication and basic profile configurations.';
 COMMENT ON COLUMN users.role IS 'Security classification and permission privileges (user, admin, moderator).';
+COMMENT ON COLUMN users.player_number IS 'Sequential developer-facing ID for administrative ease.';
 
 -- ============================================================================
 -- 2. REFRESH TOKENS

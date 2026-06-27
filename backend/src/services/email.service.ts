@@ -9,7 +9,7 @@ logger.info(`[EmailService] EMAIL_FROM: ${process.env.EMAIL_FROM || env.EMAIL_FR
 /**
  * Generates the branded WORLDr HTML email template for OTP verification.
  */
-function buildVerificationEmail(username: string, otp: string): { html: string; text: string } {
+function buildVerificationEmail(displayName: string, otp: string): { html: string; text: string } {
   // Format OTP with a gap: e.g. "123 456"
   const otpFormatted = `${otp.slice(0, 3)} ${otp.slice(3)}`;
   const frontendVerifyUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/verify`;
@@ -74,7 +74,7 @@ function buildVerificationEmail(username: string, otp: string): { html: string; 
                       Verify your identity
                     </h1>
                     <p style="margin:0 0 28px;font-size:15px;color:#a1a1aa;line-height:1.6;font-family:'Outfit',sans-serif;">
-                      Welcome, <strong style="color:#ffffff;">${username}</strong>. Enter the code below to activate your account and verify your identity.
+                      Welcome, <strong style="color:#ffffff;">${displayName}</strong>. Enter the code below to activate your account and verify your identity.
                     </p>
 
                     <!-- OTP Block -->
@@ -147,7 +147,7 @@ function buildVerificationEmail(username: string, otp: string): { html: string; 
 
   const text = `WORLDr — Verify your account
 
-Hello ${username},
+Hello ${displayName},
 
 Your verification code is: ${otp}
 
@@ -163,8 +163,8 @@ If you did not create an account, ignore this email.
 }
 
 export class EmailService {
-  async sendVerificationEmail(to: string, username: string, otp: string): Promise<void> {
-    const { html, text } = buildVerificationEmail(username, otp);
+  async sendVerificationEmail(to: string, displayName: string, otp: string): Promise<void> {
+    const { html, text } = buildVerificationEmail(displayName, otp);
     const from = process.env.EMAIL_FROM || env.EMAIL_FROM;
     const apiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
 
@@ -193,7 +193,7 @@ export class EmailService {
           to: [
             {
               email: to,
-              name: username,
+              name: displayName,
             },
           ],
           subject: "Your WORLDr verification code",

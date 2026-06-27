@@ -4,7 +4,7 @@ import { clearTokens, setAccessToken, setRefreshToken } from '../lib/api';
 
 export interface AuthUser {
   id: string;
-  username: string;
+  player_number: number;
   email: string;
   role: string;
   is_verified: boolean;

@@ -1,6 +1,6 @@
 export interface User {
   id: string;
-  username: string;
+  player_number: number;
   email: string;
   password_hash: string;
   role: 'user' | 'admin' | 'moderator';

@@ -4,8 +4,8 @@ import { authService } from '../../services/auth.service';
 export class AuthController {
   public async register(req: Request, res: Response, next: NextFunction) {
     try {
-      const { username, email, password } = req.body;
-      const { user } = await authService.register(username, email, password);
+      const { email, password } = req.body;
+      const { user } = await authService.register(email, password);
       res.status(201).json({
         message: 'Registration successful. A 6-digit verification code has been sent to your email.',
         user
@@ -17,8 +17,8 @@ export class AuthController {
 
   public async login(req: Request, res: Response, next: NextFunction) {
     try {
-      const { username, password } = req.body;
-      const result = await authService.login(username, password);
+      const { email, password } = req.body;
+      const result = await authService.login(email, password);
 
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
@@ -113,7 +113,7 @@ export class AuthController {
       const safeUser = {
         id: user.id,
         email: user.email,
-        username: user.username,
+        player_number: user.player_number,
         display_name: user.display_name,
         role: user.role,
         isAdmin: user.role === 'admin'

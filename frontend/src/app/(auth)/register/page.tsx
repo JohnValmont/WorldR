@@ -6,7 +6,7 @@ import { authApi } from '../../../lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({ email: '', password: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -44,7 +44,6 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const { data } = await authApi.register({
-        username: form.username,
         email: form.email,
         password: form.password,
       });
@@ -124,27 +123,6 @@ export default function RegisterPage() {
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-4">
-          <div>
-            <label className="auth-label">Username</label>
-            <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </span>
-              <input
-                id="register-username"
-                className="auth-input pl-10"
-                placeholder="e.g. secure_user"
-                value={form.username}
-                onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-                autoComplete="username"
-                required
-                minLength={3}
-              />
-            </div>
-            <p className="text-[10px] text-zinc-700 mt-1.5 font-mono">Minimum 3 characters. No spaces.</p>
-          </div>
 
           <div>
             <label className="auth-label">Email Address</label>

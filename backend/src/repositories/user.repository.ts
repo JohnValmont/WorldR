@@ -8,12 +8,6 @@ export class UserRepository extends BaseRepository {
     return user || null;
   }
 
-  public async findByUsername(username: string, trx?: Knex.Transaction): Promise<User | null> {
-    const user = await this.getDb(trx)('users')
-      .whereRaw('LOWER(username) = LOWER(?)', [username])
-      .first();
-    return user || null;
-  }
 
   public async findByEmail(email: string, trx?: Knex.Transaction): Promise<User | null> {
     const user = await this.getDb(trx)('users')
@@ -22,7 +16,7 @@ export class UserRepository extends BaseRepository {
     return user || null;
   }
 
-  public async create(user: Omit<User, 'id' | 'created_at' | 'updated_at'>, trx?: Knex.Transaction): Promise<User> {
+  public async create(user: Omit<User, 'id' | 'player_number' | 'created_at' | 'updated_at'>, trx?: Knex.Transaction): Promise<User> {
     const [created] = await this.getDb(trx)('users').insert(user).returning('*');
     return created;
   }

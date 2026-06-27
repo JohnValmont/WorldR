@@ -78,7 +78,7 @@ export default function SettingsPage() {
         {/* Account panel */}
         <TerminalPanel title="User Account">
           <div className="space-y-4 font-mono">
-            <Row label="Username" value={user.username} />
+            <Row label="Player ID" value={`#${user.player_number}`} />
             <Row label="Email Address" value={user.email} />
             <Row label="Display Name" value={user.display_name || '(not set)'} />
             <Row label="Security Classification" value={user.role} />
