@@ -423,17 +423,18 @@ export default function BusinessPage() {
         starting_capital: chosenCapital
       }).then((res: any) => {
         // Create/update career record
+        const gDate = getGameDate();
         const careerData = {
           activePath: 'Business',
-          startedAtYear: 0,
-          startedAtMonth: 0,
+          startedAtYear: gDate.worldYear,
+          startedAtMonth: gDate.worldMonth,
           entries: [
             {
               id: `car_${Date.now()}`,
               type: 'business_start',
-              year: 0,
-              month: 0,
-              text: `${characterName} started ${finalName} (${selectedModel}) headquartered in ${HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ}, in Year 0.`,
+              year: gDate.worldYear,
+              month: gDate.worldMonth,
+              text: `${characterName} started ${finalName} (${selectedModel}) headquartered in ${HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ}, in ${formatGameDate(gDate)}.`,
               relatedCompanyId: res.data?.id
             }
           ]
@@ -659,7 +660,7 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
         <SectionHeader stamp="DRENNIA COMMERCIAL REGISTRY">Business Desk</SectionHeader>
         <PanelBox style={{ marginBottom: '24px' }}>
           <p style={{ fontSize: '14px', color: T.muted, lineHeight: 1.7, margin: '0 0 8px' }}>
-            Drennia's registry is open. Only <strong style={{ color: T.gold }}>Shipping & Logistics</strong> is available in v1.
+            Drennia's registry is open. Register your commercial enterprise today.
           </p>
           <p style={{ fontSize: '12px', color: T.faint, lineHeight: 1.6, margin: '0 0 20px' }}>
             Start a company with a minimum of ₯50,000 capital. No maximum — invest as much as you have.
@@ -1000,7 +1001,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
             <FieldRow label="Sector" value={selectedSector} />
             <FieldRow label="Headquarters" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ} />
             <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={isLogistics ? selectedModel : getSubsectorName(selectedModel)} valueColor={T.gold} />
-            <FieldRow label="Filing Date" value={new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })} />
+            <FieldRow label="Filing Date" value={formatGameDate()} />
             <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor={T.mint} />
             <FieldRow label="Filing Fee" value={formatMoney(5000)} valueColor={T.red} />
             <FieldRow label="Total Deducted from Cash" value={formatMoney(total)} valueColor={T.gold} />
