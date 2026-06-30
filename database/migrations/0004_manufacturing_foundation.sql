@@ -104,10 +104,13 @@ CREATE INDEX IF NOT EXISTS idx_mfg_vehicle_models_company_id ON manufacturing_ve
 ALTER TABLE manufacturing_vehicle_models ENABLE ROW LEVEL SECURITY;
 
 -- Fix forward reference: now that manufacturing_vehicle_models exists, add FK to production_lines
-ALTER TABLE manufacturing_production_lines
-    ADD CONSTRAINT fk_prod_line_model
-    FOREIGN KEY (assigned_vehicle_model_id) REFERENCES manufacturing_vehicle_models(id) ON DELETE SET NULL
-    NOT VALID;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='fk_prod_line_model') THEN
+    ALTER TABLE manufacturing_production_lines
+      ADD CONSTRAINT fk_prod_line_model FOREIGN KEY (assigned_vehicle_model_id) 
+      REFERENCES manufacturing_vehicle_models(id) ON DELETE SET NULL NOT VALID;
+  END IF;
+END $$;
 
 -- 6. MANUFACTURING REGION MARKETS (Universal)
 CREATE TABLE IF NOT EXISTS manufacturing_region_markets (

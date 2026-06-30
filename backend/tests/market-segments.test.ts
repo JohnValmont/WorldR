@@ -103,11 +103,13 @@ test('Market Segments Engine validates demographic demands', async (t) => {
 
   const allocations = archetypes.map(a => ({ ...simulatedMarket, ...a }));
 
+  const salesManagerBonusMap = new Map();
+
   const results = ManufacturingController.simulateSalesDemand(
     allocations,
     brandMap,
     marketingMult as any,
-    salesManagerBonus
+    salesManagerBonusMap
   );
 
   console.log('\n========================================================================================');

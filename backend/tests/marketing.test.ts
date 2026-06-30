@@ -115,8 +115,8 @@ test('Marketing Engine validates awareness building and demand impact', async (t
     const brandMapHigh = new Map([['mkt1', { awareness: 90, reputation: 50 }]]);
     const brandMapLow = new Map([['mkt1', { awareness: 0, reputation: 50 }]]);
 
-    const resultHigh = ManufacturingController.simulateSalesDemand([allocHigh], brandMapHigh, MARKETING_MULT, 0);
-    const resultLow = ManufacturingController.simulateSalesDemand([allocLow], brandMapLow, MARKETING_MULT, 0);
+    const resultHigh = ManufacturingController.simulateSalesDemand([allocHigh], brandMapHigh, MARKETING_MULT, new Map());
+    const resultLow = ManufacturingController.simulateSalesDemand([allocLow], brandMapLow, MARKETING_MULT, new Map());
 
     const salesHigh = resultHigh[0].unitsSold;
     const salesLow = resultLow[0].unitsSold;

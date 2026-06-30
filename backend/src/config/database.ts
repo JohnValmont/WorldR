@@ -20,6 +20,8 @@ const knexConfig: Knex.Config = {
     ssl: isProductionOrRemote
       ? { rejectUnauthorized: false }
       : false,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
     options: pgConfig.options || undefined,
     sslmode: pgConfig.sslmode || undefined,
     application_name: pgConfig.application_name || undefined,
