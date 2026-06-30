@@ -716,22 +716,48 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
   // ────────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ width: '100%' }}>
+    <div style={{ display: 'flex', width: '100%', minHeight: 'calc(100vh - 120px)', marginLeft: '-24px', marginRight: '-24px', paddingRight: '24px' }}>
+      
+      {/* LEFT SIDEBAR (MAIN TABS) */}
+      <div style={{ width: '220px', flexShrink: 0, borderRight: `1px solid ${T.border}`, paddingRight: '12px', background: '#0a0a0a' }}>
+         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'sticky', top: '16px', paddingTop: '16px' }}>
+           {MFG_TABS.map(t => (
+             <div 
+               key={t.id}
+               onClick={() => setDeskTab(t.id as MfgTab)}
+               style={{
+                 padding: '12px 16px',
+                 fontSize: '11px',
+                 fontWeight: 600,
+                 textTransform: 'uppercase',
+                 letterSpacing: '0.1em',
+                 color: deskTab === t.id ? T.gold : T.muted,
+                 background: deskTab === t.id ? 'rgba(201,162,74,0.1)' : 'transparent',
+                 borderLeft: deskTab === t.id ? `3px solid ${T.gold}` : '3px solid transparent',
+                 cursor: 'pointer',
+                 transition: 'all 0.2s ease',
+                 display: 'flex',
+                 alignItems: 'center',
+                 gap: '12px',
+                 borderRadius: '0 4px 4px 0'
+               }}
+             >
+               {t.icon && <span style={{ opacity: deskTab === t.id ? 1 : 0.6 }}>{t.icon}</span>}
+               <span>{t.label}</span>
+             </div>
+           ))}
+         </div>
+      </div>
 
-      {/* Notification */}
-      {notification && (
-        <div style={{ marginBottom: '16px', padding: '12px 16px', background: notification.success ? 'rgba(54,211,153,0.08)' : 'rgba(184,85,85,0.08)', border: `1px solid ${notification.success ? T.mint : T.red}`, color: notification.success ? T.mint : T.red, fontSize: '12px', lineHeight: 1.6 }}>
-          {notification.msg}
-        </div>
-      )}
+      {/* MAIN CONTENT AREA */}
+      <div style={{ flex: 1, minWidth: 0, paddingLeft: '24px', paddingBottom: '64px', paddingTop: '16px' }}>
 
-      {/* Tab Bar */}
-      <Tabs
-        tabs={MFG_TABS.map(t => ({ id: t.id, label: t.label, icon: t.icon }))}
-        activeId={deskTab}
-        onChange={(id) => setDeskTab(id as MfgTab)}
-        sticky={true}
-      />
+        {/* Notification */}
+        {notification && (
+          <div style={{ marginBottom: '16px', padding: '12px 16px', background: notification.success ? 'rgba(54,211,153,0.08)' : 'rgba(184,85,85,0.08)', border: `1px solid ${notification.success ? T.mint : T.red}`, color: notification.success ? T.mint : T.red, fontSize: '12px', lineHeight: 1.6 }}>
+            {notification.msg}
+          </div>
+        )}
 
       {/* ═══════════════════════════════════════════════════════
           OVERVIEW TAB
@@ -3223,6 +3249,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         </div>
       )}
 
+      </div>
     </div>
   );
 }
