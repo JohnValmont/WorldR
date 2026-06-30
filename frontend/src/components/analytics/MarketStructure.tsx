@@ -109,8 +109,8 @@ export default function MarketStructure({ countryId }: MarketStructureProps) {
               <Tooltip 
                 cursor={{ fill: '#18181b' }}
                 contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', color: '#e4e4e7', fontFamily: 'JetBrains Mono, monospace' }}
-                formatter={(value: number, name: string) => [
-                  name === 'AvgPrice' ? `$${value.toLocaleString()}` : value.toLocaleString(), 
+                formatter={(value: any, name: any) => [
+                  name === 'AvgPrice' ? `$${Number(value).toLocaleString()}` : Number(value).toLocaleString(), 
                   name === 'Volume' ? 'Total Volume' : 'Avg Sale Price'
                 ]}
               />
