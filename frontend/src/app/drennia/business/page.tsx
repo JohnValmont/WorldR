@@ -574,14 +574,13 @@ export default function BusinessPage() {
 
       {/* ── Tab Content ── */}
       <div className="flex-1 overflow-y-auto animate-slide-in">
-        <PageShell className="py-6">
-        {activeTab === 'overview'  && <OverviewTab company={company} playerCash={playerCash} netWorth={netWorth} onStartBusiness={() => setActiveTab('start')} onViewContracts={() => { setActiveTab('companies'); setSelectedCompanyId(null); }} onViewRegistry={() => setActiveTab('registry')} />}
-        {activeTab === 'start'     && <StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} selectedModel={selectedModel} setSelectedModel={setSelectedModel} isSubmitting={isSubmitting} />}
+        {activeTab === 'overview'  && <PageShell className="py-6"><OverviewTab company={company} playerCash={playerCash} netWorth={netWorth} onStartBusiness={() => setActiveTab('start')} onViewContracts={() => { setActiveTab('companies'); setSelectedCompanyId(null); }} onViewRegistry={() => setActiveTab('registry')} /></PageShell>}
+        {activeTab === 'start'     && <PageShell className="py-6"><StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} selectedModel={selectedModel} setSelectedModel={setSelectedModel} isSubmitting={isSubmitting} /></PageShell>}
         
         {activeTab === 'companies' && (
-            <div style={{ padding: '0 24px' }}>
+            <div>
               {selectedCompanyId && company ? (
-                <div style={{ marginTop: '16px' }}>
+                <div>
                   {/* Detailed company view could go here, but usually it delegates to ManufacturingDeskTab */}
                   {company.sector === 'manufacturing' || company.sectorId === 'manufacturing' ? (
                     <ManufacturingDeskTab
@@ -606,42 +605,43 @@ export default function BusinessPage() {
                   )}
                 </div>
               ) : (
-                <div style={{ marginTop: '16px' }}>
-                  {company ? (
-                    <div
-                      style={{
-                        padding: '16px', background: T.panel, border: `1px solid ${T.border}`,
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer'
-                      }}
-                      onClick={() => setSelectedCompanyId(company.id)}
-                    >
-                      <div>
-                        <div style={{ fontSize: '14px', fontWeight: 'bold', color: T.ivory }}>{company.name}</div>
-                        <div style={{ fontSize: '11px', color: T.muted }}>
-                          {company.sectorId === 'shipping-logistics' || company.sector === 'shipping-logistics' ? 'Logistics' : 'Manufacturing'}
-                          {' • '}
-                          {company.headquartersStateId || company.state}
+                <PageShell className="py-6">
+                  <div style={{ marginTop: '16px' }}>
+                    {company ? (
+                      <div
+                        style={{
+                          padding: '16px', background: T.panel, border: `1px solid ${T.border}`,
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer'
+                        }}
+                        onClick={() => setSelectedCompanyId(company.id)}
+                      >
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: T.ivory }}>{company.name}</div>
+                          <div style={{ fontSize: '11px', color: T.muted }}>
+                            {company.sectorId === 'shipping-logistics' || company.sector === 'shipping-logistics' ? 'Logistics' : 'Manufacturing'}
+                            {' • '}
+                            {company.headquartersStateId || company.state}
+                          </div>
                         </div>
+                        <button style={{
+                          padding: '6px 12px', background: 'transparent', color: T.gold,
+                          border: `1px solid ${T.gold}`, fontSize: '10px', textTransform: 'uppercase'
+                        }}>
+                          Manage
+                        </button>
                       </div>
-                      <button style={{
-                        padding: '6px 12px', background: 'transparent', color: T.gold,
-                        border: `1px solid ${T.gold}`, fontSize: '10px', textTransform: 'uppercase'
-                      }}>
-                        Manage
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ color: T.faint, fontSize: '12px' }}>No companies registered.</div>
-                  )}
-                </div>
+                    ) : (
+                      <div style={{ color: T.faint, fontSize: '12px' }}>No companies registered.</div>
+                    )}
+                  </div>
+                </PageShell>
               )}
             </div>
           )}
         
         
-        {activeTab === 'exchange' && <DrennportExchangeTab />}
-        {activeTab === 'registry'  && <RegistryTab key={registryKey} company={company} onRefresh={() => setRegistryKey(k => k + 1)} />}
-        </PageShell>
+        {activeTab === 'exchange' && <PageShell className="py-6"><DrennportExchangeTab /></PageShell>}
+        {activeTab === 'registry'  && <PageShell className="py-6"><RegistryTab key={registryKey} company={company} onRefresh={() => setRegistryKey(k => k + 1)} /></PageShell>}
       </div>
     </div>
   );

@@ -716,7 +716,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
   // ────────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', width: '100%', minHeight: 'calc(100vh - 120px)', marginLeft: '-24px', marginRight: '-24px', paddingRight: '24px' }}>
+    <div style={{ display: 'flex', width: '100%', minHeight: 'calc(100vh - 120px)' }}>
       
       {/* LEFT SIDEBAR (MAIN TABS) */}
       <div style={{ width: '220px', flexShrink: 0, borderRight: `1px solid ${T.border}`, paddingRight: '12px', background: '#0a0a0a' }}>
