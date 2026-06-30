@@ -742,7 +742,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                  borderRadius: '0 4px 4px 0'
                }}
              >
-               {t.icon && <span style={{ opacity: deskTab === t.id ? 1 : 0.6 }}>{t.icon}</span>}
+               {t.icon && (() => { const Icon = t.icon; return <span style={{ opacity: deskTab === t.id ? 1 : 0.6, display: 'flex', alignItems: 'center' }}><Icon size={14} /></span>; })()}
                <span>{t.label}</span>
              </div>
            ))}
