@@ -112,7 +112,7 @@ function calculateDesignScores(design: {
 
 
 // ── Helper: Verify ownership + load country config ────────────────────────────
-async function verifyManufacturingCompany(trx: any, userId: number, companyId: string) {
+export async function verifyManufacturingCompany(trx: any, userId: number | string, companyId: string) {
   const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
   if (!character) throw new AppError('No active character found', 404, 'NOT_FOUND');
 

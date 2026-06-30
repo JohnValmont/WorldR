@@ -43,3 +43,9 @@ NPC competitors v1 is completely finished and validated. They use pooled sell on
 - "NPCs are strictly inventory-aware: The Ghost Car bug was fixed via a hard Math.min(demand, inventory_in_stock) clamp in settleForCompany."
 - "NPC pricing is strictly capped at 2.5 * manufacturing_cost_per_unit under Rule B2 (Sold Out) to prevent infinite hyperinflation loops."
 - "NPC Brain reactivity (Rule B1) uses explicit prevPrevArc market share comparisons to accurately gauge share drops without state-bleed."
+
+## Phase 4 Complete
+Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely finished and validated.
+
+### Architectural Rules (DO NOT BREAK):
+- "Paid Market Research (Phase 4c) relies on a strict DB transaction checking company_finances.available_cash before revealing competitor data. Tier 1 dynamically strips sale_price and engineering specs, while Tier 2 reveals all. Do not bypass this transaction for any UI or data fetching."
