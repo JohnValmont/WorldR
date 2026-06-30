@@ -1170,18 +1170,31 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         const balanceRating = selectedModel?.engineering_balance_rating || null;
 
         return (
-          <div>
-            {/* ── INTERNAL SUB-NAV ── */}
-            <div style={{ display: 'flex', gap: '24px', borderBottom: `1px solid ${T.border}`, marginBottom: '24px' }}>
+          <div style={{ display: 'flex', gap: '32px' }}>
+            {/* ── INTERNAL SUB-NAV (LEFT CORNER) ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px', borderRight: `1px solid ${T.border}`, paddingRight: '24px' }}>
               {(['portfolio', 'research', 'knowledge'] as const).map((tab) => (
                 <div key={tab}
-                  style={{ paddingBottom: '12px', fontSize: '14px', fontWeight: 600, color: designTab === tab ? T.gold : T.muted, borderBottom: designTab === tab ? `2px solid ${T.gold}` : '2px solid transparent', cursor: 'pointer' }}
+                  style={{ 
+                    padding: '10px 16px', 
+                    fontSize: '13px', 
+                    fontWeight: 600, 
+                    color: designTab === tab ? T.gold : T.muted, 
+                    background: designTab === tab ? 'rgba(201,162,74,0.1)' : 'transparent',
+                    borderLeft: designTab === tab ? `3px solid ${T.gold}` : '3px solid transparent', 
+                    borderRadius: '0 4px 4px 0',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
                   onClick={() => setDesignTab(tab)}
                 >
-                  {tab === 'portfolio' ? 'Vehicle Portfolio' : tab === 'research' ? 'Engineering Programmes' : '📚 Knowledge'}
+                  {tab === 'portfolio' ? 'Vehicle Portfolio' : tab === 'research' ? 'Engineering Programmes' : 'Knowledge'}
                 </div>
               ))}
             </div>
+
+            {/* ── CONTENT AREA ── */}
+            <div style={{ flex: 1, minWidth: 0 }}>
 
             {designTab === 'portfolio' && (
               <div>
@@ -2084,6 +2097,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                 </div>
               );
             })()}
+            </div>
           </div>
         );
       })()}
