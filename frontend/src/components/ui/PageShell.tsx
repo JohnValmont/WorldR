@@ -15,7 +15,7 @@ interface PageShellProps {
 export default function PageShell({ children, sidebar, sidebarWidth = 340, className }: PageShellProps) {
   if (sidebar) {
     return (
-      <div className={cn('w-full max-w-7xl mx-auto px-4 md:px-6', className)}>
+      <div className={cn('w-full px-4 md:px-6', className)}>
         <div
           className="grid gap-6 items-start"
           style={{ gridTemplateColumns: `1fr ${sidebarWidth}px` }}
@@ -28,7 +28,7 @@ export default function PageShell({ children, sidebar, sidebarWidth = 340, class
   }
 
   return (
-    <div className={cn('w-full max-w-7xl mx-auto px-4 md:px-6 flex flex-col gap-6', className)}>
+    <div className={cn('w-full px-4 md:px-6 flex flex-col gap-6', className)}>
       {children}
     </div>
   );
