@@ -1172,7 +1172,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         return (
           <div style={{ display: 'flex', gap: '32px' }}>
             {/* ── INTERNAL SUB-NAV (LEFT CORNER) ── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px', borderRight: `1px solid ${T.border}`, paddingRight: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px', borderRight: `1px solid ${T.border}`, paddingRight: '24px', marginLeft: '-24px', paddingTop: '12px' }}>
               {(['portfolio', 'research', 'knowledge'] as const).map((tab) => (
                 <div key={tab}
                   style={{ 
@@ -1877,7 +1877,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
                 {/* ── PORTFOLIO PAGE HEADER ── */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                  <SectionHeader stamp="R&D DESK">R&D Portfolio</SectionHeader>
+
                   <div style={{ display: 'flex', gap: '12px' }}>
                     <GhostButton onClick={() => setShowCompareModal(true)}>Compare Models</GhostButton>
                     <GoldButton onClick={() => setShowDesignModal(true)} style={{ padding: '9px 20px' }}>+ Design a Vehicle</GoldButton>
@@ -1943,7 +1943,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
             {designTab === 'research' && (
               <div>
-                <SectionHeader stamp="ENGINEERING">Active & Available Programmes</SectionHeader>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                   {Object.entries((bootstrapData?.engineeringProgrammes || {}) as Record<string, any>).map(([id, prog]) => {
                     const activeProg = research.find((r: any) => r.programme_id === id);
@@ -2001,7 +2001,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               const hasAny = totalXp > 0;
               return (
                 <div>
-                  <SectionHeader stamp="PHASE 3">Engineering Knowledge</SectionHeader>
+
                   {!hasAny ? (
                     <div style={{ textAlign: 'center', padding: '48px 24px', border: `1px dashed ${T.border}`, borderRadius: '2px' }}>
                       <div style={{ fontSize: '32px', marginBottom: '12px' }}>📚</div>
