@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatGameDate, advanceWorldArcAndProcess } from '../../lib/businessCore';
 import { useAuthStore } from '../../store/auth.store';
+import { authApi } from '../../lib/api';
 
 export const ENABLE_ADVANCE_ARC_TEST = process.env.NODE_ENV === 'development';
 
@@ -16,13 +17,15 @@ const T = {
 export default function WorldTimeControl() {
   const [dateStr, setDateStr] = useState<string>('');
   const [isAdvancing, setIsAdvancing] = useState(false);
+  const [isAdminDynamic, setIsAdminDynamic] = useState(false);
   const user = useAuthStore(state => state.user);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || isAdminDynamic;
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setDateStr(formatGameDate());
     }
+    authApi.me().then(res => setIsAdminDynamic(res.data.isAdmin)).catch(() => {});
   }, []);
 
   const handleAdvance = () => {
