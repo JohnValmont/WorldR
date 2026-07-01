@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { formatGameDate, advanceWorldArcAndProcess } from '../../lib/businessCore';
+import { useAuthStore } from '../../store/auth.store';
 
 export const ENABLE_ADVANCE_ARC_TEST = process.env.NODE_ENV === 'development';
 
@@ -15,6 +16,8 @@ const T = {
 export default function WorldTimeControl() {
   const [dateStr, setDateStr] = useState<string>('');
   const [isAdvancing, setIsAdvancing] = useState(false);
+  const user = useAuthStore(state => state.user);
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -41,7 +44,7 @@ export default function WorldTimeControl() {
       <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'right' }}>
         <div style={{ color: T.ivory }}>{dateStr}</div>
       </div>
-      {ENABLE_ADVANCE_ARC_TEST && (
+      {(ENABLE_ADVANCE_ARC_TEST || isAdmin) && (
         <button 
           onClick={handleAdvance} 
           disabled={isAdvancing}
