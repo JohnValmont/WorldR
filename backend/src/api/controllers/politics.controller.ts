@@ -19,7 +19,7 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
       cyclePhase = cycle.phase;
       
       const currentArc = cycle.start_arc; // wait, need real current arc
-      const clock = await db('world_instances').where('id', 'pre-alpha-world-1').first();
+      const clock = await db('world_clock').first();
       const actualArc = clock?.current_arc || 1;
       
       // Calculate countdown to next phase boundary
@@ -117,7 +117,7 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
         .decrement('cash_in_hand', PARTY_FOUNDING_COST)
         .decrement('net_worth', PARTY_FOUNDING_COST);
 
-      const clock = await trx('world_instances').where('id', 'pre-alpha-world-1').first();
+      const clock = await trx('world_clock').first();
       const currentArc = clock?.current_arc || 1;
 
       const safePlatform = platform || { taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 };
@@ -248,7 +248,7 @@ export async function joinParty(req: Request, res: Response, next: NextFunction)
       const party = await trx('pol_parties').where({ id: partyId }).first();
       if (!party) throw new AppError('Party not found', 404, 'NOT_FOUND');
 
-      const clock = await trx('world_instances').where('id', 'pre-alpha-world-1').first();
+      const clock = await trx('world_clock').first();
       const currentArc = clock?.current_arc || 1;
 
       await trx('pol_party_members').insert({
