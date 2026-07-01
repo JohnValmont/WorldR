@@ -22,7 +22,7 @@ import {
 import { EngineCandidate, runElection } from './electionEngine';
 
 export async function getCurrentWorldArc(): Promise<number> {
-  const clock = await db('world_clock').first();
+  const clock = await db('world_instances').where('id', 'pre-alpha-world-1').first();
   return clock?.current_arc || 1;
 }
 
