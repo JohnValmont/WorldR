@@ -144,6 +144,35 @@ export const registryApi = {
   getCompany: (id: string) => api.get(`/registry/companies/${id}?t=${Date.now()}`)
 };
 
+// Politics
+export const politicsApi = { 
+  getState: () => api.get('/politics/state').then(res => res.data), 
+  getCycle: () => api.get('/politics/cycle').then(res => res.data), 
+  getParties: () => api.get('/politics/parties').then(res => res.data), 
+  foundParty: (data: any) => api.post('/politics/parties', data).then(res => res.data), 
+  joinParty: (id: string) => api.post(`/politics/parties/${id}/join`).then(res => res.data), 
+  leaveParty: (id: string) => api.post(`/politics/parties/${id}/leave`).then(res => res.data), 
+  updatePlatform: (id: string, platform: any) => api.put(`/politics/parties/${id}/platform`, { platform }).then(res => res.data), 
+  declareCandidacy: () => api.post('/politics/candidacy').then(res => res.data),
+  queueCampaignAction: (data: any) => api.post('/politics/campaign/actions', data).then(res => res.data),
+  getPolls: () => api.get('/politics/polls').then(res => res.data),
+  getCouncil: () => api.get('/politics/council').then(res => res.data),
+  getLedger: (limit: number = 10) => api.get(`/politics/ledger?limit=${limit}`).then(res => res.data),
+  manageCoalition: (action: string, targetPartyId: string) => api.post('/politics/formation/coalition', { action, targetPartyId }).then(res => res.data),
+  
+  // Phase 5A: Bills & Lobby
+  getBills: () => api.get('/politics/bills').then(res => res.data),
+  proposeBill: (type: string, params: any) => api.post('/politics/bills', { type, params }).then(res => res.data),
+  voteBill: (id: string, vote: string) => api.post(`/politics/bills/${id}/vote`, { vote }).then(res => res.data),
+  donateToParty: (partyId: string, amount: number) => api.post('/politics/lobby/donate', { partyId, amount }).then(res => res.data),
+  petitionParty: (partyId: string, issue: string, amount?: number) => api.post('/politics/lobby/petition', { partyId, issue, amount }).then(res => res.data),
+  
+  // Phase 5B: Tenders
+  getTenders: () => api.get('/politics/tenders').then(res => res.data),
+  postTender: (data: any) => api.post('/politics/tenders', data).then(res => res.data),
+  bidTender: (id: string, data: any) => api.post(`/politics/tenders/${id}/bid`, data).then(res => res.data)
+};
+
 // Logistics
 export const logisticsApi = {
   getProcurement: () => api.get('/logistics/procurement'),

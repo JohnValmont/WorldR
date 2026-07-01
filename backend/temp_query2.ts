@@ -1,1 +1,0 @@
-﻿import db from './src/config/database'; db('manufacturing_vehicle_models').join('companies', 'companies.id', 'manufacturing_vehicle_models.company_id').where('companies.name', 'Valuecorp').select('manufacturing_vehicle_models.id', 'manufacturing_vehicle_models.name as m_name', 'manufacturing_vehicle_models.target_segment').then(r => { console.table(r); process.exit() });

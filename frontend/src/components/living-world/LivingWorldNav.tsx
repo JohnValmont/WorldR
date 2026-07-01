@@ -19,6 +19,7 @@ const TABS = [
   { name: 'Business',  path: '/drennia/business'  },
   { name: 'Market',    path: '/drennia/market'    },
   { name: 'Records',   path: '/drennia/records'   },
+  { name: 'Politics',  path: '/drennia/politics'  },
   { name: 'Network',   path: '/drennia/network'   },
   { name: 'World',     path: '/drennia/world'     },
 ];

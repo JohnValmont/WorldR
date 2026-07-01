@@ -1749,6 +1749,34 @@ export class ManufacturingController {
 
     const netProfit = totalGrossRevenue - pState.totalProductionCosts - pState.totalStaffWages - pState.totalLeaseCosts - pState.totalMaintenanceCosts - pState.totalStorageCosts - totalMarketingCosts - totalWarrantyReserveCost;
 
+    let finalNetProfit = netProfit;
+    let taxPaid = 0;
+
+    const stateObj = await trx('pol_states')
+      .whereRaw("? LIKE '%' || code", [company.headquarters_state_id || ''])
+      .first();
+
+    if (stateObj) {
+      const policy = await trx('pol_state_policy').where({ state_id: stateObj.id }).first();
+      const taxRate = Number(policy?.industry_tax_rate || 0);
+      if (taxRate > 0 && finalNetProfit > 0) {
+        taxPaid = Math.round(finalNetProfit * taxRate);
+        finalNetProfit -= taxPaid;
+        pState.runningCash -= taxPaid;
+
+        await trx('company_ledger').insert({
+          company_id: companyId,
+          game_orbit: currentOrbit,
+          game_arc: currentArc,
+          game_mark: currentMark,
+          entry_type: 'tax',
+          amount: -taxPaid,
+          balance_after: pState.runningCash,
+          description: `State Industry Tax (${(taxRate * 100).toFixed(1)}%) on profit`,
+        });
+      }
+    }
+
     for (const [mId, mt] of pState.modelTracking) {
       const mInv = await trx('manufacturing_inventory').where({ company_id: companyId, vehicle_model_id: mId }).first();
       const endingInventory = mInv ? Number(mInv.units_in_stock) : 0;
@@ -1766,7 +1794,7 @@ export class ManufacturingController {
       ]);
     }
 
-    await trx('company_finances').where({ company_id: companyId }).update({ available_cash: pState.runningCash, last_arc_profit: netProfit, updated_at: trx.fn.now() });
+    await trx('company_finances').where({ company_id: companyId }).update({ available_cash: pState.runningCash, last_arc_profit: finalNetProfit, updated_at: trx.fn.now() });
 
     if (totalUnitsSold > 0) {
       await trx('companies').where({ id: companyId }).update({ reputation: trx.raw('LEAST(100, reputation + 1)'), updated_at: trx.fn.now() });
@@ -2062,6 +2090,15 @@ export class ManufacturingController {
         for (const pState of participantStates) {
            const compResults = pooledSalesResults.filter((r: any) => r.alloc.company_id === pState.company.id);
            await ManufacturingController.settleForCompany(trx, pState, compResults, clock, brandMap);
+        }
+
+        // Process Political Arc Hook
+        const activeState = await trx('pol_states')
+          .where({ country_id: playerCompany.country_id, is_active: true })
+          .first();
+        if (activeState) {
+          const { processPoliticalArc } = require('../../services/politics.service');
+          await processPoliticalArc(trx, activeState.id, currentArc);
         }
 
         return { message: 'Arc processed successfully for region', processedCompanies: participants.length };

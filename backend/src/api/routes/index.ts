@@ -7,6 +7,8 @@ import registryRoutes from './registry.routes';
 import logisticsRoutes from './logistics.routes';
 import manufacturingRoutes from './manufacturing.routes';
 
+import politicsRoutes from './politics.routes';
+
 const apiRouter = Router();
 
 apiRouter.use('/auth', authRoutes);
@@ -15,6 +17,7 @@ apiRouter.use('/characters', characterRoutes);
 apiRouter.use('/companies', companyRoutes);
 apiRouter.use('/registry', registryRoutes);
 apiRouter.use('/logistics', logisticsRoutes);
+apiRouter.use('/politics', politicsRoutes);
 // Manufacturing: mounts bootstrap + company routes + admin arc-process endpoint
 apiRouter.use('/', manufacturingRoutes);
 

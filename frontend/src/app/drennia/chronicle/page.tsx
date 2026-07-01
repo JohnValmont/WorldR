@@ -125,6 +125,7 @@ export default function ChroniclePage() {
   const [recentRecords, setRecentRecords] = useState<any[]>([]);
   const [activeContracts, setActiveContracts] = useState(0);
   const [netWorthSeries, setNetWorthSeries]   = useState(MOCK_NET_WORTH_SERIES);
+  const [ledgerFeed, setLedgerFeed] = useState<any[]>([]);
 
   // Build radar data from citizen file stats
   const radarData = [
@@ -161,7 +162,7 @@ export default function ChroniclePage() {
     const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
     if (!granted) { router.replace('/pre-alpha-access'); return; }
 
-    import('../../../lib/api').then(({ characterApi, companyApi }) => {
+    import('../../../lib/api').then(({ characterApi, companyApi, politicsApi }) => {
       characterApi.getMe()
         .then(res => {
           const char = res.data;
@@ -188,6 +189,19 @@ export default function ChroniclePage() {
               setNetWorthSeries(prev => [...prev.slice(0, -1), { arc: 'Now', value: liveValue }]);
             }
           }).catch(() => {});
+          
+          politicsApi.getLedger(10).then(data => {
+            const polEvents = data.map((ev: any) => ({
+              id: ev.id,
+              arc: ev.arc,
+              text: `[Arc ${ev.arc}] ${ev.headline}: ${ev.body}`
+            }));
+            const combined = [...polEvents, ...LEDGER_HEADLINES.map(h => ({ ...h, arc: null }))];
+            setLedgerFeed(combined);
+          }).catch(() => {
+            setLedgerFeed(LEDGER_HEADLINES.map(h => ({ ...h, arc: null })));
+          });
+          
         })
         .catch(err => {
           if (err.response?.status === 404) router.replace('/start/character');
@@ -417,13 +431,13 @@ export default function ChroniclePage() {
               </Card>
             )}
 
-            {/* Politics Desk — locked */}
-            <Card kicker="Politics Desk" icon={Landmark} className="opacity-60">
-              <p className="text-[12px] text-zinc-600 leading-relaxed mb-4">
-                Political life is not open in pre-alpha yet. Parties, elections, offices, campaigns, and public power will unlock after the business foundation is stable.
+            {/* Politics Desk */}
+            <Card kicker="Politics Desk" icon={Landmark} accent hover>
+              <p className="text-[12px] text-zinc-400 leading-relaxed mb-4">
+                Enter the political arena. Manage your party, run campaigns, shape public policy, and form the government.
               </p>
-              <Button variant="disabled" icon={Lock} size="sm">
-                Locked
+              <Button href="/drennia/politics" variant="primary" icon={ChevronRight} size="sm">
+                Open Politics Desk
               </Button>
             </Card>
           </div>
@@ -469,17 +483,20 @@ export default function ChroniclePage() {
 
           {/* Drennian Ledger */}
           <Card kicker="Drennian Ledger" icon={Newspaper}>
-            {LEDGER_HEADLINES.map((h, i) => (
+            {ledgerFeed.map((h, i) => (
               <div
                 key={h.id}
                 className={`py-2.5 text-[11px] text-zinc-400 leading-relaxed ${
-                  i < LEDGER_HEADLINES.length - 1 ? 'border-b border-[#23232b]' : ''
+                  i < ledgerFeed.length - 1 ? 'border-b border-[#23232b]' : ''
                 }`}
               >
                 <Globe size={10} className="inline-block mr-2 text-zinc-600" />
                 {h.text}
               </div>
             ))}
+            {ledgerFeed.length === 0 && (
+              <div className="py-2 text-[11px] text-zinc-500 italic">No ledger entries found.</div>
+            )}
           </Card>
 
         </PageShell>
