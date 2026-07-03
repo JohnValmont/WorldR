@@ -914,12 +914,20 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                 <DataRow label="Gross Revenue" value={fm(latestReport.gross_revenue)} valueVariant="green" />
                 <DataRow label="Total Costs" value={fm(Number(latestReport.production_costs || 0) + Number(latestReport.staff_wages || 0) + Number(latestReport.factory_lease_costs || 0) + Number(latestReport.factory_maintenance_costs || 0) + Number(latestReport.inventory_storage_costs || 0))} valueVariant="red" />
                 <DataRow label="Net Profit" value={fm(latestReport.net_profit)} valueVariant={Number(latestReport.net_profit) < 0 ? 'red' : 'green'} />
+                {(() => {
+                  const sorted = [...allReports].sort((a: any, b: any) => a.arc_number - b.arc_number);
+                  const prev = sorted.length > 1 ? sorted[sorted.length - 2] : null;
+                  if (!prev) return null;
+                  const d = Number(latestReport.net_profit) - Number(prev.net_profit);
+                  const up = d >= 0;
+                  return <DataRow label="Momentum vs Last Month" value={`${up ? '▲ +' : '▼ −'}${fm(Math.abs(d))}`} valueVariant={up ? 'green' : 'red'} border={false} />;
+                })()}
               </div>
             ) : (
               <UIEmptyState
                 icon={BarChart3}
                 heading="No Data Yet"
-                message="Close an Month to generate your first financial report."
+                message="Close a month to generate your first financial report."
               />
             )}
             
@@ -1554,7 +1562,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         <PanelBox>
                           {(() => {
                             const snaps = modelSnapshots.filter((s: any) => s.vehicle_model_id === selectedModel.id).sort((a: any, b: any) => b.world_arc - a.world_arc);
-                            if (snaps.length === 0) return <div style={{ fontSize: '11px', color: T.faint }}>No performance history available yet. Snapshots are generated after an Month closes.</div>;
+                            if (snaps.length === 0) return <div style={{ fontSize: '11px', color: T.faint }}>No performance history available yet. Snapshots are generated after a month closes.</div>;
                             return (
                               <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
                                 <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse' }}>

@@ -334,6 +334,60 @@ export default function ChroniclePage() {
       <div className="flex-1 overflow-y-auto py-6">
         <PageShell sidebar={sidebar}>
 
+          {/* Hero — momentum + next move (the return hook) */}
+          {(() => {
+            const series = netWorthSeries;
+            const prev = series.length > 1 ? Number(series[series.length - 2].value) : netWorth;
+            const delta = netWorth - prev;
+            const pct = prev ? (delta / Math.abs(prev)) * 100 : 0;
+            const up = delta >= 0;
+            const accent = up ? '#30d158' : '#ff453a';
+            return (
+              <div className="relative overflow-hidden rounded-xl border border-[#23232b] bg-gradient-to-br from-[#0c0d13] to-[#111219] p-5 md:p-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-zinc-600">Welcome back</p>
+                    <h1 className="text-2xl md:text-3xl font-semibold text-zinc-100 truncate">{characterName || 'Citizen'}</h1>
+                    <p className="text-[11px] text-zinc-500 mt-1 font-mono">
+                      {citizenFile?.gameDateStr ?? 'January, Year 0'} · {citizenFile?.motherland ?? 'Drennia'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div>
+                      <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Net Worth</p>
+                      <p className="text-2xl md:text-3xl font-mono font-bold text-terminal-amber amber-glow leading-tight">
+                        ₹{netWorth.toLocaleString()}
+                      </p>
+                      <p className={`text-[11px] font-mono font-bold ${up ? 'text-terminal-green' : 'text-terminal-red'}`}>
+                        {up ? '▲' : '▼'} {up ? '+' : '−'}₹{Math.abs(delta).toLocaleString()} ({pct.toFixed(1)}%) this month
+                      </p>
+                    </div>
+                    <div className="hidden sm:block w-32 h-14">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={series} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="heroGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor={accent} stopOpacity={0.3} />
+                              <stop offset="95%" stopColor={accent} stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <Area type="monotone" dataKey="value" stroke={accent} strokeWidth={2} fill="url(#heroGrad)" dot={false} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  <Button href="/drennia/business" variant="primary" icon={ChevronRight} size="sm">
+                    {company ? 'Open your desk' : 'Start your company'}
+                  </Button>
+                  <Button href="/drennia/politics" variant="secondary" size="sm">Politics Desk →</Button>
+                  {activeContracts > 0 && <Badge variant="amber">{activeContracts} active contracts</Badge>}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Personal Status */}
           <Card kicker="Personal Status" icon={User} title="Chronicle">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-1">
