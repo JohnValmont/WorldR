@@ -3,6 +3,7 @@
 // Redirects to /drennia/chronicle (Business-First Chronicle).
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import BackBar from '../../components/ui/BackBar';
 
 export default function DrenniaLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -26,6 +27,7 @@ export default function DrenniaLayout({ children }: { children: React.ReactNode 
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#090A0F', width: '100%' }}>
+      <BackBar />
       {children}
     </div>
   );
