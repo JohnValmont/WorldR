@@ -76,7 +76,7 @@ export default function SelfAnalyticsDashboard({ companyId }: SelfAnalyticsDashb
     return (
       <div className="w-full max-w-7xl mx-auto px-6 py-8 bg-[#090A0F] text-zinc-300 font-outfit border border-[#23232b] rounded-lg">
         <h2 className="text-2xl font-cinzel text-zinc-100 mb-4">Market Intelligence</h2>
-        <p>No sales data available yet. Complete an arc to see analytics.</p>
+        <p>No sales data available yet. Complete a month to see analytics.</p>
       </div>
     );
   }

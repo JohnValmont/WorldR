@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { manufacturingApi } from '../../../lib/api';
+import { formatWorldDate, formatWorldDateShort } from '@/lib/calendar';
 import {
   Card, Button, StatCard, DataRow, EmptyState as UIEmptyState, Badge, StatusDot, SectionHeading, Tabs, ProgressBar
 } from '@/components/ui';
@@ -477,7 +478,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         engineeringPriorities: dPriorities,
         budgetAllocation: dBudgetAlloc,
       });
-      showNotif(`Development started for "${modelName}". Est. ${liveScore.devTimeArcs} Arcs to complete.`, true);
+      showNotif(`Development started for "${modelName}". Est. ${liveScore.devTimeArcs} Months to complete.`, true);
       setModelName(''); setDClass('Compact Car'); setDPlatform('economy'); setDEngine('small-i4');
       setDDrivetrain('fwd'); setDInterior('basic'); setDSafety('standard'); setDQuality('standard');
       setDSegment('budget'); setDEngineeringPackage('');
@@ -641,7 +642,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const handleStartExpansion = async (factoryId: string) => {
     try {
       await manufacturingApi.startFactoryExpansion(company.id, factoryId);
-      showNotif(`Workshop expansion started. ${fm(EXPANSION_COST)} deducted. Construction completes in ${EXPANSION_DURATION} Arc${EXPANSION_DURATION > 1 ? 's' : ''}.`, true);
+      showNotif(`Workshop expansion started. ${fm(EXPANSION_COST)} deducted. Construction completes in ${EXPANSION_DURATION} Month${EXPANSION_DURATION > 1 ? 's' : ''}.`, true);
       setShowExpandConfirm(false);
       setExpandingFactoryId(null);
       onRefresh();
@@ -654,10 +655,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const handleProcessAdmin = async () => {
     try {
       const res = await manufacturingApi.processArcAdmin(company.id);
-      showNotif(`Arc processed: Net ${fm(res.data.netProfit)}`, true);
+      showNotif(`Month processed: Net ${fm(res.data.netProfit)}`, true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to process arc.', false);
+      showNotif(err?.response?.data?.message || 'Failed to process month.', false);
     }
   };
 
@@ -803,10 +804,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
             <SectionHeading>Financial Trajectory</SectionHeading>
             <div className="flex-1 flex gap-4 mt-4">
               <div className="flex-1 h-[250px]">
-                <h4 className="text-[10px] uppercase text-zinc-500 mb-2 font-mono">Revenue vs Expenses (Last 12 Arcs)</h4>
+                <h4 className="text-[10px] uppercase text-zinc-500 mb-2 font-mono">Revenue vs Expenses (Last 12 Months)</h4>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={[...allReports].sort((a,b) => a.arc_number - b.arc_number).slice(-12).map(r => ({
-                    arc: `Arc ${r.arc_number}`,
+                    arc: `Month ${r.arc_number}`,
                     revenue: Number(r.gross_revenue),
                     expenses: Number(r.production_costs) + Number(r.staff_wages) + Number(r.factory_lease_costs) + Number(r.factory_maintenance_costs) + Number(r.inventory_storage_costs)
                   }))}>
@@ -901,10 +902,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
             </div>
           </Card>
 
-          {/* Last Arc Summary */}
+          {/* Last Month Summary */}
           <Card className="lg:col-span-2 p-0 overflow-hidden border-zinc-800">
             <div className="p-6 pb-2">
-              <SectionHeading>Latest Arc Results</SectionHeading>
+              <SectionHeading>Latest Month Results</SectionHeading>
             </div>
             {latestReport ? (
               <div className="flex flex-col">
@@ -918,7 +919,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <UIEmptyState
                 icon={BarChart3}
                 heading="No Data Yet"
-                message="Close an Arc to generate your first financial report."
+                message="Close an Month to generate your first financial report."
               />
             )}
             
@@ -926,10 +927,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <div className="p-4 bg-terminal-red/10 border-t border-dashed border-terminal-red/30 flex items-center justify-between">
                 <div>
                   <div className="text-[10px] text-terminal-red font-mono uppercase tracking-[0.1em] mb-1">Dev Admin</div>
-                  <div className="text-[11px] text-zinc-400">Process Arc manually for this company</div>
+                  <div className="text-[11px] text-zinc-400">Process Month manually for this company</div>
                 </div>
                 <Button variant="secondary" size="sm" onClick={handleProcessAdmin} className="border-terminal-red text-terminal-red">
-                  Process Arc
+                  Process Month
                 </Button>
               </div>
             )}
@@ -956,10 +957,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <PanelBox>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: T.gold, marginBottom: '12px' }}>Small Workshop</div>
                 <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', lineHeight: 1.6 }}>Entry-level automobile assembly facility. Suitable for compact cars, sedans and utility vans.</div>
-                <FieldRow label="Capacity" value={`${bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_capacity_per_arc ?? 100} units / Arc`} />
+                <FieldRow label="Capacity" value={`${bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_capacity_per_arc ?? 100} units / Month`} />
                 <FieldRow label="Production Lines" value="1" />
-                <FieldRow label="Lease Cost" value={`${fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_arc ?? 25000)} / Arc`} valueColor={T.red} />
-                <FieldRow label="Maintenance" value={`${fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_maintenance_per_arc ?? 8000)} / Arc`} valueColor={T.red} />
+                <FieldRow label="Lease Cost" value={`${fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_arc ?? 25000)} / Month`} valueColor={T.red} />
+                <FieldRow label="Maintenance" value={`${fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_maintenance_per_arc ?? 8000)} / Month`} valueColor={T.red} />
                 <FieldRow label="Recommended Workers" value="30" />
                 <FieldRow label="Status" value="Available" valueColor={T.mint} />
                 <div style={{ marginTop: '16px' }}>
@@ -990,10 +991,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
-                    <FieldRow label="Capacity / Arc" value={`${factory.capacity_per_arc} units`} />
-                    <FieldRow label="Lease Cost / Arc" value={fm(factory.lease_cost_per_arc)} valueColor={T.red} />
+                    <FieldRow label="Capacity / Month" value={`${factory.capacity_per_arc} units`} />
+                    <FieldRow label="Lease Cost / Month" value={fm(factory.lease_cost_per_arc)} valueColor={T.red} />
                     <FieldRow label="Production Lines" value={factory.max_production_lines || 1} />
-                    <FieldRow label="Maintenance / Arc" value={fm(factory.maintenance_cost_per_arc)} valueColor={T.red} />
+                    <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_arc)} valueColor={T.red} />
                     <FieldRow label="Machine Level" value={factory.machine_level} valueColor={T.gold} />
                     <FieldRow label="Condition" value={`${factory.condition}%`} valueColor={Number(factory.condition) < 60 ? T.red : T.mint} />
                   </div>
@@ -1016,11 +1017,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
                             <FieldRow label="Facility" value="Expanded Workshop" valueColor={T.gold} />
-                            <FieldRow label="Capacity" value={`${EXP_CAPACITY} units / Arc`} valueColor={T.mint} />
+                            <FieldRow label="Capacity" value={`${EXP_CAPACITY} units / Month`} valueColor={T.mint} />
                             <FieldRow label="Production Lines" value={String(EXP_MAX_LINES)} valueColor={T.mint} />
                             <FieldRow label="Worker Capacity" value={String(EXP_WORKERS)} />
-                            <FieldRow label="Lease / Arc" value={fm(EXP_LEASE)} valueColor={T.red} />
-                            <FieldRow label="Maintenance / Arc" value={fm(EXP_MAINT)} valueColor={T.red} />
+                            <FieldRow label="Lease / Month" value={fm(EXP_LEASE)} valueColor={T.red} />
+                            <FieldRow label="Maintenance / Month" value={fm(EXP_MAINT)} valueColor={T.red} />
                           </div>
                         </div>
                       );
@@ -1038,10 +1039,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           <div style={{ background: 'rgba(245,158,11,0.06)', border: `1px solid rgba(245,158,11,0.3)`, padding: '12px', marginBottom: '12px' }}>
                             <div style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 700, marginBottom: '8px' }}>🔧 Construction in Progress</div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
-                              <FieldRow label="Started" value={`Orbit ${startedOrbit} Arc ${startedArc}`} />
-                              <FieldRow label="Completes" value={`Orbit ${compOrbit} Arc ${compArc}`} />
+                              <FieldRow label="Started" value={formatWorldDate(startedOrbit, startedArc)} />
+                              <FieldRow label="Completes" value={formatWorldDate(compOrbit, compArc)} />
                               <FieldRow label="Investment Paid" value={fm(factory.expansion_cost || 500000)} valueColor={T.red} />
-                              <FieldRow label="Current Capacity" value="100 units / Arc" />
+                              <FieldRow label="Current Capacity" value="100 units / Month" />
                               <FieldRow label="Production Line 1" value="Operational" valueColor={T.mint} />
                               <FieldRow label="Production Line 2" value="Unavailable until complete" valueColor={T.faint} />
                             </div>
@@ -1059,10 +1060,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           <div style={{ background: 'rgba(212,175,55,0.06)', border: `1px solid ${T.border}`, padding: '14px', marginBottom: '14px', fontSize: '12px', color: T.ivory, lineHeight: 1.8 }}>
                             <div style={{ fontWeight: 700, color: T.gold, marginBottom: '8px' }}>This investment will:</div>
                             <div>• Add {EXP_MAX_LINES - 1} additional production line{EXP_MAX_LINES - 1 > 1 ? 's' : ''}</div>
-                            <div>• Increase total capacity from {factory.capacity_per_arc ?? 100} to <strong style={{ color: T.mint }}>{EXP_CAPACITY} units / Arc</strong></div>
+                            <div>• Increase total capacity from {factory.capacity_per_arc ?? 100} to <strong style={{ color: T.mint }}>{EXP_CAPACITY} units / Month</strong></div>
                             <div>• Increase Factory Worker capacity to <strong style={{ color: T.mint }}>{EXP_WORKERS}</strong></div>
-                            <div>• Increase recurring lease to <strong style={{ color: T.red }}>{fm(EXP_LEASE)} / Arc</strong> and maintenance to <strong style={{ color: T.red }}>{fm(EXP_MAINT)} / Arc</strong></div>
-                            <div style={{ marginTop: '8px', color: T.muted }}>Construction will take {EXPANSION_DURATION} Arc{EXPANSION_DURATION > 1 ? 's' : ''}. Production Line 1 remains operational during construction.</div>
+                            <div>• Increase recurring lease to <strong style={{ color: T.red }}>{fm(EXP_LEASE)} / Month</strong> and maintenance to <strong style={{ color: T.red }}>{fm(EXP_MAINT)} / Month</strong></div>
+                            <div style={{ marginTop: '8px', color: T.muted }}>Construction will take {EXPANSION_DURATION} Month{EXPANSION_DURATION > 1 ? 's' : ''}. Production Line 1 remains operational during construction.</div>
                           </div>
                           <div style={{ display: 'flex', gap: '10px' }}>
                             <GoldButton onClick={() => handleStartExpansion(factory.id)} style={{ fontSize: '12px' }}>
@@ -1083,21 +1084,21 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, padding: '12px' }}>
                             <div style={{ fontSize: '11px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Current Facility</div>
                             <div style={{ fontSize: '10px', color: T.muted, marginBottom: '6px' }}>Small Workshop</div>
-                            <FieldRow label="Capacity" value={`${factory.capacity_per_arc ?? 100} units / Arc`} />
+                            <FieldRow label="Capacity" value={`${factory.capacity_per_arc ?? 100} units / Month`} />
                             <FieldRow label="Production Lines" value="1" />
                             <FieldRow label="Max Workers" value={String(factory.worker_capacity ?? 40)} />
-                            <FieldRow label="Lease / Arc" value={fm(factory.lease_cost_per_arc)} valueColor={T.red} />
-                            <FieldRow label="Maintenance / Arc" value={fm(factory.maintenance_cost_per_arc)} valueColor={T.red} />
+                            <FieldRow label="Lease / Month" value={fm(factory.lease_cost_per_arc)} valueColor={T.red} />
+                            <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_arc)} valueColor={T.red} />
                           </div>
                           <div style={{ background: 'rgba(212,175,55,0.04)', border: `1px solid rgba(212,175,55,0.3)`, padding: '12px' }}>
                             <div style={{ fontSize: '11px', fontWeight: 700, color: T.gold, marginBottom: '8px' }}>Expanded Workshop</div>
                             <div style={{ fontSize: '10px', color: T.muted, marginBottom: '6px' }}>After expansion completes</div>
-                            <FieldRow label="Capacity" value={`${EXP_CAPACITY} units / Arc`} valueColor={T.mint} />
+                            <FieldRow label="Capacity" value={`${EXP_CAPACITY} units / Month`} valueColor={T.mint} />
                             <FieldRow label="Production Lines" value={String(EXP_MAX_LINES)} valueColor={T.mint} />
                             <FieldRow label="Max Workers" value={String(EXP_WORKERS)} valueColor={T.mint} />
-                            <FieldRow label="Lease / Arc" value={fm(EXP_LEASE)} valueColor={T.red} />
-                            <FieldRow label="Maintenance / Arc" value={fm(EXP_MAINT)} valueColor={T.red} />
-                            <FieldRow label="Construction Time" value={`${EXPANSION_DURATION} Arc${EXPANSION_DURATION > 1 ? 's' : ''}`} />
+                            <FieldRow label="Lease / Month" value={fm(EXP_LEASE)} valueColor={T.red} />
+                            <FieldRow label="Maintenance / Month" value={fm(EXP_MAINT)} valueColor={T.red} />
+                            <FieldRow label="Construction Time" value={`${EXPANSION_DURATION} Month${EXPANSION_DURATION > 1 ? 's' : ''}`} />
                             <FieldRow label="Upfront Investment" value={fm(EXPANSION_COST)} valueColor={T.gold} />
                           </div>
                         </div>
@@ -1253,7 +1254,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             {selectedModel.dev_stage === 'prototype' && '🔨 Prototype Phase — building and evaluating physical prototypes.'}
                             {selectedModel.dev_stage === 'testing' && '🧪 Testing Programme — road testing and durability validation.'}
                             {!selectedModel.dev_stage && 'Development is underway.'}
-                            {' '}Est. ready: Orbit {selectedModel.development_completes_at_orbit || 1} / Arc {selectedModel.development_completes_at_arc || 1}.
+                            {' '}Est. ready: {formatWorldDate(selectedModel.development_completes_at_orbit || 1, selectedModel.development_completes_at_arc || 1)}.
                           </div>
                           {selectedModel.planned_dev_time_arcs && (
                             <div style={{ marginTop: '10px', display: 'flex', gap: '6px' }}>
@@ -1323,7 +1324,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           <FieldRow label="Mfg Cost / Unit" value={fm(selectedModel.manufacturing_cost_per_unit)} valueColor={T.red} />
                           <FieldRow label="Sale Price" value={fm(selectedModel.sale_price)} valueColor={T.gold} />
                           <FieldRow label="Est. Margin / Unit" value={fm(Number(selectedModel.sale_price) - Number(selectedModel.manufacturing_cost_per_unit))} valueColor={Number(selectedModel.sale_price) > Number(selectedModel.manufacturing_cost_per_unit) ? T.mint : T.red} />
-                          <FieldRow label="Dev. Started (Arc)" value={`Orbit ${selectedModel.created_at_world_orbit} / Arc ${selectedModel.created_at_world_arc}`} />
+                          <FieldRow label="Dev. Started (Month)" value={formatWorldDate(selectedModel.created_at_world_orbit, selectedModel.created_at_world_arc)} />
                         </PanelBox>
                       </div>
 
@@ -1368,7 +1369,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             </PanelBox>
                             {warrantyRisk === 'High' && (
                               <div style={{ marginTop: '6px', padding: '8px 12px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '2px', fontSize: '11px', color: T.red, lineHeight: 1.5 }}>
-                                ⚠ High warranty risk. Reliability below 55 incurs a running reserve deducted each Arc. Increase reliability to reduce ongoing costs.
+                                ⚠ High warranty risk. Reliability below 55 incurs a running reserve deducted each Month. Increase reliability to reduce ongoing costs.
                               </div>
                             )}
                           </div>
@@ -1430,7 +1431,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Prototype Validation</div>
                             <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '2px', padding: '12px 14px' }}>
                               <div style={{ fontSize: '11px', color: T.red, fontFamily: 'monospace', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                ✗ Validation {resultClass} — {extraArcs > 0 ? `+${extraArcs} Arc` : ''}{extraCost > 0 ? ` +${(extraCost * 100).toFixed(0)}% Extra Cost` : ''}
+                                ✗ Validation {resultClass} — {extraArcs > 0 ? `+${extraArcs} Month` : ''}{extraCost > 0 ? ` +${(extraCost * 100).toFixed(0)}% Extra Cost` : ''}
                               </div>
                               {issues.map((issue: string, i: number) => (
                                 <div key={i} style={{ fontSize: '11px', color: T.faint, paddingLeft: '8px', borderLeft: '2px solid rgba(239,68,68,0.4)', marginBottom: '4px', lineHeight: 1.6 }}>• {issue}</div>
@@ -1553,13 +1554,13 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         <PanelBox>
                           {(() => {
                             const snaps = modelSnapshots.filter((s: any) => s.vehicle_model_id === selectedModel.id).sort((a: any, b: any) => b.world_arc - a.world_arc);
-                            if (snaps.length === 0) return <div style={{ fontSize: '11px', color: T.faint }}>No performance history available yet. Snapshots are generated after an Arc closes.</div>;
+                            if (snaps.length === 0) return <div style={{ fontSize: '11px', color: T.faint }}>No performance history available yet. Snapshots are generated after an Month closes.</div>;
                             return (
                               <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
                                 <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse' }}>
                                   <thead>
                                     <tr style={{ color: T.muted, borderBottom: `1px solid ${T.border}` }}>
-                                      <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Arc</th>
+                                      <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Month</th>
                                       <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Built</th>
                                       <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Sold</th>
                                       <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Revenue</th>
@@ -1774,7 +1775,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               {/* Dev time & cost */}
                               <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px dashed ${T.border}` }}>
                                 <FieldRow label="Development Cost" value={fm(liveScore.devCost)} valueColor={T.red} />
-                                <FieldRow label="Est. Dev. Time" value={`${liveScore.devTimeArcs} Arc${liveScore.devTimeArcs > 1 ? 's' : ''}`} valueColor={T.blue} />
+                                <FieldRow label="Est. Dev. Time" value={`${liveScore.devTimeArcs} Month${liveScore.devTimeArcs > 1 ? 's' : ''}`} valueColor={T.blue} />
                               </div>
 
                               {/* Final scores */}
@@ -1991,7 +1992,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
                         <div style={{ fontSize: '12px', color: T.muted, marginBottom: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                           <FieldRow label="Budget" value={fm(prog.budget || 0)} valueColor={T.red} />
-                          <FieldRow label="Base Duration" value={`${prog.baseDuration || 0} Arcs`} />
+                          <FieldRow label="Base Duration" value={`${prog.baseDuration || 0} Months`} />
                           <FieldRow label="Min Engineers" value={prog.minEng} />
                           <FieldRow label="Rec. Engineers" value={prog.recEng} />
                         </div>
@@ -2007,7 +2008,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         )}
                         {inProgress && (
                           <div style={{ fontSize: '11px', color: T.faint, textAlign: 'center', marginTop: '8px' }}>
-                            Started Arc {activeProg.started_at_world_arc}. Review in {activeProg.estimated_completion_arc} Arc(s).
+                            Started Month {activeProg.started_at_world_arc}. Review in {activeProg.estimated_completion_arc} Month(s).
                           </div>
                         )}
                       </div>
@@ -2227,7 +2228,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <PanelBox key={factory.id} style={{ marginBottom: '20px' }}>
                 <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, marginBottom: '4px' }}>{factory.name}</div>
                 <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px' }}>
-                  Capacity: {factory.capacity_per_arc} units/Arc · Workers Required: {factory.worker_requirement || 30} · Current Workers: {totalWorkers}
+                  Capacity: {factory.capacity_per_arc} units/Month · Workers Required: {factory.worker_requirement || 30} · Current Workers: {totalWorkers}
                   {totalWorkers < (factory.worker_requirement || 30) && (
                     <span style={{ color: T.red, marginLeft: '8px' }}>⚠ Understaffed — production will be reduced</span>
                   )}
@@ -2302,7 +2303,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               </select>
                             </div>
                             <div>
-                              <label style={{ display: 'block', fontSize: '10px', color: T.muted, marginBottom: '4px' }}>Target (Units/Arc) <span style={{ color: T.faint }}>— max 100 per line</span></label>
+                              <label style={{ display: 'block', fontSize: '10px', color: T.muted, marginBottom: '4px' }}>Target (Units/Month) <span style={{ color: T.faint }}>— max 100 per line</span></label>
                               <input type="number" min={0} max={100} value={planTarget} onChange={e => setPlanTarget(Number(e.target.value))} style={{ width: '100%', boxSizing: 'border-box', padding: '7px', background: '#0e0e0e', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px' }} />
                             </div>
                             <div>
@@ -2318,7 +2319,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           {/* Estimates */}
                           {editModel && planTarget > 0 && (
                             <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, padding: '12px', marginBottom: '12px' }}>
-                              <div style={{ fontSize: '10px', color: T.gold, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Live Estimate at Arc Close</div>
+                              <div style={{ fontSize: '10px', color: T.gold, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Live Estimate at Month Close</div>
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', fontSize: '11px' }}>
                                 <div><span style={{ color: T.muted }}>Factory Condition</span><br /><strong style={{ color: Number(factory.condition) < 50 ? T.red : T.mint }}>{factory.condition}%</strong></div>
                                 <div><span style={{ color: T.muted }}>Efficiency</span><br /><strong style={{ color: efficiency < 1 ? T.red : T.mint }}>{Math.round(efficiency * 100)}%</strong> {hasAssemblyTime && <span style={{ color: T.gold, fontSize: '9px', marginLeft: '4px' }}>+Assembly Std</span>}</div>
@@ -2357,7 +2358,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <div>Producing: <strong style={{ color: T.gold }}>{assignedModel.name}</strong></div>
                                 <div style={{ fontSize: '11px', color: T.muted }}>
-                                  Target: {line.target_units_per_arc} units/Arc · {qualityLabels[line.quality_setting] || line.quality_setting}
+                                  Target: {line.target_units_per_arc} units/Month · {qualityLabels[line.quality_setting] || line.quality_setting}
                                 </div>
                                 {line.status === 'active' && (
                                   <div style={{ fontSize: '11px', color: T.mint }}>
@@ -2427,7 +2428,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               </div>
             </PanelBox>
             <PanelBox>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '4px' }}>Vehicles Sold Last Arc</div>
+              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '4px' }}>Vehicles Sold Last Month</div>
               <div style={{ fontSize: '24px', color: T.mint, fontFamily: 'monospace' }}>
                 {latestReport?.units_sold || 0}
               </div>
@@ -2436,7 +2437,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               </div>
             </PanelBox>
             <PanelBox>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '4px' }}>Marketing Budget / Arc</div>
+              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '4px' }}>Marketing Budget / Month</div>
               <div style={{ fontSize: '24px', color: T.red, fontFamily: 'monospace' }}>
                 {fm(latestReport?.marketing_costs || 0)}
               </div>
@@ -2502,7 +2503,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: `1px dashed ${T.border}` }}>
                             <div style={{ fontSize: '12px', color: T.muted, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
                               <span>Inventory Central Stock: <strong style={{ color: T.ivory }}>{invRow?.units_in_stock || 0}</strong></span>
-                              <span>Storage Cost: <span style={{ color: T.red }}>{fm(invRow?.storage_cost_per_arc || 0)} / Arc</span></span>
+                              <span>Storage Cost: <span style={{ color: T.red }}>{fm(invRow?.storage_cost_per_arc || 0)} / Month</span></span>
                             </div>
 
                             {marketData?.markets?.map((market: any) => {
@@ -2533,7 +2534,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                         let mainDriver = 'Brand metrics maintained previous levels.';
                                         if (arcRes) {
                                           if (Number(arcRes.trust_delta) < 0 && arcRes.primary_trust_reason === 'Defective Products') {
-                                            mainDriver = 'Production defects reduced buyer trust this Arc.';
+                                            mainDriver = 'Production defects reduced buyer trust this Month.';
                                           } else if (Number(arcRes.trust_delta) > 0) {
                                             mainDriver = 'Reliable deliveries supported gradual local trust growth.';
                                           } else if (Number(arcRes.awareness_delta) > 0) {
@@ -2552,11 +2553,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                               <span style={{ color: T.ivory }}>{trText}</span>
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                              <span style={{ color: T.muted }}>Last Arc Awareness Change:</span>
+                                              <span style={{ color: T.muted }}>Last Month Awareness Change:</span>
                                               <span style={{ color: awDeltaStr.startsWith('+') ? T.mint : (awDeltaStr.startsWith('-') ? T.red : T.faint) }}>{awDeltaStr}</span>
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                              <span style={{ color: T.muted }}>Last Arc Trust Change:</span>
+                                              <span style={{ color: T.muted }}>Last Month Trust Change:</span>
                                               <span style={{ color: trDeltaStr.startsWith('+') ? T.mint : (trDeltaStr.startsWith('-') ? T.red : T.faint) }}>{trDeltaStr}</span>
                                             </div>
                                             <div style={{ marginTop: '4px', fontStyle: 'italic', color: T.faint, fontSize: '10px' }}>
@@ -2776,7 +2777,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
             <PanelBox style={{ padding: '12px' }}>
               <div style={{ color: T.muted, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Total Staff</div>
               <div style={{ color: T.ivory, fontSize: '18px', fontWeight: 700 }}>{totalStaff}</div>
-              <div style={{ color: T.red, fontSize: '11px', fontFamily: 'monospace', marginTop: '4px' }}>{fm(totalWagesPerArc)} / Arc</div>
+              <div style={{ color: T.red, fontSize: '11px', fontFamily: 'monospace', marginTop: '4px' }}>{fm(totalWagesPerArc)} / Month</div>
             </PanelBox>
             <PanelBox style={{ padding: '12px', border: `1px solid ${totalWorkers < recWorkers ? T.red : T.border}` }}>
               <div style={{ color: T.muted, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Factory Workers</div>
@@ -2846,7 +2847,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
                       <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>{roleDef.label}</div>
-                      <div style={{ fontSize: '11px', color: T.red, fontFamily: 'monospace' }}>{fm(roleDef.wagePerArc)} / Arc</div>
+                      <div style={{ fontSize: '11px', color: T.red, fontFamily: 'monospace' }}>{fm(roleDef.wagePerArc)} / Month</div>
                     </div>
                     <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px', maxWidth: '600px', lineHeight: 1.5 }}>
                       {roleDef.desc || 'No description available.'}
@@ -2888,16 +2889,16 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <FieldRow label="Company Value" value={finances?.company_value ? fm(finances.company_value) : 'Not Available'} />
               <FieldRow label="Factory Asset Value" value={factories.length > 0 ? fm(factories.reduce((sum: number, f: any) => sum + (Number(f.capacity_per_arc) * 1000), 0)) : 'Not Available'} />
               <FieldRow label="Inventory Value" value={fm(inventoryValue)} />
-              <FieldRow label="Last Arc Revenue" value={finances?.last_arc_profit !== undefined ? (latestReport ? fm(latestReport.gross_revenue) : fm(0)) : 'Not Available'} valueColor={T.mint} />
-              <FieldRow label="Last Arc Operating Profit" value={finances?.last_arc_profit !== undefined ? (latestReport ? fm(Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0)) : fm(0)) : 'Not Available'} />
-              <FieldRow label="Last Arc Net Profit" value={finances?.last_arc_profit !== undefined ? fm(finances.last_arc_profit) : 'Not Available'} valueColor={(finances?.last_arc_profit || 0) < 0 ? T.red : T.mint} />
+              <FieldRow label="Last Month Revenue" value={finances?.last_arc_profit !== undefined ? (latestReport ? fm(latestReport.gross_revenue) : fm(0)) : 'Not Available'} valueColor={T.mint} />
+              <FieldRow label="Last Month Operating Profit" value={finances?.last_arc_profit !== undefined ? (latestReport ? fm(Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0)) : fm(0)) : 'Not Available'} />
+              <FieldRow label="Last Month Net Profit" value={finances?.last_arc_profit !== undefined ? fm(finances.last_arc_profit) : 'Not Available'} valueColor={(finances?.last_arc_profit || 0) < 0 ? T.red : T.mint} />
               <FieldRow label="Outstanding Debt" value={finances?.debt && Number(finances.debt) > 0 ? fm(finances.debt) : 'No debt recorded'} valueColor={(finances?.debt || 0) > 0 ? T.red : T.faint} />
             </PanelBox>
 
-            {/* Next Arc Commitments */}
+            {/* Next Month Commitments */}
             <PanelBox>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Next Arc Commitments</div>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '12px' }}>Estimated recurring costs for the upcoming Arc.</div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Next Month Commitments</div>
+              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '12px' }}>Estimated recurring costs for the upcoming Month.</div>
               <FieldRow label="Factory Lease Cost" value={fm(leaseCostPerArc)} valueColor={T.red} />
               <FieldRow label="Factory Maintenance" value={fm(maintCostPerArc)} valueColor={T.red} />
               <FieldRow label="Workforce Wages" value={fm(totalWagesPerArc)} valueColor={T.red} />
@@ -2923,7 +2924,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <FieldRow label="Research Cost" value={fm(0)} valueColor={T.faint} />
 
               <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: `1px solid ${T.border}` }}>
-                <FieldRow label="Estimated Total Next Arc Cost" value={fm(
+                <FieldRow label="Estimated Total Next Month Cost" value={fm(
                   leaseCostPerArc + maintCostPerArc + totalWagesPerArc +
                   (marketData?.allocations?.reduce((acc: number, alloc: any) => {
                     return acc + (MKT_COSTS[alloc.marketing_tier] || 0);
@@ -2933,14 +2934,14 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                 )} valueColor={T.red} />
               </div>
               <div style={{ marginTop: '8px', fontSize: '10px', color: T.faint, fontStyle: 'italic' }}>
-                * Final costs and revenue are calculated at Arc Close.
+                * Final costs and revenue are calculated at Month Close.
               </div>
             </PanelBox>
           </div>
 
-          {/* Last Arc Profit and Loss */}
+          {/* Last Month Profit and Loss */}
           <PanelBox>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Last Arc Profit and Loss</div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Last Month Profit and Loss</div>
             {latestReport ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
@@ -2977,7 +2978,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <EmptyState
                 icon="📊"
                 title="No financial activity has been recorded yet."
-                subtitle="Your first report will appear after production and sales resolve at Arc Close."
+                subtitle="Your first report will appear after production and sales resolve at Month Close."
               />
             )}
           </PanelBox>
@@ -3006,7 +3007,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.muted }}>
-                    <th style={{ padding: '8px' }}>Date / Arc</th>
+                    <th style={{ padding: '8px' }}>Date / Month</th>
                     <th style={{ padding: '8px' }}>Entry Type</th>
                     <th style={{ padding: '8px' }}>Description</th>
                     <th style={{ padding: '8px', textAlign: 'right' }}>Amount</th>
@@ -3026,7 +3027,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     return true;
                   }).map((entry: any) => (
                     <tr key={entry.id} style={{ borderBottom: `1px solid #1a1a1a` }}>
-                      <td style={{ padding: '8px', color: T.muted, whiteSpace: 'nowrap' }}>O{entry.game_orbit} A{entry.game_arc}</td>
+                      <td style={{ padding: '8px', color: T.muted, whiteSpace: 'nowrap' }}>{formatWorldDateShort(entry.game_orbit, entry.game_arc)}</td>
                       <td style={{ padding: '8px', color: T.faint, whiteSpace: 'nowrap' }}>{entry.entry_type.replace(/_/g, ' ')}</td>
                       <td style={{ padding: '8px', color: T.ivory }}>{entry.description}</td>
                       <td style={{ padding: '8px', textAlign: 'right', color: Number(entry.amount) >= 0 ? T.mint : T.red, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
@@ -3062,7 +3063,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   ...(allReports || []).map((r: any) => ({
                     ...r,
                     _is_arc_report: true,
-                    record_type: 'Arc Report',
+                    record_type: 'Month Report',
                     created_at_world_orbit: r.world_orbit,
                     created_at_world_arc: r.world_arc,
                   }))
@@ -3084,7 +3085,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         }
                       }}>
                         <div style={{ width: '80px', color: T.muted, fontFamily: 'monospace', fontSize: '11px', paddingTop: '2px' }}>
-                          O{orbit} A{arc}
+                          {formatWorldDateShort(orbit, arc)}
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -3096,7 +3097,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           </div>
                           {isArcReport && (
                             <div style={{ fontSize: '10px', color: T.blue, marginTop: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                              Click to view full Arc report ➔
+                              Click to view full Month report ➔
                             </div>
                           )}
                         </div>
@@ -3107,7 +3108,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
             )}
           </PanelBox>
 
-          {/* Arc Report Detail View Modal */}
+          {/* Month Report Detail View Modal */}
           {selectedArcReportId && (
             <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setSelectedArcReportId(null)}>
               <div style={{ background: T.bg, border: `1px solid ${T.border}`, padding: '24px', width: '100%', maxWidth: '800px', borderRadius: '4px', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
@@ -3119,8 +3120,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', borderBottom: `1px solid ${T.border}`, paddingBottom: '16px' }}>
                         <div>
-                          <h2 style={{ margin: 0, color: T.gold, fontSize: '20px' }}>Arc Report</h2>
-                          <div style={{ color: T.muted, fontSize: '12px', fontFamily: 'monospace', marginTop: '4px' }}>Orbit {r.world_orbit} / Arc {r.world_arc}</div>
+                          <h2 style={{ margin: 0, color: T.gold, fontSize: '20px' }}>Month Report</h2>
+                          <div style={{ color: T.muted, fontSize: '12px', fontFamily: 'monospace', marginTop: '4px' }}>{formatWorldDate(r.world_orbit, r.world_arc)}</div>
                         </div>
                         <GhostButton onClick={() => setSelectedArcReportId(null)}>Close</GhostButton>
                       </div>
@@ -3173,7 +3174,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         <div style={{ fontSize: '14px', fontWeight: 600, color: T.ivory, marginBottom: '12px' }}>Local Brand Results</div>
                         {(() => {
                           const arcBrandResults = brandResults.filter((br: any) => br.world_arc === r.world_arc);
-                          if (!arcBrandResults || arcBrandResults.length === 0) return <div style={{ fontSize: '12px', color: T.muted }}>No brand impact recorded this Arc.</div>;
+                          if (!arcBrandResults || arcBrandResults.length === 0) return <div style={{ fontSize: '12px', color: T.muted }}>No brand impact recorded this Month.</div>;
                           return (
                             <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse' }}>
                               <thead>

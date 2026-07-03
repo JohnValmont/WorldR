@@ -84,7 +84,7 @@ export default function PollsTab({ overview, parties }: any) {
       </div>
       
       <div className="bg-[#1A1A10] border border-[#3D3D29] p-3 text-[#D4AF37] text-sm text-center">
-        PROJECTION ONLY. Final results will be calculated at the end of the Polling Arc.
+        PROJECTION ONLY. Final results will be calculated at the end of the Polling Month.
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

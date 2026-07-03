@@ -50,7 +50,7 @@ export default function CampaignTab({ overview, character, parties, onRefresh }:
         'endorsement': { name: 'Endorsement Drive' },
         'fundraiser': { name: 'Fundraising Gala' }
       };
-      setSuccessMsg(`Action "${actionMetadata[def.type]?.name || def.type}" queued for next arc.`);
+      setSuccessMsg(`Action "${actionMetadata[def.type]?.name || def.type}" queued for next month.`);
       setSelectedAction('');
       setSelectedSegment('');
       if (onRefresh) onRefresh();
@@ -169,7 +169,7 @@ export default function CampaignTab({ overview, character, parties, onRefresh }:
         <div className="flex flex-col gap-4">
           <h3 className="text-[#F4EBD6] font-serif border-b border-[#2A2630] pb-2">Active Campaign Operations</h3>
           <div className="p-6 text-center border border-[#2A2630] bg-[#11131A]">
-             <p className="text-[#A79D8C]">Pending actions will resolve when the world arc advances. Check the Polls tab to see projected election results.</p>
+             <p className="text-[#A79D8C]">Pending actions will resolve when the world month advances. Check the Polls tab to see projected election results.</p>
           </div>
         </div>
       </div>

@@ -194,7 +194,7 @@ export default function ChroniclePage() {
             const polEvents = data.map((ev: any) => ({
               id: ev.id,
               arc: ev.arc,
-              text: `[Arc ${ev.arc}] ${ev.headline}: ${ev.body}`
+              text: `[Month ${ev.arc}] ${ev.headline}: ${ev.body}`
             }));
             const combined = [...polEvents, ...LEDGER_HEADLINES.map(h => ({ ...h, arc: null }))];
             setLedgerFeed(combined);
@@ -341,7 +341,7 @@ export default function ChroniclePage() {
                 { label: 'Full Name',      value: characterName },
                 { label: 'Age',            value: '18' },
                 { label: 'Motherland',     value: citizenFile?.motherland ?? 'Drennia' },
-                { label: 'Citizen Since',  value: citizenFile?.gameDateStr ?? 'Mark 1 · Arc 1' },
+                { label: 'Citizen Since',  value: citizenFile?.gameDateStr ?? 'Mark 1 · Month 1' },
               ].map(f => (
                 <div key={f.label}>
                   <p className="text-[8px] font-mono uppercase tracking-[0.15em] text-zinc-600 mb-1">{f.label}</p>
@@ -352,7 +352,7 @@ export default function ChroniclePage() {
           </Card>
 
           {/* Net Worth Chart */}
-          <Card kicker="Net Worth — Last 12 Arcs" icon={TrendingUp}>
+          <Card kicker="Net Worth — Last 12 Months" icon={TrendingUp}>
             <div className="flex items-end justify-between mb-3">
               <div>
                 <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Current Net Worth</p>

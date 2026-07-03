@@ -64,7 +64,7 @@ export default function PoliticalPulse({ pulse }: { pulse: any }) {
                     {pulse.momentum.direction === 'up' && <span className="text-[#36D399]">▲ +{pulse.momentum.deltaSeats}</span>}
                     {pulse.momentum.direction === 'down' && <span className="text-[#B85555]">▼ {pulse.momentum.deltaSeats}</span>}
                     {pulse.momentum.direction === 'flat' && <span className="text-[#6B6558]">no change</span>}
-                    <span className="text-[#6B6558]"> this arc</span>
+                    <span className="text-[#6B6558]"> this month</span>
                   </span>
                 )}
               </div>

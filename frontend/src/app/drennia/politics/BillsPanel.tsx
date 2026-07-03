@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui';
 import { FileText, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { politicsApi } from '@/lib/api';
+import { formatGameDate } from '@/lib/calendar';
 
 export default function BillsPanel({ overview, character, parties }: any) {
   const [bills, setBills] = useState<any[]>([]);
@@ -72,7 +73,7 @@ export default function BillsPanel({ overview, character, parties }: any) {
               <div className="text-[#F4EBD6] font-serif text-2xl">
                 {activePolicy ? (Number(activePolicy.industry_tax_rate) * 100).toFixed(1) : 0}%
               </div>
-              <p className="text-xs text-[#A79D8C] mt-2">Deducted from manufacturing net profits at arc resolution.</p>
+              <p className="text-xs text-[#A79D8C] mt-2">Deducted from manufacturing net profits at month-end resolution.</p>
             </div>
             {/* Stubs for other policies */}
             <div className="p-4 bg-[#11131A] border border-[#2A2630] border-t-0 opacity-50">
@@ -141,7 +142,7 @@ export default function BillsPanel({ overview, character, parties }: any) {
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <span className="text-[#F4EBD6] font-serif capitalize">{bill.type.replace('_', ' ')} Bill</span>
-                          <span className="text-xs text-[#A79D8C] ml-2">Arc {bill.proposed_arc}</span>
+                          <span className="text-xs text-[#A79D8C] ml-2">{formatGameDate(bill.proposed_arc)}</span>
                         </div>
                         <span className={`px-2 py-1 text-[10px] uppercase border ${
                           bill.status === 'passed' || bill.status === 'active' ? 'text-[#4D705C] border-[#4D705C]/30 bg-[#4D705C]/10' :

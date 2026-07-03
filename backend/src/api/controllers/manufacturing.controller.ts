@@ -684,10 +684,10 @@ export class ManufacturingController {
         const testingCompletes = protoCompletes + outcome.stageTimings.testing;
         const totalCompletes   = testingCompletes;
 
-        // Orbit/arc with overflow handling
-        const ARCS_PER_ORBIT = 8;
+        // Year/month with overflow handling (12 months per year)
+        const MONTHS_PER_YEAR = 12;
         const wrapArc = (orbit: number, arc: number) => {
-          while (arc > ARCS_PER_ORBIT) { arc -= ARCS_PER_ORBIT; orbit++; }
+          while (arc > MONTHS_PER_YEAR) { arc -= MONTHS_PER_YEAR; orbit++; }
           return { orbit, arc };
         };
         const engEnd   = wrapArc(currentOrbit, engCompletes);
@@ -882,7 +882,7 @@ export class ManufacturingController {
         const lineCount = Number(factoryType?.max_production_lines ?? 1);
         const PER_LINE_CAP = Math.ceil(totalCap / lineCount);
         if (targetUnitsPerArc && Number(targetUnitsPerArc) > PER_LINE_CAP) {
-          throw new AppError(`Each production line cannot exceed ${PER_LINE_CAP} units/Arc`, 400, 'EXCEEDS_LINE_CAP');
+          throw new AppError(`Each production line cannot exceed ${PER_LINE_CAP} units/Month`, 400, 'EXCEEDS_LINE_CAP');
         }
         // Validate total across all lines does not exceed factory capacity
         if (targetUnitsPerArc && Number(targetUnitsPerArc) > 0) {
@@ -891,7 +891,7 @@ export class ManufacturingController {
             .whereNot({ id: lineId });
           const otherTotal = otherLines.reduce((sum: number, l: any) => sum + Number(l.target_units_per_arc || 0), 0);
           if (otherTotal + Number(targetUnitsPerArc) > Number(factory.capacity_per_arc)) {
-            throw new AppError(`Total planned units across all lines cannot exceed factory capacity (${factory.capacity_per_arc} units/Arc). Other lines already plan ${otherTotal} units.`, 400, 'EXCEEDS_CAPACITY');
+            throw new AppError(`Total planned units across all lines cannot exceed factory capacity (${factory.capacity_per_arc} units/Month). Other lines already plan ${otherTotal} units.`, 400, 'EXCEEDS_CAPACITY');
           }
         }
 
@@ -1375,8 +1375,8 @@ export class ManufacturingController {
           }
         }
 
-        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `Workshop expansion completed. ${EXP_MAX_LINES} production lines now available (capacity: ${EXP_CAPACITY} units/Arc).`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
-        expansionCompletedNote = ` Factory Expansion Completed: Expanded Workshop — ${EXP_MAX_LINES} production lines, ${EXP_CAPACITY} units per Arc capacity.`;
+        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `Workshop expansion completed. ${EXP_MAX_LINES} production lines now available (capacity: ${EXP_CAPACITY} units/Month).`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
+        expansionCompletedNote = ` Factory Expansion Completed: Expanded Workshop — ${EXP_MAX_LINES} production lines, ${EXP_CAPACITY} units per Month capacity.`;
 
         factories.forEach((f: any) => {
           if (f.id === expandingFactory.id) { f.capacity_per_arc = EXP_CAPACITY; f.lease_cost_per_arc = EXP_LEASE; f.maintenance_cost_per_arc = EXP_MAINT; f.worker_capacity = EXP_WORKERS; }
@@ -1991,7 +1991,7 @@ export class ManufacturingController {
         }
         
         if (participants.length === 0) {
-           throw new AppError(`Arc ${currentOrbit}.${currentArc} already processed for this region`, 400, 'ALREADY_PROCESSED');
+           throw new AppError(`This month (Year ${currentOrbit}, month ${currentArc}) is already processed for this region`, 400, 'ALREADY_PROCESSED');
         }
 
         // 2. DECIDE (NPCs only)
@@ -2101,7 +2101,7 @@ export class ManufacturingController {
           await processPoliticalArc(trx, activeState.id, currentArc);
         }
 
-        return { message: 'Arc processed successfully for region', processedCompanies: participants.length };
+        return { message: 'Month processed successfully for region', processedCompanies: participants.length };
       });
 
       res.status(200).json({ status: 'success', data: result });

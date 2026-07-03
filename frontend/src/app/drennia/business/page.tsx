@@ -11,6 +11,7 @@ import {
   type Company, type Contract, type Vehicle, type VehicleType, type ContractHistoryEntry, type RouteFamiliarity, type AutoOpPoolType, type StaffRole, type WagePolicy, type MonthlyFinanceSnapshot, type LedgerEntry
 } from '../../../lib/businessCore';
 import { logisticsApi, manufacturingApi } from '../../../lib/api';
+import { formatWorldDate } from '@/lib/calendar';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import ManufacturingDeskTab from './ManufacturingDeskTab';
 import {
@@ -1077,7 +1078,7 @@ function CompanyDeskTab({
   const arcs = new Map<string, any>();
   if (ledger && Array.isArray(ledger)) {
     ledger.forEach((entry: any) => {
-      const key = `Orbit ${entry.game_orbit}, Arc ${entry.game_arc}`;
+      const key = formatWorldDate(entry.game_orbit, entry.game_arc);
       if (!arcs.has(key)) {
         arcs.set(key, { 
           id: key, 
@@ -1303,7 +1304,7 @@ function CompanyDeskTab({
                 <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: `1px solid ${T.border}` }}>
                   <div style={{ fontSize: '10px', color: T.gold, fontFamily: 'monospace', textTransform: 'uppercase', marginBottom: '8px' }}>Next Resolution:</div>
                   <div style={{ fontSize: '12px', color: T.ivory, fontWeight: 700 }}>{activeContracts[0].title}</div>
-                  <div style={{ fontSize: '11px', color: T.muted }}>Due: Arc {activeContracts[0].dueMonth || 0}, {activeContracts[0].dueYear || 2026}</div>
+                  <div style={{ fontSize: '11px', color: T.muted }}>Due: Month {activeContracts[0].dueMonth || 0}, {activeContracts[0].dueYear || 2026}</div>
                 </div>
               )}
             </PanelBox>
@@ -1330,7 +1331,7 @@ function CompanyDeskTab({
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Monthly Dispatch Console</div>
                 <p style={{ fontSize: '11px', color: T.muted, lineHeight: 1.5, margin: '0 0 16px' }}>
-                  Run Arc auto operations to dispatch your active fleet, process contract completions, collect recurring revenue, pay facility leases, and deduct fleet maintenance costs.
+                  Run Month auto operations to dispatch your active fleet, process contract completions, collect recurring revenue, pay facility leases, and deduct fleet maintenance costs.
                 </p>
               </div>
 
@@ -1360,19 +1361,19 @@ function CompanyDeskTab({
 
                 {isAdmin && (
                   <GoldButton onClick={handleRunAutoOps} color="#8A6E2A">
-                    DEV ADMIN — Close Current Arc
+                    DEV ADMIN — Close Current Month
                   </GoldButton>
                 )}
               </div>
               
               <div style={{ fontSize: '11px', color: T.faint, marginTop: '16px', fontStyle: 'italic' }}>
-                Operations are processed automatically at Arc Close.
+                Operations are processed automatically at Month Close.
               </div>
             </PanelBox>
 
             {company.lastMonthlyReport && (
               <PanelBox style={{ marginBottom: '24px', border: `1px solid ${T.gold}` }}>
-                <SectionHeader stamp={computedLastReport.gameDateStr}>Last Arc Report</SectionHeader>
+                <SectionHeader stamp={computedLastReport.gameDateStr}>Last Month Report</SectionHeader>
                 <FieldRow label="Gross Revenue" value={formatMoney(computedLastReport.autoRevenue + computedLastReport.manualRevenue)} valueColor={T.mint} />
                 <FieldRow label="Operating Costs" value={'-' + formatMoney(computedLastReport.operatingCosts)} valueColor={T.muted} />
                 <FieldRow label="Payroll" value={'-' + formatMoney(computedLastReport.payrollExpense)} valueColor={T.muted} />
@@ -1487,7 +1488,7 @@ function CompanyDeskTab({
               <FieldRow label="Idle Vehicles" value={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length} valueColor={fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length > 0 ? T.red : T.muted} />
             </PanelBox>
             <PanelBox style={{ marginBottom: '16px' }}>
-              <SectionHeader>Arc Estimate</SectionHeader>
+              <SectionHeader>Month Estimate</SectionHeader>
               <FieldRow label="Est. Auto Revenue" value="Varies" valueColor={T.mint} />
               <FieldRow label="Operating Costs" value={formatMoney(company.monthlyCosts)} valueColor={T.red} />
               <FieldRow label="Fleet Maintenance" value={formatMoney(fleet.reduce((sum, v) => sum + v.monthlyMaintenance, 0))} valueColor={T.red} />
@@ -1516,7 +1517,7 @@ function CompanyDeskTab({
             <PanelBox style={{ marginBottom: '16px' }}>
               <SectionHeader>Staff Summary</SectionHeader>
               <FieldRow label="Total Employees" value={Object.values(company.staff || {}).reduce((a,b)=>a+b,0)} />
-              <FieldRow label="Payroll per Arc" value={formatMoney((Object.keys(company.staff || {}) as StaffRole[]).reduce((sum, k) => sum + (company.staff?.[k] || 0) * STAFF_WAGES[k], 0) * (company.wagePolicy === 'Low' ? 0.8 : company.wagePolicy === 'Generous' ? 1.2 : company.wagePolicy === 'Premium' ? 1.45 : 1.0))} valueColor={T.red} />
+              <FieldRow label="Payroll per Month" value={formatMoney((Object.keys(company.staff || {}) as StaffRole[]).reduce((sum, k) => sum + (company.staff?.[k] || 0) * STAFF_WAGES[k], 0) * (company.wagePolicy === 'Low' ? 0.8 : company.wagePolicy === 'Generous' ? 1.2 : company.wagePolicy === 'Premium' ? 1.45 : 1.0))} valueColor={T.red} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '7px 0', borderBottom: `1px solid ${T.border}` }}>
                 <span style={{ fontSize: '11px', color: T.muted }}>Wage Policy</span>
                 <select value={company.wagePolicy || 'Standard'} onChange={(e) => {
@@ -1594,7 +1595,7 @@ function CompanyDeskTab({
                   <FieldRow label="Price" value={formatMoney(35000)} valueColor={T.mint} />
                   <FieldRow label="Condition" value="100%" />
                   <FieldRow label="Capacity" value="1" />
-                  <FieldRow label="Maintenance per Arc" value={formatMoney(3000)} />
+                  <FieldRow label="Maintenance per Month" value={formatMoney(3000)} />
                   <FieldRow label="Source Type" value="NPC Manufacturer" />
                   <div style={{ marginTop: '16px' }}>
                     <GoldButton onClick={async () => {
@@ -1617,7 +1618,7 @@ function CompanyDeskTab({
                   <FieldRow label="Price" value={formatMoney(75000)} valueColor={T.mint} />
                   <FieldRow label="Condition" value="100%" />
                   <FieldRow label="Capacity" value="2" />
-                  <FieldRow label="Maintenance per Arc" value={formatMoney(7000)} />
+                  <FieldRow label="Maintenance per Month" value={formatMoney(7000)} />
                   <FieldRow label="Source Type" value="NPC Manufacturer" />
                   <div style={{ marginTop: '16px' }}>
                     <GoldButton onClick={async () => {
@@ -1641,7 +1642,7 @@ function CompanyDeskTab({
                   <FieldRow label="Price" value={formatMoney(180000)} valueColor={T.mint} />
                   <FieldRow label="Condition" value="100%" />
                   <FieldRow label="Capacity" value="4" />
-                  <FieldRow label="Maintenance per Arc" value={formatMoney(12000)} />
+                  <FieldRow label="Maintenance per Month" value={formatMoney(12000)} />
                   <FieldRow label="Source Type" value="NPC Manufacturer" />
                   <div style={{ marginTop: '16px' }}>
                     <GoldButton onClick={async () => {
@@ -1665,7 +1666,7 @@ function CompanyDeskTab({
                   <FieldRow label="Price" value={formatMoney(75000)} valueColor={T.mint} />
                   <FieldRow label="Condition" value="100%" />
                   <FieldRow label="Capacity" value="2" />
-                  <FieldRow label="Maintenance per Arc" value={formatMoney(7000)} />
+                  <FieldRow label="Maintenance per Month" value={formatMoney(7000)} />
                   <FieldRow label="Source Type" value="NPC Manufacturer" />
                   <div style={{ marginTop: '16px' }}>
                     <GoldButton onClick={async () => {
@@ -1694,7 +1695,7 @@ function CompanyDeskTab({
                   <FieldRow label="Price" value={formatMoney(48000)} valueColor={T.mint} />
                   <FieldRow label="Condition" value="72%" valueColor={T.gold} />
                   <FieldRow label="Capacity" value="1" />
-                  <FieldRow label="Maintenance per Arc" value={formatMoney(3000)} />
+                  <FieldRow label="Maintenance per Month" value={formatMoney(3000)} />
                   <FieldRow label="Stock" value="2" />
                   <FieldRow label="Source Type" value="NPC Dealer" />
                   <div style={{ marginTop: '16px' }}>
@@ -1719,7 +1720,7 @@ function CompanyDeskTab({
                   <FieldRow label="Price" value={formatMoney(112000)} valueColor={T.mint} />
                   <FieldRow label="Condition" value="68%" valueColor={T.gold} />
                   <FieldRow label="Capacity" value="2" />
-                  <FieldRow label="Maintenance per Arc" value={formatMoney(7000)} />
+                  <FieldRow label="Maintenance per Month" value={formatMoney(7000)} />
                   <FieldRow label="Stock" value="1" />
                   <FieldRow label="Source Type" value="NPC Dealer" />
                   <div style={{ marginTop: '16px' }}>
@@ -1744,7 +1745,7 @@ function CompanyDeskTab({
                   <FieldRow label="Price" value={formatMoney(190000)} valueColor={T.mint} />
                   <FieldRow label="Condition" value="61%" valueColor={T.gold} />
                   <FieldRow label="Capacity" value="3" />
-                  <FieldRow label="Maintenance per Arc" value={formatMoney(12000)} />
+                  <FieldRow label="Maintenance per Month" value={formatMoney(12000)} />
                   <FieldRow label="Stock" value="1" />
                   <FieldRow label="Source Type" value="NPC Dealer" />
                   <div style={{ marginTop: '16px' }}>
@@ -1828,7 +1829,7 @@ function CompanyDeskTab({
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <span style={{ color: v.condition > 80 ? T.mint : v.condition > 50 ? T.gold : T.red }}>Cond: {v.condition}%</span>
-                          <span style={{ color: T.muted }}>Maintenance: {formatMoney(v.monthlyMaintenance)} / Arc</span>
+                          <span style={{ color: T.muted }}>Maintenance: {formatMoney(v.monthlyMaintenance)} / Month</span>
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
@@ -1862,7 +1863,7 @@ function CompanyDeskTab({
             </PanelBox>
             <PanelBox style={{ marginBottom: '16px' }}>
               <SectionHeader>Maintenance Burden</SectionHeader>
-              <FieldRow label="Fleet Maintenance per Arc" value={formatMoney(fleet.reduce((sum, v) => sum + v.monthlyMaintenance, 0))} valueColor={T.red} />
+              <FieldRow label="Fleet Maintenance per Month" value={formatMoney(fleet.reduce((sum, v) => sum + v.monthlyMaintenance, 0))} valueColor={T.red} />
               <FieldRow label="Vehicles < 60% Cond" value={fleet.filter(v => v.condition < 60).length} valueColor={fleet.filter(v => v.condition < 60).length > 0 ? T.red : T.muted} />
             </PanelBox>
             <PanelBox>
@@ -1890,7 +1891,7 @@ function CompanyDeskTab({
                           <div>
                             <div style={{ fontSize: '15px', fontWeight: 700, color: T.mint, marginBottom: '4px' }}>{c.title}</div>
                             <div style={{ fontSize: '12px', color: T.ivory, marginBottom: '2px' }}>Issuer: {c.issuerName}</div>
-                            <div style={{ fontSize: '11px', color: T.gold }}>Status: Active — Awaiting Arc-Close Resolution</div>
+                            <div style={{ fontSize: '11px', color: T.gold }}>Status: Active — Awaiting Month-Close Resolution</div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
                             <div style={{ fontSize: '14px', fontWeight: 700, color: T.gold }}>Payment: {formatMoney(c.payment)}</div>
@@ -1908,16 +1909,16 @@ function CompanyDeskTab({
                             <div style={{ marginBottom: '4px' }}>Risk: <span style={{ color: T.ivory }}>{c.baseRisk}</span></div>
                           </div>
                           <div>
-                            <div style={{ marginBottom: '4px' }}>Start Arc: <span style={{ color: T.ivory }}>Month {c.startMonth || '-'}, {c.startYear || '-'}</span></div>
-                            <div style={{ marginBottom: '4px' }}>Due Arc: <span style={{ color: T.ivory }}>Month {c.dueMonth || '-'}, {c.dueYear || '-'}</span></div>
-                            <div style={{ marginBottom: '4px' }}>Arcs Remaining: <span style={{ color: T.gold }}>{monthsRemaining}</span></div>
+                            <div style={{ marginBottom: '4px' }}>Start Month: <span style={{ color: T.ivory }}>Month {c.startMonth || '-'}, {c.startYear || '-'}</span></div>
+                            <div style={{ marginBottom: '4px' }}>Due Month: <span style={{ color: T.ivory }}>Month {c.dueMonth || '-'}, {c.dueYear || '-'}</span></div>
+                            <div style={{ marginBottom: '4px' }}>Months Remaining: <span style={{ color: T.gold }}>{monthsRemaining}</span></div>
                             <div style={{ marginBottom: '4px' }}>Route: <span style={{ color: T.ivory }}>{c.originState} → {c.destinationState}</span></div>
                             <div style={{ marginBottom: '4px' }}>Route Familiarity: <span style={{ color: T.ivory }}>{getRouteFamiliarityPercent(company.id, c.originState, c.destinationState)}%</span></div>
                           </div>
                         </div>
                         
                         <div style={{ background: 'rgba(201,162,74,0.08)', padding: '12px', border: `1px solid ${T.gold}40`, fontSize: '12px', color: T.gold }}>
-                          <strong>Next Action:</strong> {assignedVehicle ? "Advance the Arc to resolve this contract." : "Assign an eligible vehicle before this contract can begin."}
+                          <strong>Next Action:</strong> {assignedVehicle ? "Advance the Month to resolve this contract." : "Assign an eligible vehicle before this contract can begin."}
                         </div>
                       </div>
                     );
@@ -2158,7 +2159,7 @@ function CompanyDeskTab({
         <div className="business-content-grid">
           <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '8px', borderBottom: `1px solid ${T.border}`, paddingBottom: '12px', marginBottom: '16px' }}>
             <GhostButton color={financeSubTab === 'overview' ? T.ivory : T.faint} onClick={() => setFinanceSubTab('overview')}>Overview & Policies</GhostButton>
-            <GhostButton color={financeSubTab === 'monthly' ? T.ivory : T.faint} onClick={() => setFinanceSubTab('monthly')}>Arc Report</GhostButton>
+            <GhostButton color={financeSubTab === 'monthly' ? T.ivory : T.faint} onClick={() => setFinanceSubTab('monthly')}>Month Report</GhostButton>
             <GhostButton color={financeSubTab === 'ledger' ? T.ivory : T.faint} onClick={() => setFinanceSubTab('ledger')}>General Ledger</GhostButton>
             <GhostButton color={financeSubTab === 'history' ? T.ivory : T.faint} onClick={() => setFinanceSubTab('history')}>Finance History</GhostButton>
             <GhostButton color={financeSubTab === 'charts' ? T.ivory : T.faint} onClick={() => setFinanceSubTab('charts')}>Charts & Data</GhostButton>
@@ -2171,9 +2172,9 @@ function CompanyDeskTab({
                 <PanelBox style={{ marginBottom: '24px' }}>
                   <SectionHeader stamp="LEDGER">Company Financials</SectionHeader>
                   <FieldRow label="Available Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
-                  <FieldRow label="Last Arc Gross Revenue" value={formatMoney(company.monthlyRevenue || 0)} valueColor={T.mint} />
-                  <FieldRow label="Last Arc Operating Costs" value={formatMoney(company.monthlyCosts || 0)} valueColor={T.red} />
-                  <FieldRow label="Last Arc Net Profit" value={formatMoney(company.profit || 0)} valueColor={(company.profit || 0) >= 0 ? T.mint : T.red} />
+                  <FieldRow label="Last Month Gross Revenue" value={formatMoney(company.monthlyRevenue || 0)} valueColor={T.mint} />
+                  <FieldRow label="Last Month Operating Costs" value={formatMoney(company.monthlyCosts || 0)} valueColor={T.red} />
+                  <FieldRow label="Last Month Net Profit" value={formatMoney(company.profit || 0)} valueColor={(company.profit || 0) >= 0 ? T.mint : T.red} />
                   <FieldRow label="Outstanding Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.burgundy : T.muted} />
                 </PanelBox>
                 
@@ -2278,7 +2279,7 @@ function CompanyDeskTab({
             <div style={{ gridColumn: '1 / -1' }}>
               {company.lastMonthlyReport ? (
                 <PanelBox style={{ border: `1px solid ${T.gold}` }}>
-                  <SectionHeader stamp={company.lastMonthlyReport.gameDateStr}>Most Recent Arc Report</SectionHeader>
+                  <SectionHeader stamp={company.lastMonthlyReport.gameDateStr}>Most Recent Month Report</SectionHeader>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                     <div>
                       <div style={{ fontSize: '13px', color: T.mint, fontWeight: 700, marginBottom: '8px' }}>Revenue</div>
@@ -2304,7 +2305,7 @@ function CompanyDeskTab({
                 </PanelBox>
               ) : (
                 <div style={{ padding: '24px', textAlign: 'center', color: T.faint, border: `1px solid ${T.border}` }}>
-                  No Arc Reports available yet. Advance the Arc to generate the first report.
+                  No Month Reports available yet. Advance the Month to generate the first report.
                 </div>
               )}
             </div>
@@ -2340,7 +2341,7 @@ function CompanyDeskTab({
 
           {financeSubTab === 'history' && (
             <div style={{ gridColumn: '1 / -1' }}>
-              <SectionHeader stamp="SNAPSHOTS">Arc Finance History</SectionHeader>
+              <SectionHeader stamp="SNAPSHOTS">Month Finance History</SectionHeader>
               {financeHistory.length === 0 ? (
                 <div style={{ padding: '24px', textAlign: 'center', color: T.faint, border: `1px solid ${T.border}` }}>No financial history available yet.</div>
               ) : (
@@ -2724,7 +2725,7 @@ function RegistryTab({ company, onRefresh }: { company: Company | null; onRefres
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.mint, textTransform: 'uppercase' }}>{c.status}</div>
                   {c.created_at_world_orbit && (
-                    <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>Orbit {c.created_at_world_orbit}, Arc {c.created_at_world_arc}</div>
+                    <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>{formatWorldDate(c.created_at_world_orbit, c.created_at_world_arc)}</div>
                   )}
                 </div>
               </div>
@@ -2748,13 +2749,13 @@ function FinanceTab({ company, fleet, playerCash, netWorth }: { company: Company
         <FieldRow label="Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.red : T.muted} />
         {company.lastMonthlyReport ? (
           <>
-            <FieldRow label="Last Arc Gross Revenue" value={formatMoney(company.lastMonthlyReport.autoRevenue + company.lastMonthlyReport.manualRevenue)} valueColor={T.mint} />
-            <FieldRow label="Last Arc Operating Costs" value={formatMoney(company.lastMonthlyReport.operatingCosts + company.lastMonthlyReport.payrollExpense + company.lastMonthlyReport.totalMaintenance + company.lastMonthlyReport.facilityLeaseExpense)} valueColor={T.red} />
-            <FieldRow label="Last Arc Net Profit" value={formatMoney(company.lastMonthlyReport.netProfit)} valueColor={company.lastMonthlyReport.netProfit >= 0 ? T.mint : T.red} />
+            <FieldRow label="Last Month Gross Revenue" value={formatMoney(company.lastMonthlyReport.autoRevenue + company.lastMonthlyReport.manualRevenue)} valueColor={T.mint} />
+            <FieldRow label="Last Month Operating Costs" value={formatMoney(company.lastMonthlyReport.operatingCosts + company.lastMonthlyReport.payrollExpense + company.lastMonthlyReport.totalMaintenance + company.lastMonthlyReport.facilityLeaseExpense)} valueColor={T.red} />
+            <FieldRow label="Last Month Net Profit" value={formatMoney(company.lastMonthlyReport.netProfit)} valueColor={company.lastMonthlyReport.netProfit >= 0 ? T.mint : T.red} />
           </>
         ) : (
           <div style={{ fontSize: '11px', color: T.faint, fontStyle: 'italic', marginTop: '12px', padding: '8px', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}>
-            No Arc processed yet.
+            No Month processed yet.
           </div>
         )}
       </PanelBox>
@@ -2878,7 +2879,7 @@ function ProcurementTab({ company, onRefresh, showNotif }: any) {
           <PanelBox>
             <div style={{ fontSize: '14px', fontWeight: 600, color: T.ivory, marginBottom: '4px' }}>Drennport Small Depot</div>
             <p style={{ fontSize: '12px', color: T.muted, marginBottom: '16px' }}>Local storage for up to 3 vehicles.</p>
-            <FieldRow label="Lease per Arc" value={formatMoney(15000)} valueColor={T.red} />
+            <FieldRow label="Lease per Month" value={formatMoney(15000)} valueColor={T.red} />
             <FieldRow label="Vehicle Slots" value="3" />
             <div style={{ marginTop: '16px' }}>
               <GoldButton onClick={() => handleLease('Small Depot', 15000, 'Drennport State')} disabled={company.companyCash < 15000}>
@@ -2889,7 +2890,7 @@ function ProcurementTab({ company, onRefresh, showNotif }: any) {
           <PanelBox>
             <div style={{ fontSize: '14px', fontWeight: 600, color: T.ivory, marginBottom: '4px' }}>Westport Medium Yard</div>
             <p style={{ fontSize: '12px', color: T.muted, marginBottom: '16px' }}>Standard logistics yard with basic maintenance facilities.</p>
-            <FieldRow label="Lease per Arc" value={formatMoney(45000)} valueColor={T.red} />
+            <FieldRow label="Lease per Month" value={formatMoney(45000)} valueColor={T.red} />
             <FieldRow label="Vehicle Slots" value="10" />
             <div style={{ marginTop: '16px' }}>
               <GoldButton onClick={() => handleLease('Medium Yard', 45000, 'Westport State')} disabled={company.companyCash < 45000}>

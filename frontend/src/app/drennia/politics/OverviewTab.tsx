@@ -16,21 +16,21 @@ export default function OverviewTab({ overview, character, parties, onNavigateTo
 
   // Phase-aware "what should I do right now" prompt — keeps every arc purposeful,
   // especially the long governing stretch between elections.
-  const arcWord = countdown === 1 ? 'arc' : 'arcs';
+  const monthWord = countdown === 1 ? 'month' : 'months';
   const action = (() => {
     switch (phase) {
       case 'filing':
-        return { tone: '#C9A24A', title: 'FILING IS OPEN', detail: `Found or join a party and declare candidacy — filing closes in ${countdown} ${arcWord}.` };
+        return { tone: '#C9A24A', title: 'FILING IS OPEN', detail: `Found or join a party and declare candidacy — filing closes in ${countdown} ${monthWord}.` };
       case 'campaign':
-        return { tone: '#C9A24A', title: 'CAMPAIGN IS LIVE', detail: `Every arc of reach counts. Queue campaign actions now — polling in ${countdown} ${arcWord}.` };
+        return { tone: '#C9A24A', title: 'CAMPAIGN IS LIVE', detail: `Every month of reach counts. Queue campaign actions now — polling in ${countdown} ${monthWord}.` };
       case 'polling':
         return { tone: '#36D399', title: 'BALLOTS ARE BEING COUNTED', detail: 'Results are imminent. Check the Polls tab for the final split.' };
       case 'formation':
-        return { tone: '#C9A24A', title: 'GOVERNMENT FORMATION', detail: `Coalitions are being brokered — ${countdown} ${arcWord} to form a majority bloc.` };
+        return { tone: '#C9A24A', title: 'GOVERNMENT FORMATION', detail: `Coalitions are being brokered — ${countdown} ${monthWord} to form a majority bloc.` };
       case 'governing':
         return myParty
-          ? { tone: '#558CB8', title: 'THE FLOOR IS YOURS', detail: `Propose bills and procurement tenders to reward your base. Next filing opens in ${countdown} ${arcWord}.` }
-          : { tone: '#8F9BA8', title: 'BUILD YOUR BASE', detail: `Lobby, donate, and grow Influence before the next race. Filing opens in ${countdown} ${arcWord}.` };
+          ? { tone: '#558CB8', title: 'THE FLOOR IS YOURS', detail: `Propose bills and procurement tenders to reward your base. Next filing opens in ${countdown} ${monthWord}.` }
+          : { tone: '#8F9BA8', title: 'BUILD YOUR BASE', detail: `Lobby, donate, and grow Influence before the next race. Filing opens in ${countdown} ${monthWord}.` };
       default:
         return { tone: '#8F9BA8', title: 'THE COUNCIL AWAITS', detail: 'Enter Ironvale politics through the Party tab.' };
     }
@@ -74,7 +74,7 @@ export default function OverviewTab({ overview, character, parties, onNavigateTo
               <span className="text-[#36D399] uppercase tracking-wider text-sm font-bold">{phase}</span>
             </div>
             <div className="flex justify-between items-center mb-6">
-              <span className="text-[#A79D8C] text-sm">Arcs Until Next Phase</span>
+              <span className="text-[#A79D8C] text-sm">Months Until Next Phase</span>
               <span className="text-[#F4EBD6] font-mono">{countdown}</span>
             </div>
             

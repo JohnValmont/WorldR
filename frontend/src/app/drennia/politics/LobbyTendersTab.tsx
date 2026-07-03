@@ -207,7 +207,7 @@ export default function LobbyTendersTab({ overview, character, parties }: any) {
                 </select>
               </div>
               <div className="flex-1 min-w-[100px]">
-                <label className="block text-xs text-[#A79D8C] mb-1">Units/Arc</label>
+                <label className="block text-xs text-[#A79D8C] mb-1">Units/Month</label>
                 <input type="number" min="1" className="w-full bg-[#090A0F] border border-[#2A2630] text-[#E4DBCA] p-2 text-sm" value={tenderUnits} onChange={e => setTenderUnits(Number(e.target.value))} />
               </div>
               <div className="flex-1 min-w-[100px]">
@@ -215,7 +215,7 @@ export default function LobbyTendersTab({ overview, character, parties }: any) {
                 <input type="number" min="1" className="w-full bg-[#090A0F] border border-[#2A2630] text-[#E4DBCA] p-2 text-sm" value={tenderMaxPrice} onChange={e => setTenderMaxPrice(Number(e.target.value))} />
               </div>
               <div className="flex-1 min-w-[100px]">
-                <label className="block text-xs text-[#A79D8C] mb-1">Duration (Arcs)</label>
+                <label className="block text-xs text-[#A79D8C] mb-1">Duration (Months)</label>
                 <input type="number" min="1" className="w-full bg-[#090A0F] border border-[#2A2630] text-[#E4DBCA] p-2 text-sm" value={tenderDuration} onChange={e => setTenderDuration(Number(e.target.value))} />
               </div>
               <button onClick={handlePostTender} className="px-6 py-2 bg-[#80704F]/20 border border-[#80704F]/50 text-[#E4DBCA] text-sm uppercase hover:bg-[#80704F]/30 transition-colors">

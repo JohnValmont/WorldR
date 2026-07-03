@@ -20,7 +20,7 @@ export function formatCompanyMoney(company: { currencyId?: string }, value: numb
 }
 
 import { getWorldDate, advanceWorldArc, formatWorldDate } from './worldTime';
-import { formatGameDate as formatCalendarDate } from './calendar';
+import { formatWorldDate as formatCalendarWorldDate } from './calendar';
 
 // ─── Game Date System (Adapter to World Time) ─────────────────────────────────────────────────────────────
 export interface GameDate {
@@ -42,7 +42,8 @@ export function getGameDate(): GameDate {
 
 export function formatGameDate(date?: GameDate): string {
   const d = date || getGameDate();
-  return formatCalendarDate(d.worldMonth);
+  // worldYear holds the clock's orbit, worldMonth holds the arc (1..12).
+  return formatCalendarWorldDate(d.worldYear, d.worldMonth);
 }
 
 export function advanceGameDate(months: number = 1): void {
@@ -1605,8 +1606,8 @@ export function advanceWorldArcAndProcess(): string {
   const newDateStr = formatGameDate();
 
   if (processedCount > 0) {
-    return `Arc Advanced\n\nPrevious Date:\n${previousDateStr}\n\nCurrent Date:\n${newDateStr}\n\nBusiness operations processed successfully.`;
+    return `Month Advanced\n\nPrevious Date:\n${previousDateStr}\n\nCurrent Date:\n${newDateStr}\n\nBusiness operations processed successfully.`;
   } else {
-    return `Arc advanced. No active business operations were processed.\n\nPrevious Date:\n${previousDateStr}\n\nCurrent Date:\n${newDateStr}`;
+    return `Month advanced. No active business operations were processed.\n\nPrevious Date:\n${previousDateStr}\n\nCurrent Date:\n${newDateStr}`;
   }
 }

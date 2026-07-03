@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Activity, AlertTriangle, CheckCircle, Database } from 'lucide-react';
 import { api } from '@/lib/api';
+import { formatWorldDate } from '@/lib/calendar';
 
 interface MarketSegment {
   segmentId: string;
@@ -66,7 +67,7 @@ export default function MarketStructure({ countryId }: MarketStructureProps) {
     return (
       <div className="w-full p-8 text-zinc-300 font-outfit border border-[#23232b] rounded-lg bg-[#0c0d13]">
         <h2 className="text-xl font-cinzel text-zinc-100 mb-2">Market Overview</h2>
-        <p>No market data available yet. Complete an arc to see analytics.</p>
+        <p>No market data available yet. Complete a month to see analytics.</p>
       </div>
     );
   }
@@ -97,7 +98,7 @@ export default function MarketStructure({ countryId }: MarketStructureProps) {
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-cinzel text-zinc-200">Total Market Volume by Segment</h3>
           <span className="text-xs font-mono text-zinc-500 px-2 py-1 border border-[#27272a] rounded">
-            Arc {data.arc.orbit}.{data.arc.arc}
+            {formatWorldDate(data.arc.orbit, data.arc.arc)}
           </span>
         </div>
         <div className="h-72 w-full font-mono text-sm">

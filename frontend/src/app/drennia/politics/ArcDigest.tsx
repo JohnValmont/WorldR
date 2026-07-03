@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { politicsApi } from '@/lib/api';
+import { formatGameDate } from '@/lib/calendar';
 
 /**
  * ArcDigest — the "while you were away" return trigger.
@@ -74,7 +75,7 @@ export default function ArcDigest() {
               <div className="min-w-0">
                 <div className="text-[#E6D5B8] text-sm font-serif">{e.headline}</div>
                 {e.body && <div className="text-[#A79D8C] text-xs mt-0.5 line-clamp-2">{e.body}</div>}
-                <div className="text-[#6B6558] text-[10px] mt-1 uppercase tracking-wider">Arc {e.arc}</div>
+                <div className="text-[#6B6558] text-[10px] mt-1 uppercase tracking-wider">{formatGameDate(e.arc)}</div>
               </div>
             </div>
           );
