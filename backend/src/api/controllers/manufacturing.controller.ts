@@ -1466,10 +1466,6 @@ export class ManufacturingController {
         } else {
           unitsProduced = Math.floor(targetUnits * finalEfficiency);
         }
-        if (company.name.includes('Player Corp 2')) {
-          console.log(`DEBUG Dummy: target=${targetUnits}, workers=${workerCount}, reqWorkers=${requiredWorkers}, labEff=${laborEfficiency}, cond=${conditionFactor}, finEff=${finalEfficiency}, unitsProd=${unitsProduced}`);
-          console.log(`DEBUG Dummy Staff Array:`, staff);
-        }
 
         let maxByComponents = 9999999;
         if (!company.is_npc) {
@@ -1693,9 +1689,6 @@ export class ManufacturingController {
       }
 
       const marketShare = Math.min(1, unitsSold / Math.max(1, md.rawBuyerInterest));
-      if (companyId === '767c2273-94b5-4c11-9675-75b81e7e1510' && currentArc === 4) {
-         console.log(`[DEBUG SETTLE] Inserting sale for Valuecorp in Arc 4. Market: ${alloc.region_market_id}. Units: ${unitsSold}`);
-      }
       await trx('manufacturing_sales_results').insert({
         world_instance_id: company.world_instance_id, company_id: companyId, vehicle_model_id: alloc.vehicle_model_id, region_market_id: alloc.region_market_id,
         world_orbit: currentOrbit, world_arc: currentArc, units_sold: unitsSold, sale_price: alloc.sale_price, revenue: unitsSold * Number(alloc.sale_price),
@@ -2079,12 +2072,6 @@ export class ManufacturingController {
           companySalesManagerBonus
         );
 
-        if (currentArc === 4) {
-           console.log(`[DEBUG ARC 4] allMarketAllocations count: ${allMarketAllocations.length}`);
-           console.log(`[DEBUG ARC 4] Valuecorp allocs in allMarketAllocations: ${allMarketAllocations.filter(a => a.company_id === '767c2273-94b5-4c11-9675-75b81e7e1510').length}`);
-           console.log(`[DEBUG ARC 4] pooledSalesResults count: ${pooledSalesResults.length}`);
-           console.log(`[DEBUG ARC 4] Valuecorp results in pooledSalesResults: ${pooledSalesResults.filter(r => r.alloc.company_id === '767c2273-94b5-4c11-9675-75b81e7e1510').length}`);
-        }
 
         // 5. SETTLE (per participant)
         for (const pState of participantStates) {
