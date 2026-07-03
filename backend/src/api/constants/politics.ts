@@ -85,6 +85,16 @@ export const POL_FACTOR_DELTAS = {
   ACTIVE_CAMPAIGN: { charisma: 2 } // >= 3 actions
 };
 
+
+// ── Engagement / "Pulse" tunables (feedback-layer only; do NOT affect the pure engine) ──
+export const POL_PULSE = {
+  SEGMENT_WIN_MARGIN: 0.05,       // lead >= 5% over 2nd place in a segment => "winning"
+  SEGMENT_CONTESTED_MARGIN: 0.05, // within 5% of the leader => "contested"
+  NEAR_MISS_SEATS: 5,             // show "X seats from power" tension when within this many
+  RIVAL_MAX_SEAT_GAP: 8,          // a party within this seat gap is surfaced as your rival
+  MOMENTUM_MIN_DELTA: 0.005       // ignore per-arc share swings smaller than this (noise floor)
+};
+
 export interface CampaignAction {
   type: string;
   cost_cash: number;

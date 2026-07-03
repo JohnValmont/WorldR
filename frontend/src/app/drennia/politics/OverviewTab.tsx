@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, SectionHeading, Button } from '@/components/ui';
+import ArcDigest from './ArcDigest';
 
 export default function OverviewTab({ overview, character, parties, onNavigateToParty }: any) {
   // Extract phase and countdown
@@ -12,6 +13,28 @@ export default function OverviewTab({ overview, character, parties, onNavigateTo
 
   // Identify player's party
   const myParty = parties.find((p: any) => p.members?.some((m: any) => m.character_id === character?.id));
+
+  // Phase-aware "what should I do right now" prompt — keeps every arc purposeful,
+  // especially the long governing stretch between elections.
+  const arcWord = countdown === 1 ? 'arc' : 'arcs';
+  const action = (() => {
+    switch (phase) {
+      case 'filing':
+        return { tone: '#C9A24A', title: 'FILING IS OPEN', detail: `Found or join a party and declare candidacy — filing closes in ${countdown} ${arcWord}.` };
+      case 'campaign':
+        return { tone: '#C9A24A', title: 'CAMPAIGN IS LIVE', detail: `Every arc of reach counts. Queue campaign actions now — polling in ${countdown} ${arcWord}.` };
+      case 'polling':
+        return { tone: '#36D399', title: 'BALLOTS ARE BEING COUNTED', detail: 'Results are imminent. Check the Polls tab for the final split.' };
+      case 'formation':
+        return { tone: '#C9A24A', title: 'GOVERNMENT FORMATION', detail: `Coalitions are being brokered — ${countdown} ${arcWord} to form a majority bloc.` };
+      case 'governing':
+        return myParty
+          ? { tone: '#558CB8', title: 'THE FLOOR IS YOURS', detail: `Propose bills and procurement tenders to reward your base. Next filing opens in ${countdown} ${arcWord}.` }
+          : { tone: '#8F9BA8', title: 'BUILD YOUR BASE', detail: `Lobby, donate, and grow Influence before the next race. Filing opens in ${countdown} ${arcWord}.` };
+      default:
+        return { tone: '#8F9BA8', title: 'THE COUNCIL AWAITS', detail: 'Enter Ironvale politics through the Party tab.' };
+    }
+  })();
 
   return (
     <div className="space-y-6">
@@ -35,6 +58,11 @@ export default function OverviewTab({ overview, character, parties, onNavigateTo
             {Number(character?.finances?.cash_in_hand || 0).toLocaleString()}
           </div>
         </Card>
+      </div>
+
+      <div className="p-4 border-l-4 mb-2" style={{ borderColor: action.tone, background: `${action.tone}14`, borderTop: '1px solid #2A2630', borderRight: '1px solid #2A2630', borderBottom: '1px solid #2A2630' }}>
+        <div className="font-serif tracking-wide text-lg" style={{ color: action.tone }}>{action.title}</div>
+        <div className="text-[#A79D8C] text-sm mt-1">{action.detail}</div>
       </div>
 
       <div className="grid grid-cols-2 gap-6">
@@ -103,6 +131,11 @@ export default function OverviewTab({ overview, character, parties, onNavigateTo
             </Card>
           </div>
         </div>
+      </div>
+
+      <div>
+        <SectionHeading>Recent Movements</SectionHeading>
+        <ArcDigest />
       </div>
     </div>
   );

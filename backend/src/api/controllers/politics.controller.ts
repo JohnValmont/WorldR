@@ -4,6 +4,7 @@ import { AppError } from '../../utils/errors';
 import { getOrCreateCurrentCycle, buildEngineCandidates } from '../services/politics.service';
 import { PARTY_FOUNDING_COST, CAMPAIGN_ACTIONS, SEGMENTS, POL_MAJORITY_SEATS } from '../constants/politics';
 import { runElection } from '../services/electionEngine';
+import { buildPulse } from '../services/politics.pulse';
 
 export async function getStateOverview(req: Request, res: Response, next: NextFunction) {
   try {
@@ -215,18 +216,65 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
     if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
-    
+    const registeredVoters = activeState.registered_voters || 1600000;
+
+    const clock = await db('world_clock').first();
+    const actualArc = clock?.current_arc || 1;
+
+    // Current projection (all resolved campaign effort).
     const engineCands = await buildEngineCandidates(db, cycle.id);
-    const state = await db('pol_states').where({ id: activeState.id }).first();
-    const registeredVoters = state ? state.registered_voters || 1600000 : 1600000;
-    
-    // Read-only run
-    const projection = runElection({
-      candidates: engineCands,
-      registeredVoters
+    const projection = runElection({ candidates: engineCands, registeredVoters });
+
+    // Previous-arc projection powers momentum. Free & safe: the engine is pure and re-runnable.
+    let prevProjection = null;
+    try {
+      const prevCands = await buildEngineCandidates(db, cycle.id, actualArc - 1);
+      prevProjection = runElection({ candidates: prevCands, registeredVoters });
+    } catch {
+      prevProjection = null;
+    }
+
+    // Who is asking? (party + candidacy this cycle) — nullable for spectators.
+    let myPartyId: string | null = null;
+    let myCandidateId: string | null = null;
+    const userId = req.user?.id;
+    if (userId) {
+      const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+      if (character) {
+        const membership = await db('pol_party_members').where({ character_id: character.id }).first();
+        myPartyId = membership?.party_id || null;
+        const cand = await db('pol_candidates').where({ cycle_id: cycle.id, character_id: character.id }).first();
+        myCandidateId = cand?.id || null;
+      }
+    }
+
+    const partyRows = await db('pol_parties')
+      .where({ state_id: activeState.id })
+      .select('id', 'name', 'is_npc', 'leader_character_id');
+
+    // Currently-held council seats (loss-aversion). Mirror getCouncil's cycle choice.
+    let heldCycleId = cycle.id;
+    if (['filing', 'campaign', 'polling', 'formation'].includes(cycle.phase) && cycle.cycle_number > 1) {
+      const prevCycle = await db('pol_cycles')
+        .where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 })
+        .first();
+      if (prevCycle) heldCycleId = prevCycle.id;
+    }
+    const heldSeats = await db('pol_council_seats').where({ cycle_id: heldCycleId }).select('party_id');
+    const heldSeatsByParty: Record<string, number> = {};
+    for (const s of heldSeats) heldSeatsByParty[s.party_id] = (heldSeatsByParty[s.party_id] || 0) + 1;
+
+    const pulse = buildPulse({
+      projection,
+      prevProjection,
+      parties: partyRows,
+      myPartyId,
+      myCandidateId,
+      heldSeatsByParty
     });
 
-    res.status(200).json({ status: 'success', data: projection });
+    // Bare object (matches getCouncil/getState convention & PollsTab expectations); pulse rides along.
+    res.status(200).json({ ...projection, pulse });
   } catch (error) {
     next(error);
   }

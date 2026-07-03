@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { politicsApi } from '@/lib/api';
 import { SEGMENTS } from '@/lib/politicsConstants';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
+import PoliticalPulse from './PoliticalPulse';
 
 export default function PollsTab({ overview, parties }: any) {
   const [polls, setPolls] = useState<any>(null);
@@ -67,6 +68,7 @@ export default function PollsTab({ overview, parties }: any) {
 
   return (
     <div className="flex flex-col gap-8 animate-slide-in">
+      <PoliticalPulse pulse={polls?.pulse} />
       <div className="flex justify-between items-center border-b border-[#2A2630] pb-4">
         <div>
           <h2 className="text-xl font-serif text-[#F4EBD6]">Live Polls Projection</h2>
