@@ -12,7 +12,9 @@ import {
   Activity, Globe, Newspaper,
 } from 'lucide-react';
 import { getContracts } from '../../../lib/businessCore';
+import { addNotification } from '../../../lib/notifications';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
+import NotificationBell from '../../../components/gameplay/NotificationBell';
 import {
   Card, Button, StatChip, DataRow, EmptyState, Badge, StatusDot,
   SectionHeading, PageShell,
@@ -198,6 +200,19 @@ export default function ChroniclePage() {
             }));
             const combined = [...polEvents, ...LEDGER_HEADLINES.map(h => ({ ...h, arc: null }))];
             setLedgerFeed(combined);
+
+            // Mirror world/ledger movements into the notification feed so the
+            // header bell surfaces "while you were away" events. Stable ids
+            // keep this idempotent across reloads.
+            data.forEach((ev: any) => {
+              addNotification({
+                id: `ledger_${ev.id}`,
+                category: 'world',
+                title: ev.headline,
+                body: ev.body,
+                href: '/drennia/chronicle',
+              });
+            });
           }).catch(() => {
             setLedgerFeed(LEDGER_HEADLINES.map(h => ({ ...h, arc: null })));
           });
@@ -292,8 +307,8 @@ export default function ChroniclePage() {
           </span>
         </div>
 
-        {/* Center: stat chips */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Center: stat chips — horizontal scroll strip on mobile, wrap on sm+ */}
+        <div className="flex items-center gap-2 flex-nowrap overflow-x-auto scrollbar-hide max-w-full sm:flex-wrap sm:overflow-visible">
           <StatChip
             label="Cash ₯"
             value={playerCash}
@@ -318,6 +333,7 @@ export default function ChroniclePage() {
         {/* Right: controls */}
         <div className="flex items-center gap-3">
           <WorldTimeControl />
+          <NotificationBell />
           <button className="text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-500 hover:text-terminal-amber transition-colors">
             Letters
           </button>

@@ -4,6 +4,7 @@
 
 import { getCurrencyConfig } from '../world/currencies/currencyRegistry';
 import { companyApi } from './api';
+import { addNotification, categoryForRecordType } from './notifications';
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
 export function formatMoney(value: number, currencyId: string = 'drennian-mark'): string {
@@ -728,9 +729,20 @@ export function saveBusinessOffer(offer: BusinessOffer): void {
 // ─── Records ─────────────────────────────────────────────────────────────────
 export function addRecord(summary: string, type = 'business'): void {
   if (typeof window === 'undefined') return;
-  const rec = { id: `rec_${Date.now()}`, type, summary, createdAt: formatGameDate() };
+  const gameDate = formatGameDate();
+  const rec = { id: `rec_${Date.now()}`, type, summary, createdAt: gameDate };
   const recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
   localStorage.setItem('worldr_records_v1', JSON.stringify([rec, ...recs]));
+
+  // Mirror every new record into the notification feed so the bell reflects
+  // the player's own actions (contracts won, company milestones, etc.).
+  addNotification({
+    id: `rec_${rec.id}`,
+    category: categoryForRecordType(type),
+    title: summary,
+    href: '/drennia/records',
+    gameDate,
+  });
 }
 
 // ─── Net Worth ────────────────────────────────────────────────────────────────
@@ -1604,6 +1616,16 @@ export function advanceWorldArcAndProcess(): string {
 
   advanceGameDate(1);
   const newDateStr = formatGameDate();
+
+  addNotification({
+    category: 'world',
+    title: `A new month begins — ${newDateStr}`,
+    body: processedCount > 0
+      ? `Business operations processed for ${processedCount} ${processedCount === 1 ? 'company' : 'companies'}.`
+      : 'No active business operations this month.',
+    href: '/drennia/chronicle',
+    gameDate: newDateStr,
+  });
 
   if (processedCount > 0) {
     return `Month Advanced\n\nPrevious Date:\n${previousDateStr}\n\nCurrent Date:\n${newDateStr}\n\nBusiness operations processed successfully.`;

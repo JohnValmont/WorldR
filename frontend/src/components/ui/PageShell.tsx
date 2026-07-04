@@ -16,12 +16,15 @@ export default function PageShell({ children, sidebar, sidebarWidth = 340, class
   if (sidebar) {
     return (
       <div className={cn('w-full px-4 md:px-6', className)}>
+        {/* Single column on mobile/tablet, content + sidebar split at lg+.
+            The lg breakpoint lives in globals.css (.page-shell-grid) so the
+            sidebar width can stay a runtime prop via the --sidebar-w var. */}
         <div
-          className="grid gap-6 items-start"
-          style={{ gridTemplateColumns: `1fr ${sidebarWidth}px` }}
+          className="page-shell-grid"
+          style={{ '--sidebar-w': `${sidebarWidth}px` } as React.CSSProperties}
         >
           <div className="min-w-0 flex flex-col gap-6">{children}</div>
-          <div className="flex flex-col gap-5 sticky top-0">{sidebar}</div>
+          <div className="flex flex-col gap-5 lg:sticky lg:top-0">{sidebar}</div>
         </div>
       </div>
     );

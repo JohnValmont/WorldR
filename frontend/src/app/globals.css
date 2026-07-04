@@ -415,6 +415,22 @@ td {
   padding: 24px 28px 56px;
 }
 
+/* -- PageShell responsive grid -------------------------------------- */
+/* Content stacks above the sidebar on mobile/tablet, then splits into a
+   two-column layout at the lg breakpoint. --sidebar-w is set per-instance
+   from the PageShell `sidebarWidth` prop (defaults to 340px). */
+.page-shell-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .page-shell-grid {
+    grid-template-columns: minmax(0, 1fr) var(--sidebar-w, 340px);
+  }
+}
+
 /* -- Bar fill animation (market snapshot) --------------------------- */
 @keyframes bar-fill {
   from { transform: scaleX(0); transform-origin: left; }
