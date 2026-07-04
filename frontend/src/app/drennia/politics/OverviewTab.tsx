@@ -17,7 +17,7 @@ const FACTORS = [
   { key: 'influence', label: 'Influence' },
 ];
 
-export default function OverviewTab({ overview, character, parties, onNavigateToParty }: any) {
+export default function OverviewTab({ overview, character, parties, latestGoverningEvent, onNavigateToParty }: any) {
   const phase = overview?.cyclePhase || overview?.cycle?.phase || 'governing';
   const countdown = overview?.countdownToNextPhase || 0;
   const activeState = overview?.activeState;
@@ -78,6 +78,30 @@ export default function OverviewTab({ overview, character, parties, onNavigateTo
             <div className="font-serif tracking-wide text-lg" style={{ color: action.tone }}>{action.title}</div>
             <div className="text-[#A79D8C] text-sm mt-1">{action.detail}</div>
           </div>
+
+          {/* ── In the news: governing event flash ────────────────────── */}
+          {phase === 'governing' && latestGoverningEvent && (
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+              padding: '10px 14px',
+              background: 'rgba(255,255,255,0.025)',
+              border: '1px solid #2A2630',
+              borderLeft: '3px solid #6B6358',
+            }}>
+              <div style={{ flexShrink: 0 }}>
+                <div style={{ fontSize: 8, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#6B6358', marginBottom: 2 }}>In the news</div>
+                <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#6B6358' }}>Month {latestGoverningEvent.arc}</div>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#A79D8C', lineHeight: 1.4, marginBottom: 2 }}>
+                  {latestGoverningEvent.headline}
+                </div>
+                <div style={{ fontSize: 10, color: '#6B6358', lineHeight: 1.5 }}>
+                  {latestGoverningEvent.body}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {FACTORS.map((f) => (

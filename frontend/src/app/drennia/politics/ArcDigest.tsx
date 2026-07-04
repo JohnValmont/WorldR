@@ -14,7 +14,15 @@ const KIND_ACCENT: Record<string, string> = {
   government_formed: '#36D399',
   bill_passed: '#558CB8',
   bill_failed: '#B85555',
-  tender_awarded: '#8A55B8'
+  tender_awarded: '#8A55B8',
+  // governing phase world events
+  gov_industrial_dispute: '#8F7A5A',
+  gov_tax_pressure:       '#8F7A5A',
+  gov_civic_approval:     '#4D8C6A',
+  gov_procurement_surplus:'#4A6D8C',
+  gov_corruption_whisper: '#B85555',
+  gov_investment_uptick:  '#4D8C6A',
+  gov_opposition_rally:   '#8F7A5A',
 };
 
 const KIND_LABEL: Record<string, string> = {
@@ -22,7 +30,15 @@ const KIND_LABEL: Record<string, string> = {
   government_formed: 'GOVERNMENT',
   bill_passed: 'COUNCIL',
   bill_failed: 'COUNCIL',
-  tender_awarded: 'PROCUREMENT'
+  tender_awarded: 'PROCUREMENT',
+  // governing phase world events
+  gov_industrial_dispute:  'LABOUR',
+  gov_tax_pressure:        'ECONOMY',
+  gov_civic_approval:      'SOCIETY',
+  gov_procurement_surplus: 'TREASURY',
+  gov_corruption_whisper:  'PRESS',
+  gov_investment_uptick:   'ECONOMY',
+  gov_opposition_rally:    'POLITICS',
 };
 
 export default function ArcDigest() {

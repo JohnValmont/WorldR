@@ -18,6 +18,7 @@ export default function PoliticsDesk() {
   const [character, setCharacter] = useState<any>(null);
   const [overview, setOverview] = useState<any>(null);
   const [parties, setParties] = useState<any[]>([]);
+  const [latestGoverningEvent, setLatestGoverningEvent] = useState<any>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -28,6 +29,7 @@ export default function PoliticsDesk() {
         characterApi.getMe(),
         politicsApi.getState(),
         politicsApi.getParties(),
+        politicsApi.getLedger(20),
       ]);
 
       if (results[0].status === 'fulfilled') {
@@ -43,6 +45,11 @@ export default function PoliticsDesk() {
         setParties(results[2].value);
       } else {
         console.warn('Politics parties endpoint error:', (results[2] as any).reason?.message);
+      }
+      if (results[3].status === 'fulfilled') {
+        const ledger: any[] = Array.isArray(results[3].value) ? results[3].value : [];
+        const govEvent = ledger.find((e: any) => typeof e.kind === 'string' && e.kind.startsWith('gov_'));
+        if (govEvent) setLatestGoverningEvent(govEvent);
       }
 
       // Only block the page if ALL three failed
@@ -111,7 +118,7 @@ export default function PoliticsDesk() {
       <div className="flex-1 overflow-y-auto animate-slide-in">
         {activeTab === 'overview' && (
           <PageShell className="py-6">
-            <OverviewTab overview={overview} character={character} parties={parties} onNavigateToParty={() => setActiveTab('party')} />
+            <OverviewTab overview={overview} character={character} parties={parties} latestGoverningEvent={latestGoverningEvent} onNavigateToParty={() => setActiveTab('party')} />
           </PageShell>
         )}
         {activeTab === 'party' && (

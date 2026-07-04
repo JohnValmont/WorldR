@@ -88,6 +88,90 @@ export const POL_FACTOR_DELTAS = {
   ACTIVE_CAMPAIGN: { charisma: 2 } // >= 3 actions
 };
 
+// ── Governing Phase Events ────────────────────────────────────────────────────
+/** One event fires per governing arc. Deterministic: arc % templates.length */
+export const GOVERNING_EVENTS_ENABLED = true;
+
+/** Effect magnitudes — all tunable here, never inline */
+export const GOV_EVENT_EFFECTS = {
+  TAX_PRESSURE_CREDIBILITY:    -1,
+  CIVIC_APPROVAL_INFLUENCE:    +1,
+  PROCUREMENT_SURPLUS_CASH:    50_000,
+  CORRUPTION_CREDIBILITY:      -2,
+  OPPOSITION_RALLY_CREDIBILITY: +1,
+};
+
+export interface GoverningEventTemplate {
+  kind: string;            // discriminator stored in pol_ledger_events.kind
+  headline: string;
+  body: string;
+  /** Who gets the effect: 'premier' | 'opposition_leader' | 'governing_party' | null */
+  target: 'premier' | 'opposition_leader' | 'governing_party' | null;
+  /** Factor deltas applied to target character (null = no character effect) */
+  characterDelta: Record<string, number> | null;
+  /** Treasury delta applied to governing party (0 = none) */
+  partyTreasuryDelta: number;
+}
+
+export const GOVERNING_EVENT_TEMPLATES: GoverningEventTemplate[] = [
+  {
+    kind: 'gov_industrial_dispute',
+    headline: 'Ironvale steelworkers\' union calls warning strike',
+    body: 'Disruption risk rises across Ironvale\'s industrial corridor as union representatives cite unsafe conditions and stalled wage negotiations.',
+    target: null,
+    characterDelta: null,
+    partyTreasuryDelta: 0,
+  },
+  {
+    kind: 'gov_tax_pressure',
+    headline: 'Business council petitions Premier for tax relief',
+    body: 'The Ironvale Chamber of Commerce submits a formal petition citing the current industry tax rate as a drag on reinvestment and hiring.',
+    target: 'premier',
+    characterDelta: { credibility: GOV_EVENT_EFFECTS.TAX_PRESSURE_CREDIBILITY },
+    partyTreasuryDelta: 0,
+  },
+  {
+    kind: 'gov_civic_approval',
+    headline: 'Civic satisfaction index up — stability restored',
+    body: 'The Drennport Civic Monitor reports a rise in public satisfaction with institutional performance this month across all four Drennia states.',
+    target: 'premier',
+    characterDelta: { influence: GOV_EVENT_EFFECTS.CIVIC_APPROVAL_INFLUENCE },
+    partyTreasuryDelta: 0,
+  },
+  {
+    kind: 'gov_procurement_surplus',
+    headline: 'Government procurement budget underspent — surplus returned',
+    body: 'The State Treasury confirms an unspent procurement allocation has been returned to the governing party\'s discretionary fund this month.',
+    target: 'governing_party',
+    characterDelta: null,
+    partyTreasuryDelta: GOV_EVENT_EFFECTS.PROCUREMENT_SURPLUS_CASH,
+  },
+  {
+    kind: 'gov_corruption_whisper',
+    headline: 'Anonymous tip sheet circulates in Drennport press',
+    body: 'An unsigned document alleging improper conduct in last month\'s tender award process has begun circulating among political correspondents.',
+    target: 'premier',
+    characterDelta: { credibility: GOV_EVENT_EFFECTS.CORRUPTION_CREDIBILITY },
+    partyTreasuryDelta: 0,
+  },
+  {
+    kind: 'gov_investment_uptick',
+    headline: 'Ironvale factory orders rise — investors cautiously optimistic',
+    body: 'Order books at three Ironvale manufacturing facilities are up month-on-month, prompting cautious optimism among industrial analysts.',
+    target: null,
+    characterDelta: null,
+    partyTreasuryDelta: 0,
+  },
+  {
+    kind: 'gov_opposition_rally',
+    headline: 'Opposition holds mass rally at Westgate Square',
+    body: 'Several thousand supporters gathered this month as the principal opposition party staged its largest public demonstration of the current term.',
+    target: 'opposition_leader',
+    characterDelta: { credibility: GOV_EVENT_EFFECTS.OPPOSITION_RALLY_CREDIBILITY },
+    partyTreasuryDelta: 0,
+  },
+];
+
 
 // ── Engagement / "Pulse" tunables (feedback-layer only; do NOT affect the pure engine) ──
 export const POL_PULSE = {

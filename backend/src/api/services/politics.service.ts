@@ -21,6 +21,7 @@ import {
   POL_FACTOR_DELTAS
 } from '../constants/politics';
 import { EngineCandidate, runElection } from './electionEngine';
+import { fireGoverningEvent } from './governingEvents';
 
 export async function getCurrentWorldArc(): Promise<number> {
   const clock = await db('world_clock').first();
@@ -264,6 +265,8 @@ export async function processPoliticalArc(trx: any, stateId: string, currentArc:
 
   if (newPhase === 'governing') {
     await resolveBills(trx, stateId, cycle.id, currentArc);
+    // Fire one deterministic world event per governing arc
+    await fireGoverningEvent(trx, stateId, currentArc);
   }
 
   // Tenders operate on arc boundaries regardless of phase once active
