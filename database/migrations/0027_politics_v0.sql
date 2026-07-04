@@ -150,7 +150,7 @@ CREATE TABLE pol_state_policy (
 CREATE TABLE pol_ledger_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     state_id UUID NOT NULL REFERENCES pol_states(id) ON DELETE CASCADE,
-    month INTEGER NOT NULL,
+    arc INTEGER NOT NULL,
     kind VARCHAR(50) NOT NULL,
     headline TEXT NOT NULL,
     body TEXT NOT NULL
@@ -158,22 +158,3 @@ CREATE TABLE pol_ledger_events (
 
 COMMIT;
 
--- DOWN
-BEGIN;
-DROP TABLE IF EXISTS pol_ledger_events;
-DROP TABLE IF EXISTS pol_state_policy;
-DROP TABLE IF EXISTS pol_tender_bids;
-DROP TABLE IF EXISTS pol_tenders;
-DROP TABLE IF EXISTS pol_bill_votes;
-DROP TABLE IF EXISTS pol_bills;
-DROP TABLE IF EXISTS pol_coalitions;
-DROP TABLE IF EXISTS pol_offices;
-DROP TABLE IF EXISTS pol_council_seats;
-DROP TABLE IF EXISTS pol_results;
-DROP TABLE IF EXISTS pol_campaign_actions;
-DROP TABLE IF EXISTS pol_candidates;
-DROP TABLE IF EXISTS pol_cycles;
-DROP TABLE IF EXISTS pol_party_members;
-DROP TABLE IF EXISTS pol_parties;
-DROP TABLE IF EXISTS pol_states;
-COMMIT;

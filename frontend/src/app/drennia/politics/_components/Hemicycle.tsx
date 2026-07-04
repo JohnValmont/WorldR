@@ -26,7 +26,7 @@ interface Seat {
 
 /**
  * Hemicycle — a semicircular parliamentary seat map (the chamber, not a pie).
- * Deterministically arranges `totalSeats` dots across concentric arcs and fills
+ * Deterministically arranges `totalSeats` dots across concentric months and fills
  * them party-by-party into contiguous wedges from left to right. Empty seats
  * render muted. Pure SVG, scales fluidly to its container.
  */

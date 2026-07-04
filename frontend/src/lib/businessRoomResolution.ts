@@ -32,7 +32,7 @@ export interface BusinessResolutionResult {
   narrativeTitle: string;
   narrative: string;           // Prose paragraph — no stat-log language
   factorChanges: Partial<CitizenFactors>;
-  cashChange: number;          // In Drennian Marks ₯
+  cashChange: number;          // In Drennian Days ₯
   publicRecord: boolean;
   recordSummary: string;       // Prose sentence for Record Panel
   npcReaction: string | null;
@@ -108,7 +108,7 @@ function getNarrative(
   }
   // Fallback generic prose
   const fallbacks: Record<ResultType, string> = {
-    success: `You chose to ${roleName.toLowerCase()} at ${roomTitle}. The room responded well. A record was created, and the experience left a mark on your file.`,
+    success: `You chose to ${roleName.toLowerCase()} at ${roomTitle}. The room responded well. A record was created, and the experience left a day on your file.`,
     mixed:   `You chose to ${roleName.toLowerCase()} at ${roomTitle}. The result was uneven — some gain, some friction. The experience was noted, if not entirely celebrated.`,
     failure: `You chose to ${roleName.toLowerCase()} at ${roomTitle}. The room did not respond as expected. The opportunity has passed for now.`,
   };

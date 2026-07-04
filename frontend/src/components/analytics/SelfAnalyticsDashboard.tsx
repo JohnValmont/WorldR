@@ -27,7 +27,7 @@ interface AnalyticsSegment {
 }
 
 interface AnalyticsData {
-  arc: { orbit: number; arc: number };
+  month: { year: number; month: number };
   segments: AnalyticsSegment[];
 }
 

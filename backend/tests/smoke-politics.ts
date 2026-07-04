@@ -17,8 +17,8 @@ async function runSmoke() {
   const [u2] = await db('users').insert({ email: `test_pol2_${ts}@worldr.com`, password_hash: 'xxx' }).returning('*');
 
   const clock = await db('world_instances').where('id', 'pre-alpha-world-1').first();
-  const currentArc = clock?.current_arc || 1;
-  const currentOrbit = clock?.current_orbit || 1;
+  const currentMonth = clock?.current_month || 1;
+  const currentYear = clock?.current_year || 1;
 
   const [c1] = await db('characters').insert({
     world_instance_id: 'pre-alpha-world-1',
@@ -26,9 +26,9 @@ async function runSmoke() {
     motherland_country_id: 'drennia',
     name: 'Pol Tester 1',
     age: 20,
-    created_at_world_orbit: currentOrbit,
-    created_at_world_arc: currentArc,
-    created_at_world_mark: 1
+    created_at_world_year: currentYear,
+    created_at_world_month: currentMonth,
+    created_at_world_day: 1
   }).returning('*');
 
   const [c2] = await db('characters').insert({
@@ -37,21 +37,21 @@ async function runSmoke() {
     motherland_country_id: 'drennia',
     name: 'Pol Tester 2',
     age: 20,
-    created_at_world_orbit: currentOrbit,
-    created_at_world_arc: currentArc,
-    created_at_world_mark: 1
+    created_at_world_year: currentYear,
+    created_at_world_month: currentMonth,
+    created_at_world_day: 1
   }).returning('*');
 
   await db('character_finances').insert({
     character_id: c1.id,
-    currency_id: 'drennian-mark',
+    currency_id: 'drennian-day',
     cash_in_hand: 100000,
     net_worth: 100000
   });
 
   await db('character_finances').insert({
     character_id: c2.id,
-    currency_id: 'drennian-mark',
+    currency_id: 'drennian-day',
     cash_in_hand: 100000,
     net_worth: 100000
   });
@@ -73,16 +73,16 @@ async function runSmoke() {
     const state = await db('pol_states').where({ is_active: true }).first();
     const cycle = await getOrCreateCurrentCycle(state.id);
     const clock = await db('world_instances').where('id', 'pre-alpha-world-1').first();
-    const currentArc = clock?.current_arc || 1;
+    const currentMonth = clock?.current_month || 1;
 
-    // To be in filing: currentArc >= startFiling && currentArc < startCampaign
+    // To be in filing: currentMonth >= startFiling && currentMonth < startCampaign
     // startCampaign = cycle.polling_arc - 6
     // startFiling = cycle.polling_arc - 9
-    // so let's set polling_arc = currentArc + 8
-    // then startFiling = currentArc - 1, startCampaign = currentArc + 2 -> currentArc is inside [startFiling, startCampaign)
+    // so let's set polling_arc = currentMonth + 8
+    // then startFiling = currentMonth - 1, startCampaign = currentMonth + 2 -> currentMonth is inside [startFiling, startCampaign)
     await db('pol_cycles').where({ id: cycle.id }).update({
-      polling_arc: currentArc + 8,
-      formation_end_arc: currentArc + 10,
+      polling_arc: currentMonth + 8,
+      formation_end_arc: currentMonth + 10,
       phase: 'filing'
     });
 
@@ -139,7 +139,7 @@ async function runSmoke() {
     // 9. Now force phase to GOVERNING (outside filing)
     console.log("\n--- PHASE: GOVERNING ---");
     await db('pol_cycles').where({ id: cycle.id }).update({
-      polling_arc: currentArc + 20, // startFiling is currentArc + 11
+      polling_arc: currentMonth + 20, // startFiling is currentMonth + 11
       phase: 'governing'
     });
 

@@ -807,12 +807,12 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                 <h4 className="text-[10px] uppercase text-zinc-500 mb-2 font-mono">Revenue vs Expenses (Last 12 Months)</h4>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={[...allReports].sort((a,b) => a.arc_number - b.arc_number).slice(-12).map(r => ({
-                    arc: `Month ${r.arc_number}`,
+                    month: `Month ${r.arc_number}`,
                     revenue: Number(r.gross_revenue),
                     expenses: Number(r.production_costs) + Number(r.staff_wages) + Number(r.factory_lease_costs) + Number(r.factory_maintenance_costs) + Number(r.inventory_storage_costs)
                   }))}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#23232b" vertical={false} />
-                    <XAxis dataKey="arc" stroke="#888888" fontSize={10} tickMargin={10} />
+                    <XAxis dataKey="month" stroke="#888888" fontSize={10} tickMargin={10} />
                     <YAxis stroke="#888888" fontSize={10} tickFormatter={(val) => fm(val)} />
                     <RechartsTooltip
                       contentStyle={{ backgroundColor: '#0c0d13', borderColor: '#23232b', fontSize: '12px', fontFamily: 'monospace' }}
@@ -1038,17 +1038,17 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     // STATE: CONSTRUCTION UNDERWAY
                     if (expStatus === 'construction_underway') {
                       const startedArc = factory.expansion_started_arc;
-                      const startedOrbit = factory.expansion_started_orbit;
-                      const compArc = factory.expansion_completion_arc;
-                      const compOrbit = factory.expansion_completion_orbit;
+                      const startedYear = factory.expansion_started_year;
+                      const compMonth = factory.expansion_completion_arc;
+                      const compYear = factory.expansion_completion_year;
                       return (
                         <div style={{ marginTop: '20px', borderTop: `1px solid ${T.border}`, paddingTop: '16px' }}>
                           <div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#f59e0b', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>Workshop Expansion Underway</div>
                           <div style={{ background: 'rgba(245,158,11,0.06)', border: `1px solid rgba(245,158,11,0.3)`, padding: '12px', marginBottom: '12px' }}>
                             <div style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 700, marginBottom: '8px' }}>🔧 Construction in Progress</div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
-                              <FieldRow label="Started" value={formatWorldDate(startedOrbit, startedArc)} />
-                              <FieldRow label="Completes" value={formatWorldDate(compOrbit, compArc)} />
+                              <FieldRow label="Started" value={formatWorldDate(startedYear, startedArc)} />
+                              <FieldRow label="Completes" value={formatWorldDate(compYear, compMonth)} />
                               <FieldRow label="Investment Paid" value={fm(factory.expansion_cost || 500000)} valueColor={T.red} />
                               <FieldRow label="Current Capacity" value="100 units / Month" />
                               <FieldRow label="Production Line 1" value="Operational" valueColor={T.mint} />
@@ -1262,7 +1262,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             {selectedModel.dev_stage === 'prototype' && '🔨 Prototype Phase — building and evaluating physical prototypes.'}
                             {selectedModel.dev_stage === 'testing' && '🧪 Testing Programme — road testing and durability validation.'}
                             {!selectedModel.dev_stage && 'Development is underway.'}
-                            {' '}Est. ready: {formatWorldDate(selectedModel.development_completes_at_orbit || 1, selectedModel.development_completes_at_arc || 1)}.
+                            {' '}Est. ready: {formatWorldDate(selectedModel.development_completes_at_year || 1, selectedModel.development_completes_at_month || 1)}.
                           </div>
                           {selectedModel.planned_dev_time_arcs && (
                             <div style={{ marginTop: '10px', display: 'flex', gap: '6px' }}>
@@ -1332,7 +1332,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           <FieldRow label="Mfg Cost / Unit" value={fm(selectedModel.manufacturing_cost_per_unit)} valueColor={T.red} />
                           <FieldRow label="Sale Price" value={fm(selectedModel.sale_price)} valueColor={T.gold} />
                           <FieldRow label="Est. Margin / Unit" value={fm(Number(selectedModel.sale_price) - Number(selectedModel.manufacturing_cost_per_unit))} valueColor={Number(selectedModel.sale_price) > Number(selectedModel.manufacturing_cost_per_unit) ? T.mint : T.red} />
-                          <FieldRow label="Dev. Started (Month)" value={formatWorldDate(selectedModel.created_at_world_orbit, selectedModel.created_at_world_arc)} />
+                          <FieldRow label="Dev. Started (Month)" value={formatWorldDate(selectedModel.created_at_world_year, selectedModel.created_at_world_month)} />
                         </PanelBox>
                       </div>
 
@@ -1561,7 +1561,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Performance History</div>
                         <PanelBox>
                           {(() => {
-                            const snaps = modelSnapshots.filter((s: any) => s.vehicle_model_id === selectedModel.id).sort((a: any, b: any) => b.world_arc - a.world_arc);
+                            const snaps = modelSnapshots.filter((s: any) => s.vehicle_model_id === selectedModel.id).sort((a: any, b: any) => b.world_month - a.world_month);
                             if (snaps.length === 0) return <div style={{ fontSize: '11px', color: T.faint }}>No performance history available yet. Snapshots are generated after a month closes.</div>;
                             return (
                               <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
@@ -1578,7 +1578,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                   <tbody>
                                     {snaps.map((s: any) => (
                                       <tr key={s.id} style={{ borderBottom: `1px dashed ${T.border}33` }}>
-                                        <td style={{ padding: '8px 0', color: T.ivory }}>{s.world_arc}</td>
+                                        <td style={{ padding: '8px 0', color: T.ivory }}>{s.world_month}</td>
                                         <td style={{ padding: '8px 0', color: T.muted }}>{s.units_produced}</td>
                                         <td style={{ padding: '8px 0', color: T.mint }}>{s.units_sold}</td>
                                         <td style={{ padding: '8px 0', color: T.gold }}>{fm(s.revenue_generated)}</td>
@@ -2016,7 +2016,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         )}
                         {inProgress && (
                           <div style={{ fontSize: '11px', color: T.faint, textAlign: 'center', marginTop: '8px' }}>
-                            Started Month {activeProg.started_at_world_arc}. Review in {activeProg.estimated_completion_arc} Month(s).
+                            Started Month {activeProg.started_at_world_month}. Review in {activeProg.estimated_completion_arc} Month(s).
                           </div>
                         )}
                       </div>
@@ -3035,7 +3035,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     return true;
                   }).map((entry: any) => (
                     <tr key={entry.id} style={{ borderBottom: `1px solid #1a1a1a` }}>
-                      <td style={{ padding: '8px', color: T.muted, whiteSpace: 'nowrap' }}>{formatWorldDateShort(entry.game_orbit, entry.game_arc)}</td>
+                      <td style={{ padding: '8px', color: T.muted, whiteSpace: 'nowrap' }}>{formatWorldDateShort(entry.game_year, entry.game_month)}</td>
                       <td style={{ padding: '8px', color: T.faint, whiteSpace: 'nowrap' }}>{entry.entry_type.replace(/_/g, ' ')}</td>
                       <td style={{ padding: '8px', color: T.ivory }}>{entry.description}</td>
                       <td style={{ padding: '8px', textAlign: 'right', color: Number(entry.amount) >= 0 ? T.mint : T.red, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
@@ -3072,15 +3072,15 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     ...r,
                     _is_arc_report: true,
                     record_type: 'Month Report',
-                    created_at_world_orbit: r.world_orbit,
-                    created_at_world_arc: r.world_arc,
+                    created_at_world_year: r.world_year,
+                    created_at_world_month: r.world_month,
                   }))
                 ]
                   .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                   .map((record: any) => {
                     const isArcReport = record._is_arc_report;
-                    const orbit = record.created_at_world_orbit;
-                    const arc = record.created_at_world_arc;
+                    const year = record.created_at_world_year;
+                    const month = record.created_at_world_month;
 
                     return (
                       <div key={record.id + (isArcReport ? '_report' : '_rec')} style={{
@@ -3093,7 +3093,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         }
                       }}>
                         <div style={{ width: '80px', color: T.muted, fontFamily: 'monospace', fontSize: '11px', paddingTop: '2px' }}>
-                          {formatWorldDateShort(orbit, arc)}
+                          {formatWorldDateShort(year, month)}
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -3129,7 +3129,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', borderBottom: `1px solid ${T.border}`, paddingBottom: '16px' }}>
                         <div>
                           <h2 style={{ margin: 0, color: T.gold, fontSize: '20px' }}>Month Report</h2>
-                          <div style={{ color: T.muted, fontSize: '12px', fontFamily: 'monospace', marginTop: '4px' }}>{formatWorldDate(r.world_orbit, r.world_arc)}</div>
+                          <div style={{ color: T.muted, fontSize: '12px', fontFamily: 'monospace', marginTop: '4px' }}>{formatWorldDate(r.world_year, r.world_month)}</div>
                         </div>
                         <GhostButton onClick={() => setSelectedArcReportId(null)}>Close</GhostButton>
                       </div>
@@ -3181,7 +3181,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                       <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: `1px solid ${T.border}` }}>
                         <div style={{ fontSize: '14px', fontWeight: 600, color: T.ivory, marginBottom: '12px' }}>Local Brand Results</div>
                         {(() => {
-                          const arcBrandResults = brandResults.filter((br: any) => br.world_arc === r.world_arc);
+                          const arcBrandResults = brandResults.filter((br: any) => br.world_month === r.world_month);
                           if (!arcBrandResults || arcBrandResults.length === 0) return <div style={{ fontSize: '12px', color: T.muted }}>No brand impact recorded this Month.</div>;
                           return (
                             <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse' }}>

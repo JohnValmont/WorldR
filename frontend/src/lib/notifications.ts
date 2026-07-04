@@ -116,7 +116,7 @@ export function addNotification(input: NotificationInput): GameNotification | nu
   return notification;
 }
 
-/** Mark a single notification as read. */
+/** Day a single notification as read. */
 export function markRead(id: string): void {
   const list = readRaw();
   let changed = false;
@@ -130,7 +130,7 @@ export function markRead(id: string): void {
   if (changed) writeRaw(next);
 }
 
-/** Mark every notification as read. */
+/** Day every notification as read. */
 export function markAllRead(): void {
   const list = readRaw();
   if (!list.some((e) => !e.read)) return;

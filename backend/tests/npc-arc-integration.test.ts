@@ -5,7 +5,7 @@ import { ManufacturingController } from '../src/api/controllers/manufacturing.co
 import { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
 
-test('NPC Arc Integration - Pooled Engine Refactor', async (t) => {
+test('NPC Month Integration - Pooled Engine Refactor', async (t) => {
 
   const worldId = randomUUID();
   const regionId = randomUUID();
@@ -37,7 +37,7 @@ test('NPC Arc Integration - Pooled Engine Refactor', async (t) => {
   const makeNext = () => ((err?: any) => { if (err) throw err; }) as NextFunction;
 
   await t.test('Setup Database State', async () => {
-    await db('world_instances').insert({ id: worldId, current_orbit: 1, current_arc: 1, name: 'Test World', status: 'active', server_id: 'server1', settings: {} });
+    await db('world_instances').insert({ id: worldId, current_year: 1, current_month: 1, name: 'Test World', status: 'active', server_id: 'server1', settings: {} });
     await db('regions').insert({ id: regionId, name: 'Test Region', description: 'Test', geographic_size: 'Medium' });
     await db('manufacturing_region_markets').insert({
         region_market_id: marketId,
@@ -79,7 +79,7 @@ test('NPC Arc Integration - Pooled Engine Refactor', async (t) => {
     await db('manufacturing_vehicle_models').insert({
         id: modelId, company_id: companyId, world_instance_id: worldId,
         model_name: 'P-Car', target_segment: 'standard', vehicle_class: 'Sedan', platform_type: 'Sedan', power_unit_type: 'ICE', drivetrain_type: 'FWD',
-        sale_price: 25000, manufacturing_cost_per_unit: 15000, design_cost: 1000000, development_time_arcs: 1, created_at_world_arc: 1,
+        sale_price: 25000, manufacturing_cost_per_unit: 15000, design_cost: 1000000, development_time_arcs: 1, created_at_world_month: 1,
         reliability_score: 50, performance_score: 50, fuel_efficiency_score: 50, safety_score: 50, appeal_score: 50, cargo_score: 50
     });
     await db('manufacturing_factories').insert({
@@ -107,18 +107,18 @@ test('NPC Arc Integration - Pooled Engine Refactor', async (t) => {
     const finA = await db('company_finances').where({ company_id: companyId }).first();
     const startCash = Number(finA.available_cash);
 
-    // Run arc (World Arc 1, Orbit 1 is default)
+    // Run month (World Month 1, Year 1 is default)
     const res = makeRes();
     await ManufacturingController.processManufacturingArc(makeReq(companyId), res, makeNext());
 
     const resultData = res.data;
-    assert.strictEqual(res.code, 200, 'Arc should process successfully');
+    assert.strictEqual(res.code, 200, 'Month should process successfully');
     
     // Validate output
     const finB = await db('company_finances').where({ company_id: companyId }).first();
     const endCash = Number(finB.available_cash);
 
-    const sr = await db('manufacturing_sales_results').where({ company_id: companyId, world_arc: 1 }).first();
+    const sr = await db('manufacturing_sales_results').where({ company_id: companyId, world_month: 1 }).first();
     assert.ok(sr, 'Sales result must exist');
 
     const pLine = await db('manufacturing_production_lines').where({ id: lineId }).first();
@@ -159,8 +159,8 @@ test('NPC Arc Integration - Pooled Engine Refactor', async (t) => {
   });
 
   await t.test('TEST B: Competition is real (adding NPC cannibalises demand)', async () => {
-    // Advance world arc
-    await db('world_instances').where({ id: worldId }).update({ current_arc: 2 });
+    // Advance world month
+    await db('world_instances').where({ id: worldId }).update({ current_month: 2 });
     
     // Reset player cash just to be clean
     await db('company_finances').where({ company_id: companyId }).update({ available_cash: 50000000 });
@@ -169,7 +169,7 @@ test('NPC Arc Integration - Pooled Engine Refactor', async (t) => {
     await db('manufacturing_vehicle_models').insert({
         id: npcModelId, company_id: npcCompanyId, world_instance_id: worldId,
         model_name: 'NPC-Car', target_segment: 'standard', vehicle_class: 'Sedan', platform_type: 'Sedan', power_unit_type: 'ICE', drivetrain_type: 'FWD',
-        sale_price: 25000, manufacturing_cost_per_unit: 15000, design_cost: 1000000, development_time_arcs: 1, created_at_world_arc: 1,
+        sale_price: 25000, manufacturing_cost_per_unit: 15000, design_cost: 1000000, development_time_arcs: 1, created_at_world_month: 1,
         reliability_score: 50, performance_score: 50, fuel_efficiency_score: 50, safety_score: 50, appeal_score: 50, cargo_score: 50
     });
     const npcFactoryId = randomUUID();
@@ -190,19 +190,19 @@ test('NPC Arc Integration - Pooled Engine Refactor', async (t) => {
     });
     await db('manufacturing_brand_awareness').insert({ company_id: npcCompanyId, region_market_id: marketId, awareness_score: 50, trust_score: 50 });
 
-    // Ensure they both have enough allocation for arc 2 (it doesn't auto-delete, but let's check)
-    // Run arc for player (since both are in the same country, the pool handles both)
+    // Ensure they both have enough allocation for month 2 (it doesn't auto-delete, but let's check)
+    // Run month for player (since both are in the same country, the pool handles both)
     const res = makeRes();
     await ManufacturingController.processManufacturingArc(makeReq(companyId), res, makeNext());
     
-    assert.strictEqual(res.code, 200, 'Arc 2 should process successfully');
+    assert.strictEqual(res.code, 200, 'Month 2 should process successfully');
 
     // Fetch new results
-    const srPlayer = await db('manufacturing_sales_results').where({ company_id: companyId, world_arc: 2 }).first();
-    const srNpc = await db('manufacturing_sales_results').where({ company_id: npcCompanyId, world_arc: 2 }).first();
+    const srPlayer = await db('manufacturing_sales_results').where({ company_id: companyId, world_month: 2 }).first();
+    const srNpc = await db('manufacturing_sales_results').where({ company_id: npcCompanyId, world_month: 2 }).first();
     
-    assert.ok(srPlayer, 'Player sales result for Arc 2 must exist');
-    assert.ok(srNpc, 'NPC sales result for Arc 2 must exist');
+    assert.ok(srPlayer, 'Player sales result for Month 2 must exist');
+    assert.ok(srNpc, 'NPC sales result for Month 2 must exist');
 
     const playerTestBUnitsSold = Number(srPlayer.units_sold);
     const npcTestBUnitsSold = Number(srNpc.units_sold);

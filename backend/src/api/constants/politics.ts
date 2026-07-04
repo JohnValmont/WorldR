@@ -56,11 +56,11 @@ export const POL_REACH_MAX = 1.0;
 export const POL_REACH_HALF_SAT = 120;
 export const POL_INCUMBENCY_BONUS = 1.15;
 export const POL_BASE_TURNOUT = 0.58;
-export const POL_TERM_LENGTH_ARCS = 48;
-export const POL_FIRST_CYCLE_ARCS = 12;
-export const POL_FILING_WINDOW_ARCS = 3;
-export const POL_CAMPAIGN_WINDOW_ARCS = 6;
-export const POL_FORMATION_WINDOW_ARCS = 2;
+export const POL_TERM_LENGTH_MONTHS = 48;
+export const POL_FIRST_CYCLE_MONTHS = 12;
+export const POL_FILING_WINDOW_MONTHS = 3;
+export const POL_CAMPAIGN_WINDOW_MONTHS = 6;
+export const POL_FORMATION_WINDOW_MONTHS = 2;
 export const POL_COUNCIL_SEATS = 61;
 export const POL_MAJORITY_SEATS = 31;
 export const POL_COALITION_MAX_DISTANCE = 0.30;
@@ -89,7 +89,7 @@ export const POL_FACTOR_DELTAS = {
 };
 
 // ── Governing Phase Events ────────────────────────────────────────────────────
-/** One event fires per governing arc. Deterministic: arc % templates.length */
+/** One event fires per governing month. Deterministic: month % templates.length */
 export const GOVERNING_EVENTS_ENABLED = true;
 
 /** Effect magnitudes — all tunable here, never inline */
@@ -179,7 +179,7 @@ export const POL_PULSE = {
   SEGMENT_CONTESTED_MARGIN: 0.05, // within 5% of the leader => "contested"
   NEAR_MISS_SEATS: 5,             // show "X seats from power" tension when within this many
   RIVAL_MAX_SEAT_GAP: 8,          // a party within this seat gap is surfaced as your rival
-  MOMENTUM_MIN_DELTA: 0.005       // ignore per-arc share swings smaller than this (noise floor)
+  MOMENTUM_MIN_DELTA: 0.005       // ignore per-month share swings smaller than this (noise floor)
 };
 
 export interface CampaignAction {

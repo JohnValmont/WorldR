@@ -44,7 +44,7 @@ interface CompanySnapshot {
   finances?: { available_cash?: number };
 }
 
-// ── Static data (will be replaced by live API data in future arcs) ────────────
+// ── Static data (will be replaced by live API data in future months) ────────────
 
 const SECTOR_DEMAND = [
   { sector: 'Shipping & Logistics', demand: 'High',    pct: 82, dir: 'up'   as const },
@@ -61,20 +61,20 @@ const LEDGER_HEADLINES = [
   { id: 5, text: 'New registry filings up 12% — Business formation accelerating.' },
 ];
 
-/** Mock net-worth series — last 12 arcs. Replace with real ledger data when available. */
+/** Mock net-worth series — last 12 months. Replace with real ledger data when available. */
 const MOCK_NET_WORTH_SERIES = [
-  { arc: 'A1', value: 50000 },
-  { arc: 'A2', value: 48200 },
-  { arc: 'A3', value: 52100 },
-  { arc: 'A4', value: 57300 },
-  { arc: 'A5', value: 61800 },
-  { arc: 'A6', value: 59200 },
-  { arc: 'A7', value: 65000 },
-  { arc: 'A8', value: 72400 },
-  { arc: 'A9', value: 81200 },
-  { arc: 'A10', value: 88700 },
-  { arc: 'A11', value: 95100 },
-  { arc: 'A12', value: 103800 },
+  { month: 'A1', value: 50000 },
+  { month: 'A2', value: 48200 },
+  { month: 'A3', value: 52100 },
+  { month: 'A4', value: 57300 },
+  { month: 'A5', value: 61800 },
+  { month: 'A6', value: 59200 },
+  { month: 'A7', value: 65000 },
+  { month: 'A8', value: 72400 },
+  { month: 'A9', value: 81200 },
+  { month: 'A10', value: 88700 },
+  { month: 'A11', value: 95100 },
+  { month: 'A12', value: 103800 },
 ];
 
 const demandColor = {
@@ -197,17 +197,17 @@ export default function ChroniclePage() {
               );
               // Seed net worth into series tail with live value
               const liveValue = playerCash + Number(myCompany.finances?.available_cash ?? 0);
-              setNetWorthSeries(prev => [...prev.slice(0, -1), { arc: 'Now', value: liveValue }]);
+              setNetWorthSeries(prev => [...prev.slice(0, -1), { month: 'Now', value: liveValue }]);
             }
           }).catch(() => {});
           
           politicsApi.getLedger(10).then(data => {
             const polEvents = data.map((ev: any) => ({
               id: ev.id,
-              arc: ev.arc,
-              text: `[Month ${ev.arc}] ${ev.headline}: ${ev.body}`
+              month: ev.month,
+              text: `[Month ${ev.month}] ${ev.headline}: ${ev.body}`
             }));
-            const combined = [...polEvents, ...LEDGER_HEADLINES.map(h => ({ ...h, arc: null }))];
+            const combined = [...polEvents, ...LEDGER_HEADLINES.map(h => ({ ...h, month: null }))];
             setLedgerFeed(combined);
 
             // Mirror world/ledger movements into the notification feed so the
@@ -223,7 +223,7 @@ export default function ChroniclePage() {
               });
             });
           }).catch(() => {
-            setLedgerFeed(LEDGER_HEADLINES.map(h => ({ ...h, arc: null })));
+            setLedgerFeed(LEDGER_HEADLINES.map(h => ({ ...h, month: null })));
           });
           
         })
@@ -389,10 +389,10 @@ export default function ChroniclePage() {
                     <div>
                       <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Net Worth</p>
                       <p className="text-2xl md:text-3xl font-mono font-bold text-terminal-amber amber-glow leading-tight">
-                        ₹{netWorth.toLocaleString()}
+                        ₯{netWorth.toLocaleString()}
                       </p>
                       <p className={`text-[11px] font-mono font-bold ${up ? 'text-terminal-green' : 'text-terminal-red'}`}>
-                        {up ? '▲' : '▼'} {up ? '+' : '−'}₹{Math.abs(delta).toLocaleString()} ({pct.toFixed(1)}%) this month
+                        {up ? '▲' : '▼'} {up ? '+' : '−'}₯{Math.abs(delta).toLocaleString()} ({pct.toFixed(1)}%) this month
                       </p>
                     </div>
                     <div className="hidden sm:block w-32 h-14">
@@ -467,7 +467,7 @@ export default function ChroniclePage() {
                 { label: 'Full Name',      value: characterName },
                 { label: 'Age',            value: `${characterAge}` },
                 { label: 'Motherland',     value: citizenFile?.motherland ?? 'Drennia' },
-                { label: 'Citizen Since',  value: citizenFile?.gameDateStr ?? 'Mark 1 · Month 1' },
+                { label: 'Citizen Since',  value: citizenFile?.gameDateStr ?? 'Day 1 · Month 1' },
               ].map(f => (
                 <div key={f.label}>
                   <p className="text-[8px] font-mono uppercase tracking-[0.15em] text-zinc-600 mb-1">{f.label}</p>
@@ -497,7 +497,7 @@ export default function ChroniclePage() {
                   </linearGradient>
                 </defs>
                 <XAxis
-                  dataKey="arc"
+                  dataKey="month"
                   tick={{ fill: '#52525b', fontSize: 9, fontFamily: 'monospace' }}
                   axisLine={false} tickLine={false}
                 />

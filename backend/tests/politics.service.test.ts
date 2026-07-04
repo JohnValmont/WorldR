@@ -1,19 +1,19 @@
 import assert from 'assert';
 import { derivePhase } from '../src/api/services/politics.service';
 import {
-  POL_FILING_WINDOW_ARCS,
-  POL_CAMPAIGN_WINDOW_ARCS,
-  POL_FORMATION_WINDOW_ARCS
+  POL_FILING_WINDOW_MONTHS,
+  POL_CAMPAIGN_WINDOW_MONTHS,
+  POL_FORMATION_WINDOW_MONTHS
 } from '../src/api/constants/politics';
 
 function runTests() {
   const cycle = {
     polling_arc: 100,
-    formation_end_arc: 100 + POL_FORMATION_WINDOW_ARCS // 102
+    formation_end_arc: 100 + POL_FORMATION_WINDOW_MONTHS // 102
   };
   
-  const startCampaign = 100 - POL_CAMPAIGN_WINDOW_ARCS; // 94
-  const startFiling = startCampaign - POL_FILING_WINDOW_ARCS; // 91
+  const startCampaign = 100 - POL_CAMPAIGN_WINDOW_MONTHS; // 94
+  const startFiling = startCampaign - POL_FILING_WINDOW_MONTHS; // 91
 
   console.log('Testing derivePhase boundary: Governing before filing');
   assert(derivePhase(cycle, 90) === 'governing', 'Should be governing before filing starts');

@@ -5,8 +5,8 @@ import { WORLD_TIME_CONFIG } from '../config/worldTimeConfig';
  * the player-facing "Month, Year" system.
  *
  * The playable era begins in January, Year 0. Everything before it is lore —
- * "The Old Years". Internally the clock is still an (orbit, arc) pair where the
- * era starts at orbit = WORLD_TIME_CONFIG.startingOrbit, arc = 1; we translate
+ * "The Old Years". Internally the clock is still an (year, month) pair where the
+ * era starts at year = WORLD_TIME_CONFIG.startingYear, month = 1; we translate
  * that into an absolute, 1-based month counter and format it.
  */
 
@@ -17,10 +17,10 @@ export const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-/** Absolute, 1-based month index from a cyclic world clock (orbit + arc, arc 1..12). */
-export function absoluteMonth(orbit: number, arc: number): number {
-  const { startingOrbit, arcsPerOrbit } = WORLD_TIME_CONFIG;
-  return (orbit - startingOrbit) * arcsPerOrbit + arc;
+/** Absolute, 1-based month index from a cyclic world clock (year + month, month 1..12). */
+export function absoluteMonth(year: number, month: number): number {
+  const { startingYear, monthsPerYear } = WORLD_TIME_CONFIG;
+  return (year - startingYear) * monthsPerYear + month;
 }
 
 function labelFromAbsolute(absMonth: number | undefined, short: boolean): string {
@@ -47,11 +47,11 @@ export function formatGameDateShort(absMonth?: number): string {
   return labelFromAbsolute(absMonth, true);
 }
 
-/** Format a cyclic world clock (orbit + arc) directly. */
-export function formatWorldDate(orbit: number, arc: number): string {
-  return formatGameDate(absoluteMonth(orbit, arc));
+/** Format a cyclic world clock (year + month) directly. */
+export function formatWorldDate(year: number, month: number): string {
+  return formatGameDate(absoluteMonth(year, month));
 }
 
-export function formatWorldDateShort(orbit: number, arc: number): string {
-  return formatGameDateShort(absoluteMonth(orbit, arc));
+export function formatWorldDateShort(year: number, month: number): string {
+  return formatGameDateShort(absoluteMonth(year, month));
 }

@@ -80,7 +80,7 @@ async function runTest() {
   assert.strictEqual(Number(policy.industry_tax_rate), 0.15, 'Tax rate should be updated to 0.15');
 
   // 5. Verify ledger event
-  const events = await db('pol_ledger_events').where({ arc: governingArc, kind: 'bill_passed' });
+  const events = await db('pol_ledger_events').where({ month: governingArc, kind: 'bill_passed' });
   assert.strictEqual(events.length, 1, 'Should emit exactly one bill_passed event');
 
   // Set tax to 20%
@@ -119,7 +119,7 @@ async function runTest() {
   // Actually, settleForCompany does DB calls inside, so we just call it and it will compute tax.
   // Wait, settleForCompany is not easily mockable without full setup. Let me just test the tax logic by isolating it or providing exactly what it expects.
   // Instead, I'll run the exact logic or mock the minimum viable inputs.
-  // Let's look at settleForCompany signature: settleForCompany(trx, company, pState, models, allocations, currentOrbit, currentArc, currentMark)
+  // Let's look at settleForCompany signature: settleForCompany(trx, company, pState, models, allocations, currentYear, currentMonth, currentDay)
   
   await db.transaction(async (trx) => {
     await settleForCompany(trx, companyObj, mockPState, dummyModels, dummyAllocations, 1, 1, 1);

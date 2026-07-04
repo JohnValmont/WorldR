@@ -41,7 +41,7 @@ async function run() {
         name: 'Admin Test Character',
         motherland_country_id: 'drennia',
         home_state_id: 'drennia-drennport',
-        currency_id: 'drennian-mark'
+        currency_id: 'drennian-day'
       })
     });
     if (!createCharRes.ok) throw new Error('Failed to create character: ' + await createCharRes.text());
@@ -72,7 +72,7 @@ async function run() {
       headquarters_state_id: 'drennia-drennport',
       industry_id: 'manufacturing',
       legal_structure_id: 'sole-trader',
-      currency_id: 'drennian-mark',
+      currency_id: 'drennian-day',
       starting_capital: 1000000
     })
   });
@@ -167,13 +167,13 @@ async function run() {
   }
   console.log('✅ Data persistence verified');
 
-  // 20-26. Process Arc
-  console.log('10. Processing Manufacturing Arc (Admin)...');
+  // 20-26. Process Month
+  console.log('10. Processing Manufacturing Month (Admin)...');
   const arcRes = await fetch(`${BASE_URL}/admin/manufacturing/process-company/${companyId}`, {
     method: 'POST',
     headers
   });
-  if (!arcRes.ok) throw new Error('Failed to process arc: ' + await arcRes.text());
+  if (!arcRes.ok) throw new Error('Failed to process month: ' + await arcRes.text());
   const arcData = await arcRes.json();
   
   console.log('\n--- ARC RESULTS ---');

@@ -19,6 +19,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="bg-black text-zinc-100 font-sans antialiased">
+        <div className="fixed top-0 left-0 w-full pointer-events-none z-[9999] flex justify-center mt-2">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 text-white/50 text-[10px] uppercase tracking-[0.2em] px-3 py-1 rounded-full shadow-sm">
+            Pre-Alpha V0.1
+          </div>
+        </div>
         {children}
       </body>
     </html>

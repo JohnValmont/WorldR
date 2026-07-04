@@ -16,7 +16,7 @@ interface MarketSegment {
 }
 
 interface MarketStructureData {
-  arc: { orbit: number; arc: number };
+  month: { year: number; month: number };
   segments: MarketSegment[];
 }
 
@@ -33,7 +33,7 @@ export default function MarketStructure({ countryId }: MarketStructureProps) {
     const fetchMarketStructure = async () => {
       try {
         setLoading(true);
-        const res = await api.get(`/market/structure/${countryId}/last-arc`);
+        const res = await api.get(`/market/structure/${countryId}/last-month`);
         setData(res.data.data);
       } catch (err: any) {
         setError(err.response?.data?.message || 'Failed to load market structure.');
@@ -98,7 +98,7 @@ export default function MarketStructure({ countryId }: MarketStructureProps) {
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-cinzel text-zinc-200">Total Market Volume by Segment</h3>
           <span className="text-xs font-mono text-zinc-500 px-2 py-1 border border-[#27272a] rounded">
-            {formatWorldDate(data.arc.orbit, data.arc.arc)}
+            {formatWorldDate(data.month.year, data.month.month)}
           </span>
         </div>
         <div className="h-72 w-full font-mono text-sm">

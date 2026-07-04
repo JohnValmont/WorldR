@@ -25,7 +25,7 @@ export interface BusinessRole {
   description: string;
   mainFactors: FactorKey[];
   riskLevel: RiskLevel;
-  cashGainRange: [number, number]; // [min, max] in Drennian Marks
+  cashGainRange: [number, number]; // [min, max] in Drennian Days
   potentialGain: string;
   possibleRisk: string;
   publicRecordPossible: boolean;

@@ -1,10 +1,10 @@
 import { db } from '../../config/database';
 import {
-  POL_FILING_WINDOW_ARCS,
-  POL_CAMPAIGN_WINDOW_ARCS,
-  POL_FORMATION_WINDOW_ARCS,
-  POL_FIRST_CYCLE_ARCS,
-  POL_TERM_LENGTH_ARCS,
+  POL_FILING_WINDOW_MONTHS,
+  POL_CAMPAIGN_WINDOW_MONTHS,
+  POL_FORMATION_WINDOW_MONTHS,
+  POL_FIRST_CYCLE_MONTHS,
+  POL_TERM_LENGTH_MONTHS,
   CAMPAIGN_ACTIONS,
   POL_FUNDRAISER_BASE,
   POL_FUNDRAISER_CHARISMA_MULT,
@@ -25,7 +25,7 @@ import { fireGoverningEvent } from './governingEvents';
 
 export async function getCurrentWorldArc(): Promise<number> {
   const clock = await db('world_clock').first();
-  return clock?.current_arc || 1;
+  return clock?.current_month || 1;
 }
 
 async function applyFactorDelta(trx: any, characterId: string | null, factors: Record<string, number>) {
@@ -46,34 +46,34 @@ async function applyFactorDelta(trx: any, characterId: string | null, factors: R
 
 export function derivePhase(
   cycle: { polling_arc: number; formation_end_arc: number },
-  currentArc: number
+  currentMonth: number
 ): 'governing' | 'filing' | 'campaign' | 'polling' | 'formation' {
-  const startCampaign = cycle.polling_arc - POL_CAMPAIGN_WINDOW_ARCS;
-  const startFiling = startCampaign - POL_FILING_WINDOW_ARCS;
+  const startCampaign = cycle.polling_arc - POL_CAMPAIGN_WINDOW_MONTHS;
+  const startFiling = startCampaign - POL_FILING_WINDOW_MONTHS;
 
-  if (currentArc < startFiling) return 'governing';
-  if (currentArc >= startFiling && currentArc < startCampaign) return 'filing';
-  if (currentArc >= startCampaign && currentArc < cycle.polling_arc) return 'campaign';
-  if (currentArc === cycle.polling_arc) return 'polling';
-  if (currentArc > cycle.polling_arc && currentArc <= cycle.formation_end_arc) return 'formation';
+  if (currentMonth < startFiling) return 'governing';
+  if (currentMonth >= startFiling && currentMonth < startCampaign) return 'filing';
+  if (currentMonth >= startCampaign && currentMonth < cycle.polling_arc) return 'campaign';
+  if (currentMonth === cycle.polling_arc) return 'polling';
+  if (currentMonth > cycle.polling_arc && currentMonth <= cycle.formation_end_arc) return 'formation';
   
   return 'governing';
 }
 
 export async function getOrCreateCurrentCycle(stateId: string) {
-  const currentArc = await getCurrentWorldArc();
+  const currentMonth = await getCurrentWorldArc();
   let cycle = await db('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
   
   if (!cycle) {
-    const pollingArc = currentArc + POL_FIRST_CYCLE_ARCS;
-    const formationEndArc = pollingArc + POL_FORMATION_WINDOW_ARCS;
+    const pollingArc = currentMonth + POL_FIRST_CYCLE_MONTHS;
+    const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;
     
-    const phase = derivePhase({ polling_arc: pollingArc, formation_end_arc: formationEndArc }, currentArc);
+    const phase = derivePhase({ polling_arc: pollingArc, formation_end_arc: formationEndArc }, currentMonth);
 
     const [inserted] = await db('pol_cycles').insert({
       state_id: stateId,
       cycle_number: 1,
-      start_arc: currentArc,
+      start_arc: currentMonth,
       polling_arc: pollingArc,
       formation_end_arc: formationEndArc,
       phase,
@@ -171,11 +171,11 @@ export async function buildEngineCandidates(trx: any, cycleId: string, maxArc?: 
   return engineCandidates;
 }
 
-export async function processPoliticalArc(trx: any, stateId: string, currentArc: number) {
+export async function processPoliticalArc(trx: any, stateId: string, currentMonth: number) {
   const cycle = await trx('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
   if (!cycle) return;
 
-  const newPhase = derivePhase(cycle, currentArc);
+  const newPhase = derivePhase(cycle, currentMonth);
   
   if (cycle.phase !== newPhase) {
     await trx('pol_cycles').where({ id: cycle.id }).update({ phase: newPhase });
@@ -190,7 +190,7 @@ export async function processPoliticalArc(trx: any, stateId: string, currentArc:
     const pendingActions = await trx('pol_campaign_actions')
       .join('pol_candidates', 'pol_campaign_actions.candidate_id', 'pol_candidates.id')
       .where('pol_campaign_actions.cycle_id', cycle.id)
-      .andWhere('pol_campaign_actions.resolved_arc', '<=', currentArc)
+      .andWhere('pol_campaign_actions.resolved_arc', '<=', currentMonth)
       .andWhere('pol_campaign_actions.effort', 0)
       .select('pol_campaign_actions.*', 'pol_candidates.party_id', 'pol_candidates.is_npc', 'pol_candidates.character_id');
 
@@ -232,7 +232,7 @@ export async function processPoliticalArc(trx: any, stateId: string, currentArc:
       }
 
       if (!hasFunds) {
-        await trx('pol_campaign_actions').where({ id: act.id }).update({ effort: -1 }); // -1 marks skipped
+        await trx('pol_campaign_actions').where({ id: act.id }).update({ effort: -1 }); // -1 days skipped
         continue;
       }
 
@@ -252,31 +252,31 @@ export async function processPoliticalArc(trx: any, stateId: string, currentArc:
       });
     }
 
-    await runNpcCampaignBrain(trx, stateId, cycle.id, currentArc);
+    await runNpcCampaignBrain(trx, stateId, cycle.id, currentMonth);
   }
 
-  if (newPhase === 'polling' && currentArc === cycle.polling_arc) {
+  if (newPhase === 'polling' && currentMonth === cycle.polling_arc) {
     await resolveElection(trx, cycle.id);
   }
 
   if (newPhase === 'formation') {
-    await processGovernmentFormation(trx, cycle, currentArc);
+    await processGovernmentFormation(trx, cycle, currentMonth);
   }
 
   if (newPhase === 'governing') {
-    await resolveBills(trx, stateId, cycle.id, currentArc);
-    // Fire one deterministic world event per governing arc
-    await fireGoverningEvent(trx, stateId, currentArc);
+    await resolveBills(trx, stateId, cycle.id, currentMonth);
+    // Fire one deterministic world event per governing month
+    await fireGoverningEvent(trx, stateId, currentMonth);
   }
 
-  // Tenders operate on arc boundaries regardless of phase once active
-  await awardTenders(trx, stateId, currentArc);
-  await settleTenders(trx, stateId, currentArc);
+  // Tenders operate on month boundaries regardless of phase once active
+  await awardTenders(trx, stateId, currentMonth);
+  await settleTenders(trx, stateId, currentMonth);
 }
 
-async function runNpcCampaignBrain(trx: any, stateId: string, cycleId: string, currentArc: number) {
-  // Read PREVIOUS arc's effort to run a projection. Avoid state-bleed.
-  const prevEngineCands = await buildEngineCandidates(trx, cycleId, currentArc - 1);
+async function runNpcCampaignBrain(trx: any, stateId: string, cycleId: string, currentMonth: number) {
+  // Read PREVIOUS month's effort to run a projection. Avoid state-bleed.
+  const prevEngineCands = await buildEngineCandidates(trx, cycleId, currentMonth - 1);
   const state = await trx('pol_states').where({ id: stateId }).first();
   const registeredVoters = state ? state.registered_voters || 1600000 : 1600000;
   
@@ -322,7 +322,7 @@ async function runNpcCampaignBrain(trx: any, stateId: string, cycleId: string, c
           target_segment: trail.segment,
           cash_spent: rallyDef.cost_cash,
           effort: rallyDef.effort, // deterministic directly
-          resolved_arc: currentArc
+          resolved_arc: currentMonth
         });
         await trx('pol_parties').where({ id: party.id }).decrement('treasury', rallyDef.cost_cash);
         actionQueued = true;
@@ -337,7 +337,7 @@ async function runNpcCampaignBrain(trx: any, stateId: string, cycleId: string, c
             target_segment: trail.segment,
             cash_spent: canvassDef.cost_cash,
             effort: canvassDef.effort,
-            resolved_arc: currentArc
+            resolved_arc: currentMonth
           });
           await trx('pol_parties').where({ id: party.id }).decrement('treasury', canvassDef.cost_cash);
           actionQueued = true;
@@ -356,7 +356,7 @@ async function runNpcCampaignBrain(trx: any, stateId: string, cycleId: string, c
           target_segment: null,
           cash_spent: adDef.cost_cash,
           effort: adDef.effort,
-          resolved_arc: currentArc
+          resolved_arc: currentMonth
         });
         await trx('pol_parties').where({ id: party.id }).decrement('treasury', adDef.cost_cash);
       }
@@ -457,7 +457,7 @@ async function resolveElection(trx: any, cycleId: string) {
 
   await trx('pol_ledger_events').insert({
     state_id: cycle.state_id,
-    arc: cycle.polling_arc,
+    month: cycle.polling_arc,
     kind: 'election_results',
     headline: `ELECTION RESULTS: ${topName} Secures Most Seats`,
     body: `The polling stations have closed. ${topName} leads with ${topParty?.seats} seats out of ${POL_COUNCIL_SEATS}. The political landscape shifts as parties now scramble to form a viable government.`
@@ -472,14 +472,14 @@ function getPlatformDistance(p1: Platform, p2: Platform): number {
   return Math.sqrt(distSq);
 }
 
-export async function processGovernmentFormation(trx: any, cycle: any, currentArc: number) {
+export async function processGovernmentFormation(trx: any, cycle: any, currentMonth: number) {
   // Check if government already formed or finalized as minority
   const existingCoalition = await trx('pol_coalitions').where({ cycle_id: cycle.id }).whereIn('status', ['formed', 'minority']).first();
   if (existingCoalition) {
-    if (currentArc >= cycle.formation_end_arc) {
+    if (currentMonth >= cycle.formation_end_arc) {
       // make sure cycle isn't already closed
       if (cycle.status === 'open') {
-        await performCycleRollover(trx, cycle, currentArc);
+        await performCycleRollover(trx, cycle, currentMonth);
       }
     }
     return;
@@ -508,7 +508,7 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentAr
       status: 'formed'
     });
     await namePremierAndEmitLedger(trx, cycle, largestParty, 'majority', largestParty.seats);
-    if (currentArc >= cycle.formation_end_arc) await performCycleRollover(trx, cycle, currentArc);
+    if (currentMonth >= cycle.formation_end_arc) await performCycleRollover(trx, cycle, currentMonth);
     return;
   }
 
@@ -585,7 +585,7 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentAr
       status: 'formed'
     });
     await namePremierAndEmitLedger(trx, cycle, largestParty, 'coalition', totalAcceptedSeats);
-    if (currentArc >= cycle.formation_end_arc) await performCycleRollover(trx, cycle, currentArc);
+    if (currentMonth >= cycle.formation_end_arc) await performCycleRollover(trx, cycle, currentMonth);
     return;
   }
 
@@ -595,12 +595,12 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentAr
   });
 
   // End of formation window - finalize as minority if not formed
-  if (currentArc >= cycle.formation_end_arc) {
+  if (currentMonth >= cycle.formation_end_arc) {
     await trx('pol_coalitions').where({ id: forming.id }).update({
       status: 'minority'
     });
     await namePremierAndEmitLedger(trx, cycle, largestParty, 'minority', totalAcceptedSeats);
-    await performCycleRollover(trx, cycle, currentArc);
+    await performCycleRollover(trx, cycle, currentMonth);
   }
 }
 
@@ -641,14 +641,14 @@ async function namePremierAndEmitLedger(trx: any, cycle: any, largestParty: any,
 
   await trx('pol_ledger_events').insert({
     state_id: cycle.state_id,
-    arc: cycle.formation_end_arc,
+    month: cycle.formation_end_arc,
     kind: 'government_formed',
     headline,
     body
   });
 }
 
-async function performCycleRollover(trx: any, oldCycle: any, currentArc: number) {
+async function performCycleRollover(trx: any, oldCycle: any, currentMonth: number) {
   if (oldCycle.status === 'closed') return;
   
   // Award active campaign bonus
@@ -667,28 +667,28 @@ async function performCycleRollover(trx: any, oldCycle: any, currentArc: number)
     }
   }
 
-  // Mark old cycle closed
+  // Day old cycle closed
   await trx('pol_cycles').where({ id: oldCycle.id }).update({ status: 'closed' });
 
-  const startArc = currentArc;
-  const pollingArc = startArc + POL_TERM_LENGTH_ARCS;
-  const formationEndArc = pollingArc + POL_FORMATION_WINDOW_ARCS;
+  const startMonth = currentMonth;
+  const pollingArc = startMonth + POL_TERM_LENGTH_MONTHS;
+  const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;
 
   await trx('pol_cycles').insert({
     state_id: oldCycle.state_id,
     cycle_number: oldCycle.cycle_number + 1,
     phase: 'closed', // Will be derived properly on next process
-    start_arc: startArc,
+    start_arc: startMonth,
     polling_arc: pollingArc,
     formation_end_arc: formationEndArc,
     status: 'open'
   });
 }
 
-export async function resolveBills(trx: any, stateId: string, cycleId: string, currentArc: number) {
+export async function resolveBills(trx: any, stateId: string, cycleId: string, currentMonth: number) {
   const proposedBills = await trx('pol_bills')
     .where({ state_id: stateId, status: 'proposed' })
-    .andWhere('proposed_arc', '<', currentArc);
+    .andWhere('proposed_arc', '<', currentMonth);
 
   if (proposedBills.length === 0) return;
 
@@ -762,13 +762,13 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
         
         const existing = await trx('pol_state_policy').where({ state_id: stateId }).first();
         if (existing) {
-          await trx('pol_state_policy').where({ state_id: stateId }).update({ industry_tax_rate: newRate, updated_arc: currentArc });
+          await trx('pol_state_policy').where({ state_id: stateId }).update({ industry_tax_rate: newRate, updated_arc: currentMonth });
         } else {
-          await trx('pol_state_policy').insert({ state_id: stateId, industry_tax_rate: newRate, infrastructure_level: 1, updated_arc: currentArc });
+          await trx('pol_state_policy').insert({ state_id: stateId, industry_tax_rate: newRate, infrastructure_level: 1, updated_arc: currentMonth });
         }
 
         await trx('pol_ledger_events').insert({
-          state_id: stateId, arc: currentArc, kind: 'bill_passed',
+          state_id: stateId, month: currentMonth, kind: 'bill_passed',
           headline: `INDUSTRY TAX REVISED`,
           body: `Council passes the new industry tax rate of ${(newRate * 100).toFixed(1)}%.`
         });
@@ -779,7 +779,7 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
       }
       await trx('pol_bills').where({ id: bill.id }).update({ status: 'failed' });
       await trx('pol_ledger_events').insert({
-        state_id: stateId, arc: currentArc, kind: 'bill_failed',
+        state_id: stateId, month: currentMonth, kind: 'bill_failed',
         headline: `BILL FAILED: ${bill.type.replace('_', ' ').toUpperCase()}`,
         body: `Council rejected the proposed ${bill.type.replace('_', ' ')}.`
       });
@@ -787,11 +787,11 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
   }
 }
 
-async function awardTenders(trx: any, stateId: string, currentArc: number) {
-  // Find all open tenders whose bid window has closed (posted_arc < currentArc)
+async function awardTenders(trx: any, stateId: string, currentMonth: number) {
+  // Find all open tenders whose bid window has closed (posted_arc < currentMonth)
   const openTenders = await trx('pol_tenders')
     .where({ state_id: stateId, status: 'open' })
-    .andWhere('posted_arc', '<', currentArc);
+    .andWhere('posted_arc', '<', currentMonth);
 
   for (const tender of openTenders) {
     const bids = await trx('pol_tender_bids')
@@ -803,7 +803,7 @@ async function awardTenders(trx: any, stateId: string, currentArc: number) {
     if (bids.length === 0) {
       await trx('pol_tenders').where({ id: tender.id }).update({ status: 'closed' });
       await trx('pol_ledger_events').insert({
-        state_id: stateId, arc: currentArc, kind: 'tender_awarded',
+        state_id: stateId, month: currentMonth, kind: 'tender_awarded',
         headline: `Tender Failed: ${tender.vehicle_class}`,
         body: `No qualifying bids were received for the ${tender.vehicle_class} tender. It has been closed.`
       });
@@ -832,19 +832,19 @@ async function awardTenders(trx: any, stateId: string, currentArc: number) {
     });
 
     await trx('pol_ledger_events').insert({
-      state_id: stateId, arc: currentArc, kind: 'tender_awarded',
+      state_id: stateId, month: currentMonth, kind: 'tender_awarded',
       headline: `Tender Awarded: ${tender.vehicle_class}`,
       body: `The ${tender.vehicle_class} procurement contract was awarded to ${winningBid.company_name} at ${winningBid.bid_price} ₯ per unit.`
     });
   }
 }
 
-async function settleTenders(trx: any, stateId: string, currentArc: number) {
+async function settleTenders(trx: any, stateId: string, currentMonth: number) {
   const activeTenders = await trx('pol_tenders')
     .where({ state_id: stateId, status: 'active' });
 
   for (const tender of activeTenders) {
-    if (currentArc > tender.posted_arc + tender.duration_arcs) {
+    if (currentMonth > tender.posted_arc + tender.duration_arcs) {
       await trx('pol_tenders').where({ id: tender.id }).update({ status: 'closed' });
       continue;
     }
@@ -883,9 +883,9 @@ async function settleTenders(trx: any, stateId: string, currentArc: number) {
       // Emit ledger
       await trx('company_ledger').insert({
         company_id: company.id,
-        game_orbit: 1, // approximate, or pull from clock if needed
-        game_arc: currentArc,
-        game_mark: 1,
+        game_year: 1, // approximate, or pull from clock if needed
+        game_month: currentMonth,
+        game_day: 1,
         entry_type: 'sales',
         amount: revenue,
         balance_after: trx.raw(`(SELECT available_cash FROM company_finances WHERE company_id = ?)`, [company.id]),
@@ -893,8 +893,8 @@ async function settleTenders(trx: any, stateId: string, currentArc: number) {
       });
     }
 
-    // Close tender if this was the final arc
-    if (currentArc === tender.posted_arc + tender.duration_arcs) {
+    // Close tender if this was the final month
+    if (currentMonth === tender.posted_arc + tender.duration_arcs) {
       await trx('pol_tenders').where({ id: tender.id }).update({ status: 'closed' });
     }
   }

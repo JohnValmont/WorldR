@@ -16,9 +16,9 @@ export class RegistryController {
           'status',
           'reputation',
           'reliability',
-          'created_at_world_orbit',
-          'created_at_world_arc',
-          'created_at_world_mark'
+          'created_at_world_year',
+          'created_at_world_month',
+          'created_at_world_day'
         )
         .where({ status: 'active', world_instance_id: 'pre-alpha-world-1' });
 
@@ -45,9 +45,9 @@ export class RegistryController {
           'status',
           'reputation',
           'reliability',
-          'created_at_world_orbit',
-          'created_at_world_arc',
-          'created_at_world_mark'
+          'created_at_world_year',
+          'created_at_world_month',
+          'created_at_world_day'
         )
         .where({ id })
         .first();

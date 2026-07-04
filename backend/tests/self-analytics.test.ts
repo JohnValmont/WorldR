@@ -15,10 +15,10 @@ async function runTest() {
   const modelId = randomUUID();
   const modelId2 = randomUUID();
   const marketId = 'drennport-consumer-market';
-  const worldOrbit = 1;
-  const worldArc = 10;
+  const worldYear = 1;
+  const worldMonth = 10;
   
-  // Previous arc is 9
+  // Previous month is 9
   try {
     await db.transaction(async (trx) => {
       // Create mock vehicle models
@@ -44,9 +44,9 @@ async function runTest() {
           fuel_efficiency_score: 50,
           appeal_score: 50,
           cargo_score: 50,
-          created_at_world_orbit: 1,
-          created_at_world_arc: 1,
-          created_at_world_mark: 1,
+          created_at_world_year: 1,
+          created_at_world_month: 1,
+          created_at_world_day: 1,
         },
         {
           id: modelId2,
@@ -69,21 +69,21 @@ async function runTest() {
           fuel_efficiency_score: 50,
           appeal_score: 50,
           cargo_score: 50,
-          created_at_world_orbit: 1,
-          created_at_world_arc: 1,
-          created_at_world_mark: 1,
+          created_at_world_year: 1,
+          created_at_world_month: 1,
+          created_at_world_day: 1,
         }
       ]);
 
-      // Insert previous arc results
+      // Insert previous month results
       await trx('manufacturing_sales_results').insert([
         {
           company_id: companyId,
           world_instance_id: worldId,
           vehicle_model_id: modelId,
           region_market_id: marketId,
-          world_orbit: worldOrbit,
-          world_arc: worldArc - 1, // 9
+          world_year: worldYear,
+          world_month: worldMonth - 1, // 9
           units_sold: 100,
           sale_price: 15000,
           revenue: 1500000,
@@ -95,8 +95,8 @@ async function runTest() {
           world_instance_id: worldId,
           vehicle_model_id: modelId2,
           region_market_id: marketId,
-          world_orbit: worldOrbit,
-          world_arc: worldArc - 1, // 9
+          world_year: worldYear,
+          world_month: worldMonth - 1, // 9
           units_sold: 50,
           sale_price: 22000,
           revenue: 1100000,
@@ -105,15 +105,15 @@ async function runTest() {
         }
       ]);
 
-      // Insert target arc results (simulating current arc = 11, target = 10)
+      // Insert target month results (simulating current month = 11, target = 10)
       await trx('manufacturing_sales_results').insert([
         {
           company_id: companyId,
           world_instance_id: worldId,
           vehicle_model_id: modelId,
           region_market_id: marketId,
-          world_orbit: worldOrbit,
-          world_arc: worldArc, // 10
+          world_year: worldYear,
+          world_month: worldMonth, // 10
           units_sold: 150,
           sale_price: 15000,
           revenue: 2250000,
@@ -125,8 +125,8 @@ async function runTest() {
           world_instance_id: worldId,
           vehicle_model_id: modelId2,
           region_market_id: marketId,
-          world_orbit: worldOrbit,
-          world_arc: worldArc, // 10
+          world_year: worldYear,
+          world_month: worldMonth, // 10
           units_sold: 20,
           sale_price: 22000,
           revenue: 440000,
@@ -138,14 +138,14 @@ async function runTest() {
       // Temporarily mock world_clock in the service method using a stub
       // (Since world_clock usually has 1 record, we can temporarily update it)
       await trx('world_clock').update({
-        current_orbit: worldOrbit,
-        current_arc: worldArc + 1 // So target arc is 10
+        current_year: worldYear,
+        current_month: worldMonth + 1 // So target month is 10
       });
     });
 
     const result = await AnalyticsService.getSelfAnalytics(companyId);
     
-    assert.strictEqual(result.arc.arc, worldArc, 'Target arc should be 10');
+    assert.strictEqual(result.month.month, worldMonth, 'Target month should be 10');
     assert.strictEqual(result.segments.length, 1, 'Should group into 1 segment (marketId)');
     
     const segment = result.segments[0];

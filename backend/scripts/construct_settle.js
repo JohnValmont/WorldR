@@ -2,9 +2,9 @@ const fs = require('fs');
 
 let newCode = `
   private static async settleForCompany(trx: any, pState: ParticipantState, salesResults: any[], clock: any, brandMap: Map<string, any>): Promise<void> {
-    const currentOrbit = clock?.current_orbit || 1;
-    const currentArc = clock?.current_arc || 1;
-    const currentMark = clock?.current_mark || 1;
+    const currentYear = clock?.current_year || 1;
+    const currentMonth = clock?.current_month || 1;
+    const currentDay = clock?.current_day || 1;
     const companyId = pState.company.id;
     const company = pState.company;
 
@@ -28,9 +28,9 @@ let newCode = `
 
       // Marketing cost deduction logic (only charge once per market)
       // Actually, in the original code, it charged marketing for EVERY allocation, which means multiple models in the same market with "local" marketing got charged multiple times!
-      // Wait, the prompt says "Marketing is deducted ONCE in the arc — never double-charge."
+      // Wait, the prompt says "Marketing is deducted ONCE in the month — never double-charge."
       // BUT, in the original code it was charging it per allocation.
-      // Wait, the user said in the RULES: "Marketing is deducted ONCE in the arc — never double-charge."
+      // Wait, the user said in the RULES: "Marketing is deducted ONCE in the month — never double-charge."
       // Let's implement that. We will keep a Set of charged markets.
     }
 `;

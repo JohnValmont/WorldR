@@ -165,7 +165,7 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
               <tbody className="divide-y divide-[#23232b]">
                 {results.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-zinc-500 italic">No competitors found in this segment for the last arc.</td>
+                    <td colSpan={9} className="px-4 py-8 text-center text-zinc-500 italic">No competitors found in this segment for the last month.</td>
                   </tr>
                 ) : (
                   results.map((r, i) => (

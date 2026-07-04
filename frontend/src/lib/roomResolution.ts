@@ -146,7 +146,7 @@ export function resolveRoom(input: ResolutionInput): ResolutionResult {
     : null;
 
   const narrativeMap: Record<ResultType, string> = {
-    success: `You chose to ${role.label.toLowerCase()} at ${room.title}. The room responded. Your factors shifted, a record was created, and the experience left a mark on your file.`,
+    success: `You chose to ${role.label.toLowerCase()} at ${room.title}. The room responded. Your factors shifted, a record was created, and the experience left a day on your file.`,
     mixed:   `You chose to ${role.label.toLowerCase()} at ${room.title}. The result was uneven — some gain, some friction. The experience was noted, if not entirely celebrated.`,
     failure: `You chose to ${role.label.toLowerCase()} at ${room.title}. The room did not respond as expected. No major punishment — but the opportunity has passed for now.`,
   };

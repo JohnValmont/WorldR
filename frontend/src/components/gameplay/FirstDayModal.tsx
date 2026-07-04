@@ -231,11 +231,11 @@ function Card3({ citizenFile }: { citizenFile: any }) {
           </p>
         </div>
 
-        {/* Arc clock */}
+        {/* Month clock */}
         <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 4, padding: '12px 14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: T.ivory }}>The Arc Clock</span>
-            <span style={{ fontSize: 11, fontFamily: 'monospace', color: T.muted }}>1 month = 1 arc</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: T.ivory }}>The Month Clock</span>
+            <span style={{ fontSize: 11, fontFamily: 'monospace', color: T.muted }}>1 month = 1 month</span>
           </div>
           <p style={{ fontSize: 10, color: T.faint, margin: 0, lineHeight: 1.5 }}>
             Everything resolves monthly: sales, salaries, elections, bills, campaigns.

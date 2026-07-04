@@ -28,9 +28,9 @@ let newCode = `
   }
 
   private static async produceForCompany(trx: any, company: any, clock: any): Promise<ParticipantState> {
-    const currentOrbit = clock?.current_orbit || 1;
-    const currentArc = clock?.current_arc || 1;
-    const currentMark = clock?.current_mark || 1;
+    const currentYear = clock?.current_year || 1;
+    const currentMonth = clock?.current_month || 1;
+    const currentDay = clock?.current_day || 1;
     const companyId = company.id;
 
     const finances = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
@@ -77,9 +77,9 @@ let newCode = `
       const devStage = model.dev_stage as string | null;
 
       // Stage: engineering → prototype
-      const engEndsOrbit = model.stage_engineering_completes_orbit || 1;
-      const engEndsArc   = model.stage_engineering_completes_arc   || 1;
-      if (devStage === 'engineering' && (currentOrbit > engEndsOrbit || (currentOrbit === engEndsOrbit && currentArc >= engEndsArc))) {
+      const engEndsYear = model.stage_engineering_completes_year || 1;
+      const engEndsMonth   = model.stage_engineering_completes_month   || 1;
+      if (devStage === 'engineering' && (currentYear > engEndsYear || (currentYear === engEndsYear && currentMonth >= engEndsMonth))) {
         const bonuses = applyKnowledgeBonuses(knowledgeXpMap);
         const newReliability = Math.min(100, Number(model.reliability_score ?? 60) + bonuses.reliabilityBonus);
         const newMfgFriendliness = Math.min(100, Number(model.manufacturing_friendliness ?? 50) + bonuses.mfgFriendlinessBonus);
@@ -92,15 +92,15 @@ let newCode = `
 
         const bonusSummary = Object.entries(bonuses).filter(([, v]) => (v as number) > 0).map(([k, v]) => \`\${k.replace('Bonus','').replace('Reduction', '')}: +\${(v as number).toFixed(1)}\`).join(', ');
         await trx('company_records').insert({
-          world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`\${model.name} has entered the Prototype stage.\${bonusSummary ? \` Knowledge bonuses applied: \${bonusSummary}.\` : ''}\`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark
+          world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`\${model.name} has entered the Prototype stage.\${bonusSummary ? \` Knowledge bonuses applied: \${bonusSummary}.\` : ''}\`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay
         });
         continue;
       }
 
       // Stage: prototype → testing
-      const protoEndsOrbit = model.stage_prototype_completes_orbit || 1;
-      const protoEndsArc   = model.stage_prototype_completes_arc   || 1;
-      if (devStage === 'prototype' && (currentOrbit > protoEndsOrbit || (currentOrbit === protoEndsOrbit && currentArc >= protoEndsArc))) {
+      const protoEndsYear = model.stage_prototype_completes_year || 1;
+      const protoEndsMonth   = model.stage_prototype_completes_month   || 1;
+      if (devStage === 'prototype' && (currentYear > protoEndsYear || (currentYear === protoEndsYear && currentMonth >= protoEndsMonth))) {
         const validation = evaluatePrototypeValidation(model);
         const currentCultureScore = Number(cultureScore || 0);
         const newCultureScore = applyEngineeringCulture(currentCultureScore, validation);
@@ -115,37 +115,37 @@ let newCode = `
           if (extraCostCharged > 0) {
             runningCash -= extraCostCharged;
             await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', extraCostCharged);
-            await trx('company_ledger').insert({ company_id: companyId, game_orbit: currentOrbit, game_arc: currentArc, game_mark: currentMark, entry_type: 'expense', description: \`Prototype validation failure costs: \${model.name}\`, amount: -extraCostCharged, balance_after: runningCash });
+            await trx('company_ledger').insert({ company_id: companyId, game_year: currentYear, game_month: currentMonth, game_day: currentDay, entry_type: 'expense', description: \`Prototype validation failure costs: \${model.name}\`, amount: -extraCostCharged, balance_after: runningCash });
           }
-          extraArcMessage = \` Development extended by \${validation.extraArcs} arc(s).\`;
+          extraArcMessage = \` Development extended by \${validation.extraArcs} month(s).\`;
         }
 
-        const newTestingArc = (model.stage_testing_completes_arc || currentArc + 1) + validation.extraArcs;
-        const newFinalArc = (model.development_completes_at_arc || currentArc + 1) + validation.extraArcs;
+        const newTestingArc = (model.stage_testing_completes_month || currentMonth + 1) + validation.extraArcs;
+        const newFinalArc = (model.development_completes_at_month || currentMonth + 1) + validation.extraArcs;
 
-        await trx('manufacturing_vehicle_models').where({ id: model.id }).update({ dev_stage: 'testing', stage_testing_completes_arc: newTestingArc, development_completes_at_arc: newFinalArc, prototype_validation_result: JSON.stringify(validation), updated_at: trx.fn.now() });
+        await trx('manufacturing_vehicle_models').where({ id: model.id }).update({ dev_stage: 'testing', stage_testing_completes_month: newTestingArc, development_completes_at_month: newFinalArc, prototype_validation_result: JSON.stringify(validation), updated_at: trx.fn.now() });
         await trx('manufacturing_engineering_reputation').where({ company_id: companyId }).update({ engineering_culture_score: newCultureScore, last_updated: trx.fn.now() }).catch(() => {});
 
         const validationSummary = validation.passed ? \`Prototype validation \${validation.resultClass} (confidence: \${validation.confidenceScore}%).\` : \`Prototype validation \${validation.resultClass}: \${validation.issues[0]}.\${extraArcMessage} Extra cost: \${extraCostCharged.toLocaleString()}.\`;
-        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`\${model.name} — \${validationSummary}\`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
+        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`\${model.name} — \${validationSummary}\`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
         continue;
       }
 
       // Stage: testing → ready_to_launch
-      const testingEndsOrbit = model.stage_testing_completes_orbit || 1;
-      const testingEndsArc   = model.stage_testing_completes_arc   || 1;
-      if (devStage === 'testing' && (currentOrbit > testingEndsOrbit || (currentOrbit === testingEndsOrbit && currentArc >= testingEndsArc))) {
+      const testingEndsYear = model.stage_testing_completes_year || 1;
+      const testingEndsMonth   = model.stage_testing_completes_month   || 1;
+      if (devStage === 'testing' && (currentYear > testingEndsYear || (currentYear === testingEndsYear && currentMonth >= testingEndsMonth))) {
         await trx('manufacturing_vehicle_models').where({ id: model.id }).update({ dev_stage: 'ready_to_launch', updated_at: trx.fn.now() });
       }
 
       // Final: ready_to_launch (this part generates permanent assessment at the end of testing)
-      const completesOrbit = model.development_completes_at_orbit || 1;
-      const completesArc   = model.development_completes_at_arc   || 1;
-      if (currentOrbit > completesOrbit || (currentOrbit === completesOrbit && currentArc >= completesArc)) {
+      const completesYear = model.development_completes_at_year || 1;
+      const completesMonth   = model.development_completes_at_month   || 1;
+      if (currentYear > completesYear || (currentYear === completesYear && currentMonth >= completesMonth)) {
         const assessment = calculateEngineeringAssessment(model);
         const balanceRating = calculateBalanceRating(model);
         await trx('manufacturing_vehicle_models').where({ id: model.id }).update({ development_status: 'ready_to_launch', dev_stage: 'ready_to_launch', engineering_assessment: JSON.stringify(assessment), engineering_balance_rating: balanceRating, updated_at: trx.fn.now() });
-        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`Vehicle development completed: \${model.name}.\`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
+        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`Vehicle development completed: \${model.name}.\`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
       }
     }
 
@@ -164,9 +164,9 @@ let newCode = `
     let expansionCompletedNote = '';
     const expandingFactory = factories.find((f: any) => f.expansion_status === 'construction_underway');
     if (expandingFactory) {
-      const compOrbit = Number(expandingFactory.expansion_completion_orbit);
-      const compArc   = Number(expandingFactory.expansion_completion_arc);
-      const isComplete = currentOrbit > compOrbit || (currentOrbit === compOrbit && currentArc >= compArc);
+      const compYear = Number(expandingFactory.expansion_completion_year);
+      const compMonth   = Number(expandingFactory.expansion_completion_arc);
+      const isComplete = currentYear > compYear || (currentYear === compYear && currentMonth >= compMonth);
 
       if (isComplete) {
         await trx('manufacturing_factories').where({ id: expandingFactory.id }).update({ expansion_status: 'expanded', capacity_per_arc: EXP_CAPACITY, lease_cost_per_arc: EXP_LEASE, maintenance_cost_per_arc: EXP_MAINT, worker_capacity: EXP_WORKERS, updated_at: trx.fn.now() });
@@ -178,8 +178,8 @@ let newCode = `
           }
         }
 
-        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`Workshop expansion completed. \${EXP_MAX_LINES} production lines now available (capacity: \${EXP_CAPACITY} units/Arc).\`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
-        expansionCompletedNote = \` Factory Expansion Completed: Expanded Workshop — \${EXP_MAX_LINES} production lines, \${EXP_CAPACITY} units per Arc capacity.\`;
+        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`Workshop expansion completed. \${EXP_MAX_LINES} production lines now available (capacity: \${EXP_CAPACITY} units/Month).\`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
+        expansionCompletedNote = \` Factory Expansion Completed: Expanded Workshop — \${EXP_MAX_LINES} production lines, \${EXP_CAPACITY} units per Month capacity.\`;
 
         factories.forEach((f: any) => {
           if (f.id === expandingFactory.id) { f.capacity_per_arc = EXP_CAPACITY; f.lease_cost_per_arc = EXP_LEASE; f.maintenance_cost_per_arc = EXP_MAINT; f.worker_capacity = EXP_WORKERS; }
@@ -188,17 +188,17 @@ let newCode = `
     }
 
     if (activeProgramme) {
-      const isAtLeastValidation = currentOrbit > activeProgramme.validation_arc_orbit || (currentOrbit === activeProgramme.validation_arc_orbit && currentArc >= activeProgramme.validation_arc_orbit);
-      const isAtLeastCompletion = currentOrbit > activeProgramme.completion_arc_orbit || (currentOrbit === activeProgramme.completion_arc_orbit && currentArc >= activeProgramme.completion_arc_orbit);
+      const isAtLeastValidation = currentYear > activeProgramme.validation_month_year || (currentYear === activeProgramme.validation_month_year && currentMonth >= activeProgramme.validation_month_year);
+      const isAtLeastCompletion = currentYear > activeProgramme.completion_month_year || (currentYear === activeProgramme.completion_month_year && currentMonth >= activeProgramme.completion_month_year);
       const progName = ENGINEERING_PROGRAMMES_CATALOG[activeProgramme.programme_id]?.name || activeProgramme.programme_id;
 
       if (isAtLeastCompletion) {
         await trx('manufacturing_engineering_programmes').where({ id: activeProgramme.id }).update({ status: 'approved', updated_at: trx.fn.now() });
-        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`\${progName} was approved for company use.\`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
+        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`\${progName} was approved for company use.\`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
         approvedResearchNames.push(progName);
       } else if (isAtLeastValidation && activeProgramme.status === 'engineering') {
         await trx('manufacturing_engineering_programmes').where({ id: activeProgramme.id }).update({ status: 'validation', updated_at: trx.fn.now() });
-        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`\${progName} entered technical validation.\`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
+        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`\${progName} entered technical validation.\`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
       }
     }
 
@@ -342,7 +342,7 @@ let newCode = `
     if (wageShortfall > 0) {
       const wageCurrency = await trx('currencies').where({ id: company.currency_id }).first();
       const wageSym = wageCurrency?.symbol ?? '';
-      await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`⚠ Wage shortfall: only \${wageSym}\${actualWagesPaid.toLocaleString()} of \${wageSym}\${totalStaffWages.toLocaleString()} wages paid this arc.\`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
+      await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`⚠ Wage shortfall: only \${wageSym}\${actualWagesPaid.toLocaleString()} of \${wageSym}\${totalStaffWages.toLocaleString()} wages paid this month.\`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
     }
 
     let totalLeaseCosts = 0;

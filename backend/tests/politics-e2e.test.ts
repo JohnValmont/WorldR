@@ -31,8 +31,8 @@ async function runTest() {
   });
 
   // Setup cycle
-  const currentArc = 100;
-  await db('world_clock').update({ current_arc: currentArc });
+  const currentMonth = 100;
+  await db('world_clock').update({ current_month: currentMonth });
   
   const cycleId = crypto.randomUUID();
   await db('pol_cycles').insert({
@@ -40,9 +40,9 @@ async function runTest() {
     state_id: state.id,
     cycle_number: 1,
     phase: 'campaign',
-    start_arc: currentArc - 20,
-    polling_arc: currentArc + 5,
-    formation_end_arc: currentArc + 7,
+    start_arc: currentMonth - 20,
+    polling_arc: currentMonth + 5,
+    formation_end_arc: currentMonth + 7,
     status: 'open'
   });
 
@@ -56,14 +56,14 @@ async function runTest() {
     platform: JSON.stringify({ taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 }),
     treasury: 100000,
     is_npc: false,
-    created_arc: currentArc
+    created_arc: currentMonth
   });
 
   await db('pol_party_members').insert({
     party_id: partyId,
     character_id: charId,
     role: 'leader',
-    joined_arc: currentArc
+    joined_arc: currentMonth
   });
 
   // Create candidate
@@ -87,7 +87,7 @@ async function runTest() {
       target_segment: 'suburban_families',
       cash_spent: 5000,
       effort: 20,
-      resolved_arc: currentArc
+      resolved_arc: currentMonth
     });
   }
 
@@ -100,8 +100,8 @@ async function runTest() {
   const initial = await getFactors();
   assert.deepStrictEqual(initial, { inf: 10, cred: 10, char: 10 });
 
-  // 3. Resolve Election (polling arc)
-  await processPoliticalArc(db, state.id, currentArc + 5);
+  // 3. Resolve Election (polling month)
+  await processPoliticalArc(db, state.id, currentMonth + 5);
 
   const postElection = await getFactors();
   // Should have won seat (player is the only candidate)
@@ -109,13 +109,13 @@ async function runTest() {
   assert.strictEqual(postElection.inf, 10 + POL_FACTOR_DELTAS.WIN_SEAT.influence, 'Influence after WIN_SEAT');
   assert.strictEqual(postElection.cred, 10 + POL_FACTOR_DELTAS.WIN_SEAT.credibility, 'Credibility after WIN_SEAT');
 
-  // Idempotency check: Re-process the same arc
-  await processPoliticalArc(db, state.id, currentArc + 5);
+  // Idempotency check: Re-process the same month
+  await processPoliticalArc(db, state.id, currentMonth + 5);
   const postElectionIdempotent = await getFactors();
   assert.deepStrictEqual(postElectionIdempotent, postElection, 'WIN_SEAT must be idempotent');
 
   // 4. Form Government & Name Premier (formation_end_arc)
-  await processPoliticalArc(db, state.id, currentArc + 7);
+  await processPoliticalArc(db, state.id, currentMonth + 7);
   
   const postFormation = await getFactors();
   // Should become premier (BECOME_PREMIER = inf+12, cred+6, char+3)
@@ -124,7 +124,7 @@ async function runTest() {
   assert.strictEqual(postFormation.char, initial.char + POL_FACTOR_DELTAS.BECOME_PREMIER.charisma + POL_FACTOR_DELTAS.ACTIVE_CAMPAIGN.charisma, 'Charisma includes active campaign bonus');
 
   // Idempotency check:
-  await processPoliticalArc(db, state.id, currentArc + 7);
+  await processPoliticalArc(db, state.id, currentMonth + 7);
   const postFormationIdempotent = await getFactors();
   assert.deepStrictEqual(postFormationIdempotent, postFormation, 'Premier & Rollover must be idempotent');
 
@@ -137,7 +137,7 @@ async function runTest() {
     type: 'industry_tax',
     params: JSON.stringify({ rate: 0.15 }),
     status: 'proposed',
-    proposed_arc: currentArc + 8
+    proposed_arc: currentMonth + 8
   });
 
   // Vote YEA
@@ -147,14 +147,14 @@ async function runTest() {
     vote: 'yea'
   });
 
-  await processPoliticalArc(db, state.id, currentArc + 9);
+  await processPoliticalArc(db, state.id, currentMonth + 9);
   
   const postBill = await getFactors();
   // BILL_PASSES = cred+4
   assert.strictEqual(postBill.cred, postFormation.cred + POL_FACTOR_DELTAS.BILL_PASSES.credibility, 'Credibility after Bill passes');
 
   // Idempotency check:
-  await processPoliticalArc(db, state.id, currentArc + 9);
+  await processPoliticalArc(db, state.id, currentMonth + 9);
   const postBillIdempotent = await getFactors();
   assert.deepStrictEqual(postBillIdempotent, postBill, 'BILL_PASSES must be idempotent');
 
@@ -169,7 +169,7 @@ async function runTest() {
     max_price: 20000,
     duration_arcs: 1,
     status: 'open',
-    posted_arc: currentArc + 9
+    posted_arc: currentMonth + 9
   });
 
   const modelId = crypto.randomUUID();
@@ -194,9 +194,9 @@ async function runTest() {
     appeal_score: 50,
     cargo_score: 50,
     safety_score: 50,
-    created_at_world_orbit: 1,
-    created_at_world_arc: 1,
-    created_at_world_mark: 1
+    created_at_world_year: 1,
+    created_at_world_month: 1,
+    created_at_world_day: 1
   });
 
   await db('pol_tender_bids').insert({
@@ -204,16 +204,16 @@ async function runTest() {
     company_id: companyId,
     model_id: modelId,
     bid_price: 15000,
-    created_arc: currentArc + 9
+    created_arc: currentMonth + 9
   });
 
-  await processPoliticalArc(db, state.id, currentArc + 10);
+  await processPoliticalArc(db, state.id, currentMonth + 10);
 
   const postTender = await getFactors();
   // TENDER_WINS = cred+4
   assert.strictEqual(postTender.cred, postBill.cred + POL_FACTOR_DELTAS.TENDER_WINS.credibility, 'Credibility after Tender wins');
 
-  await processPoliticalArc(db, state.id, currentArc + 10);
+  await processPoliticalArc(db, state.id, currentMonth + 10);
   const postTenderIdempotent = await getFactors();
   assert.deepStrictEqual(postTenderIdempotent, postTender, 'TENDER_WINS must be idempotent');
 

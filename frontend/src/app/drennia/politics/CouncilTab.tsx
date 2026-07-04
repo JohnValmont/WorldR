@@ -41,7 +41,7 @@ export default function CouncilTab({ overview, character, parties }: any) {
         <Users size={32} className="opacity-50 mb-4" />
         <h3 className="text-[#F4EBD6] font-serif text-lg mb-2">The Chamber is Empty</h3>
         <p className="text-sm text-center max-w-md">
-          No sitting Council. The next election concludes at arc {overview?.cycle?.polling_arc || 'TBD'}.
+          No sitting Council. The next election concludes at month {overview?.cycle?.polling_arc || 'TBD'}.
         </p>
       </div>
     );

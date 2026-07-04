@@ -127,7 +127,7 @@ export default function NotificationBell() {
                     <button
                       type="button"
                       onClick={() => markAllRead()}
-                      title="Mark all read"
+                      title="Day all read"
                       className="flex items-center gap-1 px-1.5 py-1 rounded text-[9px] font-mono uppercase tracking-wider text-zinc-500 hover:text-terminal-green transition-colors"
                     >
                       <Check size={11} /> Read

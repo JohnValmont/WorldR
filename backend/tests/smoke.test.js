@@ -32,7 +32,7 @@ test('Core Loop Smoke Test', async (t) => {
       // Give company plenty of cash
       await client.query("UPDATE company_finances SET available_cash = 50000000 WHERE company_id = $1", [companyId]);
 
-      // Make user admin so process-arc works
+      // Make user admin so process-month works
       await client.query("UPDATE users SET role = 'admin' WHERE id = $1", [userId]);
 
       // JWT auth
@@ -145,7 +145,7 @@ test('Core Loop Smoke Test', async (t) => {
     });
 
     // === ACT 4: PROCESS ARC ===
-    await t.test('Act 4: Process Arc', async () => {
+    await t.test('Act 4: Process Month', async () => {
       // Give company enough components to manufacture 10 vehicles
       const components = ['comp_engine', 'comp_transmission', 'comp_tyres', 'comp_steel', 'comp_glass', 'comp_electronics'];
       for (const comp of components) {
@@ -156,14 +156,14 @@ test('Core Loop Smoke Test', async (t) => {
         `, [companyId, comp]);
       }
 
-      // Advance world clock so we can process a new arc
-      await client.query("UPDATE world_clock SET current_arc = current_arc + 1");
+      // Advance world clock so we can process a new month
+      await client.query("UPDATE world_clock SET current_month = current_month + 1");
 
-      // Simulate the admin arc processing tick
+      // Simulate the admin month processing tick
       try {
         await api.post(`/admin/manufacturing/process-company/${companyId}`);
       } catch(e) {
-        assert.fail(`Process Arc API failed: ${e.response?.data?.error || e.message}`);
+        assert.fail(`Process Month API failed: ${e.response?.data?.error || e.message}`);
       }
       
       // Verify inventory increased

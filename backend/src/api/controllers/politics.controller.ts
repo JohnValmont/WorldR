@@ -21,7 +21,7 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
         cyclePhase = cycle.phase;
         
         const clock = await db('world_clock').first();
-        const actualArc = clock?.current_arc || 1;
+        const actualArc = clock?.current_month || 1;
         
         const startCampaign = cycle.polling_arc - 6;
         const startFiling = startCampaign - 3;
@@ -143,7 +143,7 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
         .decrement('net_worth', PARTY_FOUNDING_COST);
 
       const clock = await trx('world_clock').first();
-      const currentArc = clock?.current_arc || 1;
+      const currentMonth = clock?.current_month || 1;
 
       const safePlatform = platform || { taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 };
 
@@ -154,7 +154,7 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
         platform: safePlatform,
         treasury: 0,
         is_npc: false,
-        created_arc: currentArc
+        created_arc: currentMonth
       }).returning('*');
 
       const fallbackMonogram = name.trim().split(/\s+/).filter(Boolean).map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '??';
@@ -171,7 +171,7 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
         party_id: party.id,
         character_id: character.id,
         role: 'leader',
-        joined_arc: currentArc
+        joined_arc: currentMonth
       });
 
       return party;
@@ -210,7 +210,7 @@ export async function queueCampaignAction(req: Request, res: Response, next: Nex
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     const clock = await db('world_clock').first();
-    const currentArc = clock?.current_arc || 1;
+    const currentMonth = clock?.current_month || 1;
 
     const result = await db.transaction(async (trx) => {
       const char = await trx('characters').where({ user_id: userId }).first(); // Don't filter by state_id here unless character has it
@@ -232,7 +232,7 @@ export async function queueCampaignAction(req: Request, res: Response, next: Nex
         target_segment: def.targeting === 'segment' ? target_segment : null,
         effort: 0,
         cash_spent: 0,
-        resolved_arc: currentArc + 1
+        resolved_arc: currentMonth + 1
       }).returning('*');
 
       return inserted;
@@ -253,13 +253,13 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
     const registeredVoters = activeState.registered_voters || 1600000;
 
     const clock = await db('world_clock').first();
-    const actualArc = clock?.current_arc || 1;
+    const actualArc = clock?.current_month || 1;
 
     // Current projection (all resolved campaign effort).
     const engineCands = await buildEngineCandidates(db, cycle.id);
     const projection = runElection({ candidates: engineCands, registeredVoters });
 
-    // Previous-arc projection powers momentum. Free & safe: the engine is pure and re-runnable.
+    // Previous-month projection powers momentum. Free & safe: the engine is pure and re-runnable.
     let prevProjection = null;
     try {
       const prevCands = await buildEngineCandidates(db, cycle.id, actualArc - 1);
@@ -331,13 +331,13 @@ export async function joinParty(req: Request, res: Response, next: NextFunction)
       if (!party) throw new AppError('Party not found', 404, 'NOT_FOUND');
 
       const clock = await trx('world_clock').first();
-      const currentArc = clock?.current_arc || 1;
+      const currentMonth = clock?.current_month || 1;
 
       await trx('pol_party_members').insert({
         party_id: party.id,
         character_id: character.id,
         role: 'member',
-        joined_arc: currentArc
+        joined_arc: currentMonth
       });
     });
 
@@ -606,10 +606,10 @@ export async function getLedger(req: Request, res: Response, next: NextFunction)
 
     const events = await db('pol_ledger_events')
       .where({ state_id: activeState.id })
-      .orderBy('arc', 'desc')
+      .orderBy('month', 'desc')
       .orderBy('id', 'desc')
       .limit(limit)
-      .select('id', 'arc', 'kind', 'headline', 'body');
+      .select('id', 'month', 'kind', 'headline', 'body');
 
     return res.json(events);
   } catch (error) {
@@ -645,7 +645,7 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
       }
 
       const clock = await trx('world_clock').first();
-      const currentArc = clock?.current_arc || 1;
+      const currentMonth = clock?.current_month || 1;
 
       const [bill] = await trx('pol_bills').insert({
         state_id: activeState.id,
@@ -653,7 +653,7 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
         type,
         params,
         status: 'proposed',
-        proposed_arc: currentArc
+        proposed_arc: currentMonth
       }).returning('*');
 
       return bill;
@@ -713,9 +713,9 @@ export async function donateToParty(req: Request, res: Response, next: NextFunct
       if (!party) throw new AppError('Party not found', 404, 'NOT_FOUND');
 
       const clock = await trx('world_clock').first();
-      const currentOrbit = clock?.current_orbit || 1;
-      const currentArc = clock?.current_arc || 1;
-      const currentMark = clock?.current_mark || 1;
+      const currentYear = clock?.current_year || 1;
+      const currentMonth = clock?.current_month || 1;
+      const currentDay = clock?.current_day || 1;
 
       if (companyId) {
         // Deduct from company
@@ -726,7 +726,7 @@ export async function donateToParty(req: Request, res: Response, next: NextFunct
         
         await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', amount);
         await trx('company_ledger').insert({
-          company_id: companyId, game_orbit: currentOrbit, game_arc: currentArc, game_mark: currentMark,
+          company_id: companyId, game_year: currentYear, game_month: currentMonth, game_day: currentDay,
           entry_type: 'lobbying', amount: -amount, balance_after: Number(finances.available_cash) - amount,
           description: `Donation to ${party.name}`
         });
@@ -777,9 +777,9 @@ export async function petitionParty(req: Request, res: Response, next: NextFunct
         company_id: company.id,
         record_type: 'business',
         summary: `Lobbying Petition sent regarding ${issue}`,
-        created_at_world_orbit: clock?.current_orbit || 1,
-        created_at_world_arc: clock?.current_arc || 1,
-        created_at_world_mark: clock?.current_mark || 1
+        created_at_world_year: clock?.current_year || 1,
+        created_at_world_month: clock?.current_month || 1,
+        created_at_world_day: clock?.current_day || 1
       });
 
       return { success: true, issue };
@@ -826,7 +826,7 @@ export async function postTender(req: Request, res: Response, next: NextFunction
       }
 
       const clock = await trx('world_clock').first();
-      const currentArc = clock?.current_arc || 1;
+      const currentMonth = clock?.current_month || 1;
 
       const [tender] = await trx('pol_tenders').insert({
         state_id: activeState.id,
@@ -836,15 +836,15 @@ export async function postTender(req: Request, res: Response, next: NextFunction
         max_price,
         duration_arcs,
         status: 'open',
-        posted_arc: currentArc
+        posted_arc: currentMonth
       }).returning('*');
 
       await trx('pol_ledger_events').insert({
         state_id: activeState.id,
-        arc: currentArc,
+        month: currentMonth,
         kind: 'tender_posted',
         headline: `Government Procurement: ${vehicle_class} Tender Posted`,
-        body: `The government has opened bidding for ${units_per_arc} units per arc at a max price of ${max_price} ₯ for ${duration_arcs} arcs.`
+        body: `The government has opened bidding for ${units_per_arc} units per month at a max price of ${max_price} ₯ for ${duration_arcs} months.`
       });
 
       return tender;
@@ -904,7 +904,7 @@ export async function bidTender(req: Request, res: Response, next: NextFunction)
       }
 
       const clock = await trx('world_clock').first();
-      const currentArc = clock?.current_arc || 1;
+      const currentMonth = clock?.current_month || 1;
 
       // Ensure single active bid per company per tender (optional but good practice)
       await trx('pol_tender_bids').where({ tender_id: tender.id, company_id: company.id }).del();
@@ -914,7 +914,7 @@ export async function bidTender(req: Request, res: Response, next: NextFunction)
         company_id: company.id,
         model_id: model.id,
         bid_price: bidPrice,
-        created_arc: currentArc
+        created_arc: currentMonth
       }).returning('*');
 
       return bid;
@@ -1029,7 +1029,7 @@ export async function getTenders(req: Request, res: Response, next: NextFunction
       .limit(50);
 
     const clock = await db('world_clock').first();
-    const currentArc = clock?.current_arc || 1;
+    const currentMonth = clock?.current_month || 1;
 
     for (const tender of tenders) {
       if (tender.status === 'open') {
@@ -1042,7 +1042,7 @@ export async function getTenders(req: Request, res: Response, next: NextFunction
         }
       }
       tender.remaining_arcs = tender.status === 'active' 
-        ? Math.max(0, (tender.posted_arc + tender.duration_arcs) - currentArc)
+        ? Math.max(0, (tender.posted_arc + tender.duration_arcs) - currentMonth)
         : (tender.status === 'open' ? tender.duration_arcs : 0);
     }
 

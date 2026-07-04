@@ -24,36 +24,36 @@ export class AnalyticsService {
   }
 
   public static async getSelfAnalytics(companyId: string) {
-    // Determine the most recently completed arc.
+    // Determine the most recently completed month.
     const clock = await db('world_clock').first();
-    const currentOrbit = clock?.current_orbit || 1;
-    const currentArc = clock?.current_arc || 1;
+    const currentYear = clock?.current_year || 1;
+    const currentMonth = clock?.current_month || 1;
 
-    let targetArc = currentArc - 1;
-    let targetOrbit = currentOrbit;
-    if (targetArc === 0) {
-      targetArc = 36; // Assuming 36 arcs in an orbit
-      targetOrbit -= 1;
+    let targetMonth = currentMonth - 1;
+    let targetYear = currentYear;
+    if (targetMonth === 0) {
+      targetMonth = 36; // Assuming 36 months in an year
+      targetYear -= 1;
     }
     
-    let prevArc = targetArc - 1;
-    let prevOrbit = targetOrbit;
-    if (prevArc === 0) {
-      prevArc = 36;
-      prevOrbit -= 1;
+    let prevMonth = targetMonth - 1;
+    let prevYear = targetYear;
+    if (prevMonth === 0) {
+      prevMonth = 36;
+      prevYear -= 1;
     }
 
-    // If targetOrbit is 0, we are at the very beginning of the game.
-    if (targetOrbit <= 0) {
+    // If targetYear is 0, we are at the very beginning of the game.
+    if (targetYear <= 0) {
       return {
-        arc: { orbit: currentOrbit, arc: currentArc - 1 },
+        month: { year: currentYear, month: currentMonth - 1 },
         segments: []
       };
     }
 
-    // Fetch sales for target arc
+    // Fetch sales for target month
     const targetSales = await db('manufacturing_sales_results')
-      .where({ 'manufacturing_sales_results.company_id': companyId, world_orbit: targetOrbit, world_arc: targetArc })
+      .where({ 'manufacturing_sales_results.company_id': companyId, world_year: targetYear, world_month: targetMonth })
       .join('manufacturing_vehicle_models', 'manufacturing_sales_results.vehicle_model_id', 'manufacturing_vehicle_models.id')
       .join('manufacturing_region_markets', 'manufacturing_sales_results.region_market_id', 'manufacturing_region_markets.id')
       .select(
@@ -63,9 +63,9 @@ export class AnalyticsService {
         'manufacturing_region_markets.name as market_name'
       );
 
-    // Fetch sales for previous arc to calculate trends
+    // Fetch sales for previous month to calculate trends
     const prevSales = await db('manufacturing_sales_results')
-      .where({ 'manufacturing_sales_results.company_id': companyId, world_orbit: prevOrbit, world_arc: prevArc })
+      .where({ 'manufacturing_sales_results.company_id': companyId, world_year: prevYear, world_month: prevMonth })
       .join('manufacturing_vehicle_models', 'manufacturing_sales_results.vehicle_model_id', 'manufacturing_vehicle_models.id')
       .join('manufacturing_region_markets', 'manufacturing_sales_results.region_market_id', 'manufacturing_region_markets.id')
       .select(
@@ -126,34 +126,34 @@ export class AnalyticsService {
     }
 
     return {
-      arc: { orbit: targetOrbit, arc: targetArc },
+      month: { year: targetYear, month: targetMonth },
       segments: Array.from(segmentMap.values())
     };
   }
 
   public static async getMarketStructure(countryId: string) {
-    // Determine the most recently completed arc.
+    // Determine the most recently completed month.
     const clock = await db('world_clock').first();
-    const currentOrbit = clock?.current_orbit || 1;
-    const currentArc = clock?.current_arc || 1;
+    const currentYear = clock?.current_year || 1;
+    const currentMonth = clock?.current_month || 1;
 
-    let targetArc = currentArc - 1;
-    let targetOrbit = currentOrbit;
-    if (targetArc === 0) {
-      targetArc = 36;
-      targetOrbit -= 1;
+    let targetMonth = currentMonth - 1;
+    let targetYear = currentYear;
+    if (targetMonth === 0) {
+      targetMonth = 36;
+      targetYear -= 1;
     }
 
-    if (targetOrbit <= 0) {
+    if (targetYear <= 0) {
       return {
-        arc: { orbit: currentOrbit, arc: currentArc - 1 },
+        month: { year: currentYear, month: currentMonth - 1 },
         segments: []
       };
     }
 
-    // Fetch sales for target arc across all companies in the country
+    // Fetch sales for target month across all companies in the country
     const allSales = await db('manufacturing_sales_results')
-      .where({ 'manufacturing_sales_results.world_orbit': targetOrbit, 'manufacturing_sales_results.world_arc': targetArc })
+      .where({ 'manufacturing_sales_results.world_year': targetYear, 'manufacturing_sales_results.world_month': targetMonth })
       .join('manufacturing_region_markets', 'manufacturing_sales_results.region_market_id', 'manufacturing_region_markets.id')
       .where({ 'manufacturing_region_markets.country_id': countryId })
       .select(
@@ -212,7 +212,7 @@ export class AnalyticsService {
     }
 
     return {
-      arc: { orbit: targetOrbit, arc: targetArc },
+      month: { year: targetYear, month: targetMonth },
       segments: Array.from(segmentMap.values())
     };
   }
@@ -246,28 +246,28 @@ export class AnalyticsService {
           available_cash: Number(finances.available_cash) - cost
         });
 
-      // Determine the most recently completed arc
+      // Determine the most recently completed month
       const clock = await trx('world_clock').first();
-      const currentOrbit = clock?.current_orbit || 1;
-      const currentArc = clock?.current_arc || 1;
+      const currentYear = clock?.current_year || 1;
+      const currentMonth = clock?.current_month || 1;
 
-      let targetArc = currentArc - 1;
-      let targetOrbit = currentOrbit;
-      if (targetArc === 0) {
-        targetArc = 36;
-        targetOrbit -= 1;
+      let targetMonth = currentMonth - 1;
+      let targetYear = currentYear;
+      if (targetMonth === 0) {
+        targetMonth = 36;
+        targetYear -= 1;
       }
 
-      if (targetOrbit <= 0) {
-        return []; // No completed arc yet
+      if (targetYear <= 0) {
+        return []; // No completed month yet
       }
 
-      // Fetch all sales for this segment in the last arc
+      // Fetch all sales for this segment in the last month
       const sales = await trx('manufacturing_sales_results')
         .where({ 
           'manufacturing_sales_results.region_market_id': regionMarketId,
-          'manufacturing_sales_results.world_orbit': targetOrbit,
-          'manufacturing_sales_results.world_arc': targetArc
+          'manufacturing_sales_results.world_year': targetYear,
+          'manufacturing_sales_results.world_month': targetMonth
         })
         .join('manufacturing_vehicle_models', 'manufacturing_sales_results.vehicle_model_id', 'manufacturing_vehicle_models.id')
         .join('companies', 'manufacturing_sales_results.company_id', 'companies.id')

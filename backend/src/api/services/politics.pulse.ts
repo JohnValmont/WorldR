@@ -38,7 +38,7 @@ export interface SegmentPulse {
   /** how far behind the segment leader (>0), or margin over 2nd place when leading (>0) */
   gap: number;
   status: SegmentStatus;
-  /** change in my share vs the previous arc's projection */
+  /** change in my share vs the previous month's projection */
   delta: number;
 }
 
@@ -95,7 +95,7 @@ export function buildPulse(ctx: PulseContext): PoliticalPulse {
   // ── Near-miss: seats from a governing majority ────────────────────────────
   const seatsFromMajority = myParty ? Math.max(0, POL_MAJORITY_SEATS - myParty.seats) : null;
 
-  // ── Momentum: change in my party's projected seats vs previous arc ─────────
+  // ── Momentum: change in my party's projected seats vs previous month ─────────
   let momentum: PoliticalPulse['momentum'] = null;
   if (myParty && prevProjection) {
     const prevSeats = prevProjection.perParty.find(p => p.partyId === myPartyId)?.seats ?? myParty.seats;
@@ -122,7 +122,7 @@ export function buildPulse(ctx: PulseContext): PoliticalPulse {
       const ahead = best.seats >= myParty.seats;
       const message = ahead
         ? bestGap === 0
-          ? `Dead heat with ${best.name} — every arc counts.`
+          ? `Dead heat with ${best.name} — every month counts.`
           : `${best.name} is ahead by ${bestGap} seat${bestGap === 1 ? '' : 's'}. Catch them.`
         : `You lead ${best.name} by ${bestGap} seat${bestGap === 1 ? '' : 's'} — don't let them close it.`;
       rival = { partyId: best.partyId, name: best.name, seats: best.seats, votes: best.votes, seatGap: bestGap, ahead, message };

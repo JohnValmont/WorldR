@@ -2,9 +2,9 @@ const fs = require('fs');
 
 let newCode = `
   private static async settleForCompany(trx: any, pState: ParticipantState, salesResults: any[], clock: any, brandMap: Map<string, any>): Promise<void> {
-    const currentOrbit = clock?.current_orbit || 1;
-    const currentArc = clock?.current_arc || 1;
-    const currentMark = clock?.current_mark || 1;
+    const currentYear = clock?.current_year || 1;
+    const currentMonth = clock?.current_month || 1;
+    const currentDay = clock?.current_day || 1;
     const companyId = pState.company.id;
     const company = pState.company;
 
@@ -83,7 +83,7 @@ let newCode = `
       const marketShare = Math.min(1, unitsSold / Math.max(1, md.rawBuyerInterest));
       await trx('manufacturing_sales_results').insert({
         world_instance_id: company.world_instance_id, company_id: companyId, vehicle_model_id: alloc.vehicle_model_id, region_market_id: alloc.region_market_id,
-        world_orbit: currentOrbit, world_arc: currentArc, units_sold: unitsSold, sale_price: alloc.sale_price, revenue: unitsSold * Number(alloc.sale_price),
+        world_year: currentYear, world_month: currentMonth, units_sold: unitsSold, sale_price: alloc.sale_price, revenue: unitsSold * Number(alloc.sale_price),
         market_share_estimate: marketShare, addressable_households: totalHouseholds, market_purchase_capacity: marketPurchaseCapacity,
         affordability_multiplier: Math.round(md.affordability * 10000) / 10000, vehicle_market_fit_multiplier: Math.round(md.fitMultiplier * 10000) / 10000,
         awareness_multiplier: Math.round(md.awarenessMult * 10000) / 10000, trust_multiplier: Math.round(md.trustMult * 10000) / 10000,
@@ -144,11 +144,11 @@ let newCode = `
       if (!mModel) continue;
       await trx.raw(\`
         INSERT INTO manufacturing_model_snapshots
-          (world_instance_id, company_id, model_id, world_orbit, world_arc, units_produced, defective_units, units_sold, ending_inventory, sales_revenue, production_cost, defect_loss, marketing_cost, storage_cost, direct_contribution)
+          (world_instance_id, company_id, model_id, world_year, world_month, units_produced, defective_units, units_sold, ending_inventory, sales_revenue, production_cost, defect_loss, marketing_cost, storage_cost, direct_contribution)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (company_id, model_id, world_orbit, world_arc) DO NOTHING
+        ON CONFLICT (company_id, model_id, world_year, world_month) DO NOTHING
       \`, [
-        company.world_instance_id, companyId, mId, currentOrbit, currentArc, mt.unitsProduced, mt.defectiveUnits, mt.unitsSold, endingInventory, mt.salesRevenue, mt.productionCost, mt.defectLoss, mt.marketingCost, storageCost, directContribution,
+        company.world_instance_id, companyId, mId, currentYear, currentMonth, mt.unitsProduced, mt.defectiveUnits, mt.unitsSold, endingInventory, mt.salesRevenue, mt.productionCost, mt.defectLoss, mt.marketingCost, storageCost, directContribution,
       ]);
     }
 
@@ -172,7 +172,7 @@ let newCode = `
       const totalMarketSold = ms.totalUnitsSold;
       const deliveryExposure = Math.min(1.0, totalMarketSold / Math.max(ms.marketPurchaseCapacity, 1));
 
-      const existingArcResult = await trx('manufacturing_market_brand_arc_results').where({ company_id: companyId, region_market_id: marketId, world_arc: currentArc }).first();
+      const existingArcResult = await trx('manufacturing_market_brand_arc_results').where({ company_id: companyId, region_market_id: marketId, world_month: currentMonth }).first();
       if (existingArcResult) continue;
 
       const currBrand = await trx('manufacturing_brand_awareness').where({ company_id: companyId, region_market_id: marketId }).first();
@@ -208,7 +208,7 @@ let newCode = `
       }
 
       await trx('manufacturing_market_brand_arc_results').insert({
-        world_instance_id: company.world_instance_id, company_id: companyId, region_market_id: marketId, world_orbit: currentOrbit, world_arc: currentArc,
+        world_instance_id: company.world_instance_id, company_id: companyId, region_market_id: marketId, world_year: currentYear, world_month: currentMonth,
         starting_awareness: oldAwareness, ending_awareness: newAwareness, awareness_delta: awarenessDelta, marketing_spend: mktMarketingSpend,
         highest_marketing_tier: mktTier, delivery_exposure: deliveryExposure, awareness_primary_reason: primaryAwarenessReason,
         starting_trust: oldTrust, ending_trust: newTrust, trust_delta: trustDelta, avg_reliability_delivered: wReliability,
@@ -219,7 +219,7 @@ let newCode = `
     }
 
     if (localBrandReportLines.length > 0) {
-      await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`Local Brand Updates:\\n\${localBrandReportLines.join('\\n')}\`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
+      await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: \`Local Brand Updates:\\n\${localBrandReportLines.join('\\n')}\`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
     }
 
     // Phase 3B Step 6: Engineering Reputation Progression
@@ -268,7 +268,7 @@ let newCode = `
        await ManufacturingController.addCompanyKnowledge(trx, companyId, 'supply_chain', xpGain);
     }
 
-    // Arc Report Generation
+    // Month Report Generation
     const costSummary = \`Wages: \${pState.totalStaffWages.toLocaleString()} | Lease: \${pState.totalLeaseCosts.toLocaleString()} | Maintenance: \${pState.totalMaintenanceCosts.toLocaleString()} | Storage: \${pState.totalStorageCosts.toLocaleString()} | Marketing: \${totalMarketingCosts.toLocaleString()} | Warranty Reserve: \${totalWarrantyReserveCost.toLocaleString()}\`;
     
     let modelLines = '';
@@ -281,7 +281,7 @@ let newCode = `
     }
 
     const reportData = {
-      world_instance_id: company.world_instance_id, company_id: companyId, world_orbit: currentOrbit, world_arc: currentArc,
+      world_instance_id: company.world_instance_id, company_id: companyId, world_year: currentYear, world_month: currentMonth,
       units_planned: pState.totalPlannedUnits, units_produced: pState.totalUnitsProduced, defective_units: pState.totalDefectiveUnits,
       units_sold: totalUnitsSold, gross_revenue: totalGrossRevenue, net_profit: netProfit,
       report_data: JSON.stringify({

@@ -122,7 +122,7 @@ const CHILDHOOD_MARKS: ChoiceOption[] = [
   {
     id: 'Top Student',
     title: 'Top Student',
-    story: 'You were known for marks, discipline, and being called when adults needed a responsible example.',
+    story: 'You were known for days, discipline, and being called when adults needed a responsible example.',
     perception: 'People remember you as serious and capable from a young age.',
     chips: ['Academic reputation', 'Trusted by institutions', 'High expectation burden'],
     effects: { Credibility: 2 },
@@ -421,7 +421,7 @@ function getChronicleFragments(choices: Choices, firstName: string): string[] {
   }
   if (choices.childhoodMark) {
     const markStory: Record<string, string> = {
-      'Top Student':              `Before adult life, ${name} was known for discipline, marks, and being called when responsible examples were needed.`,
+      'Top Student':              `Before adult life, ${name} was known for discipline, days, and being called when responsible examples were needed.`,
       'Debate Voice':             `Before adult life, ${name} learned that a room can shift when someone speaks with timing and nerve.`,
       'Community Helper':         `Before adult life, ${name} became useful before becoming well known. People remembered because ${name} showed up.`,
       'Quiet Survivor':           `Before adult life, ${name} watched carefully and endured. Not always noticed — which had its own value.`,
@@ -717,7 +717,7 @@ export default function CreateCharacterPage() {
         name: `${firstName} ${lastName}`.trim(),
         motherland_country_id: 'drennia', // Temporary hardcode for v1
         home_state_id: choices.homeState ? `drennia-${choices.homeState.toLowerCase().split(' ')[0]}` : undefined,
-        currency_id: 'drennian-mark'
+        currency_id: 'drennian-day'
       };
       
       await characterApi.create(payload);
@@ -1198,7 +1198,7 @@ export default function CreateCharacterPage() {
             })()}
           </div>
 
-          {/* WORLDr mark */}
+          {/* WORLDr day */}
           <div className="px-5 py-3 shrink-0" style={{ borderTop: '1px solid rgba(201,162,74,0.06)' }}>
             <div className="text-[8px] font-mono uppercase tracking-widest" style={{ color: '#3f4b47' }}>WORLDr · Pre-Alpha · {new Date().getFullYear()}</div>
           </div>

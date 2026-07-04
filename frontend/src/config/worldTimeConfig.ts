@@ -1,17 +1,17 @@
 export type WorldTimeConfig = {
-  startingOrbit: number;
-  startingArc: number;
-  startingMark: number;
-  arcsPerOrbit: number;
-  marksPerArc: number;
-  realSecondsPerArc: number;
+  startingYear: number;
+  startingMonth: number;
+  startingDay: number;
+  monthsPerYear: number;
+  daysPerMonth: number;
+  realSecondsPerMonth: number;
 };
 
 export const WORLD_TIME_CONFIG: WorldTimeConfig = {
-  startingOrbit: 842,
-  startingArc: 1,
-  startingMark: 1,
-  arcsPerOrbit: 12,
-  marksPerArc: 30,
-  realSecondsPerArc: 86400,
+  startingYear: 842,
+  startingMonth: 1,
+  startingDay: 1,
+  monthsPerYear: 12,
+  daysPerMonth: 30,
+  realSecondsPerMonth: 86400,
 };

@@ -7,9 +7,9 @@ export type CurrencyConfig = {
 };
 
 export const WORLD_CURRENCIES: Record<string, CurrencyConfig> = {
-  'drennian-mark': {
-    id: 'drennian-mark',
-    name: 'Drennian Mark',
+  'drennian-day': {
+    id: 'drennian-day',
+    name: 'Drennian Day',
     symbol: '₯',
     locale: 'en-US',
     decimalPlaces: 0
@@ -17,5 +17,5 @@ export const WORLD_CURRENCIES: Record<string, CurrencyConfig> = {
 };
 
 export function getCurrencyConfig(currencyId: string): CurrencyConfig {
-  return WORLD_CURRENCIES[currencyId] || WORLD_CURRENCIES['drennian-mark']; // Default fallback for safety
+  return WORLD_CURRENCIES[currencyId] || WORLD_CURRENCIES['drennian-day']; // Default fallback for safety
 }

@@ -28,9 +28,9 @@ async function restore() {
       influence: 0,
       credibility: 0,
       charisma: 0,
-      created_at_world_orbit: 1,
-      created_at_world_arc: 1,
-      created_at_world_mark: 1
+      created_at_world_year: 1,
+      created_at_world_month: 1,
+      created_at_world_day: 1
     });
     char = { id: charId };
   }
@@ -51,9 +51,9 @@ async function restore() {
       name: 'Restored Company',
       status: 'active',
       is_npc: false,
-      created_at_world_orbit: 1,
-      created_at_world_arc: 1,
-      created_at_world_mark: 1
+      created_at_world_year: 1,
+      created_at_world_month: 1,
+      created_at_world_day: 1
     });
   }
 

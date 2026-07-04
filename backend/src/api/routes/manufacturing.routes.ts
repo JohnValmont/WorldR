@@ -31,12 +31,12 @@ router.post('/companies/:companyId/manufacturing/factories/:factoryId/expand', a
 router.get('/companies/:companyId/manufacturing/markets', authMiddleware, ManufacturingController.getMarkets);
 router.get('/companies/:companyId/manufacturing/analytics', authMiddleware, AnalyticsController.getSelfAnalytics);
 router.post('/companies/:companyId/manufacturing/research', authMiddleware, AnalyticsController.purchaseMarketResearch);
-router.get('/market/structure/:countryId/last-arc', authMiddleware, AnalyticsController.getMarketStructure);
+router.get('/market/structure/:countryId/last-month', authMiddleware, AnalyticsController.getMarketStructure);
 router.post('/companies/:companyId/manufacturing/markets/allocate', authMiddleware, ManufacturingController.setAllocation);
 router.delete('/companies/:companyId/manufacturing/markets/allocations/:allocId', authMiddleware, ManufacturingController.removeAllocation);
 router.patch('/companies/:companyId/manufacturing/markets/:marketId/marketing', authMiddleware, ManufacturingController.setMarketingTier);
 
-// Admin-only: process manufacturing arc
+// Admin-only: process manufacturing month
 router.post('/admin/manufacturing/process-company/:companyId', [authMiddleware, requireAdmin], ManufacturingController.processManufacturingArc);
 
 // Phase 3: Engineering Report & Knowledge

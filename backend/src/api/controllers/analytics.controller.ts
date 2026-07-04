@@ -27,7 +27,7 @@ export class AnalyticsController {
     }
   }
 
-  // GET /market/structure/:countryId/last-arc
+  // GET /market/structure/:countryId/last-month
   public static async getMarketStructure(req: Request, res: Response, next: NextFunction) {
     try {
       const { countryId } = req.params;

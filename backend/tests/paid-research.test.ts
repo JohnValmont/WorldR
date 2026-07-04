@@ -32,8 +32,8 @@ async function runTest() {
   const marketId = 'drennport-consumer-market';
   
   const clock = await db('world_clock').first();
-  const worldOrbit = clock.current_orbit;
-  const worldArc = clock.current_arc;
+  const worldYear = clock.current_year;
+  const worldMonth = clock.current_month;
 
   try {
     // Insert competitor model
@@ -59,18 +59,18 @@ async function runTest() {
         appeal_score: 40,
         cargo_score: 40,
         status: 'active',
-        created_at_world_orbit: worldOrbit,
-        created_at_world_arc: worldArc,
-        created_at_world_mark: 0
+        created_at_world_year: worldYear,
+        created_at_world_month: worldMonth,
+        created_at_world_day: 0
       }
     ]);
 
-    // Insert sales results for target arc
-    let targetArc = worldArc - 1;
-    let targetOrbit = worldOrbit;
-    if (targetArc === 0) {
-      targetArc = 36;
-      targetOrbit -= 1;
+    // Insert sales results for target month
+    let targetMonth = worldMonth - 1;
+    let targetYear = worldYear;
+    if (targetMonth === 0) {
+      targetMonth = 36;
+      targetYear -= 1;
     }
 
     await db('manufacturing_sales_results').insert([
@@ -79,8 +79,8 @@ async function runTest() {
         world_instance_id: worldId,
         vehicle_model_id: model2,
         region_market_id: marketId,
-        world_orbit: targetOrbit,
-        world_arc: targetArc,
+        world_year: targetYear,
+        world_month: targetMonth,
         units_sold: 300,
         sale_price: 15000,
         revenue: 4500000,

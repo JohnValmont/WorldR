@@ -13,10 +13,10 @@ async function runTest() {
   const cycle = await getOrCreateCurrentCycle(state.id);
 
   console.log('Testing NPC clamp and brain logic...');
-  const currentArc = cycle.polling_arc - 5;
+  const currentMonth = cycle.polling_arc - 5;
   // Ensure NPCs exist
-  await processPoliticalArc(db, state.id, currentArc - 1);
-  await processPoliticalArc(db, state.id, currentArc);
+  await processPoliticalArc(db, state.id, currentMonth - 1);
+  await processPoliticalArc(db, state.id, currentMonth);
   
   const npcParties = await db('pol_parties').where({ is_npc: true, state_id: state.id });
   for (const p of npcParties) {
@@ -27,15 +27,15 @@ async function runTest() {
 
   console.log('Testing Idempotency...');
   const actions1 = await db('pol_campaign_actions').where({ cycle_id: cycle.id });
-  await processPoliticalArc(db, state.id, currentArc);
+  await processPoliticalArc(db, state.id, currentMonth);
   const actions2 = await db('pol_campaign_actions').where({ cycle_id: cycle.id });
   
   assert.strictEqual(actions1.length, actions2.length, 'Idempotency failed: generated more actions on rerun');
 
-  console.log('Testing Cross-Arc Idempotency (cash deducted exactly once over two arcs)...');
+  console.log('Testing Cross-Month Idempotency (cash deducted exactly once over two months)...');
   const testParty = await db('pol_parties').insert({
     state_id: state.id,
-    name: 'Cross Arc Test Party',
+    name: 'Cross Month Test Party',
     platform: { taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 },
     treasury: 50000,
     is_npc: false,
@@ -59,21 +59,21 @@ async function runTest() {
     target_segment: null,
     cash_spent: 0,
     effort: 0,
-    resolved_arc: currentArc + 1
+    resolved_arc: currentMonth + 1
   });
 
-  // Advance first arc (resolves action)
-  await processPoliticalArc(db, state.id, currentArc + 1);
+  // Advance first month (resolves action)
+  await processPoliticalArc(db, state.id, currentMonth + 1);
   const partyAfter1 = await db('pol_parties').where({ id: testParty.id }).first();
   const spent1 = 50000 - Number(partyAfter1.treasury);
 
-  // Advance second arc
-  await processPoliticalArc(db, state.id, currentArc + 2);
+  // Advance second month
+  await processPoliticalArc(db, state.id, currentMonth + 2);
   const partyAfter2 = await db('pol_parties').where({ id: testParty.id }).first();
   const spent2 = 50000 - Number(partyAfter2.treasury);
 
-  assert.strictEqual(spent1, 12000, `Expected 12000 spent on arc 1, got ${spent1}`);
-  assert.strictEqual(spent2, 12000, `Expected exactly 12000 total spent after arc 2, got ${spent2} (double charged!)`);
+  assert.strictEqual(spent1, 12000, `Expected 12000 spent on month 1, got ${spent1}`);
+  assert.strictEqual(spent2, 12000, `Expected exactly 12000 total spent after month 2, got ${spent2} (double charged!)`);
 
   console.log('Testing Skipped Action Effort (-1 should not be summed)...');
   // Add a skipped action
@@ -84,7 +84,7 @@ async function runTest() {
     target_segment: 'industrial_workers',
     cash_spent: 0,
     effort: -1, // skipped sentinel
-    resolved_arc: currentArc + 1
+    resolved_arc: currentMonth + 1
   });
   const engineCands = await buildEngineCandidates(db, cycle.id);
   const testEngineCand = engineCands.find((c: any) => c.candidateId === testCand.id);

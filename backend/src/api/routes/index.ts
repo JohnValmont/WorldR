@@ -18,7 +18,7 @@ apiRouter.use('/companies', companyRoutes);
 apiRouter.use('/registry', registryRoutes);
 apiRouter.use('/logistics', logisticsRoutes);
 apiRouter.use('/politics', politicsRoutes);
-// Manufacturing: mounts bootstrap + company routes + admin arc-process endpoint
+// Manufacturing: mounts bootstrap + company routes + admin month-process endpoint
 apiRouter.use('/', manufacturingRoutes);
 
 export default apiRouter;

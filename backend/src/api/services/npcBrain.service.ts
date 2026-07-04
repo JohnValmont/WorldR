@@ -50,7 +50,7 @@ const MARKETING_TIERS = [
 ];
 
 /**
- * PURE FUNCTION: Evaluates current memory and last arc results to dictate the next arc's setup.
+ * PURE FUNCTION: Evaluates current memory and last month results to dictate the next month's setup.
  * Highly predictable, rule-based heuristics to create plausible competitors.
  */
 export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
@@ -67,7 +67,7 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
   const desired = Math.round(unitsSoldLastArc * PRODUCTION_BUFFER);
   let newTargetUnits = Math.max(MIN_UNITS_FLOOR, Math.min(desired - inventoryInStock, factoryCapacity));
   
-  // If there is no sales history (e.g. Arc 1 from seed), preserve the seeded target units!
+  // If there is no sales history (e.g. Month 1 from seed), preserve the seeded target units!
   if (reasonCode === null) {
     newTargetUnits = input.targetUnits;
   }
@@ -144,9 +144,9 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
 
 /**
  * DB WRAPPER: Resolves the state for an NPC company and processes its decisions in a transaction block.
- * Uses Knex transaction (`trx`) so the demand engine arc can wrap everything securely.
+ * Uses Knex transaction (`trx`) so the demand engine month can wrap everything securely.
  */
-export async function runNpcBrainForCompany(trx: Knex, companyId: string, currentOrbit: number, currentArc: number): Promise<void> {
+export async function runNpcBrainForCompany(trx: Knex, companyId: string, currentYear: number, currentMonth: number): Promise<void> {
   // 1. Fetch available cash for marketing decisions
   const finance = await trx('company_finances')
     .where({ company_id: companyId })
@@ -163,7 +163,7 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     const salePrice = parseFloat(model.sale_price);
     const costPerUnit = parseFloat(model.manufacturing_cost_per_unit);
     // Age of the model since it was introduced to the market
-    const modelAgeMonths = currentArc - model.created_at_world_arc;
+    const modelAgeMonths = currentMonth - model.created_at_world_month;
 
     // Get current active production line and factory constraints
     const prodLine = await trx('manufacturing_production_lines')
@@ -196,20 +196,20 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
       awareness = brandAwareness ? parseFloat(brandAwareness.awareness) : 0;
     }
 
-    let prevOrbit = currentOrbit;
-    let prevArc = currentArc - 1;
-    if (prevArc === 0) {
-      prevArc = 8;
-      prevOrbit = currentOrbit - 1;
+    let prevYear = currentYear;
+    let prevMonth = currentMonth - 1;
+    if (prevMonth === 0) {
+      prevMonth = 8;
+      prevYear = currentYear - 1;
     }
 
-    // Fetch the previous arc's sales results to see how we did
+    // Fetch the previous month's sales results to see how we did
     const lastSales = await trx('manufacturing_sales_results')
       .where({ 
         company_id: companyId, 
         vehicle_model_id: modelId,
-        world_orbit: prevOrbit,
-        world_arc: prevArc 
+        world_year: prevYear,
+        world_month: prevMonth 
       });
 
     let marketShareThisArc = 0;
@@ -222,34 +222,34 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     const unitsSoldLastArc = lastSales.length > 0 ? lastSales.reduce((acc: number, s: any) => acc + s.units_sold, 0) : 0;
     const reasonCode = lastSales.length > 0 ? lastSales[0].main_reason_code : null;
 
-    // Fetch the previous arc's production results
+    // Fetch the previous month's production results
     const lastSnapshot = await trx('manufacturing_model_snapshots')
       .where({
         company_id: companyId,
         model_id: modelId,
-        world_orbit: prevOrbit,
-        world_arc: prevArc
+        world_year: prevYear,
+        world_month: prevMonth
       })
       .first();
     const unitsProducedLastArc = lastSnapshot ? lastSnapshot.units_produced : 0;
 
     if (!lastSales) {
-      // First arc for this model, don't panic and drop production to minimum.
+      // First month for this model, don't panic and drop production to minimum.
       return;
     }
-    let prevPrevOrbit = prevOrbit;
-    let prevPrevArc = prevArc - 1;
-    if (prevPrevArc === 0) {
-      prevPrevArc = 8;
-      prevPrevOrbit = prevOrbit - 1;
+    let prevPrevYear = prevYear;
+    let prevPrevMonth = prevMonth - 1;
+    if (prevPrevMonth === 0) {
+      prevPrevMonth = 8;
+      prevPrevYear = prevYear - 1;
     }
 
     const prevSales = await trx('manufacturing_sales_results')
       .where({ 
         company_id: companyId, 
         vehicle_model_id: modelId,
-        world_orbit: prevPrevOrbit,
-        world_arc: prevPrevArc 
+        world_year: prevPrevYear,
+        world_month: prevPrevMonth 
       });
 
     let marketShareLastArc = 0;
@@ -355,9 +355,9 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
         motherland_country_id: countryId,
         name: 'System NPC',
         age: 30,
-        created_at_world_orbit: clock.world_orbit,
-        created_at_world_arc: clock.world_arc,
-        created_at_world_mark: 0
+        created_at_world_year: clock.world_year,
+        created_at_world_month: clock.world_month,
+        created_at_world_day: 0
       })
       .returning('*');
     sysChar = insertedChar;
@@ -381,23 +381,23 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       headquarters_state_id: 'drennia-drennport', // fallback
       industry_id: 'manufacturing',
       legal_structure_id: 'sole-trader',
-      currency_id: 'drennian-mark', // fallback
+      currency_id: 'drennian-day', // fallback
       name: roster.name,
       status: 'active',
       is_npc: true,
       npc_personality: roster.key,
       reputation: 50,
       reliability: 50,
-      created_at_world_orbit: clock.world_orbit,
-      created_at_world_arc: clock.world_arc,
-      created_at_world_mark: 0
+      created_at_world_year: clock.world_year,
+      created_at_world_month: clock.world_month,
+      created_at_world_day: 0
     })
     .returning('*');
 
   // Finances
   await trx('company_finances').insert({
     company_id: company.id,
-    currency_id: 'drennian-mark',
+    currency_id: 'drennian-day',
     available_cash: roster.seedCapital,
     debt: 0,
     company_value: roster.seedCapital,
@@ -428,9 +428,9 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       development_status: 'launched',
       dev_stage: 'ready_to_launch',
       status: 'active',
-      created_at_world_orbit: clock.world_orbit,
-      created_at_world_arc: clock.world_arc,
-      created_at_world_mark: 0
+      created_at_world_year: clock.world_year,
+      created_at_world_month: clock.world_month,
+      created_at_world_day: 0
     })
     .returning('*');
 
@@ -447,9 +447,9 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       maintenance_cost_per_arc: 8000,
       capacity_per_arc: 500,
       status: 'active',
-      created_at_world_orbit: clock.world_orbit,
-      created_at_world_arc: clock.world_arc,
-      created_at_world_mark: 0
+      created_at_world_year: clock.world_year,
+      created_at_world_month: clock.world_month,
+      created_at_world_day: 0
     })
     .returning('*');
 

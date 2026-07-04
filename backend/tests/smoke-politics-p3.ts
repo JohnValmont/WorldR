@@ -9,7 +9,7 @@ async function runSmoke() {
   if (!state) throw new Error("No active state");
   const cycle = await getOrCreateCurrentCycle(state.id);
 
-  // We are going to artificially manipulate the current arc to walk through the phases.
+  // We are going to artificially manipulate the current month to walk through the phases.
   // We need a test candidate for the player.
   // First, find or create a character and party for the player.
   const character = await db('characters').first();
@@ -48,10 +48,10 @@ async function runSmoke() {
     });
   }
 
-  const startFiling = cycle.polling_arc - 9; // POL_CAMPAIGN_WINDOW_ARCS + POL_FILING_WINDOW_ARCS
+  const startFiling = cycle.polling_arc - 9; // POL_CAMPAIGN_WINDOW_MONTHS + POL_FILING_WINDOW_MONTHS
   
-  console.log(`\n--- Advancing to FILING (Arc ${startFiling}) ---`);
-  await db('world_clock').update({ current_arc: startFiling });
+  console.log(`\n--- Advancing to FILING (Month ${startFiling}) ---`);
+  await db('world_clock').update({ current_month: startFiling });
   await processPoliticalArc(db, state.id, startFiling);
   
   const cycleRecord = await db('pol_cycles').where({ id: cycle.id }).first();
@@ -74,8 +74,8 @@ async function runSmoke() {
   console.log(`Player candidate declared: ${playerCand.id}`);
 
   const startCampaign = cycle.polling_arc - 6;
-  console.log(`\n--- Advancing to CAMPAIGN (Arc ${startCampaign}) ---`);
-  await db('world_clock').update({ current_arc: startCampaign });
+  console.log(`\n--- Advancing to CAMPAIGN (Month ${startCampaign}) ---`);
+  await db('world_clock').update({ current_month: startCampaign });
   await processPoliticalArc(db, state.id, startCampaign);
   
   const campaignCycle = await db('pol_cycles').where({ id: cycle.id }).first();
@@ -91,7 +91,7 @@ async function runSmoke() {
     effort: 0,
     resolved_arc: startCampaign + 1
   });
-  console.log("Media Ad queued for next arc.");
+  console.log("Media Ad queued for next month.");
 
   console.log("\n--- Fetching Polls BEFORE Action Resolution ---");
   const candsBefore = await buildEngineCandidates(db, cycle.id);
@@ -99,8 +99,8 @@ async function runSmoke() {
   const playerVotesBefore = projBefore.perCandidate.find((c: any) => c.candidateId === playerCand.id)?.votes || 0;
   console.log(`Player Projected Votes BEFORE Ad: ${playerVotesBefore}`);
 
-  console.log(`\n--- Advancing Arc to resolve action (Arc ${startCampaign + 1}) ---`);
-  await db('world_clock').update({ current_arc: startCampaign + 1 });
+  console.log(`\n--- Advancing Month to resolve action (Month ${startCampaign + 1}) ---`);
+  await db('world_clock').update({ current_month: startCampaign + 1 });
   await processPoliticalArc(db, state.id, startCampaign + 1);
 
   const resolvedAction = await db('pol_campaign_actions')

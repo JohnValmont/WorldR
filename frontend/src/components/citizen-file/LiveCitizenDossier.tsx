@@ -35,7 +35,7 @@ export const calculateFactors = (data: any) => {
     case 'Political Household': cred+=1; cha+=1; inf+=8; res+=3; obligation='Family political network'; vuln='Nepotism attack risk'; break;
   }
 
-  // Childhood Mark
+  // Childhood Day
   switch(data.childhoodMark) {
     case 'Always Watching Adults Talk Power': inf+=2; cred+=1; break;
     case 'Had to Earn Money Early': res+=2; cred+=1; break;

@@ -52,9 +52,9 @@ export interface EngineerContext {
   engineerSkillLevel: number;
   /** Company knowledge XP per domain */
   companyKnowledge: Record<string, number>;
-  /** Current arc number (for timing calculations) */
-  currentArc: number;
-  currentOrbit: number;
+  /** Current month number (for timing calculations) */
+  currentMonth: number;
+  currentYear: number;
 }
 
 export interface EngineeringOutcome {
@@ -88,9 +88,9 @@ export interface EngineeringOutcome {
   // Development timeline
   devTimeArcs: number;
   stageTimings: {
-    engineering: number;  // arcs
-    prototype: number;    // arcs
-    testing: number;      // arcs
+    engineering: number;  // months
+    prototype: number;    // months
+    testing: number;      // months
   };
 
   // Financial
@@ -333,10 +333,10 @@ export function calculateEngineeringOutcome(
 
   // ── 11. Development Time ──────────────────────────────────────────────────
 
-  // Base dev time = 1 arc for engineering + 1 for prototype + optional testing arc
+  // Base dev time = 1 month for engineering + 1 for prototype + optional testing month
   const engineeringArcs = 1;
   const prototypeArcs   = 1;
-  // Testing arc only added if testing budget >= 15% or complexity > 65
+  // Testing month only added if testing budget >= 15% or complexity > 65
   const testingArcs     = (testingPct >= 0.15 || engComplexity > 65) ? 1 : 0;
 
   const stageTimings = {
@@ -643,8 +643,8 @@ export function calculateLivePreview(
     engineerCount,
     engineerSkillLevel: Math.min(Math.floor(engineerCount / 2), 5),
     companyKnowledge,
-    currentArc: 1,
-    currentOrbit: 1,
+    currentMonth: 1,
+    currentYear: 1,
   };
   const outcome = calculateEngineeringOutcome(fullDesign, context);
   return {

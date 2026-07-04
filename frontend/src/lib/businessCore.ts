@@ -7,7 +7,7 @@ import { companyApi } from './api';
 import { addNotification, categoryForRecordType } from './notifications';
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
-export function formatMoney(value: number, currencyId: string = 'drennian-mark'): string {
+export function formatMoney(value: number, currencyId: string = 'drennian-day'): string {
   const config = getCurrencyConfig(currencyId);
   const formatter = new Intl.NumberFormat(config.locale || 'en-US', {
     minimumFractionDigits: 0,
@@ -17,10 +17,10 @@ export function formatMoney(value: number, currencyId: string = 'drennian-mark')
 }
 
 export function formatCompanyMoney(company: { currencyId?: string }, value: number): string {
-  return formatMoney(value, company.currencyId || 'drennian-mark');
+  return formatMoney(value, company.currencyId || 'drennian-day');
 }
 
-import { getWorldDate, advanceWorldArc, formatWorldDate } from './worldTime';
+import { getWorldDate, advanceWorldMonth, formatWorldDate } from './worldTime';
 import { formatWorldDate as formatCalendarWorldDate } from './calendar';
 
 // ─── Game Date System (Adapter to World Time) ─────────────────────────────────────────────────────────────
@@ -34,22 +34,22 @@ export interface GameDate {
 export function getGameDate(): GameDate {
   const wd = getWorldDate();
   return {
-    worldYear: wd.orbit,
-    worldMonth: wd.arc,
-    worldDay: wd.mark,
+    worldYear: wd.year,
+    worldMonth: wd.month,
+    worldDay: wd.day,
     turn: 1
   };
 }
 
 export function formatGameDate(date?: GameDate): string {
   const d = date || getGameDate();
-  // worldYear holds the clock's orbit, worldMonth holds the arc (1..12).
+  // worldYear holds the clock's year, worldMonth holds the month (1..12).
   return formatCalendarWorldDate(d.worldYear, d.worldMonth);
 }
 
 export function advanceGameDate(months: number = 1): void {
   for (let i = 0; i < months; i++) {
-    advanceWorldArc();
+    advanceWorldMonth();
   }
 }
 
@@ -578,7 +578,7 @@ export function migrateLegacyBusinessData() {
   companies.forEach(company => {
     if (!company.countryId) {
       company.countryId = 'drennia';
-      company.currencyId = 'drennian-mark';
+      company.currencyId = 'drennian-day';
       company.headquartersStateId = company.state === 'Westport State' ? 'drennia-westport' : 
                                     company.state === 'Drennport State' ? 'drennia-drennport' :
                                     company.state === 'Ironvale State' ? 'drennia-ironvale' :
@@ -598,7 +598,7 @@ export function migrateLegacyBusinessData() {
     if (!contract.originCountryId) {
       contract.originCountryId = 'drennia';
       contract.destinationCountryId = 'drennia';
-      contract.paymentCurrencyId = 'drennian-mark';
+      contract.paymentCurrencyId = 'drennian-day';
       contract.industryId = 'shipping-logistics';
       contract.contractTypeId = 'local-delivery';
       
@@ -771,7 +771,7 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   {
     id: 'ctr-drennport-office', issuerType: 'Local Business', issuerCompanyId: 'npc-drennport-office', issuerName: 'Drennport Office Suppliers',
     originCountryId: 'drennia', originStateId: 'drennia-drennport', destinationCountryId: 'drennia', destinationStateId: 'drennia-drennport',
-    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-mark',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-day',
     title: 'Drennport Office Supply Run', description: 'Regular delivery of paper, ink, and binding materials from the warehouse district to our main retail front.',
     cargo: 'Paper, ink, binding materials', contractType: 'Local Delivery', bidType: 'Direct Accept',
     requiredSector: 'Retail & Consumer', originState: 'Drennport State', destinationState: 'Drennport State', routeType: 'Local',
@@ -781,7 +781,7 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   {
     id: 'ctr-westport-dock', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-saltgate', issuerName: 'Saltgate Counting House',
     originCountryId: 'drennia', originStateId: 'drennia-westport', destinationCountryId: 'drennia', destinationStateId: 'drennia-westport',
-    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-mark',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-day',
     title: 'Westport Dock Transfer', description: 'Move import crates from the dock warehouse to the counting house bonded storage.',
     cargo: 'Import crates', contractType: 'Port Transfer', bidType: 'Direct Accept',
     requiredSector: 'Port & Trade', originState: 'Westport State', destinationState: 'Westport State', routeType: 'Local / Port',
@@ -791,7 +791,7 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   {
     id: 'ctr-greenmere-produce', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-greenmere-fresh', issuerName: 'Greenmere Fresh Supply',
     originCountryId: 'drennia', originStateId: 'drennia-greenmere', destinationCountryId: 'drennia', destinationStateId: 'drennia-drennport',
-    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-mark',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-day',
     title: 'Greenmere Produce Delivery', description: 'Transport 2 tons of root vegetables to Drennport outer markets before spoilage. Time-sensitive.',
     cargo: 'Root vegetables', contractType: 'Produce Delivery', bidType: 'Requires Bid',
     requiredSector: 'Agriculture & Food', originState: 'Greenmere State', destinationState: 'Drennport State', routeType: 'Interstate',
@@ -801,7 +801,7 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   {
     id: 'ctr-ironvale-parts', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-kovath', issuerName: 'Kovath Ironworks',
     originCountryId: 'drennia', originStateId: 'drennia-ironvale', destinationCountryId: 'drennia', destinationStateId: 'drennia-drennport',
-    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-mark',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-day',
     title: 'Ironvale Parts Handling', description: 'Sorting and boxing of cast iron parts for railway shipment. Requires 2-capacity vehicle.',
     cargo: 'Cast iron parts', contractType: 'Industrial Freight', bidType: 'Requires Bid',
     requiredSector: 'Manufacturing', originState: 'Ironvale State', destinationState: 'Drennport State', routeType: 'Interstate',
@@ -811,7 +811,7 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   {
     id: 'ctr-state-retail-restock', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-crownbridge', issuerName: 'Crownbridge Retailers',
     originCountryId: 'drennia', originStateId: 'drennia-westport', destinationCountryId: 'drennia', destinationStateId: 'drennia-drennport',
-    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-mark',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-day',
     title: 'State Retail Restock', description: 'Deliver retail goods from Westport distribution centre to Drennport chain outlets.',
     cargo: 'Retail goods', contractType: 'Interstate Freight', bidType: 'Requires Bid',
     requiredSector: 'Retail & Consumer', originState: 'Westport State', destinationState: 'Drennport State', routeType: 'Interstate',
@@ -1525,7 +1525,7 @@ export async function leaseFacility(
     stateId: state,
     capacity: 10,
     leaseCostPerArc: leaseCost,
-    currencyId: 'drennian-mark',
+    currencyId: 'drennian-day',
     type,
     state,
     leaseCost,
@@ -1602,7 +1602,7 @@ export function ownerDrawings(companyId: string, amount: number): { success: boo
 }
 
 // ─── Global World Operations ──────────────────────────────────────────────────
-export function advanceWorldArcAndProcess(): string {
+export function advanceWorldMonthAndProcess(): string {
   const previousDateStr = formatGameDate();
   const companies = getCompanies();
   let processedCount = 0;

@@ -11,7 +11,7 @@ const STEPS = [
   { id: 2, label: 'Motherland', key: 'motherland' },
   { id: 3, label: 'Home State', key: 'homeState' },
   { id: 4, label: 'Household', key: 'householdBackground' },
-  { id: 5, label: 'Childhood Mark', key: 'childhoodMark' },
+  { id: 5, label: 'Childhood Day', key: 'childhoodMark' },
   { id: 6, label: 'Public Reputation', key: 'pre18Reputation' },
   { id: 7, label: 'First Supporter', key: 'firstSupporter' },
   { id: 8, label: 'Early Burden', key: 'earlyBurden' },

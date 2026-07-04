@@ -4,7 +4,7 @@ import { PHASE_ORDER, phaseIndex } from '../_lib/identity';
 
 interface PhaseTimelineProps {
   phase: string | undefined;
-  /** Months/arcs until the next phase (optional). */
+  /** Months/months until the next phase (optional). */
   countdown?: number;
   className?: string;
 }

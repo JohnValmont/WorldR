@@ -1,9 +1,9 @@
 /**
  * governingEvents.ts
  *
- * Fires one deterministic governing-phase event per arc.
- * Seed: (stateId.charCodeAt(0) + currentArc) % GOVERNING_EVENT_TEMPLATES.length
- * Idempotent: checks pol_ledger_events for the arc before inserting.
+ * Fires one deterministic governing-phase event per month.
+ * Seed: (stateId.charCodeAt(0) + currentMonth) % GOVERNING_EVENT_TEMPLATES.length
+ * Idempotent: checks pol_ledger_events for the month before inserting.
  *
  * Effects only touch: characters.credibility / .influence, pol_parties.treasury
  * No locked systems touched. All magnitudes live in politics.ts constants.
@@ -77,25 +77,25 @@ async function applyCharacterDelta(
 }
 
 /**
- * Main export — call once per governing arc from processPoliticalArc.
+ * Main export — call once per governing month from processPoliticalArc.
  * Deterministic and idempotent.
  */
 export async function fireGoverningEvent(
   trx: any,
   stateId: string,
-  currentArc: number
+  currentMonth: number
 ): Promise<void> {
   if (!GOVERNING_EVENTS_ENABLED) return;
 
-  // Idempotency guard: only one governing event per (state, arc)
+  // Idempotency guard: only one governing event per (state, month)
   const alreadyFired = await trx('pol_ledger_events')
-    .where({ state_id: stateId, arc: currentArc })
+    .where({ state_id: stateId, month: currentMonth })
     .where('kind', 'like', 'gov_%')
     .first();
   if (alreadyFired) return;
 
-  // Deterministic selection: no RNG, same arc always produces the same template
-  const seed = (stateId.charCodeAt(0) + currentArc) % GOVERNING_EVENT_TEMPLATES.length;
+  // Deterministic selection: no RNG, same month always produces the same template
+  const seed = (stateId.charCodeAt(0) + currentMonth) % GOVERNING_EVENT_TEMPLATES.length;
   const template = GOVERNING_EVENT_TEMPLATES[seed];
 
   // ── Resolve affected entities ───────────────────────────────────────────────
@@ -125,7 +125,7 @@ export async function fireGoverningEvent(
   // ── Write ledger event ──────────────────────────────────────────────────────
   await trx('pol_ledger_events').insert({
     state_id: stateId,
-    arc: currentArc,
+    month: currentMonth,
     kind: template.kind,
     headline: template.headline,
     body: template.body,

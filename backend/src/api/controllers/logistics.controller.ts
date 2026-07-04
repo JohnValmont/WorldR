@@ -155,9 +155,9 @@ export class LogisticsController {
         const clock = await trx('world_clock').first();
         await trx('company_ledger').insert({
           company_id: companyId,
-          game_orbit: clock?.current_orbit || 1,
-          game_arc: clock?.current_arc || 1,
-          game_mark: clock?.current_mark || 1,
+          game_year: clock?.current_year || 1,
+          game_month: clock?.current_month || 1,
+          game_day: clock?.current_day || 1,
           entry_type: 'Asset Purchase',
           description: `Purchased ${catalogItem.type}`,
           amount: -cost,
@@ -191,7 +191,7 @@ export class LogisticsController {
         const catalogItem = await trx('procurement_facilities').where({ id: catalogFacilityId }).first();
         if (!catalogItem) throw new AppError('Facility type not found', 404, 'NOT_FOUND');
 
-        // Pay first lease arc cost immediately
+        // Pay first lease month cost immediately
         const cost = Number(catalogItem.lease_cost_per_arc);
         const finances = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
 
@@ -214,9 +214,9 @@ export class LogisticsController {
         const clock = await trx('world_clock').first();
         await trx('company_ledger').insert({
           company_id: companyId,
-          game_orbit: clock?.current_orbit || 1,
-          game_arc: clock?.current_arc || 1,
-          game_mark: clock?.current_mark || 1,
+          game_year: clock?.current_year || 1,
+          game_month: clock?.current_month || 1,
+          game_day: clock?.current_day || 1,
           entry_type: 'Facility Lease',
           description: `First lease payment for ${catalogItem.type}`,
           amount: -cost,
@@ -353,9 +353,9 @@ export class LogisticsController {
         if (totalRevenue > 0) {
           await trx('company_ledger').insert({
             company_id: companyId,
-            game_orbit: clock?.current_orbit || 1,
-            game_arc: clock?.current_arc || 1,
-            game_mark: clock?.current_mark || 1,
+            game_year: clock?.current_year || 1,
+            game_month: clock?.current_month || 1,
+            game_day: clock?.current_day || 1,
             entry_type: 'Revenue',
             description: `Operation Revenue from assigned vehicles`,
             amount: totalRevenue,
@@ -366,9 +366,9 @@ export class LogisticsController {
         if (totalMaintenance > 0) {
           await trx('company_ledger').insert({
             company_id: companyId,
-            game_orbit: clock?.current_orbit || 1,
-            game_arc: clock?.current_arc || 1,
-            game_mark: clock?.current_mark || 1,
+            game_year: clock?.current_year || 1,
+            game_month: clock?.current_month || 1,
+            game_day: clock?.current_day || 1,
             entry_type: 'vehicle_maintenance',
             description: `Fleet Maintenance (Policy: ${policy})`,
             amount: -totalMaintenance,

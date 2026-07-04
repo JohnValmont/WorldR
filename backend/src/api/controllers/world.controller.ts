@@ -66,12 +66,12 @@ export class WorldController {
           'influence',
           'home_state_id',
           'motherland_country_id',
-          'created_at_world_orbit',
-          'created_at_world_arc'
+          'created_at_world_year',
+          'created_at_world_month'
         );
 
       if (!characters.length) {
-        return res.json({ operators: [], arc: null });
+        return res.json({ operators: [], month: null });
       }
 
       const characterIds = characters.map((c: any) => c.id);
@@ -112,8 +112,8 @@ export class WorldController {
         influence: char.influence,
         home_state_id: char.home_state_id,
         motherland_country_id: char.motherland_country_id,
-        joined_arc: char.created_at_world_arc,
-        joined_orbit: char.created_at_world_orbit,
+        joined_arc: char.created_at_world_month,
+        joined_year: char.created_at_world_year,
         company: companyByOwner.get(char.id) || null,
         party: partyByCharacter.get(char.id) || null,
       }));
@@ -126,30 +126,30 @@ export class WorldController {
 
   /**
    * GET /world/market-leaderboard
-   * Returns per-segment company market share from the last completed arc.
+   * Returns per-segment company market share from the last completed month.
    * Public data — company names + market share % only. No specs, no prices.
    */
   public static async getMarketLeaderboard(req: Request, res: Response, next: NextFunction) {
     try {
       const clock = await db('world_clock').first();
-      const currentOrbit = clock?.current_orbit || 1;
-      const currentArc = clock?.current_arc || 1;
+      const currentYear = clock?.current_year || 1;
+      const currentMonth = clock?.current_month || 1;
 
-      let targetArc = currentArc - 1;
-      let targetOrbit = currentOrbit;
-      if (targetArc === 0) {
-        targetArc = 12;
-        targetOrbit -= 1;
+      let targetMonth = currentMonth - 1;
+      let targetYear = currentYear;
+      if (targetMonth === 0) {
+        targetMonth = 12;
+        targetYear -= 1;
       }
 
-      if (targetOrbit <= 0) {
-        return res.json({ segments: [], arc: null });
+      if (targetYear <= 0) {
+        return res.json({ segments: [], month: null });
       }
 
       const sales = await db('manufacturing_sales_results')
         .where({
-          'manufacturing_sales_results.world_orbit': targetOrbit,
-          'manufacturing_sales_results.world_arc': targetArc,
+          'manufacturing_sales_results.world_year': targetYear,
+          'manufacturing_sales_results.world_month': targetMonth,
         })
         .join('companies', 'manufacturing_sales_results.company_id', 'companies.id')
         .join('manufacturing_region_markets', 'manufacturing_sales_results.region_market_id', 'manufacturing_region_markets.id')
@@ -205,7 +205,7 @@ export class WorldController {
       });
 
       res.json({
-        arc: { orbit: targetOrbit, arc: targetArc },
+        month: { year: targetYear, month: targetMonth },
         segments,
       });
     } catch (error) {

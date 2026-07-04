@@ -13,8 +13,8 @@ let newCode = `
         if (playerCompany.industry_id !== 'manufacturing') throw new AppError('Not a manufacturing company', 400, 'WRONG_INDUSTRY');
 
         const clock = await trx('world_clock').first();
-        const currentOrbit = clock?.current_orbit || 1;
-        const currentArc = clock?.current_arc || 1;
+        const currentYear = clock?.current_year || 1;
+        const currentMonth = clock?.current_month || 1;
 
         // 1. RESOLVE PARTICIPANTS
         const allCompanies = await trx('companies')
@@ -26,7 +26,7 @@ let newCode = `
         const participants: any[] = [];
         for (const comp of allCompanies) {
            const existingReport = await trx('manufacturing_arc_reports')
-             .where({ company_id: comp.id, world_orbit: currentOrbit, world_arc: currentArc })
+             .where({ company_id: comp.id, world_year: currentYear, world_month: currentMonth })
              .first();
            if (!existingReport) {
              participants.push(comp);
@@ -34,13 +34,13 @@ let newCode = `
         }
         
         if (participants.length === 0) {
-           throw new AppError(\`Arc \${currentOrbit}.\${currentArc} already processed for this region\`, 400, 'ALREADY_PROCESSED');
+           throw new AppError(\`Month \${currentYear}.\${currentMonth} already processed for this region\`, 400, 'ALREADY_PROCESSED');
         }
 
         // 2. DECIDE (NPCs only)
         for (const company of participants) {
            if (company.is_npc) {
-              await runNpcBrainForCompany(trx, company.id, currentArc);
+              await runNpcBrainForCompany(trx, company.id, currentMonth);
            }
         }
 
@@ -133,7 +133,7 @@ let newCode = `
            await ManufacturingController.settleForCompany(trx, pState, compResults, clock, brandMap);
         }
 
-        return { message: 'Arc processed successfully for region', processedCompanies: participants.length };
+        return { message: 'Month processed successfully for region', processedCompanies: participants.length };
       });
 
       res.status(200).json({ status: 'success', data: result });

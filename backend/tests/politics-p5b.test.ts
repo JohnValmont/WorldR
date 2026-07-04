@@ -14,7 +14,7 @@ async function runTest() {
   
   // Set to governing phase
   const governingArc = cycle.polling_arc + 3;
-  await db('world_clock').update({ current_arc: governingArc });
+  await db('world_clock').update({ current_month: governingArc });
   await db('pol_cycles').where({ id: cycle.id }).update({ phase: 'governing' });
 
   // 1. Create a Tender directly in DB to simulate postTender
@@ -55,9 +55,9 @@ async function runTest() {
     appeal_score: 50,
     cargo_score: 50,
     safety_score: 60,
-    created_at_world_orbit: 1,
-    created_at_world_arc: 1,
-    created_at_world_mark: 1
+    created_at_world_year: 1,
+    created_at_world_month: 1,
+    created_at_world_day: 1
   }).returning('*');
 
   // Insert inventory: exactly 5 units (less than the 10 units_per_arc requested) to test clamp
@@ -83,8 +83,8 @@ async function runTest() {
   const preFinance = await db('company_finances').where({ company_id: companyObj.id }).first();
   const initialCash = Number(preFinance.available_cash);
 
-  // 4. Process arc N+1 to award the tender
-  await db('world_clock').update({ current_arc: governingArc + 1 });
+  // 4. Process month N+1 to award the tender
+  await db('world_clock').update({ current_month: governingArc + 1 });
   await processPoliticalArc(db, state.id, governingArc + 1);
 
   const awardedTender = await db('pol_tenders').where({ id: tender.id }).first();
@@ -94,9 +94,9 @@ async function runTest() {
 
   console.log('Tender awarded correctly.');
 
-  // 5. Settlement happens in the same arc (N+1) since it's now active
+  // 5. Settlement happens in the same month (N+1) since it's now active
   // Wait, in processPoliticalArc, awardTenders happens before settleTenders. 
-  // So it got awarded AND settled on arc N+1.
+  // So it got awarded AND settled on month N+1.
   const postFinance = await db('company_finances').where({ company_id: companyObj.id }).first();
   const postCash = Number(postFinance.available_cash);
 
@@ -107,8 +107,8 @@ async function runTest() {
 
   console.log('Tender settlement 1 correctly clamped and settled.');
 
-  // 6. Arc N+2 (Second settlement)
-  await db('world_clock').update({ current_arc: governingArc + 2 });
+  // 6. Month N+2 (Second settlement)
+  await db('world_clock').update({ current_month: governingArc + 2 });
   // Add 10 more inventory
   await db('manufacturing_inventory').where({ id: invRecord.id }).update({ units_in_stock: 10 });
   await processPoliticalArc(db, state.id, governingArc + 2);

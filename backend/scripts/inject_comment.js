@@ -10,7 +10,7 @@ const replacement = `         // 6. BANKRUPTCY HANDLING (NPCs only)
          // The brain's heuristics (PRODUCTION_BUFFER bounds new production to recent sales or capacity, 
          // and MARKETING_REVENUE_PCT strictly limits marketing to 5% of prior revenue)
          // ensures it scales conservatively and will not instantly burn through its seed capital
-         // in a single arc, preventing an infinite bankruptcy/respawn loop.
+         // in a single month, preventing an infinite bankruptcy/respawn loop.
          for (const company of participants) {`;
 
 if (txt.includes(target)) {

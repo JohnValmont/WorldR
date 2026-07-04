@@ -1,6 +1,6 @@
 import { db } from '../src/config/database';
 import { processPoliticalArc, getOrCreateCurrentCycle } from '../src/api/services/politics.service';
-import { POL_COUNCIL_SEATS, POL_MAJORITY_SEATS, POL_FORMATION_WINDOW_ARCS, POL_TERM_LENGTH_ARCS } from '../src/api/constants/politics';
+import { POL_COUNCIL_SEATS, POL_MAJORITY_SEATS, POL_FORMATION_WINDOW_MONTHS, POL_TERM_LENGTH_MONTHS } from '../src/api/constants/politics';
 import assert from 'assert';
 
 async function runTest() {
@@ -31,7 +31,7 @@ async function runTest() {
   const campaignArc = cycle.polling_arc - 5;
   await processPoliticalArc(db, state.id, campaignArc);
 
-  // process polling arc
+  // process polling month
   await processPoliticalArc(db, state.id, pollingArc);
 
   const updatedCycle = await db('pol_cycles').where({ id: oldCycleId }).first();
@@ -59,7 +59,7 @@ async function runTest() {
   const seatsAgain = await db('pol_council_seats').where({ cycle_id: oldCycleId });
   assert.strictEqual(seatsAgain.length, POL_COUNCIL_SEATS, 'Polling idempotency failed, duplicate seats allocated');
 
-  // Fast forward to formation end arc to resolve formation automatically (since NPC logic handles auto-coalition)
+  // Fast forward to formation end month to resolve formation automatically (since NPC logic handles auto-coalition)
   console.log('Testing Government Formation...');
   await processPoliticalArc(db, state.id, oldFormationArc);
 
@@ -95,14 +95,14 @@ async function runTest() {
   const newCycle = await db('pol_cycles').where({ state_id: state.id, status: 'open' }).first();
   assert(newCycle, 'No new open cycle created');
   assert.strictEqual(newCycle.cycle_number, closedCycle.cycle_number + 1, 'Cycle number should increment');
-  assert.strictEqual(newCycle.polling_arc, newCycle.start_arc + POL_TERM_LENGTH_ARCS, 'New polling arc should be start_arc + 48');
-  assert.strictEqual(newCycle.formation_end_arc, newCycle.polling_arc + POL_FORMATION_WINDOW_ARCS, 'New formation end should be polling_arc + 2');
-  console.log(`Cycle rolled over to cycle_number ${newCycle.cycle_number}, polling at arc ${newCycle.polling_arc}.`);
+  assert.strictEqual(newCycle.polling_arc, newCycle.start_arc + POL_TERM_LENGTH_MONTHS, 'New polling month should be start_arc + 48');
+  assert.strictEqual(newCycle.formation_end_arc, newCycle.polling_arc + POL_FORMATION_WINDOW_MONTHS, 'New formation end should be polling_arc + 2');
+  console.log(`Cycle rolled over to cycle_number ${newCycle.cycle_number}, polling at month ${newCycle.polling_arc}.`);
 
   // Verify Ledger Events
   const events = await db('pol_ledger_events')
-    .where('arc', pollingArc)
-    .orWhere('arc', oldFormationArc);
+    .where('month', pollingArc)
+    .orWhere('month', oldFormationArc);
   let hasResultEvent = false;
   let hasFormationEvent = false;
   for (const e of events) {

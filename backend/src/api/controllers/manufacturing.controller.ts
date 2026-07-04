@@ -233,8 +233,8 @@ export class ManufacturingController {
 
       const modelSnapshots = await db('manufacturing_model_snapshots')
         .where({ company_id: companyId })
-        .orderBy('world_orbit', 'desc')
-        .orderBy('world_arc', 'desc');
+        .orderBy('world_year', 'desc')
+        .orderBy('world_month', 'desc');
 
       const inventory = await db('manufacturing_inventory')
         .join('manufacturing_vehicle_models', 'manufacturing_inventory.vehicle_model_id', 'manufacturing_vehicle_models.id')
@@ -248,8 +248,8 @@ export class ManufacturingController {
 
       const latestReport = await db('manufacturing_arc_reports')
         .where({ company_id: companyId })
-        .orderBy('world_orbit', 'desc')
-        .orderBy('world_arc', 'desc')
+        .orderBy('world_year', 'desc')
+        .orderBy('world_month', 'desc')
         .first();
 
       const allReports = await db('manufacturing_arc_reports')
@@ -419,9 +419,9 @@ export class ManufacturingController {
         }
 
         const clock = await trx('world_clock').first();
-        const currentOrbit = clock?.current_orbit || 1;
-        const currentArc = clock?.current_arc || 1;
-        const currentMark = clock?.current_mark || 1;
+        const currentYear = clock?.current_year || 1;
+        const currentMonth = clock?.current_month || 1;
+        const currentDay = clock?.current_day || 1;
 
         // Record history
         await trx('manufacturing_procurement_history').insert({
@@ -431,18 +431,18 @@ export class ManufacturingController {
           units_ordered: units,
           unit_cost: component.base_cost,
           total_cost: totalCost,
-          world_orbit: currentOrbit,
-          world_arc: currentArc,
-          world_mark: currentMark
+          world_year: currentYear,
+          world_month: currentMonth,
+          world_day: currentDay
         });
         
         // Add ledger entry
         await trx('company_ledger').insert({
           world_instance_id: company.world_instance_id,
           company_id: companyId,
-          world_orbit: currentOrbit,
-          world_arc: currentArc,
-          world_mark: currentMark,
+          world_year: currentYear,
+          world_month: currentMonth,
+          world_day: currentDay,
           category: 'expense',
           subcategory: 'procurement',
           amount: totalCost,
@@ -505,9 +505,9 @@ export class ManufacturingController {
           machine_level: 1,
           condition: 100.00,
           status: 'active',
-          created_at_world_orbit: clock?.current_orbit || 1,
-          created_at_world_arc: clock?.current_arc || 1,
-          created_at_world_mark: clock?.current_mark || 1,
+          created_at_world_year: clock?.current_year || 1,
+          created_at_world_month: clock?.current_month || 1,
+          created_at_world_day: clock?.current_day || 1,
         }).returning('*');
 
         // Create production line(s) up to max
@@ -529,9 +529,9 @@ export class ManufacturingController {
         // Ledger entry
         await trx('company_ledger').insert({
           company_id: companyId,
-          game_orbit: clock?.current_orbit || 1,
-          game_arc: clock?.current_arc || 1,
-          game_mark: clock?.current_mark || 1,
+          game_year: clock?.current_year || 1,
+          game_month: clock?.current_month || 1,
+          game_day: clock?.current_day || 1,
           entry_type: 'factory_lease',
           description: `First lease payment — ${factoryType.name}`,
           amount: -leaseCost,
@@ -583,9 +583,9 @@ export class ManufacturingController {
         if (existingModel) throw new AppError('A model with this name already exists', 400, 'NAME_TAKEN');
 
         const clock = await trx('world_clock').first();
-        const currentOrbit = clock?.current_orbit || 1;
-        const currentArc   = clock?.current_arc   || 1;
-        const currentMark  = clock?.current_mark  || 1;
+        const currentYear = clock?.current_year || 1;
+        const currentMonth   = clock?.current_month   || 1;
+        const currentDay  = clock?.current_day  || 1;
 
         // Engineer context
         const engineerStaff = await trx('company_staff')
@@ -630,8 +630,8 @@ export class ManufacturingController {
           engineerCount,
           engineerSkillLevel: Math.min(Math.floor(engineerCount / 2), 5),
           companyKnowledge,
-          currentArc,
-          currentOrbit,
+          currentMonth,
+          currentYear,
         };
 
         // Run the engineering engine
@@ -669,31 +669,31 @@ export class ManufacturingController {
         // Ledger entry for dev cost
         await trx('company_ledger').insert({
           company_id: companyId,
-          game_orbit: currentOrbit,
-          game_arc: currentArc,
-          game_mark: currentMark,
+          game_year: currentYear,
+          game_month: currentMonth,
+          game_day: currentDay,
           entry_type: 'vehicle_development',
           amount: -outcome.effectiveDevCost,
           balance_after: Number(finances.available_cash) - outcome.effectiveDevCost,
           description: `Vehicle development started: ${name.trim()}`,
         });
 
-        // Calculate stage completion arcs
-        const engCompletes     = currentArc + outcome.stageTimings.engineering;
+        // Calculate stage completion months
+        const engCompletes     = currentMonth + outcome.stageTimings.engineering;
         const protoCompletes   = engCompletes + outcome.stageTimings.prototype;
         const testingCompletes = protoCompletes + outcome.stageTimings.testing;
         const totalCompletes   = testingCompletes;
 
         // Year/month with overflow handling (12 months per year)
         const MONTHS_PER_YEAR = 12;
-        const wrapArc = (orbit: number, arc: number) => {
-          while (arc > MONTHS_PER_YEAR) { arc -= MONTHS_PER_YEAR; orbit++; }
-          return { orbit, arc };
+        const wrapMonth = (year: number, month: number) => {
+          while (month > MONTHS_PER_YEAR) { month -= MONTHS_PER_YEAR; year++; }
+          return { year, month };
         };
-        const engEnd   = wrapArc(currentOrbit, engCompletes);
-        const protoEnd = wrapArc(currentOrbit, protoCompletes);
-        const testEnd  = wrapArc(currentOrbit, testingCompletes);
-        const finalEnd = wrapArc(currentOrbit, totalCompletes);
+        const engEnd   = wrapMonth(currentYear, engCompletes);
+        const protoEnd = wrapMonth(currentYear, protoCompletes);
+        const testEnd  = wrapMonth(currentYear, testingCompletes);
+        const finalEnd = wrapMonth(currentYear, totalCompletes);
 
         const [model] = await trx('manufacturing_vehicle_models').insert({
           world_instance_id: company.world_instance_id,
@@ -735,20 +735,20 @@ export class ManufacturingController {
           engineering_assessment:     JSON.stringify(outcome.engineeringReport), // Note: this is actually the new assessment format returned from engine
           engineering_balance_rating: outcome.balanceFlags.length > 0 ? outcome.balanceFlags[0] : null,
           // Stage completion timings
-          stage_engineering_completes_orbit: engEnd.orbit,
-          stage_engineering_completes_arc:   engEnd.arc,
-          stage_prototype_completes_orbit:   protoEnd.orbit,
-          stage_prototype_completes_arc:     protoEnd.arc,
-          stage_testing_completes_orbit:     testEnd.orbit,
-          stage_testing_completes_arc:       testEnd.arc,
+          stage_engineering_completes_year: engEnd.year,
+          stage_engineering_completes_month:   engEnd.month,
+          stage_prototype_completes_year:   protoEnd.year,
+          stage_prototype_completes_month:     protoEnd.month,
+          stage_testing_completes_year:     testEnd.year,
+          stage_testing_completes_month:       testEnd.month,
           // Overall completion
-          created_at_world_orbit: currentOrbit,
-          created_at_world_arc:   currentArc,
-          created_at_world_mark:  currentMark,
-          development_started_at_orbit:   currentOrbit,
-          development_started_at_arc:     currentArc,
-          development_completes_at_orbit:  finalEnd.orbit,
-          development_completes_at_arc:    finalEnd.arc,
+          created_at_world_year: currentYear,
+          created_at_world_month:   currentMonth,
+          created_at_world_day:  currentDay,
+          development_started_at_year:   currentYear,
+          development_started_at_arc:     currentMonth,
+          development_completes_at_year:  finalEnd.year,
+          development_completes_at_month:    finalEnd.month,
         }).returning('*');
 
         return { model, devCostCharged: outcome.effectiveDevCost, devTimeArcs: outcome.devTimeArcs };
@@ -791,8 +791,8 @@ export class ManufacturingController {
           .where({ id: modelId })
           .update({
             development_status: 'launched',
-            launched_orbit: clock2?.current_orbit || 1,
-            launched_arc: clock2?.current_arc || 1,
+            launched_year: clock2?.current_year || 1,
+            launched_arc: clock2?.current_month || 1,
             updated_at: trx.fn.now(),
           })
           .returning('*');
@@ -803,9 +803,9 @@ export class ManufacturingController {
           company_id: companyId,
           record_type: 'business',
           summary: `${model.name} was launched for production.`,
-          created_at_world_orbit: clock?.current_orbit || 1,
-          created_at_world_arc: clock?.current_arc || 1,
-          created_at_world_mark: clock?.current_mark || 1
+          created_at_world_year: clock?.current_year || 1,
+          created_at_world_month: clock?.current_month || 1,
+          created_at_world_day: clock?.current_day || 1
         });
 
         return updated;
@@ -942,9 +942,9 @@ export class ManufacturingController {
           company_id: companyId,
           record_type: 'business',
           summary: `Hired ${quantity} ${validRole.label}${quantity > 1 ? 's' : ''}.`,
-          created_at_world_orbit: clock?.current_orbit || 1,
-          created_at_world_arc: clock?.current_arc || 1,
-          created_at_world_mark: clock?.current_mark || 1,
+          created_at_world_year: clock?.current_year || 1,
+          created_at_world_month: clock?.current_month || 1,
+          created_at_world_day: clock?.current_day || 1,
         });
       });
 
@@ -986,9 +986,9 @@ export class ManufacturingController {
           company_id: companyId,
           record_type: 'business',
           summary: `Dismissed ${dismissed} ${validRole.label}${dismissed > 1 ? 's' : ''}.`,
-          created_at_world_orbit: clock?.current_orbit || 1,
-          created_at_world_arc: clock?.current_arc || 1,
-          created_at_world_mark: clock?.current_mark || 1,
+          created_at_world_year: clock?.current_year || 1,
+          created_at_world_month: clock?.current_month || 1,
+          created_at_world_day: clock?.current_day || 1,
         });
       });
 
@@ -1225,17 +1225,17 @@ export class ManufacturingController {
   
 
   private static async produceForCompany(trx: any, company: any, clock: any): Promise<ParticipantState> {
-    const currentOrbit = clock?.current_orbit || 1;
-    const currentArc = clock?.current_arc || 1;
-    const currentMark = clock?.current_mark || 1;
+    const currentYear = clock?.current_year || 1;
+    const currentMonth = clock?.current_month || 1;
+    const currentDay = clock?.current_day || 1;
     const companyId = company.id;
 
     const finances = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
     let runningCash = Number(finances.available_cash);
 
-    console.log(`[produceForCompany] Arc ${clock.current_arc} Fetching factories for ${companyId}...`); const factories = await trx('manufacturing_factories').where({ company_id: companyId, status: 'active' }); console.log(`[produceForCompany] Arc ${clock.current_arc} Fetched factories for ${companyId}`);
+    console.log(`[produceForCompany] Month ${clock.current_month} Fetching factories for ${companyId}...`); const factories = await trx('manufacturing_factories').where({ company_id: companyId, status: 'active' }); console.log(`[produceForCompany] Month ${clock.current_month} Fetched factories for ${companyId}`);
 
-    console.log(`[produceForCompany] Arc ${clock.current_arc} Fetching productionLines for ${companyId}...`); const productionLines = await trx('manufacturing_production_lines')
+    console.log(`[produceForCompany] Month ${clock.current_month} Fetching productionLines for ${companyId}...`); const productionLines = await trx('manufacturing_production_lines')
       .join('manufacturing_vehicle_models', 'manufacturing_production_lines.assigned_vehicle_model_id', 'manufacturing_vehicle_models.id')
       .where('manufacturing_production_lines.company_id', companyId)
       .where('manufacturing_production_lines.status', 'active')
@@ -1257,7 +1257,7 @@ export class ManufacturingController {
         'manufacturing_vehicle_models.id as model_id_ref'
       );
 
-    console.log(`[produceForCompany] Arc ${clock.current_arc} Fetched productionLines for ${companyId}`); const staff = await trx('company_staff').where({ company_id: companyId });
+    console.log(`[produceForCompany] Month ${clock.current_month} Fetched productionLines for ${companyId}`); const staff = await trx('company_staff').where({ company_id: companyId });
 
     // ─── 0. Vehicle Development Updates (Phase 3B per-stage) ─────────────
     const developingModels = await trx('manufacturing_vehicle_models')
@@ -1274,9 +1274,9 @@ export class ManufacturingController {
       const devStage = model.dev_stage as string | null;
 
       // Stage: engineering → prototype
-      const engEndsOrbit = model.stage_engineering_completes_orbit || 1;
-      const engEndsArc   = model.stage_engineering_completes_arc   || 1;
-      if (devStage === 'engineering' && (currentOrbit > engEndsOrbit || (currentOrbit === engEndsOrbit && currentArc >= engEndsArc))) {
+      const engEndsYear = model.stage_engineering_completes_year || 1;
+      const engEndsMonth   = model.stage_engineering_completes_month   || 1;
+      if (devStage === 'engineering' && (currentYear > engEndsYear || (currentYear === engEndsYear && currentMonth >= engEndsMonth))) {
         const bonuses = applyKnowledgeBonuses(knowledgeXpMap);
         const newReliability = Math.min(100, Number(model.reliability_score ?? 60) + bonuses.reliabilityBonus);
         const newMfgFriendliness = Math.min(100, Number(model.manufacturing_friendliness ?? 50) + bonuses.mfgFriendlinessBonus);
@@ -1289,15 +1289,15 @@ export class ManufacturingController {
 
         const bonusSummary = Object.entries(bonuses).filter(([, v]) => (v as number) > 0).map(([k, v]) => `${k.replace('Bonus','').replace('Reduction', '')}: +${(v as number).toFixed(1)}`).join(', ');
         await trx('company_records').insert({
-          world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `${model.name} has entered the Prototype stage.${bonusSummary ? ` Knowledge bonuses applied: ${bonusSummary}.` : ''}`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark
+          world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `${model.name} has entered the Prototype stage.${bonusSummary ? ` Knowledge bonuses applied: ${bonusSummary}.` : ''}`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay
         });
         continue;
       }
 
       // Stage: prototype → testing
-      const protoEndsOrbit = model.stage_prototype_completes_orbit || 1;
-      const protoEndsArc   = model.stage_prototype_completes_arc   || 1;
-      if (devStage === 'prototype' && (currentOrbit > protoEndsOrbit || (currentOrbit === protoEndsOrbit && currentArc >= protoEndsArc))) {
+      const protoEndsYear = model.stage_prototype_completes_year || 1;
+      const protoEndsMonth   = model.stage_prototype_completes_month   || 1;
+      if (devStage === 'prototype' && (currentYear > protoEndsYear || (currentYear === protoEndsYear && currentMonth >= protoEndsMonth))) {
         const validation = evaluatePrototypeValidation(model);
         const currentCultureScore = Number(cultureScore || 0);
         const newCultureScore = applyEngineeringCulture(currentCultureScore, validation);
@@ -1312,37 +1312,51 @@ export class ManufacturingController {
           if (extraCostCharged > 0) {
             runningCash -= extraCostCharged;
             await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', extraCostCharged);
-            await trx('company_ledger').insert({ company_id: companyId, game_orbit: currentOrbit, game_arc: currentArc, game_mark: currentMark, entry_type: 'expense', description: `Prototype validation failure costs: ${model.name}`, amount: -extraCostCharged, balance_after: runningCash });
+            await trx('company_ledger').insert({ company_id: companyId, game_year: currentYear, game_month: currentMonth, game_day: currentDay, entry_type: 'expense', description: `Prototype validation failure costs: ${model.name}`, amount: -extraCostCharged, balance_after: runningCash });
           }
-          extraArcMessage = ` Development extended by ${validation.extraArcs} arc(s).`;
+          extraArcMessage = ` Development extended by ${validation.extraArcs} month(s).`;
         }
 
-        const newTestingArc = (model.stage_testing_completes_arc || currentArc + 1) + validation.extraArcs;
-        const newFinalArc = (model.development_completes_at_arc || currentArc + 1) + validation.extraArcs;
+        const MONTHS_PER_YEAR = 12;
+        const wrapMonth = (year: number, month: number) => {
+          while (month > MONTHS_PER_YEAR) { month -= MONTHS_PER_YEAR; year++; }
+          return { year, month };
+        };
 
-        await trx('manufacturing_vehicle_models').where({ id: model.id }).update({ dev_stage: 'testing', stage_testing_completes_arc: newTestingArc, development_completes_at_arc: newFinalArc, prototype_validation_result: JSON.stringify(validation), updated_at: trx.fn.now() });
+        const testEnd = wrapMonth(model.stage_testing_completes_year || currentYear, (model.stage_testing_completes_month || currentMonth + 1) + validation.extraArcs);
+        const finalEnd = wrapMonth(model.development_completes_at_year || currentYear, (model.development_completes_at_month || currentMonth + 1) + validation.extraArcs);
+
+        await trx('manufacturing_vehicle_models').where({ id: model.id }).update({ 
+          dev_stage: 'testing', 
+          stage_testing_completes_year: testEnd.year,
+          stage_testing_completes_month: testEnd.month, 
+          development_completes_at_year: finalEnd.year,
+          development_completes_at_month: finalEnd.month, 
+          prototype_validation_result: JSON.stringify(validation), 
+          updated_at: trx.fn.now() 
+        });
         await trx('manufacturing_engineering_reputation').where({ company_id: companyId }).update({ engineering_culture_score: newCultureScore, last_updated: trx.fn.now() }).catch(() => {});
 
         const validationSummary = validation.passed ? `Prototype validation ${validation.resultClass} (confidence: ${validation.confidenceScore}%).` : `Prototype validation ${validation.resultClass}: ${validation.issues[0]}.${extraArcMessage} Extra cost: ${extraCostCharged.toLocaleString()}.`;
-        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `${model.name} — ${validationSummary}`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
+        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `${model.name} — ${validationSummary}`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
         continue;
       }
 
       // Stage: testing → ready_to_launch
-      const testingEndsOrbit = model.stage_testing_completes_orbit || 1;
-      const testingEndsArc   = model.stage_testing_completes_arc   || 1;
-      if (devStage === 'testing' && (currentOrbit > testingEndsOrbit || (currentOrbit === testingEndsOrbit && currentArc >= testingEndsArc))) {
+      const testingEndsYear = model.stage_testing_completes_year || 1;
+      const testingEndsMonth   = model.stage_testing_completes_month   || 1;
+      if (devStage === 'testing' && (currentYear > testingEndsYear || (currentYear === testingEndsYear && currentMonth >= testingEndsMonth))) {
         await trx('manufacturing_vehicle_models').where({ id: model.id }).update({ dev_stage: 'ready_to_launch', updated_at: trx.fn.now() });
       }
 
       // Final: ready_to_launch (this part generates permanent assessment at the end of testing)
-      const completesOrbit = model.development_completes_at_orbit || 1;
-      const completesArc   = model.development_completes_at_arc   || 1;
-      if (currentOrbit > completesOrbit || (currentOrbit === completesOrbit && currentArc >= completesArc)) {
+      const completesYear = model.development_completes_at_year || 1;
+      const completesMonth   = model.development_completes_at_month   || 1;
+      if (currentYear > completesYear || (currentYear === completesYear && currentMonth >= completesMonth)) {
         const assessment = calculateEngineeringAssessment(model);
         const balanceRating = calculateBalanceRating(model);
         await trx('manufacturing_vehicle_models').where({ id: model.id }).update({ development_status: 'ready_to_launch', dev_stage: 'ready_to_launch', engineering_assessment: JSON.stringify(assessment), engineering_balance_rating: balanceRating, updated_at: trx.fn.now() });
-        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `Vehicle development completed: ${model.name}.`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
+        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `Vehicle development completed: ${model.name}.`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
       }
     }
 
@@ -1361,9 +1375,9 @@ export class ManufacturingController {
     let expansionCompletedNote = '';
     const expandingFactory = factories.find((f: any) => f.expansion_status === 'construction_underway');
     if (expandingFactory) {
-      const compOrbit = Number(expandingFactory.expansion_completion_orbit);
-      const compArc   = Number(expandingFactory.expansion_completion_arc);
-      const isComplete = currentOrbit > compOrbit || (currentOrbit === compOrbit && currentArc >= compArc);
+      const compYear = Number(expandingFactory.expansion_completion_year);
+      const compMonth   = Number(expandingFactory.expansion_completion_arc);
+      const isComplete = currentYear > compYear || (currentYear === compYear && currentMonth >= compMonth);
 
       if (isComplete) {
         await trx('manufacturing_factories').where({ id: expandingFactory.id }).update({ expansion_status: 'expanded', capacity_per_arc: EXP_CAPACITY, lease_cost_per_arc: EXP_LEASE, maintenance_cost_per_arc: EXP_MAINT, worker_capacity: EXP_WORKERS, updated_at: trx.fn.now() });
@@ -1375,7 +1389,7 @@ export class ManufacturingController {
           }
         }
 
-        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `Workshop expansion completed. ${EXP_MAX_LINES} production lines now available (capacity: ${EXP_CAPACITY} units/Month).`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
+        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `Workshop expansion completed. ${EXP_MAX_LINES} production lines now available (capacity: ${EXP_CAPACITY} units/Month).`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
         expansionCompletedNote = ` Factory Expansion Completed: Expanded Workshop — ${EXP_MAX_LINES} production lines, ${EXP_CAPACITY} units per Month capacity.`;
 
         factories.forEach((f: any) => {
@@ -1385,17 +1399,17 @@ export class ManufacturingController {
     }
 
     if (activeProgramme) {
-      const isAtLeastValidation = currentOrbit > activeProgramme.validation_arc_orbit || (currentOrbit === activeProgramme.validation_arc_orbit && currentArc >= activeProgramme.validation_arc_orbit);
-      const isAtLeastCompletion = currentOrbit > activeProgramme.completion_arc_orbit || (currentOrbit === activeProgramme.completion_arc_orbit && currentArc >= activeProgramme.completion_arc_orbit);
+      const isAtLeastValidation = currentYear > activeProgramme.validation_month_year || (currentYear === activeProgramme.validation_month_year && currentMonth >= activeProgramme.validation_month_year);
+      const isAtLeastCompletion = currentYear > activeProgramme.completion_month_year || (currentYear === activeProgramme.completion_month_year && currentMonth >= activeProgramme.completion_month_year);
       const progName = ENGINEERING_PROGRAMMES_CATALOG[activeProgramme.programme_id]?.name || activeProgramme.programme_id;
 
       if (isAtLeastCompletion) {
         await trx('manufacturing_engineering_programmes').where({ id: activeProgramme.id }).update({ status: 'approved', updated_at: trx.fn.now() });
-        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `${progName} was approved for company use.`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
+        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `${progName} was approved for company use.`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
         approvedResearchNames.push(progName);
       } else if (isAtLeastValidation && activeProgramme.status === 'engineering') {
         await trx('manufacturing_engineering_programmes').where({ id: activeProgramme.id }).update({ status: 'validation', updated_at: trx.fn.now() });
-        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `${progName} entered technical validation.`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
+        await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `${progName} entered technical validation.`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
       }
     }
 
@@ -1556,7 +1570,7 @@ export class ManufacturingController {
     if (wageShortfall > 0) {
       const wageCurrency = await trx('currencies').where({ id: company.currency_id }).first();
       const wageSym = wageCurrency?.symbol ?? '';
-      await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `⚠ Wage shortfall: only ${wageSym}${actualWagesPaid.toLocaleString()} of ${wageSym}${totalStaffWages.toLocaleString()} wages paid this arc.`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
+      await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `⚠ Wage shortfall: only ${wageSym}${actualWagesPaid.toLocaleString()} of ${wageSym}${totalStaffWages.toLocaleString()} wages paid this month.`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
     }
 
     let totalLeaseCosts = 0;
@@ -1610,9 +1624,9 @@ export class ManufacturingController {
   }
 
   private static async settleForCompany(trx: any, pState: ParticipantState, salesResults: any[], clock: any, brandMap: Map<string, any>): Promise<void> {
-    const currentOrbit = clock?.current_orbit || 1;
-    const currentArc = clock?.current_arc || 1;
-    const currentMark = clock?.current_mark || 1;
+    const currentYear = clock?.current_year || 1;
+    const currentMonth = clock?.current_month || 1;
+    const currentDay = clock?.current_day || 1;
     const companyId = pState.company.id;
     const company = pState.company;
 
@@ -1691,7 +1705,7 @@ export class ManufacturingController {
       const marketShare = Math.min(1, unitsSold / Math.max(1, md.rawBuyerInterest));
       await trx('manufacturing_sales_results').insert({
         world_instance_id: company.world_instance_id, company_id: companyId, vehicle_model_id: alloc.vehicle_model_id, region_market_id: alloc.region_market_id,
-        world_orbit: currentOrbit, world_arc: currentArc, units_sold: unitsSold, sale_price: alloc.sale_price, revenue: unitsSold * Number(alloc.sale_price),
+        world_year: currentYear, world_month: currentMonth, units_sold: unitsSold, sale_price: alloc.sale_price, revenue: unitsSold * Number(alloc.sale_price),
         market_share_estimate: marketShare, addressable_households: totalHouseholds, market_purchase_capacity: marketPurchaseCapacity,
         affordability_multiplier: Math.round(md.affordability * 10000) / 10000, vehicle_market_fit_multiplier: Math.round(md.fitMultiplier * 10000) / 10000,
         awareness_multiplier: Math.round(md.awarenessMult * 10000) / 10000, trust_multiplier: Math.round(md.trustMult * 10000) / 10000,
@@ -1759,9 +1773,9 @@ export class ManufacturingController {
 
         await trx('company_ledger').insert({
           company_id: companyId,
-          game_orbit: currentOrbit,
-          game_arc: currentArc,
-          game_mark: currentMark,
+          game_year: currentYear,
+          game_month: currentMonth,
+          game_day: currentDay,
           entry_type: 'tax',
           amount: -taxPaid,
           balance_after: pState.runningCash,
@@ -1779,11 +1793,11 @@ export class ManufacturingController {
       if (!mModel) continue;
       await trx.raw(`
         INSERT INTO manufacturing_model_snapshots
-          (world_instance_id, company_id, model_id, world_orbit, world_arc, units_produced, defective_units, units_sold, ending_inventory, sales_revenue, production_cost, defect_loss, marketing_cost, storage_cost, direct_contribution)
+          (world_instance_id, company_id, model_id, world_year, world_month, units_produced, defective_units, units_sold, ending_inventory, sales_revenue, production_cost, defect_loss, marketing_cost, storage_cost, direct_contribution)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (company_id, model_id, world_orbit, world_arc) DO NOTHING
+        ON CONFLICT (company_id, model_id, world_year, world_month) DO NOTHING
       `, [
-        company.world_instance_id, companyId, mId, currentOrbit, currentArc, mt.unitsProduced, mt.defectiveUnits, mt.unitsSold, endingInventory, mt.salesRevenue, mt.productionCost, mt.defectLoss, mt.marketingCost, storageCost, directContribution,
+        company.world_instance_id, companyId, mId, currentYear, currentMonth, mt.unitsProduced, mt.defectiveUnits, mt.unitsSold, endingInventory, mt.salesRevenue, mt.productionCost, mt.defectLoss, mt.marketingCost, storageCost, directContribution,
       ]);
     }
 
@@ -1806,7 +1820,7 @@ export class ManufacturingController {
       const totalMarketSold = ms.totalUnitsSold;
       const deliveryExposure = Math.min(1.0, totalMarketSold / Math.max(ms.marketPurchaseCapacity, 1));
 
-      const existingArcResult = await trx('manufacturing_market_brand_arc_results').where({ company_id: companyId, region_market_id: marketId, world_arc: currentArc }).first();
+      const existingArcResult = await trx('manufacturing_market_brand_arc_results').where({ company_id: companyId, region_market_id: marketId, world_month: currentMonth }).first();
       if (existingArcResult) continue;
 
       const currBrand = await trx('manufacturing_brand_awareness').where({ company_id: companyId, region_market_id: marketId }).first();
@@ -1843,7 +1857,7 @@ export class ManufacturingController {
       }
 
       await trx('manufacturing_market_brand_arc_results').insert({
-        company_id: companyId, region_market_id: marketId, world_arc: currentArc,
+        company_id: companyId, region_market_id: marketId, world_month: currentMonth,
         awareness_before: oldAwareness, awareness_after: newAwareness, awareness_delta: Math.round(awarenessDelta), market_marketing_spend: mktMarketingSpend,
         effective_marketing_tier: mktTier, trust_before: oldTrust, trust_after: newTrust,
         trust_delta: Math.round(trustDelta), weighted_reliability: Math.round(wReliability), weighted_defect_rate: wDefectRate,
@@ -1854,7 +1868,7 @@ export class ManufacturingController {
     }
 
     if (localBrandReportLines.length > 0) {
-      await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `Local Brand Updates:\n${localBrandReportLines.join('\n')}`, created_at_world_orbit: currentOrbit, created_at_world_arc: currentArc, created_at_world_mark: currentMark });
+      await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `Local Brand Updates:\n${localBrandReportLines.join('\n')}`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
     }
 
     if (totalUnitsSold > 0 && pState.activeMarketCount > 0) {
@@ -1916,7 +1930,7 @@ export class ManufacturingController {
     }
 
     const reportData = {
-      world_instance_id: company.world_instance_id, company_id: companyId, world_orbit: currentOrbit, world_arc: currentArc, world_mark: 1,
+      world_instance_id: company.world_instance_id, company_id: companyId, world_year: currentYear, world_month: currentMonth, world_day: 1,
       planned_units: pState.totalPlannedUnits, units_produced: pState.totalUnitsProduced, defective_units: pState.totalDefectiveUnits,
       units_sold: totalUnitsSold, units_unsold: Math.max(0, pState.totalUnitsProduced - totalUnitsSold),
       gross_revenue: totalGrossRevenue, sales_revenue: totalGrossRevenue, net_profit: netProfit, ending_cash: pState.runningCash,
@@ -1963,8 +1977,8 @@ export class ManufacturingController {
         if (playerCompany.industry_id !== 'manufacturing') throw new AppError('Not a manufacturing company', 400, 'WRONG_INDUSTRY');
 
         const clock = await trx('world_clock').first();
-        const currentOrbit = clock?.current_orbit || 1;
-        const currentArc = clock?.current_arc || 1;
+        const currentYear = clock?.current_year || 1;
+        const currentMonth = clock?.current_month || 1;
 
         // 1. RESOLVE PARTICIPANTS
         const allCompanies = await trx('companies')
@@ -1976,7 +1990,7 @@ export class ManufacturingController {
         const participants: any[] = [];
         for (const comp of allCompanies) {
            const existingReport = await trx('manufacturing_arc_reports')
-             .where({ company_id: comp.id, world_orbit: currentOrbit, world_arc: currentArc })
+             .where({ company_id: comp.id, world_year: currentYear, world_month: currentMonth })
              .first();
            if (!existingReport) {
              participants.push(comp);
@@ -1984,13 +1998,13 @@ export class ManufacturingController {
         }
         
         if (participants.length === 0) {
-           throw new AppError(`This month (Year ${currentOrbit}, month ${currentArc}) is already processed for this region`, 400, 'ALREADY_PROCESSED');
+           throw new AppError(`This month (Year ${currentYear}, month ${currentMonth}) is already processed for this region`, 400, 'ALREADY_PROCESSED');
         }
 
         // 2. DECIDE (NPCs only)
         for (const company of participants) {
            if (company.is_npc) {
-              await runNpcBrainForCompany(trx, company.id, currentOrbit, currentArc);
+              await runNpcBrainForCompany(trx, company.id, currentYear, currentMonth);
            }
         }
 
@@ -2079,19 +2093,19 @@ export class ManufacturingController {
            await ManufacturingController.settleForCompany(trx, pState, compResults, clock, brandMap);
         }
 
-        // Process Political Arc Hook
+        // Process Political Month Hook
         const activeState = await trx('pol_states')
           .where({ country_id: playerCompany.country_id, is_active: true })
           .first();
         if (activeState) {
           const { processPoliticalArc } = require('../../services/politics.service');
-          await processPoliticalArc(trx, activeState.id, currentArc);
+          await processPoliticalArc(trx, activeState.id, currentMonth);
         }
 
-        // Character Aging — once per orbit (arc 12 = end of year)
-        // Idempotent: processManufacturingArc already blocks duplicate runs per arc,
-        // so this fires at most once per orbit per world.
-        if (currentArc === 12) {
+        // Character Aging — once per year (month 12 = end of year)
+        // Idempotent: processManufacturingArc already blocks duplicate runs per month,
+        // so this fires at most once per year per world.
+        if (currentMonth === 12) {
           await trx('characters')
             .where({ world_instance_id: 'pre-alpha-world-1', status: 'active' })
             .increment('age', 1);
@@ -2456,25 +2470,25 @@ export class ManufacturingController {
         }
 
         const clock = await trx('world_clock').first();
-        const startOrbit = clock?.current_orbit || 1;
-        const startArc = clock?.current_arc || 1;
+        const startYear = clock?.current_year || 1;
+        const startMonth = clock?.current_month || 1;
 
         // Validation happens in the middle/end depending on logic.
-        // User requested: Validation on arc reached, Approved on completion.
-        // Let's say Validation takes 1 arc, Engineering takes the rest.
-        // So validationArc = startArc + durationArcs - 1
-        // completionArc = startArc + durationArcs
+        // User requested: Validation on month reached, Approved on completion.
+        // Let's say Validation takes 1 month, Engineering takes the rest.
+        // So validationArc = startMonth + durationArcs - 1
+        // completionArc = startMonth + durationArcs
         
-        let completionArcTotal = startArc + durationArcs;
-        let validationArcTotal = completionArcTotal - 1;
+        let completionMonthTotal = startMonth + durationArcs;
+        let validationMonthTotal = completionMonthTotal - 1;
 
-        let compOrbit = startOrbit + Math.floor(completionArcTotal / 36);
-        let compArc = completionArcTotal % 36;
-        if (compArc === 0) { compArc = 36; compOrbit -= 1; }
+        let compYear = startYear + Math.floor(completionMonthTotal / 36);
+        let compMonth = completionMonthTotal % 36;
+        if (compMonth === 0) { compMonth = 36; compYear -= 1; }
 
-        let valOrbit = startOrbit + Math.floor(validationArcTotal / 36);
-        let valArc = validationArcTotal % 36;
-        if (valArc === 0) { valArc = 36; valOrbit -= 1; }
+        let valYear = startYear + Math.floor(validationMonthTotal / 36);
+        let valMonth = validationMonthTotal % 36;
+        if (valMonth === 0) { valMonth = 36; valYear -= 1; }
 
         // Deduct budget
         const [updatedFinances] = await trx('company_finances')
@@ -2489,20 +2503,20 @@ export class ManufacturingController {
           programme_id: programmeId,
           status: 'engineering',
           approved_budget: progBudget,
-          started_arc_orbit: startOrbit,
-          started_arc: startArc,
-          validation_arc_orbit: valOrbit,
-          validation_arc: valArc,
-          completion_arc_orbit: compOrbit,
-          completion_arc: compArc
+          started_month_year: startYear,
+          started_arc: startMonth,
+          validation_month_year: valYear,
+          validation_arc: valMonth,
+          completion_month_year: compYear,
+          completion_arc: compMonth
         });
 
         // Ledger
         await trx('company_ledger').insert({
           company_id: companyId,
-          game_orbit: startOrbit,
-          game_arc: startArc,
-          game_mark: clock?.current_mark || 1,
+          game_year: startYear,
+          game_month: startMonth,
+          game_day: clock?.current_day || 1,
           entry_type: 'business',
           description: `Research Budget Allocation — ${progDef.name}`,
           amount: -progBudget,
@@ -2515,9 +2529,9 @@ export class ManufacturingController {
           company_id: companyId,
           record_type: 'business',
           summary: `Engineering programme started: ${progDef.name}`,
-          created_at_world_orbit: startOrbit,
-          created_at_world_arc: startArc,
-          created_at_world_mark: clock?.current_mark || 1,
+          created_at_world_year: startYear,
+          created_at_world_month: startMonth,
+          created_at_world_day: clock?.current_day || 1,
         });
       });
 
@@ -2576,22 +2590,22 @@ export class ManufacturingController {
           .returning('*');
 
         const clock = await trx('world_clock').first();
-        const startOrbit = clock?.current_orbit || 1;
-        const startArc   = clock?.current_arc   || 1;
+        const startYear = clock?.current_year || 1;
+        const startMonth   = clock?.current_month   || 1;
 
-        // Calculate completion arc (2 arcs from now, wrapping orbit at 36)
-        const rawCompletionArc = startArc + EXPANSION_DURATION_ARCS;
-        let compOrbit = startOrbit + Math.floor(rawCompletionArc / 36);
-        let compArc   = rawCompletionArc % 36;
-        if (compArc === 0) { compArc = 36; compOrbit -= 1; }
+        // Calculate completion month (2 months from now, wrapping year at 36)
+        const rawCompletionMonth = startMonth + EXPANSION_DURATION_ARCS;
+        let compYear = startYear + Math.floor(rawCompletionMonth / 36);
+        let compMonth   = rawCompletionMonth % 36;
+        if (compMonth === 0) { compMonth = 36; compYear -= 1; }
 
-        // Mark factory as under construction
+        // Day factory as under construction
         await trx('manufacturing_factories').where({ id: factoryId }).update({
           expansion_status:             'construction_underway',
-          expansion_started_orbit:      startOrbit,
-          expansion_started_arc:        startArc,
-          expansion_completion_orbit:   compOrbit,
-          expansion_completion_arc:     compArc,
+          expansion_started_year:      startYear,
+          expansion_started_arc:        startMonth,
+          expansion_completion_year:   compYear,
+          expansion_completion_arc:     compMonth,
           expansion_cost:               EXPANSION_COST,
           updated_at:                   trx.fn.now(),
         });
@@ -2599,9 +2613,9 @@ export class ManufacturingController {
         // Ledger entry
         await trx('company_ledger').insert({
           company_id: companyId,
-          game_orbit:  startOrbit,
-          game_arc:    startArc,
-          game_mark:   clock?.current_mark || 1,
+          game_year:  startYear,
+          game_month:    startMonth,
+          game_day:   clock?.current_day || 1,
           entry_type:  'factory_expansion',
           description: 'Factory Expansion Investment — Second Production Line',
           amount:      -EXPANSION_COST,
@@ -2614,17 +2628,17 @@ export class ManufacturingController {
           company_id: companyId,
           record_type: 'business',
           summary: 'Workshop expansion started: Second Production Line.',
-          created_at_world_orbit: startOrbit,
-          created_at_world_arc:   startArc,
-          created_at_world_mark:  clock?.current_mark || 1,
+          created_at_world_year: startYear,
+          created_at_world_month:   startMonth,
+          created_at_world_day:  clock?.current_day || 1,
         });
 
         return {
           expansionStatus: 'construction_underway',
-          startedOrbit:    startOrbit,
-          startedArc:      startArc,
-          completionOrbit: compOrbit,
-          completionArc:   compArc,
+          startedYear:    startYear,
+          startedArc:      startMonth,
+          completionYear: compYear,
+          completionArc:   compMonth,
           availableCash:   updatedFinances.available_cash,
         };
       });
@@ -2776,20 +2790,20 @@ export class ManufacturingController {
           development_status: 'in_development',
           development_type: 'facelift',
           facelift_source_model_id: sourceModel.id,
-          created_at_world_orbit: clock?.current_orbit || 1,
-          created_at_world_arc: clock?.current_arc || 1,
-          created_at_world_mark: clock?.current_mark || 1,
-          development_started_at_orbit: clock?.current_orbit || 1,
-          development_started_at_arc: clock?.current_arc || 1,
-          development_completes_at_orbit: clock?.current_orbit || 1,
-          development_completes_at_arc: (clock?.current_arc || 1) + 1, // Facelift takes 1 Arc
+          created_at_world_year: clock?.current_year || 1,
+          created_at_world_month: clock?.current_month || 1,
+          created_at_world_day: clock?.current_day || 1,
+          development_started_at_year: clock?.current_year || 1,
+          development_started_at_arc: clock?.current_month || 1,
+          development_completes_at_year: clock?.current_year || 1,
+          development_completes_at_month: (clock?.current_month || 1) + 1, // Facelift takes 1 Month
         }).returning('*');
 
         await trx('company_ledger').insert({
           company_id: companyId,
-          game_orbit: clock?.current_orbit || 1,
-          game_arc: clock?.current_arc || 1,
-          game_mark: clock?.current_mark || 1,
+          game_year: clock?.current_year || 1,
+          game_month: clock?.current_month || 1,
+          game_day: clock?.current_day || 1,
           entry_type: 'business',
           description: `Vehicle Facelift R&D — ${newModel.name}`,
           amount: -finalDevCost,
@@ -2801,9 +2815,9 @@ export class ManufacturingController {
           company_id: companyId,
           record_type: 'business',
           summary: `Vehicle Facelift development started: ${newModel.name}`,
-          created_at_world_orbit: clock?.current_orbit || 1,
-          created_at_world_arc: clock?.current_arc || 1,
-          created_at_world_mark: clock?.current_mark || 1,
+          created_at_world_year: clock?.current_year || 1,
+          created_at_world_month: clock?.current_month || 1,
+          created_at_world_day: clock?.current_day || 1,
         });
 
         return newModel;
@@ -2841,8 +2855,8 @@ export class ManufacturingController {
           .where({ id: modelId })
           .update({
             development_status: 'discontinued',
-            discontinued_orbit: clock?.current_orbit || 1,
-            discontinued_arc: clock?.current_arc || 1,
+            discontinued_year: clock?.current_year || 1,
+            discontinued_arc: clock?.current_month || 1,
             updated_at: trx.fn.now()
           });
 
@@ -2859,9 +2873,9 @@ export class ManufacturingController {
           company_id: companyId,
           record_type: 'business',
           summary: `Vehicle Model Discontinued: ${model.name}. Production halted, but remaining inventory can be sold.`,
-          created_at_world_orbit: clock?.current_orbit || 1,
-          created_at_world_arc: clock?.current_arc || 1,
-          created_at_world_mark: clock?.current_mark || 1,
+          created_at_world_year: clock?.current_year || 1,
+          created_at_world_month: clock?.current_month || 1,
+          created_at_world_day: clock?.current_day || 1,
         });
       });
 
@@ -2883,8 +2897,8 @@ export class ManufacturingController {
 
       const snapshots = await db('manufacturing_model_snapshots')
         .where({ company_id: companyId })
-        .orderBy('world_orbit', 'desc')
-        .orderBy('world_arc', 'desc');
+        .orderBy('world_year', 'desc')
+        .orderBy('world_month', 'desc');
 
       res.status(200).json({ snapshots });
     } catch (error) {
@@ -3063,7 +3077,7 @@ export class ManufacturingController {
         });
       }
     } catch (err) {
-      // Non-fatal — log but don't fail the arc
+      // Non-fatal — log but don't fail the month
       console.error('[Engineering Knowledge] Failed to award XP:', err);
     }
   }

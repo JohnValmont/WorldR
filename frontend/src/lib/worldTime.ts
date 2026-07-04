@@ -2,9 +2,9 @@ import { WORLD_TIME_CONFIG, type WorldTimeConfig } from '../config/worldTimeConf
 import { formatWorldDate as calFmt, formatWorldDateShort as calFmtShort } from './calendar';
 
 export type WorldDate = {
-  orbit: number;
-  arc: number;
-  mark: number;
+  year: number;
+  month: number;
+  day: number;
   span?: number;
   watch?: number;
   pulse?: number;
@@ -15,9 +15,9 @@ const CLOCK_KEY = 'worldr_world_clock_v1';
 export function getWorldDate(): WorldDate {
   if (typeof window === 'undefined') {
     return {
-      orbit: WORLD_TIME_CONFIG.startingOrbit,
-      arc: WORLD_TIME_CONFIG.startingArc,
-      mark: WORLD_TIME_CONFIG.startingMark,
+      year: WORLD_TIME_CONFIG.startingYear,
+      month: WORLD_TIME_CONFIG.startingMonth,
+      day: WORLD_TIME_CONFIG.startingDay,
     };
   }
   
@@ -31,9 +31,9 @@ export function getWorldDate(): WorldDate {
   }
   
   const initialDate: WorldDate = {
-    orbit: WORLD_TIME_CONFIG.startingOrbit,
-    arc: WORLD_TIME_CONFIG.startingArc,
-    mark: WORLD_TIME_CONFIG.startingMark,
+    year: WORLD_TIME_CONFIG.startingYear,
+    month: WORLD_TIME_CONFIG.startingMonth,
+    day: WORLD_TIME_CONFIG.startingDay,
   };
   localStorage.setItem(CLOCK_KEY, JSON.stringify(initialDate));
   return initialDate;
@@ -46,34 +46,34 @@ export function saveWorldDate(date: WorldDate): void {
 
 export function resetWorldDate(): void {
   const initialDate: WorldDate = {
-    orbit: WORLD_TIME_CONFIG.startingOrbit,
-    arc: WORLD_TIME_CONFIG.startingArc,
-    mark: WORLD_TIME_CONFIG.startingMark,
+    year: WORLD_TIME_CONFIG.startingYear,
+    month: WORLD_TIME_CONFIG.startingMonth,
+    day: WORLD_TIME_CONFIG.startingDay,
   };
   saveWorldDate(initialDate);
 }
 
-export function advanceWorldArc(): void {
+export function advanceWorldMonth(): void {
   const date = getWorldDate();
-  date.arc += 1;
-  date.mark = 1;
+  date.month += 1;
+  date.day = 1;
   
-  if (date.arc > WORLD_TIME_CONFIG.arcsPerOrbit) {
-    date.arc = 1;
-    date.orbit += 1;
+  if (date.month > WORLD_TIME_CONFIG.monthsPerYear) {
+    date.month = 1;
+    date.year += 1;
   }
   
   saveWorldDate(date);
 }
 
 export function formatWorldDate(date: WorldDate = getWorldDate()): string {
-  return calFmt(date.orbit, date.arc);
+  return calFmt(date.year, date.month);
 }
 
 export function formatWorldArc(date: WorldDate = getWorldDate()): string {
-  return calFmt(date.orbit, date.arc);
+  return calFmt(date.year, date.month);
 }
 
 export function formatCompactWorldDate(date: WorldDate = getWorldDate()): string {
-  return calFmtShort(date.orbit, date.arc);
+  return calFmtShort(date.year, date.month);
 }

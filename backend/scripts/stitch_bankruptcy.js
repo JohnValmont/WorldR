@@ -38,9 +38,9 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
         motherland_country_id: countryId,
         name: 'System NPC',
         age: 30,
-        created_at_world_orbit: clock.world_orbit,
-        created_at_world_arc: clock.world_arc,
-        created_at_world_mark: 0
+        created_at_world_year: clock.world_year,
+        created_at_world_month: clock.world_month,
+        created_at_world_day: 0
       })
       .returning('*');
     sysChar = insertedChar;
@@ -64,23 +64,23 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       headquarters_state_id: 'drennia-drennport', // fallback
       industry_id: 'manufacturing',
       legal_structure_id: 'sole-trader',
-      currency_id: 'drennian-mark', // fallback
+      currency_id: 'drennian-day', // fallback
       name: roster.name,
       status: 'active',
       is_npc: true,
       npc_personality: roster.key,
       reputation: 50,
       reliability: 50,
-      created_at_world_orbit: clock.world_orbit,
-      created_at_world_arc: clock.world_arc,
-      created_at_world_mark: 0
+      created_at_world_year: clock.world_year,
+      created_at_world_month: clock.world_month,
+      created_at_world_day: 0
     })
     .returning('*');
 
   // Finances
   await trx('company_finances').insert({
     company_id: company.id,
-    currency_id: 'drennian-mark',
+    currency_id: 'drennian-day',
     available_cash: roster.seedCapital,
     debt: 0,
     company_value: roster.seedCapital,
@@ -111,9 +111,9 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       development_status: 'launched',
       dev_stage: 'ready_to_launch',
       status: 'active',
-      created_at_world_orbit: clock.world_orbit,
-      created_at_world_arc: clock.world_arc,
-      created_at_world_mark: 0
+      created_at_world_year: clock.world_year,
+      created_at_world_month: clock.world_month,
+      created_at_world_day: 0
     })
     .returning('*');
 
@@ -130,9 +130,9 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       maintenance_cost_per_arc: 8000,
       capacity_per_arc: 500,
       status: 'active',
-      created_at_world_orbit: clock.world_orbit,
-      created_at_world_arc: clock.world_arc,
-      created_at_world_mark: 0
+      created_at_world_year: clock.world_year,
+      created_at_world_month: clock.world_month,
+      created_at_world_day: 0
     })
     .returning('*');
 

@@ -13,11 +13,11 @@ async function run() {
   const mfgCo = myCompanies.find(c => c.industry_id === 'manufacturing');
   const companyId = mfgCo.id;
   
-  console.log(`Processing arcs for company: ${companyId}`);
+  console.log(`Processing months for company: ${companyId}`);
   for (let i = 1; i <= 15; i++) {
     const arcRes = await fetch(`${BASE_URL}/admin/manufacturing/process-company/${companyId}`, { method: 'POST', headers });
     const arcData = await arcRes.json();
-    console.log(`Arc ${i} completed.`);
+    console.log(`Month ${i} completed.`);
     if (arcData.models && arcData.models.length > 0) {
       console.log(`Model 0 stage: ${arcData.models[0].dev_stage}`);
     }

@@ -33,11 +33,11 @@ async function runTest() {
   try {
     // Ensure clock exists
     const clockRow = await db('world_clock').first();
-    if (!clockRow) await db('world_clock').insert({ current_orbit: 1, current_arc: 1, current_mark: 1, status: 'running' });
+    if (!clockRow) await db('world_clock').insert({ current_year: 1, current_month: 1, current_day: 1, status: 'running' });
 
     await db('users').insert({ id: userId, email: `test_${Date.now()}@test.com`, password_hash: '123' });
-    await db('characters').insert({ id: charId, user_id: userId, world_instance_id: worldId, name: 'Dummy Player', motherland_country_id: country.id, age: 26, created_at_world_orbit: 1, created_at_world_arc: 1, created_at_world_mark: 1 });
-    await db('companies').insert({ id: playerCompanyId, world_instance_id: worldId, owner_character_id: charId, industry_id: 'manufacturing', country_id: country.id, headquarters_state_id: 'drennia-drennport', legal_structure_id: 'private-company', currency_id: country.currency_id, name: 'Player Corp 2 ' + Date.now(), status: 'active', created_at_world_orbit: 1, created_at_world_arc: 1, created_at_world_mark: 1 });
+    await db('characters').insert({ id: charId, user_id: userId, world_instance_id: worldId, name: 'Dummy Player', motherland_country_id: country.id, age: 26, created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1 });
+    await db('companies').insert({ id: playerCompanyId, world_instance_id: worldId, owner_character_id: charId, industry_id: 'manufacturing', country_id: country.id, headquarters_state_id: 'drennia-drennport', legal_structure_id: 'private-company', currency_id: country.currency_id, name: 'Player Corp 2 ' + Date.now(), status: 'active', created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1 });
     await db('company_finances').insert({ company_id: playerCompanyId, currency_id: country.currency_id, available_cash: 50000000, debt: 0, company_value: 0, last_arc_profit: 0 });
 
     // RESET Valuecorp
@@ -61,9 +61,9 @@ async function runTest() {
       interior_tier: 'standard', safety_tier: 'standard', production_quality: 'standard',
       manufacturing_cost_per_unit: 10000, reliability_score: 95, performance_score: 95, fuel_efficiency_score: 95, appeal_score: 95, cargo_score: 95, safety_score: 95,
       target_segment: 'Budget', sale_price: 100000, development_status: 'launched', dev_stage: 'ready_to_launch', status: 'active',
-      created_at_world_orbit: 1, created_at_world_arc: 1, created_at_world_mark: 1
+      created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1
     });
-    await db('manufacturing_factories').insert({ id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, country_id: country.id, state_id: 'drennia-drennport', factory_type_id: 'medium-plant', name: 'Player Factory', capacity_per_arc: 500000, lease_cost_per_arc: 10000, maintenance_cost_per_arc: 2000, condition: 100, status: 'active', created_at_world_orbit: 1, created_at_world_arc: 1, created_at_world_mark: 1 });
+    await db('manufacturing_factories').insert({ id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, country_id: country.id, state_id: 'drennia-drennport', factory_type_id: 'medium-plant', name: 'Player Factory', capacity_per_arc: 500000, lease_cost_per_arc: 10000, maintenance_cost_per_arc: 2000, condition: 100, status: 'active', created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1 });
     await db('manufacturing_production_lines').insert({ id: lineId, factory_id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, assigned_vehicle_model_id: modelId, target_units_per_arc: 300000, status: 'active' });
     const valAlloc = await db('manufacturing_market_allocations')
       .join('companies', 'companies.id', 'manufacturing_market_allocations.company_id')
@@ -120,14 +120,14 @@ async function runTest() {
       }
     }
 
-    // Run 3 arcs
+    // Run 3 months
     for (let i = 1; i <= 3; i++) {
-      let orbit = Math.floor((i - 1) / 8) + 1;
-      let arc = ((i - 1) % 8) + 1;
-      await db('world_clock').update({ current_orbit: orbit, current_arc: arc });
-      await db('manufacturing_arc_reports').where({ world_orbit: orbit, world_arc: arc }).del();
-      await db('manufacturing_sales_results').where({ world_orbit: orbit, world_arc: arc }).del();
-      await db('manufacturing_model_snapshots').where({ world_orbit: orbit, world_arc: arc }).del();
+      let year = Math.floor((i - 1) / 8) + 1;
+      let month = ((i - 1) % 8) + 1;
+      await db('world_clock').update({ current_year: year, current_month: month });
+      await db('manufacturing_arc_reports').where({ world_year: year, world_month: month }).del();
+      await db('manufacturing_sales_results').where({ world_year: year, world_month: month }).del();
+      await db('manufacturing_model_snapshots').where({ world_year: year, world_month: month }).del();
       
       const reqPlayer = makeReq(playerCompanyId);
       const resPlayer = makeRes();
@@ -175,16 +175,16 @@ async function runTest() {
       population: 2100000
     });
 
-    let finalOrbit = 1;
-    // Run 2 more arcs
+    let finalYear = 1;
+    // Run 2 more months
     for (let i = 4; i <= 5; i++) {
-      let orbit = Math.floor((i - 1) / 8) + 1;
-      let arc = ((i - 1) % 8) + 1;
-      finalOrbit = orbit;
-      await db('world_clock').update({ current_orbit: orbit, current_arc: arc });
-      await db('manufacturing_arc_reports').where({ world_orbit: orbit, world_arc: arc }).del();
-      await db('manufacturing_sales_results').where({ world_orbit: orbit, world_arc: arc }).del();
-      await db('manufacturing_model_snapshots').where({ world_orbit: orbit, world_arc: arc }).del();
+      let year = Math.floor((i - 1) / 8) + 1;
+      let month = ((i - 1) % 8) + 1;
+      finalYear = year;
+      await db('world_clock').update({ current_year: year, current_month: month });
+      await db('manufacturing_arc_reports').where({ world_year: year, world_month: month }).del();
+      await db('manufacturing_sales_results').where({ world_year: year, world_month: month }).del();
+      await db('manufacturing_model_snapshots').where({ world_year: year, world_month: month }).del();
       
       const req = makeReq(playerCompanyId);
       const res = makeRes();
@@ -199,7 +199,7 @@ async function runTest() {
     console.log(`Valuecorp Market Share After: ${valAfter?.last_market_share}, Sold: ${valAfter?.last_units_sold}`);
 
     // Print market share of dummy player after
-    const dummySales = await db('manufacturing_sales_results').where('company_id', playerCompanyId).orderBy('world_arc', 'desc').first();
+    const dummySales = await db('manufacturing_sales_results').where('company_id', playerCompanyId).orderBy('world_month', 'desc').first();
     console.log(`Dummy Market Share After: ${dummySales?.market_share_estimate}, Sold: ${dummySales?.units_sold}, Reason: ${dummySales?.main_reason_code}`);
     
     const dummyAlloc = await db('manufacturing_market_allocations').where({ company_id: playerCompanyId }).first();
@@ -208,11 +208,11 @@ async function runTest() {
 
     const ratio = priceAfter / priceBefore;
     console.log(`Reactivity Ratio: ${ratio.toFixed(2)}`);
-    const dummySalesArc = await db('manufacturing_sales_results').where({ company_id: playerCompanyId, world_orbit: finalOrbit }).whereIn('world_arc', [4, 5]);
-    console.log("Dummy Sales in Arc 4 and 5:", dummySalesArc.map(s => ({ arc: s.world_arc, sold: s.units_sold, share: s.market_share_estimate })));
+    const dummySalesArc = await db('manufacturing_sales_results').where({ company_id: playerCompanyId, world_year: finalYear }).whereIn('world_month', [4, 5]);
+    console.log("Dummy Sales in Month 4 and 5:", dummySalesArc.map(s => ({ month: s.world_month, sold: s.units_sold, share: s.market_share_estimate })));
     const valCmp = await db('companies').where('name', 'Valuecorp').where('world_instance_id', worldId).first();
-    const valSales = await db('manufacturing_sales_results').where({ company_id: valCmp.id, world_orbit: finalOrbit }).whereIn('world_arc', [4, 5]);
-    console.log("Valuecorp Sales in Arc 4 and 5:", valSales.map(s => ({ arc: s.world_arc, sold: s.units_sold, share: s.market_share_estimate })));
+    const valSales = await db('manufacturing_sales_results').where({ company_id: valCmp.id, world_year: finalYear }).whereIn('world_month', [4, 5]);
+    console.log("Valuecorp Sales in Month 4 and 5:", valSales.map(s => ({ month: s.world_month, sold: s.units_sold, share: s.market_share_estimate })));
     
     assert.ok(ratio < 1.0, `Incumbent failed to cut price! Ratio: ${ratio.toFixed(2)}`);
 

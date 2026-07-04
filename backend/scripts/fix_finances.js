@@ -9,9 +9,9 @@ const newFinances = 'INSERT INTO company_finances (company_id, currency_id, avai
 
 content = content.replace(new RegExp(oldFinances.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&"), 'g'), newFinances);
 
-content = content.replace(/VALUES \(v_company_id, 1500000, 0, 1500000, 0\)/g, "VALUES (v_company_id, 'drennian-mark', 1500000, 0, 1500000, 0)");
-content = content.replace(/VALUES \(v_company_id, 2500000, 0, 2500000, 0\)/g, "VALUES (v_company_id, 'drennian-mark', 2500000, 0, 2500000, 0)");
-content = content.replace(/VALUES \(v_company_id, 2000000, 0, 2000000, 0\)/g, "VALUES (v_company_id, 'drennian-mark', 2000000, 0, 2000000, 0)");
+content = content.replace(/VALUES \(v_company_id, 1500000, 0, 1500000, 0\)/g, "VALUES (v_company_id, 'drennian-day', 1500000, 0, 1500000, 0)");
+content = content.replace(/VALUES \(v_company_id, 2500000, 0, 2500000, 0\)/g, "VALUES (v_company_id, 'drennian-day', 2500000, 0, 2500000, 0)");
+content = content.replace(/VALUES \(v_company_id, 2000000, 0, 2000000, 0\)/g, "VALUES (v_company_id, 'drennian-day', 2000000, 0, 2000000, 0)");
 
 fs.writeFileSync(file, content);
 console.log('Fixed finances seeds.');

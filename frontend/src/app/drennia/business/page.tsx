@@ -420,7 +420,7 @@ export default function BusinessPage() {
         industry_id: isLogistics ? 'shipping-logistics' : 'manufacturing',
         subsector_id: isLogistics ? null : selectedModel,
         legal_structure_id: 'sole-trader',
-        currency_id: 'drennian-mark',
+        currency_id: 'drennian-day',
         starting_capital: chosenCapital
       }).then((res: any) => {
         // Create/update career record
@@ -1075,12 +1075,12 @@ function CompanyDeskTab({
   const [financeSubTab, setFinanceSubTab] = useState<'overview' | 'monthly' | 'history' | 'charts' | 'ledger'>('overview');
   
   // Derive financeHistory and lastMonthlyReport from ledger
-  const arcs = new Map<string, any>();
+  const months = new Map<string, any>();
   if (ledger && Array.isArray(ledger)) {
     ledger.forEach((entry: any) => {
-      const key = formatWorldDate(entry.game_orbit, entry.game_arc);
-      if (!arcs.has(key)) {
-        arcs.set(key, { 
+      const key = formatWorldDate(entry.game_year, entry.game_month);
+      if (!months.has(key)) {
+        months.set(key, { 
           id: key, 
           label: key, 
           netProfit: 0, 
@@ -1094,21 +1094,21 @@ function CompanyDeskTab({
           penalties: 0
         });
       }
-      const arc = arcs.get(key)!;
+      const month = months.get(key)!;
       if (entry.entry_type === 'Revenue') {
-        arc.autoRevenue += Number(entry.amount);
-        arc.netProfit += Number(entry.amount);
+        month.autoRevenue += Number(entry.amount);
+        month.netProfit += Number(entry.amount);
       } else {
-        if (entry.description?.includes('Maintenance')) arc.totalMaintenance += Math.abs(Number(entry.amount));
-        else if (entry.description?.includes('Payroll')) arc.payrollExpense += Math.abs(Number(entry.amount));
-        else if (entry.description?.includes('Lease')) arc.facilityLeaseExpense += Math.abs(Number(entry.amount));
-        arc.operatingCosts += Math.abs(Number(entry.amount));
-        arc.netProfit -= Math.abs(Number(entry.amount));
+        if (entry.description?.includes('Maintenance')) month.totalMaintenance += Math.abs(Number(entry.amount));
+        else if (entry.description?.includes('Payroll')) month.payrollExpense += Math.abs(Number(entry.amount));
+        else if (entry.description?.includes('Lease')) month.facilityLeaseExpense += Math.abs(Number(entry.amount));
+        month.operatingCosts += Math.abs(Number(entry.amount));
+        month.netProfit -= Math.abs(Number(entry.amount));
       }
     });
   }
 
-  const financeHistory = Array.from(arcs.values());
+  const financeHistory = Array.from(months.values());
   const computedLastReport = financeHistory.length > 0 ? financeHistory[0] : null;
 
   const showNotif = (msg: string, success: boolean) => {
@@ -2724,8 +2724,8 @@ function RegistryTab({ company, onRefresh }: { company: Company | null; onRefres
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.mint, textTransform: 'uppercase' }}>{c.status}</div>
-                  {c.created_at_world_orbit && (
-                    <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>{formatWorldDate(c.created_at_world_orbit, c.created_at_world_arc)}</div>
+                  {c.created_at_world_year && (
+                    <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>{formatWorldDate(c.created_at_world_year, c.created_at_world_month)}</div>
                   )}
                 </div>
               </div>

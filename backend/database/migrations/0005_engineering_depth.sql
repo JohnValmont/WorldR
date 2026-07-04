@@ -38,15 +38,15 @@ ALTER TABLE manufacturing_vehicle_models
   -- Full engineering report (JSON object)
   ADD COLUMN IF NOT EXISTS engineering_report        JSONB NOT NULL DEFAULT '{}',
 
-  -- Dev stage completion arcs (orbit+arc for each stage)
-  ADD COLUMN IF NOT EXISTS stage_engineering_completes_orbit  INTEGER,
-  ADD COLUMN IF NOT EXISTS stage_engineering_completes_arc    INTEGER,
-  ADD COLUMN IF NOT EXISTS stage_prototype_completes_orbit    INTEGER,
-  ADD COLUMN IF NOT EXISTS stage_prototype_completes_arc      INTEGER,
-  ADD COLUMN IF NOT EXISTS stage_testing_completes_orbit      INTEGER,
-  ADD COLUMN IF NOT EXISTS stage_testing_completes_arc        INTEGER,
+  -- Dev stage completion months (year+month for each stage)
+  ADD COLUMN IF NOT EXISTS stage_engineering_completes_year  INTEGER,
+  ADD COLUMN IF NOT EXISTS stage_engineering_completes_month    INTEGER,
+  ADD COLUMN IF NOT EXISTS stage_prototype_completes_year    INTEGER,
+  ADD COLUMN IF NOT EXISTS stage_prototype_completes_month      INTEGER,
+  ADD COLUMN IF NOT EXISTS stage_testing_completes_year      INTEGER,
+  ADD COLUMN IF NOT EXISTS stage_testing_completes_month        INTEGER,
 
-  -- Total planned dev time in arcs
+  -- Total planned dev time in months
   ADD COLUMN IF NOT EXISTS planned_dev_time_arcs     INTEGER NOT NULL DEFAULT 2;
 
 -- ─── 2. Company Knowledge table ─────────────────────────────────────────────

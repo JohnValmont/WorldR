@@ -12,10 +12,10 @@ test('Marketing Engine validates awareness building and demand impact', async (t
     national: 35000,
   };
 
-  const simulateAwarenessArcs = (tier: string, arcs: number, initial = 0) => {
+  const simulateAwarenessArcs = (tier: string, months: number, initial = 0) => {
     let aw = initial;
     const spend = MARKETING_COSTS[tier];
-    for (let i = 0; i < arcs; i++) {
+    for (let i = 0; i < months; i++) {
       aw = Math.min(100, Math.max(0, aw * MARKETING.RETENTION + awarenessGain(spend)));
     }
     return aw;
@@ -48,7 +48,7 @@ test('Marketing Engine validates awareness building and demand impact', async (t
   });
 
   await t.test('awareness decays toward 0 with zero spend', () => {
-    const aw = simulateAwarenessArcs('none', 30, 80); // Start at 80, spend 0 for 30 arcs
+    const aw = simulateAwarenessArcs('none', 30, 80); // Start at 80, spend 0 for 30 months
     assert.ok(aw < 5, 'Awareness decayed heavily');
   });
 

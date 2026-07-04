@@ -139,7 +139,7 @@ export default function WorldPage() {
   const [myCharId, setMyCharId] = useState<string | null>(null);
 
   const [operators, setOperators] = useState<any[]>([]);
-  const [market, setMarket] = useState<{ arc: any; segments: any[] }>({ arc: null, segments: [] });
+  const [market, setMarket] = useState<{ month: any; segments: any[] }>({ month: null, segments: [] });
   const [polData, setPolData] = useState<{ parties: any[]; council: any | null; state: any | null }>({ parties: [], council: null, state: null });
 
   const load = useCallback(async () => {
@@ -224,16 +224,16 @@ export default function WorldPage() {
             {/* ── MARKET STANDINGS TAB ── */}
             {tab === 'market' && (
               <div>
-                {market.arc && (
+                {market.month && (
                   <div style={{ fontSize: 10, fontFamily: 'monospace', color: T.faint, marginBottom: 16 }}>
-                    Last completed arc · Orbit {market.arc.orbit} / Month {market.arc.arc}
+                    Last completed month · Year {market.month.year} / Month {market.month.month}
                   </div>
                 )}
                 {market.segments.length === 0 ? (
                   <div style={{ textAlign: 'center', color: T.faint, padding: '64px 24px', border: `1px dashed ${T.border}`, borderRadius: 8, marginTop: 12 }}>
                     <BarChart3 size={32} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
                     <div style={{ fontSize: 13, color: T.muted, marginBottom: 4 }}>No market data recorded</div>
-                    <div style={{ fontSize: 11, marginBottom: 16 }}>Arc 1 results will appear after the first month completes.</div>
+                    <div style={{ fontSize: 11, marginBottom: 16 }}>Month 1 results will appear after the first month completes.</div>
                     <Link href="/drennia/business" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#090A0F', background: T.amber, padding: '8px 16px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
                       Enter the Market
                     </Link>

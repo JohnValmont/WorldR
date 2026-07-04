@@ -91,7 +91,7 @@ export default function OverviewTab({ overview, character, parties, latestGovern
             }}>
               <div style={{ flexShrink: 0 }}>
                 <div style={{ fontSize: 8, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#6B6358', marginBottom: 2 }}>In the news</div>
-                <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#6B6358' }}>Month {latestGoverningEvent.arc}</div>
+                <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#6B6358' }}>Month {latestGoverningEvent.month}</div>
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: '#A79D8C', lineHeight: 1.4, marginBottom: 2 }}>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { formatGameDate, advanceWorldArcAndProcess } from '../../lib/businessCore';
+import { formatGameDate, advanceWorldMonthAndProcess } from '../../lib/businessCore';
 import { useAuthStore } from '../../store/auth.store';
 import { authApi } from '../../lib/api';
 
@@ -34,7 +34,7 @@ export default function WorldTimeControl() {
     
     // Slight delay to allow UI to show "ADVANCING ARC..."
     setTimeout(() => {
-      const summary = advanceWorldArcAndProcess();
+      const summary = advanceWorldMonthAndProcess();
       alert(summary);
       window.location.reload();
     }, 100);

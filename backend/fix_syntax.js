@@ -48,8 +48,8 @@ const t6 = \const xpGain = Math.round(50 + (totalUnitsSold * 0.05 * scaleFactor)
 const r6 = \const xpGain = Math.round(50 + (totalUnitsSoldFinal * 0.05 * scaleFactor));\;
 code = code.replace(t6, r6);
 
-const t7 = \wait runNpcBrainForCompany(trx, company.id, currentArc);\;
-const r7 = \wait runNpcBrainForCompany(trx, company.id, currentOrbit, currentArc);\;
+const t7 = \wait runNpcBrainForCompany(trx, company.id, currentMonth);\;
+const r7 = \wait runNpcBrainForCompany(trx, company.id, currentYear, currentMonth);\;
 code = code.replace(t7, r7);
 
 const t8 = \      const forecast = ManufacturingController.simulateSalesDemand(
