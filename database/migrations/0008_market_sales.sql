@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS manufacturing_brand_awareness (
 CREATE INDEX IF NOT EXISTS idx_brand_awareness_company_id ON manufacturing_brand_awareness(company_id);
 ALTER TABLE manufacturing_brand_awareness ENABLE ROW LEVEL SECURITY;
 
--- 4. Add marketing_costs column to arc reports if not exists
+-- 4. Add marketing_costs column to month reports if not exists
 ALTER TABLE manufacturing_arc_reports
   ADD COLUMN IF NOT EXISTS marketing_costs NUMERIC(19,4) NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS sales_revenue NUMERIC(19,4) NOT NULL DEFAULT 0;

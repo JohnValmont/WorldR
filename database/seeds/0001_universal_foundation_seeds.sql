@@ -7,8 +7,8 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status;
 
 -- 2. WORLD CLOCK
 INSERT INTO world_clock (
-    world_instance_id, current_orbit, current_arc, current_mark, 
-    real_seconds_per_arc, arc_started_at, next_arc_close_at, status
+    world_instance_id, current_year, current_month, current_day, 
+    real_seconds_per_month, month_started_at, next_arc_close_at, status
 )
 VALUES (
     'pre-alpha-world-1', 842, 1, 1, 
@@ -18,12 +18,12 @@ ON CONFLICT (world_instance_id) DO NOTHING;
 
 -- 3. CURRENCIES
 INSERT INTO currencies (id, name, symbol, locale, decimal_places)
-VALUES ('drennian-mark', 'Drennian Mark', '₯', 'en-US', 0)
+VALUES ('drennian-day', 'Drennian Day', '₯', 'en-US', 0)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, symbol = EXCLUDED.symbol;
 
 -- 4. COUNTRIES
 INSERT INTO countries (id, world_instance_id, name, currency_id, status)
-VALUES ('drennia', 'pre-alpha-world-1', 'Drennia', 'drennian-mark', 'active')
+VALUES ('drennia', 'pre-alpha-world-1', 'Drennia', 'drennian-day', 'active')
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status;
 
 -- 5. STATES

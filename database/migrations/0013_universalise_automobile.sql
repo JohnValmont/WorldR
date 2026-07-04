@@ -13,17 +13,17 @@ CREATE TABLE IF NOT EXISTS manufacturing_country_auto_config (
 
   -- Small Workshop → Expanded Workshop upgrade
   expansion_cost                NUMERIC(19,4) NOT NULL DEFAULT 500000,
-  expansion_duration_arcs       INT           NOT NULL DEFAULT 2,
-  expanded_capacity_per_arc     INT           NOT NULL DEFAULT 200,
+  expansion_duration_months       INT           NOT NULL DEFAULT 2,
+  expanded_capacity_per_month     INT           NOT NULL DEFAULT 200,
   expanded_max_lines            INT           NOT NULL DEFAULT 2,
-  expanded_lease_cost_per_arc   NUMERIC(19,4) NOT NULL DEFAULT 45000,
-  expanded_maintenance_per_arc  NUMERIC(19,4) NOT NULL DEFAULT 15000,
+  expanded_lease_cost_per_month   NUMERIC(19,4) NOT NULL DEFAULT 45000,
+  expanded_maintenance_per_month  NUMERIC(19,4) NOT NULL DEFAULT 15000,
   expanded_worker_capacity      INT           NOT NULL DEFAULT 80,
 
   -- Operating costs
-  storage_cost_per_unit_per_arc NUMERIC(10,4) NOT NULL DEFAULT 150,
+  storage_cost_per_unit_per_month NUMERIC(10,4) NOT NULL DEFAULT 150,
 
-  -- Marketing spend per Arc per active market
+  -- Marketing spend per Month per active market
   marketing_cost_local          NUMERIC(19,4) NOT NULL DEFAULT 3500,
   marketing_cost_regional       NUMERIC(19,4) NOT NULL DEFAULT 12000,
   marketing_cost_national       NUMERIC(19,4) NOT NULL DEFAULT 35000,

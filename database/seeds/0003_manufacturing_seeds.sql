@@ -17,8 +17,8 @@ ON CONFLICT (id) DO UPDATE SET
 -- 2. MANUFACTURING FACTORY TYPES
 INSERT INTO manufacturing_factory_types (
     id, subsector_id, name,
-    base_capacity_per_arc, max_production_lines,
-    base_lease_cost_per_arc, base_maintenance_per_arc,
+    base_capacity_per_month, max_production_lines,
+    base_lease_cost_per_month, base_maintenance_per_month,
     worker_requirement, status
 )
 VALUES
@@ -36,10 +36,10 @@ VALUES
 )
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
-    base_capacity_per_arc = EXCLUDED.base_capacity_per_arc,
+    base_capacity_per_month = EXCLUDED.base_capacity_per_month,
     max_production_lines = EXCLUDED.max_production_lines,
-    base_lease_cost_per_arc = EXCLUDED.base_lease_cost_per_arc,
-    base_maintenance_per_arc = EXCLUDED.base_maintenance_per_arc,
+    base_lease_cost_per_month = EXCLUDED.base_lease_cost_per_month,
+    base_maintenance_per_month = EXCLUDED.base_maintenance_per_month,
     worker_requirement = EXCLUDED.worker_requirement,
     status = EXCLUDED.status;
 
@@ -143,10 +143,10 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO manufacturing_country_auto_config (
   country_id,
   base_vehicle_dev_cost, facelift_cost_fraction,
-  expansion_cost, expansion_duration_arcs,
-  expanded_capacity_per_arc, expanded_max_lines,
-  expanded_lease_cost_per_arc, expanded_maintenance_per_arc, expanded_worker_capacity,
-  storage_cost_per_unit_per_arc,
+  expansion_cost, expansion_duration_months,
+  expanded_capacity_per_month, expanded_max_lines,
+  expanded_lease_cost_per_month, expanded_maintenance_per_month, expanded_worker_capacity,
+  storage_cost_per_unit_per_month,
   marketing_cost_local, marketing_cost_regional, marketing_cost_national,
   starter_capital_min, baseline_component_price_idx
 )
@@ -164,13 +164,13 @@ ON CONFLICT (country_id) DO UPDATE SET
   base_vehicle_dev_cost         = EXCLUDED.base_vehicle_dev_cost,
   facelift_cost_fraction        = EXCLUDED.facelift_cost_fraction,
   expansion_cost                = EXCLUDED.expansion_cost,
-  expansion_duration_arcs       = EXCLUDED.expansion_duration_arcs,
-  expanded_capacity_per_arc     = EXCLUDED.expanded_capacity_per_arc,
+  expansion_duration_months       = EXCLUDED.expansion_duration_months,
+  expanded_capacity_per_month     = EXCLUDED.expanded_capacity_per_month,
   expanded_max_lines            = EXCLUDED.expanded_max_lines,
-  expanded_lease_cost_per_arc   = EXCLUDED.expanded_lease_cost_per_arc,
-  expanded_maintenance_per_arc  = EXCLUDED.expanded_maintenance_per_arc,
+  expanded_lease_cost_per_month   = EXCLUDED.expanded_lease_cost_per_month,
+  expanded_maintenance_per_month  = EXCLUDED.expanded_maintenance_per_month,
   expanded_worker_capacity      = EXCLUDED.expanded_worker_capacity,
-  storage_cost_per_unit_per_arc = EXCLUDED.storage_cost_per_unit_per_arc,
+  storage_cost_per_unit_per_month = EXCLUDED.storage_cost_per_unit_per_month,
   marketing_cost_local          = EXCLUDED.marketing_cost_local,
   marketing_cost_regional       = EXCLUDED.marketing_cost_regional,
   marketing_cost_national       = EXCLUDED.marketing_cost_national,

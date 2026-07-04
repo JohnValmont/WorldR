@@ -16,7 +16,7 @@ ALTER TABLE procurement_vehicles ENABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS procurement_facilities (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     type VARCHAR(100) NOT NULL UNIQUE,
-    lease_cost_per_arc NUMERIC(19, 4) NOT NULL,
+    lease_cost_per_month NUMERIC(19, 4) NOT NULL,
     capacity INT NOT NULL,
     description TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS operation_pools (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL UNIQUE,
     required_capacity INT NOT NULL DEFAULT 1,
-    base_revenue_per_arc NUMERIC(19, 4) NOT NULL,
+    base_revenue_per_month NUMERIC(19, 4) NOT NULL,
     description TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -77,9 +77,9 @@ ALTER TABLE company_facilities ENABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS company_ledger (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-    game_orbit INT NOT NULL,
-    game_arc INT NOT NULL,
-    game_mark INT NOT NULL,
+    game_year INT NOT NULL,
+    game_month INT NOT NULL,
+    game_day INT NOT NULL,
     entry_type VARCHAR(50) NOT NULL,
     description TEXT NOT NULL,
     amount NUMERIC(19, 4) NOT NULL,

@@ -1,5 +1,5 @@
 -- WORLDr Migration 0009: Workforce System
--- Adds detailed arc report fields and engineer discount tracking.
+-- Adds detailed month report fields and engineer discount tracking.
 
 -- 1. Extend manufacturing_arc_reports with workforce metrics
 ALTER TABLE manufacturing_arc_reports

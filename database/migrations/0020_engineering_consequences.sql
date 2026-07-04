@@ -1,7 +1,7 @@
 -- WORLDr Migration 0020: Engineering Consequences (Phase 3B)
--- Adds warranty reserve, engineering culture score, and arc report engineering notes.
+-- Adds warranty reserve, engineering culture score, and month report engineering notes.
 
--- 1. Warranty reserve percentage on vehicle models (computed at launch, drives per-arc deductions)
+-- 1. Warranty reserve percentage on vehicle models (computed at launch, drives per-month deductions)
 ALTER TABLE manufacturing_vehicle_models
   ADD COLUMN IF NOT EXISTS warranty_reserve_pct NUMERIC(5,4) NOT NULL DEFAULT 0;
 
@@ -9,7 +9,7 @@ ALTER TABLE manufacturing_vehicle_models
 ALTER TABLE manufacturing_engineering_reputation
   ADD COLUMN IF NOT EXISTS engineering_culture_score INT NOT NULL DEFAULT 0;
 
--- 3. Arc report columns for engineering production contributions
+-- 3. Month report columns for engineering production contributions
 ALTER TABLE manufacturing_arc_reports
   ADD COLUMN IF NOT EXISTS warranty_reserve_cost NUMERIC(19,4) NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS engineering_production_notes TEXT DEFAULT NULL;

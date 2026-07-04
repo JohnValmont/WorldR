@@ -18,10 +18,10 @@ CREATE TABLE IF NOT EXISTS manufacturing_factory_types (
     id VARCHAR(100) PRIMARY KEY,
     subsector_id VARCHAR(100) NOT NULL REFERENCES manufacturing_subsectors(id) ON DELETE RESTRICT,
     name VARCHAR(150) NOT NULL,
-    base_capacity_per_arc INT NOT NULL DEFAULT 100,
+    base_capacity_per_month INT NOT NULL DEFAULT 100,
     max_production_lines INT NOT NULL DEFAULT 1,
-    base_lease_cost_per_arc NUMERIC(19, 4) NOT NULL DEFAULT 25000,
-    base_maintenance_per_arc NUMERIC(19, 4) NOT NULL DEFAULT 8000,
+    base_lease_cost_per_month NUMERIC(19, 4) NOT NULL DEFAULT 25000,
+    base_maintenance_per_month NUMERIC(19, 4) NOT NULL DEFAULT 8000,
     worker_requirement INT NOT NULL DEFAULT 30,
     status VARCHAR(50) NOT NULL DEFAULT 'active',
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -38,15 +38,15 @@ CREATE TABLE IF NOT EXISTS manufacturing_factories (
     state_id VARCHAR(50) NOT NULL REFERENCES states(id) ON DELETE RESTRICT,
     factory_type_id VARCHAR(100) NOT NULL REFERENCES manufacturing_factory_types(id) ON DELETE RESTRICT,
     name VARCHAR(200) NOT NULL,
-    lease_cost_per_arc NUMERIC(19, 4) NOT NULL,
-    maintenance_cost_per_arc NUMERIC(19, 4) NOT NULL,
-    capacity_per_arc INT NOT NULL,
+    lease_cost_per_month NUMERIC(19, 4) NOT NULL,
+    maintenance_cost_per_month NUMERIC(19, 4) NOT NULL,
+    capacity_per_month INT NOT NULL,
     machine_level INT NOT NULL DEFAULT 1,
     condition NUMERIC(5, 2) NOT NULL DEFAULT 100.00,
     status VARCHAR(50) NOT NULL DEFAULT 'active',
-    created_at_world_orbit INT NOT NULL,
-    created_at_world_arc INT NOT NULL,
-    created_at_world_mark INT NOT NULL,
+    created_at_world_year INT NOT NULL,
+    created_at_world_month INT NOT NULL,
+    created_at_world_day INT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS manufacturing_production_lines (
     line_number INT NOT NULL DEFAULT 1,
     assigned_vehicle_model_id UUID,
     quality_setting VARCHAR(50) NOT NULL DEFAULT 'Standard',
-    target_units_per_arc INT NOT NULL DEFAULT 0,
+    target_units_per_month INT NOT NULL DEFAULT 0,
     status VARCHAR(50) NOT NULL DEFAULT 'idle',
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
@@ -94,9 +94,9 @@ CREATE TABLE IF NOT EXISTS manufacturing_vehicle_models (
     target_segment VARCHAR(100) NOT NULL DEFAULT 'Economy',
     sale_price NUMERIC(19, 4) NOT NULL DEFAULT 0,
     status VARCHAR(50) NOT NULL DEFAULT 'active',
-    created_at_world_orbit INT NOT NULL,
-    created_at_world_arc INT NOT NULL,
-    created_at_world_mark INT NOT NULL,
+    created_at_world_year INT NOT NULL,
+    created_at_world_month INT NOT NULL,
+    created_at_world_day INT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -141,21 +141,21 @@ CREATE TABLE IF NOT EXISTS manufacturing_inventory (
     vehicle_model_id UUID NOT NULL REFERENCES manufacturing_vehicle_models(id) ON DELETE CASCADE,
     units_in_stock INT NOT NULL DEFAULT 0,
     inventory_value NUMERIC(19, 4) NOT NULL DEFAULT 0,
-    storage_cost_per_arc NUMERIC(19, 4) NOT NULL DEFAULT 0,
+    storage_cost_per_month NUMERIC(19, 4) NOT NULL DEFAULT 0,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     UNIQUE(company_id, vehicle_model_id)
 );
 CREATE INDEX IF NOT EXISTS idx_mfg_inventory_company_id ON manufacturing_inventory(company_id);
 ALTER TABLE manufacturing_inventory ENABLE ROW LEVEL SECURITY;
 
--- 8. MANUFACTURING ARC REPORTS
+-- 8. MANUFACTURING MONTH REPORTS
 CREATE TABLE IF NOT EXISTS manufacturing_arc_reports (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     world_instance_id VARCHAR(50) NOT NULL REFERENCES world_instances(id) ON DELETE RESTRICT,
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-    world_orbit INT NOT NULL,
-    world_arc INT NOT NULL,
-    world_mark INT NOT NULL,
+    world_year INT NOT NULL,
+    world_month INT NOT NULL,
+    world_day INT NOT NULL,
     units_produced INT NOT NULL DEFAULT 0,
     units_sold INT NOT NULL DEFAULT 0,
     units_unsold INT NOT NULL DEFAULT 0,
@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS manufacturing_arc_reports (
     ending_cash NUMERIC(19, 4) NOT NULL DEFAULT 0,
     summary TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    CONSTRAINT unique_mfg_arc_report UNIQUE (company_id, world_orbit, world_arc)
+    CONSTRAINT unique_mfg_arc_report UNIQUE (company_id, world_year, world_month)
 );
 CREATE INDEX IF NOT EXISTS idx_mfg_arc_reports_company_id ON manufacturing_arc_reports(company_id);
 ALTER TABLE manufacturing_arc_reports ENABLE ROW LEVEL SECURITY;
@@ -181,8 +181,8 @@ CREATE TABLE IF NOT EXISTS manufacturing_sales_results (
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     vehicle_model_id UUID NOT NULL REFERENCES manufacturing_vehicle_models(id) ON DELETE CASCADE,
     region_market_id VARCHAR(100) NOT NULL REFERENCES manufacturing_region_markets(id) ON DELETE RESTRICT,
-    world_orbit INT NOT NULL,
-    world_arc INT NOT NULL,
+    world_year INT NOT NULL,
+    world_month INT NOT NULL,
     units_sold INT NOT NULL DEFAULT 0,
     sale_price NUMERIC(19, 4) NOT NULL DEFAULT 0,
     revenue NUMERIC(19, 4) NOT NULL DEFAULT 0,

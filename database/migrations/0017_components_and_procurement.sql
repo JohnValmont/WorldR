@@ -48,9 +48,9 @@ CREATE TABLE IF NOT EXISTS manufacturing_procurement_history (
     units_ordered INT NOT NULL,
     unit_cost NUMERIC(19, 4) NOT NULL,
     total_cost NUMERIC(19, 4) NOT NULL,
-    world_orbit INT NOT NULL,
-    world_arc INT NOT NULL,
-    world_mark INT NOT NULL,
+    world_year INT NOT NULL,
+    world_month INT NOT NULL,
+    world_day INT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_mfg_proc_hist_company ON manufacturing_procurement_history(company_id);

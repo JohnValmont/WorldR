@@ -14,15 +14,15 @@ ALTER TABLE manufacturing_vehicle_models
   ADD COLUMN IF NOT EXISTS engineering_risk                  NUMERIC(5,2) DEFAULT 20,
   ADD COLUMN IF NOT EXISTS prototype_confidence              NUMERIC(5,2) DEFAULT 70,
   ADD COLUMN IF NOT EXISTS dev_stage                         VARCHAR(30)  DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS planned_dev_time_arcs             INT          DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS planned_dev_time_months             INT          DEFAULT NULL,
   ADD COLUMN IF NOT EXISTS balance_flags                     JSONB        DEFAULT '[]',
   ADD COLUMN IF NOT EXISTS engineering_report                JSONB        DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS stage_engineering_completes_orbit INT          DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS stage_engineering_completes_arc   INT          DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS stage_prototype_completes_orbit   INT          DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS stage_prototype_completes_arc     INT          DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS stage_testing_completes_orbit     INT          DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS stage_testing_completes_arc       INT          DEFAULT NULL;
+  ADD COLUMN IF NOT EXISTS stage_engineering_completes_year INT          DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS stage_engineering_completes_month   INT          DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS stage_prototype_completes_year   INT          DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS stage_prototype_completes_month     INT          DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS stage_testing_completes_year     INT          DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS stage_testing_completes_month       INT          DEFAULT NULL;
 
 UPDATE manufacturing_vehicle_models
   SET dev_stage = 'engineering'

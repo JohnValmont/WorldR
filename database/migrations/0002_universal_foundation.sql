@@ -16,11 +16,11 @@ ALTER TABLE world_instances ENABLE ROW LEVEL SECURITY;
 -- 2. WORLD CLOCK
 CREATE TABLE IF NOT EXISTS world_clock (
     world_instance_id VARCHAR(50) PRIMARY KEY REFERENCES world_instances(id) ON DELETE RESTRICT,
-    current_orbit INT NOT NULL,
-    current_arc INT NOT NULL,
-    current_mark INT NOT NULL,
-    real_seconds_per_arc INT NOT NULL,
-    arc_started_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    current_year INT NOT NULL,
+    current_month INT NOT NULL,
+    current_day INT NOT NULL,
+    real_seconds_per_month INT NOT NULL,
+    month_started_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     next_arc_close_at TIMESTAMP WITH TIME ZONE NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'active',
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
@@ -99,9 +99,9 @@ CREATE TABLE IF NOT EXISTS characters (
     charisma INT NOT NULL DEFAULT 0,
     influence INT NOT NULL DEFAULT 0,
     status VARCHAR(50) NOT NULL DEFAULT 'active',
-    created_at_world_orbit INT NOT NULL,
-    created_at_world_arc INT NOT NULL,
-    created_at_world_mark INT NOT NULL,
+    created_at_world_year INT NOT NULL,
+    created_at_world_month INT NOT NULL,
+    created_at_world_day INT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     CONSTRAINT unique_character_per_user_world UNIQUE (world_instance_id, user_id)
@@ -134,9 +134,9 @@ CREATE TABLE IF NOT EXISTS companies (
     status VARCHAR(50) NOT NULL DEFAULT 'active',
     reputation INT NOT NULL DEFAULT 0,
     reliability INT NOT NULL DEFAULT 0,
-    created_at_world_orbit INT NOT NULL,
-    created_at_world_arc INT NOT NULL,
-    created_at_world_mark INT NOT NULL,
+    created_at_world_year INT NOT NULL,
+    created_at_world_month INT NOT NULL,
+    created_at_world_day INT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );

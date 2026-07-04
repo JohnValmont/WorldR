@@ -8,12 +8,12 @@ CREATE TABLE IF NOT EXISTS manufacturing_engineering_programmes (
     programme_id VARCHAR(100) NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'engineering',
     approved_budget NUMERIC(19, 4) NOT NULL DEFAULT 0,
-    started_arc_orbit INT NOT NULL,
-    started_arc INT NOT NULL,
-    validation_arc_orbit INT NOT NULL,
-    validation_arc INT NOT NULL,
-    completion_arc_orbit INT NOT NULL,
-    completion_arc INT NOT NULL,
+    started_arc_year INT NOT NULL,
+    started_month INT NOT NULL,
+    validation_arc_year INT NOT NULL,
+    validation_month INT NOT NULL,
+    completion_arc_year INT NOT NULL,
+    completion_month INT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
