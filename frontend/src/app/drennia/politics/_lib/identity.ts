@@ -159,3 +159,42 @@ export function describeAxis(axis: Axis, value: number): string {
   if (value <= 33) return meta.low;
   return `Balanced ${meta.label.toLowerCase()}`;
 }
+
+// ── Named platform stances (replaces raw sliders in the UI) ───────────────
+// Three selectable positions per axis. The underlying value (20/50/80) maps
+// directly into the existing 0–100 backend range.
+
+export interface PlatformStance {
+  value: number;        // numeric value sent to backend
+  name: string;         // bold label on the card
+  description: string;  // one-line flavour
+  lean: string;         // very short label (chip / badge)
+}
+
+export const PLATFORM_STANCES: Record<Axis, [PlatformStance, PlatformStance, PlatformStance]> = {
+  taxation: [
+    { value: 20, name: 'Redistribute & Invest', lean: 'High-tax', description: 'Raise taxes on wealth and business. Fund public services directly.' },
+    { value: 50, name: 'Balanced Budget',        lean: 'Centrist',  description: 'Tax enough to fund essentials. Keep the books roughly even.' },
+    { value: 80, name: 'Cut & Grow',             lean: 'Low-tax',   description: 'Lower rates, attract capital, let growth do the work.' },
+  ],
+  labour: [
+    { value: 20, name: 'Austerity Line',         lean: 'Lean',         description: 'Hold wage bills tight. Keep labour costs low for industry.' },
+    { value: 50, name: 'Fair Balance',            lean: 'Balanced',     description: 'Decent wages, reasonable rights. Neither side dominates.' },
+    { value: 80, name: 'Workers First',           lean: 'Pro-labour',   description: 'Strong protections, union rights, living wages across all sectors.' },
+  ],
+  investment: [
+    { value: 20, name: 'Lean State',             lean: 'Minimal',      description: 'Let the private sector lead. Government stays out of the way.' },
+    { value: 50, name: 'Pragmatic Spend',         lean: 'Moderate',     description: 'Targeted spending where the market falls short.' },
+    { value: 80, name: 'Public Works Push',       lean: 'State-led',    description: 'Aggressive infrastructure and industrial investment by the state.' },
+  ],
+  trade: [
+    { value: 20, name: 'Protect Industry',       lean: 'Protectionist', description: 'Tariffs and controls to shield local production from foreign competition.' },
+    { value: 50, name: 'Managed Trade',           lean: 'Balanced',      description: 'Strategic partnerships. Open where it helps, closed where it hurts.' },
+    { value: 80, name: 'Open Markets',            lean: 'Free trade',    description: 'Remove barriers, maximise exports, embrace global competition.' },
+  ],
+  stability: [
+    { value: 20, name: 'Bold Reform',            lean: 'Reformist',  description: 'Challenge institutions. Shake up the system to build something better.' },
+    { value: 50, name: 'Steady Progress',         lean: 'Pragmatic',  description: 'Reform where needed, preserve what works. No sudden shocks.' },
+    { value: 80, name: 'Law & Order',             lean: 'Orderly',    description: 'Maintain stability. Strong institutions, clear rules, no disruption.' },
+  ],
+};

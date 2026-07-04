@@ -81,7 +81,7 @@ export default function PoliticsDesk() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#090A0F' }}>
       <div style={{ padding: '20px 24px 0' }} className="border-b border-[#2A2630]">
         <div className="text-[9px] font-mono uppercase tracking-[0.28em] text-terminal-amber mb-1">
-          {POL_ACTIVE_STATE_NAME} State Council
+          {overview?.activeState ? `${overview.activeState.name} · Politics` : 'Politics'}
         </div>
         <div className="flex items-end justify-between gap-4 flex-wrap mb-4">
           <h1 className="text-2xl md:text-3xl font-serif text-[#F4EBD6] tracking-wide">Political Desk</h1>
@@ -93,6 +93,7 @@ export default function PoliticsDesk() {
             </div>
           </div>
         </div>
+
         <Tabs
           tabs={[
             { id: 'overview', label: 'The Session' },

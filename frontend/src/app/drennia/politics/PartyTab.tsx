@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import { Card, Button } from '@/components/ui';
 import { politicsApi } from '@/lib/api';
-import { AXES, type Axis } from '@/lib/politicsConstants';
 import { PARTY_FOUNDING_COST } from '@/lib/politicsConstants';
-import { partyIdentity, describeAxis, AXIS_LABELS } from './_lib/identity';
+import { partyIdentity } from './_lib/identity';
 import Masthead from './_components/Masthead';
 import PartyCrest from './_components/PartyCrest';
+import PlatformPicker from './_components/PlatformPicker';
 
 const PHASE_COPY: Record<string, string> = {
   governing: 'A council is governing. Build your party and declare early — the next election is coming.',
@@ -54,39 +54,17 @@ export default function PartyTab({ overview, character, parties, onRefresh }: an
     return run(async () => { await politicsApi.updatePlatform(myParty.id, editPlatform); setEditPlatform(null); }, 'Failed to update platform');
   };
 
-  const renderPlatformSliders = (
-    platform: Record<string, number>,
-    onChange?: (axis: string, val: number) => void,
-    disabled = false,
-  ) => (
-    <div className="space-y-3">
-      {AXES.map((axis) => (
-        <div key={axis}>
-          <div className="flex items-center gap-3">
-            <div className="w-24 text-[11px] text-[#A79D8C] uppercase tracking-wider">{AXIS_LABELS[axis as Axis].label}</div>
-            <input
-              type="range" min="0" max="100"
-              value={platform[axis] ?? 50}
-              onChange={(e) => onChange?.(axis, parseInt(e.target.value))}
-              disabled={disabled}
-              className="flex-1 accent-terminal-amber"
-            />
-            <div className="w-8 text-right text-xs text-[#F4EBD6] font-mono">{platform[axis] ?? 50}</div>
-          </div>
-          <div className="ml-24 pl-3 text-[10px] text-[#8F857A]">{describeAxis(axis as Axis, platform[axis] ?? 50)}</div>
-        </div>
-      ))}
-    </div>
-  );
 
   const cash = Number(character?.finances?.cash_in_hand || 0);
+
+  const stateName = overview?.activeState?.name || 'the Council';
 
   return (
     <div className="flex flex-col gap-6">
       <Masthead
         overline="Party Registry"
         title="Your Party"
-        subtitle="Found a movement, set its platform, and stand for the Ironvale Council."
+        subtitle={`Found a movement, set its platform, and stand for ${stateName}.`}
         right={
           <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-1 bg-[#2A2630] text-terminal-amber rounded">
             {phase}
@@ -95,7 +73,7 @@ export default function PartyTab({ overview, character, parties, onRefresh }: an
       />
 
       <div className="p-3 bg-[#11131A] border border-[#2A2630] text-sm text-[#A79D8C]">
-        {PHASE_COPY[phase] || 'Build your party and shape Ironvale.'}
+        {PHASE_COPY[phase] || `Build your party and shape ${stateName}.`}
       </div>
 
       {error && (
@@ -139,7 +117,10 @@ export default function PartyTab({ overview, character, parties, onRefresh }: an
             <div className="text-[10px] uppercase tracking-widest text-terminal-amber font-bold mb-4">Party Platform</div>
             {editPlatform ? (
               <>
-                {renderPlatformSliders(editPlatform, (axis, val) => setEditPlatform((prev) => ({ ...prev!, [axis]: val })))}
+                <PlatformPicker
+                  platform={editPlatform}
+                  onChange={(axis, val) => setEditPlatform((prev) => ({ ...prev!, [axis]: val }))}
+                />
                 <div className="flex gap-3 mt-6">
                   <Button onClick={() => setEditPlatform(null)} variant="ghost" fullWidth>Cancel</Button>
                   <Button onClick={handleUpdatePlatform} disabled={loading} variant="primary" fullWidth>Save Platform</Button>
@@ -152,7 +133,7 @@ export default function PartyTab({ overview, character, parties, onRefresh }: an
               </>
             ) : (
               <>
-                {renderPlatformSliders(myParty.platform, undefined, true)}
+                <PlatformPicker platform={myParty.platform} disabled />
                 {isLeader && (
                   <div className="mt-6">
                     <Button onClick={() => setEditPlatform(myParty.platform)} variant="secondary" fullWidth>Edit Platform</Button>
@@ -176,7 +157,10 @@ export default function PartyTab({ overview, character, parties, onRefresh }: an
             </div>
             <div className="mb-6">
               <label className="block text-xs text-[#A79D8C] uppercase tracking-wider mb-3">Initial Platform</label>
-              {renderPlatformSliders(foundPlatform, (axis, val) => setFoundPlatform((prev) => ({ ...prev, [axis]: val })))}
+              <PlatformPicker
+                platform={foundPlatform}
+                onChange={(axis, val) => setFoundPlatform((prev) => ({ ...prev, [axis]: val }))}
+              />
             </div>
             <div className="flex items-center justify-between pt-4 border-t border-[#2A2630] mb-4">
               <div className="text-sm text-[#A79D8C]">Founding Cost</div>
@@ -208,7 +192,7 @@ export default function PartyTab({ overview, character, parties, onRefresh }: an
               })}
               {parties.length === 0 && (
                 <div className="text-sm text-[#A79D8C] p-4 text-center border border-dashed border-[#2A2630]">
-                  No active parties in Ironvale. Found the first one.
+                  No active parties yet. Found the first one.
                 </div>
               )}
             </div>
