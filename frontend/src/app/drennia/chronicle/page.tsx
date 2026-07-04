@@ -30,6 +30,7 @@ interface PlayerStats {
   reputation?: number;
   reliability?: number;
   motherland: string;
+  homeState?: string;
   gameDateStr?: string;
 }
 
@@ -131,6 +132,7 @@ export default function ChroniclePage() {
   const [ledgerFeed, setLedgerFeed] = useState<any[]>([]);
   // First-day modal: show once, then set flag
   const [showFirstDay, setShowFirstDay] = useState(false);
+  const [characterAge, setCharacterAge] = useState<number>(18);
 
   // Build radar data from citizen file stats
   const radarData = [
@@ -175,6 +177,7 @@ export default function ChroniclePage() {
         .then(res => {
           const char = res.data;
           setCharacterName(char.name);
+          setCharacterAge(Number(char.age ?? 18));
           setPlayerCash(Number(char.finances?.cash_in_hand ?? 0));
 
           const fileStr = localStorage.getItem('worldr_citizen_file_v1');
@@ -317,7 +320,7 @@ export default function ChroniclePage() {
           <StatusDot variant="live" />
           <span className="text-[13px] font-semibold text-zinc-100">{characterName}</span>
           <span className="text-[10px] text-zinc-600 font-mono hidden md:inline">
-            Age 18 · {citizenFile?.motherland ?? 'Drennia'}
+            Age {characterAge} · {citizenFile?.homeState ?? citizenFile?.motherland ?? 'Drennia'}
           </span>
         </div>
 

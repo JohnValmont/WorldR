@@ -5,6 +5,7 @@ import { ScrollText, Landmark, Users } from 'lucide-react';
 import { SEGMENTS } from '@/lib/politicsConstants';
 import { POL_ACTIVE_STATE_NAME } from './_lib/session';
 import { partyIdentity } from './_lib/identity';
+import { platformLabels } from './_lib/platformLabels';
 import Masthead from './_components/Masthead';
 import PhaseTimeline from './_components/PhaseTimeline';
 import PersonaCard from './_components/PersonaCard';
@@ -160,6 +161,29 @@ export default function OverviewTab({ overview, character, parties, latestGovern
                   </span>
                 </div>
                 <div className="text-[11px] text-[#8F857A] italic mt-2 truncate">“{id.motto}”</div>
+                {/* Platform stance chips */}
+                {p.platform && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {platformLabels(p.platform).map((lbl: string) => (
+                      <span
+                        key={lbl}
+                        style={{
+                          fontSize: 9,
+                          fontFamily: 'monospace',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.12em',
+                          padding: '2px 6px',
+                          borderRadius: 2,
+                          background: 'rgba(201,162,74,0.07)',
+                          border: '1px solid rgba(201,162,74,0.2)',
+                          color: '#8F7A5A',
+                        }}
+                      >
+                        {lbl}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </Card>
             );
           })}

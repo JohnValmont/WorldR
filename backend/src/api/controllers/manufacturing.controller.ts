@@ -2088,6 +2088,15 @@ export class ManufacturingController {
           await processPoliticalArc(trx, activeState.id, currentArc);
         }
 
+        // Character Aging — once per orbit (arc 12 = end of year)
+        // Idempotent: processManufacturingArc already blocks duplicate runs per arc,
+        // so this fires at most once per orbit per world.
+        if (currentArc === 12) {
+          await trx('characters')
+            .where({ world_instance_id: 'pre-alpha-world-1', status: 'active' })
+            .increment('age', 1);
+        }
+
         return { message: 'Month processed successfully for region', processedCompanies: participants.length };
       });
 

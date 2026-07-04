@@ -52,6 +52,16 @@ export function computeReach(effort: number): number {
   return POL_REACH_MIN + (POL_REACH_MAX - POL_REACH_MIN) * (effort / (effort + POL_REACH_HALF_SAT));
 }
 
+/** Deterministic hash → float in [-1, 1] from a string seed. No Math.random(). */
+function seededNoise(seed: string): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
+  }
+  // Map signed int32 to [-1, 1]
+  return h / 2147483647;
+}
+
 export function computeSegmentShares(candidates: EngineCandidate[], segment: VoterSegment): Record<string, number> {
   const rawScores: Record<string, number> = {};
   let totalRaw = 0;
@@ -62,7 +72,11 @@ export function computeSegmentShares(candidates: EngineCandidate[], segment: Vot
     const reach = computeReach(effortInSegment);
     const credMult = 0.5 + 0.5 * (c.credibility / 100);
     const incMult = c.isIncumbent ? POL_INCUMBENCY_BONUS : 1.0;
-    const raw = fit * reach * credMult * incMult;
+    // Seeded deterministic jitter: same candidateId+segmentKey always gives same noise
+    const jitter = POL_VOTE_JITTER > 0
+      ? 1 + POL_VOTE_JITTER * seededNoise(`${c.candidateId}|${segment.key}`)
+      : 1;
+    const raw = fit * reach * credMult * incMult * jitter;
 
     rawScores[c.candidateId] = raw;
     totalRaw += raw;
