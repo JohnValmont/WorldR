@@ -24,20 +24,38 @@ export default function PoliticsDesk() {
       setLoading(true);
       setError('');
 
-      const charRes = await characterApi.getMe();
-      setCharacter(charRes.data || charRes);
+      const results = await Promise.allSettled([
+        characterApi.getMe(),
+        politicsApi.getState(),
+        politicsApi.getParties(),
+      ]);
 
-      const overviewData = await politicsApi.getState();
-      setOverview(overviewData);
+      if (results[0].status === 'fulfilled') {
+        const r = results[0].value;
+        setCharacter(r.data || r);
+      }
+      if (results[1].status === 'fulfilled') {
+        setOverview(results[1].value);
+      } else {
+        console.warn('Politics state endpoint error:', (results[1] as any).reason?.message);
+      }
+      if (results[2].status === 'fulfilled') {
+        setParties(results[2].value);
+      } else {
+        console.warn('Politics parties endpoint error:', (results[2] as any).reason?.message);
+      }
 
-      const partiesData = await politicsApi.getParties();
-      setParties(partiesData);
+      // Only block the page if ALL three failed
+      if (results.every(r => r.status === 'rejected')) {
+        setError((results[0] as any).reason?.response?.data?.message || 'Failed to load politics data');
+      }
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || 'Failed to load politics data');
     } finally {
       setLoading(false);
     }
   }, []);
+
 
   useEffect(() => {
     loadData();

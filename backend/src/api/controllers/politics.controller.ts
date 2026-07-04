@@ -9,34 +9,38 @@ import { buildPulse } from '../services/politics.pulse';
 export async function getStateOverview(req: Request, res: Response, next: NextFunction) {
   try {
     const states = await db('pol_states');
-    const activeState = states.find(s => s.is_active);
-    const inactiveStates = states.filter(s => !s.is_active);
+    const activeState = states.find((s: any) => s.is_active);
+    const inactiveStates = states.filter((s: any) => !s.is_active);
 
     let cyclePhase = 'governing';
     let countdown = 0;
     
     if (activeState) {
-      const cycle = await getOrCreateCurrentCycle(activeState.id);
-      cyclePhase = cycle.phase;
-      
-      const currentArc = cycle.start_arc; // wait, need real current arc
-      const clock = await db('world_clock').first();
-      const actualArc = clock?.current_arc || 1;
-      
-      // Calculate countdown to next phase boundary
-      const startCampaign = cycle.polling_arc - 6; // POL_CAMPAIGN_WINDOW_ARCS
-      const startFiling = startCampaign - 3; // POL_FILING_WINDOW_ARCS
-      
-      if (cycle.phase === 'governing') {
-        countdown = startFiling - actualArc;
-      } else if (cycle.phase === 'filing') {
-        countdown = startCampaign - actualArc;
-      } else if (cycle.phase === 'campaign') {
-        countdown = cycle.polling_arc - actualArc;
-      } else if (cycle.phase === 'polling') {
-        countdown = 1; 
-      } else if (cycle.phase === 'formation') {
-        countdown = cycle.formation_end_arc - actualArc;
+      try {
+        const cycle = await getOrCreateCurrentCycle(activeState.id);
+        cyclePhase = cycle.phase;
+        
+        const clock = await db('world_clock').first();
+        const actualArc = clock?.current_arc || 1;
+        
+        const startCampaign = cycle.polling_arc - 6;
+        const startFiling = startCampaign - 3;
+        
+        if (cycle.phase === 'governing') {
+          countdown = startFiling - actualArc;
+        } else if (cycle.phase === 'filing') {
+          countdown = startCampaign - actualArc;
+        } else if (cycle.phase === 'campaign') {
+          countdown = cycle.polling_arc - actualArc;
+        } else if (cycle.phase === 'polling') {
+          countdown = 1; 
+        } else if (cycle.phase === 'formation') {
+          countdown = cycle.formation_end_arc - actualArc;
+        }
+      } catch {
+        // Cycle not yet seeded or migration pending — return governing state gracefully
+        cyclePhase = 'governing';
+        countdown = 0;
       }
     }
 
@@ -50,6 +54,7 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
     next(error);
   }
 }
+
 
 export async function getCycle(req: Request, res: Response, next: NextFunction) {
   try {
