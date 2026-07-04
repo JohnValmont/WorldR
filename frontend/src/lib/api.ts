@@ -214,3 +214,10 @@ export const manufacturingApi = {
   getEngineeringReport: (companyId: string, modelId: string) => api.get(`/companies/${companyId}/manufacturing/models/${modelId}/engineering-report`),
   getCompanyKnowledge: (companyId: string) => api.get(`/companies/${companyId}/manufacturing/knowledge`),
 };
+
+// World — public world feed
+export const worldApi = {
+  getOperators: () => api.get('/world/operators').then(res => res.data),
+  getMarketLeaderboard: () => api.get('/world/market-leaderboard').then(res => res.data),
+};
+
