@@ -68,35 +68,34 @@ export async function getParties(req: Request, res: Response, next: NextFunction
     const activeState = await db('pol_states').where({ is_active: true }).first();
     if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
 
+    // Base query — always works even before migration 0008
     const parties = await db('pol_parties')
       .where({ 'pol_parties.state_id': activeState.id })
       .select('pol_parties.*')
       .leftJoin('pol_party_members', 'pol_parties.id', 'pol_party_members.party_id')
-      .leftJoin('pol_party_identities', 'pol_parties.id', 'pol_party_identities.party_id')
-      .select(
-        'pol_party_identities.color',
-        'pol_party_identities.monogram',
-        'pol_party_identities.leader',
-        'pol_party_identities.motto',
-        'pol_party_identities.blurb'
-      )
       .count('pol_party_members.character_id as member_count')
-      .groupBy(
-        'pol_parties.id',
-        'pol_party_identities.color',
-        'pol_party_identities.monogram',
-        'pol_party_identities.leader',
-        'pol_party_identities.motto',
-        'pol_party_identities.blurb'
-      );
+      .groupBy('pol_parties.id');
 
-    // SQLite/postgres return count differently, let's normalize to number
-    const normalized = parties.map(p => {
-      const { color, monogram, leader, motto, blurb, ...rest } = p;
+    // Optionally enrich with identities — silently skipped if table doesn't exist yet
+    let identityMap: Record<string, any> = {};
+    try {
+      const identities = await db('pol_party_identities')
+        .whereIn('party_id', parties.map((p: any) => p.id));
+      for (const id of identities) {
+        identityMap[id.party_id] = id;
+      }
+    } catch {
+      // pol_party_identities table not yet migrated — return parties without identity
+    }
+
+    const normalized = parties.map((p: any) => {
+      const id = identityMap[p.id] || null;
       return {
-        ...rest,
+        ...p,
         member_count: Number(p.member_count || 0),
-        identity: { color, monogram, leader, motto, blurb }
+        identity: id
+          ? { color: id.color, monogram: id.monogram, leader: id.leader, motto: id.motto, blurb: id.blurb }
+          : null
       };
     });
 
@@ -105,6 +104,7 @@ export async function getParties(req: Request, res: Response, next: NextFunction
     next(error);
   }
 }
+
 
 export async function foundParty(req: Request, res: Response, next: NextFunction) {
   try {
