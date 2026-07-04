@@ -47,17 +47,42 @@ function requirePhase(allowedPhase: string) {
   };
 }
 
+// Blocks an action during specific phases (all other phases are allowed).
+// Used for actions that are open most of the time but must be frozen while an
+// election is actively resolving (polling/formation).
+function blockPhases(...blockedPhases: string[]) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const activeState = await db('pol_states').where({ is_active: true }).first();
+      if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+
+      const cycle = await getOrCreateCurrentCycle(activeState.id);
+      if (blockedPhases.includes(cycle.phase)) {
+        return next(new AppError(`This action is not available while the ${cycle.phase} phase is in progress.`, 409, 'CONFLICT'));
+      }
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
 // Public-ish / overview routes (auth still required by our API design, but no phase restriction)
 router.get('/state', authMiddleware, getStateOverview);
 router.get('/cycle', authMiddleware, getCycle);
 router.get('/parties', authMiddleware, getParties);
 
-// Actions (Phase-gated to 'filing')
-router.post('/parties', authMiddleware, requirePhase('filing'), foundParty);
-router.post('/parties/:id/join', authMiddleware, requirePhase('filing'), joinParty);
-router.post('/parties/:id/leave', authMiddleware, leaveParty); // Spec didn't explicitly say "FILING only" for leave, but it's safe to not gate it, or I can gate it. Spec says for join/found: "FILING phase only." For leave: "-> leave. If leader leaves...". I will leave it ungated.
-router.put('/parties/:id/platform', authMiddleware, requirePhase('filing'), updatePlatform);
-router.post('/candidacy', authMiddleware, requirePhase('filing'), declareCandidacy);
+// Party-building actions — ALWAYS OPEN.
+// Devlog #1 opened these on the frontend (found/join/leave/platform in any phase);
+// the backend now matches so players don't hit a silent 409 outside the filing window.
+router.post('/parties', authMiddleware, foundParty);
+router.post('/parties/:id/join', authMiddleware, joinParty);
+router.post('/parties/:id/leave', authMiddleware, leaveParty);
+router.put('/parties/:id/platform', authMiddleware, updatePlatform);
+
+// Candidacy is open in every phase EXCEPT while an election is actively resolving
+// (polling/formation) — this matches PartyTab's `canRunForOffice` guard.
+router.post('/candidacy', authMiddleware, blockPhases('polling', 'formation'), declareCandidacy);
 
 // Phase 3A
 router.post('/campaign/actions', authMiddleware, requirePhase('campaign'), queueCampaignAction);
