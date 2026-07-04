@@ -8,14 +8,15 @@ interface PartyCrestProps {
   /** Override the accent color (else derived from party identity). */
   color?: string;
   className?: string;
+  parties?: any[];
 }
 
 /**
  * PartyCrest — a small institutional monogram/crest avatar.
  * Muted, engraved feel: party color plate, embossed initials, thin bevel.
  */
-export default function PartyCrest({ name, size = 36, color, className }: PartyCrestProps) {
-  const id = partyIdentity(name);
+export default function PartyCrest({ name, size = 36, color, className, parties }: PartyCrestProps) {
+  const id = partyIdentity(name, parties);
   const accent = color || id.color;
   return (
     <span

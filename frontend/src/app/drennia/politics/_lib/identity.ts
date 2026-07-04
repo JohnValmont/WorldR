@@ -25,30 +25,8 @@ export interface PartyIdentity {
   blurb: string;
 }
 
-// Canonical seeded NPC parties (see backend/database/seeds/002_politics_v0.sql).
-const KNOWN_PARTIES: Record<string, PartyIdentity> = {
-  'Ironvale Labour Front': {
-    color: '#A33A3A',
-    monogram: 'LF',
-    leader: 'Councillor Sera Dunne',
-    motto: 'The floor of the factory is the floor of the Council.',
-    blurb: 'Worker bloc — labour protection, industrial investment, low tax.',
-  },
-  'Industrial Progress Party': {
-    color: '#B0863E',
-    monogram: 'IP',
-    leader: 'Marcus Vell',
-    motto: 'Let Ironvale build — and get out of its way.',
-    blurb: 'Owners & exporters — pro-business, open trade, light regulation.',
-  },
-  'Civic Stability Union': {
-    color: '#4A6178',
-    monogram: 'CS',
-    leader: 'Adele Renner',
-    motto: 'Order first. Prosperity follows.',
-    blurb: 'Professionals & families — institutional order and steady growth.',
-  },
-};
+// KNOWN_PARTIES has been promoted to the backend database (pol_party_identities)
+// and is fetched via politicsApi.getParties().
 
 // Deterministic fallback palette for player / unseeded parties.
 const FALLBACK_COLORS = [
@@ -69,9 +47,18 @@ function initialsFrom(name: string): string {
 }
 
 /** Resolve a display identity for any party name (known or player-founded). */
-export function partyIdentity(name: string | undefined | null): PartyIdentity {
-  const key = (name || '').trim();
-  if (key && KNOWN_PARTIES[key]) return KNOWN_PARTIES[key];
+export function partyIdentity(partyOrName: any, allParties?: any[]): PartyIdentity {
+  if (partyOrName && typeof partyOrName === 'object' && partyOrName.identity) {
+    return partyOrName.identity;
+  }
+
+  const key = typeof partyOrName === 'string' ? partyOrName : (partyOrName?.name || '');
+  
+  if (key && allParties) {
+    const found = allParties.find(p => p.name === key);
+    if (found && found.identity) return found.identity;
+  }
+
   const color = FALLBACK_COLORS[hashString(key) % FALLBACK_COLORS.length];
   return {
     color,
@@ -83,8 +70,8 @@ export function partyIdentity(name: string | undefined | null): PartyIdentity {
 }
 
 /** Stable seat-map / chart color for a party name. */
-export function partyColor(name: string | undefined | null): string {
-  return partyIdentity(name).color;
+export function partyColor(partyOrName: any, allParties?: any[]): string {
+  return partyIdentity(partyOrName, allParties).color;
 }
 
 // ── Voter-segment personas ───────────────────────────────────────

@@ -12,6 +12,7 @@ interface PartyStandingProps {
   /** Show the leader name under the party name. */
   showLeader?: boolean;
   color?: string;
+  parties?: any[];
 }
 
 /**
@@ -26,8 +27,9 @@ export default function PartyStanding({
   isMine,
   showLeader,
   color,
+  parties,
 }: PartyStandingProps) {
-  const id = partyIdentity(name);
+  const id = partyIdentity(name, parties);
   const accent = color || id.color;
   const pct = totalSeats > 0 ? (seats / totalSeats) * 100 : 0;
   return (

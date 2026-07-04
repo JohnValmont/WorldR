@@ -62,4 +62,20 @@ ON CONFLICT (state_id) DO UPDATE SET
     industry_tax_rate = EXCLUDED.industry_tax_rate,
     infrastructure_level = EXCLUDED.infrastructure_level;
 
+INSERT INTO pol_party_identities (party_id, color, monogram, leader, motto, blurb)
+SELECT id, '#A33A3A', 'LF', 'Councillor Sera Dunne', 'The floor of the factory is the floor of the Council.', 'Worker bloc — labour protection, industrial investment, low tax.'
+FROM pol_parties WHERE name = 'Ironvale Labour Front';
+
+INSERT INTO pol_party_identities (party_id, color, monogram, leader, motto, blurb)
+SELECT id, '#B0863E', 'IP', 'Marcus Vell', 'Let Ironvale build — and get out of its way.', 'Owners & exporters — pro-business, open trade, light regulation.'
+FROM pol_parties WHERE name = 'Industrial Progress Party';
+
+INSERT INTO pol_party_identities (party_id, color, monogram, leader, motto, blurb)
+SELECT id, '#4A6178', 'CS', 'Adele Renner', 'Order first. Prosperity follows.', 'Professionals & families — institutional order and steady growth.'
+FROM pol_parties WHERE name = 'Civic Stability Union';
+
+INSERT INTO pol_party_identities (party_id, color, monogram, leader, motto, blurb)
+SELECT id, '#6C7A89', 'IN', 'Independent', 'A new voice in the Ironvale Council.', 'Player-founded party.'
+FROM pol_parties WHERE name = 'Independent';
+
 COMMIT;

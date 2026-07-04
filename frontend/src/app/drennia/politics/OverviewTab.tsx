@@ -98,10 +98,10 @@ export default function OverviewTab({ overview, character, parties, onNavigateTo
           {myParty ? (
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
-                <PartyCrest name={myParty.name} size={40} />
+                <PartyCrest name={myParty.name} size={40} parties={parties} />
                 <div className="min-w-0">
                   <div className="text-[#F4EBD6] font-semibold truncate">{myParty.name}</div>
-                  <div className="text-[11px] text-[#A79D8C] truncate">{partyIdentity(myParty.name).leader}</div>
+                  <div className="text-[11px] text-[#A79D8C] truncate">{partyIdentity(myParty.name, parties).leader}</div>
                 </div>
               </div>
               <Button onClick={onNavigateToParty} fullWidth className="text-xs">Open Your Party</Button>
@@ -122,11 +122,11 @@ export default function OverviewTab({ overview, character, parties, onNavigateTo
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {parties.map((p: any) => {
-            const id = partyIdentity(p.name);
+            const id = partyIdentity(p.name, parties);
             return (
               <Card key={p.id} className="p-4 bg-[#11131A] border-[#2A2630]">
                 <div className="flex items-center gap-3">
-                  <PartyCrest name={p.name} size={38} />
+                  <PartyCrest name={p.name} parties={parties} size={38} />
                   <div className="min-w-0 flex-1">
                     <div className="text-[#F4EBD6] text-sm truncate">{p.name}</div>
                     <div className="text-[11px] text-[#A79D8C] truncate">{id.leader}</div>

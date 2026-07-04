@@ -69,17 +69,36 @@ export async function getParties(req: Request, res: Response, next: NextFunction
     if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
 
     const parties = await db('pol_parties')
-      .where({ state_id: activeState.id })
+      .where({ 'pol_parties.state_id': activeState.id })
       .select('pol_parties.*')
       .leftJoin('pol_party_members', 'pol_parties.id', 'pol_party_members.party_id')
+      .leftJoin('pol_party_identities', 'pol_parties.id', 'pol_party_identities.party_id')
+      .select(
+        'pol_party_identities.color',
+        'pol_party_identities.monogram',
+        'pol_party_identities.leader',
+        'pol_party_identities.motto',
+        'pol_party_identities.blurb'
+      )
       .count('pol_party_members.character_id as member_count')
-      .groupBy('pol_parties.id');
+      .groupBy(
+        'pol_parties.id',
+        'pol_party_identities.color',
+        'pol_party_identities.monogram',
+        'pol_party_identities.leader',
+        'pol_party_identities.motto',
+        'pol_party_identities.blurb'
+      );
 
     // SQLite/postgres return count differently, let's normalize to number
-    const normalized = parties.map(p => ({
-      ...p,
-      member_count: Number(p.member_count || 0)
-    }));
+    const normalized = parties.map(p => {
+      const { color, monogram, leader, motto, blurb, ...rest } = p;
+      return {
+        ...rest,
+        member_count: Number(p.member_count || 0),
+        identity: { color, monogram, leader, motto, blurb }
+      };
+    });
 
     return res.json(normalized);
   } catch (error) {
@@ -132,6 +151,16 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
         is_npc: false,
         created_arc: currentArc
       }).returning('*');
+
+      const fallbackMonogram = name.trim().split(/\s+/).filter(Boolean).map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '??';
+      await trx('pol_party_identities').insert({
+        party_id: party.id,
+        color: '#6C7A89',
+        monogram: fallbackMonogram,
+        leader: character.name || 'Party Leader',
+        motto: 'A new voice in the Council.',
+        blurb: 'Player-founded party.'
+      });
 
       await trx('pol_party_members').insert({
         party_id: party.id,

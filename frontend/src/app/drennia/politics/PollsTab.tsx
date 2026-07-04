@@ -47,7 +47,7 @@ export default function PollsTab({ overview, parties }: any) {
   }
 
   const hemiParties = polls.perParty
-    .map((p: any) => ({ name: partyName(p.partyId), seats: p.seats, color: partyColor(partyName(p.partyId)) }))
+    .map((p: any) => ({ name: partyName(p.partyId), seats: p.seats, color: partyColor(partyName(p.partyId), parties) }))
     .filter((d: any) => d.seats > 0)
     .sort((a: any, b: any) => b.seats - a.seats);
 
@@ -60,7 +60,7 @@ export default function PollsTab({ overview, parties }: any) {
     });
     const cand = polls.perCandidate?.find((c: any) => c.candidateId === bestCand);
     const name = cand ? partyName(cand.partyId) : undefined;
-    return { seg, name, share: bestShare, color: name ? partyColor(name) : undefined };
+    return { seg, name, share: bestShare, color: name ? partyColor(name, parties) : undefined };
   });
 
   const lead = hemiParties[0];
@@ -102,7 +102,7 @@ export default function PollsTab({ overview, parties }: any) {
           <div className="text-[10px] uppercase tracking-widest text-[#A79D8C] mb-2">Projected Standings</div>
           <div className="flex flex-col gap-0.5">
             {hemiParties.map((p: any) => (
-              <PartyStanding key={p.name} name={p.name} seats={p.seats} totalSeats={POL_COUNCIL_SEATS} showLeader />
+              <PartyStanding key={p.name} name={p.name} seats={p.seats} totalSeats={POL_COUNCIL_SEATS} showLeader parties={parties} />
             ))}
           </div>
         </div>

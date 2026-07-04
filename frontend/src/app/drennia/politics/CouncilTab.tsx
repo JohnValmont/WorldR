@@ -51,7 +51,7 @@ export default function CouncilTab({ overview, character, parties }: any) {
 
   const hemiParties = partySeats
     .filter((p: any) => p.seats > 0)
-    .map((p: any) => ({ name: p.name, seats: p.seats, color: partyColor(p.name) }));
+    .map((p: any) => ({ name: p.name, seats: p.seats, color: partyColor(p.name, parties) }));
 
   const myParty = parties?.find((p: any) => p.leader_character_id === character?.id);
   const isFormateur = myParty && partySeats.length > 0 && partySeats[0].partyId === myParty.id;
@@ -103,6 +103,7 @@ export default function CouncilTab({ overview, character, parties }: any) {
                   totalSeats={POL_COUNCIL_SEATS}
                   isMine={myParty?.id === p.partyId}
                   showLeader
+                  parties={parties}
                 />
               ))}
             </div>
@@ -121,7 +122,7 @@ export default function CouncilTab({ overview, character, parties }: any) {
                       State Premier
                     </div>
                     <div className="text-[#F4EBD6] font-serif text-lg truncate">
-                      {partyIdentity(premier.partyName).leader}
+                      {partyIdentity(premier.partyName, parties).leader}
                     </div>
                     <div className="text-[11px] text-[#A79D8C] truncate">{premier.partyName}</div>
                   </div>
@@ -154,7 +155,7 @@ export default function CouncilTab({ overview, character, parties }: any) {
                           key={memId}
                           className="flex items-center gap-1.5 px-2 py-1 bg-[#1A1C23] border border-[#2A2630] rounded text-xs"
                         >
-                          <PartyCrest name={p?.name} size={16} />
+                          <PartyCrest name={p?.name} size={16} parties={parties} />
                           {p?.name || 'Unknown'}
                         </span>
                       );

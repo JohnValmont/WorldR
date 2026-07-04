@@ -106,10 +106,10 @@ export default function PartyTab({ overview, character, parties, onRefresh }: an
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="p-6 bg-[#17151B] border-[#2A2630]">
             <div className="flex items-center gap-3 mb-4">
-              <PartyCrest name={myParty.name} size={48} />
+              <PartyCrest name={myParty.name} size={48} parties={parties} />
               <div className="min-w-0">
                 <div className="text-xl text-[#F4EBD6] font-serif truncate">{myParty.name}</div>
-                <div className="text-[11px] text-[#A79D8C] truncate">{partyIdentity(myParty.name).leader}</div>
+                <div className="text-[11px] text-[#A79D8C] truncate">{partyIdentity(myParty.name, parties).leader}</div>
               </div>
             </div>
             <div className="text-[#A79D8C] text-sm mb-6 space-y-1">
@@ -191,11 +191,11 @@ export default function PartyTab({ overview, character, parties, onRefresh }: an
             <div className="text-[10px] uppercase tracking-widest text-terminal-amber font-bold mb-4">Active Parties</div>
             <div className="space-y-3">
               {parties.map((p: any) => {
-                const id = partyIdentity(p.name);
+                const id = partyIdentity(p.name, parties);
                 return (
                   <Card key={p.id} className="p-4 bg-[#11131A] border-[#2A2630]">
                     <div className="flex items-center gap-3 mb-2">
-                      <PartyCrest name={p.name} size={36} />
+                      <PartyCrest name={p.name} size={36} parties={parties} />
                       <div className="min-w-0 flex-1">
                         <div className="text-[#F4EBD6] text-sm truncate">{p.name}</div>
                         <div className="text-[11px] text-[#A79D8C] truncate">{id.leader} · {p.is_npc ? 'NPC' : 'Player'} · {p.members?.length || 0} members</div>
