@@ -465,7 +465,7 @@ export default function ChroniclePage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-1">
               {[
                 { label: 'Full Name',      value: characterName },
-                { label: 'Age',            value: '18' },
+                { label: 'Age',            value: `${characterAge}` },
                 { label: 'Motherland',     value: citizenFile?.motherland ?? 'Drennia' },
                 { label: 'Citizen Since',  value: citizenFile?.gameDateStr ?? 'Mark 1 · Month 1' },
               ].map(f => (
@@ -564,6 +564,16 @@ export default function ChroniclePage() {
               </p>
               <Button href="/drennia/politics" variant="primary" icon={ChevronRight} size="sm">
                 Open Politics Desk
+              </Button>
+            </Card>
+
+            {/* World Feed */}
+            <Card kicker="World Feed" icon={Globe} accent hover>
+              <p className="text-[12px] text-zinc-400 leading-relaxed mb-4">
+                See who else is operating in Drennia. View market standings, the political scene, and active operators.
+              </p>
+              <Button href="/drennia/world" variant="secondary" icon={ChevronRight} size="sm">
+                View World Feed
               </Button>
             </Card>
           </div>

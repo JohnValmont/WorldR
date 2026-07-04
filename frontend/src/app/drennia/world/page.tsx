@@ -1,5 +1,7 @@
-﻿'use client';
+'use client';
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { ArrowLeft, Users, BarChart3, Landmark } from 'lucide-react';
 import { worldApi, politicsApi, characterApi } from '@/lib/api';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -176,9 +178,9 @@ export default function WorldPage() {
 
       {/* Header */}
       <div style={{ padding: '20px 24px 0', borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ fontSize: 9, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.28em', color: T.amber, marginBottom: 4 }}>
-          Drennia · Pre-Alpha World
-        </div>
+        <Link href="/drennia/chronicle" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint, marginBottom: 12, textDecoration: 'none' }} className="hover:text-amber-500 transition-colors">
+          <ArrowLeft size={10} /> Back to Chronicle
+        </Link>
         <div style={{ display: 'flex', alignItems: 'end', justifyContent: 'space-between', marginBottom: 12 }}>
           <h1 style={{ fontSize: 26, fontWeight: 700, fontFamily: 'Georgia, serif', color: T.ivory, margin: 0 }}>World Feed</h1>
           {!loading && (
@@ -204,7 +206,11 @@ export default function WorldPage() {
             {tab === 'operators' && (
               <div>
                 {operators.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: T.faint, padding: 48 }}>No other operators online yet.</div>
+                  <div style={{ textAlign: 'center', color: T.faint, padding: '64px 24px', border: `1px dashed ${T.border}`, borderRadius: 8, marginTop: 12 }}>
+                    <Users size={32} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+                    <div style={{ fontSize: 13, color: T.muted, marginBottom: 4 }}>No other operators online yet</div>
+                    <div style={{ fontSize: 11 }}>The world is waiting for its first citizens.</div>
+                  </div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
                     {operators.map((op: any) => (
@@ -224,8 +230,13 @@ export default function WorldPage() {
                   </div>
                 )}
                 {market.segments.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: T.faint, padding: 48 }}>
-                    No market data yet. Arc 1 results will appear after the first month completes.
+                  <div style={{ textAlign: 'center', color: T.faint, padding: '64px 24px', border: `1px dashed ${T.border}`, borderRadius: 8, marginTop: 12 }}>
+                    <BarChart3 size={32} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+                    <div style={{ fontSize: 13, color: T.muted, marginBottom: 4 }}>No market data recorded</div>
+                    <div style={{ fontSize: 11, marginBottom: 16 }}>Arc 1 results will appear after the first month completes.</div>
+                    <Link href="/drennia/business" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#090A0F', background: T.amber, padding: '8px 16px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
+                      Enter the Market
+                    </Link>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

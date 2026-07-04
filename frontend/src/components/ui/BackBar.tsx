@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { ArrowLeft, LayoutGrid } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Briefcase, Landmark, Globe, Home } from 'lucide-react';
 
 /**
  * BackBar — a slim, sticky global navigation bar for the in-game (/drennia) shell.
@@ -101,6 +101,24 @@ export default function BackBar() {
       <span className="truncate text-[9px] font-mono uppercase tracking-[0.18em] text-zinc-400">
         {label}
       </span>
+
+      <div className="flex-1" />
+
+      {/* Quick-jump nav */}
+      <nav className="flex items-center gap-1">
+        <Link href="/drennia/chronicle" title="Chronicle Hub" className={`p-1.5 rounded transition-colors ${section === 'chronicle' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+          <Home size={14} />
+        </Link>
+        <Link href="/drennia/business" title="Business Desk" className="p-1.5 rounded transition-colors text-zinc-500 hover:text-zinc-300 hover:bg-white/5">
+          <Briefcase size={14} />
+        </Link>
+        <Link href="/drennia/politics" title="Politics Desk" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+          <Landmark size={14} />
+        </Link>
+        <Link href="/drennia/world" title="World Feed" className={`p-1.5 rounded transition-colors ${section === 'world' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+          <Globe size={14} />
+        </Link>
+      </nav>
     </header>
   );
 }

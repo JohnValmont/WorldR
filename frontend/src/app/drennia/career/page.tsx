@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getPlayerCompany, type Company } from '../../../lib/businessCore';
+import { characterApi, companyApi } from '@/lib/api';
 
 const T = {
   bg: '#090A0F',
@@ -34,7 +34,7 @@ export default function CareerPage() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
   const [characterName, setCharacterName] = useState('');
-  const [company, setCompany] = useState<Company | null>(null);
+  const [company, setCompany] = useState<any | null>(null);
   const [careerData, setCareerData] = useState<any>(null);
 
   useEffect(() => {
@@ -42,13 +42,20 @@ export default function CareerPage() {
     const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
     if (!granted) { router.replace('/pre-alpha-access'); return; }
 
-    const fileStr = localStorage.getItem('worldr_citizen_file_v1');
-    if (fileStr) {
-      const cf = JSON.parse(fileStr);
-      const cName = typeof cf.name === 'object' ? `${cf.name.first} ${cf.name.last}` : cf.name;
-      setCharacterName(cName);
-      setCompany(getPlayerCompany(cName) || null);
-    }
+    characterApi.getMe()
+      .then(res => {
+        setCharacterName(res.data.name);
+        companyApi.getMy().then(compRes => {
+          const companies = compRes.data;
+          if (companies.length > 0) {
+            const myCompany = companies.sort((a: any, b: any) =>
+              new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+            )[0];
+            setCompany(myCompany);
+          }
+        }).catch(() => {});
+      })
+      .catch(() => {});
     
     const careerStr = localStorage.getItem('worldr_career_v1');
     if (careerStr) {
@@ -131,10 +138,10 @@ export default function CareerPage() {
             {company ? (
               <div>
                 <FieldRow label="Role" value="Founder / Owner" />
-                <FieldRow label="Sector" value={company.sector || 'N/A'} />
-                <FieldRow label="HQ State" value={company.state || 'N/A'} />
+                <FieldRow label="Sector" value={company.industry_id || 'N/A'} />
+                <FieldRow label="HQ State" value={company.headquarters_state_id || 'N/A'} />
                 <FieldRow label="Companies Owned" value={1} />
-                <FieldRow label="Reputation" value={company.reputation} />
+                <FieldRow label="Reputation" value={company.reputation || 0} />
               </div>
             ) : (
               <p style={{ fontSize: '13px', color: T.faint }}>Unattached citizen.</p>
@@ -155,14 +162,11 @@ export default function CareerPage() {
               </div>
 
               {/* Politics */}
-              <div style={{ padding: '16px', background: T.panel, border: `1px solid ${T.border}`, opacity: 0.7 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: T.faint }}>Politics</span>
-                  <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>LOCKED</span>
+              <div style={{ padding: '16px', background: 'rgba(201,162,74,0.05)', border: `1px solid ${T.borderGold}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: T.ivory }}>Politics</span>
+                  <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.mint }}>AVAILABLE</span>
                 </div>
-                <p style={{ fontSize: '11px', color: T.faint, lineHeight: 1.5, margin: 0 }}>
-                  Parties, campaigns, nominations, offices, and elections will unlock later.
-                </p>
               </div>
 
               {/* Others */}
