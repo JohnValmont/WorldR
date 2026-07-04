@@ -10,6 +10,7 @@ export { default as EmptyState }    from './EmptyState';
 export { default as Badge, StatusDot } from './Badge';
 export { default as SectionHeading } from './SectionHeading';
 export { default as PageShell }     from './PageShell';
+export { default as BackBar }        from './BackBar';
 export { default as TerminalPanel } from './TerminalPanel';
 export { default as ProgressBar }   from './ProgressBar';
 export { default as Tabs }          from './Tabs';
