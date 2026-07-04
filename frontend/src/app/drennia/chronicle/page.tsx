@@ -15,6 +15,7 @@ import { getContracts } from '../../../lib/businessCore';
 import { addNotification } from '../../../lib/notifications';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import NotificationBell from '../../../components/gameplay/NotificationBell';
+import FirstDayModal, { FIRST_DAY_MODAL_KEY } from '../../../components/gameplay/FirstDayModal';
 import {
   Card, Button, StatChip, DataRow, EmptyState, Badge, StatusDot,
   SectionHeading, PageShell,
@@ -128,6 +129,8 @@ export default function ChroniclePage() {
   const [activeContracts, setActiveContracts] = useState(0);
   const [netWorthSeries, setNetWorthSeries]   = useState(MOCK_NET_WORTH_SERIES);
   const [ledgerFeed, setLedgerFeed] = useState<any[]>([]);
+  // First-day modal: show once, then set flag
+  const [showFirstDay, setShowFirstDay] = useState(false);
 
   // Build radar data from citizen file stats
   const radarData = [
@@ -163,6 +166,9 @@ export default function ChroniclePage() {
     if (typeof window === 'undefined') return;
     const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
     if (!granted) { router.replace('/pre-alpha-access'); return; }
+    // Show first-day orientation modal if not yet seen
+    const seenModal = localStorage.getItem(FIRST_DAY_MODAL_KEY) === 'true';
+    if (!seenModal) setShowFirstDay(true);
 
     import('../../../lib/api').then(({ characterApi, companyApi, politicsApi }) => {
       characterApi.getMe()
@@ -291,6 +297,14 @@ export default function ChroniclePage() {
 
   return (
     <div className="flex flex-col h-full w-full bg-[#090A0F] text-zinc-100 overflow-hidden scanlines relative">
+      {/* ── First-Day Modal (fires once) ─────────────────────────────────── */}
+      {showFirstDay && (
+        <FirstDayModal
+          characterName={characterName}
+          citizenFile={citizenFile}
+          onDismiss={() => setShowFirstDay(false)}
+        />
+      )}
 
       {/* ── Top Player Bar ──────────────────────────────────────────────── */}
       <header className="flex items-center justify-between px-4 md:px-6 py-2 border-b border-[#23232b] bg-[#0c0d13] shrink-0 gap-4 flex-wrap">
@@ -403,6 +417,45 @@ export default function ChroniclePage() {
               </div>
             );
           })()}
+
+          {/* ── First Steps Rail (new players without a company) ─────────── */}
+          {!company && (
+            <div style={{
+              background: 'rgba(201,162,74,0.05)',
+              border: '1px solid rgba(201,162,74,0.18)',
+              borderRadius: 8,
+              padding: '12px 16px',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 10,
+              alignItems: 'center',
+            }}>
+              <span style={{ fontSize: 9, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#C9A24A', marginRight: 4, flexShrink: 0 }}>
+                First Steps
+              </span>
+              {[
+                { label: 'Register a company', href: '/drennia/business', done: !!company },
+                { label: 'Join a political party', href: '/drennia/politics', done: false },
+                { label: 'Check the World Feed', href: '/drennia/world', done: false },
+              ].map(item => (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    fontSize: 11, color: item.done ? '#4D8C6A' : '#A79D8C',
+                    textDecoration: 'none',
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 4, padding: '5px 10px',
+                  }}
+                >
+                  <span style={{ fontSize: 10 }}>{item.done ? '✓' : '○'}</span>
+                  {item.label}
+                </a>
+              ))}
+            </div>
+          )}
 
           {/* Personal Status */}
           <Card kicker="Personal Status" icon={User} title="Chronicle">
