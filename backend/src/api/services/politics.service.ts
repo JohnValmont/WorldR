@@ -10,6 +10,7 @@ import {
   POL_FUNDRAISER_CHARISMA_MULT,
   POL_ENDORSEMENT_INFLUENCE_COST,
   POL_NPC_MAX_SPEND_FRAC,
+  POL_NPC_TRAILING_SHARE,
   POL_TENDER_INFLUENCE_TIEBREAK,
   SEGMENTS,
   AXES,
@@ -299,7 +300,7 @@ async function runNpcCampaignBrain(trx: any, stateId: string, cycleId: string, c
     for (const seg of SEGMENTS) {
       const shares = projection.segmentShares[seg.key] || {};
       const myShare = shares[cand.id] || 0;
-      if (myShare < 0.20) { // arbitrary threshold for "trailing"
+      if (myShare < POL_NPC_TRAILING_SHARE) {
         trailingSegments.push({ segment: seg.key, share: myShare });
       }
     }

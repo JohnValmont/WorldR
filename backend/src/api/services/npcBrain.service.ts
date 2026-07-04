@@ -90,11 +90,6 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
     const marketShareDrop = marketShareLastArc - marketShareThisArc;
     const sellRatio = unitsAllocatedLastArc > 0 ? (unitsSoldLastArc / unitsAllocatedLastArc) : 0;
     
-    // Inject debug for Valuecorp
-    if (salePrice > 50000 && input.targetUnits > 0) {
-      console.log(`[NPC Brain Debug] Price: ${salePrice} | Share Drop: ${marketShareDrop.toFixed(4)} (${marketShareLastArc.toFixed(4)} -> ${marketShareThisArc.toFixed(4)}) | Sell Ratio: ${sellRatio.toFixed(4)} (${unitsSoldLastArc}/${unitsAllocatedLastArc})`);
-    }
-
     // Hysteresis: Only cut price if marketShare drops by > 0.03 AND unitsSold/unitsAllocated < 0.9
     if (marketShareDrop > 0.03 && sellRatio < 0.9) {
       newSalePrice = salePrice * (1 - PRICE_STEP);
@@ -331,9 +326,6 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
       .onConflict('company_id')
       .merge();
 
-    if (output.faceliftFlag) {
-      console.log(`[NPC Brain] Company ${companyId} flagged model ${modelId} for a FACELIFT! (Age: ${modelAgeMonths} mo, Zero Demand Streak: ${output.newZeroDemandStreak})`);
-    }
   }
 }
 

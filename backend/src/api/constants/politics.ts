@@ -65,6 +65,9 @@ export const POL_COUNCIL_SEATS = 61;
 export const POL_MAJORITY_SEATS = 31;
 export const POL_COALITION_MAX_DISTANCE = 0.30;
 export const POL_NPC_MAX_SPEND_FRAC = 0.25;
+// A projected segment share below this counts as "trailing" for the NPC campaign
+// brain, prompting it to spend on that segment. (Was an inline 0.20 magic number.)
+export const POL_NPC_TRAILING_SHARE = 0.20;
 export const POL_TENDER_INFLUENCE_TIEBREAK = true;
 export const PARTY_FOUNDING_COST = 25000;
 export const POL_VOTE_JITTER = 0;
