@@ -82,7 +82,7 @@ function LendingDesk({ onChanged }: { onChanged: () => void }) {
       mutate();
       onChanged();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Failed to post offer.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Failed to post offer.', false);
     } finally { setBusy(false); }
   };
 
@@ -99,7 +99,7 @@ function LendingDesk({ onChanged }: { onChanged: () => void }) {
       mutate();
       onChanged();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Failed to accept loan.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Failed to accept loan.', false);
     } finally { setBusy(false); }
   };
 
@@ -191,7 +191,7 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
       mutate();
       onChanged();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Repayment failed.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Repayment failed.', false);
     }
   };
 
@@ -200,7 +200,7 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
       await investmentsApi.cancelLoanOffer(id);
       mutate();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Cancel failed.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Cancel failed.', false);
     }
   };
 
@@ -299,7 +299,7 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
       mutate();
       onChanged();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Failed to list placement.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Failed to list placement.', false);
     } finally { setBusy(false); }
   };
 
@@ -311,7 +311,7 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
       mutate();
       onChanged();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Purchase failed.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Purchase failed.', false);
     } finally { setBusy(false); }
   };
 
@@ -323,7 +323,7 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
       mutate();
       onChanged();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Failed to withdraw placement.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Failed to withdraw placement.', false);
     } finally { setBusy(false); }
   };
 

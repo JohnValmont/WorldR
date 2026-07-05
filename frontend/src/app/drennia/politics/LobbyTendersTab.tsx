@@ -57,7 +57,7 @@ export default function LobbyTendersTab({ overview, character, parties }: any) {
       setDonateAmount(1000);
       setDonateParty('');
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Donation failed');
+      alert(err?.response?.data?.error || err?.response?.data?.message || 'Donation failed');
     }
   };
 
@@ -68,7 +68,7 @@ export default function LobbyTendersTab({ overview, character, parties }: any) {
       alert('Petition submitted successfully!');
       setPetitionAmount(0);
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Petition failed');
+      alert(err?.response?.data?.error || err?.response?.data?.message || 'Petition failed');
     }
   };
 
@@ -84,7 +84,7 @@ export default function LobbyTendersTab({ overview, character, parties }: any) {
       alert('Tender posted successfully!');
       loadData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Failed to post tender');
+      alert(err?.response?.data?.error || err?.response?.data?.message || 'Failed to post tender');
     }
   };
 
@@ -98,7 +98,7 @@ export default function LobbyTendersTab({ overview, character, parties }: any) {
       setBidPrice(0);
       loadData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Failed to place bid');
+      alert(err?.response?.data?.error || err?.response?.data?.message || 'Failed to place bid');
     }
   };
 

@@ -57,7 +57,7 @@ export default function PoliticsDesk() {
         setError((results[0] as any).reason?.response?.data?.message || 'Failed to load politics data');
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Failed to load politics data');
+      setError(err?.response?.data?.error || err?.response?.data?.message || err.message || 'Failed to load politics data');
     } finally {
       setLoading(false);
     }

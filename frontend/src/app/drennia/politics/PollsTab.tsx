@@ -21,7 +21,7 @@ export default function PollsTab({ overview, parties }: any) {
       const data = await politicsApi.getPolls();
       setPolls(data);
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Failed to fetch polls');
+      setError(err?.response?.data?.error || err?.response?.data?.message || err.message || 'Failed to fetch polls');
     } finally {
       setLoading(false);
     }

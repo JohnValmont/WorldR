@@ -21,7 +21,7 @@ export default function CouncilTab({ overview, character, parties }: any) {
       const data = await politicsApi.getCouncil();
       setCouncilData(data);
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Failed to load council');
+      setError(err?.response?.data?.error || err?.response?.data?.message || err.message || 'Failed to load council');
     } finally {
       setLoading(false);
     }
@@ -63,7 +63,7 @@ export default function CouncilTab({ overview, character, parties }: any) {
       await politicsApi.manageCoalition(action, targetId);
       loadCouncil();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Failed to manage coalition');
+      alert(err?.response?.data?.error || err?.response?.data?.message || 'Failed to manage coalition');
     }
   };
 

@@ -58,7 +58,7 @@ export default function CampaignTab({ overview, character, parties, onRefresh }:
       setSelectedSegment('');
       if (onRefresh) onRefresh();
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Failed to queue action');
+      setError(err?.response?.data?.error || err?.response?.data?.message || err.message || 'Failed to queue action');
     } finally {
       setLoading(false);
     }

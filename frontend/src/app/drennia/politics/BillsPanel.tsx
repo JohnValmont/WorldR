@@ -38,7 +38,7 @@ export default function BillsPanel({ overview, character, parties }: any) {
       await politicsApi.proposeBill(proposeType, params);
       loadBills();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Failed to propose bill');
+      alert(err?.response?.data?.error || err?.response?.data?.message || 'Failed to propose bill');
     }
   };
 
@@ -47,7 +47,7 @@ export default function BillsPanel({ overview, character, parties }: any) {
       await politicsApi.voteBill(billId, vote);
       loadBills();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Failed to vote on bill');
+      alert(err?.response?.data?.error || err?.response?.data?.message || 'Failed to vote on bill');
     }
   };
 

@@ -39,7 +39,7 @@ export default function WorldTimeControl() {
       await refresh();
       window.location.reload();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Failed to advance world tick');
+      alert(err?.response?.data?.error || err?.response?.data?.message || 'Failed to advance world tick');
     } finally {
       setIsAdvancing(false);
     }

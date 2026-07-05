@@ -51,7 +51,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
       setNotice({ text: 'Structure converted. Filing fee deducted from company cash.', ok: true });
       mutateCap();
     } catch (e: any) {
-      setNotice({ text: e?.response?.data?.message || 'Conversion failed.', ok: false });
+      setNotice({ text: e?.response?.data?.error || e?.response?.data?.message || 'Conversion failed.', ok: false });
     } finally {
       setBusy(false);
     }
@@ -71,7 +71,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
       setPayoutInput('');
       mutateCap();
     } catch (e: any) {
-      setNotice({ text: e?.response?.data?.message || 'Failed to set policy.', ok: false });
+      setNotice({ text: e?.response?.data?.error || e?.response?.data?.message || 'Failed to set policy.', ok: false });
     } finally {
       setBusy(false);
     }

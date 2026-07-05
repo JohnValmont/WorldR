@@ -39,7 +39,7 @@ export default function PartyTab({ overview, character, parties, onRefresh }: an
       await fn();
       await onRefresh();
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || fallback);
+      setError(err?.response?.data?.error || err?.response?.data?.message || err.message || fallback);
     } finally {
       setLoading(false);
     }
