@@ -3,6 +3,7 @@ import app from './app';
 import { checkDatabaseConnection, db, runMigrationsAndSeeds } from './config/database';
 import { env } from './config/env';
 import { logger } from './utils/logger';
+import { startWorldTickScheduler } from './api/services/worldTick.service';
 
 const server = http.createServer(app);
 
@@ -26,6 +27,10 @@ async function startServer() {
       await checkDatabaseConnection();
       logger.info('Database connection established successfully.');
       await runMigrationsAndSeeds();
+
+      // Start the world tick scheduler once the DB is ready
+      startWorldTickScheduler();
+      logger.info('World tick scheduler started (clock checked every 60s).');
     } catch (dbError) {
       logger.error('Database initialization failed, but server is still running:', dbError);
     }

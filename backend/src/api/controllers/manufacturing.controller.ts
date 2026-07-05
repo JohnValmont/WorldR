@@ -1967,26 +1967,19 @@ export class ManufacturingController {
     }
   }
 
-  public static async processManufacturingArc(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { companyId } = req.params;
-      if (!companyId) return next(new AppError('Missing or invalid fields: companyId', 400, 'BAD_REQUEST'));
-
-      const result = await db.transaction(async (trx) => {
-        const playerCompany = await trx('companies').where({ id: companyId }).first();
-        if (!playerCompany) throw new AppError('Company not found', 404, 'NOT_FOUND');
-        if (playerCompany.industry_id !== 'manufacturing') throw new AppError('Not a manufacturing company', 400, 'WRONG_INDUSTRY');
-
-        const clock = await trx('world_clock').first();
+  /**
+   * Shared month pipeline for one country: NPC decisions -> production ->
+   * pooled sales -> settlement -> politics hook.
+   * Used by both the admin process-company endpoint and the world tick system.
+   * Returns processedCompanies = 0 (no throw) when the month is already processed.
+   */
+  public static async processCountryMonth(trx: any, countryId: string, clock: any): Promise<{ processedCompanies: number }> {
         const currentYear = clock?.current_year || 1;
         const currentMonth = clock?.current_month || 1;
 
-        // 1. RESOLVE PARTICIPANTS
+        // 1. RESOLVE PARTICIPANTS — every manufacturing company in this country (players + NPCs)
         const allCompanies = await trx('companies')
-          .where({ country_id: playerCompany.country_id, industry_id: 'manufacturing' })
-          .where(function() {
-             this.where({ id: companyId }).orWhere({ is_npc: true });
-          });
+          .where({ country_id: countryId, industry_id: 'manufacturing' });
 
         const participants: any[] = [];
         for (const comp of allCompanies) {
@@ -1999,7 +1992,7 @@ export class ManufacturingController {
         }
         
         if (participants.length === 0) {
-           throw new AppError(`This month (Year ${currentYear}, month ${currentMonth}) is already processed for this region`, 400, 'ALREADY_PROCESSED');
+           return { processedCompanies: 0 };
         }
 
         // 2. DECIDE (NPCs only)
@@ -2096,22 +2089,35 @@ export class ManufacturingController {
 
         // Process Political Month Hook
         const activeState = await trx('pol_states')
-          .where({ country_id: playerCompany.country_id, is_active: true })
+          .where({ country_id: countryId, is_active: true })
           .first();
         if (activeState) {
           await processPoliticalArc(trx, activeState.id, currentMonth);
         }
 
-        // Character Aging — once per year (month 12 = end of year)
-        // Idempotent: processManufacturingArc already blocks duplicate runs per month,
-        // so this fires at most once per year per world.
-        if (currentMonth === 12) {
-          await trx('characters')
-            .where({ world_instance_id: 'pre-alpha-world-1', status: 'active' })
-            .increment('age', 1);
+        return { processedCompanies: participants.length };
+  } // End of processCountryMonth
+
+  // POST /admin/manufacturing/process-company/:companyId
+  // Admin force-processing of a single country's month (kept for testing).
+  // Note: character aging is handled by the world tick service, not here.
+  public static async processManufacturingArc(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { companyId } = req.params;
+      if (!companyId) return next(new AppError('Missing or invalid fields: companyId', 400, 'BAD_REQUEST'));
+
+      const result = await db.transaction(async (trx) => {
+        const playerCompany = await trx('companies').where({ id: companyId }).first();
+        if (!playerCompany) throw new AppError('Company not found', 404, 'NOT_FOUND');
+        if (playerCompany.industry_id !== 'manufacturing') throw new AppError('Not a manufacturing company', 400, 'WRONG_INDUSTRY');
+
+        const clock = await trx('world_clock').first();
+        const outcome = await ManufacturingController.processCountryMonth(trx, playerCompany.country_id, clock);
+        if (outcome.processedCompanies === 0) {
+          throw new AppError(`This month (Year ${clock?.current_year || 1}, month ${clock?.current_month || 1}) is already processed for this region`, 400, 'ALREADY_PROCESSED');
         }
 
-        return { message: 'Month processed successfully for region', processedCompanies: participants.length };
+        return { message: 'Month processed successfully for region', processedCompanies: outcome.processedCompanies };
       });
 
       res.status(200).json({ status: 'success', data: result });

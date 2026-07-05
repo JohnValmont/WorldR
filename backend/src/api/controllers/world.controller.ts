@@ -1,12 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
+import { runWorldTick } from '../services/worldTick.service';
+
+const WORLD_INSTANCE_ID = 'pre-alpha-world-1';
 
 export class WorldController {
   public static async getClock(req: Request, res: Response, next: NextFunction) {
     try {
       const clock = await db('world_clock')
-        .where({ status: 'active' })
+        .where({ world_instance_id: WORLD_INSTANCE_ID })
         .first();
 
       if (!clock) {
@@ -14,6 +17,84 @@ export class WorldController {
       }
 
       res.status(200).json(clock);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /world/tick (admin)
+   * Force-advance the world by one game month immediately, regardless of schedule.
+   */
+  public static async forceTick(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await runWorldTick({ force: true });
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /world/clock/pause (admin) — stop automatic ticks.
+   * POST /world/clock/resume (admin) — restart automatic ticks (reschedules from now).
+   */
+  public static async pauseClock(req: Request, res: Response, next: NextFunction) {
+    try {
+      const updated = await db('world_clock')
+        .where({ world_instance_id: WORLD_INSTANCE_ID })
+        .update({ status: 'paused', updated_at: db.fn.now() });
+      if (!updated) return next(new AppError('World clock not found', 404, 'CLOCK_NOT_FOUND'));
+      res.status(200).json({ status: 'success', data: { clockStatus: 'paused' } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async resumeClock(req: Request, res: Response, next: NextFunction) {
+    try {
+      const clock = await db('world_clock').where({ world_instance_id: WORLD_INSTANCE_ID }).first();
+      if (!clock) return next(new AppError('World clock not found', 404, 'CLOCK_NOT_FOUND'));
+
+      const intervalMs = (clock.real_seconds_per_month || 28800) * 1000;
+      const nextClose = new Date(Date.now() + intervalMs);
+      await db('world_clock')
+        .where({ world_instance_id: WORLD_INSTANCE_ID })
+        .update({
+          status: 'active',
+          month_started_at: new Date().toISOString(),
+          next_arc_close_at: nextClose.toISOString(),
+          updated_at: db.fn.now(),
+        });
+      res.status(200).json({ status: 'success', data: { clockStatus: 'active', next_arc_close_at: nextClose.toISOString() } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * PATCH /world/clock/speed (admin)
+   * Body: { seconds_per_month: number } — how many real seconds one game month lasts.
+   * Reschedules the next tick from now using the new speed.
+   */
+  public static async setClockSpeed(req: Request, res: Response, next: NextFunction) {
+    try {
+      const seconds = Number(req.body?.seconds_per_month);
+      if (!Number.isFinite(seconds) || seconds < 10 || seconds > 31_536_000) {
+        return next(new AppError('seconds_per_month must be a number between 10 and 31536000', 400, 'BAD_REQUEST'));
+      }
+
+      const nextClose = new Date(Date.now() + seconds * 1000);
+      const updated = await db('world_clock')
+        .where({ world_instance_id: WORLD_INSTANCE_ID })
+        .update({
+          real_seconds_per_month: Math.round(seconds),
+          month_started_at: new Date().toISOString(),
+          next_arc_close_at: nextClose.toISOString(),
+          updated_at: db.fn.now(),
+        });
+      if (!updated) return next(new AppError('World clock not found', 404, 'CLOCK_NOT_FOUND'));
+      res.status(200).json({ status: 'success', data: { real_seconds_per_month: Math.round(seconds), next_arc_close_at: nextClose.toISOString() } });
     } catch (error) {
       next(error);
     }
