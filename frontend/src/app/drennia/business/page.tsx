@@ -17,9 +17,9 @@ import ManufacturingDeskTab from './ManufacturingDeskTab';
 import EquityDeskTab from './EquityDeskTab';
 import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import {
-  Card, Button, StatChip, Badge, StatusDot, SectionHeading, TerminalPanel, Tabs, PageShell
+  Card, Button, StatChip, StatCard, DataRow, Badge, StatusDot, SectionHeading, TerminalPanel, Tabs, PageShell
 } from '@/components/ui';
-import { ArrowLeft, Briefcase, TrendingUp, Wallet, Lock } from 'lucide-react';
+import { ArrowLeft, Briefcase, TrendingUp, Wallet, Lock, Building2, Landmark, FileText, ArrowRight, ScrollText, Scale } from 'lucide-react';
 
 // Helpers to resolve standard IDs to display names in v1
 const getStateName = (id?: string) => {
@@ -670,50 +670,142 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
 }) {
   if (!company) {
     return (
-      <div style={{ maxWidth: '560px' }}>
-        <SectionHeader stamp="DRENNIA COMMERCIAL REGISTRY">Business Desk</SectionHeader>
-        <PanelBox style={{ marginBottom: '24px' }}>
-          <p style={{ fontSize: '14px', color: T.muted, lineHeight: 1.7, margin: '0 0 8px' }}>
-            Drennia's registry is open. Register your commercial enterprise today.
-          </p>
-          <p style={{ fontSize: '12px', color: T.faint, lineHeight: 1.6, margin: '0 0 20px' }}>
-            Start a company with a minimum of ₯50,000 capital. No maximum — invest as much as you have.
-          </p>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <GoldButton onClick={onStartBusiness}>Start Business →</GoldButton>
-            <GhostButton onClick={onViewRegistry}>Public Registry</GhostButton>
+      <div className="max-w-4xl flex flex-col gap-6">
+        {/* Hero */}
+        <Card pad="lg" accent className="relative overflow-hidden">
+          <div className="flex items-center gap-2 mb-3">
+            <Landmark size={12} className="text-terminal-amber" />
+            <span className="text-[9px] font-mono uppercase tracking-[0.25em] text-terminal-amber">
+              Drennia Commercial Registry
+            </span>
           </div>
-        </PanelBox>
-        <PanelBox>
-          <SectionHeader>Company Types Available</SectionHeader>
-          <FieldRow label="Sole Trader" value="Active" valueColor={T.mint} />
-          <FieldRow label="Private Company" value="Active" valueColor={T.mint} />
-          <FieldRow label="Corporation" value="Active" valueColor={T.mint} />
-        </PanelBox>
+          <h2 className="font-serif text-2xl md:text-3xl font-bold text-zinc-100 text-balance mb-2">
+            The registry is open. Build your enterprise.
+          </h2>
+          <p className="text-[13px] leading-relaxed text-zinc-400 max-w-xl mb-6">
+            Register a company with a minimum of <span className="text-terminal-amber font-mono font-semibold">₯50,000</span> starting
+            capital — no maximum. Choose your sector, headquarters, and legal structure, then start winning contracts.
+          </p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button variant="primary" size="lg" iconRight={ArrowRight} onClick={onStartBusiness}>
+              Start a Business
+            </Button>
+            <Button variant="ghost" size="lg" icon={ScrollText} onClick={onViewRegistry}>
+              Browse Public Registry
+            </Button>
+          </div>
+        </Card>
+
+        {/* How it works */}
+        <div>
+          <SectionHeading icon={FileText}>How It Works</SectionHeading>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { step: '01', title: 'Register', desc: 'Pick a sector, headquarters state, and legal structure. File with the registry and commit your starting capital.', icon: Building2 },
+              { step: '02', title: 'Operate', desc: 'Win contracts, hire staff, buy vehicles and facilities. Manage cash flow month to month.', icon: Briefcase },
+              { step: '03', title: 'Grow', desc: 'Build reputation and reliability. Scale toward the Drennport Exchange and public markets.', icon: TrendingUp },
+            ].map(item => (
+              <Card key={item.step} pad="md" hover className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <item.icon size={16} className="text-terminal-amber" />
+                  <span className="text-[10px] font-mono text-zinc-600 tracking-[0.2em]">{item.step}</span>
+                </div>
+                <h3 className="text-[13px] font-semibold text-zinc-100">{item.title}</h3>
+                <p className="text-[11px] leading-relaxed text-zinc-500">{item.desc}</p>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Legal structures */}
+        <div>
+          <SectionHeading icon={Scale} stamp="ALL ACTIVE">Legal Structures</SectionHeading>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { name: 'Sole Trader', fee: '₯500', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost.' },
+              { name: 'Private Company', fee: '₯5,000', desc: 'Separate legal entity. Add partners and issue private shares.' },
+              { name: 'Corporation', fee: '₯50,000', desc: 'Full liability protection. Required for public trading.' },
+            ].map(s => (
+              <Card key={s.name} pad="md" hover className="flex flex-col gap-1.5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="text-[13px] font-semibold text-zinc-100">{s.name}</h3>
+                  <span className="text-[11px] font-mono font-semibold text-terminal-amber shrink-0">{s.fee}</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-zinc-500">{s.desc}</p>
+                <span className="mt-1 text-[9px] font-mono uppercase tracking-[0.12em] text-terminal-green">● Available</span>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', maxWidth: '860px' }}>
-      <PanelBox>
-        <SectionHeader stamp="COMPANY FILE">Empire Summary</SectionHeader>
-        <FieldRow label="Company" value={company.name} />
-        <FieldRow label="Structure" value={company.legalStructure || 'Unknown'} />
-        <FieldRow label="Sector" value={getSectorName(company.sectorId) || getSectorName(company.sector) || 'N/A'} />
-        {company.subsector && <FieldRow label="Subsector" value={getSubsectorName(company.subsector) || 'N/A'} />}
-        <FieldRow label="HQ State" value={getStateName(company.headquartersStateId) || getStateName(company.state) || 'N/A'} />
-        <FieldRow label="Status" value={company.status} valueColor={T.mint} />
-        <FieldRow label="Reputation" value={company.reputation} valueColor={T.gold} />
-        <FieldRow label="Reliability" value={company.reliability} />
-        {company.operatingModel && !company.subsector && <FieldRow label="Operating Model" value={company.operatingModel} valueColor={T.gold} />}
-      </PanelBox>
-      <PanelBox>
-        <SectionHeader stamp="LEDGER">Financial Position</SectionHeader>
-        <FieldRow label="Company Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
-        <FieldRow label="Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.burgundy : T.muted} />
-        <FieldRow label="Net Worth (total)" value={formatMoney(netWorth)} valueColor={T.gold} />
-      </PanelBox>
+    <div className="max-w-5xl flex flex-col gap-6">
+      {/* Key stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Company Cash"
+          value={formatMoney(company.companyCash)}
+          valueColor="green"
+          trend={Number(company.companyCash || 0) > 0 ? 'up' : 'flat'}
+        />
+        <StatCard
+          label="Debt"
+          value={formatMoney(company.debt)}
+          valueColor={company.debt > 0 ? 'red' : 'white'}
+          trend={company.debt > 0 ? 'down' : 'flat'}
+        />
+        <StatCard
+          label="Net Worth (Total)"
+          value={formatMoney(netWorth)}
+          valueColor="amber"
+          trend="up"
+        />
+        <StatCard
+          label="Reputation"
+          value={company.reputation}
+          valueColor="white"
+        />
+      </div>
+
+      {/* Company file + financial position */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card
+          kicker="Company File"
+          icon={Building2}
+          title={company.name}
+          headerSlot={<Badge variant="green" dot>{company.status}</Badge>}
+        >
+          <DataRow label="Structure" value={company.legalStructure || 'Unknown'} />
+          <DataRow label="Sector" value={getSectorName(company.sectorId) || getSectorName(company.sector) || 'N/A'} />
+          {company.subsector && <DataRow label="Subsector" value={getSubsectorName(company.subsector) || 'N/A'} />}
+          <DataRow label="HQ State" value={getStateName(company.headquartersStateId) || getStateName(company.state) || 'N/A'} />
+          {company.operatingModel && !company.subsector && <DataRow label="Operating Model" value={company.operatingModel} valueVariant="amber" />}
+          <DataRow label="Reputation" value={company.reputation} valueVariant="amber" />
+          <DataRow label="Reliability" value={company.reliability} border={false} />
+        </Card>
+
+        <div className="flex flex-col gap-4">
+          <Card kicker="Ledger" icon={Wallet} title="Financial Position">
+            <DataRow label="Company Cash" value={formatMoney(company.companyCash)} valueVariant="green" />
+            <DataRow label="Debt" value={formatMoney(company.debt)} valueVariant={company.debt > 0 ? 'red' : 'muted'} />
+            <DataRow label="Net Worth (total)" value={formatMoney(netWorth)} valueVariant="amber" border={false} />
+          </Card>
+
+          <Card kicker="Quick Actions" icon={ArrowRight} title="Where to next?">
+            <div className="flex flex-col gap-2">
+              <Button variant="secondary" fullWidth icon={Briefcase} iconRight={ArrowRight} onClick={onViewContracts}>
+                Manage Company
+              </Button>
+              <Button variant="ghost" fullWidth icon={ScrollText} onClick={onViewRegistry}>
+                Public Registry
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
