@@ -754,7 +754,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
         <div>
           <SectionHeader stamp="STEP 1 OF 7">Select Your Sector</SectionHeader>
           <p style={{ fontSize: '12px', color: T.muted, marginBottom: '20px', lineHeight: 1.7 }}>
-            Only <strong style={{ color: T.gold }}>Shipping & Logistics</strong> is available in the current version. Other sectors are coming soon.
+            <strong style={{ color: T.gold }}>Shipping & Logistics</strong> and <strong style={{ color: T.gold }}>Manufacturing</strong> are available in the current version. Other sectors are coming soon.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
             {SECTORS.map(s => (
@@ -2735,27 +2735,6 @@ function FinanceTab({ company, fleet, playerCash, netWorth }: { company: Company
   );
 }
 
-// ─── EQUITY TAB ──────────────────────────────────────────────────────────────
-function EquityTab({ company, characterName, fleet }: { company: Company; characterName: string; fleet: Vehicle[] }) {
-  const fleetValue = fleet.reduce((acc: any, v: any) => acc + (v.currentValue || Math.round(v.purchaseCost * (v.condition / 100))), 0);
-  const companyValue = Number(company.companyCash || 0) + fleetValue - Number(company.debt || 0);
-  return (
-    <div style={{ maxWidth: '560px' }}>
-      <PanelBox>
-        <SectionHeader stamp="EQUITY STRUCTURE">Ownership Table</SectionHeader>
-        <FieldRow label={characterName} value="100%" valueColor={T.gold} />
-        <FieldRow label="Structure" value="Sole Trader — No share issuance" valueColor={T.muted} />
-        <FieldRow label="Company Value" value={formatMoney(companyValue)} valueColor={T.mint} />
-        <FieldRow label="Your Equity" value={`${formatMoney(companyValue)} (100%)`} valueColor={T.gold} />
-      </PanelBox>
-      <PanelBox style={{ marginTop: '16px' }}>
-        <SectionHeader>Future Equity Options</SectionHeader>
-        <p style={{ fontSize: '12px', color: T.faint, lineHeight: 1.7 }}>Upgrade to Private Company or Corporation to unlock share issuance, partner buy-in, and Westport Bourse listing. Available in a future version.</p>
-      </PanelBox>
-    </div>
-  );
-}
-
 
 // ─── PROCUREMENT TAB ──────────────────────────────────────────────────────────
 function ProcurementTab({ company, onRefresh, showNotif }: any) {
@@ -2928,7 +2907,7 @@ function DrennportExchangeTab() {
       </div>
 
       <div style={{ background: 'rgba(0,0,0,0.2)', border: `1px dashed ${T.border}`, padding: '24px', textAlign: 'center', marginTop: '16px' }}>
-        <div style={{ color: T.muted, fontSize: '12px' }}>Public stock trading, corporate bonds, and IPO mechanics are locked in this build.</div>
+        <div style={{ color: T.muted, fontSize: '12px' }}>This generic index view is a placeholder. Go to the Westport Bourse to see active player IPOs and trading mechanics. Corporate bonds are locked in this build.</div>
       </div>
     </div>
   );

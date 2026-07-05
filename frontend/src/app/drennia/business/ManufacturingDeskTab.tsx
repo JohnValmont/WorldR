@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { manufacturingApi } from '../../../lib/api';
+import EquityDeskTab from './EquityDeskTab';
 import { formatWorldDate, formatWorldDateShort } from '@/lib/calendar';
 import {
   Card, Button, StatCard, DataRow, EmptyState as UIEmptyState, Badge, StatusDot, SectionHeading, Tabs, ProgressBar
@@ -3233,29 +3234,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           EQUITY TAB
       ═══════════════════════════════════════════════════════ */}
       {deskTab === 'equity' && (
-        <div>
-          <SectionHeader stamp="EQUITY DESK">Ownership &amp; Equity</SectionHeader>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <PanelBox>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Current Ownership</div>
-              <FieldRow label="Owner" value={characterName || 'You'} />
-              <FieldRow label="Ownership" value="100%" valueColor={T.gold} />
-              <FieldRow label="Legal Structure" value={company.legalStructure || company.legal_structure_id || 'Sole Trader'} />
-              <FieldRow label="Company Value" value={fm(finances?.company_value || 0)} />
-            </PanelBox>
-            <PanelBox>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Share Issuance</div>
-              <div style={{ fontSize: '12px', color: T.faint, lineHeight: 1.8 }}>
-                <div>Share issuance — <span style={{ color: T.red }}>Locked</span></div>
-                <div>IPO — <span style={{ color: T.red }}>Locked</span></div>
-                <div>Investor system — Coming later</div>
-              </div>
-              <div style={{ marginTop: '16px', fontSize: '11px', color: T.faint, fontStyle: 'italic' }}>
-                Equity and investor features will be added in a future phase. For now, this company is fully owned by you.
-              </div>
-            </PanelBox>
-          </div>
-        </div>
+        <EquityDeskTab companyId={company.id} companyName={company.name} />
       )}
 
       </div>
