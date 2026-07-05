@@ -274,6 +274,7 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
 function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
   const { data: placements, mutate } = useSWR('placements', () => investmentsApi.getPlacements(), { refreshInterval: 15000 });
   const { data: myCompanies } = useSWR('my-companies', () => companyApi.getMy().then((r) => r.data));
+  const { data: myCharacter } = useSWR('placements-me', () => characterApi.getMe().then((r) => r.data));
   const [companyId, setCompanyId] = useState('');
   const [shares, setShares] = useState('');
   const [price, setPrice] = useState('');

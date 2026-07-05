@@ -315,6 +315,20 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   // R&D portfolio state
   const [showDesignModal, setShowDesignModal] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [fullEngReport, setFullEngReport] = useState<any>(null);
+  const [engReportLoading, setEngReportLoading] = useState(false);
+
+  // Fetch the full engineering report when a model is selected
+  useEffect(() => {
+    if (!selectedModelId || !company?.id) { setFullEngReport(null); return; }
+    let cancelled = false;
+    setEngReportLoading(true);
+    manufacturingApi.getEngineeringReport(company.id, selectedModelId)
+      .then((res: any) => { if (!cancelled) setFullEngReport(res.data); })
+      .catch(() => { if (!cancelled) setFullEngReport(null); })
+      .finally(() => { if (!cancelled) setEngReportLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedModelId, company?.id]);
   const [launchingModelId, setLaunchingModelId] = useState<string | null>(null);
   const [faceliftSourceModelId, setFaceliftSourceModelId] = useState<string | null>(null);
   const [showDiscontinueConfirm, setShowDiscontinueConfirm] = useState(false);
@@ -1478,6 +1492,48 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           </PanelBox>
                         </div>
                       )}
+
+                      {/* Full Engineering Report (fetched from the engineering-report endpoint) */}
+                      {(() => {
+                        const rpt = fullEngReport?.engineering_report;
+                        if (engReportLoading) {
+                          return (
+                            <div style={{ marginBottom: '20px' }}>
+                              <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Engineering Bureau Report</div>
+                              <PanelBox><div style={{ fontSize: '11px', color: T.faint }}>Retrieving report from the engineering bureau…</div></PanelBox>
+                            </div>
+                          );
+                        }
+                        if (!rpt || (!rpt.overallGrade && !rpt.overallAssessment && !(rpt.recommendations?.length))) return null;
+                        const gradeColor = ['A', 'B'].includes(String(rpt.overallGrade || '').charAt(0)) ? T.mint
+                          : String(rpt.overallGrade || '').charAt(0) === 'C' ? T.gold : T.red;
+                        return (
+                          <div style={{ marginBottom: '20px' }}>
+                            <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Engineering Bureau Report</div>
+                            <PanelBox style={{ border: `1px solid ${gradeColor}33` }}>
+                              {rpt.overallGrade && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                                  <div style={{ fontSize: '26px', fontWeight: 800, fontFamily: 'monospace', color: gradeColor }}>{rpt.overallGrade}</div>
+                                  <div style={{ fontSize: '10px', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Overall Grade</div>
+                                </div>
+                              )}
+                              {rpt.overallAssessment && (
+                                <div style={{ fontSize: '12px', color: T.ivory, lineHeight: 1.6, marginBottom: rpt.recommendations?.length ? '10px' : 0 }}>
+                                  {rpt.overallAssessment}
+                                </div>
+                              )}
+                              {Array.isArray(rpt.recommendations) && rpt.recommendations.length > 0 && (
+                                <div style={{ padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '2px' }}>
+                                  <div style={{ fontSize: '10px', color: T.muted, textTransform: 'uppercase', marginBottom: '4px' }}>Recommendations</div>
+                                  {rpt.recommendations.map((rec: string, i: number) => (
+                                    <div key={i} style={{ fontSize: '11px', color: T.faint, paddingLeft: '8px', borderLeft: `2px solid ${T.border}`, marginBottom: '2px', lineHeight: 1.6 }}>• {rec}</div>
+                                  ))}
+                                </div>
+                              )}
+                            </PanelBox>
+                          </div>
+                        );
+                      })()}
 
                       {/* Engineering Priorities Used */}
                       {engPriorities && (
@@ -2769,7 +2825,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
       {/* ═══════════════════════════════════════════════════════
           STAFFING TAB
-      ═══════════════════════════════════════════════════════ */}
+      ═══���═══════════════════════════════════════════════════ */}
       {deskTab === 'staff' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <SectionHeader stamp="STAFFING DESK">Company Workforce</SectionHeader>

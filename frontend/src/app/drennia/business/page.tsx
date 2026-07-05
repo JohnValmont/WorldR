@@ -15,6 +15,7 @@ import { formatWorldDate } from '@/lib/calendar';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import ManufacturingDeskTab from './ManufacturingDeskTab';
 import EquityDeskTab from './EquityDeskTab';
+import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import {
   Card, Button, StatChip, Badge, StatusDot, SectionHeading, TerminalPanel, Tabs, PageShell
 } from '@/components/ui';
@@ -194,12 +195,13 @@ export const WAGE_POLICY_OPTIONS: Array<{ label: string; value: WagePolicy }> = 
 ];
 
 // ─── Sub-tab types ────────────────────────────────────────────────────────────
-type SubTab = 'overview' | 'start' | 'companies' | 'exchange' | 'registry';
+type SubTab = 'overview' | 'start' | 'companies' | 'analytics' | 'exchange' | 'registry';
 
 const SUB_TABS: { id: SubTab; label: string; requiresCompany?: boolean }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'start', label: 'Start Business' },
   { id: 'companies', label: 'My Companies', requiresCompany: true },
+  { id: 'analytics', label: 'Analytics', requiresCompany: true },
   { id: 'exchange', label: 'Drennport Exchange' },
   { id: 'registry', label: 'Registry' }
 ];
@@ -643,6 +645,15 @@ export default function BusinessPage() {
           )}
         
         
+        {activeTab === 'analytics' && (
+          company ? (
+            <AnalyticsDashboard companyId={company.id} countryId={(company as any).country_id || company.countryId || 'drennia'} />
+          ) : (
+            <PageShell className="py-6">
+              <div style={{ color: T.faint, fontSize: '12px' }}>Register a company to access market analytics.</div>
+            </PageShell>
+          )
+        )}
         {activeTab === 'exchange' && <PageShell className="py-6"><DrennportExchangeTab /></PageShell>}
         {activeTab === 'registry'  && <PageShell className="py-6"><RegistryTab key={registryKey} company={company} onRefresh={() => setRegistryKey(k => k + 1)} /></PageShell>}
       </div>
