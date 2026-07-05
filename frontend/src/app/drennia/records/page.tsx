@@ -32,8 +32,6 @@ export default function RecordsPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-    
     setAuthorized(true);
     const raw = localStorage.getItem('worldr_records_v1');
     if (raw) setRecords(JSON.parse(raw));

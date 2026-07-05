@@ -39,9 +39,6 @@ export default function CareerPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-    
-
     characterApi.getMe()
       .then(res => {
         setCharacterName(res.data.name);

@@ -20,11 +20,7 @@ export default function CitizenFilePage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-      if (!granted) {
-        router.replace('/pre-alpha-access');
-        return;
-      }
+      
 
       const raw = localStorage.getItem('worldr_citizen_file_v1');
       if (!raw) {

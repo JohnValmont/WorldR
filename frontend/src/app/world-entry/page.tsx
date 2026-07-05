@@ -161,7 +161,6 @@ export default function WorldEntryPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
       if (true) {
         setAuthorized(true);
       }
