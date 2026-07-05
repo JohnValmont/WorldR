@@ -16,7 +16,7 @@ const PHASE_COPY: Record<string, string> = {
   formation: 'A new government is forming. Candidacy reopens when the next term begins.',
 };
 
-export default function PartyTab({ overview, character, parties, onRefresh }: any) {
+export default function PartyTab({ overview, character, parties, onRefresh, stateId }: any) {
   const phase = overview?.cyclePhase || overview?.cycle?.phase || 'governing';
   const canRunForOffice = phase !== 'polling' && phase !== 'formation';
 
@@ -45,10 +45,10 @@ export default function PartyTab({ overview, character, parties, onRefresh }: an
     }
   };
 
-  const handleFoundParty = () => run(() => politicsApi.foundParty({ name: foundName, platform: foundPlatform }), 'Failed to found party');
+  const handleFoundParty = () => run(() => politicsApi.foundParty({ name: foundName, platform: foundPlatform }, stateId), 'Failed to found party');
   const handleJoinParty = (id: string) => run(() => politicsApi.joinParty(id), 'Failed to join party');
   const handleLeaveParty = () => run(() => politicsApi.leaveParty(myParty.id), 'Failed to leave party');
-  const handleDeclareCandidacy = () => run(() => politicsApi.declareCandidacy(), 'Failed to declare candidacy');
+  const handleDeclareCandidacy = () => run(() => politicsApi.declareCandidacy(stateId), 'Failed to declare candidacy');
   const handleUpdatePlatform = () => {
     if (!editPlatform) return;
     return run(async () => { await politicsApi.updatePlatform(myParty.id, editPlatform); setEditPlatform(null); }, 'Failed to update platform');

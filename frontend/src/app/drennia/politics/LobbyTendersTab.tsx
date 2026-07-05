@@ -5,7 +5,7 @@ import { Briefcase, Coins, AlertCircle, FileText, CheckCircle2, Crown } from 'lu
 import { politicsApi, manufacturingApi } from '@/lib/api';
 import Masthead from './_components/Masthead';
 
-export default function LobbyTendersTab({ overview, character, parties }: any) {
+export default function LobbyTendersTab({ overview, character, parties, stateId }: any) {
   const [tenders, setTenders] = useState<any[]>([]);
   const [models, setModels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +32,7 @@ export default function LobbyTendersTab({ overview, character, parties }: any) {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const tData = await politicsApi.getTenders();
+      const tData = await politicsApi.getTenders(stateId);
       setTenders(tData);
       if (myCompany) {
         const mData = await manufacturingApi.getModelSnapshots(myCompany.id);
@@ -80,7 +80,7 @@ export default function LobbyTendersTab({ overview, character, parties }: any) {
         unitsPerArc: tenderUnits,
         maxPrice: tenderMaxPrice,
         durationArcs: tenderDuration,
-      });
+      }, stateId);
       alert('Tender posted successfully!');
       loadData();
     } catch (err: any) {

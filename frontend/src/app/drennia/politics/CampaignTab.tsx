@@ -14,7 +14,7 @@ const ACTION_META: Record<string, { name: string; desc: string }> = {
   fundraiser: { name: 'Fundraising Gala', desc: 'Host a gala to raise party funds.' },
 };
 
-export default function CampaignTab({ overview, character, parties, onRefresh }: any) {
+export default function CampaignTab({ overview, character, parties, onRefresh, stateId }: any) {
   const [selectedAction, setSelectedAction] = useState<string>('');
   const [selectedSegment, setSelectedSegment] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -52,7 +52,7 @@ export default function CampaignTab({ overview, character, parties, onRefresh }:
       await politicsApi.queueCampaignAction({
         action_type: selectedAction,
         target_segment: def.targeting === 'segment' ? selectedSegment : null,
-      });
+      }, stateId);
       setSuccessMsg(`“${ACTION_META[def.type]?.name || def.type}” queued for next month.`);
       setSelectedAction('');
       setSelectedSegment('');

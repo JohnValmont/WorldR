@@ -4,7 +4,7 @@ import { FileText, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { politicsApi } from '@/lib/api';
 import { formatGameDate } from '@/lib/calendar';
 
-export default function BillsPanel({ overview, character, parties }: any) {
+export default function BillsPanel({ overview, character, parties, stateId }: any) {
   const [bills, setBills] = useState<any[]>([]);
   const [activePolicy, setActivePolicy] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -15,7 +15,7 @@ export default function BillsPanel({ overview, character, parties }: any) {
   const loadBills = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await politicsApi.getBills();
+      const data = await politicsApi.getBills(stateId);
       setBills(data.bills || []);
       setActivePolicy(data.activePolicy || null);
     } catch (err) {
@@ -35,7 +35,7 @@ export default function BillsPanel({ overview, character, parties }: any) {
       if (proposeType === 'industry_tax') {
         params = { rate: taxRate / 100 }; // Send as 0.20 for 20%
       }
-      await politicsApi.proposeBill(proposeType, params);
+      await politicsApi.proposeBill(proposeType, params, stateId);
       loadBills();
     } catch (err: any) {
       alert(err?.response?.data?.error || err?.response?.data?.message || 'Failed to propose bill');

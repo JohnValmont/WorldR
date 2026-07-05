@@ -6,6 +6,18 @@ import { PARTY_FOUNDING_COST, CAMPAIGN_ACTIONS, SEGMENTS, POL_MAJORITY_SEATS } f
 import { runElection } from '../services/electionEngine';
 import { buildPulse } from '../services/politics.pulse';
 
+/** Resolve a pol_state row by optional stateId, falling back to the active state. */
+async function resolveState(stateId?: string) {
+  if (stateId) {
+    const s = await db('pol_states').where({ id: stateId }).first();
+    if (!s) throw new AppError('State not found', 404, 'NOT_FOUND');
+    return s;
+  }
+  const s = await db('pol_states').where({ is_active: true }).first();
+  if (!s) throw new AppError('No active state', 404, 'NOT_FOUND');
+  return s;
+}
+
 export async function getStateOverview(req: Request, res: Response, next: NextFunction) {
   try {
     const states = await db('pol_states');
@@ -58,8 +70,7 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
 
 export async function getCycle(req: Request, res: Response, next: NextFunction) {
   try {
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.query.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     return res.json(cycle);
@@ -70,8 +81,7 @@ export async function getCycle(req: Request, res: Response, next: NextFunction) 
 
 export async function getParties(req: Request, res: Response, next: NextFunction) {
   try {
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.query.stateId as string | undefined);
 
     // Base query — always works even before migration 0008
     const parties = await db('pol_parties')
@@ -119,8 +129,8 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
     const { name, platform } = req.body;
     if (!name || name.trim() === '') return next(new AppError('Party name required', 400, 'BAD_REQUEST'));
 
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const stateIdForFound = (req.body.stateId as string | undefined);
+    const activeState = await resolveState(stateIdForFound);
 
     // DB Transaction
     const result = await db.transaction(async (trx) => {
@@ -205,8 +215,7 @@ export async function queueCampaignAction(req: Request, res: Response, next: Nex
       if (!segDef) return next(new AppError('Unknown target segment', 400, 'BAD_REQUEST'));
     }
 
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.body.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     const clock = await db('world_clock').first();
@@ -246,8 +255,7 @@ export async function queueCampaignAction(req: Request, res: Response, next: Nex
 
 export async function getPolls(req: Request, res: Response, next: NextFunction) {
   try {
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.query.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     const registeredVoters = activeState.registered_voters || 1600000;
@@ -422,8 +430,7 @@ export async function declareCandidacy(req: Request, res: Response, next: NextFu
     const userId = req.user?.id;
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
 
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.body.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
 
@@ -474,8 +481,7 @@ export async function manageCoalition(req: Request, res: Response, next: NextFun
       return next(new AppError('Valid targetPartyId and action required', 400, 'BAD_REQUEST'));
     }
 
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.query.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     if (cycle.phase !== 'formation') {
@@ -531,8 +537,7 @@ export async function manageCoalition(req: Request, res: Response, next: NextFun
 
 export async function getCouncil(req: Request, res: Response, next: NextFunction) {
   try {
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.query.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     
@@ -599,8 +604,7 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
 
 export async function getLedger(req: Request, res: Response, next: NextFunction) {
   try {
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.query.stateId as string | undefined);
 
     const limit = parseInt(req.query.limit as string) || 10;
 
@@ -624,8 +628,7 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
     const { type, params } = req.body;
     if (!type || !params) return next(new AppError('Missing type or params', 400, 'BAD_REQUEST'));
 
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.query.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     if (cycle.phase !== 'governing') return next(new AppError('Bills can only be proposed during the governing phase', 409, 'CONFLICT'));

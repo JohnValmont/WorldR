@@ -10,7 +10,7 @@ import PartyStanding from './_components/PartyStanding';
 import PartyCrest from './_components/PartyCrest';
 import BillsPanel from './BillsPanel';
 
-export default function CouncilTab({ overview, character, parties }: any) {
+export default function CouncilTab({ overview, character, parties, stateId }: any) {
   const [councilData, setCouncilData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -18,7 +18,7 @@ export default function CouncilTab({ overview, character, parties }: any) {
   const loadCouncil = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await politicsApi.getCouncil();
+      const data = await politicsApi.getCouncil(stateId);
       setCouncilData(data);
     } catch (err: any) {
       setError(err?.response?.data?.error || err?.response?.data?.message || err.message || 'Failed to load council');

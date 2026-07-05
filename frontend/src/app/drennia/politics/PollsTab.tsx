@@ -9,7 +9,7 @@ import PartyStanding from './_components/PartyStanding';
 import PersonaCard from './_components/PersonaCard';
 import PoliticalPulse from './PoliticalPulse';
 
-export default function PollsTab({ overview, parties }: any) {
+export default function PollsTab({ overview, parties, stateId }: any) {
   const [polls, setPolls] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -18,7 +18,7 @@ export default function PollsTab({ overview, parties }: any) {
     try {
       setLoading(true);
       setError('');
-      const data = await politicsApi.getPolls();
+      const data = await politicsApi.getPolls(stateId);
       setPolls(data);
     } catch (err: any) {
       setError(err?.response?.data?.error || err?.response?.data?.message || err.message || 'Failed to fetch polls');
