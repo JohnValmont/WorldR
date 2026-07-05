@@ -75,7 +75,7 @@ export default function PoliticsDesk() {
   const jurisdictionMeta = useMemo(() => {
     const meta: Record<string, { id: JurisdictionId; phase?: string }> = {};
     if (overview?.activeState) {
-      meta['drennia-ironvale'] = { id: 'drennia-ironvale', phase };
+      meta[overview.activeState.code] = { id: overview.activeState.code as JurisdictionId, phase };
     }
     return meta;
   }, [overview, phase]);

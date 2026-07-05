@@ -6,10 +6,10 @@ import { PARTY_FOUNDING_COST, CAMPAIGN_ACTIONS, SEGMENTS, POL_MAJORITY_SEATS } f
 import { runElection } from '../services/electionEngine';
 import { buildPulse } from '../services/politics.pulse';
 
-/** Resolve a pol_state row by optional stateId, falling back to the active state. */
+/** Resolve a pol_state row by optional stateId (which is actually the state code), falling back to the active state. */
 async function resolveState(stateId?: string) {
   if (stateId) {
-    const s = await db('pol_states').where({ id: stateId }).first();
+    const s = await db('pol_states').where({ code: stateId }).first();
     if (!s) throw new AppError('State not found', 404, 'NOT_FOUND');
     return s;
   }
