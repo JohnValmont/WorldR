@@ -17,9 +17,9 @@ import ManufacturingDeskTab from './ManufacturingDeskTab';
 import EquityDeskTab from './EquityDeskTab';
 import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import {
-  Card, Button, StatChip, Badge, StatusDot, SectionHeading, TerminalPanel, Tabs, PageShell
+  Card, Button, StatChip, StatCard, DataRow, Badge, StatusDot, SectionHeading, TerminalPanel, Tabs, PageShell
 } from '@/components/ui';
-import { ArrowLeft, Briefcase, TrendingUp, Wallet, Lock } from 'lucide-react';
+import { ArrowLeft, Briefcase, TrendingUp, Wallet, Lock, Building2, Landmark, FileText, ArrowRight, ScrollText, Scale } from 'lucide-react';
 
 // Helpers to resolve standard IDs to display names in v1
 const getStateName = (id?: string) => {
@@ -469,7 +469,7 @@ export default function BusinessPage() {
   if (!authorized) return null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: T.bg, color: T.ivory, overflow: 'hidden' }}>
+    <div className="flex flex-col h-full w-full bg-[#090A0F] text-zinc-100 overflow-hidden">
 
       {/* ── Enhanced Business Header ── */}
       <header className="flex items-center justify-between px-4 md:px-6 py-2.5 border-b border-[#23232b] bg-[#0c0d13] shrink-0 flex-wrap gap-3">
@@ -523,26 +523,26 @@ export default function BusinessPage() {
       </header>
 
       {/* ── Page Title ── */}
-      <div style={{ padding: '14px 24px 6px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <h1 style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, margin: 0, fontFamily: 'serif' }}>Business</h1>
+      <div className="flex items-center gap-2.5 px-4 md:px-6 pt-3.5 pb-1.5 shrink-0">
+        <h1 className="font-serif text-lg font-bold text-zinc-100 m-0">Business</h1>
         {company && <Badge variant="green" dot>{company.sector === 'manufacturing' ? 'Manufacturing' : 'Logistics'}</Badge>}
       </div>
 
       {/* ── Subtabs & Breadcrumbs ── */}
-      <div style={{ padding: '0 24px', borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+      <div className="px-4 md:px-6 border-b border-zinc-800 shrink-0">
         {/* Dynamic Breadcrumbs */}
-        <div style={{ display: 'flex', gap: '8px', padding: '10px 0 4px', fontSize: '10px', fontFamily: 'monospace', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-          <span style={{ cursor: 'pointer', color: activeTab === 'overview' ? T.gold : T.muted }} onClick={() => { setActiveTab('overview'); setSelectedCompanyId(null); }}>Business Desk</span>
+        <div className="flex gap-2 pt-2.5 pb-1 text-[10px] font-mono uppercase tracking-[0.1em] text-zinc-600">
+          <span className={`cursor-pointer transition-colors ${activeTab === 'overview' ? 'text-terminal-amber' : 'text-zinc-500 hover:text-zinc-300'}`} onClick={() => { setActiveTab('overview'); setSelectedCompanyId(null); }}>Business Desk</span>
           {activeTab === 'companies' && (
             <>
               <span>→</span>
-              <span style={{ cursor: 'pointer', color: !selectedCompanyId ? T.gold : T.muted }} onClick={() => setSelectedCompanyId(null)}>My Companies</span>
+              <span className={`cursor-pointer transition-colors ${!selectedCompanyId ? 'text-terminal-amber' : 'text-zinc-500 hover:text-zinc-300'}`} onClick={() => setSelectedCompanyId(null)}>My Companies</span>
             </>
           )}
           {activeTab === 'companies' && selectedCompanyId && company && (
             <>
               <span>→</span>
-              <span style={{ color: T.gold }}>{company.name}</span>
+              <span className="text-terminal-amber">{company.name}</span>
             </>
           )}
         </div>
@@ -567,19 +567,19 @@ export default function BusinessPage() {
       </div>
 
       {/* ── Back / Breadcrumb Navigation (Anchors) ── */}
-      <div style={{ padding: '8px 24px 0', flexShrink: 0 }}>
+      <div className="px-4 md:px-6 pt-2 shrink-0">
         {activeTab === 'companies' && selectedCompanyId && company && (
-          <span style={{ cursor: 'pointer', color: T.gold, fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }} onClick={() => setSelectedCompanyId(null)}>
+          <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => setSelectedCompanyId(null)}>
             ← Back to Companies
           </span>
         )}
         {activeTab === 'start' && (
-          <span style={{ cursor: 'pointer', color: T.gold, fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }} onClick={() => { setActiveTab('overview'); setStep(1); }}>
+          <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => { setActiveTab('overview'); setStep(1); }}>
             ← Back to Business Overview
           </span>
         )}
         {activeTab === 'registry' && (
-          <span style={{ cursor: 'pointer', color: T.gold, fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }} onClick={() => setActiveTab('overview')}>
+          <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => setActiveTab('overview')}>
             ← Back to Overview
           </span>
         )}
@@ -619,32 +619,28 @@ export default function BusinessPage() {
                 </div>
               ) : (
                 <PageShell className="py-6">
-                  <div style={{ marginTop: '16px' }}>
+                  <div className="mt-4">
                     {company ? (
-                      <div
-                        style={{
-                          padding: '16px', background: T.panel, border: `1px solid ${T.border}`,
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer'
-                        }}
+                      <Card
+                        pad="md"
+                        hover
+                        className="flex items-center justify-between gap-4 cursor-pointer"
                         onClick={() => setSelectedCompanyId(company.id)}
                       >
                         <div>
-                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: T.ivory }}>{company.name}</div>
-                          <div style={{ fontSize: '11px', color: T.muted }}>
+                          <div className="text-sm font-bold text-zinc-100">{company.name}</div>
+                          <div className="text-[11px] text-zinc-500 mt-0.5">
                             {company.sectorId === 'shipping-logistics' || company.sector === 'shipping-logistics' ? 'Logistics' : 'Manufacturing'}
                             {' • '}
-                            {company.headquartersStateId || company.state}
+                            {getStateName(company.headquartersStateId || company.state)}
                           </div>
                         </div>
-                        <button style={{
-                          padding: '6px 12px', background: 'transparent', color: T.gold,
-                          border: `1px solid ${T.gold}`, fontSize: '10px', textTransform: 'uppercase'
-                        }}>
+                        <Button variant="ghost" size="sm" iconRight={ArrowRight}>
                           Manage
-                        </button>
-                      </div>
+                        </Button>
+                      </Card>
                     ) : (
-                      <div style={{ color: T.faint, fontSize: '12px' }}>No companies registered.</div>
+                      <div className="text-zinc-600 text-xs">No companies registered.</div>
                     )}
                   </div>
                 </PageShell>
@@ -658,7 +654,7 @@ export default function BusinessPage() {
             <AnalyticsDashboard companyId={company.id} countryId={(company as any).country_id || company.countryId || 'drennia'} />
           ) : (
             <PageShell className="py-6">
-              <div style={{ color: T.faint, fontSize: '12px' }}>Register a company to access market analytics.</div>
+              <div className="text-zinc-600 text-xs">Register a company to access market analytics.</div>
             </PageShell>
           )
         )}
@@ -678,57 +674,142 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
 }) {
   if (!company) {
     return (
-      <div style={{ maxWidth: '560px' }}>
-        <SectionHeader stamp="DRENNIA COMMERCIAL REGISTRY">Business Desk</SectionHeader>
-        <PanelBox style={{ marginBottom: '24px' }}>
-          <p style={{ fontSize: '14px', color: T.muted, lineHeight: 1.7, margin: '0 0 8px' }}>
-            Drennia's registry is open. Register your commercial enterprise today.
-          </p>
-          <p style={{ fontSize: '12px', color: T.faint, lineHeight: 1.6, margin: '0 0 20px' }}>
-            Start a company with a minimum of ₯50,000 capital. No maximum — invest as much as you have.
-          </p>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <GoldButton onClick={onStartBusiness}>Start Business →</GoldButton>
-            <GhostButton onClick={onViewRegistry}>Public Registry</GhostButton>
+      <div className="max-w-4xl flex flex-col gap-6">
+        {/* Hero */}
+        <Card pad="lg" accent className="relative overflow-hidden">
+          <div className="flex items-center gap-2 mb-3">
+            <Landmark size={12} className="text-terminal-amber" />
+            <span className="text-[9px] font-mono uppercase tracking-[0.25em] text-terminal-amber">
+              Drennia Commercial Registry
+            </span>
           </div>
-        </PanelBox>
-        <PanelBox>
-          <SectionHeader>Company Types Available</SectionHeader>
-          <FieldRow label="Sole Trader" value="Active" valueColor={T.mint} />
-          <FieldRow label="Private Company" value="Active" valueColor={T.mint} />
-          <FieldRow label="Corporation" value="Active" valueColor={T.mint} />
-        </PanelBox>
+          <h2 className="font-serif text-2xl md:text-3xl font-bold text-zinc-100 text-balance mb-2">
+            The registry is open. Build your enterprise.
+          </h2>
+          <p className="text-[13px] leading-relaxed text-zinc-400 max-w-xl mb-6">
+            Register a company with a minimum of <span className="text-terminal-amber font-mono font-semibold">₯50,000</span> starting
+            capital — no maximum. Choose your sector, headquarters, and legal structure, then start winning contracts.
+          </p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button variant="primary" size="lg" iconRight={ArrowRight} onClick={onStartBusiness}>
+              Start a Business
+            </Button>
+            <Button variant="ghost" size="lg" icon={ScrollText} onClick={onViewRegistry}>
+              Browse Public Registry
+            </Button>
+          </div>
+        </Card>
+
+        {/* How it works */}
+        <div>
+          <SectionHeading icon={FileText}>How It Works</SectionHeading>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { step: '01', title: 'Register', desc: 'Pick a sector, headquarters state, and legal structure. File with the registry and commit your starting capital.', icon: Building2 },
+              { step: '02', title: 'Operate', desc: 'Win contracts, hire staff, buy vehicles and facilities. Manage cash flow month to month.', icon: Briefcase },
+              { step: '03', title: 'Grow', desc: 'Build reputation and reliability. Scale toward the Drennport Exchange and public markets.', icon: TrendingUp },
+            ].map(item => (
+              <Card key={item.step} pad="md" hover className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <item.icon size={16} className="text-terminal-amber" />
+                  <span className="text-[10px] font-mono text-zinc-600 tracking-[0.2em]">{item.step}</span>
+                </div>
+                <h3 className="text-[13px] font-semibold text-zinc-100">{item.title}</h3>
+                <p className="text-[11px] leading-relaxed text-zinc-500">{item.desc}</p>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Legal structures */}
+        <div>
+          <SectionHeading icon={Scale} stamp="ALL ACTIVE">Legal Structures</SectionHeading>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { name: 'Sole Trader', fee: '₯500', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost.' },
+              { name: 'Private Company', fee: '₯5,000', desc: 'Separate legal entity. Add partners and issue private shares.' },
+              { name: 'Corporation', fee: '₯50,000', desc: 'Full liability protection. Required for public trading.' },
+            ].map(s => (
+              <Card key={s.name} pad="md" hover className="flex flex-col gap-1.5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="text-[13px] font-semibold text-zinc-100">{s.name}</h3>
+                  <span className="text-[11px] font-mono font-semibold text-terminal-amber shrink-0">{s.fee}</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-zinc-500">{s.desc}</p>
+                <span className="mt-1 text-[9px] font-mono uppercase tracking-[0.12em] text-terminal-green">● Available</span>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', maxWidth: '1100px' }}>
-      <PanelBox>
-        <SectionHeader stamp="COMPANY FILE">Empire Summary</SectionHeader>
-        <FieldRow label="Company" value={company.name} />
-        <FieldRow label="Structure" value={getLegalStructureName(company.legalStructure)} />
-        <FieldRow label="Sector" value={getSectorName(company.sectorId) || getSectorName(company.sector) || 'N/A'} />
-        {company.subsector && <FieldRow label="Subsector" value={getSubsectorName(company.subsector) || 'N/A'} />}
-        <FieldRow label="HQ State" value={getStateName(company.headquartersStateId) || getStateName(company.state) || 'N/A'} />
-        <FieldRow label="Status" value={company.status} valueColor={T.mint} />
-        <FieldRow label="Reputation" value={company.reputation} valueColor={T.gold} />
-        <FieldRow label="Reliability" value={company.reliability} />
-        {company.operatingModel && !company.subsector && <FieldRow label="Operating Model" value={company.operatingModel} valueColor={T.gold} />}
-      </PanelBox>
-      <PanelBox>
-        <SectionHeader stamp="LEDGER">Financial Position</SectionHeader>
-        <FieldRow label="Company Cash" value={formatMoney(company.companyCash ?? 0)} valueColor={T.mint} />
-        <FieldRow label="Debt" value={formatMoney(company.debt ?? 0)} valueColor={(company.debt ?? 0) > 0 ? T.burgundy : T.muted} />
-        <FieldRow label="Net Worth (total)" value={formatMoney(netWorth)} valueColor={T.gold} />
-      </PanelBox>
-      <PanelBox>
-        <SectionHeader stamp="QUICK NAV">Company Actions</SectionHeader>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <GoldButton onClick={onViewContracts} style={{ width: '100%', textAlign: 'center' }}>Manage Company →</GoldButton>
-          <GhostButton onClick={onViewRegistry} style={{ width: '100%', textAlign: 'center' }}>Public Registry</GhostButton>
+    <div className="max-w-5xl flex flex-col gap-6">
+      {/* Key stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Company Cash"
+          value={formatMoney(company.companyCash ?? 0)}
+          valueColor="green"
+          trend={Number(company.companyCash || 0) > 0 ? 'up' : 'flat'}
+        />
+        <StatCard
+          label="Debt"
+          value={formatMoney(company.debt ?? 0)}
+          valueColor={(company.debt ?? 0) > 0 ? 'red' : 'white'}
+          trend={(company.debt ?? 0) > 0 ? 'down' : 'flat'}
+        />
+        <StatCard
+          label="Net Worth (Total)"
+          value={formatMoney(netWorth)}
+          valueColor="amber"
+          trend="up"
+        />
+        <StatCard
+          label="Reputation"
+          value={company.reputation}
+          valueColor="white"
+        />
+      </div>
+
+      {/* Company file + financial position */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card
+          kicker="Company File"
+          icon={Building2}
+          title={company.name}
+          headerSlot={<Badge variant="green" dot>{company.status}</Badge>}
+        >
+          <DataRow label="Structure" value={getLegalStructureName(company.legalStructure)} />
+          <DataRow label="Sector" value={getSectorName(company.sectorId) || getSectorName(company.sector) || 'N/A'} />
+          {company.subsector && <DataRow label="Subsector" value={getSubsectorName(company.subsector) || 'N/A'} />}
+          <DataRow label="HQ State" value={getStateName(company.headquartersStateId) || getStateName(company.state) || 'N/A'} />
+          {company.operatingModel && !company.subsector && <DataRow label="Operating Model" value={company.operatingModel} valueVariant="amber" />}
+          <DataRow label="Reputation" value={company.reputation} valueVariant="amber" />
+          <DataRow label="Reliability" value={company.reliability} border={false} />
+        </Card>
+
+        <div className="flex flex-col gap-4">
+          <Card kicker="Ledger" icon={Wallet} title="Financial Position">
+            <DataRow label="Company Cash" value={formatMoney(company.companyCash ?? 0)} valueVariant="green" />
+            <DataRow label="Debt" value={formatMoney(company.debt ?? 0)} valueVariant={(company.debt ?? 0) > 0 ? 'red' : 'muted'} />
+            <DataRow label="Net Worth (total)" value={formatMoney(netWorth)} valueVariant="amber" border={false} />
+          </Card>
+
+          <Card kicker="Quick Actions" icon={ArrowRight} title="Where to next?">
+            <div className="flex flex-col gap-2">
+              <Button variant="secondary" fullWidth icon={Briefcase} iconRight={ArrowRight} onClick={onViewContracts}>
+                Manage Company
+              </Button>
+              <Button variant="ghost" fullWidth icon={ScrollText} onClick={onViewRegistry}>
+                Public Registry
+              </Button>
+            </div>
+          </Card>
         </div>
-      </PanelBox>
+      </div>
     </div>
   );
 }
@@ -739,12 +820,12 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
 function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, selectedHQ, setSelectedHQ, companyNameInput, setCompanyNameInput, nameError, setNameError, startError, playerCash, company, onRegister, checkName, chosenCapital, setChosenCapital, selectedStructure, setSelectedStructure, selectedModel, setSelectedModel, isSubmitting }: any) {
   if (company) {
     return (
-      <PanelBox style={{ maxWidth: '540px' }}>
-        <SectionHeader>Company Already Registered</SectionHeader>
-        <p style={{ fontSize: '13px', color: T.muted, lineHeight: 1.7 }}>
-          You have already registered <strong style={{ color: T.ivory }}>{company.name}</strong>. Pre-alpha currently supports one active company. Multiple companies, subsidiaries, and holding structures are coming soon.
+      <div className="max-w-[540px] rounded-md border border-zinc-800 bg-zinc-900/60 p-5">
+        <div className="text-[11px] font-mono uppercase tracking-[0.15em] text-terminal-amber font-bold mb-4">Company Already Registered</div>
+        <p className="text-[13px] text-zinc-500 leading-relaxed m-0">
+          You have already registered <strong className="text-zinc-100">{company.name}</strong>. Pre-alpha currently supports one active company. Multiple companies, subsidiaries, and holding structures are coming soon.
         </p>
-      </PanelBox>
+      </div>
     );
   }
 
@@ -756,18 +837,18 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
   const totalCost = FILING_FEE + chosenCapital;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '40px', height: '100%', alignItems: 'start' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-        <div style={{ maxWidth: '620px' }}>
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 lg:gap-10 h-full items-start">
+      <div className="flex flex-col overflow-y-auto">
+        <div className="max-w-[620px]">
           {/* Stepper */}
-      <div style={{ display: 'flex', gap: '0', marginBottom: '28px', borderBottom: `1px solid ${T.border}` }}>
+      <div className="flex mb-7 border-b border-zinc-800">
         {STEP_LABELS.map((label, i) => {
           const stepNum = i + 1;
           const done = step > stepNum;
           const active = step === stepNum;
           return (
-            <div key={label} style={{ flex: 1, padding: '8px 4px 10px', textAlign: 'center', borderBottom: active ? `2px solid ${T.gold}` : '2px solid transparent' }}>
-              <div style={{ fontSize: '8px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.08em', color: done ? T.mint : active ? T.gold : T.faint }}>
+            <div key={label} className={`flex-1 px-1 pt-2 pb-2.5 text-center border-b-2 -mb-px transition-colors ${active ? 'border-terminal-amber' : 'border-transparent'}`}>
+              <div className={`text-[8px] font-mono uppercase tracking-[0.08em] ${done ? 'text-terminal-green' : active ? 'text-terminal-amber' : 'text-zinc-600'}`}>
                 {done ? '✓' : stepNum}. {label}
               </div>
             </div>
@@ -779,30 +860,27 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {step === 1 && (
         <div>
           <SectionHeader stamp="STEP 1 OF 7">Select Your Sector</SectionHeader>
-          <p style={{ fontSize: '12px', color: T.muted, marginBottom: '20px', lineHeight: 1.7 }}>
-            <strong style={{ color: T.gold }}>Shipping & Logistics</strong> and <strong style={{ color: T.gold }}>Manufacturing</strong> are available in the current version. Other sectors are coming soon.
+          <p className="text-xs text-zinc-500 mb-5 leading-relaxed">
+            <strong className="text-terminal-amber">Shipping & Logistics</strong> and <strong className="text-terminal-amber">Manufacturing</strong> are available in the current version. Other sectors are coming soon.
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+          <div className="flex flex-col gap-2 mb-6">
             {SECTORS.map(s => (
               <button
                 key={s.id}
                 onClick={() => s.available && setSelectedSector(s.id)}
                 disabled={!s.available}
-                style={{
-                  padding: '14px 18px',
-                  background: selectedSector === s.id ? 'rgba(201,162,74,0.08)' : 'rgba(255,255,255,0.02)',
-                  border: selectedSector === s.id ? `1px solid ${T.gold}` : `1px solid ${T.border}`,
-                  cursor: s.available ? 'pointer' : 'not-allowed',
-                  textAlign: 'left',
-                  opacity: s.available ? 1 : 0.4,
-                }}
+                className={`rounded-md border px-4 py-3.5 text-left transition-colors ${
+                  selectedSector === s.id
+                    ? 'border-terminal-amber bg-terminal-amber/10'
+                    : 'border-zinc-800 bg-zinc-900/40'
+                } ${s.available ? 'cursor-pointer hover:border-zinc-600' : 'cursor-not-allowed opacity-40'}`}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: s.available ? T.ivory : T.faint }}>{s.id}</span>
-                  {!s.available && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint, letterSpacing: '0.1em' }}>{(s as any).note || 'LOCKED'}</span>}
-                  {selectedSector === s.id && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.gold, letterSpacing: '0.1em' }}>SELECTED ✓</span>}
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`text-[13px] font-semibold ${s.available ? 'text-zinc-100' : 'text-zinc-600'}`}>{s.id}</span>
+                  {!s.available && <span className="text-[9px] font-mono text-zinc-600 tracking-[0.1em]">{(s as any).note || 'LOCKED'}</span>}
+                  {selectedSector === s.id && <span className="text-[9px] font-mono text-terminal-amber tracking-[0.1em]">SELECTED ✓</span>}
                 </div>
-                <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px' }}>{s.desc}</div>
+                <div className="text-[11px] text-zinc-500 mt-1">{s.desc}</div>
               </button>
             ))}
           </div>
@@ -814,25 +892,33 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {step === 2 && (
         <div>
           <SectionHeader stamp="STEP 2 OF 7">Headquarters Location</SectionHeader>
-          <p style={{ fontSize: '12px', color: T.muted, marginBottom: '20px', lineHeight: 1.7 }}>Your HQ state affects operating costs, contract access, and market exposure.</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+          <p className="text-xs text-zinc-500 mb-5 leading-relaxed">Your HQ state affects operating costs, contract access, and market exposure.</p>
+          <div className="flex flex-col gap-2.5 mb-6">
             {HQ_OPTIONS.map(hq => (
-              <button key={hq.id} onClick={() => setSelectedHQ(hq.id)} style={{ padding: '16px 18px', background: selectedHQ === hq.id ? 'rgba(201,162,74,0.08)' : 'rgba(255,255,255,0.02)', border: selectedHQ === hq.id ? `1px solid ${T.gold}` : `1px solid ${T.border}`, cursor: 'pointer', textAlign: 'left' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <button
+                key={hq.id}
+                onClick={() => setSelectedHQ(hq.id)}
+                className={`rounded-md border px-4 py-4 text-left cursor-pointer transition-colors ${
+                  selectedHQ === hq.id
+                    ? 'border-terminal-amber bg-terminal-amber/10'
+                    : 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-600'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
                   <div>
-                    <span style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>{hq.city}</span>
-                    <span style={{ fontSize: '10px', color: T.muted, marginLeft: '10px' }}>{hq.tagline}</span>
+                    <span className="text-sm font-bold text-zinc-100">{hq.city}</span>
+                    <span className="text-[10px] text-zinc-500 ml-2.5">{hq.tagline}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '9px', fontFamily: 'monospace', color: hq.costColor }}>{hq.costNote}</span>
-                    {selectedHQ === hq.id && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.gold }}>✓</span>}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-mono" style={{ color: hq.costColor }}>{hq.costNote}</span>
+                    {selectedHQ === hq.id && <span className="text-[9px] font-mono text-terminal-amber">✓</span>}
                   </div>
                 </div>
-                <div style={{ fontSize: '11px', color: T.muted, marginTop: '6px', lineHeight: 1.6 }}>{hq.desc}</div>
+                <div className="text-[11px] text-zinc-500 mt-1.5 leading-relaxed">{hq.desc}</div>
               </button>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="flex gap-2.5">
             <GhostButton onClick={() => setStep(1)}>← Back</GhostButton>
             <GoldButton onClick={() => setStep(3)} disabled={!selectedHQ}>Next: Structure →</GoldButton>
           </div>
@@ -843,22 +929,30 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {step === 3 && (
         <div>
           <SectionHeader stamp="STEP 3 OF 7">Legal Structure</SectionHeader>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+          <div className="flex flex-col gap-2 mb-6">
             {[
               { id: 'sole-trader', label: 'Sole Trader', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost (₯500).' },
               { id: 'private-company', label: 'Private Company', desc: 'Separate legal entity. Can add partners and issue shares (₯5,000).' },
               { id: 'public-corporation', label: 'Corporation', desc: 'Full liability protection. Required for public trading (₯50,000).' },
             ].map(s => (
-              <button key={s.label} onClick={() => setSelectedStructure(s.id)} style={{ padding: '14px 18px', background: selectedStructure === s.id ? 'rgba(201,162,74,0.08)' : 'rgba(255,255,255,0.01)', border: selectedStructure === s.id ? `1px solid ${T.gold}` : `1px solid ${T.border}`, cursor: 'pointer', textAlign: 'left', width: '100%', opacity: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: T.ivory }}>{s.label}</span>
-                  {selectedStructure === s.id && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.gold }}>ACTIVE ✓</span>}
+              <button
+                key={s.label}
+                onClick={() => setSelectedStructure(s.id)}
+                className={`w-full rounded-md border px-4 py-3.5 text-left cursor-pointer transition-colors ${
+                  selectedStructure === s.id
+                    ? 'border-terminal-amber bg-terminal-amber/10'
+                    : 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-600'
+                }`}
+              >
+                <div className="flex justify-between gap-2">
+                  <span className="text-[13px] font-semibold text-zinc-100">{s.label}</span>
+                  {selectedStructure === s.id && <span className="text-[9px] font-mono text-terminal-amber">ACTIVE ✓</span>}
                 </div>
-                <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px' }}>{s.desc}</div>
+                <div className="text-[11px] text-zinc-500 mt-1">{s.desc}</div>
               </button>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="flex gap-2.5">
             <GhostButton onClick={() => setStep(2)}>← Back</GhostButton>
             <GoldButton onClick={() => setStep(4)} disabled={!selectedStructure}>Next: Name →</GoldButton>
           </div>
@@ -869,21 +963,23 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {step === 4 && (
         <div>
           <SectionHeader stamp="STEP 4 OF 7">Company Name</SectionHeader>
-          <p style={{ fontSize: '12px', color: T.muted, marginBottom: '20px', lineHeight: 1.7 }}>
+          <p className="text-xs text-zinc-500 mb-5 leading-relaxed">
             This becomes your permanent business identity in Drennia. Names are public and cannot be reused.
           </p>
-          <div style={{ marginBottom: '20px' }}>
+          <div className="mb-5">
             <Label>Company Name</Label>
             <input
               type="text"
               value={companyNameInput}
               onChange={e => { setCompanyNameInput(e.target.value); setNameError(''); }}
               placeholder="e.g. Vane & Sons Freight Co."
-              style={{ width: '100%', padding: '12px 16px', background: T.paper, border: `1px solid ${nameError ? T.burgundy : T.border}`, color: T.ivory, fontSize: '14px', fontFamily: 'serif', outline: 'none', boxSizing: 'border-box' }}
+              className={`w-full rounded-md border bg-zinc-900 px-4 py-3 text-sm font-serif text-zinc-100 outline-none box-border transition-colors placeholder:text-zinc-600 ${
+                nameError ? 'border-terminal-red' : 'border-zinc-800 focus:border-terminal-amber/60'
+              }`}
             />
-            {nameError && <div style={{ fontSize: '11px', color: T.red, marginTop: '6px' }}>{nameError}</div>}
+            {nameError && <div className="text-[11px] text-terminal-red mt-1.5">{nameError}</div>}
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="flex gap-2.5">
             <GhostButton onClick={() => setStep(3)}>← Back</GhostButton>
             <GoldButton onClick={() => { if (checkName()) setStep(5); }}>Check & Continue →</GoldButton>
           </div>
@@ -894,18 +990,18 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {step === 5 && (
         <div>
           <SectionHeader stamp="STEP 5 OF 7">Starting Capital</SectionHeader>
-          <PanelBox style={{ marginBottom: '16px' }}>
+          <div className="rounded-md border border-zinc-800 bg-zinc-900/60 p-5 mb-4">
             <FieldRow label="Company Name" value={companyNameInput} />
             <FieldRow label="Sector" value={selectedSector} />
             <FieldRow label="HQ State" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ} />
             <FieldRow label="Legal Structure" value={getLegalStructureName(selectedStructure)} />
-          </PanelBox>
-          <PanelBox style={{ background: T.paper, marginBottom: '24px' }}>
+          </div>
+          <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-5 mb-6">
             <SectionHeader>Starting Capital</SectionHeader>
-            <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, marginBottom: '16px' }}>
-              Minimum: <strong style={{ color: T.gold }}>₯50,000</strong>. No maximum — invest as much as your Cash in Hand allows, minus the filing fee ({getLegalStructureName(selectedStructure)} fee: <strong style={{ color: T.red }}>{formatMoney(FILING_FEE)}</strong>).
+            <p className="text-xs text-zinc-500 leading-relaxed mb-4">
+              Minimum: <strong className="text-terminal-amber">₯50,000</strong>. No maximum — invest as much as your Cash in Hand allows, minus the filing fee ({getLegalStructureName(selectedStructure)} fee: <strong className="text-terminal-red">{formatMoney(FILING_FEE)}</strong>).
             </p>
-            <div style={{ marginBottom: '16px' }}>
+            <div className="mb-4">
               <Label>Company Starting Capital (₯)</Label>
               <input
                 type="number"
@@ -916,26 +1012,26 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
                   const v = parseInt(e.target.value) || 50000;
                   setChosenCapital(Math.max(50000, v));
                 }}
-                style={{ width: '100%', padding: '12px 16px', background: T.panel, border: `1px solid ${T.border}`, color: T.mint, fontSize: '16px', fontFamily: 'monospace', fontWeight: 700, outline: 'none', boxSizing: 'border-box' }}
+                className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-4 py-3 text-base font-mono font-bold text-terminal-green outline-none box-border focus:border-terminal-amber/60 transition-colors"
               />
             </div>
-            <FieldRow label="Chosen Capital" value={formatMoney(chosenCapital)} valueColor={T.mint} />
-            <FieldRow label={`Filing Fee (${getLegalStructureName(selectedStructure)})`} value={formatMoney(FILING_FEE)} valueColor={T.red} />
-            <div style={{ marginTop: '12px', padding: '10px 0', borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: T.ivory }}>Total Required</span>
-              <span style={{ fontSize: '16px', fontFamily: 'monospace', fontWeight: 700, color: T.gold }}>{formatMoney(total)}</span>
+            <FieldRow label="Chosen Capital" value={formatMoney(chosenCapital)} valueColor="#30d158" />
+            <FieldRow label={`Filing Fee (${getLegalStructureName(selectedStructure)})`} value={formatMoney(FILING_FEE)} valueColor="#ff453a" />
+            <div className="flex justify-between mt-3 pt-2.5 border-t border-zinc-800">
+              <span className="text-xs font-bold text-zinc-100">Total Required</span>
+              <span className="text-base font-mono font-bold text-terminal-amber">{formatMoney(total)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-              <span style={{ fontSize: '11px', color: T.muted }}>Your Cash in Hand</span>
-              <span style={{ fontSize: '13px', fontFamily: 'monospace', color: canAfford ? T.mint : T.red }}>{formatMoney(playerCash)}</span>
+            <div className="flex justify-between mt-2">
+              <span className="text-[11px] text-zinc-500">Your Cash in Hand</span>
+              <span className={`text-[13px] font-mono ${canAfford ? 'text-terminal-green' : 'text-terminal-red'}`}>{formatMoney(playerCash)}</span>
             </div>
             {!canAfford && (
-              <div style={{ fontSize: '11px', color: T.red, marginTop: '12px', padding: '8px', background: 'rgba(143,61,61,0.1)', border: `1px solid ${T.burgundy}` }}>
+              <div className="text-[11px] text-terminal-red mt-3 rounded-md border border-terminal-red/50 bg-terminal-red/10 p-2">
                 ⚠ Insufficient cash. You need {formatMoney(total - playerCash)} more.
               </div>
             )}
-          </PanelBox>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          </div>
+          <div className="flex gap-2.5">
             <GhostButton onClick={() => setStep(4)}>← Back</GhostButton>
             <GoldButton onClick={() => setStep(6)} disabled={!canAfford || chosenCapital < 50000}>Next: Operating Model →</GoldButton>
           </div>
@@ -946,12 +1042,12 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {step === 6 && (
         <div>
           <SectionHeader stamp="STEP 6 OF 7">{isLogistics ? 'Select Operating Model' : 'Select Manufacturing Subsector'}</SectionHeader>
-          <p style={{ fontSize: '12px', color: T.muted, marginBottom: '20px', lineHeight: 1.7 }}>
+          <p className="text-xs text-zinc-500 mb-5 leading-relaxed">
             {isLogistics 
               ? "Choose your company's initial logistics operating model. This shapes your career trajectory, suggested contracts, and unlocks tailored equipment."
               : "Choose your primary manufacturing subsector. This unlocks specific blueprints, materials, and facility types."}
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+          <div className="flex flex-col gap-2.5 mb-6">
             {isLogistics ? [
               { id: 'Local Courier Operator', title: 'Local Courier Operator', desc: 'Small local delivery, office errands, shop movement. Best for Drennport or Greenmere. Good with Used Delivery Van.', available: true },
               { id: 'Port Shuttle Operator', title: 'Port Shuttle Operator', desc: 'Dock, warehouse, and container-adjacent movement. Best for Westport. Good with Used Delivery Van or Box Truck.', available: true },
@@ -962,21 +1058,18 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
                 key={model.id}
                 onClick={() => setSelectedModel(model.id as any)}
                 disabled={!model.available}
-                style={{
-                  padding: '16px 18px',
-                  background: selectedModel === model.id ? 'rgba(201,162,74,0.08)' : 'rgba(255,255,255,0.02)',
-                  border: selectedModel === model.id ? `1px solid ${T.gold}` : `1px solid ${T.border}`,
-                  cursor: model.available ? 'pointer' : 'not-allowed',
-                  opacity: model.available ? 1 : 0.4,
-                  textAlign: 'left'
-                }}
+                className={`rounded-md border px-4 py-4 text-left transition-colors ${
+                  selectedModel === model.id
+                    ? 'border-terminal-amber bg-terminal-amber/10'
+                    : 'border-zinc-800 bg-zinc-900/40'
+                } ${model.available ? 'cursor-pointer hover:border-zinc-600' : 'cursor-not-allowed opacity-40'}`}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: T.ivory }}>{model.title}</span>
-                  {selectedModel === model.id && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.gold }}>SELECTED ✓</span>}
-                  {!model.available && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>COMING SOON</span>}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-semibold text-zinc-100">{model.title}</span>
+                  {selectedModel === model.id && <span className="text-[9px] font-mono text-terminal-amber">SELECTED ✓</span>}
+                  {!model.available && <span className="text-[9px] font-mono text-zinc-600">COMING SOON</span>}
                 </div>
-                <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px', lineHeight: 1.5 }}>{model.desc}</div>
+                <div className="text-[11px] text-zinc-500 mt-1 leading-normal">{model.desc}</div>
               </button>
             )) : [
               { id: 'automobile-manufacturing', title: 'Automobile Manufacturing', desc: 'Design and mass-produce consumer vehicles, trucks, and specialist transports.', available: true },
@@ -992,25 +1085,22 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
                 key={model.id}
                 onClick={() => setSelectedModel(model.id as any)}
                 disabled={!model.available}
-                style={{
-                  padding: '16px 18px',
-                  background: selectedModel === model.id ? 'rgba(201,162,74,0.08)' : 'rgba(255,255,255,0.02)',
-                  border: selectedModel === model.id ? `1px solid ${T.gold}` : `1px solid ${T.border}`,
-                  cursor: model.available ? 'pointer' : 'not-allowed',
-                  opacity: model.available ? 1 : 0.4,
-                  textAlign: 'left'
-                }}
+                className={`rounded-md border px-4 py-4 text-left transition-colors ${
+                  selectedModel === model.id
+                    ? 'border-terminal-amber bg-terminal-amber/10'
+                    : 'border-zinc-800 bg-zinc-900/40'
+                } ${model.available ? 'cursor-pointer hover:border-zinc-600' : 'cursor-not-allowed opacity-40'}`}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: T.ivory }}>{model.title}</span>
-                  {selectedModel === model.id && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.gold }}>SELECTED ✓</span>}
-                  {!model.available && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>COMING SOON</span>}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-semibold text-zinc-100">{model.title}</span>
+                  {selectedModel === model.id && <span className="text-[9px] font-mono text-terminal-amber">SELECTED ✓</span>}
+                  {!model.available && <span className="text-[9px] font-mono text-zinc-600">COMING SOON</span>}
                 </div>
-                <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px', lineHeight: 1.5 }}>{model.desc}</div>
+                <div className="text-[11px] text-zinc-500 mt-1 leading-normal">{model.desc}</div>
               </button>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="flex gap-2.5">
             <GhostButton onClick={() => setStep(5)}>← Back</GhostButton>
             <GoldButton onClick={() => setStep(7)} disabled={!selectedModel}>Next: Confirm Filing →</GoldButton>
           </div>
@@ -1021,25 +1111,25 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {step === 7 && (
         <div>
           <SectionHeader stamp="STEP 7 OF 7">Confirm Filing</SectionHeader>
-          <PanelBox style={{ background: T.paper, marginBottom: '20px' }}>
-            <div style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.gold, marginBottom: '16px' }}>
+          <div className="rounded-md border border-zinc-800 bg-zinc-900/60 p-5 mb-5">
+            <div className="text-[10px] font-mono uppercase tracking-[0.15em] text-terminal-amber mb-4">
               ◈ Drennia Commercial Registry — Filing Confirmation
             </div>
             <FieldRow label="Company Name" value={companyNameInput} />
             <FieldRow label="Legal Structure" value={selectedStructure === 'sole-trader' ? 'Sole Trader' : selectedStructure === 'private-company' ? 'Private Company' : 'Corporation'} />
             <FieldRow label="Sector" value={selectedSector} />
             <FieldRow label="Headquarters" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ} />
-            <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={isLogistics ? selectedModel : getSubsectorName(selectedModel)} valueColor={T.gold} />
+            <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={isLogistics ? selectedModel : getSubsectorName(selectedModel)} valueColor="#f5a623" />
             <FieldRow label="Filing Date" value={formatGameDate()} />
-            <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor={T.mint} />
-            <FieldRow label="Filing Fee" value={formatMoney(FILING_FEE)} valueColor={T.red} />
-            <FieldRow label="Total Deducted from Cash" value={formatMoney(total)} valueColor={T.gold} />
-          </PanelBox>
-          <p style={{ fontSize: '11px', color: T.muted, marginBottom: '20px', lineHeight: 1.7 }}>
+            <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor="#30d158" />
+            <FieldRow label="Filing Fee" value={formatMoney(FILING_FEE)} valueColor="#ff453a" />
+            <FieldRow label="Total Deducted from Cash" value={formatMoney(total)} valueColor="#f5a623" />
+          </div>
+          <p className="text-[11px] text-zinc-500 mb-5 leading-relaxed">
             By confirming, this filing becomes a permanent public record in the Drennia Commercial Registry.
           </p>
-          {startError && <div style={{ fontSize: '11px', color: T.red, marginBottom: '16px', padding: '10px', background: 'rgba(143,61,61,0.1)', border: `1px solid ${T.burgundy}` }}>{startError}</div>}
-          <div style={{ display: 'flex', gap: '10px' }}>
+          {startError && <div className="text-[11px] text-terminal-red mb-4 rounded-md border border-terminal-red/50 bg-terminal-red/10 p-2.5">{startError}</div>}
+          <div className="flex gap-2.5">
             <GhostButton onClick={() => setStep(6)} disabled={isSubmitting}>← Back</GhostButton>
             <GoldButton onClick={onRegister} disabled={isSubmitting}>
               {isSubmitting ? 'Registering...' : '◈ Confirm Filing & Register'}
@@ -1051,21 +1141,21 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       </div>
 
       {/* Right Rail - Filing Summary */}
-      <div style={{ borderLeft: `1px solid ${T.border}`, paddingLeft: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <div style={{ fontSize: '12px', fontFamily: 'monospace', textTransform: 'uppercase', color: T.gold, letterSpacing: '0.15em', borderBottom: `1px solid ${T.border}`, paddingBottom: '8px' }}>
+      <div className="lg:border-l border-t lg:border-t-0 border-zinc-800 lg:pl-6 pt-6 lg:pt-0 flex flex-col gap-1">
+        <div className="text-xs font-mono uppercase tracking-[0.15em] text-terminal-amber border-b border-zinc-800 pb-2 mb-3">
           Filing Summary
         </div>
         <FieldRow label="Company Name" value={companyNameInput || 'TBD'} />
         <FieldRow label="Legal Structure" value={selectedStructure === 'sole-trader' ? 'Sole Trader' : selectedStructure === 'private-company' ? 'Private Company' : 'Corporation'} />
         <FieldRow label="Sector" value={selectedSector || 'TBD'} />
         <FieldRow label="Headquarters" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ || 'TBD'} />
-        <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={selectedModel ? (isLogistics ? selectedModel : getSubsectorName(selectedModel)) : 'TBD'} valueColor={T.gold} />
-        <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor={T.mint} />
-        <FieldRow label="Total Cost" value={formatMoney(totalCost)} valueColor={T.red} />
-        <FieldRow label="Remaining Cash" value={formatMoney(playerCash - totalCost)} valueColor={T.ivory} />
-        <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(54, 211, 153, 0.05)', border: `1px dashed ${T.mint}` }}>
-          <div style={{ fontSize: '10px', color: T.mint, textTransform: 'uppercase', marginBottom: '8px' }}>Recommendation</div>
-          <div style={{ fontSize: '11px', color: T.ivory, lineHeight: 1.5 }}>After filing, your first step should be to visit the Procurement desk to acquire your first operational asset: {selectedModel === 'Port Shuttle Operator' || selectedModel === 'Local Courier Operator' ? 'Used Delivery Van' : 'Box Truck'}.</div>
+        <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={selectedModel ? (isLogistics ? selectedModel : getSubsectorName(selectedModel)) : 'TBD'} valueColor="#f5a623" />
+        <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor="#30d158" />
+        <FieldRow label="Total Cost" value={formatMoney(totalCost)} valueColor="#ff453a" />
+        <FieldRow label="Remaining Cash" value={formatMoney(playerCash - totalCost)} />
+        <div className="mt-5 rounded-md border border-dashed border-terminal-green/60 bg-terminal-green/5 p-4">
+          <div className="text-[10px] font-mono text-terminal-green uppercase tracking-[0.08em] mb-2">Recommendation</div>
+          <div className="text-[11px] text-zinc-200 leading-normal">After filing, your first step should be to visit the Procurement desk to acquire your first operational asset: {selectedModel === 'Port Shuttle Operator' || selectedModel === 'Local Courier Operator' ? 'Used Delivery Van' : 'Box Truck'}.</div>
         </div>
       </div>
 
@@ -1073,7 +1163,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────���───────────────────
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPANY DESK TAB (Shipping & Logistics)
 // ─────────────────────────────────────────────────────────────────────────────

@@ -178,61 +178,103 @@ function calcLiveScores(design: any, bootstrapData: any) {
 
 function SectionHeader({ children, stamp }: { children: React.ReactNode; stamp?: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', borderBottom: `1px solid ${T.border}`, paddingBottom: '8px', marginBottom: '16px' }}>
-      <h2 style={{ fontSize: '18px', fontWeight: 600, color: T.gold, margin: 0, letterSpacing: '0.05em' }}>{children}</h2>
-      {stamp && <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.1em', paddingBottom: '2px' }}>{stamp}</div>}
+    <div className="flex items-end justify-between gap-3 border-b border-zinc-800 pb-2.5 mb-5">
+      <h2 className="text-base font-semibold text-zinc-100 tracking-wide m-0">{children}</h2>
+      {stamp && (
+        <span className="text-[9px] font-mono text-terminal-amber uppercase tracking-[0.2em] pb-0.5 shrink-0">
+          {stamp}
+        </span>
+      )}
     </div>
   );
 }
 
-function PanelBox({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, padding: '16px', borderRadius: '2px', ...style }}>{children}</div>;
+function PanelBox({ children, style, className = '' }: { children: React.ReactNode; style?: React.CSSProperties; className?: string }) {
+  return (
+    <div
+      className={`bg-zinc-900/40 border border-zinc-800 rounded-md p-4 ${className}`}
+      style={style}
+    >
+      {children}
+    </div>
+  );
 }
 
-function FieldRow({ label, value, valueColor = T.ivory }: { label: string; value: string | number; valueColor?: string }) {
+function FieldRow({ label, value, valueColor }: { label: string; value: string | number; valueColor?: string }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px dotted ${T.border}`, fontSize: '12px' }}>
-      <span style={{ color: T.muted }}>{label}</span>
-      <span style={{ color: valueColor, fontWeight: 500, fontFamily: (typeof value === 'number') ? 'monospace' : 'inherit' }}>{value}</span>
+    <div className="flex items-center justify-between gap-3 py-1.5 border-b border-zinc-800/60 text-xs last:border-b-0">
+      <span className="text-zinc-500">{label}</span>
+      <span
+        className={`font-medium text-right ${typeof value === 'number' ? 'font-mono' : ''} ${!valueColor ? 'text-zinc-200' : ''}`}
+        style={valueColor ? { color: valueColor } : undefined}
+      >
+        {value}
+      </span>
     </div>
   );
 }
 
 function GoldButton({ children, onClick, disabled = false, style = {} }: any) {
   return (
-    <button onClick={onClick} disabled={disabled} style={{
-      background: disabled ? 'transparent' : 'rgba(212,175,55,0.12)', color: disabled ? T.faint : T.gold,
-      border: `1px solid ${disabled ? T.border : T.gold}`, padding: '9px 18px', fontSize: '11px',
-      fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em',
-      cursor: disabled ? 'not-allowed' : 'pointer', transition: 'all 0.2s', ...style
-    }}>{children}</button>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex items-center justify-center gap-2 rounded-sm px-4 py-2 text-[11px] font-mono uppercase tracking-[0.12em] transition-colors
+        ${disabled
+          ? 'bg-transparent text-zinc-600 border border-zinc-800 cursor-not-allowed'
+          : 'bg-terminal-amber/15 text-terminal-amber border border-terminal-amber/70 hover:bg-terminal-amber/25 cursor-pointer'}`}
+      style={style}
+    >
+      {children}
+    </button>
   );
 }
 
-function GhostButton({ children, onClick, color = T.gold, disabled = false, style = {} }: any) {
+function GhostButton({ children, onClick, color, disabled = false, style = {}, className = '' }: any) {
   return (
-    <button onClick={onClick} disabled={disabled} style={{
-      background: 'transparent', color: disabled ? T.faint : color, border: `1px solid ${disabled ? T.border : color}`,
-      padding: '6px 14px', fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase',
-      letterSpacing: '0.1em', cursor: disabled ? 'not-allowed' : 'pointer', ...style
-    }}>{children}</button>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex items-center justify-center gap-2 rounded-sm px-3.5 py-1.5 text-[11px] font-mono uppercase tracking-[0.12em] bg-transparent transition-colors
+        ${disabled
+          ? 'text-zinc-600 border border-zinc-800 cursor-not-allowed'
+          : 'text-zinc-300 border border-zinc-700 hover:border-zinc-500 hover:text-zinc-100 cursor-pointer'} ${className}`}
+      style={!disabled && color ? { color, borderColor: color, ...style } : style}
+    >
+      {children}
+    </button>
   );
 }
 
-function ScoreBadge({ label, value, color = T.ivory }: { label: string; value: number; color?: string }) {
+function ScoreBadge({ label, value, color }: { label: string; value: number; color?: string }) {
+  const variant = value >= 70 ? 'bg-terminal-green' : value >= 45 ? 'bg-terminal-amber' : 'bg-terminal-red';
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '4px 0' }}>
-      <span style={{ color: T.muted }}>{label}</span>
-      <span style={{ color, fontFamily: 'monospace', fontWeight: 600 }}>{value}/100</span>
+    <div className="py-1.5">
+      <div className="flex items-center justify-between text-[11px] mb-1">
+        <span className="text-zinc-500">{label}</span>
+        <span className={`font-mono font-semibold ${!color ? 'text-zinc-200' : ''}`} style={color ? { color } : undefined}>
+          {value}/100
+        </span>
+      </div>
+      <div className="h-1 rounded-full bg-zinc-800 overflow-hidden">
+        <div className={`h-full rounded-full ${variant} transition-all`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+      </div>
     </div>
   );
 }
 
 function FormSelect({ label, value, onChange, options, disabled = false }: { label: string; value: string; onChange: (v: string) => void; options: { id: string; label: string; locked?: boolean }[], disabled?: boolean }) {
   return (
-    <div style={{ marginBottom: '12px' }}>
-      <label style={{ display: 'block', fontSize: '10px', color: T.muted, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</label>
-      <select value={value} onChange={e => onChange(e.target.value)} disabled={disabled} style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', background: disabled ? '#111' : '#0e0e0e', border: `1px solid ${T.border}`, color: disabled ? T.faint : T.ivory, fontSize: '13px', opacity: disabled ? 0.6 : 1, cursor: disabled ? 'not-allowed' : 'default' }}>
+    <div className="mb-3">
+      <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-[0.1em] mb-1.5">{label}</label>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        disabled={disabled}
+        className={`w-full box-border rounded-sm px-3 py-2 text-[13px] bg-zinc-900 border border-zinc-800 text-zinc-200
+          focus:outline-none focus:border-terminal-amber/60 transition-colors
+          ${disabled ? 'opacity-50 cursor-not-allowed text-zinc-600' : 'cursor-pointer hover:border-zinc-700'}`}
+      >
         {options.map(o => (
           <option key={o.id} value={o.id} disabled={o.locked}>{o.label} {o.locked ? '(Locked)' : ''}</option>
         ))}
@@ -241,13 +283,15 @@ function FormSelect({ label, value, onChange, options, disabled = false }: { lab
   );
 }
 
-function EmptyState({ icon = '⚙', title, subtitle, action }: { icon?: string; title: string; subtitle?: string; action?: React.ReactNode }) {
+function EmptyState({ icon, title, subtitle, action }: { icon?: string; title: string; subtitle?: string; action?: React.ReactNode }) {
   return (
-    <div style={{ textAlign: 'center', padding: '48px 24px', border: `1px dashed ${T.border}`, borderRadius: '2px' }}>
-      <div style={{ fontSize: '32px', marginBottom: '12px' }}>{icon}</div>
-      <div style={{ fontSize: '14px', fontWeight: 600, color: T.ivory, marginBottom: '8px' }}>{title}</div>
-      {subtitle && <div style={{ fontSize: '12px', color: T.muted, marginBottom: '20px', maxWidth: '380px', margin: '0 auto 20px', lineHeight: 1.6 }}>{subtitle}</div>}
-      {action && <div style={{ marginTop: '16px' }}>{action}</div>}
+    <div className="flex flex-col items-center justify-center text-center px-6 py-12 border border-dashed border-zinc-800 rounded-md bg-zinc-900/20">
+      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-zinc-800/70 mb-4">
+        <Factory size={18} className="text-zinc-500" />
+      </div>
+      <div className="text-sm font-semibold text-zinc-100 mb-1.5">{title}</div>
+      {subtitle && <div className="text-xs leading-relaxed text-zinc-500 max-w-sm mb-1">{subtitle}</div>}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
@@ -453,7 +497,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
     }
   }, [BASE_DEV_COST]);
 
-  // ── Handlers ────────────────────────────────────────────────���─────────────
+  // ── Handlers ────────────────────────────────────────────────�����─────────────
 
   const handleLeaseFactory = async (factoryTypeId: string) => {
     try {
@@ -732,46 +776,46 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
   // ────────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', width: '100%', minHeight: 'calc(100vh - 120px)' }}>
-      
+    <div className="flex flex-col lg:flex-row w-full min-h-[calc(100vh-120px)]">
+
       {/* LEFT SIDEBAR (MAIN TABS) */}
-      <div style={{ width: '220px', flexShrink: 0, borderRight: `1px solid ${T.border}`, paddingRight: '12px', background: '#0a0a0a' }}>
-         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'sticky', top: '16px', paddingTop: '16px' }}>
-           {MFG_TABS.map(t => (
-             <div 
-               key={t.id}
-               onClick={() => setDeskTab(t.id as MfgTab)}
-               style={{
-                 padding: '12px 16px',
-                 fontSize: '11px',
-                 fontWeight: 600,
-                 textTransform: 'uppercase',
-                 letterSpacing: '0.1em',
-                 color: deskTab === t.id ? T.gold : T.muted,
-                 background: deskTab === t.id ? 'rgba(201,162,74,0.1)' : 'transparent',
-                 borderLeft: deskTab === t.id ? `3px solid ${T.gold}` : '3px solid transparent',
-                 cursor: 'pointer',
-                 transition: 'all 0.2s ease',
-                 display: 'flex',
-                 alignItems: 'center',
-                 gap: '12px',
-                 borderRadius: '0 4px 4px 0'
-               }}
-             >
-               {t.icon && (() => { const Icon = t.icon; return <span style={{ opacity: deskTab === t.id ? 1 : 0.6, display: 'flex', alignItems: 'center' }}><Icon size={14} /></span>; })()}
-               <span>{t.label}</span>
-             </div>
-           ))}
-         </div>
-      </div>
+      <nav aria-label="Manufacturing desk sections" className="lg:w-[210px] shrink-0 lg:border-r border-zinc-800 lg:pr-3">
+        <div className="flex lg:flex-col gap-1 lg:sticky lg:top-4 lg:pt-4 pb-2 lg:pb-0 overflow-x-auto lg:overflow-visible">
+          {MFG_TABS.map(t => {
+            const active = deskTab === t.id;
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setDeskTab(t.id as MfgTab)}
+                aria-current={active ? 'page' : undefined}
+                className={`flex items-center gap-3 px-4 py-2.5 text-[11px] font-mono font-semibold uppercase tracking-[0.1em] whitespace-nowrap rounded-r-md border-l-2 transition-colors cursor-pointer text-left
+                  ${active
+                    ? 'text-terminal-amber bg-terminal-amber/10 border-terminal-amber'
+                    : 'text-zinc-500 bg-transparent border-transparent hover:text-zinc-300 hover:bg-zinc-800/40'}`}
+              >
+                {Icon && <Icon size={14} className={active ? 'opacity-100' : 'opacity-60'} />}
+                <span>{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
       {/* MAIN CONTENT AREA */}
-      <div style={{ flex: 1, minWidth: 0, paddingLeft: '24px', paddingBottom: '64px', paddingTop: '16px' }}>
+      <main className="flex-1 min-w-0 lg:pl-6 pb-16 pt-4">
 
         {/* Notification */}
         {notification && (
-          <div style={{ marginBottom: '16px', padding: '12px 16px', background: notification.success ? 'rgba(54,211,153,0.08)' : 'rgba(184,85,85,0.08)', border: `1px solid ${notification.success ? T.mint : T.red}`, color: notification.success ? T.mint : T.red, fontSize: '12px', lineHeight: 1.6 }}>
-            {notification.msg}
+          <div
+            role="status"
+            className={`mb-4 flex items-start gap-2.5 rounded-md border px-4 py-3 text-xs leading-relaxed
+              ${notification.success
+                ? 'border-terminal-green/50 bg-terminal-green/10 text-terminal-green'
+                : 'border-terminal-red/50 bg-terminal-red/10 text-terminal-red'}`}
+          >
+            <StatusDot variant={notification.success ? 'live' : 'danger'} className="mt-1 shrink-0" />
+            <span>{notification.msg}</span>
           </div>
         )}
 
@@ -969,60 +1013,66 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           <SectionHeader stamp="FACILITIES">Factory</SectionHeader>
 
           {factories.length === 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <EmptyState
-                icon="🏭"
                 title="No factories yet"
                 subtitle="Lease a Small Workshop to begin automobile manufacturing. The lease cost is deducted immediately from company cash."
                 action={<GoldButton onClick={() => handleLeaseFactory('small-workshop')}>Lease Small Workshop</GoldButton>}
               />
               {/* Factory info card */}
               <PanelBox>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: T.gold, marginBottom: '12px' }}>Small Workshop</div>
-                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', lineHeight: 1.6 }}>Entry-level automobile assembly facility. Suitable for compact cars, sedans and utility vans.</div>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-[13px] font-bold text-zinc-100 m-0">Small Workshop</h3>
+                  <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-terminal-green">● Available</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-zinc-500 mb-4 mt-1">Entry-level automobile assembly facility. Suitable for compact cars, sedans and utility vans.</p>
                 <FieldRow label="Capacity" value={`${bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_capacity_per_month ?? 100} units / Month`} />
                 <FieldRow label="Production Lines" value="1" />
-                <FieldRow label="Lease Cost" value={`${fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_month ?? 25000)} / Month`} valueColor={T.red} />
-                <FieldRow label="Maintenance" value={`${fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_maintenance_per_month ?? 8000)} / Month`} valueColor={T.red} />
+                <FieldRow label="Lease Cost" value={`${fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_month ?? 25000)} / Month`} valueColor="#ff453a" />
+                <FieldRow label="Maintenance" value={`${fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_maintenance_per_month ?? 8000)} / Month`} valueColor="#ff453a" />
                 <FieldRow label="Recommended Workers" value="30" />
-                <FieldRow label="Status" value="Available" valueColor={T.mint} />
-                <div style={{ marginTop: '16px' }}>
+                <div className="mt-4">
                   <GoldButton onClick={() => handleLeaseFactory('small-workshop')} disabled={Number(finances?.available_cash || 0) < (bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_month ?? 25000)}>
                     Lease Small Workshop
                   </GoldButton>
                   {Number(finances?.available_cash || 0) < (bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_month ?? 25000) && (
-                    <div style={{ fontSize: '11px', color: T.red, marginTop: '6px' }}>Insufficient cash. Need {fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_month ?? 25000)}.</div>
+                    <div className="text-[11px] text-terminal-red mt-1.5">Insufficient cash. Need {fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_month ?? 25000)}.</div>
                   )}
                 </div>
               </PanelBox>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="flex flex-col gap-4">
               {factories.map((factory: any) => (
                 <PanelBox key={factory.id}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                    <div>
-                      <div style={{ fontSize: '16px', fontWeight: 700, color: T.ivory, marginBottom: '4px' }}>{factory.name}</div>
-                      <div style={{ fontSize: '11px', color: T.muted }}>
-                        Type: <span style={{ color: T.gold }}>{factory.type_name || 'Small Workshop'}</span>
-                        {' · '}Location: <span style={{ color: T.ivory }}>{resolveState(factory.state_id)}</span>
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex items-center justify-center w-9 h-9 rounded-md bg-terminal-amber/10 border border-terminal-amber/30 shrink-0">
+                        <Factory size={16} className="text-terminal-amber" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-zinc-100 m-0 mb-0.5">{factory.name}</h3>
+                        <div className="text-[11px] text-zinc-500">
+                          <span className="text-terminal-amber">{factory.type_name || 'Small Workshop'}</span>
+                          {' · '}<span className="text-zinc-300">{resolveState(factory.state_id)}</span>
+                        </div>
                       </div>
                     </div>
-                    <div style={{ fontSize: '11px', color: factory.status === 'active' ? T.mint : T.red, fontFamily: 'monospace', textTransform: 'uppercase' }}>
-                      ● {factory.status}
-                    </div>
+                    <Badge variant={factory.status === 'active' ? 'green' : 'red'} dot>
+                      {factory.status}
+                    </Badge>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
                     <FieldRow label="Capacity / Month" value={`${factory.capacity_per_month} units`} />
-                    <FieldRow label="Lease Cost / Month" value={fm(factory.lease_cost_per_month)} valueColor={T.red} />
+                    <FieldRow label="Lease Cost / Month" value={fm(factory.lease_cost_per_month)} valueColor="#ff453a" />
                     <FieldRow label="Production Lines" value={factory.max_production_lines || 1} />
-                    <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_month)} valueColor={T.red} />
-                    <FieldRow label="Machine Level" value={factory.machine_level} valueColor={T.gold} />
-                    <FieldRow label="Condition" value={`${factory.condition}%`} valueColor={Number(factory.condition) < 60 ? T.red : T.mint} />
+                    <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_month)} valueColor="#ff453a" />
+                    <FieldRow label="Machine Level" value={factory.machine_level} valueColor="#d4af37" />
+                    <FieldRow label="Condition" value={`${factory.condition}%`} valueColor={Number(factory.condition) < 60 ? '#ff453a' : '#30d158'} />
                   </div>
 
-                  <div style={{ marginTop: '16px' }}>
+                  <div className="mt-4">
                     <GhostButton onClick={() => setDeskTab('production')}>Open Production →</GhostButton>
                   </div>
 
@@ -1033,18 +1083,18 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     // STATE: EXPANDED
                     if (expStatus === 'expanded') {
                       return (
-                        <div style={{ marginTop: '20px', borderTop: `1px solid ${T.border}`, paddingTop: '16px' }}>
-                          <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.gold, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>Facility Growth</div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                            <div style={{ background: 'rgba(54,211,153,0.12)', border: `1px solid ${T.mint}`, color: T.mint, fontSize: '11px', fontWeight: 700, padding: '4px 10px', letterSpacing: '0.05em' }}>✓ EXPANSION COMPLETE</div>
+                        <div className="mt-5 border-t border-zinc-800 pt-4">
+                          <div className="text-[10px] font-mono text-terminal-amber tracking-[0.15em] uppercase mb-3">Facility Growth</div>
+                          <div className="mb-3">
+                            <Badge variant="green">Expansion Complete</Badge>
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
-                            <FieldRow label="Facility" value="Expanded Workshop" valueColor={T.gold} />
-                            <FieldRow label="Capacity" value={`${EXP_CAPACITY} units / Month`} valueColor={T.mint} />
-                            <FieldRow label="Production Lines" value={String(EXP_MAX_LINES)} valueColor={T.mint} />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+                            <FieldRow label="Facility" value="Expanded Workshop" valueColor="#d4af37" />
+                            <FieldRow label="Capacity" value={`${EXP_CAPACITY} units / Month`} valueColor="#30d158" />
+                            <FieldRow label="Production Lines" value={String(EXP_MAX_LINES)} valueColor="#30d158" />
                             <FieldRow label="Worker Capacity" value={String(EXP_WORKERS)} />
-                            <FieldRow label="Lease / Month" value={fm(EXP_LEASE)} valueColor={T.red} />
-                            <FieldRow label="Maintenance / Month" value={fm(EXP_MAINT)} valueColor={T.red} />
+                            <FieldRow label="Lease / Month" value={fm(EXP_LEASE)} valueColor="#ff453a" />
+                            <FieldRow label="Maintenance / Month" value={fm(EXP_MAINT)} valueColor="#ff453a" />
                           </div>
                         </div>
                       );
@@ -1057,17 +1107,20 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                       const compMonth = factory.expansion_completion_arc;
                       const compYear = factory.expansion_completion_year;
                       return (
-                        <div style={{ marginTop: '20px', borderTop: `1px solid ${T.border}`, paddingTop: '16px' }}>
-                          <div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#f59e0b', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>Workshop Expansion Underway</div>
-                          <div style={{ background: 'rgba(245,158,11,0.06)', border: `1px solid rgba(245,158,11,0.3)`, padding: '12px', marginBottom: '12px' }}>
-                            <div style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 700, marginBottom: '8px' }}>🔧 Construction in Progress</div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+                        <div className="mt-5 border-t border-zinc-800 pt-4">
+                          <div className="text-[10px] font-mono text-terminal-amber tracking-[0.15em] uppercase mb-3">Workshop Expansion Underway</div>
+                          <div className="rounded-md border border-terminal-amber/40 bg-terminal-amber/5 p-3.5 mb-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <StatusDot variant="warning" />
+                              <span className="text-[11px] font-bold text-terminal-amber">Construction in Progress</span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
                               <FieldRow label="Started" value={formatWorldDate(startedYear, startedArc)} />
                               <FieldRow label="Completes" value={formatWorldDate(compYear, compMonth)} />
-                              <FieldRow label="Investment Paid" value={fm(factory.expansion_cost || 500000)} valueColor={T.red} />
+                              <FieldRow label="Investment Paid" value={fm(factory.expansion_cost || 500000)} valueColor="#ff453a" />
                               <FieldRow label="Current Capacity" value="100 units / Month" />
-                              <FieldRow label="Production Line 1" value="Operational" valueColor={T.mint} />
-                              <FieldRow label="Production Line 2" value="Unavailable until complete" valueColor={T.faint} />
+                              <FieldRow label="Production Line 1" value="Operational" valueColor="#30d158" />
+                              <FieldRow label="Production Line 2" value="Unavailable until complete" valueColor="#71717a" />
                             </div>
                           </div>
                         </div>
@@ -1078,18 +1131,20 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     const canAfford = Number(finances?.available_cash || 0) >= EXPANSION_COST;
                     if (showExpandConfirm && expandingFactoryId === factory.id) {
                       return (
-                        <div style={{ marginTop: '20px', borderTop: `1px solid ${T.border}`, paddingTop: '16px' }}>
-                          <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.gold, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>Workshop Expansion — {EXP_MAX_LINES} Production Lines</div>
-                          <div style={{ background: 'rgba(212,175,55,0.06)', border: `1px solid ${T.border}`, padding: '14px', marginBottom: '14px', fontSize: '12px', color: T.ivory, lineHeight: 1.8 }}>
-                            <div style={{ fontWeight: 700, color: T.gold, marginBottom: '8px' }}>This investment will:</div>
-                            <div>• Add {EXP_MAX_LINES - 1} additional production line{EXP_MAX_LINES - 1 > 1 ? 's' : ''}</div>
-                            <div>• Increase total capacity from {factory.capacity_per_month ?? 100} to <strong style={{ color: T.mint }}>{EXP_CAPACITY} units / Month</strong></div>
-                            <div>• Increase Factory Worker capacity to <strong style={{ color: T.mint }}>{EXP_WORKERS}</strong></div>
-                            <div>• Increase recurring lease to <strong style={{ color: T.red }}>{fm(EXP_LEASE)} / Month</strong> and maintenance to <strong style={{ color: T.red }}>{fm(EXP_MAINT)} / Month</strong></div>
-                            <div style={{ marginTop: '8px', color: T.muted }}>Construction will take {EXPANSION_DURATION} Month{EXPANSION_DURATION > 1 ? 's' : ''}. Production Line 1 remains operational during construction.</div>
+                        <div className="mt-5 border-t border-zinc-800 pt-4">
+                          <div className="text-[10px] font-mono text-terminal-amber tracking-[0.15em] uppercase mb-3">Workshop Expansion — {EXP_MAX_LINES} Production Lines</div>
+                          <div className="rounded-md border border-terminal-amber/30 bg-terminal-amber/5 p-4 mb-4 text-xs leading-relaxed text-zinc-200">
+                            <div className="font-bold text-terminal-amber mb-2">This investment will:</div>
+                            <ul className="flex flex-col gap-1 list-disc pl-4 marker:text-zinc-600">
+                              <li>Add {EXP_MAX_LINES - 1} additional production line{EXP_MAX_LINES - 1 > 1 ? 's' : ''}</li>
+                              <li>Increase total capacity from {factory.capacity_per_month ?? 100} to <strong className="text-terminal-green">{EXP_CAPACITY} units / Month</strong></li>
+                              <li>Increase Factory Worker capacity to <strong className="text-terminal-green">{EXP_WORKERS}</strong></li>
+                              <li>Increase recurring lease to <strong className="text-terminal-red">{fm(EXP_LEASE)} / Month</strong> and maintenance to <strong className="text-terminal-red">{fm(EXP_MAINT)} / Month</strong></li>
+                            </ul>
+                            <p className="mt-2 mb-0 text-zinc-500">Construction will take {EXPANSION_DURATION} Month{EXPANSION_DURATION > 1 ? 's' : ''}. Production Line 1 remains operational during construction.</p>
                           </div>
-                          <div style={{ display: 'flex', gap: '10px' }}>
-                            <GoldButton onClick={() => handleStartExpansion(factory.id)} style={{ fontSize: '12px' }}>
+                          <div className="flex items-center gap-2.5 flex-wrap">
+                            <GoldButton onClick={() => handleStartExpansion(factory.id)}>
                               Confirm {fm(EXPANSION_COST)} Expansion
                             </GoldButton>
                             <GhostButton onClick={() => { setShowExpandConfirm(false); setExpandingFactoryId(null); }}>
@@ -1101,38 +1156,38 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     }
 
                     return (
-                      <div style={{ marginTop: '20px', borderTop: `1px solid ${T.border}`, paddingTop: '16px' }}>
-                        <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.gold, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>Facility Growth</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '14px' }}>
-                          <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, padding: '12px' }}>
-                            <div style={{ fontSize: '11px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Current Facility</div>
-                            <div style={{ fontSize: '10px', color: T.muted, marginBottom: '6px' }}>Small Workshop</div>
+                      <div className="mt-5 border-t border-zinc-800 pt-4">
+                        <div className="text-[10px] font-mono text-terminal-amber tracking-[0.15em] uppercase mb-3">Facility Growth</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3.5">
+                            <div className="text-[11px] font-bold text-zinc-100 mb-0.5">Current Facility</div>
+                            <div className="text-[10px] text-zinc-500 mb-1.5">Small Workshop</div>
                             <FieldRow label="Capacity" value={`${factory.capacity_per_month ?? 100} units / Month`} />
                             <FieldRow label="Production Lines" value="1" />
                             <FieldRow label="Max Workers" value={String(factory.worker_capacity ?? 40)} />
-                            <FieldRow label="Lease / Month" value={fm(factory.lease_cost_per_month)} valueColor={T.red} />
-                            <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_month)} valueColor={T.red} />
+                            <FieldRow label="Lease / Month" value={fm(factory.lease_cost_per_month)} valueColor="#ff453a" />
+                            <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_month)} valueColor="#ff453a" />
                           </div>
-                          <div style={{ background: 'rgba(212,175,55,0.04)', border: `1px solid rgba(212,175,55,0.3)`, padding: '12px' }}>
-                            <div style={{ fontSize: '11px', fontWeight: 700, color: T.gold, marginBottom: '8px' }}>Expanded Workshop</div>
-                            <div style={{ fontSize: '10px', color: T.muted, marginBottom: '6px' }}>After expansion completes</div>
-                            <FieldRow label="Capacity" value={`${EXP_CAPACITY} units / Month`} valueColor={T.mint} />
-                            <FieldRow label="Production Lines" value={String(EXP_MAX_LINES)} valueColor={T.mint} />
-                            <FieldRow label="Max Workers" value={String(EXP_WORKERS)} valueColor={T.mint} />
-                            <FieldRow label="Lease / Month" value={fm(EXP_LEASE)} valueColor={T.red} />
-                            <FieldRow label="Maintenance / Month" value={fm(EXP_MAINT)} valueColor={T.red} />
+                          <div className="rounded-md border border-terminal-amber/40 bg-terminal-amber/5 p-3.5">
+                            <div className="text-[11px] font-bold text-terminal-amber mb-0.5">Expanded Workshop</div>
+                            <div className="text-[10px] text-zinc-500 mb-1.5">After expansion completes</div>
+                            <FieldRow label="Capacity" value={`${EXP_CAPACITY} units / Month`} valueColor="#30d158" />
+                            <FieldRow label="Production Lines" value={String(EXP_MAX_LINES)} valueColor="#30d158" />
+                            <FieldRow label="Max Workers" value={String(EXP_WORKERS)} valueColor="#30d158" />
+                            <FieldRow label="Lease / Month" value={fm(EXP_LEASE)} valueColor="#ff453a" />
+                            <FieldRow label="Maintenance / Month" value={fm(EXP_MAINT)} valueColor="#ff453a" />
                             <FieldRow label="Construction Time" value={`${EXPANSION_DURATION} Month${EXPANSION_DURATION > 1 ? 's' : ''}`} />
-                            <FieldRow label="Upfront Investment" value={fm(EXPANSION_COST)} valueColor={T.gold} />
+                            <FieldRow label="Upfront Investment" value={fm(EXPANSION_COST)} valueColor="#d4af37" />
                           </div>
                         </div>
                         {canAfford ? (
-                          <GoldButton onClick={() => { setShowExpandConfirm(true); setExpandingFactoryId(factory.id); }} style={{ fontSize: '12px' }}>
+                          <GoldButton onClick={() => { setShowExpandConfirm(true); setExpandingFactoryId(factory.id); }}>
                             Expand Workshop
                           </GoldButton>
                         ) : (
                           <div>
-                            <GoldButton disabled style={{ fontSize: '12px', opacity: 0.5 }}>Expand Workshop</GoldButton>
-                            <div style={{ fontSize: '11px', color: T.red, marginTop: '6px' }}>Insufficient company funds. Requires {fm(EXPANSION_COST)}.</div>
+                            <GoldButton disabled>Expand Workshop</GoldButton>
+                            <div className="text-[11px] text-terminal-red mt-1.5">Insufficient company funds. Requires {fm(EXPANSION_COST)}.</div>
                           </div>
                         )}
                       </div>
@@ -1153,26 +1208,23 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
         // Status badge helper
         const devBadge = (status: string, devStage?: string) => {
-          const cfg: Record<string, { label: string; color: string; bg: string }> = {
-            in_development: { label: 'Development In Progress', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
-            ready_to_launch: { label: 'Ready to Launch', color: '#6ea8fe', bg: 'rgba(110,168,254,0.08)' },
-            launched: { label: 'Launched', color: T.mint, bg: 'rgba(54,211,153,0.08)' },
-            cancelled: { label: 'Cancelled', color: T.red, bg: 'rgba(184,85,85,0.08)' },
+          const cfg: Record<string, { label: string; cls: string }> = {
+            in_development: { label: 'Development In Progress', cls: 'text-terminal-amber bg-terminal-amber/10 border-terminal-amber/40' },
+            ready_to_launch: { label: 'Ready to Launch', cls: 'text-terminal-blue bg-terminal-blue/10 border-terminal-blue/40' },
+            launched: { label: 'Launched', cls: 'text-terminal-green bg-terminal-green/10 border-terminal-green/40' },
+            cancelled: { label: 'Cancelled', cls: 'text-terminal-red bg-terminal-red/10 border-terminal-red/40' },
           };
           const c = cfg[status] || cfg['in_development'];
           const stageLabels: Record<string, string> = {
-            engineering: '⚙ Engineering Phase',
-            prototype: '🔨 Prototype Build',
-            testing: '🧪 Testing Programme',
-            ready_to_launch: '✓ Ready',
+            engineering: 'Engineering Phase',
+            prototype: 'Prototype Build',
+            testing: 'Testing Programme',
+            ready_to_launch: 'Ready',
           };
           const stageSuffix = status === 'in_development' && devStage && devStage !== 'ready_to_launch'
             ? ` — ${stageLabels[devStage] ?? devStage}` : '';
           return (
-            <span style={{
-              fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.08em',
-              color: c.color, background: c.bg, border: `1px solid ${c.color}40`, padding: '2px 8px', borderRadius: '2px'
-            }}>
+            <span className={`inline-flex items-center rounded-sm border px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.08em] ${c.cls}`}>
               {c.label}{stageSuffix}
             </span>
           );
@@ -1220,47 +1272,58 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         const balanceRating = selectedModel?.engineering_balance_rating || null;
 
         return (
-          <div style={{ display: 'flex', gap: '32px' }}>
+          <div className="flex flex-col md:flex-row gap-6 md:gap-8">
             {/* ── INTERNAL SUB-NAV (LEFT CORNER) ── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px', borderRight: `1px solid ${T.border}`, paddingRight: '24px', marginLeft: '-24px', paddingTop: '12px' }}>
-              {(['portfolio', 'research', 'knowledge'] as const).map((tab) => (
-                <div key={tab}
-                  style={{ 
-                    padding: '10px 16px', 
-                    fontSize: '13px', 
-                    fontWeight: 600, 
-                    color: designTab === tab ? T.gold : T.muted, 
-                    background: designTab === tab ? 'rgba(201,162,74,0.1)' : 'transparent',
-                    borderLeft: designTab === tab ? `3px solid ${T.gold}` : '3px solid transparent', 
-                    borderRadius: '0 4px 4px 0',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onClick={() => setDesignTab(tab)}
-                >
-                  {tab === 'portfolio' ? 'Vehicle Portfolio' : tab === 'research' ? 'Engineering Programmes' : 'Knowledge'}
-                </div>
-              ))}
+            <div className="flex md:flex-col gap-1.5 md:min-w-[200px] md:border-r border-zinc-800 md:pr-5 md:pt-3 overflow-x-auto">
+              {(['portfolio', 'research', 'knowledge'] as const).map((tab) => {
+                const active = designTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setDesignTab(tab)}
+                    aria-current={active ? 'page' : undefined}
+                    className={`px-4 py-2.5 text-[12px] font-semibold text-left whitespace-nowrap rounded-r-md border-l-2 transition-colors cursor-pointer
+                      ${active
+                        ? 'text-terminal-amber bg-terminal-amber/10 border-terminal-amber'
+                        : 'text-zinc-500 bg-transparent border-transparent hover:text-zinc-300 hover:bg-zinc-800/40'}`}
+                  >
+                    {tab === 'portfolio' ? 'Vehicle Portfolio' : tab === 'research' ? 'Engineering Programmes' : 'Knowledge'}
+                  </button>
+                );
+              })}
             </div>
 
             {/* ── CONTENT AREA ── */}
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
 
             {designTab === 'portfolio' && (
               <div>
                 {/* ── VEHICLE DETAIL PANEL ── */}
                 {selectedModel && (
-                  <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }}
-                    onClick={() => setSelectedModelId(null)}>
-                    <div style={{ width: '520px', height: '100vh', overflowY: 'auto', background: '#0d0d0d', border: `1px solid ${T.border}`, borderRight: 'none', padding: '32px 28px' }}
-                      onClick={e => e.stopPropagation()}>
+                  <div
+                    className="fixed inset-0 z-[200] flex items-start justify-end bg-black/60 backdrop-blur-sm"
+                    onClick={() => setSelectedModelId(null)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={`${selectedModel.name} details`}
+                  >
+                    <div
+                      className="w-full max-w-[520px] h-screen overflow-y-auto bg-zinc-950 border-l border-zinc-800 p-7 animate-slide-in"
+                      onClick={e => e.stopPropagation()}
+                    >
                       {/* Header */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                      <div className="flex items-start justify-between gap-3 mb-5">
                         <div>
-                          <div style={{ fontSize: '20px', fontWeight: 700, color: T.gold, marginBottom: '6px' }}>{selectedModel.name}</div>
-                          <div style={{ fontSize: '12px', color: T.muted }}>{selectedModel.vehicle_class} · {selectedModel.target_segment}</div>
+                          <h2 className="text-xl font-bold text-zinc-100 m-0 mb-1">{selectedModel.name}</h2>
+                          <div className="text-xs text-zinc-500">{selectedModel.vehicle_class} · {selectedModel.target_segment}</div>
                         </div>
-                        <button onClick={() => setSelectedModelId(null)} style={{ background: 'none', border: 'none', color: T.muted, fontSize: '20px', cursor: 'pointer', padding: '0 0 0 12px', lineHeight: 1 }}>✕</button>
+                        <button
+                          onClick={() => setSelectedModelId(null)}
+                          aria-label="Close details"
+                          className="text-zinc-500 hover:text-zinc-200 text-xl leading-none bg-transparent border-none cursor-pointer p-1 transition-colors"
+                        >
+                          ✕
+                        </button>
                       </div>
 
                       {/* Status */}
@@ -1270,45 +1333,53 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
                       {/* Development status info box */}
                       {selectedModel.development_status === 'in_development' && (
-                        <div style={{ background: 'rgba(245,158,11,0.06)', border: `1px solid rgba(245,158,11,0.25)`, padding: '14px', marginBottom: '20px', borderRadius: '2px' }}>
-                          <div style={{ fontSize: '11px', color: '#f59e0b', fontFamily: 'monospace', textTransform: 'uppercase', marginBottom: '6px' }}>Development In Progress</div>
-                          <div style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7 }}>
-                            {selectedModel.dev_stage === 'engineering' && '⚙ Engineering Phase — core design and systems engineering work.'}
-                            {selectedModel.dev_stage === 'prototype' && '🔨 Prototype Phase — building and evaluating physical prototypes.'}
-                            {selectedModel.dev_stage === 'testing' && '🧪 Testing Programme — road testing and durability validation.'}
+                        <div className="rounded-md border border-terminal-amber/30 bg-terminal-amber/5 p-4 mb-5">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <StatusDot variant="warning" />
+                            <span className="text-[11px] font-mono text-terminal-amber uppercase tracking-[0.1em]">Development In Progress</span>
+                          </div>
+                          <p className="text-xs leading-relaxed text-zinc-500 m-0">
+                            {selectedModel.dev_stage === 'engineering' && 'Engineering Phase — core design and systems engineering work.'}
+                            {selectedModel.dev_stage === 'prototype' && 'Prototype Phase — building and evaluating physical prototypes.'}
+                            {selectedModel.dev_stage === 'testing' && 'Testing Programme — road testing and durability validation.'}
                             {!selectedModel.dev_stage && 'Development is underway.'}
                             {' '}Est. ready: {formatWorldDate(selectedModel.development_completes_at_year || 1, selectedModel.development_completes_at_month || 1)}.
-                          </div>
+                          </p>
                           {selectedModel.planned_dev_time_months && (
-                            <div style={{ marginTop: '10px', display: 'flex', gap: '6px' }}>
-                              {['engineering', 'prototype', 'testing'].map((stage, i) => (
-                                <div key={stage} style={{
-                                  flex: 1, padding: '6px', textAlign: 'center', fontSize: '9px', fontFamily: 'monospace',
-                                  textTransform: 'uppercase', letterSpacing: '0.06em',
-                                  background: selectedModel.dev_stage === stage ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.02)',
-                                  border: `1px solid ${selectedModel.dev_stage === stage ? '#f59e0b' : T.border}`,
-                                  color: selectedModel.dev_stage === stage ? '#f59e0b' : T.faint,
-                                }}>
-                                  {['⚙ Eng.', '🔨 Proto.', '🧪 Test'][i]}
-                                </div>
-                              ))}
-                              <div style={{
-                                flex: 1, padding: '6px', textAlign: 'center', fontSize: '9px', fontFamily: 'monospace',
-                                textTransform: 'uppercase', letterSpacing: '0.06em',
-                                background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, color: T.faint
-                              }}>✓ Launch</div>
+                            <div className="mt-3 flex gap-1.5">
+                              {[
+                                { stage: 'engineering', label: 'Eng.' },
+                                { stage: 'prototype', label: 'Proto.' },
+                                { stage: 'testing', label: 'Test' },
+                              ].map(({ stage, label }) => {
+                                const active = selectedModel.dev_stage === stage;
+                                return (
+                                  <div
+                                    key={stage}
+                                    className={`flex-1 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.08em] rounded-sm border
+                                      ${active
+                                        ? 'bg-terminal-amber/15 border-terminal-amber text-terminal-amber'
+                                        : 'bg-zinc-900/40 border-zinc-800 text-zinc-600'}`}
+                                  >
+                                    {label}
+                                  </div>
+                                );
+                              })}
+                              <div className="flex-1 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.08em] rounded-sm border bg-zinc-900/40 border-zinc-800 text-zinc-600">
+                                Launch
+                              </div>
                             </div>
                           )}
                         </div>
                       )}
 
                       {selectedModel.development_status === 'ready_to_launch' && (
-                        <div style={{ background: 'rgba(110,168,254,0.06)', border: `1px solid rgba(110,168,254,0.25)`, padding: '14px', marginBottom: '20px', borderRadius: '2px' }}>
-                          <div style={{ fontSize: '11px', color: T.blue, fontFamily: 'monospace', textTransform: 'uppercase', marginBottom: '6px' }}>Ready to Launch</div>
-                          <div style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7 }}>
-                            Development is complete. Review the final specifications, then click <strong style={{ color: T.ivory }}>Launch Model</strong> to make it available for production assignment.
-                          </div>
-                          <div style={{ marginTop: '14px' }}>
+                        <div className="rounded-md border border-terminal-blue/30 bg-terminal-blue/5 p-4 mb-5">
+                          <div className="text-[11px] font-mono text-terminal-blue uppercase tracking-[0.1em] mb-1.5">Ready to Launch</div>
+                          <p className="text-xs leading-relaxed text-zinc-500 m-0">
+                            Development is complete. Review the final specifications, then click <strong className="text-zinc-200">Launch Model</strong> to make it available for production assignment.
+                          </p>
+                          <div className="mt-3.5">
                             <GoldButton
                               onClick={() => handleLaunchModel(selectedModel.id)}
                               disabled={launchingModelId === selectedModel.id}
@@ -1320,8 +1391,9 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                       )}
 
                       {selectedModel.development_status === 'launched' && (
-                        <div style={{ background: 'rgba(54,211,153,0.06)', border: `1px solid rgba(54,211,153,0.2)`, padding: '10px 14px', marginBottom: '20px', borderRadius: '2px', fontSize: '12px', color: T.mint }}>
-                          ✓ Launched — available for production assignment.
+                        <div className="flex items-center gap-2 rounded-md border border-terminal-green/30 bg-terminal-green/5 px-4 py-2.5 mb-5 text-xs text-terminal-green">
+                          <StatusDot variant="live" />
+                          Launched — available for production assignment.
                         </div>
                       )}
 
@@ -2203,23 +2275,27 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         return (
           <div>
             <SectionHeader stamp="SUPPLY CHAIN">Component Procurement</SectionHeader>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {componentCatalogue.map((comp: any) => {
                 const inv = componentInventory.find((i: any) => i.component_id === comp.id);
                 const stock = inv ? inv.units_in_stock : 0;
                 return (
-                  <div key={comp.id} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, padding: '16px', borderRadius: '2px' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: T.gold, marginBottom: '8px' }}>{comp.name}</div>
-                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', minHeight: '32px' }}>{comp.description}</div>
-                    <FieldRow label="In Stock" value={stock} valueColor={stock > 0 ? T.mint : T.faint} />
-                    <FieldRow label="Base Cost" value={fm(comp.base_cost)} />
-                    <div style={{ marginTop: '16px' }}>
-                      <GoldButton
-                        onClick={() => setProcuringComponent({ id: comp.id, name: comp.name, units: 1000, cost: comp.base_cost })}
-                        style={{ width: '100%' }}
-                      >
-                        Purchase Order
-                      </GoldButton>
+                  <div key={comp.id} className="flex flex-col rounded-md border border-zinc-800 bg-zinc-900/40 p-4 hover:border-zinc-700 transition-colors">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <h3 className="text-[13px] font-bold text-zinc-100 m-0">{comp.name}</h3>
+                      <Badge variant={stock > 0 ? 'green' : 'zinc'}>{stock > 0 ? `${stock} in stock` : 'No stock'}</Badge>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-zinc-500 mb-4 min-h-8">{comp.description}</p>
+                    <div className="mt-auto">
+                      <FieldRow label="Base Cost" value={fm(comp.base_cost)} />
+                      <div className="mt-3">
+                        <GoldButton
+                          onClick={() => setProcuringComponent({ id: comp.id, name: comp.name, units: 1000, cost: comp.base_cost })}
+                          style={{ width: '100%' }}
+                        >
+                          Purchase Order
+                        </GoldButton>
+                      </div>
                     </div>
                   </div>
                 );
@@ -2227,23 +2303,30 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
             </div>
 
             {procuringComponent && (
-              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-                <div style={{ background: T.bg, border: `1px solid ${T.border}`, padding: '24px', width: '400px', borderRadius: '2px' }}>
-                  <h3 style={{ margin: '0 0 16px', color: T.gold }}>Procure {procuringComponent.name}</h3>
+              <div
+                className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 p-4"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Procure ${procuringComponent.name}`}
+              >
+                <div className="w-full max-w-sm rounded-md border border-zinc-800 bg-zinc-950 p-6 animate-slide-in">
+                  <h3 className="m-0 mb-4 text-base font-semibold text-zinc-100">Procure {procuringComponent.name}</h3>
 
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', fontSize: '10px', color: T.muted, marginBottom: '4px' }}>Order Quantity</label>
-                    <input type="number" min="100" step="100" value={procuringComponent.units}
+                  <div className="mb-4">
+                    <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-[0.1em] mb-1.5">Order Quantity</label>
+                    <input
+                      type="number" min="100" step="100" value={procuringComponent.units}
                       onChange={e => setProcuringComponent({ ...procuringComponent, units: parseInt(e.target.value) || 0 })}
-                      style={{ width: '100%', padding: '8px', background: '#0e0e0e', border: `1px solid ${T.border}`, color: T.ivory }} />
+                      className="w-full rounded-sm border border-zinc-800 bg-zinc-900 px-3 py-2 text-[13px] text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors"
+                    />
                   </div>
 
-                  <div style={{ marginBottom: '24px', fontSize: '12px' }}>
-                    <FieldRow label="Total Cost" value={fm(procuringComponent.units * procuringComponent.cost)} valueColor={T.red} />
-                    <FieldRow label="Current Balance" value={fm(finances?.cash || 0)} valueColor={T.mint} />
+                  <div className="mb-6">
+                    <FieldRow label="Total Cost" value={fm(procuringComponent.units * procuringComponent.cost)} valueColor="#ff453a" />
+                    <FieldRow label="Current Balance" value={fm(finances?.cash || 0)} valueColor="#30d158" />
                   </div>
 
-                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <div className="flex items-center justify-end gap-3">
                     <GhostButton onClick={() => setProcuringComponent(null)}>Cancel</GhostButton>
                     <GoldButton
                       disabled={(finances?.cash || 0) < (procuringComponent.units * procuringComponent.cost) || procuringComponent.units <= 0}
@@ -2290,12 +2373,17 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           {hasFactory && models.some((m: any) => (m.development_status || 'launched') === 'launched') && factories.map((factory: any) => {
             const lines = productionLines.filter((l: any) => l.factory_id === factory.id);
             return (
-              <PanelBox key={factory.id} style={{ marginBottom: '20px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, marginBottom: '4px' }}>{factory.name}</div>
-                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px' }}>
+              <PanelBox key={factory.id} className="mb-5">
+                <div className="flex items-center justify-between gap-3 mb-1">
+                  <h3 className="text-sm font-bold text-zinc-100 m-0">{factory.name}</h3>
+                  {totalWorkers < (factory.worker_requirement || 30) && (
+                    <Badge variant="red" dot>Understaffed</Badge>
+                  )}
+                </div>
+                <div className="text-[11px] text-zinc-500 mb-4">
                   Capacity: {factory.capacity_per_month} units/Month · Workers Required: {factory.worker_requirement || 30} · Current Workers: {totalWorkers}
                   {totalWorkers < (factory.worker_requirement || 30) && (
-                    <span style={{ color: T.red, marginLeft: '8px' }}>⚠ Understaffed — production will be reduced</span>
+                    <span className="text-terminal-red ml-2">Production will be reduced</span>
                   )}
                 </div>
 
@@ -2349,31 +2437,46 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   const estTotalCost = assemblyCost * estUnitsProd;
 
                   return (
-                    <div key={line.id} style={{ border: `1px solid ${T.border}`, padding: '16px', marginBottom: '12px', background: 'rgba(0,0,0,0.2)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: T.gold }}>Production Line {line.line_number}</div>
-                        <div style={{ fontSize: '10px', color: line.status === 'active' ? T.mint : line.status === 'paused' ? T.red : T.faint, fontFamily: 'monospace', textTransform: 'uppercase' }}>
-                          ● {!assignedModel ? 'IDLE' : line.status}
-                        </div>
+                    <div key={line.id} className="rounded-md border border-zinc-800 bg-black/20 p-4 mb-3">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <div className="text-xs font-bold text-terminal-amber">Production Line {line.line_number}</div>
+                        <Badge
+                          variant={!assignedModel ? 'zinc' : line.status === 'active' ? 'green' : line.status === 'paused' ? 'red' : 'zinc'}
+                          dot
+                        >
+                          {!assignedModel ? 'Idle' : line.status}
+                        </Badge>
                       </div>
 
                       {isEditing ? (
                         <div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-3 mb-3">
                             <div>
-                              <label style={{ display: 'block', fontSize: '10px', color: T.muted, marginBottom: '4px' }}>Assigned Model</label>
-                              <select value={planModelId} onChange={e => { setPlanModelId(e.target.value); }} style={{ width: '100%', padding: '7px', background: '#0e0e0e', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px' }}>
+                              <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-[0.1em] mb-1.5">Assigned Model</label>
+                              <select
+                                value={planModelId}
+                                onChange={e => { setPlanModelId(e.target.value); }}
+                                className="w-full rounded-sm border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-xs text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors cursor-pointer"
+                              >
                                 <option value="">— Halt Production —</option>
                                 {models.filter((m: any) => (m.development_status || 'launched') === 'launched').map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
                               </select>
                             </div>
                             <div>
-                              <label style={{ display: 'block', fontSize: '10px', color: T.muted, marginBottom: '4px' }}>Target (Units/Month) <span style={{ color: T.faint }}>— max 100 per line</span></label>
-                              <input type="number" min={0} max={100} value={planTarget} onChange={e => setPlanTarget(Number(e.target.value))} style={{ width: '100%', boxSizing: 'border-box', padding: '7px', background: '#0e0e0e', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px' }} />
+                              <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-[0.1em] mb-1.5">Target / Month <span className="text-zinc-600 normal-case">(max 100)</span></label>
+                              <input
+                                type="number" min={0} max={100} value={planTarget}
+                                onChange={e => setPlanTarget(Number(e.target.value))}
+                                className="w-full box-border rounded-sm border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-xs text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors"
+                              />
                             </div>
                             <div>
-                              <label style={{ display: 'block', fontSize: '10px', color: T.muted, marginBottom: '4px' }}>Quality Setting</label>
-                              <select value={planQuality} onChange={e => setPlanQuality(e.target.value)} style={{ width: '100%', padding: '7px', background: '#0e0e0e', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px' }}>
+                              <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-[0.1em] mb-1.5">Quality Setting</label>
+                              <select
+                                value={planQuality}
+                                onChange={e => setPlanQuality(e.target.value)}
+                                className="w-full rounded-sm border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-xs text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors cursor-pointer"
+                              >
                                 <option value="Budget">Economy Output</option>
                                 <option value="Standard">Standard Output</option>
                                 <option value="Premium">Quality Focus</option>
@@ -2383,53 +2486,63 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
                           {/* Estimates */}
                           {editModel && planTarget > 0 && (
-                            <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, padding: '12px', marginBottom: '12px' }}>
-                              <div style={{ fontSize: '10px', color: T.gold, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Live Estimate at Month Close</div>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', fontSize: '11px' }}>
-                                <div><span style={{ color: T.muted }}>Factory Condition</span><br /><strong style={{ color: Number(factory.condition) < 50 ? T.red : T.mint }}>{factory.condition}%</strong></div>
-                                <div><span style={{ color: T.muted }}>Efficiency</span><br /><strong style={{ color: efficiency < 1 ? T.red : T.mint }}>{Math.round(efficiency * 100)}%</strong> {hasAssemblyTime && <span style={{ color: T.gold, fontSize: '9px', marginLeft: '4px' }}>+Assembly Std</span>}</div>
+                            <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3.5 mb-3">
+                              <div className="text-[10px] font-mono text-terminal-amber uppercase tracking-[0.1em] mb-2.5">Live Estimate at Month Close</div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px]">
                                 <div>
-                                  <span style={{ color: T.muted }}>Est. Units Produced</span><br />
-                                  <strong style={{ color: isComponentBottleneck ? T.red : T.ivory }}>{estUnitsProd}</strong>
-                                  {isComponentBottleneck && <div style={{ fontSize: '9px', color: T.red, marginTop: '2px' }}>⚠ Short on components</div>}
+                                  <div className="text-zinc-500 mb-0.5">Factory Condition</div>
+                                  <strong className={Number(factory.condition) < 50 ? 'text-terminal-red' : 'text-terminal-green'}>{factory.condition}%</strong>
                                 </div>
-                                <div><span style={{ color: T.muted }}>Defect Rate</span><br /><strong style={{ color: defectRate > 0.03 ? T.red : T.mint }}>{defectRate * 100}% (-{estDefects} units)</strong> {hasSpc && <span style={{ color: T.gold, fontSize: '9px', marginLeft: '4px' }}>-SPC Std</span>}</div>
-
-                                <div style={{ gridColumn: '1 / span 2', marginTop: '8px' }}>
-                                  <span style={{ color: T.muted }}>Net Inventory Added</span><br />
-                                  <strong style={{ color: T.mint, fontSize: '13px', fontFamily: 'monospace' }}>+{estInventoryAdded} units</strong>
+                                <div>
+                                  <div className="text-zinc-500 mb-0.5">Efficiency</div>
+                                  <strong className={efficiency < 1 ? 'text-terminal-red' : 'text-terminal-green'}>{Math.round(efficiency * 100)}%</strong>
+                                  {hasAssemblyTime && <span className="text-terminal-amber text-[9px] ml-1">+Assembly Std</span>}
                                 </div>
-                                <div style={{ gridColumn: '3 / span 2', marginTop: '8px' }}>
-                                  <span style={{ color: T.muted }}>Est. Total Prod Cost</span><br />
-                                  <strong style={{ color: T.red, fontSize: '13px', fontFamily: 'monospace' }}>{fm(estTotalCost)}</strong>
-                                  <span style={{ color: T.faint, marginLeft: '6px' }}>(excl. parts)</span>
+                                <div>
+                                  <div className="text-zinc-500 mb-0.5">Est. Units Produced</div>
+                                  <strong className={isComponentBottleneck ? 'text-terminal-red' : 'text-zinc-200'}>{estUnitsProd}</strong>
+                                  {isComponentBottleneck && <div className="text-[9px] text-terminal-red mt-0.5">Short on components</div>}
+                                </div>
+                                <div>
+                                  <div className="text-zinc-500 mb-0.5">Defect Rate</div>
+                                  <strong className={defectRate > 0.03 ? 'text-terminal-red' : 'text-terminal-green'}>{defectRate * 100}% (-{estDefects} units)</strong>
+                                  {hasSpc && <span className="text-terminal-amber text-[9px] ml-1">-SPC Std</span>}
+                                </div>
+                                <div className="col-span-2 mt-2">
+                                  <div className="text-zinc-500 mb-0.5">Net Inventory Added</div>
+                                  <strong className="text-terminal-green text-[13px] font-mono">+{estInventoryAdded} units</strong>
+                                </div>
+                                <div className="col-span-2 mt-2">
+                                  <div className="text-zinc-500 mb-0.5">Est. Total Prod Cost</div>
+                                  <strong className="text-terminal-red text-[13px] font-mono">{fm(estTotalCost)}</strong>
+                                  <span className="text-zinc-600 ml-1.5">(excl. parts)</span>
                                 </div>
                               </div>
-                              <div style={{ fontSize: '10px', color: T.faint, marginTop: '12px', fontStyle: 'italic' }}>
+                              <div className="text-[10px] text-zinc-600 mt-3 italic">
                                 Note: Revenue estimates will appear after Market &amp; Sales is built.
                               </div>
                             </div>
                           )}
 
-                          <div style={{ display: 'flex', gap: '10px' }}>
+                          <div className="flex items-center gap-2.5 flex-wrap">
                             <GoldButton onClick={() => handleSaveProductionPlan(line.id)}>Save Production Plan</GoldButton>
                             <GhostButton onClick={() => setEditingLineId(null)}>Cancel</GhostButton>
                           </div>
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ fontSize: '12px', color: T.ivory }}>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                          <div className="text-xs text-zinc-200">
                             {assignedModel ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                <div>Producing: <strong style={{ color: T.gold }}>{assignedModel.name}</strong></div>
-                                <div style={{ fontSize: '11px', color: T.muted }}>
+                              <div className="flex flex-col gap-1">
+                                <div>Producing: <strong className="text-terminal-amber">{assignedModel.name}</strong></div>
+                                <div className="text-[11px] text-zinc-500">
                                   Target: {line.target_units_per_month} units/Month · {qualityLabels[line.quality_setting] || line.quality_setting}
                                 </div>
                                 {line.status === 'active' && (
-                                  <div style={{ fontSize: '11px', color: T.mint }}>
+                                  <div className="text-[11px] text-terminal-green">
                                     Current Efficiency: {Math.round(Math.min(1, totalWorkers / (factory.worker_requirement || 30)) * ((factory.condition || 100) / 100) * 100)}%
-                                    {hasAssemblyTime && <span style={{ color: T.gold, marginLeft: '8px' }}>+Assembly Std</span>}
-                                    {hasSpc && <span style={{ color: T.gold, marginLeft: '8px' }}>-SPC Std</span>}
+                                    {hasAssemblyTime && <span className="text-terminal-amber ml-2">+Assembly Std</span>}
+                                    {hasSpc && <span className="text-terminal-amber ml-2">-SPC Std</span>}
                                   </div>
                                 )}
                                 {(() => {
@@ -2439,16 +2552,16 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                   const lineRaw = Math.floor(lineTarget * lineEff);
                                   const isNeck = lineRaw > 0 && maxByComponents < lineRaw;
                                   if (isNeck) {
-                                    return <div style={{ fontSize: '11px', color: T.red }}>⚠ Short on components (Max: {maxByComponents} units)</div>;
+                                    return <div className="text-[11px] text-terminal-red">Short on components (Max: {maxByComponents} units)</div>;
                                   }
                                   return null;
                                 })()}
                               </div>
                             ) : (
-                              <span style={{ color: T.faint }}>No model assigned. Line is idle.</span>
+                              <span className="text-zinc-600">No model assigned. Line is idle.</span>
                             )}
                           </div>
-                          <div style={{ display: 'flex', gap: '8px' }}>
+                          <div className="flex items-center gap-2 shrink-0 flex-wrap">
                             <GhostButton onClick={() => {
                               setEditingLineId(line.id);
                               setPlanModelId(line.assigned_vehicle_model_id || '');
@@ -2457,10 +2570,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             }}>Edit Plan</GhostButton>
 
                             {assignedModel && line.status === 'active' && (
-                              <GhostButton color={T.red} onClick={() => handlePauseProductionLine(line.id)}>Pause Production</GhostButton>
+                              <GhostButton color="#ff453a" onClick={() => handlePauseProductionLine(line.id)}>Pause Production</GhostButton>
                             )}
                             {assignedModel && line.status === 'paused' && (
-                              <GhostButton color={T.mint} onClick={() => handleResumeProductionLine(line.id)}>Resume Production</GhostButton>
+                              <GhostButton color="#30d158" onClick={() => handleResumeProductionLine(line.id)}>Resume Production</GhostButton>
                             )}
                           </div>
                         </div>
@@ -2478,97 +2591,86 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           MARKET & SALES TAB
       ═══════════════════════════════════════════════════════ */}
       {deskTab === 'market' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="flex flex-col gap-5">
           <SectionHeader stamp="SALES DESK">Market &amp; Sales Operations</SectionHeader>
 
           {/* Summary Row */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
             <PanelBox>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '4px' }}>Available Inventory</div>
-              <div style={{ fontSize: '24px', color: T.ivory, fontFamily: 'monospace' }}>
-                {inventory.reduce((a: number, b: any) => a + Number(b.units_in_stock), 0)} units
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1.5">Available Inventory</div>
+              <div className="text-2xl font-mono text-zinc-100">
+                {inventory.reduce((a: number, b: any) => a + Number(b.units_in_stock), 0)}
+                <span className="text-sm text-zinc-500 ml-1">units</span>
               </div>
-              <div style={{ fontSize: '11px', color: T.faint, marginTop: '4px' }}>
-                Value: {fm(inventoryValue)}
-              </div>
+              <div className="text-[11px] text-zinc-600 mt-1">Value: {fm(inventoryValue)}</div>
             </PanelBox>
             <PanelBox>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '4px' }}>Vehicles Sold Last Month</div>
-              <div style={{ fontSize: '24px', color: T.mint, fontFamily: 'monospace' }}>
-                {latestReport?.units_sold || 0}
-              </div>
-              <div style={{ fontSize: '11px', color: T.faint, marginTop: '4px' }}>
-                Revenue: {fm(latestReport?.sales_revenue || 0)}
-              </div>
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1.5">Sold Last Month</div>
+              <div className="text-2xl font-mono text-terminal-green">{latestReport?.units_sold || 0}</div>
+              <div className="text-[11px] text-zinc-600 mt-1">Revenue: {fm(latestReport?.sales_revenue || 0)}</div>
             </PanelBox>
             <PanelBox>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '4px' }}>Marketing Budget / Month</div>
-              <div style={{ fontSize: '24px', color: T.red, fontFamily: 'monospace' }}>
-                {fm(latestReport?.marketing_costs || 0)}
-              </div>
-              <div style={{ fontSize: '11px', color: T.faint, marginTop: '4px' }}>
-                Active Markets: {activeMarketCount}
-              </div>
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1.5">Marketing / Month</div>
+              <div className="text-2xl font-mono text-terminal-red">{fm(latestReport?.marketing_costs || 0)}</div>
+              <div className="text-[11px] text-zinc-600 mt-1">Active Markets: {activeMarketCount}</div>
             </PanelBox>
-            <PanelBox style={{ border: salesManagerCount > 0 ? `1px solid ${T.mint}55` : `1px solid ${T.border}` }}>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '4px' }}>Sales Effectiveness</div>
-              <div style={{ fontSize: '24px', color: salesManagerCount > 0 ? T.mint : T.faint, fontFamily: 'monospace' }}>
+            <PanelBox className={salesManagerCount > 0 ? 'border-terminal-green/40' : ''}>
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1.5">Sales Effectiveness</div>
+              <div className={`text-2xl font-mono ${salesManagerCount > 0 ? 'text-terminal-green' : 'text-zinc-600'}`}>
                 +{Math.min(16, Math.min(salesManagerCount, activeMarketCount) * 4)}%
               </div>
-              <div style={{ fontSize: '11px', color: T.faint, marginTop: '4px' }}>
-                from Sales Managers
-              </div>
+              <div className="text-[11px] text-zinc-600 mt-1">from Sales Managers</div>
             </PanelBox>
             <PanelBox>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '4px' }}>Brand Reputation</div>
-              <div style={{ fontSize: '24px', color: T.gold, fontFamily: 'monospace' }}>
-                {company.reputation} <span style={{ fontSize: '14px', color: T.muted }}>/ 100</span>
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1.5">Brand Reputation</div>
+              <div className="text-2xl font-mono text-terminal-amber">
+                {company.reputation} <span className="text-sm text-zinc-500">/ 100</span>
               </div>
             </PanelBox>
           </div>
 
           {/* Markets & Allocations */}
           {marketLoading ? (
-            <div style={{ color: T.muted, fontSize: '12px', padding: '24px' }}>Loading market data...</div>
+            <div className="text-zinc-500 text-xs p-6 font-mono animate-pulse">Loading market data...</div>
           ) : (
             <>
               {/* Models / Pricing */}
               {models.length === 0 ? (
-                <EmptyState icon="📋" title="No models available" subtitle="Design and launch a vehicle model first to sell vehicles." action={<GhostButton onClick={() => setDeskTab('design')}>Go to R&D / Design</GhostButton>} />
+                <EmptyState title="No models available" subtitle="Design and launch a vehicle model first to sell vehicles." action={<GhostButton onClick={() => setDeskTab('design')}>Go to R&D / Design</GhostButton>} />
               ) : (
                 <PanelBox>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Inventory &amp; Pricing</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Inventory &amp; Pricing</h3>
+                  <div className="flex flex-col gap-3">
                     {models.filter((m: any) => m.development_status === 'launched').map((m: any) => {
                       const invRow = inventory.find((inv: any) => inv.vehicle_model_id === m.id);
                       return (
-                        <div key={m.id} style={{ border: `1px solid ${T.border}`, padding: '14px', background: 'rgba(0,0,0,0.2)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <div key={m.id} className="rounded-md border border-zinc-800 bg-black/20 p-4">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
                             <div>
-                              <span style={{ fontSize: '13px', fontWeight: 700, color: T.gold }}>{m.name}</span>
-                              <span style={{ fontSize: '11px', color: T.muted, marginLeft: '8px' }}>{m.vehicle_class} · {m.target_segment}</span>
+                              <span className="text-[13px] font-bold text-terminal-amber">{m.name}</span>
+                              <span className="text-[11px] text-zinc-500 ml-2">{m.vehicle_class} · {m.target_segment}</span>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span style={{ fontSize: '11px', color: T.muted }}>Base Cost: {fm(m.manufacturing_cost_per_unit)}</span>
-                              <span style={{ fontSize: '11px', color: T.muted, marginLeft: '12px' }}>Sale Price:</span>
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <span className="text-[11px] text-zinc-500">Base Cost: {fm(m.manufacturing_cost_per_unit)}</span>
+                              <span className="text-[11px] text-zinc-500 ml-2">Sale Price:</span>
                               <input
                                 type="number"
                                 defaultValue={m.sale_price}
                                 value={priceEdits[m.id] !== undefined ? priceEdits[m.id] : m.sale_price}
                                 onChange={e => setPriceEdits(prev => ({ ...prev, [m.id]: Number(e.target.value) }))}
-                                style={{ width: '100px', padding: '4px 8px', background: '#0e0e0e', border: `1px solid ${T.border}`, color: T.gold, fontSize: '12px', fontFamily: 'monospace' }}
+                                className="w-[100px] rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs font-mono text-terminal-amber focus:outline-none focus:border-terminal-amber/60 transition-colors"
                               />
-                              <GhostButton color={T.mint} disabled={savingPrice === m.id} onClick={() => handleSavePrice(m.id)}>
+                              <GhostButton color="#30d158" disabled={savingPrice === m.id} onClick={() => handleSavePrice(m.id)}>
                                 {savingPrice === m.id ? 'Saving...' : 'Save Price'}
                               </GhostButton>
                             </div>
                           </div>
 
                           {/* Allocation UI */}
-                          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: `1px dashed ${T.border}` }}>
-                            <div style={{ fontSize: '12px', color: T.muted, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
-                              <span>Inventory Central Stock: <strong style={{ color: T.ivory }}>{invRow?.units_in_stock || 0}</strong></span>
-                              <span>Storage Cost: <span style={{ color: T.red }}>{fm(invRow?.storage_cost_per_month || 0)} / Month</span></span>
+                          <div className="mt-4 pt-4 border-t border-dashed border-zinc-800">
+                            <div className="flex items-center justify-between gap-3 text-xs text-zinc-500 mb-3">
+                              <span>Inventory Central Stock: <strong className="text-zinc-200">{invRow?.units_in_stock || 0}</strong></span>
+                              <span>Storage Cost: <span className="text-terminal-red">{fm(invRow?.storage_cost_per_month || 0)} / Month</span></span>
                             </div>
 
                             {marketData?.markets?.map((market: any) => {
@@ -2577,11 +2679,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               const brand = marketData.brandData?.find((b: any) => b.region_market_id === market.id);
 
                               return (
-                                <div key={market.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px dotted #1a1a1a` }}>
-                                  <div style={{ width: '300px' }}>
-                                    <div style={{ fontSize: '12px', color: T.ivory, marginBottom: '8px' }}>{market.name}</div>
-                                    <div style={{ padding: '8px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}` }}>
-                                      <div style={{ fontSize: '10px', color: T.gold, fontWeight: 700, marginBottom: '6px' }}>LOCAL BRAND POSITION — {market.name}</div>
+                                <div key={market.id} className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 py-3 border-b border-zinc-800/60 last:border-b-0">
+                                  <div className="w-full lg:w-[300px] shrink-0">
+                                    <div className="text-xs text-zinc-100 font-semibold mb-2">{market.name}</div>
+                                    <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-2.5">
+                                      <div className="text-[10px] font-mono text-terminal-amber font-bold uppercase tracking-[0.08em] mb-1.5">Local Brand Position</div>
                                       {brand ? (() => {
                                         const awText = brand.awareness >= 50 ? 'Established' : (brand.awareness >= 15 ? 'Recognised' : 'New');
                                         const trText = brand.reputation >= 60 ? 'Trusted' : (brand.reputation >= 20 ? 'Developing' : 'Unproven');
@@ -2608,39 +2710,39 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                         }
 
                                         return (
-                                          <div style={{ fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                              <span style={{ color: T.muted }}>Local Brand Awareness:</span>
-                                              <span style={{ color: T.ivory }}>{awText}</span>
+                                          <div className="flex flex-col gap-1 text-[11px]">
+                                            <div className="flex justify-between gap-2">
+                                              <span className="text-zinc-500">Local Brand Awareness:</span>
+                                              <span className="text-zinc-200">{awText}</span>
                                             </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                              <span style={{ color: T.muted }}>Local Brand Trust:</span>
-                                              <span style={{ color: T.ivory }}>{trText}</span>
+                                            <div className="flex justify-between gap-2">
+                                              <span className="text-zinc-500">Local Brand Trust:</span>
+                                              <span className="text-zinc-200">{trText}</span>
                                             </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                              <span style={{ color: T.muted }}>Last Month Awareness Change:</span>
-                                              <span style={{ color: awDeltaStr.startsWith('+') ? T.mint : (awDeltaStr.startsWith('-') ? T.red : T.faint) }}>{awDeltaStr}</span>
+                                            <div className="flex justify-between gap-2">
+                                              <span className="text-zinc-500">Last Month Awareness Change:</span>
+                                              <span className={awDeltaStr.startsWith('+') ? 'text-terminal-green' : awDeltaStr.startsWith('-') ? 'text-terminal-red' : 'text-zinc-600'}>{awDeltaStr}</span>
                                             </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                              <span style={{ color: T.muted }}>Last Month Trust Change:</span>
-                                              <span style={{ color: trDeltaStr.startsWith('+') ? T.mint : (trDeltaStr.startsWith('-') ? T.red : T.faint) }}>{trDeltaStr}</span>
+                                            <div className="flex justify-between gap-2">
+                                              <span className="text-zinc-500">Last Month Trust Change:</span>
+                                              <span className={trDeltaStr.startsWith('+') ? 'text-terminal-green' : trDeltaStr.startsWith('-') ? 'text-terminal-red' : 'text-zinc-600'}>{trDeltaStr}</span>
                                             </div>
-                                            <div style={{ marginTop: '4px', fontStyle: 'italic', color: T.faint, fontSize: '10px' }}>
+                                            <div className="mt-1 italic text-zinc-600 text-[10px]">
                                               Main Brand Driver:<br />{mainDriver}
                                             </div>
                                           </div>
                                         );
                                       })() : (
-                                        <div style={{ fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ color: T.muted }}>Local Brand Awareness:</span>
-                                            <span style={{ color: T.ivory }}>New to This Market</span>
+                                        <div className="flex flex-col gap-1 text-[11px]">
+                                          <div className="flex justify-between gap-2">
+                                            <span className="text-zinc-500">Local Brand Awareness:</span>
+                                            <span className="text-zinc-200">New to This Market</span>
                                           </div>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ color: T.muted }}>Local Brand Trust:</span>
-                                            <span style={{ color: T.ivory }}>Unproven</span>
+                                          <div className="flex justify-between gap-2">
+                                            <span className="text-zinc-500">Local Brand Trust:</span>
+                                            <span className="text-zinc-200">Unproven</span>
                                           </div>
-                                          <div style={{ marginTop: '4px', fontStyle: 'italic', color: T.faint, fontSize: '10px' }}>
+                                          <div className="mt-1 italic text-zinc-600 text-[10px]">
                                             Main Brand Driver:<br />New to This Market. Local awareness and trust will develop after operating here.
                                           </div>
                                         </div>
@@ -2648,24 +2750,24 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                     </div>
                                   </div>
 
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <span style={{ fontSize: '11px', color: T.muted }}>Units:</span>
+                                  <div className="flex items-center gap-4 flex-wrap">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[11px] text-zinc-500">Units:</span>
                                       <input
                                         type="number"
                                         min="0"
                                         value={alloc.units}
                                         onChange={e => setAllocationForm(prev => ({ ...prev, [formKey]: { ...alloc, units: Number(e.target.value) } }))}
-                                        style={{ width: '80px', padding: '4px 8px', background: '#0e0e0e', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px', fontFamily: 'monospace' }}
+                                        className="w-20 rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs font-mono text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors"
                                       />
                                     </div>
 
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <span style={{ fontSize: '11px', color: T.muted }}>Marketing:</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[11px] text-zinc-500">Marketing:</span>
                                       <select
                                         value={alloc.tier}
                                         onChange={e => setAllocationForm(prev => ({ ...prev, [formKey]: { ...alloc, tier: e.target.value } }))}
-                                        style={{ width: '100px', padding: '4px', background: '#0e0e0e', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px' }}
+                                        className="w-[110px] rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors cursor-pointer"
                                       >
                                         <option value="none">None</option>
                                         <option value="local">Local</option>
@@ -2689,21 +2791,21 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
               {/* Market Intelligence */}
               <PanelBox>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Market Intelligence</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Market Intelligence</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {marketData?.markets?.map((market: any) => (
-                    <div key={market.id} style={{ border: `1px solid ${T.border}`, padding: '12px', background: 'rgba(255,255,255,0.02)' }}>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: T.gold, marginBottom: '8px' }}>{market.name}</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px' }}>
-                        <div style={{ color: T.muted }}>Population: <span style={{ color: T.ivory }}>{Number(market.population).toLocaleString()}</span></div>
-                        <div style={{ color: T.muted }}>Avg Income: <span style={{ color: T.ivory }}>{fm(market.average_income)}</span></div>
-                        <div style={{ color: T.muted }}>Market Tier: <span style={{ color: T.ivory }}>{market.market_tier}</span></div>
-                        <div style={{ color: T.muted }}>Competition: <span style={{ color: T.red }}>{market.competition_level}</span></div>
+                    <div key={market.id} className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3.5 hover:border-zinc-700 transition-colors">
+                      <div className="text-xs font-semibold text-terminal-amber mb-2">{market.name}</div>
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div className="text-zinc-500">Population: <span className="text-zinc-200">{Number(market.population).toLocaleString()}</span></div>
+                        <div className="text-zinc-500">Avg Income: <span className="text-zinc-200">{fm(market.average_income)}</span></div>
+                        <div className="text-zinc-500">Market Tier: <span className="text-zinc-200">{market.market_tier}</span></div>
+                        <div className="text-zinc-500">Competition: <span className="text-terminal-red">{market.competition_level}</span></div>
                       </div>
-                      <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px dotted ${T.border}`, display: 'flex', gap: '12px', fontSize: '11px' }}>
-                        <span style={{ color: T.muted }}>Compact: {Math.round(market.preference_compact * 100)}%</span>
-                        <span style={{ color: T.muted }}>Sedan: {Math.round(market.preference_sedan * 100)}%</span>
-                        <span style={{ color: T.muted }}>Van: {Math.round(market.preference_utility_van * 100)}%</span>
+                      <div className="mt-2 pt-2 border-t border-zinc-800/60 flex gap-3 text-[11px] text-zinc-500">
+                        <span>Compact: {Math.round(market.preference_compact * 100)}%</span>
+                        <span>Sedan: {Math.round(market.preference_sedan * 100)}%</span>
+                        <span>Van: {Math.round(market.preference_utility_van * 100)}%</span>
                       </div>
                     </div>
                   ))}
@@ -2713,24 +2815,25 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               {/* Population Purchase Outlook */}
               {marketData?.forecast && marketData.forecast.length > 0 && (
                 <PanelBox>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Population Purchase Outlook</div>
-                  <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse' }}>
+                  <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Population Purchase Outlook</h3>
+                  <div className="overflow-x-auto">
+                  <table className="w-full text-[11px] text-left border-collapse">
                     <thead>
-                      <tr style={{ color: T.muted, borderBottom: `1px solid ${T.border}` }}>
-                        <th style={{ padding: '8px 4px' }}>Model</th>
-                        <th style={{ padding: '8px 4px' }}>Market</th>
-                        <th style={{ padding: '8px 4px' }}>Allocated</th>
-                        <th style={{ padding: '8px 4px' }}>Households</th>
-                        <th style={{ padding: '8px 4px' }}>Buyers (Capacity)</th>
-                        <th style={{ padding: '8px 4px' }}>Expected Interest</th>
-                        <th style={{ padding: '8px 4px', color: T.gold }}>Est. Sold</th>
-                        <th style={{ padding: '8px 4px' }}>Affordability</th>
-                        <th style={{ padding: '8px 4px' }}>Fit</th>
-                        <th style={{ padding: '8px 4px' }}>Local Brand Awareness</th>
-                        <th style={{ padding: '8px 4px' }}>Local Brand Trust</th>
-                        <th style={{ padding: '8px 4px' }}>Distribution</th>
-                        <th style={{ padding: '8px 4px' }}>Marketing</th>
-                        <th style={{ padding: '8px 4px' }}>Reason</th>
+                      <tr className="text-zinc-500 border-b border-zinc-800 text-[10px] font-mono uppercase tracking-[0.06em]">
+                        <th className="px-1.5 py-2 font-medium">Model</th>
+                        <th className="px-1.5 py-2 font-medium">Market</th>
+                        <th className="px-1.5 py-2 font-medium">Allocated</th>
+                        <th className="px-1.5 py-2 font-medium">Households</th>
+                        <th className="px-1.5 py-2 font-medium">Buyers (Cap.)</th>
+                        <th className="px-1.5 py-2 font-medium">Interest</th>
+                        <th className="px-1.5 py-2 font-medium text-terminal-amber">Est. Sold</th>
+                        <th className="px-1.5 py-2 font-medium">Afford.</th>
+                        <th className="px-1.5 py-2 font-medium">Fit</th>
+                        <th className="px-1.5 py-2 font-medium">Awareness</th>
+                        <th className="px-1.5 py-2 font-medium">Trust</th>
+                        <th className="px-1.5 py-2 font-medium">Distrib.</th>
+                        <th className="px-1.5 py-2 font-medium">Marketing</th>
+                        <th className="px-1.5 py-2 font-medium">Reason</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2754,46 +2857,48 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         const distStr = getStr(fc.distMult, [0.5, 0.8], ['Limited', 'Standard', 'Strong']);
 
                         return (
-                          <tr key={idx} style={{ borderBottom: `1px solid #1a1a1a` }}>
-                            <td style={{ padding: '8px 4px', color: T.ivory }}>{mName}</td>
-                            <td style={{ padding: '8px 4px', color: T.ivory }}>{mktName}</td>
-                            <td style={{ padding: '8px 4px', color: T.muted }}>{fc.alloc.units_allocated}</td>
-                            <td style={{ padding: '8px 4px', color: T.muted }}>{fc.totalHouseholds.toLocaleString()}</td>
-                            <td style={{ padding: '8px 4px', color: T.muted }}>{fc.marketPurchaseCapacity.toLocaleString()}</td>
-                            <td style={{ padding: '8px 4px', color: T.ivory }}>{Math.round(fc.rawBuyerInterest)}</td>
-                            <td style={{ padding: '8px 4px', color: T.mint, fontWeight: 700 }}>{fc.unitsSold}</td>
-                            <td style={{ padding: '8px 4px', color: affStr === 'Weak' ? T.red : T.muted }}>{affStr}</td>
-                            <td style={{ padding: '8px 4px', color: fitStr === 'Weak' ? T.red : T.muted }}>{fitStr}</td>
-                            <td style={{ padding: '8px 4px', color: awrStr === 'New' ? T.red : T.muted }}>{awrStr}</td>
-                            <td style={{ padding: '8px 4px', color: trsStr === 'Unproven' ? T.red : T.muted }}>{trsStr}</td>
-                            <td style={{ padding: '8px 4px', color: distStr === 'Limited' ? T.red : T.muted }}>{distStr}</td>
-                            <td style={{ padding: '8px 4px', color: T.muted, textTransform: 'capitalize' }}>{fc.mktTier}</td>
-                            <td style={{ padding: '8px 4px', color: T.gold }}>{fc.mainReasonCode}</td>
+                          <tr key={idx} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
+                            <td className="px-1.5 py-2 text-zinc-200">{mName}</td>
+                            <td className="px-1.5 py-2 text-zinc-200">{mktName}</td>
+                            <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.alloc.units_allocated}</td>
+                            <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.totalHouseholds.toLocaleString()}</td>
+                            <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.marketPurchaseCapacity.toLocaleString()}</td>
+                            <td className="px-1.5 py-2 text-zinc-200 font-mono">{Math.round(fc.rawBuyerInterest)}</td>
+                            <td className="px-1.5 py-2 text-terminal-green font-mono font-bold">{fc.unitsSold}</td>
+                            <td className={`px-1.5 py-2 ${affStr === 'Weak' ? 'text-terminal-red' : 'text-zinc-500'}`}>{affStr}</td>
+                            <td className={`px-1.5 py-2 ${fitStr === 'Weak' ? 'text-terminal-red' : 'text-zinc-500'}`}>{fitStr}</td>
+                            <td className={`px-1.5 py-2 ${awrStr === 'New' ? 'text-terminal-red' : 'text-zinc-500'}`}>{awrStr}</td>
+                            <td className={`px-1.5 py-2 ${trsStr === 'Unproven' ? 'text-terminal-red' : 'text-zinc-500'}`}>{trsStr}</td>
+                            <td className={`px-1.5 py-2 ${distStr === 'Limited' ? 'text-terminal-red' : 'text-zinc-500'}`}>{distStr}</td>
+                            <td className="px-1.5 py-2 text-zinc-500 capitalize">{fc.mktTier}</td>
+                            <td className="px-1.5 py-2 text-terminal-amber">{fc.mainReasonCode}</td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
-                  <div style={{ fontSize: '10px', color: T.faint, marginTop: '8px', fontStyle: 'italic' }}>*Brand metrics are local to this market.</div>
+                  </div>
+                  <div className="text-[10px] text-zinc-600 mt-2 italic">*Brand metrics are local to this market.</div>
                 </PanelBox>
               )}
 
               {/* Recent Sales Results */}
               {marketData?.recentSales && marketData.recentSales.length > 0 && (
                 <PanelBox>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Recent Sales Results</div>
-                  <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse' }}>
+                  <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Recent Sales Results</h3>
+                  <div className="overflow-x-auto">
+                  <table className="w-full text-[11px] text-left border-collapse">
                     <thead>
-                      <tr style={{ color: T.muted, borderBottom: `1px solid ${T.border}` }}>
-                        <th style={{ padding: '8px 4px' }}>Model</th>
-                        <th style={{ padding: '8px 4px' }}>Market</th>
-                        <th style={{ padding: '8px 4px' }}>Sold</th>
-                        <th style={{ padding: '8px 4px' }}>Demand</th>
-                        <th style={{ padding: '8px 4px' }}>Capture</th>
-                        <th style={{ padding: '8px 4px' }}>Affordability</th>
-                        <th style={{ padding: '8px 4px' }}>Fit</th>
-                        <th style={{ padding: '8px 4px' }}>Awareness</th>
-                        <th style={{ padding: '8px 4px' }}>Result Reason</th>
+                      <tr className="text-zinc-500 border-b border-zinc-800 text-[10px] font-mono uppercase tracking-[0.06em]">
+                        <th className="px-1.5 py-2 font-medium">Model</th>
+                        <th className="px-1.5 py-2 font-medium">Market</th>
+                        <th className="px-1.5 py-2 font-medium">Sold</th>
+                        <th className="px-1.5 py-2 font-medium">Demand</th>
+                        <th className="px-1.5 py-2 font-medium">Capture</th>
+                        <th className="px-1.5 py-2 font-medium">Afford.</th>
+                        <th className="px-1.5 py-2 font-medium">Fit</th>
+                        <th className="px-1.5 py-2 font-medium">Awareness</th>
+                        <th className="px-1.5 py-2 font-medium">Result Reason</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2801,21 +2906,22 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         const mName = models.find((m: any) => m.id === rs.vehicle_model_id)?.name || 'Unknown Model';
                         const mktName = marketData.markets?.find((m: any) => m.id === rs.region_market_id)?.name || 'Unknown Market';
                         return (
-                          <tr key={rs.id} style={{ borderBottom: `1px solid #1a1a1a` }}>
-                            <td style={{ padding: '8px 4px', color: T.gold }}>{mName}</td>
-                            <td style={{ padding: '8px 4px', color: T.ivory }}>{mktName}</td>
-                            <td style={{ padding: '8px 4px', color: T.mint, fontWeight: 700 }}>{rs.units_sold}</td>
-                            <td style={{ padding: '8px 4px', color: T.faint }}>{Math.round(rs.raw_buyer_interest || 0)}</td>
-                            <td style={{ padding: '8px 4px', color: T.ivory }}>{Math.round((rs.market_share_estimate || 0) * 100)}%</td>
-                            <td style={{ padding: '8px 4px', color: rs.affordability_multiplier < 0.6 ? T.red : T.muted }}>{rs.affordability_multiplier || '-'}</td>
-                            <td style={{ padding: '8px 4px', color: rs.vehicle_market_fit_multiplier < 0.6 ? T.red : T.muted }}>{rs.vehicle_market_fit_multiplier || '-'}</td>
-                            <td style={{ padding: '8px 4px', color: rs.awareness_multiplier < 0.3 ? T.red : T.muted }}>{rs.awareness_multiplier || '-'}</td>
-                            <td style={{ padding: '8px 4px', color: T.faint }}>{rs.main_reason_code || 'N/A'}</td>
+                          <tr key={rs.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
+                            <td className="px-1.5 py-2 text-terminal-amber">{mName}</td>
+                            <td className="px-1.5 py-2 text-zinc-200">{mktName}</td>
+                            <td className="px-1.5 py-2 text-terminal-green font-mono font-bold">{rs.units_sold}</td>
+                            <td className="px-1.5 py-2 text-zinc-600 font-mono">{Math.round(rs.raw_buyer_interest || 0)}</td>
+                            <td className="px-1.5 py-2 text-zinc-200 font-mono">{Math.round((rs.market_share_estimate || 0) * 100)}%</td>
+                            <td className={`px-1.5 py-2 font-mono ${rs.affordability_multiplier < 0.6 ? 'text-terminal-red' : 'text-zinc-500'}`}>{rs.affordability_multiplier || '-'}</td>
+                            <td className={`px-1.5 py-2 font-mono ${rs.vehicle_market_fit_multiplier < 0.6 ? 'text-terminal-red' : 'text-zinc-500'}`}>{rs.vehicle_market_fit_multiplier || '-'}</td>
+                            <td className={`px-1.5 py-2 font-mono ${rs.awareness_multiplier < 0.3 ? 'text-terminal-red' : 'text-zinc-500'}`}>{rs.awareness_multiplier || '-'}</td>
+                            <td className="px-1.5 py-2 text-zinc-600">{rs.main_reason_code || 'N/A'}</td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </PanelBox>
               )}
             </>
@@ -2827,109 +2933,109 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           STAFFING TAB
       ═══���═══════════════════════════════════════════════════ */}
       {deskTab === 'staff' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="flex flex-col gap-5">
           <SectionHeader stamp="STAFFING DESK">Company Workforce</SectionHeader>
 
           {plannedUnits === 0 && (
-            <div style={{ background: 'rgba(184,85,85,0.1)', border: `1px solid ${T.red}`, padding: '12px', borderRadius: '2px', color: T.ivory, fontSize: '12px' }}>
-              <span style={{ fontWeight: 700, color: T.red, marginRight: '8px' }}>⚠ No active production plan.</span>
+            <div className="rounded-md border border-terminal-red/50 bg-terminal-red/10 px-4 py-3 text-xs text-zinc-200">
+              <span className="font-bold text-terminal-red mr-2">No active production plan.</span>
               Create a production plan to see workforce requirements. Workers will not produce vehicles without an active target.
             </div>
           )}
 
           {/* Top Summary Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-            <PanelBox style={{ padding: '12px' }}>
-              <div style={{ color: T.muted, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Total Staff</div>
-              <div style={{ color: T.ivory, fontSize: '18px', fontWeight: 700 }}>{totalStaff}</div>
-              <div style={{ color: T.red, fontSize: '11px', fontFamily: 'monospace', marginTop: '4px' }}>{fm(totalWagesPerArc)} / Month</div>
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+            <PanelBox className="p-3">
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1">Total Staff</div>
+              <div className="text-lg font-bold font-mono text-zinc-100">{totalStaff}</div>
+              <div className="text-[11px] font-mono text-terminal-red mt-1">{fm(totalWagesPerArc)} / Month</div>
             </PanelBox>
-            <PanelBox style={{ padding: '12px', border: `1px solid ${totalWorkers < recWorkers ? T.red : T.border}` }}>
-              <div style={{ color: T.muted, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Factory Workers</div>
-              <div style={{ color: totalWorkers >= recWorkers ? T.mint : T.red, fontSize: '18px', fontWeight: 700 }}>
-                {totalWorkers} <span style={{ color: T.faint, fontSize: '14px' }}>/ {recWorkers}</span>
+            <PanelBox className={`p-3 ${totalWorkers < recWorkers ? 'border-terminal-red/50' : ''}`}>
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1">Factory Workers</div>
+              <div className={`text-lg font-bold font-mono ${totalWorkers >= recWorkers ? 'text-terminal-green' : 'text-terminal-red'}`}>
+                {totalWorkers} <span className="text-zinc-600 text-sm">/ {recWorkers}</span>
               </div>
-              <div style={{ color: T.muted, fontSize: '11px', marginTop: '4px' }}>
+              <div className="text-[11px] text-zinc-500 mt-1">
                 {totalWorkers >= recWorkers ? 'Adequately Staffed' : 'Understaffed'}
               </div>
             </PanelBox>
-            <PanelBox style={{ padding: '12px' }}>
-              <div style={{ color: T.muted, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Prod Efficiency</div>
-              <div style={{ color: T.ivory, fontSize: '18px', fontWeight: 700 }}>
+            <PanelBox className="p-3">
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1">Prod Efficiency</div>
+              <div className="text-lg font-bold font-mono text-zinc-100">
                 {Math.round(Math.min(1.0, recWorkers === 0 ? 1 : totalWorkers / recWorkers) * 100)}%
               </div>
-              <div style={{ color: T.mint, fontSize: '11px', marginTop: '4px' }}>
+              <div className="text-[11px] text-terminal-green mt-1">
                 +{Math.min(supervisorCount, activeLinesCount) > 0 ? 5 : 0}% Supervisor Bonus
               </div>
             </PanelBox>
-            <PanelBox style={{ padding: '12px' }}>
-              <div style={{ color: T.muted, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Sales Effectiveness</div>
-              <div style={{ color: T.ivory, fontSize: '18px', fontWeight: 700 }}>
+            <PanelBox className="p-3">
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1">Sales Effectiveness</div>
+              <div className="text-lg font-bold font-mono text-zinc-100">
                 +{Math.min(16, Math.min(salesManagerCount, activeMarketCount) * 4)}%
               </div>
-              <div style={{ color: T.muted, fontSize: '11px', marginTop: '4px' }}>
+              <div className="text-[11px] text-zinc-500 mt-1">
                 {Math.min(salesManagerCount, activeMarketCount)} Managers in {activeMarketCount} Active Markets
               </div>
             </PanelBox>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="flex flex-col gap-3">
             {staffRoles.map((roleDef: any) => {
               const employed = staff.find((s: any) => s.role === roleDef.id)?.quantity || 0;
 
               // Compute effect text
               let effectText = '';
-              let effectColor = T.muted;
+              let effectClass = 'text-zinc-500';
               if (roleDef.id === 'factory-worker') {
                 const pct = recWorkers > 0 ? Math.round((employed / recWorkers) * 100) : 100;
                 effectText = `${employed} / ${recWorkers} required (${pct}% coverage)`;
-                effectColor = employed >= recWorkers ? T.mint : T.red;
+                effectClass = employed >= recWorkers ? 'text-terminal-green' : 'text-terminal-red';
                 if (recWorkers === 0) effectText = 'At capacity (no active lines)';
               } else if (roleDef.id === 'production-supervisor') {
                 const bonus = Math.min(employed, activeLinesCount) > 0 ? 5 : 0;
                 effectText = activeLinesCount === 0 ? 'No benefit — no active lines' : `+${bonus}% production efficiency`;
-                effectColor = bonus > 0 ? T.mint : T.muted;
+                effectClass = bonus > 0 ? 'text-terminal-green' : 'text-zinc-500';
               } else if (roleDef.id === 'quality-inspector') {
                 // assume base defect rate is roughly 3% for display
                 const baseDefect = 3.0;
                 const reduction = Math.min(employed * 0.5, baseDefect - 0.5);
                 const effective = Math.max(0.5, baseDefect - reduction);
                 effectText = `-${reduction.toFixed(1)}% defect rate (effective ~${effective.toFixed(1)}%)`;
-                effectColor = reduction > 0 ? T.mint : T.muted;
+                effectClass = reduction > 0 ? 'text-terminal-green' : 'text-zinc-500';
               } else if (roleDef.id === 'sales-manager') {
                 const useful = Math.min(employed, activeMarketCount);
                 const bonus = useful * 4;
                 effectText = `+${bonus}% sales effectiveness (${useful} markets covered)`;
-                effectColor = bonus > 0 ? T.mint : T.muted;
+                effectClass = bonus > 0 ? 'text-terminal-green' : 'text-zinc-500';
               } else if (roleDef.id === 'automotive-engineer') {
                 const discount = Math.min(employed * 5, 20);
                 effectText = `-${discount}% future development cost`;
-                effectColor = discount > 0 ? T.mint : T.muted;
+                effectClass = discount > 0 ? 'text-terminal-green' : 'text-zinc-500';
               }
 
               return (
-                <PanelBox key={roleDef.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>{roleDef.label}</div>
-                      <div style={{ fontSize: '11px', color: T.red, fontFamily: 'monospace' }}>{fm(roleDef.wagePerArc)} / Month</div>
+                <PanelBox key={roleDef.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <div className="text-sm font-bold text-zinc-100">{roleDef.label}</div>
+                      <div className="text-[11px] font-mono text-terminal-red">{fm(roleDef.wagePerArc)} / Month</div>
                     </div>
-                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px', maxWidth: '600px', lineHeight: 1.5 }}>
+                    <div className="text-[11px] text-zinc-500 mb-2 max-w-[600px] leading-relaxed">
                       {roleDef.desc || 'No description available.'}
                     </div>
-                    <div style={{ fontSize: '11px', color: effectColor, fontWeight: 600 }}>
+                    <div className={`text-[11px] font-semibold ${effectClass}`}>
                       Current Effect: {effectText}
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ textAlign: 'right', paddingRight: '16px', borderRight: `1px dotted ${T.border}` }}>
-                      <div style={{ fontSize: '10px', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Employed</div>
-                      <div style={{ fontSize: '20px', color: T.gold, fontWeight: 700 }}>{employed}</div>
+                  <div className="flex items-center gap-4 shrink-0">
+                    <div className="text-right pr-4 border-r border-zinc-800">
+                      <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.08em]">Employed</div>
+                      <div className="text-xl font-bold font-mono text-terminal-amber">{employed}</div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '110px' }}>
-                      <GhostButton color={T.mint} onClick={() => handleHireFire(roleDef.id, 'hire')} style={{ width: '100%', padding: '6px' }}>+ Hire 1</GhostButton>
-                      <GhostButton color={T.red} disabled={employed === 0} onClick={() => handleHireFire(roleDef.id, 'fire')} style={{ width: '100%', padding: '6px' }}>- Dismiss 1</GhostButton>
+                    <div className="flex flex-col gap-1.5 w-[110px]">
+                      <GhostButton color="#30d158" onClick={() => handleHireFire(roleDef.id, 'hire')} className="w-full justify-center">+ Hire 1</GhostButton>
+                      <GhostButton color="#ff453a" disabled={employed === 0} onClick={() => handleHireFire(roleDef.id, 'fire')} className="w-full justify-center">- Dismiss 1</GhostButton>
                     </div>
                   </div>
                 </PanelBox>
@@ -2939,17 +3045,17 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
+      {/* ═════════════════════════��═════════════════════════════
           FINANCE TAB
       ═══════════════════════════════════════════════════════ */}
       {deskTab === 'finance' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <SectionHeader stamp="FINANCE DESK">Company Financials</SectionHeader>
+        <div className="flex flex-col gap-5">
+          <SectionHeader stamp="ACCOUNTING DESK">Company Finances</SectionHeader>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Finance Summary */}
             <PanelBox>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Current Position</div>
+              <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Current Position</h3>
               <FieldRow label="Available Cash" value={fm(finances?.available_cash || 0)} valueColor={T.mint} />
               <FieldRow label="Company Value" value={finances?.company_value ? fm(finances.company_value) : 'Not Available'} />
               <FieldRow label="Factory Asset Value" value={factories.length > 0 ? fm(factories.reduce((sum: number, f: any) => sum + (Number(f.capacity_per_month) * 1000), 0)) : 'Not Available'} />
@@ -2962,8 +3068,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
             {/* Next Month Commitments */}
             <PanelBox>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Next Month Commitments</div>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '12px' }}>Estimated recurring costs for the upcoming month.</div>
+              <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Next Month Commitments</h3>
+              <p className="text-[12px] text-zinc-500 mb-3">Estimated recurring costs for the upcoming month.</p>
               <FieldRow label="Factory Lease Cost" value={fm(leaseCostPerArc)} valueColor={T.red} />
               <FieldRow label="Factory Maintenance" value={fm(maintCostPerArc)} valueColor={T.red} />
               <FieldRow label="Workforce Wages" value={fm(totalWagesPerArc)} valueColor={T.red} />
@@ -2988,7 +3094,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <FieldRow label="Vehicle Development Cost" value={fm(0)} valueColor={T.faint} />
               <FieldRow label="Research Cost" value={fm(0)} valueColor={T.faint} />
 
-              <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: `1px solid ${T.border}` }}>
+              <div className="mt-3 pt-2 border-t border-zinc-800">
                 <FieldRow label="Estimated Total Next Month Cost" value={fm(
                   leaseCostPerArc + maintCostPerArc + totalWagesPerArc +
                   (marketData?.allocations?.reduce((acc: number, alloc: any) => {
@@ -2996,9 +3102,9 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   }, 0) || 0) +
                   inventory.reduce((acc: number, inv: any) => acc + (Number(inv.units_in_stock) * STORAGE_COST_PER_UNIT), 0) +
                   productionLines.reduce((acc: number, line: any) => acc + (Number(line.target_units_per_month) * Number(line.model_cost_per_unit || 0)), 0)
-                )} valueColor={T.red} />
+                )} valueColor="#ff453a" />
               </div>
-              <div style={{ marginTop: '8px', fontSize: '10px', color: T.faint, fontStyle: 'italic' }}>
+              <div className="mt-2 text-[10px] text-zinc-600 italic">
                 * Final costs and revenue are calculated at Month Close.
               </div>
             </PanelBox>
@@ -3006,37 +3112,37 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
           {/* Last Month Profit and Loss */}
           <PanelBox>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Last Month Profit and Loss</div>
+            <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-4">Last Month Profit and Loss</h3>
             {latestReport ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="flex flex-col gap-4">
                 <div>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: T.gold, borderBottom: `1px solid ${T.border}`, paddingBottom: '4px', marginBottom: '8px' }}>Revenue</div>
+                  <div className="text-xs font-semibold text-terminal-amber border-b border-zinc-800 pb-1 mb-2">Revenue</div>
                   <FieldRow label="Vehicle Sales Revenue" value={fm(latestReport.gross_revenue)} valueColor={T.mint} />
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: T.gold, borderBottom: `1px solid ${T.border}`, paddingBottom: '4px', marginBottom: '8px' }}>Cost of Goods Sold</div>
-                  <FieldRow label="Vehicle Production Cost" value={fm(latestReport.production_costs)} valueColor={T.red} />
-                  <FieldRow label="Defective Unit Losses" value={fm(0)} valueColor={Number(latestReport.defective_units) > 0 ? T.red : T.muted} />
+                  <div className="text-xs font-semibold text-terminal-amber border-b border-zinc-800 pb-1 mb-2">Cost of Goods Sold</div>
+                  <FieldRow label="Vehicle Production Cost" value={fm(latestReport.production_costs)} valueColor="#ff453a" />
+                  <FieldRow label="Defective Unit Losses" value={fm(0)} valueColor={Number(latestReport.defective_units) > 0 ? '#ff453a' : 'rgb(113, 113, 122)'} />
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: T.gold, borderBottom: `1px solid ${T.border}`, paddingBottom: '4px', marginBottom: '8px' }}>Operating Expenses</div>
-                  <FieldRow label="Factory Lease" value={fm(latestReport.factory_lease_costs)} valueColor={T.red} />
-                  <FieldRow label="Factory Maintenance" value={fm(latestReport.factory_maintenance_costs)} valueColor={T.red} />
-                  <FieldRow label="Manufacturing Wages" value={fm(latestReport.staff_wages)} valueColor={T.red} />
-                  <FieldRow label="Marketing Expense" value={fm(latestReport.marketing_costs)} valueColor={T.red} />
-                  <FieldRow label="Inventory Storage Cost" value={fm(latestReport.inventory_storage_costs)} valueColor={T.red} />
-                  <FieldRow label="Warranty Reserve" value={fm(latestReport.warranty_reserve_cost || 0)} valueColor={T.red} />
-                  <FieldRow label="Vehicle Development Expense" value={fm(0)} valueColor={T.muted} />
-                  <FieldRow label="Research Expense" value={fm(0)} valueColor={T.muted} />
+                  <div className="text-xs font-semibold text-terminal-amber border-b border-zinc-800 pb-1 mb-2">Operating Expenses</div>
+                  <FieldRow label="Factory Lease" value={fm(latestReport.factory_lease_costs)} valueColor="#ff453a" />
+                  <FieldRow label="Factory Maintenance" value={fm(latestReport.factory_maintenance_costs)} valueColor="#ff453a" />
+                  <FieldRow label="Manufacturing Wages" value={fm(latestReport.staff_wages)} valueColor="#ff453a" />
+                  <FieldRow label="Marketing Expense" value={fm(latestReport.marketing_costs)} valueColor="#ff453a" />
+                  <FieldRow label="Inventory Storage Cost" value={fm(latestReport.inventory_storage_costs)} valueColor="#ff453a" />
+                  <FieldRow label="Warranty Reserve" value={fm(latestReport.warranty_reserve_cost || 0)} valueColor="#ff453a" />
+                  <FieldRow label="Vehicle Development Expense" value={fm(0)} valueColor="rgb(113, 113, 122)" />
+                  <FieldRow label="Research Expense" value={fm(0)} valueColor="rgb(113, 113, 122)" />
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: T.gold, borderBottom: `1px solid ${T.border}`, paddingBottom: '4px', marginBottom: '8px' }}>Result</div>
-                  <FieldRow label="Operating Profit" value={fm(Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0))} valueColor={Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0) >= 0 ? T.mint : T.red} />
-                  <FieldRow label="Net Profit / Loss" value={fm(latestReport.net_profit)} valueColor={Number(latestReport.net_profit) >= 0 ? T.mint : T.red} />
-                  <FieldRow label="Ending Cash" value={fm(latestReport.ending_cash)} valueColor={T.mint} />
+                  <div className="text-xs font-semibold text-terminal-amber border-b border-zinc-800 pb-1 mb-2">Result</div>
+                  <FieldRow label="Operating Profit" value={fm(Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0))} valueColor={Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0) >= 0 ? '#30d158' : '#ff453a'} />
+                  <FieldRow label="Net Profit / Loss" value={fm(latestReport.net_profit)} valueColor={Number(latestReport.net_profit) >= 0 ? '#30d158' : '#ff453a'} />
+                  <FieldRow label="Ending Cash" value={fm(latestReport.ending_cash)} valueColor="#30d158" />
                 </div>
               </div>
             ) : (
@@ -3050,16 +3156,15 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
           {/* Ledger */}
           <PanelBox>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory }}>Manufacturing Ledger</div>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <h3 className="text-[13px] font-bold text-zinc-100 m-0">Manufacturing Ledger</h3>
+              <div className="flex gap-2 flex-wrap">
                 {['All', 'Revenue', 'Production', 'Workforce', 'Factory', 'Marketing', 'Storage', 'Development'].map(filter => (
-                  <button key={filter} onClick={() => setLedgerFilter(filter)} style={{
-                    background: ledgerFilter === filter ? 'rgba(212,175,55,0.2)' : 'transparent',
-                    color: ledgerFilter === filter ? T.gold : T.muted,
-                    border: `1px solid ${ledgerFilter === filter ? T.gold : T.border}`,
-                    padding: '4px 8px', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', cursor: 'pointer'
-                  }}>
+                  <button key={filter} onClick={() => setLedgerFilter(filter)} className={`rounded-sm px-2 py-1 text-[10px] font-mono uppercase tracking-[0.08em] transition-colors ${
+                    ledgerFilter === filter 
+                      ? 'bg-terminal-amber/20 text-terminal-amber border border-terminal-amber/60' 
+                      : 'bg-transparent text-zinc-500 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-300'
+                  }`}>
                     {filter}
                   </button>
                 ))}
@@ -3112,7 +3217,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           RECORDS TAB
       ═══════════════════════════════════════════════════════ */}
       {deskTab === 'records' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="flex flex-col gap-5">
           <SectionHeader stamp="COMPANY RECORDS">Activity History</SectionHeader>
           <PanelBox>
             {(!records || records.length === 0) && (!allReports || allReports.length === 0) ? (
@@ -3140,28 +3245,24 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     const month = record.created_at_world_month;
 
                     return (
-                      <div key={record.id + (isArcReport ? '_report' : '_rec')} style={{
-                        display: 'flex', gap: '16px', padding: '12px 0', borderBottom: `1px solid ${T.border}`,
-                        cursor: isArcReport ? 'pointer' : 'default',
-                        background: isArcReport ? 'rgba(255,255,255,0.02)' : 'transparent',
-                      }} onClick={() => {
+                      <div key={record.id + (isArcReport ? '_report' : '_rec')} className={`flex gap-4 py-3 px-3 -mx-3 border-b border-zinc-800/50 last:border-b-0 transition-colors ${isArcReport ? 'hover:bg-zinc-800/30 cursor-pointer bg-zinc-800/10' : ''}`} onClick={() => {
                         if (isArcReport) {
                           setSelectedArcReportId(record.id);
                         }
                       }}>
-                        <div style={{ width: '80px', color: T.muted, fontFamily: 'monospace', fontSize: '11px', paddingTop: '2px' }}>
+                        <div className="w-20 text-zinc-500 font-mono text-xs pt-0.5 shrink-0">
                           {formatWorldDateShort(year, month)}
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                            <span style={{ fontSize: '10px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{record.record_type}</span>
-                            <span style={{ fontSize: '13px', color: T.ivory, fontWeight: 600 }}>{record.summary.split(':')[0]}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] text-terminal-amber font-mono uppercase tracking-[0.1em]">{record.record_type}</span>
+                            <span className="text-xs text-zinc-100 font-semibold">{record.summary.split(':')[0]}</span>
                           </div>
-                          <div style={{ fontSize: '12px', color: T.muted, lineHeight: 1.5 }}>
+                          <div className="text-xs text-zinc-500 leading-relaxed">
                             {record.summary.includes(':') ? record.summary.substring(record.summary.indexOf(':') + 1).trim() : record.summary}
                           </div>
                           {isArcReport && (
-                            <div style={{ fontSize: '10px', color: T.blue, marginTop: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            <div className="text-[10px] text-terminal-blue mt-2 font-mono uppercase tracking-[0.05em]">
                               Click to view full Month report ➔
                             </div>
                           )}
@@ -3175,61 +3276,61 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
           {/* Month Report Detail View Modal */}
           {selectedArcReportId && (
-            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setSelectedArcReportId(null)}>
-              <div style={{ background: T.bg, border: `1px solid ${T.border}`, padding: '24px', width: '100%', maxWidth: '800px', borderRadius: '4px', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div className="fixed inset-0 bg-black/85 z-[999] flex items-center justify-center p-5" onClick={() => setSelectedArcReportId(null)}>
+              <div className="bg-zinc-950 border border-zinc-800 rounded-md w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
                 {(() => {
                   const r = allReports.find((r: any) => r.id === selectedArcReportId);
-                  if (!r) return <div style={{ color: T.red }}>Report not found.</div>;
+                  if (!r) return <div className="text-terminal-red">Report not found.</div>;
 
                   return (
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', borderBottom: `1px solid ${T.border}`, paddingBottom: '16px' }}>
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 border-b border-zinc-800 pb-4">
                         <div>
-                          <h2 style={{ margin: 0, color: T.gold, fontSize: '20px' }}>Month Report</h2>
-                          <div style={{ color: T.muted, fontSize: '12px', fontFamily: 'monospace', marginTop: '4px' }}>{formatWorldDate(r.world_year, r.world_month)}</div>
+                          <h2 className="m-0 text-terminal-amber text-xl font-bold">Month Report</h2>
+                          <div className="text-zinc-500 text-xs font-mono mt-1">{formatWorldDate(r.world_year, r.world_month)}</div>
                         </div>
                         <GhostButton onClick={() => setSelectedArcReportId(null)}>Close</GhostButton>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                          <div style={{ fontSize: '14px', fontWeight: 600, color: T.ivory, marginBottom: '12px' }}>Production</div>
+                          <h3 className="text-sm font-semibold text-zinc-100 mb-3">Production</h3>
                           <FieldRow label="Planned Units" value={r.planned_units} />
                           <FieldRow label="Actual Units Produced" value={r.units_produced} />
-                          <FieldRow label="Defective Units" value={r.defective_units} valueColor={Number(r.defective_units) > 0 ? T.red : T.ivory} />
-                          <FieldRow label="Production Efficiency" value={`${Math.round(Number(r.production_efficiency) * 100)}%`} valueColor={Number(r.production_efficiency) >= 1 ? T.mint : T.ivory} />
+                          <FieldRow label="Defective Units" value={r.defective_units} valueColor={Number(r.defective_units) > 0 ? '#ff453a' : 'rgb(229, 229, 229)'} />
+                          <FieldRow label="Production Efficiency" value={`${Math.round(Number(r.production_efficiency) * 100)}%`} valueColor={Number(r.production_efficiency) >= 1 ? '#30d158' : 'rgb(229, 229, 229)'} />
                           <FieldRow label="Factory Condition" value={`${r.factory_condition || 100}%`} />
                           <FieldRow label="Factory Workers Required" value={r.factory_workers_required} />
                           <FieldRow label="Factory Workers Available" value={r.factory_workers_available} />
-                          <FieldRow label="Supervisor Bonus" value={`${r.supervisor_bonus}%`} valueColor={Number(r.supervisor_bonus) > 0 ? T.mint : T.ivory} />
-                          <FieldRow label="Inspector Defect Reduction" value={`${r.inspector_defect_reduction}%`} valueColor={Number(r.inspector_defect_reduction) > 0 ? T.mint : T.ivory} />
+                          <FieldRow label="Supervisor Bonus" value={`${r.supervisor_bonus}%`} valueColor={Number(r.supervisor_bonus) > 0 ? '#30d158' : 'rgb(229, 229, 229)'} />
+                          <FieldRow label="Inspector Defect Reduction" value={`${r.inspector_defect_reduction}%`} valueColor={Number(r.inspector_defect_reduction) > 0 ? '#30d158' : 'rgb(229, 229, 229)'} />
                         </div>
 
                         <div>
-                          <div style={{ fontSize: '14px', fontWeight: 600, color: T.ivory, marginBottom: '12px' }}>Sales</div>
+                          <h3 className="text-sm font-semibold text-zinc-100 mb-3">Sales</h3>
                           <FieldRow label="Units Allocated" value={Number(r.units_sold) + Number(r.units_unsold)} />
-                          <FieldRow label="Units Sold" value={r.units_sold} valueColor={T.mint} />
-                          <FieldRow label="Unsold Units" value={r.units_unsold} valueColor={Number(r.units_unsold) > 0 ? T.red : T.ivory} />
+                          <FieldRow label="Units Sold" value={r.units_sold} valueColor="#30d158" />
+                          <FieldRow label="Unsold Units" value={r.units_unsold} valueColor={Number(r.units_unsold) > 0 ? '#ff453a' : 'rgb(229, 229, 229)'} />
                           <FieldRow label="Markets Used" value={marketData?.allocations?.length || 1} />
-                          <FieldRow label="Sale Revenue" value={fm(r.sales_revenue || r.gross_revenue)} valueColor={T.mint} />
-                          <FieldRow label="Sales Manager Bonus" value={`${r.sales_manager_bonus || 0}%`} valueColor={Number(r.sales_manager_bonus) > 0 ? T.mint : T.ivory} />
-                          <FieldRow label="Marketing Spend" value={fm(r.marketing_costs)} valueColor={T.red} />
-                          <FieldRow label="Storage Cost" value={fm(r.inventory_storage_costs)} valueColor={T.red} />
+                          <FieldRow label="Sale Revenue" value={fm(r.sales_revenue || r.gross_revenue)} valueColor="#30d158" />
+                          <FieldRow label="Sales Manager Bonus" value={`${r.sales_manager_bonus || 0}%`} valueColor={Number(r.sales_manager_bonus) > 0 ? '#30d158' : 'rgb(229, 229, 229)'} />
+                          <FieldRow label="Marketing Spend" value={fm(r.marketing_costs)} valueColor="#ff453a" />
+                          <FieldRow label="Storage Cost" value={fm(r.inventory_storage_costs)} valueColor="#ff453a" />
                         </div>
 
                         <div>
-                          <div style={{ fontSize: '14px', fontWeight: 600, color: T.ivory, marginBottom: '12px' }}>Finance</div>
-                          <FieldRow label="Production Cost" value={fm(r.production_costs)} valueColor={T.red} />
-                          <FieldRow label="Lease" value={fm(r.factory_lease_costs)} valueColor={T.red} />
-                          <FieldRow label="Maintenance" value={fm(r.factory_maintenance_costs)} valueColor={T.red} />
-                          <FieldRow label="Wages" value={fm(r.staff_wages)} valueColor={T.red} />
-                          <FieldRow label="Marketing" value={fm(r.marketing_costs)} valueColor={T.red} />
-                          <FieldRow label="Storage" value={fm(r.inventory_storage_costs)} valueColor={T.red} />
-                          <FieldRow label="Warranty" value={fm(r.warranty_reserve_cost || 0)} valueColor={T.red} />
-                          <FieldRow label="Total Expenses" value={fm(Number(r.production_costs) + Number(r.factory_lease_costs) + Number(r.factory_maintenance_costs) + Number(r.staff_wages) + Number(r.marketing_costs) + Number(r.inventory_storage_costs) + Number(r.warranty_reserve_cost || 0))} valueColor={T.red} />
-                          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${T.border}` }}>
-                            <FieldRow label="Net Profit / Loss" value={fm(r.net_profit)} valueColor={Number(r.net_profit) >= 0 ? T.mint : T.red} />
-                            <FieldRow label="Ending Cash" value={fm(r.ending_cash)} valueColor={T.mint} />
+                          <h3 className="text-sm font-semibold text-zinc-100 mb-3">Finance</h3>
+                          <FieldRow label="Production Cost" value={fm(r.production_costs)} valueColor="#ff453a" />
+                          <FieldRow label="Lease" value={fm(r.factory_lease_costs)} valueColor="#ff453a" />
+                          <FieldRow label="Maintenance" value={fm(r.factory_maintenance_costs)} valueColor="#ff453a" />
+                          <FieldRow label="Wages" value={fm(r.staff_wages)} valueColor="#ff453a" />
+                          <FieldRow label="Marketing" value={fm(r.marketing_costs)} valueColor="#ff453a" />
+                          <FieldRow label="Storage" value={fm(r.inventory_storage_costs)} valueColor="#ff453a" />
+                          <FieldRow label="Warranty" value={fm(r.warranty_reserve_cost || 0)} valueColor="#ff453a" />
+                          <FieldRow label="Total Expenses" value={fm(Number(r.production_costs) + Number(r.factory_lease_costs) + Number(r.factory_maintenance_costs) + Number(r.staff_wages) + Number(r.marketing_costs) + Number(r.inventory_storage_costs) + Number(r.warranty_reserve_cost || 0))} valueColor="#ff453a" />
+                          <div className="mt-3 pt-3 border-t border-zinc-800">
+                            <FieldRow label="Net Profit / Loss" value={fm(r.net_profit)} valueColor={Number(r.net_profit) >= 0 ? '#30d158' : '#ff453a'} />
+                            <FieldRow label="Ending Cash" value={fm(r.ending_cash)} valueColor="#30d158" />
                           </div>
                         </div>
                       </div>
@@ -3293,7 +3394,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         <EquityDeskTab companyId={company.id} companyName={company.name} />
       )}
 
-      </div>
+      </main>
     </div>
   );
 }
