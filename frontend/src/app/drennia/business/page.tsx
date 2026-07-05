@@ -461,7 +461,7 @@ export default function BusinessPage() {
   if (!authorized) return null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: T.bg, color: T.ivory, overflow: 'hidden' }}>
+    <div className="flex flex-col h-full w-full bg-[#090A0F] text-zinc-100 overflow-hidden">
 
       {/* ── Enhanced Business Header ── */}
       <header className="flex items-center justify-between px-4 md:px-6 py-2.5 border-b border-[#23232b] bg-[#0c0d13] shrink-0 flex-wrap gap-3">
@@ -515,26 +515,26 @@ export default function BusinessPage() {
       </header>
 
       {/* ── Page Title ── */}
-      <div style={{ padding: '14px 24px 6px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <h1 style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, margin: 0, fontFamily: 'serif' }}>Business</h1>
+      <div className="flex items-center gap-2.5 px-4 md:px-6 pt-3.5 pb-1.5 shrink-0">
+        <h1 className="font-serif text-lg font-bold text-zinc-100 m-0">Business</h1>
         {company && <Badge variant="green" dot>{company.sector === 'manufacturing' ? 'Manufacturing' : 'Logistics'}</Badge>}
       </div>
 
       {/* ── Subtabs & Breadcrumbs ── */}
-      <div style={{ padding: '0 24px', borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+      <div className="px-4 md:px-6 border-b border-zinc-800 shrink-0">
         {/* Dynamic Breadcrumbs */}
-        <div style={{ display: 'flex', gap: '8px', padding: '10px 0 4px', fontSize: '10px', fontFamily: 'monospace', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-          <span style={{ cursor: 'pointer', color: activeTab === 'overview' ? T.gold : T.muted }} onClick={() => { setActiveTab('overview'); setSelectedCompanyId(null); }}>Business Desk</span>
+        <div className="flex gap-2 pt-2.5 pb-1 text-[10px] font-mono uppercase tracking-[0.1em] text-zinc-600">
+          <span className={`cursor-pointer transition-colors ${activeTab === 'overview' ? 'text-terminal-amber' : 'text-zinc-500 hover:text-zinc-300'}`} onClick={() => { setActiveTab('overview'); setSelectedCompanyId(null); }}>Business Desk</span>
           {activeTab === 'companies' && (
             <>
               <span>→</span>
-              <span style={{ cursor: 'pointer', color: !selectedCompanyId ? T.gold : T.muted }} onClick={() => setSelectedCompanyId(null)}>My Companies</span>
+              <span className={`cursor-pointer transition-colors ${!selectedCompanyId ? 'text-terminal-amber' : 'text-zinc-500 hover:text-zinc-300'}`} onClick={() => setSelectedCompanyId(null)}>My Companies</span>
             </>
           )}
           {activeTab === 'companies' && selectedCompanyId && company && (
             <>
               <span>→</span>
-              <span style={{ color: T.gold }}>{company.name}</span>
+              <span className="text-terminal-amber">{company.name}</span>
             </>
           )}
         </div>
@@ -559,19 +559,19 @@ export default function BusinessPage() {
       </div>
 
       {/* ── Back / Breadcrumb Navigation (Anchors) ── */}
-      <div style={{ padding: '8px 24px 0', flexShrink: 0 }}>
+      <div className="px-4 md:px-6 pt-2 shrink-0">
         {activeTab === 'companies' && selectedCompanyId && company && (
-          <span style={{ cursor: 'pointer', color: T.gold, fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }} onClick={() => setSelectedCompanyId(null)}>
+          <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => setSelectedCompanyId(null)}>
             ← Back to Companies
           </span>
         )}
         {activeTab === 'start' && (
-          <span style={{ cursor: 'pointer', color: T.gold, fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }} onClick={() => { setActiveTab('overview'); setStep(1); }}>
+          <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => { setActiveTab('overview'); setStep(1); }}>
             ← Back to Business Overview
           </span>
         )}
         {activeTab === 'registry' && (
-          <span style={{ cursor: 'pointer', color: T.gold, fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }} onClick={() => setActiveTab('overview')}>
+          <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => setActiveTab('overview')}>
             ← Back to Registry
           </span>
         )}
@@ -611,32 +611,28 @@ export default function BusinessPage() {
                 </div>
               ) : (
                 <PageShell className="py-6">
-                  <div style={{ marginTop: '16px' }}>
+                  <div className="mt-4">
                     {company ? (
-                      <div
-                        style={{
-                          padding: '16px', background: T.panel, border: `1px solid ${T.border}`,
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer'
-                        }}
+                      <Card
+                        pad="md"
+                        hover
+                        className="flex items-center justify-between gap-4 cursor-pointer"
                         onClick={() => setSelectedCompanyId(company.id)}
                       >
                         <div>
-                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: T.ivory }}>{company.name}</div>
-                          <div style={{ fontSize: '11px', color: T.muted }}>
+                          <div className="text-sm font-bold text-zinc-100">{company.name}</div>
+                          <div className="text-[11px] text-zinc-500 mt-0.5">
                             {company.sectorId === 'shipping-logistics' || company.sector === 'shipping-logistics' ? 'Logistics' : 'Manufacturing'}
                             {' • '}
-                            {company.headquartersStateId || company.state}
+                            {getStateName(company.headquartersStateId || company.state)}
                           </div>
                         </div>
-                        <button style={{
-                          padding: '6px 12px', background: 'transparent', color: T.gold,
-                          border: `1px solid ${T.gold}`, fontSize: '10px', textTransform: 'uppercase'
-                        }}>
+                        <Button variant="ghost" size="sm" iconRight={ArrowRight}>
                           Manage
-                        </button>
-                      </div>
+                        </Button>
+                      </Card>
                     ) : (
-                      <div style={{ color: T.faint, fontSize: '12px' }}>No companies registered.</div>
+                      <div className="text-zinc-600 text-xs">No companies registered.</div>
                     )}
                   </div>
                 </PageShell>
@@ -650,7 +646,7 @@ export default function BusinessPage() {
             <AnalyticsDashboard companyId={company.id} countryId={(company as any).country_id || company.countryId || 'drennia'} />
           ) : (
             <PageShell className="py-6">
-              <div style={{ color: T.faint, fontSize: '12px' }}>Register a company to access market analytics.</div>
+              <div className="text-zinc-600 text-xs">Register a company to access market analytics.</div>
             </PageShell>
           )
         )}
