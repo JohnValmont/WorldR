@@ -254,6 +254,22 @@ export const manufacturingApi = {
   getCompanyKnowledge: (companyId: string) => api.get(`/companies/${companyId}/manufacturing/knowledge`),
 };
 
+// Chat — global in-game chat
+export interface ChatMessage {
+  id: number;
+  character_id: string;
+  character_name: string;
+  body: string;
+  created_at: string;
+}
+
+export const chatApi = {
+  getMessages: (after?: number): Promise<{ messages: ChatMessage[] }> =>
+    api.get(`/chat/messages${after ? `?after=${after}` : ''}`).then(res => res.data),
+  sendMessage: (body: string): Promise<{ message: ChatMessage }> =>
+    api.post('/chat/messages', { body }).then(res => res.data)
+};
+
 // World — public world feed
 export interface WorldClock {
   world_instance_id: string;

@@ -4,6 +4,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import BackBar from '../../components/ui/BackBar';
+import GameChat from '../../components/chat/GameChat';
 
 export default function DrenniaLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function DrenniaLayout({ children }: { children: React.ReactNode 
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#090A0F', width: '100%' }}>
       <BackBar />
       {children}
+      <GameChat />
     </div>
   );
 }
