@@ -180,8 +180,8 @@ export class AuthService {
 
   public async resendVerification(email: string): Promise<void> {
     const user = await userRepository.findByEmail(email);
-    if (!user) throw new NotFoundError('User not found');
-    if (user.is_verified) return; // Already verified, silently succeed
+    // Silently succeed if email not found — prevents user enumeration
+    if (!user || user.is_verified) return;
 
     // Check resend cooldown: look at the latest active OTP record
     const latestRecord = await db('email_verification_tokens')
@@ -206,9 +206,10 @@ export class AuthService {
     await emailService.sendVerificationEmail(email, user.display_name || `Player #${user.id}`, otp);
   }
 
-  public async forgotPassword(email: string): Promise<string> {
+  public async forgotPassword(email: string): Promise<void> {
     const user = await userRepository.findByEmail(email);
-    if (!user) throw new NotFoundError('No account registered with this email address');
+    // Silently succeed if no account — prevents email enumeration
+    if (!user) return;
 
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date();
@@ -222,7 +223,7 @@ export class AuthService {
     logger.info(`[AuthService] Password reset token for ${email}: ${token}`);
     logger.info(`[AuthService] Reset URL: http://localhost:3000/reset-password?token=${token}&email=${email}`);
 
-    return token;
+    await emailService.sendPasswordResetEmail(email, user.display_name || `Player #${user.id}`, token);
   }
 
   public async resetPassword(email: string, token: string, password: string): Promise<void> {
@@ -230,7 +231,15 @@ export class AuthService {
     if (!user) throw new NotFoundError('User not found');
 
     const resetUser = await db('users').where({ id: user.id }).first();
-    if (!resetUser.reset_token || resetUser.reset_token !== token) {
+    if (!resetUser.reset_token) {
+      throw new UnauthorizedError('Invalid password reset token');
+    }
+    // Timing-safe comparison to prevent token oracle attacks
+    const expectedBuf = Buffer.from(resetUser.reset_token);
+    const providedBuf = Buffer.from(token);
+    const tokensMatch = expectedBuf.length === providedBuf.length &&
+      crypto.timingSafeEqual(expectedBuf, providedBuf);
+    if (!tokensMatch) {
       throw new UnauthorizedError('Invalid password reset token');
     }
 

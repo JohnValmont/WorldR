@@ -19,7 +19,10 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const { data } = await authApi.login(form);
+      const { data } = await authApi.login({
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+      });
 
       // Wipe any stale game-state from a previous account on this device.
       // This guards against the case where the user didn't explicitly log out.
@@ -141,7 +144,7 @@ export default function LoginPage() {
         <button
           id="login-submit"
           type="submit"
-          disabled={loading}
+        disabled={loading || !form.email.trim() || !form.password}
           className="auth-btn-primary w-full mt-6 group"
         >
           {loading ? (

@@ -63,8 +63,9 @@ export class AuthController {
     try {
       const { email } = req.body;
       if (!email) return res.status(400).json({ error: 'Email is required' });
-      const resetToken = await authService.forgotPassword(email);
-      res.status(200).json({ message: 'If an account exists, a reset link will be sent.', resetToken });
+      await authService.forgotPassword(email);
+      // Always return the same message whether the email exists or not (anti-enumeration)
+      res.status(200).json({ message: 'If an account exists with that email, a reset link will be sent.' });
     } catch (error) {
       next(error);
     }
