@@ -135,7 +135,46 @@ export const companyApi = {
   withdrawCapital: (id: string, amount: number) =>
     api.post(`/companies/${id}/withdraw-capital`, { amount }),
   updateFinances: (id: string, data: any) =>
-    api.patch(`/companies/${id}/finances`, data)
+    api.patch(`/companies/${id}/finances`, data),
+  // Legal structures
+  getStructures: () => api.get('/companies/structures').then(res => res.data),
+  convertStructure: (id: string, legalStructureId: string) =>
+    api.post(`/companies/${id}/convert-structure`, { legal_structure_id: legalStructureId }).then(res => res.data),
+  setDividendPolicy: (id: string, payoutPercent: number) =>
+    api.put(`/companies/${id}/dividend-policy`, { payout_percent: payoutPercent }).then(res => res.data),
+  getCapTable: (id: string) => api.get(`/companies/${id}/cap-table`).then(res => res.data)
+};
+
+// Exchange — player-only share market (public corporations)
+export const exchangeApi = {
+  getListings: () => api.get('/exchange/listings').then(res => res.data),
+  getOrderBook: (companyId: string) => api.get(`/exchange/${companyId}/book`).then(res => res.data),
+  getTrades: (companyId: string) => api.get(`/exchange/${companyId}/trades`).then(res => res.data),
+  placeOrder: (companyId: string, data: { side: 'buy' | 'sell'; price: number; quantity: number }) =>
+    api.post(`/exchange/${companyId}/orders`, data).then(res => res.data),
+  cancelOrder: (orderId: string) => api.delete(`/exchange/orders/${orderId}`).then(res => res.data),
+  getMyOrders: () => api.get('/exchange/my-orders').then(res => res.data),
+  getMyPortfolio: () => api.get('/exchange/portfolio').then(res => res.data),
+  getPriceHistory: (companyId: string) => api.get(`/exchange/${companyId}/history`).then(res => res.data)
+};
+
+// Investments — P2P loans and private equity placements
+export const investmentsApi = {
+  // Loans
+  getLoanOffers: () => api.get('/investments/loan-offers').then(res => res.data),
+  createLoanOffer: (data: { max_amount: number; monthly_interest_rate: number; term_months: number; purpose?: string; target_character_id?: string }) =>
+    api.post('/investments/loan-offers', data).then(res => res.data),
+  cancelLoanOffer: (id: string) => api.delete(`/investments/loan-offers/${id}`).then(res => res.data),
+  acceptLoanOffer: (id: string, amount: number) =>
+    api.post(`/investments/loan-offers/${id}/accept`, { amount }).then(res => res.data),
+  getMyLoans: () => api.get('/investments/my-loans').then(res => res.data),
+  repayLoanEarly: (id: string) => api.post(`/investments/loans/${id}/repay`).then(res => res.data),
+  // Private equity placements
+  getPlacements: () => api.get('/investments/placements').then(res => res.data),
+  createPlacement: (data: { company_id: string; shares: number; price_per_share: number; target_character_id?: string }) =>
+    api.post('/investments/placements', data).then(res => res.data),
+  cancelPlacement: (id: string) => api.delete(`/investments/placements/${id}`).then(res => res.data),
+  acceptPlacement: (id: string) => api.post(`/investments/placements/${id}/accept`).then(res => res.data)
 };
 
 // Registry

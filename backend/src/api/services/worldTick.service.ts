@@ -1,6 +1,7 @@
 import { db } from '../../config/database';
 import { logger } from '../../utils/logger';
 import { ManufacturingController } from '../controllers/manufacturing.controller';
+import { processEconomyMonth } from './economyTick.service';
 
 const WORLD_INSTANCE_ID = 'pre-alpha-world-1';
 const SCHEDULER_INTERVAL_MS = 60_000; // check the clock every 60s
@@ -73,6 +74,9 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
         const result = await ManufacturingController.processCountryMonth(trx, countryId, clock);
         processedCompanies += result.processedCompanies;
       }
+
+      // 2b. Player economy — loan payments, dividends, structure compliance costs
+      await processEconomyMonth(trx, year, month);
 
       // 3. Character aging — once per year, at the end of month 12
       if (month === 12) {

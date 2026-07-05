@@ -41,10 +41,11 @@ INSERT INTO industries (id, name, status, is_playable) VALUES
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, is_playable = EXCLUDED.is_playable;
 
 -- 7. LEGAL STRUCTURES
+-- sole-trader / private-company / public-corporation are the playable tiers (see migration 0031)
 INSERT INTO legal_structures (id, name, status, is_available) VALUES 
 ('sole-trader', 'Sole Trader', 'active', true),
-('private-company', 'Private Company', 'active', false),
+('private-company', 'Private Company', 'active', true),
 ('corporation', 'Corporation', 'active', false),
-('public-corporation', 'Public Corporation', 'active', false),
+('public-corporation', 'Public Corporation', 'active', true),
 ('holding-company', 'Holding Company', 'active', false)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, is_available = EXCLUDED.is_available;

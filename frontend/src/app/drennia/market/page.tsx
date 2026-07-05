@@ -111,37 +111,33 @@ export default function MarketPage() {
         </div>
 
         {/* Westport Bourse */}
-        <div style={{ gridColumn: '1 / -1', background: T.paper, border: `1px solid ${T.burgundy}40`, padding: '24px' }}>
+        <div
+          style={{ gridColumn: '1 / -1', background: T.paper, border: `1px solid ${T.borderGold}`, padding: '24px', cursor: 'pointer' }}
+          onClick={() => router.push('/drennia/exchange')}
+          role="link"
+          aria-label="Open the Westport Bourse share exchange"
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '6px' }}>Westport Bourse</div>
-              <div style={{ fontSize: '18px', fontWeight: 700, color: T.faint, marginBottom: '8px' }}>Share Market — Locked</div>
-              <p style={{ fontSize: '12px', color: T.faint, lineHeight: 1.7, maxWidth: '480px', margin: 0 }}>
-                Public company trading on the Westport Bourse requires a Corporation legal structure. 
-                Sole Traders and Private Companies are not eligible for public listing.
+              <div style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Share Market — Open for Trading</div>
+              <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, maxWidth: '480px', margin: 0 }}>
+                Trade shares of player-owned Public Corporations on a live order book. 
+                Convert your company to a Public Corporation (§250,000 minimum value) to IPO and raise capital.
               </p>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Unlock Requires</div>
-              <div style={{ fontSize: '11px', color: T.burgundy, fontFamily: 'monospace' }}>Corporation Structure</div>
-              <div style={{ fontSize: '11px', color: T.burgundy, fontFamily: 'monospace' }}>₯50,000 Market Cap Min.</div>
+              <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Listing Requires</div>
+              <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace' }}>Public Corporation Structure</div>
+              <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace' }}>§250,000 Company Value Min.</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '24px', marginTop: '20px', paddingTop: '16px', borderTop: `1px solid ${T.border}` }}>
-            {[
-              { label: 'DRENNPORT BANK',   ticker: 'DCB',  price: '₯1,240', change: '+0.8%',  up: true  },
-              { label: 'KOVATH IRONWORKS', ticker: 'KIW',  price: '₯342',   change: '-1.2%',  up: false },
-              { label: 'SALTGATE COUNTING',ticker: 'SGC',  price: '₯88',    change: '+2.1%',  up: true  },
-              { label: 'CROWNBRIDGE',      ticker: 'CWB',  price: '₯24',    change: '+0.3%',  up: true  },
-            ].map(s => (
-              <div key={s.ticker} style={{ opacity: 0.4 }}>
-                <div style={{ fontSize: '8px', fontFamily: 'monospace', letterSpacing: '0.15em', color: T.faint }}>{s.ticker}</div>
-                <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 700, color: T.faint }}>{s.price}</div>
-                <div style={{ fontSize: '10px', color: T.faint }}>{s.change}</div>
-              </div>
-            ))}
-            <div style={{ marginLeft: 'auto', fontSize: '10px', color: T.faint, fontFamily: 'monospace', fontStyle: 'italic', alignSelf: 'flex-end' }}>
-              🔒 Trading suspended — corporation required
+            <div style={{ fontSize: '11px', color: T.muted, fontFamily: 'monospace' }}>
+              Limit orders · price-time priority · instant settlement · player companies only
+            </div>
+            <div style={{ marginLeft: 'auto', fontSize: '10px', color: T.mint, fontFamily: 'monospace', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'flex-end' }}>
+              Enter the Bourse →
             </div>
           </div>
         </div>

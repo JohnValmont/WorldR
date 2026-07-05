@@ -87,6 +87,16 @@ export class CompanyController {
         return next(new AppError('Active character required to create a company', 400, 'NO_CHARACTER'));
       }
 
+      // Validate the chosen legal structure (sole-trader / private-company / public-corporation)
+      const structure = await db('legal_structures').where({ id: legal_structure_id, is_available: true }).first();
+      if (!structure) {
+        return next(new AppError('Invalid or unavailable legal structure', 400, 'BAD_STRUCTURE'));
+      }
+      // Public corporations require minimum starting value to IPO at creation
+      if (Number(structure.min_company_value) > 0 && Number(starting_capital) < Number(structure.min_company_value)) {
+        return next(new AppError(`A ${structure.name} requires at least §${Number(structure.min_company_value).toLocaleString()} in starting capital`, 400, 'MIN_VALUE'));
+      }
+
       const clock = await db('world_clock').where({ status: 'active' }).first();
 
       const result = await db.transaction(async (trx) => {
@@ -104,7 +114,7 @@ export class CompanyController {
           characterFinances = newFinances;
         }
 
-        const filingFee = 5000;
+        const filingFee = Number(structure.filing_fee) || 5000;
         const totalCost = Number(starting_capital) + filingFee;
 
         if (Number(characterFinances.cash_in_hand) < totalCost) {
@@ -143,6 +153,14 @@ export class CompanyController {
           available_cash: starting_capital,
           company_value: starting_capital
         }).returning('*');
+
+        // Cap table: founder holds all 1,000,000 authorized shares
+        await trx('company_shares').insert({
+          company_id: company.id,
+          holder_character_id: character.id,
+          shares: 1000000,
+          avg_cost_basis: 0
+        });
 
         return { ...company, finances };
       });
@@ -220,6 +238,135 @@ export class CompanyController {
       }
 
       res.status(200).json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /companies/structures — available legal structures with rules
+  public static async getStructures(req: Request, res: Response, next: NextFunction) {
+    try {
+      const structures = await db('legal_structures').where({ is_available: true }).orderBy('filing_fee', 'asc');
+      res.status(200).json(structures);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // POST /companies/:id/convert-structure  { legal_structure_id }
+  // Company pays the new structure's filing fee. IPO requires min company value.
+  public static async convertStructure(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { id } = req.params;
+      const { legal_structure_id } = req.body;
+      if (!userId || !legal_structure_id) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+
+      const result = await db.transaction(async (trx) => {
+        const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+        if (!character) throw new AppError('No character', 400, 'NO_CHARACTER');
+
+        const company = await trx('companies').where({ id, owner_character_id: character.id }).forUpdate().first();
+        if (!company) throw new AppError('Company not found or unauthorized', 404, 'NOT_FOUND');
+        if (company.legal_structure_id === legal_structure_id) throw new AppError('Company already has this structure', 400, 'SAME_STRUCTURE');
+
+        const target = await trx('legal_structures').where({ id: legal_structure_id, is_available: true }).first();
+        if (!target) throw new AppError('Invalid or unavailable legal structure', 400, 'BAD_STRUCTURE');
+
+        const finances = await trx('company_finances').where({ company_id: id }).forUpdate().first();
+        const fee = Number(target.filing_fee);
+
+        // IPO requirement: minimum company value
+        if (Number(target.min_company_value) > 0 && Number(finances.company_value) < Number(target.min_company_value)) {
+          throw new AppError(`Requires company value of at least §${Number(target.min_company_value).toLocaleString()} (current: §${Number(finances.company_value).toLocaleString()})`, 400, 'MIN_VALUE');
+        }
+
+        // Downgrade guard: cannot move to a structure whose shareholder cap is below current holder count
+        if (target.max_shareholders != null) {
+          const holders = await trx('company_shares').where({ company_id: id }).where('shares', '>', 0).count('* as n').first();
+          if (Number(holders?.n || 0) > Number(target.max_shareholders)) {
+            throw new AppError(`Company has ${holders?.n} shareholders but a ${target.name} allows only ${target.max_shareholders}. Buy out shareholders first.`, 400, 'TOO_MANY_HOLDERS');
+          }
+        }
+
+        if (Number(finances.available_cash) < fee) {
+          throw new AppError(`Insufficient company cash for the §${fee.toLocaleString()} filing fee`, 400, 'INSUFFICIENT_FUNDS');
+        }
+
+        await trx('company_finances').where({ company_id: id }).decrement('available_cash', fee);
+        await trx('companies').where({ id }).update({ legal_structure_id, updated_at: trx.fn.now() });
+
+        const clock = await trx('world_clock').first();
+        await trx('company_ledger').insert({
+          company_id: id,
+          game_year: clock?.current_year || 1,
+          game_month: clock?.current_month || 1,
+          game_day: clock?.current_day || 1,
+          entry_type: 'expense',
+          description: `Converted to ${target.name} (filing fee)`,
+          amount: -fee,
+          balance_after: Number(finances.available_cash) - fee,
+        });
+
+        return { converted: true, legal_structure_id, fee };
+      });
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // PUT /companies/:id/dividend-policy  { payout_percent }
+  public static async setDividendPolicy(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { id } = req.params;
+      const payout = Number(req.body.payout_percent);
+      if (!userId || !Number.isFinite(payout) || payout < 0 || payout > 50) {
+        return next(new AppError('payout_percent must be between 0 and 50', 400, 'BAD_REQUEST'));
+      }
+
+      const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) return next(new AppError('No character', 400, 'NO_CHARACTER'));
+
+      const company = await db('companies').where({ id, owner_character_id: character.id }).first();
+      if (!company) return next(new AppError('Company not found or unauthorized', 404, 'NOT_FOUND'));
+
+      await db('dividend_policies')
+        .insert({ company_id: id, payout_percent: payout })
+        .onConflict('company_id')
+        .merge({ payout_percent: payout, updated_at: db.fn.now() });
+
+      res.status(200).json({ success: true, payout_percent: payout });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /companies/:id/cap-table — shareholders and ownership (visible to any shareholder or owner)
+  public static async getCapTable(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const holders = await db('company_shares as s')
+        .join('characters as ch', 'ch.id', 's.holder_character_id')
+        .where({ 's.company_id': id })
+        .where('s.shares', '>', 0)
+        .orderBy('s.shares', 'desc')
+        .select('s.holder_character_id', 'ch.name', 's.shares', 's.avg_cost_basis');
+
+      const policy = await db('dividend_policies').where({ company_id: id }).first();
+      const recentDividends = await db('dividend_payments')
+        .where({ company_id: id })
+        .orderBy('created_at', 'desc')
+        .limit(24);
+
+      res.status(200).json({
+        total_shares: 1000000,
+        holders: holders.map((h: any) => ({ ...h, percent: (Number(h.shares) / 1000000) * 100 })),
+        dividend_policy: policy ? Number(policy.payout_percent) : 0,
+        recent_dividends: recentDividends,
+      });
     } catch (error) {
       next(error);
     }
