@@ -192,7 +192,7 @@ export class LogisticsController {
         if (!catalogItem) throw new AppError('Facility type not found', 404, 'NOT_FOUND');
 
         // Pay first lease month cost immediately
-        const cost = Number(catalogItem.lease_cost_per_arc);
+        const cost = Number(catalogItem.lease_cost_per_month);
         const finances = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
 
         if (Number(finances.available_cash) < cost) {
@@ -310,7 +310,7 @@ export class LogisticsController {
           if (isAssigned) {
             const pool = await trx('operation_pools').where({ id: v.assigned_operation_pool_id }).first();
             if (pool) {
-              totalRevenue += Number(pool.base_revenue_per_arc);
+              totalRevenue += Number(pool.base_revenue_per_month);
             }
           }
 

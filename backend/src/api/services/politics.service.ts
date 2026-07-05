@@ -865,7 +865,7 @@ async function settleTenders(trx: any, stateId: string, currentMonth: number) {
       .first();
 
     const unitsInStock = invRecord ? Number(invRecord.units_in_stock) : 0;
-    const unitsBought = Math.min(Number(tender.units_per_arc), unitsInStock);
+    const unitsBought = Math.min(Number(tender.units_per_month), unitsInStock);
 
     if (unitsBought > 0) {
       const revenue = unitsBought * Number(tender.awarded_price);

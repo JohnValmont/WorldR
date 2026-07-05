@@ -223,7 +223,7 @@ export default function LobbyTendersTab({ overview, character, parties }: any) {
                   <div key={t.id} className="p-4 bg-[#11131A] border border-[#2A2630]">
                     <div className="flex justify-between items-start mb-2">
                       <div className="text-[#F4EBD6] font-serif capitalize text-lg">{t.vehicle_class} Fleet</div>
-                      <span className="text-xs text-[#A79D8C]">{t.units_per_arc} units/month</span>
+                      <span className="text-xs text-[#A79D8C]">{t.units_per_month} units/month</span>
                     </div>
                     <div className="text-sm text-[#E4DBCA] mb-2 flex justify-between">
                       <span>Max Price: <span className="text-[#4D8C6A] font-mono">₮{Number(t.max_price).toLocaleString()}</span></span>
@@ -271,7 +271,7 @@ export default function LobbyTendersTab({ overview, character, parties }: any) {
                 {historyTenders.map((t) => (
                   <div key={t.id} className="p-3 bg-[#11131A] border border-[#2A2630] text-sm">
                     <div className="flex justify-between mb-1">
-                      <span className="text-[#E4DBCA] capitalize">{t.vehicle_class} Fleet ({t.units_per_arc}/month)</span>
+                      <span className="text-[#E4DBCA] capitalize">{t.vehicle_class} Fleet ({t.units_per_month}/month)</span>
                       <span className={`text-[10px] uppercase px-1 border ${t.status === 'active' ? 'text-[#4D8C6A] border-[#4D8C6A]/30 bg-[#4D8C6A]/10' : 'text-[#B0863E] border-[#B0863E]/30 bg-[#B0863E]/10'}`}>
                         {t.status}
                       </span>

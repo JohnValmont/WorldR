@@ -796,8 +796,8 @@ export async function postTender(req: Request, res: Response, next: NextFunction
     const userId = req.user?.id;
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
 
-    const { vehicle_class, spec_floor, units_per_arc, max_price, duration_arcs } = req.body;
-    if (!vehicle_class || !spec_floor || !units_per_arc || !max_price || !duration_arcs) {
+    const { vehicle_class, spec_floor, units_per_month, max_price, duration_arcs } = req.body;
+    if (!vehicle_class || !spec_floor || !units_per_month || !max_price || !duration_arcs) {
       return next(new AppError('Missing required tender fields', 400, 'BAD_REQUEST'));
     }
 
@@ -832,7 +832,7 @@ export async function postTender(req: Request, res: Response, next: NextFunction
         state_id: activeState.id,
         vehicle_class,
         spec_floor: JSON.stringify(spec_floor),
-        units_per_arc,
+        units_per_month,
         max_price,
         duration_arcs,
         status: 'open',
@@ -844,7 +844,7 @@ export async function postTender(req: Request, res: Response, next: NextFunction
         month: currentMonth,
         kind: 'tender_posted',
         headline: `Government Procurement: ${vehicle_class} Tender Posted`,
-        body: `The government has opened bidding for ${units_per_arc} units per month at a max price of ${max_price} ₯ for ${duration_arcs} months.`
+        body: `The government has opened bidding for ${units_per_month} units per month at a max price of ${max_price} ₯ for ${duration_arcs} months.`
       });
 
       return tender;

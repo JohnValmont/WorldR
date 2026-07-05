@@ -22,7 +22,7 @@ async function runTest() {
     state_id: state.id,
     vehicle_class: 'compact',
     spec_floor: JSON.stringify({ reliability_score: 50, safety_score: 50 }),
-    units_per_arc: 10,
+    units_per_month: 10,
     max_price: 15000,
     duration_arcs: 2,
     status: 'open',
@@ -60,7 +60,7 @@ async function runTest() {
     created_at_world_day: 1
   }).returning('*');
 
-  // Insert inventory: exactly 5 units (less than the 10 units_per_arc requested) to test clamp
+  // Insert inventory: exactly 5 units (less than the 10 units_per_month requested) to test clamp
   const [invRecord] = await db('manufacturing_inventory').insert({
     world_instance_id: companyObj.world_instance_id,
     company_id: companyObj.id,

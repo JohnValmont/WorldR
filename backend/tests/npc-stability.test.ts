@@ -46,8 +46,8 @@ async function runTest() {
       created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1
     });
     
-    await db('manufacturing_factories').insert({ id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, country_id: country.id, state_id: 'drennia-drennport', factory_type_id: 'medium-plant', name: 'Player Factory', capacity_per_arc: 200, lease_cost_per_arc: 10000, maintenance_cost_per_arc: 2000, status: 'active', created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1 });
-    await db('manufacturing_production_lines').insert({ id: lineId, factory_id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, assigned_vehicle_model_id: modelId, target_units_per_arc: 100, status: 'active' });
+    await db('manufacturing_factories').insert({ id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, country_id: country.id, state_id: 'drennia-drennport', factory_type_id: 'medium-plant', name: 'Player Factory', capacity_per_month: 200, lease_cost_per_month: 10000, maintenance_cost_per_month: 2000, status: 'active', created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1 });
+    await db('manufacturing_production_lines').insert({ id: lineId, factory_id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, assigned_vehicle_model_id: modelId, target_units_per_month: 100, status: 'active' });
     
     await db('manufacturing_market_allocations').insert({ company_id: playerCompanyId, vehicle_model_id: modelId, world_instance_id: worldId, region_market_id: market.id, units_allocated: 100, marketing_tier: 'local' });
 
@@ -74,7 +74,7 @@ async function runTest() {
        await db('company_finances').where({ company_id: npc.id }).update({ available_cash: seedCap });
        
        if (rosterData && rosterData.targetUnitsPerArc) {
-         await db('manufacturing_production_lines').where({ company_id: npc.id }).update({ target_units_per_arc: rosterData.targetUnitsPerArc });
+         await db('manufacturing_production_lines').where({ company_id: npc.id }).update({ target_units_per_month: rosterData.targetUnitsPerArc });
        }
        if (rosterData && rosterData.salePrice) {
          await db('manufacturing_vehicle_models').where({ company_id: npc.id }).update({ sale_price: rosterData.salePrice });
