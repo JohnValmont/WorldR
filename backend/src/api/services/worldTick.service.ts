@@ -75,6 +75,9 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
         processedCompanies += result.processedCompanies;
       }
 
+      // 2b. Player economy — loan payments, dividends, structure compliance costs
+      await processEconomyMonth(trx, year, month);
+
       // 3. Character aging — once per year, at the end of month 12
       if (month === 12) {
         await trx('characters')
