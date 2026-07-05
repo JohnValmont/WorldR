@@ -14,14 +14,15 @@ const MUTED = '#A79D8C';
 
 const TABS = [
   { name: 'Chronicle', path: '/drennia/chronicle' },
-  { name: 'Family',    path: '/drennia/family'    },
-  { name: 'Career',    path: '/drennia/career'    },
+  { name: 'Family [v0.2]',    path: '#'    },
+  { name: 'Career [v0.2]',    path: '#'    },
   { name: 'Business',  path: '/drennia/business'  },
-  { name: 'Market',    path: '/drennia/market'    },
-  { name: 'Records',   path: '/drennia/records'   },
-  { name: 'Politics',  path: '/drennia/politics'  },
-  { name: 'Network',   path: '/drennia/network'   },
-  { name: 'World',     path: '/drennia/world'     },
+  { name: 'Exchange',  path: '/drennia/exchange'  },
+  { name: 'Market [v0.2]',    path: '#'    },
+  { name: 'Records [v0.2]',   path: '#'   },
+  { name: 'Politics [v0.2]',  path: '#'  },
+  { name: 'Network [v0.2]',   path: '#'   },
+  { name: 'World [v0.2]',     path: '#'     },
 ];
 
 export default function LivingWorldNav() {

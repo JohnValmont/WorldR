@@ -1791,14 +1791,14 @@ function CompanyDeskTab({
                 Need more capital to expand your fleet? You can inject cash via the Finance Desk.
               </div>
               <div style={{ marginTop: '12px' }}>
-                <GhostButton onClick={() => setDeskTab('finance')}>Open Finance →</GhostButton>
+                <GhostButton onClick={() => setDeskTab('finance')}>Open Finance</GhostButton>
               </div>
             </PanelBox>
             
             <PanelBox style={{ marginBottom: '16px' }}>
               <SectionHeader>Other Procurement</SectionHeader>
               <div style={{ display: 'grid', gap: '8px' }}>
-                <GhostButton onClick={() => setDeskTab('facilities')}>Facility Leasing →</GhostButton>
+                <GhostButton onClick={() => setDeskTab('facilities')}>Facility Leasing</GhostButton>
                 <div style={{ padding: '8px', border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.02)', color: T.faint, fontSize: '11px', textAlign: 'center' }}>Equipment (Locked)</div>
                 <div style={{ padding: '8px', border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.02)', color: T.faint, fontSize: '11px', textAlign: 'center' }}>Materials (Locked)</div>
                 <div style={{ padding: '8px', border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.02)', color: T.faint, fontSize: '11px', textAlign: 'center' }}>Player Suppliers (Future)</div>
@@ -2501,7 +2501,7 @@ function AssetsTab({ company, fleet, onRefresh, showNotif, setDeskTab }: any) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <GhostButton onClick={() => setDeskTab('facilities')}>Open Facilities</GhostButton>
             <GhostButton onClick={() => setDeskTab('fleet')}>Open Fleet</GhostButton>
-            <GhostButton onClick={() => {}}>Open Market</GhostButton>
+            <GhostButton onClick={() => {}} disabled>Open Market (Locked)</GhostButton>
           </div>
         </PanelBox>
       </div>

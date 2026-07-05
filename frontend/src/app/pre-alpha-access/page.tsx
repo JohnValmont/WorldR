@@ -26,7 +26,7 @@ export default function PreAlphaAccessPage() {
     setError('');
     const cleanCode = code.trim().toUpperCase();
 
-    if (cleanCode === 'ROSE1551') {
+    if (cleanCode === 'ROSE1551' || cleanCode === 'WORLDR-ALPHA-01') {
       setLoading(true);
       localStorage.setItem('worldr_pre_alpha_access_granted_v1', 'true');
       localStorage.setItem('worldr_pre_alpha_access_granted_at', new Date().toISOString());
@@ -62,7 +62,7 @@ export default function PreAlphaAccessPage() {
           </p>
 
           <p className="text-sm text-zinc-500 leading-relaxed mb-10 pb-10 border-b border-white/[0.05]">
-            WORLDr is being redesigned into a living country simulator where players rise through reputation, relationships, wealth, institutions, elections, business, and public records. Access is currently limited to pre-alpha testers.
+            WORLDr is a living country simulator. In this <strong>Pre-Alpha v0.1</strong>, you have access to the Business & Equity Module. Rise through wealth, institutions, business, and the stock exchange. Access is limited to pre-alpha testers.
           </p>
 
           {/* ACCESS CARD */}
