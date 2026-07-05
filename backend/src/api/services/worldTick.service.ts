@@ -1,6 +1,7 @@
 import { db } from '../../config/database';
 import { logger } from '../../utils/logger';
 import { ManufacturingController } from '../controllers/manufacturing.controller';
+import { processEconomyMonth } from './economyTick.service';
 
 const WORLD_INSTANCE_ID = 'pre-alpha-world-1';
 const SCHEDULER_INTERVAL_MS = 60_000; // check the clock every 60s
