@@ -8,6 +8,7 @@ export interface AuthUser {
   role: string;
   is_verified: boolean;
   display_name: string | null;
+  character?: any | null;
 }
 
 interface AuthState {
@@ -31,10 +32,25 @@ export const useAuthStore = create<AuthState>()(
       setAuth: (user, accessToken, refreshToken) => {
         setAccessToken(accessToken);
         setRefreshToken(refreshToken);
+        
+        // Hydrate localStorage if character is attached
+        if (typeof window !== 'undefined' && user.character) {
+          localStorage.setItem('worldr_selected_motherland', user.character.state_id);
+          localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(user.character));
+          localStorage.setItem('worldr_living_world_entry_v1', 'true');
+        }
+        
         set({ user, accessToken, refreshToken, isAuthenticated: true });
       },
 
-      setUser: (user) => set({ user }),
+      setUser: (user) => {
+        if (typeof window !== 'undefined' && user.character) {
+          localStorage.setItem('worldr_selected_motherland', user.character.state_id);
+          localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(user.character));
+          localStorage.setItem('worldr_living_world_entry_v1', 'true');
+        }
+        set({ user });
+      },
 
       logout: () => {
         clearTokens();
