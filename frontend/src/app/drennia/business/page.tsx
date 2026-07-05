@@ -251,6 +251,7 @@ export default function BusinessPage() {
   const [startError, setStartError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [chosenCapital, setChosenCapital] = useState(50000);
+  const [selectedStructure, setSelectedStructure] = useState('sole-trader');
   const [selectedModel, setSelectedModel] = useState<string>('');
 
   const loadData = useCallback(() => {
@@ -399,7 +400,7 @@ export default function BusinessPage() {
 
   const handleRegisterCompany = async () => {
     setStartError('');
-    const FILING_FEE = 5000;
+    const FILING_FEE = selectedStructure === 'sole-trader' ? 500 : selectedStructure === 'private-company' ? 5000 : 50000;
     const total = chosenCapital + FILING_FEE;
     if (playerCash < total) {
       setStartError(`Insufficient cash. You need ${formatMoney(total)} (${formatMoney(chosenCapital)} capital + ${formatMoney(FILING_FEE)} filing fee). You have ${formatMoney(playerCash)}.`);
@@ -420,7 +421,7 @@ export default function BusinessPage() {
         headquarters_state_id: selectedHQ,
         industry_id: isLogistics ? 'shipping-logistics' : 'manufacturing',
         subsector_id: isLogistics ? null : selectedModel,
-        legal_structure_id: 'sole-trader',
+        legal_structure_id: selectedStructure,
         currency_id: 'drennian-day',
         starting_capital: chosenCapital
       }).then((res: any) => {
@@ -577,7 +578,7 @@ export default function BusinessPage() {
       {/* ── Tab Content ── */}
       <div className="flex-1 overflow-y-auto animate-slide-in">
         {activeTab === 'overview'  && <PageShell className="py-6"><OverviewTab company={company} playerCash={playerCash} netWorth={netWorth} onStartBusiness={() => setActiveTab('start')} onViewContracts={() => { setActiveTab('companies'); setSelectedCompanyId(null); }} onViewRegistry={() => setActiveTab('registry')} /></PageShell>}
-        {activeTab === 'start'     && <PageShell className="py-6"><StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} selectedModel={selectedModel} setSelectedModel={setSelectedModel} isSubmitting={isSubmitting} /></PageShell>}
+        {activeTab === 'start'     && <PageShell className="py-6"><StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} selectedStructure={selectedStructure} setSelectedStructure={setSelectedStructure} selectedModel={selectedModel} setSelectedModel={setSelectedModel} isSubmitting={isSubmitting} /></PageShell>}
         
         {activeTab === 'companies' && (
             <div>
@@ -675,8 +676,8 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
         <PanelBox>
           <SectionHeader>Company Types Available</SectionHeader>
           <FieldRow label="Sole Trader" value="Active" valueColor={T.mint} />
-          <FieldRow label="Private Company" value="Locked" valueColor={T.faint} />
-          <FieldRow label="Corporation" value="Locked" valueColor={T.faint} />
+          <FieldRow label="Private Company" value="Active" valueColor={T.mint} />
+          <FieldRow label="Corporation" value="Active" valueColor={T.mint} />
         </PanelBox>
       </div>
     );
@@ -709,7 +710,7 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
 // ─────────────────────────────────────────────────────────────────────────────
 // START BUSINESS TAB
 // ─────────────────────────────────────────────────────────────────────────────
-function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, selectedHQ, setSelectedHQ, companyNameInput, setCompanyNameInput, nameError, setNameError, startError, playerCash, company, onRegister, checkName, chosenCapital, setChosenCapital, selectedModel, setSelectedModel, isSubmitting }: any) {
+function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, selectedHQ, setSelectedHQ, companyNameInput, setCompanyNameInput, nameError, setNameError, startError, playerCash, company, onRegister, checkName, chosenCapital, setChosenCapital, selectedStructure, setSelectedStructure, selectedModel, setSelectedModel, isSubmitting }: any) {
   if (company) {
     return (
       <PanelBox style={{ maxWidth: '540px' }}>
@@ -723,10 +724,10 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
 
   const isLogistics = selectedSector === 'Shipping & Logistics';
   const STEP_LABELS = ['Sector', 'Headquarters', 'Structure', 'Company Name', 'Starting Capital', isLogistics ? 'Operating Model' : 'Subsector', 'Confirm Filing'];
-  const FILING_FEE = 5000;
+  const FILING_FEE = selectedStructure === 'sole-trader' ? 500 : selectedStructure === 'private-company' ? 5000 : 50000;
   const total = chosenCapital + FILING_FEE;
   const canAfford = playerCash >= total;
-  const totalCost = 5000 + chosenCapital;
+  const totalCost = FILING_FEE + chosenCapital;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '40px', height: '100%', alignItems: 'start' }}>
@@ -818,22 +819,22 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           <SectionHeader stamp="STEP 3 OF 7">Legal Structure</SectionHeader>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
             {[
-              { label: 'Sole Trader', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost.', active: true },
-              { label: 'Private Company', desc: 'Separate legal entity. Can add partners and issue shares.', active: false },
-              { label: 'Corporation', desc: 'Full liability protection. Required for public trading.', active: false },
+              { id: 'sole-trader', label: 'Sole Trader', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost (₯500).' },
+              { id: 'private-company', label: 'Private Company', desc: 'Separate legal entity. Can add partners and issue shares (₯5,000).' },
+              { id: 'public-corporation', label: 'Corporation', desc: 'Full liability protection. Required for public trading (₯50,000).' },
             ].map(s => (
-              <div key={s.label} style={{ padding: '14px 18px', background: s.active ? 'rgba(201,162,74,0.08)' : 'rgba(255,255,255,0.01)', border: s.active ? `1px solid ${T.gold}` : `1px solid ${T.border}`, opacity: s.active ? 1 : 0.4 }}>
+              <button key={s.label} onClick={() => setSelectedStructure(s.id)} style={{ padding: '14px 18px', background: selectedStructure === s.id ? 'rgba(201,162,74,0.08)' : 'rgba(255,255,255,0.01)', border: selectedStructure === s.id ? `1px solid ${T.gold}` : `1px solid ${T.border}`, cursor: 'pointer', textAlign: 'left', width: '100%', opacity: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: s.active ? T.ivory : T.faint }}>{s.label}</span>
-                  {s.active ? <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.gold }}>ACTIVE ✓</span> : <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>LOCKED</span>}
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: T.ivory }}>{s.label}</span>
+                  {selectedStructure === s.id && <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.gold }}>ACTIVE ✓</span>}
                 </div>
-                <div style={{ fontSize: '11px', color: s.active ? T.muted : T.faint, marginTop: '4px' }}>{s.desc}</div>
-              </div>
+                <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px' }}>{s.desc}</div>
+              </button>
             ))}
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <GhostButton onClick={() => setStep(2)}>← Back</GhostButton>
-            <GoldButton onClick={() => setStep(4)}>Next: Name →</GoldButton>
+            <GoldButton onClick={() => setStep(4)} disabled={!selectedStructure}>Next: Name →</GoldButton>
           </div>
         </div>
       )}
@@ -999,13 +1000,13 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
               ◈ Drennia Commercial Registry — Filing Confirmation
             </div>
             <FieldRow label="Company Name" value={companyNameInput} />
-            <FieldRow label="Legal Structure" value="Sole Trader" />
+            <FieldRow label="Legal Structure" value={selectedStructure === 'sole-trader' ? 'Sole Trader' : selectedStructure === 'private-company' ? 'Private Company' : 'Corporation'} />
             <FieldRow label="Sector" value={selectedSector} />
             <FieldRow label="Headquarters" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ} />
             <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={isLogistics ? selectedModel : getSubsectorName(selectedModel)} valueColor={T.gold} />
             <FieldRow label="Filing Date" value={formatGameDate()} />
             <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor={T.mint} />
-            <FieldRow label="Filing Fee" value={formatMoney(5000)} valueColor={T.red} />
+            <FieldRow label="Filing Fee" value={formatMoney(FILING_FEE)} valueColor={T.red} />
             <FieldRow label="Total Deducted from Cash" value={formatMoney(total)} valueColor={T.gold} />
           </PanelBox>
           <p style={{ fontSize: '11px', color: T.muted, marginBottom: '20px', lineHeight: 1.7 }}>
@@ -1029,7 +1030,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           Filing Summary
         </div>
         <FieldRow label="Company Name" value={companyNameInput || 'TBD'} />
-        <FieldRow label="Legal Structure" value="Sole Trader" />
+        <FieldRow label="Legal Structure" value={selectedStructure === 'sole-trader' ? 'Sole Trader' : selectedStructure === 'private-company' ? 'Private Company' : 'Corporation'} />
         <FieldRow label="Sector" value={selectedSector || 'TBD'} />
         <FieldRow label="Headquarters" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ || 'TBD'} />
         <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={selectedModel ? (isLogistics ? selectedModel : getSubsectorName(selectedModel)) : 'TBD'} valueColor={T.gold} />
