@@ -10,6 +10,7 @@ import manufacturingRoutes from './manufacturing.routes';
 import politicsRoutes from './politics.routes';
 import exchangeRoutes from './exchange.routes';
 import investmentsRoutes from './investments.routes';
+import chatRoutes from './chat.routes';
 
 const apiRouter = Router();
 
@@ -22,6 +23,7 @@ apiRouter.use('/logistics', logisticsRoutes);
 apiRouter.use('/politics', politicsRoutes);
 apiRouter.use('/exchange', exchangeRoutes);
 apiRouter.use('/investments', investmentsRoutes);
+apiRouter.use('/chat', chatRoutes);
 // Manufacturing: mounts bootstrap + company routes + admin month-process endpoint
 apiRouter.use('/', manufacturingRoutes);
 
