@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import { exchangeApi } from '../../../lib/api';
+import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line } from 'recharts';
 
 const T = {
   bg: '#090A0F',
@@ -73,6 +74,56 @@ function Listings({ listings, selectedId, onSelect }: { listings: any[]; selecte
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// ── Price history chart ────────────────────────────────────────────────────
+function PriceHistory({ companyId }: { companyId: string }) {
+  const { data: history } = useSWR(['price-history', companyId], () => exchangeApi.getPriceHistory(companyId), { refreshInterval: 30000 });
+  const rows: any[] = (history ?? []).map((r: any) => ({
+    label: `Y${r.game_year} M${r.game_month}`,
+    avg: Number(r.avg),
+    low: Number(r.low),
+    high: Number(r.high),
+    volume: Number(r.volume),
+  }));
+
+  return (
+    <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px' }}>
+      <div style={{ ...label, marginBottom: '12px' }}>Price History</div>
+      {rows.length === 0 ? (
+        <div style={{ fontSize: '11px', color: T.faint }}>No trade history yet. Prices will chart here once shares change hands.</div>
+      ) : (
+        <div style={{ width: '100%', height: 220 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={rows} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+              <CartesianGrid stroke={T.border} strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: T.faint, fontSize: 9, fontFamily: 'monospace' }} axisLine={{ stroke: T.border }} tickLine={false} />
+              <YAxis
+                tick={{ fill: T.faint, fontSize: 9, fontFamily: 'monospace' }}
+                axisLine={{ stroke: T.border }}
+                tickLine={false}
+                width={52}
+                domain={['auto', 'auto']}
+                tickFormatter={(v: number) => `§${fmt(v, 0)}`}
+              />
+              <Tooltip
+                contentStyle={{ background: T.panelSoft, border: `1px solid ${T.borderGold}`, fontSize: '11px', fontFamily: 'monospace' }}
+                labelStyle={{ color: T.ivory }}
+                formatter={(value: any, name: any) => {
+                  if (name === 'volume') return [fmtInt(Number(value)), 'Volume (sh)'];
+                  const labels: Record<string, string> = { avg: 'Avg price', low: 'Low', high: 'High' };
+                  return [`§${fmt(Number(value))}`, labels[name as string] ?? name];
+                }}
+              />
+              <Area type="monotone" dataKey="high" stroke="transparent" fill="rgba(201,162,74,0.08)" />
+              <Area type="monotone" dataKey="low" stroke="transparent" fill={T.panel} />
+              <Line type="monotone" dataKey="avg" stroke={T.gold} strokeWidth={2} dot={{ r: 2, fill: T.gold }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }
@@ -353,6 +404,7 @@ export default function ExchangePage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {activeId ? (
             <>
+              <PriceHistory key={`history-${activeId}-${refreshKey}`} companyId={activeId} />
               <OrderBook key={`book-${activeId}-${refreshKey}`} companyId={activeId} />
               <RecentTrades key={`trades-${activeId}-${refreshKey}`} companyId={activeId} />
             </>

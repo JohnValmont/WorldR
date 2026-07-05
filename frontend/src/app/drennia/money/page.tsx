@@ -274,6 +274,7 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
 function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
   const { data: placements, mutate } = useSWR('placements', () => investmentsApi.getPlacements(), { refreshInterval: 15000 });
   const { data: myCompanies } = useSWR('my-companies', () => companyApi.getMy().then((r) => r.data));
+  const { data: myCharacter } = useSWR('placements-me', () => characterApi.getMe().then((r) => r.data));
   const [companyId, setCompanyId] = useState('');
   const [shares, setShares] = useState('');
   const [price, setPrice] = useState('');
@@ -314,7 +315,20 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
     } finally { setBusy(false); }
   };
 
+  const withdraw = async (id: string) => {
+    setBusy(true);
+    try {
+      await investmentsApi.cancelPlacement(id);
+      notify('Placement withdrawn.', true);
+      mutate();
+      onChanged();
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Failed to withdraw placement.', false);
+    } finally { setBusy(false); }
+  };
+
   const rows: any[] = placements ?? [];
+  const myId = myCharacter?.id;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -372,13 +386,23 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.gold }}>§{fmtInt(Number(p.shares) * Number(p.price_per_share))}</span>
-              <button
-                onClick={() => accept(p.id)}
-                disabled={busy}
-                style={{ padding: '8px 14px', cursor: 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(54,211,153,0.15)', color: T.mint, border: `1px solid ${T.mint}` }}
-              >
-                Buy
-              </button>
+              {myId && p.seller_character_id === myId ? (
+                <button
+                  onClick={() => withdraw(p.id)}
+                  disabled={busy}
+                  style={{ padding: '8px 14px', cursor: 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(248,113,113,0.12)', color: T.red, border: `1px solid ${T.red}` }}
+                >
+                  Withdraw
+                </button>
+              ) : (
+                <button
+                  onClick={() => accept(p.id)}
+                  disabled={busy}
+                  style={{ padding: '8px 14px', cursor: 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(54,211,153,0.15)', color: T.mint, border: `1px solid ${T.mint}` }}
+                >
+                  Buy
+                </button>
+              )}
             </div>
           </div>
         ))}
