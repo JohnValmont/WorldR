@@ -1,8 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
-import { getOrCreateCurrentCycle, buildEngineCandidates } from '../services/politics.service';
-import { PARTY_FOUNDING_COST, CAMPAIGN_ACTIONS, SEGMENTS, POL_MAJORITY_SEATS } from '../constants/politics';
+import {
+  getOrCreateCurrentCycle,
+  buildEngineCandidates,
+  getOrCreateCharacterAp,
+  spendAp,
+  getRosterCap,
+  recruitNpcToParty,
+} from '../services/politics.service';
+import {
+  PARTY_FOUNDING_COST,
+  CAMPAIGN_ACTIONS,
+  SEGMENTS,
+  POL_MAJORITY_SEATS,
+  AP_COST_RECRUIT,
+  AP_COST_STATEMENT,
+  AP_COST_FUNDRAISE,
+  AP_COST_ENDORSEMENT_AP,
+  AP_COST_SCOUT,
+  AP_COST_NEGOTIATE,
+  POL_FUNDRAISER_BASE,
+  POL_FUNDRAISER_CHARISMA_MULT,
+  RECRUIT_COST_CASH,
+  GENERAL_ACTION_TYPES,
+} from '../constants/politics';
 import { runElection } from '../services/electionEngine';
 import { buildPulse } from '../services/politics.pulse';
 
@@ -338,6 +360,15 @@ export async function joinParty(req: Request, res: Response, next: NextFunction)
       const party = await trx('pol_parties').where({ id: partyId }).first();
       if (!party) throw new AppError('Party not found', 404, 'NOT_FOUND');
 
+      // OWNERSHIP RULE: Players cannot join another player's party.
+      // is_npc === false AND has a real leader_character_id means it's a player-owned party.
+      if (!party.is_npc && party.leader_character_id && party.leader_character_id !== character.id) {
+        throw new AppError(
+          'Players cannot join another player\'s party. Found your own party, or run as an Independent.',
+          409, 'CONFLICT'
+        );
+      }
+
       const clock = await trx('world_clock').first();
       const currentMonth = clock?.current_month || 1;
 
@@ -368,13 +399,13 @@ export async function leaveParty(req: Request, res: Response, next: NextFunction
       const member = await trx('pol_party_members').where({ party_id: partyId, character_id: character.id }).first();
       if (!member) throw new AppError('Not a member of this party', 404, 'NOT_FOUND');
 
+      // OWNERSHIP RULE: The Leader cannot leave their own party.
+      // Dissolution is a future feature (treasury going negative, account inactive).
       if (member.role === 'leader') {
-        const [{ count }] = await trx('pol_party_members').where({ party_id: partyId }).count('* as count');
-        if (Number(count) > 1) {
-          throw new AppError('Cannot leave as leader while members exist (leadership transfer out of scope)', 409, 'CONFLICT');
-        } else {
-          await trx('pol_parties').where({ id: partyId }).update({ leader_character_id: null });
-        }
+        throw new AppError(
+          'As Party Leader you cannot leave your own party. Dissolution will be supported in a future update.',
+          409, 'CONFLICT'
+        );
       }
 
       await trx('pol_party_members').where({ party_id: partyId, character_id: character.id }).delete();
@@ -1050,6 +1081,155 @@ export async function getTenders(req: Request, res: Response, next: NextFunction
     }
 
     return res.json(tenders);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ── New AP-System Controllers ────────────────────────────────────────────────
+
+/** GET /politics/ap — returns current AP + cap for the authed character */
+export async function getMyAp(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+    if (!character) return res.json({ current_ap: 0, ap_cap: 4 }); // no character yet
+
+    const apRow = await db.transaction(async (trx) =>
+      getOrCreateCharacterAp(trx, character.id)
+    );
+
+    return res.json({ current_ap: apRow.current_ap, ap_cap: apRow.ap_cap });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** POST /politics/general-action — Statement / Fundraise / Endorsement / Scout / Negotiate */
+export async function doGeneralAction(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const { type } = req.body;
+    if (!type || !GENERAL_ACTION_TYPES.includes(type)) {
+      return next(new AppError('Unknown general action type', 400, 'BAD_REQUEST'));
+    }
+    // Recruit is handled by its own endpoint
+    if (type === 'recruit') return next(new AppError('Use POST /politics/recruit for recruiting', 400, 'BAD_REQUEST'));
+
+    const AP_COSTS: Record<string, number> = {
+      statement:   AP_COST_STATEMENT,
+      fundraise:   AP_COST_FUNDRAISE,
+      endorsement: AP_COST_ENDORSEMENT_AP,
+      scout:       AP_COST_SCOUT,
+      negotiate:   AP_COST_NEGOTIATE,
+    };
+    const cost = AP_COSTS[type] ?? 1;
+
+    const result = await db.transaction(async (trx) => {
+      const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+      const membership = await trx('pol_party_members').where({ character_id: character.id }).first();
+      if (!membership) throw new AppError('You must be in a party to take political actions', 403, 'FORBIDDEN');
+
+      const party = await trx('pol_parties').where({ id: membership.party_id }).first();
+
+      // Deduct AP
+      await spendAp(trx, character.id, cost);
+
+      // Apply effect
+      let message = '';
+      if (type === 'statement') {
+        // Small popularity nudge (tunable future effect)
+        await trx('pol_parties').where({ id: party.id })
+          .update({ popularity: trx.raw('LEAST(popularity + 1, 100)') });
+        message = 'Statement issued. Popularity nudged up by 1.';
+      } else if (type === 'fundraise') {
+        const charisma = Number(character.charisma || 0);
+        const gain = Math.round(POL_FUNDRAISER_BASE + charisma * POL_FUNDRAISER_CHARISMA_MULT);
+        await trx('pol_parties').where({ id: party.id }).increment('treasury', gain);
+        message = `Fundraiser complete. +$${gain.toLocaleString()} added to party treasury.`;
+      } else if (type === 'endorsement') {
+        // Data log only — segment boost TBD when candidate targeting is wired
+        message = 'Endorsement drive logged. Candidate boost will apply at next campaign resolution.';
+      } else if (type === 'scout') {
+        // Returns a redacted rival profile (full detail reserved for Phase 4c paid research)
+        message = 'Scouting report filed. Rival platform outlines now visible in Party view.';
+      } else if (type === 'negotiate') {
+        // Log data for future coalition Formation screen
+        message = 'Negotiation outreach logged. This will improve coalition formation odds.';
+      }
+
+      const apRow = await trx('pol_character_ap').where({ character_id: character.id }).first();
+      return { message, ap: { current_ap: apRow.current_ap, ap_cap: apRow.ap_cap } };
+    });
+
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** POST /politics/recruit — recruit one NPC onto the party roster */
+export async function recruitNpc(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const result = await db.transaction(async (trx) => {
+      const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+      const membership = await trx('pol_party_members').where({ character_id: character.id }).first();
+      if (!membership) throw new AppError('You must be in a party to recruit', 403, 'FORBIDDEN');
+      if (membership.role !== 'leader') throw new AppError('Only the Party Leader can recruit NPCs', 403, 'FORBIDDEN');
+
+      const party = await trx('pol_parties').where({ id: membership.party_id }).first();
+      if (!party) throw new AppError('Party not found', 404, 'NOT_FOUND');
+
+      // Check roster cap
+      const cap = getRosterCap(Number(party.popularity || 0));
+      const currentRoster = await trx('pol_party_members').where({ party_id: party.id }).count('* as count').first();
+      const rosterSize = Number(currentRoster?.count || 0);
+      if (rosterSize >= cap) {
+        throw new AppError(
+          `Roster is full (${rosterSize}/${cap}). Raise party popularity to unlock more slots.`,
+          409, 'CONFLICT'
+        );
+      }
+
+      // Check treasury
+      if (Number(party.treasury || 0) < RECRUIT_COST_CASH) {
+        throw new AppError(
+          `Insufficient party funds: need $${RECRUIT_COST_CASH.toLocaleString()}, have $${Number(party.treasury).toLocaleString()}.`,
+          400, 'INSUFFICIENT_FUNDS'
+        );
+      }
+
+      // Deduct AP
+      await spendAp(trx, character.id, AP_COST_RECRUIT);
+
+      const clock = await trx('world_clock').first();
+      const currentArc = clock?.current_month || 1;
+
+      // Recruit the NPC
+      await recruitNpcToParty(trx, party, currentArc);
+
+      // Update roster_cap convenience column
+      await trx('pol_parties').where({ id: party.id }).update({ roster_cap: cap });
+
+      const apRow = await trx('pol_character_ap').where({ character_id: character.id }).first();
+      return {
+        message: `NPC candidate recruited to ${party.name}. Roster: ${rosterSize + 1}/${cap}.`,
+        ap: { current_ap: apRow.current_ap, ap_cap: apRow.ap_cap },
+      };
+    });
+
+    return res.json({ success: true, ...result });
   } catch (error) {
     next(error);
   }

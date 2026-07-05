@@ -105,3 +105,44 @@ for (const segment of SEGMENTS) {
     throw new Error(`Politics constants self-check failed: Segment '${segment.key}' priorities sum to ${totalPriorities}, expected 1.0`);
   }
 }
+
+// ── AP (Action Point) System ──────────────────────────────────────────────
+// Mirror of backend constants — kept in sync manually, used for UI display.
+
+export const AP_BASE_CAP                 = 4;
+export const AP_BONUS_LEGISLATIVE_SEAT   = 2;
+export const AP_BONUS_SECRETARY          = 2;
+export const AP_BONUS_GOVERNOR           = 3;
+export const AP_BONUS_COMMITTEE_CHAIR    = 1;
+
+// AP costs (display only — enforcement is backend)
+export const AP_COST_STATEMENT           = 1;
+export const AP_COST_FUNDRAISE           = 1;
+export const AP_COST_RECRUIT             = 2;
+export const AP_COST_ENDORSEMENT_AP      = 2;
+export const AP_COST_SCOUT               = 2;
+export const AP_COST_NEGOTIATE           = 2;
+export const AP_COST_BILL_MINOR          = 2;
+export const AP_COST_BILL_MODERATE       = 3;
+export const AP_COST_BILL_MAJOR          = 4;
+export const AP_COST_BILL_CONSTITUTIONAL = 6;
+export const AP_COST_JOIN_COMMITTEE      = 1;
+export const AP_COST_WHIP                = 2;
+export const AP_COST_VOTE                = 0;
+
+// Tunable defaults — not enforced in frontend, documented for reference
+export const RECRUIT_COST_CASH = 5_000;
+export const ROSTER_CAP_BANDS: { minPop: number; cap: number }[] = [
+  { minPop: 75, cap: 10 },
+  { minPop: 50, cap:  7 },
+  { minPop: 25, cap:  4 },
+  { minPop:  0, cap:  2 },
+];
+
+export function getRosterCap(popularity: number): number {
+  for (const band of ROSTER_CAP_BANDS) {
+    if (popularity >= band.minPop) return band.cap;
+  }
+  return 2;
+}
+

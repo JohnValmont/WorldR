@@ -23,6 +23,7 @@ export default function PoliticsDesk() {
   const [overview, setOverview]                     = useState<any>(null);
   const [parties, setParties]                       = useState<any[]>([]);
   const [latestGoverningEvent, setLatestGoverningEvent] = useState<any>(null);
+  const [myAp, setMyAp]                             = useState<{ current_ap: number; ap_cap: number }>({ current_ap: 4, ap_cap: 4 });
 
   const loadData = useCallback(async () => {
     try {
@@ -34,6 +35,7 @@ export default function PoliticsDesk() {
         politicsApi.getState(),                              // multi-state overview
         politicsApi.getParties(selectedJurisdictionId),
         politicsApi.getLedger(20, selectedJurisdictionId),
+        politicsApi.getMyAp(),
       ]);
 
       if (results[0].status === 'fulfilled') {
@@ -52,6 +54,9 @@ export default function PoliticsDesk() {
         const ledger: any[] = Array.isArray(results[3].value) ? results[3].value : [];
         const govEvent = ledger.find((e: any) => typeof e.kind === 'string' && e.kind.startsWith('gov_'));
         if (govEvent) setLatestGoverningEvent(govEvent);
+      }
+      if (results[4].status === 'fulfilled') {
+        setMyAp(results[4].value as { current_ap: number; ap_cap: number });
       }
 
       if (results.every(r => r.status === 'rejected')) {
@@ -93,6 +98,7 @@ export default function PoliticsDesk() {
     overview,
     character,
     parties,
+    myAp,
     onRefresh: loadData,
   };
 
@@ -146,6 +152,7 @@ export default function PoliticsDesk() {
                 character={character}
                 parties={parties}
                 latestGoverningEvent={latestGoverningEvent}
+                myAp={myAp}
                 onNavigate={setActiveSection}
               />
             )}

@@ -1,7 +1,8 @@
 'use client';
 import React from 'react';
-import { Coins, MessageSquare, Award, BookOpen } from 'lucide-react';
+import { Coins, MessageSquare, Award, BookOpen, Zap } from 'lucide-react';
 import PhaseTimeline from './_components/PhaseTimeline';
+import ApBadge from './_components/ApBadge';
 import ArcDigest from './ArcDigest';
 import type { PoliticsSection } from './_components/PoliticsSidebar';
 import { JURISDICTIONS } from './_lib/session';
@@ -19,6 +20,7 @@ interface OverviewScreenProps {
   character: any;
   parties: any[];
   latestGoverningEvent: any;
+  myAp?: { current_ap: number; ap_cap: number };
   onNavigate: (section: PoliticsSection) => void;
 }
 
@@ -27,6 +29,7 @@ export default function OverviewScreen({
   character,
   parties,
   latestGoverningEvent,
+  myAp,
   onNavigate,
 }: OverviewScreenProps) {
   const phase = overview?.cyclePhase || overview?.cycle?.phase || 'governing';
@@ -50,10 +53,10 @@ export default function OverviewScreen({
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Credibility', value: credibility, icon: Award,       suffix: '' },
+            { label: 'Credibility', value: credibility, icon: Award,        suffix: '' },
             { label: 'Charisma',    value: charisma,    icon: MessageSquare, suffix: '' },
-            { label: 'Influence',   value: influence,   icon: BookOpen,    suffix: '' },
-            { label: 'Personal Cash', value: cash != null ? `§${Number(cash).toLocaleString()}` : '—', icon: Coins, suffix: '' },
+            { label: 'Influence',   value: influence,   icon: BookOpen,      suffix: '' },
+            { label: 'Personal Cash', value: cash != null ? `$${Number(cash).toLocaleString()}` : '—', icon: Coins, suffix: '' },
           ].map(({ label, value, icon: Icon }) => (
             <div key={label} className="border border-[#2A2630] bg-[#11131A] p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -63,6 +66,16 @@ export default function OverviewScreen({
               <div className="text-xl font-serif text-[#F4EBD6]">{typeof value === 'number' ? value : value}</div>
             </div>
           ))}
+          {/* AP card */}
+          {myAp && (
+            <div className="border border-[#2A2630] bg-[#11131A] p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Zap size={12} className="text-[#6B6358]" />
+                <div className="text-[9px] font-mono uppercase tracking-widest text-[#6B6358]">Action Points</div>
+              </div>
+              <ApBadge current={myAp.current_ap} cap={myAp.ap_cap} size="lg" />
+            </div>
+          )}
         </div>
       </div>
 

@@ -199,6 +199,62 @@ export const CAMPAIGN_ACTIONS: CampaignAction[] = [
   { type: "fundraiser", cost_cash: 0, effort: 0, targeting: "none" }
 ];
 
+// ── AP (Action Point) System ───────────────────────────────────────────────
+// All values are TUNABLE DEFAULTS — change here, never inline.
+
+export const AP_BASE_CAP                 = 4;
+export const AP_BONUS_LEGISLATIVE_SEAT   = 2;
+export const AP_BONUS_SECRETARY          = 2;
+export const AP_BONUS_GOVERNOR           = 3;
+export const AP_BONUS_COMMITTEE_CHAIR    = 1;
+export const AP_REGEN_PER_ARC            = 1;
+
+// AP costs per action
+export const AP_COST_STATEMENT           = 1;
+export const AP_COST_FUNDRAISE           = 1;
+export const AP_COST_RECRUIT             = 2;
+export const AP_COST_ENDORSEMENT_AP      = 2;
+export const AP_COST_SCOUT               = 2;
+export const AP_COST_NEGOTIATE           = 2;
+export const AP_COST_EXECUTIVE_ORDER     = 3;
+export const AP_COST_APPOINT_SECRETARY   = 2;
+export const AP_COST_ADDRESS_STATE       = 1;
+export const AP_COST_EMERGENCY_RESPONSE  = 2;
+export const AP_COST_RESHUFFLE_CABINET   = 2;
+export const AP_COST_BILL_MINOR          = 2;
+export const AP_COST_BILL_MODERATE       = 3;
+export const AP_COST_BILL_MAJOR          = 4;
+export const AP_COST_BILL_CONSTITUTIONAL = 6;
+export const AP_COST_AMEND_MINOR         = 1;
+export const AP_COST_AMEND_CLAUSE        = 2;
+export const AP_COST_JOIN_COMMITTEE      = 1;
+export const AP_COST_WHIP                = 2;
+// Votes always cost 0 AP — this is intentional and non-configurable.
+export const AP_COST_VOTE                = 0;
+
+// ── Roster Cap Bands ─────────────────────────────────────────────────────
+// Ordered high-to-low; first matching band wins.
+// TUNABLE — adjust thresholds/caps here without touching game logic.
+export const ROSTER_CAP_BANDS: { minPop: number; cap: number }[] = [
+  { minPop: 75, cap: 10 },
+  { minPop: 50, cap:  7 },
+  { minPop: 25, cap:  4 },
+  { minPop:  0, cap:  2 },
+];
+
+// Cost drawn from party treasury when recruiting one NPC. TUNABLE.
+export const RECRUIT_COST_CASH = 5_000;
+
+// NPC platform drift variance per axis (0-100 scale). TUNABLE.
+export const RECRUIT_PLATFORM_DRIFT = 15;
+
+// General action types (used as discriminator in doGeneralAction)
+export const GENERAL_ACTION_TYPES = [
+  'statement', 'fundraise', 'recruit',
+  'endorsement', 'scout', 'negotiate',
+] as const;
+export type GeneralActionType = typeof GENERAL_ACTION_TYPES[number];
+
 // Self-check
 const EPSILON = 1e-9;
 const totalSize = SEGMENTS.reduce((sum, s) => sum + s.size, 0);

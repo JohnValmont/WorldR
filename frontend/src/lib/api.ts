@@ -210,6 +210,14 @@ export const politicsApi = {
   getTenders: (stateId?: string) => api.get(`/politics/tenders${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
   postTender: (data: any, stateId?: string) => api.post('/politics/tenders', { ...data, stateId }).then(res => res.data),
   bidTender: (id: string, data: any) => api.post(`/politics/tenders/${id}/bid`, data).then(res => res.data),
+
+  // AP System
+  getMyAp: (): Promise<{ current_ap: number; ap_cap: number }> =>
+    api.get('/politics/ap').then(res => res.data),
+  doGeneralAction: (type: string, params?: any, stateId?: string) =>
+    api.post('/politics/general-action', { type, params, stateId }).then(res => res.data),
+  recruitNpc: (stateId?: string) =>
+    api.post('/politics/recruit', { stateId }).then(res => res.data),
 };
 
 

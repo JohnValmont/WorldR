@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui';
-import { FileText, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { FileText, CheckCircle2, Zap } from 'lucide-react';
 import { politicsApi } from '@/lib/api';
 import { formatGameDate } from '@/lib/calendar';
+import ApBadge from './_components/ApBadge';
+import { AP_COST_BILL_MINOR } from '@/lib/politicsConstants';
 
-export default function BillsPanel({ overview, character, parties, stateId }: any) {
+export default function BillsPanel({ overview, character, parties, stateId, myAp }: any) {
   const [bills, setBills] = useState<any[]>([]);
   const [activePolicy, setActivePolicy] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -115,10 +117,17 @@ export default function BillsPanel({ overview, character, parties, stateId }: an
 
                 <button 
                   onClick={handlePropose}
-                  className="w-full py-2 bg-[#1A1C23] border border-[#2A2630] text-[#E4DBCA] text-xs uppercase hover:bg-[#2A2630] transition-colors mt-2"
+                  disabled={myAp && myAp.current_ap < AP_COST_BILL_MINOR}
+                  className="w-full flex items-center justify-between py-2 px-3 bg-[#1A1C23] border border-[#2A2630] text-[#E4DBCA] text-xs uppercase hover:bg-[#2A2630] transition-colors mt-2 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Submit Proposal
+                  <span>Submit Proposal</span>
+                  {myAp && (
+                    <ApBadge current={myAp.current_ap} cap={myAp.ap_cap} />
+                  )}
                 </button>
+                <p className="text-[10px] text-[#6B6358] text-center">
+                  Minor bills cost {AP_COST_BILL_MINOR} AP · Voting is always free.
+                </p>
               </div>
             </Card>
           )}

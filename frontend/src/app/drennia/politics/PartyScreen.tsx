@@ -12,6 +12,7 @@ interface PartyScreenProps {
   overview: any;
   character: any;
   parties: any[];
+  myAp?: { current_ap: number; ap_cap: number };
   onRefresh: () => void;
 }
 
@@ -22,6 +23,7 @@ export default function PartyScreen({
   overview,
   character,
   parties,
+  myAp,
   onRefresh,
 }: PartyScreenProps) {
   const jurisdiction = JURISDICTIONS.find(j => j.id === selectedJurisdictionId);
@@ -41,6 +43,7 @@ export default function PartyScreen({
           overview={overview}
           character={character}
           parties={parties}
+          myAp={myAp}
           onRefresh={onRefresh}
           stateId={selectedJurisdictionId}
         />
