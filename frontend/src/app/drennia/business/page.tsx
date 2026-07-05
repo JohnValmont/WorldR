@@ -14,6 +14,7 @@ import { logisticsApi, manufacturingApi } from '../../../lib/api';
 import { formatWorldDate } from '@/lib/calendar';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import ManufacturingDeskTab from './ManufacturingDeskTab';
+import EquityDeskTab from './EquityDeskTab';
 import {
   Card, Button, StatChip, Badge, StatusDot, SectionHeading, TerminalPanel, Tabs, PageShell
 } from '@/components/ui';
@@ -2407,48 +2408,7 @@ function CompanyDeskTab({
       )}
 
       {deskTab === 'equity' && (
-        <div>
-          <SectionHeader stamp="OWNERSHIP">Equity & Shares</SectionHeader>
-          
-          <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
-            <PanelBox style={{ flex: 1 }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Ownership Summary</div>
-              <ul style={{ fontSize: '11px', color: T.muted, lineHeight: 1.8, paddingLeft: '16px', margin: 0 }}>
-                <li>Founder owns 100%</li>
-                <li>No outside investors</li>
-                <li>No shares issued yet</li>
-                <li>Personal ownership applies</li>
-              </ul>
-            </PanelBox>
-          </div>
-
-          <PanelBox style={{ marginBottom: '24px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '16px' }}>Ownership Table</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: '8px', paddingBottom: '8px', borderBottom: `1px solid ${T.border}`, fontSize: '10px', fontFamily: 'monospace', color: T.faint, textTransform: 'uppercase' }}>
-              <div>Holder</div>
-              <div>Role</div>
-              <div style={{ textAlign: 'right' }}>Ownership</div>
-              <div style={{ textAlign: 'right' }}>Voting Power</div>
-              <div style={{ textAlign: 'right' }}>Dividend Right</div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: '8px', paddingTop: '12px', fontSize: '12px', color: T.ivory, alignItems: 'center' }}>
-              <div style={{ fontWeight: 600 }}>{company.ownerName}</div>
-              <div style={{ color: T.muted }}>Founder & CEO</div>
-              <div style={{ textAlign: 'right', color: T.mint, fontFamily: 'monospace' }}>100%</div>
-              <div style={{ textAlign: 'right', color: T.mint, fontFamily: 'monospace' }}>100%</div>
-              <div style={{ textAlign: 'right', color: T.mint, fontFamily: 'monospace' }}>100%</div>
-            </div>
-          </PanelBox>
-
-          <SectionHeader stamp="LOCKED">Future Actions</SectionHeader>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-            {['Add Partner', 'Sell Stake', 'Issue Shares', 'Convert to Private Company', 'Convert to Corporation'].map(act => (
-              <div key={act} style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, fontSize: '11px', color: T.faint }}>
-                🔒 {act}
-              </div>
-            ))}
-          </div>
-        </div>
+        <EquityDeskTab companyId={company.id} companyName={company.name} />
       )}
     </div>
   );
