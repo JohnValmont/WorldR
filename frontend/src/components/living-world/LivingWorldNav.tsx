@@ -20,7 +20,7 @@ const TABS = [
   { name: 'Exchange',  path: '/drennia/exchange'  },
   { name: 'Market [v0.2]',    path: '#'    },
   { name: 'Records [v0.2]',   path: '#'   },
-  { name: 'Politics [v0.2]',  path: '#'  },
+  { name: 'Politics',  path: '/drennia/politics'  },
   { name: 'Network [v0.2]',   path: '#'   },
   { name: 'World [v0.2]',     path: '#'     },
 ];

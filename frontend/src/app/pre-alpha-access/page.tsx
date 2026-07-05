@@ -62,7 +62,7 @@ export default function PreAlphaAccessPage() {
           </p>
 
           <p className="text-sm text-zinc-500 leading-relaxed mb-10 pb-10 border-b border-white/[0.05]">
-            WORLDr is a living country simulator. In this <strong>Pre-Alpha v0.1</strong>, you have access to the Business & Equity Module. Rise through wealth, institutions, business, and the stock exchange. Access is limited to pre-alpha testers.
+            WORLDr is a living country simulator. In this <strong>Pre-Alpha v0.1</strong>, you have access to the Business, Equity, and Politics modules. Rise through wealth, institutions, business, elections, and the stock exchange. Access is limited to pre-alpha testers.
           </p>
 
           {/* ACCESS CARD */}
