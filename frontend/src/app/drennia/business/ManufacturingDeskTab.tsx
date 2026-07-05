@@ -230,7 +230,7 @@ function GoldButton({ children, onClick, disabled = false, style = {} }: any) {
   );
 }
 
-function GhostButton({ children, onClick, color, disabled = false, style = {} }: any) {
+function GhostButton({ children, onClick, color, disabled = false, style = {}, className = '' }: any) {
   return (
     <button
       onClick={onClick}
@@ -238,7 +238,7 @@ function GhostButton({ children, onClick, color, disabled = false, style = {} }:
       className={`inline-flex items-center justify-center gap-2 rounded-sm px-3.5 py-1.5 text-[11px] font-mono uppercase tracking-[0.12em] bg-transparent transition-colors
         ${disabled
           ? 'text-zinc-600 border border-zinc-800 cursor-not-allowed'
-          : 'text-zinc-300 border border-zinc-700 hover:border-zinc-500 hover:text-zinc-100 cursor-pointer'}`}
+          : 'text-zinc-300 border border-zinc-700 hover:border-zinc-500 hover:text-zinc-100 cursor-pointer'} ${className}`}
       style={!disabled && color ? { color, borderColor: color, ...style } : style}
     >
       {children}
@@ -2591,97 +2591,86 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           MARKET & SALES TAB
       ═══════════════════════════════════════════════════════ */}
       {deskTab === 'market' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="flex flex-col gap-5">
           <SectionHeader stamp="SALES DESK">Market &amp; Sales Operations</SectionHeader>
 
           {/* Summary Row */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
             <PanelBox>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '4px' }}>Available Inventory</div>
-              <div style={{ fontSize: '24px', color: T.ivory, fontFamily: 'monospace' }}>
-                {inventory.reduce((a: number, b: any) => a + Number(b.units_in_stock), 0)} units
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1.5">Available Inventory</div>
+              <div className="text-2xl font-mono text-zinc-100">
+                {inventory.reduce((a: number, b: any) => a + Number(b.units_in_stock), 0)}
+                <span className="text-sm text-zinc-500 ml-1">units</span>
               </div>
-              <div style={{ fontSize: '11px', color: T.faint, marginTop: '4px' }}>
-                Value: {fm(inventoryValue)}
-              </div>
+              <div className="text-[11px] text-zinc-600 mt-1">Value: {fm(inventoryValue)}</div>
             </PanelBox>
             <PanelBox>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '4px' }}>Vehicles Sold Last Month</div>
-              <div style={{ fontSize: '24px', color: T.mint, fontFamily: 'monospace' }}>
-                {latestReport?.units_sold || 0}
-              </div>
-              <div style={{ fontSize: '11px', color: T.faint, marginTop: '4px' }}>
-                Revenue: {fm(latestReport?.sales_revenue || 0)}
-              </div>
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1.5">Sold Last Month</div>
+              <div className="text-2xl font-mono text-terminal-green">{latestReport?.units_sold || 0}</div>
+              <div className="text-[11px] text-zinc-600 mt-1">Revenue: {fm(latestReport?.sales_revenue || 0)}</div>
             </PanelBox>
             <PanelBox>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '4px' }}>Marketing Budget / Month</div>
-              <div style={{ fontSize: '24px', color: T.red, fontFamily: 'monospace' }}>
-                {fm(latestReport?.marketing_costs || 0)}
-              </div>
-              <div style={{ fontSize: '11px', color: T.faint, marginTop: '4px' }}>
-                Active Markets: {activeMarketCount}
-              </div>
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1.5">Marketing / Month</div>
+              <div className="text-2xl font-mono text-terminal-red">{fm(latestReport?.marketing_costs || 0)}</div>
+              <div className="text-[11px] text-zinc-600 mt-1">Active Markets: {activeMarketCount}</div>
             </PanelBox>
-            <PanelBox style={{ border: salesManagerCount > 0 ? `1px solid ${T.mint}55` : `1px solid ${T.border}` }}>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '4px' }}>Sales Effectiveness</div>
-              <div style={{ fontSize: '24px', color: salesManagerCount > 0 ? T.mint : T.faint, fontFamily: 'monospace' }}>
+            <PanelBox className={salesManagerCount > 0 ? 'border-terminal-green/40' : ''}>
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1.5">Sales Effectiveness</div>
+              <div className={`text-2xl font-mono ${salesManagerCount > 0 ? 'text-terminal-green' : 'text-zinc-600'}`}>
                 +{Math.min(16, Math.min(salesManagerCount, activeMarketCount) * 4)}%
               </div>
-              <div style={{ fontSize: '11px', color: T.faint, marginTop: '4px' }}>
-                from Sales Managers
-              </div>
+              <div className="text-[11px] text-zinc-600 mt-1">from Sales Managers</div>
             </PanelBox>
             <PanelBox>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '4px' }}>Brand Reputation</div>
-              <div style={{ fontSize: '24px', color: T.gold, fontFamily: 'monospace' }}>
-                {company.reputation} <span style={{ fontSize: '14px', color: T.muted }}>/ 100</span>
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1.5">Brand Reputation</div>
+              <div className="text-2xl font-mono text-terminal-amber">
+                {company.reputation} <span className="text-sm text-zinc-500">/ 100</span>
               </div>
             </PanelBox>
           </div>
 
           {/* Markets & Allocations */}
           {marketLoading ? (
-            <div style={{ color: T.muted, fontSize: '12px', padding: '24px' }}>Loading market data...</div>
+            <div className="text-zinc-500 text-xs p-6 font-mono animate-pulse">Loading market data...</div>
           ) : (
             <>
               {/* Models / Pricing */}
               {models.length === 0 ? (
-                <EmptyState icon="📋" title="No models available" subtitle="Design and launch a vehicle model first to sell vehicles." action={<GhostButton onClick={() => setDeskTab('design')}>Go to R&D / Design</GhostButton>} />
+                <EmptyState title="No models available" subtitle="Design and launch a vehicle model first to sell vehicles." action={<GhostButton onClick={() => setDeskTab('design')}>Go to R&D / Design</GhostButton>} />
               ) : (
                 <PanelBox>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Inventory &amp; Pricing</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Inventory &amp; Pricing</h3>
+                  <div className="flex flex-col gap-3">
                     {models.filter((m: any) => m.development_status === 'launched').map((m: any) => {
                       const invRow = inventory.find((inv: any) => inv.vehicle_model_id === m.id);
                       return (
-                        <div key={m.id} style={{ border: `1px solid ${T.border}`, padding: '14px', background: 'rgba(0,0,0,0.2)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <div key={m.id} className="rounded-md border border-zinc-800 bg-black/20 p-4">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
                             <div>
-                              <span style={{ fontSize: '13px', fontWeight: 700, color: T.gold }}>{m.name}</span>
-                              <span style={{ fontSize: '11px', color: T.muted, marginLeft: '8px' }}>{m.vehicle_class} · {m.target_segment}</span>
+                              <span className="text-[13px] font-bold text-terminal-amber">{m.name}</span>
+                              <span className="text-[11px] text-zinc-500 ml-2">{m.vehicle_class} · {m.target_segment}</span>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span style={{ fontSize: '11px', color: T.muted }}>Base Cost: {fm(m.manufacturing_cost_per_unit)}</span>
-                              <span style={{ fontSize: '11px', color: T.muted, marginLeft: '12px' }}>Sale Price:</span>
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <span className="text-[11px] text-zinc-500">Base Cost: {fm(m.manufacturing_cost_per_unit)}</span>
+                              <span className="text-[11px] text-zinc-500 ml-2">Sale Price:</span>
                               <input
                                 type="number"
                                 defaultValue={m.sale_price}
                                 value={priceEdits[m.id] !== undefined ? priceEdits[m.id] : m.sale_price}
                                 onChange={e => setPriceEdits(prev => ({ ...prev, [m.id]: Number(e.target.value) }))}
-                                style={{ width: '100px', padding: '4px 8px', background: '#0e0e0e', border: `1px solid ${T.border}`, color: T.gold, fontSize: '12px', fontFamily: 'monospace' }}
+                                className="w-[100px] rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs font-mono text-terminal-amber focus:outline-none focus:border-terminal-amber/60 transition-colors"
                               />
-                              <GhostButton color={T.mint} disabled={savingPrice === m.id} onClick={() => handleSavePrice(m.id)}>
+                              <GhostButton color="#30d158" disabled={savingPrice === m.id} onClick={() => handleSavePrice(m.id)}>
                                 {savingPrice === m.id ? 'Saving...' : 'Save Price'}
                               </GhostButton>
                             </div>
                           </div>
 
                           {/* Allocation UI */}
-                          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: `1px dashed ${T.border}` }}>
-                            <div style={{ fontSize: '12px', color: T.muted, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
-                              <span>Inventory Central Stock: <strong style={{ color: T.ivory }}>{invRow?.units_in_stock || 0}</strong></span>
-                              <span>Storage Cost: <span style={{ color: T.red }}>{fm(invRow?.storage_cost_per_month || 0)} / Month</span></span>
+                          <div className="mt-4 pt-4 border-t border-dashed border-zinc-800">
+                            <div className="flex items-center justify-between gap-3 text-xs text-zinc-500 mb-3">
+                              <span>Inventory Central Stock: <strong className="text-zinc-200">{invRow?.units_in_stock || 0}</strong></span>
+                              <span>Storage Cost: <span className="text-terminal-red">{fm(invRow?.storage_cost_per_month || 0)} / Month</span></span>
                             </div>
 
                             {marketData?.markets?.map((market: any) => {
@@ -2690,11 +2679,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               const brand = marketData.brandData?.find((b: any) => b.region_market_id === market.id);
 
                               return (
-                                <div key={market.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px dotted #1a1a1a` }}>
-                                  <div style={{ width: '300px' }}>
-                                    <div style={{ fontSize: '12px', color: T.ivory, marginBottom: '8px' }}>{market.name}</div>
-                                    <div style={{ padding: '8px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}` }}>
-                                      <div style={{ fontSize: '10px', color: T.gold, fontWeight: 700, marginBottom: '6px' }}>LOCAL BRAND POSITION — {market.name}</div>
+                                <div key={market.id} className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 py-3 border-b border-zinc-800/60 last:border-b-0">
+                                  <div className="w-full lg:w-[300px] shrink-0">
+                                    <div className="text-xs text-zinc-100 font-semibold mb-2">{market.name}</div>
+                                    <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-2.5">
+                                      <div className="text-[10px] font-mono text-terminal-amber font-bold uppercase tracking-[0.08em] mb-1.5">Local Brand Position</div>
                                       {brand ? (() => {
                                         const awText = brand.awareness >= 50 ? 'Established' : (brand.awareness >= 15 ? 'Recognised' : 'New');
                                         const trText = brand.reputation >= 60 ? 'Trusted' : (brand.reputation >= 20 ? 'Developing' : 'Unproven');
@@ -2721,39 +2710,39 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                         }
 
                                         return (
-                                          <div style={{ fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                              <span style={{ color: T.muted }}>Local Brand Awareness:</span>
-                                              <span style={{ color: T.ivory }}>{awText}</span>
+                                          <div className="flex flex-col gap-1 text-[11px]">
+                                            <div className="flex justify-between gap-2">
+                                              <span className="text-zinc-500">Local Brand Awareness:</span>
+                                              <span className="text-zinc-200">{awText}</span>
                                             </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                              <span style={{ color: T.muted }}>Local Brand Trust:</span>
-                                              <span style={{ color: T.ivory }}>{trText}</span>
+                                            <div className="flex justify-between gap-2">
+                                              <span className="text-zinc-500">Local Brand Trust:</span>
+                                              <span className="text-zinc-200">{trText}</span>
                                             </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                              <span style={{ color: T.muted }}>Last Month Awareness Change:</span>
-                                              <span style={{ color: awDeltaStr.startsWith('+') ? T.mint : (awDeltaStr.startsWith('-') ? T.red : T.faint) }}>{awDeltaStr}</span>
+                                            <div className="flex justify-between gap-2">
+                                              <span className="text-zinc-500">Last Month Awareness Change:</span>
+                                              <span className={awDeltaStr.startsWith('+') ? 'text-terminal-green' : awDeltaStr.startsWith('-') ? 'text-terminal-red' : 'text-zinc-600'}>{awDeltaStr}</span>
                                             </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                              <span style={{ color: T.muted }}>Last Month Trust Change:</span>
-                                              <span style={{ color: trDeltaStr.startsWith('+') ? T.mint : (trDeltaStr.startsWith('-') ? T.red : T.faint) }}>{trDeltaStr}</span>
+                                            <div className="flex justify-between gap-2">
+                                              <span className="text-zinc-500">Last Month Trust Change:</span>
+                                              <span className={trDeltaStr.startsWith('+') ? 'text-terminal-green' : trDeltaStr.startsWith('-') ? 'text-terminal-red' : 'text-zinc-600'}>{trDeltaStr}</span>
                                             </div>
-                                            <div style={{ marginTop: '4px', fontStyle: 'italic', color: T.faint, fontSize: '10px' }}>
+                                            <div className="mt-1 italic text-zinc-600 text-[10px]">
                                               Main Brand Driver:<br />{mainDriver}
                                             </div>
                                           </div>
                                         );
                                       })() : (
-                                        <div style={{ fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ color: T.muted }}>Local Brand Awareness:</span>
-                                            <span style={{ color: T.ivory }}>New to This Market</span>
+                                        <div className="flex flex-col gap-1 text-[11px]">
+                                          <div className="flex justify-between gap-2">
+                                            <span className="text-zinc-500">Local Brand Awareness:</span>
+                                            <span className="text-zinc-200">New to This Market</span>
                                           </div>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ color: T.muted }}>Local Brand Trust:</span>
-                                            <span style={{ color: T.ivory }}>Unproven</span>
+                                          <div className="flex justify-between gap-2">
+                                            <span className="text-zinc-500">Local Brand Trust:</span>
+                                            <span className="text-zinc-200">Unproven</span>
                                           </div>
-                                          <div style={{ marginTop: '4px', fontStyle: 'italic', color: T.faint, fontSize: '10px' }}>
+                                          <div className="mt-1 italic text-zinc-600 text-[10px]">
                                             Main Brand Driver:<br />New to This Market. Local awareness and trust will develop after operating here.
                                           </div>
                                         </div>
@@ -2761,24 +2750,24 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                     </div>
                                   </div>
 
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <span style={{ fontSize: '11px', color: T.muted }}>Units:</span>
+                                  <div className="flex items-center gap-4 flex-wrap">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[11px] text-zinc-500">Units:</span>
                                       <input
                                         type="number"
                                         min="0"
                                         value={alloc.units}
                                         onChange={e => setAllocationForm(prev => ({ ...prev, [formKey]: { ...alloc, units: Number(e.target.value) } }))}
-                                        style={{ width: '80px', padding: '4px 8px', background: '#0e0e0e', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px', fontFamily: 'monospace' }}
+                                        className="w-20 rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs font-mono text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors"
                                       />
                                     </div>
 
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <span style={{ fontSize: '11px', color: T.muted }}>Marketing:</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[11px] text-zinc-500">Marketing:</span>
                                       <select
                                         value={alloc.tier}
                                         onChange={e => setAllocationForm(prev => ({ ...prev, [formKey]: { ...alloc, tier: e.target.value } }))}
-                                        style={{ width: '100px', padding: '4px', background: '#0e0e0e', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px' }}
+                                        className="w-[110px] rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors cursor-pointer"
                                       >
                                         <option value="none">None</option>
                                         <option value="local">Local</option>
@@ -2802,21 +2791,21 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
               {/* Market Intelligence */}
               <PanelBox>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Market Intelligence</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Market Intelligence</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {marketData?.markets?.map((market: any) => (
-                    <div key={market.id} style={{ border: `1px solid ${T.border}`, padding: '12px', background: 'rgba(255,255,255,0.02)' }}>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: T.gold, marginBottom: '8px' }}>{market.name}</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px' }}>
-                        <div style={{ color: T.muted }}>Population: <span style={{ color: T.ivory }}>{Number(market.population).toLocaleString()}</span></div>
-                        <div style={{ color: T.muted }}>Avg Income: <span style={{ color: T.ivory }}>{fm(market.average_income)}</span></div>
-                        <div style={{ color: T.muted }}>Market Tier: <span style={{ color: T.ivory }}>{market.market_tier}</span></div>
-                        <div style={{ color: T.muted }}>Competition: <span style={{ color: T.red }}>{market.competition_level}</span></div>
+                    <div key={market.id} className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3.5 hover:border-zinc-700 transition-colors">
+                      <div className="text-xs font-semibold text-terminal-amber mb-2">{market.name}</div>
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div className="text-zinc-500">Population: <span className="text-zinc-200">{Number(market.population).toLocaleString()}</span></div>
+                        <div className="text-zinc-500">Avg Income: <span className="text-zinc-200">{fm(market.average_income)}</span></div>
+                        <div className="text-zinc-500">Market Tier: <span className="text-zinc-200">{market.market_tier}</span></div>
+                        <div className="text-zinc-500">Competition: <span className="text-terminal-red">{market.competition_level}</span></div>
                       </div>
-                      <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px dotted ${T.border}`, display: 'flex', gap: '12px', fontSize: '11px' }}>
-                        <span style={{ color: T.muted }}>Compact: {Math.round(market.preference_compact * 100)}%</span>
-                        <span style={{ color: T.muted }}>Sedan: {Math.round(market.preference_sedan * 100)}%</span>
-                        <span style={{ color: T.muted }}>Van: {Math.round(market.preference_utility_van * 100)}%</span>
+                      <div className="mt-2 pt-2 border-t border-zinc-800/60 flex gap-3 text-[11px] text-zinc-500">
+                        <span>Compact: {Math.round(market.preference_compact * 100)}%</span>
+                        <span>Sedan: {Math.round(market.preference_sedan * 100)}%</span>
+                        <span>Van: {Math.round(market.preference_utility_van * 100)}%</span>
                       </div>
                     </div>
                   ))}
@@ -2826,24 +2815,25 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               {/* Population Purchase Outlook */}
               {marketData?.forecast && marketData.forecast.length > 0 && (
                 <PanelBox>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Population Purchase Outlook</div>
-                  <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse' }}>
+                  <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Population Purchase Outlook</h3>
+                  <div className="overflow-x-auto">
+                  <table className="w-full text-[11px] text-left border-collapse">
                     <thead>
-                      <tr style={{ color: T.muted, borderBottom: `1px solid ${T.border}` }}>
-                        <th style={{ padding: '8px 4px' }}>Model</th>
-                        <th style={{ padding: '8px 4px' }}>Market</th>
-                        <th style={{ padding: '8px 4px' }}>Allocated</th>
-                        <th style={{ padding: '8px 4px' }}>Households</th>
-                        <th style={{ padding: '8px 4px' }}>Buyers (Capacity)</th>
-                        <th style={{ padding: '8px 4px' }}>Expected Interest</th>
-                        <th style={{ padding: '8px 4px', color: T.gold }}>Est. Sold</th>
-                        <th style={{ padding: '8px 4px' }}>Affordability</th>
-                        <th style={{ padding: '8px 4px' }}>Fit</th>
-                        <th style={{ padding: '8px 4px' }}>Local Brand Awareness</th>
-                        <th style={{ padding: '8px 4px' }}>Local Brand Trust</th>
-                        <th style={{ padding: '8px 4px' }}>Distribution</th>
-                        <th style={{ padding: '8px 4px' }}>Marketing</th>
-                        <th style={{ padding: '8px 4px' }}>Reason</th>
+                      <tr className="text-zinc-500 border-b border-zinc-800 text-[10px] font-mono uppercase tracking-[0.06em]">
+                        <th className="px-1.5 py-2 font-medium">Model</th>
+                        <th className="px-1.5 py-2 font-medium">Market</th>
+                        <th className="px-1.5 py-2 font-medium">Allocated</th>
+                        <th className="px-1.5 py-2 font-medium">Households</th>
+                        <th className="px-1.5 py-2 font-medium">Buyers (Cap.)</th>
+                        <th className="px-1.5 py-2 font-medium">Interest</th>
+                        <th className="px-1.5 py-2 font-medium text-terminal-amber">Est. Sold</th>
+                        <th className="px-1.5 py-2 font-medium">Afford.</th>
+                        <th className="px-1.5 py-2 font-medium">Fit</th>
+                        <th className="px-1.5 py-2 font-medium">Awareness</th>
+                        <th className="px-1.5 py-2 font-medium">Trust</th>
+                        <th className="px-1.5 py-2 font-medium">Distrib.</th>
+                        <th className="px-1.5 py-2 font-medium">Marketing</th>
+                        <th className="px-1.5 py-2 font-medium">Reason</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2867,46 +2857,48 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         const distStr = getStr(fc.distMult, [0.5, 0.8], ['Limited', 'Standard', 'Strong']);
 
                         return (
-                          <tr key={idx} style={{ borderBottom: `1px solid #1a1a1a` }}>
-                            <td style={{ padding: '8px 4px', color: T.ivory }}>{mName}</td>
-                            <td style={{ padding: '8px 4px', color: T.ivory }}>{mktName}</td>
-                            <td style={{ padding: '8px 4px', color: T.muted }}>{fc.alloc.units_allocated}</td>
-                            <td style={{ padding: '8px 4px', color: T.muted }}>{fc.totalHouseholds.toLocaleString()}</td>
-                            <td style={{ padding: '8px 4px', color: T.muted }}>{fc.marketPurchaseCapacity.toLocaleString()}</td>
-                            <td style={{ padding: '8px 4px', color: T.ivory }}>{Math.round(fc.rawBuyerInterest)}</td>
-                            <td style={{ padding: '8px 4px', color: T.mint, fontWeight: 700 }}>{fc.unitsSold}</td>
-                            <td style={{ padding: '8px 4px', color: affStr === 'Weak' ? T.red : T.muted }}>{affStr}</td>
-                            <td style={{ padding: '8px 4px', color: fitStr === 'Weak' ? T.red : T.muted }}>{fitStr}</td>
-                            <td style={{ padding: '8px 4px', color: awrStr === 'New' ? T.red : T.muted }}>{awrStr}</td>
-                            <td style={{ padding: '8px 4px', color: trsStr === 'Unproven' ? T.red : T.muted }}>{trsStr}</td>
-                            <td style={{ padding: '8px 4px', color: distStr === 'Limited' ? T.red : T.muted }}>{distStr}</td>
-                            <td style={{ padding: '8px 4px', color: T.muted, textTransform: 'capitalize' }}>{fc.mktTier}</td>
-                            <td style={{ padding: '8px 4px', color: T.gold }}>{fc.mainReasonCode}</td>
+                          <tr key={idx} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
+                            <td className="px-1.5 py-2 text-zinc-200">{mName}</td>
+                            <td className="px-1.5 py-2 text-zinc-200">{mktName}</td>
+                            <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.alloc.units_allocated}</td>
+                            <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.totalHouseholds.toLocaleString()}</td>
+                            <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.marketPurchaseCapacity.toLocaleString()}</td>
+                            <td className="px-1.5 py-2 text-zinc-200 font-mono">{Math.round(fc.rawBuyerInterest)}</td>
+                            <td className="px-1.5 py-2 text-terminal-green font-mono font-bold">{fc.unitsSold}</td>
+                            <td className={`px-1.5 py-2 ${affStr === 'Weak' ? 'text-terminal-red' : 'text-zinc-500'}`}>{affStr}</td>
+                            <td className={`px-1.5 py-2 ${fitStr === 'Weak' ? 'text-terminal-red' : 'text-zinc-500'}`}>{fitStr}</td>
+                            <td className={`px-1.5 py-2 ${awrStr === 'New' ? 'text-terminal-red' : 'text-zinc-500'}`}>{awrStr}</td>
+                            <td className={`px-1.5 py-2 ${trsStr === 'Unproven' ? 'text-terminal-red' : 'text-zinc-500'}`}>{trsStr}</td>
+                            <td className={`px-1.5 py-2 ${distStr === 'Limited' ? 'text-terminal-red' : 'text-zinc-500'}`}>{distStr}</td>
+                            <td className="px-1.5 py-2 text-zinc-500 capitalize">{fc.mktTier}</td>
+                            <td className="px-1.5 py-2 text-terminal-amber">{fc.mainReasonCode}</td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
-                  <div style={{ fontSize: '10px', color: T.faint, marginTop: '8px', fontStyle: 'italic' }}>*Brand metrics are local to this market.</div>
+                  </div>
+                  <div className="text-[10px] text-zinc-600 mt-2 italic">*Brand metrics are local to this market.</div>
                 </PanelBox>
               )}
 
               {/* Recent Sales Results */}
               {marketData?.recentSales && marketData.recentSales.length > 0 && (
                 <PanelBox>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Recent Sales Results</div>
-                  <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse' }}>
+                  <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Recent Sales Results</h3>
+                  <div className="overflow-x-auto">
+                  <table className="w-full text-[11px] text-left border-collapse">
                     <thead>
-                      <tr style={{ color: T.muted, borderBottom: `1px solid ${T.border}` }}>
-                        <th style={{ padding: '8px 4px' }}>Model</th>
-                        <th style={{ padding: '8px 4px' }}>Market</th>
-                        <th style={{ padding: '8px 4px' }}>Sold</th>
-                        <th style={{ padding: '8px 4px' }}>Demand</th>
-                        <th style={{ padding: '8px 4px' }}>Capture</th>
-                        <th style={{ padding: '8px 4px' }}>Affordability</th>
-                        <th style={{ padding: '8px 4px' }}>Fit</th>
-                        <th style={{ padding: '8px 4px' }}>Awareness</th>
-                        <th style={{ padding: '8px 4px' }}>Result Reason</th>
+                      <tr className="text-zinc-500 border-b border-zinc-800 text-[10px] font-mono uppercase tracking-[0.06em]">
+                        <th className="px-1.5 py-2 font-medium">Model</th>
+                        <th className="px-1.5 py-2 font-medium">Market</th>
+                        <th className="px-1.5 py-2 font-medium">Sold</th>
+                        <th className="px-1.5 py-2 font-medium">Demand</th>
+                        <th className="px-1.5 py-2 font-medium">Capture</th>
+                        <th className="px-1.5 py-2 font-medium">Afford.</th>
+                        <th className="px-1.5 py-2 font-medium">Fit</th>
+                        <th className="px-1.5 py-2 font-medium">Awareness</th>
+                        <th className="px-1.5 py-2 font-medium">Result Reason</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2914,21 +2906,22 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         const mName = models.find((m: any) => m.id === rs.vehicle_model_id)?.name || 'Unknown Model';
                         const mktName = marketData.markets?.find((m: any) => m.id === rs.region_market_id)?.name || 'Unknown Market';
                         return (
-                          <tr key={rs.id} style={{ borderBottom: `1px solid #1a1a1a` }}>
-                            <td style={{ padding: '8px 4px', color: T.gold }}>{mName}</td>
-                            <td style={{ padding: '8px 4px', color: T.ivory }}>{mktName}</td>
-                            <td style={{ padding: '8px 4px', color: T.mint, fontWeight: 700 }}>{rs.units_sold}</td>
-                            <td style={{ padding: '8px 4px', color: T.faint }}>{Math.round(rs.raw_buyer_interest || 0)}</td>
-                            <td style={{ padding: '8px 4px', color: T.ivory }}>{Math.round((rs.market_share_estimate || 0) * 100)}%</td>
-                            <td style={{ padding: '8px 4px', color: rs.affordability_multiplier < 0.6 ? T.red : T.muted }}>{rs.affordability_multiplier || '-'}</td>
-                            <td style={{ padding: '8px 4px', color: rs.vehicle_market_fit_multiplier < 0.6 ? T.red : T.muted }}>{rs.vehicle_market_fit_multiplier || '-'}</td>
-                            <td style={{ padding: '8px 4px', color: rs.awareness_multiplier < 0.3 ? T.red : T.muted }}>{rs.awareness_multiplier || '-'}</td>
-                            <td style={{ padding: '8px 4px', color: T.faint }}>{rs.main_reason_code || 'N/A'}</td>
+                          <tr key={rs.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
+                            <td className="px-1.5 py-2 text-terminal-amber">{mName}</td>
+                            <td className="px-1.5 py-2 text-zinc-200">{mktName}</td>
+                            <td className="px-1.5 py-2 text-terminal-green font-mono font-bold">{rs.units_sold}</td>
+                            <td className="px-1.5 py-2 text-zinc-600 font-mono">{Math.round(rs.raw_buyer_interest || 0)}</td>
+                            <td className="px-1.5 py-2 text-zinc-200 font-mono">{Math.round((rs.market_share_estimate || 0) * 100)}%</td>
+                            <td className={`px-1.5 py-2 font-mono ${rs.affordability_multiplier < 0.6 ? 'text-terminal-red' : 'text-zinc-500'}`}>{rs.affordability_multiplier || '-'}</td>
+                            <td className={`px-1.5 py-2 font-mono ${rs.vehicle_market_fit_multiplier < 0.6 ? 'text-terminal-red' : 'text-zinc-500'}`}>{rs.vehicle_market_fit_multiplier || '-'}</td>
+                            <td className={`px-1.5 py-2 font-mono ${rs.awareness_multiplier < 0.3 ? 'text-terminal-red' : 'text-zinc-500'}`}>{rs.awareness_multiplier || '-'}</td>
+                            <td className="px-1.5 py-2 text-zinc-600">{rs.main_reason_code || 'N/A'}</td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </PanelBox>
               )}
             </>
@@ -2940,109 +2933,109 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           STAFFING TAB
       ═══���═══════════════════════════════════════════════════ */}
       {deskTab === 'staff' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="flex flex-col gap-5">
           <SectionHeader stamp="STAFFING DESK">Company Workforce</SectionHeader>
 
           {plannedUnits === 0 && (
-            <div style={{ background: 'rgba(184,85,85,0.1)', border: `1px solid ${T.red}`, padding: '12px', borderRadius: '2px', color: T.ivory, fontSize: '12px' }}>
-              <span style={{ fontWeight: 700, color: T.red, marginRight: '8px' }}>⚠ No active production plan.</span>
+            <div className="rounded-md border border-terminal-red/50 bg-terminal-red/10 px-4 py-3 text-xs text-zinc-200">
+              <span className="font-bold text-terminal-red mr-2">No active production plan.</span>
               Create a production plan to see workforce requirements. Workers will not produce vehicles without an active target.
             </div>
           )}
 
           {/* Top Summary Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-            <PanelBox style={{ padding: '12px' }}>
-              <div style={{ color: T.muted, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Total Staff</div>
-              <div style={{ color: T.ivory, fontSize: '18px', fontWeight: 700 }}>{totalStaff}</div>
-              <div style={{ color: T.red, fontSize: '11px', fontFamily: 'monospace', marginTop: '4px' }}>{fm(totalWagesPerArc)} / Month</div>
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+            <PanelBox className="p-3">
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1">Total Staff</div>
+              <div className="text-lg font-bold font-mono text-zinc-100">{totalStaff}</div>
+              <div className="text-[11px] font-mono text-terminal-red mt-1">{fm(totalWagesPerArc)} / Month</div>
             </PanelBox>
-            <PanelBox style={{ padding: '12px', border: `1px solid ${totalWorkers < recWorkers ? T.red : T.border}` }}>
-              <div style={{ color: T.muted, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Factory Workers</div>
-              <div style={{ color: totalWorkers >= recWorkers ? T.mint : T.red, fontSize: '18px', fontWeight: 700 }}>
-                {totalWorkers} <span style={{ color: T.faint, fontSize: '14px' }}>/ {recWorkers}</span>
+            <PanelBox className={`p-3 ${totalWorkers < recWorkers ? 'border-terminal-red/50' : ''}`}>
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1">Factory Workers</div>
+              <div className={`text-lg font-bold font-mono ${totalWorkers >= recWorkers ? 'text-terminal-green' : 'text-terminal-red'}`}>
+                {totalWorkers} <span className="text-zinc-600 text-sm">/ {recWorkers}</span>
               </div>
-              <div style={{ color: T.muted, fontSize: '11px', marginTop: '4px' }}>
+              <div className="text-[11px] text-zinc-500 mt-1">
                 {totalWorkers >= recWorkers ? 'Adequately Staffed' : 'Understaffed'}
               </div>
             </PanelBox>
-            <PanelBox style={{ padding: '12px' }}>
-              <div style={{ color: T.muted, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Prod Efficiency</div>
-              <div style={{ color: T.ivory, fontSize: '18px', fontWeight: 700 }}>
+            <PanelBox className="p-3">
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1">Prod Efficiency</div>
+              <div className="text-lg font-bold font-mono text-zinc-100">
                 {Math.round(Math.min(1.0, recWorkers === 0 ? 1 : totalWorkers / recWorkers) * 100)}%
               </div>
-              <div style={{ color: T.mint, fontSize: '11px', marginTop: '4px' }}>
+              <div className="text-[11px] text-terminal-green mt-1">
                 +{Math.min(supervisorCount, activeLinesCount) > 0 ? 5 : 0}% Supervisor Bonus
               </div>
             </PanelBox>
-            <PanelBox style={{ padding: '12px' }}>
-              <div style={{ color: T.muted, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Sales Effectiveness</div>
-              <div style={{ color: T.ivory, fontSize: '18px', fontWeight: 700 }}>
+            <PanelBox className="p-3">
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1">Sales Effectiveness</div>
+              <div className="text-lg font-bold font-mono text-zinc-100">
                 +{Math.min(16, Math.min(salesManagerCount, activeMarketCount) * 4)}%
               </div>
-              <div style={{ color: T.muted, fontSize: '11px', marginTop: '4px' }}>
+              <div className="text-[11px] text-zinc-500 mt-1">
                 {Math.min(salesManagerCount, activeMarketCount)} Managers in {activeMarketCount} Active Markets
               </div>
             </PanelBox>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="flex flex-col gap-3">
             {staffRoles.map((roleDef: any) => {
               const employed = staff.find((s: any) => s.role === roleDef.id)?.quantity || 0;
 
               // Compute effect text
               let effectText = '';
-              let effectColor = T.muted;
+              let effectClass = 'text-zinc-500';
               if (roleDef.id === 'factory-worker') {
                 const pct = recWorkers > 0 ? Math.round((employed / recWorkers) * 100) : 100;
                 effectText = `${employed} / ${recWorkers} required (${pct}% coverage)`;
-                effectColor = employed >= recWorkers ? T.mint : T.red;
+                effectClass = employed >= recWorkers ? 'text-terminal-green' : 'text-terminal-red';
                 if (recWorkers === 0) effectText = 'At capacity (no active lines)';
               } else if (roleDef.id === 'production-supervisor') {
                 const bonus = Math.min(employed, activeLinesCount) > 0 ? 5 : 0;
                 effectText = activeLinesCount === 0 ? 'No benefit — no active lines' : `+${bonus}% production efficiency`;
-                effectColor = bonus > 0 ? T.mint : T.muted;
+                effectClass = bonus > 0 ? 'text-terminal-green' : 'text-zinc-500';
               } else if (roleDef.id === 'quality-inspector') {
                 // assume base defect rate is roughly 3% for display
                 const baseDefect = 3.0;
                 const reduction = Math.min(employed * 0.5, baseDefect - 0.5);
                 const effective = Math.max(0.5, baseDefect - reduction);
                 effectText = `-${reduction.toFixed(1)}% defect rate (effective ~${effective.toFixed(1)}%)`;
-                effectColor = reduction > 0 ? T.mint : T.muted;
+                effectClass = reduction > 0 ? 'text-terminal-green' : 'text-zinc-500';
               } else if (roleDef.id === 'sales-manager') {
                 const useful = Math.min(employed, activeMarketCount);
                 const bonus = useful * 4;
                 effectText = `+${bonus}% sales effectiveness (${useful} markets covered)`;
-                effectColor = bonus > 0 ? T.mint : T.muted;
+                effectClass = bonus > 0 ? 'text-terminal-green' : 'text-zinc-500';
               } else if (roleDef.id === 'automotive-engineer') {
                 const discount = Math.min(employed * 5, 20);
                 effectText = `-${discount}% future development cost`;
-                effectColor = discount > 0 ? T.mint : T.muted;
+                effectClass = discount > 0 ? 'text-terminal-green' : 'text-zinc-500';
               }
 
               return (
-                <PanelBox key={roleDef.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>{roleDef.label}</div>
-                      <div style={{ fontSize: '11px', color: T.red, fontFamily: 'monospace' }}>{fm(roleDef.wagePerArc)} / Month</div>
+                <PanelBox key={roleDef.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <div className="text-sm font-bold text-zinc-100">{roleDef.label}</div>
+                      <div className="text-[11px] font-mono text-terminal-red">{fm(roleDef.wagePerArc)} / Month</div>
                     </div>
-                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px', maxWidth: '600px', lineHeight: 1.5 }}>
+                    <div className="text-[11px] text-zinc-500 mb-2 max-w-[600px] leading-relaxed">
                       {roleDef.desc || 'No description available.'}
                     </div>
-                    <div style={{ fontSize: '11px', color: effectColor, fontWeight: 600 }}>
+                    <div className={`text-[11px] font-semibold ${effectClass}`}>
                       Current Effect: {effectText}
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ textAlign: 'right', paddingRight: '16px', borderRight: `1px dotted ${T.border}` }}>
-                      <div style={{ fontSize: '10px', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Employed</div>
-                      <div style={{ fontSize: '20px', color: T.gold, fontWeight: 700 }}>{employed}</div>
+                  <div className="flex items-center gap-4 shrink-0">
+                    <div className="text-right pr-4 border-r border-zinc-800">
+                      <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.08em]">Employed</div>
+                      <div className="text-xl font-bold font-mono text-terminal-amber">{employed}</div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '110px' }}>
-                      <GhostButton color={T.mint} onClick={() => handleHireFire(roleDef.id, 'hire')} style={{ width: '100%', padding: '6px' }}>+ Hire 1</GhostButton>
-                      <GhostButton color={T.red} disabled={employed === 0} onClick={() => handleHireFire(roleDef.id, 'fire')} style={{ width: '100%', padding: '6px' }}>- Dismiss 1</GhostButton>
+                    <div className="flex flex-col gap-1.5 w-[110px]">
+                      <GhostButton color="#30d158" onClick={() => handleHireFire(roleDef.id, 'hire')} className="w-full justify-center">+ Hire 1</GhostButton>
+                      <GhostButton color="#ff453a" disabled={employed === 0} onClick={() => handleHireFire(roleDef.id, 'fire')} className="w-full justify-center">- Dismiss 1</GhostButton>
                     </div>
                   </div>
                 </PanelBox>
