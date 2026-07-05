@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
-import { exchangeApi } from '../../../lib/api';
+import { exchangeApi, companyApi, characterApi, investmentsApi } from '../../../lib/api';
 import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line } from 'recharts';
 
 const T = {
