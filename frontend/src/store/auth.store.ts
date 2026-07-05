@@ -38,6 +38,23 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         clearTokens();
+        // Clear all game-state keys so the next account that logs in
+        // doesn't inherit another player's character, company, or citizen file.
+        if (typeof window !== 'undefined') {
+          const PRESERVE = new Set([
+            'worldr-auth',              // zustand auth store — contains the new user's tokens
+            'worldr_world_clock_v1',    // server-driven, not player-specific
+            'worldr_account_settings',  // UI prefs
+          ]);
+          const toRemove: string[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('worldr') && !PRESERVE.has(key)) {
+              toRemove.push(key);
+            }
+          }
+          toRemove.forEach(k => localStorage.removeItem(k));
+        }
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
       }
     }),

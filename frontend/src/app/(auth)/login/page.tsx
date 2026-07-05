@@ -20,6 +20,21 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { data } = await authApi.login(form);
+
+      // Wipe any stale game-state from a previous account on this device.
+      // This guards against the case where the user didn't explicitly log out.
+      if (typeof window !== 'undefined') {
+        const PRESERVE = new Set(['worldr_world_clock_v1', 'worldr_account_settings']);
+        const toRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('worldr') && key !== 'worldr-auth' && !PRESERVE.has(key)) {
+            toRemove.push(key);
+          }
+        }
+        toRemove.forEach(k => localStorage.removeItem(k));
+      }
+
       setAuth(data.user, data.accessToken, data.refreshToken);
 
       const user = data.user;
