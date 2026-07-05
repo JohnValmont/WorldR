@@ -196,7 +196,7 @@ test('Player Economy E2E', async (t) => {
       await apiB.post(`/exchange/${companyId}/orders`, { side: 'buy', price: 0.65, quantity: 5000 });
 
       const trades = await client.query(
-        `SELECT price, quantity FROM share_trades WHERE company_id = $1 ORDER BY created_at DESC LIMIT 1`,
+        `SELECT price, quantity FROM share_trades WHERE company_id = $1 ORDER BY executed_at DESC LIMIT 1`,
         [companyId]
       );
       assert.ok(trades.rows.length > 0, 'Trade executed');
@@ -235,7 +235,7 @@ test('Player Economy E2E', async (t) => {
     await t.test('Negative: cannot self-accept own loan offer', async () => {
       const res = await apiB.post('/investments/loan-offers', {
         max_amount: 1000,
-        monthly_interest_rate: 1,
+        monthly_interest_rate: 0.01,
         term_months: 3,
       });
       const offerId = res.data.id || res.data.offer?.id;
