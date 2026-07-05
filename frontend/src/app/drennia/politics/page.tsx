@@ -115,24 +115,35 @@ export default function PoliticsDesk() {
       </PageShell>
     );
 
-  return (
-    <div className="flex flex-col" style={{ height: '100%', background: '#090A0F' }}>
+  const myParty = parties.find((p: any) => p.leader_character_id === (character?.id));
 
-      {/* ── Header ─────────────────────────────── */}
-      <div className="border-b border-[#2A2630] px-6 pt-5 pb-4 shrink-0">
-        <div className="text-[9px] font-mono uppercase tracking-[0.28em] text-terminal-amber mb-1">
-          Drennia · Politics
+  return (
+    <div className="flex flex-col" style={{ height: '100%', background: '#13141f' }}>
+
+      {/* ── Top bar — Nationhood style ──────────────── */}
+      <div className="flex items-center justify-between gap-4 px-6 py-3 border-b border-[#252637] shrink-0 bg-[#13141f]">
+        {/* Left: breadcrumb */}
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-[#6b6d8a] uppercase tracking-wider">Drennia</span>
+          <span className="text-[#3a3b4d]">/</span>
+          <span className="text-[11px] text-white font-semibold uppercase tracking-wider">Politics</span>
         </div>
-        <div className="flex items-end justify-between gap-4 flex-wrap">
-          <h1 className="text-2xl md:text-3xl font-serif text-[#F4EBD6] tracking-wide">
-            Political Desk
-          </h1>
-          <div className="text-right">
-            <div className="text-[9px] font-mono uppercase tracking-[0.2em] text-[#6B6358]">Session</div>
-            <div className="text-sm font-mono text-[#A79D8C]">
-              {displayPhase ? String(displayPhase).toUpperCase() : '—'}
-              {sessionYear != null && <span className="text-[#6B6358]"> · Yr {sessionYear}</span>}
+
+        {/* Right: status pills */}
+        <div className="flex items-center gap-3">
+          {/* Cash */}
+          {character?.finances?.cash_in_hand != null && (
+            <div className="px-3 py-1.5 bg-[#1c1d2e] border border-[#252637] rounded-lg text-[12px] font-mono font-bold text-white">
+              ${Number(character.finances.cash_in_hand).toLocaleString()}
             </div>
+          )}
+          {/* AP pill — matches Nationhood "PARTY ACTIONS: N AVAILABLE" */}
+          <div className="px-3 py-1.5 bg-[#e8752a] rounded-lg text-[11px] font-bold text-white uppercase tracking-wider">
+            {myAp.current_ap} / {myAp.ap_cap} AP Available
+          </div>
+          {/* Phase */}
+          <div className="px-3 py-1.5 bg-[#1c1d2e] border border-[#252637] rounded-lg text-[11px] text-[#8b8da8] uppercase tracking-wider">
+            {displayPhase || 'Governing'}
           </div>
         </div>
       </div>
@@ -141,11 +152,16 @@ export default function PoliticsDesk() {
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* Left Sidebar */}
-        <PoliticsSidebar active={activeSection} onSelect={setActiveSection} />
+        <PoliticsSidebar
+          active={activeSection}
+          onSelect={setActiveSection}
+          myPartyName={myParty?.name || 'Political Desk'}
+          myPartyNation={overview?.activeState?.name || 'Ironvale'}
+        />
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto">
-          <PageShell className="py-6">
+        <main className="flex-1 overflow-y-auto bg-[#13141f]">
+          <div className="max-w-5xl mx-auto px-8 py-8">
             {activeSection === 'overview' && (
               <OverviewScreen
                 overview={overview}
@@ -174,7 +190,7 @@ export default function PoliticsDesk() {
             {activeSection === 'lobby' && (
               <LobbyScreen {...commonProps} />
             )}
-          </PageShell>
+          </div>
         </main>
       </div>
     </div>

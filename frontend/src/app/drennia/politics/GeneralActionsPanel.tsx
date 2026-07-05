@@ -11,42 +11,42 @@ import {
   RECRUIT_COST_CASH,
   getRosterCap,
 } from '@/lib/politicsConstants';
-import Masthead from './_components/Masthead';
 import ActionCard from './_components/ActionCard';
-import ApBadge from './_components/ApBadge';
 
 interface Action {
   id: string;
   type: string;
   title: string;
   description: string;
+  subtitle: string;
   apCost: number;
   cashCost?: number;
-  /** If set, this action is only available to the leader */
   leaderOnly?: boolean;
-  notice?: React.ReactNode;
 }
 
 const GENERAL_ACTIONS: Action[] = [
   {
     id: 'action-statement',
     type: 'statement',
-    title: 'Issue a Statement',
-    description: 'Release a public statement to nudge your party\'s popularity. Small effect, low cost.',
+    title: 'Statement',
+    subtitle: 'CHARISMA · THE PUBLIC',
+    description: 'Release a public statement to nudge your party\'s popularity.',
     apCost: AP_COST_STATEMENT,
   },
   {
     id: 'action-fundraise',
     type: 'fundraise',
     title: 'Fundraise',
-    description: 'Host a fundraising drive. Revenue scales with your Charisma stat. Deposited to party treasury.',
+    subtitle: 'CHARISMA · THE DONORS',
+    description: 'Fills your party funds. Revenue scales with your Charisma.',
     apCost: AP_COST_FUNDRAISE,
   },
   {
     id: 'action-recruit',
     type: 'recruit',
-    title: 'Recruit NPC Candidate',
-    description: 'Bring a new NPC candidate onto your roster. They will adopt a platform loosely aligned with your party\'s — with some natural drift.',
+    title: 'Recruit',
+    subtitle: 'CHARISMA · NEW BLOOD',
+    description: 'Adds a politician to your bench. Costs from party treasury.',
     apCost: AP_COST_RECRUIT,
     cashCost: RECRUIT_COST_CASH,
     leaderOnly: true,
@@ -54,22 +54,25 @@ const GENERAL_ACTIONS: Action[] = [
   {
     id: 'action-endorsement',
     type: 'endorsement',
-    title: 'Endorsement Drive',
-    description: 'Leverage your personal influence to back a candidate with a key voter bloc. Boost their fit in a chosen segment.',
+    title: 'Endorsement',
+    subtitle: 'INFLUENCE · A VOTER BLOC',
+    description: 'Back a candidate with a key voter bloc.',
     apCost: AP_COST_ENDORSEMENT_AP,
   },
   {
     id: 'action-scout',
     type: 'scout',
-    title: 'Scout Rival',
-    description: 'Commission intelligence on a rival party\'s platform and polling performance. Reveals more than the public ballot.',
+    title: 'Scout',
+    subtitle: 'INFLUENCE · A RIVAL',
+    description: 'Cuts a rival\'s standing or reveals their internal polling.',
     apCost: AP_COST_SCOUT,
   },
   {
     id: 'action-negotiate',
     type: 'negotiate',
     title: 'Negotiate',
-    description: 'Open a back-channel dialogue with another party. Improves coalition formation odds. Logs data for the future Formation screen.',
+    subtitle: 'BUILD · THE BACKROOM',
+    description: 'Builds a coalition deal. Opens coalition negotiations.',
     apCost: AP_COST_NEGOTIATE,
   },
 ];
@@ -80,6 +83,8 @@ interface GeneralActionsPanelProps {
   myAp: { current_ap: number; ap_cap: number };
   onRefresh: () => void;
   stateId?: string;
+  /** Section context label — e.g. "Party Leader" */
+  contextLabel?: string;
 }
 
 export default function GeneralActionsPanel({
@@ -88,6 +93,7 @@ export default function GeneralActionsPanel({
   myAp,
   onRefresh,
   stateId,
+  contextLabel = 'Your Actions',
 }: GeneralActionsPanelProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [result, setResult] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -101,6 +107,7 @@ export default function GeneralActionsPanel({
   const rosterCap = getRosterCap(popularity);
   const rosterSize = Number(myParty?.member_count || myParty?.members?.length || 1);
   const rosterFull = rosterSize >= rosterCap;
+  const inParty = !!myParty;
 
   const run = async (actionType: string) => {
     try {
@@ -124,40 +131,35 @@ export default function GeneralActionsPanel({
     }
   };
 
-  const inParty = !!myParty;
-
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <Masthead
-          overline="Operations"
-          title="General Actions"
-          subtitle="Available every arc regardless of phase or office. Each action draws from your shared AP pool."
-        />
-        <ApBadge current={myAp.current_ap} cap={myAp.ap_cap} size="lg" className="shrink-0" />
+    <div className="bg-[#1c1d2e] border border-[#252637] rounded-xl p-6">
+      {/* Section header — matches "PARTY LEADER · THIS WEEK'S ACTION" */}
+      <div className="text-[10px] uppercase tracking-[0.2em] text-[#e8752a] font-semibold mb-1">
+        {contextLabel} · This Arc&apos;s Actions
       </div>
+      <p className="text-sm text-[#8b8da8] mb-6">
+        {inParty
+          ? `You have ${myAp.current_ap} AP remaining. Choose where to spend it.`
+          : 'Join or found a party to unlock political actions.'}
+      </p>
 
-      {!inParty && (
-        <div className="p-4 border border-[#2A2630] bg-[#11131A] text-[#A79D8C] text-sm text-center">
-          Join or found a party to unlock political actions.
-        </div>
-      )}
-
+      {/* Result toast */}
       {result && (
-        <div className={`p-3 border text-sm ${
+        <div className={`mb-4 px-4 py-2.5 rounded-lg text-sm font-medium ${
           result.type === 'success'
-            ? 'border-[#4D8C6A]/30 bg-[#4D8C6A]/5 text-[#4D8C6A]'
-            : 'border-[#B85555]/30 bg-[#8F3D3D]/10 text-[#B85555]'
+            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+            : 'bg-red-500/10 text-red-400 border border-red-500/20'
         }`}>
           {result.msg}
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {/* 4-column action grid — matches Nationhood */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {GENERAL_ACTIONS.map((action) => {
           const isRecruit = action.type === 'recruit';
-          let unavailableReason = '';
           let available = inParty;
+          let unavailableReason = '';
 
           if (!inParty) unavailableReason = 'Requires party membership';
           if (action.leaderOnly && !isLeader) {
@@ -166,7 +168,7 @@ export default function GeneralActionsPanel({
           }
           if (isRecruit && rosterFull) {
             available = false;
-            unavailableReason = `Roster full (${rosterSize}/${rosterCap}) — raise popularity to unlock more slots`;
+            unavailableReason = `Roster full (${rosterSize}/${rosterCap})`;
           }
 
           return (
@@ -174,6 +176,7 @@ export default function GeneralActionsPanel({
               key={action.id}
               id={action.id}
               title={action.title}
+              subtitle={action.subtitle}
               description={action.description}
               apCost={action.apCost}
               currentAp={myAp.current_ap}
@@ -184,10 +187,11 @@ export default function GeneralActionsPanel({
               onConfirm={() => run(action.type)}
               loading={loading === action.type}
               notice={
-                isRecruit ? (
-                  <span>Roster: {rosterSize}/{rosterCap} · Popularity: {popularity}</span>
-                ) : undefined
+                isRecruit
+                  ? <span>Roster {rosterSize}/{rosterCap} · Pop {popularity}</span>
+                  : undefined
               }
+              ctaBadge={action.type === 'negotiate' ? 'Open Negotiations' : undefined}
             />
           );
         })}

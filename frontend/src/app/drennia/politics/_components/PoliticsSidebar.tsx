@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import {
-  LayoutDashboard, Vote, ScrollText, Users, Flag, Swords, Briefcase,
+  Home, Flag, Vote, Landmark, Users, Swords, Briefcase,
 } from 'lucide-react';
 
 export type PoliticsSection =
@@ -16,64 +16,65 @@ export type PoliticsSection =
 interface SidebarItem {
   id: PoliticsSection;
   label: string;
-  sublabel: string;
   Icon: React.ElementType;
 }
 
 const ITEMS: SidebarItem[] = [
-  { id: 'overview',    label: 'Overview',    sublabel: 'Cross-State Summary',  Icon: LayoutDashboard },
-  { id: 'elections',   label: 'Elections',   sublabel: 'The Electorate',        Icon: Vote            },
-  { id: 'legislature', label: 'Legislature', sublabel: 'Bills & Votes',         Icon: ScrollText      },
-  { id: 'assembly',    label: 'Assembly',    sublabel: 'Chamber Composition',   Icon: Users           },
-  { id: 'party',       label: 'Party',       sublabel: 'Platform & Members',    Icon: Flag            },
-  { id: 'warroom',     label: 'War Room',    sublabel: 'Campaign Actions',      Icon: Swords          },
-  { id: 'lobby',       label: 'Lobby',       sublabel: 'Tenders & Petitions',   Icon: Briefcase       },
+  { id: 'overview',    label: 'Home',        Icon: Home     },
+  { id: 'party',       label: 'Party',       Icon: Flag     },
+  { id: 'elections',   label: 'Elections',   Icon: Vote     },
+  { id: 'legislature', label: 'Legislature', Icon: Landmark },
+  { id: 'assembly',    label: 'Assembly',    Icon: Users    },
+  { id: 'warroom',     label: 'War Room',    Icon: Swords   },
+  { id: 'lobby',       label: 'Lobby',       Icon: Briefcase },
 ];
 
 interface PoliticsSidebarProps {
   active: PoliticsSection;
   onSelect: (id: PoliticsSection) => void;
+  myPartyName?: string;
+  myPartyNation?: string;
 }
 
-export default function PoliticsSidebar({ active, onSelect }: PoliticsSidebarProps) {
+export default function PoliticsSidebar({
+  active,
+  onSelect,
+  myPartyName = 'Your Party',
+  myPartyNation = 'Ironvale',
+}: PoliticsSidebarProps) {
   return (
-    <aside className="hidden lg:flex flex-col w-52 shrink-0 border-r border-[#2A2630] bg-[#0D0F14] min-h-full">
-      {/* Header label */}
-      <div className="px-4 pt-5 pb-3 border-b border-[#2A2630]">
-        <div className="text-[9px] font-mono uppercase tracking-[0.28em] text-[#6B6358]">Function</div>
+    <aside className="hidden lg:flex flex-col w-[168px] shrink-0 bg-[#13141f] min-h-full border-r border-[#252637]">
+      {/* Party identity header */}
+      <div className="px-4 pt-5 pb-4 border-b border-[#252637]">
+        <div className="text-[11px] font-bold text-white leading-tight truncate">{myPartyName}</div>
+        <div className="text-[10px] text-[#6b6d8a] mt-0.5 truncate uppercase tracking-wider">{myPartyNation}</div>
       </div>
 
-      <nav className="flex flex-col py-2">
-        {ITEMS.map(({ id, label, sublabel, Icon }) => {
+      <nav className="flex flex-col py-3 gap-0.5 px-2">
+        {ITEMS.map(({ id, label, Icon }) => {
           const isActive = active === id;
           return (
             <button
               key={id}
               onClick={() => onSelect(id)}
               className={[
-                'flex items-center gap-3 px-4 py-3 text-left transition-colors duration-150 border-l-2 group',
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 w-full text-sm font-medium',
                 isActive
-                  ? 'border-terminal-amber bg-terminal-amber/5 text-[#F4EBD6]'
-                  : 'border-transparent text-[#A79D8C] hover:text-[#E4DBCA] hover:bg-[#161820]',
+                  ? 'bg-[#e8752a] text-white'
+                  : 'text-[#8b8da8] hover:text-white hover:bg-[#1e1f30]',
               ].join(' ')}
             >
-              <Icon
-                size={14}
-                className={isActive ? 'text-terminal-amber' : 'text-[#6B6358] group-hover:text-[#A79D8C]'}
-              />
-              <div className="min-w-0">
-                <div className={[
-                  'text-[11px] font-mono uppercase tracking-[0.12em] leading-none',
-                  isActive ? 'text-terminal-amber font-bold' : '',
-                ].join(' ')}>
-                  {label}
-                </div>
-                <div className="text-[9px] text-[#6B6358] mt-0.5 truncate">{sublabel}</div>
-              </div>
+              <Icon size={16} className="shrink-0" />
+              <span>{label}</span>
             </button>
           );
         })}
       </nav>
+
+      {/* Bottom spacer */}
+      <div className="mt-auto px-4 py-4 border-t border-[#252637]">
+        <div className="text-[10px] text-[#4a4c60] uppercase tracking-wider">Political Desk</div>
+      </div>
     </aside>
   );
 }

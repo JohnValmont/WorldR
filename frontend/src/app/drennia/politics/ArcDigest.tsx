@@ -58,40 +58,40 @@ export default function ArcDigest() {
   }, []);
 
   if (loading) {
-    return <div className="text-[#6B6558] text-sm px-1 py-4">Fetching the Ironvale Ledger…</div>;
+    return <div className="text-[#6b6d8a] text-sm py-4">Fetching the Ironvale Ledger…</div>;
   }
 
   if (!events.length) {
     return (
-      <div className="border border-dashed border-[#2A2630] bg-[#11131A] p-6 text-center">
-        <div className="text-[#A79D8C] text-sm">The Ledger is quiet. Make some history.</div>
+      <div className="bg-[#1c1d2e] border border-[#252637] rounded-xl p-8 text-center">
+        <div className="text-[#6b6d8a] text-sm">The Ledger is quiet. Make some history.</div>
       </div>
     );
   }
 
   return (
-    <div className="border border-[#2A2630] bg-[#11131A]">
-      <div className="px-4 py-3 border-b border-[#2A2630] flex items-center justify-between">
-        <span className="font-serif text-[#F4EBD6] text-lg">The Ironvale Ledger</span>
-        <span className="text-[#6B6558] text-xs uppercase tracking-wider">while you were away</span>
+    <div className="bg-[#1c1d2e] border border-[#252637] rounded-xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-[#252637] flex items-center justify-between">
+        <span className="text-base font-bold text-white">The Ironvale Ledger</span>
+        <span className="text-[10px] text-[#6b6d8a] uppercase tracking-wider">while you were away</span>
       </div>
-      <div className="divide-y divide-[#2A2630]">
+      <div className="divide-y divide-[#252637]">
         {events.map((e) => {
-          const accent = KIND_ACCENT[e.kind] || '#6B6558';
+          const accent = KIND_ACCENT[e.kind] || '#6b6d8a';
           return (
-            <div key={e.id} className="px-4 py-3 flex gap-3">
-              <div className="shrink-0 pt-1">
+            <div key={e.id} className="px-5 py-3.5 flex gap-3 hover:bg-[#20213a] transition-colors">
+              <div className="shrink-0 pt-0.5">
                 <span
-                  className="text-[10px] font-mono px-1.5 py-0.5 border"
-                  style={{ color: accent, borderColor: `${accent}66` }}
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+                  style={{ color: accent, background: `${accent}22` }}
                 >
                   {KIND_LABEL[e.kind] || 'NEWS'}
                 </span>
               </div>
               <div className="min-w-0">
-                <div className="text-[#E6D5B8] text-sm font-serif">{e.headline}</div>
-                {e.body && <div className="text-[#A79D8C] text-xs mt-0.5 line-clamp-2">{e.body}</div>}
-                <div className="text-[#6B6558] text-[10px] mt-1 uppercase tracking-wider">{formatGameDate(e.month)}</div>
+                <div className="text-sm font-semibold text-white">{e.headline}</div>
+                {e.body && <div className="text-[12px] text-[#8b8da8] mt-0.5 line-clamp-2">{e.body}</div>}
+                <div className="text-[10px] text-[#4a4c60] mt-1.5 uppercase tracking-wider">{formatGameDate(e.month)}</div>
               </div>
             </div>
           );
