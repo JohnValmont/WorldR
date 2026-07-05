@@ -195,7 +195,7 @@ function OrderTicket({ companyId, onPlaced }: { companyId: string; onPlaced: () 
       setQuantity('');
       onPlaced();
     } catch (e: any) {
-      setMsg({ text: e?.response?.data?.message || 'Order failed.', ok: false });
+      setMsg({ text: e?.response?.data?.error || e?.response?.data?.message || 'Order failed.', ok: false });
     } finally {
       setBusy(false);
     }
