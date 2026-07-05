@@ -453,7 +453,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
     }
   }, [BASE_DEV_COST]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  // ── Handlers ────────────────────────────────────────────────���─────────────
 
   const handleLeaseFactory = async (factoryTypeId: string) => {
     try {
@@ -2963,7 +2963,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
             {/* Next Month Commitments */}
             <PanelBox>
               <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Next Month Commitments</div>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '12px' }}>Estimated recurring costs for the upcoming Month.</div>
+              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '12px' }}>Estimated recurring costs for the upcoming month.</div>
               <FieldRow label="Factory Lease Cost" value={fm(leaseCostPerArc)} valueColor={T.red} />
               <FieldRow label="Factory Maintenance" value={fm(maintCostPerArc)} valueColor={T.red} />
               <FieldRow label="Workforce Wages" value={fm(totalWagesPerArc)} valueColor={T.red} />

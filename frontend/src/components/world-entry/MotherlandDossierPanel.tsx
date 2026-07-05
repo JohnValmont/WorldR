@@ -133,7 +133,7 @@ export default function MotherlandDossierPanel({ selectedNation }: MotherlandDos
                 <li style={{ fontSize: '13px', color: theme.colors.text.textSecondary }}>NPC companies operate across states</li>
                 <li style={{ fontSize: '13px', color: theme.colors.text.textSecondary }}>Royal NPCs formalize government</li>
                 <li style={{ fontSize: '13px', color: theme.colors.text.textSecondary }}>Elections will be staggered</li>
-                <li style={{ fontSize: '13px', color: theme.colors.text.textSecondary }}>Public records will follow every rise and failure</li>
+                <li style={{ fontSize: '13px', color: theme.colors.text.textSecondary }}>Public records will follow every rise and fall</li>
               </ul>
             </div>
 
