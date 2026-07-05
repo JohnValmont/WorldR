@@ -107,7 +107,7 @@ export class CompanyController {
           // Fallback repair for old accounts without finances
           const [newFinances] = await trx('character_finances').insert({
             character_id: character.id,
-            currency_id: 'drennian-day',
+            currency_id: 'dollar',
             cash_in_hand: 1000000,
             net_worth: 1000000
           }).returning('*');
