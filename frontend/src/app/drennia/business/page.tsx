@@ -62,6 +62,14 @@ const T = {
   red: '#B85555',
 };
 
+// ─── Display Name Helpers ────────────────────────────────────────────────────
+const getLegalStructureName = (id?: string): string => {
+  if (id === 'sole-trader') return 'Sole Trader';
+  if (id === 'private-company') return 'Private Company';
+  if (id === 'public-corporation') return 'Corporation';
+  return id || 'Unknown';
+};
+
 // ─── Reusable Atoms ──────────────────────────────────────────────────────────
 const Label = ({ children }: { children: React.ReactNode }) => (
   <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint, marginBottom: '4px' }}>
@@ -572,7 +580,7 @@ export default function BusinessPage() {
         )}
         {activeTab === 'registry' && (
           <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => setActiveTab('overview')}>
-            ← Back to Registry
+            ← Back to Overview
           </span>
         )}
       </div>
@@ -743,15 +751,15 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Company Cash"
-          value={formatMoney(company.companyCash)}
+          value={formatMoney(company.companyCash ?? 0)}
           valueColor="green"
           trend={Number(company.companyCash || 0) > 0 ? 'up' : 'flat'}
         />
         <StatCard
           label="Debt"
-          value={formatMoney(company.debt)}
-          valueColor={company.debt > 0 ? 'red' : 'white'}
-          trend={company.debt > 0 ? 'down' : 'flat'}
+          value={formatMoney(company.debt ?? 0)}
+          valueColor={(company.debt ?? 0) > 0 ? 'red' : 'white'}
+          trend={(company.debt ?? 0) > 0 ? 'down' : 'flat'}
         />
         <StatCard
           label="Net Worth (Total)"
@@ -774,7 +782,7 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
           title={company.name}
           headerSlot={<Badge variant="green" dot>{company.status}</Badge>}
         >
-          <DataRow label="Structure" value={company.legalStructure || 'Unknown'} />
+          <DataRow label="Structure" value={getLegalStructureName(company.legalStructure)} />
           <DataRow label="Sector" value={getSectorName(company.sectorId) || getSectorName(company.sector) || 'N/A'} />
           {company.subsector && <DataRow label="Subsector" value={getSubsectorName(company.subsector) || 'N/A'} />}
           <DataRow label="HQ State" value={getStateName(company.headquartersStateId) || getStateName(company.state) || 'N/A'} />
@@ -785,8 +793,8 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
 
         <div className="flex flex-col gap-4">
           <Card kicker="Ledger" icon={Wallet} title="Financial Position">
-            <DataRow label="Company Cash" value={formatMoney(company.companyCash)} valueVariant="green" />
-            <DataRow label="Debt" value={formatMoney(company.debt)} valueVariant={company.debt > 0 ? 'red' : 'muted'} />
+            <DataRow label="Company Cash" value={formatMoney(company.companyCash ?? 0)} valueVariant="green" />
+            <DataRow label="Debt" value={formatMoney(company.debt ?? 0)} valueVariant={(company.debt ?? 0) > 0 ? 'red' : 'muted'} />
             <DataRow label="Net Worth (total)" value={formatMoney(netWorth)} valueVariant="amber" border={false} />
           </Card>
 
@@ -985,13 +993,13 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           <div className="rounded-md border border-zinc-800 bg-zinc-900/60 p-5 mb-4">
             <FieldRow label="Company Name" value={companyNameInput} />
             <FieldRow label="Sector" value={selectedSector} />
-            <FieldRow label="HQ State" value={selectedHQ} />
-            <FieldRow label="Legal Structure" value="Sole Trader" />
+            <FieldRow label="HQ State" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ} />
+            <FieldRow label="Legal Structure" value={getLegalStructureName(selectedStructure)} />
           </div>
           <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-5 mb-6">
             <SectionHeader>Starting Capital</SectionHeader>
             <p className="text-xs text-zinc-500 leading-relaxed mb-4">
-              Minimum: <strong className="text-terminal-amber">₯50,000</strong>. No maximum — invest as much as your Cash in Hand allows, minus the ₯5,000 filing fee.
+              Minimum: <strong className="text-terminal-amber">₯50,000</strong>. No maximum — invest as much as your Cash in Hand allows, minus the filing fee ({getLegalStructureName(selectedStructure)} fee: <strong className="text-terminal-red">{formatMoney(FILING_FEE)}</strong>).
             </p>
             <div className="mb-4">
               <Label>Company Starting Capital (₯)</Label>
@@ -1008,7 +1016,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
               />
             </div>
             <FieldRow label="Chosen Capital" value={formatMoney(chosenCapital)} valueColor="#30d158" />
-            <FieldRow label="Filing Fee" value={formatMoney(5000)} valueColor="#ff453a" />
+            <FieldRow label={`Filing Fee (${getLegalStructureName(selectedStructure)})`} value={formatMoney(FILING_FEE)} valueColor="#ff453a" />
             <div className="flex justify-between mt-3 pt-2.5 border-t border-zinc-800">
               <span className="text-xs font-bold text-zinc-100">Total Required</span>
               <span className="text-base font-mono font-bold text-terminal-amber">{formatMoney(total)}</span>
@@ -1339,8 +1347,8 @@ function CompanyDeskTab({
   return (
     <div style={{ width: '100%' }}>
       {notification && (
-        <div style={{ marginBottom: '16px', padding: '12px 16px', background: notification.success ? 'rgba(54,211,153,0.08)' : 'rgba(184,85,85,0.08)', border: `1px solid ${notification.success ? T.mint : T.red}`, color: notification.success ? T.mint : T.red, fontSize: '12px', lineHeight: 1.6 }}>
-          {notification.msg}
+        <div style={{ position: 'fixed', top: '70px', right: '24px', zIndex: 9999, padding: '12px 18px', background: notification.success ? 'rgba(20,40,30,0.97)' : 'rgba(40,20,20,0.97)', border: `1px solid ${notification.success ? T.mint : T.red}`, color: notification.success ? T.mint : T.red, fontSize: '12px', lineHeight: 1.6, maxWidth: '340px', boxShadow: '0 4px 24px rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
+          {notification.success ? '✓ ' : '⚠ '}{notification.msg}
         </div>
       )}
 
@@ -1364,17 +1372,17 @@ function CompanyDeskTab({
               <PanelBox>
                 <SectionHeader stamp="COMPANY FILE">Company Details</SectionHeader>
                 <FieldRow label="Name" value={company.name} />
-                <FieldRow label={company.legalStructure === 'Corporation' ? "Chairperson & CEO" : "Founder & CEO"} value={company.ownerName} />
-                <FieldRow label="Sector" value={getSectorName(company.sectorId) || company.sector || 'N/A'} />
-                <FieldRow label="HQ" value={getStateName(company.headquartersStateId) || company.state || 'N/A'} />
+                <FieldRow label={company.legalStructure === 'Corporation' || (company.legalStructure as any) === 'public-corporation' ? "Chairperson & CEO" : "Founder & CEO"} value={characterName || 'Unknown'} />
+                <FieldRow label="Sector" value={getSectorName(company.sectorId) || getSectorName(company.sector) || 'N/A'} />
+                <FieldRow label="HQ" value={getStateName(company.headquartersStateId) || getStateName(company.state) || 'N/A'} />
                 <FieldRow label="Status" value={company.status} valueColor={T.mint} />
                 <FieldRow label="Reputation" value={company.reputation} valueColor={T.gold} />
                 <FieldRow label="Reliability" value={company.reliability} />
               </PanelBox>
               <PanelBox>
                 <SectionHeader stamp="LEDGER">Financials</SectionHeader>
-                <FieldRow label="Company Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
-                <FieldRow label="Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.red : T.muted} />
+                <FieldRow label="Company Cash" value={formatMoney(company.companyCash ?? 0)} valueColor={T.mint} />
+                <FieldRow label="Debt" value={formatMoney(company.debt ?? 0)} valueColor={(company.debt ?? 0) > 0 ? T.red : T.muted} />
                 <FieldRow label="Fleet Assets" value={formatMoney(fleetValue)} valueColor={T.steel} />
                 <FieldRow label="Company Value" value={formatMoney(companyValue)} valueColor={T.gold} />
                 <FieldRow label="Net Worth" value={formatMoney(netWorth)} valueColor={T.gold} />
@@ -2281,11 +2289,11 @@ function CompanyDeskTab({
                 <SectionHeader>Finance Desk</SectionHeader>
                 <PanelBox style={{ marginBottom: '24px' }}>
                   <SectionHeader stamp="LEDGER">Company Financials</SectionHeader>
-                  <FieldRow label="Available Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
+                  <FieldRow label="Available Cash" value={formatMoney(company.companyCash ?? 0)} valueColor={T.mint} />
                   <FieldRow label="Last Month Gross Revenue" value={formatMoney(company.monthlyRevenue || 0)} valueColor={T.mint} />
                   <FieldRow label="Last Month Operating Costs" value={formatMoney(company.monthlyCosts || 0)} valueColor={T.red} />
                   <FieldRow label="Last Month Net Profit" value={formatMoney(company.profit || 0)} valueColor={(company.profit || 0) >= 0 ? T.mint : T.red} />
-                  <FieldRow label="Outstanding Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.burgundy : T.muted} />
+                  <FieldRow label="Outstanding Debt" value={formatMoney(company.debt ?? 0)} valueColor={(company.debt ?? 0) > 0 ? T.burgundy : T.muted} />
                 </PanelBox>
                 
                 <SectionHeader stamp="OWNERSHIP">Owner Capital Movement</SectionHeader>
@@ -2814,8 +2822,8 @@ function FinanceTab({ company, fleet, playerCash, netWorth }: { company: Company
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', maxWidth: '760px' }}>
       <PanelBox>
         <SectionHeader stamp="LEDGER">Company Financials</SectionHeader>
-        <FieldRow label="Company Cash" value={formatMoney(company.companyCash)} valueColor={T.mint} />
-        <FieldRow label="Debt" value={formatMoney(company.debt)} valueColor={company.debt > 0 ? T.red : T.muted} />
+        <FieldRow label="Company Cash" value={formatMoney(company.companyCash ?? 0)} valueColor={T.mint} />
+        <FieldRow label="Debt" value={formatMoney(company.debt ?? 0)} valueColor={(company.debt ?? 0) > 0 ? T.red : T.muted} />
         {company.lastMonthlyReport ? (
           <>
             <FieldRow label="Last Month Gross Revenue" value={formatMoney(company.lastMonthlyReport.autoRevenue + company.lastMonthlyReport.manualRevenue)} valueColor={T.mint} />
@@ -2952,12 +2960,14 @@ function ProcurementTab({ company, onRefresh, showNotif }: any) {
   );
 }
 
-// ─── DRENNPORT EXCHANGE TAB ─────────────────────────────────────────────────
+// ─── DRENNPORT EXCHANGE TAB ─────────────────────────────────────────────────────────
 function DrennportExchangeTab() {
+  const router = require('next/navigation').useRouter();
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', height: '100%', overflowY: 'auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '760px' }}>
       <SectionHeader stamp="MARKET STATUS: OPEN">Drennport Exchange</SectionHeader>
-      
+
+      {/* Market snapshot */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
         <PanelBox>
           <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', marginBottom: '8px' }}>National Index</div>
@@ -2976,47 +2986,16 @@ function DrennportExchangeTab() {
         </PanelBox>
       </div>
 
-      <SectionHeader>Listed Corporations & State Enterprises</SectionHeader>
-      <div style={{ background: T.panel, border: `1px solid ${T.border}` }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-          <thead>
-            <tr style={{ background: 'rgba(0,0,0,0.2)', color: T.muted, borderBottom: `1px solid ${T.border}`, textAlign: 'left', fontFamily: 'monospace', textTransform: 'uppercase' }}>
-              <th style={{ padding: '12px' }}>Ticker</th>
-              <th style={{ padding: '12px' }}>Entity</th>
-              <th style={{ padding: '12px' }}>Sector</th>
-              <th style={{ padding: '12px', textAlign: 'right' }}>Share Price</th>
-              <th style={{ padding: '12px', textAlign: 'center' }}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-              <td style={{ padding: '12px', color: T.gold, fontFamily: 'monospace' }}>DCB</td>
-              <td style={{ padding: '12px', color: T.ivory }}>Drennport Commercial Bank</td>
-              <td style={{ padding: '12px', color: T.muted }}>Finance</td>
-              <td style={{ padding: '12px', textAlign: 'right', color: T.ivory }}>{formatMoney(1450)}</td>
-              <td style={{ padding: '12px', textAlign: 'center' }}><GhostButton>Trade (🔒)</GhostButton></td>
-            </tr>
-            <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-              <td style={{ padding: '12px', color: T.gold, fontFamily: 'monospace' }}>WDA</td>
-              <td style={{ padding: '12px', color: T.ivory }}>Westport Dock Authority</td>
-              <td style={{ padding: '12px', color: T.muted }}>SOE / Port</td>
-              <td style={{ padding: '12px', textAlign: 'right', color: T.ivory }}>{formatMoney(890)}</td>
-              <td style={{ padding: '12px', textAlign: 'center' }}><GhostButton>Trade (🔒)</GhostButton></td>
-            </tr>
-            <tr>
-              <td style={{ padding: '12px', color: T.gold, fontFamily: 'monospace' }}>DRF</td>
-              <td style={{ padding: '12px', color: T.ivory }}>Drennia Rail Freight</td>
-              <td style={{ padding: '12px', color: T.muted }}>SOE / Logistics</td>
-              <td style={{ padding: '12px', textAlign: 'right', color: T.ivory }}>{formatMoney(2100)}</td>
-              <td style={{ padding: '12px', textAlign: 'center' }}><GhostButton>Trade (🔒)</GhostButton></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div style={{ background: 'rgba(0,0,0,0.2)', border: `1px dashed ${T.border}`, padding: '24px', textAlign: 'center', marginTop: '16px' }}>
-        <div style={{ color: T.muted, fontSize: '12px' }}>This generic index view is a placeholder. Go to the Westport Bourse to see active player IPOs and trading mechanics. Corporate bonds are locked in this build.</div>
-      </div>
+      {/* CTA to full exchange */}
+      <PanelBox style={{ background: 'rgba(201,162,74,0.04)', border: `1px solid ${T.borderGold}`, textAlign: 'center', padding: '32px' }}>
+        <div style={{ fontSize: '13px', color: T.gold, fontWeight: 700, marginBottom: '12px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+          Westport Bourse — Full Trading Platform
+        </div>
+        <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, marginBottom: '20px', maxWidth: '460px', margin: '0 auto 20px' }}>
+          List your company via IPO, buy equity stakes in other player companies, manage your portfolio, and trade on live market data.
+        </p>
+        <GoldButton onClick={() => router.push('/drennia/exchange')}>Open Exchange →</GoldButton>
+      </PanelBox>
     </div>
   );
 }

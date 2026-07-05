@@ -11,7 +11,7 @@ import {
   Mail, Landmark, ChevronRight, RefreshCw, AlertTriangle, Lock,
   Activity, Globe, Newspaper,
 } from 'lucide-react';
-import { getContracts } from '../../../lib/businessCore';
+import { getContracts, formatGameDate } from '../../../lib/businessCore';
 import { addNotification } from '../../../lib/notifications';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import NotificationBell from '../../../components/gameplay/NotificationBell';
@@ -195,9 +195,12 @@ export default function ChroniclePage() {
               setActiveContracts(
                 contracts.filter(c => c.status === 'awarded' && c.awardedToCompanyId === myCompany.id).length
               );
-              // Seed net worth into series tail with live value
-              const liveValue = playerCash + Number(myCompany.finances?.available_cash ?? 0);
-              setNetWorthSeries(prev => [...prev.slice(0, -1), { month: 'Now', value: liveValue }]);
+              // Seed net worth tail with live company cash (player cash set above)
+              const liveCash = Number(myCompany.finances?.available_cash ?? 0);
+              setNetWorthSeries(prev => {
+                const liveValue = Number(char.finances?.cash_in_hand ?? 0) + liveCash;
+                return [...prev.slice(0, -1), { month: 'Now', value: liveValue }];
+              });
             }
           }).catch(() => {});
           
@@ -235,13 +238,21 @@ export default function ChroniclePage() {
 
     const recs = JSON.parse(localStorage.getItem('worldr_records_v1') ?? '[]');
     setRecentRecords(recs.slice(0, 6));
-  }, [router, playerCash]);
+  }, [router]);
 
   if (!authorized) return null;
 
   const sectorLabel = company?.industry_id === 'manufacturing' ? 'Manufacturing'
     : company?.industry_id === 'services' || company?.industry_id === 'shipping-logistics' ? 'Shipping & Logistics'
     : company?.industry_id ?? '—';
+
+  const legalStructureLabel = (() => {
+    const id = company?.legal_structure_id;
+    if (id === 'sole-trader') return 'Sole Trader';
+    if (id === 'private-company') return 'Private Company';
+    if (id === 'public-corporation') return 'Corporation';
+    return id ?? '—';
+  })();
 
   const stateLabel = (() => {
     const id = company?.headquarters_state_id;
@@ -376,13 +387,13 @@ export default function ChroniclePage() {
             const up = delta >= 0;
             const accent = up ? '#30d158' : '#ff453a';
             return (
-              <div className="relative overflow-hidden rounded-xl border border-[#23232b] bg-gradient-to-br from-[#0c0d13] to-[#111219] p-5 md:p-6">
+              <div className="relative overflow-hidden rounded-xl border border-[#2a2630] bg-gradient-to-br from-[#0d0e15] via-[#111320] to-[#0c0d13] p-5 md:p-6" style={{ boxShadow: '0 0 40px rgba(201,162,74,0.04) inset, 0 1px 0 rgba(201,162,74,0.08)' }}>
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
                   <div className="min-w-0">
                     <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-zinc-600">Welcome back</p>
                     <h1 className="text-2xl md:text-3xl font-semibold text-zinc-100 truncate">{characterName || 'Citizen'}</h1>
                     <p className="text-[11px] text-zinc-500 mt-1 font-mono">
-                      {citizenFile?.gameDateStr ?? 'January, Year 0'} · {citizenFile?.motherland ?? 'Drennia'}
+                      {formatGameDate()} · {citizenFile?.motherland ?? 'Drennia'}
                     </p>
                   </div>
                   <div className="flex items-center gap-6">
@@ -535,7 +546,7 @@ export default function ChroniclePage() {
                   <div>
                     <p className="text-[14px] font-semibold text-zinc-100">{company.name}</p>
                     <p className="text-[11px] text-zinc-500 mt-0.5">
-                      {company.legal_structure_id} · {sectorLabel} · {stateLabel}
+                      {legalStructureLabel} · {sectorLabel} · {stateLabel}
                     </p>
                   </div>
                   <div className="text-right">
