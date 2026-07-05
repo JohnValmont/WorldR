@@ -3045,17 +3045,17 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
+      {/* ═════════════════════════��═════════════════════════════
           FINANCE TAB
       ═══════════════════════════════════════════════════════ */}
       {deskTab === 'finance' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <SectionHeader stamp="FINANCE DESK">Company Financials</SectionHeader>
+        <div className="flex flex-col gap-5">
+          <SectionHeader stamp="ACCOUNTING DESK">Company Finances</SectionHeader>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Finance Summary */}
             <PanelBox>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Current Position</div>
+              <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Current Position</h3>
               <FieldRow label="Available Cash" value={fm(finances?.available_cash || 0)} valueColor={T.mint} />
               <FieldRow label="Company Value" value={finances?.company_value ? fm(finances.company_value) : 'Not Available'} />
               <FieldRow label="Factory Asset Value" value={factories.length > 0 ? fm(factories.reduce((sum: number, f: any) => sum + (Number(f.capacity_per_month) * 1000), 0)) : 'Not Available'} />
@@ -3068,8 +3068,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
             {/* Next Month Commitments */}
             <PanelBox>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Next Month Commitments</div>
-              <div style={{ fontSize: '12px', color: T.muted, marginBottom: '12px' }}>Estimated recurring costs for the upcoming month.</div>
+              <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Next Month Commitments</h3>
+              <p className="text-[12px] text-zinc-500 mb-3">Estimated recurring costs for the upcoming month.</p>
               <FieldRow label="Factory Lease Cost" value={fm(leaseCostPerArc)} valueColor={T.red} />
               <FieldRow label="Factory Maintenance" value={fm(maintCostPerArc)} valueColor={T.red} />
               <FieldRow label="Workforce Wages" value={fm(totalWagesPerArc)} valueColor={T.red} />
@@ -3094,7 +3094,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <FieldRow label="Vehicle Development Cost" value={fm(0)} valueColor={T.faint} />
               <FieldRow label="Research Cost" value={fm(0)} valueColor={T.faint} />
 
-              <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: `1px solid ${T.border}` }}>
+              <div className="mt-3 pt-2 border-t border-zinc-800">
                 <FieldRow label="Estimated Total Next Month Cost" value={fm(
                   leaseCostPerArc + maintCostPerArc + totalWagesPerArc +
                   (marketData?.allocations?.reduce((acc: number, alloc: any) => {
@@ -3102,9 +3102,9 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   }, 0) || 0) +
                   inventory.reduce((acc: number, inv: any) => acc + (Number(inv.units_in_stock) * STORAGE_COST_PER_UNIT), 0) +
                   productionLines.reduce((acc: number, line: any) => acc + (Number(line.target_units_per_month) * Number(line.model_cost_per_unit || 0)), 0)
-                )} valueColor={T.red} />
+                )} valueColor="#ff453a" />
               </div>
-              <div style={{ marginTop: '8px', fontSize: '10px', color: T.faint, fontStyle: 'italic' }}>
+              <div className="mt-2 text-[10px] text-zinc-600 italic">
                 * Final costs and revenue are calculated at Month Close.
               </div>
             </PanelBox>
@@ -3112,37 +3112,37 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
           {/* Last Month Profit and Loss */}
           <PanelBox>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Last Month Profit and Loss</div>
+            <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-4">Last Month Profit and Loss</h3>
             {latestReport ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="flex flex-col gap-4">
                 <div>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: T.gold, borderBottom: `1px solid ${T.border}`, paddingBottom: '4px', marginBottom: '8px' }}>Revenue</div>
+                  <div className="text-xs font-semibold text-terminal-amber border-b border-zinc-800 pb-1 mb-2">Revenue</div>
                   <FieldRow label="Vehicle Sales Revenue" value={fm(latestReport.gross_revenue)} valueColor={T.mint} />
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: T.gold, borderBottom: `1px solid ${T.border}`, paddingBottom: '4px', marginBottom: '8px' }}>Cost of Goods Sold</div>
-                  <FieldRow label="Vehicle Production Cost" value={fm(latestReport.production_costs)} valueColor={T.red} />
-                  <FieldRow label="Defective Unit Losses" value={fm(0)} valueColor={Number(latestReport.defective_units) > 0 ? T.red : T.muted} />
+                  <div className="text-xs font-semibold text-terminal-amber border-b border-zinc-800 pb-1 mb-2">Cost of Goods Sold</div>
+                  <FieldRow label="Vehicle Production Cost" value={fm(latestReport.production_costs)} valueColor="#ff453a" />
+                  <FieldRow label="Defective Unit Losses" value={fm(0)} valueColor={Number(latestReport.defective_units) > 0 ? '#ff453a' : 'rgb(113, 113, 122)'} />
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: T.gold, borderBottom: `1px solid ${T.border}`, paddingBottom: '4px', marginBottom: '8px' }}>Operating Expenses</div>
-                  <FieldRow label="Factory Lease" value={fm(latestReport.factory_lease_costs)} valueColor={T.red} />
-                  <FieldRow label="Factory Maintenance" value={fm(latestReport.factory_maintenance_costs)} valueColor={T.red} />
-                  <FieldRow label="Manufacturing Wages" value={fm(latestReport.staff_wages)} valueColor={T.red} />
-                  <FieldRow label="Marketing Expense" value={fm(latestReport.marketing_costs)} valueColor={T.red} />
-                  <FieldRow label="Inventory Storage Cost" value={fm(latestReport.inventory_storage_costs)} valueColor={T.red} />
-                  <FieldRow label="Warranty Reserve" value={fm(latestReport.warranty_reserve_cost || 0)} valueColor={T.red} />
-                  <FieldRow label="Vehicle Development Expense" value={fm(0)} valueColor={T.muted} />
-                  <FieldRow label="Research Expense" value={fm(0)} valueColor={T.muted} />
+                  <div className="text-xs font-semibold text-terminal-amber border-b border-zinc-800 pb-1 mb-2">Operating Expenses</div>
+                  <FieldRow label="Factory Lease" value={fm(latestReport.factory_lease_costs)} valueColor="#ff453a" />
+                  <FieldRow label="Factory Maintenance" value={fm(latestReport.factory_maintenance_costs)} valueColor="#ff453a" />
+                  <FieldRow label="Manufacturing Wages" value={fm(latestReport.staff_wages)} valueColor="#ff453a" />
+                  <FieldRow label="Marketing Expense" value={fm(latestReport.marketing_costs)} valueColor="#ff453a" />
+                  <FieldRow label="Inventory Storage Cost" value={fm(latestReport.inventory_storage_costs)} valueColor="#ff453a" />
+                  <FieldRow label="Warranty Reserve" value={fm(latestReport.warranty_reserve_cost || 0)} valueColor="#ff453a" />
+                  <FieldRow label="Vehicle Development Expense" value={fm(0)} valueColor="rgb(113, 113, 122)" />
+                  <FieldRow label="Research Expense" value={fm(0)} valueColor="rgb(113, 113, 122)" />
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: T.gold, borderBottom: `1px solid ${T.border}`, paddingBottom: '4px', marginBottom: '8px' }}>Result</div>
-                  <FieldRow label="Operating Profit" value={fm(Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0))} valueColor={Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0) >= 0 ? T.mint : T.red} />
-                  <FieldRow label="Net Profit / Loss" value={fm(latestReport.net_profit)} valueColor={Number(latestReport.net_profit) >= 0 ? T.mint : T.red} />
-                  <FieldRow label="Ending Cash" value={fm(latestReport.ending_cash)} valueColor={T.mint} />
+                  <div className="text-xs font-semibold text-terminal-amber border-b border-zinc-800 pb-1 mb-2">Result</div>
+                  <FieldRow label="Operating Profit" value={fm(Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0))} valueColor={Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0) >= 0 ? '#30d158' : '#ff453a'} />
+                  <FieldRow label="Net Profit / Loss" value={fm(latestReport.net_profit)} valueColor={Number(latestReport.net_profit) >= 0 ? '#30d158' : '#ff453a'} />
+                  <FieldRow label="Ending Cash" value={fm(latestReport.ending_cash)} valueColor="#30d158" />
                 </div>
               </div>
             ) : (
@@ -3156,16 +3156,15 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
           {/* Ledger */}
           <PanelBox>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory }}>Manufacturing Ledger</div>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <h3 className="text-[13px] font-bold text-zinc-100 m-0">Manufacturing Ledger</h3>
+              <div className="flex gap-2 flex-wrap">
                 {['All', 'Revenue', 'Production', 'Workforce', 'Factory', 'Marketing', 'Storage', 'Development'].map(filter => (
-                  <button key={filter} onClick={() => setLedgerFilter(filter)} style={{
-                    background: ledgerFilter === filter ? 'rgba(212,175,55,0.2)' : 'transparent',
-                    color: ledgerFilter === filter ? T.gold : T.muted,
-                    border: `1px solid ${ledgerFilter === filter ? T.gold : T.border}`,
-                    padding: '4px 8px', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', cursor: 'pointer'
-                  }}>
+                  <button key={filter} onClick={() => setLedgerFilter(filter)} className={`rounded-sm px-2 py-1 text-[10px] font-mono uppercase tracking-[0.08em] transition-colors ${
+                    ledgerFilter === filter 
+                      ? 'bg-terminal-amber/20 text-terminal-amber border border-terminal-amber/60' 
+                      : 'bg-transparent text-zinc-500 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-300'
+                  }`}>
                     {filter}
                   </button>
                 ))}
@@ -3218,7 +3217,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           RECORDS TAB
       ═══════════════════════════════════════════════════════ */}
       {deskTab === 'records' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="flex flex-col gap-5">
           <SectionHeader stamp="COMPANY RECORDS">Activity History</SectionHeader>
           <PanelBox>
             {(!records || records.length === 0) && (!allReports || allReports.length === 0) ? (
@@ -3246,28 +3245,24 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     const month = record.created_at_world_month;
 
                     return (
-                      <div key={record.id + (isArcReport ? '_report' : '_rec')} style={{
-                        display: 'flex', gap: '16px', padding: '12px 0', borderBottom: `1px solid ${T.border}`,
-                        cursor: isArcReport ? 'pointer' : 'default',
-                        background: isArcReport ? 'rgba(255,255,255,0.02)' : 'transparent',
-                      }} onClick={() => {
+                      <div key={record.id + (isArcReport ? '_report' : '_rec')} className={`flex gap-4 py-3 px-3 -mx-3 border-b border-zinc-800/50 last:border-b-0 transition-colors ${isArcReport ? 'hover:bg-zinc-800/30 cursor-pointer bg-zinc-800/10' : ''}`} onClick={() => {
                         if (isArcReport) {
                           setSelectedArcReportId(record.id);
                         }
                       }}>
-                        <div style={{ width: '80px', color: T.muted, fontFamily: 'monospace', fontSize: '11px', paddingTop: '2px' }}>
+                        <div className="w-20 text-zinc-500 font-mono text-xs pt-0.5 shrink-0">
                           {formatWorldDateShort(year, month)}
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                            <span style={{ fontSize: '10px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{record.record_type}</span>
-                            <span style={{ fontSize: '13px', color: T.ivory, fontWeight: 600 }}>{record.summary.split(':')[0]}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] text-terminal-amber font-mono uppercase tracking-[0.1em]">{record.record_type}</span>
+                            <span className="text-xs text-zinc-100 font-semibold">{record.summary.split(':')[0]}</span>
                           </div>
-                          <div style={{ fontSize: '12px', color: T.muted, lineHeight: 1.5 }}>
+                          <div className="text-xs text-zinc-500 leading-relaxed">
                             {record.summary.includes(':') ? record.summary.substring(record.summary.indexOf(':') + 1).trim() : record.summary}
                           </div>
                           {isArcReport && (
-                            <div style={{ fontSize: '10px', color: T.blue, marginTop: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            <div className="text-[10px] text-terminal-blue mt-2 font-mono uppercase tracking-[0.05em]">
                               Click to view full Month report ➔
                             </div>
                           )}
@@ -3281,61 +3276,61 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
           {/* Month Report Detail View Modal */}
           {selectedArcReportId && (
-            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setSelectedArcReportId(null)}>
-              <div style={{ background: T.bg, border: `1px solid ${T.border}`, padding: '24px', width: '100%', maxWidth: '800px', borderRadius: '4px', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div className="fixed inset-0 bg-black/85 z-[999] flex items-center justify-center p-5" onClick={() => setSelectedArcReportId(null)}>
+              <div className="bg-zinc-950 border border-zinc-800 rounded-md w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
                 {(() => {
                   const r = allReports.find((r: any) => r.id === selectedArcReportId);
-                  if (!r) return <div style={{ color: T.red }}>Report not found.</div>;
+                  if (!r) return <div className="text-terminal-red">Report not found.</div>;
 
                   return (
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', borderBottom: `1px solid ${T.border}`, paddingBottom: '16px' }}>
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 border-b border-zinc-800 pb-4">
                         <div>
-                          <h2 style={{ margin: 0, color: T.gold, fontSize: '20px' }}>Month Report</h2>
-                          <div style={{ color: T.muted, fontSize: '12px', fontFamily: 'monospace', marginTop: '4px' }}>{formatWorldDate(r.world_year, r.world_month)}</div>
+                          <h2 className="m-0 text-terminal-amber text-xl font-bold">Month Report</h2>
+                          <div className="text-zinc-500 text-xs font-mono mt-1">{formatWorldDate(r.world_year, r.world_month)}</div>
                         </div>
                         <GhostButton onClick={() => setSelectedArcReportId(null)}>Close</GhostButton>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                          <div style={{ fontSize: '14px', fontWeight: 600, color: T.ivory, marginBottom: '12px' }}>Production</div>
+                          <h3 className="text-sm font-semibold text-zinc-100 mb-3">Production</h3>
                           <FieldRow label="Planned Units" value={r.planned_units} />
                           <FieldRow label="Actual Units Produced" value={r.units_produced} />
-                          <FieldRow label="Defective Units" value={r.defective_units} valueColor={Number(r.defective_units) > 0 ? T.red : T.ivory} />
-                          <FieldRow label="Production Efficiency" value={`${Math.round(Number(r.production_efficiency) * 100)}%`} valueColor={Number(r.production_efficiency) >= 1 ? T.mint : T.ivory} />
+                          <FieldRow label="Defective Units" value={r.defective_units} valueColor={Number(r.defective_units) > 0 ? '#ff453a' : 'rgb(229, 229, 229)'} />
+                          <FieldRow label="Production Efficiency" value={`${Math.round(Number(r.production_efficiency) * 100)}%`} valueColor={Number(r.production_efficiency) >= 1 ? '#30d158' : 'rgb(229, 229, 229)'} />
                           <FieldRow label="Factory Condition" value={`${r.factory_condition || 100}%`} />
                           <FieldRow label="Factory Workers Required" value={r.factory_workers_required} />
                           <FieldRow label="Factory Workers Available" value={r.factory_workers_available} />
-                          <FieldRow label="Supervisor Bonus" value={`${r.supervisor_bonus}%`} valueColor={Number(r.supervisor_bonus) > 0 ? T.mint : T.ivory} />
-                          <FieldRow label="Inspector Defect Reduction" value={`${r.inspector_defect_reduction}%`} valueColor={Number(r.inspector_defect_reduction) > 0 ? T.mint : T.ivory} />
+                          <FieldRow label="Supervisor Bonus" value={`${r.supervisor_bonus}%`} valueColor={Number(r.supervisor_bonus) > 0 ? '#30d158' : 'rgb(229, 229, 229)'} />
+                          <FieldRow label="Inspector Defect Reduction" value={`${r.inspector_defect_reduction}%`} valueColor={Number(r.inspector_defect_reduction) > 0 ? '#30d158' : 'rgb(229, 229, 229)'} />
                         </div>
 
                         <div>
-                          <div style={{ fontSize: '14px', fontWeight: 600, color: T.ivory, marginBottom: '12px' }}>Sales</div>
+                          <h3 className="text-sm font-semibold text-zinc-100 mb-3">Sales</h3>
                           <FieldRow label="Units Allocated" value={Number(r.units_sold) + Number(r.units_unsold)} />
-                          <FieldRow label="Units Sold" value={r.units_sold} valueColor={T.mint} />
-                          <FieldRow label="Unsold Units" value={r.units_unsold} valueColor={Number(r.units_unsold) > 0 ? T.red : T.ivory} />
+                          <FieldRow label="Units Sold" value={r.units_sold} valueColor="#30d158" />
+                          <FieldRow label="Unsold Units" value={r.units_unsold} valueColor={Number(r.units_unsold) > 0 ? '#ff453a' : 'rgb(229, 229, 229)'} />
                           <FieldRow label="Markets Used" value={marketData?.allocations?.length || 1} />
-                          <FieldRow label="Sale Revenue" value={fm(r.sales_revenue || r.gross_revenue)} valueColor={T.mint} />
-                          <FieldRow label="Sales Manager Bonus" value={`${r.sales_manager_bonus || 0}%`} valueColor={Number(r.sales_manager_bonus) > 0 ? T.mint : T.ivory} />
-                          <FieldRow label="Marketing Spend" value={fm(r.marketing_costs)} valueColor={T.red} />
-                          <FieldRow label="Storage Cost" value={fm(r.inventory_storage_costs)} valueColor={T.red} />
+                          <FieldRow label="Sale Revenue" value={fm(r.sales_revenue || r.gross_revenue)} valueColor="#30d158" />
+                          <FieldRow label="Sales Manager Bonus" value={`${r.sales_manager_bonus || 0}%`} valueColor={Number(r.sales_manager_bonus) > 0 ? '#30d158' : 'rgb(229, 229, 229)'} />
+                          <FieldRow label="Marketing Spend" value={fm(r.marketing_costs)} valueColor="#ff453a" />
+                          <FieldRow label="Storage Cost" value={fm(r.inventory_storage_costs)} valueColor="#ff453a" />
                         </div>
 
                         <div>
-                          <div style={{ fontSize: '14px', fontWeight: 600, color: T.ivory, marginBottom: '12px' }}>Finance</div>
-                          <FieldRow label="Production Cost" value={fm(r.production_costs)} valueColor={T.red} />
-                          <FieldRow label="Lease" value={fm(r.factory_lease_costs)} valueColor={T.red} />
-                          <FieldRow label="Maintenance" value={fm(r.factory_maintenance_costs)} valueColor={T.red} />
-                          <FieldRow label="Wages" value={fm(r.staff_wages)} valueColor={T.red} />
-                          <FieldRow label="Marketing" value={fm(r.marketing_costs)} valueColor={T.red} />
-                          <FieldRow label="Storage" value={fm(r.inventory_storage_costs)} valueColor={T.red} />
-                          <FieldRow label="Warranty" value={fm(r.warranty_reserve_cost || 0)} valueColor={T.red} />
-                          <FieldRow label="Total Expenses" value={fm(Number(r.production_costs) + Number(r.factory_lease_costs) + Number(r.factory_maintenance_costs) + Number(r.staff_wages) + Number(r.marketing_costs) + Number(r.inventory_storage_costs) + Number(r.warranty_reserve_cost || 0))} valueColor={T.red} />
-                          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${T.border}` }}>
-                            <FieldRow label="Net Profit / Loss" value={fm(r.net_profit)} valueColor={Number(r.net_profit) >= 0 ? T.mint : T.red} />
-                            <FieldRow label="Ending Cash" value={fm(r.ending_cash)} valueColor={T.mint} />
+                          <h3 className="text-sm font-semibold text-zinc-100 mb-3">Finance</h3>
+                          <FieldRow label="Production Cost" value={fm(r.production_costs)} valueColor="#ff453a" />
+                          <FieldRow label="Lease" value={fm(r.factory_lease_costs)} valueColor="#ff453a" />
+                          <FieldRow label="Maintenance" value={fm(r.factory_maintenance_costs)} valueColor="#ff453a" />
+                          <FieldRow label="Wages" value={fm(r.staff_wages)} valueColor="#ff453a" />
+                          <FieldRow label="Marketing" value={fm(r.marketing_costs)} valueColor="#ff453a" />
+                          <FieldRow label="Storage" value={fm(r.inventory_storage_costs)} valueColor="#ff453a" />
+                          <FieldRow label="Warranty" value={fm(r.warranty_reserve_cost || 0)} valueColor="#ff453a" />
+                          <FieldRow label="Total Expenses" value={fm(Number(r.production_costs) + Number(r.factory_lease_costs) + Number(r.factory_maintenance_costs) + Number(r.staff_wages) + Number(r.marketing_costs) + Number(r.inventory_storage_costs) + Number(r.warranty_reserve_cost || 0))} valueColor="#ff453a" />
+                          <div className="mt-3 pt-3 border-t border-zinc-800">
+                            <FieldRow label="Net Profit / Loss" value={fm(r.net_profit)} valueColor={Number(r.net_profit) >= 0 ? '#30d158' : '#ff453a'} />
+                            <FieldRow label="Ending Cash" value={fm(r.ending_cash)} valueColor="#30d158" />
                           </div>
                         </div>
                       </div>
