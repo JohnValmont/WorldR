@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { formatGameDate, advanceWorldMonthAndProcess } from '../../lib/businessCore';
+import { useWorldClock, formatCountdown } from '../../hooks/useWorldClock';
+import { formatWorldDate } from '../../lib/calendar';
 import { useAuthStore } from '../../store/auth.store';
-import { authApi } from '../../lib/api';
-
-export const ENABLE_ADVANCE_ARC_TEST = process.env.NODE_ENV === 'development';
+import { authApi, worldApi } from '../../lib/api';
 
 const T = {
   gold: '#C9A24A',
@@ -14,42 +13,57 @@ const T = {
   border: '#2A2630'
 };
 
+/**
+ * WorldTimeControl — live world clock HUD.
+ *
+ * Shows the authoritative server date and a countdown to the next automatic
+ * month tick. Admins additionally get a "Force Tick" button that advances the
+ * whole world (all countries, players + NPCs) immediately.
+ */
 export default function WorldTimeControl() {
-  const [dateStr, setDateStr] = useState<string>('');
+  const { clock, secondsToTick, refresh } = useWorldClock();
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [isAdminDynamic, setIsAdminDynamic] = useState(false);
   const user = useAuthStore(state => state.user);
   const isAdmin = user?.role === 'admin' || isAdminDynamic;
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setDateStr(formatGameDate());
-    }
     authApi.me().then(res => setIsAdminDynamic(res.data.isAdmin)).catch(() => {});
   }, []);
 
-  const handleAdvance = () => {
+  const handleForceTick = async () => {
     if (isAdvancing) return;
     setIsAdvancing(true);
-    
-    // Slight delay to allow UI to show "ADVANCING ARC..."
-    setTimeout(() => {
-      const summary = advanceWorldMonthAndProcess();
-      alert(summary);
+    try {
+      await worldApi.forceTick();
+      await refresh();
       window.location.reload();
-    }, 100);
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Failed to advance world tick');
+    } finally {
+      setIsAdvancing(false);
+    }
   };
 
-  if (!dateStr) return null;
+  if (!clock) return null;
+
+  const dateStr = formatWorldDate(clock.current_year, clock.current_month);
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '0 8px' }}>
       <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'right' }}>
         <div style={{ color: T.ivory }}>{dateStr}</div>
+        {clock.status === 'paused' ? (
+          <div style={{ color: T.muted, fontSize: '9px' }}>WORLD PAUSED</div>
+        ) : secondsToTick !== null ? (
+          <div style={{ color: T.muted, fontSize: '9px' }} aria-live="polite">
+            NEXT MONTH IN {formatCountdown(secondsToTick)}
+          </div>
+        ) : null}
       </div>
-      {(ENABLE_ADVANCE_ARC_TEST || isAdmin) && (
-        <button 
-          onClick={handleAdvance} 
+      {isAdmin && (
+        <button
+          onClick={handleForceTick}
           disabled={isAdvancing}
           style={{
             background: isAdvancing ? 'rgba(255,255,255,0.03)' : `linear-gradient(135deg, ${T.gold}, #8A6E2A)`,
@@ -66,7 +80,7 @@ export default function WorldTimeControl() {
             whiteSpace: 'nowrap'
           }}
         >
-          {isAdvancing ? 'ADVANCING ARC...' : 'ADVANCE ARC — TEST'}
+          {isAdvancing ? 'PROCESSING WORLD...' : 'FORCE TICK — ADMIN'}
         </button>
       )}
     </div>

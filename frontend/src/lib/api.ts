@@ -216,8 +216,26 @@ export const manufacturingApi = {
 };
 
 // World — public world feed
+export interface WorldClock {
+  world_instance_id: string;
+  current_year: number;
+  current_month: number;
+  current_day: number;
+  real_seconds_per_month: number;
+  month_started_at: string | null;
+  next_arc_close_at: string | null;
+  status: 'active' | 'paused';
+  updated_at: string;
+}
+
 export const worldApi = {
+  getClock: (): Promise<WorldClock> => api.get('/world/clock').then(res => res.data),
   getOperators: () => api.get('/world/operators').then(res => res.data),
   getMarketLeaderboard: () => api.get('/world/market-leaderboard').then(res => res.data),
+  // Admin tick controls
+  forceTick: () => api.post('/world/tick').then(res => res.data),
+  pauseClock: () => api.post('/world/clock/pause').then(res => res.data),
+  resumeClock: () => api.post('/world/clock/resume').then(res => res.data),
+  setClockSpeed: (secondsPerMonth: number) => api.patch('/world/clock/speed', { seconds_per_month: secondsPerMonth }).then(res => res.data),
 };
 
