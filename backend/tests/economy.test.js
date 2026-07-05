@@ -35,56 +35,58 @@ test('Player Economy E2E', async (t) => {
   try {
     // === SETUP ===
     await t.test('Setup: two users with characters and cash', async () => {
-      // Player A: reuse the existing seeded user + company
-      const res = await client.query(`
-        SELECT c.id AS company_id, ch.id AS char_id, ch.user_id
-        FROM companies c
-        JOIN characters ch ON c.owner_character_id = ch.id
-        WHERE ch.user_id IS NOT NULL AND c.is_npc = false
-        ORDER BY c.created_at ASC
-        LIMIT 1
-      `);
-      assert.ok(res.rows.length > 0, 'Need an existing player company');
-      companyId = res.rows[0].company_id;
-      charA = res.rows[0].char_id;
-      userA = res.rows[0].user_id;
-
-      // Player B: create from scratch
-      const uB = await client.query(
-        `INSERT INTO users (email, password_hash, status, role) VALUES ($1, 'x', 'verified', 'citizen') RETURNING id`,
-        [`econ-b-${suffix}@test.worldr`]
+      // Reference geography/currency copied from any existing company
+      const ref = await client.query(
+        `SELECT country_id, headquarters_state_id, industry_id, currency_id,
+                (SELECT world_instance_id FROM characters LIMIT 1) AS world_instance_id
+         FROM companies LIMIT 1`
       );
-      userB = uB.rows[0].id;
-      const cB = await client.query(
-        `INSERT INTO characters (user_id, world_instance_id, name, age, status, country_id)
-         SELECT $1, ch.world_instance_id, $2, 30, 'active', ch.country_id
-         FROM characters ch WHERE ch.id = $3
-         RETURNING id`,
-        [userB, `Econ Investor ${suffix}`, charA]
-      );
-      charB = cB.rows[0].id;
+      assert.ok(ref.rows.length > 0, 'Need at least one seeded company for reference data');
+      const geo = ref.rows[0];
 
-      // Fund everyone
-      await client.query(
-        `INSERT INTO character_finances (character_id, currency_id, cash_in_hand, net_worth)
-         VALUES ($1, 'drennian-day', 2000000, 2000000)
-         ON CONFLICT (character_id) DO UPDATE SET cash_in_hand = 2000000`,
-        [charB]
-      );
-      await client.query(`UPDATE character_finances SET cash_in_hand = 2000000 WHERE character_id = $1`, [charA]);
-      await client.query(`UPDATE company_finances SET available_cash = 500000, company_value = 500000 WHERE company_id = $1`, [companyId]);
+      // Create both players from scratch
+      const mkPlayer = async (label) => {
+        const u = await client.query(
+          `INSERT INTO users (email, password_hash, role, is_verified) VALUES ($1, 'x', 'admin', true) RETURNING id`,
+          [`econ-${label}-${suffix}@test.worldr`]
+        );
+        const ch = await client.query(
+          `INSERT INTO characters (user_id, world_instance_id, name, age, status, motherland_country_id,
+                                   created_at_world_year, created_at_world_month, created_at_world_day)
+           SELECT $1, $2, $3, 30, 'active', $4, wc.current_year, wc.current_month, wc.current_day
+           FROM world_clock wc LIMIT 1
+           RETURNING id`,
+          [u.rows[0].id, geo.world_instance_id, `Econ ${label.toUpperCase()} ${suffix}`, geo.country_id]
+        );
+        await client.query(
+          `INSERT INTO character_finances (character_id, currency_id, cash_in_hand, net_worth)
+           VALUES ($1, $2, 2000000, 2000000)
+           ON CONFLICT (character_id) DO UPDATE SET cash_in_hand = 2000000`,
+          [ch.rows[0].id, geo.currency_id]
+        );
+        return { userId: u.rows[0].id, charId: ch.rows[0].id };
+      };
 
-      // Ensure founder cap-table row exists (companies created before migration 0031 are backfilled by it,
-      // but ensure idempotently here for robustness)
-      await client.query(
-        `INSERT INTO company_shares (company_id, holder_character_id, shares, avg_cost_basis)
-         VALUES ($1, $2, 1000000, 0)
-         ON CONFLICT (company_id, holder_character_id) DO NOTHING`,
-        [companyId, charA]
-      );
+      const a = await mkPlayer('a');
+      const b = await mkPlayer('b');
+      userA = a.userId; charA = a.charId;
+      userB = b.userId; charB = b.charId;
 
-      apiA = makeApi(userA, 'econ-a@test.worldr');
+      apiA = makeApi(userA, `econ-a-${suffix}@test.worldr`);
       apiB = makeApi(userB, `econ-b-${suffix}@test.worldr`);
+
+      // A founds a manufacturing company via the real API (sole trader, gets cap table row)
+      const co = await apiA.post('/companies', {
+        name: `Econ Test Works ${suffix}`,
+        country_id: geo.country_id,
+        headquarters_state_id: geo.headquarters_state_id,
+        industry_id: geo.industry_id,
+        legal_structure_id: 'sole-trader',
+        currency_id: geo.currency_id,
+        starting_capital: 500000,
+      });
+      companyId = co.data.id || co.data.company?.id || co.data.data?.id;
+      assert.ok(companyId, 'Company created via API');
     });
 
     // === ACT 1: LEGAL STRUCTURES ===
@@ -100,7 +102,7 @@ test('Player Economy E2E', async (t) => {
     await t.test('Act 2a: B posts a loan offer', async () => {
       const res = await apiB.post('/investments/loan-offers', {
         max_amount: 100000,
-        monthly_interest_rate: 2.5,
+        monthly_interest_rate: 0.025, // 2.5% monthly, as a decimal fraction
         term_months: 6,
         purpose: 'Economy test loan',
       });
@@ -124,20 +126,20 @@ test('Player Economy E2E', async (t) => {
 
     await t.test('Act 2c: world tick collects a loan payment', async () => {
       const lenderBefore = await client.query(`SELECT cash_in_hand FROM character_finances WHERE character_id = $1`, [charB]);
-      const loanBefore = await client.query(`SELECT outstanding_principal, payments_made FROM p2p_loans WHERE id = $1`, [loanId]);
+      const loanBefore = await client.query(`SELECT months_remaining, total_paid FROM p2p_loans WHERE id = $1`, [loanId]);
 
       await apiA.post('/world/tick'); // admin force tick
 
-      const loanAfter = await client.query(`SELECT outstanding_principal, payments_made, status FROM p2p_loans WHERE id = $1`, [loanId]);
+      const loanAfter = await client.query(`SELECT months_remaining, total_paid, status FROM p2p_loans WHERE id = $1`, [loanId]);
       const lenderAfter = await client.query(`SELECT cash_in_hand FROM character_finances WHERE character_id = $1`, [charB]);
 
       assert.ok(
-        Number(loanAfter.rows[0].payments_made) > Number(loanBefore.rows[0].payments_made),
-        'Payment count increased after tick'
+        Number(loanAfter.rows[0].months_remaining) < Number(loanBefore.rows[0].months_remaining),
+        'Months remaining reduced after tick'
       );
       assert.ok(
-        Number(loanAfter.rows[0].outstanding_principal) < Number(loanBefore.rows[0].outstanding_principal),
-        'Principal reduced after tick'
+        Number(loanAfter.rows[0].total_paid) > Number(loanBefore.rows[0].total_paid),
+        'Total paid increased after tick'
       );
       assert.ok(
         Number(lenderAfter.rows[0].cash_in_hand) > Number(lenderBefore.rows[0].cash_in_hand),
