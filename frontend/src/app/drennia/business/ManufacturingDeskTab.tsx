@@ -367,12 +367,12 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
   // Expansion config from country auto config (with safe Drennia fallbacks)
   const EXPANSION_COST = Number(autoConfig?.expansion_cost ?? 500000);
-  const EXPANSION_DURATION = Number(autoConfig?.expansion_duration_arcs ?? 2);
-  const EXP_CAPACITY = Number(autoConfig?.expanded_capacity_per_arc ?? 200);
+  const EXPANSION_DURATION = Number(autoConfig?.expansion_duration_months ?? 2);
+  const EXP_CAPACITY = Number(autoConfig?.expanded_capacity_per_month ?? 200);
   const EXP_MAX_LINES = Number(autoConfig?.expanded_max_lines ?? 2);
   const EXP_WORKERS = Number(autoConfig?.expanded_worker_capacity ?? 80);
-  const EXP_LEASE = Number(autoConfig?.expanded_lease_cost_per_arc ?? 45000);
-  const EXP_MAINT = Number(autoConfig?.expanded_maintenance_per_arc ?? 15000);
+  const EXP_LEASE = Number(autoConfig?.expanded_lease_cost_per_month ?? 45000);
+  const EXP_MAINT = Number(autoConfig?.expanded_maintenance_per_month ?? 15000);
 
   // Development costs from country auto config
   const BASE_DEV_COST = Number(autoConfig?.base_vehicle_dev_cost ?? 150000);
@@ -386,7 +386,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   };
 
   // Storage cost from country auto config
-  const STORAGE_COST_PER_UNIT = Number(autoConfig?.storage_cost_per_unit_per_arc ?? 150);
+  const STORAGE_COST_PER_UNIT = Number(autoConfig?.storage_cost_per_unit_per_month ?? 150);
 
   const loadBootstrap = useCallback(async () => {
     if (bootstrapData) return;
@@ -694,15 +694,15 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   let recWorkers = 0;
   productionLines.forEach((l: any) => {
     const factory = factories.find((f: any) => String(f.id) === String(l.factory_id));
-    if (factory && Number(l.target_units_per_arc) > 0) {
-      plannedUnits += Number(l.target_units_per_arc);
+    if (factory && Number(l.target_units_per_month) > 0) {
+      plannedUnits += Number(l.target_units_per_month);
       // Use factory.worker_capacity (updated at expansion) falling back to factory.worker_requirement from type join
       const workerCap = Number(factory.worker_capacity || factory.worker_requirement || 40);
-      const req = Math.ceil((Number(l.target_units_per_arc) / Number(factory.capacity_per_arc)) * workerCap);
+      const req = Math.ceil((Number(l.target_units_per_month) / Number(factory.capacity_per_month)) * workerCap);
       recWorkers = Math.max(recWorkers, req);
     }
   });
-  const activeLinesCount = productionLines.filter((l: any) => l.target_units_per_arc > 0).length;
+  const activeLinesCount = productionLines.filter((l: any) => l.target_units_per_month > 0).length;
 
   // Market allocations
   const activeMarketCount = marketData?.allocations?.filter((a: any) => Number(a.units_allocated) > 0).length || 0;
@@ -712,8 +712,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const hasModel = models.length > 0;
   const hasActivePlan = activeLines.length > 0;
   const inventoryValue = inventory.reduce((acc: number, inv: any) => acc + Number(inv.inventory_value || 0), 0);
-  const leaseCostPerArc = factories.reduce((acc: number, f: any) => acc + Number(f.lease_cost_per_arc || 0), 0);
-  const maintCostPerArc = factories.reduce((acc: number, f: any) => acc + Number(f.maintenance_cost_per_arc || 0), 0);
+  const leaseCostPerArc = factories.reduce((acc: number, f: any) => acc + Number(f.lease_cost_per_month || 0), 0);
+  const maintCostPerArc = factories.reduce((acc: number, f: any) => acc + Number(f.maintenance_cost_per_month || 0), 0);
 
   // ────────────────────────────────────────────────────────────────────────────
   return (
@@ -965,18 +965,18 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <PanelBox>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: T.gold, marginBottom: '12px' }}>Small Workshop</div>
                 <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', lineHeight: 1.6 }}>Entry-level automobile assembly facility. Suitable for compact cars, sedans and utility vans.</div>
-                <FieldRow label="Capacity" value={`${bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_capacity_per_arc ?? 100} units / Month`} />
+                <FieldRow label="Capacity" value={`${bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_capacity_per_month ?? 100} units / Month`} />
                 <FieldRow label="Production Lines" value="1" />
-                <FieldRow label="Lease Cost" value={`${fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_arc ?? 25000)} / Month`} valueColor={T.red} />
-                <FieldRow label="Maintenance" value={`${fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_maintenance_per_arc ?? 8000)} / Month`} valueColor={T.red} />
+                <FieldRow label="Lease Cost" value={`${fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_month ?? 25000)} / Month`} valueColor={T.red} />
+                <FieldRow label="Maintenance" value={`${fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_maintenance_per_month ?? 8000)} / Month`} valueColor={T.red} />
                 <FieldRow label="Recommended Workers" value="30" />
                 <FieldRow label="Status" value="Available" valueColor={T.mint} />
                 <div style={{ marginTop: '16px' }}>
-                  <GoldButton onClick={() => handleLeaseFactory('small-workshop')} disabled={Number(finances?.available_cash || 0) < (bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_arc ?? 25000)}>
+                  <GoldButton onClick={() => handleLeaseFactory('small-workshop')} disabled={Number(finances?.available_cash || 0) < (bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_month ?? 25000)}>
                     Lease Small Workshop
                   </GoldButton>
-                  {Number(finances?.available_cash || 0) < (bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_arc ?? 25000) && (
-                    <div style={{ fontSize: '11px', color: T.red, marginTop: '6px' }}>Insufficient cash. Need {fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_arc ?? 25000)}.</div>
+                  {Number(finances?.available_cash || 0) < (bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_month ?? 25000) && (
+                    <div style={{ fontSize: '11px', color: T.red, marginTop: '6px' }}>Insufficient cash. Need {fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_month ?? 25000)}.</div>
                   )}
                 </div>
               </PanelBox>
@@ -999,10 +999,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
-                    <FieldRow label="Capacity / Month" value={`${factory.capacity_per_arc} units`} />
-                    <FieldRow label="Lease Cost / Month" value={fm(factory.lease_cost_per_arc)} valueColor={T.red} />
+                    <FieldRow label="Capacity / Month" value={`${factory.capacity_per_month} units`} />
+                    <FieldRow label="Lease Cost / Month" value={fm(factory.lease_cost_per_month)} valueColor={T.red} />
                     <FieldRow label="Production Lines" value={factory.max_production_lines || 1} />
-                    <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_arc)} valueColor={T.red} />
+                    <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_month)} valueColor={T.red} />
                     <FieldRow label="Machine Level" value={factory.machine_level} valueColor={T.gold} />
                     <FieldRow label="Condition" value={`${factory.condition}%`} valueColor={Number(factory.condition) < 60 ? T.red : T.mint} />
                   </div>
@@ -1068,7 +1068,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           <div style={{ background: 'rgba(212,175,55,0.06)', border: `1px solid ${T.border}`, padding: '14px', marginBottom: '14px', fontSize: '12px', color: T.ivory, lineHeight: 1.8 }}>
                             <div style={{ fontWeight: 700, color: T.gold, marginBottom: '8px' }}>This investment will:</div>
                             <div>• Add {EXP_MAX_LINES - 1} additional production line{EXP_MAX_LINES - 1 > 1 ? 's' : ''}</div>
-                            <div>• Increase total capacity from {factory.capacity_per_arc ?? 100} to <strong style={{ color: T.mint }}>{EXP_CAPACITY} units / Month</strong></div>
+                            <div>• Increase total capacity from {factory.capacity_per_month ?? 100} to <strong style={{ color: T.mint }}>{EXP_CAPACITY} units / Month</strong></div>
                             <div>• Increase Factory Worker capacity to <strong style={{ color: T.mint }}>{EXP_WORKERS}</strong></div>
                             <div>• Increase recurring lease to <strong style={{ color: T.red }}>{fm(EXP_LEASE)} / Month</strong> and maintenance to <strong style={{ color: T.red }}>{fm(EXP_MAINT)} / Month</strong></div>
                             <div style={{ marginTop: '8px', color: T.muted }}>Construction will take {EXPANSION_DURATION} Month{EXPANSION_DURATION > 1 ? 's' : ''}. Production Line 1 remains operational during construction.</div>
@@ -1092,11 +1092,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, padding: '12px' }}>
                             <div style={{ fontSize: '11px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Current Facility</div>
                             <div style={{ fontSize: '10px', color: T.muted, marginBottom: '6px' }}>Small Workshop</div>
-                            <FieldRow label="Capacity" value={`${factory.capacity_per_arc ?? 100} units / Month`} />
+                            <FieldRow label="Capacity" value={`${factory.capacity_per_month ?? 100} units / Month`} />
                             <FieldRow label="Production Lines" value="1" />
                             <FieldRow label="Max Workers" value={String(factory.worker_capacity ?? 40)} />
-                            <FieldRow label="Lease / Month" value={fm(factory.lease_cost_per_arc)} valueColor={T.red} />
-                            <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_arc)} valueColor={T.red} />
+                            <FieldRow label="Lease / Month" value={fm(factory.lease_cost_per_month)} valueColor={T.red} />
+                            <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_month)} valueColor={T.red} />
                           </div>
                           <div style={{ background: 'rgba(212,175,55,0.04)', border: `1px solid rgba(212,175,55,0.3)`, padding: '12px' }}>
                             <div style={{ fontSize: '11px', fontWeight: 700, color: T.gold, marginBottom: '8px' }}>Expanded Workshop</div>
@@ -1264,7 +1264,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             {!selectedModel.dev_stage && 'Development is underway.'}
                             {' '}Est. ready: {formatWorldDate(selectedModel.development_completes_at_year || 1, selectedModel.development_completes_at_month || 1)}.
                           </div>
-                          {selectedModel.planned_dev_time_arcs && (
+                          {selectedModel.planned_dev_time_months && (
                             <div style={{ marginTop: '10px', display: 'flex', gap: '6px' }}>
                               {['engineering', 'prototype', 'testing'].map((stage, i) => (
                                 <div key={stage} style={{
@@ -2236,7 +2236,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <PanelBox key={factory.id} style={{ marginBottom: '20px' }}>
                 <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, marginBottom: '4px' }}>{factory.name}</div>
                 <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px' }}>
-                  Capacity: {factory.capacity_per_arc} units/Month · Workers Required: {factory.worker_requirement || 30} · Current Workers: {totalWorkers}
+                  Capacity: {factory.capacity_per_month} units/Month · Workers Required: {factory.worker_requirement || 30} · Current Workers: {totalWorkers}
                   {totalWorkers < (factory.worker_requirement || 30) && (
                     <span style={{ color: T.red, marginLeft: '8px' }}>⚠ Understaffed — production will be reduced</span>
                   )}
@@ -2279,7 +2279,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   maxByComponents = Math.min(maxByComponents, Math.floor(getInv('comp_glass')));
                   maxByComponents = Math.min(maxByComponents, Math.floor(getInv('comp_electronics')));
 
-                  const estUnitsProd = Math.min(factory.capacity_per_arc, Math.min(estUnitsRaw, maxByComponents));
+                  const estUnitsProd = Math.min(factory.capacity_per_month, Math.min(estUnitsRaw, maxByComponents));
                   const isComponentBottleneck = estUnitsRaw > 0 && maxByComponents < estUnitsRaw;
 
                   const estDefects = Math.floor(estUnitsProd * defectRate);
@@ -2366,7 +2366,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <div>Producing: <strong style={{ color: T.gold }}>{assignedModel.name}</strong></div>
                                 <div style={{ fontSize: '11px', color: T.muted }}>
-                                  Target: {line.target_units_per_arc} units/Month · {qualityLabels[line.quality_setting] || line.quality_setting}
+                                  Target: {line.target_units_per_month} units/Month · {qualityLabels[line.quality_setting] || line.quality_setting}
                                 </div>
                                 {line.status === 'active' && (
                                   <div style={{ fontSize: '11px', color: T.mint }}>
@@ -2377,7 +2377,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                 )}
                                 {(() => {
                                   if (line.status !== 'active') return null;
-                                  const lineTarget = line.target_units_per_arc || 0;
+                                  const lineTarget = line.target_units_per_month || 0;
                                   const lineEff = Math.min(1, totalWorkers / (factory.worker_requirement || 30)) * ((factory.condition || 100) / 100);
                                   const lineRaw = Math.floor(lineTarget * lineEff);
                                   const isNeck = lineRaw > 0 && maxByComponents < lineRaw;
@@ -2395,7 +2395,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             <GhostButton onClick={() => {
                               setEditingLineId(line.id);
                               setPlanModelId(line.assigned_vehicle_model_id || '');
-                              setPlanTarget(line.target_units_per_arc || 0);
+                              setPlanTarget(line.target_units_per_month || 0);
                               setPlanQuality(line.quality_setting || 'Standard');
                             }}>Edit Plan</GhostButton>
 
@@ -2511,7 +2511,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: `1px dashed ${T.border}` }}>
                             <div style={{ fontSize: '12px', color: T.muted, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
                               <span>Inventory Central Stock: <strong style={{ color: T.ivory }}>{invRow?.units_in_stock || 0}</strong></span>
-                              <span>Storage Cost: <span style={{ color: T.red }}>{fm(invRow?.storage_cost_per_arc || 0)} / Month</span></span>
+                              <span>Storage Cost: <span style={{ color: T.red }}>{fm(invRow?.storage_cost_per_month || 0)} / Month</span></span>
                             </div>
 
                             {marketData?.markets?.map((market: any) => {
@@ -2895,7 +2895,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '12px' }}>Current Position</div>
               <FieldRow label="Available Cash" value={fm(finances?.available_cash || 0)} valueColor={T.mint} />
               <FieldRow label="Company Value" value={finances?.company_value ? fm(finances.company_value) : 'Not Available'} />
-              <FieldRow label="Factory Asset Value" value={factories.length > 0 ? fm(factories.reduce((sum: number, f: any) => sum + (Number(f.capacity_per_arc) * 1000), 0)) : 'Not Available'} />
+              <FieldRow label="Factory Asset Value" value={factories.length > 0 ? fm(factories.reduce((sum: number, f: any) => sum + (Number(f.capacity_per_month) * 1000), 0)) : 'Not Available'} />
               <FieldRow label="Inventory Value" value={fm(inventoryValue)} />
               <FieldRow label="Last Month Revenue" value={finances?.last_arc_profit !== undefined ? (latestReport ? fm(latestReport.gross_revenue) : fm(0)) : 'Not Available'} valueColor={T.mint} />
               <FieldRow label="Last Month Operating Profit" value={finances?.last_arc_profit !== undefined ? (latestReport ? fm(Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0)) : fm(0)) : 'Not Available'} />
@@ -2925,7 +2925,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
               {/* Estimate production cost */}
               <FieldRow label="Production Cost Estimate" value={fm(
-                productionLines.reduce((acc: number, line: any) => acc + (Number(line.target_units_per_arc) * Number(line.model_cost_per_unit || 0)), 0)
+                productionLines.reduce((acc: number, line: any) => acc + (Number(line.target_units_per_month) * Number(line.model_cost_per_unit || 0)), 0)
               )} valueColor={T.red} />
 
               <FieldRow label="Vehicle Development Cost" value={fm(0)} valueColor={T.faint} />
@@ -2938,7 +2938,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     return acc + (MKT_COSTS[alloc.marketing_tier] || 0);
                   }, 0) || 0) +
                   inventory.reduce((acc: number, inv: any) => acc + (Number(inv.units_in_stock) * STORAGE_COST_PER_UNIT), 0) +
-                  productionLines.reduce((acc: number, line: any) => acc + (Number(line.target_units_per_arc) * Number(line.model_cost_per_unit || 0)), 0)
+                  productionLines.reduce((acc: number, line: any) => acc + (Number(line.target_units_per_month) * Number(line.model_cost_per_unit || 0)), 0)
                 )} valueColor={T.red} />
               </div>
               <div style={{ marginTop: '8px', fontSize: '10px', color: T.faint, fontStyle: 'italic' }}>

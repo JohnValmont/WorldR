@@ -95,7 +95,7 @@ test('Core Loop Smoke Test', async (t) => {
     // === ACT 3: FACTORY & PRODUCTION ===
     await t.test('Act 3: Lease Factory & Set Production Plan', async () => {
       // Find a factory type
-      const typeRes = await client.query("SELECT id FROM manufacturing_factory_types WHERE name = 'Compact Factory' OR base_capacity_per_arc = 100 LIMIT 1");
+      const typeRes = await client.query("SELECT id FROM manufacturing_factory_types WHERE name = 'Compact Factory' OR base_capacity_per_month = 100 LIMIT 1");
       let typeId = typeRes.rows.length > 0 ? typeRes.rows[0].id : null;
       if (!typeId) {
         // Just grab any factory type if Compact isn't there

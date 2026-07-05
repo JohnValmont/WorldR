@@ -63,8 +63,8 @@ async function runTest() {
       target_segment: 'Budget', sale_price: 100000, development_status: 'launched', dev_stage: 'ready_to_launch', status: 'active',
       created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1
     });
-    await db('manufacturing_factories').insert({ id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, country_id: country.id, state_id: 'drennia-drennport', factory_type_id: 'medium-plant', name: 'Player Factory', capacity_per_arc: 500000, lease_cost_per_arc: 10000, maintenance_cost_per_arc: 2000, condition: 100, status: 'active', created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1 });
-    await db('manufacturing_production_lines').insert({ id: lineId, factory_id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, assigned_vehicle_model_id: modelId, target_units_per_arc: 300000, status: 'active' });
+    await db('manufacturing_factories').insert({ id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, country_id: country.id, state_id: 'drennia-drennport', factory_type_id: 'medium-plant', name: 'Player Factory', capacity_per_month: 500000, lease_cost_per_month: 10000, maintenance_cost_per_month: 2000, condition: 100, status: 'active', created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1 });
+    await db('manufacturing_production_lines').insert({ id: lineId, factory_id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, assigned_vehicle_model_id: modelId, target_units_per_month: 300000, status: 'active' });
     const valAlloc = await db('manufacturing_market_allocations')
       .join('companies', 'companies.id', 'manufacturing_market_allocations.company_id')
       .where('companies.name', 'Valuecorp')
@@ -114,7 +114,7 @@ async function runTest() {
         } else {
            await db('manufacturing_inventory').insert({
               world_instance_id: worldId, company_id: valCmpReset.id, vehicle_model_id: valLine.assigned_vehicle_model_id,
-              units_in_stock: 10000, inventory_value: 0, storage_cost_per_arc: 0
+              units_in_stock: 10000, inventory_value: 0, storage_cost_per_month: 0
            });
         }
       }
@@ -144,7 +144,7 @@ async function runTest() {
     // Inject Competitor (Price it well below Valuecorp)
     console.log('Injecting Competitor to undercut Valuecorp (Budget Segment)');
     await db('manufacturing_vehicle_models').where({ id: modelId }).update({ sale_price: 10000, target_segment: 'Budget' });
-    await db('manufacturing_production_lines').where({ id: lineId }).update({ target_units_per_arc: 300000 });
+    await db('manufacturing_production_lines').where({ id: lineId }).update({ target_units_per_month: 300000 });
     await db('manufacturing_market_allocations').where({ company_id: playerCompanyId, vehicle_model_id: modelId }).update({ units_allocated: 300000, marketing_tier: 'national' });
     
     // Give Dummy perfect brand awareness and reputation in Drennia so it absorbs maximum raw interest
@@ -164,7 +164,7 @@ async function runTest() {
     const valCmpSetup = await db('companies').where('name', 'Valuecorp').where('world_instance_id', worldId).first();
     const valLine = await db('manufacturing_production_lines').where('company_id', valCmpSetup.id).first();
     if (valLine) {
-       await db('manufacturing_production_lines').where('id', valLine.id).update({ target_units_per_arc: 100 });
+       await db('manufacturing_production_lines').where('id', valLine.id).update({ target_units_per_month: 100 });
     }
     const allAllocs = await db('manufacturing_market_allocations').where({ company_id: valCmpSetup.id });
     

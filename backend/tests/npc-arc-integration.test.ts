@@ -84,17 +84,17 @@ test('NPC Month Integration - Pooled Engine Refactor', async (t) => {
     });
     await db('manufacturing_factories').insert({
         id: factoryId, company_id: companyId, world_instance_id: worldId, country_id: countryId, factory_name: 'F1', status: 'active',
-        capacity_per_arc: 10000, lease_cost_per_arc: 50000, maintenance_cost_per_arc: 10000, quality_score: 80, efficiency_score: 80
+        capacity_per_month: 10000, lease_cost_per_month: 50000, maintenance_cost_per_month: 10000, quality_score: 80, efficiency_score: 80
     });
     await db('manufacturing_production_lines').insert({
         id: lineId, factory_id: factoryId, company_id: companyId, assigned_vehicle_model_id: modelId, line_name: 'L1',
-        target_units_per_arc: 5000, operating_cost_per_arc: 10000, status: 'active', flexibility_score: 50, automation_level: 50
+        target_units_per_month: 5000, operating_cost_per_month: 10000, status: 'active', flexibility_score: 50, automation_level: 50
     });
     await db('manufacturing_market_allocations').insert({
         company_id: companyId, vehicle_model_id: modelId, region_market_id: marketId, units_allocated: 5000, marketing_tier: 'regional', world_instance_id: worldId
     });
     await db('company_staff').insert({
-        company_id: companyId, role: 'production-worker', quantity: 1000, wage_per_arc: 2000, morale: 80, skill_level: 50
+        company_id: companyId, role: 'production-worker', quantity: 1000, wage_per_month: 2000, morale: 80, skill_level: 50
     });
     await db('manufacturing_brand_awareness').insert({ company_id: companyId, region_market_id: marketId, awareness_score: 50, trust_score: 50 });
   });
@@ -134,7 +134,7 @@ test('NPC Month Integration - Pooled Engine Refactor', async (t) => {
     const productionCost = unitsProduced * Number(mcost.manufacturing_cost_per_unit);
     
     const staff = await db('company_staff').where({ company_id: companyId, role: 'production-worker' }).first();
-    const wages = Number(staff.quantity) * Number(staff.wage_per_arc);
+    const wages = Number(staff.quantity) * Number(staff.wage_per_month);
     
     const leaseCost = 50000;
     const maintenanceCost = 10000;
@@ -176,17 +176,17 @@ test('NPC Month Integration - Pooled Engine Refactor', async (t) => {
     const npcLineId = randomUUID();
     await db('manufacturing_factories').insert({
         id: npcFactoryId, company_id: npcCompanyId, world_instance_id: worldId, country_id: countryId, factory_name: 'N-F1', status: 'active',
-        capacity_per_arc: 10000, lease_cost_per_arc: 50000, maintenance_cost_per_arc: 10000, quality_score: 80, efficiency_score: 80
+        capacity_per_month: 10000, lease_cost_per_month: 50000, maintenance_cost_per_month: 10000, quality_score: 80, efficiency_score: 80
     });
     await db('manufacturing_production_lines').insert({
         id: npcLineId, factory_id: npcFactoryId, company_id: npcCompanyId, assigned_vehicle_model_id: npcModelId, line_name: 'N-L1',
-        target_units_per_arc: 5000, operating_cost_per_arc: 10000, status: 'active', flexibility_score: 50, automation_level: 50
+        target_units_per_month: 5000, operating_cost_per_month: 10000, status: 'active', flexibility_score: 50, automation_level: 50
     });
     await db('manufacturing_market_allocations').insert({
         company_id: npcCompanyId, vehicle_model_id: npcModelId, region_market_id: marketId, units_allocated: 5000, marketing_tier: 'regional', world_instance_id: worldId
     });
     await db('company_staff').insert({
-        company_id: npcCompanyId, role: 'production-worker', quantity: 1000, wage_per_arc: 2000, morale: 80, skill_level: 50
+        company_id: npcCompanyId, role: 'production-worker', quantity: 1000, wage_per_month: 2000, morale: 80, skill_level: 50
     });
     await db('manufacturing_brand_awareness').insert({ company_id: npcCompanyId, region_market_id: marketId, awareness_score: 50, trust_score: 50 });
 

@@ -169,14 +169,14 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     const prodLine = await trx('manufacturing_production_lines')
       .where({ company_id: companyId, assigned_vehicle_model_id: modelId, status: 'active' })
       .first();
-    const targetUnits = prodLine ? prodLine.target_units_per_arc : 0;
+    const targetUnits = prodLine ? prodLine.target_units_per_month : 0;
     
     let factoryCapacity = 0;
     if (prodLine) {
       const factory = await trx('manufacturing_factories')
         .where({ id: prodLine.factory_id })
         .first();
-      factoryCapacity = factory ? factory.capacity_per_arc : 0;
+      factoryCapacity = factory ? factory.capacity_per_month : 0;
     }
 
     // Get market allocation details (assume 1 main market for now for NPCs)
@@ -301,7 +301,7 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     if (prodLine) {
       await trx('manufacturing_production_lines')
         .where({ id: prodLine.id })
-        .update({ target_units_per_arc: output.newTargetUnits });
+        .update({ target_units_per_month: output.newTargetUnits });
     }
 
     if (allocation) {
@@ -443,9 +443,9 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       state_id: 'drennia-drennport',
       factory_type_id: factoryType.id,
       name: `${roster.name} Primary Facility`,
-      lease_cost_per_arc: 25000,
-      maintenance_cost_per_arc: 8000,
-      capacity_per_arc: 500,
+      lease_cost_per_month: 25000,
+      maintenance_cost_per_month: 8000,
+      capacity_per_month: 500,
       status: 'active',
       created_at_world_year: clock.world_year,
       created_at_world_month: clock.world_month,
@@ -461,7 +461,7 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       factory_id: factory.id,
       line_number: 1,
       assigned_vehicle_model_id: model.id,
-      target_units_per_arc: roster.targetUnitsPerArc,
+      target_units_per_month: roster.targetUnitsPerArc,
       status: 'active'
     });
 

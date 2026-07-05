@@ -36,6 +36,7 @@ import {
 } from '../constants/engineeringEngine';
 import { MARKET_SEGMENTS } from '../constants/marketSegments';
 import { runNpcBrainForCompany } from '../services/npcBrain.service';
+import { processPoliticalArc } from '../services/politics.service';
 
 // ── Score Calculation (Original formulas) ─────────────────────────────────────
 function calculateDesignScores(design: {
@@ -478,7 +479,7 @@ export class ManufacturingController {
           .first();
         if (existingFactory) throw new AppError('You already have an active factory of this type', 400, 'DUPLICATE');
 
-        const leaseCost = Number(factoryType.base_lease_cost_per_arc);
+        const leaseCost = Number(factoryType.base_lease_cost_per_month);
         const finances = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
 
         if (Number(finances.available_cash) < leaseCost) {
@@ -499,9 +500,9 @@ export class ManufacturingController {
           state_id: company.headquarters_state_id,
           factory_type_id: factoryTypeId,
           name: `${factoryType.name} — ${company.name}`,
-          lease_cost_per_arc: factoryType.base_lease_cost_per_arc,
-          maintenance_cost_per_arc: factoryType.base_maintenance_per_arc,
-          capacity_per_arc: factoryType.base_capacity_per_arc,
+          lease_cost_per_month: factoryType.base_lease_cost_per_month,
+          maintenance_cost_per_month: factoryType.base_maintenance_per_month,
+          capacity_per_month: factoryType.base_capacity_per_month,
           machine_level: 1,
           condition: 100.00,
           status: 'active',
@@ -520,7 +521,7 @@ export class ManufacturingController {
             factory_id: factory.id,
             line_number: i,
             quality_setting: 'Standard',
-            target_units_per_arc: 0,
+            target_units_per_month: 0,
             status: 'idle',
           }).returning('*');
           lines.push(line);
@@ -730,7 +731,7 @@ export class ManufacturingController {
           engineering_risk:           outcome.engineeringRisk,
           prototype_confidence:       outcome.prototypeConfidence,
           dev_stage:                  'engineering',
-          planned_dev_time_arcs:      outcome.devTimeArcs,
+          planned_dev_time_months:      outcome.devTimeArcs,
           prototype_validation_result: null, // Populated after prototype stage completes
           engineering_assessment:     JSON.stringify(outcome.engineeringReport), // Note: this is actually the new assessment format returned from engine
           engineering_balance_rating: outcome.balanceFlags.length > 0 ? outcome.balanceFlags[0] : null,
@@ -746,7 +747,7 @@ export class ManufacturingController {
           created_at_world_month:   currentMonth,
           created_at_world_day:  currentDay,
           development_started_at_year:   currentYear,
-          development_started_at_arc:     currentMonth,
+          development_started_at_month:     currentMonth,
           development_completes_at_year:  finalEnd.year,
           development_completes_at_month:    finalEnd.month,
         }).returning('*');
@@ -878,7 +879,7 @@ export class ManufacturingController {
         const factory = await trx('manufacturing_factories').where({ id: line.factory_id }).first();
         const factoryType = await trx('manufacturing_factory_types').where({ id: factory?.factory_type_id }).first();
         // After expansion, max_production_lines may have grown; use the factory type default as cap basis
-        const totalCap = Number(factory?.capacity_per_arc ?? factoryType?.base_capacity_per_arc ?? 100);
+        const totalCap = Number(factory?.capacity_per_month ?? factoryType?.base_capacity_per_month ?? 100);
         const lineCount = Number(factoryType?.max_production_lines ?? 1);
         const PER_LINE_CAP = Math.ceil(totalCap / lineCount);
         if (targetUnitsPerArc && Number(targetUnitsPerArc) > PER_LINE_CAP) {
@@ -889,16 +890,16 @@ export class ManufacturingController {
           const otherLines = await trx('manufacturing_production_lines')
             .where({ factory_id: line.factory_id })
             .whereNot({ id: lineId });
-          const otherTotal = otherLines.reduce((sum: number, l: any) => sum + Number(l.target_units_per_arc || 0), 0);
-          if (otherTotal + Number(targetUnitsPerArc) > Number(factory.capacity_per_arc)) {
-            throw new AppError(`Total planned units across all lines cannot exceed factory capacity (${factory.capacity_per_arc} units/Month). Other lines already plan ${otherTotal} units.`, 400, 'EXCEEDS_CAPACITY');
+          const otherTotal = otherLines.reduce((sum: number, l: any) => sum + Number(l.target_units_per_month || 0), 0);
+          if (otherTotal + Number(targetUnitsPerArc) > Number(factory.capacity_per_month)) {
+            throw new AppError(`Total planned units across all lines cannot exceed factory capacity (${factory.capacity_per_month} units/Month). Other lines already plan ${otherTotal} units.`, 400, 'EXCEEDS_CAPACITY');
           }
         }
 
         await trx('manufacturing_production_lines').where({ id: lineId }).update({
           assigned_vehicle_model_id: modelId || null,
           quality_setting: qualitySetting || 'Standard',
-          target_units_per_arc: targetUnitsPerArc || 0,
+          target_units_per_month: targetUnitsPerArc || 0,
           status: modelId && targetUnitsPerArc > 0 ? 'active' : 'idle',
           updated_at: trx.fn.now(),
         });
@@ -1240,7 +1241,7 @@ export class ManufacturingController {
       .where('manufacturing_production_lines.company_id', companyId)
       .where('manufacturing_production_lines.status', 'active')
       .whereNotNull('manufacturing_production_lines.assigned_vehicle_model_id')
-      .where('manufacturing_production_lines.target_units_per_arc', '>', 0)
+      .where('manufacturing_production_lines.target_units_per_month', '>', 0)
       .whereNot('manufacturing_vehicle_models.development_status', 'discontinued')
       .select(
         'manufacturing_production_lines.*',
@@ -1365,12 +1366,12 @@ export class ManufacturingController {
     const activeProgramme = await trx('manufacturing_engineering_programmes').where({ company_id: companyId }).whereIn('status', ['engineering', 'validation']).first();
 
     const countryAutoConfig = await trx('manufacturing_country_auto_config').where({ country_id: company.country_id }).first() ?? {};
-    const EXP_CAPACITY  = Number(countryAutoConfig.expanded_capacity_per_arc ?? 200);
+    const EXP_CAPACITY  = Number(countryAutoConfig.expanded_capacity_per_month ?? 200);
     const EXP_MAX_LINES = Number(countryAutoConfig.expanded_max_lines ?? 2);
-    const EXP_LEASE     = Number(countryAutoConfig.expanded_lease_cost_per_arc ?? 45000);
-    const EXP_MAINT     = Number(countryAutoConfig.expanded_maintenance_per_arc ?? 15000);
+    const EXP_LEASE     = Number(countryAutoConfig.expanded_lease_cost_per_month ?? 45000);
+    const EXP_MAINT     = Number(countryAutoConfig.expanded_maintenance_per_month ?? 15000);
     const EXP_WORKERS   = Number(countryAutoConfig.expanded_worker_capacity ?? 80);
-    const storageCostPerUnit = Number(countryAutoConfig.storage_cost_per_unit_per_arc ?? 150);
+    const storageCostPerUnit = Number(countryAutoConfig.storage_cost_per_unit_per_month ?? 150);
 
     let expansionCompletedNote = '';
     const expandingFactory = factories.find((f: any) => f.expansion_status === 'construction_underway');
@@ -1380,12 +1381,12 @@ export class ManufacturingController {
       const isComplete = currentYear > compYear || (currentYear === compYear && currentMonth >= compMonth);
 
       if (isComplete) {
-        await trx('manufacturing_factories').where({ id: expandingFactory.id }).update({ expansion_status: 'expanded', capacity_per_arc: EXP_CAPACITY, lease_cost_per_arc: EXP_LEASE, maintenance_cost_per_arc: EXP_MAINT, worker_capacity: EXP_WORKERS, updated_at: trx.fn.now() });
+        await trx('manufacturing_factories').where({ id: expandingFactory.id }).update({ expansion_status: 'expanded', capacity_per_month: EXP_CAPACITY, lease_cost_per_month: EXP_LEASE, maintenance_cost_per_month: EXP_MAINT, worker_capacity: EXP_WORKERS, updated_at: trx.fn.now() });
 
         for (let lineNum = 2; lineNum <= EXP_MAX_LINES; lineNum++) {
           const alreadyExists = await trx('manufacturing_production_lines').where({ factory_id: expandingFactory.id, line_number: lineNum }).first();
           if (!alreadyExists) {
-            await trx('manufacturing_production_lines').insert({ world_instance_id: company.world_instance_id, company_id: companyId, factory_id: expandingFactory.id, line_number: lineNum, quality_setting: 'Standard', target_units_per_arc: 0, status: 'idle' });
+            await trx('manufacturing_production_lines').insert({ world_instance_id: company.world_instance_id, company_id: companyId, factory_id: expandingFactory.id, line_number: lineNum, quality_setting: 'Standard', target_units_per_month: 0, status: 'idle' });
           }
         }
 
@@ -1393,7 +1394,7 @@ export class ManufacturingController {
         expansionCompletedNote = ` Factory Expansion Completed: Expanded Workshop — ${EXP_MAX_LINES} production lines, ${EXP_CAPACITY} units per Month capacity.`;
 
         factories.forEach((f: any) => {
-          if (f.id === expandingFactory.id) { f.capacity_per_arc = EXP_CAPACITY; f.lease_cost_per_arc = EXP_LEASE; f.maintenance_cost_per_arc = EXP_MAINT; f.worker_capacity = EXP_WORKERS; }
+          if (f.id === expandingFactory.id) { f.capacity_per_month = EXP_CAPACITY; f.lease_cost_per_month = EXP_LEASE; f.maintenance_cost_per_month = EXP_MAINT; f.worker_capacity = EXP_WORKERS; }
         });
       }
     }
@@ -1449,13 +1450,13 @@ export class ManufacturingController {
 
     for (const factory of factories) {
       const factoryType = await trx('manufacturing_factory_types').where({ id: factory.factory_type_id }).first();
-      const factoryCapacityPerArc    = Number(factory.capacity_per_arc);
+      const factoryCapacityPerArc    = Number(factory.capacity_per_month);
       const factoryWorkerCapacity    = Number(factoryType.worker_requirement);
 
       const factoryLines = productionLines.filter((l: any) => String(l.factory_id) === String(factory.id));
 
       for (const line of factoryLines) {
-        const targetUnits = Number(line.target_units_per_arc);
+        const targetUnits = Number(line.target_units_per_month);
         totalPlannedUnits += targetUnits;
 
         const engProdMods = deriveProductionModifiers(line as any);
@@ -1542,9 +1543,9 @@ export class ManufacturingController {
         const storageCostPerArc  = Math.round(sellableUnits * 150);
 
         if (existingInventory) {
-          await trx('manufacturing_inventory').where({ id: existingInventory.id }).update({ units_in_stock: Number(existingInventory.units_in_stock) + sellableUnits, inventory_value: Number(existingInventory.inventory_value) + inventoryValue, storage_cost_per_arc: Number(existingInventory.storage_cost_per_arc) + storageCostPerArc, updated_at: trx.fn.now() });
+          await trx('manufacturing_inventory').where({ id: existingInventory.id }).update({ units_in_stock: Number(existingInventory.units_in_stock) + sellableUnits, inventory_value: Number(existingInventory.inventory_value) + inventoryValue, storage_cost_per_month: Number(existingInventory.storage_cost_per_month) + storageCostPerArc, updated_at: trx.fn.now() });
         } else {
-          await trx('manufacturing_inventory').insert({ world_instance_id: company.world_instance_id, company_id: companyId, vehicle_model_id: line.model_id_ref, units_in_stock: sellableUnits, inventory_value: inventoryValue, storage_cost_per_arc: storageCostPerArc });
+          await trx('manufacturing_inventory').insert({ world_instance_id: company.world_instance_id, company_id: companyId, vehicle_model_id: line.model_id_ref, units_in_stock: sellableUnits, inventory_value: inventoryValue, storage_cost_per_month: storageCostPerArc });
         }
       }
 
@@ -1574,12 +1575,12 @@ export class ManufacturingController {
     }
 
     let totalLeaseCosts = 0;
-    for (const factory of factories) totalLeaseCosts += Number(factory.lease_cost_per_arc);
+    for (const factory of factories) totalLeaseCosts += Number(factory.lease_cost_per_month);
     runningCash -= totalLeaseCosts;
 
     let totalMaintenanceCosts = 0;
     for (const factory of factories) {
-      const baseMaintCost = Math.round(Number(factory.maintenance_cost_per_arc) * (Number(factory.condition) / 100));
+      const baseMaintCost = Math.round(Number(factory.maintenance_cost_per_month) * (Number(factory.condition) / 100));
       const factoryLines = productionLines.filter((l: any) => l.factory_id === factory.id);
       let avgMaintModifier = 1.0;
       if (factoryLines.length > 0) {
@@ -1631,7 +1632,7 @@ export class ManufacturingController {
     const company = pState.company;
 
     const countryAutoConfig = await trx('manufacturing_country_auto_config').where({ country_id: company.country_id }).first() ?? {};
-    const storageCostPerUnit = Number(countryAutoConfig.storage_cost_per_unit_per_arc ?? 150);
+    const storageCostPerUnit = Number(countryAutoConfig.storage_cost_per_unit_per_month ?? 150);
     const MARKETING_COSTS: Record<string, number> = {
       none: 0,
       local: Number(countryAutoConfig.marketing_cost_local ?? 3500),
@@ -1697,7 +1698,7 @@ export class ManufacturingController {
           const newStock = Math.max(0, actualStock - unitsSold);
           const costPerUnit = Number(alloc.manufacturing_cost_per_unit);
           await trx('manufacturing_inventory').where({ id: invRecord.id }).update({
-            units_in_stock: newStock, inventory_value: Math.max(0, newStock * costPerUnit), storage_cost_per_arc: newStock * 150, updated_at: trx.fn.now()
+            units_in_stock: newStock, inventory_value: Math.max(0, newStock * costPerUnit), storage_cost_per_month: newStock * 150, updated_at: trx.fn.now()
           });
         }
       }
@@ -1966,26 +1967,19 @@ export class ManufacturingController {
     }
   }
 
-  public static async processManufacturingArc(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { companyId } = req.params;
-      if (!companyId) return next(new AppError('Missing or invalid fields: companyId', 400, 'BAD_REQUEST'));
-
-      const result = await db.transaction(async (trx) => {
-        const playerCompany = await trx('companies').where({ id: companyId }).first();
-        if (!playerCompany) throw new AppError('Company not found', 404, 'NOT_FOUND');
-        if (playerCompany.industry_id !== 'manufacturing') throw new AppError('Not a manufacturing company', 400, 'WRONG_INDUSTRY');
-
-        const clock = await trx('world_clock').first();
+  /**
+   * Shared month pipeline for one country: NPC decisions -> production ->
+   * pooled sales -> settlement -> politics hook.
+   * Used by both the admin process-company endpoint and the world tick system.
+   * Returns processedCompanies = 0 (no throw) when the month is already processed.
+   */
+  public static async processCountryMonth(trx: any, countryId: string, clock: any): Promise<{ processedCompanies: number }> {
         const currentYear = clock?.current_year || 1;
         const currentMonth = clock?.current_month || 1;
 
-        // 1. RESOLVE PARTICIPANTS
+        // 1. RESOLVE PARTICIPANTS — every manufacturing company in this country (players + NPCs)
         const allCompanies = await trx('companies')
-          .where({ country_id: playerCompany.country_id, industry_id: 'manufacturing' })
-          .where(function() {
-             this.where({ id: companyId }).orWhere({ is_npc: true });
-          });
+          .where({ country_id: countryId, industry_id: 'manufacturing' });
 
         const participants: any[] = [];
         for (const comp of allCompanies) {
@@ -1998,7 +1992,7 @@ export class ManufacturingController {
         }
         
         if (participants.length === 0) {
-           throw new AppError(`This month (Year ${currentYear}, month ${currentMonth}) is already processed for this region`, 400, 'ALREADY_PROCESSED');
+           return { processedCompanies: 0 };
         }
 
         // 2. DECIDE (NPCs only)
@@ -2095,23 +2089,35 @@ export class ManufacturingController {
 
         // Process Political Month Hook
         const activeState = await trx('pol_states')
-          .where({ country_id: playerCompany.country_id, is_active: true })
+          .where({ country_id: countryId, is_active: true })
           .first();
         if (activeState) {
-          const { processPoliticalArc } = require('../../services/politics.service');
           await processPoliticalArc(trx, activeState.id, currentMonth);
         }
 
-        // Character Aging — once per year (month 12 = end of year)
-        // Idempotent: processManufacturingArc already blocks duplicate runs per month,
-        // so this fires at most once per year per world.
-        if (currentMonth === 12) {
-          await trx('characters')
-            .where({ world_instance_id: 'pre-alpha-world-1', status: 'active' })
-            .increment('age', 1);
+        return { processedCompanies: participants.length };
+  } // End of processCountryMonth
+
+  // POST /admin/manufacturing/process-company/:companyId
+  // Admin force-processing of a single country's month (kept for testing).
+  // Note: character aging is handled by the world tick service, not here.
+  public static async processManufacturingArc(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { companyId } = req.params;
+      if (!companyId) return next(new AppError('Missing or invalid fields: companyId', 400, 'BAD_REQUEST'));
+
+      const result = await db.transaction(async (trx) => {
+        const playerCompany = await trx('companies').where({ id: companyId }).first();
+        if (!playerCompany) throw new AppError('Company not found', 404, 'NOT_FOUND');
+        if (playerCompany.industry_id !== 'manufacturing') throw new AppError('Not a manufacturing company', 400, 'WRONG_INDUSTRY');
+
+        const clock = await trx('world_clock').first();
+        const outcome = await ManufacturingController.processCountryMonth(trx, playerCompany.country_id, clock);
+        if (outcome.processedCompanies === 0) {
+          throw new AppError(`This month (Year ${clock?.current_year || 1}, month ${clock?.current_month || 1}) is already processed for this region`, 400, 'ALREADY_PROCESSED');
         }
 
-        return { message: 'Month processed successfully for region', processedCompanies: participants.length };
+        return { message: 'Month processed successfully for region', processedCompanies: outcome.processedCompanies };
       });
 
       res.status(200).json({ status: 'success', data: result });
@@ -2556,7 +2562,7 @@ export class ManufacturingController {
 
         // Load expansion cost and duration from country config
         const EXPANSION_COST = Number(autoConfig?.expansion_cost ?? 500000);
-        const EXPANSION_DURATION_ARCS = Number(autoConfig?.expansion_duration_arcs ?? 2);
+        const EXPANSION_DURATION_ARCS = Number(autoConfig?.expansion_duration_months ?? 2);
 
         // Load the factory
         const factory = await trx('manufacturing_factories')
@@ -2794,7 +2800,7 @@ export class ManufacturingController {
           created_at_world_month: clock?.current_month || 1,
           created_at_world_day: clock?.current_day || 1,
           development_started_at_year: clock?.current_year || 1,
-          development_started_at_arc: clock?.current_month || 1,
+          development_started_at_month: clock?.current_month || 1,
           development_completes_at_year: clock?.current_year || 1,
           development_completes_at_month: (clock?.current_month || 1) + 1, // Facelift takes 1 Month
         }).returning('*');
@@ -2927,7 +2933,7 @@ export class ManufacturingController {
           'engineering_complexity', 'manufacturing_complexity', 'assembly_complexity',
           'vehicle_weight_kg', 'manufacturing_friendliness',
           'engineering_risk', 'prototype_confidence',
-          'dev_stage', 'planned_dev_time_arcs', 'balance_flags', 'engineering_report',
+          'dev_stage', 'planned_dev_time_months', 'balance_flags', 'engineering_report',
           'development_status', 'reliability_score', 'performance_score',
           'fuel_efficiency_score', 'appeal_score', 'cargo_score', 'safety_score'
         )

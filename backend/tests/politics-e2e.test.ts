@@ -165,7 +165,7 @@ async function runTest() {
     state_id: state.id,
     vehicle_class: 'compact',
     spec_floor: JSON.stringify({}),
-    units_per_arc: 5,
+    units_per_month: 5,
     max_price: 20000,
     duration_arcs: 1,
     status: 'open',
