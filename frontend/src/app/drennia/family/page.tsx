@@ -34,7 +34,7 @@ export default function FamilyPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-    if (!granted) { router.replace('/pre-alpha-access'); return; }
+    
 
     const fileStr = localStorage.getItem('worldr_citizen_file_v1');
     if (fileStr) {
@@ -97,3 +97,4 @@ export default function FamilyPage() {
     </div>
   );
 }
+

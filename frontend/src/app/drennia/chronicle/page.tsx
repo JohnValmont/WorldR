@@ -167,7 +167,7 @@ export default function ChroniclePage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-    if (!granted) { router.replace('/pre-alpha-access'); return; }
+    
     // Show first-day orientation modal if not yet seen
     const seenModal = localStorage.getItem(FIRST_DAY_MODAL_KEY) === 'true';
     if (!seenModal) setShowFirstDay(true);
@@ -651,3 +651,4 @@ export default function ChroniclePage() {
     </div>
   );
 }
+

@@ -16,9 +16,7 @@ export default function DrenniaLayout({ children }: { children: React.ReactNode 
     const hasCitizenFile = !!localStorage.getItem('worldr_citizen_file_v1');
     const hasEntry = localStorage.getItem('worldr_living_world_entry_v1') === 'true';
 
-    if (granted !== 'true') {
-      router.replace('/pre-alpha-access');
-    } else if (!hasMotherland) {
+    if (!hasMotherland) {
       router.replace('/world-entry');
     } else if (!hasCitizenFile || !hasEntry) {
       router.replace('/start/character');
@@ -34,3 +32,4 @@ export default function DrenniaLayout({ children }: { children: React.ReactNode 
     </div>
   );
 }
+

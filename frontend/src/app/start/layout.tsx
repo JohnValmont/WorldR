@@ -8,12 +8,7 @@ export default function StartLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1');
-      if (granted === 'true') {
-        setAuthorized(true);
-      } else {
-        router.replace('/pre-alpha-access');
-      }
+      setAuthorized(true);
     }
   }, [router]);
 

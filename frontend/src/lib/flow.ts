@@ -3,15 +3,10 @@
  * through the pre-alpha flow and citizen file creation.
  */
 export const getFlowRedirectPath = (): string => {
-  if (typeof window === 'undefined') return '/pre-alpha-access';
+  if (typeof window === 'undefined') return '/world-entry';
 
-  const hasAccess = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
   const hasMotherland = !!localStorage.getItem('worldr_selected_motherland');
   const hasCitizenFile = !!localStorage.getItem('worldr_citizen_file_v1');
-
-  if (!hasAccess) {
-    return '/pre-alpha-access';
-  }
 
   if (!hasMotherland) {
     return '/world-entry';

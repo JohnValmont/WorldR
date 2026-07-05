@@ -267,7 +267,7 @@ export default function BusinessPage() {
   const loadData = useCallback(() => {
     if (typeof window === 'undefined') return;
     const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-    if (!granted) { router.replace('/pre-alpha-access'); return; }
+    
 
     import('../../../lib/api').then(({ authApi, characterApi, companyApi, logisticsApi }) => {
       authApi.me().then(res => setIsAdmin(res.data.isAdmin)).catch(() => {});
@@ -2999,3 +2999,4 @@ function DrennportExchangeTab() {
     </div>
   );
 }
+
