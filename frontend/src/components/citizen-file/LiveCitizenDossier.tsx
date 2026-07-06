@@ -136,7 +136,9 @@ export default function LiveCitizenDossier({ formData }: CitizenFileLivePreviewP
     localStorage.setItem('worldr_character_origin_v1', JSON.stringify(file));
     localStorage.setItem('worldr_living_world_entry_v1', 'true');
 
-    router.push('/drennia/home');
+    setIsCompleting(true);
+    await new Promise(r => setTimeout(r, 600)); // aesthetic delay
+    router.push('/drennia/chronicle');
   };
 
   const renderMeter = (label: string, value: number, color: string) => (

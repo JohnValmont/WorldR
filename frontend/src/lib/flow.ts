@@ -16,5 +16,5 @@ export const getFlowRedirectPath = (): string => {
     return '/start/citizen-file';
   }
 
-  return '/drennia/home';
+  return '/drennia/chronicle';
 };

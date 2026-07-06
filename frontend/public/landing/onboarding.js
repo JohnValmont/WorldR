@@ -371,7 +371,7 @@ document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click'
         localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(data.user.character));
         localStorage.setItem('worldr_living_world_entry_v1', 'true');
         span.textContent = 'Entering World...';
-        window.location.href = '/drennia';
+        window.location.href = '/drennia/chronicle';
         return; // Bypass the rest of the onboarding flow
       }
     }
