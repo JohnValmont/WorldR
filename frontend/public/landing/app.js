@@ -18,7 +18,7 @@ if (!reduceMotion) {
 }
 
 /* ====================================================================
-   THREE.JS SCENE — the globe of Drennia
+   THREE.JS SCENE — the globe of Drennia (Point Cloud Edition)
    ==================================================================== */
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -29,138 +29,211 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 100);
 camera.position.set(0, 0, 3.35);
 
-const root = new THREE.Group();          // whole world, driven by scroll
+const root = new THREE.Group();
 scene.add(root);
-const globeGroup = new THREE.Group();     // globe + atmosphere + icons
+const globeGroup = new THREE.Group();
 root.add(globeGroup);
 
-const AMBER = new THREE.Color(0xcd8c1e);
-const AMBER2 = new THREE.Color(0xe6a93b);
-
-/* ---------- Globe shader: navy sphere, amber jurisdiction grid,
-             soft continents, fresnel rim ---------- */
-const globeUniforms = {
-  uTime:    { value: 0 },
-  uAmber:   { value: new THREE.Color(0xcd8c1e) },
-  uAmberHi: { value: new THREE.Color(0xf4cf82) },
-  uBase:    { value: new THREE.Color(0x0a1120) },
-  uAccent:  { value: 1.0 }, // driven by scroll / section
-};
-
-const globeVert = /* glsl */`
-  varying vec3 vPosObj;
-  varying vec3 vNormalView;
-  varying vec3 vViewPos;
-  void main(){
-    vPosObj = normalize(position);
-    vec4 mv = modelViewMatrix * vec4(position,1.0);
-    vViewPos = mv.xyz;
-    vNormalView = normalize(normalMatrix * normal);
-    gl_Position = projectionMatrix * mv;
+/* ---------- FBM noise helpers (CPU-side for point placement) ---------- */
+function hash(n) { return (Math.sin(n) * 43758.5453) % 1; }
+function vnoise3(x, y, z) {
+  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+  const fx = x - ix, fy = y - iy, fz = z - iz;
+  const ux = fx*fx*(3-2*fx), uy = fy*fy*(3-2*fy), uz = fz*fz*(3-2*fz);
+  const h = (a,b,c) => hash(a*127.1 + b*311.7 + c*74.7) * 2 - 1;
+  return (
+    (1-uz)*((1-uy)*((1-ux)*h(ix,iy,iz)   + ux*h(ix+1,iy,iz)  )
+                  +(   uy)*( (1-ux)*h(ix,iy+1,iz) + ux*h(ix+1,iy+1,iz)))
+   +    uz*((1-uy)*((1-ux)*h(ix,iy,iz+1) + ux*h(ix+1,iy,iz+1))
+                  +(   uy)*( (1-ux)*h(ix,iy+1,iz+1) + ux*h(ix+1,iy+1,iz+1)))
+  ) * 0.5 + 0.5;
+}
+function fbm3(x, y, z) {
+  let s = 0, a = 0.5;
+  for (let i = 0; i < 5; i++) {
+    s += a * vnoise3(x, y, z);
+    x *= 2.02; y *= 2.02; z *= 2.02; a *= 0.5;
   }
-`;
+  return s;
+}
 
-const globeFrag = /* glsl */`
-  precision highp float;
-  varying vec3 vPosObj;
-  varying vec3 vNormalView;
-  varying vec3 vViewPos;
-  uniform float uTime;
-  uniform vec3 uAmber, uAmberHi, uBase;
-  uniform float uAccent;
-
-  // hash / value noise
-  vec3 hash3(vec3 p){
-    p = vec3(dot(p,vec3(127.1,311.7,74.7)),
-             dot(p,vec3(269.5,183.3,246.1)),
-             dot(p,vec3(113.5,271.9,124.6)));
-    return fract(sin(p)*43758.5453)*2.0-1.0;
-  }
-  float vnoise(vec3 p){
-    vec3 i=floor(p), f=fract(p);
-    vec3 u=f*f*(3.0-2.0*f);
-    float n=mix(mix(mix(dot(hash3(i+vec3(0,0,0)),f-vec3(0,0,0)),
-                       dot(hash3(i+vec3(1,0,0)),f-vec3(1,0,0)),u.x),
-                   mix(dot(hash3(i+vec3(0,1,0)),f-vec3(0,1,0)),
-                       dot(hash3(i+vec3(1,1,0)),f-vec3(1,1,0)),u.x),u.y),
-               mix(mix(dot(hash3(i+vec3(0,0,1)),f-vec3(0,0,1)),
-                       dot(hash3(i+vec3(1,0,1)),f-vec3(1,0,1)),u.x),
-                   mix(dot(hash3(i+vec3(0,1,1)),f-vec3(0,1,1)),
-                       dot(hash3(i+vec3(1,1,1)),f-vec3(1,1,1)),u.x),u.y),u.z);
-    return n*0.5+0.5;
-  }
-  float fbm(vec3 p){
-    float a=0.5, s=0.0;
-    for(int i=0;i<5;i++){ s+=a*vnoise(p); p*=2.02; a*=0.5; }
-    return s;
-  }
-
-  void main(){
-    vec3 n = normalize(vPosObj);
-    // spherical coords
-    float lat = asin(clamp(n.y,-1.0,1.0));
-    float lon = atan(n.z, n.x);
-
-    // ---- continents / territory (soft amber landmasses) ----
-    float land = fbm(n*2.3 + vec3(0.0, uTime*0.008, 0.0));
-    land = smoothstep(0.52, 0.72, land);
-
-    // ---- jurisdiction grid (faint animated) ----
-    float gLat = abs(fract(lat*6.0/3.14159 + 0.5)-0.5);
-    float gLon = abs(fract(lon*10.0/3.14159 + uTime*0.004)-0.5);
-    float grid = smoothstep(0.02,0.0,gLat) + smoothstep(0.02,0.0,gLon);
-    grid = clamp(grid,0.0,1.0)*0.5;
-
-    // ---- fresnel rim ----
-    vec3 vd = normalize(-vViewPos);
-    float fres = pow(1.0 - max(dot(normalize(vNormalView), vd),0.0), 2.6);
-
-    // ---- lighting (soft ambient from upper-left) ----
-    float lightAmt = clamp(dot(normalize(vNormalView), normalize(vec3(-0.5,0.7,0.6)))*0.5+0.55, 0.0,1.0);
-
-    vec3 col = uBase * (0.35 + lightAmt*0.5);
-    col += uAmber * land * 0.42 * lightAmt;                 // continents
-    col += uAmberHi * grid * (0.22 + 0.10*uAccent);         // grid lines
-    col += uAmber * fres * (0.9 + 0.6*uAccent);             // rim glow
-    // gentle inner glow on lit side
-    col += uAmberHi * pow(lightAmt,3.0) * 0.05;
-
-    gl_FragColor = vec4(col, 1.0);
-  }
-`;
-
-const globe = new THREE.Mesh(
-  new THREE.SphereGeometry(1, 96, 96),
-  new THREE.ShaderMaterial({ vertexShader: globeVert, fragmentShader: globeFrag, uniforms: globeUniforms })
+/* ---------- Dark inner core (so the back-face doesn't bleed) ---------- */
+const core = new THREE.Mesh(
+  new THREE.SphereGeometry(0.994, 64, 64),
+  new THREE.MeshBasicMaterial({ color: 0x040608 })
 );
+globeGroup.add(core);
+
+/* ---------- POINT CLOUD — the globe itself ---------- */
+const DOTS = 28000;
+const dotPositions = new Float32Array(DOTS * 3);
+const dotColors    = new Float32Array(DOTS * 3);
+const dotSizes     = new Float32Array(DOTS);
+
+const amberHi = new THREE.Color(0xf4cf82);
+const amberMid = new THREE.Color(0xe6a93b);
+const amberLo  = new THREE.Color(0xcd8c1e);
+const oceanDim = new THREE.Color(0x1a1006);
+
+for (let i = 0; i < DOTS; i++) {
+  // Uniform sphere sampling (Marsaglia)
+  const u = Math.random() * 2 - 1;
+  const th = Math.random() * Math.PI * 2;
+  const r = Math.sqrt(1 - u * u);
+  const nx = r * Math.cos(th), ny = u, nz = r * Math.sin(th);
+
+  const land = fbm3(nx * 2.4, ny * 2.4, nz * 2.4);
+  const isLand = land > 0.515;
+
+  // Reject ocean dots to keep density higher on land — use probability
+  if (!isLand && Math.random() > 0.22) { i--; continue; }
+
+  dotPositions[i*3]   = nx;
+  dotPositions[i*3+1] = ny;
+  dotPositions[i*3+2] = nz;
+
+  // Colour: bright on land, dim on ocean
+  if (isLand) {
+    const t = Math.random();
+    const col = t < 0.3 ? amberHi : t < 0.65 ? amberMid : amberLo;
+    dotColors[i*3] = col.r; dotColors[i*3+1] = col.g; dotColors[i*3+2] = col.b;
+    dotSizes[i] = 0.014 + Math.random() * 0.016;
+  } else {
+    dotColors[i*3] = oceanDim.r; dotColors[i*3+1] = oceanDim.g; dotColors[i*3+2] = oceanDim.b;
+    dotSizes[i] = 0.006 + Math.random() * 0.006;
+  }
+}
+
+const dotGeo = new THREE.BufferGeometry();
+dotGeo.setAttribute('position', new THREE.BufferAttribute(dotPositions, 3));
+dotGeo.setAttribute('color',    new THREE.BufferAttribute(dotColors,    3));
+dotGeo.setAttribute('size',     new THREE.BufferAttribute(dotSizes,     1));
+
+// Custom dot texture — sharp soft disc
+const dotCanvas = document.createElement('canvas');
+dotCanvas.width = dotCanvas.height = 64;
+const dctx = dotCanvas.getContext('2d');
+const dg = dctx.createRadialGradient(32,32,0,32,32,32);
+dg.addColorStop(0,   'rgba(255,255,255,1)');
+dg.addColorStop(0.35,'rgba(255,255,255,0.85)');
+dg.addColorStop(0.7, 'rgba(255,255,255,0.15)');
+dg.addColorStop(1,   'rgba(255,255,255,0)');
+dctx.fillStyle = dg; dctx.fillRect(0,0,64,64);
+const dotTex = new THREE.CanvasTexture(dotCanvas);
+
+const dotMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTex:    { value: dotTex },
+    uTime:   { value: 0 },
+    uAccent: { value: 1.0 },
+  },
+  vertexShader: /* glsl */`
+    attribute float size;
+    attribute vec3 color;
+    varying vec3 vColor;
+    varying float vAtten;
+    uniform float uTime;
+    uniform float uAccent;
+    void main(){
+      vColor = color;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      // Subtle shimmer per dot based on position
+      float shimmer = sin(uTime * 1.8 + position.x*6.2 + position.y*4.7 + position.z*5.1) * 0.5 + 0.5;
+      float s = size * (0.82 + 0.38 * shimmer * uAccent);
+      gl_PointSize = s * (900.0 / -mv.z);
+      vAtten = shimmer;
+      gl_Position = projectionMatrix * mv;
+    }`,
+  fragmentShader: /* glsl */`
+    uniform sampler2D uTex;
+    varying vec3 vColor;
+    varying float vAtten;
+    void main(){
+      vec4 t = texture2D(uTex, gl_PointCoord);
+      float alpha = t.a * (0.75 + 0.25 * vAtten);
+      gl_FragColor = vec4(vColor * (0.9 + 0.45*vAtten), alpha);
+    }`,
+  transparent: true,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+  vertexColors: true,
+});
+
+const globe = new THREE.Points(dotGeo, dotMat);
 globeGroup.add(globe);
 
-/* ---------- Atmosphere halo (additive fresnel, BackSide) ---------- */
-const atmoUniforms = { uColor: { value: new THREE.Color(0xcd8c1e) } };
-const atmo = new THREE.Mesh(
-  new THREE.SphereGeometry(1.18, 64, 64),
-  new THREE.ShaderMaterial({
-    transparent: true, blending: THREE.AdditiveBlending, side: THREE.BackSide, depthWrite: false,
-    uniforms: atmoUniforms,
-    vertexShader: /* glsl */`
-      varying vec3 vN; varying vec3 vV;
-      void main(){ vec4 mv=modelViewMatrix*vec4(position,1.0); vV=mv.xyz;
-        vN=normalize(normalMatrix*normal); gl_Position=projectionMatrix*mv; }`,
-    fragmentShader: /* glsl */`
-      varying vec3 vN; varying vec3 vV; uniform vec3 uColor;
-      void main(){ vec3 vd=normalize(-vV);
-        float f=pow(1.0-max(dot(normalize(vN),vd),0.0),3.4);
-        gl_FragColor=vec4(uColor, f*0.9); }`
-  })
-);
-globeGroup.add(atmo);
+// Expose uniforms globally so tick() can reach them
+const globeUniforms = dotMat.uniforms;
+// dummy cage so tick() doesn't throw (cage.rotation used below)
+const cage = { rotation: { x: 0, y: 0 } };
 
-/* ---------- Latitude wire cage (subtle jurisdiction shell) ---------- */
-const cage = new THREE.LineSegments(
-  new THREE.WireframeGeometry(new THREE.SphereGeometry(1.012, 24, 16)),
-  new THREE.LineBasicMaterial({ color: 0xcd8c1e, transparent: true, opacity: 0.05 })
-);
-globeGroup.add(cage);
+/* ---------- Atmosphere layers ---------- */
+// Layer 1: tight fresnel glow (inner atmosphere)
+const mkAtmo = (radius, power, opacity, color) => {
+  return new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 64, 64),
+    new THREE.ShaderMaterial({
+      transparent: true, blending: THREE.AdditiveBlending,
+      side: THREE.BackSide, depthWrite: false,
+      uniforms: { uColor: { value: new THREE.Color(color) } },
+      vertexShader: `varying vec3 vN; varying vec3 vV;
+        void main(){ vec4 mv=modelViewMatrix*vec4(position,1.); vV=mv.xyz;
+          vN=normalize(normalMatrix*normal); gl_Position=projectionMatrix*mv; }`,
+      fragmentShader: `varying vec3 vN; varying vec3 vV; uniform vec3 uColor;
+        void main(){ vec3 vd=normalize(-vV);
+          float f=pow(1.-max(dot(normalize(vN),vd),0.),${power.toFixed(1)});
+          gl_FragColor=vec4(uColor, f*${opacity.toFixed(2)}); }`,
+    })
+  );
+};
+globeGroup.add(mkAtmo(1.06, 3.2, 1.10, 0xf4cf82));  // tight golden rim
+globeGroup.add(mkAtmo(1.18, 2.6, 0.55, 0xcd8c1e));  // mid amber halo
+globeGroup.add(mkAtmo(1.38, 1.8, 0.22, 0x7a4a08));  // wide diffuse bloom
+
+/* ---------- Equatorial ring ---------- */
+const ringGeo = new THREE.RingGeometry(1.08, 1.115, 128);
+const ringMat = new THREE.MeshBasicMaterial({
+  color: 0xf4cf82, transparent: true, opacity: 0.055,
+  side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false,
+});
+const ring = new THREE.Mesh(ringGeo, ringMat);
+ring.rotation.x = Math.PI / 2;
+globeGroup.add(ring);
+
+/* ---------- Capital hotspot pulses (6 glowing nodes on surface) ---------- */
+const hotspots = [];
+const CAPITALS = [
+  { lat:  0.62, lon:  0.4  },  // Drennport
+  { lat: -0.3,  lon:  2.1  },
+  { lat:  0.8,  lon: -1.2  },
+  { lat:  0.1,  lon:  3.5  },
+  { lat: -0.55, lon: -0.8  },
+  { lat:  0.45, lon:  1.85 },
+];
+const hotCanvas = document.createElement('canvas');
+hotCanvas.width = hotCanvas.height = 128;
+const hctx = hotCanvas.getContext('2d');
+const hg = hctx.createRadialGradient(64,64,0,64,64,64);
+hg.addColorStop(0,   'rgba(244,207,130,1)');
+hg.addColorStop(0.2, 'rgba(244,207,130,0.7)');
+hg.addColorStop(0.6, 'rgba(205,140,30,0.15)');
+hg.addColorStop(1,   'rgba(205,140,30,0)');
+hctx.fillStyle = hg; hctx.fillRect(0,0,128,128);
+const hotTex = new THREE.CanvasTexture(hotCanvas);
+
+CAPITALS.forEach((cap, i) => {
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: hotTex, transparent: true, opacity: 0.0,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  const sc = 0.10; spr.scale.set(sc, sc, sc);
+  const x = Math.cos(cap.lat) * Math.cos(cap.lon);
+  const y = Math.sin(cap.lat);
+  const z = Math.cos(cap.lat) * Math.sin(cap.lon);
+  spr.position.set(x, y, z);
+  hotspots.push({ spr, phase: (i / CAPITALS.length) * Math.PI * 2 });
+  globeGroup.add(spr);
+});
 
 /* ====================================================================
    INSTITUTIONAL ICONS — parliament seal, stock ticker, factory, gavel, ledger
@@ -259,9 +332,18 @@ function tick() {
   globeUniforms.uAccent.value += (scrollState.accent - globeUniforms.uAccent.value) * 0.04;
 
   // globe slow rotation
-  globe.rotation.y += dt * 0.06;
-  cage.rotation.y = globe.rotation.y;
-  cage.rotation.x = 0.35;
+  globe.rotation.y += dt * 0.055;
+  core.rotation.y = globe.rotation.y;
+  ring.rotation.z += dt * 0.018;
+
+  // capital hotspot pulse — sine breath, fade in/out
+  hotspots.forEach((h, i) => {
+    const pulse = Math.sin(t * 2.2 + h.phase) * 0.5 + 0.5;
+    h.spr.material.opacity = 0.3 + 0.7 * pulse;
+    const sc = 0.08 + 0.06 * pulse;
+    h.spr.scale.set(sc, sc, sc);
+  });
+
 
   // orbiting institution icons
   orbiters.forEach(o => {
