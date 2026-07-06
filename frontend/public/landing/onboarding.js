@@ -244,11 +244,10 @@ document.getElementById('resend').onclick = () => { otpInputs.forEach(i => { i.v
 function err(id, on){ document.getElementById(id).closest('.field').classList.toggle('err', on); }
 function validate(step){
   if (step === 0){
-    const e = document.getElementById('acc_email').value, u = document.getElementById('acc_user').value,
+    const e = document.getElementById('acc_email').value,
           p = document.getElementById('acc_pass').value, p2 = document.getElementById('acc_pass2').value;
     let ok = true;
     err('acc_email', !/^[^@]+@[^@]+\.[^@]+$/.test(e)); if (!/^[^@]+@[^@]+\.[^@]+$/.test(e)) ok = false;
-    err('acc_user', !u.trim()); if (!u.trim()) ok = false;
     err('acc_pass', p.length < 8); if (p.length < 8) ok = false;
     err('acc_pass2', p !== p2 || !p2); if (p !== p2 || !p2) ok = false;
     if (ok){ document.getElementById('otp_email').textContent = e; document.getElementById('log_email').value = e; }
