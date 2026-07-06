@@ -151,7 +151,7 @@ export default function ChroniclePage() {
     try {
       const token = localStorage.getItem('worldr_access_token');
       if (token) {
-        await fetch(process.env.NEXT_PUBLIC_API_URL + '/api/v1/character/me', {
+        await fetch('/api/v1/character/me', {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -161,18 +161,7 @@ export default function ChroniclePage() {
     } catch (e) {
       console.warn('Failed to delete character', e);
     }
-    const preserve = [
-      'worldr_access_token',
-      'worldr_refresh_token',
-      'worldr_account_settings',
-      'worldr_world_clock_v1',
-    ];
-    const toRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k?.startsWith('worldr_') && !preserve.includes(k)) toRemove.push(k);
-    }
-    toRemove.forEach(k => localStorage.removeItem(k));
+    localStorage.clear();
     window.location.href = '/';
   }, []);
 
