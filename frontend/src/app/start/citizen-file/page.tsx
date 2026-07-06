@@ -131,7 +131,7 @@ export default function CitizenFilePage() {
             {/* Starting money */}
             <div className="flex items-center justify-between mb-5">
               <span className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">Cash in Hand</span>
-              <span className="text-emerald-400 text-sm font-bold font-mono">₯1,000,000</span>
+              <span className="text-emerald-400 text-sm font-bold font-mono">$1,000,000</span>
             </div>
 
             {/* Action buttons */}

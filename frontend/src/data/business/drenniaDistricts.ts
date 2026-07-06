@@ -80,8 +80,8 @@ export const DRENNIA_STATES: State[] = [
                 placeId: 'drennport-company-registry',
                 name: 'Reserve Company Name',
                 description: 'File paperwork to lock a business name for your future use.',
-                requirements: ['Cash >= ₯10'],
-                costLabel: '₯10',
+                requirements: ['Cash >= $10'],
+                costLabel: '$10',
                 visibility: 'private',
                 resultType: 'registry',
                 effects: { type: 'reserve_name', cost: 10 }
@@ -91,8 +91,8 @@ export const DRENNIA_STATES: State[] = [
                 placeId: 'drennport-company-registry',
                 name: 'Register Sole Trader',
                 description: 'Incorporate a new Sole Trader company and enter the public registry.',
-                requirements: ['Reserved Name', 'Cash >= ₯525'],
-                costLabel: '₯525 (₯25 fee + ₯500 capital)',
+                requirements: ['Reserved Name', 'Cash >= $525'],
+                costLabel: '$525 ($25 fee + $500 capital)',
                 visibility: 'public',
                 resultType: 'company',
                 effects: { type: 'register_company', cost: 525, capital: 500 }

@@ -90,7 +90,7 @@ function ChartTooltip({ active, payload, label }: any) {
   return (
     <div className="bg-[#0c0d13] border border-[#23232b] px-3 py-2 rounded-lg text-[10px] font-mono shadow-card">
       <p className="text-zinc-500 mb-0.5 uppercase tracking-wider">{label}</p>
-      <p className="text-terminal-amber font-bold">₯{Number(payload[0].value).toLocaleString()}</p>
+      <p className="text-terminal-amber font-bold">${Number(payload[0].value).toLocaleString()}</p>
     </div>
   );
 }
@@ -355,9 +355,9 @@ export default function ChroniclePage() {
         {/* Center: stat chips — horizontal scroll strip on mobile, wrap on sm+ */}
         <div className="flex items-center gap-2 flex-nowrap overflow-x-auto scrollbar-hide max-w-full sm:flex-wrap sm:overflow-visible">
           <StatChip
-            label="Cash ₯"
+            label="Cash $"
             value={playerCash}
-            prefix="₯"
+            prefix="$"
             valueColor="green"
             countUp
           />
@@ -368,7 +368,7 @@ export default function ChroniclePage() {
             <StatChip
               label="Company Cash"
               value={companyCash}
-              prefix="₯"
+              prefix="$"
               valueColor="amber"
               countUp
             />
@@ -417,10 +417,10 @@ export default function ChroniclePage() {
                     <div>
                       <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Net Worth</p>
                       <p className="text-2xl md:text-3xl font-mono font-bold text-terminal-amber amber-glow leading-tight">
-                        ₯{netWorth.toLocaleString()}
+                        ${netWorth.toLocaleString()}
                       </p>
                       <p className={`text-[11px] font-mono font-bold ${up ? 'text-terminal-green' : 'text-terminal-red'}`}>
-                        {up ? '▲' : '▼'} {up ? '+' : '−'}₯{Math.abs(delta).toLocaleString()} ({pct.toFixed(1)}%) this month
+                        {up ? '▲' : '▼'} {up ? '+' : '−'}${Math.abs(delta).toLocaleString()} ({pct.toFixed(1)}%) this month
                       </p>
                     </div>
                     <div className="hidden sm:block w-32 h-14">
@@ -511,7 +511,7 @@ export default function ChroniclePage() {
               <div>
                 <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Current Net Worth</p>
                 <p className="text-xl font-mono font-bold text-terminal-amber amber-glow">
-                  ₯{netWorth.toLocaleString()}
+                  ${netWorth.toLocaleString()}
                 </p>
               </div>
               <Badge variant="green" dot>Active</Badge>
@@ -569,7 +569,7 @@ export default function ChroniclePage() {
                   <div className="text-right">
                     <p className="text-[9px] font-mono text-zinc-600">Cash</p>
                     <p className="text-[14px] font-mono font-bold text-terminal-green terminal-glow">
-                      ₯{companyCash.toLocaleString()}
+                      ${companyCash.toLocaleString()}
                     </p>
                   </div>
                 </div>

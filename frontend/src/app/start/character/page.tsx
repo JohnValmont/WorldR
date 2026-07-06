@@ -476,7 +476,7 @@ function generateSummary(choices: Choices, firstName: string): string {
   const contactName = contactObj?.title || 'an early contact';
   const state = choices.homeState ? choices.homeState.replace(' State', '') : 'Drennia';
   const hh = choices.household ? choices.household.replace(' Household', '').toLowerCase() : 'household';
-  const cashPhrase = '₯1,000,000 in starting capital';
+  const cashPhrase = '$1,000,000 in starting capital';
   const ambition = choices.firstAmbition ? choices.firstAmbition.toLowerCase() : 'find a path forward';
 
   return `Raised in ${state} in a ${hh} household, ${name} enters adulthood with ${cashPhrase}, a first contact in ${contactName}, and a public record that has not yet earned trust. Driven by the ambition to ${ambition.replace('to ', '')}, Drennia's record halls have opened a file. What fills it is still unwritten.`;

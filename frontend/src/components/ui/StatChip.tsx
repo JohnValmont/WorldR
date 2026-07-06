@@ -10,7 +10,7 @@ interface SparklinePoint { value: number }
 interface StatChipProps {
   label: string;
   value: string | number;
-  /** Optional unit prefix (e.g. '₯') */
+  /** Optional unit prefix (e.g. '$') */
   prefix?: string;
   /** Optional unit suffix (e.g. '%') */
   suffix?: string;

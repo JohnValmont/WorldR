@@ -982,7 +982,7 @@ async function awardTenders(trx: any, stateId: string, currentMonth: number) {
     await trx('pol_ledger_events').insert({
       state_id: stateId, arc: currentMonth, kind: 'tender_awarded',
       headline: `Tender Awarded: ${tender.vehicle_class}`,
-      body: `The ${tender.vehicle_class} procurement contract was awarded to ${winningBid.company_name} at ${winningBid.bid_price} ₯ per unit.`
+      body: `The ${tender.vehicle_class} procurement contract was awarded to ${winningBid.company_name} at ${winningBid.bid_price} $ per unit.`
     });
   }
 }
@@ -1037,7 +1037,7 @@ async function settleTenders(trx: any, stateId: string, currentMonth: number) {
         entry_type: 'sales',
         amount: revenue,
         balance_after: trx.raw(`(SELECT available_cash FROM company_finances WHERE company_id = ?)`, [company.id]),
-        description: `Government Tender: Sold ${unitsBought} units of ${tender.vehicle_class} at ${tender.awarded_price} ₯`
+        description: `Government Tender: Sold ${unitsBought} units of ${tender.vehicle_class} at ${tender.awarded_price} $`
       });
     }
 

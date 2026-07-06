@@ -429,7 +429,7 @@ export default function BusinessPage() {
         industry_id: isLogistics ? 'shipping-logistics' : 'manufacturing',
         subsector_id: isLogistics ? null : selectedModel,
         legal_structure_id: selectedStructure,
-        currency_id: 'drennian-day',
+        currency_id: 'dollar',
         starting_capital: chosenCapital
       }).then((res: any) => {
         // Create/update career record
@@ -684,7 +684,7 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
             The registry is open. Build your enterprise.
           </h2>
           <p className="text-[13px] leading-relaxed text-zinc-400 max-w-xl mb-6">
-            Register a company with a minimum of <span className="text-terminal-amber font-mono font-semibold">₯50,000</span> starting
+            Register a company with a minimum of <span className="text-terminal-amber font-mono font-semibold">$50,000</span> starting
             capital — no maximum. Choose your sector, headquarters, and legal structure, then start winning contracts.
           </p>
           <div className="flex items-center gap-3 flex-wrap">
@@ -723,9 +723,9 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
           <SectionHeading icon={Scale} stamp="ALL ACTIVE">Legal Structures</SectionHeading>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
-              { name: 'Sole Trader', fee: '₯500', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost.' },
-              { name: 'Private Company', fee: '₯5,000', desc: 'Separate legal entity. Add partners and issue private shares.' },
-              { name: 'Corporation', fee: '₯50,000', desc: 'Full liability protection. Required for public trading.' },
+              { name: 'Sole Trader', fee: '$500', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost.' },
+              { name: 'Private Company', fee: '$5,000', desc: 'Separate legal entity. Add partners and issue private shares.' },
+              { name: 'Corporation', fee: '$50,000', desc: 'Full liability protection. Required for public trading.' },
             ].map(s => (
               <Card key={s.name} pad="md" hover className="flex flex-col gap-1.5">
                 <div className="flex items-baseline justify-between gap-2">
@@ -928,9 +928,9 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           <SectionHeader stamp="STEP 3 OF 7">Legal Structure</SectionHeader>
           <div className="flex flex-col gap-2 mb-6">
             {[
-              { id: 'sole-trader', label: 'Sole Trader', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost (₯500).' },
-              { id: 'private-company', label: 'Private Company', desc: 'Separate legal entity. Can add partners and issue shares (₯5,000).' },
-              { id: 'public-corporation', label: 'Corporation', desc: 'Full liability protection. Required for public trading (₯50,000).' },
+              { id: 'sole-trader', label: 'Sole Trader', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost ($500).' },
+              { id: 'private-company', label: 'Private Company', desc: 'Separate legal entity. Can add partners and issue shares ($5,000).' },
+              { id: 'public-corporation', label: 'Corporation', desc: 'Full liability protection. Required for public trading ($50,000).' },
             ].map(s => (
               <button
                 key={s.label}
@@ -996,10 +996,10 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-5 mb-6">
             <SectionHeader>Starting Capital</SectionHeader>
             <p className="text-xs text-zinc-500 leading-relaxed mb-4">
-              Minimum: <strong className="text-terminal-amber">₯50,000</strong>. No maximum — invest as much as your Cash in Hand allows, minus the filing fee ({getLegalStructureName(selectedStructure)} fee: <strong className="text-terminal-red">{formatMoney(FILING_FEE)}</strong>).
+              Minimum: <strong className="text-terminal-amber">$50,000</strong>. No maximum — invest as much as your Cash in Hand allows, minus the filing fee ({getLegalStructureName(selectedStructure)} fee: <strong className="text-terminal-red">{formatMoney(FILING_FEE)}</strong>).
             </p>
             <div className="mb-4">
-              <Label>Company Starting Capital (₯)</Label>
+              <Label>Company Starting Capital ($)</Label>
               <input
                 type="number"
                 min={50000}
@@ -2142,7 +2142,7 @@ function CompanyDeskTab({
                     ) : (
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '11px', color: T.muted }}>Bid Amount: ₯</span>
+                          <span style={{ fontSize: '11px', color: T.muted }}>Bid Amount: $</span>
                           <input type="number" id={`bid-${c.id}`} defaultValue={c.payment} style={{ flex: 1, padding: '8px', background: T.panel, color: T.gold, border: `1px solid ${T.border}`, fontSize: '12px' }} disabled={!canAccept} />
                         </div>
                         <GoldButton 
@@ -2299,7 +2299,7 @@ function CompanyDeskTab({
                     <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Inject Capital</div>
                     <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', minHeight: '34px' }}>Transfer personal cash into the company's ledger.</div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input type="number" id="inject-amount" placeholder="₯ Amount" style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px' }} />
+                      <input type="number" id="inject-amount" placeholder="$ Amount" style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px' }} />
                       <GoldButton onClick={() => {
                         const el = document.getElementById('inject-amount') as HTMLInputElement;
                         if (el && el.value) {
@@ -2318,7 +2318,7 @@ function CompanyDeskTab({
                     <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Owner Drawings</div>
                     <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', minHeight: '34px' }}>Withdraw company cash to your personal holdings.</div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input type="number" id="withdraw-amount" placeholder="₯ Amount" style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.gold, fontSize: '12px' }} />
+                      <input type="number" id="withdraw-amount" placeholder="$ Amount" style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.gold, fontSize: '12px' }} />
                       <GhostButton color={T.gold} onClick={() => {
                         const el = document.getElementById('withdraw-amount') as HTMLInputElement;
                         if (el && el.value) {
@@ -2549,7 +2549,7 @@ function AssetsTab({ company, fleet, onRefresh, showNotif, setDeskTab }: any) {
           </PanelBox>
           <PanelBox>
             <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px' }}>Property Value</div>
-            <div style={{ fontSize: '18px', fontFamily: 'monospace', color: T.faint, fontWeight: 700 }}>₯0</div>
+            <div style={{ fontSize: '18px', fontFamily: 'monospace', color: T.faint, fontWeight: 700 }}>$0</div>
             <div style={{ fontSize: '10px', color: T.faint, marginTop: '4px' }}>Locked (Land Purchasing)</div>
           </PanelBox>
           <PanelBox>

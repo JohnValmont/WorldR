@@ -414,7 +414,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const autoConfig = mfgData?.countryAutoConfig ?? {};
   const statesForCountry: { id: string; name: string }[] = mfgData?.statesForCountry ?? [];
 
-  // Currency formatter — uses company's currency symbol, not a hardcoded ₯
+  // Currency formatter — uses company's currency symbol, not a hardcoded $
   const fm = (val: number) => `${currencySymbol}${Math.round(val).toLocaleString()}`;
 
   // State resolver — uses statesForCountry from the API, not a hardcoded lookup

@@ -903,7 +903,7 @@ export async function postTender(req: Request, res: Response, next: NextFunction
         arc: currentMonth,
         kind: 'tender_posted',
         headline: `Government Procurement: ${vehicle_class} Tender Posted`,
-        body: `The government has opened bidding for ${units_per_month} units per month at a max price of ${max_price} ₯ for ${duration_arcs} months.`
+        body: `The government has opened bidding for ${units_per_month} units per month at a max price of ${max_price} $ for ${duration_arcs} months.`
       });
 
       return tender;
