@@ -106,9 +106,25 @@ export class CharacterController {
         .first();
 
       if (character) {
+        const timestamp = Date.now();
+        const deletedSuffix = ` [DELETED ${timestamp}]`;
+
         await db('characters')
           .where({ id: character.id })
-          .update({ status: 'deleted' });
+          .update({ 
+            status: 'deleted',
+            name: db.raw('SUBSTRING(name, 1, 200) || ?', [deletedSuffix])
+          });
+
+        const companies = await db('companies').where({ owner_character_id: character.id });
+        for (const company of companies) {
+          await db('companies')
+            .where({ id: company.id })
+            .update({ 
+              status: 'bankrupt',
+              name: db.raw('SUBSTRING(name, 1, 200) || ?', [deletedSuffix])
+            });
+        }
       }
 
       res.status(200).json({ message: 'Character deleted' });
