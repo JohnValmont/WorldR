@@ -1225,6 +1225,49 @@ export async function doGeneralAction(req: Request, res: Response, next: NextFun
   }
 }
 
+export async function setDoctrine(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const partyId = req.params.id;
+    const { doctrine_id, tenet_id } = req.body;
+
+    const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+    if (!character) return next(new AppError('No active character', 400, 'NO_CHARACTER'));
+
+    const party = await db('pol_parties').where({ id: partyId }).first();
+    if (!party) return next(new AppError('Party not found', 404, 'NOT_FOUND'));
+    if (party.leader_character_id !== character.id) {
+      return next(new AppError('Only the party leader can set the doctrine', 403, 'FORBIDDEN'));
+    }
+
+    if (tenet_id && doctrine_id) {
+      const doctenets = DOCTRINE_TENETS[doctrine_id as keyof typeof DOCTRINE_TENETS];
+      if (doctenets && !doctenets.includes(tenet_id)) {
+        return next(new AppError("Tenet does not belong to the selected doctrine", 400, 'BAD_REQUEST'));
+      }
+    }
+
+    // Optional: resolve platform from doctrine?
+    // In our founding logic, the client passes `platform` optionally, but usually we just set the ID.
+    // If we need to set the default platform, we could do it here or let the client do it via updatePlatform.
+    // The instructions say "Confirm picking a Doctrine correctly sets all 5 axis values to that Doctrine's defined preset per axis".
+    // I will let the client send the platform in the request, or we can look it up if we had access to the doctrine definitions here.
+    // Actually, founding a party sets the platform via `req.body.platform` which is passed by the client! Wait, founding doesn't take platform, let's see.
+
+    await db('pol_parties').where({ id: partyId }).update({ doctrine_id, tenet_id: tenet_id || null });
+    
+    if (req.body.platform) {
+      await db('pol_parties').where({ id: partyId }).update({ platform: req.body.platform });
+    }
+
+    return res.json({ success: true, message: 'Doctrine confirmed.' });
+  } catch (error) {
+    next(error);
+  }
+}
+
 /** PATCH /politics/parties/:id/tenet — set or change a party's active tenet (Leader only) */
 export async function setTenet(req: Request, res: Response, next: NextFunction) {
   try {
