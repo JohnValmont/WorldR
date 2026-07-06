@@ -177,12 +177,16 @@ export default function ChroniclePage() {
           setCharacterAge(Number(char.age ?? 18));
           setPlayerCash(Number(char.finances?.cash_in_hand ?? 0));
 
-          const fileStr = localStorage.getItem('worldr_citizen_file_v1');
-          const parsed  = fileStr ? JSON.parse(fileStr) : { motherland: 'Drennia' };
+          let parsed = { motherland: 'Drennia' };
+          try {
+            if (fileStr) parsed = JSON.parse(fileStr);
+          } catch (e) {
+            console.warn('Failed to parse citizen file', e);
+          }
           setCitizenFile(parsed);
 
           companyApi.getMy().then(compRes => {
-            const companies = compRes.data;
+            const companies = compRes.data || [];
             if (companies.length > 0) {
               const myCompany = companies.sort((a: any, b: any) =>
                 new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
@@ -202,7 +206,7 @@ export default function ChroniclePage() {
           }).catch(() => {});
           
           politicsApi.getLedger(10).then(data => {
-            const polEvents = data.map((ev: any) => ({
+            const polEvents = (data || []).map((ev: any) => ({
               id: ev.id,
               month: ev.month,
               text: `[Month ${ev.month}] ${ev.headline}: ${ev.body}`
@@ -213,7 +217,7 @@ export default function ChroniclePage() {
             // Mirror world/ledger movements into the notification feed so the
             // header bell surfaces "while you were away" events. Stable ids
             // keep this idempotent across reloads.
-            data.forEach((ev: any) => {
+            (data || []).forEach((ev: any) => {
               addNotification({
                 id: `ledger_${ev.id}`,
                 category: 'world',
@@ -233,7 +237,12 @@ export default function ChroniclePage() {
         .finally(() => setAuthorized(true));
     });
 
-    const recs = JSON.parse(localStorage.getItem('worldr_records_v1') ?? '[]');
+    let recs: any[] = [];
+    try {
+      recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
+    } catch (e) {
+      console.warn('Failed to parse records', e);
+    }
     setRecentRecords(recs.slice(0, 6));
   }, [router]);
 

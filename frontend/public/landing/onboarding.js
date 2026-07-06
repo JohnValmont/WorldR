@@ -302,8 +302,10 @@ function goTo(i, dir = 1){
   cur = i; updateStepper(Math.min(i, 5)); setGlobe(i);
 }
 // init
-steps[0].classList.add('active'); gsap.set(steps[0], { opacity: 1 });
-updateStepper(0); setGlobe(0);
+const urlParams = new URLSearchParams(window.location.search);
+cur = urlParams.get('action') === 'login' ? 2 : 0;
+steps[cur].classList.add('active'); gsap.set(steps[cur], { opacity: 1 });
+updateStepper(cur); setGlobe(cur);
 
 document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click', async () => {
   const s = +b.dataset.next;
@@ -348,8 +350,30 @@ document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click'
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || data.message || 'Login failed');
+      
       localStorage.setItem('worldr_access_token', data.accessToken);
       if (data.refreshToken) localStorage.setItem('worldr_refresh_token', data.refreshToken);
+      
+      // Seed Zustand store so Next.js apps see the user as authenticated
+      localStorage.setItem('worldr-auth', JSON.stringify({
+        state: {
+          user: data.user || { email },
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          isAuthenticated: true
+        },
+        version: 0
+      }));
+
+      // Check if they already have a character
+      if (data.user && data.user.character) {
+        localStorage.setItem('worldr_selected_motherland', data.user.character.motherland_country_id || 'c_drennia');
+        localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(data.user.character));
+        localStorage.setItem('worldr_living_world_entry_v1', 'true');
+        span.textContent = 'Entering World...';
+        window.location.href = '/drennia';
+        return; // Bypass the rest of the onboarding flow
+      }
     }
     
     span.textContent = origText;
@@ -419,11 +443,27 @@ document.getElementById('confirmBtn').addEventListener('click', async () => {
     if (!res.ok) {
        const errData = await res.json();
        if (errData.error === 'CHARACTER_EXISTS' || errData.message === 'Character already exists') {
-          // If character already exists, we can still proceed visually to the game
           console.log('Character already exists, proceeding to world');
        } else {
           throw new Error(errData.error || errData.message || 'Failed to create character');
        }
+    } else {
+       const charData = await res.json();
+       const character = charData.character || charData;
+       localStorage.setItem('worldr_selected_motherland', motherland_country_id);
+       localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(character));
+       localStorage.setItem('worldr_living_world_entry_v1', 'true');
+       
+       try {
+           const authStoreStr = localStorage.getItem('worldr-auth');
+           if (authStoreStr) {
+               const authStore = JSON.parse(authStoreStr);
+               if (authStore.state && authStore.state.user) {
+                   authStore.state.user.character = character;
+                   localStorage.setItem('worldr-auth', JSON.stringify(authStore));
+               }
+           }
+       } catch(e) {}
     }
     
     document.getElementById('confirmActions').style.pointerEvents = 'none';

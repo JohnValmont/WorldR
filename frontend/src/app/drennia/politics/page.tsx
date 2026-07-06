@@ -75,7 +75,7 @@ export default function PoliticsDesk() {
   if (error)
     return (
       <PageShell className="py-6">
-        <div className="text-[#B85555] p-4 border border-[#B85555]/30 bg-[#8F3D3D]/10 mx-8">{error}</div>
+        <div className="text-[#B85555] p-4 border border-[#B85555]/30 bg-[#8F3D3D]/10 mx-8">{String(error?.message || error)}</div>
       </PageShell>
     );
 
