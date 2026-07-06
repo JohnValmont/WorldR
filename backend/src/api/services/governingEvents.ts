@@ -16,8 +16,8 @@ import {
 
 /** Resolves which character holds the Premier seat for a state. Returns null if none. */
 async function resolvePremierCharacter(trx: any, stateId: string): Promise<any | null> {
-  const premierSeat = await trx('pol_council_seats')
-    .where({ state_id: stateId, role: 'premier' })
+  const premierSeat = await trx('pol_offices')
+    .where({ state_id: stateId, office: 'premier' })
     .first();
   if (!premierSeat?.party_id) return null;
 
@@ -29,8 +29,8 @@ async function resolvePremierCharacter(trx: any, stateId: string): Promise<any |
 
 /** Resolves the governing party record (party with the premier seat). */
 async function resolveGoverningParty(trx: any, stateId: string): Promise<any | null> {
-  const premierSeat = await trx('pol_council_seats')
-    .where({ state_id: stateId, role: 'premier' })
+  const premierSeat = await trx('pol_offices')
+    .where({ state_id: stateId, office: 'premier' })
     .first();
   if (!premierSeat?.party_id) return null;
   return trx('pol_parties').where({ id: premierSeat.party_id }).first();
@@ -38,8 +38,8 @@ async function resolveGoverningParty(trx: any, stateId: string): Promise<any | n
 
 /** Resolves the largest non-governing party's leader character. */
 async function resolveOppositionLeaderCharacter(trx: any, stateId: string): Promise<any | null> {
-  const premierSeat = await trx('pol_council_seats')
-    .where({ state_id: stateId, role: 'premier' })
+  const premierSeat = await trx('pol_offices')
+    .where({ state_id: stateId, office: 'premier' })
     .first();
   const governingPartyId = premierSeat?.party_id || null;
 
@@ -89,7 +89,7 @@ export async function fireGoverningEvent(
 
   // Idempotency guard: only one governing event per (state, month)
   const alreadyFired = await trx('pol_ledger_events')
-    .where({ state_id: stateId, month: currentMonth })
+    .where({ state_id: stateId, arc: currentMonth })
     .where('kind', 'like', 'gov_%')
     .first();
   if (alreadyFired) return;
@@ -125,7 +125,7 @@ export async function fireGoverningEvent(
   // ── Write ledger event ──────────────────────────────────────────────────────
   await trx('pol_ledger_events').insert({
     state_id: stateId,
-    month: currentMonth,
+    arc: currentMonth,
     kind: template.kind,
     headline: template.headline,
     body: template.body,

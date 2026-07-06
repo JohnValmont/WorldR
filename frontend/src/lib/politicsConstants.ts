@@ -130,6 +130,15 @@ export const AP_COST_JOIN_COMMITTEE      = 1;
 export const AP_COST_WHIP                = 2;
 export const AP_COST_VOTE                = 0;
 
+// Doctrine Signature Action AP costs (mirrors backend SIGNATURE_ACTION_AP_COST)
+export const AP_COST_UNION_ADDRESS       = 3;
+export const AP_COST_INVESTOR_ROADSHOW   = 2;
+export const AP_COST_TOWN_HALL           = 2;
+export const AP_COST_SHOP_FLOOR_TOUR     = 3;
+export const AP_COST_LISTENING_TOUR      = 2;
+export const AP_COST_COALITION_OUTREACH  = 1;
+
+
 // Tunable defaults — not enforced in frontend, documented for reference
 export const RECRUIT_COST_CASH = 5_000;
 export const ROSTER_CAP_BANDS: { minPop: number; cap: number }[] = [

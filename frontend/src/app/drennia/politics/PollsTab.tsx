@@ -33,15 +33,15 @@ export default function PollsTab({ overview, parties, stateId }: any) {
 
   const partyName = (id: string) => parties.find((p: any) => p.id === id)?.name || 'Unknown';
 
-  if (loading && !polls) return <div className="p-8 text-[#A79D8C] text-center">Crunching the numbers…</div>;
-  if (error) return <div className="p-4 border border-[#B85555]/30 bg-[#B85555]/10 text-[#B85555]">{error}</div>;
+  if (loading && !polls) return <div className="p-8 text-[#8b8da8] text-center">Crunching the numbers…</div>;
+  if (error) return <div className="p-4 border border-red-500/30 bg-red-500/10 text-red-400">{error}</div>;
 
   if (!polls || !polls.perParty || polls.perParty.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center border border-dashed border-[#2A2630] bg-[#11131A]">
-        <h2 className="text-[#F4EBD6] font-serif text-xl mb-4">The Polls Are Closed</h2>
-        <p className="text-[#A79D8C] max-w-md">Projections open once candidates are confirmed and campaigns begin.</p>
-        <button onClick={fetchPolls} className="mt-6 px-6 py-2 border border-[#2A2630] text-[#E6D5B8] hover:bg-[#2A2630]">Refresh</button>
+      <div className="flex flex-col items-center justify-center p-12 text-center border border-dashed border-[#252637] bg-[#1c1d2e]">
+        <h2 className="text-white font-serif text-xl mb-4">The Polls Are Closed</h2>
+        <p className="text-[#8b8da8] max-w-md">Projections open once candidates are confirmed and campaigns begin.</p>
+        <button onClick={fetchPolls} className="mt-6 px-6 py-2 border border-[#252637] text-white hover:bg-[#252637] hover:text-[#e8752a] transition-colors uppercase text-xs tracking-wider">Refresh</button>
       </div>
     );
   }
@@ -69,27 +69,27 @@ export default function PollsTab({ overview, parties, stateId }: any) {
     <div className="flex flex-col gap-6 animate-slide-in">
       <PoliticalPulse pulse={polls?.pulse} />
 
-      <div className="flex justify-between items-end border-b border-[#2A2630] pb-4">
+      <div className="flex justify-between items-end border-b border-[#252637] pb-4">
         <div>
-          <div className="text-[9px] font-mono uppercase tracking-[0.28em] text-terminal-amber mb-1">Election Night</div>
-          <h2 className="text-2xl font-serif text-[#F4EBD6]">Projected Result</h2>
-          <p className="text-sm text-[#A79D8C]">Live seat projection from accumulated campaign reach.</p>
+          <div className="text-[9px] font-mono uppercase tracking-[0.28em] text-[#e8752a] mb-1">Election Night</div>
+          <h2 className="text-2xl font-serif text-white">Projected Result</h2>
+          <p className="text-sm text-[#8b8da8]">Live seat projection from accumulated campaign reach.</p>
         </div>
         <button
           onClick={fetchPolls}
           disabled={loading}
-          className="flex items-center gap-1.5 px-4 py-2 border border-[#2A2630] text-[#E6D5B8] text-xs uppercase tracking-wider hover:bg-[#2A2630] transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 border border-[#252637] text-white text-xs uppercase tracking-wider hover:bg-[#252637] hover:text-[#e8752a] transition-colors"
         >
           <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> {loading ? 'Refreshing' : 'Refresh'}
         </button>
       </div>
 
-      <div className="bg-[#1A1A10] border border-[#B0863E]/30 p-3 text-[#B0863E] text-xs text-center tracking-wide">
+      <div className="bg-[#1c1d2e] border border-[#e8752a]/30 p-3 text-[#e8752a] text-xs text-center tracking-wide">
         PROJECTION ONLY — final results are declared at the close of the Polling month.
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <div className="border border-[#2A2630] bg-[#11131A] p-5">
+        <div className="border border-[#252637] bg-[#1c1d2e] p-5">
           <Hemicycle
             parties={hemiParties}
             totalSeats={POL_COUNCIL_SEATS}
@@ -98,8 +98,8 @@ export default function PollsTab({ overview, parties, stateId }: any) {
             centerLabel={lead ? `${lead.name} lead` : 'No lead'}
           />
         </div>
-        <div className="border border-[#2A2630] bg-[#11131A] p-5">
-          <div className="text-[10px] uppercase tracking-widest text-[#A79D8C] mb-2">Projected Standings</div>
+        <div className="border border-[#252637] bg-[#1c1d2e] p-5">
+          <div className="text-[10px] uppercase tracking-widest text-[#8b8da8] mb-2">Projected Standings</div>
           <div className="flex flex-col gap-0.5">
             {hemiParties.map((p: any) => (
               <PartyStanding key={p.name} name={p.name} seats={p.seats} totalSeats={POL_COUNCIL_SEATS} showLeader parties={parties} />
@@ -109,7 +109,7 @@ export default function PollsTab({ overview, parties, stateId }: any) {
       </div>
 
       <div>
-        <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-terminal-amber font-bold mb-3">
+        <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#e8752a] font-bold mb-3">
           Battle for the Blocs
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

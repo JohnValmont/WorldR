@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import {
-  Home, Flag, Vote, Landmark, Users, Swords, Briefcase,
+  Home, Flag, Vote, Landmark, Users, Briefcase,
 } from 'lucide-react';
 
 export type PoliticsSection =
@@ -10,7 +10,6 @@ export type PoliticsSection =
   | 'legislature'
   | 'assembly'
   | 'party'
-  | 'warroom'
   | 'lobby';
 
 interface SidebarItem {
@@ -25,7 +24,6 @@ const ITEMS: SidebarItem[] = [
   { id: 'elections',   label: 'Elections',   Icon: Vote     },
   { id: 'legislature', label: 'Legislature', Icon: Landmark },
   { id: 'assembly',    label: 'Assembly',    Icon: Users    },
-  { id: 'warroom',     label: 'War Room',    Icon: Swords   },
   { id: 'lobby',       label: 'Lobby',       Icon: Briefcase },
 ];
 
@@ -71,7 +69,6 @@ export default function PoliticsSidebar({
         })}
       </nav>
 
-      {/* Bottom spacer */}
       <div className="mt-auto px-4 py-4 border-t border-[#252637]">
         <div className="text-[10px] text-[#4a4c60] uppercase tracking-wider">Political Desk</div>
       </div>

@@ -36,29 +36,29 @@ export default function PartyStanding({
     <div
       className={
         'flex items-center gap-3 py-2.5 px-2 rounded-sm ' +
-        (isMine ? 'bg-terminal-amber/5 ring-1 ring-terminal-amber/25' : '')
+        (isMine ? 'bg-[#e8752a]/10 ring-1 ring-[#e8752a]/30' : '')
       }
     >
       <PartyCrest name={name} size={30} color={accent} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[#F4EBD6] text-sm truncate">
+          <span className="text-white text-sm truncate">
             {name}
             {isMine && (
-              <span className="ml-2 text-[8px] font-mono uppercase tracking-widest text-terminal-amber">
+              <span className="ml-2 text-[8px] font-mono uppercase tracking-widest text-[#e8752a]">
                 You
               </span>
             )}
           </span>
-          <span className="text-[#E4DBCA] text-sm font-mono shrink-0">
+          <span className="text-[#c4c6d8] text-sm font-mono shrink-0">
             {seats}
-            <span className="text-[#6B6358] text-xs"> · {pct.toFixed(0)}%</span>
+            <span className="text-[#6b6d8a] text-xs"> · {pct.toFixed(0)}%</span>
           </span>
         </div>
         {showLeader && (
-          <div className="text-[10px] text-[#A79D8C] truncate">{id.leader}</div>
+          <div className="text-[10px] text-[#8b8da8] truncate">{id.leader}</div>
         )}
-        <div className="mt-1.5 h-1.5 w-full bg-[#17151B] rounded-full overflow-hidden">
+        <div className="mt-1.5 h-1.5 w-full bg-[#13141f] rounded-full overflow-hidden">
           <div
             className="h-full rounded-full"
             style={{ width: `${pct}%`, background: accent }}

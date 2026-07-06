@@ -26,6 +26,7 @@ import {
   getMyAp,
   doGeneralAction,
   recruitNpc,
+  setTenet,
 } from '../controllers/politics.controller';
 import { getOrCreateCurrentCycle } from '../services/politics.service';
 import { db } from '../../config/database';
@@ -113,5 +114,6 @@ router.post('/tenders/:id/bid', authMiddleware, bidTender);
 router.get('/ap', authMiddleware, getMyAp);
 router.post('/general-action', authMiddleware, doGeneralAction);
 router.post('/recruit', authMiddleware, recruitNpc);
+router.patch('/parties/:id/tenet', authMiddleware, setTenet);
 
 export default router;

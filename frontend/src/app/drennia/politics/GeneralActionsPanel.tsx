@@ -11,6 +11,7 @@ import {
   RECRUIT_COST_CASH,
   getRosterCap,
 } from '@/lib/politicsConstants';
+import { getDoctrineById, type SignatureActionDef } from './_lib/doctrines';
 import ActionCard from './_components/ActionCard';
 
 interface Action {
@@ -22,6 +23,7 @@ interface Action {
   apCost: number;
   cashCost?: number;
   leaderOnly?: boolean;
+  isSignature?: boolean;
 }
 
 const GENERAL_ACTIONS: Action[] = [
@@ -109,6 +111,10 @@ export default function GeneralActionsPanel({
   const rosterFull = rosterSize >= rosterCap;
   const inParty = !!myParty;
 
+  // Resolve the doctrine signature action for this party (if any)
+  const doctrine = getDoctrineById(myParty?.doctrine_id);
+  const signatureAction: SignatureActionDef | null = doctrine?.signatureAction ?? null;
+
   const run = async (actionType: string) => {
     try {
       setLoading(actionType);
@@ -131,9 +137,26 @@ export default function GeneralActionsPanel({
     }
   };
 
+  // Build the full action list: generic actions + signature action appended
+  const allActions: Action[] = [
+    ...GENERAL_ACTIONS,
+    ...(signatureAction && isLeader
+      ? [{
+          id: `action-${signatureAction.id}`,
+          type: signatureAction.id,
+          title: signatureAction.title,
+          subtitle: signatureAction.subtitle,
+          description: signatureAction.description,
+          apCost: signatureAction.apCost,
+          leaderOnly: true,
+          isSignature: true,
+        }]
+      : []),
+  ];
+
   return (
     <div className="bg-[#1c1d2e] border border-[#252637] rounded-xl p-6">
-      {/* Section header — matches "PARTY LEADER · THIS WEEK'S ACTION" */}
+      {/* Section header */}
       <div className="text-[10px] uppercase tracking-[0.2em] text-[#e8752a] font-semibold mb-1">
         {contextLabel} · This Arc&apos;s Actions
       </div>
@@ -154,9 +177,9 @@ export default function GeneralActionsPanel({
         </div>
       )}
 
-      {/* 4-column action grid — matches Nationhood */}
+      {/* Action grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {GENERAL_ACTIONS.map((action) => {
+        {allActions.map((action) => {
           const isRecruit = action.type === 'recruit';
           let available = inParty;
           let unavailableReason = '';
@@ -172,27 +195,33 @@ export default function GeneralActionsPanel({
           }
 
           return (
-            <ActionCard
+            <div
               key={action.id}
-              id={action.id}
-              title={action.title}
-              subtitle={action.subtitle}
-              description={action.description}
-              apCost={action.apCost}
-              currentAp={myAp.current_ap}
-              available={available}
-              unavailableReason={unavailableReason}
-              cashCost={action.cashCost}
-              partyTreasury={isRecruit ? Number(myParty?.treasury || 0) : undefined}
-              onConfirm={() => run(action.type)}
-              loading={loading === action.type}
-              notice={
-                isRecruit
-                  ? <span>Roster {rosterSize}/{rosterCap} · Pop {popularity}</span>
-                  : undefined
-              }
-              ctaBadge={action.type === 'negotiate' ? 'Open Negotiations' : undefined}
-            />
+              className={action.isSignature ? 'ring-1 ring-[#e8752a]/40 rounded-xl' : ''}
+            >
+              <ActionCard
+                id={action.id}
+                title={action.title}
+                subtitle={action.subtitle}
+                description={action.description}
+                apCost={action.apCost}
+                currentAp={myAp.current_ap}
+                available={available}
+                unavailableReason={unavailableReason}
+                cashCost={action.cashCost}
+                partyTreasury={isRecruit ? Number(myParty?.treasury || 0) : undefined}
+                onConfirm={() => run(action.type)}
+                loading={loading === action.type}
+                notice={
+                  isRecruit
+                    ? <span>Roster {rosterSize}/{rosterCap} · Pop {popularity}</span>
+                    : action.isSignature
+                    ? <span className="text-[#e8752a]">{doctrine?.name} · Signature</span>
+                    : undefined
+                }
+                ctaBadge={action.type === 'negotiate' ? 'Open Negotiations' : undefined}
+              />
+            </div>
           );
         })}
       </div>

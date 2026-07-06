@@ -714,7 +714,7 @@ export default function CreateCharacterPage() {
         name: `${firstName} ${lastName}`.trim(),
         motherland_country_id: 'drennia', // Temporary hardcode for v1
         home_state_id: choices.homeState ? `drennia-${choices.homeState.toLowerCase().split(' ')[0]}` : undefined,
-        currency_id: 'drennian-day'
+        currency_id: 'dollar'
       };
       
       await characterApi.create(payload);

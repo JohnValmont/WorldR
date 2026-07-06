@@ -3,6 +3,7 @@ import React from 'react';
 import { ChevronRight } from 'lucide-react';
 import PhaseTimeline from './_components/PhaseTimeline';
 import ArcDigest from './ArcDigest';
+import GeneralActionsPanel from './GeneralActionsPanel';
 import type { PoliticsSection } from './_components/PoliticsSidebar';
 import { JURISDICTIONS } from './_lib/session';
 
@@ -21,6 +22,7 @@ interface OverviewScreenProps {
   latestGoverningEvent: any;
   myAp?: { current_ap: number; ap_cap: number };
   onNavigate: (section: PoliticsSection) => void;
+  onRefresh: () => void;
 }
 
 export default function OverviewScreen({
@@ -30,6 +32,7 @@ export default function OverviewScreen({
   latestGoverningEvent,
   myAp,
   onNavigate,
+  onRefresh,
 }: OverviewScreenProps) {
   const phase = overview?.cyclePhase || overview?.cycle?.phase || 'governing';
   const countdown = overview?.countdownToNextPhase ?? 0;
@@ -46,7 +49,11 @@ export default function OverviewScreen({
     p.leader_character_id === character?.id ||
     p.members?.some((m: any) => m.character_id === character?.id)
   );
+  const isLeader = myParty?.leader_character_id === character?.id;
   const stateName = activeState?.name || 'Ironvale';
+
+  // Determine role context label for the actions block
+  const contextLabel = isLeader ? 'Party Leader' : myParty ? 'Party Member' : 'Independent';
 
   return (
     <div className="flex flex-col gap-8">
@@ -83,7 +90,7 @@ export default function OverviewScreen({
         ))}
       </div>
 
-      {/* ── Current State Card (like Nationhood's "Nation at a Glance") ── */}
+      {/* ── Current Phase Card ─────────────────────── */}
       {activeState && (
         <div className="bg-[#1c1d2e] border border-[#252637] rounded-xl p-6">
           <div className="flex items-start justify-between gap-4 mb-4">
@@ -119,22 +126,29 @@ export default function OverviewScreen({
         </div>
       )}
 
-      {/* ── Locked states ────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {JURISDICTIONS.filter(j => j.isLocked).map((j) => (
-          <div key={j.id} className="bg-[#16172a] border border-[#252637] border-dashed rounded-xl p-4 opacity-50">
-            <div className="text-sm font-semibold text-[#6b6d8a]">{j.name}</div>
-            <div className="text-[11px] text-[#4a4c60] mt-1">Not yet open for political activity</div>
-          </div>
-        ))}
-      </div>
+      {/* ── Party Leader · This Arc's Actions ─────── */}
+      {/* This block replaces the old War Room tab. Actions live here on Home. */}
+      {myAp && (
+        <div className="flex flex-col gap-4">
+          <GeneralActionsPanel
+            character={character}
+            parties={parties}
+            myAp={myAp}
+            onRefresh={onRefresh}
+            stateId={activeState?.code}
+            contextLabel={contextLabel}
+          />
 
-      {/* ── Quick actions row ─────────────────────── */}
+          {/* Stub for future role blocks — Legislator, Governor, etc. */}
+          {/* When those offices come online, additional labeled blocks stack here */}
+        </div>
+      )}
+
+      {/* ── Quick Navigation (secondary — below actions) ── */}
       <div className="bg-[#1c1d2e] border border-[#252637] rounded-xl p-6">
         <div className="text-[10px] uppercase tracking-wider text-[#6b6d8a] mb-4">Quick Navigation</div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
           {[
-            { label: 'Go to War Room', desc: 'Take actions with your AP', section: 'warroom' as PoliticsSection },
             { label: 'Party Registry', desc: 'Manage your party & roster', section: 'party' as PoliticsSection },
             { label: 'Elections',      desc: 'View polls & projections',   section: 'elections' as PoliticsSection },
           ].map(({ label, desc, section }) => (
@@ -153,7 +167,17 @@ export default function OverviewScreen({
         </div>
       </div>
 
-      {/* ── News feed ─────────────────────────────── */}
+      {/* ── Locked jurisdictions ─────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {JURISDICTIONS.filter(j => j.isLocked).map((j) => (
+          <div key={j.id} className="bg-[#16172a] border border-[#252637] border-dashed rounded-xl p-4 opacity-50">
+            <div className="text-sm font-semibold text-[#6b6d8a]">{j.name}</div>
+            <div className="text-[11px] text-[#4a4c60] mt-1">Not yet open for political activity</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Arc Digest news feed ─────────────────── */}
       <div>
         <div className="text-[10px] uppercase tracking-wider text-[#6b6d8a] mb-3">Arc Digest · Recent Events</div>
         <ArcDigest />

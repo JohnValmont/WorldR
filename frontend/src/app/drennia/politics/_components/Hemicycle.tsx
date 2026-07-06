@@ -82,7 +82,7 @@ export default function Hemicycle({
     parties.forEach((p) => {
       for (let i = 0; i < p.seats; i++) arr.push(p.color);
     });
-    while (arr.length < seats.length) arr.push('#2A2630');
+    while (arr.length < seats.length) arr.push('#252637');
     return arr.slice(0, seats.length);
   }, [parties, seats.length]);
 
@@ -116,7 +116,7 @@ export default function Hemicycle({
           y1={cy - majInner * Math.sin(majAngle)}
           x2={cx + majOuter * Math.cos(majAngle)}
           y2={cy - majOuter * Math.sin(majAngle)}
-          stroke="#F4EBD6"
+          stroke="#ffffff"
           strokeWidth={1.5}
           strokeDasharray="4 3"
           opacity={0.7}
@@ -129,7 +129,7 @@ export default function Hemicycle({
             x={cx}
             y={cy - 34}
             textAnchor="middle"
-            fill="#F4EBD6"
+            fill="#ffffff"
             style={{ fontFamily: 'serif', fontSize: 34 }}
           >
             {centerValue}
@@ -139,7 +139,7 @@ export default function Hemicycle({
               x={cx}
               y={cy - 14}
               textAnchor="middle"
-              fill="#A79D8C"
+              fill="#8b8da8"
               style={{ fontFamily: 'monospace', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase' }}
             >
               {centerLabel}

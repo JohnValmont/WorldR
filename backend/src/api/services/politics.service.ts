@@ -605,7 +605,7 @@ async function resolveElection(trx: any, cycleId: string) {
 
   await trx('pol_ledger_events').insert({
     state_id: cycle.state_id,
-    month: cycle.polling_arc,
+    arc: cycle.polling_arc,
     kind: 'election_results',
     headline: `ELECTION RESULTS: ${topName} Secures Most Seats`,
     body: `The polling stations have closed. ${topName} leads with ${topParty?.seats} seats out of ${POL_COUNCIL_SEATS}. The political landscape shifts as parties now scramble to form a viable government.`
@@ -789,7 +789,7 @@ async function namePremierAndEmitLedger(trx: any, cycle: any, largestParty: any,
 
   await trx('pol_ledger_events').insert({
     state_id: cycle.state_id,
-    month: cycle.formation_end_arc,
+    arc: cycle.formation_end_arc,
     kind: 'government_formed',
     headline,
     body
@@ -916,7 +916,7 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
         }
 
         await trx('pol_ledger_events').insert({
-          state_id: stateId, month: currentMonth, kind: 'bill_passed',
+          state_id: stateId, arc: currentMonth, kind: 'bill_passed',
           headline: `INDUSTRY TAX REVISED`,
           body: `Council passes the new industry tax rate of ${(newRate * 100).toFixed(1)}%.`
         });
@@ -927,7 +927,7 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
       }
       await trx('pol_bills').where({ id: bill.id }).update({ status: 'failed' });
       await trx('pol_ledger_events').insert({
-        state_id: stateId, month: currentMonth, kind: 'bill_failed',
+        state_id: stateId, arc: currentMonth, kind: 'bill_failed',
         headline: `BILL FAILED: ${bill.type.replace('_', ' ').toUpperCase()}`,
         body: `Council rejected the proposed ${bill.type.replace('_', ' ')}.`
       });
@@ -951,7 +951,7 @@ async function awardTenders(trx: any, stateId: string, currentMonth: number) {
     if (bids.length === 0) {
       await trx('pol_tenders').where({ id: tender.id }).update({ status: 'closed' });
       await trx('pol_ledger_events').insert({
-        state_id: stateId, month: currentMonth, kind: 'tender_awarded',
+        state_id: stateId, arc: currentMonth, kind: 'tender_awarded',
         headline: `Tender Failed: ${tender.vehicle_class}`,
         body: `No qualifying bids were received for the ${tender.vehicle_class} tender. It has been closed.`
       });
@@ -980,7 +980,7 @@ async function awardTenders(trx: any, stateId: string, currentMonth: number) {
     });
 
     await trx('pol_ledger_events').insert({
-      state_id: stateId, month: currentMonth, kind: 'tender_awarded',
+      state_id: stateId, arc: currentMonth, kind: 'tender_awarded',
       headline: `Tender Awarded: ${tender.vehicle_class}`,
       body: `The ${tender.vehicle_class} procurement contract was awarded to ${winningBid.company_name} at ${winningBid.bid_price} ₯ per unit.`
     });

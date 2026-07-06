@@ -24,6 +24,12 @@ import {
   POL_FUNDRAISER_CHARISMA_MULT,
   RECRUIT_COST_CASH,
   GENERAL_ACTION_TYPES,
+  DOCTRINE_IDS,
+  DOCTRINE_PLATFORMS,
+  DOCTRINE_SIGNATURE_ACTION,
+  DOCTRINE_TENETS,
+  SIGNATURE_ACTION_AP_COST,
+  TENET_IDS,
 } from '../constants/politics';
 import { runElection } from '../services/electionEngine';
 import { buildPulse } from '../services/politics.pulse';
@@ -148,11 +154,28 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
     const userId = req.user?.id;
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
     
-    const { name, platform } = req.body;
+    const { name, doctrine_id, tenet_id } = req.body;
     if (!name || name.trim() === '') return next(new AppError('Party name required', 400, 'BAD_REQUEST'));
+    if (!doctrine_id) return next(new AppError('doctrine_id required', 400, 'BAD_REQUEST'));
+    if (!(DOCTRINE_IDS as readonly string[]).includes(doctrine_id)) {
+      return next(new AppError('Invalid doctrine_id', 400, 'BAD_REQUEST'));
+    }
+    if (tenet_id && !(TENET_IDS as readonly string[]).includes(tenet_id)) {
+      return next(new AppError('Invalid tenet_id', 400, 'BAD_REQUEST'));
+    }
+    // Validate tenet belongs to the chosen doctrine
+    if (tenet_id) {
+      const doctenets = DOCTRINE_TENETS[doctrine_id as keyof typeof DOCTRINE_TENETS];
+      if (!doctenets.includes(tenet_id)) {
+        return next(new AppError('Tenet does not belong to this doctrine', 400, 'BAD_REQUEST'));
+      }
+    }
 
     const stateIdForFound = (req.body.stateId as string | undefined);
     const activeState = await resolveState(stateIdForFound);
+
+    // Derive the platform from the chosen doctrine
+    const derivedPlatform = DOCTRINE_PLATFORMS[doctrine_id as keyof typeof DOCTRINE_PLATFORMS];
 
     // DB Transaction
     const result = await db.transaction(async (trx) => {
@@ -177,13 +200,15 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
       const clock = await trx('world_clock').first();
       const currentMonth = clock?.current_month || 1;
 
-      const safePlatform = platform || { taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 };
-
       const [party] = await trx('pol_parties').insert({
         state_id: activeState.id,
         name: name.trim(),
         leader_character_id: character.id,
-        platform: safePlatform,
+        platform: derivedPlatform,
+        doctrine_id,
+        tenet_id: tenet_id || null,
+        doctrine_drift: {},
+        doctrine_drift_arc: currentMonth,
         treasury: 0,
         is_npc: false,
         created_arc: currentMonth
@@ -875,7 +900,7 @@ export async function postTender(req: Request, res: Response, next: NextFunction
 
       await trx('pol_ledger_events').insert({
         state_id: activeState.id,
-        month: currentMonth,
+        arc: currentMonth,
         kind: 'tender_posted',
         headline: `Government Procurement: ${vehicle_class} Tender Posted`,
         body: `The government has opened bidding for ${units_per_month} units per month at a max price of ${max_price} ₯ for ${duration_arcs} months.`
@@ -1107,7 +1132,7 @@ export async function getMyAp(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-/** POST /politics/general-action — Statement / Fundraise / Endorsement / Scout / Negotiate */
+/** POST /politics/general-action — Standard + Doctrine Signature Actions */
 export async function doGeneralAction(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user?.id;
@@ -1117,8 +1142,9 @@ export async function doGeneralAction(req: Request, res: Response, next: NextFun
     if (!type || !GENERAL_ACTION_TYPES.includes(type)) {
       return next(new AppError('Unknown general action type', 400, 'BAD_REQUEST'));
     }
-    // Recruit is handled by its own endpoint
     if (type === 'recruit') return next(new AppError('Use POST /politics/recruit for recruiting', 400, 'BAD_REQUEST'));
+
+    const SIGNATURE_TYPES = new Set(['union_address','investor_roadshow','town_hall','shop_floor_tour','listening_tour','coalition_outreach']);
 
     const AP_COSTS: Record<string, number> = {
       statement:   AP_COST_STATEMENT,
@@ -1126,6 +1152,7 @@ export async function doGeneralAction(req: Request, res: Response, next: NextFun
       endorsement: AP_COST_ENDORSEMENT_AP,
       scout:       AP_COST_SCOUT,
       negotiate:   AP_COST_NEGOTIATE,
+      ...SIGNATURE_ACTION_AP_COST,
     };
     const cost = AP_COSTS[type] ?? 1;
 
@@ -1138,30 +1165,54 @@ export async function doGeneralAction(req: Request, res: Response, next: NextFun
 
       const party = await trx('pol_parties').where({ id: membership.party_id }).first();
 
-      // Deduct AP
+      // Gate signature actions: only the doctrine's party may use them
+      if (SIGNATURE_TYPES.has(type)) {
+        const expected = party?.doctrine_id
+          ? DOCTRINE_SIGNATURE_ACTION[party.doctrine_id as keyof typeof DOCTRINE_SIGNATURE_ACTION]
+          : null;
+        if (expected !== type) {
+          throw new AppError(`Your party's doctrine does not unlock the "${type}" action.`, 403, 'FORBIDDEN');
+        }
+      }
+
       await spendAp(trx, character.id, cost);
 
-      // Apply effect
+      const charisma = Number(character.charisma || 0);
       let message = '';
+
       if (type === 'statement') {
-        // Small popularity nudge (tunable future effect)
         await trx('pol_parties').where({ id: party.id })
           .update({ popularity: trx.raw('LEAST(popularity + 1, 100)') });
         message = 'Statement issued. Popularity nudged up by 1.';
       } else if (type === 'fundraise') {
-        const charisma = Number(character.charisma || 0);
         const gain = Math.round(POL_FUNDRAISER_BASE + charisma * POL_FUNDRAISER_CHARISMA_MULT);
         await trx('pol_parties').where({ id: party.id }).increment('treasury', gain);
         message = `Fundraiser complete. +$${gain.toLocaleString()} added to party treasury.`;
       } else if (type === 'endorsement') {
-        // Data log only — segment boost TBD when candidate targeting is wired
         message = 'Endorsement drive logged. Candidate boost will apply at next campaign resolution.';
       } else if (type === 'scout') {
-        // Returns a redacted rival profile (full detail reserved for Phase 4c paid research)
         message = 'Scouting report filed. Rival platform outlines now visible in Party view.';
       } else if (type === 'negotiate') {
-        // Log data for future coalition Formation screen
         message = 'Negotiation outreach logged. This will improve coalition formation odds.';
+      // Doctrine Signature Actions
+      } else if (type === 'union_address') {
+        await trx('pol_parties').where({ id: party.id })
+          .update({ popularity: trx.raw('LEAST(popularity + 3, 100)') });
+        message = 'Union Address delivered. Strong popularity boost with industrial workers (+3).';
+      } else if (type === 'investor_roadshow') {
+        const gain = Math.round((POL_FUNDRAISER_BASE * 2) + charisma * POL_FUNDRAISER_CHARISMA_MULT * 1.5);
+        await trx('pol_parties').where({ id: party.id }).increment('treasury', gain);
+        message = `Investor Roadshow complete. +$${gain.toLocaleString()} raised from business backers.`;
+      } else if (type === 'town_hall') {
+        await trx('pol_parties').where({ id: party.id })
+          .update({ popularity: trx.raw('LEAST(popularity + 2, 100)') });
+        message = 'Town Hall held. Community trust reinforced (+2 popularity).';
+      } else if (type === 'shop_floor_tour') {
+        message = 'Shop Floor Tour complete. Labour-aligned candidates are more likely to respond to your next Recruit action.';
+      } else if (type === 'listening_tour') {
+        message = 'Listening Tour complete. Voter sentiment data updated. Check your party analytics for fresh segment readings.';
+      } else if (type === 'coalition_outreach') {
+        message = 'Coalition Outreach dispatched. Cross-party dialogue initiated. Coalition formation odds improved.';
       }
 
       const apRow = await trx('pol_character_ap').where({ character_id: character.id }).first();
@@ -1169,6 +1220,42 @@ export async function doGeneralAction(req: Request, res: Response, next: NextFun
     });
 
     return res.json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** PATCH /politics/parties/:id/tenet — set or change a party's active tenet (Leader only) */
+export async function setTenet(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const partyId = req.params.id;
+    const { tenet_id } = req.body;
+
+    if (tenet_id && !(TENET_IDS as readonly string[]).includes(tenet_id)) {
+      return next(new AppError('Invalid tenet_id', 400, 'BAD_REQUEST'));
+    }
+
+    const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+    if (!character) return next(new AppError('No active character', 400, 'NO_CHARACTER'));
+
+    const party = await db('pol_parties').where({ id: partyId }).first();
+    if (!party) return next(new AppError('Party not found', 404, 'NOT_FOUND'));
+    if (party.leader_character_id !== character.id) {
+      return next(new AppError('Only the party leader can change the tenet', 403, 'FORBIDDEN'));
+    }
+
+    if (tenet_id && party.doctrine_id) {
+      const doctenets = DOCTRINE_TENETS[party.doctrine_id as keyof typeof DOCTRINE_TENETS];
+      if (doctenets && !doctenets.includes(tenet_id)) {
+        return next(new AppError("Tenet does not belong to your party's doctrine", 400, 'BAD_REQUEST'));
+      }
+    }
+
+    await db('pol_parties').where({ id: partyId }).update({ tenet_id: tenet_id || null });
+    return res.json({ success: true, message: tenet_id ? `Tenet set to "${tenet_id}".` : 'Tenet cleared.' });
   } catch (error) {
     next(error);
   }

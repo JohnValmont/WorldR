@@ -10,7 +10,6 @@ import ElectionsScreen  from './ElectionsScreen';
 import LegislatureScreen from './LegislatureScreen';
 import AssemblyScreen   from './AssemblyScreen';
 import PartyScreen      from './PartyScreen';
-import WarRoomScreen    from './WarRoomScreen';
 import LobbyScreen      from './LobbyScreen';
 
 export default function PoliticsDesk() {
@@ -32,7 +31,7 @@ export default function PoliticsDesk() {
 
       const results = await Promise.allSettled([
         characterApi.getMe(),
-        politicsApi.getState(),                              // multi-state overview
+        politicsApi.getState(),
         politicsApi.getParties(selectedJurisdictionId),
         politicsApi.getLedger(20, selectedJurisdictionId),
         politicsApi.getMyAp(),
@@ -72,11 +71,9 @@ export default function PoliticsDesk() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Derived values
   const phase        = overview?.cyclePhase || overview?.cycle?.phase || 'governing';
   const sessionYear  = overview?.sessionYear ?? overview?.year;
 
-  // Build jurisdictionMeta for JurisdictionSwitcher phase dots
   const jurisdictionMeta = useMemo(() => {
     const meta: Record<string, { id: JurisdictionId; phase?: string }> = {};
     if (overview?.activeState) {
@@ -85,7 +82,6 @@ export default function PoliticsDesk() {
     return meta;
   }, [overview, phase]);
 
-  // Phase label for the header — reflects whichever jurisdiction is selected
   const displayPhase = useMemo(() => {
     const m = jurisdictionMeta[selectedJurisdictionId];
     return m?.phase ?? phase;
@@ -120,28 +116,23 @@ export default function PoliticsDesk() {
   return (
     <div className="flex flex-col" style={{ height: '100%', background: '#13141f' }}>
 
-      {/* ── Top bar — Nationhood style ──────────────── */}
+      {/* ── Top bar ──────────────────────────────── */}
       <div className="flex items-center justify-between gap-4 px-6 py-3 border-b border-[#252637] shrink-0 bg-[#13141f]">
-        {/* Left: breadcrumb */}
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-[#6b6d8a] uppercase tracking-wider">Drennia</span>
           <span className="text-[#3a3b4d]">/</span>
           <span className="text-[11px] text-white font-semibold uppercase tracking-wider">Politics</span>
         </div>
 
-        {/* Right: status pills */}
         <div className="flex items-center gap-3">
-          {/* Cash */}
           {character?.finances?.cash_in_hand != null && (
             <div className="px-3 py-1.5 bg-[#1c1d2e] border border-[#252637] rounded-lg text-[12px] font-mono font-bold text-white">
               ${Number(character.finances.cash_in_hand).toLocaleString()}
             </div>
           )}
-          {/* AP pill — matches Nationhood "PARTY ACTIONS: N AVAILABLE" */}
           <div className="px-3 py-1.5 bg-[#e8752a] rounded-lg text-[11px] font-bold text-white uppercase tracking-wider">
             {myAp.current_ap} / {myAp.ap_cap} AP Available
           </div>
-          {/* Phase */}
           <div className="px-3 py-1.5 bg-[#1c1d2e] border border-[#252637] rounded-lg text-[11px] text-[#8b8da8] uppercase tracking-wider">
             {displayPhase || 'Governing'}
           </div>
@@ -151,7 +142,6 @@ export default function PoliticsDesk() {
       {/* ── Body: Sidebar + Content ─────────────── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
-        {/* Left Sidebar */}
         <PoliticsSidebar
           active={activeSection}
           onSelect={setActiveSection}
@@ -159,7 +149,6 @@ export default function PoliticsDesk() {
           myPartyNation={overview?.activeState?.name || 'Ironvale'}
         />
 
-        {/* Main Content */}
         <main className="flex-1 overflow-y-auto bg-[#13141f]">
           <div className="max-w-5xl mx-auto px-8 py-8">
             {activeSection === 'overview' && (
@@ -170,6 +159,7 @@ export default function PoliticsDesk() {
                 latestGoverningEvent={latestGoverningEvent}
                 myAp={myAp}
                 onNavigate={setActiveSection}
+                onRefresh={loadData}
               />
             )}
             {activeSection === 'elections' && (
@@ -183,9 +173,6 @@ export default function PoliticsDesk() {
             )}
             {activeSection === 'party' && (
               <PartyScreen {...commonProps} />
-            )}
-            {activeSection === 'warroom' && (
-              <WarRoomScreen {...commonProps} />
             )}
             {activeSection === 'lobby' && (
               <LobbyScreen {...commonProps} />
