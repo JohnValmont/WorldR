@@ -154,8 +154,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           }}
         />
 
-        {/* Globe — centred in the panel */}
+        {/* Globe — centred in the panel with enhanced glow */}
         <div className="absolute inset-0 flex items-center justify-center">
+          {/* Background glow halo */}
+          <div className="absolute w-96 h-96 rounded-full bg-gradient-to-b from-amber-500/8 via-indigo-500/8 to-transparent blur-3xl -z-10" />
           <WorldMapGlobe />
         </div>
 
@@ -221,12 +223,23 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
 
       {/* ── Right form panel ─── */}
-      <div className="flex flex-col w-full lg:w-[420px] xl:w-[460px] relative overflow-y-auto overflow-x-hidden">
-        {/* Panel background */}
-        <div className="absolute inset-0 bg-[#080810] border-l border-white/[0.04]" />
+      <div className="flex flex-col w-full lg:w-[440px] xl:w-[480px] relative overflow-y-auto overflow-x-hidden">
+        {/* Panel background with gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a10] via-[#080810] to-[#050508] border-l border-amber-500/10" />
+
+        {/* Subtle animated background pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.008]"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 20% 50%, rgba(245,158,11,1) 0px, transparent 50px),' +
+              'radial-gradient(circle at 80% 80%, rgba(99,102,241,1) 0px, transparent 50px)',
+            pointerEvents: 'none',
+          }}
+        />
 
         {/* Top gradient stripe */}
-        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-amber-500/25 to-transparent" />
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
 
         {/* Mobile logo */}
         <div className="relative z-10 flex lg:hidden items-center gap-3 p-6 pb-0">
