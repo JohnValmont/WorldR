@@ -16,7 +16,8 @@ import { AppError } from '../../utils/errors';
  * - Sell orders lock shares: holder's cap-table shares are reduced up-front and restored on cancel.
  */
 
-const TOTAL_SHARES = 1_000_000;
+export const TOTAL_SHARES = 1_000_000;
+export const CIRCUIT_BREAKER_LIMIT = 0.20; // ±20% from last month's close
 
 async function assertPublicPlayerCompany(trx: any, companyId: string) {
   const company = await trx('companies').where({ id: companyId }).first();
@@ -28,24 +29,61 @@ async function assertPublicPlayerCompany(trx: any, companyId: string) {
   return company;
 }
 
+/** Last monthly closing price from the OHLC history, or null before the first snapshot. */
+export async function getLastClose(trx: any, companyId: string): Promise<number | null> {
+  const row = await trx('share_price_history')
+    .where({ company_id: companyId })
+    .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
+    .first();
+  return row ? Number(row.close_price) : null;
+}
+
 export async function placeOrder(params: {
   companyId: string;
   characterId: string;
   side: 'buy' | 'sell';
   price: number;
   quantity: number;
+  isNpc?: boolean;            // system market-maker / earnings-impulse orders
+  skipCircuitBreaker?: boolean;
+  existingTrx?: any;          // run inside a caller's transaction (e.g. the world tick) instead of a new one
 }) {
-  const { companyId, characterId, side, price, quantity } = params;
+  const { companyId, characterId, side, price, quantity, isNpc = false, skipCircuitBreaker = false, existingTrx } = params;
 
   if (!Number.isFinite(price) || price <= 0) throw new AppError('Invalid price', 400, 'BAD_REQUEST');
   if (!Number.isInteger(quantity) || quantity <= 0) throw new AppError('Invalid quantity', 400, 'BAD_REQUEST');
 
-  return db.transaction(async (trx) => {
+  const run = async (trx: any) => {
     await assertPublicPlayerCompany(trx, companyId);
 
     const clock = await trx('world_clock').first();
     const gameYear = clock?.current_year || 1;
     const gameMonth = clock?.current_month || 1;
+
+    // ---- Circuit breaker (players only; NPC specialist is exempt) ----
+    if (!isNpc && !skipCircuitBreaker) {
+      const lastClose = await getLastClose(trx, companyId);
+      if (lastClose != null && lastClose > 0) {
+        const move = Math.abs(price - lastClose) / lastClose;
+        if (move > CIRCUIT_BREAKER_LIMIT) {
+          await trx('share_orders').insert({
+            company_id: companyId,
+            character_id: characterId,
+            side,
+            price,
+            quantity,
+            escrow_amount: 0,
+            status: 'cancelled',
+            rejected_circuit_breaker: true,
+          });
+          throw new AppError(
+            `Order price §${price.toFixed(2)} exceeds the ±${Math.round(CIRCUIT_BREAKER_LIMIT * 100)}% circuit breaker (last close §${lastClose.toFixed(2)})`,
+            400,
+            'CIRCUIT_BREAKER'
+          );
+        }
+      }
+    }
 
     // ---- Escrow ----
     if (side === 'buy') {
@@ -77,6 +115,7 @@ export async function placeOrder(params: {
         price,
         quantity,
         escrow_amount: side === 'buy' ? price * quantity : 0,
+        is_npc: isNpc,
       })
       .returning('*');
 
@@ -176,7 +215,9 @@ export async function placeOrder(params: {
 
     const finalOrder = await trx('share_orders').where({ id: order.id }).first();
     return { order: finalOrder, trades };
-  });
+  };
+
+  return existingTrx ? run(existingTrx) : db.transaction(run);
 }
 
 export async function cancelOrder(orderId: string, characterId: string) {
@@ -217,7 +258,7 @@ export async function cancelOrder(orderId: string, characterId: string) {
 }
 
 export async function getListings() {
-  // Public player companies with last trade price + share stats
+  // Public player companies with monthly OHLC-derived stats + live book top.
   const companies = await db('companies as c')
     .join('company_finances as f', 'f.company_id', 'c.id')
     .where({ 'c.legal_structure_id': 'public-corporation', 'c.is_npc': false, 'c.status': 'active' })
@@ -225,25 +266,30 @@ export async function getListings() {
 
   const result = [];
   for (const co of companies) {
-    const lastTrade = await db('share_trades').where({ company_id: co.id }).orderBy('executed_at', 'desc').first();
-    const prevMonthTrade = lastTrade
-      ? await db('share_trades')
-          .where({ company_id: co.id })
-          .whereNot({ game_month: lastTrade.game_month })
-          .orderBy('executed_at', 'desc')
-          .first()
-      : null;
+    const [latest, prev] = await db('share_price_history')
+      .where({ company_id: co.id })
+      .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
+      .limit(2);
+
+    // Fall back to the raw last trade if no monthly snapshot exists yet (freshly listed).
+    const lastTrade = latest ? null : await db('share_trades').where({ company_id: co.id }).orderBy('executed_at', 'desc').first();
+
     const bestBid = await db('share_orders').where({ company_id: co.id, side: 'buy', status: 'open' }).max('price as p').first();
     const bestAsk = await db('share_orders').where({ company_id: co.id, side: 'sell', status: 'open' }).min('price as p').first();
 
-    const lastPrice = lastTrade ? Number(lastTrade.price) : null;
+    const lastPrice = latest ? Number(latest.close_price) : lastTrade ? Number(lastTrade.price) : null;
+    const prevPrice = latest && prev ? Number(prev.close_price) : null;
+
     result.push({
       ...co,
       last_price: lastPrice,
-      prev_price: prevMonthTrade ? Number(prevMonthTrade.price) : null,
+      prev_price: prevPrice,
       best_bid: bestBid?.p ? Number(bestBid.p) : null,
       best_ask: bestAsk?.p ? Number(bestAsk.p) : null,
-      market_cap: lastPrice != null ? lastPrice * TOTAL_SHARES : null,
+      market_cap: latest ? Number(latest.market_cap) : lastPrice != null ? lastPrice * TOTAL_SHARES : null,
+      pe_ratio: latest?.pe_ratio != null ? Number(latest.pe_ratio) : null,
+      eps: latest ? Number(latest.eps) : null,
+      volume: latest ? Number(latest.volume_shares) : 0,
       total_shares: TOTAL_SHARES,
     });
   }

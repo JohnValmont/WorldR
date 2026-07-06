@@ -155,7 +155,24 @@ export const exchangeApi = {
   cancelOrder: (orderId: string) => api.delete(`/exchange/orders/${orderId}`).then(res => res.data),
   getMyOrders: () => api.get('/exchange/my-orders').then(res => res.data),
   getMyPortfolio: () => api.get('/exchange/portfolio').then(res => res.data),
-  getPriceHistory: (companyId: string) => api.get(`/exchange/${companyId}/history`).then(res => res.data)
+  getPriceHistory: (companyId: string) => api.get(`/exchange/${companyId}/history`).then(res => res.data),
+
+  // ── DRX index + quote detail (OHLC / earnings) ──
+  getDrxIndex: () => api.get('/exchange/drx-index').then(res => res.data),
+  getCompanyDetail: (companyId: string) => api.get(`/exchange/company/${companyId}`).then(res => res.data),
+  getOhlc: (companyId: string, months = 24) => api.get(`/exchange/company/${companyId}/ohlc?months=${months}`).then(res => res.data),
+  getEarnings: (companyId: string, months = 12) => api.get(`/exchange/company/${companyId}/earnings?months=${months}`).then(res => res.data),
+
+  // ── IPO pipeline + book-building ──
+  getPipeline: () => api.get('/exchange/ipo/pipeline').then(res => res.data),
+  getEligibility: (companyId: string) => api.get(`/exchange/ipo/${companyId}/eligibility`).then(res => res.data),
+  getCompanyIpo: (companyId: string) => api.get(`/exchange/ipo/${companyId}`).then(res => res.data),
+  fileIpo: (companyId: string, data: { priceMin: number; priceMax: number; floatPercent: number; useOfProceeds: string; lockupMonths: number }) =>
+    api.post(`/exchange/ipo/${companyId}/file`, data).then(res => res.data),
+  withdrawIpo: (companyId: string) => api.post(`/exchange/ipo/${companyId}/withdraw`).then(res => res.data),
+  submitIoi: (ipoId: string, data: { pricePerShare: number; quantity: number }) =>
+    api.post(`/exchange/ipo/${ipoId}/ioi`, data).then(res => res.data),
+  cancelIoi: (ioiId: string) => api.delete(`/exchange/ipo/ioi/${ioiId}`).then(res => res.data)
 };
 
 // Investments — P2P loans and private equity placements
