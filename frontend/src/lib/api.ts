@@ -193,6 +193,8 @@ export const politicsApi = {
   leaveParty: (id: string) => api.post(`/politics/parties/${id}/leave`).then(res => res.data),
   updatePlatform: (id: string, platform: any) => api.put(`/politics/parties/${id}/platform`, { platform }).then(res => res.data),
   declareCandidacy: (stateId?: string) => api.post('/politics/candidacy', { stateId }).then(res => res.data),
+  setDoctrine: (id: string, doctrine_id: string, tenet_id: string | null, platform: any) => api.patch(`/politics/parties/${id}/doctrine`, { doctrine_id, tenet_id, platform }).then(res => res.data),
+  setTenet: (id: string, tenet_id: string | null) => api.patch(`/politics/parties/${id}/tenet`, { tenet_id }).then(res => res.data),
   queueCampaignAction: (data: any, stateId?: string) => api.post('/politics/campaign/actions', { ...data, stateId }).then(res => res.data),
   getPolls: (stateId?: string) => api.get(`/politics/polls${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
   getCouncil: (stateId?: string) => api.get(`/politics/council${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),

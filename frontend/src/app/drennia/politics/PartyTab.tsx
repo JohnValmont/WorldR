@@ -44,6 +44,10 @@ export default function PartyTab({ overview, character, parties, myAp, onRefresh
   // Edit platform (post-founding adjustment — kept for leader use)
   const [editPlatform, setEditPlatform] = useState<Record<string, number> | null>(null);
 
+  // Legacy party lock-in state
+  const [legacyDoctrineId, setLegacyDoctrineId] = useState<string | null>(null);
+  const [legacyTenetId, setLegacyTenetId] = useState<string | null>(null);
+
   // Tenet management
   const [tenetLoading, setTenetLoading] = useState(false);
 
@@ -82,6 +86,13 @@ export default function PartyTab({ overview, character, parties, myAp, onRefresh
   const handleUpdatePlatform = () => {
     if (!editPlatform) return;
     return run(async () => { await politicsApi.updatePlatform(myParty.id, editPlatform); setEditPlatform(null); }, 'Failed to update platform');
+  };
+
+  const handleSetDoctrine = () => {
+    if (!legacyDoctrineId) return;
+    const doc = getDoctrineById(legacyDoctrineId);
+    if (!doc) return;
+    return run(() => politicsApi.setDoctrine(myParty.id, legacyDoctrineId, legacyTenetId, doc.platform), 'Failed to confirm doctrine');
   };
 
   const handleSetTenet = async (tenetId: string | null) => {
@@ -290,13 +301,33 @@ export default function PartyTab({ overview, character, parties, myAp, onRefresh
                     <PlatformBars platform={myParty.platform} />
                   </div>
                 </div>
+              ) : isLeader ? (
+                /* Fallback for legacy NPC parties without doctrine_id - let leader pick */
+                <div className="space-y-4">
+                  <p className="text-sm text-[#A79D8C]">
+                    Your party was founded before Doctrines were formalized. Select an identity to lock in.
+                  </p>
+                  <DoctrineGallery
+                    selectedDoctrineId={legacyDoctrineId}
+                    selectedTenetId={legacyTenetId}
+                    onSelectDoctrine={setLegacyDoctrineId}
+                    onSelectTenet={setLegacyTenetId}
+                  />
+                  <Button 
+                    onClick={handleSetDoctrine}
+                    disabled={!legacyDoctrineId || loading}
+                    variant="primary" 
+                    fullWidth
+                  >
+                    Confirm Doctrine
+                  </Button>
+                </div>
               ) : (
-                /* Fallback for legacy NPC parties without doctrine_id */
-                <PlatformPicker platform={myParty.platform} disabled />
+                 <div className="text-[#A79D8C] text-sm italic">This party has not formalized a doctrine yet.</div>
               )}
 
               {/* Edit platform (Leader) */}
-              {isLeader && (
+              {isLeader && partyDoctrine && (
                 <div className="mt-4">
                   {editPlatform ? (
                     <>
