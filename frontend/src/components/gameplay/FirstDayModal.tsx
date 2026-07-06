@@ -293,8 +293,7 @@ export default function FirstDayModal({ characterName, citizenFile, onDismiss }:
   };
 
   const goToPolitics = () => {
-    dismiss();
-    router.push('/drennia/politics');
+    alert('Political desk will be available on 09 July 2026.');
   };
 
   const firstName = characterName.split(' ')[0] || characterName;

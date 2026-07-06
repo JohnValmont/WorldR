@@ -442,7 +442,7 @@ export default function ChroniclePage() {
                   <Button href="/drennia/business" variant="primary" icon={ChevronRight} size="sm">
                     {company ? 'Open your desk' : 'Start your company'}
                   </Button>
-                  <Button href="/drennia/politics" variant="secondary" size="sm">Politics Desk →</Button>
+                  <Button onClick={() => alert('Political desk will be available on 09 July 2026.')} variant="secondary" size="sm">Politics Desk →</Button>
                   {activeContracts > 0 && <Badge variant="amber">{activeContracts} active contracts</Badge>}
                 </div>
               </div>
@@ -466,12 +466,13 @@ export default function ChroniclePage() {
               </span>
               {[
                 { label: 'Register a company', href: '/drennia/business', done: !!company },
-                { label: 'Join a political party', href: '/drennia/politics', done: false },
+                { label: 'Join a political party', href: '#', onClick: (e: any) => { e.preventDefault(); alert('Political desk will be available on 09 July 2026.'); }, done: false },
                 { label: 'Check the World Feed', href: '/drennia/world', done: false },
               ].map(item => (
                 <a
                   key={item.label}
                   href={item.href}
+                  onClick={item.onClick}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     fontSize: 11, color: item.done ? '#4D8C6A' : '#A79D8C',
@@ -590,7 +591,7 @@ export default function ChroniclePage() {
               <p className="text-[12px] text-zinc-400 leading-relaxed mb-4">
                 Enter the political arena. Manage your party, run campaigns, shape public policy, and form the government.
               </p>
-              <Button href="/drennia/politics" variant="primary" icon={ChevronRight} size="sm">
+              <Button onClick={() => alert('Political desk will be available on 09 July 2026.')} variant="primary" icon={ChevronRight} size="sm">
                 Open Politics Desk
               </Button>
             </Card>
