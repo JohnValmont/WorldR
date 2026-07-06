@@ -177,9 +177,18 @@ export default function ChroniclePage() {
           setCharacterAge(Number(char.age ?? 18));
           setPlayerCash(Number(char.finances?.cash_in_hand ?? 0));
 
-          let parsed = { motherland: 'Drennia' };
+          let parsed: PlayerStats = {
+            motherland: 'Drennia',
+            credibility: 50,
+            charisma: 50,
+            influence: 50
+          };
           try {
-            if (fileStr) parsed = JSON.parse(fileStr);
+            const fileStr = char.citizen_file;
+            if (fileStr) {
+              const fromDb = typeof fileStr === 'string' ? JSON.parse(fileStr) : fileStr;
+              parsed = { ...parsed, ...fromDb };
+            }
           } catch (e) {
             console.warn('Failed to parse citizen file', e);
           }
