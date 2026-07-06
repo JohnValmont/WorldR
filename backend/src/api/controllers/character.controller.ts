@@ -48,6 +48,7 @@ export class CharacterController {
       // Check if character already exists for this user
       const existing = await db('characters')
         .where({ user_id: userId, world_instance_id: 'pre-alpha-world-1' })
+        .whereNot('status', 'deleted')
         .first();
 
       if (existing) {
@@ -88,6 +89,29 @@ export class CharacterController {
       });
 
       res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async deleteMe(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+      }
+
+      const character = await db('characters')
+        .where({ user_id: userId, status: 'active' })
+        .first();
+
+      if (character) {
+        await db('characters')
+          .where({ id: character.id })
+          .update({ status: 'deleted' });
+      }
+
+      res.status(200).json({ message: 'Character deleted' });
     } catch (error) {
       next(error);
     }

@@ -146,8 +146,21 @@ export default function ChroniclePage() {
   const companyCash = Number(company?.finances?.available_cash ?? 0);
   const netWorth    = playerCash + companyCash;
 
-  const handleRestartLife = useCallback(() => {
+  const handleRestartLife = useCallback(async () => {
     if (typeof window === 'undefined') return;
+    try {
+      const token = localStorage.getItem('worldr_access_token');
+      if (token) {
+        await fetch(process.env.NEXT_PUBLIC_API_URL + '/api/v1/character/me', {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to delete character', e);
+    }
     const preserve = [
       'worldr_access_token',
       'worldr_refresh_token',
@@ -160,7 +173,7 @@ export default function ChroniclePage() {
       if (k?.startsWith('worldr_') && !preserve.includes(k)) toRemove.push(k);
     }
     toRemove.forEach(k => localStorage.removeItem(k));
-    window.location.href = '/world-entry';
+    window.location.href = '/';
   }, []);
 
   useEffect(() => {
