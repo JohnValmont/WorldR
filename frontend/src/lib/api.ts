@@ -219,9 +219,7 @@ export const politicsApi = {
   doGeneralAction: (type: string, params?: any, stateId?: string) =>
     api.post('/politics/general-action', { type, params, stateId }).then(res => res.data),
   recruitNpc: (stateId?: string) =>
-    api.post('/politics/recruit', { stateId }).then(res => res.data),
-  setTenet: (partyId: string, tenetId: string | null) =>
-    api.patch(`/politics/parties/${partyId}/tenet`, { tenet_id: tenetId }).then(res => res.data),
+    api.post('/politics/recruit', { stateId }).then(res => res.data)
 };
 
 
