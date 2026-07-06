@@ -499,3 +499,14 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
 });
 
 ScrollTrigger.refresh();
+
+/* ====================================================================
+   AUTH & DISCORD ROUTING
+   ==================================================================== */
+const btnCreate = document.getElementById('btnCreate');
+const btnLogin = document.getElementById('btnLogin');
+const btnDiscord = document.getElementById('btnDiscord');
+
+if (btnCreate) btnCreate.addEventListener('click', () => { window.location.href = '/landing/onboarding.html?action=register'; });
+if (btnLogin) btnLogin.addEventListener('click', () => { window.location.href = '/landing/onboarding.html?action=login'; });
+if (btnDiscord) btnDiscord.addEventListener('click', () => { window.open('https://discord.gg/K64Ff8fN', '_blank'); });
