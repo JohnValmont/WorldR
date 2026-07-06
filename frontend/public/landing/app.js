@@ -552,4 +552,6 @@ const btnDiscord = document.getElementById('btnDiscord');
 
 if (btnCreate) btnCreate.addEventListener('click', () => { window.location.href = '/landing/onboarding.html?action=register'; });
 if (btnLogin) btnLogin.addEventListener('click', () => { window.location.href = '/landing/onboarding.html?action=login'; });
-if (btnDiscord) btnDiscord.addEventListener('click', () => { window.open('https://discord.gg/K64Ff8fN', '_blank'); });
+if (btnDiscord) {
+  // It's now an anchor tag, no JS required for navigation
+}
