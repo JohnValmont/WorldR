@@ -18,7 +18,7 @@ if (!reduceMotion) {
 }
 
 /* ====================================================================
-   THREE.JS SCENE — the globe of Drennia (Point Cloud Edition)
+   THREE.JS SCENE — the globe of Drennia (Dark Tactical Globe)
    ==================================================================== */
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -34,199 +34,162 @@ scene.add(root);
 const globeGroup = new THREE.Group();
 root.add(globeGroup);
 
-/* ---------- FBM noise helpers (CPU-side for point placement) ---------- */
-function hash(n) { return (Math.sin(n) * 43758.5453) % 1; }
-function vnoise3(x, y, z) {
-  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
-  const fx = x - ix, fy = y - iy, fz = z - iz;
-  const ux = fx*fx*(3-2*fx), uy = fy*fy*(3-2*fy), uz = fz*fz*(3-2*fz);
-  const h = (a,b,c) => hash(a*127.1 + b*311.7 + c*74.7) * 2 - 1;
-  return (
-    (1-uz)*((1-uy)*((1-ux)*h(ix,iy,iz)   + ux*h(ix+1,iy,iz)  )
-                  +(   uy)*( (1-ux)*h(ix,iy+1,iz) + ux*h(ix+1,iy+1,iz)))
-   +    uz*((1-uy)*((1-ux)*h(ix,iy,iz+1) + ux*h(ix+1,iy,iz+1))
-                  +(   uy)*( (1-ux)*h(ix,iy+1,iz+1) + ux*h(ix+1,iy+1,iz+1)))
-  ) * 0.5 + 0.5;
-}
-function fbm3(x, y, z) {
-  let s = 0, a = 0.5;
-  for (let i = 0; i < 5; i++) {
-    s += a * vnoise3(x, y, z);
-    x *= 2.02; y *= 2.02; z *= 2.02; a *= 0.5;
-  }
-  return s;
-}
+/* ---------- TACTICAL GLOBE SHADER ---------- */
+const globeUniforms = {
+  uTime:   { value: 0 },
+  uAccent: { value: 1.0 },
+};
 
-/* ---------- Dark inner core (so the back-face doesn't bleed) ---------- */
-const core = new THREE.Mesh(
-  new THREE.SphereGeometry(0.994, 64, 64),
-  new THREE.MeshBasicMaterial({ color: 0x040608 })
+const globeVert = /* glsl */`
+  varying vec3 vPos;
+  varying vec3 vNormalView;
+  varying vec3 vViewDir;
+  void main(){
+    vPos = normalize(position);
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vViewDir = normalize(-mv.xyz);
+    vNormalView = normalize(normalMatrix * normal);
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+
+const globeFrag = /* glsl */`
+  precision highp float;
+  varying vec3 vPos;
+  varying vec3 vNormalView;
+  varying vec3 vViewDir;
+  uniform float uTime;
+  uniform float uAccent;
+
+  const float PI = 3.14159265359;
+
+  /* --- simple 2D value noise for subtle terrain shimmer --- */
+  float hash21(vec2 p){
+    p = fract(p * vec2(127.1, 311.7));
+    p += dot(p, p + 19.19);
+    return fract(p.x * p.y);
+  }
+  float noise2(vec2 p){
+    vec2 i = floor(p), f = fract(p);
+    vec2 u = f*f*(3.0-2.0*f);
+    return mix(
+      mix(hash21(i), hash21(i+vec2(1,0)), u.x),
+      mix(hash21(i+vec2(0,1)), hash21(i+vec2(1,1)), u.x), u.y
+    );
+  }
+
+  void main(){
+    vec3 n = normalize(vPos);
+
+    /* ---- spherical coords ---- */
+    float lat = asin(clamp(n.y, -1.0, 1.0)) / PI;   /* -0.5 to 0.5 */
+    float lon = atan(n.z, n.x) / (2.0 * PI);        /* -0.5 to 0.5 */
+    vec2 uv = vec2(lon + uTime * 0.016, lat);
+
+    /* ---- latitude / longitude grid ---- */
+    float latDiv = 12.0;  /* 15-degree bands */
+    float lonDiv = 24.0;  /* 15-degree bands */
+    float lw = 0.012;     /* line half-width in UV */
+
+    float latLine = 1.0 - smoothstep(0.0, lw, abs(fract(lat * latDiv + 0.5) - 0.5));
+    float lonLine = 1.0 - smoothstep(0.0, lw, abs(fract(lon * lonDiv + 0.5) - 0.5));
+    float grid = max(latLine, lonLine) * 0.28;
+
+    /* ---- equator & tropics (brighter special lines) ---- */
+    float equator  = 1.0 - smoothstep(0.0, 0.009, abs(lat));                   /* 0 deg */
+    float tropic1  = 1.0 - smoothstep(0.0, 0.007, abs(abs(lat) - 0.1306));    /* 23.5 N/S */
+    float arcCirc  = 1.0 - smoothstep(0.0, 0.007, abs(abs(lat) - 0.1944));    /* 35 N/S  */
+    float specials = max(equator * 0.7, max(tropic1 * 0.55, arcCirc * 0.35));
+
+    /* ---- scan sweep (top to bottom, slow) ---- */
+    float scanSpeed = 0.07;
+    float scanLat = fract(uTime * scanSpeed) - 0.5;  /* -0.5 to 0.5, scrolls downward */
+    float scanWidth = 0.012;
+    float scan = (1.0 - smoothstep(0.0, scanWidth, abs(lat - scanLat)))
+               * (0.6 + 0.4 * sin(uTime * 4.0));   /* breathe slightly */
+
+    /* ---- continent shimmer (very subtle noise variation) ---- */
+    float shimmer = noise2(uv * vec2(8.0, 14.0) + uTime * 0.04) * 0.06;
+
+    /* ---- Fresnel rim ---- */
+    float fresnel = pow(1.0 - max(dot(vNormalView, vViewDir), 0.0), 3.2);
+
+    /* ---- compose colour ---- */
+    vec3 base     = vec3(0.012, 0.014, 0.022);            /* near-black space */
+    vec3 amberDim = vec3(0.55,  0.30,  0.04);             /* dim grid */
+    vec3 amberMid = vec3(0.80,  0.48,  0.08);             /* spec lines */
+    vec3 amberHi  = vec3(0.96,  0.81,  0.51);             /* scan + rim */
+
+    vec3 col = base + shimmer;
+    col += amberDim  * grid;
+    col += amberMid  * specials * uAccent;
+    col += amberHi   * scan * 0.55;
+    col += amberHi   * fresnel * (0.82 + 0.28 * uAccent);
+
+    /* soft limb darkening (physical look) */
+    float limb = max(dot(vNormalView, vViewDir), 0.0);
+    col *= 0.55 + 0.45 * limb;
+
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+const globe = new THREE.Mesh(
+  new THREE.SphereGeometry(1, 128, 128),
+  new THREE.ShaderMaterial({ vertexShader: globeVert, fragmentShader: globeFrag, uniforms: globeUniforms })
 );
-globeGroup.add(core);
-
-/* ---------- POINT CLOUD — the globe itself ---------- */
-const DOTS = 28000;
-const dotPositions = new Float32Array(DOTS * 3);
-const dotColors    = new Float32Array(DOTS * 3);
-const dotSizes     = new Float32Array(DOTS);
-
-const amberHi = new THREE.Color(0xf4cf82);
-const amberMid = new THREE.Color(0xe6a93b);
-const amberLo  = new THREE.Color(0xcd8c1e);
-const oceanDim = new THREE.Color(0x1a1006);
-
-for (let i = 0; i < DOTS; i++) {
-  // Uniform sphere sampling (Marsaglia)
-  const u = Math.random() * 2 - 1;
-  const th = Math.random() * Math.PI * 2;
-  const r = Math.sqrt(1 - u * u);
-  const nx = r * Math.cos(th), ny = u, nz = r * Math.sin(th);
-
-  const land = fbm3(nx * 2.4, ny * 2.4, nz * 2.4);
-  const isLand = land > 0.515;
-
-  // Reject ocean dots to keep density higher on land — use probability
-  if (!isLand && Math.random() > 0.22) { i--; continue; }
-
-  dotPositions[i*3]   = nx;
-  dotPositions[i*3+1] = ny;
-  dotPositions[i*3+2] = nz;
-
-  // Colour: bright on land, dim on ocean
-  if (isLand) {
-    const t = Math.random();
-    const col = t < 0.3 ? amberHi : t < 0.65 ? amberMid : amberLo;
-    dotColors[i*3] = col.r; dotColors[i*3+1] = col.g; dotColors[i*3+2] = col.b;
-    dotSizes[i] = 0.014 + Math.random() * 0.016;
-  } else {
-    dotColors[i*3] = oceanDim.r; dotColors[i*3+1] = oceanDim.g; dotColors[i*3+2] = oceanDim.b;
-    dotSizes[i] = 0.006 + Math.random() * 0.006;
-  }
-}
-
-const dotGeo = new THREE.BufferGeometry();
-dotGeo.setAttribute('position', new THREE.BufferAttribute(dotPositions, 3));
-dotGeo.setAttribute('color',    new THREE.BufferAttribute(dotColors,    3));
-dotGeo.setAttribute('size',     new THREE.BufferAttribute(dotSizes,     1));
-
-// Custom dot texture — sharp soft disc
-const dotCanvas = document.createElement('canvas');
-dotCanvas.width = dotCanvas.height = 64;
-const dctx = dotCanvas.getContext('2d');
-const dg = dctx.createRadialGradient(32,32,0,32,32,32);
-dg.addColorStop(0,   'rgba(255,255,255,1)');
-dg.addColorStop(0.35,'rgba(255,255,255,0.85)');
-dg.addColorStop(0.7, 'rgba(255,255,255,0.15)');
-dg.addColorStop(1,   'rgba(255,255,255,0)');
-dctx.fillStyle = dg; dctx.fillRect(0,0,64,64);
-const dotTex = new THREE.CanvasTexture(dotCanvas);
-
-const dotMat = new THREE.ShaderMaterial({
-  uniforms: {
-    uTex:    { value: dotTex },
-    uTime:   { value: 0 },
-    uAccent: { value: 1.0 },
-  },
-  vertexShader: /* glsl */`
-    attribute float size;
-    attribute vec3 color;
-    varying vec3 vColor;
-    varying float vAtten;
-    uniform float uTime;
-    uniform float uAccent;
-    void main(){
-      vColor = color;
-      vec4 mv = modelViewMatrix * vec4(position, 1.0);
-      // Subtle shimmer per dot based on position
-      float shimmer = sin(uTime * 1.8 + position.x*6.2 + position.y*4.7 + position.z*5.1) * 0.5 + 0.5;
-      float s = size * (0.82 + 0.38 * shimmer * uAccent);
-      gl_PointSize = s * (900.0 / -mv.z);
-      vAtten = shimmer;
-      gl_Position = projectionMatrix * mv;
-    }`,
-  fragmentShader: /* glsl */`
-    uniform sampler2D uTex;
-    varying vec3 vColor;
-    varying float vAtten;
-    void main(){
-      vec4 t = texture2D(uTex, gl_PointCoord);
-      float alpha = t.a * (0.75 + 0.25 * vAtten);
-      gl_FragColor = vec4(vColor * (0.9 + 0.45*vAtten), alpha);
-    }`,
-  transparent: true,
-  blending: THREE.AdditiveBlending,
-  depthWrite: false,
-  vertexColors: true,
-});
-
-const globe = new THREE.Points(dotGeo, dotMat);
 globeGroup.add(globe);
 
-// Expose uniforms globally so tick() can reach them
-const globeUniforms = dotMat.uniforms;
-// dummy cage so tick() doesn't throw (cage.rotation used below)
+/* cage stub so tick() doesn't break */
 const cage = { rotation: { x: 0, y: 0 } };
 
-/* ---------- Atmosphere layers ---------- */
-// Layer 1: tight fresnel glow (inner atmosphere)
-const mkAtmo = (radius, power, opacity, color) => {
-  return new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 64, 64),
-    new THREE.ShaderMaterial({
-      transparent: true, blending: THREE.AdditiveBlending,
-      side: THREE.BackSide, depthWrite: false,
-      uniforms: { uColor: { value: new THREE.Color(color) } },
-      vertexShader: `varying vec3 vN; varying vec3 vV;
-        void main(){ vec4 mv=modelViewMatrix*vec4(position,1.); vV=mv.xyz;
-          vN=normalize(normalMatrix*normal); gl_Position=projectionMatrix*mv; }`,
-      fragmentShader: `varying vec3 vN; varying vec3 vV; uniform vec3 uColor;
-        void main(){ vec3 vd=normalize(-vV);
-          float f=pow(1.-max(dot(normalize(vN),vd),0.),${power.toFixed(1)});
-          gl_FragColor=vec4(uColor, f*${opacity.toFixed(2)}); }`,
-    })
-  );
-};
-globeGroup.add(mkAtmo(1.06, 3.2, 1.10, 0xf4cf82));  // tight golden rim
-globeGroup.add(mkAtmo(1.18, 2.6, 0.55, 0xcd8c1e));  // mid amber halo
-globeGroup.add(mkAtmo(1.38, 1.8, 0.22, 0x7a4a08));  // wide diffuse bloom
-
-/* ---------- Equatorial ring ---------- */
-const ringGeo = new THREE.RingGeometry(1.08, 1.115, 128);
-const ringMat = new THREE.MeshBasicMaterial({
-  color: 0xf4cf82, transparent: true, opacity: 0.055,
-  side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false,
-});
-const ring = new THREE.Mesh(ringGeo, ringMat);
-ring.rotation.x = Math.PI / 2;
-globeGroup.add(ring);
+/* ---------- Atmosphere — one clean, thin Fresnel shell ---------- */
+const mkAtmo = (radius, power, alpha, hex) => new THREE.Mesh(
+  new THREE.SphereGeometry(radius, 64, 64),
+  new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.AdditiveBlending,
+    side: THREE.BackSide, depthWrite: false,
+    uniforms: { uColor: { value: new THREE.Color(hex) } },
+    vertexShader: `varying vec3 vN,vV;
+      void main(){ vec4 mv=modelViewMatrix*vec4(position,1.); vV=mv.xyz;
+        vN=normalize(normalMatrix*normal); gl_Position=projectionMatrix*mv; }`,
+    fragmentShader: `varying vec3 vN,vV; uniform vec3 uColor;
+      void main(){ vec3 d=normalize(-vV);
+        float f=pow(1.-max(dot(normalize(vN),d),0.),${power.toFixed(1)});
+        gl_FragColor=vec4(uColor,f*${alpha.toFixed(2)}); }`,
+  })
+);
+globeGroup.add(mkAtmo(1.04, 4.0, 0.95, 0xf0c870));  /* tight bright rim */
+globeGroup.add(mkAtmo(1.14, 2.8, 0.35, 0xcd8c1e));  /* mid amber glow  */
+globeGroup.add(mkAtmo(1.30, 1.8, 0.10, 0x6b4410));  /* faint outer haze */
 
 /* ---------- Capital hotspot pulses (6 glowing nodes on surface) ---------- */
 const hotspots = [];
 const CAPITALS = [
-  { lat:  0.62, lon:  0.4  },  // Drennport
-  { lat: -0.3,  lon:  2.1  },
-  { lat:  0.8,  lon: -1.2  },
-  { lat:  0.1,  lon:  3.5  },
-  { lat: -0.55, lon: -0.8  },
-  { lat:  0.45, lon:  1.85 },
+  { lat: 0.62, lon:  0.40 },
+  { lat:-0.30, lon:  2.10 },
+  { lat: 0.80, lon: -1.20 },
+  { lat: 0.10, lon:  3.50 },
+  { lat:-0.55, lon: -0.80 },
+  { lat: 0.45, lon:  1.85 },
 ];
 const hotCanvas = document.createElement('canvas');
 hotCanvas.width = hotCanvas.height = 128;
 const hctx = hotCanvas.getContext('2d');
 const hg = hctx.createRadialGradient(64,64,0,64,64,64);
 hg.addColorStop(0,   'rgba(244,207,130,1)');
-hg.addColorStop(0.2, 'rgba(244,207,130,0.7)');
-hg.addColorStop(0.6, 'rgba(205,140,30,0.15)');
+hg.addColorStop(0.18,'rgba(244,207,130,0.75)');
+hg.addColorStop(0.55,'rgba(205,140,30,0.12)');
 hg.addColorStop(1,   'rgba(205,140,30,0)');
 hctx.fillStyle = hg; hctx.fillRect(0,0,128,128);
 const hotTex = new THREE.CanvasTexture(hotCanvas);
 
 CAPITALS.forEach((cap, i) => {
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: hotTex, transparent: true, opacity: 0.0,
+    map: hotTex, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false,
   }));
-  const sc = 0.10; spr.scale.set(sc, sc, sc);
+  spr.scale.set(0.09, 0.09, 0.09);
   const x = Math.cos(cap.lat) * Math.cos(cap.lon);
   const y = Math.sin(cap.lat);
   const z = Math.cos(cap.lat) * Math.sin(cap.lon);
