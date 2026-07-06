@@ -296,8 +296,6 @@ function tick() {
 
   // globe slow rotation
   globe.rotation.y += dt * 0.055;
-  core.rotation.y = globe.rotation.y;
-  ring.rotation.z += dt * 0.018;
 
   // capital hotspot pulse — sine breath, fade in/out
   hotspots.forEach((h, i) => {
