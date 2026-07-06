@@ -71,8 +71,8 @@
 .seg button+button{border-left:1px solid var(--line)}
 .seg button.on{background:rgba(205,140,30,.14);color:var(--amber-hi);box-shadow:inset 0 0 20px rgba(205,140,30,.15)}
 
-.actions{display:flex;gap:12px;margin-top:26px}
-.actions .btn{flex:1}
+.actions{display:flex;gap:12px;margin-top:26px;width:100%}
+.actions .btn{flex:1;width:auto}
 .btn-ghost{background:transparent!important;box-shadow:none!important;color:var(--ink-dim)!important;border-color:var(--line)!important;flex:0 0 auto!important;padding-inline:20px!important}
 .btn-ghost:hover{color:var(--amber-2)!important;border-color:var(--line-strong)!important}
 
