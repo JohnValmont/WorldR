@@ -1,5 +1,6 @@
 'use client';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import useSWR from 'swr';
 import { PageShell } from '@/components/ui';
 import { politicsApi, characterApi } from '@/lib/api';
 import { DEFAULT_JURISDICTION_ID, JURISDICTIONS, type JurisdictionId } from './_lib/session';
@@ -15,61 +16,28 @@ import LobbyScreen      from './LobbyScreen';
 export default function PoliticsDesk() {
   const [activeSection, setActiveSection]   = useState<PoliticsSection>('overview');
   const [selectedJurisdictionId, setSelectedJurisdictionId] = useState<JurisdictionId>(DEFAULT_JURISDICTION_ID);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState('');
+  const { data: character, mutate: mutateChar, error: errChar } = useSWR('me', () => characterApi.getMe().then(res => res.data || res));
+  const { data: overview, mutate: mutateOver, error: errOver } = useSWR('politicsState', () => politicsApi.getState());
+  const { data: parties = [], mutate: mutateParties, error: errParties } = useSWR(['parties', selectedJurisdictionId], () => politicsApi.getParties(selectedJurisdictionId));
+  const { data: ledger = [], mutate: mutateLedger } = useSWR(['ledger', selectedJurisdictionId], () => politicsApi.getLedger(20, selectedJurisdictionId));
+  const { data: myApData, mutate: mutateAp } = useSWR('myAp', () => politicsApi.getMyAp());
 
-  const [character, setCharacter]                   = useState<any>(null);
-  const [overview, setOverview]                     = useState<any>(null);
-  const [parties, setParties]                       = useState<any[]>([]);
-  const [latestGoverningEvent, setLatestGoverningEvent] = useState<any>(null);
-  const [myAp, setMyAp]                             = useState<{ current_ap: number; ap_cap: number }>({ current_ap: 4, ap_cap: 4 });
+  const myAp = (myApData as { current_ap: number; ap_cap: number }) || { current_ap: 0, ap_cap: 4 };
 
   const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError('');
+    await Promise.all([
+      mutateChar(), mutateOver(), mutateParties(), mutateLedger(), mutateAp()
+    ]);
+  }, [mutateChar, mutateOver, mutateParties, mutateLedger, mutateAp]);
 
-      const results = await Promise.allSettled([
-        characterApi.getMe(),
-        politicsApi.getState(),
-        politicsApi.getParties(selectedJurisdictionId),
-        politicsApi.getLedger(20, selectedJurisdictionId),
-        politicsApi.getMyAp(),
-      ]);
+  const latestGoverningEvent = useMemo(() => {
+    const arr = Array.isArray(ledger) ? ledger : [];
+    return arr.find((e: any) => typeof e.kind === 'string' && e.kind.startsWith('gov_'));
+  }, [ledger]);
 
-      if (results[0].status === 'fulfilled') {
-        const r = results[0].value;
-        setCharacter(r.data || r);
-      }
-      if (results[1].status === 'fulfilled') {
-        setOverview(results[1].value);
-      } else {
-        console.warn('Politics state error:', (results[1] as any).reason?.message);
-      }
-      if (results[2].status === 'fulfilled') {
-        setParties(results[2].value);
-      }
-      if (results[3].status === 'fulfilled') {
-        const ledger: any[] = Array.isArray(results[3].value) ? results[3].value : [];
-        const govEvent = ledger.find((e: any) => typeof e.kind === 'string' && e.kind.startsWith('gov_'));
-        if (govEvent) setLatestGoverningEvent(govEvent);
-      }
-      if (results[4].status === 'fulfilled') {
-        setMyAp(results[4].value as { current_ap: number; ap_cap: number });
-      }
+  const loading = !character && !errChar && !overview && !errOver;
+  const error = errChar || errOver || errParties;
 
-      if (results.every(r => r.status === 'rejected')) {
-        const firstReason = (results[0] as any).reason;
-        setError(firstReason?.response?.data?.error || firstReason?.response?.data?.message || firstReason?.message || 'Failed to load politics data');
-      }
-    } catch (err: any) {
-      setError(err?.response?.data?.error || err?.response?.data?.message || err.message || 'Failed to load politics data');
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedJurisdictionId]);
-
-  useEffect(() => { loadData(); }, [loadData]);
 
   const phase        = overview?.cyclePhase || overview?.cycle?.phase || 'governing';
   const sessionYear  = overview?.sessionYear ?? overview?.year;
@@ -151,7 +119,20 @@ export default function PoliticsDesk() {
 
         <main className="flex-1 overflow-y-auto bg-[#13141f]">
           <div className="max-w-5xl mx-auto px-8 py-8">
-            {activeSection === 'overview' && (
+            {loading ? (
+              <div className="text-[#A79D8C] p-8 flex items-center justify-center">
+                <div className="animate-pulse flex items-center gap-2">
+                  <div className="w-2 h-2 bg-[#A79D8C] rounded-full" />
+                  <div className="w-2 h-2 bg-[#A79D8C] rounded-full" />
+                  <div className="w-2 h-2 bg-[#A79D8C] rounded-full" />
+                  <span className="ml-2 font-mono text-xs uppercase tracking-widest">Loading Records...</span>
+                </div>
+              </div>
+            ) : error ? (
+              <div className="text-[#B85555] p-4 border border-[#B85555]/30 bg-[#8F3D3D]/10 mx-8">
+                {String(error?.message || error)}
+              </div>
+            ) : activeSection === 'overview' ? (
               <OverviewScreen
                 overview={overview}
                 character={character}
@@ -161,22 +142,17 @@ export default function PoliticsDesk() {
                 onNavigate={setActiveSection}
                 onRefresh={loadData}
               />
-            )}
-            {activeSection === 'elections' && (
+            ) : activeSection === 'elections' ? (
               <ElectionsScreen {...commonProps} />
-            )}
-            {activeSection === 'legislature' && (
+            ) : activeSection === 'legislature' ? (
               <LegislatureScreen {...commonProps} />
-            )}
-            {activeSection === 'assembly' && (
+            ) : activeSection === 'assembly' ? (
               <AssemblyScreen {...commonProps} />
-            )}
-            {activeSection === 'party' && (
+            ) : activeSection === 'party' ? (
               <PartyScreen {...commonProps} />
-            )}
-            {activeSection === 'lobby' && (
+            ) : activeSection === 'lobby' ? (
               <LobbyScreen {...commonProps} />
-            )}
+            ) : null}
           </div>
         </main>
       </div>
