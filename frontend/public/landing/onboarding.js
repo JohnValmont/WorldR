@@ -305,10 +305,68 @@ function goTo(i, dir = 1){
 steps[0].classList.add('active'); gsap.set(steps[0], { opacity: 1 });
 updateStepper(0); setGlobe(0);
 
-document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click', () => {
+document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click', async () => {
   const s = +b.dataset.next;
   if (!validate(s)) { gsap.fromTo(b.closest('.card'), { x: -6 }, { x: 0, duration: 0.5, ease: 'elastic.out(1,0.4)' }); return; }
-  goTo(s + 1, 1);
+  
+  const span = b.querySelector('span');
+  const origText = span.textContent;
+  b.disabled = true;
+
+  try {
+    if (s === 0) {
+      span.textContent = 'Requesting...';
+      const email = document.getElementById('acc_email').value;
+      const password = document.getElementById('acc_pass').value;
+      const res = await fetch('/api/v1/auth/register', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email, password })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || err.message || 'Registration failed');
+      }
+    } else if (s === 1) {
+      span.textContent = 'Verifying...';
+      const email = document.getElementById('otp_email').textContent;
+      const otp = otpInputs.map(i => i.value).join('');
+      const res = await fetch('/api/v1/auth/verify-email', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email, otp })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || err.message || 'Verification failed');
+      }
+    } else if (s === 2) {
+      span.textContent = 'Authenticating...';
+      const email = document.getElementById('log_email').value;
+      const password = document.getElementById('log_pass').value;
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || 'Login failed');
+      localStorage.setItem('worldr_access_token', data.accessToken);
+      if (data.refreshToken) localStorage.setItem('worldr_refresh_token', data.refreshToken);
+    }
+    
+    span.textContent = origText;
+    b.disabled = false;
+    goTo(s + 1, 1);
+  } catch (err) {
+    span.textContent = origText;
+    b.disabled = false;
+    // Show error message
+    const msg = document.createElement('div');
+    msg.className = 'msg err';
+    msg.style.color = '#ff6060';
+    msg.style.marginTop = '12px';
+    msg.textContent = err.message;
+    b.closest('.actions').insertAdjacentElement('beforebegin', msg);
+    setTimeout(() => msg.remove(), 4000);
+  }
 }));
 document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => goTo(+b.dataset.back - 1, -1)));
 
@@ -333,19 +391,64 @@ function fillSummary(){
   document.getElementById('sm_capital').textContent = n.capital;
   document.getElementById('sm_gov').textContent = n.gov;
 }
-document.getElementById('confirmBtn').addEventListener('click', () => {
+document.getElementById('confirmBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('confirmBtn');
   const seal = document.getElementById('seal'), stage = document.getElementById('sealStage');
-  document.getElementById('confirmActions').style.pointerEvents = 'none';
-  gsap.set(seal, { scale: 2.4, rotation: -35, opacity: 0 });
-  const tl = gsap.timeline();
-  tl.to(seal, { scale: 1, rotation: 0, opacity: 1, duration: 0.9, ease: 'power4.out' })
-    .to(seal, { scale: 0.94, duration: 0.12, ease: 'power2.in' }, '>-0.02')
-    .to(seal, { scale: 1, duration: 0.5, ease: 'elastic.out(1,0.5)' })
-    .add(() => stage.classList.add('granted'))
-    .to('.seal-txt', { opacity: 1, duration: 0.6 });
-  // navigation on a wall-clock timer, independent of rAF-throttled tweens
-  document.getElementById('welcomeName').textContent = fullName();
-  setTimeout(() => goTo(6, 1), 2600);
+  const span = btn.querySelector('span');
+  
+  btn.disabled = true;
+  span.textContent = 'Confirming...';
+
+  try {
+    const token = localStorage.getItem('worldr_access_token');
+    if (!token) throw new Error('Not authenticated. Please start over.');
+    
+    // We assume motherland_country_id maps to 'c_' + lowercase name for seed compatibility
+    const motherland_country_id = 'c_' + selectedNation.name.toLowerCase();
+    
+    const res = await fetch('/api/v1/characters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ 
+        name: fullName(), 
+        motherland_country_id, 
+        currency_id: 'DRX' 
+      })
+    });
+    
+    if (!res.ok) {
+       const errData = await res.json();
+       if (errData.error === 'CHARACTER_EXISTS' || errData.message === 'Character already exists') {
+          // If character already exists, we can still proceed visually to the game
+          console.log('Character already exists, proceeding to world');
+       } else {
+          throw new Error(errData.error || errData.message || 'Failed to create character');
+       }
+    }
+    
+    document.getElementById('confirmActions').style.pointerEvents = 'none';
+    gsap.set(seal, { scale: 2.4, rotation: -35, opacity: 0 });
+    const tl = gsap.timeline();
+    tl.to(seal, { scale: 1, rotation: 0, opacity: 1, duration: 0.9, ease: 'power4.out' })
+      .to(seal, { scale: 0.94, duration: 0.12, ease: 'power2.in' }, '>-0.02')
+      .to(seal, { scale: 1, duration: 0.5, ease: 'elastic.out(1,0.5)' })
+      .add(() => stage.classList.add('granted'))
+      .to('.seal-txt', { opacity: 1, duration: 0.6 });
+      
+    // navigation on a wall-clock timer, independent of rAF-throttled tweens
+    document.getElementById('welcomeName').textContent = fullName();
+    setTimeout(() => goTo(6, 1), 2600);
+  } catch (err) {
+    btn.disabled = false;
+    span.textContent = 'Confirm Citizenship';
+    const msg = document.createElement('div');
+    msg.className = 'msg err';
+    msg.style.color = '#ff6060';
+    msg.style.marginTop = '12px';
+    msg.textContent = err.message;
+    document.getElementById('confirmActions').insertAdjacentElement('beforebegin', msg);
+    setTimeout(() => msg.remove(), 4000);
+  }
 });
 
 document.getElementById('enterBtn').addEventListener('click', function(){
