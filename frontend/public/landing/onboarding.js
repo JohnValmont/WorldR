@@ -91,7 +91,135 @@ function tick(){
 tick();
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 
+/* ============ portrait generator ============ */
+function drawPortrait(ctx, seed, size){
+  const rnd = (n => () => (n = (n * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff)(seed * 7 + 3);
+  ctx.clearRect(0, 0, size, size);
+  // backdrop
+  const bg = ctx.createRadialGradient(size/2, size*.38, 10, size/2, size/2, size*.7);
+  bg.addColorStop(0, 'rgba(205,140,30,0.18)'); bg.addColorStop(1, 'rgba(6,8,12,0.9)');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, size, size);
+  ctx.save(); ctx.translate(size/2, size/2);
+  const amber = '#e6a93b', hi = '#f4cf82';
+  ctx.strokeStyle = amber; ctx.fillStyle = 'rgba(205,140,30,0.10)'; ctx.lineWidth = size*0.012; ctx.lineJoin = 'round';
+  const sh = size*0.30;
+  // shoulders
+  ctx.beginPath(); ctx.moveTo(-sh*1.5, size*0.42);
+  ctx.quadraticCurveTo(-sh*1.2, size*0.12, -sh*0.55, size*0.08);
+  ctx.lineTo(sh*0.55, size*0.08); ctx.quadraticCurveTo(sh*1.2, size*0.12, sh*1.5, size*0.42);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // head
+  const hy = -size*0.12, hr = size*0.17;
+  ctx.beginPath(); ctx.ellipse(0, hy, hr*0.82, hr, 0, 0, 6.28); ctx.fill(); ctx.stroke();
+  // hair / crest variation
+  const style = seed % 6;
+  ctx.strokeStyle = hi; ctx.beginPath();
+  if (style === 0){ ctx.arc(0, hy - hr*0.2, hr*0.9, Math.PI*1.05, Math.PI*1.95); }
+  else if (style === 1){ ctx.moveTo(-hr*0.9, hy - hr*0.3); ctx.quadraticCurveTo(0, hy - hr*1.4, hr*0.9, hy - hr*0.3); }
+  else if (style === 2){ ctx.arc(0, hy, hr*0.95, Math.PI*1.1, Math.PI*2.0); ctx.moveTo(hr*0.5, hy-hr); ctx.lineTo(hr*0.9, hy-hr*1.5); }
+  else if (style === 3){ ctx.moveTo(-hr, hy); ctx.quadraticCurveTo(-hr*1.1, hy-hr*1.2, 0, hy-hr*1.1); ctx.quadraticCurveTo(hr*1.1, hy-hr*1.2, hr, hy); }
+  else if (style === 4){ ctx.arc(0, hy-hr*0.35, hr*0.8, Math.PI, 0); }
+  else { ctx.moveTo(-hr*0.8, hy-hr*0.6); ctx.lineTo(0, hy-hr*1.3); ctx.lineTo(hr*0.8, hy-hr*0.6); }
+  ctx.stroke();
+  // collar accent (institutional)
+  ctx.strokeStyle = amber; ctx.beginPath();
+  ctx.moveTo(-size*0.06, size*0.10); ctx.lineTo(0, size*0.22); ctx.lineTo(size*0.06, size*0.10); ctx.stroke();
+  // insignia dot
+  ctx.fillStyle = hi; ctx.beginPath(); ctx.arc(0, size*0.16, size*0.014, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+const picks = document.getElementById('picks');
+const mainC = document.getElementById('portrait').getContext('2d');
+let portraitSeed = 0;
+function renderPicks(){
+  picks.innerHTML = '';
+  for (let i = 0; i < 6; i++){
+    const b = document.createElement('button'); if (i === portraitSeed) b.classList.add('on');
+    const cv = document.createElement('canvas'); cv.width = cv.height = 88; b.appendChild(cv);
+    drawPortrait(cv.getContext('2d'), i, 88);
+    b.onclick = () => { portraitSeed = i; renderPicks(); drawPortrait(mainC, portraitSeed, 380); };
+    picks.appendChild(b);
+  }
+}
+renderPicks(); drawPortrait(mainC, portraitSeed, 380);
 
+/* culture dropdown */
+const culSel = document.getElementById('ch_culture');
+CULTURES.forEach(c => { const o = document.createElement('option'); o.textContent = c; culSel.appendChild(o); });
+
+/* gender segmented */
+let gender = 'Statesman';
+document.querySelectorAll('#ch_gender button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#ch_gender button').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); gender = b.dataset.v;
+});
+
+/* ============ attributes ============ */
+const ATTRS = [
+  { k: 'Charisma', d: 'Sway crowds and voters' },
+  { k: 'Cunning', d: 'Backroom leverage' },
+  { k: 'Capital', d: 'Starting economic weight' },
+  { k: 'Diplomacy', d: 'Coalitions & treaties' },
+  { k: 'Resolve', d: 'Withstand scandal & pressure' },
+];
+const BASE = 3, MAX = 8, POOL = 10;
+let attrVals = ATTRS.map(() => BASE);
+const attrList = document.getElementById('attrList'), poolEl = document.getElementById('pool');
+function usedPts(){ return attrVals.reduce((s, v) => s + (v - BASE), 0); }
+function renderAttrs(){
+  const remain = POOL - usedPts(); poolEl.textContent = remain;
+  attrList.innerHTML = '';
+  ATTRS.forEach((a, i) => {
+    const row = document.createElement('div'); row.className = 'attr';
+    row.innerHTML = `<div class="an">${a.k}</div>
+      <div class="track"><i style="width:${(attrVals[i]/MAX)*100}%"></i></div>
+      <div class="ctrl"><button data-m="-1" ${attrVals[i] <= BASE ? 'disabled' : ''}>−</button>
+      <span class="val">${attrVals[i]}</span>
+      <button data-m="1" ${(attrVals[i] >= MAX || remain <= 0) ? 'disabled' : ''}>+</button></div>`;
+    row.querySelectorAll('button').forEach(btn => btn.onclick = () => {
+      const m = +btn.dataset.m;
+      if (m > 0 && remain > 0 && attrVals[i] < MAX) attrVals[i]++;
+      if (m < 0 && attrVals[i] > BASE) attrVals[i]--;
+      renderAttrs();
+    });
+    attrList.appendChild(row);
+  });
+}
+renderAttrs();
+
+/* ============ nation selection ============ */
+const nationList = document.getElementById('nationList');
+let selectedNation = NATIONS.find(n => n.playable);
+function renderNations(){
+  nationList.innerHTML = '';
+  NATIONS.forEach(n => {
+    const el = document.createElement('div');
+    el.className = 'nat' + (n.playable ? '' : ' locked') + (selectedNation && n.id === selectedNation.id ? ' sel' : '');
+    el.innerHTML = `<span class="dot" style="background:${n.color};box-shadow:0 0 10px ${n.color}"></span>
+      <div class="nm"><b>${n.name}</b><span>${n.gov} · ${n.capital}</span></div>
+      <span class="badge ${n.playable ? 'open' : 'soon'}">${n.playable ? 'Open' : 'Soon'}</span>`;
+    if (n.playable) el.onclick = () => { selectedNation = n; renderNations(); showDossier(n); };
+    nationList.appendChild(el);
+  });
+}
+function showDossier(n){
+  document.getElementById('d_name').textContent = n.name;
+  document.getElementById('d_tag').textContent = `${n.gov} · Capital ${n.capital}`;
+  document.getElementById('d_gov').textContent = n.gov;
+  document.getElementById('d_pop').textContent = n.pop;
+  document.getElementById('d_area').textContent = n.area;
+  document.getElementById('d_culture').textContent = n.culture;
+}
+renderNations(); showDossier(selectedNation);
+// map marker click
+document.getElementById('drenniaMarker').onclick = () => {
+  const dr = NATIONS.find(x => x.playable); selectedNation = dr; renderNations(); showDossier(dr);
+};
+// position marker on Drennia (map is 3069x1536; Drennia ~ x 300 y 620 of that space)
+(function placeMarker(){
+  const m = document.getElementById('drenniaMarker');
+  m.style.left = '15%'; m.style.top = '52%';
+})();
 
 /* ============ OTP ============ */
 const otpInputs = [...document.querySelectorAll('#otp input')];
@@ -239,22 +367,18 @@ document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click'
 
       // Check if they already have a character
       if (data.user && data.user.character) {
-        localStorage.setItem('worldr_selected_motherland', data.user.character.motherland_country_id || 'c_drennia');
+        localStorage.setItem('worldr_selected_motherland', data.user.character.motherland_country_id || 'drennia');
         localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(data.user.character));
         localStorage.setItem('worldr_living_world_entry_v1', 'true');
         span.textContent = 'Entering World...';
         window.location.href = '/drennia/chronicle';
         return; // Bypass the rest of the onboarding flow
-      } else {
-        span.textContent = 'Entering World...';
-        window.location.href = '/start/character';
-        return;
       }
     }
     
     span.textContent = origText;
     b.disabled = false;
-    if (s < 2) goTo(s + 1, 1);
+    goTo(s + 1, 1);
   } catch (err) {
     span.textContent = origText;
     b.disabled = false;
@@ -268,6 +392,110 @@ document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click'
     setTimeout(() => msg.remove(), 4000);
   }
 }));
+document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => goTo(+b.dataset.back - 1, -1)));
+
+/* nation next label reflects selection */
+const nationNext = document.getElementById('nationNext');
+function refreshNationBtn(){ nationNext.querySelector('span').textContent = 'Pledge to ' + (selectedNation ? selectedNation.name : 'Drennia'); }
+const _origRenderNations = renderNations;
+nationList.addEventListener('click', () => setTimeout(refreshNationBtn, 0));
+
+/* ============ citizenship summary + seal ============ */
+function fullName(){
+  const t = document.getElementById('ch_title').value, f = document.getElementById('ch_first').value.trim() || 'Aldric',
+        l = document.getElementById('ch_last').value.trim() || 'Varn';
+  return `${t === 'Citizen' ? '' : t + ' '}${f} ${l}`.trim();
+}
+function fillSummary(){
+  document.getElementById('sm_name').textContent = fullName();
+  document.getElementById('sm_gender').textContent = gender;
+  document.getElementById('sm_culture').textContent = document.getElementById('ch_culture').value;
+  const n = selectedNation;
+  document.getElementById('sm_nation').textContent = n.name;
+  document.getElementById('sm_capital').textContent = n.capital;
+  document.getElementById('sm_gov').textContent = n.gov;
+}
+document.getElementById('confirmBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('confirmBtn');
+  const seal = document.getElementById('seal'), stage = document.getElementById('sealStage');
+  const span = btn.querySelector('span');
+  
+  btn.disabled = true;
+  span.textContent = 'Confirming...';
+
+  try {
+    const token = localStorage.getItem('worldr_access_token');
+    if (!token) throw new Error('Not authenticated. Please start over.');
+    
+    // We assume motherland_country_id maps to 'c_' + lowercase name for seed compatibility
+    const motherland_country_id = selectedNation.name.toLowerCase();
+    
+    const res = await fetch('/api/v1/characters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ 
+        name: fullName(), 
+        motherland_country_id, 
+        currency_id: 'DRX' 
+      })
+    });
+    
+    if (!res.ok) {
+       const errData = await res.json();
+       if (errData.error === 'CHARACTER_EXISTS' || errData.message === 'Character already exists') {
+          console.log('Character already exists, proceeding to world');
+       } else {
+          throw new Error(errData.error || errData.message || 'Failed to create character');
+       }
+    } else {
+       const charData = await res.json();
+       const character = charData.character || charData;
+       localStorage.setItem('worldr_selected_motherland', motherland_country_id);
+       localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(character));
+       localStorage.setItem('worldr_living_world_entry_v1', 'true');
+       
+       try {
+           const authStoreStr = localStorage.getItem('worldr-auth');
+           if (authStoreStr) {
+               const authStore = JSON.parse(authStoreStr);
+               if (authStore.state && authStore.state.user) {
+                   authStore.state.user.character = character;
+                   localStorage.setItem('worldr-auth', JSON.stringify(authStore));
+               }
+           }
+       } catch(e) {}
+    }
+    
+    document.getElementById('confirmActions').style.pointerEvents = 'none';
+    gsap.set(seal, { scale: 2.4, rotation: -35, opacity: 0 });
+    const tl = gsap.timeline();
+    tl.to(seal, { scale: 1, rotation: 0, opacity: 1, duration: 0.9, ease: 'power4.out' })
+      .to(seal, { scale: 0.94, duration: 0.12, ease: 'power2.in' }, '>-0.02')
+      .to(seal, { scale: 1, duration: 0.5, ease: 'elastic.out(1,0.5)' })
+      .add(() => stage.classList.add('granted'))
+      .to('.seal-txt', { opacity: 1, duration: 0.6 });
+      
+    // navigation on a wall-clock timer, independent of rAF-throttled tweens
+    document.getElementById('welcomeName').textContent = fullName();
+    setTimeout(() => goTo(6, 1), 2600);
+  } catch (err) {
+    btn.disabled = false;
+    span.textContent = 'Confirm Citizenship';
+    const msg = document.createElement('div');
+    msg.className = 'msg err';
+    msg.style.color = '#ff6060';
+    msg.style.marginTop = '12px';
+    msg.textContent = err.message;
+    document.getElementById('confirmActions').insertAdjacentElement('beforebegin', msg);
+    setTimeout(() => msg.remove(), 4000);
+  }
+});
+
+document.getElementById('enterBtn').addEventListener('click', function(){
+  this.querySelector('span').textContent = 'Loading Aethan…';
+  gsap.to(target, { scale: 6, accent: 3, duration: 2.2, ease: 'power3.in' });
+  gsap.to('.card', { opacity: 0, scale: 1.05, duration: 1.2, ease: 'power2.in', delay: 0.3 });
+});
 
 document.getElementById('quit').addEventListener('click', e => { e.preventDefault();
   gsap.fromTo('.flow-brand', { x: -6 }, { x: 0, duration: 0.5, ease: 'elastic.out(1,.4)' }); });
@@ -279,3 +507,4 @@ document.querySelectorAll('.btn').forEach(btn => btn.addEventListener('pointermo
   btn.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
 }));
 
+refreshNationBtn();
