@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import { companyApi } from '../../../lib/api';
+import IpoDeskPanel from './IpoDeskPanel';
 
 const T = {
   bg: '#090A0F',
@@ -79,6 +80,9 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', maxWidth: '1000px' }}>
+      {/* IPO desk */}
+      <IpoDeskPanel companyId={companyId} companyName={companyName} />
+
       {/* Legal structure */}
       <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '20px', gridColumn: '1 / -1' }}>
         <div style={{ ...label, marginBottom: '4px' }}>Legal Structure</div>
