@@ -494,7 +494,10 @@ document.getElementById('confirmBtn').addEventListener('click', async () => {
 document.getElementById('enterBtn').addEventListener('click', function(){
   this.querySelector('span').textContent = 'Loading Aethan…';
   gsap.to(target, { scale: 6, accent: 3, duration: 2.2, ease: 'power3.in' });
-  gsap.to('.card', { opacity: 0, scale: 1.05, duration: 1.2, ease: 'power2.in', delay: 0.3 });
+  gsap.to('.card', { 
+    opacity: 0, scale: 1.05, duration: 1.2, ease: 'power2.in', delay: 0.3, 
+    onComplete: () => { window.location.href = '/' + selectedNation.name.toLowerCase() + '/chronicle'; }
+  });
 });
 
 document.getElementById('quit').addEventListener('click', e => { e.preventDefault();
