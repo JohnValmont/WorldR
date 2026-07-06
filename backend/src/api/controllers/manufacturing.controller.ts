@@ -793,7 +793,7 @@ export class ManufacturingController {
           .update({
             development_status: 'launched',
             launched_year: clock2?.current_year || 1,
-            launched_arc: clock2?.current_month || 1,
+            launched_month: clock2?.current_month || 1,
             updated_at: trx.fn.now(),
           })
           .returning('*');
