@@ -113,7 +113,7 @@ export class CharacterController {
           .where({ id: character.id })
           .update({ 
             status: 'deleted',
-            name: db.raw('SUBSTRING(name, 1, 200) || ?', [deletedSuffix])
+            name: `${character.name.substring(0, 200)}${deletedSuffix}`
           });
 
         const companies = await db('companies').where({ owner_character_id: character.id });
@@ -122,7 +122,7 @@ export class CharacterController {
             .where({ id: company.id })
             .update({ 
               status: 'bankrupt',
-              name: db.raw('SUBSTRING(name, 1, 200) || ?', [deletedSuffix])
+              name: `${company.name.substring(0, 200)}${deletedSuffix}`
             });
         }
       }
