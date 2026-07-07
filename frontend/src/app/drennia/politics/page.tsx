@@ -91,7 +91,7 @@ export default function PoliticsDesk() {
   const monthsToElection = overview?.cycle?.monthsToElection ?? overview?.monthsToElection;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: T.bg, color: T.text }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', background: T.bg, color: T.text }}>
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '12px 20px', borderBottom: `1px solid ${T.border}`, background: T.panel, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
