@@ -3,14 +3,7 @@ import { WORLD_TIME_CONFIG } from '../config/worldTimeConfig';
 /**
  * Game calendar — the single source of truth for turning the world clock into
  * the player-facing "Month, Year" system.
- *
- * The playable era begins in January, Year 0. Everything before it is lore —
- * "The Old Years". Internally the clock is still an (year, month) pair where the
- * era starts at year = WORLD_TIME_CONFIG.startingYear, month = 1; we translate
- * that into an absolute, 1-based month counter and format it.
  */
-
-export const GAME_EPOCH = 1; // absolute-month value of January, Year 0
 
 export const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -19,26 +12,30 @@ export const MONTHS = [
 
 /** Absolute, 1-based month index from a cyclic world clock (year + month, month 1..12). */
 export function absoluteMonth(year: number, month: number): number {
-  const { startingYear, monthsPerYear } = WORLD_TIME_CONFIG;
-  return (year - startingYear) * monthsPerYear + month;
+  return year * 12 + month;
 }
 
 function labelFromAbsolute(absMonth: number | undefined, short: boolean): string {
   if (absMonth === undefined || absMonth === null || Number.isNaN(absMonth)) {
     return short ? 'Unk' : 'Unknown Date';
   }
-  if (absMonth < GAME_EPOCH) {
+  
+  // Calculate back year and month from absolute month
+  // Since absoluteMonth = year * 12 + month, where month is 1..12
+  // We subtract 1 from month for 0-based indexing
+  const year = Math.floor((absMonth - 1) / 12);
+  const month = (absMonth - 1) % 12;
+  
+  if (year < 0) {
     return short ? 'Old Yrs' : 'The Old Years';
   }
-  const elapsed = absMonth - GAME_EPOCH;
-  const year = Math.floor(elapsed / 12);
-  const month = ((elapsed % 12) + 12) % 12;
+  
   return short
     ? `${MONTHS[month].slice(0, 3)} Yr ${year}`
     : `${MONTHS[month]}, Year ${year}`;
 }
 
-/** Format an ABSOLUTE month counter (1 = January Year 0). Used by monotonic clocks (e.g. politics). */
+/** Format an ABSOLUTE month counter. */
 export function formatGameDate(absMonth?: number): string {
   return labelFromAbsolute(absMonth, false);
 }
