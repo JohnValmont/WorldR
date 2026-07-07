@@ -2142,10 +2142,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         {!isCompleted && !inProgress && (
                           <GoldButton
                             onClick={() => handleStartResearch(id)}
-                            disabled={isLocked || engineerCount < prog.minEng || finances?.cash < prog.budget}
+                            disabled={isLocked || engineerCount < prog.minEng || Number(finances?.available_cash || 0) < prog.budget}
                             style={{ width: '100%', fontSize: '12px', padding: '8px' }}
                           >
-                            {isLocked ? 'Locked' : engineerCount < prog.minEng ? 'Not enough engineers' : (finances?.cash || 0) < prog.budget ? 'Not enough cash' : 'Start Programme'}
+                            {isLocked ? 'Locked' : engineerCount < prog.minEng ? 'Not enough engineers' : Number(finances?.available_cash || 0) < prog.budget ? 'Not enough cash' : 'Start Programme'}
                           </GoldButton>
                         )}
                         {inProgress && (
