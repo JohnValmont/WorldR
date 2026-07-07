@@ -126,27 +126,83 @@ export const POL_FUNDRAISER_BASE = 5000;
 export const POL_FUNDRAISER_CHARISMA_MULT = 100;
 export const POL_ENDORSEMENT_INFLUENCE_COST = 5;
 
-// ── Anti-copycat: Crowding & Fatigue (GDD v0.5 §9) ──────────────────────────
-// Deterministic, fit/state-driven only — no randomness or scripting.
-//
-// CROWDING — vote-splitting among parties clustered near a bloc's ideal.
-// Within a bloc, two candidates "crowd" each other in proportion to the SHARED
-// fit they both hold there: min(fit_i, fit_j). Each candidate's raw pull is
-// divided by (1 + POL_CROWDING_STRENGTH * Σ_{j≠i} min(fit_i, fit_j)). A party
-// that OWNS an underserved bloc has little overlap with rivals → near-full
-// capture; identical copycats overlap fully → they divide each other down and
-// bleed share to whoever is least crowded. Per-bloc shares still sum to 1, so
-// projections/UI contracts are unchanged. Higher = harsher anti-copycat.
-export const POL_CROWDING_STRENGTH = 1.5;
+// ── Jurisdiction Conditions (GDD v0.5 §11 & §16) ────────────────────────────
+// Five per-state indicators the governing party's active policy moves each month;
+// they feed bloc turnout and trigger deterministic crisis events at thresholds.
+// All values are TUNABLE. Prosperity/Jobs/Order/Cohesion/Budget live on a 0–10
+// scale (v0: Budget is a fiscal-health index, not yet a money ledger).
+export type ConditionKey = 'prosperity' | 'jobs' | 'order' | 'cohesion' | 'budget';
+export const POL_CONDITION_KEYS: ConditionKey[] = ['prosperity', 'jobs', 'order', 'cohesion', 'budget'];
+export const POL_CONDITION_MIN = 0;
+export const POL_CONDITION_MAX = 10;
+export const POL_CONDITION_NEUTRAL = 5;
+// Fraction of the gap to the policy-implied target closed each in-game month.
+// ~0.34 ⇒ conditions converge over roughly three months (smooth, deterministic).
+export const POL_CONDITION_DRIFT_RATE = 0.34;
 
-// FATIGUE — diminishing returns for repeating the SAME campaign action type in
-// a short window. The k-th same-type action whose resolved_arc falls inside the
-// window contributes effort × POL_FATIGUE_DECAY^k (k counts prior same-type
-// actions still inside the window; the count resets once a gap longer than the
-// window passes). Varied play stays full-strength. Applied when campaign effort
-// is aggregated into Reach, so it is deterministic and recomputable from state.
-export const POL_FATIGUE_DECAY = 0.6;         // 40% haircut per in-window repeat
-export const POL_FATIGUE_WINDOW_MONTHS = 3;   // sliding window length (in-game months)
+type ConditionDelta = Partial<Record<ConditionKey, number>>;
+
+// Per-Pillar, per-rung condition pressure — GDD §16 effect tables condensed onto
+// the engine's three-rung 20/50/80 platform scale. Rung from a plank value:
+// <=35 = 'low', >=65 = 'high', else 'mid'. Deltas are added to the neutral (5)
+// baseline to form each month's target for the condition. Plain-name mapping and
+// rung semantics follow _lib/model.ts LADDERS (never rename the engine Axis keys).
+export const POL_POLICY_CONDITION_EFFECTS: Record<Axis, { low: ConditionDelta; mid: ConditionDelta; high: ConditionDelta }> = {
+  // Tax & Spending — low(20)='Tax the Wealthy'/generous spend, high(80)='Low Taxes'/austere.
+  taxation: {
+    low:  { prosperity: +1, cohesion: +1, budget: -1 },
+    mid:  {},
+    high: { budget: +2, prosperity: -1, cohesion: -1 },
+  },
+  // Workers & Jobs — low(20)='Employer-Led', high(80)='Worker-First'.
+  labour: {
+    low:  { prosperity: +1, jobs: -1 },
+    mid:  {},
+    high: { jobs: +1, cohesion: +1, prosperity: -1 },
+  },
+  // State Investment — low(20)='Free Market', high(80)='State-Run'.
+  investment: {
+    low:  { prosperity: +1, jobs: -1 },
+    mid:  {},
+    high: { jobs: +2, prosperity: -1, budget: -1 },
+  },
+  // Trade — low(20)='Closed/Protected', high(80)='Open/Free'.
+  trade: {
+    low:  { jobs: +2, prosperity: -2 },
+    mid:  {},
+    high: { prosperity: +2, jobs: -2 },
+  },
+  // Order & Reform — low(20)='Bold Reform'/open, high(80)='Law & Order'/strict.
+  stability: {
+    low:  { cohesion: +1, prosperity: +1, order: -1 },
+    mid:  {},
+    high: { order: +2, cohesion: -1 },
+  },
+};
+
+// Per-bloc turnout sensitivity to Conditions (GDD §5 diagram: Turnout × Conditions).
+// Positive ⇒ the bloc turns out MORE as the condition rises above neutral. Keyed
+// by SEGMENTS[].key. The summed swing is clamped to ±POL_CONDITION_TURNOUT_MAX_SWING.
+export const POL_CONDITION_TURNOUT_SENSITIVITY: Record<string, Partial<Record<ConditionKey, number>>> = {
+  industrial_workers:      { jobs: +0.6, prosperity: +0.2, order: -0.1 },
+  logistics_trade_workers: { prosperity: +0.4, jobs: +0.3 },
+  factory_business_owners: { prosperity: +0.5, budget: +0.3, order: +0.2 },
+  civic_professionals:     { cohesion: +0.4, order: +0.2, prosperity: +0.2 },
+  suburban_families:       { order: +0.4, cohesion: +0.3, prosperity: +0.2 },
+};
+export const POL_CONDITION_TURNOUT_MAX_SWING = 0.30; // turnout multiplier clamped to [0.70, 1.30]
+
+// Crisis thresholds (GDD §11). A condition at/below its threshold fires the crisis
+// deterministically from real state — no scripting. Each crisis dings the governing
+// party's credibility/treasury only (never the tuned election math).
+export const POL_CRISIS_THRESHOLDS: Record<string, { key: ConditionKey; at: number; headline: string; body: string }> = {
+  crisis_debt:     { key: 'budget',   at: 3, headline: 'DEBT CRISIS',      body: 'The treasury is stretched to breaking point as the budget deteriorates.' },
+  crisis_jobs:     { key: 'jobs',     at: 3, headline: 'CIVIL UNREST',     body: 'Mass unemployment drives workers into the streets in protest.' },
+  crisis_order:    { key: 'order',    at: 3, headline: 'PUBLIC UNREST',    body: 'Order breaks down as unrest spreads across the jurisdiction.' },
+  crisis_cohesion: { key: 'cohesion', at: 3, headline: 'RISING EXTREMISM', body: 'A fractured society sees extremist movements gain ground.' },
+};
+export const POL_CRISIS_CREDIBILITY_HIT = 3;     // subtracted from the governing leader's credibility
+export const POL_CRISIS_TREASURY_HIT     = 10000; // subtracted from the governing party's treasury
 
 export const POL_DEFAULT_INDUSTRY_TAX_RATE = 0.20;
 export const POL_NPC_DEFAULT_TREASURY = 500000;

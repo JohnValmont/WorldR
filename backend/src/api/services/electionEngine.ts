@@ -10,11 +10,9 @@ import {
   POL_INCUMBENCY_BONUS,
   POL_BASE_TURNOUT,
   POL_COUNCIL_SEATS,
-  POL_VOTE_JITTER,
-  POL_CROWDING_STRENGTH,
-  POL_FATIGUE_DECAY,
-  POL_FATIGUE_WINDOW_MONTHS
+  POL_VOTE_JITTER
 } from '../constants/politics';
+import { Conditions, conditionTurnoutMultiplier } from './conditions';
 
 export interface EngineCandidate {
   candidateId: string;
@@ -30,6 +28,8 @@ export interface ElectionInput {
   registeredVoters: number;
   /** Total seats to allocate for this jurisdiction. Defaults to POL_COUNCIL_SEATS. */
   totalSeats?: number;
+  /** Jurisdiction Conditions (GDD §11). When supplied, modulates per-bloc turnout. */
+  conditions?: Conditions | null;
 }
 
 export interface ElectionResult {
@@ -52,27 +52,6 @@ export function computeFit(platform: Platform, segment: VoterSegment): number {
   return Math.max(0, fit);
 }
 
-/**
- * Fatigue multipliers (GDD §9) for one action type. Given the resolved arcs of
- * same-type actions in chronological order, returns each action's effort
- * multiplier: POL_FATIGUE_DECAY^k, where k = the count of prior same-type
- * actions still inside the sliding POL_FATIGUE_WINDOW_MONTHS window. The count
- * resets once a gap longer than the window passes, so well-spaced or varied
- * play stays full-strength. Pure and deterministic (no randomness).
- */
-export function computeFatigueMultipliers(sortedArcs: number[]): number[] {
-  const recent: number[] = [];
-  const mults: number[] = [];
-  for (const arc of sortedArcs) {
-    while (recent.length > 0 && arc - recent[0] > POL_FATIGUE_WINDOW_MONTHS) {
-      recent.shift();
-    }
-    mults.push(Math.pow(POL_FATIGUE_DECAY, recent.length));
-    recent.push(arc);
-  }
-  return mults;
-}
-
 export function computeReach(effort: number): number {
   if (effort < 0) effort = 0;
   return POL_REACH_MIN + (POL_REACH_MAX - POL_REACH_MIN) * (effort / (effort + POL_REACH_HALF_SAT));
@@ -89,12 +68,11 @@ function seededNoise(seed: string): number {
 }
 
 export function computeSegmentShares(candidates: EngineCandidate[], segment: VoterSegment): Record<string, number> {
-  const fits: Record<string, number> = {};
   const rawScores: Record<string, number> = {};
+  let totalRaw = 0;
 
   for (const c of candidates) {
     const fit = computeFit(c.platform, segment);
-    fits[c.candidateId] = fit;
     const effortInSegment = c.effortBySegment[segment.key] || 0;
     const reach = computeReach(effortInSegment);
     const credMult = 0.5 + 0.5 * (c.credibility / 100);
@@ -103,39 +81,25 @@ export function computeSegmentShares(candidates: EngineCandidate[], segment: Vot
     const jitter = POL_VOTE_JITTER > 0
       ? 1 + POL_VOTE_JITTER * seededNoise(`${c.candidateId}|${segment.key}`)
       : 1;
-    rawScores[c.candidateId] = fit * reach * credMult * incMult * jitter;
-  }
+    const raw = fit * reach * credMult * incMult * jitter;
 
-  // Crowding (GDD §9): parties clustered near this bloc's ideal split its vote.
-  // A candidate's pull is divided by the SHARED fit it holds with each rival —
-  // min(fit_i, fit_j) — so overlap only bites when BOTH sit near the ideal. A
-  // lone well-fit party (rivals far off) has near-zero overlap and keeps near-
-  // full capture; identical copycats overlap fully, divide each other down, and
-  // bleed share to whoever owns space no one else holds. Deterministic; shares
-  // still normalise to 1 so downstream projections/UI contracts are unchanged.
-  let totalScore = 0;
-  const scores: Record<string, number> = {};
-  for (const c of candidates) {
-    let crowding = 0;
-    for (const other of candidates) {
-      if (other.candidateId === c.candidateId) continue;
-      crowding += Math.min(fits[c.candidateId], fits[other.candidateId]);
-    }
-    const crowdingDivisor = 1 + POL_CROWDING_STRENGTH * crowding;
-    const score = rawScores[c.candidateId] / crowdingDivisor;
-    scores[c.candidateId] = score;
-    totalScore += score;
+    rawScores[c.candidateId] = raw;
+    totalRaw += raw;
   }
 
   const shares: Record<string, number> = {};
   for (const c of candidates) {
-    shares[c.candidateId] = totalScore > 0 ? (scores[c.candidateId] / totalScore) : 0;
+    shares[c.candidateId] = totalRaw > 0 ? (rawScores[c.candidateId] / totalRaw) : 0;
   }
 
   return shares;
 }
 
-export function computeTurnout(segment: VoterSegment, candidates: EngineCandidate[]): number {
+export function computeTurnout(
+  segment: VoterSegment,
+  candidates: EngineCandidate[],
+  conditions?: Conditions | null
+): number {
   if (candidates.length === 0) return 0;
   let totalReach = 0;
   for (const c of candidates) {
@@ -143,7 +107,9 @@ export function computeTurnout(segment: VoterSegment, candidates: EngineCandidat
     totalReach += computeReach(effortInSegment);
   }
   const avgReach = totalReach / candidates.length;
-  return POL_BASE_TURNOUT * (0.8 + 0.4 * avgReach);
+  const base = POL_BASE_TURNOUT * (0.8 + 0.4 * avgReach);
+  // Conditions (GDD §5/§11) scale turnout per bloc; 1.0 when no conditions given.
+  return base * conditionTurnoutMultiplier(segment.key, conditions);
 }
 
 export function computeVotes(input: ElectionInput): Record<string, number> {
@@ -153,7 +119,7 @@ export function computeVotes(input: ElectionInput): Record<string, number> {
   }
 
   for (const segment of SEGMENTS) {
-    const turnout = computeTurnout(segment, input.candidates);
+    const turnout = computeTurnout(segment, input.candidates, input.conditions);
     const shares = computeSegmentShares(input.candidates, segment);
     const segmentVoters = segment.size * input.registeredVoters * turnout;
 

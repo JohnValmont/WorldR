@@ -12,7 +12,11 @@
 import {
   GOVERNING_EVENTS_ENABLED,
   GOVERNING_EVENT_TEMPLATES,
+  POL_CRISIS_THRESHOLDS,
+  POL_CRISIS_CREDIBILITY_HIT,
+  POL_CRISIS_TREASURY_HIT,
 } from '../constants/politics';
+import { readConditionsFromRow, detectCrises } from './conditions';
 
 /** Resolves which character holds the Premier seat for a state. Returns null if none. */
 async function resolvePremierCharacter(trx: any, stateId: string): Promise<any | null> {
@@ -130,4 +134,52 @@ export async function fireGoverningEvent(
     headline: template.headline,
     body: template.body,
   });
+}
+
+/**
+ * Fire crisis events driven by Jurisdiction Conditions (GDD §11). A condition
+ * at/below its threshold triggers the crisis deterministically from real state —
+ * no RNG, no scripting. Idempotent per (state, month, crisis kind). Each crisis
+ * dings the governing party's leader credibility and party treasury only; the
+ * tuned election math is never touched.
+ */
+export async function fireConditionCrises(
+  trx: any,
+  stateId: string,
+  currentMonth: number
+): Promise<void> {
+  const state = await trx('pol_states').where({ id: stateId }).first();
+  if (!state) return;
+
+  const conditions = readConditionsFromRow(state);
+  const active = detectCrises(conditions);
+  if (active.length === 0) return;
+
+  for (const kind of active) {
+    const spec = POL_CRISIS_THRESHOLDS[kind];
+
+    // Idempotency guard: one event per (state, month, crisis kind).
+    const already = await trx('pol_ledger_events')
+      .where({ state_id: stateId, arc: currentMonth, kind })
+      .first();
+    if (already) continue;
+
+    // Ding the governing party: leader credibility + party treasury.
+    const premier = await resolvePremierCharacter(trx, stateId);
+    if (premier) {
+      await applyCharacterDelta(trx, premier, { credibility: -POL_CRISIS_CREDIBILITY_HIT });
+    }
+    const governingParty = await resolveGoverningParty(trx, stateId);
+    if (governingParty) {
+      await trx('pol_parties').where({ id: governingParty.id }).decrement('treasury', POL_CRISIS_TREASURY_HIT);
+    }
+
+    await trx('pol_ledger_events').insert({
+      state_id: stateId,
+      arc: currentMonth,
+      kind,
+      headline: spec.headline,
+      body: spec.body,
+    });
+  }
 }

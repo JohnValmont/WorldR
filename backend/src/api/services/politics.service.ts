@@ -1,6 +1,8 @@
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import {
+  POL_FILING_WINDOW_MONTHS,
+  POL_CAMPAIGN_WINDOW_MONTHS,
   POL_FORMATION_WINDOW_MONTHS,
   POL_FIRST_CYCLE_MONTHS,
   getSeatsForState,
@@ -24,8 +26,9 @@ import {
   RECRUIT_COST_CASH,
   RECRUIT_PLATFORM_DRIFT,
 } from '../constants/politics';
-import { EngineCandidate, runElection, computeFatigueMultipliers } from './electionEngine';
-import { fireGoverningEvent } from './governingEvents';
+import { EngineCandidate, runElection } from './electionEngine';
+import { fireGoverningEvent, fireConditionCrises } from './governingEvents';
+import { Conditions, computeConditionTargets, driftConditions, readConditionsFromRow } from './conditions';
 
 /**
  * Convert a world_clock row into a MONOTONIC absolute month ("arc").
@@ -190,13 +193,16 @@ async function applyFactorDelta(trx: any, characterId: string | null, factors: R
 export function derivePhase(
   cycle: { polling_arc: number; formation_end_arc: number },
   currentMonth: number
-): 'governing' | 'polling' | 'formation' {
-  // GDD §3: no phase ceremony. Campaigning, candidacy and bill proposing are
-  // ALWAYS open ("governing"). The only scheduled resolution moments are the
-  // election itself (polling) and the post-election government-formation window.
+): 'governing' | 'filing' | 'campaign' | 'polling' | 'formation' {
+  const startCampaign = cycle.polling_arc - POL_CAMPAIGN_WINDOW_MONTHS;
+  const startFiling = startCampaign - POL_FILING_WINDOW_MONTHS;
+
+  if (currentMonth < startFiling) return 'governing';
+  if (currentMonth >= startFiling && currentMonth < startCampaign) return 'filing';
+  if (currentMonth >= startCampaign && currentMonth < cycle.polling_arc) return 'campaign';
   if (currentMonth === cycle.polling_arc) return 'polling';
   if (currentMonth > cycle.polling_arc && currentMonth <= cycle.formation_end_arc) return 'formation';
-
+  
   return 'governing';
 }
 
@@ -282,47 +288,19 @@ export async function buildEngineCandidates(trx: any, cycleId: string, maxArc?: 
       effortBySegment[seg.key] = 0;
     }
 
-    // Fatigue (GDD §9): repeating the SAME action type in a short window yields
-    // diminishing effort. Order this candidate's actions deterministically
-    // (resolved_arc, then id), then apply a per-action fatigue multiplier that
-    // decays with the number of same-type actions still inside the window (see
-    // computeFatigueMultipliers). Varied or well-spaced play stays full-strength.
-    const cActions = actions
-      .filter((a: any) => a.candidate_id === c.id && a.effort > 0)
-      .sort((a: any, b: any) => {
-        const ra = Number(a.resolved_arc ?? 0);
-        const rb = Number(b.resolved_arc ?? 0);
-        if (ra !== rb) return ra - rb;
-        return String(a.id).localeCompare(String(b.id));
-      });
-
-    // Per-type fatigue multipliers, keyed to each action's position within its type.
-    const fatigueByType: Record<string, number[]> = {};
-    const typeCursor: Record<string, number> = {};
+    const cActions = actions.filter((a: any) => a.candidate_id === c.id);
     for (const action of cActions) {
-      const type = action.action_type;
-      if (!fatigueByType[type]) {
-        const arcs = cActions
-          .filter((a: any) => a.action_type === type)
-          .map((a: any) => Number(a.resolved_arc ?? 0));
-        fatigueByType[type] = computeFatigueMultipliers(arcs);
-        typeCursor[type] = 0;
-      }
-    }
-
-    for (const action of cActions) {
+      if (action.effort <= 0) continue;
+      
       const def = CAMPAIGN_ACTIONS.find(a => a.type === action.action_type);
-      const fatigueMult = fatigueByType[action.action_type][typeCursor[action.action_type]++];
       if (!def) continue;
-
-      const effectiveEffort = Number(action.effort) * fatigueMult;
 
       if (def.targeting === 'segment' && action.target_segment) {
         if (effortBySegment[action.target_segment] !== undefined) {
-          effortBySegment[action.target_segment] += effectiveEffort;
+          effortBySegment[action.target_segment] += Number(action.effort);
         }
       } else if (def.targeting === 'all') {
-        const amt = effectiveEffort / SEGMENTS.length;
+        const amt = Number(action.effort) / SEGMENTS.length;
         for (const seg of SEGMENTS) {
           effortBySegment[seg.key] += amt;
         }
@@ -342,6 +320,46 @@ export async function buildEngineCandidates(trx: any, cycleId: string, maxArc?: 
   return engineCandidates;
 }
 
+/** Fetch the current Conditions for a state (falls back to neutral if unseeded). */
+export async function getStateConditions(trx: any, stateId: string): Promise<Conditions> {
+  const state = await trx('pol_states').where({ id: stateId }).first();
+  return readConditionsFromRow(state);
+}
+
+/** The governing party's active-policy platform (premier's party), or null if no government. */
+async function resolveGoverningPlatform(trx: any, stateId: string): Promise<Record<string, number> | null> {
+  const premierSeat = await trx('pol_offices').where({ state_id: stateId, office: 'premier' }).first();
+  if (!premierSeat?.party_id) return null;
+  const party = await trx('pol_parties').where({ id: premierSeat.party_id }).first();
+  if (!party?.platform) return null;
+  return typeof party.platform === 'string' ? JSON.parse(party.platform) : party.platform;
+}
+
+/**
+ * Drift a state's Conditions toward the target implied by the governing party's
+ * active policy (GDD §11/§16). Deterministic and idempotent per in-game month:
+ * cond_updated_arc guards against running twice for the same month.
+ */
+export async function applyConditionDrift(trx: any, stateId: string, currentMonth: number) {
+  const state = await trx('pol_states').where({ id: stateId }).first();
+  if (!state) return;
+  if (Number(state.cond_updated_arc ?? 0) >= currentMonth) return; // already drifted this month
+
+  const platform = await resolveGoverningPlatform(trx, stateId);
+  const current = readConditionsFromRow(state);
+  const targets = computeConditionTargets(platform as any);
+  const next = driftConditions(current, targets);
+
+  await trx('pol_states').where({ id: stateId }).update({
+    cond_prosperity: next.prosperity,
+    cond_jobs: next.jobs,
+    cond_order: next.order,
+    cond_cohesion: next.cohesion,
+    cond_budget: next.budget,
+    cond_updated_arc: currentMonth,
+  });
+}
+
 export async function processPoliticalArc(trx: any, stateId: string, currentMonth: number) {
   const cycle = await trx('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
   if (!cycle) return;
@@ -359,14 +377,16 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
     await regenApForCharacter(trx, row.character_id, currentMonth);
   }
 
-  // Candidacy is open all term: keep NPC slates filled every governing month.
-  if (newPhase === 'governing') {
+  // Jurisdiction Conditions (GDD §11): drift toward the governing policy's target,
+  // then fire any deterministic crisis events. Both run every month, phase-agnostic.
+  await applyConditionDrift(trx, stateId, currentMonth);
+  await fireConditionCrises(trx, stateId, currentMonth);
+
+  if (newPhase === 'filing') {
     await ensureNpcCandidates(trx, cycle.id);
   }
 
-  // Campaigning is always available (GDD §3): resolve queued campaign actions and
-  // run the NPC campaign AI every governing month, not just in a campaign window.
-  if (newPhase === 'governing') {
+  if (newPhase === 'campaign') {
     const pendingActions = await trx('pol_campaign_actions')
       .join('pol_candidates', 'pol_campaign_actions.candidate_id', 'pol_candidates.id')
       .where('pol_campaign_actions.cycle_id', cycle.id)
@@ -552,8 +572,9 @@ async function resolveElection(trx: any, cycleId: string) {
   const engineCands = await buildEngineCandidates(trx, cycleId);
   const state = await trx('pol_states').where({ id: cycle.state_id }).first();
   const registeredVoters = state ? state.registered_voters || 1600000 : 1600000;
+  const conditions = readConditionsFromRow(state);
 
-  const result = runElection({ candidates: engineCands, registeredVoters, totalSeats: getSeatsForState(state?.code) });
+  const result = runElection({ candidates: engineCands, registeredVoters, totalSeats: getSeatsForState(state?.code), conditions });
 
   // Determine previous cycle winners for seat loss calculation
   const prevCycle = await trx('pol_cycles')
