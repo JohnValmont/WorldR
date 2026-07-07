@@ -6,6 +6,7 @@ import { DEFAULT_JURISDICTION_ID, type JurisdictionId } from './_lib/session';
 import { T, MONO } from './_lib/theme';
 import { JURISDICTION_MODEL } from './_lib/model';
 import PoliticsSidebar, { type PoliticsSection } from './_components/PoliticsSidebar';
+import { formatGameDateShort } from '@/lib/calendar';
 
 import OverviewScreen    from './OverviewScreen';
 import ElectionsScreen   from './ElectionsScreen';
@@ -86,7 +87,7 @@ export default function PoliticsDesk() {
 
   const cash = character?.finances?.cash_in_hand;
   const cred = character?.political?.credibility ?? character?.credibility;
-  const monthYear = overview?.sessionMonthLabel || (overview?.sessionYear ? `Year ${overview.sessionYear}` : (overview?.year ? `Year ${overview.year}` : ''));
+  const monthYear = overview?.cycle?.currentArc ? formatGameDateShort(overview.cycle.currentArc) : '';
   const monthsToElection = overview?.cycle?.monthsToElection ?? overview?.monthsToElection;
 
   return (

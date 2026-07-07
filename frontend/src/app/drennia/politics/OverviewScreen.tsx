@@ -6,6 +6,7 @@ import { T, MONO } from './_lib/theme';
 import { JURISDICTION_MODEL } from './_lib/model';
 import type { PoliticsSection } from './_components/PoliticsSidebar';
 import { Panel, Stamp, Meter, StatTile } from './_components/DeskUI';
+import { formatGameDateShort } from '@/lib/calendar';
 
 interface Props {
   overview: any;
@@ -189,7 +190,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
               {events.slice(0, 6).map((e: any, i: number) => (
                 <div key={e.id || i} style={{ borderBottom: i < Math.min(events.length - 1, 5) ? `1px solid ${T.borderSoft}` : 'none', paddingBottom: 10 }}>
                   <div style={{ fontFamily: MONO, fontSize: 9.5, color: T.faint, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 3 }}>
-                    {e.arc != null ? `Arc ${e.arc}` : e.kind || ''}
+                    {e.arc != null ? formatGameDateShort(e.arc) : e.kind || ''}
                   </div>
                   <div style={{ color: T.text, fontSize: 13, lineHeight: 1.45 }}>
                     {e.headline || e.title || e.message || e.description || e.kind || 'Event'}
