@@ -814,10 +814,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         {notification && (
           <div
             role="status"
-            className={`mb-4 flex items-start gap-2.5 rounded-md border px-4 py-3 text-xs leading-relaxed
+            className={`fixed top-6 right-6 z-[9999] w-full max-w-md shadow-2xl mb-4 flex items-start gap-2.5 rounded-md border px-4 py-3 text-xs leading-relaxed
               ${notification.success
-                ? 'border-terminal-green/50 bg-terminal-green/10 text-terminal-green'
-                : 'border-terminal-red/50 bg-terminal-red/10 text-terminal-red'}`}
+                ? 'border-terminal-green/50 bg-terminal-green/10 text-terminal-green backdrop-blur-md'
+                : 'border-terminal-red/50 bg-terminal-red/10 text-terminal-red backdrop-blur-md'}`}
           >
             <StatusDot variant={notification.success ? 'live' : 'danger'} className="mt-1 shrink-0" />
             <span>{notification.msg}</span>
