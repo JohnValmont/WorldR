@@ -1814,7 +1814,10 @@ export class ManufacturingController {
       ]);
     }
 
-    await trx('company_finances').where({ company_id: companyId }).update({ available_cash: pState.runningCash, last_arc_profit: finalNetProfit, updated_at: trx.fn.now() });
+    await trx('company_finances')
+      .where({ company_id: companyId })
+      .update({ available_cash: pState.runningCash, last_arc_profit: finalNetProfit, updated_at: trx.fn.now() })
+      .increment('company_value', finalNetProfit);
 
     if (totalUnitsSold > 0) {
       await trx('companies').where({ id: companyId }).update({ reputation: trx.raw('LEAST(100, reputation + 1)'), updated_at: trx.fn.now() });
