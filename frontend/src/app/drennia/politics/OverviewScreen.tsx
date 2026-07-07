@@ -20,8 +20,7 @@ function Panel({ title, children, action }: { title: string; children: React.Rea
   return (
     <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 4, padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <div style={stampStyle}>{title}</div>
-        {action}
+        <div style={stampStyle}>{title}</div>{action}
       </div>
       {children}
     </div>
@@ -48,44 +47,30 @@ function Gauge({ pct }: { pct: number | null }) {
 
 function NavButton({ label, onClick, primary }: { label: string; onClick: () => void; primary?: boolean }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: '10px 14px', borderRadius: 4, cursor: 'pointer', fontSize: 12.5, fontWeight: 600,
-        fontFamily: MONO, letterSpacing: '0.06em', textTransform: 'uppercase',
-        background: primary ? T.gold : T.panel2,
-        color: primary ? '#1a1408' : T.text,
-        border: `1px solid ${primary ? T.gold : T.border}`,
-      }}
-    >
-      {label}
-    </button>
+    <button onClick={onClick} style={{ padding: '10px 14px', borderRadius: 4, cursor: 'pointer', fontSize: 12.5, fontWeight: 600, fontFamily: MONO, letterSpacing: '0.06em', textTransform: 'uppercase', background: primary ? T.gold : T.panel2, color: primary ? '#1a1408' : T.text, border: `1px solid ${primary ? T.gold : T.border}` }}>{label}</button>
   );
 }
 
 export default function OverviewScreen({ overview, character, parties, myAp, selectedJurisdictionId, onNavigate, onRefresh }: Props) {
   const jid = selectedJurisdictionId;
-  const { data: bills = [] } = useSWR(['ov-bills', jid], () => politicsApi.getBills(jid).catch(() => []));
+  const { data: billData } = useSWR(['ov-bills', jid], () => politicsApi.getBills(jid).catch(() => null));
   const { data: ledger = [] } = useSWR(['ov-ledger', jid], () => politicsApi.getLedger(8, jid).catch(() => []));
   const [busy, setBusy] = useState<string | null>(null);
 
   const jMeta = JURISDICTION_MODEL[jid] || JURISDICTION_MODEL.ironvale;
   const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
-  const support: number | null = myParty
-    ? (myParty.popularity ?? myParty.approval ?? myParty.projected_share ?? null)
-    : null;
+  const support: number | null = myParty ? (myParty.popularity ?? myParty.approval ?? myParty.projected_share ?? null) : null;
 
-  const billList = Array.isArray(bills) ? bills : [];
-  const floorBill = billList.find((b: any) => {
+  const bills: any[] = Array.isArray(billData?.bills) ? billData.bills : [];
+  const floorBill = bills.find((b: any) => {
     const s = String(b?.status || '').toLowerCase();
     return s.includes('floor') || s.includes('open') || s.includes('voting');
-  }) || billList[0];
-
-  const ayes = floorBill?.ayes ?? floorBill?.votes_for ?? floorBill?.aye_count;
-  const nays = floorBill?.nays ?? floorBill?.votes_against ?? floorBill?.nay_count;
+  }) || bills[0];
+  const ayes = floorBill?.ayes ?? floorBill?.votes_for;
+  const nays = floorBill?.nays ?? floorBill?.votes_against;
 
   async function vote(id: string, v: 'aye' | 'nay') {
-    try { setBusy(v); await politicsApi.voteBill(id, v); await onRefresh(); } catch { /* surfaced elsewhere */ } finally { setBusy(null); }
+    try { setBusy(v); await politicsApi.voteBill(id, v); await onRefresh(); } catch { /* handled elsewhere */ } finally { setBusy(null); }
   }
 
   const events = Array.isArray(ledger) ? ledger : [];
@@ -94,16 +79,12 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
         <div style={stampStyle}>This Month · {jMeta.name}</div>
-        <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '6px 0 0', letterSpacing: '-0.01em' }}>
-          {myParty ? myParty.name : 'Found a party to begin'}
-        </h1>
+        <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '6px 0 0', letterSpacing: '-0.01em' }}>{myParty ? myParty.name : 'Found a party to begin'}</h1>
       </div>
 
       {!myParty && (
         <Panel title="Get Started">
-          <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.6, marginBottom: 14 }}>
-            You have no active party. Found a movement, choose your Creed, and stand for {jMeta.name}.
-          </div>
+          <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.6, marginBottom: 14 }}>You have no active party. Found a movement, choose your Creed, and stand for {jMeta.name}.</div>
           <NavButton label="Found a Party" primary onClick={() => onNavigate('party')} />
         </Panel>
       )}
@@ -113,14 +94,8 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <Gauge pct={support} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div>
-                <div style={{ ...stampStyle, color: T.faint }}>Action Points</div>
-                <div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 700, color: T.gold }}>{myAp?.current_ap ?? 0}</div>
-              </div>
-              <div>
-                <div style={{ ...stampStyle, color: T.faint }}>Seats (target)</div>
-                <div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 700, color: T.ivory }}>{jMeta.seats}</div>
-              </div>
+              <div><div style={{ ...stampStyle, color: T.faint }}>Action Points</div><div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 700, color: T.gold }}>{myAp?.current_ap ?? 0}</div></div>
+              <div><div style={{ ...stampStyle, color: T.faint }}>Seats (target)</div><div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 700, color: T.ivory }}>{jMeta.seats}</div></div>
             </div>
           </div>
         </Panel>
@@ -162,9 +137,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
 
         <Panel title="Recommended Move">
           <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.6, marginBottom: 14 }}>
-            {myParty
-              ? 'Read the electorate, then campaign where no rival stands — owning open ground beats crowding a popular bloc.'
-              : 'Your first move: found a party and pick the Creed that matches how you want to govern.'}
+            {myParty ? 'Read the electorate, then campaign where no rival stands — owning open ground beats crowding a popular bloc.' : 'Your first move: found a party and pick the Creed that matches how you want to govern.'}
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <NavButton label={myParty ? 'View Electorate' : 'Found a Party'} primary onClick={() => onNavigate(myParty ? 'elections' : 'party')} />
