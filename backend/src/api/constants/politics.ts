@@ -126,6 +126,28 @@ export const POL_FUNDRAISER_BASE = 5000;
 export const POL_FUNDRAISER_CHARISMA_MULT = 100;
 export const POL_ENDORSEMENT_INFLUENCE_COST = 5;
 
+// ── Anti-copycat: Crowding & Fatigue (GDD v0.5 §9) ──────────────────────────
+// Deterministic, fit/state-driven only — no randomness or scripting.
+//
+// CROWDING — vote-splitting among parties clustered near a bloc's ideal.
+// Within a bloc, two candidates "crowd" each other in proportion to the SHARED
+// fit they both hold there: min(fit_i, fit_j). Each candidate's raw pull is
+// divided by (1 + POL_CROWDING_STRENGTH * Σ_{j≠i} min(fit_i, fit_j)). A party
+// that OWNS an underserved bloc has little overlap with rivals → near-full
+// capture; identical copycats overlap fully → they divide each other down and
+// bleed share to whoever is least crowded. Per-bloc shares still sum to 1, so
+// projections/UI contracts are unchanged. Higher = harsher anti-copycat.
+export const POL_CROWDING_STRENGTH = 1.5;
+
+// FATIGUE — diminishing returns for repeating the SAME campaign action type in
+// a short window. The k-th same-type action whose resolved_arc falls inside the
+// window contributes effort × POL_FATIGUE_DECAY^k (k counts prior same-type
+// actions still inside the window; the count resets once a gap longer than the
+// window passes). Varied play stays full-strength. Applied when campaign effort
+// is aggregated into Reach, so it is deterministic and recomputable from state.
+export const POL_FATIGUE_DECAY = 0.6;         // 40% haircut per in-window repeat
+export const POL_FATIGUE_WINDOW_MONTHS = 3;   // sliding window length (in-game months)
+
 export const POL_DEFAULT_INDUSTRY_TAX_RATE = 0.20;
 export const POL_NPC_DEFAULT_TREASURY = 500000;
 

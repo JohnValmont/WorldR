@@ -26,7 +26,7 @@ import {
   RECRUIT_COST_CASH,
   RECRUIT_PLATFORM_DRIFT,
 } from '../constants/politics';
-import { EngineCandidate, runElection } from './electionEngine';
+import { EngineCandidate, runElection, computeFatigueMultipliers } from './electionEngine';
 import { fireGoverningEvent } from './governingEvents';
 
 /**
@@ -287,19 +287,47 @@ export async function buildEngineCandidates(trx: any, cycleId: string, maxArc?: 
       effortBySegment[seg.key] = 0;
     }
 
-    const cActions = actions.filter((a: any) => a.candidate_id === c.id);
+    // Fatigue (GDD §9): repeating the SAME action type in a short window yields
+    // diminishing effort. Order this candidate's actions deterministically
+    // (resolved_arc, then id), then apply a per-action fatigue multiplier that
+    // decays with the number of same-type actions still inside the window (see
+    // computeFatigueMultipliers). Varied or well-spaced play stays full-strength.
+    const cActions = actions
+      .filter((a: any) => a.candidate_id === c.id && a.effort > 0)
+      .sort((a: any, b: any) => {
+        const ra = Number(a.resolved_arc ?? 0);
+        const rb = Number(b.resolved_arc ?? 0);
+        if (ra !== rb) return ra - rb;
+        return String(a.id).localeCompare(String(b.id));
+      });
+
+    // Per-type fatigue multipliers, keyed to each action's position within its type.
+    const fatigueByType: Record<string, number[]> = {};
+    const typeCursor: Record<string, number> = {};
     for (const action of cActions) {
-      if (action.effort <= 0) continue;
-      
+      const type = action.action_type;
+      if (!fatigueByType[type]) {
+        const arcs = cActions
+          .filter((a: any) => a.action_type === type)
+          .map((a: any) => Number(a.resolved_arc ?? 0));
+        fatigueByType[type] = computeFatigueMultipliers(arcs);
+        typeCursor[type] = 0;
+      }
+    }
+
+    for (const action of cActions) {
       const def = CAMPAIGN_ACTIONS.find(a => a.type === action.action_type);
+      const fatigueMult = fatigueByType[action.action_type][typeCursor[action.action_type]++];
       if (!def) continue;
+
+      const effectiveEffort = Number(action.effort) * fatigueMult;
 
       if (def.targeting === 'segment' && action.target_segment) {
         if (effortBySegment[action.target_segment] !== undefined) {
-          effortBySegment[action.target_segment] += Number(action.effort);
+          effortBySegment[action.target_segment] += effectiveEffort;
         }
       } else if (def.targeting === 'all') {
-        const amt = Number(action.effort) / SEGMENTS.length;
+        const amt = effectiveEffort / SEGMENTS.length;
         for (const seg of SEGMENTS) {
           effortBySegment[seg.key] += amt;
         }
