@@ -287,6 +287,15 @@ export class CompanyController {
           );
         }
 
+        // Dilution protection: cannot unilaterally issue shares if there are minority shareholders
+        const otherHolders = await trx('company_shares')
+          .where({ company_id: company.id })
+          .where('shares', '>', 0)
+          .whereNot({ holder_character_id: character.id });
+        if (otherHolders.length > 0) {
+          throw new AppError('Cannot arbitrarily issue shares because there are minority shareholders. You must use the Equity Placements system to raise capital fairly without unilateral dilution.', 400, 'EMBEZZLEMENT_PROTECTION');
+        }
+
         // Upsert cap table row for founder
         const existingRow = await trx('company_shares')
           .where({ company_id: id, holder_character_id: character.id })
@@ -391,6 +400,16 @@ export class CompanyController {
 
         if (company.legal_structure_id === 'public-corporation') {
           throw new AppError('Public corporations cannot use direct owner drawings. Use dividend policies to distribute cash to shareholders.', 400, 'WRONG_STRUCTURE');
+        }
+
+        if (company.legal_structure_id === 'private-company') {
+          const otherHolders = await trx('company_shares')
+            .where({ company_id: company.id })
+            .where('shares', '>', 0)
+            .whereNot({ holder_character_id: character.id });
+          if (otherHolders.length > 0) {
+            throw new AppError('Cannot use ad-hoc owner drawings because there are minority shareholders. Use dividend policies to distribute cash fairly.', 400, 'EMBEZZLEMENT_PROTECTION');
+          }
         }
 
         const companyFinances = await trx('company_finances').where({ company_id: company.id }).forUpdate().first();
@@ -498,7 +517,10 @@ export class CompanyController {
           throw new AppError(`Insufficient company cash for the §${fee.toLocaleString()} filing fee`, 400, 'INSUFFICIENT_FUNDS');
         }
 
-        await trx('company_finances').where({ company_id: id }).decrement('available_cash', fee);
+        await trx('company_finances')
+          .where({ company_id: id })
+          .decrement('available_cash', fee)
+          .decrement('company_value', fee);
         await trx('companies').where({ id }).update({ legal_structure_id, updated_at: trx.fn.now() });
 
         const clock = await trx('world_clock').first();
@@ -566,9 +588,11 @@ export class CompanyController {
         .orderBy('created_at', 'desc')
         .limit(24);
 
+      const totalShares = holders.reduce((sum, h) => sum + Number(h.shares), 0);
+
       res.status(200).json({
-        total_shares: 1000000,
-        holders: holders.map((h: any) => ({ ...h, percent: (Number(h.shares) / 1000000) * 100 })),
+        total_shares: totalShares,
+        holders: holders.map((h: any) => ({ ...h, percent: totalShares > 0 ? (Number(h.shares) / totalShares) * 100 : 0 })),
         dividend_policy: policy ? Number(policy.payout_percent) : 0,
         recent_dividends: recentDividends,
       });
