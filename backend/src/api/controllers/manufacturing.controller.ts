@@ -391,10 +391,11 @@ export class ManufacturingController {
         }
 
         // Deduct cash
+        const newBalance = Number(finances.available_cash) - totalCost;
         await trx('company_finances')
           .where({ company_id: companyId })
           .update({
-            available_cash: Number(finances.available_cash) - totalCost,
+            available_cash: newBalance,
             updated_at: trx.fn.now()
           });
 
@@ -439,15 +440,14 @@ export class ManufacturingController {
         
         // Add ledger entry
         await trx('company_ledger').insert({
-          world_instance_id: company.world_instance_id,
           company_id: companyId,
-          world_year: currentYear,
-          world_month: currentMonth,
-          world_day: currentDay,
-          category: 'expense',
-          subcategory: 'procurement',
-          amount: totalCost,
-          description: `Procured ${units} units of ${component.name}`
+          game_year: currentYear,
+          game_month: currentMonth,
+          game_day: currentDay,
+          entry_type: 'expense',
+          description: `Procured ${units} units of ${component.name}`,
+          amount: -totalCost,
+          balance_after: newBalance
         });
       });
 
