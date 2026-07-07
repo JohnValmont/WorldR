@@ -245,6 +245,131 @@ export class CompanyController {
     }
   }
 
+  /**
+   * POST /companies/:id/issue-shares  { sharesToIssue, pricePerShare }
+   * Private Company only: founder issues new shares to themselves.
+   * - sharesToIssue × pricePerShare cash deducted from personal wallet
+   * - Same amount credited to company cash
+   * - company_shares table updated (new shares minted)
+   * - company_value incremented by the capital raised
+   * Max shareholders check enforced (private-company allows 10).
+   */
+  public static async issueShares(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { id } = req.params;
+      const { sharesToIssue, pricePerShare } = req.body;
+
+      if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+      const shares = Math.floor(Number(sharesToIssue));
+      const price  = Number(pricePerShare);
+
+      if (!shares || shares <= 0) return next(new AppError('sharesToIssue must be a positive integer.', 400, 'BAD_REQUEST'));
+      if (!price  || price  <= 0) return next(new AppError('pricePerShare must be positive.', 400, 'BAD_REQUEST'));
+
+      const totalCost = shares * price;
+
+      const result = await db.transaction(async (trx) => {
+        const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+        if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+        const company = await trx('companies').where({ id, owner_character_id: character.id }).first();
+        if (!company) throw new AppError('Company not found or unauthorized', 404, 'NOT_FOUND');
+
+        // Structure guard: private-company only
+        if (company.legal_structure_id !== 'private-company') {
+          throw new AppError(
+            'Share issuance is only available to Private Companies. Sole traders inject capital directly; public corporations raise via exchange rights issues.',
+            400,
+            'WRONG_STRUCTURE'
+          );
+        }
+
+        // Check max shareholders (private = 10). Count distinct holders excluding founder self-top-up.
+        const struct = await trx('legal_structures').where({ id: 'private-company' }).first();
+        const maxShareholders = struct?.max_shareholders ?? 10;
+        const holderCount = await trx('company_shares')
+          .where({ company_id: id })
+          .where('shares', '>', 0)
+          .count('holder_character_id as n')
+          .first();
+        const currentHolders = Number((holderCount as any)?.n ?? 0);
+        // Self-issuance never adds a new holder (founder already in cap table).
+        // We still guard just in case somehow the founder isn't there yet.
+        if (currentHolders >= maxShareholders) {
+          throw new AppError(`Shareholder cap reached (${maxShareholders}). Cannot issue further shares without upgrading to a public corporation.`, 400, 'SHAREHOLDER_CAP');
+        }
+
+        // Check personal funds
+        const charFinances = await trx('character_finances')
+          .where({ character_id: character.id })
+          .forUpdate()
+          .first();
+        if (!charFinances) throw new AppError('Character finances not found', 500, 'INTERNAL');
+
+        if (Number(charFinances.cash_in_hand) < totalCost) {
+          throw new AppError(
+            `Insufficient personal funds. This issuance costs §${totalCost.toLocaleString()} (${shares.toLocaleString()} shares × §${price.toLocaleString()}), but you only have §${Number(charFinances.cash_in_hand).toLocaleString()}.`,
+            400,
+            'INSUFFICIENT_FUNDS'
+          );
+        }
+
+        // Deduct from character
+        await trx('character_finances')
+          .where({ character_id: character.id })
+          .decrement('cash_in_hand', totalCost);
+
+        // Credit company cash + company_value
+        const [updatedFinances] = await trx('company_finances')
+          .where({ company_id: id })
+          .increment('available_cash', totalCost)
+          .increment('company_value',  totalCost)
+          .returning('*');
+
+        // Upsert cap table row for founder
+        const existingRow = await trx('company_shares')
+          .where({ company_id: id, holder_character_id: character.id })
+          .first();
+
+        if (existingRow) {
+          const prevShares = Number(existingRow.shares);
+          const prevCost   = Number(existingRow.avg_cost_basis);
+          const newTotal   = prevShares + shares;
+          const newAvgCost = ((prevCost * prevShares) + (price * shares)) / newTotal;
+          await trx('company_shares')
+            .where({ company_id: id, holder_character_id: character.id })
+            .update({ shares: newTotal, avg_cost_basis: newAvgCost, updated_at: trx.fn.now() });
+        } else {
+          await trx('company_shares').insert({
+            company_id: id,
+            holder_character_id: character.id,
+            shares,
+            avg_cost_basis: price,
+          });
+        }
+
+        return {
+          available_cash: updatedFinances.available_cash,
+          company_value:  updatedFinances.company_value,
+          shares_issued:  shares,
+          price_per_share: price,
+          capital_raised:  totalCost,
+          personal_cash_remaining: Number(charFinances.cash_in_hand) - totalCost,
+        };
+      });
+
+      res.status(200).json({
+        success: true,
+        message: `Issued ${result.shares_issued.toLocaleString()} new shares at §${result.price_per_share.toLocaleString()} each. §${result.capital_raised.toLocaleString()} raised for the company.`,
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   public static async withdrawCapital(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;

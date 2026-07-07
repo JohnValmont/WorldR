@@ -2268,37 +2268,79 @@ function CompanyDeskTab({
                   &nbsp;·&nbsp; Company cash: <span style={{ color: T.ivory, fontWeight: 700, fontFamily: 'monospace' }}>{formatMoney((company as any).finances?.available_cash ?? company.companyCash ?? 0)}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                  <PanelBox>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: T.mint, marginBottom: '4px' }}>↓ Inject Capital</div>
-                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>Transfer your personal cash into the company ledger (owner loan).</div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input
-                        type="number"
-                        id="inject-amount"
-                        placeholder="§ Amount"
-                        min={1}
-                        style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px', borderRadius: '3px' }}
-                      />
-                      <GoldButton onClick={async () => {
-                        const el = document.getElementById('inject-amount') as HTMLInputElement;
-                        if (!el || !el.value) return;
-                        const amount = parseInt(el.value);
-                        if (amount <= 0) return;
-                        try {
-                          const { companyApi } = await import('@/lib/api');
-                          const res = await companyApi.injectCapital(company.id, amount);
-                          showNotif(res.data?.message || `§${amount.toLocaleString()} injected successfully.`, true);
-                          el.value = '';
-                          onRefresh();
-                        } catch (err: any) {
-                          showNotif(err?.response?.data?.message || err?.response?.data?.error || 'Injection failed.', false);
-                        }
-                      }}>Inject</GoldButton>
-                    </div>
-                  </PanelBox>
+                  {(company.legalStructureId === 'private-company' || company.legalStructure === 'Private Company') ? (
+                    <PanelBox>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: T.mint, marginBottom: '4px' }}>↓ Issue Shares</div>
+                      <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px', minHeight: '34px' }}>Issue new shares to yourself to inject capital. Cash is transferred to company, and your equity increases.</div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="number"
+                          id="issue-shares-qty"
+                          placeholder="Shares"
+                          min={1}
+                          style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px', borderRadius: '3px', width: '80px' }}
+                        />
+                        <span style={{color: T.muted, fontSize: '12px'}}>@</span>
+                        <input
+                          type="number"
+                          id="issue-shares-price"
+                          placeholder="§ Price"
+                          min={1}
+                          style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px', borderRadius: '3px', width: '80px' }}
+                        />
+                        <GoldButton onClick={async () => {
+                          const qtyEl = document.getElementById('issue-shares-qty') as HTMLInputElement;
+                          const priceEl = document.getElementById('issue-shares-price') as HTMLInputElement;
+                          if (!qtyEl || !qtyEl.value || !priceEl || !priceEl.value) return;
+                          const qty = parseInt(qtyEl.value);
+                          const price = parseInt(priceEl.value);
+                          if (qty <= 0 || price <= 0) return;
+                          try {
+                            const { companyApi } = await import('@/lib/api');
+                            const res = await companyApi.issueShares(company.id, qty, price);
+                            showNotif(res.data?.message || `Issued ${qty} shares for §${(qty*price).toLocaleString()}.`, true);
+                            qtyEl.value = '';
+                            priceEl.value = '';
+                            onRefresh();
+                          } catch (err: any) {
+                            showNotif(err?.response?.data?.message || err?.response?.data?.error || 'Issuance failed.', false);
+                          }
+                        }}>Issue</GoldButton>
+                      </div>
+                    </PanelBox>
+                  ) : (
+                    <PanelBox>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: T.mint, marginBottom: '4px' }}>↓ Inject Capital</div>
+                      <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px', minHeight: '34px' }}>Transfer your personal cash into the company ledger (owner loan).</div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="number"
+                          id="inject-amount"
+                          placeholder="§ Amount"
+                          min={1}
+                          style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px', borderRadius: '3px' }}
+                        />
+                        <GoldButton onClick={async () => {
+                          const el = document.getElementById('inject-amount') as HTMLInputElement;
+                          if (!el || !el.value) return;
+                          const amount = parseInt(el.value);
+                          if (amount <= 0) return;
+                          try {
+                            const { companyApi } = await import('@/lib/api');
+                            const res = await companyApi.injectCapital(company.id, amount);
+                            showNotif(res.data?.message || `§${amount.toLocaleString()} injected successfully.`, true);
+                            el.value = '';
+                            onRefresh();
+                          } catch (err: any) {
+                            showNotif(err?.response?.data?.message || err?.response?.data?.error || 'Injection failed.', false);
+                          }
+                        }}>Inject</GoldButton>
+                      </div>
+                    </PanelBox>
+                  )}
                   <PanelBox>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: T.gold, marginBottom: '4px' }}>↑ Owner Drawings</div>
-                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>Withdraw company cash to your personal holdings.</div>
+                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px', minHeight: '34px' }}>Withdraw company cash to your personal holdings.</div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <input
                         type="number"

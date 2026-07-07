@@ -134,6 +134,8 @@ export const companyApi = {
     api.post('/companies', data),
   injectCapital: (id: string, amount: number) =>
     api.post(`/companies/${id}/inject-capital`, { amount }),
+  issueShares: (id: string, sharesToIssue: number, pricePerShare: number) =>
+    api.post(`/companies/${id}/issue-shares`, { sharesToIssue, pricePerShare }),
   withdrawCapital: (id: string, amount: number) =>
     api.post(`/companies/${id}/withdraw-capital`, { amount }),
   updateFinances: (id: string, data: any) =>
