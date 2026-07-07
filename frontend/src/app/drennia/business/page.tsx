@@ -72,52 +72,44 @@ const getLegalStructureName = (id?: string): string => {
 
 // ─── Reusable Atoms ──────────────────────────────────────────────────────────
 const Label = ({ children }: { children: React.ReactNode }) => (
-  <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint, marginBottom: '4px' }}>
+  <div className="font-mono text-[9px] uppercase tracking-[0.15em] text-zinc-500 mb-1">
     {children}
   </div>
 );
 
 const FieldRow = ({ label, value, valueColor }: { label: string; value: string | number; valueColor?: string }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '7px 0', borderBottom: `1px solid ${T.border}` }}>
-    <span style={{ fontSize: '11px', color: T.muted }}>{label}</span>
-    <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 600, color: valueColor || T.ivory }}>{value}</span>
+  <div className="flex justify-between items-baseline py-2 border-b border-zinc-800/60 last:border-0">
+    <span className="text-[11px] text-zinc-400">{label}</span>
+    <span className="font-mono text-xs font-bold" style={{ color: valueColor || '#F4EBD6' }}>{value}</span>
   </div>
 );
 
 const SectionHeader = ({ children, stamp }: { children: React.ReactNode; stamp?: string }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-    <div style={{ fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.gold, fontWeight: 700 }}>
+  <div className="flex justify-between items-center mb-4">
+    <div className="font-mono text-[11px] uppercase tracking-[0.15em] text-terminal-amber font-bold">
       {children}
     </div>
-    {stamp && <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint, letterSpacing: '0.1em', border: `1px solid ${T.border}`, padding: '2px 8px' }}>{stamp}</div>}
+    {stamp && <div className="font-mono text-[9px] text-zinc-500 tracking-wider border border-zinc-800 px-2 py-0.5 rounded">{stamp}</div>}
   </div>
 );
 
-const PanelBox = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
-  <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '20px', ...style }}>
+const PanelBox = ({ children, style, className }: { children: React.ReactNode; style?: React.CSSProperties; className?: string }) => (
+  <div className={`bg-[#0c0d13] border border-[#23232b] rounded-xl p-5 ${className || ''}`} style={style}>
     {children}
   </div>
 );
 
 type GoldButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
 
-const GoldButton = ({ children, disabled, style, ...props }: GoldButtonProps) => (
+const GoldButton = ({ children, disabled, style, className, ...props }: GoldButtonProps & { className?: string }) => (
   <button
     disabled={disabled}
-    style={{
-      background: disabled ? 'rgba(255,255,255,0.03)' : `linear-gradient(135deg, ${T.gold}, #8A6E2A)`,
-      color: disabled ? T.faint : '#0a0709',
-      border: `1px solid ${disabled ? T.border : T.gold}`,
-      padding: '10px 24px',
-      fontSize: '10px',
-      fontFamily: 'monospace',
-      textTransform: 'uppercase',
-      letterSpacing: '0.15em',
-      fontWeight: 700,
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      opacity: disabled ? 0.5 : 1,
-      ...style,
-    }}
+    className={`font-mono text-[10px] uppercase tracking-[0.15em] font-bold px-6 py-2.5 rounded transition-all duration-150 
+      ${disabled 
+        ? 'bg-white/5 text-zinc-500 border border-zinc-800 cursor-not-allowed' 
+        : 'bg-terminal-amber text-black border border-terminal-amber hover:bg-[#d9b85c] hover:border-[#d9b85c] cursor-pointer'} 
+      ${className || ''}`}
+    style={style}
     {...props}
   >
     {children}
@@ -134,43 +126,20 @@ const GhostButton = ({
   disabled,
   style,
   type = 'button',
-  onMouseEnter,
-  onMouseLeave,
+  className,
   ...buttonProps
-}: GhostButtonProps) => (
+}: GhostButtonProps & { className?: string }) => (
   <button
     {...buttonProps}
     type={type}
     disabled={disabled}
     aria-disabled={disabled}
-    style={{
-      background: 'transparent',
-      color: disabled ? T.muted : (color || T.muted),
-      border: `1px solid ${T.border}`,
-      padding: '8px 18px',
-      fontSize: '10px',
-      fontFamily: 'monospace',
-      textTransform: 'uppercase',
-      letterSpacing: '0.12em',
-      fontWeight: 600,
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      opacity: disabled ? 0.45 : 1,
-      ...style,
-    }}
-    onMouseEnter={e => {
-      if (!disabled) {
-        e.currentTarget.style.borderColor = T.gold;
-        e.currentTarget.style.color = T.ivory;
-      }
-      if (onMouseEnter) onMouseEnter(e);
-    }}
-    onMouseLeave={e => {
-      if (!disabled) {
-        e.currentTarget.style.borderColor = T.border;
-        e.currentTarget.style.color = color || T.muted;
-      }
-      if (onMouseLeave) onMouseLeave(e);
-    }}
+    className={`font-mono text-[10px] uppercase tracking-[0.12em] font-semibold px-4 py-2 rounded transition-all duration-150 border
+      ${disabled 
+        ? 'bg-transparent text-zinc-500 border-zinc-800 cursor-not-allowed opacity-50' 
+        : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-terminal-amber hover:text-zinc-100 cursor-pointer'} 
+      ${className || ''}`}
+    style={style}
   >
     {children}
   </button>

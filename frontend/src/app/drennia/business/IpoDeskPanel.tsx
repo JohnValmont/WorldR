@@ -1,3 +1,9 @@
+import {
+  Card, Button, StatCard, DataRow, EmptyState as UIEmptyState, Badge, StatusDot, SectionHeading, Tabs, ProgressBar
+} from '@/components/ui';
+import {
+  AreaChart, Area, BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart as RechartsLineChart, Line
+} from 'recharts';
 'use client';
 import { useState } from 'react';
 import useSWR from 'swr';

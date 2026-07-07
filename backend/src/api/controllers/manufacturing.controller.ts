@@ -569,7 +569,13 @@ export class ManufacturingController {
 
       // Validate and normalize engineering priorities
       const engineeringPriorities: Record<string, number> = rawPriorities ?? DEFAULT_ENGINEERING_PRIORITIES;
-      const prioritySum = Object.values(engineeringPriorities).reduce((s, v) => s + Number(v), 0);
+      let prioritySum = 0;
+      for (const val of Object.values(engineeringPriorities)) {
+        if (typeof val !== 'number' || val < 0) {
+          return next(new AppError('Engineering priorities must be positive numbers', 400, 'INVALID_PRIORITIES'));
+        }
+        prioritySum += val;
+      }
       if (Math.abs(prioritySum - 100) > 2) {
         return next(new AppError(`Engineering priorities must sum to 100 (got ${prioritySum})`, 400, 'INVALID_PRIORITIES'));
       }
@@ -610,6 +616,12 @@ export class ManufacturingController {
         if (Object.keys(budgetAlloc).length === 0) {
           for (const bucket of BUDGET_BUCKETS) {
             budgetAlloc[bucket.id] = Math.round(BASE_DEV_COST * bucket.defaultPct);
+          }
+        } else {
+          for (const val of Object.values(budgetAlloc)) {
+            if (typeof val !== 'number' || val < 0) {
+              throw new AppError('Budget allocations must be positive numbers', 400, 'INVALID_BUDGET');
+            }
           }
         }
 

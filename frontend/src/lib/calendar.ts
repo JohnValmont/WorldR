@@ -24,10 +24,14 @@ function labelFromAbsolute(absMonth: number | undefined, short: boolean): string
   // Since absoluteMonth = year * 12 + month, where month is 1..12
   // We subtract 1 from month for 0-based indexing
   const year = Math.floor((absMonth - 1) / 12);
-  const month = (absMonth - 1) % 12;
+  let month = (absMonth - 1) % 12;
+  if (month < 0) month += 12; // Handle negative modulo in JS
   
   if (year < 0) {
-    return short ? 'Old Yrs' : 'The Old Years';
+    // If year is negative or 0 (which means Year 0 in some DB defaults), just format it normally
+    return short
+      ? `${MONTHS[month].slice(0, 3)} Yr ${year}`
+      : `${MONTHS[month]}, Year ${year}`;
   }
   
   return short

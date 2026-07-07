@@ -3,24 +3,7 @@ import { useState } from 'react';
 import useSWR from 'swr';
 import { companyApi } from '../../../lib/api';
 import IpoDeskPanel from './IpoDeskPanel';
-
-const T = {
-  bg: '#090A0F',
-  panel: '#11131A',
-  paper: '#1E1A15',
-  border: '#2A2630',
-  borderGold: 'rgba(201,162,74,0.22)',
-  gold: '#C9A24A',
-  ivory: '#F4EBD6',
-  muted: '#A79D8C',
-  faint: '#6B6358',
-  mint: '#36D399',
-  steel: '#4B6382',
-  red: '#B85555',
-};
-
-const mono: React.CSSProperties = { fontFamily: 'monospace' };
-const label: React.CSSProperties = { ...mono, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.gold, fontWeight: 700 };
+import { Card, Button } from '@/components/ui';
 
 function fmt(n: number | null | undefined, dec = 0): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
@@ -79,99 +62,97 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', maxWidth: '1000px' }}>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl">
       {/* IPO desk */}
       <IpoDeskPanel companyId={companyId} companyName={companyName} />
 
       {/* Legal structure */}
-      <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '20px', gridColumn: '1 / -1' }}>
-        <div style={{ ...label, marginBottom: '4px' }}>Legal Structure</div>
-        <div style={{ fontSize: '12px', color: T.muted, marginBottom: '16px' }}>
+      <Card kicker="Legal Structure" className="lg:col-span-2">
+        <div className="text-xs text-zinc-400 mb-4">
           {companyName} is registered as{' '}
-          <span style={{ color: T.ivory, fontWeight: 700 }}>{currentStructure?.name ?? currentStructureId ?? '…'}</span>.
+          <span className="text-zinc-100 font-bold">{currentStructure?.name ?? currentStructureId ?? '…'}</span>.
           Upgrading pays a one-time filing fee from company cash and raises monthly compliance costs.
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {structList.map((s: any) => {
             const isCurrent = s.id === currentStructureId;
             const currentIdx = STRUCTURE_ORDER.indexOf(currentStructureId ?? '');
             const targetIdx = STRUCTURE_ORDER.indexOf(s.id);
             const isUpgrade = targetIdx > currentIdx;
             return (
-              <div key={s.id} style={{ background: isCurrent ? T.paper : T.bg, border: `1px solid ${isCurrent ? T.borderGold : T.border}`, padding: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: isCurrent ? T.gold : T.ivory }}>{s.name}</div>
-                  {isCurrent && <div style={{ ...mono, fontSize: '8px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Current</div>}
+              <div key={s.id} className={`rounded border p-4 ${isCurrent ? 'bg-[#1E1A15] border-terminal-amber/30' : 'bg-[#090A0F] border-zinc-800'}`}>
+                <div className="flex justify-between items-baseline mb-2">
+                  <div className={`text-sm font-bold ${isCurrent ? 'text-terminal-amber' : 'text-zinc-100'}`}>{s.name}</div>
+                  {isCurrent && <div className="font-mono text-[9px] text-terminal-amber uppercase tracking-widest">Current</div>}
                 </div>
-                <p style={{ fontSize: '11px', color: T.muted, lineHeight: 1.6, margin: '0 0 10px', minHeight: '44px' }}>{s.description}</p>
-                <div style={{ ...mono, fontSize: '10px', color: T.faint, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span>Filing fee: <span style={{ color: T.ivory }}>§{fmt(Number(s.filing_fee))}</span></span>
-                  <span>Monthly compliance: <span style={{ color: T.ivory }}>§{fmt(Number(s.monthly_compliance_cost))}</span></span>
-                  <span>Shareholders: <span style={{ color: T.ivory }}>{s.max_shareholders ?? 'Unlimited'}</span></span>
+                <p className="text-[11px] text-zinc-400 leading-relaxed mb-3 min-h-[44px]">{s.description}</p>
+                <div className="font-mono text-[10px] text-zinc-500 flex flex-col gap-1">
+                  <span>Filing fee: <span className="text-zinc-200">§{fmt(Number(s.filing_fee))}</span></span>
+                  <span>Monthly compliance: <span className="text-zinc-200">§{fmt(Number(s.monthly_compliance_cost))}</span></span>
+                  <span>Shareholders: <span className="text-zinc-200">{s.max_shareholders ?? 'Unlimited'}</span></span>
                   {Number(s.min_company_value) > 0 && (
-                    <span>Min company value: <span style={{ color: T.ivory }}>§{fmt(Number(s.min_company_value))}</span></span>
+                    <span>Min company value: <span className="text-zinc-200">§{fmt(Number(s.min_company_value))}</span></span>
                   )}
                 </div>
                 {!isCurrent && isUpgrade && (
-                  <button
+                  <Button
                     onClick={() => convert(s.id)}
                     disabled={busy}
-                    style={{ marginTop: '12px', width: '100%', padding: '8px 0', cursor: busy ? 'wait' : 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1 }}
+                    variant="primary"
+                    className="w-full mt-4"
                   >
                     Convert — §{fmt(Number(s.filing_fee))}
-                  </button>
+                  </Button>
                 )}
               </div>
             );
           })}
         </div>
-        {notice && <div style={{ fontSize: '11px', color: notice.ok ? T.mint : T.red, marginTop: '12px' }}>{notice.text}</div>}
-      </div>
+        {notice && <div className={`text-[11px] mt-4 ${notice.ok ? 'text-terminal-green' : 'text-terminal-red'}`}>{notice.text}</div>}
+      </Card>
 
       {/* Cap table */}
-      <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '20px' }}>
-        <div style={{ ...label, marginBottom: '12px' }}>Shareholder Register</div>
-        {holders.length === 0 && <div style={{ fontSize: '11px', color: T.faint }}>Loading register…</div>}
+      <Card kicker="Shareholder Register">
+        {holders.length === 0 && <div className="text-[11px] text-zinc-500">Loading register…</div>}
         {holders.map((h: any) => (
-          <div key={h.holder_character_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
-            <div style={{ fontSize: '12px', color: T.ivory }}>{h.holder_name}</div>
-            <div style={{ textAlign: 'right', ...mono }}>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: T.gold }}>{fmt((Number(h.shares) / 1000000) * 100, 2)}%</div>
-              <div style={{ fontSize: '9px', color: T.faint }}>{fmt(Number(h.shares))} shares</div>
+          <div key={h.holder_character_id} className="flex justify-between items-center py-2 border-b border-zinc-800/50 last:border-0">
+            <div className="text-xs text-zinc-200">{h.holder_name}</div>
+            <div className="text-right font-mono">
+              <div className="text-xs font-bold text-terminal-amber">{fmt((Number(h.shares) / 1000000) * 100, 2)}%</div>
+              <div className="text-[9px] text-zinc-500">{fmt(Number(h.shares))} shares</div>
             </div>
           </div>
         ))}
-        <div style={{ ...mono, fontSize: '9px', color: T.faint, marginTop: '10px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+        <div className="font-mono text-[9px] text-zinc-600 mt-3 uppercase tracking-wider">
           1,000,000 total shares issued
         </div>
-      </div>
+      </Card>
 
       {/* Dividend policy */}
-      <div style={{ background: T.paper, border: `1px solid ${T.borderGold}`, padding: '20px' }}>
-        <div style={{ ...label, marginBottom: '12px' }}>Dividend Policy</div>
-        <div style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, marginBottom: '12px' }}>
+      <Card kicker="Dividend Policy" accent>
+        <div className="text-xs text-zinc-400 leading-relaxed mb-4">
           Each month the company earns a profit, this percentage is paid out of company cash to all shareholders pro-rata.
-          Current policy: <span style={{ ...mono, color: T.mint, fontWeight: 700 }}>{fmt(payoutPercent, 0)}%</span> of monthly profit.
+          Current policy: <span className="font-mono text-terminal-green font-bold">{fmt(payoutPercent, 0)}%</span> of monthly profit.
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div className="flex gap-2 items-center">
           <input
             aria-label="Dividend payout percent"
             value={payoutInput}
             onChange={(e) => setPayoutInput(e.target.value)}
             placeholder={String(payoutPercent)}
             inputMode="numeric"
-            style={{ ...mono, flex: 1, background: T.bg, border: `1px solid ${T.border}`, color: T.ivory, padding: '8px 10px', fontSize: '12px', outline: 'none' }}
+            className="font-mono flex-1 bg-[#090A0F] border border-zinc-800 text-zinc-200 p-2 text-xs outline-none focus:border-terminal-amber/50 transition-colors rounded"
           />
-          <button
+          <Button
             onClick={savePolicy}
             disabled={busy}
-            style={{ padding: '8px 18px', cursor: busy ? 'wait' : 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1 }}
+            variant="primary"
           >
             Set %
-          </button>
+          </Button>
         </div>
-        <div style={{ ...mono, fontSize: '9px', color: T.faint, marginTop: '8px' }}>0–50% allowed. Applies only to the owner&apos;s companies.</div>
-      </div>
+        <div className="font-mono text-[9px] text-zinc-500 mt-3">0–50% allowed. Applies only to the owner's companies.</div>
+      </Card>
     </div>
   );
 }

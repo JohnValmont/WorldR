@@ -100,6 +100,9 @@ function calcLiveEngineering(design: {
   const testingEffect = (testingPct - 0.20) * 60;
   const protoEffect   = (getBudgetPct('prototype_validation', 0.10) - 0.10) * 50;
   const prodEngEffect = (getBudgetPct('production_eng', 0.15) - 0.15) * 40;
+  const safetyBudgetEffect  = (getBudgetPct('safety', 0.12) - 0.12) * 30;
+  const powertrainBudgetEff = (getBudgetPct('powertrain', 0.18) - 0.18) * 25;
+  const interiorBudgetEff   = (getBudgetPct('interior', 0.10) - 0.10) * 20;
 
   // Engineer bonuses
   const engineerDiscount = Math.min(engineerCount * 0.05, 0.20);
@@ -123,13 +126,15 @@ function calcLiveEngineering(design: {
   const engMult  = 1.0 + engSkill;
   const combined = confMult * engMult;
 
-  // Final scores with priority boosts
-  const finalRel    = clamp01(Math.round((rel + (relPri - NEUTRAL_PRI) * 0.4 + testingEffect * 0.6) * combined), 10, 100);
-  const finalPerf   = clamp01(Math.round((perf + (perfPri - NEUTRAL_PRI) * 0.45) * combined), 10, 100);
-  const finalFuel   = clamp01(Math.round((fuel + (fuelPri - NEUTRAL_PRI) * 0.4 - (perfPri - NEUTRAL_PRI) * 0.25 - Math.max(0, weight - 1200) * 0.04) * combined), 10, 100);
-  const finalAppeal = clamp01(Math.round((appeal + (comfPri - NEUTRAL_PRI) * 0.35) * combined), 10, 100);
+  // Final scores with priority boosts and budget effects
+  const finalRel    = clamp01(Math.round((rel + (relPri - NEUTRAL_PRI) * 0.4 + testingEffect * 0.6 + safetyBudgetEffect * 0.3) * combined), 10, 100);
+  const finalPerf   = clamp01(Math.round((perf + (perfPri - NEUTRAL_PRI) * 0.45 + powertrainBudgetEff * 0.5) * combined), 10, 100);
+  const fuelPerfPenalty = (perfPri - NEUTRAL_PRI) * 0.25;
+  const perfFuelPenalty = (fuelPri - NEUTRAL_PRI) * 0.15;
+  const finalFuel   = clamp01(Math.round((fuel + (fuelPri - NEUTRAL_PRI) * 0.4 - fuelPerfPenalty - perfFuelPenalty - Math.max(0, weight - 1200) * 0.04) * combined), 10, 100);
+  const finalAppeal = clamp01(Math.round((appeal + (comfPri - NEUTRAL_PRI) * 0.35 + interiorBudgetEff * 0.5) * combined), 10, 100);
   const finalCargo  = clamp01(Math.round((cargo + (practPri - NEUTRAL_PRI) * 0.4) * combined), 5, 100);
-  const finalSafety = clamp01(Math.round(safety * combined), 10, 100);
+  const finalSafety = clamp01(Math.round((safety + safetyBudgetEffect * 0.6) * combined), 10, 100);
 
   // Production cost mult
   const prodCostMult = clamp01(1.0 + (mfgComplexity - 40) * 0.003 - (mfgPri - NEUTRAL_PRI) * 0.008 - prodEngEffect * 0.005, 0.85, 1.30);
