@@ -277,8 +277,10 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
   const { data: myCompanies } = useSWR('my-companies', () => companyApi.getMy().then((r) => r.data));
   const [companyId, setCompanyId] = useState('');
   const [shares, setShares] = useState('');
+  const [minPurchase, setMinPurchase] = useState('');
   const [price, setPrice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [purchaseAmounts, setPurchaseAmounts] = useState<Record<string, string>>({});
   const [notice, notify] = useNotice();
 
   const myCharacterId: string | undefined = (myCharacter as any)?.id;
@@ -288,16 +290,17 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
 
   const create = async () => {
     const s = Number(shares);
+    const minP = minPurchase ? Number(minPurchase) : 1;
     const p = Number(price);
-    if (!companyId || !Number.isInteger(s) || s <= 0 || !Number.isFinite(p) || p <= 0) {
-      notify('Select a company and enter valid shares and price.', false);
+    if (!companyId || !Number.isInteger(s) || s <= 0 || !Number.isInteger(minP) || minP <= 0 || minP > s || !Number.isFinite(p) || p <= 0) {
+      notify('Select a company and enter valid shares, min purchase, and price.', false);
       return;
     }
     setBusy(true);
     try {
-      await investmentsApi.createPlacement({ company_id: companyId, shares: s, price_per_share: p });
+      await investmentsApi.createPlacement({ company_id: companyId, shares: s, min_purchase_shares: minP, price_per_share: p });
       notify('Placement listed.', true);
-      setShares(''); setPrice('');
+      setShares(''); setMinPurchase(''); setPrice('');
       mutate();
       onChanged();
     } catch (e: any) {
@@ -305,10 +308,10 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
     } finally { setBusy(false); }
   };
 
-  const accept = async (id: string) => {
+  const accept = async (id: string, qty?: number) => {
     setBusy(true);
     try {
-      await investmentsApi.acceptPlacement(id);
+      await investmentsApi.acceptPlacement(id, qty);
       notify('Shares purchased.', true);
       mutate();
       onChanged();
@@ -355,7 +358,7 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
           </div>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr', gap: '8px' }}>
               <div>
                 <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Company</div>
                 <select aria-label="Company to sell shares of" value={companyId} onChange={(e) => setCompanyId(e.target.value)} style={{ ...inputStyle, appearance: 'none' }}>
@@ -366,6 +369,10 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
               <div>
                 <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares</div>
                 <input aria-label="Number of shares" value={shares} onChange={(e) => setShares(e.target.value)} placeholder="100000" inputMode="numeric" style={inputStyle} />
+              </div>
+              <div>
+                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Min Purchase</div>
+                <input aria-label="Min Purchase" value={minPurchase} onChange={(e) => setMinPurchase(e.target.value)} placeholder="1" inputMode="numeric" style={inputStyle} />
               </div>
               <div>
                 <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price / share (§)</div>
@@ -393,6 +400,14 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
         {rows.length === 0 && <div style={{ fontSize: '11px', color: T.faint }}>No private placements on the market.</div>}
         {rows.map((p: any) => {
           const isOwn = myCharacterId && p.seller_character_id === myCharacterId;
+          const available = Number(p.shares);
+          const priceVal = Number(p.price_per_share);
+          const minP = Number(p.min_purchase_shares) || 1;
+          const inputVal = purchaseAmounts[p.id];
+          const qty = inputVal !== undefined ? Number(inputVal) : available;
+          const valid = Number.isInteger(qty) && qty > 0 && qty <= available && (qty >= Math.min(minP, available) || qty === available);
+          const total = qty * priceVal;
+
           return (
             <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${T.border}`, gap: '8px', flexWrap: 'wrap' }}>
               <div>
@@ -401,11 +416,11 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
                   {isOwn && <span style={{ ...mono, fontSize: '9px', color: T.gold, marginLeft: '8px', padding: '1px 6px', border: `1px solid ${T.gold}`, textTransform: 'uppercase' }}>yours</span>}
                 </div>
                 <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-                  {fmtInt(Number(p.shares))} sh ({fmt((Number(p.shares) / 1000000) * 100, 1)}%) @ §{fmt(Number(p.price_per_share))} · seller {p.seller_name}
+                  {fmtInt(available)} sh ({fmt((available / 1000000) * 100, 1)}%) @ §{fmt(priceVal)} {minP > 1 ? ` · Min: ${minP} sh` : ''} · seller {p.seller_name}
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.gold }}>§{fmtInt(Number(p.shares) * Number(p.price_per_share))}</span>
+                <span style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.gold }}>§{fmtInt(total)}</span>
                 {isOwn ? (
                   <button
                     onClick={() => cancelPlacement(p.id)}
@@ -415,13 +430,23 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
                     Cancel
                   </button>
                 ) : (
-                  <button
-                    onClick={() => accept(p.id)}
-                    disabled={busy}
-                    style={{ padding: '8px 14px', cursor: 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(54,211,153,0.15)', color: T.mint, border: `1px solid ${T.mint}`, opacity: busy ? 0.6 : 1 }}
-                  >
-                    Buy
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input 
+                      aria-label="Shares to buy" 
+                      value={inputVal ?? available} 
+                      onChange={(e) => setPurchaseAmounts({ ...purchaseAmounts, [p.id]: e.target.value })} 
+                      placeholder={available.toString()} 
+                      inputMode="numeric" 
+                      style={{ ...inputStyle, width: '70px', padding: '4px 6px', fontSize: '10px' }} 
+                    />
+                    <button
+                      onClick={() => accept(p.id, qty)}
+                      disabled={busy || !valid}
+                      style={{ padding: '8px 14px', cursor: valid ? 'pointer' : 'not-allowed', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: valid ? 'rgba(54,211,153,0.15)' : T.border, color: valid ? T.mint : T.bg, border: valid ? `1px solid ${T.mint}` : 'none', opacity: busy || !valid ? 0.6 : 1 }}
+                    >
+                      Buy
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

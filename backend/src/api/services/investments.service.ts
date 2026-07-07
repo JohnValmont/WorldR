@@ -166,11 +166,15 @@ export async function createPlacement(params: {
   companyId: string;
   sellerCharacterId: string;
   shares: number;
+  minPurchaseShares?: number;
   pricePerShare: number;
   targetCharacterId?: string | null;
 }) {
-  const { companyId, sellerCharacterId, shares, pricePerShare, targetCharacterId } = params;
+  const { companyId, sellerCharacterId, shares, minPurchaseShares = 1, pricePerShare, targetCharacterId } = params;
   if (!Number.isInteger(shares) || shares <= 0) throw new AppError('Invalid share count', 400, 'BAD_REQUEST');
+  if (!Number.isInteger(minPurchaseShares) || minPurchaseShares <= 0 || minPurchaseShares > shares) {
+    throw new AppError('Invalid minimum purchase amount', 400, 'BAD_REQUEST');
+  }
   if (!Number.isFinite(pricePerShare) || pricePerShare <= 0) throw new AppError('Invalid price', 400, 'BAD_REQUEST');
 
   return db.transaction(async (trx) => {
@@ -203,6 +207,7 @@ export async function createPlacement(params: {
         seller_character_id: sellerCharacterId,
         target_character_id: targetCharacterId || null,
         shares,
+        min_purchase_shares: minPurchaseShares,
         price_per_share: pricePerShare,
       })
       .returning('*');
@@ -227,13 +232,31 @@ export async function cancelPlacement(placementId: string, sellerCharacterId: st
   });
 }
 
-export async function acceptPlacement(placementId: string, buyerCharacterId: string) {
+export async function acceptPlacement(placementId: string, buyerCharacterId: string, sharesToBuy?: number) {
   return db.transaction(async (trx) => {
     const placement = await trx('equity_placements').where({ id: placementId, status: 'open' }).forUpdate().first();
     if (!placement) throw new AppError('Placement not found or no longer open', 404, 'NOT_FOUND');
     if (placement.seller_character_id === buyerCharacterId) throw new AppError('Cannot buy your own placement', 400, 'BAD_REQUEST');
     if (placement.target_character_id && placement.target_character_id !== buyerCharacterId) {
       throw new AppError('This placement is reserved for another player', 403, 'FORBIDDEN');
+    }
+
+    const availableShares = Number(placement.shares);
+    const minShares = Number(placement.min_purchase_shares);
+    const qty = sharesToBuy != null ? Number(sharesToBuy) : availableShares;
+
+    if (!Number.isInteger(qty) || qty <= 0) {
+      throw new AppError('Invalid purchase quantity', 400, 'BAD_REQUEST');
+    }
+    if (qty > availableShares) {
+      throw new AppError(`Only ${availableShares} shares available`, 400, 'BAD_REQUEST');
+    }
+    // Only enforce min purchase if they are buying less than the total available
+    // AND if the available shares are at least the minimum.
+    // E.g. If min is 100, and 50 are left, they can buy 50. But they must buy all 50.
+    const effectiveMin = Math.min(minShares, availableShares);
+    if (qty < effectiveMin && qty !== availableShares) {
+      throw new AppError(`Must purchase at least ${effectiveMin} shares`, 400, 'BAD_REQUEST');
     }
 
     const company = await trx('companies').where({ id: placement.company_id }).first();
@@ -251,7 +274,7 @@ export async function acceptPlacement(placementId: string, buyerCharacterId: str
       }
     }
 
-    const total = Number(placement.shares) * Number(placement.price_per_share);
+    const total = qty * Number(placement.price_per_share);
     const buyerFin = await trx('character_finances').where({ character_id: buyerCharacterId }).forUpdate().first();
     if (!buyerFin || Number(buyerFin.cash_in_hand) < total) throw new AppError('Insufficient funds', 400, 'INSUFFICIENT_FUNDS');
 
@@ -266,7 +289,6 @@ export async function acceptPlacement(placementId: string, buyerCharacterId: str
       .first();
     if (existing) {
       const oldShares = Number(existing.shares);
-      const qty = Number(placement.shares);
       const newAvg = (oldShares * Number(existing.avg_cost_basis) + total) / (oldShares + qty);
       await trx('company_shares')
         .where({ company_id: placement.company_id, holder_character_id: buyerCharacterId })
@@ -275,12 +297,17 @@ export async function acceptPlacement(placementId: string, buyerCharacterId: str
       await trx('company_shares').insert({
         company_id: placement.company_id,
         holder_character_id: buyerCharacterId,
-        shares: placement.shares,
+        shares: qty,
         avg_cost_basis: placement.price_per_share,
       });
     }
 
-    await trx('equity_placements').where({ id: placementId }).update({ status: 'accepted', updated_at: trx.fn.now() });
+    const newShares = availableShares - qty;
+    if (newShares === 0) {
+      await trx('equity_placements').where({ id: placementId }).update({ shares: 0, status: 'accepted', updated_at: trx.fn.now() });
+    } else {
+      await trx('equity_placements').where({ id: placementId }).update({ shares: newShares, updated_at: trx.fn.now() });
+    }
     return { accepted: true, total };
   });
 }

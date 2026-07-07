@@ -196,10 +196,9 @@ export const investmentsApi = {
   repayLoanEarly: (id: string) => api.post(`/investments/loans/${id}/repay`).then(res => res.data),
   // Private equity placements
   getPlacements: () => api.get('/investments/placements').then(res => res.data),
-  createPlacement: (data: { company_id: string; shares: number; price_per_share: number; target_character_id?: string }) =>
-    api.post('/investments/placements', data).then(res => res.data),
+  createPlacement: (p: { company_id: string; shares: number; min_purchase_shares?: number; price_per_share: number; target_character_id?: string }) => api.post('/investments/placements', p).then(res => res.data),
   cancelPlacement: (id: string) => api.delete(`/investments/placements/${id}`).then(res => res.data),
-  acceptPlacement: (id: string) => api.post(`/investments/placements/${id}/accept`).then(res => res.data),
+  acceptPlacement: (id: string, shares?: number) => api.post(`/investments/placements/${id}/accept`, { shares }).then(res => res.data),
   getMyPlacements: () => api.get('/investments/my-placements').then(res => res.data)
   };
 

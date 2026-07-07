@@ -53,16 +53,20 @@ function PlacementsTab() {
   const [showForm, setShowForm] = useState(false);
   const [formCompany, setFormCompany] = useState('');
   const [formShares, setFormShares] = useState('');
+  const [formMinPurchase, setFormMinPurchase] = useState('');
   const [formPrice, setFormPrice] = useState('');
   const [formTarget, setFormTarget] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [purchaseAmounts, setPurchaseAmounts] = useState<Record<string, string>>({});
 
   const postPlacement = async () => {
     const shares = Number(formShares);
+    const minPurchase = formMinPurchase ? Number(formMinPurchase) : 1;
     const price = Number(formPrice);
     if (!formCompany) { setMsg({ text: 'Select a company.', ok: false }); return; }
     if (!Number.isInteger(shares) || shares <= 0) { setMsg({ text: 'Enter a valid whole-number share count.', ok: false }); return; }
+    if (!Number.isInteger(minPurchase) || minPurchase <= 0 || minPurchase > shares) { setMsg({ text: 'Enter a valid minimum purchase amount (must be <= total shares).', ok: false }); return; }
     if (!Number.isFinite(price) || price <= 0) { setMsg({ text: 'Enter a valid price per share.', ok: false }); return; }
 
     setBusy(true);
@@ -71,12 +75,13 @@ function PlacementsTab() {
       await investmentsApi.createPlacement({
         company_id: formCompany,
         shares,
+        min_purchase_shares: minPurchase,
         price_per_share: price,
         target_character_id: formTarget.trim() || undefined,
       });
       setMsg({ text: 'Placement posted. Shares are escrowed until the placement is accepted or cancelled.', ok: true });
       setShowForm(false);
-      setFormCompany(''); setFormShares(''); setFormPrice(''); setFormTarget('');
+      setFormCompany(''); setFormShares(''); setFormMinPurchase(''); setFormPrice(''); setFormTarget('');
       mutateMine();
     } catch (e: any) {
       setMsg({ text: e?.response?.data?.message || 'Failed to post placement.', ok: false });
@@ -94,9 +99,9 @@ function PlacementsTab() {
     }
   };
 
-  const acceptPlacement = async (id: string) => {
+  const acceptPlacement = async (id: string, qty?: number) => {
     try {
-      await investmentsApi.acceptPlacement(id);
+      await investmentsApi.acceptPlacement(id, qty);
       mutateOpen();
       mutateMine();
     } catch (e: any) {
@@ -138,10 +143,14 @@ function PlacementsTab() {
                 ))}
               </select>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
               <div>
                 <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares to offer</div>
                 <input aria-label="Shares to offer" value={formShares} onChange={(e) => setFormShares(e.target.value)} placeholder="e.g. 50000" inputMode="numeric" style={inputStyle} />
+              </div>
+              <div>
+                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Min Purchase</div>
+                <input aria-label="Min Purchase" value={formMinPurchase} onChange={(e) => setFormMinPurchase(e.target.value)} placeholder="Default: 1" inputMode="numeric" style={inputStyle} />
               </div>
               <div>
                 <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price per share (§)</div>
@@ -220,7 +229,13 @@ function PlacementsTab() {
         {openPlacements.length === 0 && <div style={{ fontSize: '11px', color: T.faint }}>No open placements on the market right now.</div>}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {openPlacements.map((p: any) => {
-            const total = Number(p.shares) * Number(p.price_per_share);
+            const available = Number(p.shares);
+            const price = Number(p.price_per_share);
+            const minPurchase = Number(p.min_purchase_shares) || 1;
+            const inputVal = purchaseAmounts[p.id];
+            const qty = inputVal !== undefined ? Number(inputVal) : available;
+            const valid = Number.isInteger(qty) && qty > 0 && qty <= available && (qty >= Math.min(minPurchase, available) || qty === available);
+            const total = qty * price;
             return (
               <div
                 key={p.id}
@@ -229,19 +244,35 @@ function PlacementsTab() {
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory }}>{p.company_name}</div>
                   <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-                    {fmtInt(Number(p.shares))} shares @ §{fmt(Number(p.price_per_share))} · Total §{fmt(total)}
+                    {fmtInt(available)} shares @ §{fmt(price)} {minPurchase > 1 ? ` · Min: ${minPurchase} sh` : ''}
                   </div>
                   <div style={{ ...mono, fontSize: '9px', color: T.faint }}>
                     Seller: {p.seller_name} · {p.legal_structure_id}
                     {p.target_character_id && <span style={{ color: T.steel }}> · Private offer</span>}
                   </div>
                 </div>
-                <button
-                  onClick={() => acceptPlacement(p.id)}
-                  style={{ ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '8px 16px', background: T.mint, color: T.bg, border: 'none', cursor: 'pointer', flexShrink: 0 }}
-                >
-                  Accept — §{fmt(total)}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input 
+                      aria-label="Shares to buy" 
+                      value={inputVal ?? available} 
+                      onChange={(e) => setPurchaseAmounts({ ...purchaseAmounts, [p.id]: e.target.value })} 
+                      placeholder={available.toString()} 
+                      inputMode="numeric" 
+                      style={{ ...inputStyle, width: '70px', padding: '4px 6px', fontSize: '10px' }} 
+                    />
+                    <div style={{ ...mono, fontSize: '9px', color: T.gold, width: '60px', textAlign: 'right' }}>
+                      §{fmt(total)}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => acceptPlacement(p.id, qty)}
+                    disabled={!valid}
+                    style={{ ...mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', background: valid ? T.mint : T.border, color: T.bg, border: 'none', padding: '6px 14px', cursor: valid ? 'pointer' : 'not-allowed' }}
+                  >
+                    Buy
+                  </button>
+                </div>
               </div>
             );
           })}
