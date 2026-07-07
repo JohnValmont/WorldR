@@ -116,15 +116,15 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
         {holders.length === 0 && <div className="text-[11px] text-zinc-500">Loading register…</div>}
         {holders.map((h: any) => (
           <div key={h.holder_character_id} className="flex justify-between items-center py-2 border-b border-zinc-800/50 last:border-0">
-            <div className="text-xs text-zinc-200">{h.holder_name}</div>
+            <div className="text-xs text-zinc-200">{h.name || h.holder_name}</div>
             <div className="text-right font-mono">
-              <div className="text-xs font-bold text-terminal-amber">{fmt((Number(h.shares) / 1000000) * 100, 2)}%</div>
+              <div className="text-xs font-bold text-terminal-amber">{fmt(Number(h.percent), 2)}%</div>
               <div className="text-[9px] text-zinc-500">{fmt(Number(h.shares))} shares</div>
             </div>
           </div>
         ))}
         <div className="font-mono text-[9px] text-zinc-600 mt-3 uppercase tracking-wider">
-          1,000,000 total shares issued
+          {fmt(Number(capTable?.total_shares || 0))} total shares issued
         </div>
       </Card>
 
