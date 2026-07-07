@@ -25,6 +25,8 @@ export interface EngineCandidate {
 export interface ElectionInput {
   candidates: EngineCandidate[];
   registeredVoters: number;
+  /** Total seats to allocate for this jurisdiction. Defaults to POL_COUNCIL_SEATS. */
+  totalSeats?: number;
 }
 
 export interface ElectionResult {
@@ -175,7 +177,8 @@ export function runElection(input: ElectionInput): ElectionResult {
     partyVotes[c.partyId] = (partyVotes[c.partyId] || 0) + votes[c.candidateId];
   }
 
-  const partySeats = allocateSeatsDHondt(partyVotes, POL_COUNCIL_SEATS);
+  const totalSeats = input.totalSeats ?? POL_COUNCIL_SEATS;
+  const partySeats = allocateSeatsDHondt(partyVotes, totalSeats);
 
   // Group candidates by party
   const candidatesByParty: Record<string, EngineCandidate[]> = {};

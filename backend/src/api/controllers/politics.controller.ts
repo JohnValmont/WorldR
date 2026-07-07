@@ -13,7 +13,8 @@ import {
   PARTY_FOUNDING_COST,
   CAMPAIGN_ACTIONS,
   SEGMENTS,
-  POL_MAJORITY_SEATS,
+  getSeatsForState,
+  getMajorityForState,
   AP_COST_RECRUIT,
   AP_COST_STATEMENT,
   AP_COST_FUNDRAISE,
@@ -312,13 +313,13 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
 
     // Current projection (all resolved campaign effort).
     const engineCands = await buildEngineCandidates(db, cycle.id);
-    const projection = runElection({ candidates: engineCands, registeredVoters });
+    const projection = runElection({ candidates: engineCands, registeredVoters, totalSeats: getSeatsForState(activeState.code) });
 
     // Previous-month projection powers momentum. Free & safe: the engine is pure and re-runnable.
     let prevProjection = null;
     try {
       const prevCands = await buildEngineCandidates(db, cycle.id, actualArc - 1);
-      prevProjection = runElection({ candidates: prevCands, registeredVoters });
+      prevProjection = runElection({ candidates: prevCands, registeredVoters, totalSeats: getSeatsForState(activeState.code) });
     } catch {
       prevProjection = null;
     }
@@ -359,7 +360,9 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
       parties: partyRows,
       myPartyId,
       myCandidateId,
-      heldSeatsByParty
+      heldSeatsByParty,
+      totalSeats: getSeatsForState(activeState.code),
+      majoritySeats: getMajorityForState(activeState.code)
     });
 
     // Bare object (matches getCouncil/getState convention & PollsTab expectations); pulse rides along.
@@ -636,9 +639,9 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
       govStatus = coalition.status;
       const mems = typeof coalition.member_party_ids === 'string' ? JSON.parse(coalition.member_party_ids) : coalition.member_party_ids;
       members = mems.accepted || [];
-      if (coalition.total_seats >= POL_MAJORITY_SEATS && members.length === 1) {
+      if (coalition.total_seats >= getMajorityForState(activeState.code) && members.length === 1) {
         govStatus = 'majority';
-      } else if (coalition.total_seats >= POL_MAJORITY_SEATS) {
+      } else if (coalition.total_seats >= getMajorityForState(activeState.code)) {
         govStatus = 'coalition';
       } else {
         govStatus = 'minority';
@@ -1057,7 +1060,7 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
         }
       }
 
-      const abstain = POL_MAJORITY_SEATS * 2 - 1 - (yea + nay); // 61 total seats
+      const abstain = getSeatsForState(activeState.code) - (yea + nay); // total seats for this jurisdiction
 
       resultBills.push({
         ...bill,
