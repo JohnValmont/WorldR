@@ -132,6 +132,8 @@ export const companyApi = {
   getById: (id: string) => api.get(`/companies/${id}`),
   create: (data: { name: string; country_id: string; headquarters_state_id: string; industry_id: string; subsector_id?: string | null; legal_structure_id: string; currency_id: string; starting_capital: number }) =>
     api.post('/companies', data),
+  injectCapital: (id: string, amount: number) =>
+    api.post(`/companies/${id}/inject-capital`, { amount }),
   withdrawCapital: (id: string, amount: number) =>
     api.post(`/companies/${id}/withdraw-capital`, { amount }),
   updateFinances: (id: string, data: any) =>

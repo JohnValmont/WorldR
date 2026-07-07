@@ -2263,41 +2263,63 @@ function CompanyDeskTab({
                 </PanelBox>
                 
                 <SectionHeader stamp="OWNERSHIP">Owner Capital Movement</SectionHeader>
+                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>
+                  Your personal cash: <span style={{ color: T.mint, fontWeight: 700, fontFamily: 'monospace' }}>{formatMoney(playerCash)}</span>
+                  &nbsp;·&nbsp; Company cash: <span style={{ color: T.ivory, fontWeight: 700, fontFamily: 'monospace' }}>{formatMoney((company as any).finances?.available_cash ?? company.companyCash ?? 0)}</span>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
                   <PanelBox>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Inject Capital</div>
-                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', minHeight: '34px' }}>Transfer personal cash into the company's ledger.</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: T.mint, marginBottom: '4px' }}>↓ Inject Capital</div>
+                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>Transfer your personal cash into the company ledger (owner loan).</div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input type="number" id="inject-amount" placeholder="$ Amount" style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px' }} />
-                      <GoldButton onClick={() => {
+                      <input
+                        type="number"
+                        id="inject-amount"
+                        placeholder="§ Amount"
+                        min={1}
+                        style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px', borderRadius: '3px' }}
+                      />
+                      <GoldButton onClick={async () => {
                         const el = document.getElementById('inject-amount') as HTMLInputElement;
-                        if (el && el.value) {
-                          const amount = parseInt(el.value);
-                          if (amount > 0) {
-                            const { injectCapital } = require('@/lib/businessCore');
-                            const res = injectCapital(company.id, amount);
-                            showNotif(res.message, res.success);
-                            if (res.success) { el.value = ''; onRefresh(); }
-                          }
+                        if (!el || !el.value) return;
+                        const amount = parseInt(el.value);
+                        if (amount <= 0) return;
+                        try {
+                          const { companyApi } = await import('@/lib/api');
+                          const res = await companyApi.injectCapital(company.id, amount);
+                          showNotif(res.data?.message || `§${amount.toLocaleString()} injected successfully.`, true);
+                          el.value = '';
+                          onRefresh();
+                        } catch (err: any) {
+                          showNotif(err?.response?.data?.message || err?.response?.data?.error || 'Injection failed.', false);
                         }
                       }}>Inject</GoldButton>
                     </div>
                   </PanelBox>
                   <PanelBox>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Owner Drawings</div>
-                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', minHeight: '34px' }}>Withdraw company cash to your personal holdings.</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: T.gold, marginBottom: '4px' }}>↑ Owner Drawings</div>
+                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>Withdraw company cash to your personal holdings.</div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input type="number" id="withdraw-amount" placeholder="$ Amount" style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.gold, fontSize: '12px' }} />
-                      <GhostButton color={T.gold} onClick={() => {
+                      <input
+                        type="number"
+                        id="withdraw-amount"
+                        placeholder="§ Amount"
+                        min={1}
+                        style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.gold, fontSize: '12px', borderRadius: '3px' }}
+                      />
+                      <GhostButton color={T.gold} onClick={async () => {
                         const el = document.getElementById('withdraw-amount') as HTMLInputElement;
-                        if (el && el.value) {
-                          const amount = parseInt(el.value);
-                          if (amount > 0) {
-                            const { ownerDrawings } = require('@/lib/businessCore');
-                            const res = ownerDrawings(company.id, amount);
-                            showNotif(res.message, res.success);
-                            if (res.success) { el.value = ''; onRefresh(); }
-                          }
+                        if (!el || !el.value) return;
+                        const amount = parseInt(el.value);
+                        if (amount <= 0) return;
+                        try {
+                          const { companyApi } = await import('@/lib/api');
+                          const res = await companyApi.withdrawCapital(company.id, amount);
+                          showNotif(`§${amount.toLocaleString()} withdrawn to personal holdings.`, true);
+                          el.value = '';
+                          onRefresh();
+                        } catch (err: any) {
+                          showNotif(err?.response?.data?.message || err?.response?.data?.error || 'Withdrawal failed.', false);
                         }
                       }}>Withdraw</GhostButton>
                     </div>
