@@ -3013,38 +3013,72 @@ function ProcurementTab({ company, onRefresh, showNotif }: any) {
 function DrennportExchangeTab() {
   const router = require('next/navigation').useRouter();
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '760px' }}>
-      <SectionHeader stamp="MARKET STATUS: OPEN">Drennport Exchange</SectionHeader>
-
-      {/* Market snapshot */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-        <PanelBox>
-          <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', marginBottom: '8px' }}>National Index</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: T.mint }}>14,204.50</div>
-          <div style={{ fontSize: '12px', color: T.mint }}>+ 1.2% (Past Quarter)</div>
-        </PanelBox>
-        <PanelBox>
-          <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', marginBottom: '8px' }}>Drennia Govt Bonds (10Y)</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: T.ivory }}>4.25%</div>
-          <div style={{ fontSize: '12px', color: T.faint }}>Stable</div>
-        </PanelBox>
-        <PanelBox>
-          <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', marginBottom: '8px' }}>Total Listed Entities</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: T.gold }}>42</div>
-          <div style={{ fontSize: '12px', color: T.muted }}>8 State-Owned, 34 Private</div>
-        </PanelBox>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', maxWidth: '1000px' }}>
+      
+      {/* Westport Bourse */}
+      <div
+        style={{ background: T.paper, border: `1px solid ${T.borderGold}`, padding: '24px', cursor: 'pointer' }}
+        onClick={() => router.push('/drennia/exchange')}
+        role="link"
+        aria-label="Open the Westport Bourse share exchange"
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '6px' }}>Westport Bourse</div>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Share Market — Open for Trading</div>
+            <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, maxWidth: '480px', margin: 0 }}>
+              Trade shares of player-owned Public Corporations on a live order book. 
+              Convert your company to a Public Corporation (§250,000 minimum value) to IPO and raise capital.
+            </p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Listing Requires</div>
+            <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace' }}>Public Corporation Structure</div>
+            <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace' }}>§250,000 Company Value Min.</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '24px', marginTop: '20px', paddingTop: '16px', borderTop: `1px solid ${T.border}` }}>
+          <div style={{ fontSize: '11px', color: T.muted, fontFamily: 'monospace' }}>
+            Limit orders · price-time priority · instant settlement · player companies only
+          </div>
+          <div style={{ marginLeft: 'auto', fontSize: '10px', color: T.mint, fontFamily: 'monospace', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'flex-end' }}>
+            Enter the Bourse →
+          </div>
+        </div>
       </div>
 
-      {/* CTA to full exchange */}
-      <PanelBox style={{ background: 'rgba(201,162,74,0.04)', border: `1px solid ${T.borderGold}`, textAlign: 'center', padding: '32px' }}>
-        <div style={{ fontSize: '13px', color: T.gold, fontWeight: 700, marginBottom: '12px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
-          Westport Bourse — Full Trading Platform
+      {/* Private Capital Market */}
+      <div
+        style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '24px', cursor: 'pointer' }}
+        onClick={() => router.push('/drennia/investments')}
+        role="link"
+        aria-label="Open the Private Capital Market for placements and loans"
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.steel, marginBottom: '6px' }}>Drennia Commerce Division</div>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Private Capital Market</div>
+            <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, maxWidth: '520px', margin: 0 }}>
+              Trade equity in private and unlisted companies via fixed-price placements, and post or accept player-to-player loans.
+              No minimum value requirement — available to all company structures except Sole Trader.
+            </p>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Instruments</div>
+            <div style={{ fontSize: '11px', color: T.steel, fontFamily: 'monospace' }}>Private Equity Placements</div>
+            <div style={{ fontSize: '11px', color: T.steel, fontFamily: 'monospace' }}>Player-to-Player Loans</div>
+          </div>
         </div>
-        <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, marginBottom: '20px', maxWidth: '460px', margin: '0 auto 20px' }}>
-          List your company via IPO, buy equity stakes in other player companies, manage your portfolio, and trade on live market data.
-        </p>
-        <GoldButton onClick={() => router.push('/drennia/exchange')}>Open Exchange →</GoldButton>
-      </PanelBox>
+        <div style={{ display: 'flex', gap: '24px', marginTop: '20px', paddingTop: '16px', borderTop: `1px solid ${T.border}` }}>
+          <div style={{ fontSize: '11px', color: T.muted, fontFamily: 'monospace' }}>
+            Fixed-price blocks · shareholder cap enforced · amortized monthly repayments · escrow model
+          </div>
+          <div style={{ marginLeft: 'auto', fontSize: '10px', color: T.steel, fontFamily: 'monospace', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'flex-end' }}>
+            Open Private Market →
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
