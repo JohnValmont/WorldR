@@ -273,13 +273,15 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
 // ── Private placements market ──────────────────────────────────────────────
 function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
   const { data: placements, mutate } = useSWR('placements', () => investmentsApi.getPlacements(), { refreshInterval: 15000 });
+  const { data: myCharacter } = useSWR('my-character', () => characterApi.getMe().then((r) => r.data));
   const { data: myCompanies } = useSWR('my-companies', () => companyApi.getMy().then((r) => r.data));
-  const { data: myCharacter } = useSWR('placements-me', () => characterApi.getMe().then((r) => r.data));
   const [companyId, setCompanyId] = useState('');
   const [shares, setShares] = useState('');
   const [price, setPrice] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, notify] = useNotice();
+
+  const myCharacterId: string | undefined = (myCharacter as any)?.id;
 
   const companies: any[] = Array.isArray(myCompanies) ? myCompanies : myCompanies?.companies ?? (myCompanies ? [myCompanies] : []);
   const eligibleCompanies = companies.filter((c: any) => c && (c.legal_structure_id === 'private-company' || c.legal_structure_id === 'public-corporation'));
@@ -324,6 +326,19 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
       onChanged();
     } catch (e: any) {
       notify(e?.response?.data?.error || e?.response?.data?.message || 'Failed to withdraw placement.', false);
+    } finally { setBusy(false); }
+  };
+
+  // Bug G fix: owners had no way to cancel their own open placements
+  const cancelPlacement = async (id: string) => {
+    setBusy(true);
+    try {
+      await investmentsApi.cancelPlacement(id);
+      notify('Placement cancelled — shares returned.', true);
+      mutate();
+      onChanged();
+    } catch (e: any) {
+      notify(e?.response?.data?.message || 'Cancel failed.', false);
     } finally { setBusy(false); }
   };
 
@@ -376,36 +391,42 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
 
       <Panel title="Open Placements">
         {rows.length === 0 && <div style={{ fontSize: '11px', color: T.faint }}>No private placements on the market.</div>}
-        {rows.map((p: any) => (
-          <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${T.border}`, gap: '8px', flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: '12px', color: T.ivory, fontWeight: 700 }}>{p.company_name}</div>
-              <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-                {fmtInt(Number(p.shares))} sh ({fmt((Number(p.shares) / 1000000) * 100, 1)}%) @ §{fmt(Number(p.price_per_share))} · seller {p.seller_name}
+        {rows.map((p: any) => {
+          const isOwn = myCharacterId && p.seller_character_id === myCharacterId;
+          return (
+            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${T.border}`, gap: '8px', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: '12px', color: T.ivory, fontWeight: 700 }}>
+                  {p.company_name}
+                  {isOwn && <span style={{ ...mono, fontSize: '9px', color: T.gold, marginLeft: '8px', padding: '1px 6px', border: `1px solid ${T.gold}`, textTransform: 'uppercase' }}>yours</span>}
+                </div>
+                <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
+                  {fmtInt(Number(p.shares))} sh ({fmt((Number(p.shares) / 1000000) * 100, 1)}%) @ §{fmt(Number(p.price_per_share))} · seller {p.seller_name}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.gold }}>§{fmtInt(Number(p.shares) * Number(p.price_per_share))}</span>
+                {isOwn ? (
+                  <button
+                    onClick={() => cancelPlacement(p.id)}
+                    disabled={busy}
+                    style={{ padding: '8px 14px', cursor: 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'transparent', color: T.red, border: `1px solid ${T.red}`, opacity: busy ? 0.6 : 1 }}
+                  >
+                    Cancel
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => accept(p.id)}
+                    disabled={busy}
+                    style={{ padding: '8px 14px', cursor: 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(54,211,153,0.15)', color: T.mint, border: `1px solid ${T.mint}`, opacity: busy ? 0.6 : 1 }}
+                  >
+                    Buy
+                  </button>
+                )}
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.gold }}>§{fmtInt(Number(p.shares) * Number(p.price_per_share))}</span>
-              {myId && p.seller_character_id === myId ? (
-                <button
-                  onClick={() => withdraw(p.id)}
-                  disabled={busy}
-                  style={{ padding: '8px 14px', cursor: 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(248,113,113,0.12)', color: T.red, border: `1px solid ${T.red}` }}
-                >
-                  Withdraw
-                </button>
-              ) : (
-                <button
-                  onClick={() => accept(p.id)}
-                  disabled={busy}
-                  style={{ padding: '8px 14px', cursor: 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(54,211,153,0.15)', color: T.mint, border: `1px solid ${T.mint}` }}
-                >
-                  Buy
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </Panel>
     </div>
   );

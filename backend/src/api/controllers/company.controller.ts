@@ -616,12 +616,13 @@ export class CompanyController {
         .orderBy('created_at', 'desc')
         .limit(24);
 
+      // Merge main's totalShares calculation with Bug E fix (dividend_policy as object)
       const totalShares = holders.reduce((sum, h) => sum + Number(h.shares), 0);
 
       res.status(200).json({
         total_shares: totalShares,
         holders: holders.map((h: any) => ({ ...h, percent: totalShares > 0 ? (Number(h.shares) / totalShares) * 100 : 0 })),
-        dividend_policy: policy ? Number(policy.payout_percent) : 0,
+        dividend_policy: { payout_percent: policy ? Number(policy.payout_percent) : 0 },
         recent_dividends: recentDividends,
       });
     } catch (error) {

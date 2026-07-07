@@ -227,7 +227,8 @@ test('Player Economy E2E', async (t) => {
       assert.strictEqual(Number(policy.rows[0].payout_percent), 20, 'Policy persisted');
 
       const capTable = await apiB.get(`/companies/${companyId}/cap-table`);
-      assert.strictEqual(capTable.data.dividend_policy, 20, 'Cap table reports the dividend policy');
+      // Bug E fix: response shape is now { payout_percent: number }, not a bare number
+      assert.strictEqual(capTable.data.dividend_policy?.payout_percent, 20, 'Cap table reports the dividend policy');
       assert.strictEqual(capTable.data.holders.length, 2, 'Cap table shows both holders');
     });
 
