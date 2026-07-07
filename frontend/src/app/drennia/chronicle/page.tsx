@@ -21,6 +21,7 @@ import {
   Card, Button, StatChip, DataRow, EmptyState, Badge, StatusDot,
   SectionHeading, PageShell,
 } from '../../../components/ui';
+import { useAuthStore } from '../../../store/auth.store';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -122,6 +123,8 @@ function DemandBar({ sector, demand, pct, dir }: typeof SECTOR_DEMAND[0]) {
 
 export default function ChroniclePage() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const isSuperAdmin = user?.email === 'kyxplayss@gmail.com';
   const [authorized, setAuthorized]       = useState(false);
   const [citizenFile, setCitizenFile]     = useState<PlayerStats | null>(null);
   const [characterName, setCharacterName] = useState('');
@@ -448,7 +451,11 @@ export default function ChroniclePage() {
                   <Button href="/drennia/business" variant="primary" icon={ChevronRight} size="sm">
                     {company ? 'Open your desk' : 'Start your company'}
                   </Button>
-                  <Button onClick={() => alert('Political desk will be available on 09 July 2026.')} variant="secondary" size="sm">Politics Desk →</Button>
+                  {isSuperAdmin ? (
+                    <Button href="/drennia/politics" variant="secondary" size="sm">Politics Desk →</Button>
+                  ) : (
+                    <Button onClick={() => alert('Political desk will be available on 09 July 2026.')} variant="secondary" size="sm">Politics Desk →</Button>
+                  )}
                   {activeContracts > 0 && <Badge variant="amber">{activeContracts} active contracts</Badge>}
                 </div>
               </div>
@@ -611,9 +618,15 @@ export default function ChroniclePage() {
               <p className="text-[12px] text-zinc-400 leading-relaxed mb-4">
                 Enter the political arena. Manage your party, run campaigns, shape public policy, and form the government.
               </p>
-              <Button onClick={() => alert('Political desk will be available on 09 July 2026.')} variant="primary" icon={ChevronRight} size="sm">
-                Open Politics Desk
-              </Button>
+              {isSuperAdmin ? (
+                <Button href="/drennia/politics" variant="primary" icon={ChevronRight} size="sm">
+                  Open Politics Desk
+                </Button>
+              ) : (
+                <Button onClick={() => alert('Political desk will be available on 09 July 2026.')} variant="primary" icon={ChevronRight} size="sm">
+                  Open Politics Desk
+                </Button>
+              )}
             </Card>
 
             {/* World Feed */}
