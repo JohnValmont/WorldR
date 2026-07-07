@@ -202,6 +202,17 @@ export const CAMPAIGN_ACTIONS: CampaignAction[] = [
 // ── AP (Action Point) System ───────────────────────────────────────────────
 // All values are TUNABLE DEFAULTS — change here, never inline.
 
+// ── AP grant model (GDD v0.5 §7, refined) ───────────────────────────────────
+// AP REFRESHES to a flat monthly grant — it does NOT accumulate. Each in-game
+// month current_ap is RESET to AP_MONTHLY_GRANT regardless of what was left over.
+// Example: hold 6 leftover AP at month end → next month you have 12 (NOT 18).
+// Voting is always free.
+export const AP_MONTHLY_GRANT            = 12;
+
+// ── Legacy AP-cap tunables (pre-v0.5) ───────────────────────────────────────
+// Retained for reference / potential future office-Mandate wiring. The old
+// per-office AP-cap system is retired; the effective cap is now AP_MONTHLY_GRANT
+// and regen no longer uses AP_REGEN_PER_ARC.
 export const AP_BASE_CAP                 = 4;
 export const AP_BONUS_LEGISLATIVE_SEAT   = 2;
 export const AP_BONUS_SECRETARY          = 2;
@@ -209,14 +220,30 @@ export const AP_BONUS_GOVERNOR           = 3;
 export const AP_BONUS_COMMITTEE_CHAIR    = 1;
 export const AP_REGEN_PER_ARC            = 1;
 
-// AP costs per action
-export const AP_COST_STATEMENT           = 1;
-export const AP_COST_FUNDRAISE           = 1;
-export const AP_COST_RECRUIT             = 2;
-export const AP_COST_ENDORSEMENT_AP      = 2;
-export const AP_COST_SCOUT               = 2;
-export const AP_COST_NEGOTIATE           = 2;
-export const AP_COST_EXECUTIVE_ORDER     = 3;
+// ── Canonical AP cost table ─────────────────────────────────────────────────
+// SOURCE OF TRUTH mirror of frontend _lib/model.ts → AP_MODEL.COSTS (GDD §7).
+// The discrete AP_COST_* constants below are aligned to these weights.
+export const AP_MODEL_COSTS = {
+  vote:            0,
+  campaign:        2,
+  scout:           2,
+  whip:            2,
+  propose_law:     3,
+  court_bloc:      3,
+  expedite_bill:   4,
+  recruit:         4,
+  executive_order: 5,
+  signature:       6,
+} as const;
+
+// AP costs per action (weighted per GDD §7 / AP_MODEL_COSTS)
+export const AP_COST_STATEMENT           = AP_MODEL_COSTS.court_bloc;   // targeted Statement / court a bloc
+export const AP_COST_FUNDRAISE           = 1;                            // fine-grained action (not in canonical table)
+export const AP_COST_RECRUIT             = AP_MODEL_COSTS.recruit;       // 4 (+Treasury)
+export const AP_COST_ENDORSEMENT_AP      = 2;                            // fine-grained action (not in canonical table)
+export const AP_COST_SCOUT               = AP_MODEL_COSTS.scout;         // 2
+export const AP_COST_NEGOTIATE           = 2;                            // fine-grained action (not in canonical table)
+export const AP_COST_EXECUTIVE_ORDER     = AP_MODEL_COSTS.executive_order; // 5
 export const AP_COST_APPOINT_SECRETARY   = 2;
 export const AP_COST_ADDRESS_STATE       = 1;
 export const AP_COST_EMERGENCY_RESPONSE  = 2;
@@ -228,9 +255,9 @@ export const AP_COST_BILL_CONSTITUTIONAL = 6;
 export const AP_COST_AMEND_MINOR         = 1;
 export const AP_COST_AMEND_CLAUSE        = 2;
 export const AP_COST_JOIN_COMMITTEE      = 1;
-export const AP_COST_WHIP                = 2;
+export const AP_COST_WHIP                = AP_MODEL_COSTS.whip;         // 2
 // Votes always cost 0 AP — this is intentional and non-configurable.
-export const AP_COST_VOTE                = 0;
+export const AP_COST_VOTE                = AP_MODEL_COSTS.vote;         // 0
 
 // ── Roster Cap Bands ─────────────────────────────────────────────────────
 // Ordered high-to-low; first matching band wins.
@@ -287,13 +314,13 @@ export const DOCTRINE_SIGNATURE_ACTION: Record<DoctrineId, string> = {
   the_compact:   'coalition_outreach',
 };
 
-// AP costs for signature actions (tunable here, never inline)
-export const AP_COST_UNION_ADDRESS       = 3;
-export const AP_COST_INVESTOR_ROADSHOW   = 2;
-export const AP_COST_TOWN_HALL           = 2;
-export const AP_COST_SHOP_FLOOR_TOUR     = 3;
-export const AP_COST_LISTENING_TOUR      = 2;
-export const AP_COST_COALITION_OUTREACH  = 1;
+// AP costs for signature actions (Creed-locked) — all 6 AP per GDD §7 (AP_MODEL_COSTS.signature).
+export const AP_COST_UNION_ADDRESS       = AP_MODEL_COSTS.signature;
+export const AP_COST_INVESTOR_ROADSHOW   = AP_MODEL_COSTS.signature;
+export const AP_COST_TOWN_HALL           = AP_MODEL_COSTS.signature;
+export const AP_COST_SHOP_FLOOR_TOUR     = AP_MODEL_COSTS.signature;
+export const AP_COST_LISTENING_TOUR      = AP_MODEL_COSTS.signature;
+export const AP_COST_COALITION_OUTREACH  = AP_MODEL_COSTS.signature;
 
 /** Map action type → AP cost for the backend to look up. */
 export const SIGNATURE_ACTION_AP_COST: Record<string, number> = {
