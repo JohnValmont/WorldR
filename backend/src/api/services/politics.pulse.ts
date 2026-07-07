@@ -24,6 +24,9 @@ export interface PulseContext {
   myPartyId?: string | null;
   myCandidateId?: string | null;
   heldSeatsByParty?: Record<string, number>;
+  /** Per-jurisdiction seat totals (GDD §3). Fall back to legacy defaults. */
+  totalSeats?: number;
+  majoritySeats?: number;
 }
 
 export type SegmentStatus = 'winning' | 'contested' | 'losing' | 'none';
@@ -65,6 +68,9 @@ function pct(n: number): string {
 
 export function buildPulse(ctx: PulseContext): PoliticalPulse {
   const { projection, prevProjection, parties, myPartyId, myCandidateId, heldSeatsByParty } = ctx;
+  // Per-jurisdiction seat totals; fall back to legacy single-council defaults.
+  const majoritySeats = ctx.majoritySeats ?? POL_MAJORITY_SEATS;
+  const totalSeats = ctx.totalSeats ?? POL_COUNCIL_SEATS;
 
   const nameOf = new Map<string, PulseParty>();
   for (const p of parties) nameOf.set(p.id, p);
@@ -93,7 +99,7 @@ export function buildPulse(ctx: PulseContext): PoliticalPulse {
   const hasCandidacy = !!myPartyId && !!myCandidateId;
 
   // ── Near-miss: seats from a governing majority ────────────────────────────
-  const seatsFromMajority = myParty ? Math.max(0, POL_MAJORITY_SEATS - myParty.seats) : null;
+  const seatsFromMajority = myParty ? Math.max(0, majoritySeats - myParty.seats) : null;
 
   // ── Momentum: change in my party's projected seats vs previous month ─────────
   let momentum: PoliticalPulse['momentum'] = null;
@@ -210,7 +216,7 @@ export function buildPulse(ctx: PulseContext): PoliticalPulse {
     banner = {
       tone: 'triumph',
       title: 'MAJORITY IN HAND',
-      detail: `${myParty.name} is projected to command ${myParty.seats}/${POL_COUNCIL_SEATS} seats — the Premiership is yours to take.`
+      detail: `${myParty.name} is projected to command ${myParty.seats}/${totalSeats} seats — the Premiership is yours to take.`
     };
   } else if (seatsFromMajority !== null && seatsFromMajority <= POL_PULSE.NEAR_MISS_SEATS) {
     banner = {
@@ -224,7 +230,7 @@ export function buildPulse(ctx: PulseContext): PoliticalPulse {
     banner = {
       tone: 'neutral',
       title: `${myParty.seats} SEAT${myParty.seats === 1 ? '' : 'S'} PROJECTED`,
-      detail: rival ? rival.message : `Build reach across segments to climb toward ${POL_MAJORITY_SEATS}.`
+      detail: rival ? rival.message : `Build reach across segments to climb toward ${majoritySeats}.`
     };
   } else {
     banner = {
@@ -248,8 +254,8 @@ export function buildPulse(ctx: PulseContext): PoliticalPulse {
 
   return {
     hasCandidacy,
-    majoritySeats: POL_MAJORITY_SEATS,
-    totalSeats: POL_COUNCIL_SEATS,
+    majoritySeats: majoritySeats,
+    totalSeats: totalSeats,
     standings,
     leadingParty,
     myParty,
