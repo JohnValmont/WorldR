@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 const T = {
@@ -19,13 +20,17 @@ interface GuideModalProps {
 
 export default function GuideModal({ onDismiss }: GuideModalProps) {
   const [fadeIn, setFadeIn] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const t = setTimeout(() => setFadeIn(true), 40);
     return () => clearTimeout(t);
   }, []);
 
-  return (
+  if (!mounted) return null;
+
+  const modalContent = (
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 9999,
@@ -280,4 +285,6 @@ export default function GuideModal({ onDismiss }: GuideModalProps) {
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
