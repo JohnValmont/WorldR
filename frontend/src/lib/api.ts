@@ -155,8 +155,10 @@ export const exchangeApi = {
   cancelOrder: (orderId: string) => api.delete(`/exchange/orders/${orderId}`).then(res => res.data),
   getMyOrders: () => api.get('/exchange/my-orders').then(res => res.data),
   getMyPortfolio: () => api.get('/exchange/portfolio').then(res => res.data),
-  getPriceHistory: (companyId: string) => api.get(`/exchange/${companyId}/history`).then(res => res.data)
-};
+  getPriceHistory: (companyId: string) => api.get(`/exchange/${companyId}/history`).then(res => res.data),
+  ipoLaunch: (companyId: string, data: { price_per_share: number; quantity: number }) =>
+    api.post(`/exchange/${companyId}/ipo`, data).then(res => res.data)
+  };
 
 // Investments — P2P loans and private equity placements
 export const investmentsApi = {
@@ -174,8 +176,9 @@ export const investmentsApi = {
   createPlacement: (data: { company_id: string; shares: number; price_per_share: number; target_character_id?: string }) =>
     api.post('/investments/placements', data).then(res => res.data),
   cancelPlacement: (id: string) => api.delete(`/investments/placements/${id}`).then(res => res.data),
-  acceptPlacement: (id: string) => api.post(`/investments/placements/${id}/accept`).then(res => res.data)
-};
+  acceptPlacement: (id: string) => api.post(`/investments/placements/${id}/accept`).then(res => res.data),
+  getMyPlacements: () => api.get('/investments/my-placements').then(res => res.data)
+  };
 
 // Registry
 export const registryApi = {

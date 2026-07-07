@@ -97,4 +97,27 @@ export class ShareMarketController {
       next(error);
     }
   }
+
+  // POST /exchange/:companyId/ipo  { price_per_share, quantity }
+  // Owner-only. Posts an initial sell block at the chosen price.
+  public static async ipoLaunch(req: Request, res: Response, next: NextFunction) {
+    try {
+      const character = await requireCharacter(req);
+      const { price_per_share, quantity } = req.body;
+
+      if (!price_per_share || !quantity) {
+        return next(new AppError('price_per_share and quantity are required', 400, 'BAD_REQUEST'));
+      }
+
+      const result = await market.ipoLaunch({
+        companyId: req.params.companyId,
+        characterId: character.id,
+        pricePerShare: Number(price_per_share),
+        quantity: Number(quantity),
+      });
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
 }

@@ -16,6 +16,7 @@ router.get('/my-loans', InvestmentsController.myLoans);
 
 // Private equity placements
 router.get('/placements', InvestmentsController.placements);
+router.get('/my-placements', InvestmentsController.myPlacements);
 router.post('/placements', InvestmentsController.createPlacement);
 router.delete('/placements/:placementId', InvestmentsController.cancelPlacement);
 router.post('/placements/:placementId/accept', InvestmentsController.acceptPlacement);

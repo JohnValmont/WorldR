@@ -221,7 +221,7 @@ export async function getListings() {
   const companies = await db('companies as c')
     .join('company_finances as f', 'f.company_id', 'c.id')
     .where({ 'c.legal_structure_id': 'public-corporation', 'c.is_npc': false, 'c.status': 'active' })
-    .select('c.id', 'c.name', 'c.country_id', 'c.industry_id', 'c.subsector_id', 'f.company_value', 'f.last_arc_profit');
+    .select('c.id', 'c.name', 'c.country_id', 'c.industry_id', 'c.subsector_id', 'c.owner_character_id', 'f.company_value', 'f.last_arc_profit');
 
   const result = [];
   for (const co of companies) {
@@ -317,4 +317,41 @@ export async function getMyOrders(characterId: string) {
     .orderBy('o.created_at', 'desc')
     .limit(50)
     .select('o.*', 'c.name as company_name');
+}
+
+/**
+ * IPO Launch — convenience endpoint for a newly-public founder to post their
+ * first batch of sell orders at a chosen price without needing the full order
+ * ticket. Internally calls placeOrder so the same escrow / matching logic
+ * applies: if buyers are already in the book the shares fill immediately.
+ *
+ * Validation:
+ *  - Company must be a public-corporation owned by characterId
+ *  - quantity must be > 0 and <= character's current share holding
+ *  - pricePerShare must be > 0
+ */
+export async function ipoLaunch(params: {
+  companyId: string;
+  characterId: string;
+  pricePerShare: number;
+  quantity: number;
+}) {
+  const { companyId, characterId, pricePerShare, quantity } = params;
+
+  if (!Number.isFinite(pricePerShare) || pricePerShare <= 0)
+    throw new AppError('Invalid IPO price', 400, 'BAD_REQUEST');
+  if (!Number.isInteger(quantity) || quantity <= 0)
+    throw new AppError('Invalid quantity', 400, 'BAD_REQUEST');
+
+  // Verify ownership
+  const company = await db('companies').where({ id: companyId }).first();
+  if (!company) throw new AppError('Company not found', 404, 'NOT_FOUND');
+  if (company.is_npc) throw new AppError('NPC companies cannot IPO', 400, 'BAD_REQUEST');
+  if (company.legal_structure_id !== 'public-corporation')
+    throw new AppError('Only Public Corporations can launch an IPO', 400, 'NOT_PUBLIC');
+  if (company.owner_character_id !== characterId)
+    throw new AppError('Only the company owner can launch an IPO', 403, 'FORBIDDEN');
+
+  // Delegate entirely to placeOrder — handles escrow, matching, cap-table updates
+  return placeOrder({ companyId, characterId, side: 'sell', price: pricePerShare, quantity });
 }
