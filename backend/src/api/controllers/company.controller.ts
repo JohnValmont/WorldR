@@ -527,6 +527,30 @@ export class CompanyController {
           .decrement('company_value', fee);
         await trx('companies').where({ id }).update({ legal_structure_id, updated_at: trx.fn.now() });
 
+        // IPO Pre-Listing Split: normalize total shares to exactly 1,000,000 to match DRX exchange limits.
+        if (target.id === 'public-corporation') {
+          const holders = await trx('company_shares').where({ company_id: id }).where('shares', '>', 0);
+          const currentTotal = holders.reduce((sum: number, h: any) => sum + Number(h.shares), 0);
+          if (currentTotal > 0 && currentTotal !== 1_000_000) {
+            const splitRatio = 1_000_000 / currentTotal;
+            for (const h of holders) {
+              const newShares = Math.floor(Number(h.shares) * splitRatio);
+              const newCost = Number(h.avg_cost_basis) / splitRatio;
+              await trx('company_shares')
+                .where({ company_id: id, holder_character_id: h.holder_character_id })
+                .update({ shares: newShares, avg_cost_basis: newCost, updated_at: trx.fn.now() });
+            }
+            // Fix rounding errors by giving remainder to the founder
+            const finalTotalRes = await trx('company_shares').where({ company_id: id }).sum('shares as total').first();
+            const finalTotal = Number(finalTotalRes?.total || 0);
+            if (finalTotal !== 1_000_000) {
+              await trx('company_shares')
+                .where({ company_id: id, holder_character_id: character.id })
+                .increment('shares', 1_000_000 - finalTotal);
+            }
+          }
+        }
+
         const clock = await trx('world_clock').first();
         await trx('company_ledger').insert({
           company_id: id,

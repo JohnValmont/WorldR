@@ -23,6 +23,30 @@ export class CharacterController {
         .where({ character_id: character.id })
         .first();
 
+      let trueNetWorth = Number(finances?.cash_in_hand || 0);
+
+      // Dynamically calculate equity value
+      const equityValues = await db('company_shares as cs')
+        .join('companies as c', 'c.id', 'cs.company_id')
+        .join('company_finances as cf', 'cf.company_id', 'c.id')
+        .where({ 'cs.holder_character_id': character.id, 'c.status': 'active' })
+        .select(
+          'cs.shares',
+          'cf.company_value',
+          db.raw(`(SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) as total_shares`)
+        );
+
+      for (const row of equityValues) {
+        const total = Number(row.total_shares || 0);
+        if (total > 0) {
+          trueNetWorth += (Number(row.shares) / total) * Number(row.company_value);
+        }
+      }
+
+      if (finances) {
+        finances.net_worth = trueNetWorth;
+      }
+
       res.status(200).json({
         ...character,
         finances
