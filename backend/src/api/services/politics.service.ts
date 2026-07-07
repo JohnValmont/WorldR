@@ -1,8 +1,6 @@
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import {
-  POL_FILING_WINDOW_MONTHS,
-  POL_CAMPAIGN_WINDOW_MONTHS,
   POL_FORMATION_WINDOW_MONTHS,
   POL_FIRST_CYCLE_MONTHS,
   POL_TERM_LENGTH_MONTHS,
@@ -189,16 +187,13 @@ async function applyFactorDelta(trx: any, characterId: string | null, factors: R
 export function derivePhase(
   cycle: { polling_arc: number; formation_end_arc: number },
   currentMonth: number
-): 'governing' | 'filing' | 'campaign' | 'polling' | 'formation' {
-  const startCampaign = cycle.polling_arc - POL_CAMPAIGN_WINDOW_MONTHS;
-  const startFiling = startCampaign - POL_FILING_WINDOW_MONTHS;
-
-  if (currentMonth < startFiling) return 'governing';
-  if (currentMonth >= startFiling && currentMonth < startCampaign) return 'filing';
-  if (currentMonth >= startCampaign && currentMonth < cycle.polling_arc) return 'campaign';
+): 'governing' | 'polling' | 'formation' {
+  // GDD §3: no phase ceremony. Campaigning, candidacy and bill proposing are
+  // ALWAYS open ("governing"). The only scheduled resolution moments are the
+  // election itself (polling) and the post-election government-formation window.
   if (currentMonth === cycle.polling_arc) return 'polling';
   if (currentMonth > cycle.polling_arc && currentMonth <= cycle.formation_end_arc) return 'formation';
-  
+
   return 'governing';
 }
 
@@ -330,11 +325,14 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
     await regenApForCharacter(trx, row.character_id, currentMonth);
   }
 
-  if (newPhase === 'filing') {
+  // Candidacy is open all term: keep NPC slates filled every governing month.
+  if (newPhase === 'governing') {
     await ensureNpcCandidates(trx, cycle.id);
   }
 
-  if (newPhase === 'campaign') {
+  // Campaigning is always available (GDD §3): resolve queued campaign actions and
+  // run the NPC campaign AI every governing month, not just in a campaign window.
+  if (newPhase === 'governing') {
     const pendingActions = await trx('pol_campaign_actions')
       .join('pol_candidates', 'pol_campaign_actions.candidate_id', 'pol_candidates.id')
       .where('pol_campaign_actions.cycle_id', cycle.id)
