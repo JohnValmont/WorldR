@@ -33,9 +33,25 @@ import {
 import { EngineCandidate, runElection } from './electionEngine';
 import { fireGoverningEvent } from './governingEvents';
 
+/**
+ * Convert a world_clock row into a MONOTONIC absolute month ("arc").
+ *
+ * world_clock.current_month is the CALENDAR month (1-12) and resets every year,
+ * so on its own it is NOT monotonic. Politics scheduling (cycle *_arc columns,
+ * AP monthly refresh, staggered terms) needs a strictly increasing counter, so
+ * we fold in current_year: arc = year*12 + (month-1). GDD §3.
+ */
+export function worldClockToArc(
+  clock: { current_year?: number; current_month?: number } | null | undefined
+): number {
+  const year = clock?.current_year ?? 1;
+  const month = clock?.current_month ?? 1;
+  return year * 12 + (month - 1);
+}
+
 export async function getCurrentWorldArc(): Promise<number> {
   const clock = await db('world_clock').first();
-  return clock?.current_month || 1;
+  return worldClockToArc(clock);
 }
 
 // ── AP (Action Point) Helpers ─────────────────────────────────────────────
