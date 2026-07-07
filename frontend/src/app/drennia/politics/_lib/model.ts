@@ -80,7 +80,7 @@ export interface JurisdictionModel {
 }
 
 export const JURISDICTION_MODEL: Record<string, JurisdictionModel> = {
-  ironvale:  { id: 'ironvale',  name: 'Ironvale',            tier: 'state',    character: 'Industrial heartland',           seats: 100, majority: 51,  termMonths: 24, electionOffsetMonths: 0  },
+  ironvale:  { id: 'ironvale',  name: 'Ironvale',            tier: 'state',    character: 'Industrial heartland',           seats: 61, majority: 31,  termMonths: 48, electionOffsetMonths: 0  },
   drennport: { id: 'drennport', name: 'Drennport',           tier: 'state',    character: 'Capital & main port',            seats: 120, majority: 61,  termMonths: 24, electionOffsetMonths: 6  },
   westport:  { id: 'westport',  name: 'Westport',            tier: 'state',    character: 'Trade port',                     seats: 72,  majority: 37,  termMonths: 24, electionOffsetMonths: 12 },
   greenmere: { id: 'greenmere', name: 'Greenmere',           tier: 'state',    character: 'Rural & agricultural',           seats: 50,  majority: 26,  termMonths: 24, electionOffsetMonths: 18 },

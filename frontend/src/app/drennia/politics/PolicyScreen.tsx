@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
 import { JURISDICTIONS, type JurisdictionId } from './_lib/session';
-import { T, MONO, stampStyle } from './_lib/theme';
+import { T, MONO } from './_lib/theme';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
+import { Panel, Stamp } from './_components/DeskUI';
 import { Shield } from 'lucide-react';
 
 interface Props {
@@ -77,18 +78,20 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
       
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <div style={{ ...stampStyle, color: T.gold, marginBottom: 8, fontSize: 11, letterSpacing: '0.15em' }}>JURISDICTION · {jurisdiction?.name.toUpperCase()}</div>
-        <h1 style={{ color: T.ivory, fontSize: 32, fontWeight: 800, margin: 0, letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 12 }}>Policies</h1>
-        <div style={{ color: T.faint, fontSize: 14, lineHeight: 1.5, maxWidth: 800 }}>
-          Every policy in force across the jurisdiction and what it does while it's in force. Propose a change to send it to the chamber.
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Stamp style={{ color: T.gold }}>THE POLICY DESK</Stamp>
+        <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
+          Policies · {jurisdiction?.name}
+        </h1>
+        <div style={{ color: T.faint, fontSize: 13 }}>
+          Every policy in force across the jurisdiction. Propose a change to send it to the chamber.
         </div>
       </div>
 
       {isLocked ? (
-        <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 8, padding: '20px 24px', display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 8, padding: '24px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <Shield size={20} color={T.muted} />
-          <div style={{ color: T.faint, fontStyle: 'italic', fontSize: 14 }}>The {jurisdiction?.name} policy desk is not currently accessible.</div>
+          <div style={{ color: T.faint, fontStyle: 'italic', fontSize: 14 }}>The {jurisdiction?.name} policy desk is not yet open.</div>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
@@ -96,19 +99,10 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
             const isProposing = activeProposal === pol.id;
 
             return (
-              <div key={pol.id} style={{
-                background: T.panel,
-                border: `1px solid ${T.border}`,
-                borderRadius: 8,
-                padding: 24,
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: 280,
-                position: 'relative'
-              }}>
+              <Panel key={pol.id} accent={isProposing} style={{ display: 'flex', flexDirection: 'column', minHeight: 280, position: 'relative' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div style={{ color: T.ivory, fontWeight: 700, fontSize: 16 }}>{pol.title}</div>
-                  <div style={{ ...stampStyle, fontSize: 10, color: T.muted }}>{pol.type}</div>
+                  <Stamp style={{ fontSize: 10, color: T.muted }}>{pol.type}</Stamp>
                 </div>
                 <div style={{ color: T.faint, fontSize: 13, lineHeight: 1.5, marginBottom: 24, flex: 1 }}>
                   {pol.description}
@@ -116,7 +110,7 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
 
                 {!isProposing ? (
                   <>
-                    <div style={{ ...stampStyle, fontSize: 10, color: T.muted, marginBottom: 12 }}>IN FORCE NOW</div>
+                    <Stamp style={{ color: T.muted, marginBottom: 12 }}>IN FORCE NOW</Stamp>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: T.gold, fontWeight: 700, fontSize: 15, marginBottom: 12 }}>
                       <div style={{ width: 6, height: 6, borderRadius: 3, background: T.gold }} />
                       {pol.currentValue}
@@ -170,7 +164,7 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
                     {err && <div style={{ color: T.red, fontSize: 12, textAlign: 'center' }}>{err}</div>}
                   </div>
                 )}
-              </div>
+              </Panel>
             );
           })}
         </div>

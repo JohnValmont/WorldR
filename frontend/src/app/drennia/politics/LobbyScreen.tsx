@@ -3,8 +3,10 @@ import React, { useState } from 'react';
 import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
 import { JURISDICTIONS, type JurisdictionId } from './_lib/session';
-import { T, MONO, stampStyle } from './_lib/theme';
+import { T, MONO } from './_lib/theme';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
+import { Panel, Stamp } from './_components/DeskUI';
+import { Shield } from 'lucide-react';
 
 interface Props {
   selectedJurisdictionId: JurisdictionId;
@@ -15,14 +17,6 @@ interface Props {
   parties: any[];
   myAp?: { current_ap: number; ap_cap: number };
   onRefresh?: () => void;
-}
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 4, padding: 20 }}>
-      <div style={{ ...stampStyle, marginBottom: 14 }}>{title}</div>{children}
-    </div>
-  );
 }
 
 export default function LobbyScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, parties, onRefresh }: Props) {
@@ -47,20 +41,28 @@ export default function LobbyScreen({ selectedJurisdictionId, onJurisdictionChan
   const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', background: T.bg, border: `1px solid ${T.border}`, borderRadius: 4, color: T.ivory, fontSize: 14, outline: 'none' };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
-      <div>
-        <div style={stampStyle}>The Lobby · {jurisdiction?.name}</div>
-        <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '6px 0 0' }}>Lobby & Procurement</h1>
-        <p style={{ color: T.muted, fontSize: 14, marginTop: 6 }}>Where cash, companies, and the Council meet — donate, petition, and bid for state contracts.</p>
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Stamp style={{ color: T.gold }}>LOBBY & TENDERS</Stamp>
+        <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
+          Lobbying · {jurisdiction?.name}
+        </h1>
+        <div style={{ color: T.faint, fontSize: 13 }}>
+          Where cash, companies, and the Council meet — donate, petition, and bid for state contracts.
+        </div>
       </div>
 
       {isLocked ? (
-        <Panel title="Locked"><div style={{ color: T.faint, fontStyle: 'italic' }}>{jurisdiction?.name} is not yet open.</div></Panel>
+        <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 8, padding: '24px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Shield size={20} color={T.muted} />
+          <div style={{ color: T.faint, fontStyle: 'italic', fontSize: 14 }}>The {jurisdiction?.name} lobby is not yet open.</div>
+        </div>
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
-            <Panel title="Citizen Donation">
+            <Panel title="CITIZEN DONATION">
               <div style={{ color: T.muted, fontSize: 13, marginBottom: 12 }}>Donate personal cash to a party to build political influence.</div>
               <select value={donateParty} onChange={(e) => setDonateParty(e.target.value)} style={{ ...inputStyle, marginBottom: 10 }}>
                 <option value="">Select a party…</option>
@@ -72,14 +74,14 @@ export default function LobbyScreen({ selectedJurisdictionId, onJurisdictionChan
               {err && <div style={{ color: T.red, fontSize: 12, marginTop: 8 }}>{err}</div>}
             </Panel>
 
-            <Panel title="Corporate Petition">
+            <Panel title="CORPORATE PETITION">
               <div style={{ color: T.faint, fontStyle: 'italic', fontSize: 13, textAlign: 'center', padding: '20px 8px' }}>
                 You must own a manufacturing company headquartered in {jurisdiction?.name} to petition the government.
               </div>
             </Panel>
           </div>
 
-          <Panel title="Government Procurement Tenders">
+          <Panel title="GOVERNMENT PROCUREMENT TENDERS">
             {tenders.length === 0 ? (
               <div style={{ color: T.faint, fontStyle: 'italic' }}>No open tenders at this time.</div>
             ) : (

@@ -77,7 +77,7 @@ export interface JurisdictionSpec {
 }
 
 export const JURISDICTIONS: Record<string, JurisdictionSpec> = {
-  ironvale:  { seats: 100, majority: 51,  termMonths: 24, electionOffsetMonths: 0,  tier: 'state' },
+  ironvale:  { seats: 61, majority: 31,  termMonths: 48, electionOffsetMonths: 0,  tier: 'state' },
   drennport: { seats: 120, majority: 61,  termMonths: 24, electionOffsetMonths: 6,  tier: 'state' },
   westport:  { seats: 72,  majority: 37,  termMonths: 24, electionOffsetMonths: 12, tier: 'state' },
   greenmere: { seats: 50,  majority: 26,  termMonths: 24, electionOffsetMonths: 18, tier: 'state' },
@@ -87,7 +87,7 @@ export const JURISDICTIONS: Record<string, JurisdictionSpec> = {
 // Safe fallback for any unknown/unseeded jurisdiction code (mirrors a typical
 // mid-size State Assembly) so the engine degrades gracefully.
 export const POL_DEFAULT_JURISDICTION: JurisdictionSpec = {
-  seats: 100, majority: 51, termMonths: 24, electionOffsetMonths: 0, tier: 'state',
+  seats: 61, majority: 31, termMonths: 48, electionOffsetMonths: 0, tier: 'state',
 };
 
 /** Resolve a jurisdiction spec from a pol_states.code (case-sensitive). */

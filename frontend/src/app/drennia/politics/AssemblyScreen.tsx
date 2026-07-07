@@ -3,9 +3,11 @@ import React from 'react';
 import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
 import { JURISDICTIONS, type JurisdictionId } from './_lib/session';
-import { T, MONO, stampStyle } from './_lib/theme';
+import { T, MONO } from './_lib/theme';
 import { JURISDICTION_MODEL } from './_lib/model';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
+import { Panel, Stamp } from './_components/DeskUI';
+import { Shield } from 'lucide-react';
 
 interface Props {
   selectedJurisdictionId: JurisdictionId;
@@ -20,14 +22,6 @@ interface Props {
 
 const PALETTE = ['#d4a24a', '#5f8fbf', '#5fbf8f', '#c8624f', '#9b7fbf', '#c9a24a', '#7fbfb0'];
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 4, padding: 20 }}>
-      <div style={{ ...stampStyle, marginBottom: 14 }}>{title}</div>{children}
-    </div>
-  );
-}
-
 export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, parties }: Props) {
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
@@ -39,20 +33,28 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
   const premier = data?.premier;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
-      <div>
-        <div style={stampStyle}>Assembly · {jurisdiction?.name}</div>
-        <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '6px 0 0' }}>{jModel.name} Assembly</h1>
-        <p style={{ color: T.muted, fontSize: 13, marginTop: 6 }}>{jModel.seats} seats · {jModel.majority} for a majority</p>
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Stamp style={{ color: T.gold }}>THE ASSEMBLY</Stamp>
+        <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
+          {jModel.tier === 'state' ? 'State Assembly' : 'National Parliament'} of {jModel.name}
+        </h1>
+        <div style={{ color: T.faint, fontSize: 13 }}>
+          {jModel.seats} seats · {jModel.majority} for a majority
+        </div>
       </div>
 
       {isLocked ? (
-        <Panel title="Locked"><div style={{ color: T.faint, fontStyle: 'italic' }}>{jurisdiction?.name} is not yet open.</div></Panel>
+        <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 8, padding: '24px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Shield size={20} color={T.muted} />
+          <div style={{ color: T.faint, fontStyle: 'italic', fontSize: 14 }}>The {jurisdiction?.name} assembly is not yet open.</div>
+        </div>
       ) : partySeats.length === 0 ? (
-        <Panel title="The Chamber"><div style={{ color: T.faint, fontStyle: 'italic', textAlign: 'center', padding: 24 }}>The chamber is empty. Seats are filled at the next election.</div></Panel>
+        <Panel title="THE CHAMBER"><div style={{ color: T.faint, fontStyle: 'italic', textAlign: 'center', padding: 24 }}>The chamber is empty. Seats are filled at the next election.</div></Panel>
       ) : (
-        <Panel title={`Composition — ${totalSeats} seats`}>
+        <Panel title={`COMPOSITION — ${totalSeats} SEATS`} accent>
           <div style={{ display: 'flex', height: 22, borderRadius: 4, overflow: 'hidden', border: `1px solid ${T.border}` }}>
             {partySeats.map((p: any, i: number) => (
               <div key={p.partyId || i} title={`${p.name}: ${p.seats}`} style={{ width: `${(p.seats / totalSeats) * 100}%`, background: PALETTE[i % PALETTE.length] }} />
