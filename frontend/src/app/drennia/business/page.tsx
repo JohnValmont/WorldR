@@ -262,6 +262,7 @@ export default function BusinessPage() {
                       state: myCompany.headquarters_state_id,
                       legalStructure: myCompany.legal_structure_id,
                       companyCash: myCompany.finances?.available_cash,
+                      debt: myCompany.finances?.debt,
                       maintenancePolicy: myCompany.finances?.maintenance_policy || 'Standard',
                     });
                     setMfgData(mfgRes.data);
@@ -274,6 +275,7 @@ export default function BusinessPage() {
                       state: myCompany.headquarters_state_id,
                       legalStructure: myCompany.legal_structure_id,
                       companyCash: myCompany.finances?.available_cash,
+                      debt: myCompany.finances?.debt,
                     });
                   });
                 });
