@@ -1,188 +1,177 @@
 'use client';
-import React from 'react';
-import { ChevronRight } from 'lucide-react';
-import PhaseTimeline from './_components/PhaseTimeline';
-import ArcDigest from './ArcDigest';
-import GeneralActionsPanel from './GeneralActionsPanel';
+import React, { useState } from 'react';
+import useSWR from 'swr';
+import { politicsApi } from '@/lib/api';
+import { T, MONO, stampStyle } from './_lib/theme';
+import { JURISDICTION_MODEL } from './_lib/model';
 import type { PoliticsSection } from './_components/PoliticsSidebar';
-import { JURISDICTIONS } from './_lib/session';
 
-const PHASE_LABEL: Record<string, { label: string; color: string }> = {
-  filing:    { label: 'Filing',    color: 'bg-amber-500/20 text-amber-400' },
-  campaign:  { label: 'Campaign',  color: 'bg-blue-500/20 text-blue-400' },
-  polling:   { label: 'Polling',   color: 'bg-purple-500/20 text-purple-400' },
-  formation: { label: 'Formation', color: 'bg-emerald-500/20 text-emerald-400' },
-  governing: { label: 'Governing', color: 'bg-green-500/20 text-green-400' },
-};
-
-interface OverviewScreenProps {
+interface Props {
   overview: any;
   character: any;
   parties: any[];
-  latestGoverningEvent: any;
   myAp?: { current_ap: number; ap_cap: number };
-  onNavigate: (section: PoliticsSection) => void;
+  selectedJurisdictionId: string;
+  onNavigate: (s: PoliticsSection) => void;
   onRefresh: () => void;
 }
 
-export default function OverviewScreen({
-  overview,
-  character,
-  parties,
-  latestGoverningEvent,
-  myAp,
-  onNavigate,
-  onRefresh,
-}: OverviewScreenProps) {
-  const phase = overview?.cyclePhase || overview?.cycle?.phase || 'governing';
-  const countdown = overview?.countdownToNextPhase ?? 0;
-  const activeState = overview?.activeState;
-
-  const credibility = character?.credibility ?? 0;
-  const charisma    = character?.charisma    ?? 0;
-  const influence   = character?.influence   ?? 0;
-  const cash        = character?.finances?.cash_in_hand ?? character?.cash_in_hand ?? null;
-
-  const phaseInfo = PHASE_LABEL[phase] || PHASE_LABEL.governing;
-
-  const myParty = parties.find((p: any) =>
-    p.leader_character_id === character?.id ||
-    p.members?.some((m: any) => m.character_id === character?.id)
+function Panel({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 4, padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div style={stampStyle}>{title}</div>
+        {action}
+      </div>
+      {children}
+    </div>
   );
-  const isLeader = myParty?.leader_character_id === character?.id;
-  const stateName = activeState?.name || 'Ironvale';
+}
 
-  // Determine role context label for the actions block
-  const contextLabel = isLeader ? 'Party Leader' : myParty ? 'Party Member' : 'Independent';
+function Gauge({ pct }: { pct: number | null }) {
+  const r = 54, C = 2 * Math.PI * r, arc = C * 0.75;
+  const v = pct == null ? 0 : Math.max(0, Math.min(100, pct));
+  const fg = arc * (v / 100);
+  return (
+    <div style={{ position: 'relative', width: 150, height: 150 }}>
+      <svg width="150" height="150" viewBox="0 0 150 150">
+        <circle cx="75" cy="75" r={r} fill="none" stroke={T.border} strokeWidth="10" strokeDasharray={`${arc} ${C}`} strokeLinecap="round" transform="rotate(135 75 75)" />
+        <circle cx="75" cy="75" r={r} fill="none" stroke={T.gold} strokeWidth="10" strokeDasharray={`${fg} ${C}`} strokeLinecap="round" transform="rotate(135 75 75)" />
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ ...stampStyle, color: T.muted }}>Support</div>
+        <div style={{ fontFamily: MONO, fontSize: 28, fontWeight: 700, color: T.ivory }}>{pct == null ? '\u2014' : `${pct.toFixed(1)}%`}</div>
+      </div>
+    </div>
+  );
+}
+
+function NavButton({ label, onClick, primary }: { label: string; onClick: () => void; primary?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '10px 14px', borderRadius: 4, cursor: 'pointer', fontSize: 12.5, fontWeight: 600,
+        fontFamily: MONO, letterSpacing: '0.06em', textTransform: 'uppercase',
+        background: primary ? T.gold : T.panel2,
+        color: primary ? '#1a1408' : T.text,
+        border: `1px solid ${primary ? T.gold : T.border}`,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+export default function OverviewScreen({ overview, character, parties, myAp, selectedJurisdictionId, onNavigate, onRefresh }: Props) {
+  const jid = selectedJurisdictionId;
+  const { data: bills = [] } = useSWR(['ov-bills', jid], () => politicsApi.getBills(jid).catch(() => []));
+  const { data: ledger = [] } = useSWR(['ov-ledger', jid], () => politicsApi.getLedger(8, jid).catch(() => []));
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const jMeta = JURISDICTION_MODEL[jid] || JURISDICTION_MODEL.ironvale;
+  const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
+  const support: number | null = myParty
+    ? (myParty.popularity ?? myParty.approval ?? myParty.projected_share ?? null)
+    : null;
+
+  const billList = Array.isArray(bills) ? bills : [];
+  const floorBill = billList.find((b: any) => {
+    const s = String(b?.status || '').toLowerCase();
+    return s.includes('floor') || s.includes('open') || s.includes('voting');
+  }) || billList[0];
+
+  const ayes = floorBill?.ayes ?? floorBill?.votes_for ?? floorBill?.aye_count;
+  const nays = floorBill?.nays ?? floorBill?.votes_against ?? floorBill?.nay_count;
+
+  async function vote(id: string, v: 'aye' | 'nay') {
+    try { setBusy(v); await politicsApi.voteBill(id, v); await onRefresh(); } catch { /* surfaced elsewhere */ } finally { setBusy(null); }
+  }
+
+  const events = Array.isArray(ledger) ? ledger : [];
 
   return (
-    <div className="flex flex-col gap-8">
-
-      {/* ── Page hero ─────────────────────────────── */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <div className="text-[11px] uppercase tracking-[0.2em] text-[#e8752a] font-semibold mb-2">
-          {stateName} · Your Political Profile
-        </div>
-        <h1 className="text-3xl font-bold text-white mb-2">
-          {character?.name ? `Welcome back, ${character.name.split(' ')[0]}.` : 'Political Desk'}
+        <div style={stampStyle}>This Month · {jMeta.name}</div>
+        <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '6px 0 0', letterSpacing: '-0.01em' }}>
+          {myParty ? myParty.name : 'Found a party to begin'}
         </h1>
-        <p className="text-[#8b8da8] text-sm leading-relaxed max-w-xl">
-          {myParty
-            ? `You lead ${myParty.name}. The council is currently in the ${phase} phase.`
-            : `You have no active party. Found a movement and stand for ${stateName}.`}
-        </p>
       </div>
 
-      {/* ── Stat cards row ────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {[
-          { label: 'Credibility', value: credibility,  sub: 'out of 100' },
-          { label: 'Charisma',    value: charisma,     sub: 'out of 100' },
-          { label: 'Influence',   value: influence,    sub: 'points' },
-          { label: 'Cash',        value: cash != null ? `$${Number(cash).toLocaleString('en-US')}` : '—', sub: 'personal' },
-          ...(myAp ? [{ label: 'Action Points', value: `${myAp.current_ap} / ${myAp.ap_cap}`, sub: `+1 per arc` }] : []),
-        ].map(({ label, value, sub }) => (
-          <div key={label} className="bg-[#1c1d2e] border border-[#252637] rounded-xl p-4">
-            <div className="text-[10px] uppercase tracking-wider text-[#6b6d8a] mb-1">{label}</div>
-            <div className="text-2xl font-bold text-white leading-none">{value}</div>
-            <div className="text-[10px] text-[#6b6d8a] mt-1">{sub}</div>
+      {!myParty && (
+        <Panel title="Get Started">
+          <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.6, marginBottom: 14 }}>
+            You have no active party. Found a movement, choose your Creed, and stand for {jMeta.name}.
           </div>
-        ))}
-      </div>
-
-      {/* ── Current Phase Card ─────────────────────── */}
-      {activeState && (
-        <div className="bg-[#1c1d2e] border border-[#252637] rounded-xl p-6">
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-[#6b6d8a] mb-1">The Council · {stateName}</div>
-              <h2 className="text-xl font-bold text-white">Current Phase</h2>
-            </div>
-            <span className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${phaseInfo.color}`}>
-              {phaseInfo.label}
-            </span>
-          </div>
-
-          <PhaseTimeline phase={phase} countdown={countdown} className="mb-4" />
-
-          {countdown > 0 && (
-            <p className="text-sm text-[#8b8da8]">
-              Next phase in <span className="text-white font-semibold">{countdown} arc{countdown !== 1 ? 's' : ''}</span>.
-              {phase === 'governing' && ' Use this time to build your party, recruit candidates, and fundraise.'}
-              {phase === 'filing'    && ' File your candidacy before the campaign window opens.'}
-              {phase === 'campaign'  && ' Run campaign actions to build reach across voter blocs.'}
-            </p>
-          )}
-
-          {latestGoverningEvent && (
-            <div className="mt-4 pt-4 border-t border-[#252637]">
-              <div className="text-[10px] uppercase tracking-wider text-[#6b6d8a] mb-2">Latest from Ironvale</div>
-              <p className="text-sm text-white font-medium">{latestGoverningEvent.headline}</p>
-              {latestGoverningEvent.body && (
-                <p className="text-xs text-[#8b8da8] mt-1 line-clamp-2">{latestGoverningEvent.body}</p>
-              )}
-            </div>
-          )}
-        </div>
+          <NavButton label="Found a Party" primary onClick={() => onNavigate('party')} />
+        </Panel>
       )}
 
-      {/* ── Party Leader · This Arc's Actions ─────── */}
-      {/* This block replaces the old War Room tab. Actions live here on Home. */}
-      {myAp && (
-        <div className="flex flex-col gap-4">
-          <GeneralActionsPanel
-            character={character}
-            parties={parties}
-            myAp={myAp}
-            onRefresh={onRefresh}
-            stateId={activeState?.code}
-            contextLabel={contextLabel}
-          />
-
-          {/* Stub for future role blocks — Legislator, Governor, etc. */}
-          {/* When those offices come online, additional labeled blocks stack here */}
-        </div>
-      )}
-
-      {/* ── Quick Navigation (secondary — below actions) ── */}
-      <div className="bg-[#1c1d2e] border border-[#252637] rounded-xl p-6">
-        <div className="text-[10px] uppercase tracking-wider text-[#6b6d8a] mb-4">Quick Navigation</div>
-        <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
-          {[
-            { label: 'Party Registry', desc: 'Manage your party & roster', section: 'party' as PoliticsSection },
-            { label: 'Elections',      desc: 'View polls & projections',   section: 'elections' as PoliticsSection },
-          ].map(({ label, desc, section }) => (
-            <button
-              key={section}
-              onClick={() => onNavigate(section)}
-              className="flex items-center justify-between gap-2 p-3 rounded-lg bg-[#13141f] border border-[#252637] hover:border-[#e8752a]/50 hover:bg-[#20213a] transition-all text-left group"
-            >
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+        <Panel title="Standing">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <Gauge pct={support} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
-                <div className="text-sm font-semibold text-white group-hover:text-white">{label}</div>
-                <div className="text-[11px] text-[#6b6d8a]">{desc}</div>
+                <div style={{ ...stampStyle, color: T.faint }}>Action Points</div>
+                <div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 700, color: T.gold }}>{myAp?.current_ap ?? 0}</div>
               </div>
-              <ChevronRight size={14} className="text-[#4a4c60] group-hover:text-[#e8752a] shrink-0" />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Locked jurisdictions ─────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {JURISDICTIONS.filter(j => j.isLocked).map((j) => (
-          <div key={j.id} className="bg-[#16172a] border border-[#252637] border-dashed rounded-xl p-4 opacity-50">
-            <div className="text-sm font-semibold text-[#6b6d8a]">{j.name}</div>
-            <div className="text-[11px] text-[#4a4c60] mt-1">Not yet open for political activity</div>
+              <div>
+                <div style={{ ...stampStyle, color: T.faint }}>Seats (target)</div>
+                <div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 700, color: T.ivory }}>{jMeta.seats}</div>
+              </div>
+            </div>
           </div>
-        ))}
+        </Panel>
+
+        <Panel title="On The Floor" action={<NavButton label="Legislature" onClick={() => onNavigate('legislature')} />}>
+          {floorBill ? (
+            <div>
+              <div style={{ color: T.ivory, fontSize: 16, fontWeight: 600 }}>{floorBill.title || floorBill.name || 'Bill on the floor'}</div>
+              <div style={{ display: 'flex', gap: 16, margin: '10px 0 14px', fontFamily: MONO, fontSize: 12 }}>
+                <span style={{ color: T.mint }}>Aye {ayes ?? '\u2014'}</span>
+                <span style={{ color: T.red }}>Nay {nays ?? '\u2014'}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <NavButton label={busy === 'aye' ? '\u2026' : 'Vote Aye'} primary onClick={() => floorBill?.id && vote(floorBill.id, 'aye')} />
+                <NavButton label={busy === 'nay' ? '\u2026' : 'Vote Nay'} onClick={() => floorBill?.id && vote(floorBill.id, 'nay')} />
+              </div>
+            </div>
+          ) : (
+            <div style={{ color: T.faint, fontStyle: 'italic', fontSize: 14 }}>No bills on the floor this cycle.</div>
+          )}
+        </Panel>
       </div>
 
-      {/* ── Arc Digest news feed ─────────────────── */}
-      <div>
-        <div className="text-[10px] uppercase tracking-wider text-[#6b6d8a] mb-3">Arc Digest · Recent Events</div>
-        <ArcDigest />
-      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+        <Panel title="Chronicle">
+          {events.length === 0 ? (
+            <div style={{ color: T.faint, fontStyle: 'italic', fontSize: 14 }}>No recent activity.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {events.slice(0, 6).map((e: any, i: number) => (
+                <div key={e.id || i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <span style={{ width: 6, height: 6, borderRadius: 99, background: T.gold, marginTop: 6, flexShrink: 0 }} />
+                  <span style={{ color: T.text, fontSize: 13, lineHeight: 1.5 }}>{e.summary || e.message || e.description || e.kind || 'Event'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
 
+        <Panel title="Recommended Move">
+          <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.6, marginBottom: 14 }}>
+            {myParty
+              ? 'Read the electorate, then campaign where no rival stands — owning open ground beats crowding a popular bloc.'
+              : 'Your first move: found a party and pick the Creed that matches how you want to govern.'}
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <NavButton label={myParty ? 'View Electorate' : 'Found a Party'} primary onClick={() => onNavigate(myParty ? 'elections' : 'party')} />
+            <NavButton label="Party" onClick={() => onNavigate('party')} />
+          </div>
+        </Panel>
+      </div>
     </div>
   );
 }
