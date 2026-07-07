@@ -20,12 +20,8 @@ import {
   POL_COALITION_MAX_DISTANCE,
   POL_COUNCIL_SEATS,
   POL_FACTOR_DELTAS,
-  AP_BASE_CAP,
-  AP_BONUS_LEGISLATIVE_SEAT,
-  AP_BONUS_SECRETARY,
-  AP_BONUS_GOVERNOR,
-  AP_BONUS_COMMITTEE_CHAIR,
-  AP_REGEN_PER_ARC,
+  AP_MONTHLY_GRANT,
+  AP_NO_CAP_SENTINEL,
   ROSTER_CAP_BANDS,
   RECRUIT_COST_CASH,
   RECRUIT_PLATFORM_DRIFT,
@@ -49,37 +45,27 @@ export function getRosterCap(popularity: number): number {
 }
 
 /**
- * Compute the AP cap for a character based on offices currently held.
- * Reads from pol_offices and pol_council_seats.
+ * Compute the AP cap for a character.
+ *
+ * GDD v0.5 §7: AP has NO cap — it accumulates without limit. Offices now grant
+ * Mandate actions (future work), not AP-cap bonuses. We return a large sentinel
+ * that is persisted to pol_character_ap.ap_cap so the column stays meaningful
+ * while never actually clamping AP. Signature kept stable for existing callers.
  */
-export async function computeApCap(trx: any, characterId: string): Promise<number> {
-  let cap = AP_BASE_CAP;
-
-  // Legislative seat?
-  const seat = await trx('pol_council_seats').where({ character_id: characterId }).first();
-  if (seat) cap += AP_BONUS_LEGISLATIVE_SEAT;
-
-  // Governor / Secretary / Committee Chair?
-  const offices = await trx('pol_offices').where({ holder_character_id: characterId });
-  for (const o of offices) {
-    if (o.office === 'governor') cap += AP_BONUS_GOVERNOR;
-    else if (o.office.startsWith('secretary_')) cap += AP_BONUS_SECRETARY;
-    else if (o.office === 'committee_chair') cap += AP_BONUS_COMMITTEE_CHAIR;
-    // premier is already implied by governing so no separate bonus
-  }
-
-  return cap;
+export async function computeApCap(_trx: any, _characterId: string): Promise<number> {
+  return AP_NO_CAP_SENTINEL;
 }
 
 /** Fetch (or lazily create) the pol_character_ap row for a character. */
 export async function getOrCreateCharacterAp(trx: any, characterId: string) {
   let row = await trx('pol_character_ap').where({ character_id: characterId }).first();
   if (!row) {
-    const cap = await computeApCap(trx, characterId);
+    const cap = await computeApCap(trx, characterId); // AP_NO_CAP_SENTINEL
     const currentArc = await getCurrentWorldArc();
     [row] = await trx('pol_character_ap').insert({
       character_id: characterId,
-      current_ap: cap,
+      // Seed with the first monthly grant; AP accumulates from here (no cap).
+      current_ap: AP_MONTHLY_GRANT,
       ap_cap: cap,
       last_regen_arc: currentArc,
     }).returning('*');
@@ -105,15 +91,16 @@ export async function spendAp(trx: any, characterId: string, cost: number): Prom
 }
 
 /**
- * Regen AP: +AP_REGEN_PER_ARC per arc tick, capped at ap_cap.
- * Called inside processPoliticalArc each tick.
+ * Grant monthly AP: +AP_MONTHLY_GRANT per in-game month, NO cap (AP accumulates).
+ * Called once per month tick inside processPoliticalArc. One grant per arc is
+ * enforced by the last_regen_arc guard, so nothing is lost by missing check-ins.
  */
 export async function regenApForCharacter(trx: any, characterId: string, currentArc: number): Promise<void> {
   const row = await trx('pol_character_ap').where({ character_id: characterId }).first();
   if (!row) return; // not yet initialised — skip silently
-  if (row.last_regen_arc >= currentArc) return; // already regened this arc
+  if (row.last_regen_arc >= currentArc) return; // already granted this arc
 
-  const newAp = Math.min(row.current_ap + AP_REGEN_PER_ARC, row.ap_cap);
+  const newAp = row.current_ap + AP_MONTHLY_GRANT; // no cap — AP accumulates (GDD §7)
   await trx('pol_character_ap')
     .where({ character_id: characterId })
     .update({ current_ap: newAp, last_regen_arc: currentArc });
@@ -124,14 +111,13 @@ export async function regenApForCharacter(trx: any, characterId: string, current
  * Call whenever the character's offices change.
  */
 export async function refreshApCap(trx: any, characterId: string): Promise<void> {
-  const cap = await computeApCap(trx, characterId);
+  const cap = await computeApCap(trx, characterId); // AP_NO_CAP_SENTINEL
   const existing = await trx('pol_character_ap').where({ character_id: characterId }).first();
   if (!existing) return; // not yet initialised
-  // If cap shrank, clamp current_ap too
-  const newCurrent = Math.min(existing.current_ap, cap);
+  // No cap in the GDD model — persist the sentinel and NEVER clamp current_ap.
   await trx('pol_character_ap')
     .where({ character_id: characterId })
-    .update({ ap_cap: cap, current_ap: newCurrent });
+    .update({ ap_cap: cap });
 }
 
 /**
