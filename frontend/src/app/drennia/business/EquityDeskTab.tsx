@@ -18,6 +18,22 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ text: string; ok: boolean } | null>(null);
   const [payoutInput, setPayoutInput] = useState('');
+  
+  const [playerCash, setPlayerCash] = useState(0);
+  const [injectInput, setInjectInput] = useState('');
+  const [issueQty, setIssueQty] = useState('');
+  const [issuePrice, setIssuePrice] = useState('');
+  const [withdrawInput, setWithdrawInput] = useState('');
+
+  import('react').then(({ useEffect }) => {
+    useEffect(() => {
+      import('../../../lib/api').then(({ characterApi }) => {
+        characterApi.getMe().then(res => {
+          setPlayerCash(res.data.finances.cash_in_hand);
+        }).catch(err => console.error(err));
+      });
+    }, []);
+  });
 
   const structList: any[] = (structures ?? []).slice().sort(
     (a: any, b: any) => STRUCTURE_ORDER.indexOf(a.id) - STRUCTURE_ORDER.indexOf(b.id)
@@ -61,10 +77,112 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
     }
   };
 
+  const handleInject = async () => {
+    const amt = Number(injectInput);
+    if (amt <= 0 || !Number.isFinite(amt)) return;
+    setBusy(true); setNotice(null);
+    try {
+      await companyApi.injectCapital(companyId, amt);
+      setNotice({ text: `§${amt.toLocaleString()} injected successfully.`, ok: true });
+      setInjectInput('');
+      mutateCap();
+      import('../../../lib/api').then(({ characterApi }) => characterApi.getMe().then(res => setPlayerCash(res.data.finances.cash_in_hand)));
+    } catch (e: any) {
+      setNotice({ text: e?.response?.data?.error || e?.response?.data?.message || 'Injection failed.', ok: false });
+    } finally { setBusy(false); }
+  };
+
+  const handleWithdraw = async () => {
+    const amt = Number(withdrawInput);
+    if (amt <= 0 || !Number.isFinite(amt)) return;
+    setBusy(true); setNotice(null);
+    try {
+      await companyApi.withdrawCapital(companyId, amt);
+      setNotice({ text: `§${amt.toLocaleString()} withdrawn successfully.`, ok: true });
+      setWithdrawInput('');
+      mutateCap();
+      import('../../../lib/api').then(({ characterApi }) => characterApi.getMe().then(res => setPlayerCash(res.data.finances.cash_in_hand)));
+    } catch (e: any) {
+      setNotice({ text: e?.response?.data?.error || e?.response?.data?.message || 'Withdrawal failed.', ok: false });
+    } finally { setBusy(false); }
+  };
+
+  const handleIssue = async () => {
+    const q = Number(issueQty);
+    const p = Number(issuePrice);
+    if (q <= 0 || p <= 0 || !Number.isFinite(q) || !Number.isFinite(p)) return;
+    setBusy(true); setNotice(null);
+    try {
+      await companyApi.issueShares(companyId, q, p);
+      setNotice({ text: `Issued ${q.toLocaleString()} shares for §${(q * p).toLocaleString()}.`, ok: true });
+      setIssueQty(''); setIssuePrice('');
+      mutateCap();
+      import('../../../lib/api').then(({ characterApi }) => characterApi.getMe().then(res => setPlayerCash(res.data.finances.cash_in_hand)));
+    } catch (e: any) {
+      setNotice({ text: e?.response?.data?.error || e?.response?.data?.message || 'Issuance failed.', ok: false });
+    } finally { setBusy(false); }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl">
       {/* IPO desk */}
       <IpoDeskPanel companyId={companyId} companyName={companyName} />
+
+      {/* Owner Capital Movement */}
+      <Card kicker="Owner Capital Movement" className="lg:col-span-2">
+        <div className="text-xs text-zinc-400 mb-4">
+          Your personal cash: <span className="text-terminal-green font-bold font-mono">§{fmt(playerCash)}</span>
+          &nbsp;·&nbsp; Company cash: <span className="text-zinc-100 font-bold font-mono">§{fmt(capTable?.company?.available_cash ?? 0)}</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {currentStructureId === 'public-corporation' ? (
+            <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
+              <div className="text-[13px] font-bold text-zinc-500 mb-1">Market Capital Raising</div>
+              <div className="text-[11px] text-zinc-500 mb-3 leading-relaxed">Public corporations cannot use ad-hoc owner injections. You must raise capital through the DRX Exchange.</div>
+              <Button disabled variant="secondary" className="w-full opacity-50">Managed via Exchange</Button>
+            </div>
+          ) : currentStructureId === 'private-company' ? (
+            <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
+              <div className="text-[13px] font-bold text-terminal-green mb-1">↓ Issue Shares</div>
+              <div className="text-[11px] text-zinc-400 mb-3 leading-relaxed min-h-[34px]">Issue new shares to yourself to inject capital. Cash is transferred to company, and your equity increases.</div>
+              <div className="flex gap-2 items-center">
+                <input type="number" placeholder="Shares" min={1} value={issueQty} onChange={e => setIssueQty(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 p-2 text-xs outline-none rounded" />
+                <span className="text-zinc-500 text-xs">@</span>
+                <input type="number" placeholder="§ Price" min={1} value={issuePrice} onChange={e => setIssuePrice(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 p-2 text-xs outline-none rounded" />
+                <Button onClick={handleIssue} disabled={busy} variant="primary">Issue</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
+              <div className="text-[13px] font-bold text-terminal-green mb-1">↓ Inject Capital</div>
+              <div className="text-[11px] text-zinc-400 mb-3 leading-relaxed min-h-[34px]">Transfer your personal cash into the company ledger (owner loan).</div>
+              <div className="flex gap-2 items-center">
+                <input type="number" placeholder="§ Amount" min={1} value={injectInput} onChange={e => setInjectInput(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-terminal-green p-2 text-xs outline-none rounded" />
+                <Button onClick={handleInject} disabled={busy} variant="primary">Inject</Button>
+              </div>
+            </div>
+          )}
+
+          {currentStructureId === 'public-corporation' ? (
+            <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
+              <div className="text-[13px] font-bold text-zinc-500 mb-1">Dividend Distribution</div>
+              <div className="text-[11px] text-zinc-500 mb-3 leading-relaxed">Public corporations cannot allow direct ad-hoc owner drawings. You must set a Dividend Policy to distribute profits.</div>
+              <Button disabled variant="secondary" className="w-full opacity-50">Use Dividend Policy</Button>
+            </div>
+          ) : (
+            <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
+              <div className="text-[13px] font-bold text-terminal-amber mb-1">↑ Owner Drawings</div>
+              <div className="text-[11px] text-zinc-400 mb-3 leading-relaxed min-h-[34px]">Withdraw company cash to your personal holdings.</div>
+              <div className="flex gap-2 items-center">
+                <input type="number" placeholder="§ Amount" min={1} value={withdrawInput} onChange={e => setWithdrawInput(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-terminal-amber p-2 text-xs outline-none rounded" />
+                <Button onClick={handleWithdraw} disabled={busy} variant="secondary" className="text-terminal-amber border-terminal-amber hover:bg-terminal-amber/10">Withdraw</Button>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </Card>
 
       {/* Legal structure */}
       <Card kicker="Legal Structure" className="lg:col-span-2">
