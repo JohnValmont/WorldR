@@ -21,7 +21,6 @@ import {
   POL_COUNCIL_SEATS,
   POL_FACTOR_DELTAS,
   AP_MONTHLY_GRANT,
-  AP_NO_CAP_SENTINEL,
   ROSTER_CAP_BANDS,
   RECRUIT_COST_CASH,
   RECRUIT_PLATFORM_DRIFT,
@@ -63,24 +62,24 @@ export function getRosterCap(popularity: number): number {
 /**
  * Compute the AP cap for a character.
  *
- * GDD v0.5 §7: AP has NO cap — it accumulates without limit. Offices now grant
- * Mandate actions (future work), not AP-cap bonuses. We return a large sentinel
- * that is persisted to pol_character_ap.ap_cap so the column stays meaningful
- * while never actually clamping AP. Signature kept stable for existing callers.
+ * GDD v0.5 §7 (refined): AP refreshes to a flat monthly grant and does not
+ * accumulate, so the effective cap is simply AP_MONTHLY_GRANT. Offices now grant
+ * Mandate actions (future work), not AP-cap bonuses. Signature kept stable for
+ * existing callers.
  */
 export async function computeApCap(_trx: any, _characterId: string): Promise<number> {
-  return AP_NO_CAP_SENTINEL;
+  return AP_MONTHLY_GRANT;
 }
 
 /** Fetch (or lazily create) the pol_character_ap row for a character. */
 export async function getOrCreateCharacterAp(trx: any, characterId: string) {
   let row = await trx('pol_character_ap').where({ character_id: characterId }).first();
   if (!row) {
-    const cap = await computeApCap(trx, characterId); // AP_NO_CAP_SENTINEL
+    const cap = await computeApCap(trx, characterId); // AP_MONTHLY_GRANT
     const currentArc = await getCurrentWorldArc();
     [row] = await trx('pol_character_ap').insert({
       character_id: characterId,
-      // Seed with the first monthly grant; AP accumulates from here (no cap).
+      // Start with a full monthly grant; AP refreshes to this each month (no accumulation).
       current_ap: AP_MONTHLY_GRANT,
       ap_cap: cap,
       last_regen_arc: currentArc,
@@ -107,19 +106,19 @@ export async function spendAp(trx: any, characterId: string, cost: number): Prom
 }
 
 /**
- * Grant monthly AP: +AP_MONTHLY_GRANT per in-game month, NO cap (AP accumulates).
- * Called once per month tick inside processPoliticalArc. One grant per arc is
- * enforced by the last_regen_arc guard, so nothing is lost by missing check-ins.
+ * Refresh monthly AP: RESET current_ap to AP_MONTHLY_GRANT each in-game month.
+ * AP does NOT accumulate — leftover AP is discarded and replaced with a fresh
+ * full grant (e.g. 6 left → 12 next month, not 18). Called once per month tick
+ * inside processPoliticalArc; the last_regen_arc guard enforces one refresh/arc.
  */
 export async function regenApForCharacter(trx: any, characterId: string, currentArc: number): Promise<void> {
   const row = await trx('pol_character_ap').where({ character_id: characterId }).first();
   if (!row) return; // not yet initialised — skip silently
-  if (row.last_regen_arc >= currentArc) return; // already granted this arc
+  if (row.last_regen_arc >= currentArc) return; // already refreshed this arc
 
-  const newAp = row.current_ap + AP_MONTHLY_GRANT; // no cap — AP accumulates (GDD §7)
   await trx('pol_character_ap')
     .where({ character_id: characterId })
-    .update({ current_ap: newAp, last_regen_arc: currentArc });
+    .update({ current_ap: AP_MONTHLY_GRANT, last_regen_arc: currentArc }); // reset, do not add
 }
 
 /**
@@ -127,10 +126,11 @@ export async function regenApForCharacter(trx: any, characterId: string, current
  * Call whenever the character's offices change.
  */
 export async function refreshApCap(trx: any, characterId: string): Promise<void> {
-  const cap = await computeApCap(trx, characterId); // AP_NO_CAP_SENTINEL
+  const cap = await computeApCap(trx, characterId); // AP_MONTHLY_GRANT
   const existing = await trx('pol_character_ap').where({ character_id: characterId }).first();
   if (!existing) return; // not yet initialised
-  // No cap in the GDD model — persist the sentinel and NEVER clamp current_ap.
+  // Effective cap is the monthly grant; current_ap is managed by the monthly reset,
+  // so we only persist the cap here.
   await trx('pol_character_ap')
     .where({ character_id: characterId })
     .update({ ap_cap: cap });
