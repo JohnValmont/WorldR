@@ -387,6 +387,10 @@ export class CompanyController {
         const company = await trx('companies').where({ id, owner_character_id: character.id }).first();
         if (!company) throw new AppError('Company not found or unauthorized', 404, 'NOT_FOUND');
 
+        if (company.legal_structure_id === 'public-corporation') {
+          throw new AppError('Public corporations cannot use direct owner drawings. Use dividend policies to distribute cash to shareholders.', 400, 'WRONG_STRUCTURE');
+        }
+
         const companyFinances = await trx('company_finances').where({ company_id: company.id }).forUpdate().first();
         if (Number(companyFinances.available_cash) < amount) {
           throw new AppError('Insufficient company funds', 400, 'INSUFFICIENT_FUNDS');

@@ -2268,7 +2268,15 @@ function CompanyDeskTab({
                   &nbsp;·&nbsp; Company cash: <span style={{ color: T.ivory, fontWeight: 700, fontFamily: 'monospace' }}>{formatMoney((company as any).finances?.available_cash ?? company.companyCash ?? 0)}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                  {(company.legalStructureId === 'private-company' || company.legalStructure === 'Private Company') ? (
+                  {(company.legalStructureId === 'public-corporation' || company.legalStructure === 'Corporation') ? (
+                    <PanelBox>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: T.muted, marginBottom: '4px' }}>Market Capital Raising</div>
+                      <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>
+                        Public corporations cannot use ad-hoc owner injections. You must raise capital through the DRX Exchange (Rights Issues or Secondary Offerings).
+                      </div>
+                      <GhostButton color={T.muted} style={{ opacity: 0.5, cursor: 'not-allowed' }}>Managed via Exchange</GhostButton>
+                    </PanelBox>
+                  ) : (company.legalStructureId === 'private-company' || company.legalStructure === 'Private Company') ? (
                     <PanelBox>
                       <div style={{ fontSize: '13px', fontWeight: 700, color: T.mint, marginBottom: '4px' }}>↓ Issue Shares</div>
                       <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px', minHeight: '34px' }}>Issue new shares to yourself to inject capital. Cash is transferred to company, and your equity increases.</div>
@@ -2338,34 +2346,45 @@ function CompanyDeskTab({
                       </div>
                     </PanelBox>
                   )}
-                  <PanelBox>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: T.gold, marginBottom: '4px' }}>↑ Owner Drawings</div>
-                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px', minHeight: '34px' }}>Withdraw company cash to your personal holdings.</div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input
-                        type="number"
-                        id="withdraw-amount"
-                        placeholder="§ Amount"
-                        min={1}
-                        style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.gold, fontSize: '12px', borderRadius: '3px' }}
-                      />
-                      <GhostButton color={T.gold} onClick={async () => {
-                        const el = document.getElementById('withdraw-amount') as HTMLInputElement;
-                        if (!el || !el.value) return;
-                        const amount = parseInt(el.value);
-                        if (amount <= 0) return;
-                        try {
-                          const { companyApi } = await import('@/lib/api');
-                          const res = await companyApi.withdrawCapital(company.id, amount);
-                          showNotif(`§${amount.toLocaleString()} withdrawn to personal holdings.`, true);
-                          el.value = '';
-                          onRefresh();
-                        } catch (err: any) {
-                          showNotif(err?.response?.data?.message || err?.response?.data?.error || 'Withdrawal failed.', false);
-                        }
-                      }}>Withdraw</GhostButton>
-                    </div>
-                  </PanelBox>
+                  
+                  {(company.legalStructureId === 'public-corporation' || company.legalStructure === 'Corporation') ? (
+                    <PanelBox>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: T.muted, marginBottom: '4px' }}>Dividend Distribution</div>
+                      <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>
+                        Public corporations cannot allow direct ad-hoc owner drawings. You must set a Dividend Policy to distribute profits to all shareholders fairly.
+                      </div>
+                      <GhostButton color={T.muted} style={{ opacity: 0.5, cursor: 'not-allowed' }}>Use Dividend Policy</GhostButton>
+                    </PanelBox>
+                  ) : (
+                    <PanelBox>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: T.gold, marginBottom: '4px' }}>↑ Owner Drawings</div>
+                      <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px', minHeight: '34px' }}>Withdraw company cash to your personal holdings.</div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="number"
+                          id="withdraw-amount"
+                          placeholder="§ Amount"
+                          min={1}
+                          style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.gold, fontSize: '12px', borderRadius: '3px' }}
+                        />
+                        <GhostButton color={T.gold} onClick={async () => {
+                          const el = document.getElementById('withdraw-amount') as HTMLInputElement;
+                          if (!el || !el.value) return;
+                          const amount = parseInt(el.value);
+                          if (amount <= 0) return;
+                          try {
+                            const { companyApi } = await import('@/lib/api');
+                            const res = await companyApi.withdrawCapital(company.id, amount);
+                            showNotif(`§${amount.toLocaleString()} withdrawn to personal holdings.`, true);
+                            el.value = '';
+                            onRefresh();
+                          } catch (err: any) {
+                            showNotif(err?.response?.data?.message || err?.response?.data?.error || 'Withdrawal failed.', false);
+                          }
+                        }}>Withdraw</GhostButton>
+                      </div>
+                    </PanelBox>
+                  )}
                 </div>
 
                 <SectionHeader stamp="POLICIES">Company Financial Policies</SectionHeader>
