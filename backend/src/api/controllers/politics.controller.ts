@@ -8,6 +8,7 @@ import {
   spendAp,
   getRosterCap,
   recruitNpcToParty,
+  worldClockToArc,
 } from '../services/politics.service';
 import {
   PARTY_FOUNDING_COST,
@@ -61,7 +62,7 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
         cyclePhase = cycle.phase;
         
         const clock = await db('world_clock').first();
-        const actualArc = clock?.current_month || 1;
+        const actualArc = worldClockToArc(clock);
         
         const startCampaign = cycle.polling_arc - 6;
         const startFiling = startCampaign - 3;
@@ -198,7 +199,7 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
         .decrement('net_worth', PARTY_FOUNDING_COST);
 
       const clock = await trx('world_clock').first();
-      const currentMonth = clock?.current_month || 1;
+      const currentMonth = worldClockToArc(clock);
 
       const [party] = await trx('pol_parties').insert({
         state_id: activeState.id,
@@ -266,7 +267,7 @@ export async function queueCampaignAction(req: Request, res: Response, next: Nex
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     const clock = await db('world_clock').first();
-    const currentMonth = clock?.current_month || 1;
+    const currentMonth = worldClockToArc(clock);
 
     const result = await db.transaction(async (trx) => {
       const char = await trx('characters').where({ user_id: userId }).first(); // Don't filter by state_id here unless character has it
@@ -308,7 +309,7 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
     const registeredVoters = activeState.registered_voters || 1600000;
 
     const clock = await db('world_clock').first();
-    const actualArc = clock?.current_month || 1;
+    const actualArc = worldClockToArc(clock);
 
     // Current projection (all resolved campaign effort).
     const engineCands = await buildEngineCandidates(db, cycle.id);
@@ -395,7 +396,7 @@ export async function joinParty(req: Request, res: Response, next: NextFunction)
       }
 
       const clock = await trx('world_clock').first();
-      const currentMonth = clock?.current_month || 1;
+      const currentMonth = worldClockToArc(clock);
 
       await trx('pol_party_members').insert({
         party_id: party.id,
@@ -704,7 +705,7 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
       }
 
       const clock = await trx('world_clock').first();
-      const currentMonth = clock?.current_month || 1;
+      const currentMonth = worldClockToArc(clock);
 
       const [bill] = await trx('pol_bills').insert({
         state_id: activeState.id,
@@ -885,7 +886,7 @@ export async function postTender(req: Request, res: Response, next: NextFunction
       }
 
       const clock = await trx('world_clock').first();
-      const currentMonth = clock?.current_month || 1;
+      const currentMonth = worldClockToArc(clock);
 
       const [tender] = await trx('pol_tenders').insert({
         state_id: activeState.id,
@@ -963,7 +964,7 @@ export async function bidTender(req: Request, res: Response, next: NextFunction)
       }
 
       const clock = await trx('world_clock').first();
-      const currentMonth = clock?.current_month || 1;
+      const currentMonth = worldClockToArc(clock);
 
       // Ensure single active bid per company per tender (optional but good practice)
       await trx('pol_tender_bids').where({ tender_id: tender.id, company_id: company.id }).del();
@@ -1088,7 +1089,7 @@ export async function getTenders(req: Request, res: Response, next: NextFunction
       .limit(50);
 
     const clock = await db('world_clock').first();
-    const currentMonth = clock?.current_month || 1;
+    const currentMonth = worldClockToArc(clock);
 
     for (const tender of tenders) {
       if (tender.status === 'open') {
@@ -1344,7 +1345,7 @@ export async function recruitNpc(req: Request, res: Response, next: NextFunction
       await spendAp(trx, character.id, AP_COST_RECRUIT);
 
       const clock = await trx('world_clock').first();
-      const currentArc = clock?.current_month || 1;
+      const currentArc = worldClockToArc(clock);
 
       // Recruit the NPC
       await recruitNpcToParty(trx, party, currentArc);
