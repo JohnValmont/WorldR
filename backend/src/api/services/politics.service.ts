@@ -5,7 +5,10 @@ import {
   POL_CAMPAIGN_WINDOW_MONTHS,
   POL_FORMATION_WINDOW_MONTHS,
   POL_FIRST_CYCLE_MONTHS,
-  POL_TERM_LENGTH_MONTHS,
+  getSeatsForState,
+  getMajorityForState,
+  getTermMonthsForState,
+  getElectionOffsetMonths,
   CAMPAIGN_ACTIONS,
   POL_FUNDRAISER_BASE,
   POL_FUNDRAISER_CHARISMA_MULT,
@@ -16,9 +19,7 @@ import {
   SEGMENTS,
   AXES,
   Platform,
-  POL_MAJORITY_SEATS,
   POL_COALITION_MAX_DISTANCE,
-  POL_COUNCIL_SEATS,
   POL_FACTOR_DELTAS,
   AP_MONTHLY_GRANT,
   ROSTER_CAP_BANDS,
@@ -209,7 +210,10 @@ export async function getOrCreateCurrentCycle(stateId: string) {
   let cycle = await db('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
   
   if (!cycle) {
-    const pollingArc = currentMonth + POL_FIRST_CYCLE_MONTHS;
+    // Stagger each jurisdiction's first election by its offset so state elections
+    // land ~every 6 months across the nation (GDD §3). Ironvale offset = 0.
+    const stateRow = await db('pol_states').where({ id: stateId }).first();
+    const pollingArc = currentMonth + POL_FIRST_CYCLE_MONTHS + getElectionOffsetMonths(stateRow?.code);
     const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;
     
     const phase = derivePhase({ polling_arc: pollingArc, formation_end_arc: formationEndArc }, currentMonth);
@@ -523,7 +527,7 @@ async function resolveElection(trx: any, cycleId: string) {
   const state = await trx('pol_states').where({ id: cycle.state_id }).first();
   const registeredVoters = state ? state.registered_voters || 1600000 : 1600000;
 
-  const result = runElection({ candidates: engineCands, registeredVoters });
+  const result = runElection({ candidates: engineCands, registeredVoters, totalSeats: getSeatsForState(state?.code) });
 
   // Determine previous cycle winners for seat loss calculation
   const prevCycle = await trx('pol_cycles')
@@ -610,7 +614,7 @@ async function resolveElection(trx: any, cycleId: string) {
     arc: cycle.polling_arc,
     kind: 'election_results',
     headline: `ELECTION RESULTS: ${topName} Secures Most Seats`,
-    body: `The polling stations have closed. ${topName} leads with ${topParty?.seats} seats out of ${POL_COUNCIL_SEATS}. The political landscape shifts as parties now scramble to form a viable government.`
+    body: `The polling stations have closed. ${topName} leads with ${topParty?.seats} seats out of ${getSeatsForState(state?.code)}. The political landscape shifts as parties now scramble to form a viable government.`
   });
 }
 
@@ -623,6 +627,10 @@ function getPlatformDistance(p1: Platform, p2: Platform): number {
 }
 
 export async function processGovernmentFormation(trx: any, cycle: any, currentMonth: number) {
+  // Majority threshold for THIS jurisdiction (GDD §3 federal model).
+  const stateRow = await trx('pol_states').where({ id: cycle.state_id }).first();
+  const majoritySeats = getMajorityForState(stateRow?.code);
+
   // Check if government already formed or finalized as minority
   const existingCoalition = await trx('pol_coalitions').where({ cycle_id: cycle.id }).whereIn('status', ['formed', 'minority']).first();
   if (existingCoalition) {
@@ -649,7 +657,7 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
   if (!largestParty) return;
 
   // Single party majority check
-  if (largestParty.seats >= POL_MAJORITY_SEATS) {
+  if (largestParty.seats >= majoritySeats) {
     await trx('pol_coalitions').insert({
       cycle_id: cycle.id,
       lead_party_id: largestParty.id,
@@ -689,7 +697,7 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
     }
 
     for (const other of others) {
-      if (currentSeats >= POL_MAJORITY_SEATS) break;
+      if (currentSeats >= majoritySeats) break;
       if (accepted.has(other.id)) continue;
 
       const dist = getPlatformDistance(largestParty.platform, other.platform);
@@ -728,7 +736,7 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
   members.accepted = Array.from(accepted);
   members.invited = Array.from(invited);
 
-  if (totalAcceptedSeats >= POL_MAJORITY_SEATS) {
+  if (totalAcceptedSeats >= majoritySeats) {
     await trx('pol_coalitions').where({ id: forming.id }).update({
       member_party_ids: JSON.stringify(members),
       total_seats: totalAcceptedSeats,
@@ -821,7 +829,9 @@ async function performCycleRollover(trx: any, oldCycle: any, currentMonth: numbe
   await trx('pol_cycles').where({ id: oldCycle.id }).update({ status: 'closed' });
 
   const startMonth = currentMonth;
-  const pollingArc = startMonth + POL_TERM_LENGTH_MONTHS;
+  // Term length is per-jurisdiction (24mo state, 48mo national — GDD §3).
+  const oldStateRow = await trx('pol_states').where({ id: oldCycle.state_id }).first();
+  const pollingArc = startMonth + getTermMonthsForState(oldStateRow?.code);
   const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;
 
   await trx('pol_cycles').insert({

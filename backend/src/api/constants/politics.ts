@@ -56,13 +56,64 @@ export const POL_REACH_MAX = 1.0;
 export const POL_REACH_HALF_SAT = 120;
 export const POL_INCUMBENCY_BONUS = 1.15;
 export const POL_BASE_TURNOUT = 0.58;
-export const POL_TERM_LENGTH_MONTHS = 48;
 export const POL_FIRST_CYCLE_MONTHS = 12;
 export const POL_FILING_WINDOW_MONTHS = 3;
 export const POL_CAMPAIGN_WINDOW_MONTHS = 6;
 export const POL_FORMATION_WINDOW_MONTHS = 2;
-export const POL_COUNCIL_SEATS = 61;
-export const POL_MAJORITY_SEATS = 31;
+
+// ── Jurisdictions (federal model, GDD v0.5 §3) ──────────────────────────────
+// Drennia is an Australia-style federation: every State Assembly and the
+// National Parliament run SEPARATE elections on SEPARATE clocks. Keyed by
+// pol_states.code. Seats/majority/term mirror frontend _lib/model.ts
+// JURISDICTION_MODEL. State terms are 24 months, staggered every 6 months so a
+// state election lands somewhere in the nation every ~6 months; National is 48.
+export type JurisdictionTier = 'state' | 'national';
+export interface JurisdictionSpec {
+  seats: number;
+  majority: number;
+  termMonths: number;
+  electionOffsetMonths: number;
+  tier: JurisdictionTier;
+}
+
+export const JURISDICTIONS: Record<string, JurisdictionSpec> = {
+  ironvale:  { seats: 100, majority: 51,  termMonths: 24, electionOffsetMonths: 0,  tier: 'state' },
+  drennport: { seats: 120, majority: 61,  termMonths: 24, electionOffsetMonths: 6,  tier: 'state' },
+  westport:  { seats: 72,  majority: 37,  termMonths: 24, electionOffsetMonths: 12, tier: 'state' },
+  greenmere: { seats: 50,  majority: 26,  termMonths: 24, electionOffsetMonths: 18, tier: 'state' },
+  national:  { seats: 250, majority: 126, termMonths: 48, electionOffsetMonths: 0,  tier: 'national' },
+};
+
+// Safe fallback for any unknown/unseeded jurisdiction code (mirrors a typical
+// mid-size State Assembly) so the engine degrades gracefully.
+export const POL_DEFAULT_JURISDICTION: JurisdictionSpec = {
+  seats: 100, majority: 51, termMonths: 24, electionOffsetMonths: 0, tier: 'state',
+};
+
+/** Resolve a jurisdiction spec from a pol_states.code (case-sensitive). */
+export function getJurisdiction(code: string | null | undefined): JurisdictionSpec {
+  return (code && JURISDICTIONS[code]) || POL_DEFAULT_JURISDICTION;
+}
+export function getSeatsForState(code: string | null | undefined): number {
+  return getJurisdiction(code).seats;
+}
+export function getMajorityForState(code: string | null | undefined): number {
+  return getJurisdiction(code).majority;
+}
+export function getTermMonthsForState(code: string | null | undefined): number {
+  return getJurisdiction(code).termMonths;
+}
+export function getElectionOffsetMonths(code: string | null | undefined): number {
+  return getJurisdiction(code).electionOffsetMonths;
+}
+
+// ── Legacy single-council constants (pre-federal) ───────────────────────────
+// @deprecated Prefer the per-jurisdiction helpers above (getSeatsForState, etc.).
+// Retained only as fallbacks for the feedback/display layer; they now resolve to
+// the default jurisdiction so unthreaded call sites stay sane.
+export const POL_COUNCIL_SEATS = POL_DEFAULT_JURISDICTION.seats;        // was 61
+export const POL_MAJORITY_SEATS = POL_DEFAULT_JURISDICTION.majority;    // was 31
+export const POL_TERM_LENGTH_MONTHS = POL_DEFAULT_JURISDICTION.termMonths; // was 48
 export const POL_COALITION_MAX_DISTANCE = 0.30;
 export const POL_NPC_MAX_SPEND_FRAC = 0.25;
 // A projected segment share below this counts as "trailing" for the NPC campaign
