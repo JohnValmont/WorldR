@@ -2142,10 +2142,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         {!isCompleted && !inProgress && (
                           <GoldButton
                             onClick={() => handleStartResearch(id)}
-                            disabled={isLocked || engineerCount < prog.minEng || finances?.cash < prog.budget}
+                            disabled={isLocked || engineerCount < prog.minEng || Number(finances?.available_cash || 0) < prog.budget}
                             style={{ width: '100%', fontSize: '12px', padding: '8px' }}
                           >
-                            {isLocked ? 'Locked' : engineerCount < prog.minEng ? 'Not enough engineers' : (finances?.cash || 0) < prog.budget ? 'Not enough cash' : 'Start Programme'}
+                            {isLocked ? 'Locked' : engineerCount < prog.minEng ? 'Not enough engineers' : Number(finances?.available_cash || 0) < prog.budget ? 'Not enough cash' : 'Start Programme'}
                           </GoldButton>
                         )}
                         {inProgress && (
@@ -2328,13 +2328,13 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
                   <div className="mb-6">
                     <FieldRow label="Total Cost" value={fm(procuringComponent.units * procuringComponent.cost)} valueColor="#ff453a" />
-                    <FieldRow label="Current Balance" value={fm(finances?.cash || 0)} valueColor="#30d158" />
+                    <FieldRow label="Current Balance" value={fm(Number(finances?.available_cash || 0))} valueColor="#30d158" />
                   </div>
 
                   <div className="flex items-center justify-end gap-3">
                     <GhostButton onClick={() => setProcuringComponent(null)}>Cancel</GhostButton>
                     <GoldButton
-                      disabled={(finances?.cash || 0) < (procuringComponent.units * procuringComponent.cost) || procuringComponent.units <= 0}
+                      disabled={Number(finances?.available_cash || 0) < (procuringComponent.units * procuringComponent.cost) || procuringComponent.units <= 0}
                       onClick={() => handleProcureComponent(procuringComponent.id, procuringComponent.units)}
                     >
                       Submit Order

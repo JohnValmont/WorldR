@@ -1,7 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
-import { companyApi } from '../../../lib/api';
+import { companyApi, characterApi } from '../../../lib/api';
 import IpoDeskPanel from './IpoDeskPanel';
 import { Card, Button } from '@/components/ui';
 
@@ -25,15 +25,15 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
   const [issuePrice, setIssuePrice] = useState('');
   const [withdrawInput, setWithdrawInput] = useState('');
 
-  import('react').then(({ useEffect }) => {
-    useEffect(() => {
-      import('../../../lib/api').then(({ characterApi }) => {
-        characterApi.getMe().then(res => {
-          setPlayerCash(res.data.finances.cash_in_hand);
-        }).catch(err => console.error(err));
-      });
-    }, []);
-  });
+  const refreshCash = useCallback(() => {
+    characterApi.getMe()
+      .then(res => setPlayerCash(res.data.finances.cash_in_hand))
+      .catch(err => console.error(err));
+  }, []);
+
+  useEffect(() => {
+    refreshCash();
+  }, [refreshCash]);
 
   const structList: any[] = (structures ?? []).slice().sort(
     (a: any, b: any) => STRUCTURE_ORDER.indexOf(a.id) - STRUCTURE_ORDER.indexOf(b.id)
@@ -86,7 +86,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
       setNotice({ text: `§${amt.toLocaleString()} injected successfully.`, ok: true });
       setInjectInput('');
       mutateCap();
-      import('../../../lib/api').then(({ characterApi }) => characterApi.getMe().then(res => setPlayerCash(res.data.finances.cash_in_hand)));
+      refreshCash();
     } catch (e: any) {
       setNotice({ text: e?.response?.data?.error || e?.response?.data?.message || 'Injection failed.', ok: false });
     } finally { setBusy(false); }
@@ -101,7 +101,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
       setNotice({ text: `§${amt.toLocaleString()} withdrawn successfully.`, ok: true });
       setWithdrawInput('');
       mutateCap();
-      import('../../../lib/api').then(({ characterApi }) => characterApi.getMe().then(res => setPlayerCash(res.data.finances.cash_in_hand)));
+      refreshCash();
     } catch (e: any) {
       setNotice({ text: e?.response?.data?.error || e?.response?.data?.message || 'Withdrawal failed.', ok: false });
     } finally { setBusy(false); }
@@ -117,7 +117,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
       setNotice({ text: `Issued ${q.toLocaleString()} shares for §${(q * p).toLocaleString()}.`, ok: true });
       setIssueQty(''); setIssuePrice('');
       mutateCap();
-      import('../../../lib/api').then(({ characterApi }) => characterApi.getMe().then(res => setPlayerCash(res.data.finances.cash_in_hand)));
+      refreshCash();
     } catch (e: any) {
       setNotice({ text: e?.response?.data?.error || e?.response?.data?.message || 'Issuance failed.', ok: false });
     } finally { setBusy(false); }
