@@ -66,7 +66,7 @@ export default function LobbyScreen({ selectedJurisdictionId, onJurisdictionChan
               <div style={{ color: T.muted, fontSize: 13, marginBottom: 12 }}>Donate personal cash to a party to build political influence.</div>
               <select value={donateParty} onChange={(e) => setDonateParty(e.target.value)} style={{ ...inputStyle, marginBottom: 10 }}>
                 <option value="">Select a party…</option>
-                {partyList.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {partyList.map((p: any) => <option key={p.id} value={p.id}>{p.name} {p.abbreviation ? `[${p.abbreviation}]` : ''}</option>)}
               </select>
               <input type="number" value={amount} min={100} step={100} onChange={(e) => setAmount(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 12 }} />
               <button onClick={donate} disabled={busy || !donateParty} style={{ width: '100%', padding: '11px', borderRadius: 4, cursor: busy || !donateParty ? 'not-allowed' : 'pointer', opacity: busy || !donateParty ? 0.5 : 1, background: T.gold, color: '#1a1408', border: 'none', fontWeight: 700, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: 12.5 }}>{busy ? 'Sending\u2026' : 'Make Donation'}</button>

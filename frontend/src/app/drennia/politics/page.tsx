@@ -87,7 +87,7 @@ export default function PoliticsDesk() {
 
   const cash = character?.finances?.cash_in_hand;
   const cred = character?.political?.credibility ?? character?.credibility;
-  const monthYear = overview?.cycle?.currentArc ? formatGameDateShort(overview.cycle.currentArc) : '';
+  const monthYear = overview?.cycle?.currentArc != null ? formatGameDateShort(overview.cycle.currentArc) : '';
   const monthsToElection = overview?.cycle?.monthsToElection ?? overview?.monthsToElection;
 
   return (

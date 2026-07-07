@@ -41,7 +41,7 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
   const proposedBills = bills.filter(b => b.status === 'proposed');
   const historyBills = bills.filter(b => b.status === 'passed' || b.status === 'failed' || b.status === 'rejected');
 
-  const monthYear = overview?.cycle?.currentArc 
+  const monthYear = overview?.cycle?.currentArc != null
     ? formatGameDate(overview.cycle.currentArc) 
     : (overview?.sessionMonthLabel || 'Unknown');
 

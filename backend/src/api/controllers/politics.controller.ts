@@ -661,8 +661,14 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
     let premier = null;
     if (premierOffice) {
       const pParty = parties.find(p => p.id === premierOffice.party_id);
+      let charName = 'Unknown';
+      if (premierOffice.holder_character_id) {
+        const char = await db('characters').where({ id: premierOffice.holder_character_id }).first();
+        if (char) charName = char.name;
+      }
       premier = {
         characterId: premierOffice.holder_character_id,
+        characterName: charName,
         partyId: premierOffice.party_id,
         partyName: pParty?.name || 'Unknown'
       };
@@ -1030,7 +1036,7 @@ async function getActiveState() {
 
 export async function getBills(req: Request, res: Response, next: NextFunction) {
   try {
-    const activeState = await getActiveState();
+    const activeState = await resolveState(req.query.stateId as string | undefined);
     if (!activeState) return next(new AppError('No active state', 400, 'BAD_REQUEST'));
 
     const bills = await db('pol_bills')
@@ -1116,7 +1122,7 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
 
 export async function getTenders(req: Request, res: Response, next: NextFunction) {
   try {
-    const activeState = await getActiveState();
+    const activeState = await resolveState(req.query.stateId as string | undefined);
     if (!activeState) return next(new AppError('No active state', 400, 'BAD_REQUEST'));
 
     const tenders = await db('pol_tenders')

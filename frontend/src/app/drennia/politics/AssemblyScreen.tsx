@@ -29,7 +29,9 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
   const { data } = useSWR(isLocked ? null : ['council', selectedJurisdictionId], () => politicsApi.getCouncil(selectedJurisdictionId).catch(() => null));
 
   const partySeats: any[] = Array.isArray(data?.partySeats) ? data.partySeats.filter((p: any) => p.seats > 0) : [];
-  const totalSeats = partySeats.reduce((s: number, p: any) => s + Number(p.seats || 0), 0);
+  const totalSeats = jModel.seats;
+  const occupiedSeats = partySeats.reduce((s: number, p: any) => s + Number(p.seats || 0), 0);
+  const majority = jModel.majority;
   const premier = data?.premier;
 
   return (
@@ -55,10 +57,13 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
         <Panel title="THE CHAMBER"><div style={{ color: T.faint, fontStyle: 'italic', textAlign: 'center', padding: 24 }}>The chamber is empty. Seats are filled at the next election.</div></Panel>
       ) : (
         <Panel title={`COMPOSITION — ${totalSeats} SEATS`} accent>
-          <div style={{ display: 'flex', height: 22, borderRadius: 4, overflow: 'hidden', border: `1px solid ${T.border}` }}>
+          <div style={{ display: 'flex', height: 22, borderRadius: 4, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.panel2 }}>
             {partySeats.map((p: any, i: number) => (
               <div key={p.partyId || i} title={`${p.name}: ${p.seats}`} style={{ width: `${(p.seats / totalSeats) * 100}%`, background: PALETTE[i % PALETTE.length] }} />
             ))}
+            {totalSeats > occupiedSeats && (
+              <div title={`Vacant: ${totalSeats - occupiedSeats}`} style={{ width: `${((totalSeats - occupiedSeats) / totalSeats) * 100}%`, background: T.border }} />
+            )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
             {partySeats.map((p: any, i: number) => (
@@ -71,7 +76,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
               </div>
             ))}
           </div>
-          {premier && <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${T.border}`, color: T.muted, fontSize: 13 }}>Premier: <span style={{ color: T.gold, fontWeight: 600 }}>{premier.name || premier}</span></div>}
+          {premier && <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${T.border}`, color: T.muted, fontSize: 13 }}>Premier: <span style={{ color: T.gold, fontWeight: 600 }}>{premier.characterName || premier.name || 'Unknown'}</span> <span style={{ color: T.faint }}>({premier.partyName || ''})</span></div>}
         </Panel>
       )}
     </div>
