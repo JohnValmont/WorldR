@@ -7,7 +7,7 @@ import { JURISDICTIONS, type JurisdictionId } from './_lib/session';
 import { T, MONO } from './_lib/theme';
 import { BLOC_NAME_BY_KEY, PILLAR_BY_AXIS, JURISDICTION_MODEL } from './_lib/model';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
-import { Panel, Stamp, Meter, StatTile, PhaseTimeline } from './_components/DeskUI';
+import { Panel, Stamp, Meter, StatTile } from './_components/DeskUI';
 
 interface Props {
   selectedJurisdictionId: JurisdictionId;
@@ -20,13 +20,7 @@ interface Props {
   onRefresh?: () => void;
 }
 
-const PHASE_STEPS = [
-  { key: 'governing', label: 'Governing' },
-  { key: 'filing', label: 'Filing' },
-  { key: 'campaign', label: 'Campaign' },
-  { key: 'polling', label: 'Poll' },
-  { key: 'formation', label: 'Formation' },
-];
+const REAL_HOURS_PER_MONTH = 8; // GDD §3
 
 // Indicative Fit (display only) — the engine uses the tuned POL_FIT_EXP formula.
 function fitPct(platform: any, seg: any): number | null {
@@ -50,22 +44,23 @@ function leaning(seg: any): string {
   return `${p.name}: ${pole}`;
 }
 
-/** The scheduled-election banner: countdown, cycle, jurisdiction, phase timeline. */
+/** The scheduled-election banner: countdown + term progress. No phase ceremony —
+ *  campaigning and legislating are open at all times; the vote simply resolves on
+ *  Election Day (GDD §3–4 / Task C removed the phase gates). */
 function ElectionHero({
   jurisdictionName,
   cycle,
-  fallbackPhase,
   seats,
   majority,
+  termMonths,
 }: {
   jurisdictionName: string;
   cycle: any;
-  fallbackPhase?: string;
   seats: number;
   majority: number;
+  termMonths: number;
 }) {
   const months: number | null = cycle?.monthsToElection ?? null;
-  const phase = cycle?.phase || fallbackPhase || 'governing';
   const cycleNumber = cycle?.cycleNumber;
   const electionArc = cycle?.electionArc;
 
@@ -73,9 +68,14 @@ function ElectionHero({
   const unit = months == null || months <= 0 ? '' : months === 1 ? 'MONTH' : 'MONTHS';
 
   // 1 in-game month = 8 real hours (GDD §3).
-  const realHours = months != null ? months * 8 : null;
+  const realHours = months != null ? months * REAL_HOURS_PER_MONTH : null;
   const realNote = realHours != null && months! > 0
     ? `≈ ${Math.floor(realHours / 24)}d ${realHours % 24}h real time`
+    : null;
+
+  // Term progress toward Election Day (0–100). Hidden if we can't compute it.
+  const termProgress = months != null && termMonths > 0
+    ? Math.max(0, Math.min(100, ((termMonths - months) / termMonths) * 100))
     : null;
 
   return (
@@ -92,9 +92,14 @@ function ElectionHero({
       <div style={{ fontFamily: MONO, fontSize: 10.5, color: T.faint, marginTop: 4 }}>
         {seats} seats · {majority} for a majority{electionArc != null ? ` · resolves at arc ${electionArc}` : ''}{realNote ? ` · ${realNote}` : ''}
       </div>
-      <div style={{ height: 1, background: T.border, margin: '18px 0 16px' }} />
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <PhaseTimeline steps={PHASE_STEPS} activeKey={phase} />
+
+      {termProgress != null && (
+        <div style={{ maxWidth: 520, margin: '18px auto 0', textAlign: 'left' }}>
+          <Meter label="Term progress" value={termProgress} display={`${Math.round(termProgress)}%`} tone={T.gold} height={6} />
+        </div>
+      )}
+      <div style={{ fontFamily: MONO, fontSize: 10.5, color: T.faint, marginTop: 12, letterSpacing: '0.04em' }}>
+        Campaign, court blocs and propose laws anytime — there are no locked phases. The vote simply resolves on Election Day.
       </div>
     </Panel>
   );
@@ -129,9 +134,9 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
           <ElectionHero
             jurisdictionName={jurisdiction?.name || 'Ironvale'}
             cycle={overview?.cycle}
-            fallbackPhase={overview?.cyclePhase}
             seats={jModel.seats}
             majority={jModel.majority}
+            termMonths={jModel.termMonths}
           />
 
           <Panel title="The Electorate">

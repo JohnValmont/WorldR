@@ -53,7 +53,7 @@ export default function PoliticsDesk() {
   const { data: ledger = [], mutate: mutateLedger } = useSWR(['ledger', selectedJurisdictionId], () => politicsApi.getLedger(20, selectedJurisdictionId));
   const { data: myApData, mutate: mutateAp } = useSWR('myAp', () => politicsApi.getMyAp());
 
-  const myAp = (myApData as { current_ap: number; ap_cap: number }) || { current_ap: 0, ap_cap: 4 };
+  const myAp = (myApData as { current_ap: number; ap_cap: number }) || { current_ap: 0, ap_cap: 12 };
 
   const loadData = useCallback(async () => {
     await Promise.all([mutateChar(), mutateOver(), mutateParties(), mutateLedger(), mutateAp()]);

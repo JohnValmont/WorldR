@@ -5,6 +5,7 @@ import {
   getOrCreateCurrentCycle,
   buildEngineCandidates,
   getOrCreateCharacterAp,
+  regenApForCharacter,
   spendAp,
   getRosterCap,
   recruitNpcToParty,
@@ -13,6 +14,7 @@ import {
 import {
   PARTY_FOUNDING_COST,
   CAMPAIGN_ACTIONS,
+  AP_MONTHLY_GRANT,
   SEGMENTS,
   getSeatsForState,
   getMajorityForState,
@@ -1143,11 +1145,22 @@ export async function getMyAp(req: Request, res: Response, next: NextFunction) {
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
 
     const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
-    if (!character) return res.json({ current_ap: 0, ap_cap: 4 }); // no character yet
+    if (!character) return res.json({ current_ap: AP_MONTHLY_GRANT, ap_cap: AP_MONTHLY_GRANT }); // no character yet
 
-    const apRow = await db.transaction(async (trx) =>
-      getOrCreateCharacterAp(trx, character.id)
-    );
+    // Self-heal on read: refresh the monthly grant if a new in-game month has begun.
+    // This corrects stale rows created under the old (pre-GDD) 4-AP cap system without
+    // waiting for the world-tick loop, so the desk always shows the current AP.
+    const apRow = await db.transaction(async (trx) => {
+      await getOrCreateCharacterAp(trx, character.id);
+      try {
+        const clock = await trx('world_clock').first();
+        const currentArc = worldClockToArc(clock);
+        await regenApForCharacter(trx, character.id, currentArc);
+      } catch {
+        // world_clock not available — leave the row as-is
+      }
+      return getOrCreateCharacterAp(trx, character.id);
+    });
 
     return res.json({ current_ap: apRow.current_ap, ap_cap: apRow.ap_cap });
   } catch (error) {
