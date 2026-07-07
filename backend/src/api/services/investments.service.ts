@@ -294,3 +294,18 @@ export async function getOpenPlacements(characterId: string) {
     .orderBy('p.created_at', 'desc')
     .select('p.*', 'c.name as company_name', 'c.legal_structure_id', 'ch.name as seller_name');
 }
+
+/** All placements (any status) posted BY this character — so sellers can see what they've listed. */
+export async function getMyPlacements(characterId: string) {
+  return db('equity_placements as p')
+    .join('companies as c', 'c.id', 'p.company_id')
+    .leftJoin('characters as buyer', 'buyer.id', 'p.target_character_id')
+    .where({ 'p.seller_character_id': characterId })
+    .orderBy('p.created_at', 'desc')
+    .select(
+      'p.*',
+      'c.name as company_name',
+      'c.legal_structure_id',
+      'buyer.name as target_name'
+    );
+}

@@ -176,8 +176,12 @@ export const exchangeApi = {
   withdrawIpo: (companyId: string) => api.post(`/exchange/ipo/${companyId}/withdraw`).then(res => res.data),
   submitIoi: (ipoId: string, data: { pricePerShare: number; quantity: number }) =>
     api.post(`/exchange/ipo/${ipoId}/ioi`, data).then(res => res.data),
-  cancelIoi: (ioiId: string) => api.delete(`/exchange/ipo/ioi/${ioiId}`).then(res => res.data)
-};
+  cancelIoi: (ioiId: string) => api.delete(`/exchange/ipo/ioi/${ioiId}`).then(res => res.data),
+
+  // ── Quick IPO (simple sell-block listing, alternative to formal IPO filing) ──
+  ipoLaunch: (companyId: string, data: { price_per_share: number; quantity: number }) =>
+    api.post(`/exchange/${companyId}/ipo`, data).then(res => res.data)
+  };
 
 // Investments — P2P loans and private equity placements
 export const investmentsApi = {
@@ -195,8 +199,9 @@ export const investmentsApi = {
   createPlacement: (data: { company_id: string; shares: number; price_per_share: number; target_character_id?: string }) =>
     api.post('/investments/placements', data).then(res => res.data),
   cancelPlacement: (id: string) => api.delete(`/investments/placements/${id}`).then(res => res.data),
-  acceptPlacement: (id: string) => api.post(`/investments/placements/${id}/accept`).then(res => res.data)
-};
+  acceptPlacement: (id: string) => api.post(`/investments/placements/${id}/accept`).then(res => res.data),
+  getMyPlacements: () => api.get('/investments/my-placements').then(res => res.data)
+  };
 
 // Registry
 export const registryApi = {

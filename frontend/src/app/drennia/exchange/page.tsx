@@ -288,8 +288,101 @@ function OrderBook({ companyId }: { companyId: string }) {
   );
 }
 
+// ── Quick IPO Launch panel (simple sell-block alternative to formal IPO filing) ───
+function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: string; totalShares: number; onLaunched: () => void }) {
+  const [price, setPrice] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const submit = async () => {
+    const p = Number(price);
+    const q = Number(quantity);
+    if (!Number.isFinite(p) || p <= 0) {
+      setMsg({ text: 'Enter a valid IPO price per share.', ok: false });
+      return;
+    }
+    if (!Number.isInteger(q) || q <= 0 || q > totalShares) {
+      setMsg({ text: `Quantity must be a whole number between 1 and ${totalShares.toLocaleString()}.`, ok: false });
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      await exchangeApi.ipoLaunch(companyId, { price_per_share: p, quantity: q });
+      setMsg({ text: `IPO sell order posted: ${q.toLocaleString()} shares @ §${p.toFixed(2)}. Buyers can now fill this order.`, ok: true });
+      onLaunched();
+    } catch (e: any) {
+      setMsg({ text: e?.response?.data?.message || 'IPO launch failed.', ok: false });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    ...mono, width: '100%', background: T.bg, border: `1px solid ${T.border}`, color: T.ivory,
+    padding: '8px 10px', fontSize: '12px', outline: 'none',
+  };
+
+  const impliedCap = Number(price) > 0 ? Number(price) * totalShares : null;
+
+  return (
+    <div style={{ background: T.paper, border: `1px solid ${T.gold}`, padding: '16px' }}>
+      <div style={{ ...label, marginBottom: '4px', color: T.gold }}>Quick IPO — Direct Listing</div>
+      <p style={{ fontSize: '11px', color: T.muted, margin: '0 0 12px', lineHeight: 1.7 }}>
+        Post your first sell order at a chosen price. Buyers can fill it immediately.
+        For formal IPO with price discovery, use the Pipeline tab.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div>
+          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price (§ per share)</div>
+          <input
+            aria-label="IPO price per share"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="e.g. 1.00"
+            inputMode="decimal"
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares (max {totalShares.toLocaleString()})</div>
+          <input
+            aria-label="Shares to offer"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            placeholder="e.g. 100000"
+            inputMode="numeric"
+            style={inputStyle}
+          />
+        </div>
+        {price && Number(price) > 0 && quantity && Number(quantity) > 0 && (
+          <div style={{ ...mono, fontSize: '10px', color: T.muted, lineHeight: 1.6 }}>
+            Offer: <span style={{ color: T.gold }}>§{(Number(price) * Number(quantity)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            {impliedCap != null && (
+              <span style={{ color: T.faint }}> · Cap §{impliedCap.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+            )}
+          </div>
+        )}
+        <button
+          onClick={submit}
+          disabled={busy}
+          style={{
+            marginTop: '4px', padding: '10px 0', cursor: busy ? 'wait' : 'pointer',
+            ...mono, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em',
+            background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1,
+          }}
+        >
+          {busy ? 'Listing…' : 'Post Order'}
+        </button>
+        {msg && <div style={{ fontSize: '11px', color: msg.ok ? T.mint : T.red, lineHeight: 1.6 }}>{msg.text}</div>}
+      </div>
+    </div>
+  );
+}
+
 // ── Trade ticket ─────────────────────────────────────────────────────────────
-function OrderTicket({ companyId, lastClose, onPlaced }: { companyId: string; lastClose: number | null; onPlaced: () => void }) {
+function OrderTicket({ companyId, onPlaced }: { companyId: string; onPlaced: () => void }) {
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -629,11 +722,16 @@ export default function ExchangePage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const { data: listings, mutate: mutateListings } = useSWR('exchange-listings', () => exchangeApi.getListings(), { refreshInterval: 15000 });
+  const { data: charData } = useSWR('my-character', () => characterApi.getMe().then(r => r.data), { revalidateOnFocus: false });
   const { data: pipeline } = useSWR('ipo-pipeline-count', () => exchangeApi.getPipeline(), { refreshInterval: 20000 });
+  const myCharacterId: string | null = charData?.character?.id ?? null;
   const list: any[] = listings ?? [];
   const activeId = selectedId ?? list[0]?.id ?? null;
   const active = list.find((l) => l.id === activeId) ?? null;
   const pipelineCount = (pipeline ?? []).length;
+
+  // Show quick IPO panel when: company selected, no trades yet, viewer is the owner
+  const showQuickIpo = active != null && active.last_price == null && myCharacterId != null && active.owner_character_id === myCharacterId;
 
   const onPlaced = () => {
     setRefreshKey((k) => k + 1);
@@ -741,7 +839,26 @@ export default function ExchangePage() {
                 {activeId && <RecentTrades key={`trades-${activeId}-${refreshKey}`} companyId={activeId} />}
               </div>
             </div>
-          </>
+          )}
+
+          {tab === 'bourse' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {activeId && showQuickIpo && (
+                <QuickIpoPanel
+                  companyId={activeId}
+                  totalShares={active?.total_shares ?? 1_000_000}
+                  onLaunched={onPlaced}
+                />
+              )}
+              {activeId && !showQuickIpo && <OrderTicket companyId={activeId} onPlaced={onPlaced} />}
+              {activeId && showQuickIpo && (
+                <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '12px 16px', fontSize: '11px', color: T.faint }}>
+                  Place buy/sell limit orders here once your IPO is live.
+                </div>
+              )}
+            </div>
+          )}
+        </>
         )}
 
         {tab === 'pipeline' && <Pipeline />}

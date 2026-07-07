@@ -33,5 +33,6 @@ router.get('/:companyId/book', ShareMarketController.orderBook);
 router.get('/:companyId/trades', ShareMarketController.trades);
 router.get('/:companyId/history', ShareMarketController.priceHistory);
 router.post('/:companyId/orders', ShareMarketController.placeOrder);
+router.post('/:companyId/ipo', ShareMarketController.ipoLaunch);
 
 export default router;
