@@ -1,8 +1,9 @@
 'use client';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { ArrowLeft, LayoutGrid, Briefcase, Landmark, Globe, Home } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Briefcase, Landmark, Globe, Home, BookOpen } from 'lucide-react';
+import GuideModal from '../gameplay/GuideModal';
 
 /**
  * BackBar — a slim, sticky global navigation bar for the in-game (/drennia) shell.
@@ -46,6 +47,7 @@ export default function BackBar() {
   const segments = pathname.split('/').filter(Boolean); // e.g. ['drennia', 'market']
   const section = segments[1] || 'chronicle';
   const isHub = section === 'chronicle';
+  const [showGuide, setShowGuide] = useState(false);
 
   // Track in-app navigation depth so Back never leaves the game world.
   useEffect(() => {
@@ -98,9 +100,18 @@ export default function BackBar() {
 
       <span className="h-4 w-px bg-[#23232b]" />
 
-      <span className="truncate text-[9px] font-mono uppercase tracking-[0.18em] text-zinc-400">
+      <span className="truncate text-[9px] font-mono uppercase tracking-[0.18em] text-zinc-400 flex items-center gap-2">
         {label}
+        <button
+          onClick={() => setShowGuide(true)}
+          title="Game Guide"
+          className="ml-2 flex items-center gap-1.5 rounded bg-terminal-amber/10 px-2 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-terminal-amber transition-colors hover:bg-terminal-amber/20 focus:outline-none"
+        >
+          <BookOpen size={10} /> Guide
+        </button>
       </span>
+
+      {showGuide && <GuideModal onDismiss={() => setShowGuide(false)} />}
 
       <div className="flex-1" />
 
