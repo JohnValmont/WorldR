@@ -59,7 +59,7 @@ export default function OverviewTab({ overview, character, parties, latestGovern
             <div className="text-right">
               <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#6B6358]">Electorate</div>
               <div className="text-sm font-mono text-[#A79D8C]">
-                {activeState.population?.toLocaleString()} · {(activeState.base_turnout * 100).toFixed(0)}% turnout
+                {activeState.population?.toLocaleString('en-US')} · {(activeState.base_turnout * 100).toFixed(0)}% turnout
               </div>
             </div>
           ) : null
@@ -113,7 +113,7 @@ export default function OverviewTab({ overview, character, parties, latestGovern
             ))}
             <Card className="p-4 bg-[#17151B] border-[#2A2630]">
               <div className="text-[#A79D8C] text-[10px] uppercase tracking-wider mb-1">Cash (₮)</div>
-              <div className="text-xl text-terminal-amber font-mono">{cash.toLocaleString()}</div>
+              <div className="text-xl text-terminal-amber font-mono">{cash.toLocaleString('en-US')}</div>
             </Card>
           </div>
         </div>

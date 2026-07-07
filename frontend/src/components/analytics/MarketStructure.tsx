@@ -111,7 +111,7 @@ export default function MarketStructure({ countryId }: MarketStructureProps) {
                 cursor={{ fill: '#18181b' }}
                 contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', color: '#e4e4e7', fontFamily: 'JetBrains Mono, monospace' }}
                 formatter={(value: any, name: any) => [
-                  name === 'AvgPrice' ? `$${Number(value).toLocaleString()}` : Number(value).toLocaleString(), 
+                  name === 'AvgPrice' ? `$${Number(value).toLocaleString('en-US')}` : Number(value).toLocaleString('en-US'), 
                   name === 'Volume' ? 'Total Volume' : 'Avg Sale Price'
                 ]}
               />
@@ -139,11 +139,11 @@ export default function MarketStructure({ countryId }: MarketStructureProps) {
             <div className="space-y-3 mt-1">
               <div className="flex justify-between items-end">
                 <span className="font-outfit text-sm text-zinc-400">Total Volume</span>
-                <span className="font-mono text-zinc-200 text-lg">{segment.totalUnitsSold.toLocaleString()}</span>
+                <span className="font-mono text-zinc-200 text-lg">{segment.totalUnitsSold.toLocaleString('en-US')}</span>
               </div>
               <div className="flex justify-between items-end">
                 <span className="font-outfit text-sm text-zinc-400">Avg Sale Price</span>
-                <span className="font-mono text-emerald-400 text-lg">${Math.round(segment.averageSalePrice).toLocaleString()}</span>
+                <span className="font-mono text-emerald-400 text-lg">${Math.round(segment.averageSalePrice).toLocaleString('en-US')}</span>
               </div>
             </div>
 

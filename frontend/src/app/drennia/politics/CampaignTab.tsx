@@ -75,8 +75,8 @@ export default function CampaignTab({ overview, character, parties, onRefresh, s
         right={
           <div className="text-right">
             <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#6B6358]">Treasury</div>
-            <div className="text-lg font-mono text-terminal-amber">₮{Number(myParty?.treasury || 0).toLocaleString()}</div>
-            <div className="text-[10px] text-[#4D8C6A] font-mono mt-0.5">Influence {Number(character?.influence || 0).toLocaleString()}</div>
+            <div className="text-lg font-mono text-terminal-amber">₮{Number(myParty?.treasury || 0).toLocaleString('en-US')}</div>
+            <div className="text-[10px] text-[#4D8C6A] font-mono mt-0.5">Influence {Number(character?.influence || 0).toLocaleString('en-US')}</div>
           </div>
         }
       />
@@ -120,7 +120,7 @@ export default function CampaignTab({ overview, character, parties, onRefresh, s
                   <div className="text-xs text-[#A79D8C] mt-1">{meta.desc}</div>
                   <div className="flex justify-between items-center mt-3 pt-3 border-t border-[#2A2630]">
                     <span className="text-xs font-mono text-terminal-amber">
-                      {action.gates?.uses_influence ? `${POL_ENDORSEMENT_INFLUENCE_COST} Influence` : action.cost_cash > 0 ? `₮${action.cost_cash.toLocaleString()}` : 'Free'}
+                      {action.gates?.uses_influence ? `${POL_ENDORSEMENT_INFLUENCE_COST} Influence` : action.cost_cash > 0 ? `₮${action.cost_cash.toLocaleString('en-US')}` : 'Free'}
                     </span>
                     <span className="text-xs text-[#8F9BA8]">Effort {action.effort}</span>
                   </div>

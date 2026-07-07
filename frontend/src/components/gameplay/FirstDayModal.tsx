@@ -209,7 +209,7 @@ function Card3({ citizenFile }: { citizenFile: any }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: T.ivory }}>Personal Cash</span>
             <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: T.amber }}>
-              ${Number(cash).toLocaleString()}
+              ${Number(cash).toLocaleString('en-US')}
             </span>
           </div>
           <p style={{ fontSize: 10, color: T.faint, margin: 0, lineHeight: 1.5 }}>

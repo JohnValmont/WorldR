@@ -31,7 +31,7 @@ function fmt(n: number | null | undefined, dec = 2): string {
 }
 function fmtInt(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
-  return Math.round(Number(n)).toLocaleString();
+  return Math.round(Number(n)).toLocaleString('en-US');
 }
 
 type Notice = { text: string; ok: boolean } | null;

@@ -57,7 +57,7 @@ export default function WorldTimeControl() {
           <div style={{ color: T.muted, fontSize: '9px' }}>WORLD PAUSED</div>
         ) : secondsToTick !== null ? (
           <div style={{ color: T.muted, fontSize: '9px' }} aria-live="polite">
-            NEXT MONTH IN {formatCountdown(secondsToTick)}
+            NEXT MONTH IN <span style={{ textTransform: 'none' }}>{formatCountdown(secondsToTick)}</span>
           </div>
         ) : null}
       </div>

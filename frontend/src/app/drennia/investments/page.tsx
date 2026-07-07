@@ -30,7 +30,7 @@ function fmt(n: number | null | undefined, dec = 2): string {
 }
 function fmtInt(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
-  return Number(n).toLocaleString();
+  return Number(n).toLocaleString('en-US');
 }
 
 const inputStyle: React.CSSProperties = {

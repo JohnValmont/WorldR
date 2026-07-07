@@ -65,18 +65,18 @@ const LEDGER_HEADLINES = [
 
 /** Mock net-worth series — last 12 months. Replace with real ledger data when available. */
 const MOCK_NET_WORTH_SERIES = [
-  { month: 'A1', value: 50000 },
-  { month: 'A2', value: 48200 },
-  { month: 'A3', value: 52100 },
-  { month: 'A4', value: 57300 },
-  { month: 'A5', value: 61800 },
-  { month: 'A6', value: 59200 },
-  { month: 'A7', value: 65000 },
-  { month: 'A8', value: 72400 },
-  { month: 'A9', value: 81200 },
-  { month: 'A10', value: 88700 },
-  { month: 'A11', value: 95100 },
-  { month: 'A12', value: 103800 },
+  { month: '11m ago', value: 50000 },
+  { month: '10m ago', value: 48200 },
+  { month: '9m ago', value: 52100 },
+  { month: '8m ago', value: 57300 },
+  { month: '7m ago', value: 61800 },
+  { month: '6m ago', value: 59200 },
+  { month: '5m ago', value: 65000 },
+  { month: '4m ago', value: 72400 },
+  { month: '3m ago', value: 81200 },
+  { month: '2m ago', value: 88700 },
+  { month: '1m ago', value: 95100 },
+  { month: 'Last mo', value: 103800 },
 ];
 
 const demandColor = {
@@ -92,7 +92,7 @@ function ChartTooltip({ active, payload, label }: any) {
   return (
     <div className="bg-[#0c0d13] border border-[#23232b] px-3 py-2 rounded-lg text-[10px] font-mono shadow-card">
       <p className="text-zinc-500 mb-0.5 uppercase tracking-wider">{label}</p>
-      <p className="text-terminal-amber font-bold">${Number(payload[0].value).toLocaleString()}</p>
+      <p className="text-terminal-amber font-bold">${Number(payload[0].value).toLocaleString('en-US')}</p>
     </div>
   );
 }
@@ -183,6 +183,11 @@ export default function ChroniclePage() {
           setCharacterName(char.name);
           setCharacterAge(Number(char.age ?? 18));
           setPlayerCash(Number(char.finances?.cash_in_hand ?? 0));
+          
+          setNetWorthSeries(prev => [
+            ...prev.slice(1), 
+            { month: 'Now', value: Number(char.finances?.cash_in_hand ?? 0) }
+          ]);
 
           let parsed: PlayerStats = {
             motherland: 'Drennia',
@@ -212,11 +217,15 @@ export default function ChroniclePage() {
               setActiveContracts(
                 contracts.filter(c => c.status === 'awarded' && c.awardedToCompanyId === myCompany.id).length
               );
-              // Seed net worth tail with live company cash (player cash set above)
+              // Update the 'Now' value in the net worth series with company cash
               const liveCash = Number(myCompany.finances?.available_cash ?? 0);
               setNetWorthSeries(prev => {
-                const liveValue = Number(char.finances?.cash_in_hand ?? 0) + liveCash;
-                return [...prev.slice(0, -1), { month: 'Now', value: liveValue }];
+                const newSeries = [...prev];
+                newSeries[newSeries.length - 1] = {
+                  month: 'Now',
+                  value: Number(char.finances?.cash_in_hand ?? 0) + liveCash
+                };
+                return newSeries;
               });
             }
           }).catch(() => {});
@@ -426,10 +435,10 @@ export default function ChroniclePage() {
                     <div>
                       <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Net Worth</p>
                       <p className="text-2xl md:text-3xl font-mono font-bold text-terminal-amber amber-glow leading-tight">
-                        ${netWorth.toLocaleString()}
+                        ${netWorth.toLocaleString('en-US')}
                       </p>
                       <p className={`text-[11px] font-mono font-bold ${up ? 'text-terminal-green' : 'text-terminal-red'}`}>
-                        {up ? '▲' : '▼'} {up ? '+' : '−'}${Math.abs(delta).toLocaleString()} ({pct.toFixed(1)}%) this month
+                        {up ? '▲' : '▼'} {up ? '+' : '−'}${Math.abs(delta).toLocaleString('en-US')} ({pct.toFixed(1)}%) this month
                       </p>
                     </div>
                     <div className="hidden sm:block w-32 h-14">
@@ -523,7 +532,7 @@ export default function ChroniclePage() {
                 { label: 'Full Name',      value: characterName },
                 { label: 'Age',            value: `${characterAge}` },
                 { label: 'Motherland',     value: citizenFile?.motherland ?? 'Drennia' },
-                { label: 'Citizen Since',  value: citizenFile?.gameDateStr ?? 'Day 1 · Month 1' },
+                { label: 'Citizen Since',  value: (citizenFile?.gameDateStr || 'Day 1 · Month 1').replace('-', '·') },
               ].map(f => (
                 <div key={f.label}>
                   <p className="text-[8px] font-mono uppercase tracking-[0.15em] text-zinc-600 mb-1">{f.label}</p>
@@ -539,7 +548,7 @@ export default function ChroniclePage() {
               <div>
                 <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Current Net Worth</p>
                 <p className="text-xl font-mono font-bold text-terminal-amber amber-glow">
-                  ${netWorth.toLocaleString()}
+                  ${netWorth.toLocaleString('en-US')}
                 </p>
               </div>
               <Badge variant="green" dot>Active</Badge>
@@ -597,7 +606,7 @@ export default function ChroniclePage() {
                   <div className="text-right">
                     <p className="text-[9px] font-mono text-zinc-600">Cash</p>
                     <p className="text-[14px] font-mono font-bold text-terminal-green terminal-glow">
-                      ${companyCash.toLocaleString()}
+                      ${companyCash.toLocaleString('en-US')}
                     </p>
                   </div>
                 </div>

@@ -32,7 +32,7 @@ function fmt(n: number | null | undefined, dec = 2): string {
 }
 function fmtInt(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
-  return Number(n).toLocaleString();
+  return Number(n).toLocaleString('en-US');
 }
 function fmtBig(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
@@ -303,14 +303,14 @@ function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: stri
       return;
     }
     if (!Number.isInteger(q) || q <= 0 || q > totalShares) {
-      setMsg({ text: `Quantity must be a whole number between 1 and ${totalShares.toLocaleString()}.`, ok: false });
+      setMsg({ text: `Quantity must be a whole number between 1 and ${totalShares.toLocaleString('en-US')}.`, ok: false });
       return;
     }
     setBusy(true);
     setMsg(null);
     try {
       await exchangeApi.ipoLaunch(companyId, { price_per_share: p, quantity: q });
-      setMsg({ text: `IPO sell order posted: ${q.toLocaleString()} shares @ §${p.toFixed(2)}. Buyers can now fill this order.`, ok: true });
+      setMsg({ text: `IPO sell order posted: ${q.toLocaleString('en-US')} shares @ §${p.toFixed(2)}. Buyers can now fill this order.`, ok: true });
       onLaunched();
     } catch (e: any) {
       setMsg({ text: e?.response?.data?.message || 'IPO launch failed.', ok: false });
@@ -346,7 +346,7 @@ function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: stri
           />
         </div>
         <div>
-          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares (max {totalShares.toLocaleString()})</div>
+          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares (max {totalShares.toLocaleString('en-US')})</div>
           <input
             aria-label="Shares to offer"
             value={quantity}

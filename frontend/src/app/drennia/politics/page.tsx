@@ -95,7 +95,7 @@ export default function PoliticsDesk() {
         <div className="flex items-center gap-3">
           {character?.finances?.cash_in_hand != null && (
             <div className="px-3 py-1.5 bg-[#1c1d2e] border border-[#252637] rounded-lg text-[12px] font-mono font-bold text-white">
-              ${Number(character.finances.cash_in_hand).toLocaleString()}
+              ${Number(character.finances.cash_in_hand).toLocaleString('en-US')}
             </div>
           )}
           <div className="px-3 py-1.5 bg-[#e8752a] rounded-lg text-[11px] font-bold text-white uppercase tracking-wider">

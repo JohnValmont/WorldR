@@ -420,7 +420,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const statesForCountry: { id: string; name: string }[] = mfgData?.statesForCountry ?? [];
 
   // Currency formatter — uses company's currency symbol, not a hardcoded $
-  const fm = (val: number) => `${currencySymbol}${Math.round(val).toLocaleString()}`;
+  const fm = (val: number) => `${currencySymbol}${Math.round(val).toLocaleString('en-US')}`;
 
   // State resolver — uses statesForCountry from the API, not a hardcoded lookup
   const resolveState = (id?: string) => {
@@ -1501,7 +1501,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             ))}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: `1px dotted ${T.border}`, fontSize: '12px' }}>
                               <span style={{ color: T.muted }}>Vehicle Weight</span>
-                              <span style={{ color: T.ivory, fontFamily: 'monospace' }}>{(selectedModel.vehicle_weight_kg || 1200).toLocaleString()} kg</span>
+                              <span style={{ color: T.ivory, fontFamily: 'monospace' }}>{(selectedModel.vehicle_weight_kg || 1200).toLocaleString('en-US')} kg</span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: `1px dotted ${T.border}`, fontSize: '12px' }}>
                               <span style={{ color: T.muted }}>Manufacturing Friendliness</span>
@@ -1788,7 +1788,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             <PanelBox style={{ border: `1px solid ${T.gold}33` }}>
                               <SectionHeader stamp="LIVE ESTIMATE">Design Preview</SectionHeader>
                               <FieldRow label="Est. Mfg Cost / Unit" value={fm(liveScore.cost)} valueColor={T.red} />
-                              <FieldRow label="Vehicle Weight" value={`${liveScore.vehicleWeightKg.toLocaleString()} kg`} />
+                              <FieldRow label="Vehicle Weight" value={`${liveScore.vehicleWeightKg.toLocaleString('en-US')} kg`} />
                               <div style={{ marginTop: '10px' }}>
                                 <ScoreBadge label="Reliability" value={liveScore.rel} color={liveScore.rel > 70 ? T.mint : liveScore.rel > 50 ? T.gold : T.red} />
                                 <ScoreBadge label="Performance" value={liveScore.perf} color={liveScore.perf > 70 ? T.mint : T.gold} />
@@ -1890,7 +1890,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                 ))}
                               </div>
 
-                              <FieldRow label="Vehicle Weight" value={`${liveScore.vehicleWeightKg.toLocaleString()} kg`} />
+                              <FieldRow label="Vehicle Weight" value={`${liveScore.vehicleWeightKg.toLocaleString('en-US')} kg`} />
 
                               {/* Risk / Confidence / Friendliness */}
                               <div style={{ marginTop: '10px' }}>
@@ -2802,7 +2802,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     <div key={market.id} className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3.5 hover:border-zinc-700 transition-colors">
                       <div className="text-xs font-semibold text-terminal-amber mb-2">{market.name}</div>
                       <div className="grid grid-cols-2 gap-2 text-[11px]">
-                        <div className="text-zinc-500">Population: <span className="text-zinc-200">{Number(market.population).toLocaleString()}</span></div>
+                        <div className="text-zinc-500">Population: <span className="text-zinc-200">{Number(market.population).toLocaleString('en-US')}</span></div>
                         <div className="text-zinc-500">Avg Income: <span className="text-zinc-200">{fm(market.average_income)}</span></div>
                         <div className="text-zinc-500">Market Tier: <span className="text-zinc-200">{market.market_tier}</span></div>
                         <div className="text-zinc-500">Competition: <span className="text-terminal-red">{market.competition_level}</span></div>
@@ -2866,8 +2866,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             <td className="px-1.5 py-2 text-zinc-200">{mName}</td>
                             <td className="px-1.5 py-2 text-zinc-200">{mktName}</td>
                             <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.alloc.units_allocated}</td>
-                            <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.totalHouseholds.toLocaleString()}</td>
-                            <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.marketPurchaseCapacity.toLocaleString()}</td>
+                            <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.totalHouseholds.toLocaleString('en-US')}</td>
+                            <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.marketPurchaseCapacity.toLocaleString('en-US')}</td>
                             <td className="px-1.5 py-2 text-zinc-200 font-mono">{Math.round(fc.rawBuyerInterest)}</td>
                             <td className="px-1.5 py-2 text-terminal-green font-mono font-bold">{fc.unitsSold}</td>
                             <td className={`px-1.5 py-2 ${affStr === 'Weak' ? 'text-terminal-red' : 'text-zinc-500'}`}>{affStr}</td>

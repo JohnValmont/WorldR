@@ -79,7 +79,7 @@ export default function OverviewScreen({
           { label: 'Credibility', value: credibility,  sub: 'out of 100' },
           { label: 'Charisma',    value: charisma,     sub: 'out of 100' },
           { label: 'Influence',   value: influence,    sub: 'points' },
-          { label: 'Cash',        value: cash != null ? `$${Number(cash).toLocaleString()}` : '—', sub: 'personal' },
+          { label: 'Cash',        value: cash != null ? `$${Number(cash).toLocaleString('en-US')}` : '—', sub: 'personal' },
           ...(myAp ? [{ label: 'Action Points', value: `${myAp.current_ap} / ${myAp.ap_cap}`, sub: `+1 per arc` }] : []),
         ].map(({ label, value, sub }) => (
           <div key={label} className="bg-[#1c1d2e] border border-[#252637] rounded-xl p-4">

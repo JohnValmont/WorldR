@@ -176,7 +176,7 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
                       
                       {purchasedTier === 2 ? (
                         <>
-                          <td className="px-4 py-3 text-right font-mono text-zinc-200">${r.sale_price?.toLocaleString()}</td>
+                          <td className="px-4 py-3 text-right font-mono text-zinc-200">${r.sale_price?.toLocaleString('en-US')}</td>
                           <td className="px-4 py-3 text-center font-mono">{r.reliability_score}</td>
                           <td className="px-4 py-3 text-center font-mono">{r.performance_score}</td>
                           <td className="px-4 py-3 text-center font-mono">{r.fuel_efficiency_score}</td>

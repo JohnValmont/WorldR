@@ -2306,7 +2306,7 @@ function CompanyDeskTab({
                           try {
                             const { companyApi } = await import('@/lib/api');
                             const res = await companyApi.issueShares(company.id, qty, price);
-                            showNotif(res.data?.message || `Issued ${qty} shares for §${(qty*price).toLocaleString()}.`, true);
+                            showNotif(res.data?.message || `Issued ${qty} shares for §${(qty*price).toLocaleString('en-US')}.`, true);
                             qtyEl.value = '';
                             priceEl.value = '';
                             onRefresh();
@@ -2336,7 +2336,7 @@ function CompanyDeskTab({
                           try {
                             const { companyApi } = await import('@/lib/api');
                             const res = await companyApi.injectCapital(company.id, amount);
-                            showNotif(res.data?.message || `§${amount.toLocaleString()} injected successfully.`, true);
+                            showNotif(res.data?.message || `§${amount.toLocaleString('en-US')} injected successfully.`, true);
                             el.value = '';
                             onRefresh();
                           } catch (err: any) {
@@ -2375,7 +2375,7 @@ function CompanyDeskTab({
                           try {
                             const { companyApi } = await import('@/lib/api');
                             const res = await companyApi.withdrawCapital(company.id, amount);
-                            showNotif(`§${amount.toLocaleString()} withdrawn to personal holdings.`, true);
+                            showNotif(`§${amount.toLocaleString('en-US')} withdrawn to personal holdings.`, true);
                             el.value = '';
                             onRefresh();
                           } catch (err: any) {
@@ -2565,7 +2565,7 @@ function CompanyDeskTab({
               {records.map((r: any) => (
                 <div key={r.id} style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderLeft: `2px solid ${r.type === 'failure' ? T.red : r.type === 'business' ? T.gold : T.mint}`, fontSize: '12px', color: T.ivory, lineHeight: 1.6 }}>
                   {r.summary}
-                  <div style={{ fontSize: '10px', color: T.faint, marginTop: '6px' }}>{new Date(r.createdAt).toLocaleString()}</div>
+                  <div style={{ fontSize: '10px', color: T.faint, marginTop: '6px' }}>{new Date(r.createdAt).toLocaleString('en-US')}</div>
                 </div>
               ))}
             </div>

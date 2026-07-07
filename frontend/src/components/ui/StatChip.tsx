@@ -90,7 +90,7 @@ export default function StatChip({
     const animate = (now: number) => {
       const t = Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(1 - t, 3);
-      setDisplayed(Math.round(eased * target).toLocaleString());
+      setDisplayed(Math.round(eased * target).toLocaleString('en-US'));
       if (t < 1) animRef.current = requestAnimationFrame(animate);
     };
     animRef.current = requestAnimationFrame(animate);

@@ -324,7 +324,7 @@ export default function WorldPage() {
                               </div>
                             )}
                             <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                              <div style={{ fontSize: 11, color: T.muted, fontFamily: 'monospace' }}>₮{Number(p.treasury || 0).toLocaleString()}</div>
+                              <div style={{ fontSize: 11, color: T.muted, fontFamily: 'monospace' }}>₮{Number(p.treasury || 0).toLocaleString('en-US')}</div>
                               <div style={{ fontSize: 9, color: T.faint }}>treasury</div>
                             </div>
                           </div>

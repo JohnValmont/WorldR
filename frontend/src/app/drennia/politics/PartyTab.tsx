@@ -175,7 +175,7 @@ export default function PartyTab({ overview, character, parties, myAp, onRefresh
               </div>
 
               <div className="text-[#A79D8C] text-sm mb-4 space-y-1">
-                <div>Treasury: <span className="text-terminal-amber font-mono">${Number(myParty.treasury).toLocaleString()}</span></div>
+                <div>Treasury: <span className="text-terminal-amber font-mono">${Number(myParty.treasury).toLocaleString('en-US')}</span></div>
                 <div>
                   Roster:{' '}
                   <span className={`font-mono ${rosterFull ? 'text-[#B85555]' : 'text-[#F4EBD6]'}`}>
@@ -214,7 +214,7 @@ export default function PartyTab({ overview, character, parties, myAp, onRefresh
                     >
                       <span>{recruitLoading ? 'Recruiting…' : 'Recruit NPC Candidate'}</span>
                       <div className="flex items-center gap-2 text-[11px] font-mono">
-                        <span className="text-[#6B6358]">${RECRUIT_COST_CASH.toLocaleString()}</span>
+                        <span className="text-[#6B6358]">${RECRUIT_COST_CASH.toLocaleString('en-US')}</span>
                         <ApBadge current={currentAp} cap={apCap} />
                       </div>
                     </button>
@@ -383,7 +383,7 @@ export default function PartyTab({ overview, character, parties, myAp, onRefresh
             {/* Founding cost + CTA */}
             <div className="flex items-center justify-between pt-4 border-t border-[#2A2630] mb-4">
               <div className="text-sm text-[#A79D8C]">Founding Cost</div>
-              <div className="text-sm font-mono text-[#B85555]">-${PARTY_FOUNDING_COST.toLocaleString()}</div>
+              <div className="text-sm font-mono text-[#B85555]">-${PARTY_FOUNDING_COST.toLocaleString('en-US')}</div>
             </div>
             <Button
               onClick={handleFoundParty}
@@ -391,10 +391,10 @@ export default function PartyTab({ overview, character, parties, myAp, onRefresh
               variant="primary" fullWidth
             >
               {cash < PARTY_FOUNDING_COST
-                ? `Need $${PARTY_FOUNDING_COST.toLocaleString()} to Found`
+                ? `Need $${PARTY_FOUNDING_COST.toLocaleString('en-US')} to Found`
                 : !foundDoctrineId
                 ? 'Select a Doctrine to Continue'
-                : `Pay $${PARTY_FOUNDING_COST.toLocaleString()} · Found Party`}
+                : `Pay $${PARTY_FOUNDING_COST.toLocaleString('en-US')} · Found Party`}
             </Button>
             <div className="mt-3 text-[11px] text-[#6B6358] text-center">
               You will be the permanent Leader. Players cannot join your party — only NPC recruits can.

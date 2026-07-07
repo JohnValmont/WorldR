@@ -44,7 +44,7 @@ export default function ActionCard({
 
   const tooltipReason =
     insufficientAp ? `Need ${apCost} AP, have ${currentAp}`
-    : insufficientCash ? `Party needs $${cashCost?.toLocaleString()}`
+    : insufficientCash ? `Party needs $${cashCost?.toLocaleString('en-US')}`
     : unavailableReason || '';
 
   return (
@@ -98,7 +98,7 @@ export default function ActionCard({
       {/* Cash requirement */}
       {cashCost !== undefined && cashCost > 0 && (
         <div className={`mt-2 text-[10px] font-mono ${insufficientCash ? 'text-red-400' : 'text-[#6b6d8a]'}`}>
-          ${cashCost.toLocaleString()} from treasury
+          ${cashCost.toLocaleString('en-US')} from treasury
         </div>
       )}
 

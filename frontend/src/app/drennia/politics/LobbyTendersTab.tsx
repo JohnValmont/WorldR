@@ -226,11 +226,11 @@ export default function LobbyTendersTab({ overview, character, parties, stateId 
                       <span className="text-xs text-[#8b8da8]">{t.units_per_month} units/month</span>
                     </div>
                     <div className="text-sm text-[#c4c6d8] mb-2 flex justify-between">
-                      <span>Max Price: <span className="text-green-400 font-mono">₮{Number(t.max_price).toLocaleString()}</span></span>
+                      <span>Max Price: <span className="text-green-400 font-mono">₮{Number(t.max_price).toLocaleString('en-US')}</span></span>
                       <span>Duration: {t.duration_arcs} months</span>
                     </div>
                     <div className="text-xs text-[#8b8da8] mb-4">
-                      {t.bids_count} bids currently placed {t.lowest_bid ? `(Lowest: ₮${Number(t.lowest_bid).toLocaleString()})` : ''}
+                      {t.bids_count} bids currently placed {t.lowest_bid ? `(Lowest: ₮${Number(t.lowest_bid).toLocaleString('en-US')})` : ''}
                     </div>
                     {isIronvaleCompany ? (
                       activeBidTenderId === t.id ? (
@@ -279,7 +279,7 @@ export default function LobbyTendersTab({ overview, character, parties, stateId 
                     {t.awarded_company_id ? (
                       <div className="flex justify-between text-xs text-[#8b8da8]">
                         <span>Winner: <span className="text-[#c4c6d8]">{t.awarded_company_name || 'Unknown'}</span></span>
-                        <span>₮{Number(t.awarded_price).toLocaleString()}</span>
+                        <span>₮{Number(t.awarded_price).toLocaleString('en-US')}</span>
                       </div>
                     ) : (
                       <div className="text-xs text-[#8b8da8]">Closed without award</div>

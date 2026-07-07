@@ -83,7 +83,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
     setBusy(true); setNotice(null);
     try {
       await companyApi.injectCapital(companyId, amt);
-      setNotice({ text: `§${amt.toLocaleString()} injected successfully.`, ok: true });
+      setNotice({ text: `§${amt.toLocaleString('en-US')} injected successfully.`, ok: true });
       setInjectInput('');
       mutateCap();
       refreshCash();
@@ -98,7 +98,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
     setBusy(true); setNotice(null);
     try {
       await companyApi.withdrawCapital(companyId, amt);
-      setNotice({ text: `§${amt.toLocaleString()} withdrawn successfully.`, ok: true });
+      setNotice({ text: `§${amt.toLocaleString('en-US')} withdrawn successfully.`, ok: true });
       setWithdrawInput('');
       mutateCap();
       refreshCash();
@@ -114,7 +114,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
     setBusy(true); setNotice(null);
     try {
       await companyApi.issueShares(companyId, q, p);
-      setNotice({ text: `Issued ${q.toLocaleString()} shares for §${(q * p).toLocaleString()}.`, ok: true });
+      setNotice({ text: `Issued ${q.toLocaleString('en-US')} shares for §${(q * p).toLocaleString('en-US')}.`, ok: true });
       setIssueQty(''); setIssuePrice('');
       mutateCap();
       refreshCash();
