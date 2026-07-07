@@ -540,12 +540,13 @@ export class CompanyController {
                 .where({ company_id: id, holder_character_id: h.holder_character_id })
                 .update({ shares: newShares, avg_cost_basis: newCost, updated_at: trx.fn.now() });
             }
-            // Fix rounding errors by giving remainder to the founder
+            // Fix rounding errors by giving remainder to the largest shareholder
             const finalTotalRes = await trx('company_shares').where({ company_id: id }).sum('shares as total').first();
             const finalTotal = Number(finalTotalRes?.total || 0);
-            if (finalTotal !== 1_000_000) {
+            if (finalTotal !== 1_000_000 && holders.length > 0) {
+              const largestHolder = [...holders].sort((a,b) => Number(b.shares) - Number(a.shares))[0];
               await trx('company_shares')
-                .where({ company_id: id, holder_character_id: character.id })
+                .where({ company_id: id, holder_character_id: largestHolder.holder_character_id })
                 .increment('shares', 1_000_000 - finalTotal);
             }
           }

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
-import { exchangeApi } from '../../../lib/api';
+import { exchangeApi, characterApi } from '../../../lib/api';
 import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Line, LineChart } from 'recharts';
 
 const T = {
@@ -382,7 +382,7 @@ function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: stri
 }
 
 // ── Trade ticket ─────────────────────────────────────────────────────────────
-function OrderTicket({ companyId, onPlaced }: { companyId: string; onPlaced: () => void }) {
+function OrderTicket({ companyId, lastClose, onPlaced }: { companyId: string; lastClose: number | null; onPlaced: () => void }) {
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -847,30 +847,23 @@ export default function ExchangePage() {
                 )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {activeId && <OrderTicket companyId={activeId} lastClose={active?.last_price ?? null} onPlaced={onPlaced} />}
+                {activeId && showQuickIpo && (
+                  <QuickIpoPanel
+                    companyId={activeId}
+                    totalShares={active?.total_shares ?? 1_000_000}
+                    onLaunched={onPlaced}
+                  />
+                )}
+                {activeId && !showQuickIpo && <OrderTicket companyId={activeId} lastClose={active?.last_price ?? null} onPlaced={onPlaced} />}
+                {activeId && showQuickIpo && (
+                  <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '12px 16px', fontSize: '11px', color: T.faint }}>
+                    Place buy/sell limit orders here once your IPO is live.
+                  </div>
+                )}
                 {activeId && <RecentTrades key={`trades-${activeId}-${refreshKey}`} companyId={activeId} />}
               </div>
             </div>
-          )}
-
-          {tab === 'bourse' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {activeId && showQuickIpo && (
-                <QuickIpoPanel
-                  companyId={activeId}
-                  totalShares={active?.total_shares ?? 1_000_000}
-                  onLaunched={onPlaced}
-                />
-              )}
-              {activeId && !showQuickIpo && <OrderTicket companyId={activeId} onPlaced={onPlaced} />}
-              {activeId && showQuickIpo && (
-                <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '12px 16px', fontSize: '11px', color: T.faint }}>
-                  Place buy/sell limit orders here once your IPO is live.
-                </div>
-              )}
-            </div>
-          )}
-        </>
+          </>
         )}
 
         {tab === 'pipeline' && <Pipeline />}

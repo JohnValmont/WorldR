@@ -9,13 +9,14 @@ import {
 import {
   ScrollText, Briefcase, TrendingUp, BarChart2, User, Star,
   Mail, Landmark, ChevronRight, RefreshCw, AlertTriangle, Lock,
-  Activity, Globe, Newspaper,
+  Activity, Globe, Newspaper, Book,
 } from 'lucide-react';
 import { getContracts, formatGameDate } from '../../../lib/businessCore';
 import { addNotification } from '../../../lib/notifications';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import NotificationBell from '../../../components/gameplay/NotificationBell';
 import FirstDayModal, { FIRST_DAY_MODAL_KEY } from '../../../components/gameplay/FirstDayModal';
+import GuideModal from '../../../components/gameplay/GuideModal';
 import {
   Card, Button, StatChip, DataRow, EmptyState, Badge, StatusDot,
   SectionHeading, PageShell,
@@ -132,6 +133,7 @@ export default function ChroniclePage() {
   const [ledgerFeed, setLedgerFeed] = useState<any[]>([]);
   // First-day modal: show once, then set flag
   const [showFirstDay, setShowFirstDay] = useState(false);
+  const [showGuideModal, setShowGuideModal] = useState(false);
   const [characterAge, setCharacterAge] = useState<number>(18);
 
   // Build radar data from citizen file stats
@@ -337,6 +339,10 @@ export default function ChroniclePage() {
         />
       )}
 
+      {showGuideModal && (
+        <GuideModal onDismiss={() => setShowGuideModal(false)} />
+      )}
+
       {/* ── Top Player Bar ──────────────────────────────────────────────── */}
       <header className="flex items-center justify-between px-4 md:px-6 py-2 border-b border-[#23232b] bg-[#0c0d13] shrink-0 gap-4 flex-wrap">
         {/* Left: brand + character */}
@@ -490,7 +496,21 @@ export default function ChroniclePage() {
           )}
 
           {/* Personal Status */}
-          <Card kicker="Personal Status" icon={User} title="Chronicle">
+          <Card
+            kicker="Personal Status"
+            icon={User}
+            title="Chronicle"
+            headerSlot={
+              <button
+                onClick={() => setShowGuideModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-mono uppercase tracking-wider text-terminal-amber bg-terminal-amber/10 border border-terminal-amber/20 hover:bg-terminal-amber/20 hover:border-terminal-amber/40 transition-colors rounded"
+                style={{ boxShadow: '0 0 10px rgba(201,162,74,0.1)' }}
+              >
+                <Book size={12} />
+                <span>Guide</span>
+              </button>
+            }
+          >
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-1">
               {[
                 { label: 'Full Name',      value: characterName },
