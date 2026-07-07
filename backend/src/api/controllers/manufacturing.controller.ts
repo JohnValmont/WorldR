@@ -36,7 +36,7 @@ import {
 } from '../constants/engineeringEngine';
 import { MARKET_SEGMENTS } from '../constants/marketSegments';
 import { runNpcBrainForCompany } from '../services/npcBrain.service';
-import { processPoliticalArc } from '../services/politics.service';
+import { processPoliticalArc, worldClockToArc } from '../services/politics.service';
 
 // ── Score Calculation (Original formulas) ─────────────────────────────────────
 function calculateDesignScores(design: {
@@ -2107,7 +2107,9 @@ export class ManufacturingController {
           .where({ country_id: countryId, is_active: true })
           .first();
         if (activeState) {
-          await processPoliticalArc(trx, activeState.id, currentMonth);
+          // Politics runs on a MONOTONIC arc (absolute month), not the calendar
+          // month, so cycle scheduling / AP refresh compare against the same base.
+          await processPoliticalArc(trx, activeState.id, worldClockToArc(clock));
         }
 
         return { processedCompanies: participants.length };
