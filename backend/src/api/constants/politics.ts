@@ -202,17 +202,17 @@ export const CAMPAIGN_ACTIONS: CampaignAction[] = [
 // ── AP (Action Point) System ───────────────────────────────────────────────
 // All values are TUNABLE DEFAULTS — change here, never inline.
 
-// ── AP grant model (GDD v0.5 §7) ────────────────────────────────────────────
-// AP is now granted MONTHLY and ACCUMULATES with NO cap. Voting is always free.
-// Mirrors frontend _lib/model.ts AP_MODEL (GRANT_PER_MONTH: 12, CAP: null).
+// ── AP grant model (GDD v0.5 §7, refined) ───────────────────────────────────
+// AP REFRESHES to a flat monthly grant — it does NOT accumulate. Each in-game
+// month current_ap is RESET to AP_MONTHLY_GRANT regardless of what was left over.
+// Example: hold 6 leftover AP at month end → next month you have 12 (NOT 18).
+// Voting is always free.
 export const AP_MONTHLY_GRANT            = 12;
-// Sentinel persisted in pol_character_ap.ap_cap to represent "no cap".
-// Kept well under the Postgres INTEGER max (2,147,483,647) so it always fits.
-export const AP_NO_CAP_SENTINEL          = 1_000_000_000;
 
 // ── Legacy AP-cap tunables (pre-v0.5) ───────────────────────────────────────
-// Retained for reference / potential future office-Mandate wiring. The AP cap
-// itself is retired (see AP_NO_CAP_SENTINEL); regen no longer uses AP_REGEN_PER_ARC.
+// Retained for reference / potential future office-Mandate wiring. The old
+// per-office AP-cap system is retired; the effective cap is now AP_MONTHLY_GRANT
+// and regen no longer uses AP_REGEN_PER_ARC.
 export const AP_BASE_CAP                 = 4;
 export const AP_BONUS_LEGISLATIVE_SEAT   = 2;
 export const AP_BONUS_SECRETARY          = 2;
