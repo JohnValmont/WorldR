@@ -227,6 +227,7 @@ export class CompanyController {
         const [updatedFinances] = await trx('company_finances')
           .where({ company_id: company.id })
           .increment('available_cash', Number(amount))
+          .increment('company_value', Number(amount))
           .returning('*');
 
         return {
@@ -286,19 +287,24 @@ export class CompanyController {
           );
         }
 
-        // Check max shareholders (private = 10). Count distinct holders excluding founder self-top-up.
+        // Upsert cap table row for founder
+        const existingRow = await trx('company_shares')
+          .where({ company_id: id, holder_character_id: character.id })
+          .first();
+
         const struct = await trx('legal_structures').where({ id: 'private-company' }).first();
         const maxShareholders = struct?.max_shareholders ?? 10;
-        const holderCount = await trx('company_shares')
-          .where({ company_id: id })
-          .where('shares', '>', 0)
-          .count('holder_character_id as n')
-          .first();
-        const currentHolders = Number((holderCount as any)?.n ?? 0);
-        // Self-issuance never adds a new holder (founder already in cap table).
-        // We still guard just in case somehow the founder isn't there yet.
-        if (currentHolders >= maxShareholders) {
-          throw new AppError(`Shareholder cap reached (${maxShareholders}). Cannot issue further shares without upgrading to a public corporation.`, 400, 'SHAREHOLDER_CAP');
+        
+        if (!existingRow) {
+          const holderCount = await trx('company_shares')
+            .where({ company_id: id })
+            .where('shares', '>', 0)
+            .count('holder_character_id as n')
+            .first();
+          const currentHolders = Number((holderCount as any)?.n ?? 0);
+          if (currentHolders >= maxShareholders) {
+            throw new AppError(`Shareholder cap reached (${maxShareholders}). Cannot issue further shares without upgrading to a public corporation.`, 400, 'SHAREHOLDER_CAP');
+          }
         }
 
         // Check personal funds
@@ -328,11 +334,7 @@ export class CompanyController {
           .increment('company_value',  totalCost)
           .returning('*');
 
-        // Upsert cap table row for founder
-        const existingRow = await trx('company_shares')
-          .where({ company_id: id, holder_character_id: character.id })
-          .first();
-
+        // Use the existingRow fetched earlier at the start of the transaction
         if (existingRow) {
           const prevShares = Number(existingRow.shares);
           const prevCost   = Number(existingRow.avg_cost_basis);
@@ -376,7 +378,7 @@ export class CompanyController {
       const { id } = req.params;
       const { amount } = req.body;
 
-      if (!userId || !amount || amount <= 0) {
+      if (!userId || !amount || Number(amount) <= 0 || isNaN(Number(amount))) {
         return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
       }
 
@@ -392,21 +394,21 @@ export class CompanyController {
         }
 
         const companyFinances = await trx('company_finances').where({ company_id: company.id }).forUpdate().first();
-        if (Number(companyFinances.available_cash) < amount) {
+        if (Number(companyFinances.available_cash) < Number(amount)) {
           throw new AppError('Insufficient company funds', 400, 'INSUFFICIENT_FUNDS');
         }
 
         // Deduct from company
         const [updatedCompanyFinances] = await trx('company_finances')
           .where({ company_id: company.id })
-          .decrement('available_cash', amount)
-          .decrement('company_value', amount)
+          .decrement('available_cash', Number(amount))
+          .decrement('company_value', Number(amount))
           .returning('*');
 
         // Add to character (simulate dividend/withdrawal)
         await trx('character_finances')
           .where({ character_id: character.id })
-          .increment('cash_in_hand', amount);
+          .increment('cash_in_hand', Number(amount));
 
         return updatedCompanyFinances;
       });
