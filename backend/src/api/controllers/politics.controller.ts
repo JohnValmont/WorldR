@@ -65,19 +65,14 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
         const clock = await db('world_clock').first();
         const actualArc = worldClockToArc(clock);
         
-        const startCampaign = cycle.polling_arc - 6;
-        const startFiling = startCampaign - 3;
-        
-        if (cycle.phase === 'governing') {
-          countdown = startFiling - actualArc;
-        } else if (cycle.phase === 'filing') {
-          countdown = startCampaign - actualArc;
-        } else if (cycle.phase === 'campaign') {
-          countdown = cycle.polling_arc - actualArc;
-        } else if (cycle.phase === 'polling') {
-          countdown = 1; 
-        } else if (cycle.phase === 'formation') {
+        // No phases (GDD §3): count down to the next scheduled resolution.
+        if (cycle.phase === 'formation') {
           countdown = cycle.formation_end_arc - actualArc;
+        } else if (cycle.phase === 'polling') {
+          countdown = 1;
+        } else {
+          // governing (always open) — count down to the next election
+          countdown = cycle.polling_arc - actualArc;
         }
       } catch {
         // Cycle not yet seeded or migration pending — return governing state gracefully
@@ -345,7 +340,7 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
 
     // Currently-held council seats (loss-aversion). Mirror getCouncil's cycle choice.
     let heldCycleId = cycle.id;
-    if (['filing', 'campaign', 'polling', 'formation'].includes(cycle.phase) && cycle.cycle_number > 1) {
+    if (['polling', 'formation'].includes(cycle.phase) && cycle.cycle_number > 1) {
       const prevCycle = await db('pol_cycles')
         .where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 })
         .first();
@@ -602,9 +597,9 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     
     // Determine the actual cycle ID to get seats for.
-    // If we're in early phases, we might want the previous cycle's seats.
+    // During the election/formation window, show the outgoing council's seats.
     let targetCycleId = cycle.id;
-    if (['filing', 'campaign', 'polling', 'formation'].includes(cycle.phase) && cycle.cycle_number > 1) {
+    if (['polling', 'formation'].includes(cycle.phase) && cycle.cycle_number > 1) {
       const prevCycle = await db('pol_cycles').where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 }).first();
       if (prevCycle) targetCycleId = prevCycle.id;
     }
@@ -691,7 +686,6 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
     const activeState = await resolveState(req.query.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
-    if (cycle.phase !== 'governing') return next(new AppError('Bills can only be proposed during the governing phase', 409, 'CONFLICT'));
 
     const result = await db.transaction(async (trx) => {
       const char = await trx('characters').where({ user_id: userId }).first();
@@ -869,7 +863,6 @@ export async function postTender(req: Request, res: Response, next: NextFunction
 
     const cycle = await db('pol_cycles').where({ state_id: activeState.id, status: 'open' }).first();
     if (!cycle) return next(new AppError('No active cycle', 400, 'BAD_REQUEST'));
-    if (cycle.phase !== 'governing') return next(new AppError('Tenders can only be posted during governing phase', 400, 'BAD_REQUEST'));
 
     const result = await db.transaction(async (trx) => {
       const char = await trx('characters').where({ user_id: userId }).first();
