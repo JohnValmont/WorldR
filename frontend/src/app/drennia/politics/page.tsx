@@ -10,6 +10,7 @@ import PoliticsSidebar, { type PoliticsSection } from './_components/PoliticsSid
 import OverviewScreen    from './OverviewScreen';
 import ElectionsScreen   from './ElectionsScreen';
 import LegislatureScreen from './LegislatureScreen';
+import PolicyScreen        from './PolicyScreen';
 import AssemblyScreen    from './AssemblyScreen';
 import PartyScreen       from './PartyScreen';
 import LobbyScreen       from './LobbyScreen';
@@ -122,6 +123,8 @@ export default function PoliticsDesk() {
               <ElectionsScreen {...commonProps} />
             ) : activeSection === 'legislature' ? (
               <LegislatureScreen {...commonProps} />
+            ) : activeSection === 'policy' ? (
+              <PolicyScreen {...commonProps} />
             ) : activeSection === 'assembly' ? (
               <AssemblyScreen {...commonProps} />
             ) : activeSection === 'party' ? (
