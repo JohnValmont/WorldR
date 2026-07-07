@@ -3,7 +3,9 @@ import React, { useState } from 'react';
 import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
 import { JURISDICTIONS, type JurisdictionId } from './_lib/session';
+import { JURISDICTION_MODEL } from './_lib/model';
 import { T, MONO, stampStyle } from './_lib/theme';
+import { formatGameDate } from '@/lib/calendar';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
 import { Scroll, Shield } from 'lucide-react';
 
@@ -31,6 +33,7 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
   const { data, mutate } = useSWR(isLocked ? null : ['bills', selectedJurisdictionId], () => politicsApi.getBills(selectedJurisdictionId).catch(() => null));
+  const { data: councilData } = useSWR(isLocked ? null : ['council', selectedJurisdictionId], () => politicsApi.getCouncil(selectedJurisdictionId).catch(() => null));
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -38,15 +41,14 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
   const proposedBills = bills.filter(b => b.status === 'proposed');
   const historyBills = bills.filter(b => b.status === 'passed' || b.status === 'failed' || b.status === 'rejected');
 
-  const monthYear = overview?.sessionMonthLabel || (overview?.sessionYear ? `Year ${overview.sessionYear}` : (overview?.year ? `Year ${overview.year}` : 'Unknown'));
+  const monthYear = overview?.cycle?.currentArc 
+    ? formatGameDate(overview.cycle.currentArc) 
+    : (overview?.sessionMonthLabel || 'Unknown');
 
-  let totalSeats = 0;
-  if (bills.length > 0 && bills[0].tally) {
-    totalSeats = (bills[0].tally.yea || 0) + (bills[0].tally.nay || 0) + (bills[0].tally.abstain || 0);
-  } else {
-    totalSeats = 270; // Fallback if no bills
-  }
-  const majority = Math.floor(totalSeats / 2) + 1;
+  const jModel = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.ironvale;
+  const totalSeats = jModel.seats;
+  const majority = jModel.majority;
+  const assemblyType = jModel.tier === 'national' ? 'National Assembly' : 'State Assembly';
 
   async function refresh() { await mutate(); if (onRefresh) await onRefresh(); }
   
@@ -62,7 +64,7 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ ...stampStyle, color: T.gold, fontSize: 11, letterSpacing: '0.15em' }}>THE LEGISLATURE</div>
         <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
-          National Assembly of {jurisdiction?.name || 'the Jurisdiction'}
+          {assemblyType} of {jurisdiction?.name || 'the Jurisdiction'}
         </h1>
         <div style={{ color: T.faint, fontSize: 13 }}>
           The chamber where bills are proposed, debated, and voted into law.
@@ -74,7 +76,7 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
         <StatBox label="SESSION" value={monthYear} />
         <StatBox label="SEATS" value={totalSeats} />
         <StatBox label="OVERALL MAJORITY" value={majority} />
-        <StatBox label="GOVERNMENT BLOC" value="--" />
+        <StatBox label="GOVERNMENT BLOC" value={councilData?.premier?.partyName || '--'} />
       </div>
 
       {err && (
