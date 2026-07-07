@@ -44,14 +44,6 @@ const getSubsectorName = (id?: string) => {
   return id;
 };
 
-const getLegalStructureName = (id?: string) => {
-  if (!id) return '';
-  if (id === 'private-company') return 'Private Company';
-  if (id === 'public-corporation') return 'Public Corporation';
-  if (id === 'sole-trader') return 'Sole Trader';
-  return id;
-};
-
 // ─── Theme ───────────────────────────────────────────────────────────────────
 const T = {
   bg: '#090A0F',
