@@ -44,6 +44,14 @@ const getSubsectorName = (id?: string) => {
   return id;
 };
 
+const getLegalStructureName = (id?: string) => {
+  if (!id) return '';
+  if (id === 'private-company') return 'Private Company';
+  if (id === 'public-corporation') return 'Public Corporation';
+  if (id === 'sole-trader') return 'Sole Trader';
+  return id;
+};
+
 // ─── Theme ───────────────────────────────────────────────────────────────────
 const T = {
   bg: '#090A0F',
@@ -2845,12 +2853,12 @@ function RegistryTab({ company, onRefresh }: { company: Company | null; onRefres
                     {c.name} {c.id === company?.id && <span style={{ fontSize: '9px', color: T.gold, fontFamily: 'monospace' }}>(Your Company)</span>}
                   </div>
                   <div style={{ fontSize: '11px', color: T.muted, marginTop: '3px' }}>
-                    {c.legal_structure_id} · {getSectorName(c.industry_id)} · {getStateName(c.headquarters_state_id)}
+                    {getLegalStructureName(c.legal_structure_id)} · {getSectorName(c.industry_id)} · {getStateName(c.headquarters_state_id)}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.mint, textTransform: 'uppercase' }}>{c.status}</div>
-                  {c.created_at_world_year && (
+                  {c.created_at_world_year !== undefined && c.created_at_world_year !== null && (
                     <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>{formatWorldDate(c.created_at_world_year, c.created_at_world_month)}</div>
                   )}
                 </div>
