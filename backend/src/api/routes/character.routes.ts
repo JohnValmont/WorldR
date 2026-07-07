@@ -8,5 +8,6 @@ router.use(authMiddleware);
 
 router.get('/me', CharacterController.getMe);
 router.post('/', CharacterController.createCharacter);
+router.delete('/me', CharacterController.deleteMe);
 
 export default router;

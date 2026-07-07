@@ -38,7 +38,8 @@ export default function LivingWorldNav() {
         return (
           <Link
             key={tab.name}
-            href={tab.path}
+            href={tab.name === 'Politics' ? '#' : tab.path}
+            onClick={tab.name === 'Politics' ? (e) => { e.preventDefault(); alert('Political desk will be available on 09 July 2026.'); } : undefined}
             className="flex items-center justify-center whitespace-nowrap transition-all duration-150"
             style={{
               height: '42px',

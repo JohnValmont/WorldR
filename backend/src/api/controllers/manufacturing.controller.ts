@@ -569,7 +569,13 @@ export class ManufacturingController {
 
       // Validate and normalize engineering priorities
       const engineeringPriorities: Record<string, number> = rawPriorities ?? DEFAULT_ENGINEERING_PRIORITIES;
-      const prioritySum = Object.values(engineeringPriorities).reduce((s, v) => s + Number(v), 0);
+      let prioritySum = 0;
+      for (const val of Object.values(engineeringPriorities)) {
+        if (typeof val !== 'number' || val < 0) {
+          return next(new AppError('Engineering priorities must be positive numbers', 400, 'INVALID_PRIORITIES'));
+        }
+        prioritySum += val;
+      }
       if (Math.abs(prioritySum - 100) > 2) {
         return next(new AppError(`Engineering priorities must sum to 100 (got ${prioritySum})`, 400, 'INVALID_PRIORITIES'));
       }
@@ -610,6 +616,12 @@ export class ManufacturingController {
         if (Object.keys(budgetAlloc).length === 0) {
           for (const bucket of BUDGET_BUCKETS) {
             budgetAlloc[bucket.id] = Math.round(BASE_DEV_COST * bucket.defaultPct);
+          }
+        } else {
+          for (const val of Object.values(budgetAlloc)) {
+            if (typeof val !== 'number' || val < 0) {
+              throw new AppError('Budget allocations must be positive numbers', 400, 'INVALID_BUDGET');
+            }
           }
         }
 
@@ -793,7 +805,7 @@ export class ManufacturingController {
           .update({
             development_status: 'launched',
             launched_year: clock2?.current_year || 1,
-            launched_arc: clock2?.current_month || 1,
+            launched_month: clock2?.current_month || 1,
             updated_at: trx.fn.now(),
           })
           .returning('*');
@@ -1802,7 +1814,10 @@ export class ManufacturingController {
       ]);
     }
 
-    await trx('company_finances').where({ company_id: companyId }).update({ available_cash: pState.runningCash, last_arc_profit: finalNetProfit, updated_at: trx.fn.now() });
+    await trx('company_finances')
+      .where({ company_id: companyId })
+      .update({ available_cash: pState.runningCash, last_arc_profit: finalNetProfit, updated_at: trx.fn.now() })
+      .increment('company_value', finalNetProfit);
 
     if (totalUnitsSold > 0) {
       await trx('companies').where({ id: companyId }).update({ reputation: trx.raw('LEAST(100, reputation + 1)'), updated_at: trx.fn.now() });

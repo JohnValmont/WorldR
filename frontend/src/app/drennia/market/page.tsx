@@ -21,10 +21,10 @@ const T = {
 };
 
 const SECTOR_DEMAND = [
-  { sector: 'Shipping & Logistics', demand: 'High',    trend: '▲', avgContract: '₯140–₯220', trendColor: T.mint  },
-  { sector: 'Manufacturing',        demand: 'Rising',  trend: '▲', avgContract: '₯180–₯260', trendColor: T.gold  },
-  { sector: 'Retail & Consumer',    demand: 'Medium',  trend: '→', avgContract: '₯90–₯140',  trendColor: T.muted },
-  { sector: 'Agriculture & Food',   demand: 'Stable',  trend: '→', avgContract: '₯100–₯160', trendColor: T.steel },
+  { sector: 'Shipping & Logistics', demand: 'High',    trend: '▲', avgContract: '$140–$220', trendColor: T.mint  },
+  { sector: 'Manufacturing',        demand: 'Rising',  trend: '▲', avgContract: '$180–$260', trendColor: T.gold  },
+  { sector: 'Retail & Consumer',    demand: 'Medium',  trend: '→', avgContract: '$90–$140',  trendColor: T.muted },
+  { sector: 'Agriculture & Food',   demand: 'Stable',  trend: '→', avgContract: '$100–$160', trendColor: T.steel },
   { sector: 'Finance & Services',   demand: 'High',    trend: '▲', avgContract: 'Restricted', trendColor: T.faint },
   { sector: 'Construction',         demand: 'Medium',  trend: '→', avgContract: 'Restricted', trendColor: T.faint },
   { sector: 'Energy',               demand: 'Rising',  trend: '▲', avgContract: 'Restricted', trendColor: T.faint },
@@ -43,8 +43,6 @@ export default function MarketPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-    if (!granted) { router.replace('/pre-alpha-access'); return; }
     setAuthorized(true);
   }, [router]);
 
@@ -177,3 +175,4 @@ export default function MarketPage() {
     </div>
   );
 }
+

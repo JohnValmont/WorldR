@@ -132,6 +132,10 @@ export const companyApi = {
   getById: (id: string) => api.get(`/companies/${id}`),
   create: (data: { name: string; country_id: string; headquarters_state_id: string; industry_id: string; subsector_id?: string | null; legal_structure_id: string; currency_id: string; starting_capital: number }) =>
     api.post('/companies', data),
+  injectCapital: (id: string, amount: number) =>
+    api.post(`/companies/${id}/inject-capital`, { amount }),
+  issueShares: (id: string, sharesToIssue: number, pricePerShare: number) =>
+    api.post(`/companies/${id}/issue-shares`, { sharesToIssue, pricePerShare }),
   withdrawCapital: (id: string, amount: number) =>
     api.post(`/companies/${id}/withdraw-capital`, { amount }),
   updateFinances: (id: string, data: any) =>
@@ -156,6 +160,25 @@ export const exchangeApi = {
   getMyOrders: () => api.get('/exchange/my-orders').then(res => res.data),
   getMyPortfolio: () => api.get('/exchange/portfolio').then(res => res.data),
   getPriceHistory: (companyId: string) => api.get(`/exchange/${companyId}/history`).then(res => res.data),
+
+  // ── DRX index + quote detail (OHLC / earnings) ──
+  getDrxIndex: () => api.get('/exchange/drx-index').then(res => res.data),
+  getCompanyDetail: (companyId: string) => api.get(`/exchange/company/${companyId}`).then(res => res.data),
+  getOhlc: (companyId: string, months = 24) => api.get(`/exchange/company/${companyId}/ohlc?months=${months}`).then(res => res.data),
+  getEarnings: (companyId: string, months = 12) => api.get(`/exchange/company/${companyId}/earnings?months=${months}`).then(res => res.data),
+
+  // ── IPO pipeline + book-building ──
+  getPipeline: () => api.get('/exchange/ipo/pipeline').then(res => res.data),
+  getEligibility: (companyId: string) => api.get(`/exchange/ipo/${companyId}/eligibility`).then(res => res.data),
+  getCompanyIpo: (companyId: string) => api.get(`/exchange/ipo/${companyId}`).then(res => res.data),
+  fileIpo: (companyId: string, data: { priceMin: number; priceMax: number; floatPercent: number; useOfProceeds: string; lockupMonths: number }) =>
+    api.post(`/exchange/ipo/${companyId}/file`, data).then(res => res.data),
+  withdrawIpo: (companyId: string) => api.post(`/exchange/ipo/${companyId}/withdraw`).then(res => res.data),
+  submitIoi: (ipoId: string, data: { pricePerShare: number; quantity: number }) =>
+    api.post(`/exchange/ipo/${ipoId}/ioi`, data).then(res => res.data),
+  cancelIoi: (ioiId: string) => api.delete(`/exchange/ipo/ioi/${ioiId}`).then(res => res.data),
+
+  // ── Quick IPO (simple sell-block listing, alternative to formal IPO filing) ──
   ipoLaunch: (companyId: string, data: { price_per_share: number; quantity: number }) =>
     api.post(`/exchange/${companyId}/ipo`, data).then(res => res.data)
   };
@@ -187,33 +210,45 @@ export const registryApi = {
 };
 
 // Politics
-export const politicsApi = { 
-  getState: () => api.get('/politics/state').then(res => res.data), 
-  getCycle: () => api.get('/politics/cycle').then(res => res.data), 
-  getParties: () => api.get('/politics/parties').then(res => res.data), 
-  foundParty: (data: any) => api.post('/politics/parties', data).then(res => res.data), 
-  joinParty: (id: string) => api.post(`/politics/parties/${id}/join`).then(res => res.data), 
-  leaveParty: (id: string) => api.post(`/politics/parties/${id}/leave`).then(res => res.data), 
-  updatePlatform: (id: string, platform: any) => api.put(`/politics/parties/${id}/platform`, { platform }).then(res => res.data), 
-  declareCandidacy: () => api.post('/politics/candidacy').then(res => res.data),
-  queueCampaignAction: (data: any) => api.post('/politics/campaign/actions', data).then(res => res.data),
-  getPolls: () => api.get('/politics/polls').then(res => res.data),
-  getCouncil: () => api.get('/politics/council').then(res => res.data),
-  getLedger: (limit: number = 10) => api.get(`/politics/ledger?limit=${limit}`).then(res => res.data),
-  manageCoalition: (action: string, targetPartyId: string) => api.post('/politics/formation/coalition', { action, targetPartyId }).then(res => res.data),
-  
+export const politicsApi = {
+  getState: () => api.get('/politics/state').then(res => res.data),
+  getCycle: (stateId?: string) => api.get(`/politics/cycle${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
+  getParties: (stateId?: string) => api.get(`/politics/parties${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
+  foundParty: (data: any, stateId?: string) => api.post('/politics/parties', { ...data, stateId }).then(res => res.data),
+  joinParty: (id: string) => api.post(`/politics/parties/${id}/join`).then(res => res.data),
+  leaveParty: (id: string) => api.post(`/politics/parties/${id}/leave`).then(res => res.data),
+  updatePlatform: (id: string, platform: any) => api.put(`/politics/parties/${id}/platform`, { platform }).then(res => res.data),
+  declareCandidacy: (stateId?: string) => api.post('/politics/candidacy', { stateId }).then(res => res.data),
+  setDoctrine: (id: string, doctrine_id: string, tenet_id: string | null, platform: any) => api.patch(`/politics/parties/${id}/doctrine`, { doctrine_id, tenet_id, platform }).then(res => res.data),
+  setTenet: (id: string, tenet_id: string | null) => api.patch(`/politics/parties/${id}/tenet`, { tenet_id }).then(res => res.data),
+  queueCampaignAction: (data: any, stateId?: string) => api.post('/politics/campaign/actions', { ...data, stateId }).then(res => res.data),
+  getPolls: (stateId?: string) => api.get(`/politics/polls${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
+  getCouncil: (stateId?: string) => api.get(`/politics/council${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
+  getLedger: (limit: number = 10, stateId?: string) => api.get(`/politics/ledger?limit=${limit}${stateId ? `&stateId=${stateId}` : ''}`).then(res => res.data),
+  manageCoalition: (action: string, targetPartyId: string, stateId?: string) => api.post('/politics/formation/coalition', { action, targetPartyId, stateId }).then(res => res.data),
+
   // Phase 5A: Bills & Lobby
-  getBills: () => api.get('/politics/bills').then(res => res.data),
-  proposeBill: (type: string, params: any) => api.post('/politics/bills', { type, params }).then(res => res.data),
+  getBills: (stateId?: string) => api.get(`/politics/bills${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
+  proposeBill: (type: string, params: any, stateId?: string) => api.post('/politics/bills', { type, params, stateId }).then(res => res.data),
   voteBill: (id: string, vote: string) => api.post(`/politics/bills/${id}/vote`, { vote }).then(res => res.data),
   donateToParty: (partyId: string, amount: number) => api.post('/politics/lobby/donate', { partyId, amount }).then(res => res.data),
   petitionParty: (partyId: string, issue: string, amount?: number) => api.post('/politics/lobby/petition', { partyId, issue, amount }).then(res => res.data),
-  
+
   // Phase 5B: Tenders
-  getTenders: () => api.get('/politics/tenders').then(res => res.data),
-  postTender: (data: any) => api.post('/politics/tenders', data).then(res => res.data),
-  bidTender: (id: string, data: any) => api.post(`/politics/tenders/${id}/bid`, data).then(res => res.data)
+  getTenders: (stateId?: string) => api.get(`/politics/tenders${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
+  postTender: (data: any, stateId?: string) => api.post('/politics/tenders', { ...data, stateId }).then(res => res.data),
+  bidTender: (id: string, data: any) => api.post(`/politics/tenders/${id}/bid`, data).then(res => res.data),
+
+  // AP System
+  getMyAp: (): Promise<{ current_ap: number; ap_cap: number }> =>
+    api.get('/politics/ap').then(res => res.data),
+  doGeneralAction: (type: string, params?: any, stateId?: string) =>
+    api.post('/politics/general-action', { type, params, stateId }).then(res => res.data),
+  recruitNpc: (stateId?: string) =>
+    api.post('/politics/recruit', { stateId }).then(res => res.data)
 };
+
+
 
 // Logistics
 export const logisticsApi = {

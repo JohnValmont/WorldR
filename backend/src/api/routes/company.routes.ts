@@ -10,6 +10,8 @@ router.get('/my', CompanyController.getMyCompanies);
 router.get('/structures', CompanyController.getStructures);
 router.post('/', CompanyController.createCompany);
 router.get('/:id', CompanyController.getCompany);
+router.post('/:id/inject-capital', CompanyController.injectCapital);
+router.post('/:id/issue-shares', CompanyController.issueShares);
 router.post('/:id/withdraw-capital', CompanyController.withdrawCapital);
 router.patch('/:id/finances', CompanyController.updateFinances);
 router.post('/:id/convert-structure', CompanyController.convertStructure);

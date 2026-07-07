@@ -199,6 +199,136 @@ export const CAMPAIGN_ACTIONS: CampaignAction[] = [
   { type: "fundraiser", cost_cash: 0, effort: 0, targeting: "none" }
 ];
 
+// ── AP (Action Point) System ───────────────────────────────────────────────
+// All values are TUNABLE DEFAULTS — change here, never inline.
+
+export const AP_BASE_CAP                 = 4;
+export const AP_BONUS_LEGISLATIVE_SEAT   = 2;
+export const AP_BONUS_SECRETARY          = 2;
+export const AP_BONUS_GOVERNOR           = 3;
+export const AP_BONUS_COMMITTEE_CHAIR    = 1;
+export const AP_REGEN_PER_ARC            = 1;
+
+// AP costs per action
+export const AP_COST_STATEMENT           = 1;
+export const AP_COST_FUNDRAISE           = 1;
+export const AP_COST_RECRUIT             = 2;
+export const AP_COST_ENDORSEMENT_AP      = 2;
+export const AP_COST_SCOUT               = 2;
+export const AP_COST_NEGOTIATE           = 2;
+export const AP_COST_EXECUTIVE_ORDER     = 3;
+export const AP_COST_APPOINT_SECRETARY   = 2;
+export const AP_COST_ADDRESS_STATE       = 1;
+export const AP_COST_EMERGENCY_RESPONSE  = 2;
+export const AP_COST_RESHUFFLE_CABINET   = 2;
+export const AP_COST_BILL_MINOR          = 2;
+export const AP_COST_BILL_MODERATE       = 3;
+export const AP_COST_BILL_MAJOR          = 4;
+export const AP_COST_BILL_CONSTITUTIONAL = 6;
+export const AP_COST_AMEND_MINOR         = 1;
+export const AP_COST_AMEND_CLAUSE        = 2;
+export const AP_COST_JOIN_COMMITTEE      = 1;
+export const AP_COST_WHIP                = 2;
+// Votes always cost 0 AP — this is intentional and non-configurable.
+export const AP_COST_VOTE                = 0;
+
+// ── Roster Cap Bands ─────────────────────────────────────────────────────
+// Ordered high-to-low; first matching band wins.
+// TUNABLE — adjust thresholds/caps here without touching game logic.
+export const ROSTER_CAP_BANDS: { minPop: number; cap: number }[] = [
+  { minPop: 75, cap: 10 },
+  { minPop: 50, cap:  7 },
+  { minPop: 25, cap:  4 },
+  { minPop:  0, cap:  2 },
+];
+
+// Cost drawn from party treasury when recruiting one NPC. TUNABLE.
+export const RECRUIT_COST_CASH = 5_000;
+
+// NPC platform drift variance per axis (0-100 scale). TUNABLE.
+export const RECRUIT_PLATFORM_DRIFT = 15;
+
+// General action types (used as discriminator in doGeneralAction)
+export const GENERAL_ACTION_TYPES = [
+  'statement', 'fundraise', 'recruit',
+  'endorsement', 'scout', 'negotiate',
+  // Doctrine signature actions — gated by party doctrine_id
+  'union_address', 'investor_roadshow', 'town_hall',
+  'shop_floor_tour', 'listening_tour', 'coalition_outreach',
+] as const;
+export type GeneralActionType = typeof GENERAL_ACTION_TYPES[number];
+
+// ── Doctrine System ────────────────────────────────────────────────────────
+// Six party identities. Each auto-sets all 5 platform axes at founding.
+
+export const DOCTRINE_IDS = [
+  'forge_accord', 'the_ledger', 'the_homestead',
+  'the_commons', 'the_vanguard', 'the_compact',
+] as const;
+export type DoctrineId = typeof DOCTRINE_IDS[number];
+
+/** Numeric platform values each Doctrine maps to (mirrors PLATFORM_STANCES values). */
+export const DOCTRINE_PLATFORMS: Record<DoctrineId, Record<Axis, number>> = {
+  forge_accord:  { taxation: 20, labour: 80, investment: 80, trade: 20, stability: 50 },
+  the_ledger:    { taxation: 80, labour: 20, investment: 20, trade: 80, stability: 80 },
+  the_homestead: { taxation: 50, labour: 50, investment: 20, trade: 20, stability: 80 },
+  the_commons:   { taxation: 20, labour: 80, investment: 80, trade: 50, stability: 20 },
+  the_vanguard:  { taxation: 50, labour: 50, investment: 50, trade: 80, stability: 20 },
+  the_compact:   { taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 },
+};
+
+/** Which general action type is unlocked by each Doctrine. */
+export const DOCTRINE_SIGNATURE_ACTION: Record<DoctrineId, string> = {
+  forge_accord:  'union_address',
+  the_ledger:    'investor_roadshow',
+  the_homestead: 'town_hall',
+  the_commons:   'shop_floor_tour',
+  the_vanguard:  'listening_tour',
+  the_compact:   'coalition_outreach',
+};
+
+// AP costs for signature actions (tunable here, never inline)
+export const AP_COST_UNION_ADDRESS       = 3;
+export const AP_COST_INVESTOR_ROADSHOW   = 2;
+export const AP_COST_TOWN_HALL           = 2;
+export const AP_COST_SHOP_FLOOR_TOUR     = 3;
+export const AP_COST_LISTENING_TOUR      = 2;
+export const AP_COST_COALITION_OUTREACH  = 1;
+
+/** Map action type → AP cost for the backend to look up. */
+export const SIGNATURE_ACTION_AP_COST: Record<string, number> = {
+  union_address:      AP_COST_UNION_ADDRESS,
+  investor_roadshow:  AP_COST_INVESTOR_ROADSHOW,
+  town_hall:          AP_COST_TOWN_HALL,
+  shop_floor_tour:    AP_COST_SHOP_FLOOR_TOUR,
+  listening_tour:     AP_COST_LISTENING_TOUR,
+  coalition_outreach: AP_COST_COALITION_OUTREACH,
+};
+
+/** Valid tenet IDs (for validation). */
+export const TENET_IDS = [
+  'forge_radicals', 'forge_modernizers',
+  'ledger_hardliners', 'ledger_expansionists',
+  'homestead_roots', 'homestead_pragmatists',
+  'commons_vanguard', 'commons_outreach',
+  'vanguard_professionals', 'vanguard_traders',
+  'compact_builders', 'compact_populists',
+] as const;
+export type TenetId = typeof TENET_IDS[number];
+
+/** Which tenets belong to which doctrine. */
+export const DOCTRINE_TENETS: Record<DoctrineId, [string, string]> = {
+  forge_accord:  ['forge_radicals',        'forge_modernizers'],
+  the_ledger:    ['ledger_hardliners',     'ledger_expansionists'],
+  the_homestead: ['homestead_roots',       'homestead_pragmatists'],
+  the_commons:   ['commons_vanguard',      'commons_outreach'],
+  the_vanguard:  ['vanguard_professionals','vanguard_traders'],
+  the_compact:   ['compact_builders',      'compact_populists'],
+};
+
+/** Fit bonus applied per-segment when a tenet is active (additive, fraction). */
+export const TENET_FIT_BONUS = 0.08; // +8% fit in the targeted segment
+
 // Self-check
 const EPSILON = 1e-9;
 const totalSize = SEGMENTS.reduce((sum, s) => sum + s.size, 0);

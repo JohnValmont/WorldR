@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
-import { exchangeApi, companyApi, characterApi, investmentsApi } from '../../../lib/api';
-import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line } from 'recharts';
+import { exchangeApi } from '../../../lib/api';
+import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Line, LineChart } from 'recharts';
 
 const T = {
   bg: '#090A0F',
@@ -34,19 +34,69 @@ function fmtInt(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
   return Number(n).toLocaleString();
 }
+function fmtBig(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(Number(n))) return '—';
+  const v = Number(n);
+  if (Math.abs(v) >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
+  if (Math.abs(v) >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
+  if (Math.abs(v) >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
+  return v.toFixed(0);
+}
 
-// ── Listings table (left column) ──────────────────────────────────────────
+// ── DRX market index header ─────────────────────────────────────────────────
+function DrxIndexBar() {
+  const { data } = useSWR('drx-index', () => exchangeApi.getDrxIndex(), { refreshInterval: 20000 });
+  const value = data?.value != null ? Number(data.value) : null;
+  const change = data?.change_pct != null ? Number(data.change_pct) : null;
+  const history: any[] = data?.history ?? [];
+  const up = (change ?? 0) >= 0;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
+      <div>
+        <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.18em' }}>DRX Composite</div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+          <span style={{ ...mono, fontSize: '20px', fontWeight: 700, color: T.gold }}>{value != null ? fmt(value) : '—'}</span>
+          {change != null && (
+            <span style={{ ...mono, fontSize: '12px', color: up ? T.mint : T.red }}>{up ? '▲' : '▼'} {fmt(Math.abs(change), 2)}%</span>
+          )}
+        </div>
+      </div>
+      {history.length > 1 && (
+        <div style={{ width: 160, height: 40 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={history} margin={{ top: 4, right: 2, bottom: 4, left: 2 }}>
+              <Line type="monotone" dataKey="value" stroke={up ? T.mint : T.red} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: '18px' }}>
+        <div>
+          <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Listed</div>
+          <div style={{ ...mono, fontSize: '13px', fontWeight: 700, color: T.ivory }}>{fmtInt(data?.total_listed ?? 0)}</div>
+        </div>
+        <div>
+          <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Mo. Volume</div>
+          <div style={{ ...mono, fontSize: '13px', fontWeight: 700, color: T.ivory }}>{fmtBig(data?.total_volume ?? 0)}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Listings table ──────────────────────────────────────────────────────────
 function Listings({ listings, selectedId, onSelect }: { listings: any[]; selectedId: string | null; onSelect: (id: string) => void }) {
   return (
     <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <div style={{ ...label, marginBottom: '12px' }}>Listed Companies</div>
       {listings.length === 0 && (
         <div style={{ fontSize: '11px', color: T.faint, lineHeight: 1.7 }}>
-          No public corporations listed yet. Convert a company to a Public Corporation (§250,000 min value) to IPO on the Bourse.
+          No public corporations listed yet. Convert a company to a Public Corporation (§250,000 min value) and complete an IPO to trade here.
         </div>
       )}
       {listings.map((l) => {
-        const change = l.last_price != null && l.prev_price != null ? ((l.last_price - l.prev_price) / l.prev_price) * 100 : null;
+        const change = l.last_price != null && l.prev_price != null && l.prev_price > 0 ? ((l.last_price - l.prev_price) / l.prev_price) * 100 : null;
         const active = l.id === selectedId;
         return (
           <button
@@ -78,48 +128,81 @@ function Listings({ listings, selectedId, onSelect }: { listings: any[]; selecte
   );
 }
 
-// ── Price history chart ────────────────────────────────────────────────────
-function PriceHistory({ companyId }: { companyId: string }) {
-  const { data: history } = useSWR(['price-history', companyId], () => exchangeApi.getPriceHistory(companyId), { refreshInterval: 30000 });
-  const rows: any[] = (history ?? []).map((r: any) => ({
+// ── Candlestick shape ───────────────────────────────────────────────────────
+function Candle(props: any) {
+  const { x, width, y, height, payload } = props;
+  const o = Number(payload.open_price), c = Number(payload.close_price), hi = Number(payload.high_price), lo = Number(payload.low_price);
+  const span = hi - lo;
+  // y = pixel of `hi`, height = pixel span to `lo` (dataKey is the [low, high] range)
+  const yFor = (v: number) => (span > 0 ? y + ((hi - v) / span) * height : y + height / 2);
+  const up = c >= o;
+  const color = up ? T.mint : T.red;
+  const cx = x + width / 2;
+  const bodyTop = yFor(Math.max(o, c));
+  const bodyBottom = yFor(Math.min(o, c));
+  const bodyW = Math.max(2, width * 0.6);
+  return (
+    <g>
+      <line x1={cx} x2={cx} y1={yFor(hi)} y2={yFor(lo)} stroke={color} strokeWidth={1} />
+      <rect x={cx - bodyW / 2} width={bodyW} y={bodyTop} height={Math.max(1, bodyBottom - bodyTop)} fill={color} />
+    </g>
+  );
+}
+
+// ── Candlestick + volume chart ──────────────────────────────────────────────
+function CandleChart({ companyId }: { companyId: string }) {
+  const { data } = useSWR(['ohlc', companyId], () => exchangeApi.getOhlc(companyId, 24), { refreshInterval: 30000 });
+  const rows: any[] = (data ?? []).map((r: any) => ({
     label: `Y${r.game_year} M${r.game_month}`,
-    avg: Number(r.avg),
-    low: Number(r.low),
-    high: Number(r.high),
-    volume: Number(r.volume),
+    open_price: Number(r.open_price),
+    high_price: Number(r.high_price),
+    low_price: Number(r.low_price),
+    close_price: Number(r.close_price),
+    volume: Number(r.volume_shares),
+    range: [Number(r.low_price), Number(r.high_price)],
   }));
+  const lows = rows.map((r) => r.low_price);
+  const highs = rows.map((r) => r.high_price);
+  const min = lows.length ? Math.min(...lows) : 0;
+  const max = highs.length ? Math.max(...highs) : 1;
+  const pad = (max - min) * 0.1 || max * 0.1 || 1;
 
   return (
     <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px' }}>
-      <div style={{ ...label, marginBottom: '12px' }}>Price History</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
+        <div style={label}>Price · Monthly Candles</div>
+        <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>O·H·L·C</div>
+      </div>
       {rows.length === 0 ? (
-        <div style={{ fontSize: '11px', color: T.faint }}>No trade history yet. Prices will chart here once shares change hands.</div>
+        <div style={{ fontSize: '11px', color: T.faint }}>No price bars yet. A candle is drawn every game month once the company is listed.</div>
       ) : (
-        <div style={{ width: '100%', height: 220 }}>
+        <div style={{ width: '100%', height: 260 }}>
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={rows} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
               <CartesianGrid stroke={T.border} strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="label" tick={{ fill: T.faint, fontSize: 9, fontFamily: 'monospace' }} axisLine={{ stroke: T.border }} tickLine={false} />
               <YAxis
+                yAxisId="price"
                 tick={{ fill: T.faint, fontSize: 9, fontFamily: 'monospace' }}
                 axisLine={{ stroke: T.border }}
                 tickLine={false}
                 width={52}
-                domain={['auto', 'auto']}
-                tickFormatter={(v: number) => `§${fmt(v, 0)}`}
+                domain={[Math.max(0, min - pad), max + pad]}
+                tickFormatter={(v: number) => `§${fmt(v, 2)}`}
               />
+              <YAxis yAxisId="vol" orientation="right" hide domain={[0, (dataMax: number) => dataMax * 4]} />
               <Tooltip
+                cursor={{ fill: 'rgba(201,162,74,0.06)' }}
                 contentStyle={{ background: T.panelSoft, border: `1px solid ${T.borderGold}`, fontSize: '11px', fontFamily: 'monospace' }}
                 labelStyle={{ color: T.ivory }}
-                formatter={(value: any, name: any) => {
-                  if (name === 'volume') return [fmtInt(Number(value)), 'Volume (sh)'];
-                  const labels: Record<string, string> = { avg: 'Avg price', low: 'Low', high: 'High' };
-                  return [`§${fmt(Number(value))}`, labels[name as string] ?? name];
+                formatter={(value: any, name: any, item: any) => {
+                  if (name === 'volume') return [fmtInt(Number(value)), 'Volume'];
+                  const p = item?.payload;
+                  return [`O §${fmt(p.open_price)}  H §${fmt(p.high_price)}  L §${fmt(p.low_price)}  C §${fmt(p.close_price)}`, 'OHLC'];
                 }}
               />
-              <Area type="monotone" dataKey="high" stroke="transparent" fill="rgba(201,162,74,0.08)" />
-              <Area type="monotone" dataKey="low" stroke="transparent" fill={T.panel} />
-              <Line type="monotone" dataKey="avg" stroke={T.gold} strokeWidth={2} dot={{ r: 2, fill: T.gold }} />
+              <Bar yAxisId="vol" dataKey="volume" fill="rgba(75,99,130,0.35)" isAnimationActive={false} />
+              <Bar yAxisId="price" dataKey="range" shape={<Candle />} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -128,7 +211,39 @@ function PriceHistory({ companyId }: { companyId: string }) {
   );
 }
 
-// ── Order book (center) ───────────────────────────────────────────────────
+// ── Earnings panel ──────────────────────────────────────────────────────────
+function EarningsPanel({ companyId }: { companyId: string }) {
+  const { data } = useSWR(['earnings', companyId], () => exchangeApi.getEarnings(companyId, 12), { refreshInterval: 30000 });
+  const rows: any[] = (data ?? []).slice().reverse(); // newest first
+  return (
+    <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px' }}>
+      <div style={{ ...label, marginBottom: '12px' }}>Earnings & Estimates</div>
+      {rows.length === 0 && <div style={{ fontSize: '11px', color: T.faint }}>No earnings reported yet.</div>}
+      {rows.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxHeight: '220px', overflowY: 'auto' }}>
+          <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '6px', padding: '0 0 4px' }}>
+            <span>Month</span><span style={{ textAlign: 'right' }}>EPS</span><span style={{ textAlign: 'right' }}>Est.</span><span style={{ textAlign: 'right' }}>Surprise</span>
+          </div>
+          {rows.map((r: any, i: number) => {
+            const surprise = r.profit_surprise_pct != null ? Number(r.profit_surprise_pct) : null;
+            return (
+              <div key={i} style={{ ...mono, fontSize: '11px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '6px', padding: '4px 0', borderBottom: `1px solid ${T.border}` }}>
+                <span style={{ color: T.faint }}>Y{r.game_year} M{r.game_month}</span>
+                <span style={{ textAlign: 'right', color: T.ivory }}>§{fmt(Number(r.eps), 3)}</span>
+                <span style={{ textAlign: 'right', color: T.muted }}>{r.analyst_estimate != null ? `§${fmt(Number(r.analyst_estimate) / 1000000, 3)}` : '—'}</span>
+                <span style={{ textAlign: 'right', color: surprise == null ? T.faint : surprise >= 0 ? T.mint : T.red }}>
+                  {surprise != null ? `${surprise >= 0 ? '+' : ''}${fmt(surprise, 1)}%` : '—'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Order book ──────────────────────────────────────────────────────────────
 function OrderBook({ companyId }: { companyId: string }) {
   const { data: book } = useSWR(['book', companyId], () => exchangeApi.getOrderBook(companyId), { refreshInterval: 5000 });
   const bids: any[] = book?.bids ?? [];
@@ -149,7 +264,10 @@ function OrderBook({ companyId }: { companyId: string }) {
 
   return (
     <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px' }}>
-      <div style={{ ...label, marginBottom: '12px' }}>Order Book</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
+        <div style={label}>Order Book</div>
+        <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>DRX specialist quotes both sides</div>
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         <div>
           <div style={{ ...mono, fontSize: '9px', color: T.mint, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px', padding: '0 8px', display: 'flex', justifyContent: 'space-between' }}>
@@ -170,8 +288,8 @@ function OrderBook({ companyId }: { companyId: string }) {
   );
 }
 
-// ── IPO Launch panel (shown when owner has no trades yet) ─────────────────
-function IpoPanel({ companyId, totalShares, onLaunched }: { companyId: string; totalShares: number; onLaunched: () => void }) {
+// ── Quick IPO Launch panel (simple sell-block alternative to formal IPO filing) ───
+function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: string; totalShares: number; onLaunched: () => void }) {
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('');
   const [busy, setBusy] = useState(false);
@@ -210,14 +328,14 @@ function IpoPanel({ companyId, totalShares, onLaunched }: { companyId: string; t
 
   return (
     <div style={{ background: T.paper, border: `1px solid ${T.gold}`, padding: '16px' }}>
-      <div style={{ ...label, marginBottom: '4px', color: T.gold }}>IPO — List on Exchange</div>
+      <div style={{ ...label, marginBottom: '4px', color: T.gold }}>Quick IPO — Direct Listing</div>
       <p style={{ fontSize: '11px', color: T.muted, margin: '0 0 12px', lineHeight: 1.7 }}>
-        Your company has never traded. Set your offering price and post the initial sell block.
-        Buyers can fill it immediately or it rests on the order book.
+        Post your first sell order at a chosen price. Buyers can fill it immediately.
+        For formal IPO with price discovery, use the Pipeline tab.
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div>
-          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>IPO Price (§ per share)</div>
+          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price (§ per share)</div>
           <input
             aria-label="IPO price per share"
             value={price}
@@ -228,9 +346,9 @@ function IpoPanel({ companyId, totalShares, onLaunched }: { companyId: string; t
           />
         </div>
         <div>
-          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares to Offer (max {totalShares.toLocaleString()})</div>
+          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares (max {totalShares.toLocaleString()})</div>
           <input
-            aria-label="Shares to offer in IPO"
+            aria-label="Shares to offer"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
             placeholder="e.g. 100000"
@@ -240,9 +358,9 @@ function IpoPanel({ companyId, totalShares, onLaunched }: { companyId: string; t
         </div>
         {price && Number(price) > 0 && quantity && Number(quantity) > 0 && (
           <div style={{ ...mono, fontSize: '10px', color: T.muted, lineHeight: 1.6 }}>
-            Offer value: <span style={{ color: T.gold }}>§{(Number(price) * Number(quantity)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            Offer: <span style={{ color: T.gold }}>§{(Number(price) * Number(quantity)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             {impliedCap != null && (
-              <span style={{ color: T.faint }}> · Implied mkt cap §{impliedCap.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              <span style={{ color: T.faint }}> · Cap §{impliedCap.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
             )}
           </div>
         )}
@@ -255,7 +373,7 @@ function IpoPanel({ companyId, totalShares, onLaunched }: { companyId: string; t
             background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1,
           }}
         >
-          {busy ? 'Listing…' : 'Launch IPO'}
+          {busy ? 'Listing…' : 'Post Order'}
         </button>
         {msg && <div style={{ fontSize: '11px', color: msg.ok ? T.mint : T.red, lineHeight: 1.6 }}>{msg.text}</div>}
       </div>
@@ -263,7 +381,7 @@ function IpoPanel({ companyId, totalShares, onLaunched }: { companyId: string; t
   );
 }
 
-// ── Trade ticket ───────────────────────────────────────────────────────────
+// ── Trade ticket ─────────────────────────────────────────────────────────────
 function OrderTicket({ companyId, onPlaced }: { companyId: string; onPlaced: () => void }) {
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
   const [price, setPrice] = useState('');
@@ -288,16 +406,18 @@ function OrderTicket({ companyId, onPlaced }: { companyId: string; onPlaced: () 
       setQuantity('');
       onPlaced();
     } catch (e: any) {
-      setMsg({ text: e?.response?.data?.message || 'Order failed.', ok: false });
+      setMsg({ text: e?.response?.data?.error || e?.response?.data?.message || 'Order failed.', ok: false });
     } finally {
       setBusy(false);
     }
   };
 
   const inputStyle: React.CSSProperties = {
-    ...mono, width: '100%', background: T.bg, border: `1px solid ${T.border}`, color: T.ivory,
+    ...mono, width: '100%', boxSizing: 'border-box', background: T.bg, border: `1px solid ${T.border}`, color: T.ivory,
     padding: '8px 10px', fontSize: '12px', outline: 'none',
   };
+
+  const band = lastClose != null ? { lo: lastClose * 0.8, hi: lastClose * 1.2 } : null;
 
   return (
     <div style={{ background: T.paper, border: `1px solid ${T.borderGold}`, padding: '16px' }}>
@@ -321,12 +441,17 @@ function OrderTicket({ companyId, onPlaced }: { companyId: string; onPlaced: () 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div>
           <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Limit price (§ per share)</div>
-          <input aria-label="Limit price per share" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" inputMode="decimal" style={inputStyle} />
+          <input aria-label="Limit price per share" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={lastClose != null ? fmt(lastClose) : '0.00'} inputMode="decimal" style={inputStyle} />
         </div>
         <div>
           <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Quantity (shares)</div>
           <input aria-label="Quantity of shares" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="0" inputMode="numeric" style={inputStyle} />
         </div>
+        {band && (
+          <div style={{ ...mono, fontSize: '9px', color: T.faint }}>
+            Circuit breaker: §{fmt(band.lo)} – §{fmt(band.hi)} (±20% of last close)
+          </div>
+        )}
         {price && quantity && Number(price) > 0 && Number(quantity) > 0 && (
           <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
             Notional: <span style={{ color: T.gold }}>§{fmt(Number(price) * Number(quantity))}</span>
@@ -350,7 +475,7 @@ function OrderTicket({ companyId, onPlaced }: { companyId: string; onPlaced: () 
   );
 }
 
-// ── Recent trades ──────────────────────────────────────────────────────────
+// ── Recent trades ─────────────────────────────────────────────────────────────
 function RecentTrades({ companyId }: { companyId: string }) {
   const { data: trades } = useSWR(['trades', companyId], () => exchangeApi.getTrades(companyId), { refreshInterval: 8000 });
   const rows: any[] = trades ?? [];
@@ -358,7 +483,7 @@ function RecentTrades({ companyId }: { companyId: string }) {
     <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px' }}>
       <div style={{ ...label, marginBottom: '12px' }}>Recent Trades</div>
       {rows.length === 0 && <div style={{ fontSize: '11px', color: T.faint }}>No trades yet.</div>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxHeight: '220px', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxHeight: '200px', overflowY: 'auto' }}>
         {rows.map((t: any, i: number) => (
           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '11px', ...mono, borderBottom: `1px solid ${T.border}` }}>
             <span style={{ color: T.ivory }}>§{fmt(Number(t.price))}</span>
@@ -433,27 +558,191 @@ function MyDesk({ refreshKey }: { refreshKey: number }) {
   );
 }
 
+// ── IPO pipeline card (with IOI form) ───────────────────────────────────────
+function IoiForm({ ipo, onDone }: { ipo: any; onDone: () => void }) {
+  const [price, setPrice] = useState('');
+  const [qty, setQty] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const submit = async () => {
+    const p = Number(price), q = Number(qty);
+    if (!Number.isFinite(p) || p <= 0 || !Number.isInteger(q) || q <= 0) {
+      setMsg({ text: 'Enter a valid price and whole-share quantity.', ok: false });
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      await exchangeApi.submitIoi(ipo.id, { pricePerShare: p, quantity: q });
+      setMsg({ text: 'Indication submitted. You will be allocated when the book closes.', ok: true });
+      setPrice('');
+      setQty('');
+      onDone();
+    } catch (e: any) {
+      setMsg({ text: e?.response?.data?.error || e?.response?.data?.message || 'Submission failed.', ok: false });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancelMine = async () => {
+    setBusy(true);
+    try {
+      await exchangeApi.cancelIoi(ipo.my_ioi.id);
+      onDone();
+    } catch { /* ignore */ } finally { setBusy(false); }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    ...mono, width: '100%', boxSizing: 'border-box', background: T.bg, border: `1px solid ${T.border}`, color: T.ivory,
+    padding: '7px 9px', fontSize: '12px', outline: 'none',
+  };
+
+  if (ipo.my_ioi) {
+    return (
+      <div style={{ marginTop: '10px', background: T.bg, border: `1px solid ${T.borderGold}`, padding: '10px 12px' }}>
+        <div style={{ ...mono, fontSize: '10px', color: T.mint }}>
+          Your indication: {fmtInt(Number(ipo.my_ioi.quantity_requested))} sh @ §{fmt(Number(ipo.my_ioi.price_per_share))}
+        </div>
+        <button
+          onClick={cancelMine}
+          disabled={busy}
+          style={{ marginTop: '8px', ...mono, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', background: 'transparent', border: `1px solid ${T.red}`, color: T.red, padding: '5px 12px', cursor: busy ? 'wait' : 'pointer' }}
+        >
+          Cancel Indication
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+        <div>
+          <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', marginBottom: '3px' }}>Bid price (§)</div>
+          <input aria-label="IOI price" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={fmt(Number(ipo.ipo_price_max))} inputMode="decimal" style={inputStyle} />
+        </div>
+        <div>
+          <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', marginBottom: '3px' }}>Shares</div>
+          <input aria-label="IOI quantity" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="0" inputMode="numeric" style={inputStyle} />
+        </div>
+      </div>
+      <button
+        onClick={submit}
+        disabled={busy}
+        style={{ padding: '8px 0', cursor: busy ? 'wait' : 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1 }}
+      >
+        Submit Indication of Interest
+      </button>
+      {msg && <div style={{ fontSize: '10px', color: msg.ok ? T.mint : T.red }}>{msg.text}</div>}
+    </div>
+  );
+}
+
+function Pipeline() {
+  const { data, mutate } = useSWR('ipo-pipeline', () => exchangeApi.getPipeline(), { refreshInterval: 15000 });
+  const rows: any[] = data ?? [];
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+      {rows.length === 0 && (
+        <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '32px', textAlign: 'center', fontSize: '12px', color: T.faint, gridColumn: '1 / -1' }}>
+          No IPOs in the pipeline. When a founder files a prospectus, it appears here for the roadshow.
+        </div>
+      )}
+      {rows.map((ipo: any) => {
+        const sub = Number(ipo.subscription_ratio ?? 0);
+        const subColor = sub >= 1 ? T.mint : sub >= 0.5 ? T.gold : T.red;
+        const isReview = ipo.status === 'pending_review';
+        return (
+          <div key={ipo.id} style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>{ipo.company_name}</div>
+              <div style={{ ...mono, fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.12em', color: isReview ? T.steel : T.gold }}>
+                {isReview ? 'In Review' : 'Book Open'}
+              </div>
+            </div>
+            <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '12px' }}>{ipo.industry_id}</div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', marginBottom: '10px' }}>
+              <div>
+                <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Range</div>
+                <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>§{fmt(Number(ipo.ipo_price_min))}–§{fmt(Number(ipo.ipo_price_max))}</div>
+              </div>
+              <div>
+                <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Float</div>
+                <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>{fmt(Number(ipo.float_percent) * 100, 0)}%</div>
+              </div>
+              <div>
+                <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Book Value</div>
+                <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>§{fmtBig(Number(ipo.company_value))}</div>
+              </div>
+            </div>
+
+            {!isReview && (
+              <div style={{ marginBottom: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', ...mono, fontSize: '9px', color: T.faint, marginBottom: '4px' }}>
+                  <span>Subscription</span>
+                  <span style={{ color: subColor }}>{fmt(sub * 100, 0)}%</span>
+                </div>
+                <div style={{ height: 6, background: T.bg, border: `1px solid ${T.border}`, position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(100, sub * 100)}%`, background: subColor }} />
+                </div>
+                <div style={{ ...mono, fontSize: '8px', color: T.faint, marginTop: '4px' }}>
+                  Closes Y{ipo.bookbuild_ends_year} M{ipo.bookbuild_ends_month} · under 50% and the offering fails
+                </div>
+              </div>
+            )}
+
+            {ipo.use_of_proceeds && (
+              <p style={{ fontSize: '10px', color: T.muted, lineHeight: 1.6, margin: '8px 0 0' }}>“{ipo.use_of_proceeds}”</p>
+            )}
+
+            {ipo.is_founder ? (
+              <div style={{ ...mono, fontSize: '10px', color: T.gold, marginTop: '12px' }}>You are the founder — manage this IPO from the Equity Desk.</div>
+            ) : isReview ? (
+              <div style={{ ...mono, fontSize: '10px', color: T.faint, marginTop: '12px' }}>Book-building opens after regulatory review.</div>
+            ) : (
+              <IoiForm ipo={ipo} onDone={() => mutate()} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
+type Tab = 'bourse' | 'pipeline' | 'desk';
+
 export default function ExchangePage() {
   const router = useRouter();
+  const [tab, setTab] = useState<Tab>('bourse');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const { data: listings, mutate: mutateListings } = useSWR('exchange-listings', () => exchangeApi.getListings(), { refreshInterval: 15000 });
   const { data: charData } = useSWR('my-character', () => characterApi.getMe().then(r => r.data), { revalidateOnFocus: false });
+  const { data: pipeline } = useSWR('ipo-pipeline-count', () => exchangeApi.getPipeline(), { refreshInterval: 20000 });
   const myCharacterId: string | null = charData?.character?.id ?? null;
-
   const list: any[] = listings ?? [];
   const activeId = selectedId ?? list[0]?.id ?? null;
   const active = list.find((l) => l.id === activeId) ?? null;
+  const pipelineCount = (pipeline ?? []).length;
 
-  // Show IPO panel when: company selected, no trades yet, viewer is the owner
-  const showIpo = active != null && active.last_price == null && myCharacterId != null && active.owner_character_id === myCharacterId;
+  // Show quick IPO panel when: company selected, no trades yet, viewer is the owner
+  const showQuickIpo = active != null && active.last_price == null && myCharacterId != null && active.owner_character_id === myCharacterId;
 
   const onPlaced = () => {
     setRefreshKey((k) => k + 1);
     mutateListings();
   };
+
+  const tabs: { id: Tab; name: string; badge?: number }[] = [
+    { id: 'bourse', name: 'Bourse' },
+    { id: 'pipeline', name: 'IPO Pipeline', badge: pipelineCount },
+    { id: 'desk', name: 'My Desk' },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: T.bg, color: T.ivory, overflow: 'hidden' }}>
@@ -467,68 +756,118 @@ export default function ExchangePage() {
         </span>
         <WorldTimeControl />
       </div>
-      <div style={{ padding: '8px 24px 8px', flexShrink: 0 }}>
-        <div style={{ ...label, marginBottom: '4px', letterSpacing: '0.2em' }}>Westport Bourse</div>
-        <h1 style={{ fontSize: '22px', fontWeight: 700, color: T.ivory, margin: '0 0 4px' }}>Share Exchange</h1>
-        <p style={{ fontSize: '12px', color: T.muted, margin: 0 }}>
-          Player-owned public corporations. Limit orders, price-time priority, trades settle instantly.
-        </p>
+
+      <div style={{ padding: '8px 24px 12px', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '24px', flexWrap: 'wrap', borderBottom: `1px solid ${T.border}` }}>
+        <div>
+          <div style={{ ...label, marginBottom: '4px', letterSpacing: '0.2em' }}>Drennport Exchange</div>
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: T.ivory, margin: '0 0 4px' }}>DRX Bourse</h1>
+          <p style={{ fontSize: '12px', color: T.muted, margin: 0 }}>
+            Take companies public, build the book, and trade shares with price-time priority.
+          </p>
+        </div>
+        <DrxIndexBar />
       </div>
 
-      {/* Active company strip */}
-      {active && (
-        <div style={{ margin: '8px 24px 0', padding: '12px 16px', background: T.panelSoft, border: `1px solid ${T.borderGold}`, display: 'flex', gap: '32px', flexWrap: 'wrap', alignItems: 'baseline', flexShrink: 0 }}>
-          <div>
-            <div style={{ fontSize: '15px', fontWeight: 700, color: T.ivory }}>{active.name}</div>
-            <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase' }}>{active.industry_id} · {active.country_id}</div>
-          </div>
-          {[
-            ['Last', active.last_price != null ? `§${fmt(active.last_price)}` : '—'],
-            ['Bid', active.best_bid != null ? `§${fmt(active.best_bid)}` : '—'],
-            ['Ask', active.best_ask != null ? `§${fmt(active.best_ask)}` : '—'],
-            ['Mkt Cap', active.market_cap != null ? `§${fmtInt(Math.round(active.market_cap))}` : '—'],
-            ['Book Value', `§${fmtInt(Math.round(Number(active.company_value)))}`],
-          ].map(([k, v]) => (
-            <div key={k as string}>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{k}</div>
-              <div style={{ ...mono, fontSize: '13px', fontWeight: 700, color: T.ivory }}>{v}</div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Tabs */}
+      <div style={{ padding: '10px 24px 0', flexShrink: 0, display: 'flex', gap: '4px' }}>
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              ...mono, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em',
+              padding: '8px 16px', cursor: 'pointer',
+              background: tab === t.id ? T.panelSoft : 'transparent',
+              border: `1px solid ${tab === t.id ? T.borderGold : T.border}`,
+              borderBottom: tab === t.id ? `1px solid ${T.panelSoft}` : `1px solid ${T.border}`,
+              color: tab === t.id ? T.gold : T.faint,
+              display: 'flex', alignItems: 'center', gap: '8px',
+            }}
+          >
+            {t.name}
+            {t.badge ? (
+              <span style={{ background: T.gold, color: T.bg, borderRadius: '8px', padding: '1px 6px', fontSize: '9px' }}>{t.badge}</span>
+            ) : null}
+          </button>
+        ))}
+      </div>
 
-      {/* Content grid */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) minmax(0, 1.4fr) minmax(240px, 1fr)', gap: '20px', alignItems: 'start' }}>
-        <Listings listings={list} selectedId={activeId} onSelect={setSelectedId} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {activeId ? (
-            <>
-              <PriceHistory key={`history-${activeId}-${refreshKey}`} companyId={activeId} />
-              <OrderBook key={`book-${activeId}-${refreshKey}`} companyId={activeId} />
-              <RecentTrades key={`trades-${activeId}-${refreshKey}`} companyId={activeId} />
-            </>
-          ) : (
-            <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '32px', textAlign: 'center', fontSize: '12px', color: T.faint }}>
-              Select a listed company to view its order book.
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+        {tab === 'bourse' && (
+          <>
+            {active && (
+              <div style={{ marginBottom: '16px', padding: '12px 16px', background: T.panelSoft, border: `1px solid ${T.borderGold}`, display: 'flex', gap: '28px', flexWrap: 'wrap', alignItems: 'baseline' }}>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: T.ivory }}>{active.name}</div>
+                  <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase' }}>{active.industry_id} · {active.country_id}</div>
+                </div>
+                {[
+                  ['Last', active.last_price != null ? `§${fmt(active.last_price)}` : '—'],
+                  ['Bid', active.best_bid != null ? `§${fmt(active.best_bid)}` : '—'],
+                  ['Ask', active.best_ask != null ? `§${fmt(active.best_ask)}` : '—'],
+                  ['Mkt Cap', active.market_cap != null ? `§${fmtBig(active.market_cap)}` : '—'],
+                  ['P/E', active.pe_ratio != null ? fmt(active.pe_ratio, 1) : '—'],
+                  ['EPS', active.eps != null ? `§${fmt(active.eps, 3)}` : '—'],
+                  ['Book Value', `§${fmtBig(Number(active.company_value))}`],
+                ].map(([k, v]) => (
+                  <div key={k as string}>
+                    <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{k}</div>
+                    <div style={{ ...mono, fontSize: '13px', fontWeight: 700, color: T.ivory }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) minmax(0, 1.4fr) minmax(240px, 1fr)', gap: '20px', alignItems: 'start' }}>
+              <Listings listings={list} selectedId={activeId} onSelect={setSelectedId} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {activeId ? (
+                  <>
+                    <CandleChart key={`candle-${activeId}-${refreshKey}`} companyId={activeId} />
+                    <OrderBook key={`book-${activeId}-${refreshKey}`} companyId={activeId} />
+                    <EarningsPanel key={`earn-${activeId}-${refreshKey}`} companyId={activeId} />
+                  </>
+                ) : (
+                  <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '32px', textAlign: 'center', fontSize: '12px', color: T.faint }}>
+                    Select a listed company to view its chart and order book.
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {activeId && <OrderTicket companyId={activeId} lastClose={active?.last_price ?? null} onPlaced={onPlaced} />}
+                {activeId && <RecentTrades key={`trades-${activeId}-${refreshKey}`} companyId={activeId} />}
+              </div>
             </div>
           )}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {activeId && showIpo && (
-            <IpoPanel
-              companyId={activeId}
-              totalShares={active?.total_shares ?? 1_000_000}
-              onLaunched={onPlaced}
-            />
-          )}
-          {activeId && !showIpo && <OrderTicket companyId={activeId} onPlaced={onPlaced} />}
-          {activeId && showIpo && (
-            <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '12px 16px', fontSize: '11px', color: T.faint }}>
-              Place buy/sell limit orders here once your IPO is live.
+
+          {tab === 'bourse' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {activeId && showQuickIpo && (
+                <QuickIpoPanel
+                  companyId={activeId}
+                  totalShares={active?.total_shares ?? 1_000_000}
+                  onLaunched={onPlaced}
+                />
+              )}
+              {activeId && !showQuickIpo && <OrderTicket companyId={activeId} onPlaced={onPlaced} />}
+              {activeId && showQuickIpo && (
+                <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '12px 16px', fontSize: '11px', color: T.faint }}>
+                  Place buy/sell limit orders here once your IPO is live.
+                </div>
+              )}
             </div>
           )}
-          <MyDesk refreshKey={refreshKey} />
-        </div>
+        </>
+        )}
+
+        {tab === 'pipeline' && <Pipeline />}
+
+        {tab === 'desk' && (
+          <div style={{ maxWidth: '640px' }}>
+            <MyDesk refreshKey={refreshKey} />
+          </div>
+        )}
       </div>
     </div>
   );

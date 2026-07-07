@@ -10,7 +10,7 @@ import PartyStanding from './_components/PartyStanding';
 import PartyCrest from './_components/PartyCrest';
 import BillsPanel from './BillsPanel';
 
-export default function CouncilTab({ overview, character, parties }: any) {
+export default function CouncilTab({ overview, character, parties, stateId }: any) {
   const [councilData, setCouncilData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -18,10 +18,10 @@ export default function CouncilTab({ overview, character, parties }: any) {
   const loadCouncil = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await politicsApi.getCouncil();
+      const data = await politicsApi.getCouncil(stateId);
       setCouncilData(data);
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Failed to load council');
+      setError(err?.response?.data?.error || err?.response?.data?.message || err.message || 'Failed to load council');
     } finally {
       setLoading(false);
     }
@@ -31,15 +31,15 @@ export default function CouncilTab({ overview, character, parties }: any) {
     loadCouncil();
   }, [loadCouncil]);
 
-  if (loading) return <div className="text-[#A79D8C] px-2">Reading the chamber roll…</div>;
+  if (loading) return <div className="text-[#8b8da8] px-2">Reading the chamber roll…</div>;
   if (error)
-    return <div className="text-[#B85555] p-4 bg-[#8F3D3D]/10 border border-[#B85555]/30">{error}</div>;
+    return <div className="text-red-400 p-4 bg-red-500/10 border border-red-500/30">{error}</div>;
 
   if (!councilData || !councilData.partySeats || councilData.partySeats.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-[#A79D8C] border border-dashed border-[#2A2630] bg-[#11131A] rounded">
+      <div className="flex flex-col items-center justify-center p-12 text-[#8b8da8] border border-dashed border-[#252637] bg-[#1c1d2e] rounded">
         <Users size={32} className="opacity-50 mb-4" />
-        <h3 className="text-[#F4EBD6] font-serif text-lg mb-2">The Chamber is Empty</h3>
+        <h3 className="text-white font-serif text-lg mb-2">The Chamber is Empty</h3>
         <p className="text-sm text-center max-w-md">
           No sitting Council. The next election concludes at month {overview?.cycle?.polling_arc || 'TBD'}.
         </p>
@@ -63,12 +63,12 @@ export default function CouncilTab({ overview, character, parties }: any) {
       await politicsApi.manageCoalition(action, targetId);
       loadCouncil();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Failed to manage coalition');
+      alert(err?.response?.data?.error || err?.response?.data?.message || 'Failed to manage coalition');
     }
   };
 
   const statusColors: any = {
-    majority: '#4D8C6A', coalition: '#5A6380', minority: '#8A5A4A', forming: '#B0863E', none: '#4A4C53',
+    majority: '#4D8C6A', coalition: '#5A6380', minority: '#8A5A4A', forming: '#e8752a', none: '#4a4c60',
   };
   const statusLabels: any = {
     majority: 'Majority Government', coalition: 'Coalition Government', minority: 'Minority Government',
@@ -83,7 +83,7 @@ export default function CouncilTab({ overview, character, parties }: any) {
         <Card title="The Chamber" icon={Users} className="min-h-[400px]">
           <div className="flex flex-col">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-[#A79D8C]">
+              <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-[#8b8da8]">
                 {POL_COUNCIL_SEATS} Seats · {POL_MAJORITY_SEATS} for majority
               </span>
             </div>
@@ -94,7 +94,7 @@ export default function CouncilTab({ overview, character, parties }: any) {
               centerValue={leadSeats}
               centerLabel="Lead Plurality"
             />
-            <div className="mt-3 border-t border-[#2A2630]/50 pt-3 flex flex-col gap-0.5">
+            <div className="mt-3 border-t border-[#252637] pt-3 flex flex-col gap-0.5">
               {partySeats.map((p: any) => (
                 <PartyStanding
                   key={p.partyId}
@@ -115,23 +115,23 @@ export default function CouncilTab({ overview, character, parties }: any) {
           <Card title="Government" icon={Crown}>
             <div className="flex flex-col gap-4">
               {premier && (
-                <div className="p-4 bg-[#11131A] border border-[#2A2630] flex items-center gap-3">
+                <div className="p-4 bg-[#1c1d2e] border border-[#252637] flex items-center gap-3">
                   <PartyCrest name={premier.partyName} size={44} />
                   <div className="min-w-0">
-                    <div className="text-[10px] uppercase text-[#A79D8C] tracking-widest mb-0.5">
+                    <div className="text-[10px] uppercase text-[#e8752a] tracking-widest mb-0.5">
                       State Premier
                     </div>
-                    <div className="text-[#F4EBD6] font-serif text-lg truncate">
+                    <div className="text-white font-serif text-lg truncate">
                       {partyIdentity(premier.partyName, parties).leader}
                     </div>
-                    <div className="text-[11px] text-[#A79D8C] truncate">{premier.partyName}</div>
+                    <div className="text-[11px] text-[#8b8da8] truncate">{premier.partyName}</div>
                   </div>
                 </div>
               )}
 
-              <div className="p-4 bg-[#11131A] border border-[#2A2630]">
+              <div className="p-4 bg-[#1c1d2e] border border-[#252637]">
                 <div className="flex justify-between items-center mb-4">
-                  <span className="text-[#A79D8C] text-sm uppercase tracking-wider">Mandate</span>
+                  <span className="text-[#8b8da8] text-sm uppercase tracking-wider">Mandate</span>
                   <span
                     className="px-2 py-1 text-xs"
                     style={{
@@ -143,8 +143,8 @@ export default function CouncilTab({ overview, character, parties }: any) {
                     {statusLabels[govStatus]}
                   </span>
                 </div>
-                <div className="text-sm text-[#E4DBCA]">
-                  <div className="mb-2 text-[#A79D8C] text-xs uppercase tracking-wider">Governing Bloc</div>
+                <div className="text-sm text-[#c4c6d8]">
+                  <div className="mb-2 text-[#8b8da8] text-xs uppercase tracking-wider">Governing Bloc</div>
                   <div className="flex flex-wrap gap-2">
                     {government?.members?.map((memId: string) => {
                       const p =
@@ -153,7 +153,7 @@ export default function CouncilTab({ overview, character, parties }: any) {
                       return (
                         <span
                           key={memId}
-                          className="flex items-center gap-1.5 px-2 py-1 bg-[#1A1C23] border border-[#2A2630] rounded text-xs"
+                          className="flex items-center gap-1.5 px-2 py-1 bg-[#1a1b2e] border border-[#252637] rounded text-xs"
                         >
                           <PartyCrest name={p?.name} size={16} parties={parties} />
                           {p?.name || 'Unknown'}
@@ -161,7 +161,7 @@ export default function CouncilTab({ overview, character, parties }: any) {
                       );
                     })}
                     {(!government?.members || government.members.length === 0) && (
-                      <span className="text-[#A79D8C] italic">None established</span>
+                      <span className="text-[#8b8da8] italic">None established</span>
                     )}
                   </div>
                 </div>
@@ -169,20 +169,20 @@ export default function CouncilTab({ overview, character, parties }: any) {
 
               {/* FORMATION ACTIONS (logic unchanged) */}
               {inFormation && myParty && (
-                <div className="p-4 border border-[#B0863E]/40 bg-[#B0863E]/10 rounded">
-                  <div className="flex items-center gap-2 mb-3 text-[#F4EBD6]">
-                    <ShieldAlert size={16} className="text-[#B0863E]" />
+                <div className="p-4 border border-[#e8752a]/40 bg-[#e8752a]/10 rounded">
+                  <div className="flex items-center gap-2 mb-3 text-white">
+                    <ShieldAlert size={16} className="text-[#e8752a]" />
                     <span className="font-serif">Formation Phase Active</span>
                   </div>
                   {isFormateur ? (
                     <div className="flex flex-col gap-2">
-                      <p className="text-xs text-[#A79D8C] mb-2">
+                      <p className="text-xs text-[#8b8da8] mb-2">
                         You are the formateur. Invite parties to join a governing coalition.
                       </p>
                       <div className="flex gap-2">
                         <select
                           id="inviteParty"
-                          className="flex-1 bg-[#090A0F] border border-[#2A2630] text-[#E4DBCA] p-2 text-sm"
+                          className="flex-1 bg-[#13141f] border border-[#252637] text-[#c4c6d8] p-2 text-sm focus:border-[#e8752a] focus:outline-none focus:ring-1 focus:ring-[#e8752a] transition-all"
                         >
                           <option value="">Select a party…</option>
                           {partySeats
@@ -198,7 +198,7 @@ export default function CouncilTab({ overview, character, parties }: any) {
                             const val = (document.getElementById('inviteParty') as HTMLSelectElement).value;
                             if (val) handleCoalitionAction('invite', val);
                           }}
-                          className="px-4 py-2 bg-[#1A1C23] border border-[#2A2630] text-[#E4DBCA] text-xs uppercase hover:bg-[#2A2630] transition-colors"
+                          className="px-4 py-2 bg-[#1a1b2e] border border-[#252637] text-white text-xs uppercase hover:bg-[#252637] hover:text-[#e8752a] transition-colors tracking-wider"
                         >
                           Invite
                         </button>
@@ -208,13 +208,13 @@ export default function CouncilTab({ overview, character, parties }: any) {
                     <div className="flex gap-2 justify-center">
                       <button
                         onClick={() => handleCoalitionAction('accept')}
-                        className="px-4 py-2 bg-[#4D8C6A]/20 border border-[#4D8C6A]/50 text-[#4D8C6A] text-xs uppercase hover:bg-[#4D8C6A]/30 transition-colors"
+                        className="px-4 py-2 bg-green-500/10 border border-green-500/30 text-green-400 text-xs uppercase hover:bg-green-500/20 transition-colors tracking-wider"
                       >
                         Accept Invite
                       </button>
                       <button
                         onClick={() => handleCoalitionAction('decline')}
-                        className="px-4 py-2 bg-[#B85555]/20 border border-[#B85555]/50 text-[#B85555] text-xs uppercase hover:bg-[#B85555]/30 transition-colors"
+                        className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-400 text-xs uppercase hover:bg-red-500/20 transition-colors tracking-wider"
                       >
                         Decline
                       </button>

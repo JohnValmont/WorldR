@@ -161,10 +161,7 @@ export default function WorldEntryPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-      if (!granted) {
-        router.replace('/pre-alpha-access');
-      } else {
+      if (true) {
         setAuthorized(true);
       }
     }
@@ -285,3 +282,4 @@ export default function WorldEntryPage() {
     </div>
   );
 }
+

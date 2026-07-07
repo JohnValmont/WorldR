@@ -48,6 +48,7 @@ export class CharacterController {
       // Check if character already exists for this user
       const existing = await db('characters')
         .where({ user_id: userId, world_instance_id: 'pre-alpha-world-1' })
+        .whereNot('status', 'deleted')
         .first();
 
       if (existing) {
@@ -88,6 +89,45 @@ export class CharacterController {
       });
 
       res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async deleteMe(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+      }
+
+      const character = await db('characters')
+        .where({ user_id: userId, status: 'active' })
+        .first();
+
+      if (character) {
+        const timestamp = Date.now();
+        const deletedSuffix = ` [DELETED ${timestamp}]`;
+
+        await db('characters')
+          .where({ id: character.id })
+          .update({ 
+            status: 'deleted',
+            name: `${character.name.substring(0, 200)}${deletedSuffix}`
+          });
+
+        const companies = await db('companies').where({ owner_character_id: character.id });
+        for (const company of companies) {
+          await db('companies')
+            .where({ id: company.id })
+            .update({ 
+              status: 'bankrupt',
+              name: `${company.name.substring(0, 200)}${deletedSuffix}`
+            });
+        }
+      }
+
+      res.status(200).json({ message: 'Character deleted' });
     } catch (error) {
       next(error);
     }

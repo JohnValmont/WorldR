@@ -51,11 +51,11 @@ BEGIN
     -- ==========================================
     IF NOT EXISTS (SELECT 1 FROM companies WHERE is_npc = TRUE AND npc_personality = 'valuecorp' AND country_id = 'drennia') THEN
         INSERT INTO companies (owner_character_id, world_instance_id, country_id, headquarters_state_id, industry_id, legal_structure_id, currency_id, name, status, is_npc, npc_personality, reputation, reliability, created_at_world_year, created_at_world_month, created_at_world_day)
-        VALUES (v_sys_char_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', 'manufacturing', 'sole-trader', 'drennian-day', 'Valuecorp', 'active', TRUE, 'valuecorp', 50, 50, 0, 0, 0)
+        VALUES (v_sys_char_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', 'manufacturing', 'sole-trader', 'dollar', 'Valuecorp', 'active', TRUE, 'valuecorp', 50, 50, 0, 0, 0)
         RETURNING id INTO v_company_id;
 
         INSERT INTO company_finances (company_id, currency_id, available_cash, debt, company_value, last_arc_profit)
-        VALUES (v_company_id, 'drennian-day', 1500000, 0, 1500000, 0);
+        VALUES (v_company_id, 'dollar', 1500000, 0, 1500000, 0);
 
         INSERT INTO manufacturing_vehicle_models (company_id, world_instance_id, name, vehicle_class, platform_type, power_unit_type, drivetrain_type, interior_tier, safety_tier, target_segment, sale_price, manufacturing_cost_per_unit, reliability_score, performance_score, fuel_efficiency_score, appeal_score, cargo_score, development_status, dev_stage, status, created_at_world_year, created_at_world_month, created_at_world_day)
         VALUES (v_company_id, 'pre-alpha-world-1', 'Valuecorp Standard', 'Compact Car', 'economy', 'small-i4', 'fwd', 'basic', 'standard', 'Budget', 14500, 8075, 60, 35, 80, 40, 50, 'launched', 'ready_to_launch', 'active', 0, 0, 0)
@@ -84,11 +84,11 @@ BEGIN
     -- ==========================================
     IF NOT EXISTS (SELECT 1 FROM companies WHERE is_npc = TRUE AND npc_personality = 'veridian' AND country_id = 'drennia') THEN
         INSERT INTO companies (owner_character_id, world_instance_id, country_id, headquarters_state_id, industry_id, legal_structure_id, currency_id, name, status, is_npc, npc_personality, reputation, reliability, created_at_world_year, created_at_world_month, created_at_world_day)
-        VALUES (v_sys_char_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', 'manufacturing', 'sole-trader', 'drennian-day', 'Veridian Motors', 'active', TRUE, 'veridian', 50, 50, 0, 0, 0)
+        VALUES (v_sys_char_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', 'manufacturing', 'sole-trader', 'dollar', 'Veridian Motors', 'active', TRUE, 'veridian', 50, 50, 0, 0, 0)
         RETURNING id INTO v_company_id;
 
         INSERT INTO company_finances (company_id, currency_id, available_cash, debt, company_value, last_arc_profit)
-        VALUES (v_company_id, 'drennian-day', 2500000, 0, 2500000, 0);
+        VALUES (v_company_id, 'dollar', 2500000, 0, 2500000, 0);
 
         INSERT INTO manufacturing_vehicle_models (company_id, world_instance_id, name, vehicle_class, platform_type, power_unit_type, drivetrain_type, interior_tier, safety_tier, target_segment, sale_price, manufacturing_cost_per_unit, reliability_score, performance_score, fuel_efficiency_score, appeal_score, cargo_score, development_status, dev_stage, status, created_at_world_year, created_at_world_month, created_at_world_day)
         VALUES (v_company_id, 'pre-alpha-world-1', 'Veridian Family Sedan', 'Sedan', 'standard', 'standard-i4', 'fwd', 'comfort', 'enhanced', 'Family', 27000, 17000, 70, 45, 60, 55, 65, 'launched', 'ready_to_launch', 'active', 0, 0, 0)
@@ -117,11 +117,11 @@ BEGIN
     -- ==========================================
     IF NOT EXISTS (SELECT 1 FROM companies WHERE is_npc = TRUE AND npc_personality = 'apex' AND country_id = 'drennia') THEN
         INSERT INTO companies (owner_character_id, world_instance_id, country_id, headquarters_state_id, industry_id, legal_structure_id, currency_id, name, status, is_npc, npc_personality, reputation, reliability, created_at_world_year, created_at_world_month, created_at_world_day)
-        VALUES (v_sys_char_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', 'manufacturing', 'sole-trader', 'drennian-day', 'Apex Automobili', 'active', TRUE, 'apex', 50, 50, 0, 0, 0)
+        VALUES (v_sys_char_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', 'manufacturing', 'sole-trader', 'dollar', 'Apex Automobili', 'active', TRUE, 'apex', 50, 50, 0, 0, 0)
         RETURNING id INTO v_company_id;
 
         INSERT INTO company_finances (company_id, currency_id, available_cash, debt, company_value, last_arc_profit)
-        VALUES (v_company_id, 'drennian-day', 2000000, 0, 2000000, 0);
+        VALUES (v_company_id, 'dollar', 2000000, 0, 2000000, 0);
 
         INSERT INTO manufacturing_vehicle_models (company_id, world_instance_id, name, vehicle_class, platform_type, power_unit_type, drivetrain_type, interior_tier, safety_tier, target_segment, sale_price, manufacturing_cost_per_unit, reliability_score, performance_score, fuel_efficiency_score, appeal_score, cargo_score, development_status, dev_stage, status, created_at_world_year, created_at_world_month, created_at_world_day)
         VALUES (v_company_id, 'pre-alpha-world-1', 'Apex GT', 'Sedan', 'standard', 'v6', 'awd', 'premium', 'advanced', 'Performance', 58000, 29400, 60, 85, 35, 80, 35, 'launched', 'ready_to_launch', 'active', 0, 0, 0)
@@ -152,11 +152,11 @@ BEGIN
     -- ==========================================
     IF NOT EXISTS (SELECT 1 FROM companies WHERE is_npc = TRUE AND npc_personality = 'haulpro' AND country_id = 'drennia') THEN
         INSERT INTO companies (owner_character_id, world_instance_id, country_id, headquarters_state_id, industry_id, legal_structure_id, currency_id, name, status, is_npc, npc_personality, reputation, reliability, created_at_world_year, created_at_world_month, created_at_world_day)
-        VALUES (v_sys_char_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', 'manufacturing', 'sole-trader', 'drennian-day', 'HaulPro', 'active', TRUE, 'haulpro', 50, 50, 0, 0, 0)
+        VALUES (v_sys_char_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', 'manufacturing', 'sole-trader', 'dollar', 'HaulPro', 'active', TRUE, 'haulpro', 50, 50, 0, 0, 0)
         RETURNING id INTO v_company_id;
 
         INSERT INTO company_finances (company_id, currency_id, available_cash, debt, company_value, last_arc_profit)
-        VALUES (v_company_id, 'drennian-day', 2500000, 0, 2500000, 0);
+        VALUES (v_company_id, 'dollar', 2500000, 0, 2500000, 0);
 
         INSERT INTO manufacturing_vehicle_models (company_id, world_instance_id, name, vehicle_class, platform_type, power_unit_type, drivetrain_type, interior_tier, safety_tier, target_segment, sale_price, manufacturing_cost_per_unit, reliability_score, performance_score, fuel_efficiency_score, appeal_score, cargo_score, development_status, dev_stage, status, created_at_world_year, created_at_world_month, created_at_world_day)
         VALUES (v_company_id, 'pre-alpha-world-1', 'HaulPro Utility', 'Utility Van', 'heavy-duty', 'standard-i4', 'rwd', 'basic', 'enhanced', 'Commercial', 34000, 22000, 75, 40, 60, 30, 90, 'launched', 'ready_to_launch', 'active', 0, 0, 0)

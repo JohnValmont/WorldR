@@ -22,7 +22,12 @@ import {
   postTender,
   bidTender,
   getBills,
-  getTenders
+  getTenders,
+  getMyAp,
+  doGeneralAction,
+  recruitNpc,
+  setDoctrine,
+  setTenet,
 } from '../controllers/politics.controller';
 import { getOrCreateCurrentCycle } from '../services/politics.service';
 import { db } from '../../config/database';
@@ -104,5 +109,13 @@ router.post('/lobby/petition', authMiddleware, petitionParty);
 router.get('/tenders', authMiddleware, getTenders);
 router.post('/tenders', authMiddleware, requirePhase('governing'), postTender);
 router.post('/tenders/:id/bid', authMiddleware, bidTender);
+
+// ── AP System ──────────────────────────────────────────────────────────
+// Available any phase, any office.
+router.get('/ap', authMiddleware, getMyAp);
+router.post('/general-action', authMiddleware, doGeneralAction);
+router.post('/recruit', authMiddleware, recruitNpc);
+router.patch('/parties/:id/doctrine', authMiddleware, setDoctrine);
+router.patch('/parties/:id/tenet', authMiddleware, setTenet);
 
 export default router;
