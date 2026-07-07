@@ -62,6 +62,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
   const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
 
   const [name, setName] = useState('');
+  const [abbreviation, setAbbreviation] = useState('');
   const [creed, setCreed] = useState<CreedId | null>(null);
   const [tenet, setTenet] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -71,7 +72,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
     if (!name.trim() || !creed) return;
     try {
       setBusy(true); setErr(null);
-      await politicsApi.foundParty({ name: name.trim(), doctrine_id: creed, tenet_id: tenet }, selectedJurisdictionId);
+      await politicsApi.foundParty({ name: name.trim(), abbreviation: abbreviation.trim().toUpperCase(), doctrine_id: creed, tenet_id: tenet }, selectedJurisdictionId);
       await onRefresh();
     } catch (e: any) { setErr(e?.response?.data?.message || e?.message || 'Failed to found party'); }
     finally { setBusy(false); }
@@ -138,9 +139,13 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
             <p style={{ color: T.muted, fontSize: 14, marginTop: 6 }}>Choose a Creed to set your identity. You are the permanent Leader — only NPC recruits can join your bench.</p>
           </div>
 
-          <Panel title="Party Name">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter party name…" maxLength={40}
-              style={{ width: '100%', padding: '11px 14px', background: T.bg, border: `1px solid ${T.border}`, borderRadius: 4, color: T.ivory, fontSize: 14, outline: 'none' }} />
+          <Panel title="Party Identity">
+            <div style={{ display: 'flex', gap: 12 }}>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter party name…" maxLength={40}
+                style={{ flex: 1, padding: '11px 14px', background: T.bg, border: `1px solid ${T.border}`, borderRadius: 4, color: T.ivory, fontSize: 14, outline: 'none' }} />
+              <input value={abbreviation} onChange={(e) => setAbbreviation(e.target.value.toUpperCase())} placeholder="ABBR (e.g. CON)" maxLength={6}
+                style={{ width: 140, padding: '11px 14px', background: T.bg, border: `1px solid ${T.border}`, borderRadius: 4, color: T.ivory, fontSize: 14, outline: 'none', fontFamily: MONO, textTransform: 'uppercase' }} />
+            </div>
           </Panel>
 
           <Panel title="Choose Your Creed">
@@ -185,7 +190,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
               <div style={stampStyle}>Founding Cost</div>
               <div style={{ color: T.red, fontFamily: MONO, fontSize: 18, fontWeight: 700 }}>-$25,000</div>
             </div>
-            <Btn label={busy ? 'Founding\u2026' : 'Found Party'} primary onClick={found} disabled={busy || !name.trim() || !creed} />
+            <Btn label={busy ? 'Founding\u2026' : 'Found Party'} primary onClick={found} disabled={busy || !name.trim() || !abbreviation.trim() || !creed} />
           </div>
           {err && <div style={{ color: T.red, fontSize: 13 }}>{err}</div>}
         </>

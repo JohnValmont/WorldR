@@ -177,8 +177,13 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
     const userId = req.user?.id;
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
     
-    const { name, doctrine_id, tenet_id } = req.body;
+    const { name, abbreviation, doctrine_id, tenet_id } = req.body;
     if (!name || name.trim() === '') return next(new AppError('Party name required', 400, 'BAD_REQUEST'));
+    if (!abbreviation || abbreviation.trim().length < 2 || abbreviation.trim().length > 6) {
+      return next(new AppError('Abbreviation must be 2-6 characters', 400, 'BAD_REQUEST'));
+    }
+    const cleanAbbr = abbreviation.trim().toUpperCase();
+
     if (!doctrine_id) return next(new AppError('doctrine_id required', 400, 'BAD_REQUEST'));
     if (!(DOCTRINE_IDS as readonly string[]).includes(doctrine_id)) {
       return next(new AppError('Invalid doctrine_id', 400, 'BAD_REQUEST'));
@@ -205,6 +210,13 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
       const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
       if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
 
+      // Check uniqueness of name and abbreviation
+      const existingName = await trx('pol_parties').whereRaw('LOWER(name) = ?', [name.trim().toLowerCase()]).first();
+      if (existingName) throw new AppError('A party with that name already exists.', 409, 'CONFLICT');
+      
+      const existingAbbr = await trx('pol_parties').whereRaw('UPPER(abbreviation) = ?', [cleanAbbr]).first();
+      if (existingAbbr) throw new AppError('That abbreviation is already taken.', 409, 'CONFLICT');
+
       // Enforce one party per player
       const existingMember = await trx('pol_party_members').where({ character_id: character.id }).first();
       if (existingMember) throw new AppError('Already in a party', 409, 'CONFLICT');
@@ -226,6 +238,7 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
       const [party] = await trx('pol_parties').insert({
         state_id: activeState.id,
         name: name.trim(),
+        abbreviation: cleanAbbr,
         leader_character_id: character.id,
         platform: derivedPlatform,
         doctrine_id,
@@ -237,7 +250,7 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
         created_arc: currentMonth
       }).returning('*');
 
-      const fallbackMonogram = name.trim().split(/\s+/).filter(Boolean).map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '??';
+      const fallbackMonogram = cleanAbbr.slice(0, 2);
       await trx('pol_party_identities').insert({
         party_id: party.id,
         color: '#6C7A89',
