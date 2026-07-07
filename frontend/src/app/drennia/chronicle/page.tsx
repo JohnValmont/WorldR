@@ -183,27 +183,22 @@ export default function ChroniclePage() {
           setCharacterName(char.name);
           setCharacterAge(Number(char.age ?? 18));
           setPlayerCash(Number(char.finances?.cash_in_hand ?? 0));
+          const currentCash = Number(char.finances?.cash_in_hand ?? 0);
           
-          setNetWorthSeries(prev => [
-            ...prev.slice(1), 
-            { month: 'Now', value: Number(char.finances?.cash_in_hand ?? 0) }
-          ]);
+          const flatSeries = Array.from({ length: 12 }).map((_, i) => ({
+            month: i === 11 ? 'Now' : `${11 - i}m ago`,
+            value: currentCash
+          }));
+          setNetWorthSeries(flatSeries);
 
           let parsed: PlayerStats = {
-            motherland: 'Drennia',
-            credibility: 50,
-            charisma: 50,
-            influence: 50
+            motherland: char.motherland_country_id ?? 'Drennia',
+            homeState: char.home_state_id,
+            credibility: Number(char.credibility ?? 50),
+            charisma: Number(char.charisma ?? 50),
+            influence: Number(char.influence ?? 10),
+            gameDateStr: `Month ${char.created_at_world_month ?? 1} · Year ${char.created_at_world_year ?? 1}`
           };
-          try {
-            const fileStr = char.citizen_file;
-            if (fileStr) {
-              const fromDb = typeof fileStr === 'string' ? JSON.parse(fileStr) : fileStr;
-              parsed = { ...parsed, ...fromDb };
-            }
-          } catch (e) {
-            console.warn('Failed to parse citizen file', e);
-          }
           setCitizenFile(parsed);
 
           companyApi.getMy().then(compRes => {
@@ -217,16 +212,10 @@ export default function ChroniclePage() {
               setActiveContracts(
                 contracts.filter(c => c.status === 'awarded' && c.awardedToCompanyId === myCompany.id).length
               );
-              // Update the 'Now' value in the net worth series with company cash
+              // Update the flat series with company cash
               const liveCash = Number(myCompany.finances?.available_cash ?? 0);
-              setNetWorthSeries(prev => {
-                const newSeries = [...prev];
-                newSeries[newSeries.length - 1] = {
-                  month: 'Now',
-                  value: Number(char.finances?.cash_in_hand ?? 0) + liveCash
-                };
-                return newSeries;
-              });
+              const totalNetWorth = currentCash + liveCash;
+              setNetWorthSeries(prev => prev.map(p => ({ ...p, value: totalNetWorth })));
             }
           }).catch(() => {});
           
@@ -532,7 +521,7 @@ export default function ChroniclePage() {
                 { label: 'Full Name',      value: characterName },
                 { label: 'Age',            value: `${characterAge}` },
                 { label: 'Motherland',     value: citizenFile?.motherland ?? 'Drennia' },
-                { label: 'Citizen Since',  value: (citizenFile?.gameDateStr || 'Day 1 · Month 1').replace('-', '·') },
+                { label: 'Citizen Since',  value: citizenFile?.gameDateStr || 'Month 1 · Year 1' },
               ].map(f => (
                 <div key={f.label}>
                   <p className="text-[8px] font-mono uppercase tracking-[0.15em] text-zinc-600 mb-1">{f.label}</p>
