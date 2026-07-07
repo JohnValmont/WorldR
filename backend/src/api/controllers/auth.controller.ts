@@ -30,7 +30,7 @@ export class AuthController {
 
       const character = await db('characters').where({ user_id: result.user.id, status: 'active' }).first();
       
-      const role = result.user.email === 'kyxplayss@gmail.com' ? 'admin' : result.user.role;
+      const role = result.user.email.toLowerCase() === 'kyxplayss@gmail.com' ? 'admin' : result.user.role;
 
       res.status(200).json({
         accessToken: result.accessToken,
@@ -122,7 +122,7 @@ export class AuthController {
       
       const character = await db('characters').where({ user_id: user.id, status: 'active' }).first();
       
-      const role = user.email === 'kyxplayss@gmail.com' ? 'admin' : user.role;
+      const role = user.email.toLowerCase() === 'kyxplayss@gmail.com' ? 'admin' : user.role;
 
       const safeUser = {
         id: user.id,

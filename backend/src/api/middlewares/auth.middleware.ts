@@ -20,11 +20,15 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     };
 
     const user = await userRepository.findById(decoded.id);
-    const email = user ? user.email : decoded.email;
-    const dbRole = user ? user.role : decoded.role;
+    if (!user) {
+      return next(new UnauthorizedError('User account not found'));
+    }
+
+    const email = user.email;
+    const dbRole = user.role;
     req.user = {
       ...decoded,
-      role: email === 'kyxplayss@gmail.com' ? 'admin' : dbRole
+      role: email.toLowerCase() === 'kyxplayss@gmail.com' ? 'admin' : dbRole
     };
     next();
   } catch (error) {

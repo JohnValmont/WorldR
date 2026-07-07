@@ -762,7 +762,7 @@ export async function donateToParty(req: Request, res: Response, next: NextFunct
     const userId = req.user?.id;
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
     const { partyId, amount, companyId } = req.body;
-    if (!partyId || !amount || amount <= 0) return next(new AppError('Valid partyId and amount required', 400, 'BAD_REQUEST'));
+    if (!partyId || !amount || !Number.isFinite(amount) || amount <= 0) return next(new AppError('Valid partyId and amount required', 400, 'BAD_REQUEST'));
 
     const result = await db.transaction(async (trx) => {
       const char = await trx('characters').where({ user_id: userId }).first();
@@ -923,8 +923,8 @@ export async function bidTender(req: Request, res: Response, next: NextFunction)
     const { id: tenderId } = req.params;
     const { companyId, modelId, bidPrice } = req.body;
     
-    if (!companyId || !modelId || !bidPrice) {
-      return next(new AppError('Missing required bid fields', 400, 'BAD_REQUEST'));
+    if (!companyId || !modelId || !bidPrice || !Number.isFinite(Number(bidPrice)) || Number(bidPrice) <= 0) {
+      return next(new AppError('Missing or invalid required bid fields', 400, 'BAD_REQUEST'));
     }
 
     const result = await db.transaction(async (trx) => {
