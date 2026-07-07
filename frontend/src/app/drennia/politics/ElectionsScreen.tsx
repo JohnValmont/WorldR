@@ -4,9 +4,10 @@ import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
 import { SEGMENTS } from '@/lib/politicsConstants';
 import { JURISDICTIONS, type JurisdictionId } from './_lib/session';
-import { T, MONO, stampStyle } from './_lib/theme';
-import { BLOC_NAME_BY_KEY, PILLAR_BY_AXIS } from './_lib/model';
+import { T, MONO } from './_lib/theme';
+import { BLOC_NAME_BY_KEY, PILLAR_BY_AXIS, JURISDICTION_MODEL } from './_lib/model';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
+import { Panel, Stamp, Meter, StatTile, PhaseTimeline } from './_components/DeskUI';
 
 interface Props {
   selectedJurisdictionId: JurisdictionId;
@@ -19,14 +20,13 @@ interface Props {
   onRefresh?: () => void;
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 4, padding: 20 }}>
-      <div style={{ ...stampStyle, marginBottom: 14 }}>{title}</div>
-      {children}
-    </div>
-  );
-}
+const PHASE_STEPS = [
+  { key: 'governing', label: 'Governing' },
+  { key: 'filing', label: 'Filing' },
+  { key: 'campaign', label: 'Campaign' },
+  { key: 'polling', label: 'Poll' },
+  { key: 'formation', label: 'Formation' },
+];
 
 // Indicative Fit (display only) — the engine uses the tuned POL_FIT_EXP formula.
 function fitPct(platform: any, seg: any): number | null {
@@ -50,49 +50,107 @@ function leaning(seg: any): string {
   return `${p.name}: ${pole}`;
 }
 
-export default function ElectionsScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, character, parties }: Props) {
+/** The scheduled-election banner: countdown, cycle, jurisdiction, phase timeline. */
+function ElectionHero({
+  jurisdictionName,
+  cycle,
+  fallbackPhase,
+  seats,
+  majority,
+}: {
+  jurisdictionName: string;
+  cycle: any;
+  fallbackPhase?: string;
+  seats: number;
+  majority: number;
+}) {
+  const months: number | null = cycle?.monthsToElection ?? null;
+  const phase = cycle?.phase || fallbackPhase || 'governing';
+  const cycleNumber = cycle?.cycleNumber;
+  const electionArc = cycle?.electionArc;
+
+  const bigValue = months == null ? '—' : months <= 0 ? 'IMMINENT' : String(months).padStart(2, '0');
+  const unit = months == null || months <= 0 ? '' : months === 1 ? 'MONTH' : 'MONTHS';
+
+  // 1 in-game month = 8 real hours (GDD §3).
+  const realHours = months != null ? months * 8 : null;
+  const realNote = realHours != null && months! > 0
+    ? `≈ ${Math.floor(realHours / 24)}d ${realHours % 24}h real time`
+    : null;
+
+  return (
+    <Panel accent style={{ textAlign: 'center', padding: '26px 24px 20px' }}>
+      <Stamp style={{ justifyContent: 'center' }}>Next Election</Stamp>
+      <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.3em', color: T.muted, marginTop: 14 }}>ELECTION DAY</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 12, marginTop: 4 }}>
+        <span style={{ fontFamily: MONO, fontSize: 52, fontWeight: 800, color: T.ivory, letterSpacing: '0.02em', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{bigValue}</span>
+        {unit && <span style={{ fontFamily: MONO, fontSize: 16, letterSpacing: '0.24em', color: T.gold }}>{unit}</span>}
+      </div>
+      <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.14em', color: T.muted, marginTop: 8, textTransform: 'uppercase' }}>
+        {jurisdictionName} Assembly{cycleNumber != null ? ` · Cycle ${cycleNumber}` : ''}
+      </div>
+      <div style={{ fontFamily: MONO, fontSize: 10.5, color: T.faint, marginTop: 4 }}>
+        {seats} seats · {majority} for a majority{electionArc != null ? ` · resolves at arc ${electionArc}` : ''}{realNote ? ` · ${realNote}` : ''}
+      </div>
+      <div style={{ height: 1, background: T.border, margin: '18px 0 16px' }} />
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <PhaseTimeline steps={PHASE_STEPS} activeKey={phase} />
+      </div>
+    </Panel>
+  );
+}
+
+export default function ElectionsScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, overview, character, parties }: Props) {
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
+  const jModel = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.ironvale;
   const { data: polls } = useSWR(isLocked ? null : ['polls', selectedJurisdictionId], () => politicsApi.getPolls(selectedJurisdictionId).catch(() => null));
 
   const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
   const myPlatform = myParty?.platform;
 
   const projections: any[] = Array.isArray(polls) ? polls : (polls?.parties || polls?.projections || []);
+  const maxSeats = projections.reduce((m: number, p: any) => Math.max(m, Number(p.projected_seats ?? p.seats ?? 0)), 0);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
 
       <div>
-        <div style={stampStyle}>Electorate · {jurisdiction?.name}</div>
-        <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '6px 0 0' }}>Read the Room</h1>
-        <p style={{ color: T.muted, fontSize: 14, marginTop: 6 }}>Every bloc has an ideal platform. Court the ones no rival owns — standing where others stand splits the vote.</p>
+        <Stamp>Electorate · {jurisdiction?.name}</Stamp>
+        <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '8px 0 0' }}>Read the Room</h1>
+        <p style={{ color: T.muted, fontSize: 14, marginTop: 6, maxWidth: 640 }}>Every bloc has an ideal platform. Court the ones no rival owns — standing where others stand splits the vote.</p>
       </div>
 
       {isLocked ? (
         <Panel title="Locked"><div style={{ color: T.faint, fontStyle: 'italic' }}>{jurisdiction?.name} is not yet open for political activity.</div></Panel>
       ) : (
         <>
+          <ElectionHero
+            jurisdictionName={jurisdiction?.name || 'Ironvale'}
+            cycle={overview?.cycle}
+            fallbackPhase={overview?.cyclePhase}
+            seats={jModel.seats}
+            majority={jModel.majority}
+          />
+
           <Panel title="The Electorate">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>
               {SEGMENTS.map((seg: any) => {
                 const fit = fitPct(myPlatform, seg);
+                const sizePct = Math.round(seg.size * 100);
                 return (
                   <div key={seg.key} style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 4, padding: 16 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                       <span style={{ color: T.ivory, fontWeight: 700, fontSize: 15 }}>{BLOC_NAME_BY_KEY[seg.key] || seg.label}</span>
-                      <span style={{ color: T.gold, fontFamily: MONO, fontSize: 16, fontWeight: 700 }}>{Math.round(seg.size * 100)}%</span>
+                      <span style={{ color: T.gold, fontFamily: MONO, fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{sizePct}%</span>
                     </div>
                     <div style={{ color: T.faint, fontFamily: MONO, fontSize: 10.5, marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{leaning(seg)}</div>
-                    <div style={{ marginTop: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ color: T.muted, fontSize: 11 }}>Your Fit</span>
-                        <span style={{ color: fit == null ? T.faint : fit >= 60 ? T.mint : fit >= 40 ? T.gold : T.red, fontFamily: MONO, fontSize: 11 }}>{fit == null ? '\u2014' : `${fit}%`}</span>
-                      </div>
-                      <div style={{ height: 6, background: T.bg, borderRadius: 99, overflow: 'hidden' }}>
-                        <div style={{ width: `${fit ?? 0}%`, height: '100%', background: fit == null ? T.faint : fit >= 60 ? T.mint : fit >= 40 ? T.gold : T.red }} />
-                      </div>
+                    <div style={{ marginTop: 10 }}>
+                      <Meter label="Bloc size" value={sizePct} display={`${sizePct}%`} tone={T.blue} height={5} />
+                    </div>
+                    <div style={{ marginTop: 10 }}>
+                      <Meter label="Your Fit" value={fit} display={fit == null ? '—' : `${fit}%`} />
                     </div>
                   </div>
                 );
@@ -100,24 +158,24 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
             </div>
           </Panel>
 
-          <Panel title="Projected Result — if the vote were held today">
+          <Panel title="Live Projections — if the vote were held today">
             {projections.length === 0 ? (
-              <div style={{ color: T.faint, fontStyle: 'italic' }}>Projections open once candidates are confirmed and campaigns begin.</div>
+              <div style={{ color: T.faint, fontStyle: 'italic' }}>Projections sharpen as parties file and campaigns build reach. The result is resolved on Election Day above.</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {projections.slice(0, 8).map((p: any, i: number) => {
                   const share = Number(p.projected_share ?? p.share ?? p.vote_share ?? 0);
                   const seats = p.projected_seats ?? p.seats;
                   const pct = share <= 1 ? share * 100 : share;
+                  const barVal = seats != null && maxSeats > 0 ? (Number(seats) / maxSeats) * 100 : pct;
+                  const isMine = myParty && (p.id === myParty.id || p.party_id === myParty.id || p.name === myParty.name);
                   return (
                     <div key={p.id || p.party_id || i}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ color: T.text, fontSize: 13 }}>{p.name || p.party_name || 'Party'}</span>
-                        <span style={{ color: T.muted, fontFamily: MONO, fontSize: 12 }}>{seats != null ? `${seats} seats` : `${pct.toFixed(1)}%`}</span>
+                        <span style={{ color: isMine ? T.gold : T.text, fontSize: 13, fontWeight: isMine ? 700 : 400 }}>{p.name || p.party_name || 'Party'}{isMine ? ' · You' : ''}</span>
+                        <span style={{ color: T.muted, fontFamily: MONO, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{seats != null ? `${seats} seats · ${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`}</span>
                       </div>
-                      <div style={{ height: 6, background: T.panel2, borderRadius: 99, overflow: 'hidden' }}>
-                        <div style={{ width: `${Math.max(2, Math.min(100, pct))}%`, height: '100%', background: T.gold }} />
-                      </div>
+                      <Meter value={barVal} tone={isMine ? T.gold : T.blue} height={7} />
                     </div>
                   );
                 })}

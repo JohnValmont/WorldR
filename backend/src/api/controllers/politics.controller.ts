@@ -57,6 +57,7 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
 
     let cyclePhase = 'governing';
     let countdown = 0;
+    let cycleSummary: any = null;
     
     if (activeState) {
       try {
@@ -80,6 +81,19 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
         } else if (cycle.phase === 'formation') {
           countdown = cycle.formation_end_arc - actualArc;
         }
+
+        // Election-schedule summary so the client can render the SCHEDULED election
+        // (previously the election arc lived only in the DB and was never sent).
+        cycleSummary = {
+          cycleNumber: cycle.cycle_number,
+          phase: cycle.phase,
+          currentArc: actualArc,
+          electionArc: cycle.polling_arc,
+          formationEndArc: cycle.formation_end_arc,
+          filingArc: startFiling,
+          campaignArc: startCampaign,
+          monthsToElection: Math.max(0, cycle.polling_arc - actualArc),
+        };
       } catch {
         // Cycle not yet seeded or migration pending — return governing state gracefully
         cyclePhase = 'governing';
@@ -92,6 +106,8 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
       inactiveStates,
       cyclePhase,
       countdownToNextPhase: countdown > 0 ? countdown : 0,
+      // Election-schedule summary (electionArc, monthsToElection, phase timeline).
+      cycle: cycleSummary,
       // Jurisdiction Conditions (GDD §11) — normalized 0–10 indicators for the UI.
       conditions: activeState ? readConditionsFromRow(activeState) : null
     });
