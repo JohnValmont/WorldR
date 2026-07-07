@@ -90,6 +90,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
           <Stamp>This Month · {jMeta.name}</Stamp>
           <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '8px 0 0', letterSpacing: '-0.01em' }}>
             {myParty ? myParty.name : 'Political Desk'}
+            {myParty?.abbreviation && <span style={{ color: T.faint, fontSize: 20, fontFamily: MONO, textTransform: 'uppercase', marginLeft: 8 }}>[{myParty.abbreviation}]</span>}
           </h1>
           {myParty?.doctrine_id && <div style={{ fontFamily: MONO, fontSize: 11, color: T.faint, marginTop: 4, letterSpacing: '0.08em' }}>{myParty.doctrine_id.replace(/_/g, ' ').toUpperCase()}</div>}
         </div>

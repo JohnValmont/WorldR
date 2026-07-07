@@ -65,7 +65,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
               <div key={p.partyId || i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ width: 10, height: 10, borderRadius: 2, background: PALETTE[i % PALETTE.length] }} />
-                  <span style={{ color: T.text, fontSize: 13 }}>{p.name}</span>
+                  <span style={{ color: T.text, fontSize: 13 }}>{p.name} {p.abbreviation ? <span style={{ color: T.faint, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', marginLeft: 4 }}>[{p.abbreviation}]</span> : null}</span>
                 </div>
                 <span style={{ color: T.ivory, fontFamily: MONO, fontSize: 13, fontWeight: 700 }}>{p.seats}</span>
               </div>

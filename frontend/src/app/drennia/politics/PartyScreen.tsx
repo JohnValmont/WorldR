@@ -94,7 +94,10 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
         <>
           <div>
             <div style={stampStyle}>Your Party</div>
-            <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '6px 0 0' }}>{myParty.name}</h1>
+            <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '6px 0 0' }}>
+              {myParty.name}
+              {myParty.abbreviation && <span style={{ color: T.faint, fontSize: 20, fontFamily: MONO, textTransform: 'uppercase', marginLeft: 8 }}>[{myParty.abbreviation}]</span>}
+            </h1>
             <div style={{ color: T.gold, fontFamily: MONO, fontSize: 12, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               {CREED_NAME_BY_ID[(myParty.doctrine_id || myParty.doctrineId) as CreedId] || 'Independent'}
             </div>

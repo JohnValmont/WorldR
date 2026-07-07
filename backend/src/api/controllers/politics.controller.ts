@@ -653,6 +653,7 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
     const partySeats = parties.map(p => ({
       partyId: p.id,
       name: p.name,
+      abbreviation: p.abbreviation,
       seats: seatCounts[p.id] || 0
     })).filter(p => p.seats > 0).sort((a, b) => b.seats - a.seats);
 
