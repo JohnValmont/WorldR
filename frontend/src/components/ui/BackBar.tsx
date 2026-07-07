@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { ArrowLeft, LayoutGrid, Briefcase, Landmark, Globe, Home, BookOpen } from 'lucide-react';
 import GuideModal from '../gameplay/GuideModal';
+import { useAuthStore } from '../../store/auth.store';
 
 /**
  * BackBar — a slim, sticky global navigation bar for the in-game (/drennia) shell.
@@ -48,6 +49,8 @@ export default function BackBar() {
   const section = segments[1] || 'chronicle';
   const isHub = section === 'chronicle';
   const [showGuide, setShowGuide] = useState(false);
+  const { user } = useAuthStore();
+  const isSuperAdmin = user?.email === 'kyxplayss@gmail.com';
 
   // Track in-app navigation depth so Back never leaves the game world.
   useEffect(() => {
@@ -123,9 +126,15 @@ export default function BackBar() {
         <Link href="/drennia/business" title="Business Desk" className="p-1.5 rounded transition-colors text-zinc-500 hover:text-zinc-300 hover:bg-white/5">
           <Briefcase size={14} />
         </Link>
-        <a href="#" onClick={(e) => { e.preventDefault(); alert('Political desk will be available on 09 July 2026.'); }} title="Politics Desk" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
-          <Landmark size={14} />
-        </a>
+        {isSuperAdmin ? (
+          <Link href="/drennia/politics" title="Politics Desk" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+            <Landmark size={14} />
+          </Link>
+        ) : (
+          <a href="#" onClick={(e) => { e.preventDefault(); alert('Political desk will be available on 09 July 2026.'); }} title="Politics Desk" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+            <Landmark size={14} />
+          </a>
+        )}
         <Link href="/drennia/world" title="World Feed" className={`p-1.5 rounded transition-colors ${section === 'world' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
           <Globe size={14} />
         </Link>

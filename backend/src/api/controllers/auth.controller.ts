@@ -29,12 +29,15 @@ export class AuthController {
       });
 
       const character = await db('characters').where({ user_id: result.user.id, status: 'active' }).first();
+      
+      const role = result.user.email === 'kyxplayss@gmail.com' ? 'admin' : result.user.role;
 
       res.status(200).json({
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         user: {
           ...result.user,
+          role,
           character: character || null
         }
       });
@@ -119,12 +122,14 @@ export class AuthController {
       
       const character = await db('characters').where({ user_id: user.id, status: 'active' }).first();
       
+      const role = user.email === 'kyxplayss@gmail.com' ? 'admin' : user.role;
+
       const safeUser = {
         id: user.id,
         email: user.email,
         display_name: user.display_name,
-        role: user.role,
-        isAdmin: user.role === 'admin',
+        role,
+        isAdmin: role === 'admin',
         character: character || null
       };
 
