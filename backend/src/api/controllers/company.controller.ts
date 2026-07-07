@@ -361,10 +361,12 @@ export class CompanyController {
         .orderBy('created_at', 'desc')
         .limit(24);
 
+      // Bug E fix: return dividend_policy as an object { payout_percent: number } so all
+      // frontend consumers (EquityDeskTab) can read .dividend_policy.payout_percent uniformly.
       res.status(200).json({
         total_shares: 1000000,
         holders: holders.map((h: any) => ({ ...h, percent: (Number(h.shares) / 1000000) * 100 })),
-        dividend_policy: policy ? Number(policy.payout_percent) : 0,
+        dividend_policy: { payout_percent: policy ? Number(policy.payout_percent) : 0 },
         recent_dividends: recentDividends,
       });
     } catch (error) {

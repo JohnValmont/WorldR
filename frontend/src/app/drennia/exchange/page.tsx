@@ -234,11 +234,18 @@ function MyDesk({ refreshKey }: { refreshKey: number }) {
   const openOrders: any[] = (orders ?? []).filter((o: any) => o.status === 'open');
   const holdings: any[] = portfolio ?? [];
 
+  // Bug F fix: cancelMsg was swallowed — now surfaced to the user
+  const [cancelMsg, setCancelMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
   const cancel = async (id: string) => {
+    setCancelMsg(null);
     try {
       await exchangeApi.cancelOrder(id);
+      setCancelMsg({ text: 'Order cancelled — escrowed funds returned.', ok: true });
       mutateOrders();
-    } catch { /* surface silently; row remains */ }
+    } catch (e: any) {
+      setCancelMsg({ text: e?.response?.data?.message || 'Cancel failed. Please try again.', ok: false });
+    }
   };
 
   return (
@@ -284,6 +291,11 @@ function MyDesk({ refreshKey }: { refreshKey: number }) {
             </button>
           </div>
         ))}
+        {cancelMsg && (
+          <div style={{ fontSize: '11px', color: cancelMsg.ok ? T.mint : T.red, marginTop: '10px' }}>
+            {cancelMsg.text}
+          </div>
+        )}
       </div>
     </div>
   );

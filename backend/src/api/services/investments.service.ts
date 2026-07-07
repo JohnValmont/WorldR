@@ -189,10 +189,12 @@ export async function createPlacement(params: {
       .first();
     if (!holding || Number(holding.shares) < shares) throw new AppError('Insufficient shares', 400, 'INSUFFICIENT_SHARES');
 
-    // Lock the shares (escrow)
+    // Lock the shares (escrow) — split into two calls (same Bug A fix: knex can't chain .decrement().update())
     await trx('company_shares')
       .where({ company_id: companyId, holder_character_id: sellerCharacterId })
-      .decrement('shares', shares)
+      .decrement('shares', shares);
+    await trx('company_shares')
+      .where({ company_id: companyId, holder_character_id: sellerCharacterId })
       .update({ updated_at: trx.fn.now() });
 
     const [placement] = await trx('equity_placements')

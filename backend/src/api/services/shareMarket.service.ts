@@ -63,9 +63,12 @@ export async function placeOrder(params: {
       if (!holding || Number(holding.shares) < quantity) {
         throw new AppError('Insufficient shares to cover this sell order', 400, 'INSUFFICIENT_SHARES');
       }
+      // Bug A fix: knex does not support chaining .decrement().update() — split into two calls
       await trx('company_shares')
         .where({ company_id: companyId, holder_character_id: characterId })
-        .decrement('shares', quantity)
+        .decrement('shares', quantity);
+      await trx('company_shares')
+        .where({ company_id: companyId, holder_character_id: characterId })
         .update({ updated_at: trx.fn.now() });
     }
 
@@ -107,13 +110,24 @@ export async function placeOrder(params: {
       const buyOrderId = side === 'buy' ? order.id : counter.id;
       const sellOrderId = side === 'sell' ? order.id : counter.id;
 
-      // Seller receives cash (buyer's cash is already in escrow)
+      // Seller receives cash (buyer's escrow is the source)
       await trx('character_finances').where({ character_id: sellerId }).increment('cash_in_hand', notional);
 
-      // If the aggressor is a buyer executing below their limit, refund escrow surplus
+      // Bug B fix: BOTH the aggressor-buy and a resting-buy order must get their per-fill
+      // escrow surplus refunded when execution happens below their limit price.
+      // Case 1: incoming order is buy, it executes against a resting sell at a lower price
       if (side === 'buy' && execPrice < price) {
         const refund = (price - execPrice) * fillQty;
         await trx('character_finances').where({ character_id: characterId }).increment('cash_in_hand', refund);
+        // Bug C fix: decrement escrow_amount so cancel later refunds the correct remaining cash
+        await trx('share_orders').where({ id: order.id }).decrement('escrow_amount', refund);
+      }
+      // Case 2: incoming order is a sell, it executes against a resting buy at a higher price
+      if (side === 'sell' && execPrice > price) {
+        const surplus = (execPrice - price) * fillQty;
+        await trx('character_finances').where({ character_id: buyerId }).increment('cash_in_hand', surplus);
+        // Bug C fix: decrement escrow on the resting buy order so its cancel refund is correct
+        await trx('share_orders').where({ id: counter.id }).decrement('escrow_amount', surplus);
       }
 
       // Buyer receives shares (update cap table with weighted avg cost basis)
@@ -188,19 +202,25 @@ export async function cancelOrder(orderId: string, characterId: string) {
     const unfilled = Number(order.quantity) - Number(order.filled_quantity);
 
     if (order.side === 'buy') {
-      // Refund escrowed cash for the unfilled portion
+      // Bug C fix: use the live escrow_amount column (already decremented on each fill)
+      // instead of recalculating price * unfilled, which ignores any already-refunded surplus.
+      const escrowRemaining = Number(order.escrow_amount);
       await trx('character_finances')
         .where({ character_id: characterId })
-        .increment('cash_in_hand', Number(order.price) * unfilled);
+        .increment('cash_in_hand', escrowRemaining);
     } else {
       // Return locked shares
       const existing = await trx('company_shares')
         .where({ company_id: order.company_id, holder_character_id: characterId })
         .first();
       if (existing) {
+        // Bug D fix: also touch updated_at when restoring locked shares on cancel
         await trx('company_shares')
           .where({ company_id: order.company_id, holder_character_id: characterId })
           .increment('shares', unfilled);
+        await trx('company_shares')
+          .where({ company_id: order.company_id, holder_character_id: characterId })
+          .update({ updated_at: trx.fn.now() });
       } else {
         await trx('company_shares').insert({
           company_id: order.company_id,
