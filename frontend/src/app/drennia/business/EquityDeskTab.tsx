@@ -142,18 +142,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
               <div className="text-[11px] text-zinc-500 mb-3 leading-relaxed">Public corporations cannot use ad-hoc owner injections. You must raise capital through the DRX Exchange.</div>
               <Button disabled variant="secondary" className="w-full opacity-50">Managed via Exchange</Button>
             </div>
-          ) : currentStructureId === 'private-company' ? (
-            <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
-              <div className="text-[13px] font-bold text-terminal-green mb-1">↓ Issue Shares</div>
-              <div className="text-[11px] text-zinc-400 mb-3 leading-relaxed min-h-[34px]">Issue new shares to yourself to inject capital. Cash is transferred to company, and your equity increases.</div>
-              <div className="flex gap-2 items-center">
-                <input type="number" placeholder="Shares" min={1} value={issueQty} onChange={e => setIssueQty(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 p-2 text-xs outline-none rounded" />
-                <span className="text-zinc-500 text-xs">@</span>
-                <input type="number" placeholder="§ Price" min={1} value={issuePrice} onChange={e => setIssuePrice(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 p-2 text-xs outline-none rounded" />
-                <Button onClick={handleIssue} disabled={busy} variant="primary">Issue</Button>
-              </div>
-            </div>
-          ) : (
+          ) : currentStructureId === 'sole-trader' ? (
             <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
               <div className="text-[13px] font-bold text-terminal-green mb-1">↓ Inject Capital</div>
               <div className="text-[11px] text-zinc-400 mb-3 leading-relaxed min-h-[34px]">Transfer your personal cash into the company ledger (owner loan).</div>
@@ -162,7 +151,18 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
                 <Button onClick={handleInject} disabled={busy} variant="primary">Inject</Button>
               </div>
             </div>
-          )}
+          ) : currentStructureId === 'private-company' ? (
+            <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
+              <div className="text-[13px] font-bold text-terminal-green mb-1">↑ Issue Shares</div>
+              <div className="text-[11px] text-zinc-400 mb-3 leading-relaxed min-h-[34px]">Issue new shares to yourself to inject capital. Cash is transferred to company, and your equity increases.</div>
+              <div className="flex gap-2 items-center">
+                <input type="number" placeholder="Shares" min={1} value={issueQty} onChange={e => setIssueQty(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 p-2 text-xs outline-none rounded" />
+                <span className="text-zinc-500 text-xs">@</span>
+                <input type="number" placeholder="§ Price" min={1} value={issuePrice} onChange={e => setIssuePrice(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 p-2 text-xs outline-none rounded" />
+                <Button onClick={handleIssue} disabled={busy} variant="primary">Issue</Button>
+              </div>
+            </div>
+          ) : null}
 
           {currentStructureId === 'public-corporation' ? (
             <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
