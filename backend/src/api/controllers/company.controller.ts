@@ -72,6 +72,10 @@ export class CompanyController {
         return next(new AppError('Missing required fields', 400, 'BAD_REQUEST'));
       }
 
+      if (Number(starting_capital) < 0 || isNaN(Number(starting_capital))) {
+        return next(new AppError('Starting capital must be zero or a positive number', 400, 'BAD_REQUEST'));
+      }
+
       // Check unique name constraint
       const existingName = await db('companies')
         .where({ world_instance_id: 'pre-alpha-world-1', country_id })
@@ -150,8 +154,8 @@ export class CompanyController {
         const [finances] = await trx('company_finances').insert({
           company_id: company.id,
           currency_id,
-          available_cash: starting_capital,
-          company_value: starting_capital
+          available_cash: Number(starting_capital),
+          company_value: Number(starting_capital)
         }).returning('*');
 
         // Cap table: founder holds all 1,000,000 authorized shares
@@ -159,7 +163,7 @@ export class CompanyController {
           company_id: company.id,
           holder_character_id: character.id,
           shares: 1000000,
-          avg_cost_basis: 0
+          avg_cost_basis: Number(starting_capital) / 1000000
         });
 
         return { ...company, finances };
