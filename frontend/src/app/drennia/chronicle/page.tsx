@@ -11,7 +11,7 @@ import {
   Mail, Landmark, ChevronRight, RefreshCw, AlertTriangle, Lock,
   Activity, Globe, Newspaper,
 } from 'lucide-react';
-import { getContracts } from '../../../lib/businessCore';
+import { getContracts, formatGameDate } from '../../../lib/businessCore';
 import { addNotification } from '../../../lib/notifications';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import NotificationBell from '../../../components/gameplay/NotificationBell';
@@ -90,7 +90,7 @@ function ChartTooltip({ active, payload, label }: any) {
   return (
     <div className="bg-[#0c0d13] border border-[#23232b] px-3 py-2 rounded-lg text-[10px] font-mono shadow-card">
       <p className="text-zinc-500 mb-0.5 uppercase tracking-wider">{label}</p>
-      <p className="text-terminal-amber font-bold">₯{Number(payload[0].value).toLocaleString()}</p>
+      <p className="text-terminal-amber font-bold">${Number(payload[0].value).toLocaleString()}</p>
     </div>
   );
 }
@@ -146,28 +146,27 @@ export default function ChroniclePage() {
   const companyCash = Number(company?.finances?.available_cash ?? 0);
   const netWorth    = playerCash + companyCash;
 
-  const handleRestartLife = useCallback(() => {
+  const handleRestartLife = useCallback(async () => {
     if (typeof window === 'undefined') return;
-    const preserve = [
-      'worldr_access_token',
-      'worldr_refresh_token',
-      'worldr_pre_alpha_access_granted_v1',
-      'worldr_account_settings',
-      'worldr_world_clock_v1',
-    ];
-    const toRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k?.startsWith('worldr_') && !preserve.includes(k)) toRemove.push(k);
+    try {
+      const token = localStorage.getItem('worldr_access_token');
+      if (token) {
+        await fetch('/api/v1/character/me', {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to delete character', e);
     }
-    toRemove.forEach(k => localStorage.removeItem(k));
-    window.location.href = '/world-entry';
+    localStorage.clear();
+    window.location.href = '/';
   }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-    if (!granted) { router.replace('/pre-alpha-access'); return; }
     // Show first-day orientation modal if not yet seen
     const seenModal = localStorage.getItem(FIRST_DAY_MODAL_KEY) === 'true';
     if (!seenModal) setShowFirstDay(true);
@@ -180,12 +179,25 @@ export default function ChroniclePage() {
           setCharacterAge(Number(char.age ?? 18));
           setPlayerCash(Number(char.finances?.cash_in_hand ?? 0));
 
-          const fileStr = localStorage.getItem('worldr_citizen_file_v1');
-          const parsed  = fileStr ? JSON.parse(fileStr) : { motherland: 'Drennia' };
+          let parsed: PlayerStats = {
+            motherland: 'Drennia',
+            credibility: 50,
+            charisma: 50,
+            influence: 50
+          };
+          try {
+            const fileStr = char.citizen_file;
+            if (fileStr) {
+              const fromDb = typeof fileStr === 'string' ? JSON.parse(fileStr) : fileStr;
+              parsed = { ...parsed, ...fromDb };
+            }
+          } catch (e) {
+            console.warn('Failed to parse citizen file', e);
+          }
           setCitizenFile(parsed);
 
           companyApi.getMy().then(compRes => {
-            const companies = compRes.data;
+            const companies = compRes.data || [];
             if (companies.length > 0) {
               const myCompany = companies.sort((a: any, b: any) =>
                 new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
@@ -195,14 +207,17 @@ export default function ChroniclePage() {
               setActiveContracts(
                 contracts.filter(c => c.status === 'awarded' && c.awardedToCompanyId === myCompany.id).length
               );
-              // Seed net worth into series tail with live value
-              const liveValue = playerCash + Number(myCompany.finances?.available_cash ?? 0);
-              setNetWorthSeries(prev => [...prev.slice(0, -1), { month: 'Now', value: liveValue }]);
+              // Seed net worth tail with live company cash (player cash set above)
+              const liveCash = Number(myCompany.finances?.available_cash ?? 0);
+              setNetWorthSeries(prev => {
+                const liveValue = Number(char.finances?.cash_in_hand ?? 0) + liveCash;
+                return [...prev.slice(0, -1), { month: 'Now', value: liveValue }];
+              });
             }
           }).catch(() => {});
           
           politicsApi.getLedger(10).then(data => {
-            const polEvents = data.map((ev: any) => ({
+            const polEvents = (data || []).map((ev: any) => ({
               id: ev.id,
               month: ev.month,
               text: `[Month ${ev.month}] ${ev.headline}: ${ev.body}`
@@ -213,7 +228,7 @@ export default function ChroniclePage() {
             // Mirror world/ledger movements into the notification feed so the
             // header bell surfaces "while you were away" events. Stable ids
             // keep this idempotent across reloads.
-            data.forEach((ev: any) => {
+            (data || []).forEach((ev: any) => {
               addNotification({
                 id: `ledger_${ev.id}`,
                 category: 'world',
@@ -233,15 +248,28 @@ export default function ChroniclePage() {
         .finally(() => setAuthorized(true));
     });
 
-    const recs = JSON.parse(localStorage.getItem('worldr_records_v1') ?? '[]');
+    let recs: any[] = [];
+    try {
+      recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
+    } catch (e) {
+      console.warn('Failed to parse records', e);
+    }
     setRecentRecords(recs.slice(0, 6));
-  }, [router, playerCash]);
+  }, [router]);
 
   if (!authorized) return null;
 
   const sectorLabel = company?.industry_id === 'manufacturing' ? 'Manufacturing'
     : company?.industry_id === 'services' || company?.industry_id === 'shipping-logistics' ? 'Shipping & Logistics'
     : company?.industry_id ?? '—';
+
+  const legalStructureLabel = (() => {
+    const id = company?.legal_structure_id;
+    if (id === 'sole-trader') return 'Sole Trader';
+    if (id === 'private-company') return 'Private Company';
+    if (id === 'public-corporation') return 'Corporation';
+    return id ?? '—';
+  })();
 
   const stateLabel = (() => {
     const id = company?.headquarters_state_id;
@@ -327,9 +355,9 @@ export default function ChroniclePage() {
         {/* Center: stat chips — horizontal scroll strip on mobile, wrap on sm+ */}
         <div className="flex items-center gap-2 flex-nowrap overflow-x-auto scrollbar-hide max-w-full sm:flex-wrap sm:overflow-visible">
           <StatChip
-            label="Cash ₯"
+            label="Cash $"
             value={playerCash}
-            prefix="₯"
+            prefix="$"
             valueColor="green"
             countUp
           />
@@ -340,7 +368,7 @@ export default function ChroniclePage() {
             <StatChip
               label="Company Cash"
               value={companyCash}
-              prefix="₯"
+              prefix="$"
               valueColor="amber"
               countUp
             />
@@ -376,23 +404,23 @@ export default function ChroniclePage() {
             const up = delta >= 0;
             const accent = up ? '#30d158' : '#ff453a';
             return (
-              <div className="relative overflow-hidden rounded-xl border border-[#23232b] bg-gradient-to-br from-[#0c0d13] to-[#111219] p-5 md:p-6">
+              <div className="relative overflow-hidden rounded-xl border border-[#2a2630] bg-gradient-to-br from-[#0d0e15] via-[#111320] to-[#0c0d13] p-5 md:p-6" style={{ boxShadow: '0 0 40px rgba(201,162,74,0.04) inset, 0 1px 0 rgba(201,162,74,0.08)' }}>
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
                   <div className="min-w-0">
                     <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-zinc-600">Welcome back</p>
                     <h1 className="text-2xl md:text-3xl font-semibold text-zinc-100 truncate">{characterName || 'Citizen'}</h1>
                     <p className="text-[11px] text-zinc-500 mt-1 font-mono">
-                      {citizenFile?.gameDateStr ?? 'January, Year 0'} · {citizenFile?.motherland ?? 'Drennia'}
+                      {formatGameDate()} · {citizenFile?.motherland ?? 'Drennia'}
                     </p>
                   </div>
                   <div className="flex items-center gap-6">
                     <div>
                       <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Net Worth</p>
                       <p className="text-2xl md:text-3xl font-mono font-bold text-terminal-amber amber-glow leading-tight">
-                        ₯{netWorth.toLocaleString()}
+                        ${netWorth.toLocaleString()}
                       </p>
                       <p className={`text-[11px] font-mono font-bold ${up ? 'text-terminal-green' : 'text-terminal-red'}`}>
-                        {up ? '▲' : '▼'} {up ? '+' : '−'}₯{Math.abs(delta).toLocaleString()} ({pct.toFixed(1)}%) this month
+                        {up ? '▲' : '▼'} {up ? '+' : '−'}${Math.abs(delta).toLocaleString()} ({pct.toFixed(1)}%) this month
                       </p>
                     </div>
                     <div className="hidden sm:block w-32 h-14">
@@ -414,7 +442,7 @@ export default function ChroniclePage() {
                   <Button href="/drennia/business" variant="primary" icon={ChevronRight} size="sm">
                     {company ? 'Open your desk' : 'Start your company'}
                   </Button>
-                  <Button href="/drennia/politics" variant="secondary" size="sm">Politics Desk →</Button>
+                  <Button onClick={() => alert('Political desk will be available on 09 July 2026.')} variant="secondary" size="sm">Politics Desk →</Button>
                   {activeContracts > 0 && <Badge variant="amber">{activeContracts} active contracts</Badge>}
                 </div>
               </div>
@@ -438,12 +466,13 @@ export default function ChroniclePage() {
               </span>
               {[
                 { label: 'Register a company', href: '/drennia/business', done: !!company },
-                { label: 'Join a political party', href: '/drennia/politics', done: false },
+                { label: 'Join a political party', href: '#', onClick: (e: any) => { e.preventDefault(); alert('Political desk will be available on 09 July 2026.'); }, done: false },
                 { label: 'Check the World Feed', href: '/drennia/world', done: false },
               ].map(item => (
                 <a
                   key={item.label}
                   href={item.href}
+                  onClick={item.onClick}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     fontSize: 11, color: item.done ? '#4D8C6A' : '#A79D8C',
@@ -483,7 +512,7 @@ export default function ChroniclePage() {
               <div>
                 <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Current Net Worth</p>
                 <p className="text-xl font-mono font-bold text-terminal-amber amber-glow">
-                  ₯{netWorth.toLocaleString()}
+                  ${netWorth.toLocaleString()}
                 </p>
               </div>
               <Badge variant="green" dot>Active</Badge>
@@ -535,13 +564,13 @@ export default function ChroniclePage() {
                   <div>
                     <p className="text-[14px] font-semibold text-zinc-100">{company.name}</p>
                     <p className="text-[11px] text-zinc-500 mt-0.5">
-                      {company.legal_structure_id} · {sectorLabel} · {stateLabel}
+                      {legalStructureLabel} · {sectorLabel} · {stateLabel}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-[9px] font-mono text-zinc-600">Cash</p>
                     <p className="text-[14px] font-mono font-bold text-terminal-green terminal-glow">
-                      ₯{companyCash.toLocaleString()}
+                      ${companyCash.toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -562,7 +591,7 @@ export default function ChroniclePage() {
               <p className="text-[12px] text-zinc-400 leading-relaxed mb-4">
                 Enter the political arena. Manage your party, run campaigns, shape public policy, and form the government.
               </p>
-              <Button href="/drennia/politics" variant="primary" icon={ChevronRight} size="sm">
+              <Button onClick={() => alert('Political desk will be available on 09 July 2026.')} variant="primary" icon={ChevronRight} size="sm">
                 Open Politics Desk
               </Button>
             </Card>
@@ -640,3 +669,4 @@ export default function ChroniclePage() {
     </div>
   );
 }
+

@@ -340,12 +340,17 @@ export class LogisticsController {
         }
 
         const netProfit = totalRevenue - totalMaintenance;
+        const newCash = Number(finances.available_cash) + netProfit;
 
         const [updatedFinances] = await trx('company_finances')
           .where({ company_id: companyId })
-          .increment('available_cash', netProfit)
+          .update({
+            available_cash: newCash,
+            last_arc_profit: netProfit,
+            updated_at: trx.fn.now()
+          })
           .decrement('company_value', totalDepreciation)
-          .update({ last_arc_profit: netProfit })
+          .increment('company_value', netProfit)
           .returning('*');
 
         const clock = await trx('world_clock').first();

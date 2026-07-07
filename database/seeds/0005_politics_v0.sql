@@ -16,7 +16,7 @@ ON CONFLICT (code) DO UPDATE SET
 -- Wipe existing NPC parties to be safe on re-runs
 DELETE FROM pol_parties WHERE is_npc = TRUE;
 
-INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_month)
+INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_arc)
 SELECT 
     id, 
     'Ironvale Labour Front', 
@@ -26,7 +26,7 @@ SELECT
     0
 FROM pol_states WHERE code = 'ironvale';
 
-INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_month)
+INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_arc)
 SELECT 
     id, 
     'Industrial Progress Party', 
@@ -36,7 +36,7 @@ SELECT
     0
 FROM pol_states WHERE code = 'ironvale';
 
-INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_month)
+INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_arc)
 SELECT 
     id, 
     'Civic Stability Union', 
@@ -46,7 +46,7 @@ SELECT
     0
 FROM pol_states WHERE code = 'ironvale';
 
-INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_month)
+INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_arc)
 SELECT 
     id, 
     'Independent', 
@@ -56,7 +56,7 @@ SELECT
     0
 FROM pol_states WHERE code = 'ironvale';
 
-INSERT INTO pol_state_policy (state_id, industry_tax_rate, infrastructure_level, updated_month)
+INSERT INTO pol_state_policy (state_id, industry_tax_rate, infrastructure_level, updated_arc)
 SELECT id, 0.20, 1, 0 FROM pol_states WHERE code = 'ironvale'
 ON CONFLICT (state_id) DO UPDATE SET 
     industry_tax_rate = EXCLUDED.industry_tax_rate,

@@ -21,10 +21,10 @@ const T = {
 };
 
 const SECTOR_DEMAND = [
-  { sector: 'Shipping & Logistics', demand: 'High',    trend: '▲', avgContract: '₯140–₯220', trendColor: T.mint  },
-  { sector: 'Manufacturing',        demand: 'Rising',  trend: '▲', avgContract: '₯180–₯260', trendColor: T.gold  },
-  { sector: 'Retail & Consumer',    demand: 'Medium',  trend: '→', avgContract: '₯90–₯140',  trendColor: T.muted },
-  { sector: 'Agriculture & Food',   demand: 'Stable',  trend: '→', avgContract: '₯100–₯160', trendColor: T.steel },
+  { sector: 'Shipping & Logistics', demand: 'High',    trend: '▲', avgContract: '$140–$220', trendColor: T.mint  },
+  { sector: 'Manufacturing',        demand: 'Rising',  trend: '▲', avgContract: '$180–$260', trendColor: T.gold  },
+  { sector: 'Retail & Consumer',    demand: 'Medium',  trend: '→', avgContract: '$90–$140',  trendColor: T.muted },
+  { sector: 'Agriculture & Food',   demand: 'Stable',  trend: '→', avgContract: '$100–$160', trendColor: T.steel },
   { sector: 'Finance & Services',   demand: 'High',    trend: '▲', avgContract: 'Restricted', trendColor: T.faint },
   { sector: 'Construction',         demand: 'Medium',  trend: '→', avgContract: 'Restricted', trendColor: T.faint },
   { sector: 'Energy',               demand: 'Rising',  trend: '▲', avgContract: 'Restricted', trendColor: T.faint },
@@ -43,8 +43,6 @@ export default function MarketPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-    if (!granted) { router.replace('/pre-alpha-access'); return; }
     setAuthorized(true);
   }, [router]);
 
@@ -141,7 +139,40 @@ export default function MarketPage() {
             </div>
           </div>
         </div>
+
+        {/* Private Capital Market */}
+        <div
+          style={{ gridColumn: '1 / -1', background: T.panel, border: `1px solid ${T.border}`, padding: '24px', cursor: 'pointer' }}
+          onClick={() => router.push('/drennia/investments')}
+          role="link"
+          aria-label="Open the Private Capital Market for placements and loans"
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.steel, marginBottom: '6px' }}>Drennia Commerce Division</div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Private Capital Market</div>
+              <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, maxWidth: '520px', margin: 0 }}>
+                Trade equity in private and unlisted companies via fixed-price placements, and post or accept player-to-player loans.
+                No minimum value requirement — available to all company structures except Sole Trader.
+              </p>
+            </div>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Instruments</div>
+              <div style={{ fontSize: '11px', color: T.steel, fontFamily: 'monospace' }}>Private Equity Placements</div>
+              <div style={{ fontSize: '11px', color: T.steel, fontFamily: 'monospace' }}>Player-to-Player Loans</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '24px', marginTop: '20px', paddingTop: '16px', borderTop: `1px solid ${T.border}` }}>
+            <div style={{ fontSize: '11px', color: T.muted, fontFamily: 'monospace' }}>
+              Fixed-price blocks · shareholder cap enforced · amortized monthly repayments · escrow model
+            </div>
+            <div style={{ marginLeft: 'auto', fontSize: '10px', color: T.steel, fontFamily: 'monospace', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'flex-end' }}>
+              Open Private Market →
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+

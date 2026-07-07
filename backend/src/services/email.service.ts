@@ -216,6 +216,60 @@ export class EmailService {
       throw new AppError(`Email delivery failed: ${err.message || err}`, 500, 'EMAIL_DELIVERY_FAILED');
     }
   }
+  async sendPasswordResetEmail(to: string, displayName: string, token: string): Promise<void> {
+    const resetUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/reset-password?token=${token}&email=${encodeURIComponent(to)}`;
+    const from = process.env.EMAIL_FROM || env.EMAIL_FROM;
+    const apiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
+
+    const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><title>Reset Your WORLDr Password</title></head>
+<body style="margin:0;padding:0;background:#050508;font-family:system-ui,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#050508;min-height:100vh;">
+    <tr><td align="center" style="padding:60px 16px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
+        <tr><td align="center" style="padding-bottom:28px;">
+          <span style="font-size:22px;font-weight:800;color:#fafafa;">WORLD<span style="color:#f59e0b;">r</span></span>
+        </td></tr>
+        <tr><td style="background:rgba(17,17,19,0.9);border:1px solid rgba(245,158,11,0.25);border-radius:16px;padding:40px;">
+          <p style="margin:0 0 8px;font-size:11px;color:#71717a;letter-spacing:0.2em;text-transform:uppercase;">Password Recovery</p>
+          <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#fafafa;">Reset your password</h1>
+          <p style="margin:0 0 24px;font-size:14px;color:#a1a1aa;line-height:1.6;">Hi ${displayName}, we received a request to reset your WORLDr password. Click the button below within 1 hour.</p>
+          <a href="${resetUrl}" style="display:block;text-align:center;background:#f59e0b;color:#000;font-weight:700;padding:14px 24px;border-radius:8px;text-decoration:none;font-size:15px;margin-bottom:24px;">Reset Password</a>
+          <p style="margin:0;font-size:12px;color:#52525b;">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+    const text = `Hi ${displayName},\n\nReset your WORLDr password here:\n${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you didn't request a reset, ignore this email.\n\n— WORLDr Team`;
+
+    if (!apiKey) {
+      logger.warn(`[EmailService] No BREVO_API_KEY — skipping password reset email. Reset URL: ${resetUrl}`);
+      if (env.NODE_ENV === 'production') {
+        throw new AppError('Email service not configured.', 500, 'SMTP_NOT_CONFIGURED');
+      }
+      return;
+    }
+
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender: { email: from, name: 'WORLDr' },
+        to: [{ email: to, name: displayName }],
+        subject: 'Reset your WORLDr password',
+        htmlContent: html,
+        textContent: text,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new AppError(`Email delivery failed: ${response.status} ${errorBody}`, 500, 'EMAIL_DELIVERY_FAILED');
+    }
+    logger.info(`[EmailService] Password reset email sent to ${to}`);
+  }
 }
 
 export const emailService = new EmailService();

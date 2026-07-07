@@ -14,14 +14,15 @@ const MUTED = '#A79D8C';
 
 const TABS = [
   { name: 'Chronicle', path: '/drennia/chronicle' },
-  { name: 'Family',    path: '/drennia/family'    },
-  { name: 'Career',    path: '/drennia/career'    },
+  { name: 'Family [v0.2]',    path: '#'    },
+  { name: 'Career [v0.2]',    path: '#'    },
   { name: 'Business',  path: '/drennia/business'  },
-  { name: 'Market',    path: '/drennia/market'    },
-  { name: 'Records',   path: '/drennia/records'   },
+  { name: 'Exchange',  path: '/drennia/exchange'  },
+  { name: 'Market [v0.2]',    path: '#'    },
+  { name: 'Records [v0.2]',   path: '#'   },
   { name: 'Politics',  path: '/drennia/politics'  },
-  { name: 'Network',   path: '/drennia/network'   },
-  { name: 'World',     path: '/drennia/world'     },
+  { name: 'Network [v0.2]',   path: '#'   },
+  { name: 'World [v0.2]',     path: '#'     },
 ];
 
 export default function LivingWorldNav() {
@@ -37,7 +38,8 @@ export default function LivingWorldNav() {
         return (
           <Link
             key={tab.name}
-            href={tab.path}
+            href={tab.name === 'Politics' ? '#' : tab.path}
+            onClick={tab.name === 'Politics' ? (e) => { e.preventDefault(); alert('Political desk will be available on 09 July 2026.'); } : undefined}
             className="flex items-center justify-center whitespace-nowrap transition-all duration-150"
             style={{
               height: '42px',

@@ -133,4 +133,14 @@ export class InvestmentsController {
       next(error);
     }
   }
+
+  // GET /investments/my-placements — all placements the caller has posted (any status)
+  public static async myPlacements(req: Request, res: Response, next: NextFunction) {
+    try {
+      const character = await requireCharacter(req);
+      res.status(200).json(await investments.getMyPlacements(character.id));
+    } catch (error) {
+      next(error);
+    }
+  }
 }

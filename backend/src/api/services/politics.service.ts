@@ -1,4 +1,5 @@
 import { db } from '../../config/database';
+import { AppError } from '../../utils/errors';
 import {
   POL_FILING_WINDOW_MONTHS,
   POL_CAMPAIGN_WINDOW_MONTHS,
@@ -18,7 +19,16 @@ import {
   POL_MAJORITY_SEATS,
   POL_COALITION_MAX_DISTANCE,
   POL_COUNCIL_SEATS,
-  POL_FACTOR_DELTAS
+  POL_FACTOR_DELTAS,
+  AP_BASE_CAP,
+  AP_BONUS_LEGISLATIVE_SEAT,
+  AP_BONUS_SECRETARY,
+  AP_BONUS_GOVERNOR,
+  AP_BONUS_COMMITTEE_CHAIR,
+  AP_REGEN_PER_ARC,
+  ROSTER_CAP_BANDS,
+  RECRUIT_COST_CASH,
+  RECRUIT_PLATFORM_DRIFT,
 } from '../constants/politics';
 import { EngineCandidate, runElection } from './electionEngine';
 import { fireGoverningEvent } from './governingEvents';
@@ -26,6 +36,138 @@ import { fireGoverningEvent } from './governingEvents';
 export async function getCurrentWorldArc(): Promise<number> {
   const clock = await db('world_clock').first();
   return clock?.current_month || 1;
+}
+
+// ── AP (Action Point) Helpers ─────────────────────────────────────────────
+
+/** Pure function: maps popularity (0-100) to roster cap using tunable bands. */
+export function getRosterCap(popularity: number): number {
+  for (const band of ROSTER_CAP_BANDS) {
+    if (popularity >= band.minPop) return band.cap;
+  }
+  return 2; // safety fallback
+}
+
+/**
+ * Compute the AP cap for a character based on offices currently held.
+ * Reads from pol_offices and pol_council_seats.
+ */
+export async function computeApCap(trx: any, characterId: string): Promise<number> {
+  let cap = AP_BASE_CAP;
+
+  // Legislative seat?
+  const seat = await trx('pol_council_seats').where({ character_id: characterId }).first();
+  if (seat) cap += AP_BONUS_LEGISLATIVE_SEAT;
+
+  // Governor / Secretary / Committee Chair?
+  const offices = await trx('pol_offices').where({ holder_character_id: characterId });
+  for (const o of offices) {
+    if (o.office === 'governor') cap += AP_BONUS_GOVERNOR;
+    else if (o.office.startsWith('secretary_')) cap += AP_BONUS_SECRETARY;
+    else if (o.office === 'committee_chair') cap += AP_BONUS_COMMITTEE_CHAIR;
+    // premier is already implied by governing so no separate bonus
+  }
+
+  return cap;
+}
+
+/** Fetch (or lazily create) the pol_character_ap row for a character. */
+export async function getOrCreateCharacterAp(trx: any, characterId: string) {
+  let row = await trx('pol_character_ap').where({ character_id: characterId }).first();
+  if (!row) {
+    const cap = await computeApCap(trx, characterId);
+    const currentArc = await getCurrentWorldArc();
+    [row] = await trx('pol_character_ap').insert({
+      character_id: characterId,
+      current_ap: cap,
+      ap_cap: cap,
+      last_regen_arc: currentArc,
+    }).returning('*');
+  }
+  return row;
+}
+
+/**
+ * Atomically spend `cost` AP. Throws AppError if insufficient.
+ */
+export async function spendAp(trx: any, characterId: string, cost: number): Promise<void> {
+  if (cost <= 0) return; // free actions (e.g. vote)
+  const row = await getOrCreateCharacterAp(trx, characterId);
+  if (row.current_ap < cost) {
+    throw new AppError(
+      `Insufficient AP: need ${cost}, have ${row.current_ap}.`,
+      400, 'INSUFFICIENT_AP'
+    );
+  }
+  await trx('pol_character_ap')
+    .where({ character_id: characterId })
+    .decrement('current_ap', cost);
+}
+
+/**
+ * Regen AP: +AP_REGEN_PER_ARC per arc tick, capped at ap_cap.
+ * Called inside processPoliticalArc each tick.
+ */
+export async function regenApForCharacter(trx: any, characterId: string, currentArc: number): Promise<void> {
+  const row = await trx('pol_character_ap').where({ character_id: characterId }).first();
+  if (!row) return; // not yet initialised — skip silently
+  if (row.last_regen_arc >= currentArc) return; // already regened this arc
+
+  const newAp = Math.min(row.current_ap + AP_REGEN_PER_ARC, row.ap_cap);
+  await trx('pol_character_ap')
+    .where({ character_id: characterId })
+    .update({ current_ap: newAp, last_regen_arc: currentArc });
+}
+
+/**
+ * Recalculate and persist the AP cap for a character.
+ * Call whenever the character's offices change.
+ */
+export async function refreshApCap(trx: any, characterId: string): Promise<void> {
+  const cap = await computeApCap(trx, characterId);
+  const existing = await trx('pol_character_ap').where({ character_id: characterId }).first();
+  if (!existing) return; // not yet initialised
+  // If cap shrank, clamp current_ap too
+  const newCurrent = Math.min(existing.current_ap, cap);
+  await trx('pol_character_ap')
+    .where({ character_id: characterId })
+    .update({ ap_cap: cap, current_ap: newCurrent });
+}
+
+/**
+ * Recruit one NPC onto a party's roster.
+ * - Deducts RECRUIT_COST_CASH from party treasury
+ * - Generates a drifted platform (±RECRUIT_PLATFORM_DRIFT per axis)
+ * - Inserts into pol_party_members with is_recruited_npc = true
+ */
+export async function recruitNpcToParty(
+  trx: any,
+  party: any,
+  currentArc: number
+): Promise<void> {
+  const basePlatform: Platform = party.platform as Platform;
+
+  // Generate drifted platform
+  const driftedPlatform: Record<string, number> = {};
+  for (const axis of AXES) {
+    const drift = (Math.random() * 2 - 1) * RECRUIT_PLATFORM_DRIFT;
+    driftedPlatform[axis] = Math.max(0, Math.min(100, basePlatform[axis] + drift));
+  }
+
+  // Deduct treasury
+  await trx('pol_parties')
+    .where({ id: party.id })
+    .decrement('treasury', RECRUIT_COST_CASH);
+
+  // Create a placeholder system character (NPC)
+  // We store NPCs with character_id = null to match existing NPC-candidate pattern
+  await trx('pol_party_members').insert({
+    party_id: party.id,
+    character_id: null,
+    role: 'member',
+    joined_arc: currentArc,
+    is_recruited_npc: true,
+  });
 }
 
 async function applyFactorDelta(trx: any, characterId: string | null, factors: Record<string, number>) {
@@ -180,6 +322,12 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
   if (cycle.phase !== newPhase) {
     await trx('pol_cycles').where({ id: cycle.id }).update({ phase: newPhase });
     cycle.phase = newPhase;
+  }
+
+  // Regen AP for all politicians who have an AP row (lazy-init happens on first action)
+  const apRows = await trx('pol_character_ap').select('character_id');
+  for (const row of apRows) {
+    await regenApForCharacter(trx, row.character_id, currentMonth);
   }
 
   if (newPhase === 'filing') {
@@ -457,7 +605,7 @@ async function resolveElection(trx: any, cycleId: string) {
 
   await trx('pol_ledger_events').insert({
     state_id: cycle.state_id,
-    month: cycle.polling_arc,
+    arc: cycle.polling_arc,
     kind: 'election_results',
     headline: `ELECTION RESULTS: ${topName} Secures Most Seats`,
     body: `The polling stations have closed. ${topName} leads with ${topParty?.seats} seats out of ${POL_COUNCIL_SEATS}. The political landscape shifts as parties now scramble to form a viable government.`
@@ -641,7 +789,7 @@ async function namePremierAndEmitLedger(trx: any, cycle: any, largestParty: any,
 
   await trx('pol_ledger_events').insert({
     state_id: cycle.state_id,
-    month: cycle.formation_end_arc,
+    arc: cycle.formation_end_arc,
     kind: 'government_formed',
     headline,
     body
@@ -768,7 +916,7 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
         }
 
         await trx('pol_ledger_events').insert({
-          state_id: stateId, month: currentMonth, kind: 'bill_passed',
+          state_id: stateId, arc: currentMonth, kind: 'bill_passed',
           headline: `INDUSTRY TAX REVISED`,
           body: `Council passes the new industry tax rate of ${(newRate * 100).toFixed(1)}%.`
         });
@@ -779,7 +927,7 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
       }
       await trx('pol_bills').where({ id: bill.id }).update({ status: 'failed' });
       await trx('pol_ledger_events').insert({
-        state_id: stateId, month: currentMonth, kind: 'bill_failed',
+        state_id: stateId, arc: currentMonth, kind: 'bill_failed',
         headline: `BILL FAILED: ${bill.type.replace('_', ' ').toUpperCase()}`,
         body: `Council rejected the proposed ${bill.type.replace('_', ' ')}.`
       });
@@ -803,7 +951,7 @@ async function awardTenders(trx: any, stateId: string, currentMonth: number) {
     if (bids.length === 0) {
       await trx('pol_tenders').where({ id: tender.id }).update({ status: 'closed' });
       await trx('pol_ledger_events').insert({
-        state_id: stateId, month: currentMonth, kind: 'tender_awarded',
+        state_id: stateId, arc: currentMonth, kind: 'tender_awarded',
         headline: `Tender Failed: ${tender.vehicle_class}`,
         body: `No qualifying bids were received for the ${tender.vehicle_class} tender. It has been closed.`
       });
@@ -832,9 +980,9 @@ async function awardTenders(trx: any, stateId: string, currentMonth: number) {
     });
 
     await trx('pol_ledger_events').insert({
-      state_id: stateId, month: currentMonth, kind: 'tender_awarded',
+      state_id: stateId, arc: currentMonth, kind: 'tender_awarded',
       headline: `Tender Awarded: ${tender.vehicle_class}`,
-      body: `The ${tender.vehicle_class} procurement contract was awarded to ${winningBid.company_name} at ${winningBid.bid_price} ₯ per unit.`
+      body: `The ${tender.vehicle_class} procurement contract was awarded to ${winningBid.company_name} at ${winningBid.bid_price} $ per unit.`
     });
   }
 }
@@ -889,7 +1037,7 @@ async function settleTenders(trx: any, stateId: string, currentMonth: number) {
         entry_type: 'sales',
         amount: revenue,
         balance_after: trx.raw(`(SELECT available_cash FROM company_finances WHERE company_id = ?)`, [company.id]),
-        description: `Government Tender: Sold ${unitsBought} units of ${tender.vehicle_class} at ${tender.awarded_price} ₯`
+        description: `Government Tender: Sold ${unitsBought} units of ${tender.vehicle_class} at ${tender.awarded_price} $`
       });
     }
 

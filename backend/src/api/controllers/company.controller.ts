@@ -72,6 +72,10 @@ export class CompanyController {
         return next(new AppError('Missing required fields', 400, 'BAD_REQUEST'));
       }
 
+      if (Number(starting_capital) < 0 || isNaN(Number(starting_capital))) {
+        return next(new AppError('Starting capital must be zero or a positive number', 400, 'BAD_REQUEST'));
+      }
+
       // Check unique name constraint
       const existingName = await db('companies')
         .where({ world_instance_id: 'pre-alpha-world-1', country_id })
@@ -107,7 +111,7 @@ export class CompanyController {
           // Fallback repair for old accounts without finances
           const [newFinances] = await trx('character_finances').insert({
             character_id: character.id,
-            currency_id: 'drennian-day',
+            currency_id: 'dollar',
             cash_in_hand: 1000000,
             net_worth: 1000000
           }).returning('*');
@@ -150,8 +154,8 @@ export class CompanyController {
         const [finances] = await trx('company_finances').insert({
           company_id: company.id,
           currency_id,
-          available_cash: starting_capital,
-          company_value: starting_capital
+          available_cash: Number(starting_capital),
+          company_value: Number(starting_capital)
         }).returning('*');
 
         // Cap table: founder holds all 1,000,000 authorized shares
@@ -159,7 +163,7 @@ export class CompanyController {
           company_id: company.id,
           holder_character_id: character.id,
           shares: 1000000,
-          avg_cost_basis: 0
+          avg_cost_basis: Number(starting_capital) / 1000000
         });
 
         return { ...company, finances };
@@ -171,13 +175,223 @@ export class CompanyController {
     }
   }
 
+  /**
+   * POST /companies/:id/inject-capital  { amount }
+   * Sole Trader only: transfer personal cash → company cash (owner loan).
+   * Private company and public corporation routes are handled separately.
+   */
+  public static async injectCapital(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { id } = req.params;
+      const { amount } = req.body;
+
+      if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+      if (!amount || Number(amount) <= 0 || isNaN(Number(amount))) {
+        return next(new AppError('Amount must be a positive number.', 400, 'BAD_REQUEST'));
+      }
+
+      const result = await db.transaction(async (trx) => {
+        const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+        if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+        const company = await trx('companies').where({ id, owner_character_id: character.id }).first();
+        if (!company) throw new AppError('Company not found or unauthorized', 404, 'NOT_FOUND');
+
+        // Structure guard: only sole traders can do direct capital injection
+        if (company.legal_structure_id !== 'sole-trader') {
+          throw new AppError(
+            'Only sole traders can inject capital directly. Private companies issue shares; public corporations raise via rights issues.',
+            400,
+            'WRONG_STRUCTURE'
+          );
+        }
+
+        const charFinances = await trx('character_finances')
+          .where({ character_id: character.id })
+          .forUpdate()
+          .first();
+        if (!charFinances) throw new AppError('Character finances not found', 500, 'INTERNAL');
+
+        const personalCash = Number(charFinances.cash_in_hand);
+        if (personalCash < Number(amount)) {
+          throw new AppError(
+            `Insufficient personal funds. You have §${personalCash.toLocaleString()} but need §${Number(amount).toLocaleString()}.`,
+            400,
+            'INSUFFICIENT_FUNDS'
+          );
+        }
+
+        // Deduct from character
+        await trx('character_finances')
+          .where({ character_id: character.id })
+          .decrement('cash_in_hand', Number(amount));
+
+        // Add to company (owner loan — increases cash but tracked as equity/loan, not debt)
+        const [updatedFinances] = await trx('company_finances')
+          .where({ company_id: company.id })
+          .increment('available_cash', Number(amount))
+          .increment('company_value', Number(amount))
+          .returning('*');
+
+        return {
+          available_cash: updatedFinances.available_cash,
+          personal_cash_remaining: personalCash - Number(amount),
+        };
+      });
+
+      res.status(200).json({
+        success: true,
+        message: `§${Number(amount).toLocaleString()} injected into company as owner capital.`,
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /companies/:id/issue-shares  { sharesToIssue, pricePerShare }
+   * Private Company only: founder issues new shares to themselves.
+   * - sharesToIssue × pricePerShare cash deducted from personal wallet
+   * - Same amount credited to company cash
+   * - company_shares table updated (new shares minted)
+   * - company_value incremented by the capital raised
+   * Max shareholders check enforced (private-company allows 10).
+   */
+  public static async issueShares(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { id } = req.params;
+      const { sharesToIssue, pricePerShare } = req.body;
+
+      if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+      const shares = Math.floor(Number(sharesToIssue));
+      const price  = Number(pricePerShare);
+
+      if (!shares || shares <= 0) return next(new AppError('sharesToIssue must be a positive integer.', 400, 'BAD_REQUEST'));
+      if (!price  || price  <= 0) return next(new AppError('pricePerShare must be positive.', 400, 'BAD_REQUEST'));
+
+      const totalCost = shares * price;
+
+      const result = await db.transaction(async (trx) => {
+        const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+        if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+        const company = await trx('companies').where({ id, owner_character_id: character.id }).first();
+        if (!company) throw new AppError('Company not found or unauthorized', 404, 'NOT_FOUND');
+
+        // Structure guard: private-company only
+        if (company.legal_structure_id !== 'private-company') {
+          throw new AppError(
+            'Share issuance is only available to Private Companies. Sole traders inject capital directly; public corporations raise via exchange rights issues.',
+            400,
+            'WRONG_STRUCTURE'
+          );
+        }
+
+        // Dilution protection: cannot unilaterally issue shares if there are minority shareholders
+        const otherHolders = await trx('company_shares')
+          .where({ company_id: company.id })
+          .where('shares', '>', 0)
+          .whereNot({ holder_character_id: character.id });
+        if (otherHolders.length > 0) {
+          throw new AppError('Cannot arbitrarily issue shares because there are minority shareholders. You must use the Equity Placements system to raise capital fairly without unilateral dilution.', 400, 'EMBEZZLEMENT_PROTECTION');
+        }
+
+        // Upsert cap table row for founder
+        const existingRow = await trx('company_shares')
+          .where({ company_id: id, holder_character_id: character.id })
+          .first();
+
+        const struct = await trx('legal_structures').where({ id: 'private-company' }).first();
+        const maxShareholders = struct?.max_shareholders ?? 10;
+        
+        if (!existingRow) {
+          const holderCount = await trx('company_shares')
+            .where({ company_id: id })
+            .where('shares', '>', 0)
+            .count('holder_character_id as n')
+            .first();
+          const currentHolders = Number((holderCount as any)?.n ?? 0);
+          if (currentHolders >= maxShareholders) {
+            throw new AppError(`Shareholder cap reached (${maxShareholders}). Cannot issue further shares without upgrading to a public corporation.`, 400, 'SHAREHOLDER_CAP');
+          }
+        }
+
+        // Check personal funds
+        const charFinances = await trx('character_finances')
+          .where({ character_id: character.id })
+          .forUpdate()
+          .first();
+        if (!charFinances) throw new AppError('Character finances not found', 500, 'INTERNAL');
+
+        if (Number(charFinances.cash_in_hand) < totalCost) {
+          throw new AppError(
+            `Insufficient personal funds. This issuance costs §${totalCost.toLocaleString()} (${shares.toLocaleString()} shares × §${price.toLocaleString()}), but you only have §${Number(charFinances.cash_in_hand).toLocaleString()}.`,
+            400,
+            'INSUFFICIENT_FUNDS'
+          );
+        }
+
+        // Deduct from character
+        await trx('character_finances')
+          .where({ character_id: character.id })
+          .decrement('cash_in_hand', totalCost);
+
+        // Credit company cash + company_value
+        const [updatedFinances] = await trx('company_finances')
+          .where({ company_id: id })
+          .increment('available_cash', totalCost)
+          .increment('company_value',  totalCost)
+          .returning('*');
+
+        // Use the existingRow fetched earlier at the start of the transaction
+        if (existingRow) {
+          const prevShares = Number(existingRow.shares);
+          const prevCost   = Number(existingRow.avg_cost_basis);
+          const newTotal   = prevShares + shares;
+          const newAvgCost = ((prevCost * prevShares) + (price * shares)) / newTotal;
+          await trx('company_shares')
+            .where({ company_id: id, holder_character_id: character.id })
+            .update({ shares: newTotal, avg_cost_basis: newAvgCost, updated_at: trx.fn.now() });
+        } else {
+          await trx('company_shares').insert({
+            company_id: id,
+            holder_character_id: character.id,
+            shares,
+            avg_cost_basis: price,
+          });
+        }
+
+        return {
+          available_cash: updatedFinances.available_cash,
+          company_value:  updatedFinances.company_value,
+          shares_issued:  shares,
+          price_per_share: price,
+          capital_raised:  totalCost,
+          personal_cash_remaining: Number(charFinances.cash_in_hand) - totalCost,
+        };
+      });
+
+      res.status(200).json({
+        success: true,
+        message: `Issued ${result.shares_issued.toLocaleString()} new shares at §${result.price_per_share.toLocaleString()} each. §${result.capital_raised.toLocaleString()} raised for the company.`,
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   public static async withdrawCapital(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;
       const { id } = req.params;
       const { amount } = req.body;
 
-      if (!userId || !amount || amount <= 0) {
+      if (!userId || !amount || Number(amount) <= 0 || isNaN(Number(amount))) {
         return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
       }
 
@@ -188,22 +402,36 @@ export class CompanyController {
         const company = await trx('companies').where({ id, owner_character_id: character.id }).first();
         if (!company) throw new AppError('Company not found or unauthorized', 404, 'NOT_FOUND');
 
+        if (company.legal_structure_id === 'public-corporation') {
+          throw new AppError('Public corporations cannot use direct owner drawings. Use dividend policies to distribute cash to shareholders.', 400, 'WRONG_STRUCTURE');
+        }
+
+        if (company.legal_structure_id === 'private-company') {
+          const otherHolders = await trx('company_shares')
+            .where({ company_id: company.id })
+            .where('shares', '>', 0)
+            .whereNot({ holder_character_id: character.id });
+          if (otherHolders.length > 0) {
+            throw new AppError('Cannot use ad-hoc owner drawings because there are minority shareholders. Use dividend policies to distribute cash fairly.', 400, 'EMBEZZLEMENT_PROTECTION');
+          }
+        }
+
         const companyFinances = await trx('company_finances').where({ company_id: company.id }).forUpdate().first();
-        if (Number(companyFinances.available_cash) < amount) {
+        if (Number(companyFinances.available_cash) < Number(amount)) {
           throw new AppError('Insufficient company funds', 400, 'INSUFFICIENT_FUNDS');
         }
 
         // Deduct from company
         const [updatedCompanyFinances] = await trx('company_finances')
           .where({ company_id: company.id })
-          .decrement('available_cash', amount)
-          .decrement('company_value', amount)
+          .decrement('available_cash', Number(amount))
+          .decrement('company_value', Number(amount))
           .returning('*');
 
         // Add to character (simulate dividend/withdrawal)
         await trx('character_finances')
           .where({ character_id: character.id })
-          .increment('cash_in_hand', amount);
+          .increment('cash_in_hand', Number(amount));
 
         return updatedCompanyFinances;
       });
@@ -293,8 +521,35 @@ export class CompanyController {
           throw new AppError(`Insufficient company cash for the §${fee.toLocaleString()} filing fee`, 400, 'INSUFFICIENT_FUNDS');
         }
 
-        await trx('company_finances').where({ company_id: id }).decrement('available_cash', fee);
+        await trx('company_finances')
+          .where({ company_id: id })
+          .decrement('available_cash', fee)
+          .decrement('company_value', fee);
         await trx('companies').where({ id }).update({ legal_structure_id, updated_at: trx.fn.now() });
+
+        // IPO Pre-Listing Split: normalize total shares to exactly 1,000,000 to match DRX exchange limits.
+        if (target.id === 'public-corporation') {
+          const holders = await trx('company_shares').where({ company_id: id }).where('shares', '>', 0);
+          const currentTotal = holders.reduce((sum: number, h: any) => sum + Number(h.shares), 0);
+          if (currentTotal > 0 && currentTotal !== 1_000_000) {
+            const splitRatio = 1_000_000 / currentTotal;
+            for (const h of holders) {
+              const newShares = Math.floor(Number(h.shares) * splitRatio);
+              const newCost = Number(h.avg_cost_basis) / splitRatio;
+              await trx('company_shares')
+                .where({ company_id: id, holder_character_id: h.holder_character_id })
+                .update({ shares: newShares, avg_cost_basis: newCost, updated_at: trx.fn.now() });
+            }
+            // Fix rounding errors by giving remainder to the founder
+            const finalTotalRes = await trx('company_shares').where({ company_id: id }).sum('shares as total').first();
+            const finalTotal = Number(finalTotalRes?.total || 0);
+            if (finalTotal !== 1_000_000) {
+              await trx('company_shares')
+                .where({ company_id: id, holder_character_id: character.id })
+                .increment('shares', 1_000_000 - finalTotal);
+            }
+          }
+        }
 
         const clock = await trx('world_clock').first();
         await trx('company_ledger').insert({
@@ -361,11 +616,12 @@ export class CompanyController {
         .orderBy('created_at', 'desc')
         .limit(24);
 
-      // Bug E fix: return dividend_policy as an object { payout_percent: number } so all
-      // frontend consumers (EquityDeskTab) can read .dividend_policy.payout_percent uniformly.
+      // Merge main's totalShares calculation with Bug E fix (dividend_policy as object)
+      const totalShares = holders.reduce((sum, h) => sum + Number(h.shares), 0);
+
       res.status(200).json({
-        total_shares: 1000000,
-        holders: holders.map((h: any) => ({ ...h, percent: (Number(h.shares) / 1000000) * 100 })),
+        total_shares: totalShares,
+        holders: holders.map((h: any) => ({ ...h, percent: totalShares > 0 ? (Number(h.shares) / totalShares) * 100 : 0 })),
         dividend_policy: { payout_percent: policy ? Number(policy.payout_percent) : 0 },
         recent_dividends: recentDividends,
       });

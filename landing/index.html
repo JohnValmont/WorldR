@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WORLDr — Enter the World of Aethan</title>
+<meta name="description" content="WORLDr — a living multiplayer world of politics, business, power, and legacy. Set on the world of Aethan. Begin in the nation of Drennia. Pre-Alpha access." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- fixed cinematic layers -->
+<canvas id="scene"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+<div id="loader" aria-hidden="true"><div class="loader-inner"><span class="loader-crest">✦</span><span class="loader-txt">INITIALISING AETHAN</span><span class="loader-bar"><i></i></span></div></div>
+
+<!-- top institutional bar -->
+<header class="topbar">
+  <div class="brand-mini" id="brandMini">
+    <span class="crest" aria-hidden="true">✦</span>
+    <span class="brand-mini-word">WORLDr</span>
+  </div>
+  <nav class="topnav">
+    <a href="#pillar-1">World</a>
+    <a href="#pillar-2">Politics</a>
+    <a href="#pillar-3">Business</a>
+    <a href="#pillar-4">Institutions</a>
+    <a href="#console" class="nav-cta">Enter</a>
+  </nav>
+</header>
+
+<!-- persistent state HUD -->
+<aside class="hud" id="hud" aria-hidden="true">
+  <div class="hud-head">DRENNIA · NATIONAL INDEX</div>
+  <div class="hud-row"><span class="hud-lbl">Federal Approval</span><span class="hud-val" data-tick="approval">61.4<i>%</i></span></div>
+  <div class="hud-row"><span class="hud-lbl">Senate Seats Held</span><span class="hud-val" data-tick="seats">148</span></div>
+  <div class="hud-row"><span class="hud-lbl">DRX Market Index</span><span class="hud-val" data-tick="index">12,704.8</span></div>
+  <div class="hud-row"><span class="hud-lbl">National GDP</span><span class="hud-val" data-tick="gdp">$4.812<i>T</i></span></div>
+  <div class="hud-foot"><span class="pulse"></span>SESSION ACTIVE · CYCLE 41</div>
+</aside>
+
+<main>
+
+  <!-- HERO -->
+  <section class="hero" id="hero">
+    <p class="eyebrow reveal">THE PERSISTENT WORLD OF AETHAN</p>
+    <h1 class="wordmark" id="wordmark" aria-label="WORLDr">
+      <span class="glyph">W</span><span class="glyph">O</span><span class="glyph">R</span><span class="glyph">L</span><span class="glyph">D</span><span class="glyph lower">r</span>
+    </h1>
+    <p class="tagline reveal">Politics. Business. Power. Legacy.<br/>A living world of many nations, already in motion. Your ascent begins in <span class="amber-word">Drennia</span> — the first nation to open its borders.</p>
+    <a href="#pillar-1" class="scroll-cue reveal" aria-label="Begin">
+      <span>BEGIN THE DESCENT</span>
+      <svg viewBox="0 0 24 40" width="20" height="34"><rect x="1" y="1" width="22" height="38" rx="11" fill="none" stroke="currentColor" stroke-width="1.2"/><circle class="cue-dot" cx="12" cy="11" r="3" fill="currentColor"/></svg>
+    </a>
+  </section>
+
+  <!-- PILLAR 1 — LIVING WORLD -->
+  <section class="pillar" id="pillar-1" data-accent="0">
+    <div class="pillar-inner">
+      <div class="pillar-copy">
+        <p class="pillar-eyebrow">CHAPTER I</p>
+        <h2 class="pillar-title">The Living World</h2>
+        <p class="pillar-lead">Aethan does not pause when you log off. A macro-economic demand engine breathes through demographic segments, shifting affordability, and a calendar that turns month by month, year by year — a world of nations that keeps its own time.</p>
+        <ul class="pillar-points">
+          <li>Continents, nations and states with their own populations and jurisdictions.</li>
+          <li>A demand engine driven by real demographic segments and affordability.</li>
+          <li>Every action leaves a mark on a world that never resets.</li>
+        </ul>
+      </div>
+      <div class="data-panel parallax" data-speed="0.12">
+        <div class="dp-head">TERRITORIAL LEDGER</div>
+        <div class="dp-grid">
+          <div><span class="dp-k">Continents</span><span class="dp-v">3</span></div>
+          <div><span class="dp-k">Sovereign States</span><span class="dp-v">27</span></div>
+          <div><span class="dp-k">Population</span><span class="dp-v" data-tick="pop">318.6M</span></div>
+          <div><span class="dp-k">World Cycle</span><span class="dp-v">Yr 41 · Q3</span></div>
+        </div>
+        <div class="dp-spark" data-spark></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PILLAR 2 — POLITICAL RISE -->
+  <section class="pillar" id="pillar-2" data-accent="1">
+    <div class="pillar-inner reverse">
+      <div class="pillar-copy">
+        <p class="pillar-eyebrow">CHAPTER II</p>
+        <h2 class="pillar-title">The Political Rise</h2>
+        <p class="pillar-lead">Found a party. File your candidacy. Build coalitions, draft bills, win tenders. A full democratic legislature — elections, lobbying, government procurement — where power is earned seat by seat and defended vote by vote.</p>
+        <ul class="pillar-points">
+          <li>Elections, coalitions and legislative bills that reshape the nation.</li>
+          <li>Lobbying and government procurement with real economic weight.</li>
+          <li>Rise from candidate to head of state — or fall in the chamber.</li>
+        </ul>
+      </div>
+      <div class="data-panel parallax" data-speed="0.16">
+        <div class="dp-head">CHAMBER STATUS</div>
+        <div class="dp-grid">
+          <div><span class="dp-k">Bills In Session</span><span class="dp-v" data-tick="bills">14</span></div>
+          <div><span class="dp-k">Coalition Margin</span><span class="dp-v">+11</span></div>
+          <div><span class="dp-k">Next Election</span><span class="dp-v">Cycle 43</span></div>
+          <div><span class="dp-k">Approval</span><span class="dp-v" data-tick="approval2">61.4%</span></div>
+        </div>
+        <div class="dp-bars" data-bars></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PILLAR 3 — BUSINESS POWER -->
+  <section class="pillar" id="pillar-3" data-accent="2">
+    <div class="pillar-inner">
+      <div class="pillar-copy">
+        <p class="pillar-eyebrow">CHAPTER III</p>
+        <h2 class="pillar-title">Business Power</h2>
+        <p class="pillar-lead">Manufacturing, logistics, and full business ledgers. Set prices against competitor AI that adapts inventory and production to the market. Build supply chains, corner sectors, and turn capital into influence.</p>
+        <ul class="pillar-points">
+          <li>End-to-end manufacturing, logistics and double-entry ledgers.</li>
+          <li>Competitor AI that reprices, restocks and reacts to your moves.</li>
+          <li>Convert market dominance into political leverage — and back again.</li>
+        </ul>
+      </div>
+      <div class="data-panel parallax" data-speed="0.16">
+        <div class="dp-head">DRX EXCHANGE</div>
+        <div class="dp-grid">
+          <div><span class="dp-k">Index</span><span class="dp-v" data-tick="index2">12,704.8</span></div>
+          <div><span class="dp-k">Volume</span><span class="dp-v" data-tick="vol">8.42M</span></div>
+          <div><span class="dp-k">Active Firms</span><span class="dp-v">1,204</span></div>
+          <div><span class="dp-k">GDP</span><span class="dp-v" data-tick="gdp2">$4.812T</span></div>
+        </div>
+        <div class="dp-spark" data-spark></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PILLAR 4 — NPC INSTITUTIONS -->
+  <section class="pillar" id="pillar-4" data-accent="3">
+    <div class="pillar-inner reverse">
+      <div class="pillar-copy">
+        <p class="pillar-eyebrow">CHAPTER IV</p>
+        <h2 class="pillar-title">NPC Institutions</h2>
+        <p class="pillar-lead">Central banks, regulators, courts and corporations run by autonomous agents with their own physics and logic. The world governs itself around you — negotiating, competing, and pushing back with a will of its own.</p>
+        <ul class="pillar-points">
+          <li>Autonomous institutions with independent goals and behaviour.</li>
+          <li>Regulators, courts and central banks that respond to your conduct.</li>
+          <li>A world that acts even when no player is watching.</li>
+        </ul>
+      </div>
+      <div class="data-panel parallax" data-speed="0.14">
+        <div class="dp-head">INSTITUTIONAL WATCH</div>
+        <div class="dp-grid">
+          <div><span class="dp-k">Active NPCs</span><span class="dp-v" data-tick="npc">9,318</span></div>
+          <div><span class="dp-k">Central Rate</span><span class="dp-v">3.25%</span></div>
+          <div><span class="dp-k">Open Cases</span><span class="dp-v" data-tick="cases">37</span></div>
+          <div><span class="dp-k">Regulators</span><span class="dp-v">12</span></div>
+        </div>
+        <div class="dp-bars" data-bars></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PILLAR 5 — PUBLIC RECORDS & CONSEQUENCES -->
+  <section class="pillar" id="pillar-5" data-accent="4">
+    <div class="pillar-inner center">
+      <div class="pillar-copy wide">
+        <p class="pillar-eyebrow">CHAPTER V</p>
+        <h2 class="pillar-title">Public Records &amp; Consequences</h2>
+        <p class="pillar-lead">Every vote, every contract, every scandal is written into the public record. Reputation compounds. Debts come due. In Aethan, history remembers — and your name is already being written.</p>
+      </div>
+      <div class="ledger parallax" data-speed="0.1">
+        <div class="ledger-line"><span class="lg-time">Yr41·Q3</span><span class="lg-txt">Tender #4471 awarded — Novaris Logistics Corp.</span></div>
+        <div class="ledger-line"><span class="lg-time">Yr41·Q3</span><span class="lg-txt">Bill 118 passed — Central Tariff Reform.</span></div>
+        <div class="ledger-line"><span class="lg-time">Yr41·Q2</span><span class="lg-txt">Ethics inquiry opened — Rep. A. Vhast.</span></div>
+        <div class="ledger-line"><span class="lg-time">Yr41·Q2</span><span class="lg-txt">DRX halt lifted — Meridian Steel resumes.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOGIN CONSOLE -->
+  <section class="console-wrap" id="console">
+    <div class="console-card">
+      <div class="console-top">
+        <span class="console-crest">✦</span>
+        <span class="console-tag">CITIZENSHIP &amp; ACCESS TERMINAL</span>
+      </div>
+      <h2 class="console-title">Enter Aethan</h2>
+      <p class="console-sub">The world is already in motion. Begin your ascent in the nation of <span class="amber-word">Drennia</span> — the first of many to open.</p>
+      <div class="console-actions">
+        <button class="btn btn-primary" id="btnCreate"><span>Create Account</span></button>
+        <button class="btn" id="btnLogin"><span>Login</span></button>
+        <button class="btn btn-discord" id="btnDiscord"><span>Join Discord</span></button>
+      </div>
+      <div class="console-status">
+        <span class="pulse"></span>
+        <span>PRE-ALPHA ACCESS — limited to testers · v0.1.0-prealpha</span>
+      </div>
+    </div>
+    <footer class="foot">
+      <span>WORLDr</span><span class="dot">·</span><span>The living world of Aethan · politics, business &amp; legacy</span><span class="dot">·</span><span>© Aethan Simulation Authority</span>
+    </footer>
+  </section>
+
+</main>
+
+<!-- libs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

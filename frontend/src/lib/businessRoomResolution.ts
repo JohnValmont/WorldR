@@ -32,7 +32,7 @@ export interface BusinessResolutionResult {
   narrativeTitle: string;
   narrative: string;           // Prose paragraph — no stat-log language
   factorChanges: Partial<CitizenFactors>;
-  cashChange: number;          // In Drennian Days ₯
+  cashChange: number;          // In Drennian Days $
   publicRecord: boolean;
   recordSummary: string;       // Prose sentence for Record Panel
   npcReaction: string | null;
@@ -125,7 +125,7 @@ function buildRecordSummary(
 ): string {
   const base = room.recordTemplates[resultType];
   if (cashChange > 0) {
-    return `${base} Payment received: ₯${cashChange.toLocaleString('en-US')}.`;
+    return `${base} Payment received: $${cashChange.toLocaleString('en-US')}.`;
   }
   return base;
 }

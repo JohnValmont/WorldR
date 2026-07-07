@@ -381,7 +381,7 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       headquarters_state_id: 'drennia-drennport', // fallback
       industry_id: 'manufacturing',
       legal_structure_id: 'sole-trader',
-      currency_id: 'drennian-day', // fallback
+      currency_id: 'dollar', // fallback
       name: roster.name,
       status: 'active',
       is_npc: true,
@@ -397,7 +397,7 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
   // Finances
   await trx('company_finances').insert({
     company_id: company.id,
-    currency_id: 'drennian-day',
+    currency_id: 'dollar',
     available_cash: roster.seedCapital,
     debt: 0,
     company_value: roster.seedCapital,

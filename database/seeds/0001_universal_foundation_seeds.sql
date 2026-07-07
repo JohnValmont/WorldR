@@ -18,12 +18,12 @@ ON CONFLICT (world_instance_id) DO NOTHING;
 
 -- 3. CURRENCIES
 INSERT INTO currencies (id, name, symbol, locale, decimal_places)
-VALUES ('drennian-day', 'Drennian Day', '₯', 'en-US', 0)
+VALUES ('dollar', 'Dollar', '$', 'en-US', 0)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, symbol = EXCLUDED.symbol;
 
 -- 4. COUNTRIES
 INSERT INTO countries (id, world_instance_id, name, currency_id, status)
-VALUES ('drennia', 'pre-alpha-world-1', 'Drennia', 'drennian-day', 'active')
+VALUES ('drennia', 'pre-alpha-world-1', 'Drennia', 'dollar', 'active')
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status;
 
 -- 5. STATES

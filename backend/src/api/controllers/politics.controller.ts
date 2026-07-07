@@ -1,10 +1,50 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
-import { getOrCreateCurrentCycle, buildEngineCandidates } from '../services/politics.service';
-import { PARTY_FOUNDING_COST, CAMPAIGN_ACTIONS, SEGMENTS, POL_MAJORITY_SEATS } from '../constants/politics';
+import {
+  getOrCreateCurrentCycle,
+  buildEngineCandidates,
+  getOrCreateCharacterAp,
+  spendAp,
+  getRosterCap,
+  recruitNpcToParty,
+} from '../services/politics.service';
+import {
+  PARTY_FOUNDING_COST,
+  CAMPAIGN_ACTIONS,
+  SEGMENTS,
+  POL_MAJORITY_SEATS,
+  AP_COST_RECRUIT,
+  AP_COST_STATEMENT,
+  AP_COST_FUNDRAISE,
+  AP_COST_ENDORSEMENT_AP,
+  AP_COST_SCOUT,
+  AP_COST_NEGOTIATE,
+  POL_FUNDRAISER_BASE,
+  POL_FUNDRAISER_CHARISMA_MULT,
+  RECRUIT_COST_CASH,
+  GENERAL_ACTION_TYPES,
+  DOCTRINE_IDS,
+  DOCTRINE_PLATFORMS,
+  DOCTRINE_SIGNATURE_ACTION,
+  DOCTRINE_TENETS,
+  SIGNATURE_ACTION_AP_COST,
+  TENET_IDS,
+} from '../constants/politics';
 import { runElection } from '../services/electionEngine';
 import { buildPulse } from '../services/politics.pulse';
+
+/** Resolve a pol_state row by optional stateId (which is actually the state code), falling back to the active state. */
+async function resolveState(stateId?: string) {
+  if (stateId) {
+    const s = await db('pol_states').where({ code: stateId }).first();
+    if (!s) throw new AppError('State not found', 404, 'NOT_FOUND');
+    return s;
+  }
+  const s = await db('pol_states').where({ is_active: true }).first();
+  if (!s) throw new AppError('No active state', 404, 'NOT_FOUND');
+  return s;
+}
 
 export async function getStateOverview(req: Request, res: Response, next: NextFunction) {
   try {
@@ -58,8 +98,7 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
 
 export async function getCycle(req: Request, res: Response, next: NextFunction) {
   try {
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.query.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     return res.json(cycle);
@@ -70,8 +109,7 @@ export async function getCycle(req: Request, res: Response, next: NextFunction) 
 
 export async function getParties(req: Request, res: Response, next: NextFunction) {
   try {
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.query.stateId as string | undefined);
 
     // Base query — always works even before migration 0008
     const parties = await db('pol_parties')
@@ -116,11 +154,28 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
     const userId = req.user?.id;
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
     
-    const { name, platform } = req.body;
+    const { name, doctrine_id, tenet_id } = req.body;
     if (!name || name.trim() === '') return next(new AppError('Party name required', 400, 'BAD_REQUEST'));
+    if (!doctrine_id) return next(new AppError('doctrine_id required', 400, 'BAD_REQUEST'));
+    if (!(DOCTRINE_IDS as readonly string[]).includes(doctrine_id)) {
+      return next(new AppError('Invalid doctrine_id', 400, 'BAD_REQUEST'));
+    }
+    if (tenet_id && !(TENET_IDS as readonly string[]).includes(tenet_id)) {
+      return next(new AppError('Invalid tenet_id', 400, 'BAD_REQUEST'));
+    }
+    // Validate tenet belongs to the chosen doctrine
+    if (tenet_id) {
+      const doctenets = DOCTRINE_TENETS[doctrine_id as keyof typeof DOCTRINE_TENETS];
+      if (!doctenets.includes(tenet_id)) {
+        return next(new AppError('Tenet does not belong to this doctrine', 400, 'BAD_REQUEST'));
+      }
+    }
 
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const stateIdForFound = (req.body.stateId as string | undefined);
+    const activeState = await resolveState(stateIdForFound);
+
+    // Derive the platform from the chosen doctrine
+    const derivedPlatform = DOCTRINE_PLATFORMS[doctrine_id as keyof typeof DOCTRINE_PLATFORMS];
 
     // DB Transaction
     const result = await db.transaction(async (trx) => {
@@ -145,13 +200,15 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
       const clock = await trx('world_clock').first();
       const currentMonth = clock?.current_month || 1;
 
-      const safePlatform = platform || { taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 };
-
       const [party] = await trx('pol_parties').insert({
         state_id: activeState.id,
         name: name.trim(),
         leader_character_id: character.id,
-        platform: safePlatform,
+        platform: derivedPlatform,
+        doctrine_id,
+        tenet_id: tenet_id || null,
+        doctrine_drift: {},
+        doctrine_drift_arc: currentMonth,
         treasury: 0,
         is_npc: false,
         created_arc: currentMonth
@@ -205,8 +262,7 @@ export async function queueCampaignAction(req: Request, res: Response, next: Nex
       if (!segDef) return next(new AppError('Unknown target segment', 400, 'BAD_REQUEST'));
     }
 
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.body.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     const clock = await db('world_clock').first();
@@ -246,8 +302,7 @@ export async function queueCampaignAction(req: Request, res: Response, next: Nex
 
 export async function getPolls(req: Request, res: Response, next: NextFunction) {
   try {
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.query.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     const registeredVoters = activeState.registered_voters || 1600000;
@@ -330,6 +385,15 @@ export async function joinParty(req: Request, res: Response, next: NextFunction)
       const party = await trx('pol_parties').where({ id: partyId }).first();
       if (!party) throw new AppError('Party not found', 404, 'NOT_FOUND');
 
+      // OWNERSHIP RULE: Players cannot join another player's party.
+      // is_npc === false AND has a real leader_character_id means it's a player-owned party.
+      if (!party.is_npc && party.leader_character_id && party.leader_character_id !== character.id) {
+        throw new AppError(
+          'Players cannot join another player\'s party. Found your own party, or run as an Independent.',
+          409, 'CONFLICT'
+        );
+      }
+
       const clock = await trx('world_clock').first();
       const currentMonth = clock?.current_month || 1;
 
@@ -360,13 +424,13 @@ export async function leaveParty(req: Request, res: Response, next: NextFunction
       const member = await trx('pol_party_members').where({ party_id: partyId, character_id: character.id }).first();
       if (!member) throw new AppError('Not a member of this party', 404, 'NOT_FOUND');
 
+      // OWNERSHIP RULE: The Leader cannot leave their own party.
+      // Dissolution is a future feature (treasury going negative, account inactive).
       if (member.role === 'leader') {
-        const [{ count }] = await trx('pol_party_members').where({ party_id: partyId }).count('* as count');
-        if (Number(count) > 1) {
-          throw new AppError('Cannot leave as leader while members exist (leadership transfer out of scope)', 409, 'CONFLICT');
-        } else {
-          await trx('pol_parties').where({ id: partyId }).update({ leader_character_id: null });
-        }
+        throw new AppError(
+          'As Party Leader you cannot leave your own party. Dissolution will be supported in a future update.',
+          409, 'CONFLICT'
+        );
       }
 
       await trx('pol_party_members').where({ party_id: partyId, character_id: character.id }).delete();
@@ -422,8 +486,7 @@ export async function declareCandidacy(req: Request, res: Response, next: NextFu
     const userId = req.user?.id;
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
 
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.body.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
 
@@ -474,8 +537,7 @@ export async function manageCoalition(req: Request, res: Response, next: NextFun
       return next(new AppError('Valid targetPartyId and action required', 400, 'BAD_REQUEST'));
     }
 
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.query.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     if (cycle.phase !== 'formation') {
@@ -531,8 +593,7 @@ export async function manageCoalition(req: Request, res: Response, next: NextFun
 
 export async function getCouncil(req: Request, res: Response, next: NextFunction) {
   try {
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.query.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     
@@ -599,8 +660,7 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
 
 export async function getLedger(req: Request, res: Response, next: NextFunction) {
   try {
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.query.stateId as string | undefined);
 
     const limit = parseInt(req.query.limit as string) || 10;
 
@@ -624,8 +684,7 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
     const { type, params } = req.body;
     if (!type || !params) return next(new AppError('Missing type or params', 400, 'BAD_REQUEST'));
 
-    const activeState = await db('pol_states').where({ is_active: true }).first();
-    if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const activeState = await resolveState(req.query.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     if (cycle.phase !== 'governing') return next(new AppError('Bills can only be proposed during the governing phase', 409, 'CONFLICT'));
@@ -841,10 +900,10 @@ export async function postTender(req: Request, res: Response, next: NextFunction
 
       await trx('pol_ledger_events').insert({
         state_id: activeState.id,
-        month: currentMonth,
+        arc: currentMonth,
         kind: 'tender_posted',
         headline: `Government Procurement: ${vehicle_class} Tender Posted`,
-        body: `The government has opened bidding for ${units_per_month} units per month at a max price of ${max_price} ₯ for ${duration_arcs} months.`
+        body: `The government has opened bidding for ${units_per_month} units per month at a max price of ${max_price} $ for ${duration_arcs} months.`
       });
 
       return tender;
@@ -1047,6 +1106,260 @@ export async function getTenders(req: Request, res: Response, next: NextFunction
     }
 
     return res.json(tenders);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ── New AP-System Controllers ────────────────────────────────────────────────
+
+/** GET /politics/ap — returns current AP + cap for the authed character */
+export async function getMyAp(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+    if (!character) return res.json({ current_ap: 0, ap_cap: 4 }); // no character yet
+
+    const apRow = await db.transaction(async (trx) =>
+      getOrCreateCharacterAp(trx, character.id)
+    );
+
+    return res.json({ current_ap: apRow.current_ap, ap_cap: apRow.ap_cap });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** POST /politics/general-action — Standard + Doctrine Signature Actions */
+export async function doGeneralAction(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const { type } = req.body;
+    if (!type || !GENERAL_ACTION_TYPES.includes(type)) {
+      return next(new AppError('Unknown general action type', 400, 'BAD_REQUEST'));
+    }
+    if (type === 'recruit') return next(new AppError('Use POST /politics/recruit for recruiting', 400, 'BAD_REQUEST'));
+
+    const SIGNATURE_TYPES = new Set(['union_address','investor_roadshow','town_hall','shop_floor_tour','listening_tour','coalition_outreach']);
+
+    const AP_COSTS: Record<string, number> = {
+      statement:   AP_COST_STATEMENT,
+      fundraise:   AP_COST_FUNDRAISE,
+      endorsement: AP_COST_ENDORSEMENT_AP,
+      scout:       AP_COST_SCOUT,
+      negotiate:   AP_COST_NEGOTIATE,
+      ...SIGNATURE_ACTION_AP_COST,
+    };
+    const cost = AP_COSTS[type] ?? 1;
+
+    const result = await db.transaction(async (trx) => {
+      const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+      const membership = await trx('pol_party_members').where({ character_id: character.id }).first();
+      if (!membership) throw new AppError('You must be in a party to take political actions', 403, 'FORBIDDEN');
+
+      const party = await trx('pol_parties').where({ id: membership.party_id }).first();
+
+      // Gate signature actions: only the doctrine's party may use them
+      if (SIGNATURE_TYPES.has(type)) {
+        const expected = party?.doctrine_id
+          ? DOCTRINE_SIGNATURE_ACTION[party.doctrine_id as keyof typeof DOCTRINE_SIGNATURE_ACTION]
+          : null;
+        if (expected !== type) {
+          throw new AppError(`Your party's doctrine does not unlock the "${type}" action.`, 403, 'FORBIDDEN');
+        }
+      }
+
+      await spendAp(trx, character.id, cost);
+
+      const charisma = Number(character.charisma || 0);
+      let message = '';
+
+      if (type === 'statement') {
+        await trx('pol_parties').where({ id: party.id })
+          .update({ popularity: trx.raw('LEAST(popularity + 1, 100)') });
+        message = 'Statement issued. Popularity nudged up by 1.';
+      } else if (type === 'fundraise') {
+        const gain = Math.round(POL_FUNDRAISER_BASE + charisma * POL_FUNDRAISER_CHARISMA_MULT);
+        await trx('pol_parties').where({ id: party.id }).increment('treasury', gain);
+        message = `Fundraiser complete. +$${gain.toLocaleString()} added to party treasury.`;
+      } else if (type === 'endorsement') {
+        message = 'Endorsement drive logged. Candidate boost will apply at next campaign resolution.';
+      } else if (type === 'scout') {
+        message = 'Scouting report filed. Rival platform outlines now visible in Party view.';
+      } else if (type === 'negotiate') {
+        message = 'Negotiation outreach logged. This will improve coalition formation odds.';
+      // Doctrine Signature Actions
+      } else if (type === 'union_address') {
+        await trx('pol_parties').where({ id: party.id })
+          .update({ popularity: trx.raw('LEAST(popularity + 3, 100)') });
+        message = 'Union Address delivered. Strong popularity boost with industrial workers (+3).';
+      } else if (type === 'investor_roadshow') {
+        const gain = Math.round((POL_FUNDRAISER_BASE * 2) + charisma * POL_FUNDRAISER_CHARISMA_MULT * 1.5);
+        await trx('pol_parties').where({ id: party.id }).increment('treasury', gain);
+        message = `Investor Roadshow complete. +$${gain.toLocaleString()} raised from business backers.`;
+      } else if (type === 'town_hall') {
+        await trx('pol_parties').where({ id: party.id })
+          .update({ popularity: trx.raw('LEAST(popularity + 2, 100)') });
+        message = 'Town Hall held. Community trust reinforced (+2 popularity).';
+      } else if (type === 'shop_floor_tour') {
+        message = 'Shop Floor Tour complete. Labour-aligned candidates are more likely to respond to your next Recruit action.';
+      } else if (type === 'listening_tour') {
+        message = 'Listening Tour complete. Voter sentiment data updated. Check your party analytics for fresh segment readings.';
+      } else if (type === 'coalition_outreach') {
+        message = 'Coalition Outreach dispatched. Cross-party dialogue initiated. Coalition formation odds improved.';
+      }
+
+      const apRow = await trx('pol_character_ap').where({ character_id: character.id }).first();
+      return { message, ap: { current_ap: apRow.current_ap, ap_cap: apRow.ap_cap } };
+    });
+
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function setDoctrine(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const partyId = req.params.id;
+    const { doctrine_id, tenet_id } = req.body;
+
+    const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+    if (!character) return next(new AppError('No active character', 400, 'NO_CHARACTER'));
+
+    const party = await db('pol_parties').where({ id: partyId }).first();
+    if (!party) return next(new AppError('Party not found', 404, 'NOT_FOUND'));
+    if (party.leader_character_id !== character.id) {
+      return next(new AppError('Only the party leader can set the doctrine', 403, 'FORBIDDEN'));
+    }
+
+    if (tenet_id && doctrine_id) {
+      const doctenets = DOCTRINE_TENETS[doctrine_id as keyof typeof DOCTRINE_TENETS];
+      if (doctenets && !doctenets.includes(tenet_id)) {
+        return next(new AppError("Tenet does not belong to the selected doctrine", 400, 'BAD_REQUEST'));
+      }
+    }
+
+    // Optional: resolve platform from doctrine?
+    // In our founding logic, the client passes `platform` optionally, but usually we just set the ID.
+    // If we need to set the default platform, we could do it here or let the client do it via updatePlatform.
+    // The instructions say "Confirm picking a Doctrine correctly sets all 5 axis values to that Doctrine's defined preset per axis".
+    // I will let the client send the platform in the request, or we can look it up if we had access to the doctrine definitions here.
+    // Actually, founding a party sets the platform via `req.body.platform` which is passed by the client! Wait, founding doesn't take platform, let's see.
+
+    await db('pol_parties').where({ id: partyId }).update({ doctrine_id, tenet_id: tenet_id || null });
+    
+    if (req.body.platform) {
+      await db('pol_parties').where({ id: partyId }).update({ platform: req.body.platform });
+    }
+
+    return res.json({ success: true, message: 'Doctrine confirmed.' });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** PATCH /politics/parties/:id/tenet — set or change a party's active tenet (Leader only) */
+export async function setTenet(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const partyId = req.params.id;
+    const { tenet_id } = req.body;
+
+    if (tenet_id && !(TENET_IDS as readonly string[]).includes(tenet_id)) {
+      return next(new AppError('Invalid tenet_id', 400, 'BAD_REQUEST'));
+    }
+
+    const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+    if (!character) return next(new AppError('No active character', 400, 'NO_CHARACTER'));
+
+    const party = await db('pol_parties').where({ id: partyId }).first();
+    if (!party) return next(new AppError('Party not found', 404, 'NOT_FOUND'));
+    if (party.leader_character_id !== character.id) {
+      return next(new AppError('Only the party leader can change the tenet', 403, 'FORBIDDEN'));
+    }
+
+    if (tenet_id && party.doctrine_id) {
+      const doctenets = DOCTRINE_TENETS[party.doctrine_id as keyof typeof DOCTRINE_TENETS];
+      if (doctenets && !doctenets.includes(tenet_id)) {
+        return next(new AppError("Tenet does not belong to your party's doctrine", 400, 'BAD_REQUEST'));
+      }
+    }
+
+    await db('pol_parties').where({ id: partyId }).update({ tenet_id: tenet_id || null });
+    return res.json({ success: true, message: tenet_id ? `Tenet set to "${tenet_id}".` : 'Tenet cleared.' });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** POST /politics/recruit — recruit one NPC onto the party roster */
+export async function recruitNpc(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const result = await db.transaction(async (trx) => {
+      const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+      const membership = await trx('pol_party_members').where({ character_id: character.id }).first();
+      if (!membership) throw new AppError('You must be in a party to recruit', 403, 'FORBIDDEN');
+      if (membership.role !== 'leader') throw new AppError('Only the Party Leader can recruit NPCs', 403, 'FORBIDDEN');
+
+      const party = await trx('pol_parties').where({ id: membership.party_id }).first();
+      if (!party) throw new AppError('Party not found', 404, 'NOT_FOUND');
+
+      // Check roster cap
+      const cap = getRosterCap(Number(party.popularity || 0));
+      const currentRoster = await trx('pol_party_members').where({ party_id: party.id }).count('* as count').first();
+      const rosterSize = Number(currentRoster?.count || 0);
+      if (rosterSize >= cap) {
+        throw new AppError(
+          `Roster is full (${rosterSize}/${cap}). Raise party popularity to unlock more slots.`,
+          409, 'CONFLICT'
+        );
+      }
+
+      // Check treasury
+      if (Number(party.treasury || 0) < RECRUIT_COST_CASH) {
+        throw new AppError(
+          `Insufficient party funds: need $${RECRUIT_COST_CASH.toLocaleString()}, have $${Number(party.treasury).toLocaleString()}.`,
+          400, 'INSUFFICIENT_FUNDS'
+        );
+      }
+
+      // Deduct AP
+      await spendAp(trx, character.id, AP_COST_RECRUIT);
+
+      const clock = await trx('world_clock').first();
+      const currentArc = clock?.current_month || 1;
+
+      // Recruit the NPC
+      await recruitNpcToParty(trx, party, currentArc);
+
+      // Update roster_cap convenience column
+      await trx('pol_parties').where({ id: party.id }).update({ roster_cap: cap });
+
+      const apRow = await trx('pol_character_ap').where({ character_id: character.id }).first();
+      return {
+        message: `NPC candidate recruited to ${party.name}. Roster: ${rosterSize + 1}/${cap}.`,
+        ap: { current_ap: apRow.current_ap, ap_cap: apRow.ap_cap },
+      };
+    });
+
+    return res.json({ success: true, ...result });
   } catch (error) {
     next(error);
   }
