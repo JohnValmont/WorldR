@@ -74,7 +74,8 @@ export class LogisticsController {
 
         const existing = await trx('company_staff').where({ company_id: companyId, role }).first();
         if (existing) {
-          await trx('company_staff').where({ id: existing.id }).increment('quantity', 1).update({ updated_at: trx.fn.now() });
+          await trx('company_staff').where({ id: existing.id }).increment('quantity', 1);
+          await trx('company_staff').where({ id: existing.id }).update({ updated_at: trx.fn.now() });
         } else {
           await trx('company_staff').insert({ company_id: companyId, role, quantity: 1 });
         }
@@ -101,12 +102,13 @@ export class LogisticsController {
         const company = await trx('companies').where({ id: companyId, owner_character_id: character.id }).first();
         if (!company) throw new AppError('Company not found', 404, 'NOT_FOUND');
 
-        const existing = await trx('company_staff').where({ company_id: companyId, role }).first();
+        const existing = await trx('company_staff').where({ company_id: companyId, role }).forUpdate().first();
         if (!existing || existing.quantity <= 0) {
           throw new AppError('No staff in this role to dismiss', 400, 'BAD_REQUEST');
         }
 
-        await trx('company_staff').where({ id: existing.id }).decrement('quantity', 1).update({ updated_at: trx.fn.now() });
+        await trx('company_staff').where({ id: existing.id }).decrement('quantity', 1);
+        await trx('company_staff').where({ id: existing.id }).update({ updated_at: trx.fn.now() });
       });
 
       res.status(200).json({ success: true });
@@ -177,7 +179,7 @@ export class LogisticsController {
     try {
       const userId = req.user?.id;
       const { companyId } = req.params;
-      const { catalogFacilityId } = req.body;
+      const { catalogFacilityId, stateId } = req.body;
 
       if (!userId || !companyId || !catalogFacilityId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
 
@@ -208,7 +210,7 @@ export class LogisticsController {
           company_id: companyId,
           catalog_facility_id: catalogFacilityId,
           country_id: company.country_id,
-          state_id: company.headquarters_state_id
+          state_id: stateId || company.headquarters_state_id
         }).returning('*');
 
         const clock = await trx('world_clock').first();
@@ -339,23 +341,47 @@ export class LogisticsController {
             .update({ condition: newCondition, updated_at: trx.fn.now() });
         }
 
-        const netProfit = totalRevenue - totalMaintenance;
+        // Calculate payroll
+        const staffRows = await trx('company_staff').where({ company_id: companyId });
+        const STAFF_WAGES: Record<string, number> = {
+          'Driver': 4000,
+          'Dispatcher': 3500,
+          'Mechanic': 4500,
+          'Manager': 6000,
+          'Accountant': 5500,
+        };
+        const wagePolicyMultiplier = 
+          finances.wage_policy === 'Low' ? 0.8 :
+          finances.wage_policy === 'Generous' ? 1.2 :
+          finances.wage_policy === 'Premium' ? 1.45 : 1.0;
+        let totalPayroll = 0;
+        for (const s of staffRows) {
+          const wage = STAFF_WAGES[s.role] || 3000;
+          totalPayroll += s.quantity * wage * wagePolicyMultiplier;
+        }
+        totalPayroll = Math.round(totalPayroll);
+
+        const netProfit = totalRevenue - totalMaintenance - totalPayroll;
         const newCash = Number(finances.available_cash) + netProfit;
+        const currentCompanyValue = Number(finances.company_value) || 0;
+        const newCompanyValue = Math.max(0, currentCompanyValue - totalDepreciation + netProfit);
 
         const [updatedFinances] = await trx('company_finances')
           .where({ company_id: companyId })
           .update({
             available_cash: newCash,
+            company_value: newCompanyValue,
             last_arc_profit: netProfit,
             updated_at: trx.fn.now()
           })
-          .decrement('company_value', totalDepreciation)
-          .increment('company_value', netProfit)
           .returning('*');
 
         const clock = await trx('world_clock').first();
-        
+        // Track running balance for ledger entries
+        let runningBalance = Number(finances.available_cash);
+
         if (totalRevenue > 0) {
+          runningBalance += totalRevenue;
           await trx('company_ledger').insert({
             company_id: companyId,
             game_year: clock?.current_year || 1,
@@ -364,11 +390,12 @@ export class LogisticsController {
             entry_type: 'Revenue',
             description: `Operation Revenue from assigned vehicles`,
             amount: totalRevenue,
-            balance_after: Number(finances.available_cash) + totalRevenue
+            balance_after: runningBalance
           });
         }
         
         if (totalMaintenance > 0) {
+          runningBalance -= totalMaintenance;
           await trx('company_ledger').insert({
             company_id: companyId,
             game_year: clock?.current_year || 1,
@@ -377,7 +404,21 @@ export class LogisticsController {
             entry_type: 'vehicle_maintenance',
             description: `Fleet Maintenance (Policy: ${policy})`,
             amount: -totalMaintenance,
-            balance_after: Number(finances.available_cash) + totalRevenue - totalMaintenance
+            balance_after: runningBalance
+          });
+        }
+
+        if (totalPayroll > 0) {
+          runningBalance -= totalPayroll;
+          await trx('company_ledger').insert({
+            company_id: companyId,
+            game_year: clock?.current_year || 1,
+            game_month: clock?.current_month || 1,
+            game_day: clock?.current_day || 1,
+            entry_type: 'Payroll',
+            description: `Staff Payroll (${staffRows.length} role(s))`,
+            amount: -totalPayroll,
+            balance_after: runningBalance
           });
         }
 

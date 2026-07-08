@@ -256,7 +256,7 @@ export const logisticsApi = {
   hireStaff: (companyId: string, role: string) => api.post(`/logistics/company/${companyId}/staff/hire`, { role }),
   fireStaff: (companyId: string, role: string) => api.post(`/logistics/company/${companyId}/staff/fire`, { role }),
   purchaseVehicle: (companyId: string, catalogVehicleId: string) => api.post(`/logistics/company/${companyId}/vehicles/purchase`, { catalogVehicleId }),
-  leaseFacility: (companyId: string, catalogFacilityId: string) => api.post(`/logistics/company/${companyId}/facilities/lease`, { catalogFacilityId }),
+  leaseFacility: (companyId: string, catalogFacilityId: string, stateId?: string) => api.post(`/logistics/company/${companyId}/facilities/lease`, { catalogFacilityId, stateId }),
   assignOperation: (companyId: string, vehicleId: string, poolId: string) => api.post(`/logistics/company/${companyId}/operations/assign`, { vehicleId, poolId }),
   processTest: (companyId: string) => api.post(`/logistics/company/${companyId}/operations/process-test`)
 };

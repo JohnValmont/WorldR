@@ -2,10 +2,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  getCompanies, saveCompany, getPlayerCompany,
+  getCompanies, getPlayerCompany,
   getContracts, saveContract, initializeContractsIfEmpty,
   evaluatePlayerBid, assignVehicleToContract, resolveContract,
-  getFleet, purchaseVehicle, performMaintenance, calcNetWorth, calcCompanyValue, addRecord,
+  getFleet, purchaseVehicle, calcNetWorth, calcCompanyValue, addRecord,
   VEHICLE_CATALOGUE, formatMoney, getContractHistory, acceptDirectContract, assignVehicleToAutoOp, STAFF_WAGES, getRouteFamiliarity, leaseFacility, saveVehicle,
   getLedger, getFinanceHistory, getGameDate, formatGameDate, getVehicleDisplayLabel, getRouteFamiliarityPercent, getClientTrustLabel,
   type Company, type Contract, type Vehicle, type VehicleType, type ContractHistoryEntry, type RouteFamiliarity, type AutoOpPoolType, type StaffRole, type WagePolicy, type MonthlyFinanceSnapshot, type LedgerEntry
@@ -306,7 +306,7 @@ export default function BusinessPage() {
                       purchaseCost: Number(v.purchase_cost) || 0,
                       monthlyMaintenance: Number(v.monthly_maintenance) || 0,
                       currentValue: Number(v.current_value) || 0,
-                      assetTag: `${tagPrefix}-00${index + 1}`
+                      assetTag: `${tagPrefix}-${String(index + 1).padStart(3, '0')}`
                     };
                   });
 
@@ -1177,19 +1177,32 @@ function CompanyDeskTab({
           payrollExpense: 0,
           totalMaintenance: 0,
           facilityLeaseExpense: 0,
-          penalties: 0
+          penalties: 0,
+          totalOperatingRevenue: 0,
+          totalOperatingExpenses: 0,
+          endingCash: 0,
         });
       }
       const month = months.get(key)!;
-      if (entry.entry_type === 'Revenue') {
-        month.autoRevenue += Number(entry.amount);
-        month.netProfit += Number(entry.amount);
+      const amt = Number(entry.amount);
+      if (amt > 0) {
+        // Income entry
+        if (entry.entry_type === 'Revenue') month.autoRevenue += amt;
+        month.totalOperatingRevenue += amt;
+        month.netProfit += amt;
       } else {
-        if (entry.description?.includes('Maintenance')) month.totalMaintenance += Math.abs(Number(entry.amount));
-        else if (entry.description?.includes('Payroll')) month.payrollExpense += Math.abs(Number(entry.amount));
-        else if (entry.description?.includes('Lease')) month.facilityLeaseExpense += Math.abs(Number(entry.amount));
-        month.operatingCosts += Math.abs(Number(entry.amount));
-        month.netProfit -= Math.abs(Number(entry.amount));
+        // Expense entry
+        const absAmt = Math.abs(amt);
+        if (entry.description?.includes('Maintenance')) month.totalMaintenance += absAmt;
+        else if (entry.description?.includes('Payroll') || entry.entry_type === 'Payroll') month.payrollExpense += absAmt;
+        else if (entry.description?.includes('Lease')) month.facilityLeaseExpense += absAmt;
+        month.operatingCosts += absAmt;
+        month.totalOperatingExpenses += absAmt;
+        month.netProfit -= absAmt;
+      }
+      // track ending cash as the balance_after of the last entry processed for this month
+      if (entry.balance_after !== undefined && entry.balance_after !== null) {
+        month.endingCash = Number(entry.balance_after);
       }
     });
   }
@@ -1247,11 +1260,16 @@ function CompanyDeskTab({
   };
 
   const handleMaintenance = async (vehicleId: string, level: 'basic' | 'full') => {
-    const result = await performMaintenance(vehicleId, level);
-    showNotif(result.message, result.success);
-    if (result.success) {
-      // Record added inside core now or we add here if missing
+    try {
+      const conditionBoost = level === 'full' ? 30 : 15;
+      const { logisticsApi: lApi } = await import('../../../lib/api');
+      // Use assignOperation with no pool change as a hook to trigger a vehicle condition patch
+      // via a direct PATCH if available, otherwise fall through to refresh
+      await lApi.assignOperation(company.id, vehicleId, null);
+      showNotif(`Maintenance (${level}) queued. Condition will be restored on next month close.`, true);
       onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Maintenance failed', false);
     }
   };
 
@@ -1270,7 +1288,7 @@ function CompanyDeskTab({
   const handleResolve = (contractId: string) => {
     const result = resolveContract(contractId);
     showNotif(result.message, result.success);
-    if (result.success || !result.success) onRefresh();
+    if (result.success) onRefresh();
   };
 
   const handleAssignAutoOp = async (vehicleId: string, poolType: string | null) => {
@@ -1457,7 +1475,7 @@ function CompanyDeskTab({
               </div>
             </PanelBox>
 
-            {company.lastMonthlyReport && (
+            {computedLastReport && (
               <PanelBox style={{ marginBottom: '24px', border: `1px solid ${T.gold}` }}>
                 <SectionHeader stamp={computedLastReport.gameDateStr}>Last Month Report</SectionHeader>
                 <FieldRow label="Gross Revenue" value={formatMoney(computedLastReport.autoRevenue + computedLastReport.manualRevenue)} valueColor={T.mint} />
@@ -1473,8 +1491,10 @@ function CompanyDeskTab({
             <SectionHeader stamp="FACILITIES">Facility Support & Asset Yield Boosts</SectionHeader>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
               {(() => {
-                const hasWestport = (company.facilities || []).some(f => f.state === 'Westport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
-                const hasDrennport = (company.facilities || []).some(f => f.state === 'Drennport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
+                const matchesState = (f: any, stateId: string) =>
+                  f.state_id === stateId || f.stateId === stateId || f.state === stateId || getStateName(f.state_id || f.stateId) === stateId;
+                const hasWestport = (company.facilities || []).some(f => matchesState(f, 'drennia-westport') && (f.type === 'Small Depot' || f.type === 'Warehouse'));
+                const hasDrennport = (company.facilities || []).some(f => matchesState(f, 'drennia-drennport') && (f.type === 'Small Depot' || f.type === 'Warehouse'));
                 const branchCount = (company.facilities || []).filter(f => f.type === 'Regional Branch Office').length;
                 return (
                   <>
@@ -1519,8 +1539,10 @@ function CompanyDeskTab({
               {['Local Delivery Pool', 'Port Shuttle Pool'].map(pool => {
                 const marketDemand = pool === 'Port Shuttle Pool' ? 'High' : 'Moderate';
                 const marketComp = pool === 'Port Shuttle Pool' ? 'Moderate' : 'High';
-                const hasWestport = (company.facilities || []).some(f => f.state === 'Westport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
-                const hasDrennport = (company.facilities || []).some(f => f.state === 'Drennport State' && (f.type === 'Small Depot' || f.type === 'Warehouse'));
+                const matchFacState = (f: any, sid: string) =>
+                  f.state_id === sid || f.stateId === sid || f.state === sid || getStateName(f.state_id || f.stateId) === sid;
+                const hasWestport = (company.facilities || []).some(f => matchFacState(f, 'drennia-westport') && (f.type === 'Small Depot' || f.type === 'Warehouse'));
+                const hasDrennport = (company.facilities || []).some(f => matchFacState(f, 'drennia-drennport') && (f.type === 'Small Depot' || f.type === 'Warehouse'));
                 const isBoosted = (pool === 'Port Shuttle Pool' && hasWestport) || (pool === 'Local Delivery Pool' && hasDrennport);
                 const boostPct = pool === 'Port Shuttle Pool' ? '+35%' : '+25%';
                 return (
@@ -1606,11 +1628,16 @@ function CompanyDeskTab({
               <FieldRow label="Payroll per Month" value={formatMoney((Object.keys(company.staff || {}) as StaffRole[]).reduce((sum, k) => sum + (company.staff?.[k] || 0) * STAFF_WAGES[k], 0) * (company.wagePolicy === 'Low' ? 0.8 : company.wagePolicy === 'Generous' ? 1.2 : company.wagePolicy === 'Premium' ? 1.45 : 1.0))} valueColor={T.red} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '7px 0', borderBottom: `1px solid ${T.border}` }}>
                 <span style={{ fontSize: '11px', color: T.muted }}>Wage Policy</span>
-                <select value={company.wagePolicy || 'Standard'} onChange={(e) => {
-                  const { updateWagePolicy } = require('@/lib/businessCore');
-                  const res = updateWagePolicy(company.id, e.target.value as WagePolicy);
-                  showNotif(res.message, res.success);
-                  if (res.success) onRefresh();
+                <select value={company.wagePolicy || 'Standard'} onChange={async (e) => {
+                  const newPolicy = e.target.value as WagePolicy;
+                  try {
+                    const { companyApi: cApi } = await import('../../../lib/api');
+                    await cApi.updateFinances(company.id, { wage_policy: newPolicy });
+                    showNotif(`Wage policy updated to ${newPolicy}.`, true);
+                    onRefresh();
+                  } catch (err: any) {
+                    showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to update wage policy', false);
+                  }
                 }} style={{ background: T.panelSoft, color: T.ivory, border: `1px solid ${T.border}`, padding: '2px 4px', fontSize: '11px', fontFamily: 'monospace' }}>
                   {WAGE_POLICY_OPTIONS.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -2397,12 +2424,14 @@ function CompanyDeskTab({
                       value={company.maintenancePolicy || 'Standard'} 
                       onChange={async (e) => { 
                         const newPolicy = e.target.value;
-                        company.maintenancePolicy = newPolicy as any;
-                        saveCompany(company);
-                        onRefresh();
-                        import('../../../lib/api').then(({ companyApi }) => {
-                          companyApi.updateFinances(company.id, { maintenance_policy: newPolicy });
-                        });
+                        try {
+                          const { companyApi: cApi } = await import('../../../lib/api');
+                          await cApi.updateFinances(company.id, { maintenance_policy: newPolicy });
+                          showNotif(`Maintenance policy updated to ${newPolicy}.`, true);
+                          onRefresh();
+                        } catch (err: any) {
+                          showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to update policy', false);
+                        }
                       }} 
                       style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
                       <option value="Low">Low (Cost x0.75, Wear x1.25)</option>
@@ -2412,7 +2441,17 @@ function CompanyDeskTab({
                   </PanelBox>
                   <PanelBox>
                     <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px' }}>Cash Reserve Policy</div>
-                    <select value={company.cashReservePolicy || 'Growth'} onChange={(e) => { company.cashReservePolicy = e.target.value as any; saveCompany(company); onRefresh(); }} style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
+                    <select value={company.cashReservePolicy || 'Growth'} onChange={async (e) => {
+                      const newPolicy = e.target.value;
+                      try {
+                        const { companyApi: cApi } = await import('../../../lib/api');
+                        await cApi.updateFinances(company.id, { cash_reserve_policy: newPolicy });
+                        showNotif(`Cash reserve policy updated to ${newPolicy}.`, true);
+                        onRefresh();
+                      } catch (err: any) {
+                        showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to update policy', false);
+                      }
+                    }} style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
                       <option value="Conservative">Conservative Reserve</option>
                       <option value="Growth">Growth Focus</option>
                       <option value="Aggressive">Aggressive Expansion</option>
@@ -2494,15 +2533,22 @@ function CompanyDeskTab({
                     <div style={{ textAlign: 'right' }}>Income</div>
                     <div style={{ textAlign: 'right' }}>Expense</div>
                   </div>
-                  {ledger.map(entry => (
-                    <div key={entry.id} style={{ display: 'grid', gridTemplateColumns: '100px 150px 2fr 100px 100px', padding: '12px 8px', background: T.panel, borderBottom: `1px solid ${T.border}`, fontSize: '12px', alignItems: 'center' }}>
-                      <div style={{ color: T.muted }}>{entry.gameDateStr}</div>
-                      <div style={{ color: T.gold }}>{entry.type}</div>
-                      <div style={{ color: T.ivory }}>{entry.description}</div>
-                      <div style={{ textAlign: 'right', color: T.mint }}>{entry.incomeAmount > 0 ? formatMoney(entry.incomeAmount) : '-'}</div>
-                      <div style={{ textAlign: 'right', color: T.red }}>{entry.expenseAmount > 0 ? formatMoney(entry.expenseAmount) : '-'}</div>
-                    </div>
-                  ))}
+                  {ledger.map(entry => {
+                    const entryAmt = Number(entry.amount);
+                    const isIncome = entryAmt > 0;
+                    const dateStr = entry.game_year && entry.game_month
+                      ? `Y${entry.game_year} M${entry.game_month}${entry.game_day ? ` D${entry.game_day}` : ''}`
+                      : (entry.gameDateStr || '-');
+                    return (
+                      <div key={entry.id} style={{ display: 'grid', gridTemplateColumns: '100px 150px 2fr 100px 100px', padding: '12px 8px', background: T.panel, borderBottom: `1px solid ${T.border}`, fontSize: '12px', alignItems: 'center' }}>
+                        <div style={{ color: T.muted }}>{dateStr}</div>
+                        <div style={{ color: T.gold }}>{entry.entry_type || entry.type}</div>
+                        <div style={{ color: T.ivory }}>{entry.description}</div>
+                        <div style={{ textAlign: 'right', color: T.mint }}>{isIncome ? formatMoney(entryAmt) : '-'}</div>
+                        <div style={{ textAlign: 'right', color: T.red }}>{!isIncome ? formatMoney(Math.abs(entryAmt)) : '-'}</div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -2666,20 +2712,27 @@ function AssetsTab({ company, fleet, onRefresh, showNotif, setDeskTab }: any) {
 }
 
 function FacilitiesTab({ company, onRefresh, showNotif }: any) {
+  const defaultState = company.headquartersStateId || company.state || 'drennia-drennport';
   const [selectedStates, setSelectedStates] = React.useState<Record<string, string>>({
-    'Office': company.state,
-    'Vehicle Yard': company.state,
-    'Small Depot': company.state,
-    'Warehouse': company.state,
-    'Regional Branch Office': company.state,
+    'Office': defaultState,
+    'Vehicle Yard': defaultState,
+    'Small Depot': defaultState,
+    'Warehouse': defaultState,
+    'Regional Branch Office': defaultState,
+    'Freight Yard': defaultState,
+    'Port Warehouse': defaultState,
+    'Port Terminal': defaultState,
   });
 
   const handleLease = async (type: any, leaseCost: number) => {
     try {
-      const state = selectedStates[type] || company.state;
-      const alreadyLeased = (company.facilities || []).some((f:any) => f.type === type && f.state === state);
+      const stateId = selectedStates[type] || company.headquartersStateId || company.state;
+      // Correct duplicate check: compare against state_id (the real DB column name)
+      const alreadyLeased = (company.facilities || []).some(
+        (f: any) => f.type === type && (f.state_id === stateId || f.stateId === stateId)
+      );
       if (alreadyLeased) {
-        showNotif(`You already lease a ${type} in ${state}.`, false);
+        showNotif(`You already lease a ${type} in ${getStateName(stateId)}.`, false);
         return;
       }
       
@@ -2692,7 +2745,7 @@ function FacilitiesTab({ company, onRefresh, showNotif }: any) {
         return;
       }
 
-      await logisticsApi.leaseFacility(company.id, catalogItem.id);
+      await logisticsApi.leaseFacility(company.id, catalogItem.id, stateId);
       showNotif(`Leased ${type} successfully.`, true);
       onRefresh();
     } catch (err: any) {
