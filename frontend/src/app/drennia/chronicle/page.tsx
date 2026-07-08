@@ -154,15 +154,8 @@ export default function ChroniclePage() {
   const handleRestartLife = useCallback(async () => {
     if (typeof window === 'undefined') return;
     try {
-      const token = localStorage.getItem('worldr_access_token');
-      if (token) {
-        await fetch('/api/v1/character/me', {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-      }
+      const { characterApi } = await import('../../../lib/api');
+      await characterApi.deleteMe();
     } catch (e) {
       console.warn('Failed to delete character', e);
     }
