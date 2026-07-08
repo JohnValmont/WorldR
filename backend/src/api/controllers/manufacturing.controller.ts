@@ -1844,10 +1844,14 @@ export class ManufacturingController {
 
       const deliveryAwarenessGain = Math.min(1.0, deliveryExposure * 20);
       const brandKey = `${companyId}_${marketId}`;
-      const boosted = currBrand ? (brandMap.get(brandKey)?.boostedAwareness ?? oldAwareness) : oldAwareness;
-      const newAwareness = Math.round(Math.min(100, Math.max(0, boosted + deliveryAwarenessGain)));
+      // Calculate marketing-driven awareness boost from the marketing spend at this tier
+      const marketingBoost = awarenessGain(mktMarketingSpend);
+      const boosted = Math.min(100, oldAwareness + marketingBoost + deliveryAwarenessGain);
+      const newAwareness = Math.round(Math.min(100, Math.max(0, boosted)));
       const awarenessDelta = newAwareness - oldAwareness;
-      let primaryAwarenessReason = deliveryAwarenessGain > 0.1 ? 'Market Presence' : 'None';
+      let primaryAwarenessReason = 'None';
+      if (marketingBoost > 0.5) primaryAwarenessReason = 'Marketing Campaign';
+      else if (deliveryAwarenessGain > 0.1) primaryAwarenessReason = 'Market Presence';
 
       let trustDelta = 0; let primaryTrustReason = 'None'; let wReliability = 0; let wDefectRate = 0;
       if (totalMarketSold > 0) {
