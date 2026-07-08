@@ -146,6 +146,7 @@ export interface ParticipantState {
   totalPlannedUnits: number;
   totalUnitsProduced: number;
   totalStaffWages: number;
+  actualWagesPaid: number;
   totalLeaseCosts: number;
   totalMaintenanceCosts: number;
   totalStorageCosts: number;
@@ -1628,6 +1629,7 @@ export class ManufacturingController {
       totalPlannedUnits,
       totalUnitsProduced,
       totalStaffWages,
+      actualWagesPaid,
       totalLeaseCosts,
       totalMaintenanceCosts,
       totalStorageCosts,
@@ -1771,7 +1773,7 @@ export class ManufacturingController {
     }
 
     // Use actualWagesPaid (not totalStaffWages) to match cash movement and arc report
-    const netProfit = totalGrossRevenue - pState.totalProductionCosts - actualWagesPaid - pState.totalLeaseCosts - pState.totalMaintenanceCosts - pState.totalStorageCosts - totalMarketingCosts - totalWarrantyReserveCost;
+    const netProfit = totalGrossRevenue - pState.totalProductionCosts - pState.actualWagesPaid - pState.totalLeaseCosts - pState.totalMaintenanceCosts - pState.totalStorageCosts - totalMarketingCosts - totalWarrantyReserveCost;
 
     let finalNetProfit = netProfit;
     let taxPaid = 0;
@@ -1944,7 +1946,7 @@ export class ManufacturingController {
        await ManufacturingController.addCompanyKnowledge(trx, companyId, 'supply_chain', xpGain);
     }
 
-    const costSummary = `Wages: ${actualWagesPaid.toLocaleString()} | Lease: ${pState.totalLeaseCosts.toLocaleString()} | Maintenance: ${pState.totalMaintenanceCosts.toLocaleString()} | Storage: ${pState.totalStorageCosts.toLocaleString()} | Marketing: ${totalMarketingCosts.toLocaleString()} | Warranty Reserve: ${totalWarrantyReserveCost.toLocaleString()}`;
+    const costSummary = `Wages: ${pState.actualWagesPaid.toLocaleString()} | Lease: ${pState.totalLeaseCosts.toLocaleString()} | Maintenance: ${pState.totalMaintenanceCosts.toLocaleString()} | Storage: ${pState.totalStorageCosts.toLocaleString()} | Marketing: ${totalMarketingCosts.toLocaleString()} | Warranty Reserve: ${totalWarrantyReserveCost.toLocaleString()}`;
     
     let modelLines = '';
     for (const [mId, mt] of pState.modelTracking) {
@@ -1963,7 +1965,7 @@ export class ManufacturingController {
       planned_units: pState.totalPlannedUnits, units_produced: pState.totalUnitsProduced, defective_units: pState.totalDefectiveUnits,
       units_sold: totalUnitsSold, units_unsold: Math.max(0, pState.totalUnitsProduced - totalUnitsSold),
       gross_revenue: totalGrossRevenue, sales_revenue: totalGrossRevenue, net_profit: netProfit, ending_cash: pState.runningCash,
-      production_costs: pState.totalProductionCosts, staff_wages: actualWagesPaid, factory_lease_costs: pState.totalLeaseCosts,
+      production_costs: pState.totalProductionCosts, staff_wages: pState.actualWagesPaid, factory_lease_costs: pState.totalLeaseCosts,
       factory_maintenance_costs: pState.totalMaintenanceCosts, inventory_storage_costs: pState.totalStorageCosts, marketing_costs: totalMarketingCosts,
       summary: `Production: ${pState.totalUnitsProduced.toLocaleString()} units (${pState.totalDefectiveUnits.toLocaleString()} defects).\nSales: ${totalUnitsSold.toLocaleString()} units.\n\nFinancials:\nGross Revenue: ${totalGrossRevenue.toLocaleString()}\nNet Profit: ${netProfit.toLocaleString()}\n\nOverheads:\n${costSummary}\n\nVehicle Breakdown:${modelLines}`
     };
