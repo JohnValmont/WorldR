@@ -95,7 +95,10 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
     }
 
     if (distributed > 0) {
-      await trx('company_finances').where({ company_id: policy.company_id }).decrement('available_cash', distributed);
+      await trx('company_finances')
+        .where({ company_id: policy.company_id })
+        .decrement('available_cash', distributed)
+        .decrement('company_value', distributed);
       dividendsPaid++;
     }
   }
@@ -111,7 +114,10 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
   for (const co of companies) {
     const cost = Math.min(Number(co.monthly_compliance_cost), Math.max(0, Number(co.available_cash)));
     if (cost <= 0) continue;
-    await trx('company_finances').where({ company_id: co.id }).decrement('available_cash', cost);
+    await trx('company_finances')
+      .where({ company_id: co.id })
+      .decrement('available_cash', cost)
+      .decrement('company_value', cost);
     complianceCollected += cost;
   }
 

@@ -4,7 +4,7 @@ import { DRENNIA_STATES } from './states';
 export const DRENNIA_CONFIG: CountryConfig = {
   id: 'drennia',
   name: 'Drennia',
-  currencyId: 'drennian-day',
+  currencyId: 'dollar',
   stateIds: DRENNIA_STATES.map(s => s.id),
   businessRules: {
     registrationFee: 2500,

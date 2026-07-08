@@ -41,7 +41,7 @@ async function run() {
         name: 'Admin Test Character',
         motherland_country_id: 'drennia',
         home_state_id: 'drennia-drennport',
-        currency_id: 'drennian-day'
+        currency_id: 'dollar'
       })
     });
     if (!createCharRes.ok) throw new Error('Failed to create character: ' + await createCharRes.text());
@@ -72,7 +72,7 @@ async function run() {
       headquarters_state_id: 'drennia-drennport',
       industry_id: 'manufacturing',
       legal_structure_id: 'sole-trader',
-      currency_id: 'drennian-day',
+      currency_id: 'dollar',
       starting_capital: 1000000
     })
   });

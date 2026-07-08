@@ -2,9 +2,10 @@ import { db } from '../../config/database';
 import { logger } from '../../utils/logger';
 import { ManufacturingController } from '../controllers/manufacturing.controller';
 import { processEconomyMonth } from './economyTick.service';
+import { processExchangeMonth } from './ipoExchange.service';
 
 const WORLD_INSTANCE_ID = 'pre-alpha-world-1';
-const SCHEDULER_INTERVAL_MS = 60_000; // check the clock every 60s
+const SCHEDULER_INTERVAL_MS = 5_000; // check the clock every 5s
 const MAX_CATCHUP_TICKS = 6; // max months processed per scheduler pass if the server was down
 
 export interface WorldTickResult {
@@ -37,6 +38,10 @@ const TICK_LOCK_TIMEOUT_MS = 300_000; // 5 minutes
 // processes in well under a second per statement, so this never fires normally.
 const TICK_STATEMENT_TIMEOUT_MS = 60_000; // 60 seconds
 
+// Human-readable step of the current tick, exposed on skip responses for
+// diagnostics (e.g. "Processing country: drennia - Step 3: Produce").
+(global as any).tickProgress = 'Not started';
+
 /**
  * Advance the world by exactly one game month if it is due (or forced).
  *
@@ -54,8 +59,13 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
   if (inFlightSince !== null) {
     const heldFor = Date.now() - inFlightSince;
     if (heldFor < TICK_LOCK_TIMEOUT_MS) {
-      // A tick is genuinely still running — refuse to double-process.
-      return { status: 'skipped', reason: 'tick_in_progress' };
+      // A tick is genuinely still running — refuse to double-process, but
+      // surface the current step so admins can see where it is.
+      return {
+        status: 'skipped',
+        reason: 'tick_in_progress',
+        step: (global as any).tickProgress,
+      } as any;
     }
     // Lock is stale: the previous tick almost certainly died without releasing
     // it. Reclaim it so the world can advance again. (The world_clock row lock
@@ -63,6 +73,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
     logger.warn(`[world-tick] Reclaiming stale tick lock held for ${Math.round(heldFor / 1000)}s`);
   }
   inFlightSince = Date.now();
+  (global as any).tickProgress = 'Starting transaction...';
   try {
     return await db.transaction(async (trx) => {
       // Guarantee no single query can hang the tick indefinitely.
@@ -92,6 +103,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       const month = clock.current_month;
 
       // 2. Full world processing — every country with manufacturing companies
+      (global as any).tickProgress = 'Fetching manufacturing countries...';
       const countryIds: string[] = await trx('companies')
         .where({ industry_id: 'manufacturing' })
         .distinct('country_id')
@@ -99,14 +111,23 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
 
       let processedCompanies = 0;
       for (const countryId of countryIds) {
+        (global as any).tickProgress = `Processing country: ${countryId}`;
         const result = await ManufacturingController.processCountryMonth(trx, countryId, clock);
         processedCompanies += result.processedCompanies;
       }
 
       // 2b. Player economy — loan payments, dividends, structure compliance costs
+      (global as any).tickProgress = 'processEconomyMonth';
       await processEconomyMonth(trx, year, month);
 
+      // 2c. Capital markets — advance IPO pipeline, clear/list IPOs, write monthly
+      //     OHLC bars, update the DRX index, refresh NPC market-maker quotes, and
+      //     expire founder lockups. Runs inside this same transaction.
+      (global as any).tickProgress = 'processExchangeMonth';
+      await processExchangeMonth(trx, year, month);
+
       // 3. Character aging — once per year, at the end of month 12
+      (global as any).tickProgress = 'Character aging...';
       if (month === 12) {
         await trx('characters')
           .where({ world_instance_id: WORLD_INSTANCE_ID, status: 'active' })
@@ -122,6 +143,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       const monthStartedAt = new Date(anchor);
       const nextArcCloseAt = new Date(anchor + intervalMs);
 
+      (global as any).tickProgress = 'Advancing clock...';
       await trx('world_clock')
         .where({ world_instance_id: WORLD_INSTANCE_ID })
         .update({
@@ -132,6 +154,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
           updated_at: trx.fn.now(),
         });
 
+      (global as any).tickProgress = 'Done!';
       return {
         status: 'ticked',
         processedYear: year,

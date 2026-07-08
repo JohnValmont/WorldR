@@ -1,5 +1,9 @@
 'use client';
 import Image from 'next/image';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '../../store/auth.store';
+import { getFlowRedirectPath } from '../../lib/flow';
 
 // ── WorldMapGlobe — real map image scrolling inside a sphere ──────────────────
 //
@@ -135,6 +139,16 @@ const PILLARS = [
 // ── Auth layout ────────────────────────────────────────────────────────────────
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
+
+  // Redirect already-authenticated users away from auth pages
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace(getFlowRedirectPath());
+    }
+  }, [isAuthenticated, router]);
+
   return (
     <div className="h-screen w-full flex overflow-hidden bg-[#050508]">
 

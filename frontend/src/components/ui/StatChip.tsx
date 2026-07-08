@@ -10,7 +10,7 @@ interface SparklinePoint { value: number }
 interface StatChipProps {
   label: string;
   value: string | number;
-  /** Optional unit prefix (e.g. '₯') */
+  /** Optional unit prefix (e.g. '$') */
   prefix?: string;
   /** Optional unit suffix (e.g. '%') */
   suffix?: string;
@@ -90,7 +90,7 @@ export default function StatChip({
     const animate = (now: number) => {
       const t = Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(1 - t, 3);
-      setDisplayed(Math.round(eased * target).toLocaleString());
+      setDisplayed(Math.round(eased * target).toLocaleString('en-US'));
       if (t < 1) animRef.current = requestAnimationFrame(animate);
     };
     animRef.current = requestAnimationFrame(animate);

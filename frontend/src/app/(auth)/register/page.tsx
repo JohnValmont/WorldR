@@ -44,10 +44,10 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const { data } = await authApi.register({
-        email: form.email,
+        email: form.email.trim().toLowerCase(),
         password: form.password,
       });
-      void data; // OTP is now sent to email, nothing to display here
+      void data;
       setSuccess(true);
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Registration failed. Please try again.');

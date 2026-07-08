@@ -22,7 +22,12 @@ import {
   postTender,
   bidTender,
   getBills,
-  getTenders
+  getTenders,
+  getMyAp,
+  doGeneralAction,
+  recruitNpc,
+  setDoctrine,
+  setTenet,
 } from '../controllers/politics.controller';
 import { getOrCreateCurrentCycle } from '../services/politics.service';
 import { db } from '../../config/database';
@@ -84,8 +89,9 @@ router.put('/parties/:id/platform', authMiddleware, updatePlatform);
 // (polling/formation) — this matches PartyTab's `canRunForOffice` guard.
 router.post('/candidacy', authMiddleware, blockPhases('polling', 'formation'), declareCandidacy);
 
-// Phase 3A
-router.post('/campaign/actions', authMiddleware, requirePhase('campaign'), queueCampaignAction);
+// Campaigning is ALWAYS open (GDD §3), except while an election is actively
+// resolving (polling/formation) — matching the candidacy guard above.
+router.post('/campaign/actions', authMiddleware, blockPhases('polling', 'formation'), queueCampaignAction);
 router.get('/polls', authMiddleware, getPolls);
 
 // Phase 4
@@ -93,16 +99,25 @@ router.post('/formation/coalition', authMiddleware, requirePhase('formation'), m
 router.get('/council', authMiddleware, getCouncil);
 router.get('/ledger', authMiddleware, getLedger);
 
-// Phase 5A
+// Legislation is ALWAYS open (GDD §3): propose & vote any time except while an
+// election is actively resolving (polling/formation).
 router.get('/bills', authMiddleware, getBills);
-router.post('/bills', authMiddleware, requirePhase('governing'), proposeBill);
-router.post('/bills/:id/vote', authMiddleware, requirePhase('governing'), voteBill);
+router.post('/bills', authMiddleware, blockPhases('polling', 'formation'), proposeBill);
+router.post('/bills/:id/vote', authMiddleware, blockPhases('polling', 'formation'), voteBill);
 router.post('/lobby/donate', authMiddleware, donateToParty);
 router.post('/lobby/petition', authMiddleware, petitionParty);
 
 // Phase 5B: Tenders
 router.get('/tenders', authMiddleware, getTenders);
-router.post('/tenders', authMiddleware, requirePhase('governing'), postTender);
+router.post('/tenders', authMiddleware, blockPhases('polling', 'formation'), postTender);
 router.post('/tenders/:id/bid', authMiddleware, bidTender);
+
+// ── AP System ──────────────────────────────────────────────────────────
+// Available any phase, any office.
+router.get('/ap', authMiddleware, getMyAp);
+router.post('/general-action', authMiddleware, doGeneralAction);
+router.post('/recruit', authMiddleware, recruitNpc);
+router.patch('/parties/:id/doctrine', authMiddleware, setDoctrine);
+router.patch('/parties/:id/tenet', authMiddleware, setTenet);
 
 export default router;

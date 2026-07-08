@@ -12,6 +12,7 @@ import {
   POL_COUNCIL_SEATS,
   POL_VOTE_JITTER
 } from '../constants/politics';
+import { Conditions, conditionTurnoutMultiplier } from './conditions';
 
 export interface EngineCandidate {
   candidateId: string;
@@ -25,6 +26,10 @@ export interface EngineCandidate {
 export interface ElectionInput {
   candidates: EngineCandidate[];
   registeredVoters: number;
+  /** Total seats to allocate for this jurisdiction. Defaults to POL_COUNCIL_SEATS. */
+  totalSeats?: number;
+  /** Jurisdiction Conditions (GDD §11). When supplied, modulates per-bloc turnout. */
+  conditions?: Conditions | null;
 }
 
 export interface ElectionResult {
@@ -90,7 +95,11 @@ export function computeSegmentShares(candidates: EngineCandidate[], segment: Vot
   return shares;
 }
 
-export function computeTurnout(segment: VoterSegment, candidates: EngineCandidate[]): number {
+export function computeTurnout(
+  segment: VoterSegment,
+  candidates: EngineCandidate[],
+  conditions?: Conditions | null
+): number {
   if (candidates.length === 0) return 0;
   let totalReach = 0;
   for (const c of candidates) {
@@ -98,7 +107,9 @@ export function computeTurnout(segment: VoterSegment, candidates: EngineCandidat
     totalReach += computeReach(effortInSegment);
   }
   const avgReach = totalReach / candidates.length;
-  return POL_BASE_TURNOUT * (0.8 + 0.4 * avgReach);
+  const base = POL_BASE_TURNOUT * (0.8 + 0.4 * avgReach);
+  // Conditions (GDD §5/§11) scale turnout per bloc; 1.0 when no conditions given.
+  return base * conditionTurnoutMultiplier(segment.key, conditions);
 }
 
 export function computeVotes(input: ElectionInput): Record<string, number> {
@@ -108,7 +119,7 @@ export function computeVotes(input: ElectionInput): Record<string, number> {
   }
 
   for (const segment of SEGMENTS) {
-    const turnout = computeTurnout(segment, input.candidates);
+    const turnout = computeTurnout(segment, input.candidates, input.conditions);
     const shares = computeSegmentShares(input.candidates, segment);
     const segmentVoters = segment.size * input.registeredVoters * turnout;
 
@@ -175,7 +186,8 @@ export function runElection(input: ElectionInput): ElectionResult {
     partyVotes[c.partyId] = (partyVotes[c.partyId] || 0) + votes[c.candidateId];
   }
 
-  const partySeats = allocateSeatsDHondt(partyVotes, POL_COUNCIL_SEATS);
+  const totalSeats = input.totalSeats ?? POL_COUNCIL_SEATS;
+  const partySeats = allocateSeatsDHondt(partyVotes, totalSeats);
 
   // Group candidates by party
   const candidatesByParty: Record<string, EngineCandidate[]> = {};

@@ -1,151 +1,140 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
-import { PageShell, Tabs } from '@/components/ui';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import useSWR from 'swr';
 import { politicsApi, characterApi } from '@/lib/api';
-import { POL_ACTIVE_STATE_NAME } from './_lib/session';
-import OverviewTab from './OverviewTab';
-import PartyTab from './PartyTab';
-import CampaignTab from './CampaignTab';
-import PollsTab from './PollsTab';
-import CouncilTab from './CouncilTab';
-import LobbyTendersTab from './LobbyTendersTab';
+import { DEFAULT_JURISDICTION_ID, type JurisdictionId } from './_lib/session';
+import { T, MONO } from './_lib/theme';
+import { JURISDICTION_MODEL } from './_lib/model';
+import PoliticsSidebar, { type PoliticsSection } from './_components/PoliticsSidebar';
+import { formatGameDateShort } from '@/lib/calendar';
+
+import OverviewScreen    from './OverviewScreen';
+import ElectionsScreen   from './ElectionsScreen';
+import LegislatureScreen from './LegislatureScreen';
+import PolicyScreen        from './PolicyScreen';
+import AssemblyScreen    from './AssemblyScreen';
+import PartyScreen       from './PartyScreen';
+import LobbyScreen       from './LobbyScreen';
+
+// Live countdown to the next in-game month (1 month = 8 real hours -> next 0/8/16h).
+function NextTick() {
+  const [now, setNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const d = new Date(now);
+  const boundary = (Math.floor(d.getHours() / 8) + 1) * 8;
+  const next = new Date(d);
+  next.setHours(boundary, 0, 0, 0);
+  let ms = next.getTime() - now;
+  if (ms < 0) ms += 8 * 3600 * 1000;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const hh = Math.floor(ms / 3600000);
+  const mm = Math.floor((ms % 3600000) / 60000);
+  const ss = Math.floor((ms % 60000) / 1000);
+  return <span style={{ fontFamily: MONO }}>{pad(hh)}:{pad(mm)}:{pad(ss)}</span>;
+}
+
+function Chip({ label, value, tone }: { label: string; value: React.ReactNode; tone?: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 4 }}>
+      <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.faint }}>{label}</span>
+      <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: tone || T.ivory }}>{value}</span>
+    </div>
+  );
+}
 
 export default function PoliticsDesk() {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [activeSection, setActiveSection] = useState<PoliticsSection>('overview');
+  const [selectedJurisdictionId, setSelectedJurisdictionId] = useState<JurisdictionId>(DEFAULT_JURISDICTION_ID);
 
-  const [character, setCharacter] = useState<any>(null);
-  const [overview, setOverview] = useState<any>(null);
-  const [parties, setParties] = useState<any[]>([]);
-  const [latestGoverningEvent, setLatestGoverningEvent] = useState<any>(null);
+  const { data: character, mutate: mutateChar, error: errChar } = useSWR('me', () => characterApi.getMe().then((res: any) => res.data || res));
+  const { data: overview, mutate: mutateOver, error: errOver } = useSWR('politicsState', () => politicsApi.getState());
+  const { data: parties = [], mutate: mutateParties, error: errParties } = useSWR(['parties', selectedJurisdictionId], () => politicsApi.getParties(selectedJurisdictionId));
+  const { data: ledger = [], mutate: mutateLedger } = useSWR(['ledger', selectedJurisdictionId], () => politicsApi.getLedger(20, selectedJurisdictionId));
+  const { data: myApData, mutate: mutateAp } = useSWR('myAp', () => politicsApi.getMyAp());
+
+  const myAp = (myApData as { current_ap: number; ap_cap: number }) || { current_ap: 0, ap_cap: 12 };
 
   const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError('');
+    await Promise.all([mutateChar(), mutateOver(), mutateParties(), mutateLedger(), mutateAp()]);
+  }, [mutateChar, mutateOver, mutateParties, mutateLedger, mutateAp]);
 
-      const results = await Promise.allSettled([
-        characterApi.getMe(),
-        politicsApi.getState(),
-        politicsApi.getParties(),
-        politicsApi.getLedger(20),
-      ]);
+  const loading = !character && !errChar && !overview && !errOver;
+  const error = errChar || errOver || errParties;
 
-      if (results[0].status === 'fulfilled') {
-        const r = results[0].value;
-        setCharacter(r.data || r);
-      }
-      if (results[1].status === 'fulfilled') {
-        setOverview(results[1].value);
-      } else {
-        console.warn('Politics state endpoint error:', (results[1] as any).reason?.message);
-      }
-      if (results[2].status === 'fulfilled') {
-        setParties(results[2].value);
-      } else {
-        console.warn('Politics parties endpoint error:', (results[2] as any).reason?.message);
-      }
-      if (results[3].status === 'fulfilled') {
-        const ledger: any[] = Array.isArray(results[3].value) ? results[3].value : [];
-        const govEvent = ledger.find((e: any) => typeof e.kind === 'string' && e.kind.startsWith('gov_'));
-        if (govEvent) setLatestGoverningEvent(govEvent);
-      }
+  const jMeta = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.ironvale;
 
-      // Only block the page if ALL three failed
-      if (results.every(r => r.status === 'rejected')) {
-        setError((results[0] as any).reason?.response?.data?.message || 'Failed to load politics data');
-      }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Failed to load politics data');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const jurisdictionMeta = useMemo(() => {
+    const meta: Record<string, any> = {};
+    if (overview?.activeState) meta[overview.activeState.code] = { id: overview.activeState.code };
+    return meta;
+  }, [overview]);
 
+  const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const commonProps = {
+    selectedJurisdictionId,
+    onJurisdictionChange: setSelectedJurisdictionId,
+    jurisdictionMeta,
+    overview,
+    character,
+    parties,
+    myAp,
+    onRefresh: loadData,
+  };
 
-  const phase = overview?.cyclePhase || overview?.cycle?.phase;
-  const sessionYear = overview?.sessionYear ?? overview?.year;
-
-  if (loading)
-    return (
-      <PageShell className="py-6">
-        <div className="text-[#A79D8C] px-8">Convening the Political Desk…</div>
-      </PageShell>
-    );
-  if (error)
-    return (
-      <PageShell className="py-6">
-        <div className="text-[#B85555] p-4 border border-[#B85555]/30 bg-[#8F3D3D]/10 mx-8">{error}</div>
-      </PageShell>
-    );
+  const cash = character?.finances?.cash_in_hand;
+  const cred = character?.political?.credibility ?? character?.credibility;
+  const monthYear = overview?.cycle?.currentArc != null ? formatGameDateShort(overview.cycle.currentArc) : '';
+  const monthsToElection = overview?.cycle?.monthsToElection ?? overview?.monthsToElection;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#090A0F' }}>
-      <div style={{ padding: '20px 24px 0' }} className="border-b border-[#2A2630]">
-        <div className="text-[9px] font-mono uppercase tracking-[0.28em] text-terminal-amber mb-1">
-          {overview?.activeState ? `${overview.activeState.name} · Politics` : 'Politics'}
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', background: T.bg, color: T.text }}>
+      {/* Top bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '12px 20px', borderBottom: `1px solid ${T.border}`, background: T.panel, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.faint }}>Drennia</span>
+          <span style={{ color: T.border }}>/</span>
+          <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.ivory, fontWeight: 700 }}>Politics</span>
         </div>
-        <div className="flex items-end justify-between gap-4 flex-wrap mb-4">
-          <h1 className="text-2xl md:text-3xl font-serif text-[#F4EBD6] tracking-wide">Political Desk</h1>
-          <div className="text-right">
-            <div className="text-[9px] font-mono uppercase tracking-[0.2em] text-[#6B6358]">Session</div>
-            <div className="text-sm font-mono text-[#A79D8C]">
-              {phase ? String(phase).toUpperCase() : '—'}
-              {sessionYear != null && <span className="text-[#6B6358]"> · Yr {sessionYear}</span>}
-            </div>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {cred != null && <Chip label="Cred" value={cred} />}
+          {cash != null && <Chip label="Cash" value={`$${Number(cash).toLocaleString('en-US')}`} tone={T.mint} />}
+          <Chip label="AP" value={`${myAp.current_ap}`} tone={T.gold} />
+          {monthYear && <Chip label="When" value={monthYear} />}
+          <Chip label="Next Month" value={<NextTick />} />
+          {monthsToElection != null && <Chip label="Election" value={`${monthsToElection} mo`} tone={T.blue} />}
         </div>
-
-        <Tabs
-          tabs={[
-            { id: 'overview', label: 'The Session' },
-            { id: 'party', label: 'Your Party' },
-            { id: 'campaign', label: 'War Room' },
-            { id: 'polls', label: 'Election Night' },
-            { id: 'council', label: 'The Chamber' },
-            { id: 'lobby', label: 'The Lobby' },
-          ]}
-          activeId={activeTab}
-          onChange={setActiveTab}
-        />
       </div>
 
-      <div className="flex-1 overflow-y-auto animate-slide-in">
-        {activeTab === 'overview' && (
-          <PageShell className="py-6">
-            <OverviewTab overview={overview} character={character} parties={parties} latestGoverningEvent={latestGoverningEvent} onNavigateToParty={() => setActiveTab('party')} />
-          </PageShell>
-        )}
-        {activeTab === 'party' && (
-          <PageShell className="py-6">
-            <PartyTab overview={overview} character={character} parties={parties} onRefresh={loadData} />
-          </PageShell>
-        )}
-        {activeTab === 'campaign' && (
-          <PageShell className="py-6">
-            <CampaignTab overview={overview} character={character} parties={parties} onRefresh={loadData} />
-          </PageShell>
-        )}
-        {activeTab === 'polls' && (
-          <PageShell className="py-6">
-            <PollsTab overview={overview} parties={parties} />
-          </PageShell>
-        )}
-        {activeTab === 'council' && (
-          <PageShell className="py-6">
-            <CouncilTab overview={overview} character={character} parties={parties} />
-          </PageShell>
-        )}
-        {activeTab === 'lobby' && (
-          <PageShell className="py-6">
-            <LobbyTendersTab overview={overview} character={character} parties={parties} />
-          </PageShell>
-        )}
+      {/* Body */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <PoliticsSidebar active={activeSection} onSelect={setActiveSection} myPartyName={myParty?.name} myPartyNation={jMeta.name} />
+        <main style={{ flex: 1, overflowY: 'auto', background: T.bg }}>
+          <div style={{ maxWidth: 1240, margin: '0 auto', padding: '28px 32px' }}>
+            {loading ? (
+              <div style={{ color: T.muted, fontFamily: MONO, fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Convening the Political Desk…</div>
+            ) : error ? (
+              <div style={{ color: T.red, border: `1px solid ${T.red}55`, background: `${T.red}14`, padding: 16, borderRadius: 4 }}>{String((error as any)?.message || error)}</div>
+            ) : activeSection === 'overview' ? (
+              <OverviewScreen overview={overview} character={character} parties={parties} myAp={myAp} selectedJurisdictionId={selectedJurisdictionId} onNavigate={setActiveSection} onRefresh={loadData} />
+            ) : activeSection === 'elections' ? (
+              <ElectionsScreen {...commonProps} />
+            ) : activeSection === 'legislature' ? (
+              <LegislatureScreen {...commonProps} />
+            ) : activeSection === 'policy' ? (
+              <PolicyScreen {...commonProps} />
+            ) : activeSection === 'assembly' ? (
+              <AssemblyScreen {...commonProps} />
+            ) : activeSection === 'party' ? (
+              <PartyScreen {...commonProps} />
+            ) : activeSection === 'lobby' ? (
+              <LobbyScreen {...commonProps} />
+            ) : null}
+          </div>
+        </main>
       </div>
     </div>
   );

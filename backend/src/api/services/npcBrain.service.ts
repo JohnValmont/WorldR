@@ -160,6 +160,8 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
 
   for (const model of models) {
     const modelId = model.id;
+    (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} Start`;
+
     const salePrice = parseFloat(model.sale_price);
     const costPerUnit = parseFloat(model.manufacturing_cost_per_unit);
     // Age of the model since it was introduced to the market
@@ -204,6 +206,7 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     }
 
     // Fetch the previous month's sales results to see how we did
+    (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - Fetching lastSales`;
     const lastSales = await trx('manufacturing_sales_results')
       .where({ 
         company_id: companyId, 
@@ -223,6 +226,7 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     const reasonCode = lastSales.length > 0 ? lastSales[0].main_reason_code : null;
 
     // Fetch the previous month's production results
+    (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - Fetching lastSnapshot`;
     const lastSnapshot = await trx('manufacturing_model_snapshots')
       .where({
         company_id: companyId,
@@ -244,6 +248,7 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
       prevPrevYear = prevYear - 1;
     }
 
+    (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - Fetching prevSales`;
     const prevSales = await trx('manufacturing_sales_results')
       .where({ 
         company_id: companyId, 
@@ -259,11 +264,13 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     }
 
     // Load brain memory table to track long term struggles (e.g. zero demand streak)
+    (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - Fetching state`;
     const state = await trx('manufacturing_npc_state')
       .where({ company_id: companyId })
       .first();
     const zeroDemandStreak = state ? state.zero_demand_streak : 0;
 
+    (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - Fetching inv`;
     const inv = await trx('manufacturing_inventory')
       .where({ company_id: companyId, vehicle_model_id: modelId })
       .first();
@@ -290,21 +297,45 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
       inventoryInStock
     };
 
+    // Fix NaN factory capacity from legacy column names
+    if (isNaN(input.factoryCapacity)) {
+      const f = await trx('manufacturing_factories').where({ id: prodLine?.factory_id }).first();
+      input.factoryCapacity = f ? Number(f.capacity_per_arc || f.capacity_per_month || 0) : 0;
+    }
+    input.factoryCapacity = Number(input.factoryCapacity) || 0;
+    input.inventoryInStock = Number(input.inventoryInStock) || 0;
+    input.unitsSoldLastArc = Number(input.unitsSoldLastArc) || 0;
+    input.targetUnits = Number(input.targetUnits) || 0;
+
     // Calculate decision
+    (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - decideNpcActions`;
     const output = decideNpcActions(input);
 
+    // CRITICAL FIX: Sanitize output to absolutely guarantee no Postgres crash loops due to NaN values!
+    if (isNaN(output.newTargetUnits) || output.newTargetUnits === null || output.newTargetUnits === undefined) {
+      output.newTargetUnits = 0;
+    }
+    if (isNaN(output.newSalePrice) || output.newSalePrice === null || output.newSalePrice === undefined) {
+      output.newSalePrice = input.salePrice;
+    }
+    output.newTargetUnits = Math.round(output.newTargetUnits);
+    output.newSalePrice = Math.round(output.newSalePrice);
+
     // Write-back the results to the respective DB tables
+    (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - update models`;
     await trx('manufacturing_vehicle_models')
       .where({ id: modelId })
       .update({ sale_price: output.newSalePrice });
 
     if (prodLine) {
+      (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - update prodLine`;
       await trx('manufacturing_production_lines')
         .where({ id: prodLine.id })
         .update({ target_units_per_month: output.newTargetUnits });
     }
 
     if (allocation) {
+      (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - update allocation`;
       await trx('manufacturing_market_allocations')
         .where({ id: allocation.id })
         .update({
@@ -314,17 +345,31 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     }
 
     // Sync NPC memory
-    await trx('manufacturing_npc_state')
-      .insert({
-        company_id: companyId,
-        vehicle_model_id: modelId,
-        last_market_share: marketShareThisArc,
-        last_units_sold: unitsSoldLastArc,
-        zero_demand_streak: output.newZeroDemandStreak,
-        updated_at: trx.fn.now()
-      })
-      .onConflict('company_id')
-      .merge();
+    (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - merge npc_state`;
+    const existingState = await trx('manufacturing_npc_state')
+      .where({ company_id: companyId, vehicle_model_id: modelId })
+      .first();
+
+    if (existingState) {
+      await trx('manufacturing_npc_state')
+        .where({ company_id: companyId, vehicle_model_id: modelId })
+        .update({
+          last_market_share: marketShareThisArc,
+          last_units_sold: unitsSoldLastArc,
+          zero_demand_streak: output.newZeroDemandStreak,
+          updated_at: trx.fn.now()
+        });
+    } else {
+      await trx('manufacturing_npc_state')
+        .insert({
+          company_id: companyId,
+          vehicle_model_id: modelId,
+          last_market_share: marketShareThisArc,
+          last_units_sold: unitsSoldLastArc,
+          zero_demand_streak: output.newZeroDemandStreak,
+          updated_at: trx.fn.now()
+        });
+    }
 
   }
 }
@@ -381,7 +426,7 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       headquarters_state_id: 'drennia-drennport', // fallback
       industry_id: 'manufacturing',
       legal_structure_id: 'sole-trader',
-      currency_id: 'drennian-day', // fallback
+      currency_id: 'dollar', // fallback
       name: roster.name,
       status: 'active',
       is_npc: true,
@@ -397,7 +442,7 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
   // Finances
   await trx('company_finances').insert({
     company_id: company.id,
-    currency_id: 'drennian-day',
+    currency_id: 'dollar',
     available_cash: roster.seedCapital,
     debt: 0,
     company_value: roster.seedCapital,

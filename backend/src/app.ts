@@ -45,7 +45,8 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
   logger.error('Unhandled Server Exception:', err);
   res.status(500).json({
-    error: 'Internal Server Error',
+    error: err.message || 'Internal Server Error',
+    stack: err.stack,
     code: 'INTERNAL_SERVER_ERROR',
   });
 });

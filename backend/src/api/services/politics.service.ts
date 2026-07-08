@@ -1,10 +1,14 @@
 import { db } from '../../config/database';
+import { AppError } from '../../utils/errors';
 import {
   POL_FILING_WINDOW_MONTHS,
   POL_CAMPAIGN_WINDOW_MONTHS,
   POL_FORMATION_WINDOW_MONTHS,
   POL_FIRST_CYCLE_MONTHS,
-  POL_TERM_LENGTH_MONTHS,
+  getSeatsForState,
+  getMajorityForState,
+  getTermMonthsForState,
+  getElectionOffsetMonths,
   CAMPAIGN_ACTIONS,
   POL_FUNDRAISER_BASE,
   POL_FUNDRAISER_CHARISMA_MULT,
@@ -15,17 +19,159 @@ import {
   SEGMENTS,
   AXES,
   Platform,
-  POL_MAJORITY_SEATS,
   POL_COALITION_MAX_DISTANCE,
-  POL_COUNCIL_SEATS,
-  POL_FACTOR_DELTAS
+  POL_FACTOR_DELTAS,
+  AP_MONTHLY_GRANT,
+  ROSTER_CAP_BANDS,
+  RECRUIT_COST_CASH,
+  RECRUIT_PLATFORM_DRIFT,
 } from '../constants/politics';
 import { EngineCandidate, runElection } from './electionEngine';
-import { fireGoverningEvent } from './governingEvents';
+import { fireGoverningEvent, fireConditionCrises } from './governingEvents';
+import { Conditions, computeConditionTargets, driftConditions, readConditionsFromRow } from './conditions';
+
+/**
+ * Convert a world_clock row into a MONOTONIC absolute month ("arc").
+ *
+ * world_clock.current_month is the CALENDAR month (1-12) and resets every year,
+ * so on its own it is NOT monotonic. Politics scheduling (cycle *_arc columns,
+ * AP monthly refresh, staggered terms) needs a strictly increasing counter, so
+ * we fold in current_year: arc = year*12 + (month-1). GDD §3.
+ */
+export function worldClockToArc(
+  clock: { current_year?: number; current_month?: number } | null | undefined
+): number {
+  const year = clock?.current_year ?? 1;
+  const month = clock?.current_month ?? 1;
+  return year * 12 + (month - 1);
+}
 
 export async function getCurrentWorldArc(): Promise<number> {
   const clock = await db('world_clock').first();
-  return clock?.current_month || 1;
+  return worldClockToArc(clock);
+}
+
+// ── AP (Action Point) Helpers ─────────────────────────────────────────────
+
+/** Pure function: maps popularity (0-100) to roster cap using tunable bands. */
+export function getRosterCap(popularity: number): number {
+  for (const band of ROSTER_CAP_BANDS) {
+    if (popularity >= band.minPop) return band.cap;
+  }
+  return 2; // safety fallback
+}
+
+/**
+ * Compute the AP cap for a character.
+ *
+ * GDD v0.5 §7 (refined): AP refreshes to a flat monthly grant and does not
+ * accumulate, so the effective cap is simply AP_MONTHLY_GRANT. Offices now grant
+ * Mandate actions (future work), not AP-cap bonuses. Signature kept stable for
+ * existing callers.
+ */
+export async function computeApCap(_trx: any, _characterId: string): Promise<number> {
+  return AP_MONTHLY_GRANT;
+}
+
+/** Fetch (or lazily create) the pol_character_ap row for a character. */
+export async function getOrCreateCharacterAp(trx: any, characterId: string) {
+  let row = await trx('pol_character_ap').where({ character_id: characterId }).first();
+  if (!row) {
+    const cap = await computeApCap(trx, characterId); // AP_MONTHLY_GRANT
+    const currentArc = await getCurrentWorldArc();
+    [row] = await trx('pol_character_ap').insert({
+      character_id: characterId,
+      // Start with a full monthly grant; AP refreshes to this each month (no accumulation).
+      current_ap: AP_MONTHLY_GRANT,
+      ap_cap: cap,
+      last_regen_arc: currentArc,
+    }).returning('*');
+  }
+  return row;
+}
+
+/**
+ * Atomically spend `cost` AP. Throws AppError if insufficient.
+ */
+export async function spendAp(trx: any, characterId: string, cost: number): Promise<void> {
+  if (cost <= 0) return; // free actions (e.g. vote)
+  const row = await getOrCreateCharacterAp(trx, characterId);
+  if (row.current_ap < cost) {
+    throw new AppError(
+      `Insufficient AP: need ${cost}, have ${row.current_ap}.`,
+      400, 'INSUFFICIENT_AP'
+    );
+  }
+  await trx('pol_character_ap')
+    .where({ character_id: characterId })
+    .decrement('current_ap', cost);
+}
+
+/**
+ * Refresh monthly AP: RESET current_ap to AP_MONTHLY_GRANT each in-game month.
+ * AP does NOT accumulate — leftover AP is discarded and replaced with a fresh
+ * full grant (e.g. 6 left → 12 next month, not 18). Called once per month tick
+ * inside processPoliticalArc; the last_regen_arc guard enforces one refresh/arc.
+ */
+export async function regenApForCharacter(trx: any, characterId: string, currentArc: number): Promise<void> {
+  const row = await trx('pol_character_ap').where({ character_id: characterId }).first();
+  if (!row) return; // not yet initialised — skip silently
+  if (row.last_regen_arc >= currentArc) return; // already refreshed this arc
+
+  await trx('pol_character_ap')
+    .where({ character_id: characterId })
+    .update({ current_ap: AP_MONTHLY_GRANT, last_regen_arc: currentArc }); // reset, do not add
+}
+
+/**
+ * Recalculate and persist the AP cap for a character.
+ * Call whenever the character's offices change.
+ */
+export async function refreshApCap(trx: any, characterId: string): Promise<void> {
+  const cap = await computeApCap(trx, characterId); // AP_MONTHLY_GRANT
+  const existing = await trx('pol_character_ap').where({ character_id: characterId }).first();
+  if (!existing) return; // not yet initialised
+  // Effective cap is the monthly grant; current_ap is managed by the monthly reset,
+  // so we only persist the cap here.
+  await trx('pol_character_ap')
+    .where({ character_id: characterId })
+    .update({ ap_cap: cap });
+}
+
+/**
+ * Recruit one NPC onto a party's roster.
+ * - Deducts RECRUIT_COST_CASH from party treasury
+ * - Generates a drifted platform (±RECRUIT_PLATFORM_DRIFT per axis)
+ * - Inserts into pol_party_members with is_recruited_npc = true
+ */
+export async function recruitNpcToParty(
+  trx: any,
+  party: any,
+  currentArc: number
+): Promise<void> {
+  const basePlatform: Platform = party.platform as Platform;
+
+  // Generate drifted platform
+  const driftedPlatform: Record<string, number> = {};
+  for (const axis of AXES) {
+    const drift = (Math.random() * 2 - 1) * RECRUIT_PLATFORM_DRIFT;
+    driftedPlatform[axis] = Math.max(0, Math.min(100, basePlatform[axis] + drift));
+  }
+
+  // Deduct treasury
+  await trx('pol_parties')
+    .where({ id: party.id })
+    .decrement('treasury', RECRUIT_COST_CASH);
+
+  // Create a placeholder system character (NPC)
+  // We store NPCs with character_id = null to match existing NPC-candidate pattern
+  await trx('pol_party_members').insert({
+    party_id: party.id,
+    character_id: null,
+    role: 'member',
+    joined_arc: currentArc,
+    is_recruited_npc: true,
+  });
 }
 
 async function applyFactorDelta(trx: any, characterId: string | null, factors: Record<string, number>) {
@@ -65,7 +211,10 @@ export async function getOrCreateCurrentCycle(stateId: string) {
   let cycle = await db('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
   
   if (!cycle) {
-    const pollingArc = currentMonth + POL_FIRST_CYCLE_MONTHS;
+    // Stagger each jurisdiction's first election by its offset so state elections
+    // land ~every 6 months across the nation (GDD §3). Ironvale offset = 0.
+    const stateRow = await db('pol_states').where({ id: stateId }).first();
+    const pollingArc = currentMonth + POL_FIRST_CYCLE_MONTHS + getElectionOffsetMonths(stateRow?.code);
     const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;
     
     const phase = derivePhase({ polling_arc: pollingArc, formation_end_arc: formationEndArc }, currentMonth);
@@ -171,6 +320,46 @@ export async function buildEngineCandidates(trx: any, cycleId: string, maxArc?: 
   return engineCandidates;
 }
 
+/** Fetch the current Conditions for a state (falls back to neutral if unseeded). */
+export async function getStateConditions(trx: any, stateId: string): Promise<Conditions> {
+  const state = await trx('pol_states').where({ id: stateId }).first();
+  return readConditionsFromRow(state);
+}
+
+/** The governing party's active-policy platform (premier's party), or null if no government. */
+async function resolveGoverningPlatform(trx: any, stateId: string): Promise<Record<string, number> | null> {
+  const premierSeat = await trx('pol_offices').where({ state_id: stateId, office: 'premier' }).first();
+  if (!premierSeat?.party_id) return null;
+  const party = await trx('pol_parties').where({ id: premierSeat.party_id }).first();
+  if (!party?.platform) return null;
+  return typeof party.platform === 'string' ? JSON.parse(party.platform) : party.platform;
+}
+
+/**
+ * Drift a state's Conditions toward the target implied by the governing party's
+ * active policy (GDD §11/§16). Deterministic and idempotent per in-game month:
+ * cond_updated_arc guards against running twice for the same month.
+ */
+export async function applyConditionDrift(trx: any, stateId: string, currentMonth: number) {
+  const state = await trx('pol_states').where({ id: stateId }).first();
+  if (!state) return;
+  if (Number(state.cond_updated_arc ?? 0) >= currentMonth) return; // already drifted this month
+
+  const platform = await resolveGoverningPlatform(trx, stateId);
+  const current = readConditionsFromRow(state);
+  const targets = computeConditionTargets(platform as any);
+  const next = driftConditions(current, targets);
+
+  await trx('pol_states').where({ id: stateId }).update({
+    cond_prosperity: next.prosperity,
+    cond_jobs: next.jobs,
+    cond_order: next.order,
+    cond_cohesion: next.cohesion,
+    cond_budget: next.budget,
+    cond_updated_arc: currentMonth,
+  });
+}
+
 export async function processPoliticalArc(trx: any, stateId: string, currentMonth: number) {
   const cycle = await trx('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
   if (!cycle) return;
@@ -181,6 +370,17 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
     await trx('pol_cycles').where({ id: cycle.id }).update({ phase: newPhase });
     cycle.phase = newPhase;
   }
+
+  // Regen AP for all politicians who have an AP row (lazy-init happens on first action)
+  const apRows = await trx('pol_character_ap').select('character_id');
+  for (const row of apRows) {
+    await regenApForCharacter(trx, row.character_id, currentMonth);
+  }
+
+  // Jurisdiction Conditions (GDD §11): drift toward the governing policy's target,
+  // then fire any deterministic crisis events. Both run every month, phase-agnostic.
+  await applyConditionDrift(trx, stateId, currentMonth);
+  await fireConditionCrises(trx, stateId, currentMonth);
 
   if (newPhase === 'filing') {
     await ensureNpcCandidates(trx, cycle.id);
@@ -372,8 +572,9 @@ async function resolveElection(trx: any, cycleId: string) {
   const engineCands = await buildEngineCandidates(trx, cycleId);
   const state = await trx('pol_states').where({ id: cycle.state_id }).first();
   const registeredVoters = state ? state.registered_voters || 1600000 : 1600000;
+  const conditions = readConditionsFromRow(state);
 
-  const result = runElection({ candidates: engineCands, registeredVoters });
+  const result = runElection({ candidates: engineCands, registeredVoters, totalSeats: getSeatsForState(state?.code), conditions });
 
   // Determine previous cycle winners for seat loss calculation
   const prevCycle = await trx('pol_cycles')
@@ -457,10 +658,10 @@ async function resolveElection(trx: any, cycleId: string) {
 
   await trx('pol_ledger_events').insert({
     state_id: cycle.state_id,
-    month: cycle.polling_arc,
+    arc: cycle.polling_arc,
     kind: 'election_results',
     headline: `ELECTION RESULTS: ${topName} Secures Most Seats`,
-    body: `The polling stations have closed. ${topName} leads with ${topParty?.seats} seats out of ${POL_COUNCIL_SEATS}. The political landscape shifts as parties now scramble to form a viable government.`
+    body: `The polling stations have closed. ${topName} leads with ${topParty?.seats} seats out of ${getSeatsForState(state?.code)}. The political landscape shifts as parties now scramble to form a viable government.`
   });
 }
 
@@ -473,6 +674,10 @@ function getPlatformDistance(p1: Platform, p2: Platform): number {
 }
 
 export async function processGovernmentFormation(trx: any, cycle: any, currentMonth: number) {
+  // Majority threshold for THIS jurisdiction (GDD §3 federal model).
+  const stateRow = await trx('pol_states').where({ id: cycle.state_id }).first();
+  const majoritySeats = getMajorityForState(stateRow?.code);
+
   // Check if government already formed or finalized as minority
   const existingCoalition = await trx('pol_coalitions').where({ cycle_id: cycle.id }).whereIn('status', ['formed', 'minority']).first();
   if (existingCoalition) {
@@ -499,7 +704,7 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
   if (!largestParty) return;
 
   // Single party majority check
-  if (largestParty.seats >= POL_MAJORITY_SEATS) {
+  if (largestParty.seats >= majoritySeats) {
     await trx('pol_coalitions').insert({
       cycle_id: cycle.id,
       lead_party_id: largestParty.id,
@@ -539,7 +744,7 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
     }
 
     for (const other of others) {
-      if (currentSeats >= POL_MAJORITY_SEATS) break;
+      if (currentSeats >= majoritySeats) break;
       if (accepted.has(other.id)) continue;
 
       const dist = getPlatformDistance(largestParty.platform, other.platform);
@@ -578,7 +783,7 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
   members.accepted = Array.from(accepted);
   members.invited = Array.from(invited);
 
-  if (totalAcceptedSeats >= POL_MAJORITY_SEATS) {
+  if (totalAcceptedSeats >= majoritySeats) {
     await trx('pol_coalitions').where({ id: forming.id }).update({
       member_party_ids: JSON.stringify(members),
       total_seats: totalAcceptedSeats,
@@ -641,7 +846,7 @@ async function namePremierAndEmitLedger(trx: any, cycle: any, largestParty: any,
 
   await trx('pol_ledger_events').insert({
     state_id: cycle.state_id,
-    month: cycle.formation_end_arc,
+    arc: cycle.formation_end_arc,
     kind: 'government_formed',
     headline,
     body
@@ -671,7 +876,9 @@ async function performCycleRollover(trx: any, oldCycle: any, currentMonth: numbe
   await trx('pol_cycles').where({ id: oldCycle.id }).update({ status: 'closed' });
 
   const startMonth = currentMonth;
-  const pollingArc = startMonth + POL_TERM_LENGTH_MONTHS;
+  // Term length is per-jurisdiction (24mo state, 48mo national — GDD §3).
+  const oldStateRow = await trx('pol_states').where({ id: oldCycle.state_id }).first();
+  const pollingArc = startMonth + getTermMonthsForState(oldStateRow?.code);
   const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;
 
   await trx('pol_cycles').insert({
@@ -768,7 +975,7 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
         }
 
         await trx('pol_ledger_events').insert({
-          state_id: stateId, month: currentMonth, kind: 'bill_passed',
+          state_id: stateId, arc: currentMonth, kind: 'bill_passed',
           headline: `INDUSTRY TAX REVISED`,
           body: `Council passes the new industry tax rate of ${(newRate * 100).toFixed(1)}%.`
         });
@@ -779,7 +986,7 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
       }
       await trx('pol_bills').where({ id: bill.id }).update({ status: 'failed' });
       await trx('pol_ledger_events').insert({
-        state_id: stateId, month: currentMonth, kind: 'bill_failed',
+        state_id: stateId, arc: currentMonth, kind: 'bill_failed',
         headline: `BILL FAILED: ${bill.type.replace('_', ' ').toUpperCase()}`,
         body: `Council rejected the proposed ${bill.type.replace('_', ' ')}.`
       });
@@ -803,7 +1010,7 @@ async function awardTenders(trx: any, stateId: string, currentMonth: number) {
     if (bids.length === 0) {
       await trx('pol_tenders').where({ id: tender.id }).update({ status: 'closed' });
       await trx('pol_ledger_events').insert({
-        state_id: stateId, month: currentMonth, kind: 'tender_awarded',
+        state_id: stateId, arc: currentMonth, kind: 'tender_awarded',
         headline: `Tender Failed: ${tender.vehicle_class}`,
         body: `No qualifying bids were received for the ${tender.vehicle_class} tender. It has been closed.`
       });
@@ -832,9 +1039,9 @@ async function awardTenders(trx: any, stateId: string, currentMonth: number) {
     });
 
     await trx('pol_ledger_events').insert({
-      state_id: stateId, month: currentMonth, kind: 'tender_awarded',
+      state_id: stateId, arc: currentMonth, kind: 'tender_awarded',
       headline: `Tender Awarded: ${tender.vehicle_class}`,
-      body: `The ${tender.vehicle_class} procurement contract was awarded to ${winningBid.company_name} at ${winningBid.bid_price} ₯ per unit.`
+      body: `The ${tender.vehicle_class} procurement contract was awarded to ${winningBid.company_name} at ${winningBid.bid_price} $ per unit.`
     });
   }
 }
@@ -889,7 +1096,7 @@ async function settleTenders(trx: any, stateId: string, currentMonth: number) {
         entry_type: 'sales',
         amount: revenue,
         balance_after: trx.raw(`(SELECT available_cash FROM company_finances WHERE company_id = ?)`, [company.id]),
-        description: `Government Tender: Sold ${unitsBought} units of ${tender.vehicle_class} at ${tender.awarded_price} ₯`
+        description: `Government Tender: Sold ${unitsBought} units of ${tender.vehicle_class} at ${tender.awarded_price} $`
       });
     }
 

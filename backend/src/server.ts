@@ -30,7 +30,7 @@ async function startServer() {
 
       // Start the world tick scheduler once the DB is ready
       startWorldTickScheduler();
-      logger.info('World tick scheduler started (clock checked every 60s).');
+      logger.info('World tick scheduler started (clock checked every 5s).');
     } catch (dbError) {
       logger.error('Database initialization failed, but server is still running:', dbError);
     }

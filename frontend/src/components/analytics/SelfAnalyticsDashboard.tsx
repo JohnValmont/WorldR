@@ -47,7 +47,7 @@ export default function SelfAnalyticsDashboard({ companyId }: SelfAnalyticsDashb
         const res = await api.get(`/companies/${companyId}/manufacturing/analytics`);
         setData(res.data.data);
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load analytics.');
+        setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load analytics.');
       } finally {
         setLoading(false);
       }
@@ -130,11 +130,11 @@ export default function SelfAnalyticsDashboard({ companyId }: SelfAnalyticsDashb
               <div className="space-y-1 my-4">
                 <div className="flex justify-between text-sm">
                   <span className="font-outfit text-zinc-400">Total Units Sold</span>
-                  <span className="font-mono text-zinc-200">{segment.totalUnitsSold.toLocaleString()}</span>
+                  <span className="font-mono text-zinc-200">{segment.totalUnitsSold.toLocaleString('en-US')}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="font-outfit text-zinc-400">Total Revenue</span>
-                  <span className="font-mono text-emerald-400">${segment.totalRevenue.toLocaleString()}</span>
+                  <span className="font-mono text-emerald-400">${segment.totalRevenue.toLocaleString('en-US')}</span>
                 </div>
               </div>
             </div>

@@ -100,11 +100,12 @@ export class InvestmentsController {
   public static async createPlacement(req: Request, res: Response, next: NextFunction) {
     try {
       const character = await requireCharacter(req);
-      const { company_id, shares, price_per_share, target_character_id } = req.body;
+      const { company_id, shares, min_purchase_shares, price_per_share, target_character_id } = req.body;
       const placement = await investments.createPlacement({
         companyId: company_id,
         sellerCharacterId: character.id,
         shares: Number(shares),
+        minPurchaseShares: min_purchase_shares ? Number(min_purchase_shares) : undefined,
         pricePerShare: Number(price_per_share),
         targetCharacterId: target_character_id,
       });
@@ -124,11 +125,22 @@ export class InvestmentsController {
     }
   }
 
-  // POST /investments/placements/:placementId/accept
+    // POST /investments/placements/:placementId/accept
   public static async acceptPlacement(req: Request, res: Response, next: NextFunction) {
     try {
       const character = await requireCharacter(req);
-      res.status(200).json(await investments.acceptPlacement(req.params.placementId, character.id));
+      const { shares } = req.body;
+      res.status(200).json(await investments.acceptPlacement(req.params.placementId, character.id, shares !== undefined ? Number(shares) : undefined));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /investments/my-placements — all placements the caller has posted (any status)
+  public static async myPlacements(req: Request, res: Response, next: NextFunction) {
+    try {
+      const character = await requireCharacter(req);
+      res.status(200).json(await investments.getMyPlacements(character.id));
     } catch (error) {
       next(error);
     }

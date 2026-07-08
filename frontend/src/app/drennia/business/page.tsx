@@ -72,52 +72,44 @@ const getLegalStructureName = (id?: string): string => {
 
 // ─── Reusable Atoms ──────────────────────────────────────────────────────────
 const Label = ({ children }: { children: React.ReactNode }) => (
-  <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint, marginBottom: '4px' }}>
+  <div className="font-mono text-[9px] uppercase tracking-[0.15em] text-zinc-500 mb-1">
     {children}
   </div>
 );
 
 const FieldRow = ({ label, value, valueColor }: { label: string; value: string | number; valueColor?: string }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '7px 0', borderBottom: `1px solid ${T.border}` }}>
-    <span style={{ fontSize: '11px', color: T.muted }}>{label}</span>
-    <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 600, color: valueColor || T.ivory }}>{value}</span>
+  <div className="flex justify-between items-baseline py-2 border-b border-zinc-800/60 last:border-0">
+    <span className="text-[11px] text-zinc-400">{label}</span>
+    <span className="font-mono text-xs font-bold" style={{ color: valueColor || '#F4EBD6' }}>{value}</span>
   </div>
 );
 
 const SectionHeader = ({ children, stamp }: { children: React.ReactNode; stamp?: string }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-    <div style={{ fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.gold, fontWeight: 700 }}>
+  <div className="flex justify-between items-center mb-4">
+    <div className="font-mono text-[11px] uppercase tracking-[0.15em] text-terminal-amber font-bold">
       {children}
     </div>
-    {stamp && <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint, letterSpacing: '0.1em', border: `1px solid ${T.border}`, padding: '2px 8px' }}>{stamp}</div>}
+    {stamp && <div className="font-mono text-[9px] text-zinc-500 tracking-wider border border-zinc-800 px-2 py-0.5 rounded">{stamp}</div>}
   </div>
 );
 
-const PanelBox = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
-  <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '20px', ...style }}>
+const PanelBox = ({ children, style, className }: { children: React.ReactNode; style?: React.CSSProperties; className?: string }) => (
+  <div className={`bg-[#0c0d13] border border-[#23232b] rounded-xl p-5 ${className || ''}`} style={style}>
     {children}
   </div>
 );
 
 type GoldButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
 
-const GoldButton = ({ children, disabled, style, ...props }: GoldButtonProps) => (
+const GoldButton = ({ children, disabled, style, className, ...props }: GoldButtonProps & { className?: string }) => (
   <button
     disabled={disabled}
-    style={{
-      background: disabled ? 'rgba(255,255,255,0.03)' : `linear-gradient(135deg, ${T.gold}, #8A6E2A)`,
-      color: disabled ? T.faint : '#0a0709',
-      border: `1px solid ${disabled ? T.border : T.gold}`,
-      padding: '10px 24px',
-      fontSize: '10px',
-      fontFamily: 'monospace',
-      textTransform: 'uppercase',
-      letterSpacing: '0.15em',
-      fontWeight: 700,
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      opacity: disabled ? 0.5 : 1,
-      ...style,
-    }}
+    className={`font-mono text-[10px] uppercase tracking-[0.15em] font-bold px-6 py-2.5 rounded transition-all duration-150 
+      ${disabled 
+        ? 'bg-white/5 text-zinc-500 border border-zinc-800 cursor-not-allowed' 
+        : 'bg-terminal-amber text-black border border-terminal-amber hover:bg-[#d9b85c] hover:border-[#d9b85c] cursor-pointer'} 
+      ${className || ''}`}
+    style={style}
     {...props}
   >
     {children}
@@ -134,43 +126,20 @@ const GhostButton = ({
   disabled,
   style,
   type = 'button',
-  onMouseEnter,
-  onMouseLeave,
+  className,
   ...buttonProps
-}: GhostButtonProps) => (
+}: GhostButtonProps & { className?: string }) => (
   <button
     {...buttonProps}
     type={type}
     disabled={disabled}
     aria-disabled={disabled}
-    style={{
-      background: 'transparent',
-      color: disabled ? T.muted : (color || T.muted),
-      border: `1px solid ${T.border}`,
-      padding: '8px 18px',
-      fontSize: '10px',
-      fontFamily: 'monospace',
-      textTransform: 'uppercase',
-      letterSpacing: '0.12em',
-      fontWeight: 600,
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      opacity: disabled ? 0.45 : 1,
-      ...style,
-    }}
-    onMouseEnter={e => {
-      if (!disabled) {
-        e.currentTarget.style.borderColor = T.gold;
-        e.currentTarget.style.color = T.ivory;
-      }
-      if (onMouseEnter) onMouseEnter(e);
-    }}
-    onMouseLeave={e => {
-      if (!disabled) {
-        e.currentTarget.style.borderColor = T.border;
-        e.currentTarget.style.color = color || T.muted;
-      }
-      if (onMouseLeave) onMouseLeave(e);
-    }}
+    className={`font-mono text-[10px] uppercase tracking-[0.12em] font-semibold px-4 py-2 rounded transition-all duration-150 border
+      ${disabled 
+        ? 'bg-transparent text-zinc-500 border-zinc-800 cursor-not-allowed opacity-50' 
+        : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-terminal-amber hover:text-zinc-100 cursor-pointer'} 
+      ${className || ''}`}
+    style={style}
   >
     {children}
   </button>
@@ -266,9 +235,6 @@ export default function BusinessPage() {
 
   const loadData = useCallback(() => {
     if (typeof window === 'undefined') return;
-    const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-    if (!granted) { router.replace('/pre-alpha-access'); return; }
-
     import('../../../lib/api').then(({ authApi, characterApi, companyApi, logisticsApi }) => {
       authApi.me().then(res => setIsAdmin(res.data.isAdmin)).catch(() => {});
       characterApi.getMe()
@@ -296,6 +262,7 @@ export default function BusinessPage() {
                       state: myCompany.headquarters_state_id,
                       legalStructure: myCompany.legal_structure_id,
                       companyCash: myCompany.finances?.available_cash,
+                      debt: myCompany.finances?.debt,
                       maintenancePolicy: myCompany.finances?.maintenance_policy || 'Standard',
                     });
                     setMfgData(mfgRes.data);
@@ -308,6 +275,7 @@ export default function BusinessPage() {
                       state: myCompany.headquarters_state_id,
                       legalStructure: myCompany.legal_structure_id,
                       companyCash: myCompany.finances?.available_cash,
+                      debt: myCompany.finances?.debt,
                     });
                   });
                 });
@@ -432,7 +400,7 @@ export default function BusinessPage() {
         industry_id: isLogistics ? 'shipping-logistics' : 'manufacturing',
         subsector_id: isLogistics ? null : selectedModel,
         legal_structure_id: selectedStructure,
-        currency_id: 'drennian-day',
+        currency_id: 'dollar',
         starting_capital: chosenCapital
       }).then((res: any) => {
         // Create/update career record
@@ -687,7 +655,7 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
             The registry is open. Build your enterprise.
           </h2>
           <p className="text-[13px] leading-relaxed text-zinc-400 max-w-xl mb-6">
-            Register a company with a minimum of <span className="text-terminal-amber font-mono font-semibold">₯50,000</span> starting
+            Register a company with a minimum of <span className="text-terminal-amber font-mono font-semibold">$50,000</span> starting
             capital — no maximum. Choose your sector, headquarters, and legal structure, then start winning contracts.
           </p>
           <div className="flex items-center gap-3 flex-wrap">
@@ -726,9 +694,9 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
           <SectionHeading icon={Scale} stamp="ALL ACTIVE">Legal Structures</SectionHeading>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
-              { name: 'Sole Trader', fee: '₯500', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost.' },
-              { name: 'Private Company', fee: '₯5,000', desc: 'Separate legal entity. Add partners and issue private shares.' },
-              { name: 'Corporation', fee: '₯50,000', desc: 'Full liability protection. Required for public trading.' },
+              { name: 'Sole Trader', fee: '$500', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost.' },
+              { name: 'Private Company', fee: '$5,000', desc: 'Separate legal entity. Add partners and issue private shares.' },
+              { name: 'Corporation', fee: '$50,000', desc: 'Full liability protection. Required for public trading.' },
             ].map(s => (
               <Card key={s.name} pad="md" hover className="flex flex-col gap-1.5">
                 <div className="flex items-baseline justify-between gap-2">
@@ -931,9 +899,9 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           <SectionHeader stamp="STEP 3 OF 7">Legal Structure</SectionHeader>
           <div className="flex flex-col gap-2 mb-6">
             {[
-              { id: 'sole-trader', label: 'Sole Trader', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost (₯500).' },
-              { id: 'private-company', label: 'Private Company', desc: 'Separate legal entity. Can add partners and issue shares (₯5,000).' },
-              { id: 'public-corporation', label: 'Corporation', desc: 'Full liability protection. Required for public trading (₯50,000).' },
+              { id: 'sole-trader', label: 'Sole Trader', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost ($500).' },
+              { id: 'private-company', label: 'Private Company', desc: 'Separate legal entity. Can add partners and issue shares ($5,000).' },
+              { id: 'public-corporation', label: 'Corporation', desc: 'Full liability protection. Required for public trading ($50,000).' },
             ].map(s => (
               <button
                 key={s.label}
@@ -999,10 +967,10 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-5 mb-6">
             <SectionHeader>Starting Capital</SectionHeader>
             <p className="text-xs text-zinc-500 leading-relaxed mb-4">
-              Minimum: <strong className="text-terminal-amber">₯50,000</strong>. No maximum — invest as much as your Cash in Hand allows, minus the filing fee ({getLegalStructureName(selectedStructure)} fee: <strong className="text-terminal-red">{formatMoney(FILING_FEE)}</strong>).
+              Minimum: <strong className="text-terminal-amber">$50,000</strong>. No maximum — invest as much as your Cash in Hand allows, minus the filing fee ({getLegalStructureName(selectedStructure)} fee: <strong className="text-terminal-red">{formatMoney(FILING_FEE)}</strong>).
             </p>
             <div className="mb-4">
-              <Label>Company Starting Capital (₯)</Label>
+              <Label>Company Starting Capital ($)</Label>
               <input
                 type="number"
                 min={50000}
@@ -1318,7 +1286,7 @@ function CompanyDeskTab({
       showNotif('Operation assigned.', true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || err.message || 'Assignment failed', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || err.message || 'Assignment failed', false);
     }
   };
 
@@ -1330,7 +1298,7 @@ function CompanyDeskTab({
       showNotif(`Test Processed: Net Profit $${res.data.netProfit}`, true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Processing failed', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Processing failed', false);
     }
   };
 
@@ -2145,7 +2113,7 @@ function CompanyDeskTab({
                     ) : (
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '11px', color: T.muted }}>Bid Amount: ₯</span>
+                          <span style={{ fontSize: '11px', color: T.muted }}>Bid Amount: $</span>
                           <input type="number" id={`bid-${c.id}`} defaultValue={c.payment} style={{ flex: 1, padding: '8px', background: T.panel, color: T.gold, border: `1px solid ${T.border}`, fontSize: '12px' }} disabled={!canAccept} />
                         </div>
                         <GoldButton 
@@ -2297,45 +2265,128 @@ function CompanyDeskTab({
                 </PanelBox>
                 
                 <SectionHeader stamp="OWNERSHIP">Owner Capital Movement</SectionHeader>
+                <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>
+                  Your personal cash: <span style={{ color: T.mint, fontWeight: 700, fontFamily: 'monospace' }}>{formatMoney(playerCash)}</span>
+                  &nbsp;·&nbsp; Company cash: <span style={{ color: T.ivory, fontWeight: 700, fontFamily: 'monospace' }}>{formatMoney((company as any).finances?.available_cash ?? company.companyCash ?? 0)}</span>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                  <PanelBox>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Inject Capital</div>
-                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', minHeight: '34px' }}>Transfer personal cash into the company's ledger.</div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input type="number" id="inject-amount" placeholder="₯ Amount" style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px' }} />
-                      <GoldButton onClick={() => {
-                        const el = document.getElementById('inject-amount') as HTMLInputElement;
-                        if (el && el.value) {
-                          const amount = parseInt(el.value);
-                          if (amount > 0) {
-                            const { injectCapital } = require('@/lib/businessCore');
-                            const res = injectCapital(company.id, amount);
-                            showNotif(res.message, res.success);
-                            if (res.success) { el.value = ''; onRefresh(); }
+                  {(company.legalStructureId === 'public-corporation' || company.legalStructure === 'Corporation') ? (
+                    <PanelBox>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: T.muted, marginBottom: '4px' }}>Market Capital Raising</div>
+                      <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>
+                        Public corporations cannot use ad-hoc owner injections. You must raise capital through the DRX Exchange (Rights Issues or Secondary Offerings).
+                      </div>
+                      <GhostButton color={T.muted} style={{ opacity: 0.5, cursor: 'not-allowed' }}>Managed via Exchange</GhostButton>
+                    </PanelBox>
+                  ) : (company.legalStructureId === 'private-company' || company.legalStructure === 'Private Company') ? (
+                    <PanelBox>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: T.mint, marginBottom: '4px' }}>↓ Issue Shares</div>
+                      <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px', minHeight: '34px' }}>Issue new shares to yourself to inject capital. Cash is transferred to company, and your equity increases.</div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="number"
+                          id="issue-shares-qty"
+                          placeholder="Shares"
+                          min={1}
+                          style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px', borderRadius: '3px', width: '80px' }}
+                        />
+                        <span style={{color: T.muted, fontSize: '12px'}}>@</span>
+                        <input
+                          type="number"
+                          id="issue-shares-price"
+                          placeholder="§ Price"
+                          min={1}
+                          style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px', borderRadius: '3px', width: '80px' }}
+                        />
+                        <GoldButton onClick={async () => {
+                          const qtyEl = document.getElementById('issue-shares-qty') as HTMLInputElement;
+                          const priceEl = document.getElementById('issue-shares-price') as HTMLInputElement;
+                          if (!qtyEl || !qtyEl.value || !priceEl || !priceEl.value) return;
+                          const qty = parseInt(qtyEl.value);
+                          const price = parseInt(priceEl.value);
+                          if (qty <= 0 || price <= 0) return;
+                          try {
+                            const { companyApi } = await import('@/lib/api');
+                            const res = await companyApi.issueShares(company.id, qty, price);
+                            showNotif(res.data?.message || `Issued ${qty} shares for §${(qty*price).toLocaleString('en-US')}.`, true);
+                            qtyEl.value = '';
+                            priceEl.value = '';
+                            onRefresh();
+                          } catch (err: any) {
+                            showNotif(err?.response?.data?.error || err?.response?.data?.message || err?.response?.data?.error || 'Issuance failed.', false);
                           }
-                        }
-                      }}>Inject</GoldButton>
-                    </div>
-                  </PanelBox>
-                  <PanelBox>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Owner Drawings</div>
-                    <div style={{ fontSize: '11px', color: T.muted, marginBottom: '16px', minHeight: '34px' }}>Withdraw company cash to your personal holdings.</div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input type="number" id="withdraw-amount" placeholder="₯ Amount" style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.gold, fontSize: '12px' }} />
-                      <GhostButton color={T.gold} onClick={() => {
-                        const el = document.getElementById('withdraw-amount') as HTMLInputElement;
-                        if (el && el.value) {
+                        }}>Issue</GoldButton>
+                      </div>
+                    </PanelBox>
+                  ) : (
+                    <PanelBox>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: T.mint, marginBottom: '4px' }}>↓ Inject Capital</div>
+                      <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px', minHeight: '34px' }}>Transfer your personal cash into the company ledger (owner loan).</div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="number"
+                          id="inject-amount"
+                          placeholder="§ Amount"
+                          min={1}
+                          style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px', borderRadius: '3px' }}
+                        />
+                        <GoldButton onClick={async () => {
+                          const el = document.getElementById('inject-amount') as HTMLInputElement;
+                          if (!el || !el.value) return;
                           const amount = parseInt(el.value);
-                          if (amount > 0) {
-                            const { ownerDrawings } = require('@/lib/businessCore');
-                            const res = ownerDrawings(company.id, amount);
-                            showNotif(res.message, res.success);
-                            if (res.success) { el.value = ''; onRefresh(); }
+                          if (amount <= 0) return;
+                          try {
+                            const { companyApi } = await import('@/lib/api');
+                            const res = await companyApi.injectCapital(company.id, amount);
+                            showNotif(res.data?.message || `§${amount.toLocaleString('en-US')} injected successfully.`, true);
+                            el.value = '';
+                            onRefresh();
+                          } catch (err: any) {
+                            showNotif(err?.response?.data?.error || err?.response?.data?.message || err?.response?.data?.error || 'Injection failed.', false);
                           }
-                        }
-                      }}>Withdraw</GhostButton>
-                    </div>
-                  </PanelBox>
+                        }}>Inject</GoldButton>
+                      </div>
+                    </PanelBox>
+                  )}
+                  
+                  {(company.legalStructureId === 'public-corporation' || company.legalStructure === 'Corporation') ? (
+                    <PanelBox>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: T.muted, marginBottom: '4px' }}>Dividend Distribution</div>
+                      <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px' }}>
+                        Public corporations cannot allow direct ad-hoc owner drawings. You must set a Dividend Policy to distribute profits to all shareholders fairly.
+                      </div>
+                      <GhostButton color={T.muted} style={{ opacity: 0.5, cursor: 'not-allowed' }}>Use Dividend Policy</GhostButton>
+                    </PanelBox>
+                  ) : (
+                    <PanelBox>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: T.gold, marginBottom: '4px' }}>↑ Owner Drawings</div>
+                      <div style={{ fontSize: '11px', color: T.muted, marginBottom: '12px', minHeight: '34px' }}>Withdraw company cash to your personal holdings.</div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="number"
+                          id="withdraw-amount"
+                          placeholder="§ Amount"
+                          min={1}
+                          style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.gold, fontSize: '12px', borderRadius: '3px' }}
+                        />
+                        <GhostButton color={T.gold} onClick={async () => {
+                          const el = document.getElementById('withdraw-amount') as HTMLInputElement;
+                          if (!el || !el.value) return;
+                          const amount = parseInt(el.value);
+                          if (amount <= 0) return;
+                          try {
+                            const { companyApi } = await import('@/lib/api');
+                            const res = await companyApi.withdrawCapital(company.id, amount);
+                            showNotif(`§${amount.toLocaleString('en-US')} withdrawn to personal holdings.`, true);
+                            el.value = '';
+                            onRefresh();
+                          } catch (err: any) {
+                            showNotif(err?.response?.data?.error || err?.response?.data?.message || err?.response?.data?.error || 'Withdrawal failed.', false);
+                          }
+                        }}>Withdraw</GhostButton>
+                      </div>
+                    </PanelBox>
+                  )}
                 </div>
 
                 <SectionHeader stamp="POLICIES">Company Financial Policies</SectionHeader>
@@ -2516,7 +2567,7 @@ function CompanyDeskTab({
               {records.map((r: any) => (
                 <div key={r.id} style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderLeft: `2px solid ${r.type === 'failure' ? T.red : r.type === 'business' ? T.gold : T.mint}`, fontSize: '12px', color: T.ivory, lineHeight: 1.6 }}>
                   {r.summary}
-                  <div style={{ fontSize: '10px', color: T.faint, marginTop: '6px' }}>{new Date(r.createdAt).toLocaleString()}</div>
+                  <div style={{ fontSize: '10px', color: T.faint, marginTop: '6px' }}>{new Date(r.createdAt).toLocaleString('en-US')}</div>
                 </div>
               ))}
             </div>
@@ -2552,7 +2603,7 @@ function AssetsTab({ company, fleet, onRefresh, showNotif, setDeskTab }: any) {
           </PanelBox>
           <PanelBox>
             <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px' }}>Property Value</div>
-            <div style={{ fontSize: '18px', fontFamily: 'monospace', color: T.faint, fontWeight: 700 }}>₯0</div>
+            <div style={{ fontSize: '18px', fontFamily: 'monospace', color: T.faint, fontWeight: 700 }}>$0</div>
             <div style={{ fontSize: '10px', color: T.faint, marginTop: '4px' }}>Locked (Land Purchasing)</div>
           </PanelBox>
           <PanelBox>
@@ -2645,7 +2696,7 @@ function FacilitiesTab({ company, onRefresh, showNotif }: any) {
       showNotif(`Leased ${type} successfully.`, true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Lease failed', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Lease failed', false);
     }
   };
 
@@ -2757,7 +2808,7 @@ function RegistryTab({ company, onRefresh }: { company: Company | null; onRefres
         })
         .catch(err => {
           console.error('Registry fetch failed:', err);
-          setFetchError(err?.response?.data?.message || 'Failed to load registry. Check your connection.');
+          setFetchError(err?.response?.data?.error || err?.response?.data?.message || 'Failed to load registry. Check your connection.');
           setLoading(false);
         });
     });
@@ -2796,12 +2847,12 @@ function RegistryTab({ company, onRefresh }: { company: Company | null; onRefres
                     {c.name} {c.id === company?.id && <span style={{ fontSize: '9px', color: T.gold, fontFamily: 'monospace' }}>(Your Company)</span>}
                   </div>
                   <div style={{ fontSize: '11px', color: T.muted, marginTop: '3px' }}>
-                    {c.legal_structure_id} · {getSectorName(c.industry_id)} · {getStateName(c.headquarters_state_id)}
+                    {getLegalStructureName(c.legal_structure_id)} · {getSectorName(c.industry_id)} · {getStateName(c.headquarters_state_id)}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.mint, textTransform: 'uppercase' }}>{c.status}</div>
-                  {c.created_at_world_year && (
+                  {c.created_at_world_year !== undefined && c.created_at_world_year !== null && (
                     <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>{formatWorldDate(c.created_at_world_year, c.created_at_world_month)}</div>
                   )}
                 </div>
@@ -2964,38 +3015,73 @@ function ProcurementTab({ company, onRefresh, showNotif }: any) {
 function DrennportExchangeTab() {
   const router = require('next/navigation').useRouter();
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '760px' }}>
-      <SectionHeader stamp="MARKET STATUS: OPEN">Drennport Exchange</SectionHeader>
-
-      {/* Market snapshot */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-        <PanelBox>
-          <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', marginBottom: '8px' }}>National Index</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: T.mint }}>14,204.50</div>
-          <div style={{ fontSize: '12px', color: T.mint }}>+ 1.2% (Past Quarter)</div>
-        </PanelBox>
-        <PanelBox>
-          <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', marginBottom: '8px' }}>Drennia Govt Bonds (10Y)</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: T.ivory }}>4.25%</div>
-          <div style={{ fontSize: '12px', color: T.faint }}>Stable</div>
-        </PanelBox>
-        <PanelBox>
-          <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', marginBottom: '8px' }}>Total Listed Entities</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: T.gold }}>42</div>
-          <div style={{ fontSize: '12px', color: T.muted }}>8 State-Owned, 34 Private</div>
-        </PanelBox>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', maxWidth: '1000px' }}>
+      
+      {/* Westport Bourse */}
+      <div
+        style={{ background: T.paper, border: `1px solid ${T.borderGold}`, padding: '24px', cursor: 'pointer' }}
+        onClick={() => router.push('/drennia/exchange')}
+        role="link"
+        aria-label="Open the Westport Bourse share exchange"
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '6px' }}>Westport Bourse</div>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Share Market — Open for Trading</div>
+            <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, maxWidth: '480px', margin: 0 }}>
+              Trade shares of player-owned Public Corporations on a live order book. 
+              Convert your company to a Public Corporation (§250,000 minimum value) to IPO and raise capital.
+            </p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Listing Requires</div>
+            <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace' }}>Public Corporation Structure</div>
+            <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace' }}>§250,000 Company Value Min.</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '24px', marginTop: '20px', paddingTop: '16px', borderTop: `1px solid ${T.border}` }}>
+          <div style={{ fontSize: '11px', color: T.muted, fontFamily: 'monospace' }}>
+            Limit orders · price-time priority · instant settlement · player companies only
+          </div>
+          <div style={{ marginLeft: 'auto', fontSize: '10px', color: T.mint, fontFamily: 'monospace', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'flex-end' }}>
+            Enter the Bourse →
+          </div>
+        </div>
       </div>
 
-      {/* CTA to full exchange */}
-      <PanelBox style={{ background: 'rgba(201,162,74,0.04)', border: `1px solid ${T.borderGold}`, textAlign: 'center', padding: '32px' }}>
-        <div style={{ fontSize: '13px', color: T.gold, fontWeight: 700, marginBottom: '12px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
-          Westport Bourse — Full Trading Platform
+      {/* Private Capital Market */}
+      <div
+        style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '24px', cursor: 'pointer' }}
+        onClick={() => router.push('/drennia/investments')}
+        role="link"
+        aria-label="Open the Private Capital Market for placements and loans"
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.steel, marginBottom: '6px' }}>Drennia Commerce Division</div>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Private Capital Market</div>
+            <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, maxWidth: '520px', margin: 0 }}>
+              Trade equity in private and unlisted companies via fixed-price placements, and post or accept player-to-player loans.
+              No minimum value requirement — available to all company structures except Sole Trader.
+            </p>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Instruments</div>
+            <div style={{ fontSize: '11px', color: T.steel, fontFamily: 'monospace' }}>Private Equity Placements</div>
+            <div style={{ fontSize: '11px', color: T.steel, fontFamily: 'monospace' }}>Player-to-Player Loans</div>
+          </div>
         </div>
-        <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, marginBottom: '20px', maxWidth: '460px', margin: '0 auto 20px' }}>
-          List your company via IPO, buy equity stakes in other player companies, manage your portfolio, and trade on live market data.
-        </p>
-        <GoldButton onClick={() => router.push('/drennia/exchange')}>Open Exchange →</GoldButton>
-      </PanelBox>
+        <div style={{ display: 'flex', gap: '24px', marginTop: '20px', paddingTop: '16px', borderTop: `1px solid ${T.border}` }}>
+          <div style={{ fontSize: '11px', color: T.muted, fontFamily: 'monospace' }}>
+            Fixed-price blocks · shareholder cap enforced · amortized monthly repayments · escrow model
+          </div>
+          <div style={{ marginLeft: 'auto', fontSize: '10px', color: T.steel, fontFamily: 'monospace', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'flex-end' }}>
+            Open Private Market →
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
+

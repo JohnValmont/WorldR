@@ -100,6 +100,9 @@ function calcLiveEngineering(design: {
   const testingEffect = (testingPct - 0.20) * 60;
   const protoEffect   = (getBudgetPct('prototype_validation', 0.10) - 0.10) * 50;
   const prodEngEffect = (getBudgetPct('production_eng', 0.15) - 0.15) * 40;
+  const safetyBudgetEffect  = (getBudgetPct('safety', 0.12) - 0.12) * 30;
+  const powertrainBudgetEff = (getBudgetPct('powertrain', 0.18) - 0.18) * 25;
+  const interiorBudgetEff   = (getBudgetPct('interior', 0.10) - 0.10) * 20;
 
   // Engineer bonuses
   const engineerDiscount = Math.min(engineerCount * 0.05, 0.20);
@@ -123,13 +126,15 @@ function calcLiveEngineering(design: {
   const engMult  = 1.0 + engSkill;
   const combined = confMult * engMult;
 
-  // Final scores with priority boosts
-  const finalRel    = clamp01(Math.round((rel + (relPri - NEUTRAL_PRI) * 0.4 + testingEffect * 0.6) * combined), 10, 100);
-  const finalPerf   = clamp01(Math.round((perf + (perfPri - NEUTRAL_PRI) * 0.45) * combined), 10, 100);
-  const finalFuel   = clamp01(Math.round((fuel + (fuelPri - NEUTRAL_PRI) * 0.4 - (perfPri - NEUTRAL_PRI) * 0.25 - Math.max(0, weight - 1200) * 0.04) * combined), 10, 100);
-  const finalAppeal = clamp01(Math.round((appeal + (comfPri - NEUTRAL_PRI) * 0.35) * combined), 10, 100);
+  // Final scores with priority boosts and budget effects
+  const finalRel    = clamp01(Math.round((rel + (relPri - NEUTRAL_PRI) * 0.4 + testingEffect * 0.6 + safetyBudgetEffect * 0.3) * combined), 10, 100);
+  const finalPerf   = clamp01(Math.round((perf + (perfPri - NEUTRAL_PRI) * 0.45 + powertrainBudgetEff * 0.5) * combined), 10, 100);
+  const fuelPerfPenalty = (perfPri - NEUTRAL_PRI) * 0.25;
+  const perfFuelPenalty = (fuelPri - NEUTRAL_PRI) * 0.15;
+  const finalFuel   = clamp01(Math.round((fuel + (fuelPri - NEUTRAL_PRI) * 0.4 - fuelPerfPenalty - perfFuelPenalty - Math.max(0, weight - 1200) * 0.04) * combined), 10, 100);
+  const finalAppeal = clamp01(Math.round((appeal + (comfPri - NEUTRAL_PRI) * 0.35 + interiorBudgetEff * 0.5) * combined), 10, 100);
   const finalCargo  = clamp01(Math.round((cargo + (practPri - NEUTRAL_PRI) * 0.4) * combined), 5, 100);
-  const finalSafety = clamp01(Math.round(safety * combined), 10, 100);
+  const finalSafety = clamp01(Math.round((safety + safetyBudgetEffect * 0.6) * combined), 10, 100);
 
   // Production cost mult
   const prodCostMult = clamp01(1.0 + (mfgComplexity - 40) * 0.003 - (mfgPri - NEUTRAL_PRI) * 0.008 - prodEngEffect * 0.005, 0.85, 1.30);
@@ -414,8 +419,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const autoConfig = mfgData?.countryAutoConfig ?? {};
   const statesForCountry: { id: string; name: string }[] = mfgData?.statesForCountry ?? [];
 
-  // Currency formatter — uses company's currency symbol, not a hardcoded ₯
-  const fm = (val: number) => `${currencySymbol}${Math.round(val).toLocaleString()}`;
+  // Currency formatter — uses company's currency symbol, not a hardcoded $
+  const fm = (val: number) => `${currencySymbol}${Math.round(val).toLocaleString('en-US')}`;
 
   // State resolver — uses statesForCountry from the API, not a hardcoded lookup
   const resolveState = (id?: string) => {
@@ -548,7 +553,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setFaceliftSourceModelId(null);
       onRefresh();
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Design failed.';
+      const msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Design failed.';
       showNotif(msg, false);
     } finally { setDesignSaving(false); }
   };
@@ -568,7 +573,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setFaceliftSourceModelId(null);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Facelift failed.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Facelift failed.', false);
     } finally { setDesignSaving(false); }
   };
 
@@ -582,7 +587,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setSelectedModelId(null);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to discontinue.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to discontinue.', false);
     }
   };
 
@@ -594,7 +599,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setSelectedModelId(null);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Launch failed.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Launch failed.', false);
     } finally { setLaunchingModelId(null); }
   };
 
@@ -607,7 +612,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setEditingLineId(null);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to save plan.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to save plan.', false);
     }
   };
 
@@ -617,7 +622,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       showNotif('Production line paused.', true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to pause line.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to pause line.', false);
     }
   };
 
@@ -627,7 +632,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       showNotif('Production line resumed.', true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to resume line.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to resume line.', false);
     }
   };
 
@@ -638,7 +643,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       showNotif(action === 'hire' ? 'Staff hired.' : 'Staff removed.', true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Action failed.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Action failed.', false);
     }
   };
 
@@ -651,7 +656,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       showNotif('Sale price updated.', true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to save price.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to save price.', false);
     } finally { setSavingPrice(null); }
   };
 
@@ -671,7 +676,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       loadMarketData();
       onRefresh(); // Refresh inventory
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to allocate.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to allocate.', false);
     }
   };
 
@@ -681,7 +686,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       showNotif('Engineering programme started.', true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to start programme.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to start programme.', false);
     }
   };
 
@@ -694,7 +699,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setProcuringComponent(null);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to procure components.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to procure components.', false);
     }
   };
 
@@ -706,7 +711,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setExpandingFactoryId(null);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to start expansion.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to start expansion.', false);
       setShowExpandConfirm(false);
     }
   };
@@ -717,7 +722,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       showNotif(`Month processed: Net ${fm(res.data.netProfit)}`, true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to process month.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to process month.', false);
     }
   };
 
@@ -809,10 +814,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         {notification && (
           <div
             role="status"
-            className={`mb-4 flex items-start gap-2.5 rounded-md border px-4 py-3 text-xs leading-relaxed
+            className={`fixed top-6 right-6 z-[9999] w-full max-w-md shadow-2xl mb-4 flex items-start gap-2.5 rounded-md border px-4 py-3 text-xs leading-relaxed
               ${notification.success
-                ? 'border-terminal-green/50 bg-terminal-green/10 text-terminal-green'
-                : 'border-terminal-red/50 bg-terminal-red/10 text-terminal-red'}`}
+                ? 'border-terminal-green/50 bg-terminal-green/10 text-terminal-green backdrop-blur-md'
+                : 'border-terminal-red/50 bg-terminal-red/10 text-terminal-red backdrop-blur-md'}`}
           >
             <StatusDot variant={notification.success ? 'live' : 'danger'} className="mt-1 shrink-0" />
             <span>{notification.msg}</span>
@@ -1496,7 +1501,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             ))}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: `1px dotted ${T.border}`, fontSize: '12px' }}>
                               <span style={{ color: T.muted }}>Vehicle Weight</span>
-                              <span style={{ color: T.ivory, fontFamily: 'monospace' }}>{(selectedModel.vehicle_weight_kg || 1200).toLocaleString()} kg</span>
+                              <span style={{ color: T.ivory, fontFamily: 'monospace' }}>{(selectedModel.vehicle_weight_kg || 1200).toLocaleString('en-US')} kg</span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: `1px dotted ${T.border}`, fontSize: '12px' }}>
                               <span style={{ color: T.muted }}>Manufacturing Friendliness</span>
@@ -1783,7 +1788,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             <PanelBox style={{ border: `1px solid ${T.gold}33` }}>
                               <SectionHeader stamp="LIVE ESTIMATE">Design Preview</SectionHeader>
                               <FieldRow label="Est. Mfg Cost / Unit" value={fm(liveScore.cost)} valueColor={T.red} />
-                              <FieldRow label="Vehicle Weight" value={`${liveScore.vehicleWeightKg.toLocaleString()} kg`} />
+                              <FieldRow label="Vehicle Weight" value={`${liveScore.vehicleWeightKg.toLocaleString('en-US')} kg`} />
                               <div style={{ marginTop: '10px' }}>
                                 <ScoreBadge label="Reliability" value={liveScore.rel} color={liveScore.rel > 70 ? T.mint : liveScore.rel > 50 ? T.gold : T.red} />
                                 <ScoreBadge label="Performance" value={liveScore.perf} color={liveScore.perf > 70 ? T.mint : T.gold} />
@@ -1885,7 +1890,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                 ))}
                               </div>
 
-                              <FieldRow label="Vehicle Weight" value={`${liveScore.vehicleWeightKg.toLocaleString()} kg`} />
+                              <FieldRow label="Vehicle Weight" value={`${liveScore.vehicleWeightKg.toLocaleString('en-US')} kg`} />
 
                               {/* Risk / Confidence / Friendliness */}
                               <div style={{ marginTop: '10px' }}>
@@ -2137,10 +2142,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         {!isCompleted && !inProgress && (
                           <GoldButton
                             onClick={() => handleStartResearch(id)}
-                            disabled={isLocked || engineerCount < prog.minEng || finances?.cash < prog.budget}
+                            disabled={isLocked || engineerCount < prog.minEng || Number(finances?.available_cash || 0) < prog.budget}
                             style={{ width: '100%', fontSize: '12px', padding: '8px' }}
                           >
-                            {isLocked ? 'Locked' : engineerCount < prog.minEng ? 'Not enough engineers' : (finances?.cash || 0) < prog.budget ? 'Not enough cash' : 'Start Programme'}
+                            {isLocked ? 'Locked' : engineerCount < prog.minEng ? 'Not enough engineers' : Number(finances?.available_cash || 0) < prog.budget ? 'Not enough cash' : 'Start Programme'}
                           </GoldButton>
                         )}
                         {inProgress && (
@@ -2323,13 +2328,13 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
                   <div className="mb-6">
                     <FieldRow label="Total Cost" value={fm(procuringComponent.units * procuringComponent.cost)} valueColor="#ff453a" />
-                    <FieldRow label="Current Balance" value={fm(finances?.cash || 0)} valueColor="#30d158" />
+                    <FieldRow label="Current Balance" value={fm(Number(finances?.available_cash || 0))} valueColor="#30d158" />
                   </div>
 
                   <div className="flex items-center justify-end gap-3">
                     <GhostButton onClick={() => setProcuringComponent(null)}>Cancel</GhostButton>
                     <GoldButton
-                      disabled={(finances?.cash || 0) < (procuringComponent.units * procuringComponent.cost) || procuringComponent.units <= 0}
+                      disabled={Number(finances?.available_cash || 0) < (procuringComponent.units * procuringComponent.cost) || procuringComponent.units <= 0}
                       onClick={() => handleProcureComponent(procuringComponent.id, procuringComponent.units)}
                     >
                       Submit Order
@@ -2797,7 +2802,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     <div key={market.id} className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3.5 hover:border-zinc-700 transition-colors">
                       <div className="text-xs font-semibold text-terminal-amber mb-2">{market.name}</div>
                       <div className="grid grid-cols-2 gap-2 text-[11px]">
-                        <div className="text-zinc-500">Population: <span className="text-zinc-200">{Number(market.population).toLocaleString()}</span></div>
+                        <div className="text-zinc-500">Population: <span className="text-zinc-200">{Number(market.population).toLocaleString('en-US')}</span></div>
                         <div className="text-zinc-500">Avg Income: <span className="text-zinc-200">{fm(market.average_income)}</span></div>
                         <div className="text-zinc-500">Market Tier: <span className="text-zinc-200">{market.market_tier}</span></div>
                         <div className="text-zinc-500">Competition: <span className="text-terminal-red">{market.competition_level}</span></div>
@@ -2861,8 +2866,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             <td className="px-1.5 py-2 text-zinc-200">{mName}</td>
                             <td className="px-1.5 py-2 text-zinc-200">{mktName}</td>
                             <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.alloc.units_allocated}</td>
-                            <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.totalHouseholds.toLocaleString()}</td>
-                            <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.marketPurchaseCapacity.toLocaleString()}</td>
+                            <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.totalHouseholds.toLocaleString('en-US')}</td>
+                            <td className="px-1.5 py-2 text-zinc-500 font-mono">{fc.marketPurchaseCapacity.toLocaleString('en-US')}</td>
                             <td className="px-1.5 py-2 text-zinc-200 font-mono">{Math.round(fc.rawBuyerInterest)}</td>
                             <td className="px-1.5 py-2 text-terminal-green font-mono font-bold">{fc.unitsSold}</td>
                             <td className={`px-1.5 py-2 ${affStr === 'Weak' ? 'text-terminal-red' : 'text-zinc-500'}`}>{affStr}</td>

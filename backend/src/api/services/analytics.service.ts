@@ -32,14 +32,14 @@ export class AnalyticsService {
     let targetMonth = currentMonth - 1;
     let targetYear = currentYear;
     if (targetMonth === 0) {
-      targetMonth = 36; // Assuming 36 months in an year
+      targetMonth = 12; // Assuming 12 months in an year
       targetYear -= 1;
     }
     
     let prevMonth = targetMonth - 1;
     let prevYear = targetYear;
     if (prevMonth === 0) {
-      prevMonth = 36;
+      prevMonth = 12;
       prevYear -= 1;
     }
 
@@ -140,7 +140,7 @@ export class AnalyticsService {
     let targetMonth = currentMonth - 1;
     let targetYear = currentYear;
     if (targetMonth === 0) {
-      targetMonth = 36;
+      targetMonth = 12;
       targetYear -= 1;
     }
 
@@ -254,7 +254,7 @@ export class AnalyticsService {
       let targetMonth = currentMonth - 1;
       let targetYear = currentYear;
       if (targetMonth === 0) {
-        targetMonth = 36;
+        targetMonth = 12;
         targetYear -= 1;
       }
 

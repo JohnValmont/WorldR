@@ -1,8 +1,10 @@
 'use client';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { ArrowLeft, LayoutGrid, Briefcase, Landmark, Globe, Home } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Briefcase, Landmark, Globe, Home, BookOpen } from 'lucide-react';
+import GuideModal from '../gameplay/GuideModal';
+import { useAuthStore } from '../../store/auth.store';
 
 /**
  * BackBar — a slim, sticky global navigation bar for the in-game (/drennia) shell.
@@ -46,6 +48,9 @@ export default function BackBar() {
   const segments = pathname.split('/').filter(Boolean); // e.g. ['drennia', 'market']
   const section = segments[1] || 'chronicle';
   const isHub = section === 'chronicle';
+  const [showGuide, setShowGuide] = useState(false);
+  const { user } = useAuthStore();
+  const isSuperAdmin = user?.email?.toLowerCase() === 'kyxplayss@gmail.com';
 
   // Track in-app navigation depth so Back never leaves the game world.
   useEffect(() => {
@@ -98,9 +103,18 @@ export default function BackBar() {
 
       <span className="h-4 w-px bg-[#23232b]" />
 
-      <span className="truncate text-[9px] font-mono uppercase tracking-[0.18em] text-zinc-400">
+      <span className="truncate text-[9px] font-mono uppercase tracking-[0.18em] text-zinc-400 flex items-center gap-2">
         {label}
+        <button
+          onClick={() => setShowGuide(true)}
+          title="Game Guide"
+          className="ml-2 flex items-center gap-1.5 rounded bg-terminal-amber/10 px-2 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-terminal-amber transition-colors hover:bg-terminal-amber/20 focus:outline-none"
+        >
+          <BookOpen size={10} /> Guide
+        </button>
       </span>
+
+      {showGuide && <GuideModal onDismiss={() => setShowGuide(false)} />}
 
       <div className="flex-1" />
 
@@ -112,9 +126,15 @@ export default function BackBar() {
         <Link href="/drennia/business" title="Business Desk" className="p-1.5 rounded transition-colors text-zinc-500 hover:text-zinc-300 hover:bg-white/5">
           <Briefcase size={14} />
         </Link>
-        <Link href="/drennia/politics" title="Politics Desk" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
-          <Landmark size={14} />
-        </Link>
+        {isSuperAdmin ? (
+          <Link href="/drennia/politics" title="Politics Desk" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+            <Landmark size={14} />
+          </Link>
+        ) : (
+          <a href="#" onClick={(e) => { e.preventDefault(); alert('Political desk will be available on 09 July 2026.'); }} title="Politics Desk" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+            <Landmark size={14} />
+          </a>
+        )}
         <Link href="/drennia/world" title="World Feed" className={`p-1.5 rounded transition-colors ${section === 'world' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
           <Globe size={14} />
         </Link>

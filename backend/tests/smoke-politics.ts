@@ -44,14 +44,14 @@ async function runSmoke() {
 
   await db('character_finances').insert({
     character_id: c1.id,
-    currency_id: 'drennian-day',
+    currency_id: 'dollar',
     cash_in_hand: 100000,
     net_worth: 100000
   });
 
   await db('character_finances').insert({
     character_id: c2.id,
-    currency_id: 'drennian-day',
+    currency_id: 'dollar',
     cash_in_hand: 100000,
     net_worth: 100000
   });

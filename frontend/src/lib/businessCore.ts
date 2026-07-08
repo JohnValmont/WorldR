@@ -7,7 +7,7 @@ import { companyApi } from './api';
 import { addNotification, categoryForRecordType } from './notifications';
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
-export function formatMoney(value: number, currencyId: string = 'drennian-day'): string {
+export function formatMoney(value: number, currencyId: string = 'dollar'): string {
   const config = getCurrencyConfig(currencyId);
   const formatter = new Intl.NumberFormat(config.locale || 'en-US', {
     minimumFractionDigits: 0,
@@ -17,7 +17,7 @@ export function formatMoney(value: number, currencyId: string = 'drennian-day'):
 }
 
 export function formatCompanyMoney(company: { currencyId?: string }, value: number): string {
-  return formatMoney(value, company.currencyId || 'drennian-day');
+  return formatMoney(value, company.currencyId || 'dollar');
 }
 
 import { getWorldDate, advanceWorldMonth, formatWorldDate } from './worldTime';
@@ -578,7 +578,7 @@ export function migrateLegacyBusinessData() {
   companies.forEach(company => {
     if (!company.countryId) {
       company.countryId = 'drennia';
-      company.currencyId = 'drennian-day';
+      company.currencyId = 'dollar';
       company.headquartersStateId = company.state === 'Westport State' ? 'drennia-westport' : 
                                     company.state === 'Drennport State' ? 'drennia-drennport' :
                                     company.state === 'Ironvale State' ? 'drennia-ironvale' :
@@ -598,7 +598,7 @@ export function migrateLegacyBusinessData() {
     if (!contract.originCountryId) {
       contract.originCountryId = 'drennia';
       contract.destinationCountryId = 'drennia';
-      contract.paymentCurrencyId = 'drennian-day';
+      contract.paymentCurrencyId = 'dollar';
       contract.industryId = 'shipping-logistics';
       contract.contractTypeId = 'local-delivery';
       
@@ -771,7 +771,7 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   {
     id: 'ctr-drennport-office', issuerType: 'Local Business', issuerCompanyId: 'npc-drennport-office', issuerName: 'Drennport Office Suppliers',
     originCountryId: 'drennia', originStateId: 'drennia-drennport', destinationCountryId: 'drennia', destinationStateId: 'drennia-drennport',
-    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-day',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'dollar',
     title: 'Drennport Office Supply Run', description: 'Regular delivery of paper, ink, and binding materials from the warehouse district to our main retail front.',
     cargo: 'Paper, ink, binding materials', contractType: 'Local Delivery', bidType: 'Direct Accept',
     requiredSector: 'Retail & Consumer', originState: 'Drennport State', destinationState: 'Drennport State', routeType: 'Local',
@@ -781,7 +781,7 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   {
     id: 'ctr-westport-dock', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-saltgate', issuerName: 'Saltgate Counting House',
     originCountryId: 'drennia', originStateId: 'drennia-westport', destinationCountryId: 'drennia', destinationStateId: 'drennia-westport',
-    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-day',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'dollar',
     title: 'Westport Dock Transfer', description: 'Move import crates from the dock warehouse to the counting house bonded storage.',
     cargo: 'Import crates', contractType: 'Port Transfer', bidType: 'Direct Accept',
     requiredSector: 'Port & Trade', originState: 'Westport State', destinationState: 'Westport State', routeType: 'Local / Port',
@@ -791,7 +791,7 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   {
     id: 'ctr-greenmere-produce', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-greenmere-fresh', issuerName: 'Greenmere Fresh Supply',
     originCountryId: 'drennia', originStateId: 'drennia-greenmere', destinationCountryId: 'drennia', destinationStateId: 'drennia-drennport',
-    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-day',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'dollar',
     title: 'Greenmere Produce Delivery', description: 'Transport 2 tons of root vegetables to Drennport outer markets before spoilage. Time-sensitive.',
     cargo: 'Root vegetables', contractType: 'Produce Delivery', bidType: 'Requires Bid',
     requiredSector: 'Agriculture & Food', originState: 'Greenmere State', destinationState: 'Drennport State', routeType: 'Interstate',
@@ -801,7 +801,7 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   {
     id: 'ctr-ironvale-parts', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-kovath', issuerName: 'Kovath Ironworks',
     originCountryId: 'drennia', originStateId: 'drennia-ironvale', destinationCountryId: 'drennia', destinationStateId: 'drennia-drennport',
-    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-day',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'dollar',
     title: 'Ironvale Parts Handling', description: 'Sorting and boxing of cast iron parts for railway shipment. Requires 2-capacity vehicle.',
     cargo: 'Cast iron parts', contractType: 'Industrial Freight', bidType: 'Requires Bid',
     requiredSector: 'Manufacturing', originState: 'Ironvale State', destinationState: 'Drennport State', routeType: 'Interstate',
@@ -811,7 +811,7 @@ export const STARTER_LOGISTICS_CONTRACTS: Contract[] = [
   {
     id: 'ctr-state-retail-restock', issuerType: 'NPC Corporation', issuerCompanyId: 'npc-crownbridge', issuerName: 'Crownbridge Retailers',
     originCountryId: 'drennia', originStateId: 'drennia-westport', destinationCountryId: 'drennia', destinationStateId: 'drennia-drennport',
-    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'drennian-day',
+    industryId: 'shipping-logistics', contractTypeId: 'local-delivery', paymentCurrencyId: 'dollar',
     title: 'State Retail Restock', description: 'Deliver retail goods from Westport distribution centre to Drennport chain outlets.',
     cargo: 'Retail goods', contractType: 'Interstate Freight', bidType: 'Requires Bid',
     requiredSector: 'Retail & Consumer', originState: 'Westport State', destinationState: 'Drennport State', routeType: 'Interstate',
@@ -1135,7 +1135,7 @@ export function evaluateContractBids(contractId: string): { success: boolean; me
   addRecord(`Won contract bid: "${contract.title}".`, 'contract');
   contracts[contractIndex] = contract;
   localStorage.setItem('worldr_contracts_v1', JSON.stringify(contracts));
-  return { success: true, message: `Awarded to ${bestBid.companyId} for ₯${bestBid.amount}`, awardedTo: bestBid.companyId };
+  return { success: true, message: `Awarded to ${bestBid.companyId} for $${bestBid.amount}`, awardedTo: bestBid.companyId };
 }
 
 
@@ -1525,7 +1525,7 @@ export async function leaseFacility(
     stateId: state,
     capacity: 10,
     leaseCostPerArc: leaseCost,
-    currencyId: 'drennian-day',
+    currencyId: 'dollar',
     type,
     state,
     leaseCost,

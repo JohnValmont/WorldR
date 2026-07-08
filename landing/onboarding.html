@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WORLDr — Access &amp; Citizenship · Aethan</title>
+<meta name="description" content="Create your account and claim citizenship in the world of Aethan. Begin in the nation of Drennia." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="onboarding.css" />
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="stage-scrim" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="flow-topbar">
+  <div class="flow-brand"><span class="crest">✦</span><b>WORLDr</b><small>AETHAN ACCESS</small></div>
+  <a href="#" class="flow-quit" id="quit">← Return to world</a>
+</header>
+
+<!-- stepper -->
+<div class="stepper"><div class="stepper-inner" id="stepper">
+  <div class="stp" data-step="0"><div class="node"><div class="ring">1</div><div class="lbl">Account</div></div><div class="bar"><i></i></div></div>
+  <div class="stp" data-step="1"><div class="node"><div class="ring">2</div><div class="lbl">Verify</div></div><div class="bar"><i></i></div></div>
+  <div class="stp" data-step="2"><div class="node"><div class="ring">3</div><div class="lbl">Login</div></div><div class="bar"><i></i></div></div>
+  <div class="stp" data-step="3"><div class="node"><div class="ring">4</div><div class="lbl">Character</div></div><div class="bar"><i></i></div></div>
+  <div class="stp" data-step="4"><div class="node"><div class="ring">5</div><div class="lbl">Nation</div></div><div class="bar"><i></i></div></div>
+  <div class="stp" data-step="5"><div class="node"><div class="ring">6</div><div class="lbl">Citizenship</div></div></div>
+</div></div>
+
+<main class="stage" id="stage">
+
+  <!-- 0 · CREATE ACCOUNT -->
+  <section class="step" data-step="0">
+    <div class="card">
+      <div class="card-eyebrow">✦ STEP 01 · REGISTRATION</div>
+      <h2 class="card-title">Create your account</h2>
+      <p class="card-sub">Register once to enter the world of Aethan. One account, one legacy across every nation.</p>
+      <div class="field"><label>Email</label><input type="email" id="acc_email" placeholder="you@example.com" autocomplete="email" /><div class="msg">Enter a valid email address.</div></div>
+      <div class="field"><label>Username</label><input type="text" id="acc_user" placeholder="Choose a handle" autocomplete="username" /><div class="msg">Username is required.</div></div>
+      <div class="field-row">
+        <div class="field"><label>Password</label><input type="password" id="acc_pass" placeholder="••••••••" autocomplete="new-password" /><div class="msg">Min 8 characters.</div></div>
+        <div class="field"><label>Confirm</label><input type="password" id="acc_pass2" placeholder="••••••••" autocomplete="new-password" /><div class="msg">Passwords must match.</div></div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" data-next="0"><span>Request Access Code</span></button>
+      </div>
+      <div class="status-line"><span class="pulse"></span><span>PRE-ALPHA ACCESS — limited to testers</span></div>
+    </div>
+  </section>
+
+  <!-- 1 · OTP VERIFY -->
+  <section class="step" data-step="1">
+    <div class="card">
+      <div class="card-eyebrow">✦ STEP 02 · VERIFICATION</div>
+      <h2 class="card-title">Verify your access</h2>
+      <p class="otp-sent">A six-digit access code was dispatched to <span id="otp_email">your email</span>.</p>
+      <div class="otp" id="otp">
+        <input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" />
+        <input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" />
+      </div>
+      <div class="otp-meta">Didn't receive it? <b id="resend">Resend code</b> · <span id="otp_timer">00:45</span></div>
+      <div class="actions">
+        <button class="btn btn-ghost" data-back="1"><span>Back</span></button>
+        <button class="btn btn-primary" data-next="1"><span>Verify &amp; Continue</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · LOGIN -->
+  <section class="step" data-step="2">
+    <div class="card">
+      <div class="card-eyebrow">✦ STEP 03 · AUTHENTICATION</div>
+      <h2 class="card-title">Log in</h2>
+      <p class="card-sub">Account verified. Authenticate to begin shaping your presence in Aethan.</p>
+      <div class="field"><label>Email</label><input type="email" id="log_email" placeholder="you@example.com" autocomplete="email" /><div class="msg">Enter your email.</div></div>
+      <div class="field"><label>Password</label><input type="password" id="log_pass" placeholder="••••••••" autocomplete="current-password" /><div class="msg">Enter your password.</div></div>
+      <div class="actions">
+        <button class="btn btn-primary" data-next="2"><span>Authenticate</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · CHARACTER CREATION -->
+  <section class="step wide" data-step="3">
+    <div class="card">
+      <div class="card-eyebrow">✦ STEP 04 · IDENTITY</div>
+      <h2 class="card-title">Forge your character</h2>
+      <p class="card-sub">The figure history will remember. Everything here is your starting mark — it will grow with every decision.</p>
+      <div class="char-grid">
+        <div class="portrait-stage">
+          <div class="portrait-main"><canvas id="portrait" width="380" height="380"></canvas></div>
+          <div class="portrait-picks" id="picks"></div>
+          <div class="hint" style="text-align:center">Choose a likeness</div>
+        </div>
+        <div>
+          <div class="field-row">
+            <div class="field"><label>Given name</label><input type="text" id="ch_first" placeholder="e.g. Aldric" /></div>
+            <div class="field"><label>Family name</label><input type="text" id="ch_last" placeholder="e.g. Varn" /></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Honorific</label><select id="ch_title"><option>Citizen</option><option>Hon.</option><option>Dr.</option><option>Adv.</option><option>Rt. Hon.</option></select></div>
+            <div class="field"><label>Origin culture</label><select id="ch_culture"></select></div>
+          </div>
+          <div class="field"><label>Standing</label>
+            <div class="seg" id="ch_gender"><button data-v="Statesman" class="on">Statesman</button><button data-v="Stateswoman">Stateswoman</button><button data-v="Undeclared">Undeclared</button></div>
+          </div>
+          <div class="attrs">
+            <div class="attr-pool">ATTRIBUTE POINTS REMAINING <b id="pool">10</b></div>
+            <div id="attrList"></div>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" data-back="3"><span>Back</span></button>
+        <button class="btn btn-primary" data-next="3"><span>Confirm Identity</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 · COUNTRY SELECTION -->
+  <section class="step wide" data-step="4">
+    <div class="card">
+      <div class="card-eyebrow">✦ STEP 05 · ALLEGIANCE</div>
+      <h2 class="card-title">Select your nation</h2>
+      <p class="card-sub">The world of Aethan holds many nations. One is open to citizens today; others are stirring. Choose where your story begins.</p>
+      <div class="nation-grid">
+        <div>
+          <div class="map-panel">
+            <img id="aethanMap" alt="Political map of Aethan" />
+            <div class="map-marker" id="drenniaMarker" data-name="DRENNIA · OPEN"></div>
+            <div class="map-tag">WORLD OF AETHAN · POLITICAL MAP</div>
+          </div>
+          <div class="dossier" id="dossier">
+            <h4 id="d_name">Drennia</h4>
+            <div class="hint" id="d_tag">Federal Republic · Capital Drennport</div>
+            <div class="dgrid">
+              <div><div class="dk">Government</div><div class="dv" id="d_gov">Federal Republic</div></div>
+              <div><div class="dk">Population</div><div class="dv" id="d_pop">2.05M</div></div>
+              <div><div class="dk">Territory</div><div class="dv" id="d_area">19,003 sq mi</div></div>
+              <div><div class="dk">Culture</div><div class="dv" id="d_culture">Varelian</div></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="nation-list" id="nationList"></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" data-back="4"><span>Back</span></button>
+        <button class="btn btn-primary" data-next="4" id="nationNext"><span>Pledge to Drennia</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · CITIZENSHIP CONFIRMATION -->
+  <section class="step" data-step="5">
+    <div class="card" id="confirmCard">
+      <div class="card-eyebrow">✦ STEP 06 · CITIZENSHIP</div>
+      <h2 class="card-title">Confirm citizenship</h2>
+      <p class="card-sub">Review your dossier. Once confirmed, your citizenship is recorded in Aethan's public register — permanently.</p>
+      <div class="confirm-grid">
+        <div>
+          <div class="summary-line"><span class="sk">Citizen</span><span class="sv" id="sm_name">—</span></div>
+          <div class="summary-line"><span class="sk">Standing</span><span class="sv" id="sm_gender">—</span></div>
+          <div class="summary-line"><span class="sk">Origin</span><span class="sv" id="sm_culture">—</span></div>
+          <div class="summary-line"><span class="sk">Nation</span><span class="sv" id="sm_nation">Drennia</span></div>
+          <div class="summary-line"><span class="sk">Capital</span><span class="sv" id="sm_capital">Drennport</span></div>
+          <div class="summary-line"><span class="sk">Government</span><span class="sv" id="sm_gov">Federal Republic</span></div>
+        </div>
+        <div class="seal-stage" id="sealStage">
+          <div class="seal" id="seal">
+            <svg viewBox="0 0 120 120">
+              <g fill="none" stroke="#f4cf82" stroke-width="2">
+                <circle cx="60" cy="60" r="52"/><circle cx="60" cy="60" r="44" stroke-width="1"/>
+                <path d="M60 20 L70 46 L98 46 L75 63 L84 90 L60 73 L36 90 L45 63 L22 46 L50 46 Z" fill="rgba(205,140,30,.28)"/>
+              </g>
+            </svg>
+          </div>
+          <div class="seal-txt">CITIZENSHIP GRANTED</div>
+        </div>
+      </div>
+      <div class="actions" id="confirmActions">
+        <button class="btn btn-ghost" data-back="5"><span>Back</span></button>
+        <button class="btn btn-primary" id="confirmBtn"><span>Confirm Citizenship</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 · ENTER -->
+  <section class="step" data-step="6">
+    <div class="card enter-stage">
+      <div class="card-eyebrow" style="justify-content:center">✦ ACCESS GRANTED</div>
+      <div class="big">Welcome to Aethan,<br/><span class="who" id="welcomeName">Citizen</span></div>
+      <p>Your citizenship in <b style="color:var(--amber-2)">Drennia</b> is recorded. The world is in motion — take your place within it.</p>
+      <div class="actions" style="justify-content:center">
+        <button class="btn btn-primary" id="enterBtn" style="flex:0 0 auto;padding-inline:44px"><span>Enter the World</span></button>
+      </div>
+      <div class="status-line"><span class="pulse"></span><span>DRENNIA · CYCLE 41 · SESSION READY</span></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }</script>
+<script type="module" src="onboarding.js"></script>
+</body>
+</html>

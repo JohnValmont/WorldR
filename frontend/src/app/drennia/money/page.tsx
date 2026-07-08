@@ -31,7 +31,7 @@ function fmt(n: number | null | undefined, dec = 2): string {
 }
 function fmtInt(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
-  return Math.round(Number(n)).toLocaleString();
+  return Math.round(Number(n)).toLocaleString('en-US');
 }
 
 type Notice = { text: string; ok: boolean } | null;
@@ -82,7 +82,7 @@ function LendingDesk({ onChanged }: { onChanged: () => void }) {
       mutate();
       onChanged();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Failed to post offer.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Failed to post offer.', false);
     } finally { setBusy(false); }
   };
 
@@ -99,7 +99,7 @@ function LendingDesk({ onChanged }: { onChanged: () => void }) {
       mutate();
       onChanged();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Failed to accept loan.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Failed to accept loan.', false);
     } finally { setBusy(false); }
   };
 
@@ -191,7 +191,7 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
       mutate();
       onChanged();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Repayment failed.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Repayment failed.', false);
     }
   };
 
@@ -200,7 +200,7 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
       await investmentsApi.cancelLoanOffer(id);
       mutate();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Cancel failed.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Cancel failed.', false);
     }
   };
 
@@ -273,45 +273,50 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
 // ── Private placements market ──────────────────────────────────────────────
 function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
   const { data: placements, mutate } = useSWR('placements', () => investmentsApi.getPlacements(), { refreshInterval: 15000 });
+  const { data: myCharacter } = useSWR('my-character', () => characterApi.getMe().then((r) => r.data));
   const { data: myCompanies } = useSWR('my-companies', () => companyApi.getMy().then((r) => r.data));
-  const { data: myCharacter } = useSWR('placements-me', () => characterApi.getMe().then((r) => r.data));
   const [companyId, setCompanyId] = useState('');
   const [shares, setShares] = useState('');
+  const [minPurchase, setMinPurchase] = useState('');
   const [price, setPrice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [purchaseAmounts, setPurchaseAmounts] = useState<Record<string, string>>({});
   const [notice, notify] = useNotice();
+
+  const myCharacterId: string | undefined = (myCharacter as any)?.id;
 
   const companies: any[] = Array.isArray(myCompanies) ? myCompanies : myCompanies?.companies ?? (myCompanies ? [myCompanies] : []);
   const eligibleCompanies = companies.filter((c: any) => c && (c.legal_structure_id === 'private-company' || c.legal_structure_id === 'public-corporation'));
 
   const create = async () => {
     const s = Number(shares);
+    const minP = minPurchase ? Number(minPurchase) : 1;
     const p = Number(price);
-    if (!companyId || !Number.isInteger(s) || s <= 0 || !Number.isFinite(p) || p <= 0) {
-      notify('Select a company and enter valid shares and price.', false);
+    if (!companyId || !Number.isInteger(s) || s <= 0 || !Number.isInteger(minP) || minP <= 0 || minP > s || !Number.isFinite(p) || p <= 0) {
+      notify('Select a company and enter valid shares, min purchase, and price.', false);
       return;
     }
     setBusy(true);
     try {
-      await investmentsApi.createPlacement({ company_id: companyId, shares: s, price_per_share: p });
+      await investmentsApi.createPlacement({ company_id: companyId, shares: s, min_purchase_shares: minP, price_per_share: p });
       notify('Placement listed.', true);
-      setShares(''); setPrice('');
+      setShares(''); setMinPurchase(''); setPrice('');
       mutate();
       onChanged();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Failed to list placement.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Failed to list placement.', false);
     } finally { setBusy(false); }
   };
 
-  const accept = async (id: string) => {
+  const accept = async (id: string, qty?: number) => {
     setBusy(true);
     try {
-      await investmentsApi.acceptPlacement(id);
+      await investmentsApi.acceptPlacement(id, qty);
       notify('Shares purchased.', true);
       mutate();
       onChanged();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Purchase failed.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Purchase failed.', false);
     } finally { setBusy(false); }
   };
 
@@ -323,7 +328,20 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
       mutate();
       onChanged();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Failed to withdraw placement.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Failed to withdraw placement.', false);
+    } finally { setBusy(false); }
+  };
+
+  // Bug G fix: owners had no way to cancel their own open placements
+  const cancelPlacement = async (id: string) => {
+    setBusy(true);
+    try {
+      await investmentsApi.cancelPlacement(id);
+      notify('Placement cancelled — shares returned.', true);
+      mutate();
+      onChanged();
+    } catch (e: any) {
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Cancel failed.', false);
     } finally { setBusy(false); }
   };
 
@@ -340,7 +358,7 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
           </div>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr', gap: '8px' }}>
               <div>
                 <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Company</div>
                 <select aria-label="Company to sell shares of" value={companyId} onChange={(e) => setCompanyId(e.target.value)} style={{ ...inputStyle, appearance: 'none' }}>
@@ -351,6 +369,10 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
               <div>
                 <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares</div>
                 <input aria-label="Number of shares" value={shares} onChange={(e) => setShares(e.target.value)} placeholder="100000" inputMode="numeric" style={inputStyle} />
+              </div>
+              <div>
+                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Min Purchase</div>
+                <input aria-label="Min Purchase" value={minPurchase} onChange={(e) => setMinPurchase(e.target.value)} placeholder="1" inputMode="numeric" style={inputStyle} />
               </div>
               <div>
                 <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price / share (§)</div>
@@ -376,36 +398,60 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
 
       <Panel title="Open Placements">
         {rows.length === 0 && <div style={{ fontSize: '11px', color: T.faint }}>No private placements on the market.</div>}
-        {rows.map((p: any) => (
-          <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${T.border}`, gap: '8px', flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: '12px', color: T.ivory, fontWeight: 700 }}>{p.company_name}</div>
-              <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-                {fmtInt(Number(p.shares))} sh ({fmt((Number(p.shares) / 1000000) * 100, 1)}%) @ §{fmt(Number(p.price_per_share))} · seller {p.seller_name}
+        {rows.map((p: any) => {
+          const isOwn = myCharacterId && p.seller_character_id === myCharacterId;
+          const available = Number(p.shares);
+          const priceVal = Number(p.price_per_share);
+          const minP = Number(p.min_purchase_shares) || 1;
+          const inputVal = purchaseAmounts[p.id];
+          const qty = inputVal !== undefined ? Number(inputVal) : available;
+          const valid = Number.isInteger(qty) && qty > 0 && qty <= available && (qty >= Math.min(minP, available) || qty === available);
+          const total = qty * priceVal;
+
+          return (
+            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${T.border}`, gap: '8px', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: '12px', color: T.ivory, fontWeight: 700 }}>
+                  {p.company_name}
+                  {isOwn && <span style={{ ...mono, fontSize: '9px', color: T.gold, marginLeft: '8px', padding: '1px 6px', border: `1px solid ${T.gold}`, textTransform: 'uppercase' }}>yours</span>}
+                </div>
+                <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
+                  {fmtInt(available)} sh ({fmt((available / 1000000) * 100, 1)}%) @ §{fmt(priceVal)} {minP > 1 ? ` · Min: ${minP} sh` : ''} · seller {p.seller_name}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.gold }}>§{fmtInt(total)}</span>
+                {isOwn ? (
+                  <button
+                    onClick={() => cancelPlacement(p.id)}
+                    disabled={busy}
+                    style={{ padding: '8px 14px', cursor: 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'transparent', color: T.red, border: `1px solid ${T.red}`, opacity: busy ? 0.6 : 1 }}
+                  >
+                    Cancel
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input 
+                      aria-label="Shares to buy" 
+                      value={inputVal ?? available} 
+                      onChange={(e) => setPurchaseAmounts({ ...purchaseAmounts, [p.id]: e.target.value })} 
+                      placeholder={available.toString()} 
+                      inputMode="numeric" 
+                      style={{ ...inputStyle, width: '70px', padding: '4px 6px', fontSize: '10px' }} 
+                    />
+                    <button
+                      onClick={() => accept(p.id, qty)}
+                      disabled={busy || !valid}
+                      style={{ padding: '8px 14px', cursor: valid ? 'pointer' : 'not-allowed', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: valid ? 'rgba(54,211,153,0.15)' : T.border, color: valid ? T.mint : T.bg, border: valid ? `1px solid ${T.mint}` : 'none', opacity: busy || !valid ? 0.6 : 1 }}
+                    >
+                      Buy
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.gold }}>§{fmtInt(Number(p.shares) * Number(p.price_per_share))}</span>
-              {myId && p.seller_character_id === myId ? (
-                <button
-                  onClick={() => withdraw(p.id)}
-                  disabled={busy}
-                  style={{ padding: '8px 14px', cursor: 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(248,113,113,0.12)', color: T.red, border: `1px solid ${T.red}` }}
-                >
-                  Withdraw
-                </button>
-              ) : (
-                <button
-                  onClick={() => accept(p.id)}
-                  disabled={busy}
-                  style={{ padding: '8px 14px', cursor: 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(54,211,153,0.15)', color: T.mint, border: `1px solid ${T.mint}` }}
-                >
-                  Buy
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </Panel>
     </div>
   );

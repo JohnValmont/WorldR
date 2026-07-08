@@ -8,17 +8,13 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
-  const [resetToken, setResetToken] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const { data } = await authApi.forgotPassword(email);
-      if (data.resetToken) {
-        setResetToken(data.resetToken);
-      }
+      await authApi.forgotPassword(email.trim().toLowerCase());
       setSent(true);
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Failed to initiate password reset. Please try again.');
@@ -50,31 +46,9 @@ export default function ForgotPasswordPage() {
           </p>
         </div>
 
-        {/* Dev mode token display */}
-        {resetToken && (
-          <div className="mb-5 bg-amber-950/20 border border-amber-800/40 rounded-sm p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <svg className="w-3.5 h-3.5 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
-              </svg>
-              <span className="text-[9px] text-amber-500/80 font-mono uppercase tracking-[0.25em]">Dev Mode — Reset Token</span>
-            </div>
-            <code className="text-amber-300 text-xs font-mono break-all select-all block leading-relaxed mb-4">{resetToken}</code>
-            <Link
-              href={`/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`}
-              className="auth-btn-primary w-full flex items-center justify-center gap-2 group text-sm"
-            >
-              Reset Password Now
-              <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </Link>
-          </div>
-        )}
-
         <div className="space-y-2.5 text-center">
           <button
-            onClick={() => { setSent(false); setResetToken(''); }}
+            onClick={() => setSent(false)}
             className="w-full text-xs text-zinc-500 hover:text-zinc-300 transition-colors py-2 border border-white/5 rounded-sm hover:border-white/10"
           >
             Try a different email

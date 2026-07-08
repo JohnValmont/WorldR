@@ -47,7 +47,8 @@ export default function WorldTimeControl() {
 
       // Skipped — surface WHY instead of silently reloading into the same state.
       if (result?.reason === 'tick_in_progress') {
-        alert('A world tick is already running. Please wait a moment and try again — a stuck tick now recovers automatically within a few minutes.');
+        const step = result?.step ? ` (current step: ${result.step})` : '';
+        alert(`A world tick is already running${step}. Please wait a moment and try again — a stuck tick now recovers automatically within a few minutes.`);
       } else if (result?.reason === 'paused') {
         alert('The world clock is paused. Resume it before forcing a tick.');
       } else if (result?.reason === 'not_due') {
@@ -59,7 +60,7 @@ export default function WorldTimeControl() {
       }
       await refresh();
     } catch (err: any) {
-      alert(err?.response?.data?.message || err?.message || 'Failed to advance world tick');
+      alert(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to advance world tick');
     } finally {
       setIsAdvancing(false);
     }
@@ -77,7 +78,7 @@ export default function WorldTimeControl() {
           <div style={{ color: T.muted, fontSize: '9px' }}>WORLD PAUSED</div>
         ) : secondsToTick !== null ? (
           <div style={{ color: T.muted, fontSize: '9px' }} aria-live="polite">
-            NEXT MONTH IN {formatCountdown(secondsToTick)}
+            NEXT MONTH IN <span style={{ textTransform: 'none' }}>{formatCountdown(secondsToTick)}</span>
           </div>
         ) : null}
       </div>

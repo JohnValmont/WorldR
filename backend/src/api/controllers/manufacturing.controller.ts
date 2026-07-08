@@ -36,7 +36,7 @@ import {
 } from '../constants/engineeringEngine';
 import { MARKET_SEGMENTS } from '../constants/marketSegments';
 import { runNpcBrainForCompany } from '../services/npcBrain.service';
-import { processPoliticalArc } from '../services/politics.service';
+import { processPoliticalArc, worldClockToArc } from '../services/politics.service';
 
 // ── Score Calculation (Original formulas) ─────────────────────────────────────
 function calculateDesignScores(design: {
@@ -391,10 +391,11 @@ export class ManufacturingController {
         }
 
         // Deduct cash
+        const newBalance = Number(finances.available_cash) - totalCost;
         await trx('company_finances')
           .where({ company_id: companyId })
           .update({
-            available_cash: Number(finances.available_cash) - totalCost,
+            available_cash: newBalance,
             updated_at: trx.fn.now()
           });
 
@@ -439,15 +440,14 @@ export class ManufacturingController {
         
         // Add ledger entry
         await trx('company_ledger').insert({
-          world_instance_id: company.world_instance_id,
           company_id: companyId,
-          world_year: currentYear,
-          world_month: currentMonth,
-          world_day: currentDay,
-          category: 'expense',
-          subcategory: 'procurement',
-          amount: totalCost,
-          description: `Procured ${units} units of ${component.name}`
+          game_year: currentYear,
+          game_month: currentMonth,
+          game_day: currentDay,
+          entry_type: 'expense',
+          description: `Procured ${units} units of ${component.name}`,
+          amount: -totalCost,
+          balance_after: newBalance
         });
       });
 
@@ -569,7 +569,13 @@ export class ManufacturingController {
 
       // Validate and normalize engineering priorities
       const engineeringPriorities: Record<string, number> = rawPriorities ?? DEFAULT_ENGINEERING_PRIORITIES;
-      const prioritySum = Object.values(engineeringPriorities).reduce((s, v) => s + Number(v), 0);
+      let prioritySum = 0;
+      for (const val of Object.values(engineeringPriorities)) {
+        if (typeof val !== 'number' || val < 0) {
+          return next(new AppError('Engineering priorities must be positive numbers', 400, 'INVALID_PRIORITIES'));
+        }
+        prioritySum += val;
+      }
       if (Math.abs(prioritySum - 100) > 2) {
         return next(new AppError(`Engineering priorities must sum to 100 (got ${prioritySum})`, 400, 'INVALID_PRIORITIES'));
       }
@@ -610,6 +616,12 @@ export class ManufacturingController {
         if (Object.keys(budgetAlloc).length === 0) {
           for (const bucket of BUDGET_BUCKETS) {
             budgetAlloc[bucket.id] = Math.round(BASE_DEV_COST * bucket.defaultPct);
+          }
+        } else {
+          for (const val of Object.values(budgetAlloc)) {
+            if (typeof val !== 'number' || val < 0) {
+              throw new AppError('Budget allocations must be positive numbers', 400, 'INVALID_BUDGET');
+            }
           }
         }
 
@@ -793,7 +805,7 @@ export class ManufacturingController {
           .update({
             development_status: 'launched',
             launched_year: clock2?.current_year || 1,
-            launched_arc: clock2?.current_month || 1,
+            launched_month: clock2?.current_month || 1,
             updated_at: trx.fn.now(),
           })
           .returning('*');
@@ -1802,7 +1814,10 @@ export class ManufacturingController {
       ]);
     }
 
-    await trx('company_finances').where({ company_id: companyId }).update({ available_cash: pState.runningCash, last_arc_profit: finalNetProfit, updated_at: trx.fn.now() });
+    await trx('company_finances')
+      .where({ company_id: companyId })
+      .update({ available_cash: pState.runningCash, last_arc_profit: finalNetProfit, updated_at: trx.fn.now() })
+      .increment('company_value', finalNetProfit);
 
     if (totalUnitsSold > 0) {
       await trx('companies').where({ id: companyId }).update({ reputation: trx.raw('LEAST(100, reputation + 1)'), updated_at: trx.fn.now() });
@@ -1960,7 +1975,7 @@ export class ManufacturingController {
             await trx.raw(`
                INSERT INTO manufacturing_npc_state (company_id, vehicle_model_id, last_market_share, last_units_sold, zero_demand_streak, updated_at)
                VALUES (?, ?, ?, ?, ?, NOW())
-               ON CONFLICT (company_id) DO UPDATE SET
+               ON CONFLICT (company_id, vehicle_model_id) DO UPDATE SET
                last_units_sold = ?, zero_demand_streak = CASE WHEN ? = 'Zero Demand' THEN manufacturing_npc_state.zero_demand_streak + 1 ELSE 0 END, updated_at = NOW()
             `, [companyId, s.mId, avgMs, s.units, 0, s.units, s.rc]);
         }
@@ -1996,6 +2011,7 @@ export class ManufacturingController {
         }
 
         // 2. DECIDE (NPCs only)
+        (global as any).tickProgress = `Processing country: ${countryId} - Step 2: Decide (NPCs)`;
         for (const company of participants) {
            if (company.is_npc) {
               await runNpcBrainForCompany(trx, company.id, currentYear, currentMonth);
@@ -2003,6 +2019,7 @@ export class ManufacturingController {
         }
 
         // 3. PRODUCE (per participant)
+        (global as any).tickProgress = `Processing country: ${countryId} - Step 3: Produce`;
         const participantStates = [];
         for (const company of participants) {
            const pState = await ManufacturingController.produceForCompany(trx, company, clock);
@@ -2073,6 +2090,7 @@ export class ManufacturingController {
            companySalesManagerBonus.set(pState.company.id, Math.min(usefulSalesManagers * 0.04, 0.16));
         }
 
+        (global as any).tickProgress = `Processing country: ${countryId} - Step 4: Simulate Sales Demand`;
         const pooledSalesResults = ManufacturingController.simulateSalesDemand(
           allMarketAllocations,
           brandMap,
@@ -2082,17 +2100,21 @@ export class ManufacturingController {
 
 
         // 5. SETTLE (per participant)
+        (global as any).tickProgress = `Processing country: ${countryId} - Step 5: Settle`;
         for (const pState of participantStates) {
            const compResults = pooledSalesResults.filter((r: any) => r.alloc.company_id === pState.company.id);
            await ManufacturingController.settleForCompany(trx, pState, compResults, clock, brandMap);
         }
 
         // Process Political Month Hook
+        (global as any).tickProgress = `Processing country: ${countryId} - Step 6: Politics Hook`;
         const activeState = await trx('pol_states')
           .where({ country_id: countryId, is_active: true })
           .first();
         if (activeState) {
-          await processPoliticalArc(trx, activeState.id, currentMonth);
+          // Politics runs on a MONOTONIC arc (absolute month), not the calendar
+          // month, so cycle scheduling / AP refresh compare against the same base.
+          await processPoliticalArc(trx, activeState.id, worldClockToArc(clock));
         }
 
         return { processedCompanies: participants.length };

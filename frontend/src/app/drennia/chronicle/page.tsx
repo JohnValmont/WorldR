@@ -9,17 +9,19 @@ import {
 import {
   ScrollText, Briefcase, TrendingUp, BarChart2, User, Star,
   Mail, Landmark, ChevronRight, RefreshCw, AlertTriangle, Lock,
-  Activity, Globe, Newspaper,
+  Activity, Globe, Newspaper, Book,
 } from 'lucide-react';
 import { getContracts, formatGameDate } from '../../../lib/businessCore';
 import { addNotification } from '../../../lib/notifications';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import NotificationBell from '../../../components/gameplay/NotificationBell';
 import FirstDayModal, { FIRST_DAY_MODAL_KEY } from '../../../components/gameplay/FirstDayModal';
+import GuideModal from '../../../components/gameplay/GuideModal';
 import {
   Card, Button, StatChip, DataRow, EmptyState, Badge, StatusDot,
   SectionHeading, PageShell,
 } from '../../../components/ui';
+import { useAuthStore } from '../../../store/auth.store';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -63,18 +65,18 @@ const LEDGER_HEADLINES = [
 
 /** Mock net-worth series — last 12 months. Replace with real ledger data when available. */
 const MOCK_NET_WORTH_SERIES = [
-  { month: 'A1', value: 50000 },
-  { month: 'A2', value: 48200 },
-  { month: 'A3', value: 52100 },
-  { month: 'A4', value: 57300 },
-  { month: 'A5', value: 61800 },
-  { month: 'A6', value: 59200 },
-  { month: 'A7', value: 65000 },
-  { month: 'A8', value: 72400 },
-  { month: 'A9', value: 81200 },
-  { month: 'A10', value: 88700 },
-  { month: 'A11', value: 95100 },
-  { month: 'A12', value: 103800 },
+  { month: '11m ago', value: 50000 },
+  { month: '10m ago', value: 48200 },
+  { month: '9m ago', value: 52100 },
+  { month: '8m ago', value: 57300 },
+  { month: '7m ago', value: 61800 },
+  { month: '6m ago', value: 59200 },
+  { month: '5m ago', value: 65000 },
+  { month: '4m ago', value: 72400 },
+  { month: '3m ago', value: 81200 },
+  { month: '2m ago', value: 88700 },
+  { month: '1m ago', value: 95100 },
+  { month: 'Last mo', value: 103800 },
 ];
 
 const demandColor = {
@@ -90,7 +92,7 @@ function ChartTooltip({ active, payload, label }: any) {
   return (
     <div className="bg-[#0c0d13] border border-[#23232b] px-3 py-2 rounded-lg text-[10px] font-mono shadow-card">
       <p className="text-zinc-500 mb-0.5 uppercase tracking-wider">{label}</p>
-      <p className="text-terminal-amber font-bold">₯{Number(payload[0].value).toLocaleString()}</p>
+      <p className="text-terminal-amber font-bold">${Number(payload[0].value).toLocaleString('en-US')}</p>
     </div>
   );
 }
@@ -121,6 +123,8 @@ function DemandBar({ sector, demand, pct, dir }: typeof SECTOR_DEMAND[0]) {
 
 export default function ChroniclePage() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const isSuperAdmin = user?.email?.toLowerCase() === 'kyxplayss@gmail.com';
   const [authorized, setAuthorized]       = useState(false);
   const [citizenFile, setCitizenFile]     = useState<PlayerStats | null>(null);
   const [characterName, setCharacterName] = useState('');
@@ -132,6 +136,7 @@ export default function ChroniclePage() {
   const [ledgerFeed, setLedgerFeed] = useState<any[]>([]);
   // First-day modal: show once, then set flag
   const [showFirstDay, setShowFirstDay] = useState(false);
+  const [showGuideModal, setShowGuideModal] = useState(false);
   const [characterAge, setCharacterAge] = useState<number>(18);
 
   // Build radar data from citizen file stats
@@ -146,28 +151,27 @@ export default function ChroniclePage() {
   const companyCash = Number(company?.finances?.available_cash ?? 0);
   const netWorth    = playerCash + companyCash;
 
-  const handleRestartLife = useCallback(() => {
+  const handleRestartLife = useCallback(async () => {
     if (typeof window === 'undefined') return;
-    const preserve = [
-      'worldr_access_token',
-      'worldr_refresh_token',
-      'worldr_pre_alpha_access_granted_v1',
-      'worldr_account_settings',
-      'worldr_world_clock_v1',
-    ];
-    const toRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k?.startsWith('worldr_') && !preserve.includes(k)) toRemove.push(k);
+    try {
+      const token = localStorage.getItem('worldr_access_token');
+      if (token) {
+        await fetch('/api/v1/character/me', {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to delete character', e);
     }
-    toRemove.forEach(k => localStorage.removeItem(k));
-    window.location.href = '/world-entry';
+    localStorage.clear();
+    window.location.href = '/';
   }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const granted = localStorage.getItem('worldr_pre_alpha_access_granted_v1') === 'true';
-    if (!granted) { router.replace('/pre-alpha-access'); return; }
     // Show first-day orientation modal if not yet seen
     const seenModal = localStorage.getItem(FIRST_DAY_MODAL_KEY) === 'true';
     if (!seenModal) setShowFirstDay(true);
@@ -179,13 +183,26 @@ export default function ChroniclePage() {
           setCharacterName(char.name);
           setCharacterAge(Number(char.age ?? 18));
           setPlayerCash(Number(char.finances?.cash_in_hand ?? 0));
+          const currentCash = Number(char.finances?.cash_in_hand ?? 0);
+          
+          const flatSeries = Array.from({ length: 12 }).map((_, i) => ({
+            month: i === 11 ? 'Now' : `${11 - i}m ago`,
+            value: currentCash
+          }));
+          setNetWorthSeries(flatSeries);
 
-          const fileStr = localStorage.getItem('worldr_citizen_file_v1');
-          const parsed  = fileStr ? JSON.parse(fileStr) : { motherland: 'Drennia' };
+          let parsed: PlayerStats = {
+            motherland: char.motherland_country_id ?? 'Drennia',
+            homeState: char.home_state_id,
+            credibility: Number(char.credibility ?? 50),
+            charisma: Number(char.charisma ?? 50),
+            influence: Number(char.influence ?? 10),
+            gameDateStr: `Month ${char.created_at_world_month ?? 1} · Year ${char.created_at_world_year ?? 1}`
+          };
           setCitizenFile(parsed);
 
           companyApi.getMy().then(compRes => {
-            const companies = compRes.data;
+            const companies = compRes.data || [];
             if (companies.length > 0) {
               const myCompany = companies.sort((a: any, b: any) =>
                 new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
@@ -195,17 +212,15 @@ export default function ChroniclePage() {
               setActiveContracts(
                 contracts.filter(c => c.status === 'awarded' && c.awardedToCompanyId === myCompany.id).length
               );
-              // Seed net worth tail with live company cash (player cash set above)
+              // Update the flat series with company cash
               const liveCash = Number(myCompany.finances?.available_cash ?? 0);
-              setNetWorthSeries(prev => {
-                const liveValue = Number(char.finances?.cash_in_hand ?? 0) + liveCash;
-                return [...prev.slice(0, -1), { month: 'Now', value: liveValue }];
-              });
+              const totalNetWorth = currentCash + liveCash;
+              setNetWorthSeries(prev => prev.map(p => ({ ...p, value: totalNetWorth })));
             }
           }).catch(() => {});
           
           politicsApi.getLedger(10).then(data => {
-            const polEvents = data.map((ev: any) => ({
+            const polEvents = (data || []).map((ev: any) => ({
               id: ev.id,
               month: ev.month,
               text: `[Month ${ev.month}] ${ev.headline}: ${ev.body}`
@@ -216,7 +231,7 @@ export default function ChroniclePage() {
             // Mirror world/ledger movements into the notification feed so the
             // header bell surfaces "while you were away" events. Stable ids
             // keep this idempotent across reloads.
-            data.forEach((ev: any) => {
+            (data || []).forEach((ev: any) => {
               addNotification({
                 id: `ledger_${ev.id}`,
                 category: 'world',
@@ -236,7 +251,12 @@ export default function ChroniclePage() {
         .finally(() => setAuthorized(true));
     });
 
-    const recs = JSON.parse(localStorage.getItem('worldr_records_v1') ?? '[]');
+    let recs: any[] = [];
+    try {
+      recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
+    } catch (e) {
+      console.warn('Failed to parse records', e);
+    }
     setRecentRecords(recs.slice(0, 6));
   }, [router]);
 
@@ -320,6 +340,10 @@ export default function ChroniclePage() {
         />
       )}
 
+      {showGuideModal && (
+        <GuideModal onDismiss={() => setShowGuideModal(false)} />
+      )}
+
       {/* ── Top Player Bar ──────────────────────────────────────────────── */}
       <header className="flex items-center justify-between px-4 md:px-6 py-2 border-b border-[#23232b] bg-[#0c0d13] shrink-0 gap-4 flex-wrap">
         {/* Left: brand + character */}
@@ -338,9 +362,9 @@ export default function ChroniclePage() {
         {/* Center: stat chips — horizontal scroll strip on mobile, wrap on sm+ */}
         <div className="flex items-center gap-2 flex-nowrap overflow-x-auto scrollbar-hide max-w-full sm:flex-wrap sm:overflow-visible">
           <StatChip
-            label="Cash ₯"
+            label="Cash $"
             value={playerCash}
-            prefix="₯"
+            prefix="$"
             valueColor="green"
             countUp
           />
@@ -351,7 +375,7 @@ export default function ChroniclePage() {
             <StatChip
               label="Company Cash"
               value={companyCash}
-              prefix="₯"
+              prefix="$"
               valueColor="amber"
               countUp
             />
@@ -400,10 +424,10 @@ export default function ChroniclePage() {
                     <div>
                       <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Net Worth</p>
                       <p className="text-2xl md:text-3xl font-mono font-bold text-terminal-amber amber-glow leading-tight">
-                        ₯{netWorth.toLocaleString()}
+                        ${netWorth.toLocaleString('en-US')}
                       </p>
                       <p className={`text-[11px] font-mono font-bold ${up ? 'text-terminal-green' : 'text-terminal-red'}`}>
-                        {up ? '▲' : '▼'} {up ? '+' : '−'}₯{Math.abs(delta).toLocaleString()} ({pct.toFixed(1)}%) this month
+                        {up ? '▲' : '▼'} {up ? '+' : '−'}${Math.abs(delta).toLocaleString('en-US')} ({pct.toFixed(1)}%) this month
                       </p>
                     </div>
                     <div className="hidden sm:block w-32 h-14">
@@ -425,7 +449,11 @@ export default function ChroniclePage() {
                   <Button href="/drennia/business" variant="primary" icon={ChevronRight} size="sm">
                     {company ? 'Open your desk' : 'Start your company'}
                   </Button>
-                  <Button href="/drennia/politics" variant="secondary" size="sm">Politics Desk →</Button>
+                  {isSuperAdmin ? (
+                    <Button href="/drennia/politics" variant="secondary" size="sm">Politics Desk →</Button>
+                  ) : (
+                    <Button onClick={() => alert('Political desk will be available on 09 July 2026.')} variant="secondary" size="sm">Politics Desk →</Button>
+                  )}
                   {activeContracts > 0 && <Badge variant="amber">{activeContracts} active contracts</Badge>}
                 </div>
               </div>
@@ -449,12 +477,13 @@ export default function ChroniclePage() {
               </span>
               {[
                 { label: 'Register a company', href: '/drennia/business', done: !!company },
-                { label: 'Join a political party', href: '/drennia/politics', done: false },
+                { label: 'Join a political party', href: '#', onClick: (e: any) => { e.preventDefault(); alert('Political desk will be available on 09 July 2026.'); }, done: false },
                 { label: 'Check the World Feed', href: '/drennia/world', done: false },
               ].map(item => (
                 <a
                   key={item.label}
                   href={item.href}
+                  onClick={item.onClick}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     fontSize: 11, color: item.done ? '#4D8C6A' : '#A79D8C',
@@ -472,13 +501,27 @@ export default function ChroniclePage() {
           )}
 
           {/* Personal Status */}
-          <Card kicker="Personal Status" icon={User} title="Chronicle">
+          <Card
+            kicker="Personal Status"
+            icon={User}
+            title="Chronicle"
+            headerSlot={
+              <button
+                onClick={() => setShowGuideModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-mono uppercase tracking-wider text-terminal-amber bg-terminal-amber/10 border border-terminal-amber/20 hover:bg-terminal-amber/20 hover:border-terminal-amber/40 transition-colors rounded"
+                style={{ boxShadow: '0 0 10px rgba(201,162,74,0.1)' }}
+              >
+                <Book size={12} />
+                <span>Guide</span>
+              </button>
+            }
+          >
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-1">
               {[
                 { label: 'Full Name',      value: characterName },
                 { label: 'Age',            value: `${characterAge}` },
                 { label: 'Motherland',     value: citizenFile?.motherland ?? 'Drennia' },
-                { label: 'Citizen Since',  value: citizenFile?.gameDateStr ?? 'Day 1 · Month 1' },
+                { label: 'Citizen Since',  value: citizenFile?.gameDateStr || 'Month 1 · Year 1' },
               ].map(f => (
                 <div key={f.label}>
                   <p className="text-[8px] font-mono uppercase tracking-[0.15em] text-zinc-600 mb-1">{f.label}</p>
@@ -494,7 +537,7 @@ export default function ChroniclePage() {
               <div>
                 <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Current Net Worth</p>
                 <p className="text-xl font-mono font-bold text-terminal-amber amber-glow">
-                  ₯{netWorth.toLocaleString()}
+                  ${netWorth.toLocaleString('en-US')}
                 </p>
               </div>
               <Badge variant="green" dot>Active</Badge>
@@ -552,7 +595,7 @@ export default function ChroniclePage() {
                   <div className="text-right">
                     <p className="text-[9px] font-mono text-zinc-600">Cash</p>
                     <p className="text-[14px] font-mono font-bold text-terminal-green terminal-glow">
-                      ₯{companyCash.toLocaleString()}
+                      ${companyCash.toLocaleString('en-US')}
                     </p>
                   </div>
                 </div>
@@ -573,9 +616,15 @@ export default function ChroniclePage() {
               <p className="text-[12px] text-zinc-400 leading-relaxed mb-4">
                 Enter the political arena. Manage your party, run campaigns, shape public policy, and form the government.
               </p>
-              <Button href="/drennia/politics" variant="primary" icon={ChevronRight} size="sm">
-                Open Politics Desk
-              </Button>
+              {isSuperAdmin ? (
+                <Button href="/drennia/politics" variant="primary" icon={ChevronRight} size="sm">
+                  Open Politics Desk
+                </Button>
+              ) : (
+                <Button onClick={() => alert('Political desk will be available on 09 July 2026.')} variant="primary" icon={ChevronRight} size="sm">
+                  Open Politics Desk
+                </Button>
+              )}
             </Card>
 
             {/* World Feed */}
@@ -651,3 +700,4 @@ export default function ChroniclePage() {
     </div>
   );
 }
+

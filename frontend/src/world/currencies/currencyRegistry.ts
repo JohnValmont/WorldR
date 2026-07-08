@@ -7,15 +7,15 @@ export type CurrencyConfig = {
 };
 
 export const WORLD_CURRENCIES: Record<string, CurrencyConfig> = {
-  'drennian-day': {
-    id: 'drennian-day',
-    name: 'Drennian Day',
-    symbol: '₯',
+  'dollar': {
+    id: 'dollar',
+    name: 'Dollar',
+    symbol: '$',
     locale: 'en-US',
     decimalPlaces: 0
   }
 };
 
 export function getCurrencyConfig(currencyId: string): CurrencyConfig {
-  return WORLD_CURRENCIES[currencyId] || WORLD_CURRENCIES['drennian-day']; // Default fallback for safety
+  return WORLD_CURRENCIES[currencyId] || WORLD_CURRENCIES['dollar']; // Default fallback for safety
 }

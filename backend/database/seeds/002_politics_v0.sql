@@ -16,40 +16,44 @@ ON CONFLICT (code) DO UPDATE SET
 -- Wipe existing NPC parties to be safe on re-runs
 DELETE FROM pol_parties WHERE is_npc = TRUE;
 
-INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_arc)
+INSERT INTO pol_parties (state_id, name, abbreviation, platform, treasury, is_npc, created_arc)
 SELECT 
     id, 
     'Ironvale Labour Front', 
+    'ILF',
     '{"taxation": 30, "labour": 90, "investment": 70, "trade": 50, "stability": 50}'::jsonb, 
     500000.0000, 
     TRUE, 
     0
 FROM pol_states WHERE code = 'ironvale';
 
-INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_arc)
+INSERT INTO pol_parties (state_id, name, abbreviation, platform, treasury, is_npc, created_arc)
 SELECT 
     id, 
     'Industrial Progress Party', 
+    'IPP',
     '{"taxation": 85, "labour": 35, "investment": 75, "trade": 80, "stability": 60}'::jsonb, 
     500000.0000, 
     TRUE, 
     0
 FROM pol_states WHERE code = 'ironvale';
 
-INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_arc)
+INSERT INTO pol_parties (state_id, name, abbreviation, platform, treasury, is_npc, created_arc)
 SELECT 
     id, 
     'Civic Stability Union', 
+    'CSU',
     '{"taxation": 55, "labour": 55, "investment": 60, "trade": 60, "stability": 80}'::jsonb, 
     500000.0000, 
     TRUE, 
     0
 FROM pol_states WHERE code = 'ironvale';
 
-INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_arc)
+INSERT INTO pol_parties (state_id, name, abbreviation, platform, treasury, is_npc, created_arc)
 SELECT 
     id, 
     'Independent', 
+    'IND',
     '{"taxation": 50, "labour": 50, "investment": 50, "trade": 50, "stability": 50}'::jsonb, 
     50000.0000, 
     TRUE, 

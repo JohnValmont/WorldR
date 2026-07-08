@@ -21,7 +21,25 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const { data } = await authApi.login(form);
+      const { data } = await authApi.login({
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+      });
+
+      // Wipe any stale game-state from a previous account on this device.
+      // This guards against the case where the user didn't explicitly log out.
+      if (typeof window !== 'undefined') {
+        const PRESERVE = new Set(['worldr_world_clock_v1', 'worldr_account_settings']);
+        const toRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('worldr') && key !== 'worldr-auth' && !PRESERVE.has(key)) {
+            toRemove.push(key);
+          }
+        }
+        toRemove.forEach(k => localStorage.removeItem(k));
+      }
+
       setAuth(data.user, data.accessToken, data.refreshToken);
 
       const user = data.user;
@@ -213,7 +231,7 @@ export default function LoginPage() {
         <motion.button
           id="login-submit"
           type="submit"
-          disabled={loading}
+          disabled={loading || !form.email.trim() || !form.password}
           className="w-full mt-7 py-3 px-4 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold text-sm tracking-wide shadow-lg hover:shadow-[0_0_24px_rgba(245,158,11,0.3)] flex items-center justify-center gap-2"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
