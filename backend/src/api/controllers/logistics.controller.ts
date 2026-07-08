@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
-import { AppError, NotFoundError, BadRequestError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 
 export class LogisticsController {
 
@@ -63,7 +63,9 @@ export class LogisticsController {
       const { companyId } = req.params;
       const { role } = req.body;
 
+      const VALID_ROLES = ['Driver', 'Dispatcher', 'Mechanic', 'Manager', 'Accountant', 'Mechanic Crew', 'Warehouse Worker', 'Admin Clerk'];
       if (!userId || !companyId || !role) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!VALID_ROLES.includes(role)) return next(new AppError(`Invalid role. Must be one of: ${VALID_ROLES.join(', ')}`, 400, 'BAD_REQUEST'));
 
       await db.transaction(async (trx) => {
         const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
@@ -74,8 +76,8 @@ export class LogisticsController {
 
         const existing = await trx('company_staff').where({ company_id: companyId, role }).forUpdate().first();
         if (existing) {
-          await trx('company_staff').where({ id: existing.id }).increment('quantity', 1);
-          await trx('company_staff').where({ id: existing.id }).update({ updated_at: trx.fn.now() });
+          // Merge into one statement so the increment and timestamp are a single atomic SQL UPDATE
+          await trx('company_staff').where({ id: existing.id }).increment('quantity', 1).update({ updated_at: trx.fn.now() });
         } else {
           await trx('company_staff').insert({ company_id: companyId, role, quantity: 1 });
         }
@@ -107,8 +109,8 @@ export class LogisticsController {
           throw new AppError('No staff in this role to dismiss', 400, 'BAD_REQUEST');
         }
 
-        await trx('company_staff').where({ id: existing.id }).decrement('quantity', 1);
-        await trx('company_staff').where({ id: existing.id }).update({ updated_at: trx.fn.now() });
+        // Single atomic statement — mirrors the hireStaff pattern
+        await trx('company_staff').where({ id: existing.id }).decrement('quantity', 1).update({ updated_at: trx.fn.now() });
       });
 
       res.status(200).json({ success: true });
@@ -145,6 +147,7 @@ export class LogisticsController {
         const [updatedFinances] = await trx('company_finances')
           .where({ company_id: companyId })
           .decrement('available_cash', cost)
+          .update({ updated_at: trx.fn.now() })
           .returning('*');
 
         const [vehicle] = await trx('company_vehicles').insert({
@@ -204,6 +207,7 @@ export class LogisticsController {
         const [updatedFinances] = await trx('company_finances')
           .where({ company_id: companyId })
           .decrement('available_cash', cost)
+          .update({ updated_at: trx.fn.now() })
           .returning('*');
 
         const [facility] = await trx('company_facilities').insert({
@@ -297,28 +301,35 @@ export class LogisticsController {
           policyWearMultiplier = 0.75;
         }
 
-        let wageMultiplier = 1.0;
-        if (wagePolicy === 'Low') wageMultiplier = 0.8;
-        if (wagePolicy === 'Generous') wageMultiplier = 1.2;
-        if (wagePolicy === 'Premium') wageMultiplier = 1.45;
-
         // Fetch ALL vehicles (assigned and idle)
         const vehicles = await trx('company_vehicles')
           .join('procurement_vehicles', 'company_vehicles.catalog_vehicle_id', 'procurement_vehicles.id')
           .where('company_vehicles.company_id', companyId)
           .select('company_vehicles.*', 'procurement_vehicles.type', 'procurement_vehicles.monthly_maintenance', 'procurement_vehicles.purchase_cost');
 
+        // Pre-fetch all operation pools referenced by assigned vehicles in one query.
+        // Avoids an N+1 pattern (one DB round-trip per vehicle) inside the transaction loop.
+        const assignedPoolIds = [...new Set(
+          vehicles
+            .filter((v: any) => v.assigned_operation_pool_id)
+            .map((v: any) => v.assigned_operation_pool_id)
+        )];
+        const poolRows = assignedPoolIds.length > 0
+          ? await trx('operation_pools').whereIn('id', assignedPoolIds)
+          : [];
+        const poolMap = new Map((poolRows as any[]).map(p => [p.id, p]));
+
         let totalRevenue = 0;
         let totalMaintenance = 0;
         let totalDepreciation = 0;
-        
+
         for (const v of vehicles) {
           const isAssigned = !!v.assigned_operation_pool_id;
-          
+
           if (isAssigned) {
-            const pool = await trx('operation_pools').where({ id: v.assigned_operation_pool_id }).first();
+            const pool = poolMap.get(v.assigned_operation_pool_id);
             if (pool) {
-              totalRevenue += Number(pool.base_revenue_per_month);
+              totalRevenue += Number((pool as any).base_revenue_per_month);
             }
           }
 
@@ -371,10 +382,14 @@ export class LogisticsController {
         totalPayroll = Math.round(totalPayroll);
 
         const netProfit = totalRevenue - totalMaintenance - totalPayroll;
+        // Negative newCash is intentional: it represents an overdrawn balance (de-facto debt).
+        // company_value is separately floored at 0 to prevent negative net-worth display.
         const newCash = Number(finances.available_cash) + netProfit;
         const currentCompanyValue = Number(finances.company_value) || 0;
         const newCompanyValue = Math.max(0, currentCompanyValue - totalDepreciation + netProfit);
 
+        // newCompanyValue already incorporates both depreciation and netProfit.
+        // Write it once — no follow-up increment/decrement needed.
         const [updatedFinances] = await trx('company_finances')
           .where({ company_id: companyId })
           .update({
@@ -384,15 +399,6 @@ export class LogisticsController {
             updated_at: trx.fn.now()
           })
           .returning('*');
-
-        if (totalDepreciation > 0) {
-          await trx('company_finances').where({ company_id: companyId }).decrement('company_value', totalDepreciation);
-        }
-        if (netProfit > 0) {
-          await trx('company_finances').where({ company_id: companyId }).increment('company_value', netProfit);
-        } else if (netProfit < 0) {
-          await trx('company_finances').where({ company_id: companyId }).decrement('company_value', Math.abs(netProfit));
-        }
 
         const clock = await trx('world_clock').first();
         // Track running balance for ledger entries
@@ -418,7 +424,7 @@ export class LogisticsController {
             game_year: clock?.current_year || 1,
             game_month: clock?.current_month || 1,
             game_day: clock?.current_day || 1,
-            entry_type: 'vehicle_maintenance',
+            entry_type: 'Vehicle Maintenance',
             description: `Fleet Maintenance (Policy: ${policy})`,
             amount: -totalMaintenance,
             balance_after: runningBalance
@@ -433,9 +439,11 @@ export class LogisticsController {
             game_month: clock?.current_month || 1,
             game_day: clock?.current_day || 1,
             entry_type: 'Payroll',
-            description: `Staff Payroll (Policy: ${finances.wage_policy})`,
+            // Use wagePolicy (already normalized with || 'Standard') — avoids 'Policy: null' in ledger
+            description: `Staff Payroll (Policy: ${wagePolicy})`,
             amount: -totalPayroll,
-            balance_after: runningBalance
+            // Pin the final entry to the exact DB value rather than an accumulated float sum
+            balance_after: updatedFinances.available_cash
           });
         }
 
@@ -450,21 +458,41 @@ export class LogisticsController {
 
   public static async performMaintenance(req: Request, res: Response, next: NextFunction) {
     try {
+      const userId = req.user?.id;
       const { companyId, vehicleId } = req.params;
       const { level } = req.body;
-      const cost = level === 'basic' ? 5000 : 15000;
-      const restore = level === 'basic' ? 10 : 30;
-      
+
+      if (!userId || !companyId || !vehicleId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!['basic', 'full'].includes(level)) {
+        return next(new AppError('Invalid maintenance level. Must be "basic" or "full".', 400, 'BAD_REQUEST'));
+      }
+
+      const cost    = level === 'basic' ? 5000  : 15000;
+      const restore = level === 'basic' ? 10    : 30;
+
       const result = await db.transaction(async (trx) => {
+        // Ownership guard
+        const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+        if (!character) throw new AppError('No active character found', 404, 'NOT_FOUND');
+        const company = await trx('companies').where({ id: companyId, owner_character_id: character.id }).first();
+        if (!company) throw new AppError('Company not found or unauthorized', 404, 'NOT_FOUND');
+
         const vehicle = await trx('company_vehicles').where({ id: vehicleId, company_id: companyId }).first();
         if (!vehicle) throw new AppError('Vehicle not found', 404, 'NOT_FOUND');
-        const fin = await trx('company_finances').where({ company_id: companyId }).first();
-        if (!fin || fin.available_cash < cost) throw new AppError('Insufficient funds.', 400, 'INSUFFICIENT_FUNDS');
-        await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', cost).update({ updated_at: trx.fn.now() });
-        const newCondition = Math.min(100, vehicle.condition + restore);
+
+        // Lock the row before reading balance to prevent race conditions
+        const fin = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
+        if (!fin || Number(fin.available_cash) < cost) throw new AppError('Insufficient funds.', 400, 'INSUFFICIENT_FUNDS');
+
+        const [updatedFin] = await trx('company_finances')
+          .where({ company_id: companyId })
+          .decrement('available_cash', cost)
+          .update({ updated_at: trx.fn.now() })
+          .returning('*');
+
+        const newCondition = Math.min(100, Number(vehicle.condition) + restore);
         await trx('company_vehicles').where({ id: vehicleId }).update({ condition: newCondition, updated_at: trx.fn.now() });
-        
-        // Ledger entry
+
         const clock = await trx('world_clock').first();
         await trx('company_ledger').insert({
           company_id: companyId,
@@ -472,7 +500,9 @@ export class LogisticsController {
           amount: -cost,
           description: `Manual Vehicle Maintenance (${level})`,
           game_year: clock?.current_year || 1,
-          game_month: clock?.current_month || 1
+          game_month: clock?.current_month || 1,
+          game_day: clock?.current_day || 1,
+          balance_after: updatedFin.available_cash
         });
         return { success: true, message: `Maintenance completed. Condition restored to ${newCondition}%.` };
       });
@@ -484,15 +514,25 @@ export class LogisticsController {
 
   public static async assignVehicleToContract(req: Request, res: Response, next: NextFunction) {
     try {
+      const userId = req.user?.id;
       const { companyId, contractId } = req.params;
       const { vehicleId } = req.body;
-      
+
+      if (!userId || !companyId || !contractId || !vehicleId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+
       const result = await db.transaction(async (trx) => {
+        // Ownership guard
+        const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+        if (!character) throw new AppError('No active character found', 404, 'NOT_FOUND');
+        const company = await trx('companies').where({ id: companyId, owner_character_id: character.id }).first();
+        if (!company) throw new AppError('Company not found or unauthorized', 404, 'NOT_FOUND');
+
         const vehicle = await trx('company_vehicles').where({ id: vehicleId, company_id: companyId }).first();
         if (!vehicle) throw new AppError('Vehicle not found', 404, 'NOT_FOUND');
-        const contract = await trx('company_contracts').where({ id: contractId }).first();
+        // Scope contract lookup to this company to prevent cross-company tampering
+        const contract = await trx('company_contracts').where({ id: contractId, company_id: companyId }).first();
         if (!contract) throw new AppError('Contract not found', 404, 'NOT_FOUND');
-        
+
         await trx('company_vehicles').where({ id: vehicleId }).update({ assigned_contract_id: contractId, updated_at: trx.fn.now() });
         await trx('company_contracts').where({ id: contractId }).update({ status: 'active', assigned_vehicle_id: vehicleId, updated_at: trx.fn.now() });
         return { success: true, message: 'Vehicle assigned.' };
@@ -505,13 +545,26 @@ export class LogisticsController {
 
   public static async acceptDirectContract(req: Request, res: Response, next: NextFunction) {
     try {
+      const userId = req.user?.id;
       const { companyId, contractId } = req.params;
       const { contract, vehicleId } = req.body;
-      
+
+      if (!userId || !companyId || !contractId || !vehicleId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      // Validate required contract fields before opening a transaction
+      if (!contract || !contract.title || contract.reward === undefined || contract.penalty === undefined) {
+        return next(new AppError('Invalid contract data: title, reward, and penalty are required.', 400, 'BAD_REQUEST'));
+      }
+
       const result = await db.transaction(async (trx) => {
+        // Ownership guard
+        const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+        if (!character) throw new AppError('No active character found', 404, 'NOT_FOUND');
+        const ownedCompany = await trx('companies').where({ id: companyId, owner_character_id: character.id }).first();
+        if (!ownedCompany) throw new AppError('Company not found or unauthorized', 404, 'NOT_FOUND');
+
         const vehicle = await trx('company_vehicles').where({ id: vehicleId, company_id: companyId }).first();
         if (!vehicle) throw new AppError('Vehicle not found', 404, 'NOT_FOUND');
-        
+
         const existingContract = await trx('company_contracts').where({ id: contractId }).first();
         if (!existingContract) {
           await trx('company_contracts').insert({
@@ -531,15 +584,17 @@ export class LogisticsController {
             due_month: contract.dueMonth,
             due_year: contract.dueYear
           });
+        } else if (existingContract.company_id !== companyId) {
+          // Contract exists but belongs to a different company — reject to prevent cross-company hijacking
+          throw new AppError('Contract not found', 404, 'NOT_FOUND');
         } else {
           await trx('company_contracts').where({ id: contractId }).update({
             status: 'active',
-            company_id: companyId,
             assigned_vehicle_id: vehicleId,
             updated_at: trx.fn.now()
           });
         }
-        
+
         await trx('company_vehicles').where({ id: vehicleId }).update({ assigned_contract_id: contractId, updated_at: trx.fn.now() });
         return { success: true, message: 'Contract accepted.' };
       });
@@ -551,14 +606,30 @@ export class LogisticsController {
 
   public static async resolveContract(req: Request, res: Response, next: NextFunction) {
     try {
+      const userId = req.user?.id;
       const { companyId, contractId } = req.params;
       const { result } = req.body;
-      
+
+      if (!userId || !companyId || !contractId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      if (!['completed', 'failed'].includes(result)) {
+        return next(new AppError('Invalid result value. Must be "completed" or "failed".', 400, 'BAD_REQUEST'));
+      }
+
       const txRes = await db.transaction(async (trx) => {
+        // Ownership guard
+        const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+        if (!character) throw new AppError('No active character found', 404, 'NOT_FOUND');
+        const company = await trx('companies').where({ id: companyId, owner_character_id: character.id }).first();
+        if (!company) throw new AppError('Company not found or unauthorized', 404, 'NOT_FOUND');
+
         const contract = await trx('company_contracts').where({ id: contractId, company_id: companyId }).first();
         if (!contract) throw new AppError('Contract not found', 404, 'NOT_FOUND');
-        
-        const amount = result === 'completed' ? contract.reward : -contract.penalty;
+
+        // Defensive parse — null/undefined reward or penalty must not produce NaN
+        const reward  = Number(contract.reward)  || 0;
+        const penalty = Number(contract.penalty) || 0;
+        const amount  = result === 'completed' ? reward : -penalty;
+
         if (amount !== 0) {
           if (amount > 0) {
             await trx('company_finances').where({ company_id: companyId }).increment('available_cash', amount).update({ updated_at: trx.fn.now() });
@@ -566,22 +637,27 @@ export class LogisticsController {
             await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', Math.abs(amount)).update({ updated_at: trx.fn.now() });
           }
         }
-        
+
         await trx('company_contracts').where({ id: contractId }).update({ status: result, updated_at: trx.fn.now() });
         if (contract.assigned_vehicle_id) {
           await trx('company_vehicles').where({ id: contract.assigned_vehicle_id }).update({ assigned_contract_id: null, updated_at: trx.fn.now() });
         }
-        
+
+        // Re-read balance after cash movement (correct whether amount was 0 or not)
+        const updatedFin = await trx('company_finances').where({ company_id: companyId }).first();
         const clock = await trx('world_clock').first();
         await trx('company_ledger').insert({
           company_id: companyId,
-          entry_type: amount >= 0 ? 'Revenue' : 'Expense',
-          amount: amount,
+          // Use contract result semantics, not amount sign — avoids mis-classifying a zero-penalty failure
+          entry_type: result === 'completed' ? 'Revenue' : 'Expense',
+          amount,
           description: `Contract ${result}: ${contract.title}`,
           game_year: clock?.current_year || 1,
-          game_month: clock?.current_month || 1
+          game_month: clock?.current_month || 1,
+          game_day: clock?.current_day || 1,
+          balance_after: updatedFin.available_cash
         });
-        
+
         return { success: true, message: `Contract ${result}.` };
       });
       res.status(200).json(txRes);

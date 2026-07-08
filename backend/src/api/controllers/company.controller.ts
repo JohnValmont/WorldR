@@ -234,6 +234,19 @@ export class CompanyController {
           .increment('company_value', Number(amount))
           .returning('*');
 
+        // Write ledger entry
+        const clock = await trx('world_clock').first();
+        await trx('company_ledger').insert({
+          company_id: company.id,
+          game_year: clock?.current_year || 1,
+          game_month: clock?.current_month || 1,
+          game_day: clock?.current_day || 1,
+          entry_type: 'capital_injection',
+          description: `Owner capital injection`,
+          amount: Number(amount),
+          balance_after: updatedFinances.available_cash,
+        });
+
         return {
           available_cash: updatedFinances.available_cash,
           personal_cash_remaining: personalCash - Number(amount),
@@ -347,6 +360,19 @@ export class CompanyController {
           .increment('company_value',  totalCost)
           .returning('*');
 
+        // Write ledger entry
+        const clock = await trx('world_clock').first();
+        await trx('company_ledger').insert({
+          company_id: id,
+          game_year: clock?.current_year || 1,
+          game_month: clock?.current_month || 1,
+          game_day: clock?.current_day || 1,
+          entry_type: 'share_issuance',
+          description: `Issued ${shares.toLocaleString()} shares at §${price.toLocaleString()}`,
+          amount: totalCost,
+          balance_after: updatedFinances.available_cash,
+        });
+
         // Use the existingRow fetched earlier at the start of the transaction
         if (existingRow) {
           const prevShares = Number(existingRow.shares);
@@ -427,6 +453,19 @@ export class CompanyController {
           .decrement('available_cash', Number(amount))
           .decrement('company_value', Number(amount))
           .returning('*');
+
+        // Write ledger entry
+        const clock = await trx('world_clock').first();
+        await trx('company_ledger').insert({
+          company_id: company.id,
+          game_year: clock?.current_year || 1,
+          game_month: clock?.current_month || 1,
+          game_day: clock?.current_day || 1,
+          entry_type: 'capital_withdrawal',
+          description: `Owner drawings`,
+          amount: -Number(amount),
+          balance_after: updatedCompanyFinances.available_cash,
+        });
 
         // Add to character (simulate dividend/withdrawal)
         await trx('character_finances')
@@ -617,10 +656,14 @@ export class CompanyController {
         .orderBy('created_at', 'desc')
         .limit(24);
 
-      // Merge main's totalShares calculation with Bug E fix (dividend_policy as object)
       const totalShares = holders.reduce((sum, h) => sum + Number(h.shares), 0);
 
+      // Fetch company and its finances
+      const company = await db('companies').where({ id }).first();
+      const finances = await db('company_finances').where({ company_id: id }).first();
+
       res.status(200).json({
+        company: company ? { ...company, ...finances } : null,
         total_shares: totalShares,
         holders: holders.map((h: any) => ({ ...h, percent: totalShares > 0 ? (Number(h.shares) / totalShares) * 100 : 0 })),
         dividend_policy: { payout_percent: policy ? Number(policy.payout_percent) : 0 },
