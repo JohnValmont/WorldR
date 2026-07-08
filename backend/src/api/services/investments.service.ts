@@ -15,8 +15,10 @@ import { AppError } from '../../utils/errors';
 
 // Amortized monthly payment: P * r * (1+r)^n / ((1+r)^n - 1); falls back to principal/n at 0%
 export function computeMonthlyPayment(principal: number, monthlyRate: number, termMonths: number): number {
+  if (termMonths <= 0) return 0; // Guard against invalid term
   if (monthlyRate <= 0) return principal / termMonths;
   const f = Math.pow(1 + monthlyRate, termMonths);
+  if (f <= 1) return principal / termMonths; // Fallback if f is 1 or less to avoid division by zero
   return (principal * monthlyRate * f) / (f - 1);
 }
 
@@ -227,6 +229,9 @@ export async function cancelPlacement(placementId: string, sellerCharacterId: st
     await trx('company_shares')
       .where({ company_id: placement.company_id, holder_character_id: sellerCharacterId })
       .increment('shares', Number(placement.shares));
+    await trx('company_shares')
+      .where({ company_id: placement.company_id, holder_character_id: sellerCharacterId })
+      .update({ updated_at: trx.fn.now() });
     await trx('equity_placements').where({ id: placementId }).update({ status: 'cancelled', updated_at: trx.fn.now() });
     return { cancelled: true };
   });
@@ -289,10 +294,17 @@ export async function acceptPlacement(placementId: string, buyerCharacterId: str
       .first();
     if (existing) {
       const oldShares = Number(existing.shares);
-      const newAvg = (oldShares * Number(existing.avg_cost_basis) + total) / (oldShares + qty);
+      const totalShares = oldShares + qty;
+      // Guard against NaN in cost basis calculation
+      let newAvg = placement.price_per_share;
+      const oldBasis = Number(existing.avg_cost_basis);
+      if (totalShares > 0 && Number.isFinite(oldBasis) && Number.isFinite(oldShares * oldBasis)) {
+        newAvg = (oldShares * oldBasis + total) / totalShares;
+        if (!Number.isFinite(newAvg)) newAvg = placement.price_per_share;
+      }
       await trx('company_shares')
         .where({ company_id: placement.company_id, holder_character_id: buyerCharacterId })
-        .update({ shares: oldShares + qty, avg_cost_basis: newAvg, updated_at: trx.fn.now() });
+        .update({ shares: totalShares, avg_cost_basis: newAvg, updated_at: trx.fn.now() });
     } else {
       await trx('company_shares').insert({
         company_id: placement.company_id,
