@@ -2011,6 +2011,7 @@ export class ManufacturingController {
         }
 
         // 2. DECIDE (NPCs only)
+        (global as any).tickProgress = `Processing country: ${countryId} - Step 2: Decide (NPCs)`;
         for (const company of participants) {
            if (company.is_npc) {
               await runNpcBrainForCompany(trx, company.id, currentYear, currentMonth);
@@ -2018,6 +2019,7 @@ export class ManufacturingController {
         }
 
         // 3. PRODUCE (per participant)
+        (global as any).tickProgress = `Processing country: ${countryId} - Step 3: Produce`;
         const participantStates = [];
         for (const company of participants) {
            const pState = await ManufacturingController.produceForCompany(trx, company, clock);
@@ -2088,6 +2090,7 @@ export class ManufacturingController {
            companySalesManagerBonus.set(pState.company.id, Math.min(usefulSalesManagers * 0.04, 0.16));
         }
 
+        (global as any).tickProgress = `Processing country: ${countryId} - Step 4: Simulate Sales Demand`;
         const pooledSalesResults = ManufacturingController.simulateSalesDemand(
           allMarketAllocations,
           brandMap,
@@ -2097,12 +2100,14 @@ export class ManufacturingController {
 
 
         // 5. SETTLE (per participant)
+        (global as any).tickProgress = `Processing country: ${countryId} - Step 5: Settle`;
         for (const pState of participantStates) {
            const compResults = pooledSalesResults.filter((r: any) => r.alloc.company_id === pState.company.id);
            await ManufacturingController.settleForCompany(trx, pState, compResults, clock, brandMap);
         }
 
         // Process Political Month Hook
+        (global as any).tickProgress = `Processing country: ${countryId} - Step 6: Politics Hook`;
         const activeState = await trx('pol_states')
           .where({ country_id: countryId, is_active: true })
           .first();
