@@ -5,7 +5,7 @@ import { processEconomyMonth } from './economyTick.service';
 import { processExchangeMonth } from './ipoExchange.service';
 
 const WORLD_INSTANCE_ID = 'pre-alpha-world-1';
-const SCHEDULER_INTERVAL_MS = 60_000; // check the clock every 60s
+const SCHEDULER_INTERVAL_MS = 5_000; // check the clock every 5s
 const MAX_CATCHUP_TICKS = 6; // max months processed per scheduler pass if the server was down
 
 export interface WorldTickResult {

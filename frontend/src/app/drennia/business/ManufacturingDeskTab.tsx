@@ -553,7 +553,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setFaceliftSourceModelId(null);
       onRefresh();
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Design failed.';
+      const msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Design failed.';
       showNotif(msg, false);
     } finally { setDesignSaving(false); }
   };
@@ -573,7 +573,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setFaceliftSourceModelId(null);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Facelift failed.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Facelift failed.', false);
     } finally { setDesignSaving(false); }
   };
 
@@ -587,7 +587,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setSelectedModelId(null);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to discontinue.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to discontinue.', false);
     }
   };
 
@@ -599,7 +599,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setSelectedModelId(null);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Launch failed.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Launch failed.', false);
     } finally { setLaunchingModelId(null); }
   };
 
@@ -612,7 +612,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setEditingLineId(null);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to save plan.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to save plan.', false);
     }
   };
 
@@ -622,7 +622,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       showNotif('Production line paused.', true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to pause line.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to pause line.', false);
     }
   };
 
@@ -632,7 +632,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       showNotif('Production line resumed.', true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to resume line.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to resume line.', false);
     }
   };
 
@@ -643,7 +643,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       showNotif(action === 'hire' ? 'Staff hired.' : 'Staff removed.', true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Action failed.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Action failed.', false);
     }
   };
 
@@ -656,7 +656,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       showNotif('Sale price updated.', true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to save price.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to save price.', false);
     } finally { setSavingPrice(null); }
   };
 
@@ -676,7 +676,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       loadMarketData();
       onRefresh(); // Refresh inventory
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to allocate.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to allocate.', false);
     }
   };
 
@@ -686,7 +686,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       showNotif('Engineering programme started.', true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to start programme.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to start programme.', false);
     }
   };
 
@@ -699,7 +699,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setProcuringComponent(null);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to procure components.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to procure components.', false);
     }
   };
 
@@ -711,7 +711,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       setExpandingFactoryId(null);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to start expansion.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to start expansion.', false);
       setShowExpandConfirm(false);
     }
   };
@@ -722,7 +722,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       showNotif(`Month processed: Net ${fm(res.data.netProfit)}`, true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Failed to process month.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to process month.', false);
     }
   };
 

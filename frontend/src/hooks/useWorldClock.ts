@@ -44,7 +44,10 @@ export function useWorldClock() {
       if (s === 0 && !fired) {
         fired = true;
         // Give the server a few seconds to process, then revalidate
-        setTimeout(() => mutate(), 5_000);
+        setTimeout(() => {
+          mutate();
+          fired = false; // Allow re-firing if still 0s after mutate
+        }, 5_000);
       }
     };
     update();

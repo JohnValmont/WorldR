@@ -1286,7 +1286,7 @@ function CompanyDeskTab({
       showNotif('Operation assigned.', true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || err.message || 'Assignment failed', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || err.message || 'Assignment failed', false);
     }
   };
 
@@ -1298,7 +1298,7 @@ function CompanyDeskTab({
       showNotif(`Test Processed: Net Profit $${res.data.netProfit}`, true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Processing failed', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Processing failed', false);
     }
   };
 
@@ -2313,7 +2313,7 @@ function CompanyDeskTab({
                             priceEl.value = '';
                             onRefresh();
                           } catch (err: any) {
-                            showNotif(err?.response?.data?.message || err?.response?.data?.error || 'Issuance failed.', false);
+                            showNotif(err?.response?.data?.error || err?.response?.data?.message || err?.response?.data?.error || 'Issuance failed.', false);
                           }
                         }}>Issue</GoldButton>
                       </div>
@@ -2342,7 +2342,7 @@ function CompanyDeskTab({
                             el.value = '';
                             onRefresh();
                           } catch (err: any) {
-                            showNotif(err?.response?.data?.message || err?.response?.data?.error || 'Injection failed.', false);
+                            showNotif(err?.response?.data?.error || err?.response?.data?.message || err?.response?.data?.error || 'Injection failed.', false);
                           }
                         }}>Inject</GoldButton>
                       </div>
@@ -2381,7 +2381,7 @@ function CompanyDeskTab({
                             el.value = '';
                             onRefresh();
                           } catch (err: any) {
-                            showNotif(err?.response?.data?.message || err?.response?.data?.error || 'Withdrawal failed.', false);
+                            showNotif(err?.response?.data?.error || err?.response?.data?.message || err?.response?.data?.error || 'Withdrawal failed.', false);
                           }
                         }}>Withdraw</GhostButton>
                       </div>
@@ -2696,7 +2696,7 @@ function FacilitiesTab({ company, onRefresh, showNotif }: any) {
       showNotif(`Leased ${type} successfully.`, true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.message || 'Lease failed', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Lease failed', false);
     }
   };
 
@@ -2808,7 +2808,7 @@ function RegistryTab({ company, onRefresh }: { company: Company | null; onRefres
         })
         .catch(err => {
           console.error('Registry fetch failed:', err);
-          setFetchError(err?.response?.data?.message || 'Failed to load registry. Check your connection.');
+          setFetchError(err?.response?.data?.error || err?.response?.data?.message || 'Failed to load registry. Check your connection.');
           setLoading(false);
         });
     });

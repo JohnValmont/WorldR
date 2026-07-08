@@ -67,7 +67,7 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
       setResults(res.data.data);
       setPurchasedTier(selectedTier);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to purchase research. Insufficient funds?');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to purchase research. Insufficient funds?');
     } finally {
       setLoading(false);
     }

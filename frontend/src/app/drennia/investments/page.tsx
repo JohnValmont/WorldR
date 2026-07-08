@@ -84,7 +84,7 @@ function PlacementsTab() {
       setFormCompany(''); setFormShares(''); setFormMinPurchase(''); setFormPrice(''); setFormTarget('');
       mutateMine();
     } catch (e: any) {
-      setMsg({ text: e?.response?.data?.message || 'Failed to post placement.', ok: false });
+      setMsg({ text: e?.response?.data?.error || e?.response?.data?.message || 'Failed to post placement.', ok: false });
     } finally {
       setBusy(false);
     }
@@ -95,7 +95,7 @@ function PlacementsTab() {
       await investmentsApi.cancelPlacement(id);
       mutateMine();
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Cancel failed.');
+      alert(e?.response?.data?.error || e?.response?.data?.message || 'Cancel failed.');
     }
   };
 
@@ -105,7 +105,7 @@ function PlacementsTab() {
       mutateOpen();
       mutateMine();
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Accept failed.');
+      alert(e?.response?.data?.error || e?.response?.data?.message || 'Accept failed.');
     }
   };
 
@@ -322,7 +322,7 @@ function LoansTab() {
       setAmount(''); setRate(''); setTerm(''); setPurpose('');
       mutateOffers(); mutateMyLoans();
     } catch (e: any) {
-      setMsg({ text: e?.response?.data?.message || 'Failed to post offer.', ok: false });
+      setMsg({ text: e?.response?.data?.error || e?.response?.data?.message || 'Failed to post offer.', ok: false });
     } finally {
       setBusy(false);
     }
@@ -335,7 +335,7 @@ function LoansTab() {
       mutateOffers(); mutateMyLoans();
       setAcceptId(null); setAcceptAmount('');
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Accept failed.');
+      alert(e?.response?.data?.error || e?.response?.data?.message || 'Accept failed.');
     } finally {
       setAcceptBusy(false);
     }
@@ -346,7 +346,7 @@ function LoansTab() {
       await investmentsApi.cancelLoanOffer(offerId);
       mutateOffers(); mutateMyLoans();
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Cancel failed.');
+      alert(e?.response?.data?.error || e?.response?.data?.message || 'Cancel failed.');
     }
   };
 
@@ -355,7 +355,7 @@ function LoansTab() {
       await investmentsApi.repayLoanEarly(loanId);
       mutateMyLoans();
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Repay failed.');
+      alert(e?.response?.data?.error || e?.response?.data?.message || 'Repay failed.');
     }
   };
 

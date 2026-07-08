@@ -313,7 +313,7 @@ function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: stri
       setMsg({ text: `IPO sell order posted: ${q.toLocaleString('en-US')} shares @ §${p.toFixed(2)}. Buyers can now fill this order.`, ok: true });
       onLaunched();
     } catch (e: any) {
-      setMsg({ text: e?.response?.data?.message || 'IPO launch failed.', ok: false });
+      setMsg({ text: e?.response?.data?.error || e?.response?.data?.message || 'IPO launch failed.', ok: false });
     } finally {
       setBusy(false);
     }
@@ -513,7 +513,7 @@ function MyDesk({ refreshKey }: { refreshKey: number }) {
       setCancelMsg({ text: 'Order cancelled — escrowed funds returned.', ok: true });
       mutateOrders();
     } catch (e: any) {
-      setCancelMsg({ text: e?.response?.data?.message || 'Cancel failed. Please try again.', ok: false });
+      setCancelMsg({ text: e?.response?.data?.error || e?.response?.data?.message || 'Cancel failed. Please try again.', ok: false });
     }
   };
 

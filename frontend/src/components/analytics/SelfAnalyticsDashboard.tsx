@@ -47,7 +47,7 @@ export default function SelfAnalyticsDashboard({ companyId }: SelfAnalyticsDashb
         const res = await api.get(`/companies/${companyId}/manufacturing/analytics`);
         setData(res.data.data);
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load analytics.');
+        setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load analytics.');
       } finally {
         setLoading(false);
       }

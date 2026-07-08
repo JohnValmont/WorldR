@@ -36,7 +36,7 @@ export default function MarketStructure({ countryId }: MarketStructureProps) {
         const res = await api.get(`/market/structure/${countryId}/last-month`);
         setData(res.data.data);
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load market structure.');
+        setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load market structure.');
       } finally {
         setLoading(false);
       }

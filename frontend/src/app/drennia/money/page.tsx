@@ -341,7 +341,7 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
       mutate();
       onChanged();
     } catch (e: any) {
-      notify(e?.response?.data?.message || 'Cancel failed.', false);
+      notify(e?.response?.data?.error || e?.response?.data?.message || 'Cancel failed.', false);
     } finally { setBusy(false); }
   };
 

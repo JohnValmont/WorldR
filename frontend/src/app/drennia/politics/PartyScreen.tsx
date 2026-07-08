@@ -74,13 +74,13 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
       setBusy(true); setErr(null);
       await politicsApi.foundParty({ name: name.trim(), abbreviation: abbreviation.trim().toUpperCase(), doctrine_id: creed, tenet_id: tenet }, selectedJurisdictionId);
       await onRefresh();
-    } catch (e: any) { setErr(e?.response?.data?.message || e?.message || 'Failed to found party'); }
+    } catch (e: any) { setErr(e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Failed to found party'); }
     finally { setBusy(false); }
   }
 
   async function recruit() {
     try { setBusy(true); await politicsApi.recruitNpc(selectedJurisdictionId); await onRefresh(); }
-    catch (e: any) { setErr(e?.response?.data?.message || e?.message || 'Recruit failed'); }
+    catch (e: any) { setErr(e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Recruit failed'); }
     finally { setBusy(false); }
   }
 
