@@ -1163,6 +1163,8 @@ function CompanyDeskTab({
   // Derive financeHistory and lastMonthlyReport from ledger
   const months = new Map<string, any>();
   if (ledger && Array.isArray(ledger)) {
+    // Ledger is ordered by created_at desc, so we need to process in reverse if we want chronological order,
+    // but building the map is fine either way.
     ledger.forEach((entry: any) => {
       const key = formatWorldDate(entry.game_year, entry.game_month);
       if (!months.has(key)) {
@@ -1181,27 +1183,48 @@ function CompanyDeskTab({
           totalOperatingRevenue: 0,
           totalOperatingExpenses: 0,
           endingCash: 0,
+          capex: 0
         });
       }
       const month = months.get(key)!;
       const amt = Number(entry.amount);
-      if (amt > 0) {
-        // Income entry
-        if (entry.entry_type === 'Revenue') month.autoRevenue += amt;
+      const type = entry.entry_type;
+
+      // Ignore equity/capital movements from Operating Profit/Loss
+      if (['Capital Injection', 'Capital Withdrawal', 'Shares Issued'].includes(type)) {
+        // Do nothing for P&L
+      } else if (type === 'Asset Purchase') {
+        // Capex is not an operating expense
+        month.capex += Math.abs(amt);
+      } else if (amt > 0) {
+        // Operating Income
+        if (type === 'Revenue') month.autoRevenue += amt;
+        else month.manualRevenue += amt;
+        
         month.totalOperatingRevenue += amt;
         month.netProfit += amt;
       } else {
-        // Expense entry
+        // Operating Expenses
         const absAmt = Math.abs(amt);
-        if (entry.description?.includes('Maintenance')) month.totalMaintenance += absAmt;
-        else if (entry.description?.includes('Payroll') || entry.entry_type === 'Payroll') month.payrollExpense += absAmt;
-        else if (entry.description?.includes('Lease')) month.facilityLeaseExpense += absAmt;
+        if (type === 'Vehicle Maintenance' || (type === 'Expense' && entry.description?.toLowerCase().includes('maintenance'))) {
+          month.totalMaintenance += absAmt;
+        } else if (type === 'Payroll') {
+          month.payrollExpense += absAmt;
+        } else if (type === 'Facility Lease' || (type === 'Expense' && entry.description?.toLowerCase().includes('lease'))) {
+          month.facilityLeaseExpense += absAmt;
+        } else if (type === 'Expense' && entry.description?.toLowerCase().includes('penalty')) {
+          month.penalties += absAmt;
+        }
+        
         month.operatingCosts += absAmt;
         month.totalOperatingExpenses += absAmt;
         month.netProfit -= absAmt;
       }
-      // track ending cash as the balance_after of the last entry processed for this month
-      if (entry.balance_after !== undefined && entry.balance_after !== null) {
+      
+      // track ending cash as the balance_after of the earliest entry processed for this month (since it's ordered desc)
+      // Actually, since it's ordered desc, the FIRST entry we see for a month is the LATEST entry chronologically.
+      // So we only set endingCash if it's not set yet.
+      if (entry.balance_after !== undefined && entry.balance_after !== null && month.endingCash === 0) {
         month.endingCash = Number(entry.balance_after);
       }
     });
