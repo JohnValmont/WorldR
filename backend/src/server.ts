@@ -31,12 +31,25 @@ async function startServer() {
       // Ensure unique_character_per_user_world is a partial index, fixing production DB
       try { await db.raw('ALTER TABLE "characters" DROP CONSTRAINT IF EXISTS "unique_character_per_user_world" CASCADE'); } catch(e) {}
       try { await db.raw('DROP INDEX IF EXISTS "unique_character_per_user_world"'); } catch(e) {}
-      try { 
+      try {
         await db.raw('CREATE UNIQUE INDEX "unique_character_per_user_world" ON "characters" ("user_id", "world_instance_id") WHERE "status" != \'deleted\''); 
         logger.info('Manually ensured unique_character_per_user_world is a partial index on boot.');
       } catch (patchErr) {
         logger.error('Failed to patch character index on boot:', patchErr);
       }
+
+      // One-time patch: fix vehicles created with falsy bug (shifted to Year 1)
+      try {
+        await db('manufacturing_vehicle_models').where({ created_at_world_year: 1 }).update({
+          created_at_world_year: 0,
+          development_started_at_year: 0,
+          development_completes_at_year: 0,
+          stage_engineering_completes_year: 0,
+          stage_prototype_completes_year: 0,
+          stage_testing_completes_year: 0
+        });
+        logger.info('Patched falsy Year 1 vehicles back to Year 0.');
+      } catch (patchErr) { }
 
       // Start the world tick scheduler once the DB is ready
       startWorldTickScheduler();
