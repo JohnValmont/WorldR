@@ -346,17 +346,30 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
 
     // Sync NPC memory
     (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - merge npc_state`;
-    await trx('manufacturing_npc_state')
-      .insert({
-        company_id: companyId,
-        vehicle_model_id: modelId,
-        last_market_share: marketShareThisArc,
-        last_units_sold: unitsSoldLastArc,
-        zero_demand_streak: output.newZeroDemandStreak,
-        updated_at: trx.fn.now()
-      })
-      .onConflict(['company_id', 'vehicle_model_id'])
-      .merge();
+    const existingState = await trx('manufacturing_npc_state')
+      .where({ company_id: companyId, vehicle_model_id: modelId })
+      .first();
+
+    if (existingState) {
+      await trx('manufacturing_npc_state')
+        .where({ id: existingState.id })
+        .update({
+          last_market_share: marketShareThisArc,
+          last_units_sold: unitsSoldLastArc,
+          zero_demand_streak: output.newZeroDemandStreak,
+          updated_at: trx.fn.now()
+        });
+    } else {
+      await trx('manufacturing_npc_state')
+        .insert({
+          company_id: companyId,
+          vehicle_model_id: modelId,
+          last_market_share: marketShareThisArc,
+          last_units_sold: unitsSoldLastArc,
+          zero_demand_streak: output.newZeroDemandStreak,
+          updated_at: trx.fn.now()
+        });
+    }
 
   }
 }
