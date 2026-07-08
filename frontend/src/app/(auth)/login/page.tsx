@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { authApi } from '../../../lib/api';
+import { authApi, characterApi } from '../../../lib/api';
 import { useAuthStore } from '../../../store/auth.store';
 import { getFlowRedirectPath } from '../../../lib/flow';
 
@@ -46,6 +46,18 @@ export default function LoginPage() {
       if (!user.is_verified) {
         router.push(`/verify?email=${encodeURIComponent(user.email)}`);
       } else {
+        try {
+          // Check if user already has an active character
+          const charRes = await characterApi.getMe();
+          if (charRes.data && charRes.data.id) {
+            localStorage.setItem('worldr_selected_motherland', charRes.data.motherland_country_id || 'drennia');
+            localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(charRes.data));
+            router.push('/drennia/chronicle');
+            return;
+          }
+        } catch (e) {
+          // No character found, fall through to onboarding
+        }
         router.push(getFlowRedirectPath());
       }
     } catch (err: any) {
