@@ -297,9 +297,29 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
       inventoryInStock
     };
 
+    // Fix NaN factory capacity from legacy column names
+    if (isNaN(input.factoryCapacity)) {
+      const f = await trx('manufacturing_factories').where({ id: prodLine?.factory_id }).first();
+      input.factoryCapacity = f ? Number(f.capacity_per_arc || f.capacity_per_month || 0) : 0;
+    }
+    input.factoryCapacity = Number(input.factoryCapacity) || 0;
+    input.inventoryInStock = Number(input.inventoryInStock) || 0;
+    input.unitsSoldLastArc = Number(input.unitsSoldLastArc) || 0;
+    input.targetUnits = Number(input.targetUnits) || 0;
+
     // Calculate decision
     (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - decideNpcActions`;
     const output = decideNpcActions(input);
+
+    // CRITICAL FIX: Sanitize output to absolutely guarantee no Postgres crash loops due to NaN values!
+    if (isNaN(output.newTargetUnits) || output.newTargetUnits === null || output.newTargetUnits === undefined) {
+      output.newTargetUnits = 0;
+    }
+    if (isNaN(output.newSalePrice) || output.newSalePrice === null || output.newSalePrice === undefined) {
+      output.newSalePrice = input.salePrice;
+    }
+    output.newTargetUnits = Math.round(output.newTargetUnits);
+    output.newSalePrice = Math.round(output.newSalePrice);
 
     // Write-back the results to the respective DB tables
     (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - update models`;
