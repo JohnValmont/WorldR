@@ -35,11 +35,12 @@ export default function WorldTimeControl() {
     if (isAdvancing) return;
     setIsAdvancing(true);
     try {
-      await worldApi.forceTick();
+      const res = await worldApi.forceTick();
+      alert('SUCCESS RESPONSE: ' + JSON.stringify(res));
       await refresh();
       window.location.reload();
     } catch (err: any) {
-      alert(err?.response?.data?.error || err?.response?.data?.message || 'Failed to advance world tick');
+      alert('ERROR: ' + (err?.response?.data?.error || err?.response?.data?.message || err.message || 'Unknown Error'));
     } finally {
       setIsAdvancing(false);
     }
