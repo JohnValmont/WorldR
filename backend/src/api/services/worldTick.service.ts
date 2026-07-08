@@ -22,6 +22,7 @@ export interface WorldTickResult {
 
 // In-process re-entrancy guard (row lock below guards across processes)
 let inFlight = false;
+(global as any).tickProgress = 'Not started';
 
 /**
  * Advance the world by exactly one game month if it is due (or forced).
@@ -37,8 +38,9 @@ let inFlight = false;
  *  4. Advance current_month / current_year and reschedule next_arc_close_at.
  */
 export async function runWorldTick(opts: { force?: boolean } = {}): Promise<WorldTickResult> {
-  if (inFlight) return { status: 'skipped', reason: 'tick_in_progress' };
+  if (inFlight) return { status: 'skipped', reason: 'tick_in_progress', step: (global as any).tickProgress } as any;
   inFlight = true;
+  (global as any).tickProgress = 'Starting transaction...';
   try {
     return await db.transaction(async (trx) => {
       const clock = await trx('world_clock')
@@ -65,6 +67,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       const month = clock.current_month;
 
       // 2. Full world processing — every country with manufacturing companies
+      (global as any).tickProgress = 'Fetching manufacturing countries...';
       const countryIds: string[] = await trx('companies')
         .where({ industry_id: 'manufacturing' })
         .distinct('country_id')
@@ -72,19 +75,23 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
 
       let processedCompanies = 0;
       for (const countryId of countryIds) {
+        (global as any).tickProgress = `Processing country: ${countryId}`;
         const result = await ManufacturingController.processCountryMonth(trx, countryId, clock);
         processedCompanies += result.processedCompanies;
       }
 
       // 2b. Player economy — loan payments, dividends, structure compliance costs
+      (global as any).tickProgress = 'processEconomyMonth';
       await processEconomyMonth(trx, year, month);
 
       // 2c. Capital markets — advance IPO pipeline, clear/list IPOs, write monthly
       //     OHLC bars, update the DRX index, refresh NPC market-maker quotes, and
       //     expire founder lockups. Runs inside this same transaction.
+      (global as any).tickProgress = 'processExchangeMonth';
       await processExchangeMonth(trx, year, month);
 
       // 3. Character aging — once per year, at the end of month 12
+      (global as any).tickProgress = 'Character aging...';
       if (month === 12) {
         await trx('characters')
           .where({ world_instance_id: WORLD_INSTANCE_ID, status: 'active' })
@@ -100,6 +107,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       const monthStartedAt = new Date(anchor);
       const nextArcCloseAt = new Date(anchor + intervalMs);
 
+      (global as any).tickProgress = 'Advancing clock...';
       await trx('world_clock')
         .where({ world_instance_id: WORLD_INSTANCE_ID })
         .update({
@@ -110,6 +118,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
           updated_at: trx.fn.now(),
         });
 
+      (global as any).tickProgress = 'Done!';
       return {
         status: 'ticked',
         processedYear: year,
