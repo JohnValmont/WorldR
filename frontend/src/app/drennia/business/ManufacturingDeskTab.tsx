@@ -1349,7 +1349,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             {selectedModel.dev_stage === 'prototype' && 'Prototype Phase — building and evaluating physical prototypes.'}
                             {selectedModel.dev_stage === 'testing' && 'Testing Programme — road testing and durability validation.'}
                             {!selectedModel.dev_stage && 'Development is underway.'}
-                            {' '}Est. ready: {formatWorldDate(selectedModel.development_completes_at_year || 1, selectedModel.development_completes_at_month || 1)}.
+                            {' '}Est. ready: {formatWorldDate(selectedModel.development_completes_at_year ?? 1, selectedModel.development_completes_at_month ?? 1)}.
                           </p>
                           {selectedModel.planned_dev_time_months && (
                             <div className="mt-3 flex gap-1.5">

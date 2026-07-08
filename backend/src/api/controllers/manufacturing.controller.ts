@@ -422,9 +422,9 @@ export class ManufacturingController {
         }
 
         const clock = await trx('world_clock').first();
-        const currentYear = clock?.current_year || 1;
-        const currentMonth = clock?.current_month || 1;
-        const currentDay = clock?.current_day || 1;
+        const currentYear = clock?.current_year ?? 1;
+        const currentMonth = clock?.current_month ?? 1;
+        const currentDay = clock?.current_day ?? 1;
 
         // Record history
         await trx('manufacturing_procurement_history').insert({
@@ -507,9 +507,9 @@ export class ManufacturingController {
           machine_level: 1,
           condition: 100.00,
           status: 'active',
-          created_at_world_year: clock?.current_year || 1,
-          created_at_world_month: clock?.current_month || 1,
-          created_at_world_day: clock?.current_day || 1,
+          created_at_world_year: clock?.current_year ?? 1,
+          created_at_world_month: clock?.current_month ?? 1,
+          created_at_world_day: clock?.current_day ?? 1,
         }).returning('*');
 
         // Create production line(s) up to max
@@ -531,9 +531,9 @@ export class ManufacturingController {
         // Ledger entry
         await trx('company_ledger').insert({
           company_id: companyId,
-          game_year: clock?.current_year || 1,
-          game_month: clock?.current_month || 1,
-          game_day: clock?.current_day || 1,
+          game_year: clock?.current_year ?? 1,
+          game_month: clock?.current_month ?? 1,
+          game_day: clock?.current_day ?? 1,
           entry_type: 'factory_lease',
           description: `First lease payment — ${factoryType.name}`,
           amount: -leaseCost,
@@ -591,7 +591,7 @@ export class ManufacturingController {
         if (existingModel) throw new AppError('A model with this name already exists', 400, 'NAME_TAKEN');
 
         const clock = await trx('world_clock').first();
-        const currentYear = clock?.current_year || 1;
+        const currentYear = clock?.current_year ?? 1;
         const currentMonth   = clock?.current_month   || 1;
         const currentDay  = clock?.current_day  || 1;
 
@@ -817,9 +817,9 @@ export class ManufacturingController {
           company_id: companyId,
           record_type: 'business',
           summary: `${model.name} was launched for production.`,
-          created_at_world_year: clock?.current_year || 1,
-          created_at_world_month: clock?.current_month || 1,
-          created_at_world_day: clock?.current_day || 1
+          created_at_world_year: clock?.current_year ?? 1,
+          created_at_world_month: clock?.current_month ?? 1,
+          created_at_world_day: clock?.current_day ?? 1
         });
 
         return updated;
@@ -960,9 +960,9 @@ export class ManufacturingController {
           company_id: companyId,
           record_type: 'business',
           summary: `Hired ${quantity} ${validRole.label}${quantity > 1 ? 's' : ''}.`,
-          created_at_world_year: clock?.current_year || 1,
-          created_at_world_month: clock?.current_month || 1,
-          created_at_world_day: clock?.current_day || 1,
+          created_at_world_year: clock?.current_year ?? 1,
+          created_at_world_month: clock?.current_month ?? 1,
+          created_at_world_day: clock?.current_day ?? 1,
         });
       });
 
@@ -1004,9 +1004,9 @@ export class ManufacturingController {
           company_id: companyId,
           record_type: 'business',
           summary: `Dismissed ${dismissed} ${validRole.label}${dismissed > 1 ? 's' : ''}.`,
-          created_at_world_year: clock?.current_year || 1,
-          created_at_world_month: clock?.current_month || 1,
-          created_at_world_day: clock?.current_day || 1,
+          created_at_world_year: clock?.current_year ?? 1,
+          created_at_world_month: clock?.current_month ?? 1,
+          created_at_world_day: clock?.current_day ?? 1,
         });
       });
 
@@ -1243,9 +1243,9 @@ export class ManufacturingController {
   
 
   private static async produceForCompany(trx: any, company: any, clock: any): Promise<ParticipantState> {
-    const currentYear = clock?.current_year || 1;
-    const currentMonth = clock?.current_month || 1;
-    const currentDay = clock?.current_day || 1;
+    const currentYear = clock?.current_year ?? 1;
+    const currentMonth = clock?.current_month ?? 1;
+    const currentDay = clock?.current_day ?? 1;
     const companyId = company.id;
 
     const finances = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
@@ -1341,8 +1341,8 @@ export class ManufacturingController {
           return { year, month };
         };
 
-        const testEnd = wrapMonth(model.stage_testing_completes_year || currentYear, (model.stage_testing_completes_month || currentMonth + 1) + validation.extraArcs);
-        const finalEnd = wrapMonth(model.development_completes_at_year || currentYear, (model.development_completes_at_month || currentMonth + 1) + validation.extraArcs);
+        const testEnd = wrapMonth(model.stage_testing_completes_year ?? currentYear, (model.stage_testing_completes_month ?? (currentMonth + 1)) + validation.extraArcs);
+        const finalEnd = wrapMonth(model.development_completes_at_year ?? currentYear, (model.development_completes_at_month ?? (currentMonth + 1)) + validation.extraArcs);
 
         await trx('manufacturing_vehicle_models').where({ id: model.id }).update({ 
           dev_stage: 'testing', 
@@ -1361,15 +1361,15 @@ export class ManufacturingController {
       }
 
       // Stage: testing → ready_to_launch
-      const testingEndsYear = model.stage_testing_completes_year || 1;
-      const testingEndsMonth   = model.stage_testing_completes_month   || 1;
+      const testingEndsYear = model.stage_testing_completes_year ?? 1;
+      const testingEndsMonth   = model.stage_testing_completes_month   ?? 1;
       if (devStage === 'testing' && (currentYear > testingEndsYear || (currentYear === testingEndsYear && currentMonth >= testingEndsMonth))) {
         await trx('manufacturing_vehicle_models').where({ id: model.id }).update({ dev_stage: 'ready_to_launch', updated_at: trx.fn.now() });
       }
 
       // Final: ready_to_launch (this part generates permanent assessment at the end of testing)
-      const completesYear = model.development_completes_at_year || 1;
-      const completesMonth   = model.development_completes_at_month   || 1;
+      const completesYear = model.development_completes_at_year ?? 1;
+      const completesMonth   = model.development_completes_at_month   ?? 1;
       if (currentYear > completesYear || (currentYear === completesYear && currentMonth >= completesMonth)) {
         const assessment = calculateEngineeringAssessment(model);
         const balanceRating = calculateBalanceRating(model);
@@ -1643,9 +1643,9 @@ export class ManufacturingController {
   }
 
   private static async settleForCompany(trx: any, pState: ParticipantState, salesResults: any[], clock: any, brandMap: Map<string, any>): Promise<void> {
-    const currentYear = clock?.current_year || 1;
-    const currentMonth = clock?.current_month || 1;
-    const currentDay = clock?.current_day || 1;
+    const currentYear = clock?.current_year ?? 1;
+    const currentMonth = clock?.current_month ?? 1;
+    const currentDay = clock?.current_day ?? 1;
     const companyId = pState.company.id;
     const company = pState.company;
 
@@ -2004,8 +2004,8 @@ export class ManufacturingController {
    * Returns processedCompanies = 0 (no throw) when the month is already processed.
    */
   public static async processCountryMonth(trx: any, countryId: string, clock: any): Promise<{ processedCompanies: number }> {
-        const currentYear = clock?.current_year || 1;
-        const currentMonth = clock?.current_month || 1;
+        const currentYear = clock?.current_year ?? 1;
+        const currentMonth = clock?.current_month ?? 1;
 
         // 1. RESOLVE PARTICIPANTS — every manufacturing company in this country (players + NPCs)
         const allCompanies = await trx('companies')
@@ -2151,7 +2151,7 @@ export class ManufacturingController {
         const clock = await trx('world_clock').first();
         const outcome = await ManufacturingController.processCountryMonth(trx, playerCompany.country_id, clock);
         if (outcome.processedCompanies === 0) {
-          throw new AppError(`This month (Year ${clock?.current_year || 1}, month ${clock?.current_month || 1}) is already processed for this region`, 400, 'ALREADY_PROCESSED');
+          throw new AppError(`This month (Year ${clock?.current_year ?? 1}, month ${clock?.current_month ?? 1}) is already processed for this region`, 400, 'ALREADY_PROCESSED');
         }
 
         return { message: 'Month processed successfully for region', processedCompanies: outcome.processedCompanies };
@@ -2513,8 +2513,8 @@ export class ManufacturingController {
         }
 
         const clock = await trx('world_clock').first();
-        const startYear = clock?.current_year || 1;
-        const startMonth = clock?.current_month || 1;
+        const startYear = clock?.current_year ?? 1;
+        const startMonth = clock?.current_month ?? 1;
 
         // Validation happens in the middle/end depending on logic.
         // User requested: Validation on month reached, Approved on completion.
@@ -2557,7 +2557,7 @@ export class ManufacturingController {
           company_id: companyId,
           game_year: startYear,
           game_month: startMonth,
-          game_day: clock?.current_day || 1,
+          game_day: clock?.current_day ?? 1,
           entry_type: 'business',
           description: `Research Budget Allocation — ${progDef.name}`,
           amount: -progBudget,
@@ -2572,7 +2572,7 @@ export class ManufacturingController {
           summary: `Engineering programme started: ${progDef.name}`,
           created_at_world_year: startYear,
           created_at_world_month: startMonth,
-          created_at_world_day: clock?.current_day || 1,
+          created_at_world_day: clock?.current_day ?? 1,
         });
       });
 
@@ -2631,7 +2631,7 @@ export class ManufacturingController {
           .returning('*');
 
         const clock = await trx('world_clock').first();
-        const startYear = clock?.current_year || 1;
+        const startYear = clock?.current_year ?? 1;
         const startMonth   = clock?.current_month   || 1;
 
         // Calculate completion month (EXPANSION_DURATION_ARCS months from now, wrapping year at 12)
@@ -2655,7 +2655,7 @@ export class ManufacturingController {
           company_id: companyId,
           game_year:  startYear,
           game_month:    startMonth,
-          game_day:   clock?.current_day || 1,
+          game_day:   clock?.current_day ?? 1,
           entry_type:  'factory_expansion',
           description: 'Factory Expansion Investment — Second Production Line',
           amount:      -EXPANSION_COST,
@@ -2670,7 +2670,7 @@ export class ManufacturingController {
           summary: 'Workshop expansion started: Second Production Line.',
           created_at_world_year: startYear,
           created_at_world_month:   startMonth,
-          created_at_world_day:  clock?.current_day || 1,
+          created_at_world_day:  clock?.current_day ?? 1,
         });
 
         return {
@@ -2830,20 +2830,20 @@ export class ManufacturingController {
           development_status: 'in_development',
           development_type: 'facelift',
           facelift_source_model_id: sourceModel.id,
-          created_at_world_year: clock?.current_year || 1,
-          created_at_world_month: clock?.current_month || 1,
-          created_at_world_day: clock?.current_day || 1,
-          development_started_at_year: clock?.current_year || 1,
-          development_started_at_month: clock?.current_month || 1,
-          development_completes_at_year: clock?.current_year || 1,
-          development_completes_at_month: (clock?.current_month || 1) + 1, // Facelift takes 1 Month
+          created_at_world_year: clock?.current_year ?? 1,
+          created_at_world_month: clock?.current_month ?? 1,
+          created_at_world_day: clock?.current_day ?? 1,
+          development_started_at_year: clock?.current_year ?? 1,
+          development_started_at_month: clock?.current_month ?? 1,
+          development_completes_at_year: clock?.current_year ?? 1,
+          development_completes_at_month: (clock?.current_month ?? 1) + 1, // Facelift takes 1 Month
         }).returning('*');
 
         await trx('company_ledger').insert({
           company_id: companyId,
-          game_year: clock?.current_year || 1,
-          game_month: clock?.current_month || 1,
-          game_day: clock?.current_day || 1,
+          game_year: clock?.current_year ?? 1,
+          game_month: clock?.current_month ?? 1,
+          game_day: clock?.current_day ?? 1,
           entry_type: 'business',
           description: `Vehicle Facelift R&D — ${newModel.name}`,
           amount: -finalDevCost,
@@ -2855,9 +2855,9 @@ export class ManufacturingController {
           company_id: companyId,
           record_type: 'business',
           summary: `Vehicle Facelift development started: ${newModel.name}`,
-          created_at_world_year: clock?.current_year || 1,
-          created_at_world_month: clock?.current_month || 1,
-          created_at_world_day: clock?.current_day || 1,
+          created_at_world_year: clock?.current_year ?? 1,
+          created_at_world_month: clock?.current_month ?? 1,
+          created_at_world_day: clock?.current_day ?? 1,
         });
 
         return newModel;
@@ -2895,8 +2895,8 @@ export class ManufacturingController {
           .where({ id: modelId })
           .update({
             development_status: 'discontinued',
-            discontinued_year: clock?.current_year || 1,
-            discontinued_arc: clock?.current_month || 1,
+            discontinued_year: clock?.current_year ?? 1,
+            discontinued_arc: clock?.current_month ?? 1,
             updated_at: trx.fn.now()
           });
 
@@ -2913,9 +2913,9 @@ export class ManufacturingController {
           company_id: companyId,
           record_type: 'business',
           summary: `Vehicle Model Discontinued: ${model.name}. Production halted, but remaining inventory can be sold.`,
-          created_at_world_year: clock?.current_year || 1,
-          created_at_world_month: clock?.current_month || 1,
-          created_at_world_day: clock?.current_day || 1,
+          created_at_world_year: clock?.current_year ?? 1,
+          created_at_world_month: clock?.current_month ?? 1,
+          created_at_world_day: clock?.current_day ?? 1,
         });
       });
 
