@@ -1975,7 +1975,7 @@ export class ManufacturingController {
             await trx.raw(`
                INSERT INTO manufacturing_npc_state (company_id, vehicle_model_id, last_market_share, last_units_sold, zero_demand_streak, updated_at)
                VALUES (?, ?, ?, ?, ?, NOW())
-               ON CONFLICT (company_id) DO UPDATE SET
+               ON CONFLICT (company_id, vehicle_model_id) DO UPDATE SET
                last_units_sold = ?, zero_demand_streak = CASE WHEN ? = 'Zero Demand' THEN manufacturing_npc_state.zero_demand_streak + 1 ELSE 0 END, updated_at = NOW()
             `, [companyId, s.mId, avgMs, s.units, 0, s.units, s.rc]);
         }
