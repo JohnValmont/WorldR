@@ -113,7 +113,10 @@ export class CharacterController {
       });
 
       res.status(201).json(result);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.code === '23505' && error.constraint === 'unique_character_per_user_world') {
+        return next(new AppError('You already have an active character in this world. Please delete it before creating a new one.', 400, 'CHARACTER_EXISTS'));
+      }
       next(error);
     }
   }
