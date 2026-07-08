@@ -352,7 +352,7 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
 
     if (existingState) {
       await trx('manufacturing_npc_state')
-        .where({ id: existingState.id })
+        .where({ company_id: companyId, vehicle_model_id: modelId })
         .update({
           last_market_share: marketShareThisArc,
           last_units_sold: unitsSoldLastArc,
