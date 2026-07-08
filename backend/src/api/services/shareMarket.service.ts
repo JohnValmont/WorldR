@@ -60,6 +60,11 @@ export async function placeOrder(params: {
     const gameYear = clock?.current_year || 1;
     const gameMonth = clock?.current_month || 1;
 
+    // Validate price is positive and finite
+    if (!Number.isFinite(price) || price <= 0) {
+      throw new AppError('Order price must be a positive number', 400, 'INVALID_PRICE');
+    }
+
     // ---- Circuit breaker (players only; NPC specialist is exempt) ----
     if (!isNpc && !skipCircuitBreaker) {
       const lastClose = await getLastClose(trx, companyId);
@@ -176,12 +181,16 @@ export async function placeOrder(params: {
         .first();
       if (existing) {
         const oldShares = Number(existing.shares);
-        const newAvg = oldShares + fillQty > 0
-          ? (oldShares * Number(existing.avg_cost_basis) + notional) / (oldShares + fillQty)
-          : execPrice;
+        const totalShares = oldShares + fillQty;
+        // Guard against NaN: ensure total shares > 0 and result is finite
+        let newAvg = execPrice; // Default to execution price
+        if (totalShares > 0 && Number.isFinite(oldShares * Number(existing.avg_cost_basis)) && Number.isFinite(notional)) {
+          newAvg = (oldShares * Number(existing.avg_cost_basis) + notional) / totalShares;
+          if (!Number.isFinite(newAvg)) newAvg = execPrice; // Fallback if calculation fails
+        }
         await trx('company_shares')
           .where({ company_id: companyId, holder_character_id: buyerId })
-          .update({ shares: oldShares + fillQty, avg_cost_basis: newAvg, updated_at: trx.fn.now() });
+          .update({ shares: totalShares, avg_cost_basis: newAvg, updated_at: trx.fn.now() });
       } else {
         await trx('company_shares').insert({
           company_id: companyId,
@@ -241,6 +250,11 @@ export async function cancelOrder(orderId: string, characterId: string) {
     if (order.status !== 'open') throw new AppError('Order is not open', 400, 'NOT_OPEN');
 
     const unfilled = Number(order.quantity) - Number(order.filled_quantity);
+    
+    // Validate there's something to cancel
+    if (unfilled <= 0) {
+      throw new AppError('Order is already fully filled or cancelled', 400, 'NOTHING_TO_CANCEL');
+    }
 
     if (order.side === 'buy') {
       // Bug C fix: use the live escrow_amount column (already decremented on each fill)
@@ -286,10 +300,12 @@ export async function getListings() {
 
   const result = [];
   for (const co of companies) {
-    const [latest, prev] = await db('share_price_history')
+    const priceHistory = await db('share_price_history')
       .where({ company_id: co.id })
       .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
       .limit(2);
+    const latest = priceHistory[0] || null;
+    const prev = priceHistory[1] || null;
 
     // Fall back to the raw last trade if no monthly snapshot exists yet (freshly listed).
     const lastTrade = latest ? null : await db('share_trades').where({ company_id: co.id }).orderBy('executed_at', 'desc').first();
@@ -337,6 +353,10 @@ export async function getOrderBook(companyId: string) {
 }
 
 export async function getTradeHistory(companyId: string, limit = 50) {
+  // Validate company exists before querying trades
+  const company = await db('companies').where({ id: companyId }).select('id').first();
+  if (!company) throw new AppError('Company not found', 404, 'NOT_FOUND');
+  
   return db('share_trades')
     .where({ company_id: companyId })
     .orderBy('executed_at', 'desc')
@@ -345,6 +365,10 @@ export async function getTradeHistory(companyId: string, limit = 50) {
 }
 
 export async function getPriceHistory(companyId: string) {
+  // Validate company exists before querying trades
+  const company = await db('companies').where({ id: companyId }).select('id').first();
+  if (!company) throw new AppError('Company not found', 404, 'NOT_FOUND');
+  
   // Monthly OHLC-style summary from trades
   return db('share_trades')
     .where({ company_id: companyId })
@@ -364,15 +388,22 @@ export async function getPortfolio(characterId: string) {
     .where('s.shares', '>', 0)
     .select('s.company_id', 'c.name', 'c.legal_structure_id', 's.shares', 's.avg_cost_basis', 'c.owner_character_id', 'c.is_npc');
 
-  const result = [];
-  for (const h of holdings) {
-    const lastTrade = await db('share_trades').where({ company_id: h.company_id }).orderBy('executed_at', 'desc').first();
-    result.push({
-      ...h,
-      last_price: lastTrade ? Number(lastTrade.price) : null,
-      ownership_percent: (Number(h.shares) / TOTAL_SHARES) * 100,
-    });
+  // Batch fetch the latest trade for all companies in the portfolio to avoid N+1 queries
+  const companyIds = holdings.map(h => h.company_id);
+  const latestTrades = new Map<string, any>();
+  if (companyIds.length > 0) {
+    const trades = await db('share_trades as t')
+      .whereIn('company_id', companyIds)
+      .select('t.company_id', 't.price', db.raw('ROW_NUMBER() OVER (PARTITION BY company_id ORDER BY executed_at DESC) as rn'))
+      .where(db.raw('ROW_NUMBER() OVER (PARTITION BY company_id ORDER BY executed_at DESC)'), '=', 1);
+    trades.forEach((trade: any) => latestTrades.set(trade.company_id, trade));
   }
+
+  const result = holdings.map(h => ({
+    ...h,
+    last_price: latestTrades.get(h.company_id) ? Number(latestTrades.get(h.company_id).price) : null,
+    ownership_percent: (Number(h.shares) / TOTAL_SHARES) * 100,
+  }));
   return result;
 }
 
@@ -417,6 +448,12 @@ export async function ipoLaunch(params: {
     throw new AppError('Only Public Corporations can launch an IPO', 400, 'NOT_PUBLIC');
   if (company.owner_character_id !== characterId)
     throw new AppError('Only the company owner can launch an IPO', 403, 'FORBIDDEN');
+
+  // Prevent re-launching IPO if company already has a public share price history
+  const existingPriceHistory = await db('share_price_history').where({ company_id: companyId }).first();
+  if (existingPriceHistory) {
+    throw new AppError('This company has already completed an IPO', 400, 'ALREADY_PUBLIC');
+  }
 
   // Delegate entirely to placeOrder — handles escrow, matching, cap-table updates
   return placeOrder({ companyId, characterId, side: 'sell', price: pricePerShare, quantity });

@@ -7,7 +7,12 @@ import { Card, Button } from '@/components/ui';
 
 function fmt(n: number | null | undefined, dec = 0): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  const num = Number(n);
+  // For very small percentages or holdings (< 0.01), show up to 4 decimals
+  if (dec === 0 && num < 0.01 && num > 0) {
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  }
+  return num.toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
 
 const STRUCTURE_ORDER = ['sole-trader', 'private-company', 'public-corporation'];
@@ -82,6 +87,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
     if (amt <= 0 || !Number.isFinite(amt)) return;
     setBusy(true); setNotice(null);
     try {
+      // Backend will validate ownership, so we just pass through to the API
       await companyApi.injectCapital(companyId, amt);
       setNotice({ text: `§${amt.toLocaleString('en-US')} injected successfully.`, ok: true });
       setInjectInput('');
@@ -97,6 +103,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
     if (amt <= 0 || !Number.isFinite(amt)) return;
     setBusy(true); setNotice(null);
     try {
+      // Backend will validate ownership, so we just pass through to the API
       await companyApi.withdrawCapital(companyId, amt);
       setNotice({ text: `§${amt.toLocaleString('en-US')} withdrawn successfully.`, ok: true });
       setWithdrawInput('');
