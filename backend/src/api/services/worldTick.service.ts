@@ -132,17 +132,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
  */
 export function startWorldTickScheduler(): NodeJS.Timeout {
   const tickPass = async () => {
-    for (let i = 0; i < MAX_CATCHUP_TICKS; i++) {
-      const result = await runWorldTick();
-      if (result.status === 'ticked') {
-        logger.info(
-          `[world-tick] Processed Y${result.processedYear} M${result.processedMonth} -> now Y${result.newYear} M${result.newMonth} ` +
-          `(${result.processedCompanies} companies across ${result.processedCountries} countries). Next tick: ${result.nextTickAt}`
-        );
-      } else {
-        break; // not due / paused / in progress — stop the catch-up loop
-      }
-    }
+    logger.info('[world-tick] Background scheduler is TEMPORARILY DISABLED for debugging. Please use Force Tick in the admin panel.');
   };
 
   // Run once shortly after boot (catch up on downtime), then every minute
