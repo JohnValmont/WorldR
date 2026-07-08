@@ -36,11 +36,31 @@ export default function WorldTimeControl() {
     setIsAdvancing(true);
     try {
       const res = await worldApi.forceTick();
-      alert('SUCCESS RESPONSE: ' + JSON.stringify(res));
+      const result = res?.data ?? res;
+
+      if (result?.status === 'ticked') {
+        // A month was actually processed — pull in the new world state.
+        await refresh();
+        window.location.reload();
+        return;
+      }
+
+      // Skipped — surface WHY instead of silently reloading into the same state.
+      if (result?.reason === 'tick_in_progress') {
+        const step = result?.step ? ` (current step: ${result.step})` : '';
+        alert(`A world tick is already running${step}. Please wait a moment and try again — a stuck tick now recovers automatically within a few minutes.`);
+      } else if (result?.reason === 'paused') {
+        alert('The world clock is paused. Resume it before forcing a tick.');
+      } else if (result?.reason === 'not_due') {
+        alert('The next month is not due yet.');
+      } else if (result?.reason === 'no_clock') {
+        alert('No active world clock was found.');
+      } else {
+        alert('World tick did not advance the month.');
+      }
       await refresh();
-      window.location.reload();
     } catch (err: any) {
-      alert('ERROR: ' + (err?.response?.data?.error || err?.response?.data?.message || err.message || 'Unknown Error'));
+      alert(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to advance world tick');
     } finally {
       setIsAdvancing(false);
     }

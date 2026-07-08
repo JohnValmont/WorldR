@@ -39,6 +39,8 @@ const TICK_LOCK_TIMEOUT_MS = 120_000; // 2 minutes
 // statement in well under a second, so this never fires normally.
 const TICK_STATEMENT_TIMEOUT_MS = 30_000; // 30 seconds
 
+// Human-readable step of the current tick, exposed on skip responses for
+// diagnostics (e.g. "Processing country: drennia - Step 3: Produce").
 (global as any).tickProgress = 'Not started';
 
 /**
@@ -60,7 +62,11 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
     if (heldFor < TICK_LOCK_TIMEOUT_MS) {
       // A tick is genuinely still running — refuse to double-process, but
       // surface the current step so admins can see where it is.
-      return { status: 'skipped', reason: 'tick_in_progress', step: (global as any).tickProgress } as any;
+      return {
+        status: 'skipped',
+        reason: 'tick_in_progress',
+        step: (global as any).tickProgress,
+      } as any;
     }
     // Lock is stale: the previous tick almost certainly died without releasing
     // it. Reclaim it so the world can advance again. (The world_clock row lock
