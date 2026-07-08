@@ -635,7 +635,7 @@ export default function BusinessPage() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OVERVIEW TAB
-// ─────────────────────────────────────────────────────────────────────────────
+// ���────────────────────────────────────────────────────────────────────────────
 function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewContracts, onViewRegistry }: {
   company: Company | null; playerCash: number; netWorth: number;
   onStartBusiness: () => void; onViewContracts: () => void; onViewRegistry: () => void;
@@ -784,7 +784,7 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
 
 // ─────────────────────────────────────────────────────────────────────────────
 // START BUSINESS TAB
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────���─────────────────────────────────────────────────────
 function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, selectedHQ, setSelectedHQ, companyNameInput, setCompanyNameInput, nameError, setNameError, startError, playerCash, company, onRegister, checkName, chosenCapital, setChosenCapital, selectedStructure, setSelectedStructure, selectedModel, setSelectedModel, isSubmitting }: any) {
   if (company) {
     return (
@@ -1208,7 +1208,7 @@ function CompanyDeskTab({
   }
 
   const financeHistory = Array.from(months.values());
-  const computedLastReport = financeHistory.length > 0 ? financeHistory[0] : null;
+  const computedLastReport = financeHistory.length > 0 ? financeHistory[financeHistory.length - 1] : null;
 
   const showNotif = (msg: string, success: boolean) => {
     setNotification({ msg, success });
@@ -1261,34 +1261,46 @@ function CompanyDeskTab({
 
   const handleMaintenance = async (vehicleId: string, level: 'basic' | 'full') => {
     try {
-      const conditionBoost = level === 'full' ? 30 : 15;
-      const { logisticsApi: lApi } = await import('../../../lib/api');
-      // Use assignOperation with no pool change as a hook to trigger a vehicle condition patch
-      // via a direct PATCH if available, otherwise fall through to refresh
-      await lApi.assignOperation(company.id, vehicleId, null);
-      showNotif(`Maintenance (${level}) queued. Condition will be restored on next month close.`, true);
+      const { logisticsApi } = await import('../../../lib/api');
+      const result = await logisticsApi.performMaintenance(company.id, vehicleId, level);
+      showNotif(result.data.message || `Maintenance (${level}) queued.`, true);
       onRefresh();
     } catch (err: any) {
       showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Maintenance failed', false);
     }
   };
 
-  const handleAssignVehicle = (contractId: string, vehicleId: string) => {
-    const result = assignVehicleToContract(contractId, vehicleId);
-    showNotif(result.message, result.success);
-    if (result.success) onRefresh();
+  const handleAssignVehicle = async (contractId: string, vehicleId: string) => {
+    try {
+      const result = await logisticsApi.assignVehicleToContract(company.id, contractId, vehicleId);
+      showNotif(result.data.message, true);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Assignment failed', false);
+    }
   };
   
-  const handleDirectAccept = (contractId: string, vehicleId: string) => {
-    const result = acceptDirectContract(contractId, company.id, vehicleId);
-    showNotif(result.message, result.success);
-    if (result.success) onRefresh();
+  const handleDirectAccept = async (contractId: string, vehicleId: string) => {
+    try {
+      const contract = contracts.find(c => c.id === contractId);
+      if (!contract) throw new Error('Contract not found');
+      const result = await logisticsApi.acceptDirectContract(company.id, contractId, contract, vehicleId);
+      showNotif(result.data.message, true);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Acceptance failed', false);
+    }
   };
 
-  const handleResolve = (contractId: string) => {
-    const result = resolveContract(contractId);
-    showNotif(result.message, result.success);
-    if (result.success) onRefresh();
+  const handleResolve = async (contractId: string) => {
+    try {
+      const { logisticsApi } = await import('../../../lib/api');
+      const result = await logisticsApi.resolveContract(company.id, contractId, 'completed');
+      showNotif(result.data.message || 'Contract resolved.', true);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Resolve failed', false);
+    }
   };
 
   const handleAssignAutoOp = async (vehicleId: string, poolType: string | null) => {
@@ -2420,20 +2432,17 @@ function CompanyDeskTab({
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
                   <PanelBox>
                     <div style={{ fontSize: '11px', color: T.muted, marginBottom: '8px' }}>Maintenance Policy</div>
-                    <select 
-                      value={company.maintenancePolicy || 'Standard'} 
-                      onChange={async (e) => { 
-                        const newPolicy = e.target.value;
-                        try {
-                          const { companyApi: cApi } = await import('../../../lib/api');
-                          await cApi.updateFinances(company.id, { maintenance_policy: newPolicy });
-                          showNotif(`Maintenance policy updated to ${newPolicy}.`, true);
-                          onRefresh();
-                        } catch (err: any) {
-                          showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to update policy', false);
-                        }
-                      }} 
-                      style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
+                    <select value={company.maintenancePolicy || 'Standard'} onChange={async (e) => {
+                      const { companyApi } = await import('../../../lib/api');
+                      const newPolicy = e.target.value;
+                      try {
+                        await companyApi.updateFinances(company.id, { maintenance_policy: newPolicy });
+                        showNotif(`Maintenance policy updated to ${newPolicy}.`, true);
+                        onRefresh();
+                      } catch (err: any) {
+                        showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to update policy', false);
+                      }
+                    }} style={{ padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.ivory, fontSize: '12px', width: '100%' }}>
                       <option value="Low">Low (Cost x0.75, Wear x1.25)</option>
                       <option value="Standard">Standard (Cost x1.00, Wear x1.00)</option>
                       <option value="Generous">Generous (Cost x1.25, Wear x0.75)</option>
@@ -2485,37 +2494,29 @@ function CompanyDeskTab({
 
           {financeSubTab === 'monthly' && (
             <div style={{ gridColumn: '1 / -1' }}>
-              {company.lastMonthlyReport ? (
-                <PanelBox style={{ border: `1px solid ${T.gold}` }}>
-                  <SectionHeader stamp={company.lastMonthlyReport.gameDateStr}>Most Recent Month Report</SectionHeader>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                    <div>
-                      <div style={{ fontSize: '13px', color: T.mint, fontWeight: 700, marginBottom: '8px' }}>Revenue</div>
-                      <FieldRow label="Auto Operations Revenue" value={formatMoney(company.lastMonthlyReport.autoRevenue)} />
-                      <FieldRow label="Manual Contract Revenue" value={formatMoney(company.lastMonthlyReport.manualRevenue)} />
-                      <div style={{ height: '1px', background: T.border, margin: '8px 0' }} />
-                      <FieldRow label="Total Gross Revenue" value={formatMoney(company.lastMonthlyReport.autoRevenue + company.lastMonthlyReport.manualRevenue)} valueColor={T.mint} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '13px', color: T.red, fontWeight: 700, marginBottom: '8px' }}>Expenses</div>
-                      <FieldRow label="Operating Costs" value={formatMoney(company.lastMonthlyReport.operatingCosts)} />
-                      <FieldRow label="Staff Payroll" value={formatMoney(company.lastMonthlyReport.payrollExpense)} />
-                      <FieldRow label="Fleet Maintenance" value={formatMoney(company.lastMonthlyReport.totalMaintenance)} />
-                      <FieldRow label="Facility Leases" value={formatMoney(company.lastMonthlyReport.facilityLeaseExpense)} />
-                      {company.lastMonthlyReport.penalties > 0 && <FieldRow label="Penalties" value={formatMoney(company.lastMonthlyReport.penalties)} valueColor={T.red} />}
-                      <div style={{ height: '1px', background: T.border, margin: '8px 0' }} />
-                      <FieldRow label="Total Expenses" value={formatMoney(company.lastMonthlyReport.operatingCosts + company.lastMonthlyReport.payrollExpense + company.lastMonthlyReport.totalMaintenance + company.lastMonthlyReport.facilityLeaseExpense + company.lastMonthlyReport.penalties)} valueColor={T.red} />
-                    </div>
-                  </div>
-                  <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: `2px solid ${T.border}` }}>
-                    <FieldRow label={company.lastMonthlyReport.netProfit >= 0 ? "Net Profit" : "Operating Loss"} value={formatMoney(company.lastMonthlyReport.netProfit)} valueColor={company.lastMonthlyReport.netProfit >= 0 ? T.mint : T.red} />
-                  </div>
-                </PanelBox>
-              ) : (
-                <div style={{ padding: '24px', textAlign: 'center', color: T.faint, border: `1px solid ${T.border}` }}>
-                  No Month Reports available yet. Advance the Month to generate the first report.
-                </div>
-              )}
+              <SectionHeader stamp="REPORTS">Monthly Financial Reports</SectionHeader>
+              <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ color: T.faint, textAlign: 'left', borderBottom: `1px solid ${T.border}` }}>
+                    <th style={{ padding: '8px 0' }}>Period</th>
+                    <th style={{ padding: '8px 0', textAlign: 'right' }}>Revenue</th>
+                    <th style={{ padding: '8px 0', textAlign: 'right' }}>Costs</th>
+                    <th style={{ padding: '8px 0', textAlign: 'right' }}>Profit</th>
+                    <th style={{ padding: '8px 0', textAlign: 'right' }}>Cash</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {financeHistory.map((snapshot: any, i: number) => (
+                    <tr key={i} style={{ borderBottom: `1px solid ${T.border}30` }}>
+                      <td style={{ padding: '8px 0', color: T.ivory }}>{snapshot.gameDateStr}</td>
+                      <td style={{ padding: '8px 0', color: T.mint, textAlign: 'right' }}>{formatMoney(snapshot.autoRevenue + snapshot.manualRevenue)}</td>
+                      <td style={{ padding: '8px 0', color: T.red, textAlign: 'right' }}>{formatMoney(snapshot.operatingCosts)}</td>
+                      <td style={{ padding: '8px 0', color: snapshot.netProfit >= 0 ? T.mint : T.red, textAlign: 'right' }}>{formatMoney(snapshot.netProfit)}</td>
+                      <td style={{ padding: '8px 0', color: T.ivory, textAlign: 'right' }}>{formatMoney(company.companyCash || 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
@@ -2537,12 +2538,12 @@ function CompanyDeskTab({
                     const entryAmt = Number(entry.amount);
                     const isIncome = entryAmt > 0;
                     const dateStr = entry.game_year && entry.game_month
-                      ? `Y${entry.game_year} M${entry.game_month}${entry.game_day ? ` D${entry.game_day}` : ''}`
-                      : (entry.gameDateStr || '-');
+                      ? `M${entry.game_month} Y${entry.game_year}`
+                      : '-';
                     return (
                       <div key={entry.id} style={{ display: 'grid', gridTemplateColumns: '100px 150px 2fr 100px 100px', padding: '12px 8px', background: T.panel, borderBottom: `1px solid ${T.border}`, fontSize: '12px', alignItems: 'center' }}>
                         <div style={{ color: T.muted }}>{dateStr}</div>
-                        <div style={{ color: T.gold }}>{entry.entry_type || entry.type}</div>
+                        <div style={{ color: entry.entry_type === 'Revenue' ? T.mint : T.gold }}>{entry.entry_type || entry.type}</div>
                         <div style={{ color: T.ivory }}>{entry.description}</div>
                         <div style={{ textAlign: 'right', color: T.mint }}>{isIncome ? formatMoney(entryAmt) : '-'}</div>
                         <div style={{ textAlign: 'right', color: T.red }}>{!isIncome ? formatMoney(Math.abs(entryAmt)) : '-'}</div>

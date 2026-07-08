@@ -256,9 +256,13 @@ export const logisticsApi = {
   hireStaff: (companyId: string, role: string) => api.post(`/logistics/company/${companyId}/staff/hire`, { role }),
   fireStaff: (companyId: string, role: string) => api.post(`/logistics/company/${companyId}/staff/fire`, { role }),
   purchaseVehicle: (companyId: string, catalogVehicleId: string) => api.post(`/logistics/company/${companyId}/vehicles/purchase`, { catalogVehicleId }),
+  performMaintenance: (companyId: string, vehicleId: string, level: 'basic'|'full') => api.post(`/logistics/company/${companyId}/vehicles/${vehicleId}/maintenance`, { level }),
   leaseFacility: (companyId: string, catalogFacilityId: string, stateId?: string) => api.post(`/logistics/company/${companyId}/facilities/lease`, { catalogFacilityId, stateId }),
   assignOperation: (companyId: string, vehicleId: string, poolId: string) => api.post(`/logistics/company/${companyId}/operations/assign`, { vehicleId, poolId }),
-  processTest: (companyId: string) => api.post(`/logistics/company/${companyId}/operations/process-test`)
+  processTest: (companyId: string) => api.post(`/logistics/company/${companyId}/operations/process-test`),
+  assignVehicleToContract: (companyId: string, contractId: string, vehicleId: string) => api.post(`/logistics/company/${companyId}/contracts/${contractId}/assign`, { vehicleId }),
+  acceptDirectContract: (companyId: string, contractId: string, contract: any, vehicleId: string) => api.post(`/logistics/company/${companyId}/contracts/${contractId}/accept`, { contract, vehicleId }),
+  resolveContract: (companyId: string, contractId: string, result: 'completed'|'failed') => api.post(`/logistics/company/${companyId}/contracts/${contractId}/resolve`, { result })
 };
 
 // Manufacturing
