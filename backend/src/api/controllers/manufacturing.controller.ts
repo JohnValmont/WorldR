@@ -1289,11 +1289,19 @@ export class ManufacturingController {
     const cultureScore = Number(engRepForCulture?.engineering_culture_score ?? 0);
 
     for (const model of developingModels) {
-      const devStage = model.dev_stage as string | null;
+      let devStage = model.dev_stage as string | null;
+
+      // Variables to track completion dates for subsequent checks in case of cascading
+      let engEndsYear = model.stage_engineering_completes_year ?? 1;
+      let engEndsMonth = model.stage_engineering_completes_month ?? 1;
+      let protoEndsYear = model.stage_prototype_completes_year ?? 1;
+      let protoEndsMonth = model.stage_prototype_completes_month ?? 1;
+      let testingEndsYear = model.stage_testing_completes_year ?? 1;
+      let testingEndsMonth = model.stage_testing_completes_month ?? 1;
+      let completesYear = model.development_completes_at_year ?? 1;
+      let completesMonth = model.development_completes_at_month ?? 1;
 
       // Stage: engineering → prototype
-      const engEndsYear = model.stage_engineering_completes_year || 1;
-      const engEndsMonth   = model.stage_engineering_completes_month   || 1;
       if (devStage === 'engineering' && (currentYear > engEndsYear || (currentYear === engEndsYear && currentMonth >= engEndsMonth))) {
         const bonuses = applyKnowledgeBonuses(knowledgeXpMap);
         const newReliability = Math.min(100, Number(model.reliability_score ?? 60) + bonuses.reliabilityBonus);
@@ -1309,12 +1317,10 @@ export class ManufacturingController {
         await trx('company_records').insert({
           world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `${model.name} has entered the Prototype stage.${bonusSummary ? ` Knowledge bonuses applied: ${bonusSummary}.` : ''}`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay
         });
-        continue;
+        devStage = 'prototype';
       }
 
       // Stage: prototype → testing
-      const protoEndsYear = model.stage_prototype_completes_year || 1;
-      const protoEndsMonth   = model.stage_prototype_completes_month   || 1;
       if (devStage === 'prototype' && (currentYear > protoEndsYear || (currentYear === protoEndsYear && currentMonth >= protoEndsMonth))) {
         const validation = evaluatePrototypeValidation(model);
         const currentCultureScore = Number(cultureScore || 0);
@@ -1357,19 +1363,22 @@ export class ManufacturingController {
 
         const validationSummary = validation.passed ? `Prototype validation ${validation.resultClass} (confidence: ${validation.confidenceScore}%).` : `Prototype validation ${validation.resultClass}: ${validation.issues[0]}.${extraArcMessage} Extra cost: ${extraCostCharged.toLocaleString()}.`;
         await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `${model.name} — ${validationSummary}`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
-        continue;
+        
+        // Update cascade variables in case it was extended
+        testingEndsYear = testEnd.year;
+        testingEndsMonth = testEnd.month;
+        completesYear = finalEnd.year;
+        completesMonth = finalEnd.month;
+        devStage = 'testing';
       }
 
       // Stage: testing → ready_to_launch
-      const testingEndsYear = model.stage_testing_completes_year ?? 1;
-      const testingEndsMonth   = model.stage_testing_completes_month   ?? 1;
       if (devStage === 'testing' && (currentYear > testingEndsYear || (currentYear === testingEndsYear && currentMonth >= testingEndsMonth))) {
         await trx('manufacturing_vehicle_models').where({ id: model.id }).update({ dev_stage: 'ready_to_launch', updated_at: trx.fn.now() });
+        devStage = 'ready_to_launch';
       }
 
       // Final: ready_to_launch (this part generates permanent assessment at the end of testing)
-      const completesYear = model.development_completes_at_year ?? 1;
-      const completesMonth   = model.development_completes_at_month   ?? 1;
       if (currentYear > completesYear || (currentYear === completesYear && currentMonth >= completesMonth)) {
         const assessment = calculateEngineeringAssessment(model);
         const balanceRating = calculateBalanceRating(model);
@@ -2632,7 +2641,7 @@ export class ManufacturingController {
 
         const clock = await trx('world_clock').first();
         const startYear = clock?.current_year ?? 1;
-        const startMonth   = clock?.current_month   || 1;
+        const startMonth = clock?.current_month ?? 1;
 
         // Calculate completion month (EXPANSION_DURATION_ARCS months from now, wrapping year at 12)
         const rawCompletionMonth = startMonth + EXPANSION_DURATION_ARCS;
