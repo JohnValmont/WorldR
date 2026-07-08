@@ -649,7 +649,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
   const handleSavePrice = async (modelId: string) => {
     const newPrice = priceEdits[modelId];
-    if (!newPrice || newPrice <= 0) { showNotif('Enter a valid price.', false); return; }
+    if (newPrice === undefined || newPrice === null || Number(newPrice) <= 0) { showNotif('Enter a valid price.', false); return; }
     setSavingPrice(modelId);
     try {
       await manufacturingApi.updateModelPrice(company.id, modelId, newPrice);
@@ -673,8 +673,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         marketingTier: data.tier
       });
       showNotif('Allocation updated.', true);
-      loadMarketData();
-      onRefresh(); // Refresh inventory
+      // Refresh market data and inventory after the allocation change is confirmed
+      await Promise.all([loadMarketData(), onRefresh()]);
     } catch (err: any) {
       showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to allocate.', false);
     }
@@ -1860,8 +1860,23 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                       <div style={{ width: `${pct}%`, height: '100%', background: T.blue, borderRadius: '2px' }} />
                                     </div>
                                     <span style={{ fontFamily: 'monospace', fontSize: '11px', color: T.ivory, width: '52px', textAlign: 'right' }}>{fm(val)}</span>
-                                    <button onClick={() => setDBudgetAlloc(prev => ({ ...prev, [b.id]: Math.max(0, (prev[b.id] ?? Math.round(BASE_DEV_COST * b.defaultPct)) - Math.round(BASE_DEV_COST * 0.02)) }))} style={{ background: 'none', border: `1px solid ${T.border}`, color: T.muted, width: '20px', height: '20px', cursor: 'pointer', fontSize: '12px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
-                                    <button onClick={() => setDBudgetAlloc(prev => ({ ...prev, [b.id]: (prev[b.id] ?? Math.round(BASE_DEV_COST * b.defaultPct)) + Math.round(BASE_DEV_COST * 0.02) }))} style={{ background: 'none', border: `1px solid ${T.border}`, color: T.muted, width: '20px', height: '20px', cursor: 'pointer', fontSize: '12px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                                    <button onClick={() => setDBudgetAlloc(prev => {
+                                      const alloc = { ...prev };
+                                      const currentVal = alloc[b.id] ?? Math.round(BASE_DEV_COST * b.defaultPct);
+                                      alloc[b.id] = Math.max(0, currentVal - Math.round(BASE_DEV_COST * 0.02));
+                                      return alloc;
+                                    })} style={{ background: 'none', border: `1px solid ${T.border}`, color: T.muted, width: '20px', height: '20px', cursor: 'pointer', fontSize: '12px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                                    <button onClick={() => setDBudgetAlloc(prev => {
+                                      const alloc = { ...prev };
+                                      const currentVal = alloc[b.id] ?? Math.round(BASE_DEV_COST * b.defaultPct);
+                                      const totalOther = BUDGET_BUCKETS_FE.reduce((sum, bucket) => sum + (bucket.id === b.id ? 0 : alloc[bucket.id] ?? Math.round(BASE_DEV_COST * bucket.defaultPct)), 0);
+                                      const increment = Math.round(BASE_DEV_COST * 0.02);
+                                      // Only increment if it won't exceed the total budget
+                                      if (totalOther + currentVal + increment <= BASE_DEV_COST) {
+                                        alloc[b.id] = currentVal + increment;
+                                      }
+                                      return alloc;
+                                    })} style={{ background: 'none', border: `1px solid ${T.border}`, color: T.muted, width: '20px', height: '20px', cursor: 'pointer', fontSize: '12px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                                   </div>
                                 );
                               })}
@@ -3304,7 +3319,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           <FieldRow label="Planned Units" value={r.planned_units} />
                           <FieldRow label="Actual Units Produced" value={r.units_produced} />
                           <FieldRow label="Defective Units" value={r.defective_units} valueColor={Number(r.defective_units) > 0 ? '#ff453a' : 'rgb(229, 229, 229)'} />
-                          <FieldRow label="Production Efficiency" value={`${Math.round(Number(r.production_efficiency) * 100)}%`} valueColor={Number(r.production_efficiency) >= 1 ? '#30d158' : 'rgb(229, 229, 229)'} />
+                          <FieldRow label="Production Efficiency" value={`${r.production_efficiency !== undefined && r.production_efficiency !== null ? Math.round(Number(r.production_efficiency) * 100) : 'N/A'}%`} valueColor={r.production_efficiency !== undefined && Number(r.production_efficiency) >= 1 ? '#30d158' : 'rgb(229, 229, 229)'} />
                           <FieldRow label="Factory Condition" value={`${r.factory_condition || 100}%`} />
                           <FieldRow label="Factory Workers Required" value={r.factory_workers_required} />
                           <FieldRow label="Factory Workers Available" value={r.factory_workers_available} />

@@ -889,10 +889,14 @@ export class ManufacturingController {
 
         // Get factory capacity — per-line cap = total factory capacity / max lines (from factory type)
         const factory = await trx('manufacturing_factories').where({ id: line.factory_id }).first();
-        const factoryType = await trx('manufacturing_factory_types').where({ id: factory?.factory_type_id }).first();
-        // After expansion, max_production_lines may have grown; use the factory type default as cap basis
-        const totalCap = Number(factory?.capacity_per_month ?? factoryType?.base_capacity_per_month ?? 100);
-        const lineCount = Number(factoryType?.max_production_lines ?? 1);
+        if (!factory) throw new AppError('Factory not found', 404, 'NOT_FOUND');
+        
+        const factoryType = await trx('manufacturing_factory_types').where({ id: factory.factory_type_id }).first();
+        if (!factoryType) throw new AppError('Factory type not found', 404, 'NOT_FOUND');
+        
+        // After expansion, max_production_lines may have grown; use the factory type defaults as cap basis
+        const totalCap = Number(factory.capacity_per_month ?? factoryType.base_capacity_per_month ?? 100);
+        const lineCount = Number(factoryType.max_production_lines ?? 1);
         const PER_LINE_CAP = Math.ceil(totalCap / lineCount);
         if (targetUnitsPerArc && Number(targetUnitsPerArc) > PER_LINE_CAP) {
           throw new AppError(`Each production line cannot exceed ${PER_LINE_CAP} units/Month`, 400, 'EXCEEDS_LINE_CAP');
@@ -1541,10 +1545,10 @@ export class ManufacturingController {
 
         runningCash          -= finalProductionCost;
         totalProductionCosts += finalProductionCost;
-        totalUnitsProduced   += sellableUnits;
+        totalUnitsProduced   += (sellableUnits + defectiveUnits); // Track total produced including defects
 
         const mt = ensureModelTracking(line.model_id_ref, costPerUnit);
-        mt.unitsProduced   += sellableUnits;
+        mt.unitsProduced   += (sellableUnits + defectiveUnits); // Track total produced (sellable + defective)
         mt.defectiveUnits  += defectiveUnits;
         mt.productionCost  += finalProductionCost;
         mt.defectLoss      += defectLoss;
@@ -1766,17 +1770,23 @@ export class ManufacturingController {
       pState.totalWarrantyReserveCost = totalWarrantyReserveCost;
     }
 
-    const netProfit = totalGrossRevenue - pState.totalProductionCosts - pState.totalStaffWages - pState.totalLeaseCosts - pState.totalMaintenanceCosts - pState.totalStorageCosts - totalMarketingCosts - totalWarrantyReserveCost;
+    // Use actualWagesPaid (not totalStaffWages) to match cash movement and arc report
+    const netProfit = totalGrossRevenue - pState.totalProductionCosts - actualWagesPaid - pState.totalLeaseCosts - pState.totalMaintenanceCosts - pState.totalStorageCosts - totalMarketingCosts - totalWarrantyReserveCost;
 
     let finalNetProfit = netProfit;
     let taxPaid = 0;
 
+    // Look up the state by its ID (headquarters_state_id is the state code like 'drennia-drennport')
     const stateObj = await trx('pol_states')
-      .whereRaw("? LIKE '%' || code", [company.headquarters_state_id || ''])
+      .where({ code: company.headquarters_state_id || '' })
       .first();
+    
+    // Fallback: if not found by code, try to match by ID in case headquarters_state_id is a numeric ID
+    const stateLookup = stateObj || (company.headquarters_state_id ? 
+      await trx('pol_states').where({ id: company.headquarters_state_id }).first() : null);
 
-    if (stateObj) {
-      const policy = await trx('pol_state_policy').where({ state_id: stateObj.id }).first();
+    if (stateLookup) {
+      const policy = await trx('pol_state_policy').where({ state_id: stateLookup.id }).first();
       const taxRate = Number(policy?.industry_tax_rate || 0);
       if (taxRate > 0 && finalNetProfit > 0) {
         taxPaid = Math.round(finalNetProfit * taxRate);
@@ -1934,7 +1944,7 @@ export class ManufacturingController {
        await ManufacturingController.addCompanyKnowledge(trx, companyId, 'supply_chain', xpGain);
     }
 
-    const costSummary = `Wages: ${pState.totalStaffWages.toLocaleString()} | Lease: ${pState.totalLeaseCosts.toLocaleString()} | Maintenance: ${pState.totalMaintenanceCosts.toLocaleString()} | Storage: ${pState.totalStorageCosts.toLocaleString()} | Marketing: ${totalMarketingCosts.toLocaleString()} | Warranty Reserve: ${totalWarrantyReserveCost.toLocaleString()}`;
+    const costSummary = `Wages: ${actualWagesPaid.toLocaleString()} | Lease: ${pState.totalLeaseCosts.toLocaleString()} | Maintenance: ${pState.totalMaintenanceCosts.toLocaleString()} | Storage: ${pState.totalStorageCosts.toLocaleString()} | Marketing: ${totalMarketingCosts.toLocaleString()} | Warranty Reserve: ${totalWarrantyReserveCost.toLocaleString()}`;
     
     let modelLines = '';
     for (const [mId, mt] of pState.modelTracking) {
@@ -1953,7 +1963,7 @@ export class ManufacturingController {
       planned_units: pState.totalPlannedUnits, units_produced: pState.totalUnitsProduced, defective_units: pState.totalDefectiveUnits,
       units_sold: totalUnitsSold, units_unsold: Math.max(0, pState.totalUnitsProduced - totalUnitsSold),
       gross_revenue: totalGrossRevenue, sales_revenue: totalGrossRevenue, net_profit: netProfit, ending_cash: pState.runningCash,
-      production_costs: pState.totalProductionCosts, staff_wages: pState.totalStaffWages, factory_lease_costs: pState.totalLeaseCosts,
+      production_costs: pState.totalProductionCosts, staff_wages: actualWagesPaid, factory_lease_costs: pState.totalLeaseCosts,
       factory_maintenance_costs: pState.totalMaintenanceCosts, inventory_storage_costs: pState.totalStorageCosts, marketing_costs: totalMarketingCosts,
       summary: `Production: ${pState.totalUnitsProduced.toLocaleString()} units (${pState.totalDefectiveUnits.toLocaleString()} defects).\nSales: ${totalUnitsSold.toLocaleString()} units.\n\nFinancials:\nGross Revenue: ${totalGrossRevenue.toLocaleString()}\nNet Profit: ${netProfit.toLocaleString()}\n\nOverheads:\n${costSummary}\n\nVehicle Breakdown:${modelLines}`
     };
