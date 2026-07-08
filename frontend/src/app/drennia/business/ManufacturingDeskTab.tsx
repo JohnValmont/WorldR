@@ -719,7 +719,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const handleProcessAdmin = async () => {
     try {
       const res = await manufacturingApi.processArcAdmin(company.id);
-      showNotif(`Month processed: Net ${fm(res.data.netProfit)}`, true);
+      const msg = res.data?.data?.message || res.data?.message || `Processed ${res.data?.data?.processedCompanies ?? ''} companies`;
+      showNotif(`Month processed: ${msg}`, true);
       onRefresh();
     } catch (err: any) {
       showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to process month.', false);
@@ -2116,9 +2117,9 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                   {Object.entries((bootstrapData?.engineeringProgrammes || {}) as Record<string, any>).map(([id, prog]) => {
                     const activeProg = research.find((r: any) => r.programme_id === id);
-                    const isCompleted = activeProg?.status === 'completed';
-                    const inProgress = activeProg?.status === 'in_progress' || activeProg?.status === 'validation';
-                    const prereqCompleted = !prog.prereq || research.some((r: any) => r.programme_id === prog.prereq && r.status === 'completed');
+                    const isCompleted = activeProg?.status === 'approved';
+                    const inProgress = activeProg?.status === 'engineering' || activeProg?.status === 'validation';
+                    const prereqCompleted = !prog.prereq || research.some((r: any) => r.programme_id === prog.prereq && r.status === 'approved');
                     const isLocked = !prereqCompleted;
 
                     return (
@@ -2150,7 +2151,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         )}
                         {inProgress && (
                           <div style={{ fontSize: '11px', color: T.faint, textAlign: 'center', marginTop: '8px' }}>
-                            Started Month {activeProg.started_at_world_month}. Review in {activeProg.estimated_completion_arc} Month(s).
+                            Started Month {activeProg.started_arc}, Year {activeProg.started_month_year}. Validation: M{activeProg.validation_arc} Y{activeProg.validation_month_year}. Approved: M{activeProg.completion_arc} Y{activeProg.completion_month_year}.
                           </div>
                         )}
                       </div>
@@ -2409,8 +2410,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   const defectRate = planQuality === 'Premium' ? 0.01 : planQuality === 'Budget' ? 0.05 : 0.03;
 
                   // Production bonuses from research
-                  const hasAssemblyTime = research.some((r: any) => r.programme_id === 'assembly-time' && r.status === 'completed');
-                  const hasSpc = research.some((r: any) => r.programme_id === 'spc' && r.status === 'completed');
+                  const hasAssemblyTime = research.some((r: any) => r.programme_id === 'assembly-time' && r.status === 'approved');
+                  const hasSpc = research.some((r: any) => r.programme_id === 'spc' && r.status === 'approved');
 
                   // Live estimate calculations
                   const staffingRatio = Math.min(1, totalWorkers / (factory.worker_requirement || 30));

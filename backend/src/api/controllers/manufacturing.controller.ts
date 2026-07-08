@@ -947,7 +947,7 @@ export class ManufacturingController {
             updated_at: trx.fn.now()
           });
         } else {
-          await trx('company_staff').insert({ company_id: companyId, role, quantity });
+          await trx('company_staff').insert({ world_instance_id: company.world_instance_id, company_id: companyId, role, quantity });
         }
 
         await trx('company_records').insert({
@@ -1412,8 +1412,8 @@ export class ManufacturingController {
     }
 
     if (activeProgramme) {
-      const isAtLeastValidation = currentYear > activeProgramme.validation_month_year || (currentYear === activeProgramme.validation_month_year && currentMonth >= activeProgramme.validation_month_year);
-      const isAtLeastCompletion = currentYear > activeProgramme.completion_month_year || (currentYear === activeProgramme.completion_month_year && currentMonth >= activeProgramme.completion_month_year);
+      const isAtLeastValidation = currentYear > activeProgramme.validation_month_year || (currentYear === activeProgramme.validation_month_year && currentMonth >= activeProgramme.validation_arc);
+      const isAtLeastCompletion = currentYear > activeProgramme.completion_month_year || (currentYear === activeProgramme.completion_month_year && currentMonth >= activeProgramme.completion_arc);
       const progName = ENGINEERING_PROGRAMMES_CATALOG[activeProgramme.programme_id]?.name || activeProgramme.programme_id;
 
       if (isAtLeastCompletion) {
@@ -1552,7 +1552,7 @@ export class ManufacturingController {
 
         const existingInventory = await trx('manufacturing_inventory').where({ company_id: companyId, vehicle_model_id: line.model_id_ref }).first();
         const inventoryValue     = sellableUnits * costPerUnit;
-        const storageCostPerArc  = Math.round(sellableUnits * 150);
+        const storageCostPerArc  = Math.round(sellableUnits * storageCostPerUnit);
 
         if (existingInventory) {
           await trx('manufacturing_inventory').where({ id: existingInventory.id }).update({ units_in_stock: Number(existingInventory.units_in_stock) + sellableUnits, inventory_value: Number(existingInventory.inventory_value) + inventoryValue, storage_cost_per_month: Number(existingInventory.storage_cost_per_month) + storageCostPerArc, updated_at: trx.fn.now() });
@@ -1705,12 +1705,11 @@ export class ManufacturingController {
         const remainingAllocated = Number(alloc.units_allocated) - unitsSold;
         await trx('manufacturing_market_allocations').where({ id: alloc.id }).update({ units_allocated: remainingAllocated, updated_at: trx.fn.now() });
 
-        const invRecord = await trx('manufacturing_inventory').where({ company_id: companyId, vehicle_model_id: alloc.vehicle_model_id }).first();
         if (invRecord) {
           const newStock = Math.max(0, actualStock - unitsSold);
           const costPerUnit = Number(alloc.manufacturing_cost_per_unit);
           await trx('manufacturing_inventory').where({ id: invRecord.id }).update({
-            units_in_stock: newStock, inventory_value: Math.max(0, newStock * costPerUnit), storage_cost_per_month: newStock * 150, updated_at: trx.fn.now()
+            units_in_stock: newStock, inventory_value: Math.max(0, newStock * costPerUnit), storage_cost_per_month: newStock * storageCostPerUnit, updated_at: trx.fn.now()
           });
         }
       }
@@ -2510,13 +2509,11 @@ export class ManufacturingController {
         let completionMonthTotal = startMonth + durationArcs;
         let validationMonthTotal = completionMonthTotal - 1;
 
-        let compYear = startYear + Math.floor(completionMonthTotal / 36);
-        let compMonth = completionMonthTotal % 36;
-        if (compMonth === 0) { compMonth = 36; compYear -= 1; }
+        let compYear = startYear + Math.floor((completionMonthTotal - 1) / 12);
+        let compMonth = ((completionMonthTotal - 1) % 12) + 1;
 
-        let valYear = startYear + Math.floor(validationMonthTotal / 36);
-        let valMonth = validationMonthTotal % 36;
-        if (valMonth === 0) { valMonth = 36; valYear -= 1; }
+        let valYear = startYear + Math.floor((validationMonthTotal - 1) / 12);
+        let valMonth = ((validationMonthTotal - 1) % 12) + 1;
 
         // Deduct budget
         const [updatedFinances] = await trx('company_finances')
@@ -2621,11 +2618,10 @@ export class ManufacturingController {
         const startYear = clock?.current_year || 1;
         const startMonth   = clock?.current_month   || 1;
 
-        // Calculate completion month (2 months from now, wrapping year at 36)
+        // Calculate completion month (EXPANSION_DURATION_ARCS months from now, wrapping year at 12)
         const rawCompletionMonth = startMonth + EXPANSION_DURATION_ARCS;
-        let compYear = startYear + Math.floor(rawCompletionMonth / 36);
-        let compMonth   = rawCompletionMonth % 36;
-        if (compMonth === 0) { compMonth = 36; compYear -= 1; }
+        let compYear = startYear + Math.floor((rawCompletionMonth - 1) / 12);
+        let compMonth   = ((rawCompletionMonth - 1) % 12) + 1;
 
         // Day factory as under construction
         await trx('manufacturing_factories').where({ id: factoryId }).update({
