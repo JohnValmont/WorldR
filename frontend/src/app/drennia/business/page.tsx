@@ -185,7 +185,7 @@ const SUB_TABS: { id: SubTab; label: string; requiresCompany?: boolean }[] = [
 
 // ─── SECTORS ─────────────────────────────────────────────────────────────────
 const SECTORS = [
-  { id: 'Shipping & Logistics', desc: 'Freight, transport, port handling, and supply chain operations.', available: true },
+  { id: 'Shipping & Logistics', desc: 'Freight, transport, port handling, and supply chain operations.', available: false, note: 'License Cap Reached' },
   { id: 'Manufacturing',        desc: 'Production, parts, assembly, and industrial output.',              available: true },
   { id: 'Retail & Consumer',    desc: 'Consumer goods, storefronts, and distribution.',                   available: false, note: 'Later' },
   { id: 'Agriculture & Food',   desc: 'Farming, processing, and food supply chains.',                     available: false, note: 'Later' },
