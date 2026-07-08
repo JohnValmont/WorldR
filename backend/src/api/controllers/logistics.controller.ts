@@ -347,29 +347,39 @@ export class LogisticsController {
             .update({ condition: newCondition, updated_at: trx.fn.now() });
         }
 
+        // Calculate payroll based on wage policy
+        const staffRows = await trx('company_staff').where({ company_id: companyId });
         const STAFF_WAGES: Record<string, number> = {
           'Driver': 18000,
           'Dispatcher': 28000,
+          'Mechanic': 30000,
+          'Manager': 35000,
+          'Accountant': 25000,
           'Mechanic Crew': 30000,
           'Warehouse Worker': 22000,
           'Admin Clerk': 20000
         };
-
-        const staffList = await trx('company_staff').where({ company_id: companyId });
+        const wagePolicyMultiplier = 
+          finances.wage_policy === 'Low' ? 0.8 :
+          finances.wage_policy === 'Generous' ? 1.2 :
+          finances.wage_policy === 'Premium' ? 1.45 : 1.0;
         let totalPayroll = 0;
-        for (const staff of staffList) {
-          const wage = STAFF_WAGES[staff.role] || 20000;
-          totalPayroll += (wage * staff.quantity) * wageMultiplier;
+        for (const s of staffRows) {
+          const wage = STAFF_WAGES[s.role] || 20000;
+          totalPayroll += s.quantity * wage * wagePolicyMultiplier;
         }
-        totalPayroll = Math.floor(totalPayroll);
+        totalPayroll = Math.round(totalPayroll);
 
         const netProfit = totalRevenue - totalMaintenance - totalPayroll;
         const newCash = Number(finances.available_cash) + netProfit;
+        const currentCompanyValue = Number(finances.company_value) || 0;
+        const newCompanyValue = Math.max(0, currentCompanyValue - totalDepreciation + netProfit);
 
         const [updatedFinances] = await trx('company_finances')
           .where({ company_id: companyId })
           .update({
             available_cash: newCash,
+            company_value: newCompanyValue,
             last_arc_profit: netProfit,
             updated_at: trx.fn.now()
           })
@@ -385,8 +395,8 @@ export class LogisticsController {
         }
 
         const clock = await trx('world_clock').first();
+        // Track running balance for ledger entries
         let runningBalance = Number(finances.available_cash);
-        
         if (totalRevenue > 0) {
           runningBalance += totalRevenue;
           await trx('company_ledger').insert({
@@ -423,7 +433,7 @@ export class LogisticsController {
             game_month: clock?.current_month || 1,
             game_day: clock?.current_day || 1,
             entry_type: 'Payroll',
-            description: `Staff Payroll (Policy: ${wagePolicy})`,
+            description: `Staff Payroll (Policy: ${finances.wage_policy})`,
             amount: -totalPayroll,
             balance_after: runningBalance
           });
