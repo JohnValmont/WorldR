@@ -28,6 +28,16 @@ async function startServer() {
       logger.info('Database connection established successfully.');
       await runMigrationsAndSeeds();
 
+      // Ensure unique_character_per_user_world is a partial index, fixing production DB
+      try { await db.raw('ALTER TABLE "characters" DROP CONSTRAINT IF EXISTS "unique_character_per_user_world" CASCADE'); } catch(e) {}
+      try { await db.raw('DROP INDEX IF EXISTS "unique_character_per_user_world"'); } catch(e) {}
+      try { 
+        await db.raw('CREATE UNIQUE INDEX "unique_character_per_user_world" ON "characters" ("user_id", "world_instance_id") WHERE "status" != \'deleted\''); 
+        logger.info('Manually ensured unique_character_per_user_world is a partial index on boot.');
+      } catch (patchErr) {
+        logger.error('Failed to patch character index on boot:', patchErr);
+      }
+
       // Start the world tick scheduler once the DB is ready
       startWorldTickScheduler();
       logger.info('World tick scheduler started (clock checked every 5s).');
