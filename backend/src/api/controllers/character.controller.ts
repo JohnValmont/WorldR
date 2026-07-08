@@ -85,6 +85,11 @@ export class CharacterController {
         return next(new AppError('World clock not active', 500, 'INTERNAL_ERROR'));
       }
 
+      // Workaround for production DB where the unique index might not yet be partial
+      await db('characters')
+        .where({ user_id: userId, world_instance_id: 'pre-alpha-world-1', status: 'deleted' })
+        .update({ world_instance_id: db.raw("? || '-' || id", ['deleted']) });
+
       const result = await db.transaction(async (trx) => {
         const [character] = await trx('characters').insert({
           world_instance_id: 'pre-alpha-world-1',
