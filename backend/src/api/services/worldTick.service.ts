@@ -20,8 +20,26 @@ export interface WorldTickResult {
   nextTickAt?: string | null;
 }
 
-// In-process re-entrancy guard (row lock below guards across processes)
-let inFlight = false;
+// In-process re-entrancy guard (the world_clock row lock below guards across
+// processes). Stored as a timestamp — NOT a bare boolean — so a tick that dies
+// mid-run (e.g. the DB connection is severed after a gateway/client abort on a
+// long month) can never wedge the world forever. If a lock is older than
+// TICK_LOCK_TIMEOUT_MS we treat the previous run as dead and reclaim it.
+let inFlightSince: number | null = null;
+
+// Backstop: how long a held lock may live before we assume the holder crashed
+// and reclaim it. Generous, because the per-statement timeout below will
+// normally release a hung tick far sooner via the `finally` block.
+const TICK_LOCK_TIMEOUT_MS = 300_000; // 5 minutes
+
+// Hard per-statement timeout inside the tick transaction. Guarantees that no
+// single query can hang indefinitely: if one does, Postgres aborts it, the
+// transaction throws, and the `finally` releases the lock. A healthy month
+// processes in well under a second per statement, so this never fires normally.
+const TICK_STATEMENT_TIMEOUT_MS = 60_000; // 60 seconds
+
+// Human-readable step of the current tick, exposed on skip responses for
+// diagnostics (e.g. "Processing country: drennia - Step 3: Produce").
 (global as any).tickProgress = 'Not started';
 
 /**
@@ -38,11 +56,29 @@ let inFlight = false;
  *  4. Advance current_month / current_year and reschedule next_arc_close_at.
  */
 export async function runWorldTick(opts: { force?: boolean } = {}): Promise<WorldTickResult> {
-  if (inFlight) return { status: 'skipped', reason: 'tick_in_progress', step: (global as any).tickProgress } as any;
-  inFlight = true;
+  if (inFlightSince !== null) {
+    const heldFor = Date.now() - inFlightSince;
+    if (heldFor < TICK_LOCK_TIMEOUT_MS) {
+      // A tick is genuinely still running — refuse to double-process, but
+      // surface the current step so admins can see where it is.
+      return {
+        status: 'skipped',
+        reason: 'tick_in_progress',
+        step: (global as any).tickProgress,
+      } as any;
+    }
+    // Lock is stale: the previous tick almost certainly died without releasing
+    // it. Reclaim it so the world can advance again. (The world_clock row lock
+    // below still guarantees correctness if the old run were somehow alive.)
+    logger.warn(`[world-tick] Reclaiming stale tick lock held for ${Math.round(heldFor / 1000)}s`);
+  }
+  inFlightSince = Date.now();
   (global as any).tickProgress = 'Starting transaction...';
   try {
     return await db.transaction(async (trx) => {
+      // Guarantee no single query can hang the tick indefinitely.
+      await trx.raw(`SET LOCAL statement_timeout = ${TICK_STATEMENT_TIMEOUT_MS}`);
+
       const clock = await trx('world_clock')
         .where({ world_instance_id: WORLD_INSTANCE_ID })
         .forUpdate()
@@ -131,7 +167,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       } as WorldTickResult;
     });
   } finally {
-    inFlight = false;
+    inFlightSince = null;
   }
 }
 
