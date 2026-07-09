@@ -301,15 +301,18 @@ export interface ChatMessage {
   id: number;
   character_id: string;
   character_name: string;
+  target_character_id?: string;
+  target_character_name?: string;
+  channel: string;
   body: string;
   created_at: string;
 }
 
 export const chatApi = {
-  getMessages: (after?: number): Promise<{ messages: ChatMessage[] }> =>
-    api.get(`/chat/messages${after ? `?after=${after}` : ''}`).then(res => res.data),
-  sendMessage: (body: string): Promise<{ message: ChatMessage }> =>
-    api.post('/chat/messages', { body }).then(res => res.data)
+  getMessages: (channel: string = 'world', after?: number): Promise<{ messages: ChatMessage[] }> =>
+    api.get(`/chat/messages?channel=${channel}${after ? `&after=${after}` : ''}`).then(res => res.data),
+  sendMessage: (body: string, channel: string = 'world', target_character_id?: string): Promise<{ message: ChatMessage }> =>
+    api.post('/chat/messages', { body, channel, target_character_id }).then(res => res.data)
 };
 
 // World — public world feed
