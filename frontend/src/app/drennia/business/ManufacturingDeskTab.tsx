@@ -906,7 +906,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     <RechartsTooltip
                       contentStyle={{ backgroundColor: '#0c0d13', borderColor: '#23232b', fontSize: '12px', fontFamily: 'monospace' }}
                       itemStyle={{ color: '#fffff0' }}
-                      formatter={(val: number) => fm(val)}
+                      formatter={(val: any) => fm(Number(val) || 0)}
                     />
                     <Bar dataKey="revenue" fill="#30d158" radius={[2,2,0,0]} name="Revenue" />
                     <Bar dataKey="expenses" fill="#ff453a" radius={[2,2,0,0]} name="Expenses" />

@@ -104,6 +104,14 @@ export class CompanyController {
         return next(new AppError('Starting capital must be zero or a positive number', 400, 'BAD_REQUEST'));
       }
 
+      if (industry_id === 'manufacturing' && Number(starting_capital) < 500000) {
+        return next(new AppError('Manufacturing companies require a minimum of §500,000 in starting capital', 400, 'BAD_REQUEST'));
+      }
+
+      if (industry_id === 'shipping-logistics' && Number(starting_capital) < 50000) {
+        return next(new AppError('Logistics companies require a minimum of §50,000 in starting capital', 400, 'BAD_REQUEST'));
+      }
+
       // Check unique name constraint
       const existingName = await db('companies')
         .where({ world_instance_id: 'pre-alpha-world-1', country_id })

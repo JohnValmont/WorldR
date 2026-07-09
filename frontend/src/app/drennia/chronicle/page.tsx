@@ -156,7 +156,7 @@ export default function ChroniclePage() {
     try {
       const { characterApi, authApi } = await import('../../../lib/api');
       await characterApi.deleteMe();
-      await authApi.logout();
+      await authApi.logout(localStorage.getItem('worldr_refresh_token') || '');
     } catch (e) {
       console.warn('Failed to delete character', e);
     }

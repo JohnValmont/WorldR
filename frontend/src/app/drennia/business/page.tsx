@@ -229,7 +229,7 @@ export default function BusinessPage() {
   const [nameError, setNameError] = useState('');
   const [startError, setStartError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [chosenCapital, setChosenCapital] = useState(50000);
+  const [chosenCapital, setChosenCapital] = useState(500000);
   const [selectedStructure, setSelectedStructure] = useState('sole-trader');
   const [selectedModel, setSelectedModel] = useState<string>('');
 
@@ -967,18 +967,19 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-5 mb-6">
             <SectionHeader>Starting Capital</SectionHeader>
             <p className="text-xs text-zinc-500 leading-relaxed mb-4">
-              Minimum: <strong className="text-terminal-amber">$50,000</strong>. No maximum — invest as much as your Cash in Hand allows, minus the filing fee ({getLegalStructureName(selectedStructure)} fee: <strong className="text-terminal-red">{formatMoney(FILING_FEE)}</strong>).
+              Minimum: <strong className="text-terminal-amber">{formatMoney(selectedSector === 'Manufacturing' ? 500000 : 50000)}</strong>. No maximum — invest as much as your Cash in Hand allows, minus the filing fee ({getLegalStructureName(selectedStructure)} fee: <strong className="text-terminal-red">{formatMoney(FILING_FEE)}</strong>).
             </p>
             <div className="mb-4">
               <Label>Company Starting Capital ($)</Label>
               <input
                 type="number"
-                min={50000}
+                min={selectedSector === 'Manufacturing' ? 500000 : 50000}
                 step={10000}
                 value={chosenCapital}
                 onChange={e => {
-                  const v = parseInt(e.target.value) || 50000;
-                  setChosenCapital(Math.max(50000, v));
+                  const minCap = selectedSector === 'Manufacturing' ? 500000 : 50000;
+                  const v = parseInt(e.target.value) || minCap;
+                  setChosenCapital(Math.max(minCap, v));
                 }}
                 className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-4 py-3 text-base font-mono font-bold text-terminal-green outline-none box-border focus:border-terminal-amber/60 transition-colors"
               />
@@ -1001,7 +1002,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           </div>
           <div className="flex gap-2.5">
             <GhostButton onClick={() => setStep(4)}>← Back</GhostButton>
-            <GoldButton onClick={() => setStep(6)} disabled={!canAfford || chosenCapital < 50000}>Next: Operating Model →</GoldButton>
+            <GoldButton onClick={() => setStep(6)} disabled={!canAfford || chosenCapital < (selectedSector === 'Manufacturing' ? 500000 : 50000)}>Next: Operating Model →</GoldButton>
           </div>
         </div>
       )}
