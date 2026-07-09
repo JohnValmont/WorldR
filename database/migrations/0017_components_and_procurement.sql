@@ -15,12 +15,12 @@ ALTER TABLE manufacturing_component_catalogue ENABLE ROW LEVEL SECURITY;
 
 -- Insert the base generic components required for an automobile
 INSERT INTO manufacturing_component_catalogue (id, name, category, base_cost) VALUES
-('comp_engine', 'Engine Assembly', 'powertrain', 3500.00),
-('comp_transmission', 'Transmission', 'powertrain', 1800.00),
-('comp_tyres', 'Tyres (Set of 4)', 'chassis', 400.00),
-('comp_steel', 'Steel Chassis & Body', 'materials', 2000.00),
-('comp_glass', 'Automotive Glass', 'materials', 500.00),
-('comp_electronics', 'Electronic Control Units', 'electronics', 1200.00)
+('comp_engine', 'Engine Assembly', 'powertrain', 35.00),
+('comp_transmission', 'Transmission', 'powertrain', 18.00),
+('comp_tyres', 'Tyres (Set of 4)', 'chassis', 4.00),
+('comp_steel', 'Steel Chassis & Body', 'materials', 20.00),
+('comp_glass', 'Automotive Glass', 'materials', 5.00),
+('comp_electronics', 'Electronic Control Units', 'electronics', 12.00)
 ON CONFLICT (id) DO NOTHING;
 
 -- 2. MANUFACTURING COMPONENT INVENTORY

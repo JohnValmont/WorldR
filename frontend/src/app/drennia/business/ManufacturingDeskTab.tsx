@@ -2455,7 +2455,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   const estDefects = Math.floor(estUnitsProd * defectRate);
                   const estInventoryAdded = estUnitsProd - estDefects;
 
-                  const BOM_COST = 9400;
+                  const BOM_COST = 94;
                   const totalModelCost = editModel ? Math.round(editModel.manufacturing_cost_per_unit * costMult) : 0;
                   const assemblyCost = Math.max(0, totalModelCost - BOM_COST);
 

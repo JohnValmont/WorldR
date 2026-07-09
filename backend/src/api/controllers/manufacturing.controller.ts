@@ -1472,7 +1472,7 @@ export class ManufacturingController {
     };
     
     const BOM = { engine: 1, transmission: 1, tyres: 4, steel: 1, glass: 1, electronics: 1 };
-    const BOM_COST = 3500 + 1800 + (400) + 2000 + 500 + 1200;
+    const BOM_COST = 35 + 18 + (4) + 20 + 5 + 12;
 
     for (const factory of factories) {
       const factoryType = await trx('manufacturing_factory_types').where({ id: factory.factory_type_id }).first();
