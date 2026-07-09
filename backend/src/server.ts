@@ -4,6 +4,7 @@ import { checkDatabaseConnection, db, runMigrationsAndSeeds } from './config/dat
 import { env } from './config/env';
 import { logger } from './utils/logger';
 import { startWorldTickScheduler } from './api/services/worldTick.service';
+import { ManufacturingController } from './api/controllers/manufacturing.controller';
 
 const server = http.createServer(app);
 
@@ -50,6 +51,16 @@ async function startServer() {
         });
         logger.info('Patched falsy Year 1 vehicles back to Year 0.');
       } catch (patchErr) { }
+
+      try {
+        const clock = await db('world_clock').first();
+        if (clock) {
+          const fixedCount = await ManufacturingController.forceUnstuckAllVehicles(db, clock);
+          if (fixedCount > 0) logger.info(`Forced unstuck ${fixedCount} overdue vehicles.`);
+        }
+      } catch (e) {
+        logger.error('Failed to force unstuck vehicles:', e);
+      }
 
       // Start the world tick scheduler once the DB is ready
       startWorldTickScheduler();
