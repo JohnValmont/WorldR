@@ -325,6 +325,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const [deskTab, setDeskTab] = useState<MfgTab>('overview');
   const [notification, setNotification] = useState<{ msg: string; success: boolean } | null>(null);
   const [bootstrapData, setBootstrapData] = useState<any>(null);
+  const [staffQuantities, setStaffQuantities] = useState<Record<string, string>>({});
 
   // Design form state
   const [modelName, setModelName] = useState('');
@@ -638,9 +639,12 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
   const handleHireFire = async (role: string, action: 'hire' | 'fire') => {
     try {
-      if (action === 'hire') await manufacturingApi.hireStaff(company.id, role);
-      else await manufacturingApi.fireStaff(company.id, role);
-      showNotif(action === 'hire' ? 'Staff hired.' : 'Staff removed.', true);
+      const qtyStr = staffQuantities[role] || "1";
+      const quantity = Math.max(1, parseInt(qtyStr) || 1);
+      
+      if (action === 'hire') await manufacturingApi.hireStaff(company.id, role, quantity);
+      else await manufacturingApi.fireStaff(company.id, role, quantity);
+      showNotif(action === 'hire' ? `Hired ${quantity} staff.` : `Removed ${quantity} staff.`, true);
       onRefresh();
     } catch (err: any) {
       showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Action failed.', false);
@@ -3055,8 +3059,16 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                       <div className="text-xl font-bold font-mono text-terminal-amber">{employed}</div>
                     </div>
                     <div className="flex flex-col gap-1.5 w-[110px]">
-                      <GhostButton color="#30d158" onClick={() => handleHireFire(roleDef.id, 'hire')} className="w-full justify-center">+ Hire 1</GhostButton>
-                      <GhostButton color="#ff453a" disabled={employed === 0} onClick={() => handleHireFire(roleDef.id, 'fire')} className="w-full justify-center">- Dismiss 1</GhostButton>
+                      <input
+                        type="number"
+                        min="1"
+                        value={staffQuantities[roleDef.id] || "1"}
+                        onChange={(e) => setStaffQuantities({ ...staffQuantities, [roleDef.id]: e.target.value })}
+                        className="bg-zinc-900 border border-zinc-700 rounded text-center text-xs py-1 text-zinc-300 w-full"
+                        placeholder="Qty"
+                      />
+                      <GhostButton color="#30d158" onClick={() => handleHireFire(roleDef.id, 'hire')} className="w-full justify-center">+ Hire</GhostButton>
+                      <GhostButton color="#ff453a" disabled={employed === 0} onClick={() => handleHireFire(roleDef.id, 'fire')} className="w-full justify-center">- Dismiss</GhostButton>
                     </div>
                   </div>
                 </PanelBox>

@@ -952,7 +952,7 @@ export class ManufacturingController {
             updated_at: trx.fn.now()
           });
         } else {
-          await trx('company_staff').insert({ world_instance_id: company.world_instance_id, company_id: companyId, role, quantity });
+          await trx('company_staff').insert({ company_id: companyId, role, quantity });
         }
 
         await trx('company_records').insert({

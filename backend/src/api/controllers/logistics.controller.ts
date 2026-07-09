@@ -61,11 +61,13 @@ export class LogisticsController {
     try {
       const userId = req.user?.id;
       const { companyId } = req.params;
-      const { role } = req.body;
+      const { role, quantity: rawQty } = req.body;
 
       const VALID_ROLES = ['Driver', 'Dispatcher', 'Mechanic', 'Manager', 'Accountant', 'Mechanic Crew', 'Warehouse Worker', 'Admin Clerk'];
       if (!userId || !companyId || !role) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
       if (!VALID_ROLES.includes(role)) return next(new AppError(`Invalid role. Must be one of: ${VALID_ROLES.join(', ')}`, 400, 'BAD_REQUEST'));
+
+      const quantity = Math.max(1, Math.floor(Number(rawQty ?? 1)));
 
       await db.transaction(async (trx) => {
         const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
@@ -76,10 +78,9 @@ export class LogisticsController {
 
         const existing = await trx('company_staff').where({ company_id: companyId, role }).forUpdate().first();
         if (existing) {
-          // Merge into one statement so the increment and timestamp are a single atomic SQL UPDATE
-          await trx('company_staff').where({ id: existing.id }).increment('quantity', 1).update({ updated_at: trx.fn.now() });
+          await trx('company_staff').where({ id: existing.id }).increment('quantity', quantity).update({ updated_at: trx.fn.now() });
         } else {
-          await trx('company_staff').insert({ company_id: companyId, role, quantity: 1 });
+          await trx('company_staff').insert({ company_id: companyId, role, quantity });
         }
       });
 
@@ -93,9 +94,10 @@ export class LogisticsController {
     try {
       const userId = req.user?.id;
       const { companyId } = req.params;
-      const { role } = req.body;
+      const { role, quantity: rawQty } = req.body;
 
       if (!userId || !companyId || !role) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+      const quantity = Math.max(1, Math.floor(Number(rawQty ?? 1)));
 
       await db.transaction(async (trx) => {
         const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
@@ -109,8 +111,8 @@ export class LogisticsController {
           throw new AppError('No staff in this role to dismiss', 400, 'BAD_REQUEST');
         }
 
-        // Single atomic statement — mirrors the hireStaff pattern
-        await trx('company_staff').where({ id: existing.id }).decrement('quantity', 1).update({ updated_at: trx.fn.now() });
+        const dismissed = Math.min(quantity, existing.quantity);
+        await trx('company_staff').where({ id: existing.id }).update({ quantity: Math.max(0, existing.quantity - dismissed), updated_at: trx.fn.now() });
       });
 
       res.status(200).json({ success: true });
