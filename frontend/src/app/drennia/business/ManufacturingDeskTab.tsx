@@ -2542,6 +2542,17 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                   <strong className="text-terminal-red text-[13px] font-mono">{fm(estTotalCost)}</strong>
                                   <span className="text-zinc-600 ml-1.5">(excl. parts)</span>
                                 </div>
+                                <div className="col-span-4 mt-2 border-t border-zinc-800 pt-3">
+                                  <div className="text-zinc-500 mb-2 text-xs">Components Required (for {estUnitsRaw} units target):</div>
+                                  <div className="flex flex-wrap gap-2 text-[10px]">
+                                    <Badge variant={getInv('comp_engine') < estUnitsRaw ? 'red' : 'green'}>{estUnitsRaw} Engine</Badge>
+                                    <Badge variant={getInv('comp_transmission') < estUnitsRaw ? 'red' : 'green'}>{estUnitsRaw} Transmission</Badge>
+                                    <Badge variant={getInv('comp_tyres') < (estUnitsRaw * 4) ? 'red' : 'green'}>{estUnitsRaw * 4} Tyres</Badge>
+                                    <Badge variant={getInv('comp_steel') < estUnitsRaw ? 'red' : 'green'}>{estUnitsRaw} Steel</Badge>
+                                    <Badge variant={getInv('comp_glass') < estUnitsRaw ? 'red' : 'green'}>{estUnitsRaw} Glass</Badge>
+                                    <Badge variant={getInv('comp_electronics') < estUnitsRaw ? 'red' : 'green'}>{estUnitsRaw} Electronics</Badge>
+                                  </div>
+                                </div>
                               </div>
                               <div className="text-[10px] text-zinc-600 mt-3 italic">
                                 Note: Revenue estimates will appear after Market &amp; Sales is built.
