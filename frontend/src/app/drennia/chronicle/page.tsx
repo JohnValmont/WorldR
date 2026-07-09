@@ -445,7 +445,7 @@ export default function ChroniclePage() {
                   {isSuperAdmin ? (
                     <Button href="/drennia/politics" variant="secondary" size="sm">Politics Desk →</Button>
                   ) : (
-                    <Button onClick={() => alert('Political desk will be available on 09 July 2026.')} variant="secondary" size="sm">Politics Desk →</Button>
+                    <Button onClick={() => alert('Political desk will be available on 21 July 2026.')} variant="secondary" size="sm">Politics Desk →</Button>
                   )}
                   {activeContracts > 0 && <Badge variant="amber">{activeContracts} active contracts</Badge>}
                 </div>
@@ -470,7 +470,7 @@ export default function ChroniclePage() {
               </span>
               {[
                 { label: 'Register a company', href: '/drennia/business', done: !!company },
-                { label: 'Join a political party', href: '#', onClick: (e: any) => { e.preventDefault(); alert('Political desk will be available on 09 July 2026.'); }, done: false },
+                { label: 'Join a political party', href: '#', onClick: (e: any) => { e.preventDefault(); alert('Political desk will be available on 21 July 2026.'); }, done: false },
                 { label: 'Check the World Feed', href: '/drennia/world', done: false },
               ].map(item => (
                 <a
@@ -614,7 +614,7 @@ export default function ChroniclePage() {
                   Open Politics Desk
                 </Button>
               ) : (
-                <Button onClick={() => alert('Political desk will be available on 09 July 2026.')} variant="primary" icon={ChevronRight} size="sm">
+                <Button onClick={() => alert('Political desk will be available on 21 July 2026.')} variant="primary" icon={ChevronRight} size="sm">
                   Open Politics Desk
                 </Button>
               )}

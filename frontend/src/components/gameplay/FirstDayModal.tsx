@@ -293,7 +293,7 @@ export default function FirstDayModal({ characterName, citizenFile, onDismiss }:
   };
 
   const goToPolitics = () => {
-    alert('Political desk will be available on 09 July 2026.');
+    alert('Political desk will be available on 21 July 2026.');
   };
 
   const firstName = characterName.split(' ')[0] || characterName;
