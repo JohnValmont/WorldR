@@ -369,15 +369,17 @@ export async function getPriceHistory(companyId: string) {
   const company = await db('companies').where({ id: companyId }).select('id').first();
   if (!company) throw new AppError('Company not found', 404, 'NOT_FOUND');
   
-  // Monthly OHLC-style summary from trades
-  return db('share_trades')
+  // Return pre-aggregated OHLC from share_price_history instead of dynamic aggregation
+  return db('share_price_history')
     .where({ company_id: companyId })
-    .select('game_year', 'game_month')
-    .min('price as low')
-    .max('price as high')
-    .avg('price as avg')
-    .sum('quantity as volume')
-    .groupBy('game_year', 'game_month')
+    .select(
+      'game_year',
+      'game_month',
+      'low_price as low',
+      'high_price as high',
+      'close_price as avg', // Using close_price as a stand-in for avg to match frontend format
+      'volume_shares as volume'
+    )
     .orderBy([{ column: 'game_year', order: 'asc' }, { column: 'game_month', order: 'asc' }]);
 }
 
@@ -392,10 +394,14 @@ export async function getPortfolio(characterId: string) {
   const companyIds = holdings.map(h => h.company_id);
   const latestTrades = new Map<string, any>();
   if (companyIds.length > 0) {
-    const trades = await db('share_trades as t')
-      .whereIn('company_id', companyIds)
-      .select('t.company_id', 't.price', db.raw('ROW_NUMBER() OVER (PARTITION BY company_id ORDER BY executed_at DESC) as rn'))
-      .where(db.raw('ROW_NUMBER() OVER (PARTITION BY company_id ORDER BY executed_at DESC)'), '=', 1);
+    const trades = await db.with('RankedTrades', (qb) => {
+      qb.select('company_id', 'price', db.raw('ROW_NUMBER() OVER (PARTITION BY company_id ORDER BY executed_at DESC) as rn'))
+        .from('share_trades')
+        .whereIn('company_id', companyIds);
+    })
+    .select('*')
+    .from('RankedTrades')
+    .where('rn', 1);
     trades.forEach((trade: any) => latestTrades.set(trade.company_id, trade));
   }
 

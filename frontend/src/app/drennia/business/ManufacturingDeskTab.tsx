@@ -421,7 +421,12 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const statesForCountry: { id: string; name: string }[] = mfgData?.statesForCountry ?? [];
 
   // Currency formatter — uses company's currency symbol, not a hardcoded $
-  const fm = (val: number) => `${currencySymbol}${Math.round(val).toLocaleString('en-US')}`;
+  const fm = (val: any) => {
+    if (val === undefined || val === null) return `${currencySymbol}0`;
+    const num = Number(val);
+    if (isNaN(num)) return `${currencySymbol}0`;
+    return `${currencySymbol}${Math.round(num).toLocaleString('en-US')}`;
+  };
 
   // State resolver — uses statesForCountry from the API, not a hardcoded lookup
   const resolveState = (id?: string) => {
@@ -605,6 +610,21 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   };
 
   const handleSaveProductionPlan = async (lineId: string) => {
+    if (planModelId && planTarget > 0) {
+      const workers = mfgData?.staff?.find((s: any) => s.role === 'factory-worker')?.quantity || 0;
+      if (workers === 0) {
+        showNotif('Warning: You have 0 Factory Workers. Production will fail until you hire workers via the HR tab.', false);
+      } else {
+        const cInv = mfgData?.componentInventory || [];
+        const getInv = (cid: string) => cInv.find((i: any) => i.component_id === cid)?.units_in_stock || 0;
+        const missing = ['comp_engine', 'comp_transmission', 'comp_tyres', 'comp_steel', 'comp_glass', 'comp_electronics'].some(cid => getInv(cid) <= 0);
+        
+        if (missing) {
+          showNotif('Warning: You lack essential components in inventory. Production will fail until you procure them.', false);
+        }
+      }
+    }
+
     try {
       await manufacturingApi.saveProductionPlan(company.id, {
         lineId, modelId: planModelId || null, qualitySetting: planQuality, targetUnitsPerArc: planTarget,
@@ -886,6 +906,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     <RechartsTooltip
                       contentStyle={{ backgroundColor: '#0c0d13', borderColor: '#23232b', fontSize: '12px', fontFamily: 'monospace' }}
                       itemStyle={{ color: '#fffff0' }}
+                      formatter={(val: number) => fm(val)}
                     />
                     <Bar dataKey="revenue" fill="#30d158" radius={[2,2,0,0]} name="Revenue" />
                     <Bar dataKey="expenses" fill="#ff453a" radius={[2,2,0,0]} name="Expenses" />
@@ -908,6 +929,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                 ]}>
                   <PolarGrid stroke="#23232b" />
                   <PolarAngleAxis dataKey="subject" tick={{ fill: '#888888', fontSize: 10 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                   <Radar name="Company" dataKey="A" stroke="#0a84ff" fill="#0a84ff" fillOpacity={0.2} />
                   <RechartsTooltip contentStyle={{ backgroundColor: '#0c0d13', borderColor: '#23232b', fontSize: '10px' }} />
                 </RadarChart>
@@ -1783,7 +1805,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             <FormSelect label="Target Segment" value={dSegment} onChange={setDSegment} options={[{ id: 'budget', label: 'Budget' }, { id: 'family', label: 'Family' }, { id: 'commercial', label: 'Commercial' }, { id: 'premium', label: 'Premium' }]} />
                             <div style={{ marginBottom: '16px' }}>
                               <label style={{ display: 'block', fontSize: '10px', color: T.muted, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sale Price ({currencySymbol})</label>
-                              <input type="number" value={dSalePrice} onChange={e => setDSalePrice(Number(e.target.value))} style={{ width: '100%', boxSizing: 'border-box', padding: '8px', background: '#0e0e0e', border: `1px solid ${T.border}`, color: T.gold, fontSize: '13px', fontFamily: 'monospace' }} />
+                              <input type="number" value={dSalePrice || ''} onChange={e => setDSalePrice(e.target.value ? Number(e.target.value) : 0)} style={{ width: '100%', boxSizing: 'border-box', padding: '8px', background: '#0e0e0e', border: `1px solid ${T.border}`, color: T.gold, fontSize: '13px', fontFamily: 'monospace' }} />
                               <div style={{ fontSize: '10px', color: T.faint, marginTop: '3px' }}>Suggested: {fm(Math.round(liveScore.cost * 1.5))}</div>
                             </div>
                           </div>
@@ -2340,8 +2362,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   <div className="mb-4">
                     <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-[0.1em] mb-1.5">Order Quantity</label>
                     <input
-                      type="number" min="100" step="100" value={procuringComponent.units}
-                      onChange={e => setProcuringComponent({ ...procuringComponent, units: parseInt(e.target.value) || 0 })}
+                      type="number" min="100" step="100" value={procuringComponent.units || ''}
+                      onChange={e => setProcuringComponent({ ...procuringComponent, units: e.target.value ? parseInt(e.target.value) : 0 })}
                       className="w-full rounded-sm border border-zinc-800 bg-zinc-900 px-3 py-2 text-[13px] text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors"
                     />
                   </div>
@@ -2490,8 +2512,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             <div>
                               <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-[0.1em] mb-1.5">Target / Month <span className="text-zinc-600 normal-case">(max 100)</span></label>
                               <input
-                                type="number" min={0} max={100} value={planTarget}
-                                onChange={e => setPlanTarget(Number(e.target.value))}
+                                type="number" min={0} max={100} value={planTarget === 0 ? '' : planTarget}
+                                onChange={e => setPlanTarget(e.target.value ? Number(e.target.value) : 0)}
                                 className="w-full box-border rounded-sm border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-xs text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors"
                               />
                             </div>
@@ -2692,8 +2714,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               <input
                                 type="number"
                                 defaultValue={m.sale_price}
-                                value={priceEdits[m.id] !== undefined ? priceEdits[m.id] : m.sale_price}
-                                onChange={e => setPriceEdits(prev => ({ ...prev, [m.id]: Number(e.target.value) }))}
+                                value={priceEdits[m.id] !== undefined ? (priceEdits[m.id] === 0 ? '' : priceEdits[m.id]) : m.sale_price}
+                                onChange={e => setPriceEdits(prev => ({ ...prev, [m.id]: e.target.value ? Number(e.target.value) : 0 }))}
                                 className="w-[100px] rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs font-mono text-terminal-amber focus:outline-none focus:border-terminal-amber/60 transition-colors"
                               />
                               <GhostButton color="#30d158" disabled={savingPrice === m.id} onClick={() => handleSavePrice(m.id)}>
@@ -2792,8 +2814,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                       <input
                                         type="number"
                                         min="0"
-                                        value={alloc.units}
-                                        onChange={e => setAllocationForm(prev => ({ ...prev, [formKey]: { ...alloc, units: Number(e.target.value) } }))}
+                                        value={alloc.units === 0 ? '' : alloc.units}
+                                        onChange={e => setAllocationForm(prev => ({ ...prev, [formKey]: { ...alloc, units: e.target.value ? Number(e.target.value) : 0 } }))}
                                         className="w-20 rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs font-mono text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors"
                                       />
                                     </div>
@@ -3342,7 +3364,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           <FieldRow label="Planned Units" value={r.planned_units} />
                           <FieldRow label="Actual Units Produced" value={r.units_produced} />
                           <FieldRow label="Defective Units" value={r.defective_units} valueColor={Number(r.defective_units) > 0 ? '#ff453a' : 'rgb(229, 229, 229)'} />
-                          <FieldRow label="Production Efficiency" value={`${r.production_efficiency !== undefined && r.production_efficiency !== null ? Math.round(Number(r.production_efficiency) * 100) : 'N/A'}%`} valueColor={r.production_efficiency !== undefined && Number(r.production_efficiency) >= 1 ? '#30d158' : 'rgb(229, 229, 229)'} />
+                          <FieldRow label="Production Efficiency" value={r.production_efficiency !== undefined && r.production_efficiency !== null ? `${Math.round(Number(r.production_efficiency) * 100)}%` : 'N/A'} valueColor={r.production_efficiency !== undefined && Number(r.production_efficiency) >= 1 ? '#30d158' : 'rgb(229, 229, 229)'} />
                           <FieldRow label="Factory Condition" value={`${r.factory_condition || 100}%`} />
                           <FieldRow label="Factory Workers Required" value={r.factory_workers_required} />
                           <FieldRow label="Factory Workers Available" value={r.factory_workers_available} />

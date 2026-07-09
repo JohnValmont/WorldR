@@ -499,3 +499,9 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
 });
 
 ScrollTrigger.refresh();
+
+/* ---------- Wire up authentication and external links ---------- */
+document.getElementById('btnCreate')?.addEventListener('click', () => { setTimeout(() => window.location.href = '/register', 200); });
+document.getElementById('btnLogin')?.addEventListener('click', () => { setTimeout(() => window.location.href = '/login', 200); });
+document.getElementById('btnDiscord')?.addEventListener('click', () => { setTimeout(() => window.open('https://discord.gg/m76prxKgTe', '_blank'), 200); });
+

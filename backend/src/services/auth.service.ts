@@ -133,14 +133,16 @@ export class AuthService {
 
   public async verifyEmail(email: string, otp: string): Promise<void> {
     // Dev bypass
-    if (otp === 'verify-all' || otp === '000000') {
-      logger.info(`[AuthService] Verification bypass triggered for: ${email || 'all users'}`);
-      if (email) {
-        await db('users').where({ email }).update({ is_verified: true });
-      } else {
-        await db('users').where({ is_verified: false }).update({ is_verified: true });
+    if (env.NODE_ENV !== 'production') {
+      if (otp === 'verify-all' || otp === '000000') {
+        logger.info(`[AuthService] Verification bypass triggered for: ${email || 'all users'}`);
+        if (email) {
+          await db('users').where({ email }).update({ is_verified: true });
+        } else {
+          await db('users').where({ is_verified: false }).update({ is_verified: true });
+        }
+        return;
       }
-      return;
     }
 
     // Find the user by email
@@ -272,6 +274,18 @@ export class AuthService {
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
+
+    // Limit active sessions to prevent storage exhaustion
+    const activeTokens = await db('refresh_tokens')
+      .where({ user_id: user.id })
+      .orderBy('id', 'desc');
+      
+    if (activeTokens.length >= 5) {
+      const tokensToDelete = activeTokens.slice(4).map((t: any) => t.id);
+      await db('refresh_tokens')
+        .whereIn('id', tokensToDelete)
+        .delete();
+    }
 
     await db('refresh_tokens').insert({
       token_hash: tokenHash,

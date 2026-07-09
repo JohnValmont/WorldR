@@ -3,6 +3,34 @@ import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
 
 export class CompanyController {
+  // Helper to synchronize true net worth after capital movements
+  private static async syncNetWorth(trx: any, characterId: number) {
+    const charFinances = await trx('character_finances').where({ character_id: characterId }).first();
+    if (!charFinances) return;
+    
+    let trueNetWorth = Number(charFinances.cash_in_hand);
+    
+    const equityValues = await trx('company_shares as cs')
+      .join('companies as c', 'c.id', 'cs.company_id')
+      .join('company_finances as cf', 'cf.company_id', 'c.id')
+      .where({ 'cs.holder_character_id': characterId, 'c.status': 'active' })
+      .select(
+        'cs.shares',
+        'cf.company_value',
+        trx.raw(`(SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) as total_shares`)
+      );
+
+    for (const row of equityValues) {
+      const total = Number(row.total_shares || 0);
+      if (total > 0) {
+        trueNetWorth += (Number(row.shares) / total) * Number(row.company_value);
+      }
+    }
+    
+    await trx('character_finances')
+      .where({ character_id: characterId })
+      .update({ net_worth: Math.floor(trueNetWorth) });
+  }
   public static async getMyCompanies(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;
@@ -247,6 +275,8 @@ export class CompanyController {
           balance_after: updatedFinances.available_cash,
         });
 
+        await CompanyController.syncNetWorth(trx, character.id);
+
         return {
           available_cash: updatedFinances.available_cash,
           personal_cash_remaining: personalCash - Number(amount),
@@ -308,7 +338,8 @@ export class CompanyController {
         const otherHolders = await trx('company_shares')
           .where({ company_id: company.id })
           .where('shares', '>', 0)
-          .whereNot({ holder_character_id: character.id });
+          .whereNot({ holder_character_id: character.id })
+          .forUpdate();
         if (otherHolders.length > 0) {
           throw new AppError('Cannot arbitrarily issue shares because there are minority shareholders. You must use the Equity Placements system to raise capital fairly without unilateral dilution.', 400, 'EMBEZZLEMENT_PROTECTION');
         }
@@ -316,6 +347,7 @@ export class CompanyController {
         // Upsert cap table row for founder
         const existingRow = await trx('company_shares')
           .where({ company_id: id, holder_character_id: character.id })
+          .forUpdate()
           .first();
 
         const struct = await trx('legal_structures').where({ id: 'private-company' }).first();
@@ -390,6 +422,8 @@ export class CompanyController {
             avg_cost_basis: price,
           });
         }
+
+        await CompanyController.syncNetWorth(trx, character.id);
 
         return {
           available_cash: updatedFinances.available_cash,
@@ -471,6 +505,8 @@ export class CompanyController {
         await trx('character_finances')
           .where({ character_id: character.id })
           .increment('cash_in_hand', Number(amount));
+
+        await CompanyController.syncNetWorth(trx, character.id);
 
         return updatedCompanyFinances;
       });

@@ -1,2 +1,1 @@
-import { db } from './src/config/database';
-db('schema_migrations').select('*').then(console.log).catch(console.error).finally(() => db.destroy());
+import knex from 'knex'; import config from './knexfile'; const db = knex(config.development); async function main() { console.log('Inventory:', await db('manufacturing_inventory').select('*')); console.log('Reports:', await db('manufacturing_arc_reports').orderBy('created_at', 'desc').limit(2)); process.exit(0); } main();

@@ -29,15 +29,21 @@ export default function LoginPage() {
       // Wipe any stale game-state from a previous account on this device.
       // This guards against the case where the user didn't explicitly log out.
       if (typeof window !== 'undefined') {
-        const PRESERVE = new Set(['worldr_world_clock_v1', 'worldr_account_settings']);
-        const toRemove: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith('worldr') && key !== 'worldr-auth' && !PRESERVE.has(key)) {
-            toRemove.push(key);
-          }
-        }
-        toRemove.forEach(k => localStorage.removeItem(k));
+        const STATE_KEYS = [
+          'worldr_citizen_file_v1',
+          'worldr_selected_motherland',
+          'worldr_living_world_entry_v1',
+          'worldr_ledger_v1',
+          'worldr_finance_history_v1',
+          'worldr_companies_v1',
+          'worldr_fleet_v1',
+          'worldr_contracts_v1',
+          'worldr_contract_history_v1',
+          'worldr_business_offers_v1',
+          'worldr_records_v1',
+          'worldr_route_familiarity_v1'
+        ];
+        STATE_KEYS.forEach(k => localStorage.removeItem(k));
       }
 
       setAuth(data.user, data.accessToken, data.refreshToken);

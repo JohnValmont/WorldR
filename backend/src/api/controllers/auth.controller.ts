@@ -34,7 +34,6 @@ export class AuthController {
 
       res.status(200).json({
         accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
         user: {
           ...result.user,
           role,

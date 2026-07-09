@@ -1260,7 +1260,8 @@ function CompanyDeskTab({
   const activeContracts = contracts.filter(c => (c.status === 'awarded' || c.status === 'active') && c.awardedToCompanyId === company.id);
   const completedContracts = contracts.filter(c => c.status === 'completed');
   const contractHistory = getContractHistory(company.id);
-  const records = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
+  let records = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
+  if (!Array.isArray(records)) records = [];
   const routes = getRouteFamiliarity(company.id);
 
   const handleBuyVehicle = async (type: string) => {

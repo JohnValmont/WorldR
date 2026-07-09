@@ -403,6 +403,7 @@ export class ManufacturingController {
         // Add to inventory
         const existingInventory = await trx('manufacturing_component_inventory')
           .where({ company_id: companyId, component_id: component_id })
+          .forUpdate()
           .first();
 
         if (existingInventory) {
@@ -477,6 +478,7 @@ export class ManufacturingController {
         // Check if company already has a factory of this type
         const existingFactory = await trx('manufacturing_factories')
           .where({ company_id: companyId, factory_type_id: factoryTypeId, status: 'active' })
+          .forUpdate()
           .first();
         if (existingFactory) throw new AppError('You already have an active factory of this type', 400, 'DUPLICATE');
 
@@ -889,7 +891,7 @@ export class ManufacturingController {
         }
 
         // Get factory capacity — per-line cap = total factory capacity / max lines (from factory type)
-        const factory = await trx('manufacturing_factories').where({ id: line.factory_id }).first();
+        const factory = await trx('manufacturing_factories').where({ id: line.factory_id }).forUpdate().first();
         if (!factory) throw new AppError('Factory not found', 404, 'NOT_FOUND');
         
         const factoryType = await trx('manufacturing_factory_types').where({ id: factory.factory_type_id }).first();
@@ -945,7 +947,7 @@ export class ManufacturingController {
         const { company } = await verifyManufacturingCompany(trx, userId, companyId);
         const clock = await trx('world_clock').first();
 
-        const existing = await trx('company_staff').where({ company_id: companyId, role }).first();
+        const existing = await trx('company_staff').where({ company_id: companyId, role }).forUpdate().first();
         if (existing) {
           await trx('company_staff').where({ id: existing.id }).update({
             quantity: existing.quantity + quantity,
@@ -989,7 +991,7 @@ export class ManufacturingController {
         const { company } = await verifyManufacturingCompany(trx, userId, companyId);
         const clock = await trx('world_clock').first();
 
-        const existing = await trx('company_staff').where({ company_id: companyId, role }).first();
+        const existing = await trx('company_staff').where({ company_id: companyId, role }).forUpdate().first();
         if (!existing || existing.quantity <= 0) {
           throw new AppError('No staff in this role to dismiss', 400, 'BAD_REQUEST');
         }
@@ -1454,10 +1456,9 @@ export class ManufacturingController {
       if (!modelTracking.has(modelId)) modelTracking.set(modelId, { unitsProduced:0, defectiveUnits:0, productionCost:0, defectLoss:0, unitsSold:0, salesRevenue:0, marketingCost:0, costPerUnit });
       return modelTracking.get(modelId)!;
     };
-
-    const workerCount      = staff.find((s: any) => s.role === 'factory-worker')?.quantity || 0;
-    const supervisorCount  = staff.find((s: any) => s.role === 'production-supervisor')?.quantity || 0;
-    const inspectorCount   = staff.find((s: any) => s.role === 'quality-inspector')?.quantity || 0;
+    let workerCount      = staff.find((s: any) => s.role === 'factory-worker')?.quantity || 0;
+    let supervisorCount  = staff.find((s: any) => s.role === 'production-supervisor')?.quantity || 0;
+    let inspectorCount   = staff.find((s: any) => s.role === 'quality-inspector')?.quantity || 0;
 
     const activeLineCount = productionLines.filter((l: any) => factories.some((f: any) => String(f.id) === String(l.factory_id))).length;
 
@@ -1489,12 +1490,24 @@ export class ManufacturingController {
         const requiredWorkers = targetUnits > 0 ? Math.ceil((targetUnits / factoryCapacityPerArc) * (factoryWorkerCapacity * engProdMods.assemblyHoursModifier)) : 0;
 
         let laborEfficiency: number;
-        if (requiredWorkers === 0) laborEfficiency = 1.0;
-        else if (workerCount === 0) laborEfficiency = 0.0;
-        else laborEfficiency = Math.min(1.0, workerCount / requiredWorkers);
+        let lackedWorkers = false;
+        if (requiredWorkers === 0) {
+          laborEfficiency = 1.0;
+        } else if (workerCount === 0) {
+          laborEfficiency = 0.0;
+          lackedWorkers = true;
+        } else {
+          laborEfficiency = Math.min(1.0, workerCount / requiredWorkers);
+          if (!company.is_npc) {
+            workerCount = Math.max(0, workerCount - requiredWorkers);
+          }
+        }
 
-        const usefulSupervisors = Math.min(supervisorCount, activeLineCount);
-        const supervisorBonus   = usefulSupervisors > 0 ? 0.05 : 0.0;
+        let supervisorBonus = 0.0;
+        if (supervisorCount > 0) {
+          supervisorBonus = 0.05;
+          if (!company.is_npc) supervisorCount -= 1;
+        }
         const conditionFactor = Number(factory.condition) / 100;
         let finalEfficiency = Math.min(1.0, laborEfficiency * conditionFactor * (1 + supervisorBonus));
         if (hasAssemblyTimeStudy) finalEfficiency = Math.min(1.0, finalEfficiency * 1.05);
@@ -1502,13 +1515,14 @@ export class ManufacturingController {
         let unitsProduced: number;
         if (company.is_npc) {
           unitsProduced = targetUnits;
-        } else if (workerCount === 0 && requiredWorkers > 0) {
+        } else if (lackedWorkers) {
           unitsProduced = 0;
         } else {
           unitsProduced = Math.floor(targetUnits * finalEfficiency);
         }
 
         let maxByComponents = 9999999;
+        let lackedComponents = false;
         if (!company.is_npc) {
           maxByComponents = Math.floor(compInventory.engine / BOM.engine);
           maxByComponents = Math.min(maxByComponents, Math.floor(compInventory.transmission / BOM.transmission));
@@ -1516,10 +1530,25 @@ export class ManufacturingController {
           maxByComponents = Math.min(maxByComponents, Math.floor(compInventory.steel / BOM.steel));
           maxByComponents = Math.min(maxByComponents, Math.floor(compInventory.glass / BOM.glass));
           maxByComponents = Math.min(maxByComponents, Math.floor(compInventory.electronics / BOM.electronics));
+          if (maxByComponents <= 0 && targetUnits > 0) lackedComponents = true;
         }
 
         if (unitsProduced > maxByComponents) unitsProduced = maxByComponents;
-        if (unitsProduced <= 0) continue;
+        
+        if (unitsProduced <= 0) {
+          if (!company.is_npc && targetUnits > 0) {
+            let reason = "Unknown reason.";
+            if (lackedWorkers) reason = "Insufficient factory workers assigned to company.";
+            else if (lackedComponents) reason = "Insufficient components in inventory.";
+            
+            await trx('company_records').insert({
+              world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business',
+              summary: `Production halted on line ${line.id}: ${reason}`,
+              created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay
+            });
+          }
+          continue;
+        }
 
         if (!company.is_npc) {
           compInventory.engine -= unitsProduced * BOM.engine;
@@ -1532,8 +1561,15 @@ export class ManufacturingController {
 
         const qualityKey = line.quality_setting || 'Standard';
         const baseDefectRate = QUALITY_DEFECT_RATES[qualityKey as keyof typeof QUALITY_DEFECT_RATES] ?? 0.03;
-        let inspectorReduction = Math.min(inspectorCount * 0.005, baseDefectRate - 0.005);
-        if (hasSPC && inspectorCount > 0) inspectorReduction += 0.005;
+        
+        let effectiveInspectors = Math.min(inspectorCount, Math.floor((baseDefectRate - 0.005) / 0.005));
+        if (effectiveInspectors < 0) effectiveInspectors = 0;
+        let inspectorReduction = effectiveInspectors * 0.005;
+        if (hasSPC && effectiveInspectors > 0) inspectorReduction += 0.005;
+        
+        if (!company.is_npc) {
+           inspectorCount = Math.max(0, inspectorCount - effectiveInspectors);
+        }
 
         const effectiveDefectRate = Math.max(0.005, (baseDefectRate - inspectorReduction) * engProdMods.defectModifier);
         const defectiveUnits = Math.floor(unitsProduced * effectiveDefectRate);
@@ -1606,7 +1642,8 @@ export class ManufacturingController {
 
     let totalMaintenanceCosts = 0;
     for (const factory of factories) {
-      const baseMaintCost = Math.round(Number(factory.maintenance_cost_per_month) * (Number(factory.condition) / 100));
+      const conditionPct = Number(factory.condition) / 100;
+      const baseMaintCost = Math.round(Number(factory.maintenance_cost_per_month) * (2.0 - conditionPct));
       const factoryLines = productionLines.filter((l: any) => l.factory_id === factory.id);
       let avgMaintModifier = 1.0;
       if (factoryLines.length > 0) {
@@ -2016,28 +2053,35 @@ export class ManufacturingController {
         const currentYear = clock?.current_year ?? 1;
         const currentMonth = clock?.current_month ?? 1;
 
+        // Obtain a row lock on the country to strictly serialize country-level processing and prevent double-processing
+        await trx('countries').where({ id: countryId }).forUpdate().first();
+
         // 1. RESOLVE PARTICIPANTS — every manufacturing company in this country (players + NPCs)
         const allCompanies = await trx('companies')
-          .where({ country_id: countryId, industry_id: 'manufacturing' });
+          .where({ country_id: countryId, industry_id: 'manufacturing', status: 'active' });
 
         const participants: any[] = [];
+        const processedCompanyIds = new Set<string>();
+
         for (const comp of allCompanies) {
            const existingReport = await trx('manufacturing_arc_reports')
              .where({ company_id: comp.id, world_year: currentYear, world_month: currentMonth })
              .first();
-           if (!existingReport) {
-             participants.push(comp);
+             
+           participants.push(comp);
+           if (existingReport) {
+             processedCompanyIds.add(comp.id);
            }
         }
         
-        if (participants.length === 0) {
+        if (processedCompanyIds.size === participants.length) {
            return { processedCompanies: 0 };
         }
 
         // 2. DECIDE (NPCs only)
         (global as any).tickProgress = `Processing country: ${countryId} - Step 2: Decide (NPCs)`;
         for (const company of participants) {
-           if (company.is_npc) {
+           if (company.is_npc && !processedCompanyIds.has(company.id)) {
               await runNpcBrainForCompany(trx, company.id, currentYear, currentMonth);
            }
         }
@@ -2465,6 +2509,7 @@ export class ManufacturingController {
         // = current stock in inventory
         const inventory = await trx('manufacturing_inventory')
           .where({ company_id: companyId, vehicle_model_id: vehicleModelId })
+          .forUpdate()
           .first();
         const totalStock = Number(inventory?.units_in_stock ?? 0);
 
@@ -2554,6 +2599,7 @@ export class ManufacturingController {
         const activeProg = await trx('manufacturing_engineering_programmes')
           .where({ company_id: companyId })
           .whereIn('status', ['engineering', 'validation'])
+          .forUpdate()
           .first();
         if (activeProg) {
           throw new AppError(`Your engineering team is currently committed to ${ENGINEERING_PROGRAMMES_CATALOG[activeProg.programme_id]?.name || activeProg.programme_id}. Complete the active programme before approving another one.`, 400, 'ACTIVE_PROGRAMME');
@@ -2562,6 +2608,7 @@ export class ManufacturingController {
         // 2. Check if already approved
         const approvedProg = await trx('manufacturing_engineering_programmes')
           .where({ company_id: companyId, programme_id: programmeId, status: 'approved' })
+          .forUpdate()
           .first();
         if (approvedProg) {
           throw new AppError('Programme already approved', 400, 'ALREADY_APPROVED');
@@ -2696,6 +2743,7 @@ export class ManufacturingController {
         // Load the factory
         const factory = await trx('manufacturing_factories')
           .where({ id: factoryId, company_id: companyId, status: 'active' })
+          .forUpdate()
           .first();
         if (!factory) throw new AppError('Factory not found', 404, 'NOT_FOUND');
 

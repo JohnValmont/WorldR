@@ -4,6 +4,17 @@ import { db } from '../../config/database';
 export class RegistryController {
   public static async getCompanies(req: Request, res: Response, next: NextFunction) {
     try {
+      // Support pagination to prevent DoS via massive JSON payload
+      const limit = Math.min(Number(req.query.limit) || 100, 1000);
+      const offset = Number(req.query.offset) || 0;
+      let world_instance_id = req.query.world as string;
+      const userId = req.user?.id;
+      if (!world_instance_id && userId) {
+        const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+        if (character) world_instance_id = character.world_instance_id;
+      }
+      if (!world_instance_id) world_instance_id = 'pre-alpha-world-1';
+
       // Returns public data only
       const companies = await db('companies')
         .select(
@@ -20,7 +31,9 @@ export class RegistryController {
           'created_at_world_month',
           'created_at_world_day'
         )
-        .where({ status: 'active', world_instance_id: 'pre-alpha-world-1' });
+        .where({ status: 'active', world_instance_id })
+        .limit(limit)
+        .offset(offset);
 
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       res.setHeader('Pragma', 'no-cache');

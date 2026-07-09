@@ -154,8 +154,9 @@ export default function ChroniclePage() {
   const handleRestartLife = useCallback(async () => {
     if (typeof window === 'undefined') return;
     try {
-      const { characterApi } = await import('../../../lib/api');
+      const { characterApi, authApi } = await import('../../../lib/api');
       await characterApi.deleteMe();
+      await authApi.logout();
     } catch (e) {
       console.warn('Failed to delete character', e);
     }
@@ -247,8 +248,10 @@ export default function ChroniclePage() {
     let recs: any[] = [];
     try {
       recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
+      if (!Array.isArray(recs)) recs = [];
     } catch (e) {
       console.warn('Failed to parse records', e);
+      recs = [];
     }
     setRecentRecords(recs.slice(0, 6));
   }, [router]);
@@ -548,7 +551,7 @@ export default function ChroniclePage() {
                   tick={{ fill: '#52525b', fontSize: 9, fontFamily: 'monospace' }}
                   axisLine={false} tickLine={false}
                 />
-                <YAxis hide />
+                <YAxis hide domain={['dataMin', 'auto']} />
                 <Tooltip content={<ChartTooltip />} />
                 <Area
                   type="monotone"

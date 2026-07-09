@@ -34,7 +34,14 @@ export default function RecordsPage() {
     if (typeof window === 'undefined') return;
     setAuthorized(true);
     const raw = localStorage.getItem('worldr_records_v1');
-    if (raw) setRecords(JSON.parse(raw));
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setRecords(parsed);
+      } catch (e) {
+        console.warn('Failed to parse records');
+      }
+    }
   }, [router]);
 
   if (!authorized) return null;
