@@ -104,6 +104,7 @@ export const authApi = {
     api.post('/auth/register', data),
   login: (data: { email: string; password: string }) =>
     api.post('/auth/login', data),
+  guestLogin: () => api.post('/auth/guest-login'),
   verifyEmail: (email: string, otp: string) =>
     api.post('/auth/verify-email', { email, otp }),
   resendVerification: (email: string) =>

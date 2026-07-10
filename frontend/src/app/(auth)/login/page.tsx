@@ -12,9 +12,56 @@ export default function LoginPage() {
   const { setAuth } = useAuthStore();
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showGuestModal, setShowGuestModal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+
+  const handleGuestLogin = async () => {
+    setShowGuestModal(false);
+    setGuestLoading(true);
+    setError('');
+    try {
+      const { data } = await authApi.guestLogin();
+
+      if (typeof window !== 'undefined') {
+        const STATE_KEYS = [
+          'worldr_citizen_file_v1',
+          'worldr_selected_motherland',
+          'worldr_living_world_entry_v1',
+          'worldr_ledger_v1',
+          'worldr_finance_history_v1',
+          'worldr_companies_v1',
+          'worldr_fleet_v1',
+          'worldr_contracts_v1',
+          'worldr_contract_history_v1',
+          'worldr_business_offers_v1',
+          'worldr_records_v1',
+          'worldr_route_familiarity_v1'
+        ];
+        STATE_KEYS.forEach(k => localStorage.removeItem(k));
+      }
+
+      setAuth(data.user, data.accessToken, data.refreshToken);
+
+      try {
+        const charRes = await characterApi.getMe();
+        if (charRes.data && charRes.data.id) {
+          localStorage.setItem('worldr_selected_motherland', charRes.data.motherland_country_id || 'drennia');
+          localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(charRes.data));
+          router.push('/drennia/chronicle');
+          return;
+        }
+      } catch (e) {}
+
+      router.push(getFlowRedirectPath());
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Failed to create guest session. Please try again.');
+    } finally {
+      setGuestLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -287,6 +334,40 @@ export default function LoginPage() {
             </>
           )}
         </motion.button>
+
+        {/* Guest Login Button */}
+        <motion.button
+          type="button"
+          onClick={() => setShowGuestModal(true)}
+          disabled={loading || guestLoading}
+          className="w-full mt-3 py-3 px-4 rounded-lg border border-zinc-700/50 bg-zinc-800/30 hover:bg-zinc-800/80 hover:border-zinc-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-zinc-300 font-semibold text-sm tracking-wide flex items-center justify-center gap-2 shadow-sm"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
+          {guestLoading ? (
+            <>
+              <motion.svg
+                className="w-4 h-4 text-zinc-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+              >
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </motion.svg>
+              Starting Session...
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              Play as Guest
+            </>
+          )}
+        </motion.button>
       </form>
 
       {/* Divider */}
@@ -316,6 +397,52 @@ export default function LoginPage() {
           </Link>
         </p>
       </motion.div>
+
+      {/* Guest Confirmation Modal */}
+      <AnimatePresence>
+        {showGuestModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowGuestModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm bg-zinc-900 border border-zinc-700/50 rounded-xl p-6 shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-amber-600" />
+              <h3 className="text-lg font-bold text-zinc-100 mb-2">Play as Guest</h3>
+              <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
+                You are about to start a temporary session. Please note that <strong className="text-amber-400 font-semibold">your progress will not be saved permanently</strong> and may be lost if you clear your browser data or switch devices.
+                <br /><br />
+                For a permanent experience, we recommend creating an account.
+              </p>
+              
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowGuestModal(false)}
+                  className="flex-1 py-2.5 px-4 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGuestLogin}
+                  className="flex-1 py-2.5 px-4 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black text-sm font-bold shadow-lg shadow-amber-500/20 transition-all"
+                >
+                  Continue
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
