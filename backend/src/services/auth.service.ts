@@ -278,12 +278,12 @@ export class AuthService {
     // Limit active sessions to prevent storage exhaustion
     const activeTokens = await db('refresh_tokens')
       .where({ user_id: user.id })
-      .orderBy('id', 'desc');
+      .orderBy('created_at', 'desc');
       
     if (activeTokens.length >= 5) {
-      const tokensToDelete = activeTokens.slice(4).map((t: any) => t.id);
+      const tokensToDelete = activeTokens.slice(4).map((t: any) => t.token_hash);
       await db('refresh_tokens')
-        .whereIn('id', tokensToDelete)
+        .whereIn('token_hash', tokensToDelete)
         .delete();
     }
 
