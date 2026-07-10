@@ -587,6 +587,18 @@ if (btnGuest && guestModalOverlay) {
       
       const data = await res.json();
       localStorage.setItem('worldr_access_token', data.accessToken);
+      if (data.refreshToken) localStorage.setItem('worldr_refresh_token', data.refreshToken);
+      
+      // Seed Zustand store so Next.js apps see the user as authenticated
+      localStorage.setItem('worldr-auth', JSON.stringify({
+        state: {
+          user: data.user,
+          token: data.accessToken,
+          isAuthenticated: true,
+          isLoading: false
+        },
+        version: 0
+      }));
       
       window.location.href = '/landing/onboarding.html?action=character';
     } catch (err) {
