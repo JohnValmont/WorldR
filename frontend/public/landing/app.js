@@ -548,10 +548,55 @@ ScrollTrigger.refresh();
    ==================================================================== */
 const btnCreate = document.getElementById('btnCreate');
 const btnLogin = document.getElementById('btnLogin');
+const btnGuest = document.getElementById('btnGuest');
+const guestModalOverlay = document.getElementById('guestModalOverlay');
+const btnCancelGuest = document.getElementById('btnCancelGuest');
+const btnConfirmGuest = document.getElementById('btnConfirmGuest');
 const btnDiscord = document.getElementById('btnDiscord');
 
 if (btnCreate) btnCreate.addEventListener('click', () => { window.location.href = '/landing/onboarding.html?action=register'; });
 if (btnLogin) btnLogin.addEventListener('click', () => { window.location.href = '/landing/onboarding.html?action=login'; });
+
+if (btnGuest && guestModalOverlay) {
+  // Show Modal
+  btnGuest.addEventListener('click', () => {
+    guestModalOverlay.style.display = 'flex';
+    setTimeout(() => { guestModalOverlay.style.opacity = '1'; }, 10);
+  });
+
+  // Hide Modal
+  btnCancelGuest.addEventListener('click', () => {
+    guestModalOverlay.style.opacity = '0';
+    setTimeout(() => { guestModalOverlay.style.display = 'none'; }, 300);
+  });
+
+  // Confirm and Login
+  btnConfirmGuest.addEventListener('click', async () => {
+    try {
+      const btnSpan = btnConfirmGuest.querySelector('span');
+      if (btnSpan) btnSpan.innerText = 'Creating Account...';
+      
+      const res = await fetch('/api/v1/auth/guest-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to create guest account');
+      }
+      
+      const data = await res.json();
+      localStorage.setItem('worldr_access_token', data.accessToken);
+      
+      window.location.href = '/landing/onboarding.html?action=character';
+    } catch (err) {
+      console.error(err);
+      alert('Error creating guest account.');
+      const btnSpan = btnConfirmGuest.querySelector('span');
+      if (btnSpan) btnSpan.innerText = 'Continue as Guest';
+    }
+  });
+}
 if (btnDiscord) {
   // It's now an anchor tag, no JS required for navigation
 }
