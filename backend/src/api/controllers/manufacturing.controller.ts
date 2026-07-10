@@ -1825,13 +1825,18 @@ export class ManufacturingController {
     let taxPaid = 0;
 
     // Look up the state by its ID (headquarters_state_id is the state code like 'drennia-drennport')
+    // We strip the country prefix if it exists to match the code in pol_states (which is just 'ironvale', 'drennport', etc.)
+    const rawStateId = company.headquarters_state_id || '';
+    const stateCode = rawStateId.replace(new RegExp(`^${company.country_id || ''}-`), '');
+
     const stateObj = await trx('pol_states')
-      .where({ code: company.headquarters_state_id || '' })
+      .where({ code: stateCode })
       .first();
     
-    // Fallback: if not found by code, try to match by ID in case headquarters_state_id is a numeric ID
-    const stateLookup = stateObj || (company.headquarters_state_id ? 
-      await trx('pol_states').where({ id: company.headquarters_state_id }).first() : null);
+    // Fallback: if not found by code, try to match by ID in case headquarters_state_id is a UUID
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawStateId);
+    const stateLookup = stateObj || (isUuid ? 
+      await trx('pol_states').where({ id: rawStateId }).first() : null);
 
     if (stateLookup) {
       const policy = await trx('pol_state_policy').where({ state_id: stateLookup.id }).first();
