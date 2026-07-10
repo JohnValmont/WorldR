@@ -1754,8 +1754,6 @@ export class ManufacturingController {
            mt.salesRevenue += revenue;
         }
 
-        const remainingAllocated = Number(alloc.units_allocated) - unitsSold;
-        await trx('manufacturing_market_allocations').where({ id: alloc.id }).update({ units_allocated: remainingAllocated, updated_at: trx.fn.now() });
 
         if (invRecord) {
           const newStock = Math.max(0, actualStock - unitsSold);
