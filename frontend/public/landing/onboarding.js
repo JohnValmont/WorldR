@@ -303,7 +303,8 @@ function goTo(i, dir = 1){
 }
 // init
 const urlParams = new URLSearchParams(window.location.search);
-cur = urlParams.get('action') === 'login' ? 2 : 0;
+const actionParam = urlParams.get('action');
+cur = actionParam === 'character' ? 3 : (actionParam === 'login' ? 2 : 0);
 steps[cur].classList.add('active'); gsap.set(steps[cur], { opacity: 1 });
 updateStepper(cur); setGlobe(cur);
 

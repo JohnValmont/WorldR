@@ -174,7 +174,7 @@ export default function WorldEntryPage() {
   const handleChooseDrennia = () => {
     localStorage.setItem('worldr_selected_continent', 'Varelia');
     localStorage.setItem('worldr_selected_motherland', 'Drennia');
-    router.push('/start/character');
+    router.push('/landing/onboarding.html?action=character');
   };
 
   if (!authorized) {

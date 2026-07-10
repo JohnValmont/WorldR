@@ -8,12 +8,8 @@ export const getFlowRedirectPath = (): string => {
   const hasMotherland = !!localStorage.getItem('worldr_selected_motherland');
   const hasCitizenFile = !!localStorage.getItem('worldr_citizen_file_v1');
 
-  if (!hasMotherland) {
-    return '/world-entry';
-  }
-
-  if (!hasCitizenFile) {
-    return '/start/citizen-file';
+  if (!hasMotherland || !hasCitizenFile) {
+    return '/landing/onboarding.html?action=character';
   }
 
   return '/drennia/chronicle';
