@@ -365,7 +365,7 @@ export class WorldController {
       const richestPlayers = await db.raw(`
         SELECT 
           c.id, 
-          c.full_name, 
+          c.name, 
           COALESCE(cf.cash_in_hand, 0) as cash,
           (
             SELECT COALESCE(SUM(

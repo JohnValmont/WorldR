@@ -139,7 +139,16 @@ export default function ChroniclePage() {
   const [characterAge, setCharacterAge] = useState<number>(18);
   const [leaderboards, setLeaderboards] = useState<any>(null);
   const [leaderboardTab, setLeaderboardTab] = useState<'wealth' | 'marketCap'>('wealth');
-  const formatMoney = (value: any) => { if (!value) return "$0"; const num = Number(value); if (num >= 1e9) return "$" + (num / 1e9).toFixed(1) + "B"; if (num >= 1e6) return "$" + (num / 1e6).toFixed(1) + "M"; return "$" + num.toLocaleString(); };
+  const formatMoney = (value: any) => { 
+    if (!value && value !== 0) return "$0"; 
+    const num = Number(value);
+    if (Number.isNaN(num)) return "$0";
+    const abs = Math.abs(num);
+    const sign = num < 0 ? "-" : "";
+    if (abs >= 1e9) return sign + "$" + (abs / 1e9).toFixed(1) + "B"; 
+    if (abs >= 1e6) return sign + "$" + (abs / 1e6).toFixed(1) + "M"; 
+    return sign + "$" + abs.toLocaleString(); 
+  };
   const radarData = [
     { attr: 'Credibility', value: citizenFile?.credibility ?? 50 },
     { attr: 'Charisma',    value: citizenFile?.charisma    ?? 50 },
@@ -348,10 +357,10 @@ export default function ChroniclePage() {
               <EmptyState icon={User} message="No players found." className="py-2" />
             ) : (
               leaderboards.richestPlayers.map((player: any, idx: number) => (
-                <div key={idx} className={`flex items-center justify-between p-2 border rounded ${player.full_name === characterName ? 'bg-terminal-green/10 border-terminal-green' : 'bg-zinc-900/50 border-zinc-800'}`}>
+                <div key={idx} className={`flex items-center justify-between p-2 border rounded ${player.name === characterName ? 'bg-terminal-green/10 border-terminal-green' : 'bg-zinc-900/50 border-zinc-800'}`}>
                   <div className="flex items-center gap-3">
                     <div className="text-[10px] text-zinc-500 font-mono w-4">#{idx + 1}</div>
-                    <span className={`text-[12px] font-bold ${player.full_name === characterName ? 'text-terminal-green' : 'text-zinc-200'}`}>{player.full_name}</span>
+                    <span className={`text-[12px] font-bold ${player.name === characterName ? 'text-terminal-green' : 'text-zinc-200'}`}>{player.name}</span>
                   </div>
                   <div className="text-[12px] font-mono text-zinc-300">
                     {formatMoney(player.net_worth)}
