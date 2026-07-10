@@ -333,9 +333,9 @@ export default function ChroniclePage() {
       </Card>
 
       {/* Global Leaderboards */}
-      <Card kicker="Forbes Global List" icon={TrendingUp} className="bg-black border border-zinc-800">
+      <Card kicker="Magnate Global List" icon={TrendingUp} className="bg-black border border-zinc-800">
           <div className="border-b border-zinc-800 pb-2 mb-4 flex justify-between items-end">
-            <div className="font-serif text-xl tracking-widest uppercase text-zinc-100" style={{ fontFamily: 'Georgia, serif' }}>Forbes</div>
+            <div className="font-serif text-xl tracking-widest uppercase text-zinc-100" style={{ fontFamily: 'Georgia, serif' }}>MAGNATE</div>
             <div className="flex gap-4 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
               <button 
                 onClick={() => setLeaderboardTab('wealth')} 
