@@ -342,7 +342,7 @@ export class WorldController {
         .where('c.status', 'active')
         .orderBy('cf.company_value', 'desc')
         .limit(10)
-        .select('c.id', 'c.name', 'c.industry_id', 'cf.company_value');
+        .select('c.id', 'c.name', 'c.industry_id', 'cf.company_value', 'cf.last_arc_profit');
 
       const clock = await db('world_clock').first();
       const currentYear = clock ? clock.current_year : 1;
@@ -389,7 +389,15 @@ export class WorldController {
             FROM company_shares cs
             JOIN company_finances compf ON compf.company_id = cs.company_id
             WHERE cs.holder_character_id = c.id
-          ) as net_worth
+          ) as net_worth,
+          (
+            SELECT compf2.last_arc_profit 
+            FROM companies c2 
+            JOIN company_finances compf2 ON compf2.company_id = c2.id 
+            WHERE c2.owner_character_id = c.id 
+            ORDER BY compf2.company_value DESC 
+            LIMIT 1
+          ) as trend
         FROM characters c
         LEFT JOIN character_finances cf ON cf.character_id = c.id
         WHERE c.status = 'active' AND c.name NOT ILIKE '%NPC%'

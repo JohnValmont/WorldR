@@ -333,64 +333,96 @@ export default function ChroniclePage() {
       </Card>
 
       {/* Global Leaderboards */}
-      <Card kicker="Global Leaderboards" icon={TrendingUp}>
-        <div className="flex gap-2 mb-3">
-          <button 
-            onClick={() => setLeaderboardTab('wealth')}
-            className={`flex-1 py-1.5 text-[10px] uppercase font-mono border rounded ${leaderboardTab === 'wealth' ? 'bg-terminal-amber/10 border-terminal-amber text-terminal-amber' : 'border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}
-          >
-            Richest Players
-          </button>
-          <button 
-            onClick={() => setLeaderboardTab('marketCap')}
-            className={`flex-1 py-1.5 text-[10px] uppercase font-mono border rounded ${leaderboardTab === 'marketCap' ? 'bg-terminal-amber/10 border-terminal-amber text-terminal-amber' : 'border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}
-          >
-            Highest Valued
-          </button>
-        </div>
-        
-        <div className="flex flex-col gap-1.5">
-          {leaderboardTab === 'wealth' && (
-            !leaderboards?.richestPlayers ? (
-              <div className="text-zinc-500 text-[11px] py-4">Loading...</div>
-            ) : leaderboards.richestPlayers.length === 0 ? (
-              <EmptyState icon={User} message="No players found." className="py-2" />
-            ) : (
-              leaderboards.richestPlayers.map((player: any, idx: number) => (
-                <div key={idx} className={`flex items-center justify-between p-2 border rounded ${player.name === characterName ? 'bg-terminal-green/10 border-terminal-green' : 'bg-zinc-900/50 border-zinc-800'}`}>
-                  <div className="flex items-center gap-3">
-                    <div className="text-[10px] text-zinc-500 font-mono w-4">#{idx + 1}</div>
-                    <span className={`text-[12px] font-bold ${player.name === characterName ? 'text-terminal-green' : 'text-zinc-200'}`}>{player.name}</span>
-                  </div>
-                  <div className="text-[12px] font-mono text-terminal-amber">
-                    {formatMoney(player.net_worth)}
-                  </div>
-                </div>
-              ))
-            )
-          )}
+      <Card kicker="Forbes Global List" icon={TrendingUp} className="bg-black border border-zinc-800">
+          <div className="border-b border-zinc-800 pb-2 mb-4 flex justify-between items-end">
+            <div className="font-serif text-xl tracking-widest uppercase text-zinc-100" style={{ fontFamily: 'Georgia, serif' }}>Forbes</div>
+            <div className="flex gap-4 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+              <button 
+                onClick={() => setLeaderboardTab('wealth')} 
+                className={leaderboardTab === 'wealth' ? 'text-terminal-amber border-b border-terminal-amber pb-1 transition-colors' : 'hover:text-zinc-300 pb-1 transition-colors'}
+              >
+                The Billionaires
+              </button>
+              <button 
+                onClick={() => setLeaderboardTab('marketCap')} 
+                className={leaderboardTab === 'marketCap' ? 'text-terminal-amber border-b border-terminal-amber pb-1 transition-colors' : 'hover:text-zinc-300 pb-1 transition-colors'}
+              >
+                Global 500
+              </button>
+            </div>
+          </div>
           
-          {leaderboardTab === 'marketCap' && (
-            !leaderboards?.topCompanies ? (
-              <div className="text-zinc-500 text-[11px] py-4">Loading...</div>
-            ) : leaderboards.topCompanies.length === 0 ? (
-              <EmptyState icon={Briefcase} message="No companies found." className="py-2" />
-            ) : (
-              leaderboards.topCompanies.map((comp: any, idx: number) => (
-                <div key={idx} className={`flex items-center justify-between p-2 border rounded ${comp.name === company?.name ? 'bg-terminal-green/10 border-terminal-green' : 'bg-zinc-900/50 border-zinc-800'}`}>
-                  <div className="flex items-center gap-3">
-                    <div className="text-[10px] text-zinc-500 font-mono w-4">#{idx + 1}</div>
-                    <span className={`text-[12px] font-bold ${comp.name === company?.name ? 'text-terminal-green' : 'text-zinc-200'}`}>{comp.name}</span>
+          <div className="flex flex-col">
+            {leaderboardTab === 'wealth' && (
+              !leaderboards?.richestPlayers ? (
+                <div className="text-zinc-500 text-[11px] py-4 text-center italic">Compiling data...</div>
+              ) : leaderboards.richestPlayers.length === 0 ? (
+                <EmptyState icon={User} message="No players found." className="py-2" />
+              ) : (
+                leaderboards.richestPlayers.map((player: any, idx: number) => (
+                  <div key={idx} className={`flex items-center justify-between py-3 border-b border-zinc-900/50 ${player.name === characterName ? 'bg-terminal-green/5' : 'hover:bg-zinc-900/30'} transition-colors`}>
+                    <div className="flex items-center gap-4">
+                      <div className="text-xl font-serif text-zinc-500 font-light w-6 text-right" style={{ fontFamily: 'Georgia, serif' }}>{idx + 1}.</div>
+                      <div className="flex flex-col">
+                        <span className={`text-[14px] font-bold ${player.name === characterName ? 'text-terminal-green' : 'text-zinc-100'}`}>{player.name}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-col items-end">
+                        <span className="text-[13px] font-mono text-terminal-amber font-semibold">{formatMoney(player.net_worth)}</span>
+                        <span className="text-[9px] text-zinc-500 uppercase tracking-widest">Net Worth</span>
+                      </div>
+                      <div className="w-12 flex justify-end">
+                        {Number(player.trend) > 0 ? (
+                          <span className="text-[9px] font-bold text-green-500 flex items-center gap-0.5">▲ UP</span>
+                        ) : Number(player.trend) < 0 ? (
+                          <span className="text-[9px] font-bold text-red-500 flex items-center gap-0.5">▼ DWN</span>
+                        ) : (
+                          <span className="text-[9px] font-bold text-zinc-500 flex items-center gap-0.5">—</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-[12px] font-mono text-terminal-amber">
-                    {formatMoney(comp.company_value)}
+                ))
+              )
+            )}
+            
+            {leaderboardTab === 'marketCap' && (
+              !leaderboards?.topCompanies ? (
+                <div className="text-zinc-500 text-[11px] py-4 text-center italic">Compiling data...</div>
+              ) : leaderboards.topCompanies.length === 0 ? (
+                <EmptyState icon={Briefcase} message="No companies found." className="py-2" />
+              ) : (
+                leaderboards.topCompanies.map((comp: any, idx: number) => (
+                  <div key={idx} className={`flex items-center justify-between py-3 border-b border-zinc-900/50 ${comp.name === company?.name ? 'bg-terminal-green/5' : 'hover:bg-zinc-900/30'} transition-colors`}>
+                    <div className="flex items-center gap-4">
+                      <div className="text-xl font-serif text-zinc-500 font-light w-6 text-right" style={{ fontFamily: 'Georgia, serif' }}>{idx + 1}.</div>
+                      <div className="flex flex-col">
+                        <span className={`text-[14px] font-bold ${comp.name === company?.name ? 'text-terminal-green' : 'text-zinc-100'}`}>{comp.name}</span>
+                        <span className="text-[10px] text-zinc-500 capitalize">{comp.industry_id?.replace('_', ' ')}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-col items-end">
+                        <span className="text-[13px] font-mono text-terminal-amber font-semibold">{formatMoney(comp.company_value)}</span>
+                        <span className="text-[9px] text-zinc-500 uppercase tracking-widest">Market Cap</span>
+                      </div>
+                      <div className="w-12 flex justify-end">
+                        {Number(comp.last_arc_profit) > 0 ? (
+                          <span className="text-[9px] font-bold text-green-500 flex items-center gap-0.5">▲ UP</span>
+                        ) : Number(comp.last_arc_profit) < 0 ? (
+                          <span className="text-[9px] font-bold text-red-500 flex items-center gap-0.5">▼ DWN</span>
+                        ) : (
+                          <span className="text-[9px] font-bold text-zinc-500 flex items-center gap-0.5">—</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))
-            )
-          )}
-        </div>
-      </Card>
+                ))
+              )
+            )}
+          </div>
+        </Card>
 
     </>
   );
