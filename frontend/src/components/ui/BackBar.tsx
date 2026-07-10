@@ -50,7 +50,7 @@ export default function BackBar() {
   const isHub = section === 'chronicle';
   const [showGuide, setShowGuide] = useState(false);
   const { user } = useAuthStore();
-  const isSuperAdmin = user?.email?.toLowerCase() === 'kyxplayss@gmail.com';
+  const isSuperAdmin = user?.email?.toLowerCase() === 'kyxplayss@gmail.com' || user?.email?.toLowerCase() === 'infoforbiddengaming@gmail.com';
 
   // Track in-app navigation depth so Back never leaves the game world.
   useEffect(() => {

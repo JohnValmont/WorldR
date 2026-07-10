@@ -38,7 +38,7 @@ export default function WorldTimeControl() {
       const res = await worldApi.forceTick();
       const result = res?.data ?? res;
 
-      if (result?.status === 'ticked') {
+      if (result?.data?.status === 'ticked' || result?.status === 'success') {
         // A month was actually processed — pull in the new world state.
         await refresh();
         window.location.reload();

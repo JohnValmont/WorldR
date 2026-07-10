@@ -124,7 +124,7 @@ function DemandBar({ sector, demand, pct, dir }: typeof SECTOR_DEMAND[0]) {
 export default function ChroniclePage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const isSuperAdmin = user?.email?.toLowerCase() === 'kyxplayss@gmail.com';
+  const isSuperAdmin = user?.email?.toLowerCase() === 'kyxplayss@gmail.com' || user?.email?.toLowerCase() === 'infoforbiddengaming@gmail.com';
   const [authorized, setAuthorized]       = useState(false);
   const [citizenFile, setCitizenFile]     = useState<PlayerStats | null>(null);
   const [characterName, setCharacterName] = useState('');
