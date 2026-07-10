@@ -289,10 +289,47 @@ export class WorldController {
           };
         });
 
-      res.json({
-        month: { year: targetYear, month: targetMonth },
-        segments,
-      });
+        // Compute National Aggregation
+        const nationalCompanies = new Map<string, any>();
+        let nationalTotalUnits = 0;
+        
+        for (const sale of sales) {
+          const key = sale.company_id;
+          if (!nationalCompanies.has(key)) {
+            nationalCompanies.set(key, {
+              companyId: sale.company_id,
+              companyName: sale.company_name,
+              unitsSold: 0,
+              revenue: 0,
+            });
+          }
+          const co = nationalCompanies.get(key);
+          const uSold = Number(sale.units_sold);
+          co.unitsSold += uSold;
+          co.revenue += Number(sale.revenue);
+          nationalTotalUnits += uSold;
+        }
+
+        const nationalCompArr = Array.from(nationalCompanies.values())
+          .map((co: any) => {
+            const share = nationalTotalUnits > 0 ? co.unitsSold / nationalTotalUnits : 0;
+            return {
+              ...co,
+              marketShare: Math.round(share * 1000) / 10,
+            };
+          })
+          .sort((a: any, b: any) => b.marketShare - a.marketShare);
+
+        segments.unshift({
+          segmentId: 'national',
+          marketName: 'Drennia (National)',
+          companies: nationalCompArr,
+        });
+
+        res.json({
+          month: { year: targetYear, month: targetMonth },
+          segments,
+        });
     } catch (error) {
       next(error);
     }
