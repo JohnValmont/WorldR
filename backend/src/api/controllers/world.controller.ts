@@ -348,12 +348,21 @@ export class WorldController {
       const currentYear = clock ? clock.current_year : 1;
       const currentMonth = clock ? clock.current_month : 1;
 
+      // Get the latest month where sales actually occurred to avoid querying an empty current month
+      const lastSale = await db('manufacturing_sales_results')
+        .orderBy('world_year', 'desc')
+        .orderBy('world_month', 'desc')
+        .first('world_year', 'world_month');
+
+      const targetYear = lastSale ? lastSale.world_year : currentYear;
+      const targetMonth = lastSale ? lastSale.world_month : currentMonth;
+
       const popularCars = await db('manufacturing_sales_results as r')
         .join('manufacturing_vehicle_models as m', 'm.id', 'r.vehicle_model_id')
         .join('companies as c', 'c.id', 'm.company_id')
         .where('r.region_market_id', 'like', 'drennia%')
-        .andWhere('r.world_year', currentYear)
-        .andWhere('r.world_month', currentMonth)
+        .andWhere('r.world_year', targetYear)
+        .andWhere('r.world_month', targetMonth)
         .select('m.id as model_id', 'm.name as model_name', 'c.name as company_name')
         .sum('r.units_sold as total_sold')
         .groupBy('m.id', 'm.name', 'c.name')
@@ -383,7 +392,7 @@ export class WorldController {
           ) as net_worth
         FROM characters c
         LEFT JOIN character_finances cf ON cf.character_id = c.id
-        WHERE c.status = 'active'
+        WHERE c.status = 'active' AND c.user_id != 'system' AND c.name NOT LIKE '%NPC%'
         ORDER BY net_worth DESC
         LIMIT 10
       `);

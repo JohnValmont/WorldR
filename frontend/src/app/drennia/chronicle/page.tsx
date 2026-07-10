@@ -147,7 +147,7 @@ export default function ChroniclePage() {
     const sign = num < 0 ? "-" : "";
     if (abs >= 1e9) return sign + "$" + (abs / 1e9).toFixed(1) + "B"; 
     if (abs >= 1e6) return sign + "$" + (abs / 1e6).toFixed(1) + "M"; 
-    return sign + "$" + abs.toLocaleString(); 
+    return sign + "$" + Math.round(abs).toLocaleString('en-US'); 
   };
   const radarData = [
     { attr: 'Credibility', value: citizenFile?.credibility ?? 50 },
