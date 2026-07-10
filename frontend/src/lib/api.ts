@@ -1,5 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-
+import { useAuthStore } from '../store/auth.store';
 const getApiBaseUrl = () => {
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
   if (!envUrl) return 'http://localhost:4000/api/v1';
@@ -71,7 +71,7 @@ api.interceptors.response.use(
 
       const refreshToken = getRefreshToken();
       if (!refreshToken) {
-        clearTokens();
+        useAuthStore.getState().logout();
         window.location.href = '/login';
         return Promise.reject(error);
       }
@@ -84,7 +84,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        clearTokens();
+        useAuthStore.getState().logout();
         window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {
