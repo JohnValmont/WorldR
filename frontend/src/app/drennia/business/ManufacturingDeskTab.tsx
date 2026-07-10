@@ -11,7 +11,7 @@ import {
   AreaChart, Area, BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
 } from 'recharts';
-import { LayoutDashboard, Factory, FlaskConical, ShoppingCart, Activity, BarChart3, Users, DollarSign, ScrollText, PieChart } from 'lucide-react';
+import { LayoutDashboard, Factory, FlaskConical, ShoppingCart, Activity, BarChart3, Users, DollarSign, ScrollText, PieChart, Tags, Globe } from 'lucide-react';
 
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
@@ -305,7 +305,7 @@ function EmptyState({ icon, title, subtitle, action }: { icon?: string; title: s
 // ─── Tab type ───────────────────────────────────────────────────────────────
 
 
-type MfgTab = 'overview' | 'factory' | 'design' | 'procurement' | 'production' | 'market' | 'staff' | 'finance' | 'records' | 'equity';
+type MfgTab = 'overview' | 'factory' | 'design' | 'procurement' | 'production' | 'sales' | 'market' | 'staff' | 'finance' | 'records' | 'equity';
 
 const MFG_TABS: { id: MfgTab; label: string; icon: any }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -313,7 +313,8 @@ const MFG_TABS: { id: MfgTab; label: string; icon: any }[] = [
   { id: 'design', label: 'R&D / Design', icon: FlaskConical },
   { id: 'procurement', label: 'Procurement', icon: ShoppingCart },
   { id: 'production', label: 'Production', icon: Activity },
-  { id: 'market', label: 'Market & Sales', icon: BarChart3 },
+  { id: 'sales', label: 'Sales Operations', icon: Tags },
+  { id: 'market', label: 'Market Intelligence', icon: Globe },
   { id: 'staff', label: 'Staffing', icon: Users },
   { id: 'finance', label: 'Finance', icon: DollarSign },
   { id: 'records', label: 'Records', icon: ScrollText },
@@ -2648,9 +2649,13 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       {/* ═══════════════════════════════════════════════════════
           MARKET & SALES TAB
       ═══════════════════════════════════════════════════════ */}
-      {deskTab === 'market' && (
+      
+      {/* ────────────────────────────────────────────────────────────────────────
+          SALES OPERATIONS TAB
+      ──────────────────────────────────────────────────────────────────────── */}
+      {deskTab === 'sales' && (
         <div className="flex flex-col gap-5">
-          <SectionHeader stamp="SALES DESK">Market &amp; Sales Operations</SectionHeader>
+          <SectionHeader stamp="SALES DESK">Sales Operations</SectionHeader>
 
           {/* Summary Row */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
@@ -2687,9 +2692,9 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
             </PanelBox>
           </div>
 
-          {/* Markets & Allocations */}
+          
           {marketLoading ? (
-            <div className="text-zinc-500 text-xs p-6 font-mono animate-pulse">Loading market data...</div>
+            <div className="text-zinc-500 text-xs p-6 font-mono animate-pulse">Loading sales data...</div>
           ) : (
             <>
               {/* Models / Pricing */}
@@ -2847,6 +2852,67 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                 </PanelBox>
               )}
 
+              
+              {/* Recent Sales Results */}
+              {marketData?.recentSales && marketData.recentSales.length > 0 && (
+                <PanelBox>
+                  <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Recent Sales Results</h3>
+                  <div className="overflow-x-auto">
+                  <table className="w-full text-[11px] text-left border-collapse">
+                    <thead>
+                      <tr className="text-zinc-500 border-b border-zinc-800 text-[10px] font-mono uppercase tracking-[0.06em]">
+                        <th className="px-1.5 py-2 font-medium">Model</th>
+                        <th className="px-1.5 py-2 font-medium">Market</th>
+                        <th className="px-1.5 py-2 font-medium">Sold</th>
+                        <th className="px-1.5 py-2 font-medium">Demand</th>
+                        <th className="px-1.5 py-2 font-medium">Capture</th>
+                        <th className="px-1.5 py-2 font-medium">Afford.</th>
+                        <th className="px-1.5 py-2 font-medium">Fit</th>
+                        <th className="px-1.5 py-2 font-medium">Awareness</th>
+                        <th className="px-1.5 py-2 font-medium">Result Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {marketData.recentSales.slice(0, 15).map((rs: any) => {
+                        const mName = models.find((m: any) => m.id === rs.vehicle_model_id)?.name || 'Unknown Model';
+                        const mktName = marketData.markets?.find((m: any) => m.id === rs.region_market_id)?.name || 'Unknown Market';
+                        return (
+                          <tr key={rs.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
+                            <td className="px-1.5 py-2 text-terminal-amber">{mName}</td>
+                            <td className="px-1.5 py-2 text-zinc-200">{mktName}</td>
+                            <td className="px-1.5 py-2 text-terminal-green font-mono font-bold">{rs.units_sold}</td>
+                            <td className="px-1.5 py-2 text-zinc-600 font-mono">{Math.round(rs.raw_buyer_interest || 0)}</td>
+                            <td className="px-1.5 py-2 text-zinc-200 font-mono">{Math.round((rs.market_share_estimate || 0) * 100)}%</td>
+                            <td className={`px-1.5 py-2 font-mono ${rs.affordability_multiplier < 0.6 ? 'text-terminal-red' : 'text-zinc-500'}`}>{rs.affordability_multiplier || '-'}</td>
+                            <td className={`px-1.5 py-2 font-mono ${rs.vehicle_market_fit_multiplier < 0.6 ? 'text-terminal-red' : 'text-zinc-500'}`}>{rs.vehicle_market_fit_multiplier || '-'}</td>
+                            <td className={`px-1.5 py-2 font-mono ${rs.awareness_multiplier < 0.3 ? 'text-terminal-red' : 'text-zinc-500'}`}>{rs.awareness_multiplier || '-'}</td>
+                            <td className="px-1.5 py-2 text-zinc-600">{rs.main_reason_code || 'N/A'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  </div>
+                </PanelBox>
+              )}
+            
+            </>
+          )}
+        </div>
+      )}
+
+
+      {/* ────────────────────────────────────────────────────────────────────────
+          MARKET INTELLIGENCE TAB
+      ──────────────────────────────────────────────────────────────────────── */}
+      {deskTab === 'market' && (
+        <div className="flex flex-col gap-5">
+          <SectionHeader stamp="MARKET INTEL">Market Intelligence</SectionHeader>
+
+          {marketLoading ? (
+            <div className="text-zinc-500 text-xs p-6 font-mono animate-pulse">Loading market data...</div>
+          ) : (
+            <>
               {/* Market Intelligence */}
               <PanelBox>
                 <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Market Intelligence</h3>
@@ -2870,6 +2936,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                 </div>
               </PanelBox>
 
+              
               {/* Population Purchase Outlook */}
               {marketData?.forecast && marketData.forecast.length > 0 && (
                 <PanelBox>
@@ -2940,57 +3007,13 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                 </PanelBox>
               )}
 
-              {/* Recent Sales Results */}
-              {marketData?.recentSales && marketData.recentSales.length > 0 && (
-                <PanelBox>
-                  <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Recent Sales Results</h3>
-                  <div className="overflow-x-auto">
-                  <table className="w-full text-[11px] text-left border-collapse">
-                    <thead>
-                      <tr className="text-zinc-500 border-b border-zinc-800 text-[10px] font-mono uppercase tracking-[0.06em]">
-                        <th className="px-1.5 py-2 font-medium">Model</th>
-                        <th className="px-1.5 py-2 font-medium">Market</th>
-                        <th className="px-1.5 py-2 font-medium">Sold</th>
-                        <th className="px-1.5 py-2 font-medium">Demand</th>
-                        <th className="px-1.5 py-2 font-medium">Capture</th>
-                        <th className="px-1.5 py-2 font-medium">Afford.</th>
-                        <th className="px-1.5 py-2 font-medium">Fit</th>
-                        <th className="px-1.5 py-2 font-medium">Awareness</th>
-                        <th className="px-1.5 py-2 font-medium">Result Reason</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {marketData.recentSales.slice(0, 15).map((rs: any) => {
-                        const mName = models.find((m: any) => m.id === rs.vehicle_model_id)?.name || 'Unknown Model';
-                        const mktName = marketData.markets?.find((m: any) => m.id === rs.region_market_id)?.name || 'Unknown Market';
-                        return (
-                          <tr key={rs.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
-                            <td className="px-1.5 py-2 text-terminal-amber">{mName}</td>
-                            <td className="px-1.5 py-2 text-zinc-200">{mktName}</td>
-                            <td className="px-1.5 py-2 text-terminal-green font-mono font-bold">{rs.units_sold}</td>
-                            <td className="px-1.5 py-2 text-zinc-600 font-mono">{Math.round(rs.raw_buyer_interest || 0)}</td>
-                            <td className="px-1.5 py-2 text-zinc-200 font-mono">{Math.round((rs.market_share_estimate || 0) * 100)}%</td>
-                            <td className={`px-1.5 py-2 font-mono ${rs.affordability_multiplier < 0.6 ? 'text-terminal-red' : 'text-zinc-500'}`}>{rs.affordability_multiplier || '-'}</td>
-                            <td className={`px-1.5 py-2 font-mono ${rs.vehicle_market_fit_multiplier < 0.6 ? 'text-terminal-red' : 'text-zinc-500'}`}>{rs.vehicle_market_fit_multiplier || '-'}</td>
-                            <td className={`px-1.5 py-2 font-mono ${rs.awareness_multiplier < 0.3 ? 'text-terminal-red' : 'text-zinc-500'}`}>{rs.awareness_multiplier || '-'}</td>
-                            <td className="px-1.5 py-2 text-zinc-600">{rs.main_reason_code || 'N/A'}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  </div>
-                </PanelBox>
-              )}
+              
             </>
           )}
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
-          STAFFING TAB
-      ═══���═══════════════════════════════════════════════════ */}
-      {deskTab === 'staff' && (
+{deskTab === 'staff' && (
         <div className="flex flex-col gap-5">
           <SectionHeader stamp="STAFFING DESK">Company Workforce</SectionHeader>
 
