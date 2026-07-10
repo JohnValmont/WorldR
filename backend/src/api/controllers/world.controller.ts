@@ -392,7 +392,7 @@ export class WorldController {
           ) as net_worth
         FROM characters c
         LEFT JOIN character_finances cf ON cf.character_id = c.id
-        WHERE c.status = 'active' AND c.user_id != 'system' AND c.name NOT LIKE '%NPC%'
+        WHERE c.status = 'active' AND c.name NOT ILIKE '%NPC%'
         ORDER BY net_worth DESC
         LIMIT 10
       `);
