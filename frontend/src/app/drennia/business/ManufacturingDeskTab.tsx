@@ -875,7 +875,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           {/* Top Stats */}
           <StatCard
             label="Company Value"
-            value={fm((finances?.available_cash || 0) + inventoryValue)}
+            value={finances?.company_value ? fm(finances.company_value) : 'Not Available'}
             valueColor="white"
             trend="up"
             countUp
@@ -891,7 +891,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           />
           <StatCard
             label="Net Worth"
-            value={fm(1500000)} // Mock for now
+            value={finances?.company_value ? fm(finances.company_value) : 'Not Available'}
             valueColor="amber"
             trend="up"
             countUp
@@ -916,7 +916,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   <BarChart data={[...allReports].sort((a,b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).slice(-12).map(r => ({
                     month: `Month ${r.world_month}`,
                     revenue: Number(r.gross_revenue),
-                    expenses: Number(r.production_costs) + Number(r.staff_wages) + Number(r.factory_lease_costs) + Number(r.factory_maintenance_costs) + Number(r.inventory_storage_costs)
+                    expenses: Number(r.gross_revenue) - Number(r.net_profit)
                   }))}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#23232b" vertical={false} />
                     <XAxis dataKey="month" stroke="#888888" fontSize={10} tickMargin={10} />
