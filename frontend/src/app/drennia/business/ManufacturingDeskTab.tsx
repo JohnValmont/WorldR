@@ -494,7 +494,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
     if (deskTab === 'design' || deskTab === 'production' || deskTab === 'factory') {
       loadBootstrap();
     }
-    if (deskTab === 'market') {
+    if (deskTab === 'market' || deskTab === 'sales') {
       loadMarketData();
     }
   }, [deskTab, loadBootstrap, loadMarketData]);
