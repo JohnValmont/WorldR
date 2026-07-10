@@ -2957,14 +2957,14 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               cx="50%"
                               cy="50%"
                               outerRadius={80}
-                              label={(entry: any) => `${entry.companyName} (${(entry.marketShare * 100).toFixed(1)}%)`}
+                              label={(entry: any) => `${entry.companyName} (${(entry.marketShare).toFixed(1)}%)`}
                             >
                               {pieData.map((entry: any, index: number) => (
                                 <Cell key={`cell-${index}`} fill={['#36d399', '#6ea8fe', '#d4af37', '#b85555', '#a855f7', '#f97316'][index % 6]} />
                               ))}
                             </Pie>
                             <RechartsTooltip 
-                              formatter={(value: any) => [`${(value * 100).toFixed(1)}%`, 'Market Share']}
+                              formatter={(value: any) => [`${(Number(value)).toFixed(1)}%`, 'Market Share']}
                               contentStyle={{ backgroundColor: '#0a0a0a', border: '1px solid #2a2a2a' }}
                             />
                           </RechartsPieChart>

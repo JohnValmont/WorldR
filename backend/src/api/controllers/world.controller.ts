@@ -244,46 +244,50 @@ export class WorldController {
           'manufacturing_sales_results.market_share_estimate'
         );
 
-      // Group by segment, aggregate per company
-      const segmentMap = new Map<string, any>();
-      for (const sale of sales) {
-        if (!segmentMap.has(sale.region_market_id)) {
-          segmentMap.set(sale.region_market_id, {
-            segmentId: sale.region_market_id,
-            marketName: sale.market_name,
-            companies: new Map<string, any>(),
-          });
+        // Group by segment, aggregate per company
+        const segmentMap = new Map<string, any>();
+        for (const sale of sales) {
+          if (!segmentMap.has(sale.region_market_id)) {
+            segmentMap.set(sale.region_market_id, {
+              segmentId: sale.region_market_id,
+              marketName: sale.market_name,
+              totalUnits: 0,
+              companies: new Map<string, any>(),
+            });
+          }
+          const seg = segmentMap.get(sale.region_market_id);
+          const key = sale.company_id;
+          if (!seg.companies.has(key)) {
+            seg.companies.set(key, {
+              companyId: sale.company_id,
+              companyName: sale.company_name,
+              unitsSold: 0,
+              revenue: 0,
+            });
+          }
+          const co = seg.companies.get(key);
+          const uSold = Number(sale.units_sold);
+          co.unitsSold += uSold;
+          co.revenue += Number(sale.revenue);
+          seg.totalUnits += uSold;
         }
-        const seg = segmentMap.get(sale.region_market_id);
-        const key = sale.company_id;
-        if (!seg.companies.has(key)) {
-          seg.companies.set(key, {
-            companyId: sale.company_id,
-            companyName: sale.company_name,
-            unitsSold: 0,
-            revenue: 0,
-            marketShare: 0,
-          });
-        }
-        const co = seg.companies.get(key);
-        co.unitsSold += Number(sale.units_sold);
-        co.revenue += Number(sale.revenue);
-        co.marketShare += Number(sale.market_share_estimate);
-      }
 
-      const segments = Array.from(segmentMap.values()).map((seg: any) => {
-        const companies = Array.from(seg.companies.values())
-          .sort((a: any, b: any) => b.marketShare - a.marketShare)
-          .map((co: any) => ({
-            ...co,
-            marketShare: Math.round(co.marketShare * 1000) / 10, // → percentage, 1dp
-          }));
-        return {
-          segmentId: seg.segmentId,
-          marketName: seg.marketName,
-          companies,
-        };
-      });
+        const segments = Array.from(segmentMap.values()).map((seg: any) => {
+          const companies = Array.from(seg.companies.values())
+            .map((co: any) => {
+              const share = seg.totalUnits > 0 ? co.unitsSold / seg.totalUnits : 0;
+              return {
+                ...co,
+                marketShare: Math.round(share * 1000) / 10, // percentage, 1dp
+              };
+            })
+            .sort((a: any, b: any) => b.marketShare - a.marketShare);
+          return {
+            segmentId: seg.segmentId,
+            marketName: seg.marketName,
+            companies,
+          };
+        });
 
       res.json({
         month: { year: targetYear, month: targetMonth },
