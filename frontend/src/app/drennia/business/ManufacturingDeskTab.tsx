@@ -895,8 +895,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <div className="flex-1 h-[250px]">
                 <h4 className="text-[10px] uppercase text-zinc-500 mb-2 font-mono">Revenue vs Expenses (Last 12 Months)</h4>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={[...allReports].sort((a,b) => a.arc_number - b.arc_number).slice(-12).map(r => ({
-                    month: `Month ${r.arc_number}`,
+                  <BarChart data={[...allReports].sort((a,b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).slice(-12).map(r => ({
+                    month: `Month ${r.world_month}`,
                     revenue: Number(r.gross_revenue),
                     expenses: Number(r.production_costs) + Number(r.staff_wages) + Number(r.factory_lease_costs) + Number(r.factory_maintenance_costs) + Number(r.inventory_storage_costs)
                   }))}>
@@ -1006,7 +1006,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                 <DataRow label="Total Costs" value={fm(Number(latestReport.production_costs || 0) + Number(latestReport.staff_wages || 0) + Number(latestReport.factory_lease_costs || 0) + Number(latestReport.factory_maintenance_costs || 0) + Number(latestReport.inventory_storage_costs || 0))} valueVariant="red" />
                 <DataRow label="Net Profit" value={fm(latestReport.net_profit)} valueVariant={Number(latestReport.net_profit) < 0 ? 'red' : 'green'} />
                 {(() => {
-                  const sorted = [...allReports].sort((a: any, b: any) => a.arc_number - b.arc_number);
+                  const sorted = [...allReports].sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
                   const prev = sorted.length > 1 ? sorted[sorted.length - 2] : null;
                   if (!prev) return null;
                   const d = Number(latestReport.net_profit) - Number(prev.net_profit);
