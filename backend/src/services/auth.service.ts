@@ -84,7 +84,6 @@ export class AuthService {
 
     const result = await db.transaction(async (trx) => {
       const user = await userRepository.create({
-        username: email.split('@')[0], // Use email prefix as default username
         email,
         password_hash,
         role: 'user',
@@ -307,7 +306,6 @@ export class AuthService {
 
     const user = await db.transaction(async (trx) => {
       const u = await userRepository.create({
-        username: `guest_${guestId}`,
         email,
         password_hash,
         role: 'user', // We can keep role as user, and use the email domain to identify guests later if needed, or change it.
