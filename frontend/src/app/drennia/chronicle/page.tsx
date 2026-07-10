@@ -362,7 +362,7 @@ export default function ChroniclePage() {
                     <div className="text-[10px] text-zinc-500 font-mono w-4">#{idx + 1}</div>
                     <span className={`text-[12px] font-bold ${player.name === characterName ? 'text-terminal-green' : 'text-zinc-200'}`}>{player.name}</span>
                   </div>
-                  <div className="text-[12px] font-mono text-zinc-300">
+                  <div className="text-[12px] font-mono text-terminal-amber">
                     {formatMoney(player.net_worth)}
                   </div>
                 </div>
@@ -382,7 +382,7 @@ export default function ChroniclePage() {
                     <div className="text-[10px] text-zinc-500 font-mono w-4">#{idx + 1}</div>
                     <span className={`text-[12px] font-bold ${comp.name === company?.name ? 'text-terminal-green' : 'text-zinc-200'}`}>{comp.name}</span>
                   </div>
-                  <div className="text-[12px] font-mono text-zinc-300">
+                  <div className="text-[12px] font-mono text-terminal-amber">
                     {formatMoney(comp.company_value)}
                   </div>
                 </div>
