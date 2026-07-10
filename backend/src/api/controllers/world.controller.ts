@@ -348,12 +348,10 @@ export class WorldController {
       const currentYear = clock ? clock.current_year : 1;
       const currentMonth = clock ? clock.current_month : 1;
 
-      const popularCars = await db('manufacturing_market_brand_arc_results as r')
+      const popularCars = await db('manufacturing_sales_results as r')
         .join('manufacturing_vehicle_models as m', 'm.id', 'r.vehicle_model_id')
         .join('companies as c', 'c.id', 'm.company_id')
-        .join('market_segments as seg', 'seg.id', 'r.market_segment_id')
-        .join('markets as mk', 'mk.id', 'seg.market_id')
-        .where('mk.country_id', 'drennia')
+        .where('r.region_market_id', 'like', 'drennia%')
         .andWhere('r.world_year', currentYear)
         .andWhere('r.world_month', currentMonth)
         .select('m.id as model_id', 'm.name as model_name', 'c.name as company_name')
@@ -369,7 +367,7 @@ export class WorldController {
           COALESCE(cf.cash_in_hand, 0) as cash,
           (
             SELECT COALESCE(SUM(
-              (CAST(cs.shares AS FLOAT) / (SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id)) * compf.company_value
+              (CAST(cs.shares AS FLOAT) / NULLIF((SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id), 0)) * compf.company_value
             ), 0)
             FROM company_shares cs
             JOIN company_finances compf ON compf.company_id = cs.company_id
@@ -377,7 +375,7 @@ export class WorldController {
           ) as equity,
           COALESCE(cf.cash_in_hand, 0) + (
             SELECT COALESCE(SUM(
-              (CAST(cs.shares AS FLOAT) / (SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id)) * compf.company_value
+              (CAST(cs.shares AS FLOAT) / NULLIF((SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id), 0)) * compf.company_value
             ), 0)
             FROM company_shares cs
             JOIN company_finances compf ON compf.company_id = cs.company_id
