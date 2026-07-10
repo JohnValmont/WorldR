@@ -134,12 +134,11 @@ export default function ChroniclePage() {
   const [activeContracts, setActiveContracts] = useState(0);
   const [netWorthSeries, setNetWorthSeries]   = useState(MOCK_NET_WORTH_SERIES);
   const [ledgerFeed, setLedgerFeed] = useState<any[]>([]);
-  // First-day modal: show once, then set flag
   const [showFirstDay, setShowFirstDay] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [characterAge, setCharacterAge] = useState<number>(18);
-
-  // Build radar data from citizen file stats
+  const [leaderboards, setLeaderboards] = useState<any>(null);
+  const [leaderboardTab, setLeaderboardTab] = useState<'wealth' | 'marketCap'>('wealth');
   const radarData = [
     { attr: 'Credibility', value: citizenFile?.credibility ?? 50 },
     { attr: 'Charisma',    value: citizenFile?.charisma    ?? 50 },
@@ -170,7 +169,8 @@ export default function ChroniclePage() {
     const seenModal = localStorage.getItem(FIRST_DAY_MODAL_KEY) === 'true';
     if (!seenModal) setShowFirstDay(true);
 
-    import('../../../lib/api').then(({ characterApi, companyApi, politicsApi }) => {
+    import('../../../lib/api').then(({ characterApi, companyApi, politicsApi, worldApi }) => {
+      worldApi.getGlobalLeaderboards().then(res => setLeaderboards(res)).catch(e => console.error(e));
       characterApi.getMe()
         .then(res => {
           const char = res.data;
@@ -294,34 +294,7 @@ export default function ChroniclePage() {
         </div>
       </Card>
 
-      {/* Attribute Radar */}
-      <Card kicker="Attribute Profile" icon={Star}>
-        <ResponsiveContainer width="100%" height={180}>
-          <RadarChart data={radarData} outerRadius={65}>
-            <PolarGrid stroke="#23232b" />
-            <PolarAngleAxis
-              dataKey="attr"
-              tick={{ fill: '#71717a', fontSize: 9, fontFamily: 'monospace' }}
-            />
-            <Radar
-              dataKey="value"
-              stroke="#ff9f0a"
-              fill="#ff9f0a"
-              fillOpacity={0.12}
-              strokeWidth={1.5}
-            />
-          </RadarChart>
-        </ResponsiveContainer>
-      </Card>
 
-      {/* Letters */}
-      <Card kicker="Letters & Correspondence" icon={Mail}>
-        <EmptyState
-          icon={Mail}
-          message="No letters received yet. Business correspondence and official notices will arrive here."
-          className="py-6"
-        />
-      </Card>
     </>
   );
 

@@ -8,6 +8,7 @@ worldRoutes.get('/clock', WorldController.getClock);
 worldRoutes.get('/bootstrap', WorldController.getBootstrap);
 worldRoutes.get('/operators', WorldController.getOperators);
 worldRoutes.get('/market-leaderboard', WorldController.getMarketLeaderboard);
+worldRoutes.get('/global-leaderboards', WorldController.getGlobalLeaderboards);
 
 // Admin: world tick controls
 worldRoutes.post('/tick', [authMiddleware, requireAdmin], WorldController.forceTick);
