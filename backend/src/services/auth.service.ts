@@ -298,6 +298,48 @@ export class AuthService {
     return { accessToken, refreshToken, user: userWithoutPassword };
   }
 
+  public async guestLogin(): Promise<{ accessToken: string; refreshToken: string; user: Omit<User, 'password_hash'> }> {
+    const guestId = crypto.randomUUID().split('-')[0];
+    const email = `guest_${guestId}@guest.worldr.game`;
+    const password = crypto.randomBytes(16).toString('hex');
+    const password_hash = await bcrypt.hash(password, 10);
+
+    const user = await db.transaction(async (trx) => {
+      const u = await userRepository.create({
+        email,
+        password_hash,
+        role: 'user', // We can keep role as user, and use the email domain to identify guests later if needed, or change it.
+        is_verified: true, // Skip OTP
+        display_name: null,
+        reset_token: null,
+        reset_token_expires: null
+      }, trx);
+      
+      await trx('users').where({ id: u.id }).update({
+        display_name: `Guest #${u.id}`
+      });
+      u.display_name = `Guest #${u.id}`;
+      return u;
+    });
+
+    const accessToken = this.generateAccessToken(user);
+    const refreshToken = this.generateRefreshToken(user);
+    const tokenHash = this.hashToken(refreshToken);
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await db('refresh_tokens').insert({
+      token_hash: tokenHash,
+      user_id: user.id,
+      expires_at: expiresAt,
+      is_revoked: false
+    });
+
+    const { password_hash: _, ...userWithoutPassword } = user;
+    return { accessToken, refreshToken, user: userWithoutPassword };
+  }
+
   public async refresh(refreshToken: string): Promise<{ accessToken: string }> {
     try {
       const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as { id: number };

@@ -16,6 +16,30 @@ export class AuthController {
     }
   }
 
+  public async guestLogin(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await authService.guestLogin();
+
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
+
+      res.status(200).json({
+        accessToken: result.accessToken,
+        user: {
+          ...result.user,
+          role: result.user.role,
+          character: null
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   public async login(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password } = req.body;
