@@ -137,7 +137,7 @@ export async function fireGoverningEvent(
 }
 
 /**
- * Fire crisis events driven by Jurisdiction Conditions (GDD §11). A condition
+ * Fire crisis events driven by Jurisdiction Conditions (GDD $11). A condition
  * at/below its threshold triggers the crisis deterministically from real state —
  * no RNG, no scripting. Idempotent per (state, month, crisis kind). Each crisis
  * dings the governing party's leader credibility and party treasury only; the

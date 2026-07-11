@@ -20,7 +20,7 @@ interface Props {
   onRefresh?: () => void;
 }
 
-const REAL_HOURS_PER_MONTH = 8; // GDD §3
+const REAL_HOURS_PER_MONTH = 8; // GDD $3
 
 // Indicative Fit (display only) — the engine uses the tuned POL_FIT_EXP formula.
 function fitPct(platform: any, seg: any): number | null {
@@ -46,7 +46,7 @@ function leaning(seg: any): string {
 
 /** The scheduled-election banner: countdown + term progress. No phase ceremony —
  *  campaigning and legislating are open at all times; the vote simply resolves on
- *  Election Day (GDD §3–4 / Task C removed the phase gates). */
+ *  Election Day (GDD $3–4 / Task C removed the phase gates). */
 function ElectionHero({
   jurisdictionName,
   cycle,
@@ -67,7 +67,7 @@ function ElectionHero({
   const bigValue = months == null ? '—' : months <= 0 ? 'IMMINENT' : String(months).padStart(2, '0');
   const unit = months == null || months <= 0 ? '' : months === 1 ? 'MONTH' : 'MONTHS';
 
-  // 1 in-game month = 8 real hours (GDD §3).
+  // 1 in-game month = 8 real hours (GDD $3).
   const realHours = months != null ? months * REAL_HOURS_PER_MONTH : null;
   const realNote = realHours != null && months! > 0
     ? `≈ ${Math.floor(realHours / 24)}d ${realHours % 24}h real time`

@@ -89,7 +89,7 @@ router.put('/parties/:id/platform', authMiddleware, updatePlatform);
 // (polling/formation) — this matches PartyTab's `canRunForOffice` guard.
 router.post('/candidacy', authMiddleware, blockPhases('polling', 'formation'), declareCandidacy);
 
-// Campaigning is ALWAYS open (GDD §3), except while an election is actively
+// Campaigning is ALWAYS open (GDD $3), except while an election is actively
 // resolving (polling/formation) — matching the candidacy guard above.
 router.post('/campaign/actions', authMiddleware, blockPhases('polling', 'formation'), queueCampaignAction);
 router.get('/polls', authMiddleware, getPolls);
@@ -99,7 +99,7 @@ router.post('/formation/coalition', authMiddleware, requirePhase('formation'), m
 router.get('/council', authMiddleware, getCouncil);
 router.get('/ledger', authMiddleware, getLedger);
 
-// Legislation is ALWAYS open (GDD §3): propose & vote any time except while an
+// Legislation is ALWAYS open (GDD $3): propose & vote any time except while an
 // election is actively resolving (polling/formation).
 router.get('/bills', authMiddleware, getBills);
 router.post('/bills', authMiddleware, blockPhases('polling', 'formation'), proposeBill);

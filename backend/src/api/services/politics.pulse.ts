@@ -24,7 +24,7 @@ export interface PulseContext {
   myPartyId?: string | null;
   myCandidateId?: string | null;
   heldSeatsByParty?: Record<string, number>;
-  /** Per-jurisdiction seat totals (GDD §3). Fall back to legacy defaults. */
+  /** Per-jurisdiction seat totals (GDD $3). Fall back to legacy defaults. */
   totalSeats?: number;
   majoritySeats?: number;
 }

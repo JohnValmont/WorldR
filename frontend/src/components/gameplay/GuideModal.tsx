@@ -236,13 +236,13 @@ export default function GuideModal({ onDismiss }: GuideModalProps) {
               <td style={{ padding: '16px' }}>Private Company</td>
               <td style={{ padding: '16px' }}>Yes</td>
               <td style={{ padding: '16px' }}>10 holders</td>
-              <td style={{ padding: '16px' }}>§10,000</td>
+              <td style={{ padding: '16px' }}>$10,000</td>
             </tr>
             <tr>
               <td style={{ padding: '16px' }}>Public Corporation</td>
               <td style={{ padding: '16px' }}>Yes</td>
               <td style={{ padding: '16px' }}>Unlimited</td>
-              <td style={{ padding: '16px' }}>§250,000</td>
+              <td style={{ padding: '16px' }}>$250,000</td>
             </tr>
           </tbody>
         </table>

@@ -9,9 +9,9 @@ import {
 } from '@/components/ui';
 import {
   AreaChart, Area, BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
-  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell
+  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend
 } from 'recharts';
-import { LayoutDashboard, Factory, FlaskConical, ShoppingCart, Activity, BarChart3, Users, DollarSign, ScrollText, PieChart, Tags, Globe } from 'lucide-react';
+import { LayoutDashboard, Factory, FlaskConical, ShoppingCart, Activity, BarChart3, Users, DollarSign, ScrollText, PieChart, Tags, Globe, LineChart } from 'lucide-react';
 
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
@@ -305,7 +305,7 @@ function EmptyState({ icon, title, subtitle, action }: { icon?: string; title: s
 // ─── Tab type ───────────────────────────────────────────────────────────────
 
 
-type MfgTab = 'overview' | 'factory' | 'design' | 'procurement' | 'production' | 'sales' | 'market' | 'staff' | 'finance' | 'records' | 'equity';
+type MfgTab = 'overview' | 'factory' | 'design' | 'procurement' | 'production' | 'sales' | 'market' | 'history' | 'staff' | 'finance' | 'records' | 'equity';
 
 const MFG_TABS: { id: MfgTab; label: string; icon: any }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -315,6 +315,7 @@ const MFG_TABS: { id: MfgTab; label: string; icon: any }[] = [
   { id: 'production', label: 'Production', icon: Activity },
   { id: 'sales', label: 'Sales Operations', icon: Tags },
   { id: 'market', label: 'Market Intelligence', icon: Globe },
+  { id: 'history', label: 'Performance History', icon: LineChart },
   { id: 'staff', label: 'Staffing', icon: Users },
   { id: 'finance', label: 'Finance', icon: DollarSign },
   { id: 'records', label: 'Records', icon: ScrollText },
@@ -914,7 +915,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                 <h4 className="text-[10px] uppercase text-zinc-500 mb-2 font-mono">Revenue vs Expenses (Last 12 Months)</h4>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={[...allReports].sort((a,b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).slice(-12).map(r => ({
-                    month: `Month ${r.world_month}`,
+                    month: `Y${r.world_year} M${r.world_month}`,
                     revenue: Number(r.gross_revenue),
                     expenses: Number(r.gross_revenue) - Number(r.net_profit)
                   }))}>
@@ -1736,40 +1737,6 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           </div>
                         )}
 
-                        {/* Performance History */}
-                        <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Performance History</div>
-                        <PanelBox>
-                          {(() => {
-                            const snaps = modelSnapshots.filter((s: any) => s.vehicle_model_id === selectedModel.id).sort((a: any, b: any) => b.world_month - a.world_month);
-                            if (snaps.length === 0) return <div style={{ fontSize: '11px', color: T.faint }}>No performance history available yet. Snapshots are generated after a month closes.</div>;
-                            return (
-                              <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse' }}>
-                                  <thead>
-                                    <tr style={{ color: T.muted, borderBottom: `1px solid ${T.border}` }}>
-                                      <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Month</th>
-                                      <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Built</th>
-                                      <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Sold</th>
-                                      <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Revenue</th>
-                                      <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Contribution</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {snaps.map((s: any) => (
-                                      <tr key={s.id} style={{ borderBottom: `1px dashed ${T.border}33` }}>
-                                        <td style={{ padding: '8px 0', color: T.ivory }}>{s.world_month}</td>
-                                        <td style={{ padding: '8px 0', color: T.muted }}>{s.units_produced}</td>
-                                        <td style={{ padding: '8px 0', color: T.mint }}>{s.units_sold}</td>
-                                        <td style={{ padding: '8px 0', color: T.gold }}>{fm(s.revenue_generated)}</td>
-                                        <td style={{ padding: '8px 0', color: Number(s.direct_contribution) < 0 ? T.red : T.mint }}>{fm(s.direct_contribution)}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            );
-                          })()}
-                        </PanelBox>
                       </div>
                     </div>
                   </div>
@@ -2957,15 +2924,30 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               cx="50%"
                               cy="50%"
                               outerRadius={80}
-                              label={(entry: any) => `${entry.companyName} (${(entry.marketShare).toFixed(1)}%)`}
                             >
                               {pieData.map((entry: any, index: number) => (
-                                <Cell key={`cell-${index}`} fill={['#36d399', '#6ea8fe', '#d4af37', '#b85555', '#a855f7', '#f97316'][index % 6]} />
+                                <Cell key={`cell-${index}`} fill={[
+                                  '#36d399', '#6ea8fe', '#d4af37', '#b85555', '#a855f7', '#f97316',
+                                  '#ec4899', '#14b8a6', '#6366f1', '#facc15', '#ef4444', '#8b5cf6',
+                                  '#10b981', '#0ea5e9', '#f43f5e', '#84cc16', '#3b82f6', '#d946ef',
+                                  '#06b6d4', '#eab308'
+                                ][index % 20]} />
                               ))}
                             </Pie>
                             <RechartsTooltip 
                               formatter={(value: any) => [`${(Number(value)).toFixed(1)}%`, 'Market Share']}
                               contentStyle={{ backgroundColor: '#0a0a0a', border: '1px solid #2a2a2a' }}
+                            />
+                            <Legend 
+                              layout="vertical" 
+                              verticalAlign="middle" 
+                              align="right"
+                              wrapperStyle={{ fontSize: '11px', color: '#fffff0' }}
+                              formatter={(value, entry: any) => (
+                                <span style={{ color: '#fffff0' }}>
+                                  {value} ({(entry.payload.marketShare).toFixed(1)}%)
+                                </span>
+                              )}
                             />
                           </RechartsPieChart>
                         </ResponsiveContainer>
@@ -3089,6 +3071,54 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               
             </>
           )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════
+          PERFORMANCE HISTORY TAB
+      ═══════════════════════════════════════════════════════ */}
+      {deskTab === 'history' && (
+        <div className="flex flex-col gap-5">
+          <SectionHeader stamp="ANALYTICS DESK">Performance History</SectionHeader>
+          <PanelBox>
+            {(!modelSnapshots || modelSnapshots.length === 0) ? (
+              <EmptyState
+                icon="📈"
+                title="No performance history available yet."
+                subtitle="Snapshots are generated after a month closes."
+              />
+            ) : (
+              <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ color: T.muted, borderBottom: `1px solid ${T.border}` }}>
+                      <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Model</th>
+                      <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Month</th>
+                      <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Built</th>
+                      <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Sold</th>
+                      <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Revenue</th>
+                      <th style={{ paddingBottom: '8px', fontWeight: 'normal' }}>Contribution</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modelSnapshots.sort((a: any, b: any) => b.world_year - a.world_year || b.world_month - a.world_month).map((s: any) => {
+                      const model = models.find((m: any) => m.id === s.vehicle_model_id);
+                      return (
+                        <tr key={s.id} style={{ borderBottom: `1px dashed ${T.border}33` }}>
+                          <td style={{ padding: '8px 0', color: T.ivory, fontWeight: 'bold' }}>{model?.name || 'Unknown Model'}</td>
+                          <td style={{ padding: '8px 0', color: T.ivory }}>Year {s.world_year}, M{s.world_month}</td>
+                          <td style={{ padding: '8px 0', color: T.muted }}>{s.units_produced}</td>
+                          <td style={{ padding: '8px 0', color: T.mint }}>{s.units_sold}</td>
+                          <td style={{ padding: '8px 0', color: T.gold }}>{fm(s.revenue_generated)}</td>
+                          <td style={{ padding: '8px 0', color: Number(s.direct_contribution) < 0 ? T.red : T.mint }}>{fm(s.direct_contribution)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </PanelBox>
         </div>
       )}
 

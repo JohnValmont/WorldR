@@ -35,6 +35,7 @@ export class RegistryController {
           'created_at_world_day'
         )
         .where({ status: 'active', world_instance_id })
+        .orderBy('id', 'asc')
         .limit(limit)
         .offset(offset);
 

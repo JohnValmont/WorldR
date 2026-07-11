@@ -105,11 +105,11 @@ export class CompanyController {
       }
 
       if (industry_id === 'manufacturing' && Number(starting_capital) < 500000) {
-        return next(new AppError('Manufacturing companies require a minimum of §500,000 in starting capital', 400, 'BAD_REQUEST'));
+        return next(new AppError('Manufacturing companies require a minimum of $500,000 in starting capital', 400, 'BAD_REQUEST'));
       }
 
       if (industry_id === 'shipping-logistics' && Number(starting_capital) < 50000) {
-        return next(new AppError('Logistics companies require a minimum of §50,000 in starting capital', 400, 'BAD_REQUEST'));
+        return next(new AppError('Logistics companies require a minimum of $50,000 in starting capital', 400, 'BAD_REQUEST'));
       }
 
       const activeInstance = await db('world_instances').where({ status: 'active' }).first();
@@ -139,7 +139,7 @@ export class CompanyController {
       }
       // Public corporations require minimum starting value to IPO at creation
       if (Number(structure.min_company_value) > 0 && Number(starting_capital) < Number(structure.min_company_value)) {
-        return next(new AppError(`A ${structure.name} requires at least §${Number(structure.min_company_value).toLocaleString()} in starting capital`, 400, 'MIN_VALUE'));
+        return next(new AppError(`A ${structure.name} requires at least $${Number(structure.min_company_value).toLocaleString()} in starting capital`, 400, 'MIN_VALUE'));
       }
 
       const clock = await db('world_clock').where({ status: 'active' }).first();
@@ -257,7 +257,7 @@ export class CompanyController {
         const personalCash = Number(charFinances.cash_in_hand);
         if (personalCash < Number(amount)) {
           throw new AppError(
-            `Insufficient personal funds. You have §${personalCash.toLocaleString()} but need §${Number(amount).toLocaleString()}.`,
+            `Insufficient personal funds. You have $${personalCash.toLocaleString()} but need $${Number(amount).toLocaleString()}.`,
             400,
             'INSUFFICIENT_FUNDS'
           );
@@ -298,7 +298,7 @@ export class CompanyController {
 
       res.status(200).json({
         success: true,
-        message: `§${Number(amount).toLocaleString()} injected into company as owner capital.`,
+        message: `$${Number(amount).toLocaleString()} injected into company as owner capital.`,
         ...result,
       });
     } catch (error) {
@@ -387,7 +387,7 @@ export class CompanyController {
 
         if (Number(charFinances.cash_in_hand) < totalCost) {
           throw new AppError(
-            `Insufficient personal funds. This issuance costs §${totalCost.toLocaleString()} (${shares.toLocaleString()} shares × §${price.toLocaleString()}), but you only have §${Number(charFinances.cash_in_hand).toLocaleString()}.`,
+            `Insufficient personal funds. This issuance costs $${totalCost.toLocaleString()} (${shares.toLocaleString()} shares × $${price.toLocaleString()}), but you only have $${Number(charFinances.cash_in_hand).toLocaleString()}.`,
             400,
             'INSUFFICIENT_FUNDS'
           );
@@ -413,7 +413,7 @@ export class CompanyController {
           game_month: clock?.current_month || 1,
           game_day: clock?.current_day || 1,
           entry_type: 'share_issuance',
-          description: `Issued ${shares.toLocaleString()} shares at §${price.toLocaleString()}`,
+          description: `Issued ${shares.toLocaleString()} shares at $${price.toLocaleString()}`,
           amount: totalCost,
           balance_after: updatedFinances.available_cash,
         });
@@ -450,7 +450,7 @@ export class CompanyController {
 
       res.status(200).json({
         success: true,
-        message: `Issued ${result.shares_issued.toLocaleString()} new shares at §${result.price_per_share.toLocaleString()} each. §${result.capital_raised.toLocaleString()} raised for the company.`,
+        message: `Issued ${result.shares_issued.toLocaleString()} new shares at $${result.price_per_share.toLocaleString()} each. $${result.capital_raised.toLocaleString()} raised for the company.`,
         ...result,
       });
     } catch (error) {
@@ -594,7 +594,7 @@ export class CompanyController {
 
         // IPO requirement: minimum company value
         if (Number(target.min_company_value) > 0 && Number(finances.company_value) < Number(target.min_company_value)) {
-          throw new AppError(`Requires company value of at least §${Number(target.min_company_value).toLocaleString()} (current: §${Number(finances.company_value).toLocaleString()})`, 400, 'MIN_VALUE');
+          throw new AppError(`Requires company value of at least $${Number(target.min_company_value).toLocaleString()} (current: $${Number(finances.company_value).toLocaleString()})`, 400, 'MIN_VALUE');
         }
 
         // Downgrade guard: cannot move to a structure whose shareholder cap is below current holder count
@@ -606,7 +606,7 @@ export class CompanyController {
         }
 
         if (Number(finances.available_cash) < fee) {
-          throw new AppError(`Insufficient company cash for the §${fee.toLocaleString()} filing fee`, 400, 'INSUFFICIENT_FUNDS');
+          throw new AppError(`Insufficient company cash for the $${fee.toLocaleString()} filing fee`, 400, 'INSUFFICIENT_FUNDS');
         }
 
         await trx('company_finances')

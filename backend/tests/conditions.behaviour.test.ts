@@ -10,7 +10,7 @@ import {
 } from '../src/api/services/conditions';
 import { Platform, POL_CONDITION_NEUTRAL, POL_CONDITION_TURNOUT_MAX_SWING } from '../src/api/constants/politics';
 
-// Task E — Jurisdiction Conditions (GDD §11 & §16). Pure/deterministic; no DB.
+// Task E — Jurisdiction Conditions (GDD $11 & $16). Pure/deterministic; no DB.
 function runTests() {
   console.log('Targets test 1 — no government pulls toward neutral...');
   {

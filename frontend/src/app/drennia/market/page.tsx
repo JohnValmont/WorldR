@@ -121,13 +121,13 @@ export default function MarketPage() {
               <div style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Share Market — Open for Trading</div>
               <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, maxWidth: '480px', margin: 0 }}>
                 Trade shares of player-owned Public Corporations on a live order book. 
-                Convert your company to a Public Corporation (§250,000 minimum value) to IPO and raise capital.
+                Convert your company to a Public Corporation ($250,000 minimum value) to IPO and raise capital.
               </p>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Listing Requires</div>
               <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace' }}>Public Corporation Structure</div>
-              <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace' }}>§250,000 Company Value Min.</div>
+              <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace' }}>$250,000 Company Value Min.</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '24px', marginTop: '20px', paddingTop: '16px', borderTop: `1px solid ${T.border}` }}>

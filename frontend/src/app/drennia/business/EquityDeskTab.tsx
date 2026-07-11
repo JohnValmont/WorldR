@@ -89,7 +89,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
     try {
       // Backend will validate ownership, so we just pass through to the API
       await companyApi.injectCapital(companyId, amt);
-      setNotice({ text: `§${amt.toLocaleString('en-US')} injected successfully.`, ok: true });
+      setNotice({ text: `$${amt.toLocaleString('en-US')} injected successfully.`, ok: true });
       setInjectInput('');
       mutateCap();
       refreshCash();
@@ -105,7 +105,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
     try {
       // Backend will validate ownership, so we just pass through to the API
       await companyApi.withdrawCapital(companyId, amt);
-      setNotice({ text: `§${amt.toLocaleString('en-US')} withdrawn successfully.`, ok: true });
+      setNotice({ text: `$${amt.toLocaleString('en-US')} withdrawn successfully.`, ok: true });
       setWithdrawInput('');
       mutateCap();
       refreshCash();
@@ -121,7 +121,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
     setBusy(true); setNotice(null);
     try {
       await companyApi.issueShares(companyId, q, p);
-      setNotice({ text: `Issued ${q.toLocaleString('en-US')} shares for §${(q * p).toLocaleString('en-US')}.`, ok: true });
+      setNotice({ text: `Issued ${q.toLocaleString('en-US')} shares for $${(q * p).toLocaleString('en-US')}.`, ok: true });
       setIssueQty(''); setIssuePrice('');
       mutateCap();
       refreshCash();
@@ -138,8 +138,8 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
       {/* Owner Capital Movement */}
       <Card kicker="Owner Capital Movement" className="lg:col-span-2">
         <div className="text-xs text-zinc-400 mb-4">
-          Your personal cash: <span className="text-terminal-green font-bold font-mono">§{fmt(playerCash)}</span>
-          &nbsp;·&nbsp; Company cash: <span className="text-zinc-100 font-bold font-mono">§{fmt(capTable?.company?.available_cash ?? 0)}</span>
+          Your personal cash: <span className="text-terminal-green font-bold font-mono">${fmt(playerCash)}</span>
+          &nbsp;·&nbsp; Company cash: <span className="text-zinc-100 font-bold font-mono">${fmt(capTable?.company?.available_cash ?? 0)}</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           
@@ -154,7 +154,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
               <div className="text-[13px] font-bold text-terminal-green mb-1">↓ Inject Capital</div>
               <div className="text-[11px] text-zinc-400 mb-3 leading-relaxed min-h-[34px]">Transfer your personal cash into the company ledger (owner loan).</div>
               <div className="flex gap-2 items-center">
-                <input type="number" placeholder="§ Amount" min={1} value={injectInput} onChange={e => setInjectInput(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-terminal-green p-2 text-xs outline-none rounded" />
+                <input type="number" placeholder="$ Amount" min={1} value={injectInput} onChange={e => setInjectInput(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-terminal-green p-2 text-xs outline-none rounded" />
                 <Button onClick={handleInject} disabled={busy} variant="primary">Inject</Button>
               </div>
             </div>
@@ -165,7 +165,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
               <div className="flex gap-2 items-center">
                 <input type="number" placeholder="Shares" min={1} value={issueQty} onChange={e => setIssueQty(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 p-2 text-xs outline-none rounded" />
                 <span className="text-zinc-500 text-xs">@</span>
-                <input type="number" placeholder="§ Price" min={1} value={issuePrice} onChange={e => setIssuePrice(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 p-2 text-xs outline-none rounded" />
+                <input type="number" placeholder="$ Price" min={1} value={issuePrice} onChange={e => setIssuePrice(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 p-2 text-xs outline-none rounded" />
                 <Button onClick={handleIssue} disabled={busy} variant="primary">Issue</Button>
               </div>
             </div>
@@ -182,7 +182,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
               <div className="text-[13px] font-bold text-terminal-amber mb-1">↑ Owner Drawings</div>
               <div className="text-[11px] text-zinc-400 mb-3 leading-relaxed min-h-[34px]">Withdraw company cash to your personal holdings.</div>
               <div className="flex gap-2 items-center">
-                <input type="number" placeholder="§ Amount" min={1} value={withdrawInput} onChange={e => setWithdrawInput(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-terminal-amber p-2 text-xs outline-none rounded" />
+                <input type="number" placeholder="$ Amount" min={1} value={withdrawInput} onChange={e => setWithdrawInput(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-terminal-amber p-2 text-xs outline-none rounded" />
                 <Button onClick={handleWithdraw} disabled={busy} variant="secondary" className="text-terminal-amber border-terminal-amber hover:bg-terminal-amber/10">Withdraw</Button>
               </div>
             </div>
@@ -212,11 +212,11 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
                 </div>
                 <p className="text-[11px] text-zinc-400 leading-relaxed mb-3 min-h-[44px]">{s.description}</p>
                 <div className="font-mono text-[10px] text-zinc-500 flex flex-col gap-1">
-                  <span>Filing fee: <span className="text-zinc-200">§{fmt(Number(s.filing_fee))}</span></span>
-                  <span>Monthly compliance: <span className="text-zinc-200">§{fmt(Number(s.monthly_compliance_cost))}</span></span>
+                  <span>Filing fee: <span className="text-zinc-200">${fmt(Number(s.filing_fee))}</span></span>
+                  <span>Monthly compliance: <span className="text-zinc-200">${fmt(Number(s.monthly_compliance_cost))}</span></span>
                   <span>Shareholders: <span className="text-zinc-200">{s.max_shareholders ?? 'Unlimited'}</span></span>
                   {Number(s.min_company_value) > 0 && (
-                    <span>Min company value: <span className="text-zinc-200">§{fmt(Number(s.min_company_value))}</span></span>
+                    <span>Min company value: <span className="text-zinc-200">${fmt(Number(s.min_company_value))}</span></span>
                   )}
                 </div>
                 {!isCurrent && isUpgrade && (
@@ -226,7 +226,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
                     variant="primary"
                     className="w-full mt-4"
                   >
-                    Convert — §{fmt(Number(s.filing_fee))}
+                    Convert — ${fmt(Number(s.filing_fee))}
                   </Button>
                 )}
               </div>

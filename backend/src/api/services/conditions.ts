@@ -1,5 +1,5 @@
 /**
- * conditions.ts — Jurisdiction Conditions (GDD v0.5 §11 & §16).
+ * conditions.ts — Jurisdiction Conditions (GDD v0.5 $11 & $16).
  *
  * Pure, deterministic helpers (no DB, no randomness) for the five per-state
  * indicators: Prosperity · Jobs · Order · Cohesion · Budget (0–10). The governing
@@ -55,7 +55,7 @@ function rungFor(value: number): 'low' | 'mid' | 'high' {
 
 /**
  * The condition targets implied by the governing party's active policy. Each
- * pillar's rung contributes deltas (GDD §16) to the neutral baseline. With no
+ * pillar's rung contributes deltas (GDD $16) to the neutral baseline. With no
  * government (null platform), targets pull back toward neutral.
  */
 export function computeConditionTargets(governingPlatform: Platform | null | undefined): Conditions {
@@ -89,7 +89,7 @@ export function driftConditions(current: Conditions, targets: Conditions): Condi
 }
 
 /**
- * Turnout multiplier for a bloc given current conditions (GDD §5: Turnout ×
+ * Turnout multiplier for a bloc given current conditions (GDD $5: Turnout ×
  * Conditions). Sums the bloc's sensitivity to each condition's deviation from
  * neutral, clamped to ±POL_CONDITION_TURNOUT_MAX_SWING. Returns 1.0 when no
  * conditions are supplied, so the engine is unchanged without this system.

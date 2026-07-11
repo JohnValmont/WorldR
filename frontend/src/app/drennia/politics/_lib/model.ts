@@ -97,5 +97,5 @@ export const AP_MODEL = {
   },
 } as const;
 
-/** 1 in-game month = 8 real hours (GDD §3). */
+/** 1 in-game month = 8 real hours (GDD $3). */
 export const REAL_HOURS_PER_MONTH = 8;

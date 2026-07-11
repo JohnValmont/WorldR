@@ -71,7 +71,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
 
   const events: any[] = Array.isArray(ledger) ? ledger : [];
 
-  // Jurisdiction Conditions (Task E / GDD §11) — now visible for the first time.
+  // Jurisdiction Conditions (Task E / GDD $11) — now visible for the first time.
   const cond: any = overview?.conditions;
   const hasConditions = cond && typeof cond === 'object';
 
@@ -119,7 +119,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
         </Panel>
       )}
 
-      {/* ── Jurisdiction Conditions strip (Task E / GDD §11) ─────────────────── */}
+      {/* ── Jurisdiction Conditions strip (Task E / GDD $11) ─────────────────── */}
       {hasConditions && (
         <Panel title="Jurisdiction Conditions">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>

@@ -92,7 +92,7 @@ function Listings({ listings, selectedId, onSelect }: { listings: any[]; selecte
       <div style={{ ...label, marginBottom: '12px' }}>Listed Companies</div>
       {listings.length === 0 && (
         <div style={{ fontSize: '11px', color: T.faint, lineHeight: 1.7 }}>
-          No public corporations listed yet. Convert a company to a Public Corporation (§250,000 min value) and complete an IPO to trade here.
+          No public corporations listed yet. Convert a company to a Public Corporation ($250,000 min value) and complete an IPO to trade here.
         </div>
       )}
       {listings.map((l) => {
@@ -114,7 +114,7 @@ function Listings({ listings, selectedId, onSelect }: { listings: any[]; selecte
               <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase' }}>{l.industry_id}</div>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>{l.last_price != null ? `§${fmt(l.last_price)}` : 'unpriced'}</div>
+              <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>{l.last_price != null ? `$${fmt(l.last_price)}` : 'unpriced'}</div>
               {change != null && (
                 <div style={{ ...mono, fontSize: '10px', color: change >= 0 ? T.mint : T.red }}>
                   {change >= 0 ? '▲' : '▼'} {fmt(Math.abs(change), 1)}%
@@ -188,7 +188,7 @@ function CandleChart({ companyId }: { companyId: string }) {
                 tickLine={false}
                 width={52}
                 domain={[Math.max(0, min - pad), max + pad]}
-                tickFormatter={(v: number) => `§${fmt(v, 2)}`}
+                tickFormatter={(v: number) => `$${fmt(v, 2)}`}
               />
               <YAxis yAxisId="vol" orientation="right" hide domain={[0, (dataMax: number) => dataMax * 4]} />
               <Tooltip
@@ -198,7 +198,7 @@ function CandleChart({ companyId }: { companyId: string }) {
                 formatter={(value: any, name: any, item: any) => {
                   if (name === 'volume') return [fmtInt(Number(value)), 'Volume'];
                   const p = item?.payload;
-                  return [`O §${fmt(p.open_price)}  H §${fmt(p.high_price)}  L §${fmt(p.low_price)}  C §${fmt(p.close_price)}`, 'OHLC'];
+                  return [`O $${fmt(p.open_price)}  H $${fmt(p.high_price)}  L $${fmt(p.low_price)}  C $${fmt(p.close_price)}`, 'OHLC'];
                 }}
               />
               <Bar yAxisId="vol" dataKey="volume" fill="rgba(75,99,130,0.35)" isAnimationActive={false} />
@@ -229,8 +229,8 @@ function EarningsPanel({ companyId }: { companyId: string }) {
             return (
               <div key={i} style={{ ...mono, fontSize: '11px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '6px', padding: '4px 0', borderBottom: `1px solid ${T.border}` }}>
                 <span style={{ color: T.faint }}>Y{r.game_year} M{r.game_month}</span>
-                <span style={{ textAlign: 'right', color: T.ivory }}>§{fmt(Number(r.eps), 3)}</span>
-                <span style={{ textAlign: 'right', color: T.muted }}>{r.analyst_estimate != null ? `§${fmt(Number(r.analyst_estimate) / 1000000, 3)}` : '—'}</span>
+                <span style={{ textAlign: 'right', color: T.ivory }}>${fmt(Number(r.eps), 3)}</span>
+                <span style={{ textAlign: 'right', color: T.muted }}>{r.analyst_estimate != null ? `$${fmt(Number(r.analyst_estimate) / 1000000, 3)}` : '—'}</span>
                 <span style={{ textAlign: 'right', color: surprise == null ? T.faint : surprise >= 0 ? T.mint : T.red }}>
                   {surprise != null ? `${surprise >= 0 ? '+' : ''}${fmt(surprise, 1)}%` : '—'}
                 </span>
@@ -257,7 +257,7 @@ function OrderBook({ companyId }: { companyId: string }) {
         width: `${Math.min(100, (Number(quantity) / maxQty) * 100)}%`,
         background: side === 'bid' ? 'rgba(54,211,153,0.08)' : 'rgba(184,85,85,0.08)',
       }} />
-      <span style={{ color: side === 'bid' ? T.mint : T.red, zIndex: 1 }}>§{fmt(Number(price))}</span>
+      <span style={{ color: side === 'bid' ? T.mint : T.red, zIndex: 1 }}>${fmt(Number(price))}</span>
       <span style={{ color: T.muted, zIndex: 1 }}>{fmtInt(Number(quantity))}</span>
     </div>
   );
@@ -310,7 +310,7 @@ function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: stri
     setMsg(null);
     try {
       await exchangeApi.ipoLaunch(companyId, { price_per_share: p, quantity: q });
-      setMsg({ text: `IPO sell order posted: ${q.toLocaleString('en-US')} shares @ §${p.toFixed(2)}. Buyers can now fill this order.`, ok: true });
+      setMsg({ text: `IPO sell order posted: ${q.toLocaleString('en-US')} shares @ $${p.toFixed(2)}. Buyers can now fill this order.`, ok: true });
       onLaunched();
     } catch (e: any) {
       setMsg({ text: e?.response?.data?.error || e?.response?.data?.message || 'IPO launch failed.', ok: false });
@@ -335,7 +335,7 @@ function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: stri
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div>
-          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price (§ per share)</div>
+          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price ($ per share)</div>
           <input
             aria-label="IPO price per share"
             value={price}
@@ -358,9 +358,9 @@ function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: stri
         </div>
         {price && Number(price) > 0 && quantity && Number(quantity) > 0 && (
           <div style={{ ...mono, fontSize: '10px', color: T.muted, lineHeight: 1.6 }}>
-            Offer: <span style={{ color: T.gold }}>§{(Number(price) * Number(quantity)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            Offer: <span style={{ color: T.gold }}>${(Number(price) * Number(quantity)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             {impliedCap != null && (
-              <span style={{ color: T.faint }}> · Cap §{impliedCap.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              <span style={{ color: T.faint }}> · Cap ${impliedCap.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
             )}
           </div>
         )}
@@ -440,7 +440,7 @@ function OrderTicket({ companyId, lastClose, onPlaced }: { companyId: string; la
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div>
-          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Limit price (§ per share)</div>
+          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Limit price ($ per share)</div>
           <input aria-label="Limit price per share" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={lastClose != null ? fmt(lastClose) : '0.00'} inputMode="decimal" style={inputStyle} />
         </div>
         <div>
@@ -449,12 +449,12 @@ function OrderTicket({ companyId, lastClose, onPlaced }: { companyId: string; la
         </div>
         {band && (
           <div style={{ ...mono, fontSize: '9px', color: T.faint }}>
-            Circuit breaker: §{fmt(band.lo)} – §{fmt(band.hi)} (±20% of last close)
+            Circuit breaker: ${fmt(band.lo)} – ${fmt(band.hi)} (±20% of last close)
           </div>
         )}
         {price && quantity && Number(price) > 0 && Number(quantity) > 0 && (
           <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-            Notional: <span style={{ color: T.gold }}>§{fmt(Number(price) * Number(quantity))}</span>
+            Notional: <span style={{ color: T.gold }}>${fmt(Number(price) * Number(quantity))}</span>
             {side === 'buy' && <span style={{ color: T.faint }}> (escrowed until filled or cancelled)</span>}
           </div>
         )}
@@ -486,7 +486,7 @@ function RecentTrades({ companyId }: { companyId: string }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxHeight: '200px', overflowY: 'auto' }}>
         {rows.map((t: any, i: number) => (
           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '11px', ...mono, borderBottom: `1px solid ${T.border}` }}>
-            <span style={{ color: T.ivory }}>§{fmt(Number(t.price))}</span>
+            <span style={{ color: T.ivory }}>${fmt(Number(t.price))}</span>
             <span style={{ color: T.muted }}>{fmtInt(Number(t.quantity))} sh</span>
             <span style={{ color: T.faint }}>Y{t.game_year} M{t.game_month}</span>
           </div>
@@ -526,12 +526,12 @@ function MyDesk({ refreshKey }: { refreshKey: number }) {
           <div key={h.company_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
             <div>
               <div style={{ fontSize: '12px', color: T.ivory, fontWeight: 700 }}>{h.name}</div>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint }}>{fmt(h.ownership_percent, 2)}% ownership · basis §{fmt(Number(h.avg_cost_basis))}</div>
+              <div style={{ ...mono, fontSize: '9px', color: T.faint }}>{fmt(h.ownership_percent, 2)}% ownership · basis ${fmt(Number(h.avg_cost_basis))}</div>
             </div>
             <div style={{ textAlign: 'right', ...mono }}>
               <div style={{ fontSize: '12px', color: T.ivory }}>{fmtInt(Number(h.shares))} sh</div>
               <div style={{ fontSize: '10px', color: h.last_price != null && Number(h.avg_cost_basis) > 0 ? (Number(h.last_price) >= Number(h.avg_cost_basis) ? T.mint : T.red) : T.faint }}>
-                {h.last_price != null ? `mkt §${fmt(Number(h.last_price))}` : 'unpriced'}
+                {h.last_price != null ? `mkt $${fmt(Number(h.last_price))}` : 'unpriced'}
               </div>
             </div>
           </div>
@@ -549,7 +549,7 @@ function MyDesk({ refreshKey }: { refreshKey: number }) {
                 {' '}{o.company_name}
               </div>
               <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-                {fmtInt(Number(o.quantity) - Number(o.filled_quantity))} sh @ §{fmt(Number(o.price))}
+                {fmtInt(Number(o.quantity) - Number(o.filled_quantity))} sh @ ${fmt(Number(o.price))}
               </div>
             </div>
             <button
@@ -615,7 +615,7 @@ function IoiForm({ ipo, onDone }: { ipo: any; onDone: () => void }) {
     return (
       <div style={{ marginTop: '10px', background: T.bg, border: `1px solid ${T.borderGold}`, padding: '10px 12px' }}>
         <div style={{ ...mono, fontSize: '10px', color: T.mint }}>
-          Your indication: {fmtInt(Number(ipo.my_ioi.quantity_requested))} sh @ §{fmt(Number(ipo.my_ioi.price_per_share))}
+          Your indication: {fmtInt(Number(ipo.my_ioi.quantity_requested))} sh @ ${fmt(Number(ipo.my_ioi.price_per_share))}
         </div>
         <button
           onClick={cancelMine}
@@ -632,7 +632,7 @@ function IoiForm({ ipo, onDone }: { ipo: any; onDone: () => void }) {
     <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
         <div>
-          <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', marginBottom: '3px' }}>Bid price (§)</div>
+          <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', marginBottom: '3px' }}>Bid price ($)</div>
           <input aria-label="IOI price" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={fmt(Number(ipo.ipo_price_max))} inputMode="decimal" style={inputStyle} />
         </div>
         <div>
@@ -679,7 +679,7 @@ function Pipeline() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', marginBottom: '10px' }}>
               <div>
                 <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Range</div>
-                <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>§{fmt(Number(ipo.ipo_price_min))}–§{fmt(Number(ipo.ipo_price_max))}</div>
+                <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>${fmt(Number(ipo.ipo_price_min))}–${fmt(Number(ipo.ipo_price_max))}</div>
               </div>
               <div>
                 <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Float</div>
@@ -687,7 +687,7 @@ function Pipeline() {
               </div>
               <div>
                 <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Book Value</div>
-                <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>§{fmtBig(Number(ipo.company_value))}</div>
+                <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>${fmtBig(Number(ipo.company_value))}</div>
               </div>
             </div>
 
@@ -815,13 +815,13 @@ export default function ExchangePage() {
                   <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase' }}>{active.industry_id} · {active.country_id}</div>
                 </div>
                 {[
-                  ['Last', active.last_price != null ? `§${fmt(active.last_price)}` : '—'],
-                  ['Bid', active.best_bid != null ? `§${fmt(active.best_bid)}` : '—'],
-                  ['Ask', active.best_ask != null ? `§${fmt(active.best_ask)}` : '—'],
-                  ['Mkt Cap', active.market_cap != null ? `§${fmtBig(active.market_cap)}` : '—'],
+                  ['Last', active.last_price != null ? `$${fmt(active.last_price)}` : '—'],
+                  ['Bid', active.best_bid != null ? `$${fmt(active.best_bid)}` : '—'],
+                  ['Ask', active.best_ask != null ? `$${fmt(active.best_ask)}` : '—'],
+                  ['Mkt Cap', active.market_cap != null ? `$${fmtBig(active.market_cap)}` : '—'],
                   ['P/E', active.pe_ratio != null ? fmt(active.pe_ratio, 1) : '—'],
-                  ['EPS', active.eps != null ? `§${fmt(active.eps, 3)}` : '—'],
-                  ['Book Value', `§${fmtBig(Number(active.company_value))}`],
+                  ['EPS', active.eps != null ? `$${fmt(active.eps, 3)}` : '—'],
+                  ['Book Value', `$${fmtBig(Number(active.company_value))}`],
                 ].map(([k, v]) => (
                   <div key={k as string}>
                     <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{k}</div>

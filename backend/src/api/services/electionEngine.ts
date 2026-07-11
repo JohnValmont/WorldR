@@ -28,7 +28,7 @@ export interface ElectionInput {
   registeredVoters: number;
   /** Total seats to allocate for this jurisdiction. Defaults to POL_COUNCIL_SEATS. */
   totalSeats?: number;
-  /** Jurisdiction Conditions (GDD §11). When supplied, modulates per-bloc turnout. */
+  /** Jurisdiction Conditions (GDD $11). When supplied, modulates per-bloc turnout. */
   conditions?: Conditions | null;
 }
 
@@ -108,7 +108,7 @@ export function computeTurnout(
   }
   const avgReach = totalReach / candidates.length;
   const base = POL_BASE_TURNOUT * (0.8 + 0.4 * avgReach);
-  // Conditions (GDD §5/§11) scale turnout per bloc; 1.0 when no conditions given.
+  // Conditions (GDD $5/$11) scale turnout per bloc; 1.0 when no conditions given.
   return base * conditionTurnoutMultiplier(segment.key, conditions);
 }
 

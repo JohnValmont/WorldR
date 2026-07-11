@@ -174,11 +174,11 @@ export class WorldController {
         return res.json({ operators: [], month: null });
       }
 
-      const characterIds = characters.map((c: any) => c.id);
+      const buildCharIdQuery = () => db('characters').select('id').where({ status: 'active', world_instance_id: activeInstance.id });
 
       // Their companies (can be multiple per character)
       const companies = await db('companies')
-        .whereIn('owner_character_id', characterIds)
+        .whereIn('owner_character_id', buildCharIdQuery())
         .where({ status: 'active' })
         .select('id', 'name', 'owner_character_id', 'headquarters_state_id', 'reputation', 'reliability');
 
@@ -186,7 +186,7 @@ export class WorldController {
       let partyMemberships: any[] = [];
       try {
         partyMemberships = await db('pol_party_members')
-          .whereIn('character_id', characterIds)
+          .whereIn('character_id', buildCharIdQuery())
           .join('pol_parties', 'pol_party_members.party_id', 'pol_parties.id')
           .select(
             'pol_party_members.character_id',
@@ -361,9 +361,13 @@ export class WorldController {
 
   public static async getGlobalLeaderboards(req: Request, res: Response, next: NextFunction) {
     try {
+      const activeInstance = await db('world_instances').where({ status: 'active' }).first();
+      const activeInstanceId = activeInstance ? activeInstance.id : null;
+
       const topCompanies = await db('companies as c')
         .join('company_finances as cf', 'cf.company_id', 'c.id')
         .where('c.status', 'active')
+        .andWhere('c.world_instance_id', activeInstanceId)
         .orderBy('cf.company_value', 'desc')
         .limit(10)
         .select('c.id', 'c.name', 'c.industry_id', 'cf.company_value', 'cf.last_arc_profit');
@@ -374,6 +378,7 @@ export class WorldController {
 
       // Get the latest month where sales actually occurred to avoid querying an empty current month
       const lastSale = await db('manufacturing_sales_results')
+        .where('world_instance_id', activeInstanceId)
         .orderBy('world_year', 'desc')
         .orderBy('world_month', 'desc')
         .first('world_year', 'world_month');
@@ -384,9 +389,9 @@ export class WorldController {
       const popularCars = await db('manufacturing_sales_results as r')
         .join('manufacturing_vehicle_models as m', 'm.id', 'r.vehicle_model_id')
         .join('companies as c', 'c.id', 'm.company_id')
-        .where('r.region_market_id', 'like', 'drennia%')
-        .andWhere('r.world_year', targetYear)
+        .where('r.world_year', targetYear)
         .andWhere('r.world_month', targetMonth)
+        .andWhere('r.world_instance_id', activeInstanceId)
         .select('m.id as model_id', 'm.name as model_name', 'c.name as company_name')
         .sum('r.units_sold as total_sold')
         .groupBy('m.id', 'm.name', 'c.name')
@@ -424,10 +429,10 @@ export class WorldController {
           ) as trend
         FROM characters c
         LEFT JOIN character_finances cf ON cf.character_id = c.id
-        WHERE c.status = 'active' AND c.name NOT ILIKE '%NPC%'
+        WHERE c.status = 'active' AND c.name NOT ILIKE '%NPC%' AND c.world_instance_id = ?
         ORDER BY net_worth DESC
         LIMIT 10
-      `);
+      `, [activeInstanceId]);
 
       res.status(200).json({
         topCompanies,

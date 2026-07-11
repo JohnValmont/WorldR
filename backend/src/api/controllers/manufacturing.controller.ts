@@ -1582,9 +1582,9 @@ export class ManufacturingController {
         
         let finalProductionCost = 0;
         if (company.is_npc) {
-           finalProductionCost = Math.round((unitsProduced * assemblyCost + unitsProduced * BOM_COST) * engProdMods.productionCostModifier);
+           finalProductionCost = Math.max(0, Math.round((unitsProduced * assemblyCost + unitsProduced * BOM_COST) * engProdMods.productionCostModifier));
         } else {
-           finalProductionCost = Math.round((unitsProduced * assemblyCost + unitsProduced * BOM_COST) * engProdMods.productionCostModifier - unitsProduced * BOM_COST);
+           finalProductionCost = Math.max(0, Math.round((unitsProduced * assemblyCost + unitsProduced * BOM_COST) * engProdMods.productionCostModifier - unitsProduced * BOM_COST));
         }
         
         const defectLoss     = Math.round(defectiveUnits * costPerUnit * engProdMods.productionCostModifier);
@@ -1626,15 +1626,8 @@ export class ManufacturingController {
       const roleConfig = STAFF_ROLES.find(r => r.id === staffMember.role);
       if (roleConfig && staffMember.quantity > 0) totalStaffWages += roleConfig.wagePerArc * staffMember.quantity;
     }
-    const actualWagesPaid = Math.min(totalStaffWages, Math.max(0, runningCash));
-    const wageShortfall = totalStaffWages - actualWagesPaid;
+    const actualWagesPaid = totalStaffWages;
     runningCash -= actualWagesPaid;
-
-    if (wageShortfall > 0) {
-      const wageCurrency = await trx('currencies').where({ id: company.currency_id }).first();
-      const wageSym = wageCurrency?.symbol ?? '';
-      await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `⚠ Wage shortfall: only ${wageSym}${actualWagesPaid.toLocaleString()} of ${wageSym}${totalStaffWages.toLocaleString()} wages paid this month.`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
-    }
 
     let totalLeaseCosts = 0;
     for (const factory of factories) totalLeaseCosts += Number(factory.lease_cost_per_month);

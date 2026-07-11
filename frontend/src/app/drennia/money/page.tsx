@@ -89,7 +89,7 @@ function LendingDesk({ onChanged }: { onChanged: () => void }) {
   const accept = async (offerId: string, maxAmount: number) => {
     const a = Number(borrowAmounts[offerId] ?? maxAmount);
     if (!Number.isFinite(a) || a <= 0 || a > maxAmount) {
-      notify(`Enter a borrow amount up to §${fmtInt(maxAmount)}.`, false);
+      notify(`Enter a borrow amount up to $${fmtInt(maxAmount)}.`, false);
       return;
     }
     setBusy(true);
@@ -111,7 +111,7 @@ function LendingDesk({ onChanged }: { onChanged: () => void }) {
         <div style={{ ...label, marginBottom: '12px' }}>Post a Loan Offer</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
           <div>
-            <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Max amount (§)</div>
+            <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Max amount ($)</div>
             <input aria-label="Maximum loan amount" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="10000" inputMode="numeric" style={inputStyle} />
           </div>
           <div>
@@ -144,7 +144,7 @@ function LendingDesk({ onChanged }: { onChanged: () => void }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <div>
                 <div style={{ fontSize: '12px', color: T.ivory, fontWeight: 700 }}>
-                  §{fmtInt(Number(o.max_amount))} <span style={{ color: T.muted, fontWeight: 400 }}>from {o.lender_name}</span>
+                  ${fmtInt(Number(o.max_amount))} <span style={{ color: T.muted, fontWeight: 400 }}>from {o.lender_name}</span>
                 </div>
                 <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
                   {fmt(Number(o.monthly_interest_rate) * 100, 1)}%/mo · {o.term_months} months
@@ -208,7 +208,7 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${T.border}`, gap: '8px' }}>
       <div>
         <div style={{ fontSize: '11px', color: T.ivory }}>
-          §{fmtInt(Number(l.principal))} {who}
+          ${fmtInt(Number(l.principal))} {who}
           <span style={{
             ...mono, fontSize: '9px', marginLeft: '8px', padding: '1px 6px', textTransform: 'uppercase',
             color: l.status === 'active' ? T.mint : l.status === 'repaid' ? T.steel : T.red,
@@ -216,7 +216,7 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
           }}>{l.status}</span>
         </div>
         <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-          §{fmt(Number(l.monthly_payment))}/mo · {l.months_remaining}/{l.term_months} months left
+          ${fmt(Number(l.monthly_payment))}/mo · {l.months_remaining}/{l.term_months} months left
           {Number(l.missed_payments) > 0 && <span style={{ color: T.red }}> · {l.missed_payments} missed</span>}
         </div>
       </div>
@@ -253,7 +253,7 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
           {myOffers.map((o: any) => (
             <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
               <div style={{ ...mono, fontSize: '11px', color: T.muted }}>
-                §{fmtInt(Number(o.max_amount))} · {fmt(Number(o.monthly_interest_rate) * 100, 1)}%/mo · {o.term_months}mo
+                ${fmtInt(Number(o.max_amount))} · {fmt(Number(o.monthly_interest_rate) * 100, 1)}%/mo · {o.term_months}mo
               </div>
               <button
                 onClick={() => cancelOffer(o.id)}
@@ -375,13 +375,13 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
                 <input aria-label="Min Purchase" value={minPurchase} onChange={(e) => setMinPurchase(e.target.value)} placeholder="1" inputMode="numeric" style={inputStyle} />
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price / share (§)</div>
+                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price / share ($)</div>
                 <input aria-label="Price per share" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="1.00" inputMode="decimal" style={inputStyle} />
               </div>
             </div>
             {shares && price && Number(shares) > 0 && Number(price) > 0 && (
               <div style={{ ...mono, fontSize: '10px', color: T.muted, marginTop: '8px' }}>
-                Raise: <span style={{ color: T.gold }}>§{fmt(Number(shares) * Number(price))}</span> · {fmt((Number(shares) / 1000000) * 100, 1)}% of the company (1,000,000 total shares)
+                Raise: <span style={{ color: T.gold }}>${fmt(Number(shares) * Number(price))}</span> · {fmt((Number(shares) / 1000000) * 100, 1)}% of the company (1,000,000 total shares)
               </div>
             )}
             <button
@@ -416,11 +416,11 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
                   {isOwn && <span style={{ ...mono, fontSize: '9px', color: T.gold, marginLeft: '8px', padding: '1px 6px', border: `1px solid ${T.gold}`, textTransform: 'uppercase' }}>yours</span>}
                 </div>
                 <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-                  {fmtInt(available)} sh ({fmt((available / 1000000) * 100, 1)}%) @ §{fmt(priceVal)} {minP > 1 ? ` · Min: ${minP} sh` : ''} · seller {p.seller_name}
+                  {fmtInt(available)} sh ({fmt((available / 1000000) * 100, 1)}%) @ ${fmt(priceVal)} {minP > 1 ? ` · Min: ${minP} sh` : ''} · seller {p.seller_name}
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.gold }}>§{fmtInt(total)}</span>
+                <span style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.gold }}>${fmtInt(total)}</span>
                 {isOwn ? (
                   <button
                     onClick={() => cancelPlacement(p.id)}
@@ -472,7 +472,7 @@ function PortfolioSummary({ refreshKey }: { refreshKey: number }) {
           </div>
           <div style={{ textAlign: 'right', ...mono }}>
             <div style={{ fontSize: '12px', color: T.ivory }}>{fmtInt(Number(h.shares))} sh</div>
-            <div style={{ fontSize: '10px', color: T.faint }}>{h.last_price != null ? `mkt §${fmt(Number(h.last_price))}` : 'unlisted'}</div>
+            <div style={{ fontSize: '10px', color: T.faint }}>{h.last_price != null ? `mkt $${fmt(Number(h.last_price))}` : 'unlisted'}</div>
           </div>
         </div>
       ))}
@@ -512,7 +512,7 @@ export default function MoneyPage() {
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Cash in Hand</div>
-          <div style={{ ...mono, fontSize: '20px', fontWeight: 700, color: T.mint }}>{cash != null ? `§${fmtInt(cash)}` : '—'}</div>
+          <div style={{ ...mono, fontSize: '20px', fontWeight: 700, color: T.mint }}>{cash != null ? `$${fmtInt(cash)}` : '—'}</div>
         </div>
       </div>
 

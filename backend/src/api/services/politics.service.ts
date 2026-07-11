@@ -36,7 +36,7 @@ import { Conditions, computeConditionTargets, driftConditions, readConditionsFro
  * world_clock.current_month is the CALENDAR month (1-12) and resets every year,
  * so on its own it is NOT monotonic. Politics scheduling (cycle *_arc columns,
  * AP monthly refresh, staggered terms) needs a strictly increasing counter, so
- * we fold in current_year: arc = year*12 + (month-1). GDD §3.
+ * we fold in current_year: arc = year*12 + (month-1). GDD $3.
  */
 export function worldClockToArc(
   clock: { current_year?: number; current_month?: number } | null | undefined
@@ -64,7 +64,7 @@ export function getRosterCap(popularity: number): number {
 /**
  * Compute the AP cap for a character.
  *
- * GDD v0.5 §7 (refined): AP refreshes to a flat monthly grant and does not
+ * GDD v0.5 $7 (refined): AP refreshes to a flat monthly grant and does not
  * accumulate, so the effective cap is simply AP_MONTHLY_GRANT. Offices now grant
  * Mandate actions (future work), not AP-cap bonuses. Signature kept stable for
  * existing callers.
@@ -212,7 +212,7 @@ export async function getOrCreateCurrentCycle(stateId: string) {
   
   if (!cycle) {
     // Stagger each jurisdiction's first election by its offset so state elections
-    // land ~every 6 months across the nation (GDD §3). Ironvale offset = 0.
+    // land ~every 6 months across the nation (GDD $3). Ironvale offset = 0.
     const stateRow = await db('pol_states').where({ id: stateId }).first();
     const pollingArc = currentMonth + POL_FIRST_CYCLE_MONTHS + getElectionOffsetMonths(stateRow?.code);
     const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;
@@ -337,7 +337,7 @@ async function resolveGoverningPlatform(trx: any, stateId: string): Promise<Reco
 
 /**
  * Drift a state's Conditions toward the target implied by the governing party's
- * active policy (GDD §11/§16). Deterministic and idempotent per in-game month:
+ * active policy (GDD $11/$16). Deterministic and idempotent per in-game month:
  * cond_updated_arc guards against running twice for the same month.
  */
 export async function applyConditionDrift(trx: any, stateId: string, currentMonth: number) {
@@ -377,7 +377,7 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
     await regenApForCharacter(trx, row.character_id, currentMonth);
   }
 
-  // Jurisdiction Conditions (GDD §11): drift toward the governing policy's target,
+  // Jurisdiction Conditions (GDD $11): drift toward the governing policy's target,
   // then fire any deterministic crisis events. Both run every month, phase-agnostic.
   await applyConditionDrift(trx, stateId, currentMonth);
   await fireConditionCrises(trx, stateId, currentMonth);
@@ -674,7 +674,7 @@ function getPlatformDistance(p1: Platform, p2: Platform): number {
 }
 
 export async function processGovernmentFormation(trx: any, cycle: any, currentMonth: number) {
-  // Majority threshold for THIS jurisdiction (GDD §3 federal model).
+  // Majority threshold for THIS jurisdiction (GDD $3 federal model).
   const stateRow = await trx('pol_states').where({ id: cycle.state_id }).first();
   const majoritySeats = getMajorityForState(stateRow?.code);
 
@@ -876,7 +876,7 @@ async function performCycleRollover(trx: any, oldCycle: any, currentMonth: numbe
   await trx('pol_cycles').where({ id: oldCycle.id }).update({ status: 'closed' });
 
   const startMonth = currentMonth;
-  // Term length is per-jurisdiction (24mo state, 48mo national — GDD §3).
+  // Term length is per-jurisdiction (24mo state, 48mo national — GDD $3).
   const oldStateRow = await trx('pol_states').where({ id: oldCycle.state_id }).first();
   const pollingArc = startMonth + getTermMonthsForState(oldStateRow?.code);
   const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;

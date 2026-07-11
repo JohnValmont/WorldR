@@ -2358,7 +2358,7 @@ function CompanyDeskTab({
                         <input
                           type="number"
                           id="issue-shares-price"
-                          placeholder="§ Price"
+                          placeholder="$ Price"
                           min={1}
                           style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px', borderRadius: '3px', width: '80px' }}
                         />
@@ -2372,7 +2372,7 @@ function CompanyDeskTab({
                           try {
                             const { companyApi } = await import('@/lib/api');
                             const res = await companyApi.issueShares(company.id, qty, price);
-                            showNotif(res.data?.message || `Issued ${qty} shares for §${(qty*price).toLocaleString('en-US')}.`, true);
+                            showNotif(res.data?.message || `Issued ${qty} shares for $${(qty*price).toLocaleString('en-US')}.`, true);
                             qtyEl.value = '';
                             priceEl.value = '';
                             onRefresh();
@@ -2390,7 +2390,7 @@ function CompanyDeskTab({
                         <input
                           type="number"
                           id="inject-amount"
-                          placeholder="§ Amount"
+                          placeholder="$ Amount"
                           min={1}
                           style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.mint, fontSize: '12px', borderRadius: '3px' }}
                         />
@@ -2402,7 +2402,7 @@ function CompanyDeskTab({
                           try {
                             const { companyApi } = await import('@/lib/api');
                             const res = await companyApi.injectCapital(company.id, amount);
-                            showNotif(res.data?.message || `§${amount.toLocaleString('en-US')} injected successfully.`, true);
+                            showNotif(res.data?.message || `$${amount.toLocaleString('en-US')} injected successfully.`, true);
                             el.value = '';
                             onRefresh();
                           } catch (err: any) {
@@ -2429,7 +2429,7 @@ function CompanyDeskTab({
                         <input
                           type="number"
                           id="withdraw-amount"
-                          placeholder="§ Amount"
+                          placeholder="$ Amount"
                           min={1}
                           style={{ flex: 1, padding: '8px', background: T.panel, border: '1px solid ' + T.border, color: T.gold, fontSize: '12px', borderRadius: '3px' }}
                         />
@@ -2441,7 +2441,7 @@ function CompanyDeskTab({
                           try {
                             const { companyApi } = await import('@/lib/api');
                             const res = await companyApi.withdrawCapital(company.id, amount);
-                            showNotif(`§${amount.toLocaleString('en-US')} withdrawn to personal holdings.`, true);
+                            showNotif(`$${amount.toLocaleString('en-US')} withdrawn to personal holdings.`, true);
                             el.value = '';
                             onRefresh();
                           } catch (err: any) {
@@ -3109,13 +3109,13 @@ function DrennportExchangeTab() {
             <div style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Share Market — Open for Trading</div>
             <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, maxWidth: '480px', margin: 0 }}>
               Trade shares of player-owned Public Corporations on a live order book. 
-              Convert your company to a Public Corporation (§250,000 minimum value) to IPO and raise capital.
+              Convert your company to a Public Corporation ($250,000 minimum value) to IPO and raise capital.
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Listing Requires</div>
             <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace' }}>Public Corporation Structure</div>
-            <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace' }}>§250,000 Company Value Min.</div>
+            <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace' }}>$250,000 Company Value Min.</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '24px', marginTop: '20px', paddingTop: '16px', borderTop: `1px solid ${T.border}` }}>

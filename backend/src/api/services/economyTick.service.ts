@@ -121,9 +121,47 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
     complianceCollected += cost;
   }
 
+  // ============ 4. Character Net Worth History Snapshots ============
+  const activeChars = await trx('characters').where({ status: 'active' });
+  let snapshotsInserted = 0;
+  for (const char of activeChars) {
+    const fin = await trx('character_finances').where({ character_id: char.id }).first();
+    const cash = Number(fin?.cash_in_hand || 0);
+    let equity = 0;
+
+    const shares = await trx('company_shares as cs')
+      .join('companies as c', 'c.id', 'cs.company_id')
+      .join('company_finances as cf', 'cf.company_id', 'c.id')
+      .where({ 'cs.holder_character_id': char.id, 'c.status': 'active' })
+      .select(
+        'cs.shares',
+        'cf.company_value',
+        trx.raw(`(SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) as total_shares`)
+      );
+
+    for (const s of shares) {
+      const tot = Number(s.total_shares || 0);
+      if (tot > 0) {
+        equity += (Number(s.shares) / tot) * Number(s.company_value);
+      }
+    }
+
+    await trx('character_net_worth_history').insert({
+      character_id: char.id,
+      world_instance_id: char.world_instance_id,
+      world_year: year,
+      world_month: month,
+      cash_in_hand: cash,
+      equity_value: equity,
+      total_net_worth: cash + equity
+    });
+    snapshotsInserted++;
+  }
+
   logger.info(
     `[economy-tick] Y${year} M${month}: ${loanPaymentsCollected} loan payments, ${loansDefaulted} defaults, ` +
-    `${dividendsPaid} companies paid dividends, §${complianceCollected.toFixed(0)} compliance collected`
+    `${dividendsPaid} companies paid dividends, $${complianceCollected.toFixed(0)} compliance collected, ` +
+    `${snapshotsInserted} net worth snapshots saved`
   );
 
   return { loanPaymentsCollected, loansDefaulted, dividendsPaid, complianceCollected };

@@ -110,7 +110,7 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
       countdownToNextPhase: countdown > 0 ? countdown : 0,
       // Election-schedule summary (electionArc, monthsToElection, phase timeline).
       cycle: cycleSummary,
-      // Jurisdiction Conditions (GDD §11) — normalized 0–10 indicators for the UI.
+      // Jurisdiction Conditions (GDD $11) — normalized 0–10 indicators for the UI.
       conditions: activeState ? readConditionsFromRow(activeState) : null
     });
   } catch (error) {
@@ -979,14 +979,13 @@ export async function bidTender(req: Request, res: Response, next: NextFunction)
       const company = await trx('companies').where({ id: companyId, owner_character_id: char.id, industry_id: 'manufacturing' }).first();
       if (!company) throw new AppError('Manufacturing company not found or not owned by you', 404, 'NOT_FOUND');
 
-      // We need to check if the company is headquartered in ironvale. The test checks this by matching %ironvale% or checking directly
-      if (!company.headquarters_state_id || !company.headquarters_state_id.includes('ironvale')) {
-        throw new AppError('Company must be headquartered in Ironvale to bid', 403, 'FORBIDDEN');
-      }
-
       const tender = await trx('pol_tenders').where({ id: tenderId }).first();
       if (!tender) throw new AppError('Tender not found', 404, 'NOT_FOUND');
       if (tender.status !== 'open') throw new AppError('Tender is not open for bidding', 400, 'BAD_REQUEST');
+
+      if (!company.headquarters_state_id || company.headquarters_state_id !== tender.state_id) {
+        throw new AppError('Company must be headquartered in the same state to bid on this tender', 403, 'FORBIDDEN');
+      }
       
       if (Number(bidPrice) > Number(tender.max_price)) {
         throw new AppError('Bid price exceeds max price', 400, 'BAD_REQUEST');

@@ -52,9 +52,16 @@ export class CharacterController {
         finances.net_worth = trueNetWorth;
       }
 
+      const netWorthHistory = await db('character_net_worth_history')
+        .where({ character_id: character.id })
+        .orderBy('world_year', 'desc')
+        .orderBy('world_month', 'desc')
+        .limit(12);
+
       res.status(200).json({
         ...character,
-        finances
+        finances,
+        netWorthHistory: netWorthHistory.reverse()
       });
     } catch (error) {
       next(error);
@@ -151,22 +158,24 @@ export class CharacterController {
         const timestamp = Date.now();
         const deletedSuffix = ` [DELETED ${timestamp}]`;
 
-        await db('characters')
-          .where({ id: character.id })
-          .update({ 
-            status: 'deleted',
-            name: `${character.name.substring(0, 200)}${deletedSuffix}`
-          });
-
-        const companies = await db('companies').where({ owner_character_id: character.id });
-        for (const company of companies) {
-          await db('companies')
-            .where({ id: company.id })
+        await db.transaction(async (trx) => {
+          await trx('characters')
+            .where({ id: character.id })
             .update({ 
-              status: 'bankrupt',
-              name: `${company.name.substring(0, 200)}${deletedSuffix}`
+              status: 'deleted',
+              name: `${character.name.substring(0, 50)}${deletedSuffix}`
             });
-        }
+
+          const companies = await trx('companies').where({ owner_character_id: character.id });
+          for (const company of companies) {
+            await trx('companies')
+              .where({ id: company.id })
+              .update({ 
+                status: 'bankrupt',
+                name: `${company.name.substring(0, 50)}${deletedSuffix}`
+              });
+          }
+        });
       }
 
       res.status(200).json({ message: 'Character deleted' });

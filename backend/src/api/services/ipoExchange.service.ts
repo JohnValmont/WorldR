@@ -13,8 +13,8 @@ import { placeOrder, getLastClose, TOTAL_SHARES } from './shareMarket.service';
  */
 
 // ── Tunables ────────────────────────────────────────────────────────────────
-const IPO_FILING_FEE = 5000;            // §5,000, non-refundable, paid from company cash
-const MIN_COMPANY_VALUE = 250_000;      // §250k minimum to file
+const IPO_FILING_FEE = 5000;            // $5,000, non-refundable, paid from company cash
+const MIN_COMPANY_VALUE = 250_000;      // $250k minimum to file
 const MIN_COMPANY_AGE_MONTHS = 3;       // must exist ≥ 3 game months
 const MAX_DEBT_RATIO = 0.80;            // debt / company_value must be below this
 const REVIEW_MONTHS = 2;                // regulatory review window
@@ -77,7 +77,7 @@ export async function getEligibility(companyId: string, characterId: string) {
 
   const checks = [
     { key: 'structure', label: 'Registered as a Public Corporation', pass: company.legal_structure_id === 'public-corporation' },
-    { key: 'value', label: `Company value ≥ §${MIN_COMPANY_VALUE.toLocaleString()}`, pass: companyValue >= MIN_COMPANY_VALUE, detail: `§${Math.round(companyValue).toLocaleString()}` },
+    { key: 'value', label: `Company value ≥ $${MIN_COMPANY_VALUE.toLocaleString()}`, pass: companyValue >= MIN_COMPANY_VALUE, detail: `$${Math.round(companyValue).toLocaleString()}` },
     { key: 'age', label: `Trading ≥ ${MIN_COMPANY_AGE_MONTHS} months`, pass: ageMonths >= MIN_COMPANY_AGE_MONTHS, detail: `${ageMonths} mo` },
     { key: 'debt', label: `Debt ratio < ${Math.round(MAX_DEBT_RATIO * 100)}%`, pass: debtRatio < MAX_DEBT_RATIO, detail: `${Math.round(debtRatio * 100)}%` },
     { key: 'no_active', label: 'No IPO already in progress', pass: !activeIpo },
@@ -118,7 +118,7 @@ export async function fileIpo(params: {
     const companyValue = Number(finances?.company_value ?? 0);
     const debt = Number(finances?.debt ?? 0);
     const ageMonths = monthsBetween(company.created_at_world_year, company.created_at_world_month, curYear, curMonth);
-    if (companyValue < MIN_COMPANY_VALUE) throw new AppError(`Company value must be at least §${MIN_COMPANY_VALUE.toLocaleString()}`, 400, 'MIN_VALUE');
+    if (companyValue < MIN_COMPANY_VALUE) throw new AppError(`Company value must be at least $${MIN_COMPANY_VALUE.toLocaleString()}`, 400, 'MIN_VALUE');
     if (ageMonths < MIN_COMPANY_AGE_MONTHS) throw new AppError(`Company must be at least ${MIN_COMPANY_AGE_MONTHS} months old`, 400, 'TOO_YOUNG');
     if (companyValue > 0 && debt / companyValue >= MAX_DEBT_RATIO) throw new AppError('Debt ratio too high to list', 400, 'TOO_MUCH_DEBT');
 
@@ -133,14 +133,14 @@ export async function fileIpo(params: {
     if (!Number.isFinite(priceMin) || !Number.isFinite(priceMax) || priceMin <= 0 || priceMax <= 0) {
       throw new AppError('Invalid price range', 400, 'BAD_REQUEST');
     }
-    if (priceMin < floor) throw new AppError(`Minimum price must be at least §${floor.toFixed(4)} (½ of book value per share)`, 400, 'PRICE_TOO_LOW');
+    if (priceMin < floor) throw new AppError(`Minimum price must be at least $${floor.toFixed(4)} (½ of book value per share)`, 400, 'PRICE_TOO_LOW');
     if (priceMax < priceMin) throw new AppError('Maximum price cannot be below the minimum price', 400, 'BAD_RANGE');
     if (!(floatPercent >= 0.10 && floatPercent <= 0.49)) throw new AppError('Float must be between 10% and 49%', 400, 'BAD_FLOAT');
     if (!(lockupMonths >= 3 && lockupMonths <= 12)) throw new AppError('Lockup must be 3–12 months', 400, 'BAD_LOCKUP');
     const proceeds = (useOfProceeds ?? '').slice(0, 500);
 
     if (Number(finances?.available_cash ?? 0) < IPO_FILING_FEE) {
-      throw new AppError(`Insufficient company cash for the §${IPO_FILING_FEE.toLocaleString()} filing fee`, 400, 'INSUFFICIENT_FUNDS');
+      throw new AppError(`Insufficient company cash for the $${IPO_FILING_FEE.toLocaleString()} filing fee`, 400, 'INSUFFICIENT_FUNDS');
     }
 
     const floatShares = Math.round(TOTAL_SHARES * floatPercent);
@@ -580,7 +580,7 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
   await safeNpcOrder(trx, listing.company_id, systemCharId, 'sell', clearingPrice * IPO_POP, MM_ORDER_SIZE);
   await safeNpcOrder(trx, listing.company_id, systemCharId, 'buy', Math.max(0.01, clearingPrice - spread / 2), MM_ORDER_SIZE);
 
-  logger.info(`[ipo] ${listing.company_id} LISTED @ §${clearingPrice.toFixed(2)} — ${totalAllocated} shares, §${proceeds.toFixed(0)} raised`);
+  logger.info(`[ipo] ${listing.company_id} LISTED @ $${clearingPrice.toFixed(2)} — ${totalAllocated} shares, $${proceeds.toFixed(0)} raised`);
 }
 
 /** Place an NPC order without letting a single failure abort the whole tick. */

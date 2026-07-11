@@ -61,7 +61,7 @@ export const POL_FILING_WINDOW_MONTHS = 3;
 export const POL_CAMPAIGN_WINDOW_MONTHS = 6;
 export const POL_FORMATION_WINDOW_MONTHS = 2;
 
-// ── Jurisdictions (federal model, GDD v0.5 §3) ──────────────────────────────
+// ── Jurisdictions (federal model, GDD v0.5 $3) ──────────────────────────────
 // Drennia is an Australia-style federation: every State Assembly and the
 // National Parliament run SEPARATE elections on SEPARATE clocks. Keyed by
 // pol_states.code. Seats/majority/term mirror frontend _lib/model.ts
@@ -126,7 +126,7 @@ export const POL_FUNDRAISER_BASE = 5000;
 export const POL_FUNDRAISER_CHARISMA_MULT = 100;
 export const POL_ENDORSEMENT_INFLUENCE_COST = 5;
 
-// ── Jurisdiction Conditions (GDD v0.5 §11 & §16) ────────────────────────────
+// ── Jurisdiction Conditions (GDD v0.5 $11 & $16) ────────────────────────────
 // Five per-state indicators the governing party's active policy moves each month;
 // they feed bloc turnout and trigger deterministic crisis events at thresholds.
 // All values are TUNABLE. Prosperity/Jobs/Order/Cohesion/Budget live on a 0–10
@@ -142,7 +142,7 @@ export const POL_CONDITION_DRIFT_RATE = 0.34;
 
 type ConditionDelta = Partial<Record<ConditionKey, number>>;
 
-// Per-Pillar, per-rung condition pressure — GDD §16 effect tables condensed onto
+// Per-Pillar, per-rung condition pressure — GDD $16 effect tables condensed onto
 // the engine's three-rung 20/50/80 platform scale. Rung from a plank value:
 // <=35 = 'low', >=65 = 'high', else 'mid'. Deltas are added to the neutral (5)
 // baseline to form each month's target for the condition. Plain-name mapping and
@@ -180,7 +180,7 @@ export const POL_POLICY_CONDITION_EFFECTS: Record<Axis, { low: ConditionDelta; m
   },
 };
 
-// Per-bloc turnout sensitivity to Conditions (GDD §5 diagram: Turnout × Conditions).
+// Per-bloc turnout sensitivity to Conditions (GDD $5 diagram: Turnout × Conditions).
 // Positive ⇒ the bloc turns out MORE as the condition rises above neutral. Keyed
 // by SEGMENTS[].key. The summed swing is clamped to ±POL_CONDITION_TURNOUT_MAX_SWING.
 export const POL_CONDITION_TURNOUT_SENSITIVITY: Record<string, Partial<Record<ConditionKey, number>>> = {
@@ -192,7 +192,7 @@ export const POL_CONDITION_TURNOUT_SENSITIVITY: Record<string, Partial<Record<Co
 };
 export const POL_CONDITION_TURNOUT_MAX_SWING = 0.30; // turnout multiplier clamped to [0.70, 1.30]
 
-// Crisis thresholds (GDD §11). A condition at/below its threshold fires the crisis
+// Crisis thresholds (GDD $11). A condition at/below its threshold fires the crisis
 // deterministically from real state — no scripting. Each crisis dings the governing
 // party's credibility/treasury only (never the tuned election math).
 export const POL_CRISIS_THRESHOLDS: Record<string, { key: ConditionKey; at: number; headline: string; body: string }> = {
@@ -331,7 +331,7 @@ export const CAMPAIGN_ACTIONS: CampaignAction[] = [
 // ── AP (Action Point) System ───────────────────────────────────────────────
 // All values are TUNABLE DEFAULTS — change here, never inline.
 
-// ── AP grant model (GDD v0.5 §7, refined) ───────────────────────────────────
+// ── AP grant model (GDD v0.5 $7, refined) ───────────────────────────────────
 // AP REFRESHES to a flat monthly grant — it does NOT accumulate. Each in-game
 // month current_ap is RESET to AP_MONTHLY_GRANT regardless of what was left over.
 // Example: hold 6 leftover AP at month end → next month you have 12 (NOT 18).
@@ -350,7 +350,7 @@ export const AP_BONUS_COMMITTEE_CHAIR    = 1;
 export const AP_REGEN_PER_ARC            = 1;
 
 // ── Canonical AP cost table ─────────────────────────────────────────────────
-// SOURCE OF TRUTH mirror of frontend _lib/model.ts → AP_MODEL.COSTS (GDD §7).
+// SOURCE OF TRUTH mirror of frontend _lib/model.ts → AP_MODEL.COSTS (GDD $7).
 // The discrete AP_COST_* constants below are aligned to these weights.
 export const AP_MODEL_COSTS = {
   vote:            0,
@@ -365,7 +365,7 @@ export const AP_MODEL_COSTS = {
   signature:       6,
 } as const;
 
-// AP costs per action (weighted per GDD §7 / AP_MODEL_COSTS)
+// AP costs per action (weighted per GDD $7 / AP_MODEL_COSTS)
 export const AP_COST_STATEMENT           = AP_MODEL_COSTS.court_bloc;   // targeted Statement / court a bloc
 export const AP_COST_FUNDRAISE           = 1;                            // fine-grained action (not in canonical table)
 export const AP_COST_RECRUIT             = AP_MODEL_COSTS.recruit;       // 4 (+Treasury)
@@ -443,7 +443,7 @@ export const DOCTRINE_SIGNATURE_ACTION: Record<DoctrineId, string> = {
   the_compact:   'coalition_outreach',
 };
 
-// AP costs for signature actions (Creed-locked) — all 6 AP per GDD §7 (AP_MODEL_COSTS.signature).
+// AP costs for signature actions (Creed-locked) — all 6 AP per GDD $7 (AP_MODEL_COSTS.signature).
 export const AP_COST_UNION_ADDRESS       = AP_MODEL_COSTS.signature;
 export const AP_COST_INVESTOR_ROADSHOW   = AP_MODEL_COSTS.signature;
 export const AP_COST_TOWN_HALL           = AP_MODEL_COSTS.signature;

@@ -7,7 +7,7 @@ import {
 } from '../src/api/services/electionEngine';
 import { SEGMENTS, Platform, POL_CROWDING_STRENGTH } from '../src/api/constants/politics';
 
-// Task D — Anti-copycat (GDD §9): Crowding (vote-splitting near a bloc ideal)
+// Task D — Anti-copycat (GDD $9): Crowding (vote-splitting near a bloc ideal)
 // and Fatigue (diminishing returns on repeated action types). Pure/deterministic;
 // no DB required.
 function runTests() {

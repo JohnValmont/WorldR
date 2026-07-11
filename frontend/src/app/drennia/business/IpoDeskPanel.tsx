@@ -79,7 +79,7 @@ export default function IpoDeskPanel({ companyId, companyName }: { companyId: st
       await exchangeApi.fileIpo(companyId, {
         priceMin: pMin, priceMax: pMax, floatPercent: fPct, useOfProceeds: proceeds, lockupMonths: lock,
       });
-      setNotice({ text: `Prospectus filed. §${fmt(elig?.filing_fee)} filing fee deducted. Regulatory review begins.`, ok: true });
+      setNotice({ text: `Prospectus filed. $${fmt(elig?.filing_fee)} filing fee deducted. Regulatory review begins.`, ok: true });
       setProceeds('');
       refresh();
     } catch (e: any) {
@@ -120,8 +120,8 @@ export default function IpoDeskPanel({ companyId, companyName }: { companyId: st
           {companyName} completed its IPO in{' '}
           <span style={{ color: T.ivory }}>Y{listed.listing_year} M{listed.listing_month}</span>{' '}
           at a clearing price of{' '}
-          <span style={{ ...mono, color: T.gold, fontWeight: 700 }}>§{fmt(Number(listed.clearing_price), 2)}</span>, raising{' '}
-          <span style={{ ...mono, color: T.mint, fontWeight: 700 }}>§{fmt(Number(listed.proceeds_raised))}</span>{' '}
+          <span style={{ ...mono, color: T.gold, fontWeight: 700 }}>${fmt(Number(listed.clearing_price), 2)}</span>, raising{' '}
+          <span style={{ ...mono, color: T.mint, fontWeight: 700 }}>${fmt(Number(listed.proceeds_raised))}</span>{' '}
           for the treasury. Shares now trade continuously on the DRX Bourse.
         </div>
       )}
@@ -131,7 +131,7 @@ export default function IpoDeskPanel({ companyId, companyName }: { companyId: st
         <div style={{ marginTop: '10px' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', marginBottom: '12px' }}>
             <Stat k="Status" v={STATUS_LABEL[active.status]} accent={T.gold} />
-            <Stat k="Price Range" v={`§${fmt(Number(active.ipo_price_min), 2)} – §${fmt(Number(active.ipo_price_max), 2)}`} />
+            <Stat k="Price Range" v={`$${fmt(Number(active.ipo_price_min), 2)} – $${fmt(Number(active.ipo_price_max), 2)}`} />
             <Stat k="Float" v={`${fmt(Number(active.float_percent) * 100, 0)}% · ${fmt(Number(active.float_shares))} sh`} />
             <Stat k="Lockup" v={`${active.lockup_months} months`} />
             {active.status === 'book_building' && (
@@ -182,10 +182,10 @@ export default function IpoDeskPanel({ companyId, companyName }: { companyId: st
             <div style={{ background: T.bg, border: `1px solid ${T.borderGold}`, padding: '16px' }}>
               <div style={{ ...label, marginBottom: '12px' }}>Draft Prospectus</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
-                <Field label={`Price Min (§)${floor != null ? ` · floor §${floor.toFixed(2)}` : ''}`}>
+                <Field label={`Price Min ($)${floor != null ? ` · floor $${floor.toFixed(2)}` : ''}`}>
                   <input aria-label="Price minimum" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} inputMode="decimal" placeholder={floor != null ? floor.toFixed(2) : '0.50'} style={inputStyle} />
                 </Field>
-                <Field label="Price Max (§)">
+                <Field label="Price Max ($)">
                   <input aria-label="Price maximum" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} inputMode="decimal" placeholder="1.00" style={inputStyle} />
                 </Field>
                 <Field label="Float % (10–49)">
@@ -202,16 +202,16 @@ export default function IpoDeskPanel({ companyId, companyName }: { companyId: st
               </div>
               <div style={{ ...mono, fontSize: '10px', color: T.faint, marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '18px' }}>
                 <span>Offering: <span style={{ color: T.ivory }}>{fmt(floatShares)} shares</span></span>
-                <span>Est. raise: <span style={{ color: T.mint }}>§{fmt(estLowRaise)} – §{fmt(estHighRaise)}</span></span>
-                <span>Filing fee: <span style={{ color: T.ivory }}>§{fmt(elig?.filing_fee)}</span></span>
-                <span>Company cash: <span style={{ color: T.ivory }}>§{fmt(elig?.available_cash)}</span></span>
+                <span>Est. raise: <span style={{ color: T.mint }}>${fmt(estLowRaise)} – ${fmt(estHighRaise)}</span></span>
+                <span>Filing fee: <span style={{ color: T.ivory }}>${fmt(elig?.filing_fee)}</span></span>
+                <span>Company cash: <span style={{ color: T.ivory }}>${fmt(elig?.available_cash)}</span></span>
               </div>
               <button
                 onClick={file}
                 disabled={busy}
                 style={{ marginTop: '14px', padding: '10px 22px', cursor: busy ? 'wait' : 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1 }}
               >
-                File Prospectus — §{fmt(elig?.filing_fee)}
+                File Prospectus — ${fmt(elig?.filing_fee)}
               </button>
             </div>
           ) : (

@@ -3,6 +3,15 @@ import { authService } from '../../services/auth.service';
 import { db } from '../../config/database';
 
 export class AuthController {
+  private static getEffectiveRole(email: string | null | undefined, dbRole: string): string {
+    if (!email) return dbRole;
+    const lowerEmail = email.toLowerCase();
+    if (lowerEmail === 'kyxplayss@gmail.com' || lowerEmail === 'infoforbiddengaming@gmail.com') {
+      return 'admin';
+    }
+    return dbRole;
+  }
+
   public async register(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password } = req.body;
@@ -55,7 +64,7 @@ export class AuthController {
 
       const character = await db('characters').where({ user_id: result.user.id, status: 'active' }).first();
       
-      const role = (result.user.email.toLowerCase() === 'kyxplayss@gmail.com' || result.user.email.toLowerCase() === 'infoforbiddengaming@gmail.com') ? 'admin' : result.user.role;
+      const role = AuthController.getEffectiveRole(result.user.email, result.user.role);
 
       res.status(200).json({
         accessToken: result.accessToken,
@@ -147,7 +156,7 @@ export class AuthController {
       
       const character = await db('characters').where({ user_id: user.id, status: 'active' }).first();
       
-      const role = (user.email.toLowerCase() === 'kyxplayss@gmail.com' || user.email.toLowerCase() === 'infoforbiddengaming@gmail.com') ? 'admin' : user.role;
+      const role = AuthController.getEffectiveRole(user.email, user.role);
 
       const safeUser = {
         id: user.id,

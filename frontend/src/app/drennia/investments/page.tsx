@@ -153,7 +153,7 @@ function PlacementsTab() {
                 <input aria-label="Min Purchase" value={formMinPurchase} onChange={(e) => setFormMinPurchase(e.target.value)} placeholder="Default: 1" inputMode="numeric" style={inputStyle} />
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price per share (§)</div>
+                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price per share ($)</div>
                 <input aria-label="Price per share" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} placeholder="e.g. 2.50" inputMode="decimal" style={inputStyle} />
               </div>
             </div>
@@ -163,7 +163,7 @@ function PlacementsTab() {
             </div>
             {formShares && formPrice && Number(formShares) > 0 && Number(formPrice) > 0 && (
               <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-                Total: <span style={{ color: T.gold }}>§{fmt(Number(formShares) * Number(formPrice))}</span>
+                Total: <span style={{ color: T.gold }}>${fmt(Number(formShares) * Number(formPrice))}</span>
                 {' · '}Shares escrowed immediately on posting
               </div>
             )}
@@ -193,7 +193,7 @@ function PlacementsTab() {
               <div>
                 <div style={{ fontSize: '12px', fontWeight: 700, color: T.ivory }}>{p.company_name}</div>
                 <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-                  {fmtInt(Number(p.shares))} sh @ §{fmt(Number(p.price_per_share))} = §{fmt(Number(p.shares) * Number(p.price_per_share))}
+                  {fmtInt(Number(p.shares))} sh @ ${fmt(Number(p.price_per_share))} = ${fmt(Number(p.shares) * Number(p.price_per_share))}
                 </div>
                 {p.target_name && <div style={{ ...mono, fontSize: '9px', color: T.steel }}>Reserved for: {p.target_name}</div>}
               </div>
@@ -244,7 +244,7 @@ function PlacementsTab() {
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory }}>{p.company_name}</div>
                   <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-                    {fmtInt(available)} shares @ §{fmt(price)} {minPurchase > 1 ? ` · Min: ${minPurchase} sh` : ''}
+                    {fmtInt(available)} shares @ ${fmt(price)} {minPurchase > 1 ? ` · Min: ${minPurchase} sh` : ''}
                   </div>
                   <div style={{ ...mono, fontSize: '9px', color: T.faint }}>
                     Seller: {p.seller_name} · {p.legal_structure_id}
@@ -262,7 +262,7 @@ function PlacementsTab() {
                       style={{ ...inputStyle, width: '70px', padding: '4px 6px', fontSize: '10px' }} 
                     />
                     <div style={{ ...mono, fontSize: '9px', color: T.gold, width: '60px', textAlign: 'right' }}>
-                      §{fmt(total)}
+                      ${fmt(total)}
                     </div>
                   </div>
                   <button
@@ -401,7 +401,7 @@ function LoansTab() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
               <div>
-                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Max Amount (§)</div>
+                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Max Amount ($)</div>
                 <input aria-label="Max loan amount" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 5000" inputMode="decimal" style={inputStyle} />
               </div>
               <div>
@@ -419,8 +419,8 @@ function LoansTab() {
             </div>
             {previewPayment != null && (
               <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-                Borrower pays approx. <span style={{ color: T.gold }}>§{fmt(previewPayment)}/month</span>
-                {' · '}Total repayable: <span style={{ color: T.muted }}>§{fmt(previewPayment * Number(term))}</span>
+                Borrower pays approx. <span style={{ color: T.gold }}>${fmt(previewPayment)}/month</span>
+                {' · '}Total repayable: <span style={{ color: T.muted }}>${fmt(previewPayment * Number(term))}</span>
               </div>
             )}
             <button
@@ -442,7 +442,7 @@ function LoansTab() {
             {myOffers.map((o: any) => (
               <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
                 <div style={{ ...mono, fontSize: '11px', color: T.muted }}>
-                  §{fmt(Number(o.max_amount), 0)} · {Number(o.monthly_interest_rate) * 100}%/mo · {o.term_months} months
+                  ${fmt(Number(o.max_amount), 0)} · {Number(o.monthly_interest_rate) * 100}%/mo · {o.term_months} months
                   {o.purpose && <span style={{ color: T.faint }}> — {o.purpose}</span>}
                 </div>
                 <button onClick={() => cancelOffer(o.id)} style={{ ...mono, fontSize: '9px', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${T.border}`, color: T.red, padding: '4px 10px', cursor: 'pointer' }}>Cancel</button>
@@ -468,7 +468,7 @@ function LoansTab() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory }}>
-                      Up to §{fmtInt(Number(o.max_amount))}
+                      Up to ${fmtInt(Number(o.max_amount))}
                     </div>
                     <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
                       {fmt(r, 2)}% / month · {o.term_months} months · Lender: {o.lender_name}
@@ -485,8 +485,8 @@ function LoansTab() {
                 {isExpanded && (
                   <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${T.border}`, display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Amount to borrow (§ 1 – {fmtInt(Number(o.max_amount))})</div>
-                      <input aria-label="Amount to borrow" value={acceptAmount} onChange={(e) => setAcceptAmount(e.target.value)} placeholder={`max §${fmtInt(Number(o.max_amount))}`} inputMode="decimal" style={inputStyle} />
+                      <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Amount to borrow ($ 1 – {fmtInt(Number(o.max_amount))})</div>
+                      <input aria-label="Amount to borrow" value={acceptAmount} onChange={(e) => setAcceptAmount(e.target.value)} placeholder={`max $${fmtInt(Number(o.max_amount))}`} inputMode="decimal" style={inputStyle} />
                     </div>
                     <button
                       onClick={() => acceptOffer(o.id, Number(acceptAmount))}
@@ -512,10 +512,10 @@ function LoansTab() {
               <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${T.border}` }}>
                 <div>
                   <div style={{ ...mono, fontSize: '11px', color: T.ivory }}>
-                    §{fmtInt(Number(l.principal))} from {l.lender_name}
+                    ${fmtInt(Number(l.principal))} from {l.lender_name}
                   </div>
                   <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-                    §{fmt(Number(l.monthly_payment))}/mo · {l.months_remaining} months left
+                    ${fmt(Number(l.monthly_payment))}/mo · {l.months_remaining} months left
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -525,7 +525,7 @@ function LoansTab() {
                       onClick={() => repayEarly(l.id)}
                       style={{ ...mono, fontSize: '9px', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${T.border}`, color: T.mint, padding: '4px 10px', cursor: 'pointer' }}
                     >
-                      Repay Early (§{fmt(Number(l.monthly_payment) * Number(l.months_remaining))})
+                      Repay Early (${fmt(Number(l.monthly_payment) * Number(l.months_remaining))})
                     </button>
                   )}
                 </div>
@@ -544,10 +544,10 @@ function LoansTab() {
               <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px solid ${T.border}` }}>
                 <div>
                   <div style={{ ...mono, fontSize: '11px', color: T.ivory }}>
-                    §{fmtInt(Number(l.principal))} to {l.borrower_name}
+                    ${fmtInt(Number(l.principal))} to {l.borrower_name}
                   </div>
                   <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-                    §{fmt(Number(l.monthly_payment))}/mo · {l.months_remaining} months remaining · Paid: §{fmt(Number(l.total_paid))}
+                    ${fmt(Number(l.monthly_payment))}/mo · {l.months_remaining} months remaining · Paid: ${fmt(Number(l.total_paid))}
                   </div>
                 </div>
                 {statusBadge(l.status)}

@@ -82,7 +82,7 @@ export async function placeOrder(params: {
             rejected_circuit_breaker: true,
           });
           throw new AppError(
-            `Order price §${price.toFixed(2)} exceeds the ±${Math.round(CIRCUIT_BREAKER_LIMIT * 100)}% circuit breaker (last close §${lastClose.toFixed(2)})`,
+            `Order price $${price.toFixed(2)} exceeds the ±${Math.round(CIRCUIT_BREAKER_LIMIT * 100)}% circuit breaker (last close $${lastClose.toFixed(2)})`,
             400,
             'CIRCUIT_BREAKER'
           );
