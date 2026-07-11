@@ -372,30 +372,16 @@ export class WorldController {
         .limit(10)
         .select('c.id', 'c.name', 'c.industry_id', 'cf.company_value', 'cf.last_arc_profit');
 
-      const clock = await db('world_clock').first();
-      const currentYear = clock ? clock.current_year : 1;
-      const currentMonth = clock ? clock.current_month : 1;
 
-      // Get the latest month where sales actually occurred to avoid querying an empty current month
-      const lastSale = await db('manufacturing_sales_results')
-        .where('world_instance_id', activeInstanceId)
-        .orderBy('world_year', 'desc')
-        .orderBy('world_month', 'desc')
-        .first('world_year', 'world_month');
-
-      const targetYear = lastSale ? lastSale.world_year : currentYear;
-      const targetMonth = lastSale ? lastSale.world_month : currentMonth;
 
       const popularCars = await db('manufacturing_sales_results as r')
         .join('manufacturing_vehicle_models as m', 'm.id', 'r.vehicle_model_id')
         .join('companies as c', 'c.id', 'm.company_id')
-        .where('r.world_year', targetYear)
-        .andWhere('r.world_month', targetMonth)
-        .andWhere('r.world_instance_id', activeInstanceId)
+        .where('r.world_instance_id', activeInstanceId)
         .select('m.id as model_id', 'm.name as model_name', 'c.name as company_name')
         .sum('r.units_sold as total_sold')
         .groupBy('m.id', 'm.name', 'c.name')
-        .orderBy('total_sold', 'desc')
+        .orderByRaw('SUM(r.units_sold) DESC')
         .limit(10);
 
       const richestPlayers = await db.raw(`
