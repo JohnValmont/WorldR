@@ -18,7 +18,7 @@ export default function DrenniaLayout({ children }: { children: React.ReactNode 
     if (!hasMotherland) {
       router.replace('/world-entry');
     } else if (!hasCitizenFile || !hasEntry) {
-      router.replace('/start/character');
+      router.replace('/landing/onboarding.html?action=character');
     }
     // else: authorized — let child page render
   }, [router]);

@@ -593,9 +593,9 @@ if (btnGuest && guestModalOverlay) {
       localStorage.setItem('worldr-auth', JSON.stringify({
         state: {
           user: data.user,
-          token: data.accessToken,
-          isAuthenticated: true,
-          isLoading: false
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken || null,
+          isAuthenticated: true
         },
         version: 0
       }));
