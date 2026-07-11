@@ -52,16 +52,22 @@ export class CharacterController {
         finances.net_worth = trueNetWorth;
       }
 
-      const netWorthHistory = await db('character_net_worth_history')
-        .where({ character_id: character.id })
-        .orderBy('world_year', 'desc')
-        .orderBy('world_month', 'desc')
-        .limit(12);
+      let netWorthHistory: any[] = [];
+      try {
+        const history = await db('character_net_worth_history')
+          .where({ character_id: character.id })
+          .orderBy('world_year', 'desc')
+          .orderBy('world_month', 'desc')
+          .limit(12);
+        netWorthHistory = history.reverse();
+      } catch (err) {
+        // Ignore if table doesn't exist yet
+      }
 
       res.status(200).json({
         ...character,
         finances,
-        netWorthHistory: netWorthHistory.reverse()
+        netWorthHistory
       });
     } catch (error) {
       next(error);

@@ -948,4 +948,356 @@ The technical scope of Pre-Alpha v0.1 is complete when:
 ---
 
 # End of Part 3
+# 03_VERSION_SCOPE.md (Part 4 of 5)
+
+# User Interface Scope & Feature Completion Matrix
+
+**Project:** WORLDr
+
+**Module:** Political Desk
+
+**Version:** Pre-Alpha v0.1
+
+---
+
+# 39. Purpose
+
+The objective of the Pre-Alpha interface is to expose the complete political gameplay loop without unnecessary complexity.
+
+The UI should help players make decisions quickly while still allowing access to detailed political information.
+
+The interface is not expected to be visually complete, but its navigation and information architecture should remain stable.
+
+---
+
+# 40. UI Design Principles
+
+Every screen should satisfy the following principles.
+
+### Decision-Oriented
+
+The player should immediately understand what requires attention.
+
+---
+
+### Consistent
+
+Navigation, layouts, colors, spacing, and interactions should behave consistently across every screen.
+
+---
+
+### Information Hierarchy
+
+Critical information appears first.
+
+Supporting information appears through expandable panels, filters, or drill-down views.
+
+---
+
+### Few Clicks, High Depth
+
+Complex gameplay is encouraged.
+
+Complex navigation is not.
+
+The number of clicks required to perform common political actions should remain as low as practical.
+
+---
+
+# 41. Required Navigation Structure
+
+The Political Desk shall contain the following primary navigation.
+
+| Screen            | Status      |
+| ----------------- | ----------- |
+| Dashboard         | 🟢 Required |
+| Party             | 🟢 Required |
+| Elections         | 🟢 Required |
+| Government        | 🟢 Required |
+| Parliament        | 🟢 Required |
+| Media             | 🟢 Required |
+| Public Opinion    | 🟢 Required |
+| Notifications     | 🟢 Required |
+| Political History | 🟡 Basic    |
+| Profile           | 🟡 Basic    |
+| Settings          | 🟢 Required |
+
+No additional top-level screens should be introduced in Pre-Alpha without updating this document.
+
+---
+
+# 42. Dashboard Requirements
+
+The Dashboard is the player's command center.
+
+It should answer:
+
+* What happened?
+* What requires my attention?
+* What opportunities exist?
+* What risks exist?
+
+The Dashboard should display:
+
+* Active government status
+* Coalition status
+* Current parliamentary majority
+* Upcoming elections
+* Current approval rating
+* Party popularity
+* Active notifications
+* Breaking political news
+* Pending decisions
+* Current legislative agenda
+
+The player should understand the political situation within seconds of opening the Dashboard.
+
+---
+
+# 43. Party Screen
+
+Required functionality:
+
+* View party information
+* Edit party details
+* View ideology
+* View popularity
+* View election history
+* View party organization
+* View campaign status
+* Publish official statements
+
+---
+
+# 44. Election Screen
+
+Required functionality:
+
+* Election calendar
+* Campaign progress
+* Candidate list
+* Current polling
+* Election history
+* Seat projections
+* Final results
+
+---
+
+# 45. Government Screen
+
+Required functionality:
+
+* Current government
+* Coalition members
+* Cabinet list
+* Ministry overview
+* Government approval
+* Cabinet appointments
+* Minister replacement
+* Government history
+
+---
+
+# 46. Parliament Screen
+
+Required functionality:
+
+* Parliamentary composition
+* Active bills
+* Legislative calendar
+* Voting interface
+* Previous legislation
+* Confidence status
+* No-confidence motions
+
+---
+
+# 47. Media Screen
+
+Required functionality:
+
+* National headlines
+* Government announcements
+* Party statements
+* Election coverage
+* Political timeline
+* Archived news
+
+---
+
+# 48. Public Opinion Screen
+
+Required functionality:
+
+* National approval
+* Party popularity
+* Government popularity
+* Key national issues
+* Opinion trends
+* Poll history
+
+---
+
+# 49. Notification System
+
+Notifications should be categorized by urgency.
+
+### Critical
+
+Immediate action required.
+
+Examples:
+
+* Government collapse
+* Confidence vote
+* Election begins
+* Coalition exits government
+
+---
+
+### Important
+
+Action recommended soon.
+
+Examples:
+
+* Cabinet vacancy
+* Bill awaiting vote
+* Media controversy
+* Campaign deadline
+
+---
+
+### Informational
+
+Awareness only.
+
+Examples:
+
+* Poll updates
+* Historical milestones
+* Routine reports
+* Archived news
+
+---
+
+# 50. Feature Completion Matrix
+
+A UI feature is considered complete only when all conditions below are satisfied.
+
+### Navigation
+
+Reachable through normal navigation.
+
+---
+
+### Presentation
+
+Displays correct information.
+
+---
+
+### Interaction
+
+Player can perform intended actions.
+
+---
+
+### Validation
+
+Invalid actions are prevented.
+
+---
+
+### Multiplayer
+
+Displays synchronized server data.
+
+---
+
+### Error Handling
+
+Provides meaningful feedback.
+
+---
+
+### Accessibility
+
+Readable layouts.
+
+Clear labels.
+
+Consistent interactions.
+
+---
+
+# 51. Screen Acceptance Criteria
+
+Every major screen should answer one strategic question.
+
+| Screen         | Primary Question                          |
+| -------------- | ----------------------------------------- |
+| Dashboard      | What should I do now?                     |
+| Party          | How is my party performing?               |
+| Elections      | Can I win the next election?              |
+| Government     | How stable is my government?              |
+| Parliament     | Can I pass legislation?                   |
+| Media          | What narrative is shaping public opinion? |
+| Public Opinion | What do citizens currently care about?    |
+| Notifications  | What requires immediate attention?        |
+
+If a screen cannot answer its primary question, it should be redesigned.
+
+---
+
+# 52. User Flow
+
+The expected gameplay flow for a typical session is:
+
+```text id="p8m4xj"
+Login
+      ↓
+Dashboard
+      ↓
+Review Notifications
+      ↓
+Read News
+      ↓
+Evaluate Political Situation
+      ↓
+Take Strategic Actions
+      ↓
+Review Immediate Outcomes
+      ↓
+Plan Future Actions
+      ↓
+Logout
+```
+
+Players should naturally move through this flow without needing tutorials for basic navigation.
+
+---
+
+# 53. UI Scope Restrictions
+
+The following interface elements are intentionally excluded from Pre-Alpha.
+
+* Drag-and-drop parliament layouts
+* Animated legislative chambers
+* 3D political maps
+* Real-time chat integrated into every screen
+* Voice interaction
+* Complex customization
+* Advanced accessibility profiles
+* Theme marketplace
+* Cosmetic personalization systems
+
+These features may be explored in future versions but are not required to validate the Political Desk.
+
+---
+
+# End of Part 4
+
+**Next:** Part 5 defines the release checklist, Definition of Done, exit criteria for Pre-Alpha v0.1, and the transition plan to v0.2. Once complete, `03_VERSION_SCOPE.md` becomes the official production contract for the Political Desk.
+
 

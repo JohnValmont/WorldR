@@ -146,16 +146,20 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
       }
     }
 
-    await trx('character_net_worth_history').insert({
-      character_id: char.id,
-      world_instance_id: char.world_instance_id,
-      world_year: year,
-      world_month: month,
-      cash_in_hand: cash,
-      equity_value: equity,
-      total_net_worth: cash + equity
-    });
-    snapshotsInserted++;
+    try {
+      await trx('character_net_worth_history').insert({
+        character_id: char.id,
+        world_instance_id: char.world_instance_id,
+        world_year: year,
+        world_month: month,
+        cash_in_hand: cash,
+        equity_value: equity,
+        total_net_worth: cash + equity
+      });
+      snapshotsInserted++;
+    } catch (err) {
+      // Ignore if table doesn't exist yet
+    }
   }
 
   logger.info(
