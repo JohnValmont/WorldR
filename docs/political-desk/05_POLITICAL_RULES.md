@@ -1494,3 +1494,281 @@ It should modify the likelihood and impact of future political developments with
 ---
 
 # End of Part 5
+
+# 05_POLITICAL_RULES.md
+
+# Part 6 of 6
+
+**Project:** WORLDr
+
+**Module:** Political Desk
+
+**Version:** Pre-Alpha v0.1
+
+---
+
+# Article XXV — Rule Enforcement
+
+## Rule 25.1 — Constitutional Supremacy
+
+The Political Rules are the highest authority governing the Political Desk.
+
+All gameplay systems, backend services, user interfaces, AI behaviours, and administrative tools shall conform to these rules.
+
+Where implementation conflicts with these rules, the Political Rules take precedence.
+
+---
+
+## Rule 25.2 — Invalid Actions
+
+If a player attempts an action that violates these rules:
+
+* The action is rejected.
+* No political state changes occur.
+* The player receives an explanation describing why the action is unavailable.
+
+Rejected actions shall never produce partial effects.
+
+---
+
+## Rule 25.3 — Simulation Integrity
+
+The simulation must always preserve a valid constitutional state.
+
+No sequence of actions shall leave the political system in an undefined or contradictory condition.
+
+---
+
+## Rule 25.4 — Deterministic Processing
+
+Given the same political state and the same sequence of decisions, the simulation shall produce the same constitutional outcome.
+
+Randomness may influence AI choices or voter behaviour where intentionally modelled, but constitutional procedures themselves must remain deterministic.
+
+---
+
+# Article XXVI — Exceptional Situations
+
+## Rule 26.1 — Player Inactivity
+
+If a human player becomes inactive:
+
+* Their political party remains in existence.
+* AI assumes temporary operational control where necessary.
+* Historical records remain unchanged.
+
+Future versions may introduce leadership transfer rules.
+
+---
+
+## Rule 26.2 — Government Without Human Players
+
+If no human players hold executive office:
+
+* AI forms and administers the Government according to constitutional rules.
+* Elections continue normally.
+* Parliament continues functioning.
+
+The political simulation shall never pause because of missing human activity.
+
+---
+
+## Rule 26.3 — Empty Parliament
+
+If Parliament contains no human-controlled parties:
+
+* AI exercises all parliamentary authority.
+* Constitutional procedures continue without interruption.
+
+---
+
+## Rule 26.4 — Coalition Failure
+
+If coalition negotiations fail:
+
+The constitutional profile determines the next step, such as:
+
+* Minority Government.
+* Renewed negotiations.
+* Early election.
+* Alternative government formation.
+
+No hard-coded outcome applies universally.
+
+---
+
+## Rule 26.5 — Vacant Offices
+
+Where an office becomes vacant unexpectedly:
+
+* Constitutional succession rules apply where available.
+* Otherwise, the office remains vacant until lawfully filled.
+
+---
+
+# Article XXVII — Future Compatibility
+
+## Rule 27.1 — Extensibility
+
+New gameplay systems shall extend these rules without invalidating existing political history.
+
+Historical continuity is a core design principle.
+
+---
+
+## Rule 27.2 — Configurable Constitutions
+
+Countries may define constitutional differences through configuration rather than custom logic.
+
+Examples include:
+
+* Parliamentary size.
+* Election frequency.
+* Government structure.
+* Majority thresholds.
+* Legislative procedures.
+
+The Political Desk shall remain a single simulation engine supporting multiple constitutional profiles.
+
+---
+
+## Rule 27.3 — Modular Expansion
+
+Future systems may integrate with the Political Desk, including:
+
+* Economy.
+* Population.
+* Judiciary.
+* Diplomacy.
+* Military.
+* Education.
+* Healthcare.
+* Infrastructure.
+* Local Government.
+
+Integration shall occur through shared simulation interfaces rather than replacing existing political rules.
+
+---
+
+## Rule 27.4 — Historical Continuity
+
+Future updates shall preserve:
+
+* Political careers.
+* Elections.
+* Governments.
+* Parties.
+* Legislative history.
+* Coalitions.
+* Political records.
+
+Previously generated history is part of the persistent world and should remain valid across versions whenever practical.
+
+---
+
+# Article XXVIII — Administrative Authority
+
+## Rule 28.1 — Administrative Tools
+
+Administrative actions exist solely to maintain simulation integrity.
+
+They are not part of ordinary gameplay.
+
+---
+
+## Rule 28.2 — Administrative Corrections
+
+Authorized administrators may correct technical errors affecting political data.
+
+Corrections shall not be used to alter legitimate gameplay outcomes.
+
+---
+
+## Rule 28.3 — Auditability
+
+Administrative interventions should be logged to preserve transparency and facilitate debugging.
+
+---
+
+# Article XXIX — Design Principles
+
+The following principles apply to every future addition to the Political Desk.
+
+### Principle 1
+
+Institutions are more important than individuals.
+
+---
+
+### Principle 2
+
+Authority is granted by office, not popularity.
+
+---
+
+### Principle 3
+
+Politics is driven by meaningful choices rather than repetitive actions.
+
+---
+
+### Principle 4
+
+Every significant political decision should produce consequences.
+
+---
+
+### Principle 5
+
+Failure creates new gameplay instead of ending careers.
+
+---
+
+### Principle 6
+
+The world continues whether players are online or offline.
+
+---
+
+### Principle 7
+
+Political history is permanent.
+
+---
+
+### Principle 8
+
+Countries share one simulation engine while remaining constitutionally distinct.
+
+---
+
+### Principle 9
+
+AI exists to preserve continuity, not replace players.
+
+---
+
+### Principle 10
+
+The Political Desk is a persistent institutional simulation, not an event-based strategy game.
+
+---
+
+# Final Constitutional Statement
+
+The Political Desk exists to simulate the evolution of democratic political institutions within a persistent multiplayer world.
+
+Political authority is earned through participation, constrained by institutions, exercised through lawful procedures, and remembered through permanent history.
+
+Every election changes the balance of power.
+
+Every government shapes the nation.
+
+Every decision contributes to an evolving political story shared by all players.
+
+These rules establish the constitutional foundation upon which all present and future Political Desk systems shall be built.
+
+---
+
+# End of 05_POLITICAL_RULES.md
+
