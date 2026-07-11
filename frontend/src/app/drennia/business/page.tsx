@@ -251,6 +251,10 @@ export default function BusinessPage() {
             const companies = compRes.data;
             if (companies.length > 0) {
               const myCompany = companies.sort((a: any, b: any) => new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime())[0];
+              if (!myCompany) {
+                setCompany(null);
+                return;
+              }
               
               if (myCompany.industry_id === 'manufacturing') {
                 import('../../../lib/api').then(({ manufacturingApi }) => {

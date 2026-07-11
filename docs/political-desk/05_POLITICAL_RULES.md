@@ -1,1189 +1,526 @@
-PHASE P2 — POLITICAL PROFILE & PERSONAL POLITICS
+# 05_POLITICAL_RULES.md
 
-Goal
+# Part 1 of 6
 
-Design the politician—not the party.
+**Project:** WORLDr
 
-When another player clicks on your profile, they should immediately understand:
+**Module:** Political Desk
 
-Who you are.
-What you believe.
-How experienced you are.
-What your strengths are.
-What your weaknesses are.
-Why people support or oppose you.
+**Version:** Pre-Alpha v0.1
 
-This phase defines every statistic that belongs to you, not your organization.
+---
 
-2.1 Politician Profile
+# Preamble
 
-Every politician has a permanent profile.
+The Political Rules define the formal laws governing the Political Desk.
 
-Identity
-Full Name
-Portrait
-Age
-Gender
-Nationality
-Birth Region
-Current Residence
-Education
-Previous Profession
+These rules describe how political institutions function, how authority is exercised, and how power changes hands within a country.
 
-These rarely change.
+They are independent of implementation, interface design, or technical architecture.
 
-2.2 Political Status
+All gameplay systems, AI behaviour, backend logic, and user interfaces must conform to these rules.
 
-Your current position.
+Where conflicts arise between implementation and these rules, these rules take precedence.
 
-Examples:
+---
 
-Citizen
+# Article I — Fundamental Political Principles
 
-Political Activist
+## Rule 1.1 — Sovereignty
 
-Campaign Organizer
+Political authority exists only within the institutions defined by the Political Desk.
 
-Movement Leader
+No player possesses authority outside these institutions.
 
-Party Founder
+---
 
-Party Leader
+## Rule 1.2 — Equality
 
-Election Candidate
+Every newly created political career begins with equal legal status.
 
-Member of Parliament
+No player receives political office, legislative authority, or governing power automatically.
 
-Cabinet Minister
+---
 
-Prime Minister
+## Rule 1.3 — Rule of Law
 
-Former Prime Minister
+Every political action must be authorized by the rules of the Political Desk.
 
-Retired Politician
+No action may bypass constitutional procedures.
 
-Only one primary role is active at a time.
+---
 
-2.3 Core Political Stats
+## Rule 1.4 — Persistence
 
-These are your most important stats.
+Political history is permanent.
 
-Recognition
+Historical political events shall remain part of the country's record unless explicitly corrected through administrative action.
 
-Question:
+---
 
-"Do people know who you are?"
+## Rule 1.5 — Institutional Continuity
 
-Range:
+Political institutions continue functioning regardless of player activity.
 
-0–100%
+The absence of human players shall not suspend government operations.
 
-This is measured nationally.
+AI institutions preserve continuity.
 
-Recognition also exists regionally.
+---
 
-Example:
+# Article II — Political Entities
 
-National Recognition
+The following entities exist within every country.
 
-18%
+## Citizens
 
-Capital Region
+Every political career begins as a citizen.
 
-62%
+Citizens possess no institutional authority.
 
-Northern Province
+Citizens may establish political parties subject to eligibility rules.
 
-8%
+---
 
-Recognition grows through:
+## Political Parties
 
-Media coverage
-Speeches
-Elections
-Public appearances
-Government positions
+Political parties are permanent political organizations.
 
-Recognition alone never wins elections.
+A party exists independently of election cycles.
 
-Trust
+Parties compete for representation and government.
 
-Question:
+---
 
-"If people know you, do they trust you?"
+## Parliament
 
-Range:
+Parliament is the legislative institution of the country.
 
-0–100
+Only Parliament may approve or reject legislation.
 
-Hard to gain.
+---
 
-Easy to lose.
+## Government
 
-Affected by:
+The Government exercises executive authority after being lawfully formed.
 
-Keeping promises
-Honesty
-Scandals
-Transparency
-Crisis performance
-Consistency
-Approval
+Government authority exists only while constitutional conditions are satisfied.
 
-Approval only exists when you hold public office.
+---
 
-Example:
+## Ministries
 
-Prime Minister Approval
+Ministries administer government responsibilities.
 
-54%
+Each ministry exists continuously regardless of ministerial appointments.
 
-Leader of Opposition Approval
+---
 
-47%
+## Media
 
-Ordinary politicians don't have an approval rating.
+Media observes political activity and communicates information to the public.
 
-They have reputation instead.
+Media is not a political institution.
 
-Political Capital
+---
 
-Political Capital is your spendable influence.
+## Public
 
-You use it to:
+Public opinion influences electoral outcomes but does not directly exercise governmental authority.
 
-Push controversial bills
-Negotiate coalitions
-Convince MPs
-Demand party loyalty
-Request favors
+---
 
-Think of it as political currency.
+# Article III — Political Parties
 
-2.4 Reputation
+## Rule 3.1 — Party Formation
 
-Instead of one score...
+Any eligible citizen may establish one political party.
 
-Your reputation is broken into categories.
+A character may never found more than one party simultaneously.
 
-Economic Reputation
+---
 
-Do people trust you with the economy?
+## Rule 3.2 — Party Identity
 
-Healthcare Reputation
+Every political party shall possess:
 
-Would citizens trust your healthcare policies?
+* Official Name
+* Official Abbreviation
+* Official Logo
+* Primary Colour
+* Ideological Profile
+* Founding Date
+* Founding Leader
 
-Education Reputation
-Defense Reputation
-Foreign Policy Reputation
-Environmental Reputation
-Anti-Corruption Reputation
-Administrative Reputation
-Leadership Reputation
+These attributes establish the party's permanent identity.
 
-Every category ranges independently.
+---
 
-Example:
+## Rule 3.3 — Human Leadership
 
-Economy
+Every political party shall have exactly one human leader.
 
-91
+Leadership transfers only through defined political procedures.
 
-Healthcare
+---
 
-42
+## Rule 3.4 — AI Membership
 
-Defense
+Political parties contain AI-controlled members and officials.
 
-60
+AI members ensure institutional continuity and operational capacity.
 
-Leadership
+---
 
-83
+## Rule 3.5 — Party Independence
 
-That tells a story.
+Political parties remain legally independent organizations regardless of:
 
-2.5 Public Image
+* Election performance.
+* Government participation.
+* Parliamentary representation.
 
-This is qualitative.
+Participation in government does not merge or dissolve parties.
 
-Citizens describe you with traits.
+---
 
-Examples:
+## Rule 3.6 — Party Dissolution
 
-Honest
+For Pre-Alpha v0.1, political parties cannot be voluntarily dissolved.
 
-Reliable
+Future versions may introduce constitutional dissolution procedures.
 
-Charismatic
+---
 
-Visionary
+## Rule 3.7 — Party Records
 
-Technocratic
+Every political party maintains permanent historical records including:
 
-Populist
+* Founding date.
+* Election participation.
+* Election results.
+* Parliamentary representation.
+* Government participation.
+* Coalition history.
+* Leadership history.
 
-Aggressive
+These records form part of the national political archive.
 
-Compassionate
+---
 
-Corrupt
+# Article IV — Political Authority
 
-Arrogant
+Political authority derives solely from legally recognized offices.
 
-Decisive
+Authority shall never be inferred from popularity, wealth, seniority, or historical success.
 
-Weak
+Only institutional office grants political powers.
 
-These are generated from your actions—not selected by the player.
+---
 
-2.6 Political Skills
+## Rule 4.1 — Authority Is Role-Based
 
-Unlike RPG stats, these improve through experience.
+Players may perform only those actions explicitly permitted by their current office.
 
-Public Speaking
+Actions outside the authority of that office shall be rejected.
 
-Improves:
+---
 
-Debates
-Speeches
-Rallies
-Negotiation
+## Rule 4.2 — Authority Matrix
 
-Improves:
+| Office               | Create Party | Campaign | Vote in Parliament | Form Coalition | Appoint Ministers | Introduce Government Bills |
+| -------------------- | :----------: | :------: | :----------------: | :------------: | :---------------: | :------------------------: |
+| Citizen              |       ✅      |     ❌    |          ❌         |        ❌       |         ❌         |              ❌             |
+| Party Leader         |       ❌      |     ✅    |         ❌*         |        ✅       |         ❌         |              ❌             |
+| Member of Parliament |       ❌      |     ✅    |          ✅         |        ✅       |         ❌         |     Private Bills Only     |
+| Opposition Leader    |       ❌      |     ✅    |          ✅         |        ✅       |         ❌         |     Private Bills Only     |
+| Head of Government   |       ❌      |     ✅    |          ✅         |        ✅       |         ✅         |              ✅             |
 
-Coalition talks
-Diplomacy
-Budget deals
-Policy Design
+*A Party Leader may vote only if they also hold a parliamentary seat.
 
-Improves:
+The Authority Matrix is normative.
 
-Drafting reforms
-Long-term planning
-Quality of legislation
-Crisis Leadership
+Any action not granted by the matrix is prohibited.
 
-Improves emergency responses.
+---
 
-Administration
+# End of Part 1
 
-Improves government efficiency when leading ministries or the cabinet.
+# 05_POLITICAL_RULES.md
 
-Media Handling
+# Part 2 of 6
 
-Improves interviews, press conferences, and damage control.
+**Project:** WORLDr
 
-Strategic Planning
+**Module:** Political Desk
 
-Improves campaign planning and long-term political decisions.
+**Version:** Pre-Alpha v0.1
 
-2.7 Relationships
+---
 
-Every politician has relationship scores with important individuals and institutions.
+# Article V — Elections
 
-People
+## Rule 5.1 — Purpose
 
-Prime Minister
+Elections determine the democratic distribution of parliamentary representation.
 
-Opposition Leader
+Only certified election results may alter parliamentary composition.
 
-Party Leaders
+No office may bypass the electoral process except where explicitly permitted by future constitutional rules.
 
-Cabinet Ministers
+---
 
-Governors
+## Rule 5.2 — Election Cycle
 
-Business CEOs
+Each country follows a recurring constitutional election cycle.
 
-Journalists
+Every election proceeds through the same official phases.
 
-University Leaders
+No phase may be skipped.
 
-Foreign Leaders
+---
 
-Institutions
+## Rule 5.3 — Election Phases
 
-Military
+The official election sequence is:
 
-Judiciary
+```text
+Election Announced
+        ↓
+Candidate Registration
+        ↓
+Campaign Period
+        ↓
+Public Debates
+        ↓
+Final Campaign
+        ↓
+Voting
+        ↓
+Vote Counting
+        ↓
+Certification
+        ↓
+Government Formation
+```
 
-Election Commission
+Each phase begins and ends according to the national election calendar.
 
-Business Community
+---
 
-Teachers' Union
+## Rule 5.4 — Election Calendar
 
-Medical Association
+The election calendar shall specify:
 
-Police
+* Election date.
+* Registration deadline.
+* Campaign opening.
+* Campaign closing.
+* Debate period.
+* Voting period.
+* Certification date.
 
-Religious Organizations
+The calendar is publicly visible.
 
-Environmental Groups
+---
 
-Relationships affect:
+## Rule 5.5 — Parliamentary Dissolution
 
-Invitations
-Cooperation
-Negotiations
-Endorsements
-Information sharing
-2.8 Constituency Presence
+At the beginning of the election process:
 
-Support isn't uniform.
+* Parliament enters election mode.
+* No new ordinary legislation may be introduced.
+* Existing government continues in a caretaker capacity until a new government is formed.
 
-Track your strength by region.
+---
 
-Example:
+## Rule 5.6 — Caretaker Government
 
-Capital
+During the caretaker period the Government:
 
-72%
+May:
 
-Eastern Province
+* Perform routine administration.
+* Respond to emergencies.
+* Continue essential state functions.
 
-31%
+May Not:
 
-Northern Province
+* Introduce major legislative programmes.
+* Appoint permanent ministers unless constitutionally required.
+* Exercise extraordinary political powers.
 
-18%
+---
 
-This matters in elections.
+# Article VI — Candidate Eligibility
 
-2.9 Support Base
+## Rule 6.1 — Party Requirement
 
-Break support into demographics.
+Only registered political parties may contest elections.
 
-Students
+Independent candidates are excluded from Pre-Alpha v0.1.
 
-Farmers
+---
 
-Workers
+## Rule 6.2 — Party Leader
 
-Business Owners
+The human Party Leader automatically becomes the party's national leader for elections unless future candidate systems replace this mechanism.
 
-Teachers
+---
 
-Doctors
+## Rule 6.3 — Candidate Registration
 
-Retirees
+Registration occurs only during the Candidate Registration phase.
 
-Young Adults
+Late registrations are prohibited.
 
-Urban Residents
+---
 
-Rural Residents
+## Rule 6.4 — Withdrawal
 
-Military Families
+A registered party may voluntarily withdraw before the campaign phase begins.
 
-Civil Servants
+After campaigning starts, withdrawal is not permitted except through future constitutional mechanisms.
 
-Your actions shift these independently.
+---
 
-2.10 Credibility Matrix
+# Article VII — Campaign Rules
 
-One of the most powerful systems.
+## Rule 7.1 — Campaign Purpose
 
-Different groups trust you differently on different issues.
+Campaigning exists to influence voter opinion before voting begins.
 
-Example:
+Campaign activity may not directly alter election results.
 
-Group	Economy	Healthcare	Education
-Students	42	71	88
-Businesses	91	38	45
-Farmers	63	59	41
-Teachers	40	77	92
+Campaigns influence public opinion.
 
-This creates much richer politics than a single approval bar.
+Public opinion influences voting behaviour.
 
-2.11 Career Timeline
+---
 
-Every important event is recorded.
+## Rule 7.2 — Campaign Period
 
-Examples:
+Campaign actions are available only during the official campaign period.
 
-2030
+Outside this period, standard political communication remains available but does not receive campaign effects.
 
-Entered politics.
+---
 
-2031
+## Rule 7.3 — Equal Opportunity
 
-Founded campaign organization.
+All eligible parties receive equal legal access to campaign mechanics.
 
-2032
+Success depends upon strategy and political circumstances rather than exclusive mechanics.
 
-Led flood relief.
+---
 
-2034
+## Rule 7.4 — Campaign Actions
 
-Created political party.
+Examples include:
 
-2035
+* Public statements.
+* Policy announcements.
+* Campaign rallies.
+* Media interviews.
+* Public debates.
 
-Won first parliamentary seat.
+Future versions may introduce additional campaign activities without altering the constitutional framework.
 
-2038
+---
 
-Appointed Finance Minister.
+## Rule 7.5 — Campaign Conduct
 
-2040
+Campaign actions must follow constitutional rules.
 
-Elected Prime Minister.
+Actions prohibited in Pre-Alpha include:
 
-Players can inspect each other's political history.
+* Electoral fraud.
+* Vote buying.
+* Illegal intimidation.
+* Violence.
+* Disinformation mechanics.
 
-2.12 Achievements
+These systems may be introduced in future versions as separate mechanics.
 
-Not Steam achievements.
+---
 
-Political achievements.
+# Article VIII — Voting
 
-Examples:
+## Rule 8.1 — Voting Period
 
-Youngest MP
+Voting begins only after the campaign officially closes.
 
-Longest-serving Mayor
+No campaign actions are permitted during active voting.
 
-Most Bills Passed
+---
 
-Largest Electoral Victory
+## Rule 8.2 — Ballot Integrity
 
-Most Successful Coalition
+Every eligible simulated voter casts exactly one vote.
 
-Balanced Budget
+Votes may not be altered after submission.
 
-Education Reformer
+---
 
-These become part of your legacy.
+## Rule 8.3 — Vote Counting
 
-2.13 Scandal Record
+Votes are counted only after the voting period concludes.
 
-Every scandal remains in your history.
+Partial results are not published during counting.
 
-Examples:
+---
 
-Campaign Finance Violation
+## Rule 8.4 — Certification
 
-Conflict of Interest
+Election results become official only after certification.
 
-Leaked Recording
+Until certification:
 
-Corruption Investigation
+* Parliamentary seats remain provisional.
+* Government formation cannot begin.
 
-Ethics Complaint
+---
 
-Outcome:
+## Rule 8.5 — Finality
 
-Cleared
+Certified election results are final.
 
-Convicted
+They may not be altered except by future constitutional review systems.
 
-Dismissed
+---
 
-Ongoing
+# Article IX — Parliamentary Representation
 
-Media and opponents can reference them years later.
+## Rule 9.1 — Seat Allocation
 
-2.14 Workload & Well-being
+Parliamentary seats are allocated according to the country's electoral system.
 
-Leadership has limits.
+The electoral formula is configurable at the country level.
 
-Track:
+The Political Desk must support multiple electoral systems through configuration rather than country-specific code.
 
-Current Workload
+---
 
-Stress
+## Rule 9.2 — Majority
 
-Burnout Risk
+The majority threshold equals more than half of all parliamentary seats unless national constitutional rules specify otherwise.
 
-Public Visibility
+---
 
-Delegation Effectiveness
+## Rule 9.3 — Hung Parliament
 
-A leader trying to personally handle every issue becomes less effective, encouraging players to rely on ministers and advisors.
+If no party achieves a majority, Parliament enters coalition negotiation.
 
-2.15 What We Deliberately Do Not Include
+Government formation does not occur automatically.
 
-No RPG levels.
+---
 
-No XP bar.
+## Rule 9.4 — Representation
 
-No Strength.
+Each parliamentary seat belongs to a political party rather than an individual player.
 
-No Intelligence.
+Human players exercise influence through party leadership and institutional authority.
 
-No "Level 37 Politician."
+---
 
-Political growth comes from experience, reputation, and achievements—not arbitrary leveling.
-
-UI Preview — Politician Profile
-
-When another player clicks your profile, they might see:
-
-────────────────────────────────
-Portrait
-
-Alex Morgan
-
-Party Leader
-
-Age: 42
-
-Recognition: 61%
-
-Trust: 74%
-
-Political Capital: High
-
-Current Role:
-Leader of the Reform Alliance
-
-Support Base:
-████████░░ Students
-███████░░░ Businesses
-█████░░░░░ Farmers
-
-Top Reputation:
-★★★★★ Economy
-★★★★☆ Leadership
-★★★☆☆ Healthcare
-
-Career Timeline
-
-Recent News
-
-Relationships
-
-Achievements
-────────────────────────────────
-
-The goal is that one screen tells your political story.
-
-Deliverables of P2
-
-After this phase we've fully defined:
-
-Every personal political statistic.
-Recognition.
-Trust.
-Reputation.
-Political capital.
-Skills.
-Public image.
-Demographic support.
-Regional strength.
-Relationships.
-Career history.
-Legacy.
-
-🚨 MAJOR DESIGN REVISION
-
-After thinking about this for a long time...
-
-I don't think "Campaign Organization" should exist.
-
-Why?
-
-Because campaigns only exist during elections.
-
-If elections are every 4–5 in-game years, players would spend 95% of their time managing something whose name doesn't fit.
-
-That's bad design.
-
-Instead...
-
-The progression should be:
-
-Citizen
-      │
-      ▼
-Independent Politician
-      │
-      ▼
-Political Group
-      │
-      ▼
-Political Party
-      │
-      ▼
-Election Candidate
-      │
-      ▼
-Government
-
-A Political Group exists all year.
-
-It becomes your first real organization.
-
-It later upgrades into a Political Party.
-
-This is much more flexible.
-
-POLITICAL DESIGN
-
-PHASE P3 — INDEPENDENT POLITICIAN & POLITICAL GROUP
-Goal
-
-Answer one question:
-
-What does a player actually DO before creating a political party?
-
-This phase is entirely about that.
-
-3.1 Becoming an Independent Politician
-
-After selecting Politics as a career...
-
-You are not unemployed.
-
-You become:
-
-Independent Politician
-
-Meaning:
-
-You have opinions.
-
-You attend events.
-
-You publish statements.
-
-You recruit supporters.
-
-But...
-
-You have no organization.
-
-3.2 Your First Political Dashboard
-
-When you log in...
-
-You don't see Party.
-
-Instead you see:
-
-Political Dashboard
-
-This is your headquarters.
-
-Left Sidebar
-Home
-
-News
-
-Calendar
-
-Contacts
-
-Supporters
-
-Political Group
-
-Actions
-
-Messages
-
-Profile
-
-Very simple.
-
-Only 8 sections.
-
-3.3 Home Screen
-
-This becomes your "office."
-
-Shows:
-
-Morning Briefing
-
-Recognition
-
-Supporters
-
-Upcoming Events
-
-Today's Invitations
-
-Trending Political Topics
-
-Recent Mentions
-
-Daily Goals
-
-Everything important.
-
-3.4 Daily Objectives
-
-Every day.
-
-The game generates objectives.
-
-Example.
-
-Today's Opportunities
-
-Attend University Debate
-
-Meet Farmers Association
-
-Write Policy Article
-
-Visit Flood Area
-
-Give Television Interview
-
-Meet Local Business Owners
-
-You choose.
-
-Nothing is mandatory.
-
-3.5 Actions
-
-Instead of hundreds of buttons...
-
-Everything belongs to one category.
-
-Public
-
-Attend Event
-
-Visit Community
-
-Give Speech
-
-Meet Citizens
-
-Volunteer
-
-Write Article
-
-Post Statement
-
-Networking
-
-Meet Journalist
-
-Meet Business Leader
-
-Meet Professor
-
-Meet NGO
-
-Meet Union
-
-Meet Local Leader
-
-Learning
-
-Read Reports
-
-Study Economy
-
-Analyze Polls
-
-Research Policy
-
-Meet Experts
-
-Personal
-
-Schedule
-
-Travel
-
-Rest
-
-Training
-
-Media Coaching
-
-Every action consumes in-game time.
-
-3.6 Supporters
-
-Supporters are NOT members.
-
-They're simply people who agree with you.
-
-Every supporter has:
-
-Region
-
-Age
-
-Occupation
-
-Political Interest
-
-Issues They Care About
-
-Loyalty
-
-Activity Level
-
-Some donate.
-
-Some volunteer.
-
-Some only vote.
-
-3.7 Recognition
-
-Recognition grows naturally.
-
-Example.
-
-Interview.
-
-+0.2%
-
-Speech.
-
-+0.1%
-
-Debate.
-
-+0.4%
-
-TV Appearance.
-
-+0.8%
-
-National Scandal.
-
-+2.5%
-
-Recognition is not automatically positive.
-
-3.8 The Political Group
-
-Eventually.
-
-A new button unlocks.
-
-Create Political Group
-
-Requirements.
-
-Recognition
-
-Supporters
-
-Volunteers
-
-Funding
-
-No legal restrictions
-
-Why Political Group?
-
-Because now.
-
-You're building something bigger than yourself.
-
-Examples.
-
-Education First
-
-Clean Government Initiative
-
-Farmers Alliance
-
-Digital Future
-
-Urban Progress
-
-The group is issue-driven.
-
-Not election-driven.
-
-3.9 Political Group Dashboard
-
-When created.
-
-A completely new menu appears.
-
-Overview
-
-Supporters
-
-Volunteers
-
-Events
-
-Policies
-
-Finances
-
-Communications
-
-Expansion
-
-Notice.
-
-Still no elections.
-
-We're building the organization first.
-
-3.10 Group Statistics
-
-Every Political Group has:
-
-Identity
-
-Name
-
-Logo
-
-Color
-
-Founder
-
-Founded
-
-Headquarters
-
-Mission
-
-Size
-
-Supporters
-
-Volunteers
-
-Local Coordinators
-
-Cities Active
-
-Regions Active
-
-Growth
-
-Weekly Growth
-
-Recruitment Rate
-
-Volunteer Growth
-
-Public Interest
-
-Momentum
-
-Reputation
-
-Trust
-
-Integrity
-
-Visibility
-
-Media Reputation
-
-Professionalism
-
-Issue Expertise
-
-Financial
-
-Cash
-
-Monthly Donations
-
-Monthly Expenses
-
-Reserve Fund
-
-Transparency
-
-Organization
-
-Events Held
-
-Campaigns Completed
-
-Community Projects
-
-Public Meetings
-
-Research Papers
-
-Policy Proposals
-
-3.11 Political Actions
-
-The leader can:
-
-Recruit Volunteers
-
-Organize Meeting
-
-Launch Campaign
-
-Release Statement
-
-Publish Research
-
-Meet Community
-
-Raise Donations
-
-Open Local Chapter
-
-Train Volunteers
-
-Conduct Survey
-
-Commission Research
-
-Everything has consequences.
-
-3.12 Daily Gameplay Loop
-
-Morning.
-
-Read briefing.
-
-↓
-
-Accept invitations.
-
-↓
-
-Choose today's priorities.
-
-↓
-
-Manage group.
-
-↓
-
-Hold one major event.
-
-↓
-
-Respond to news.
-
-↓
-
-Recruit supporters.
-
-↓
-
-Log off.
-
-About 20–40 minutes.
-
-3.13 Progression
-
-As your Political Group grows:
-
-5 Volunteers
-
-↓
-
-20 Volunteers
-
-↓
-
-100 Volunteers
-
-↓
-
-500 Supporters
-
-↓
-
-Regional Recognition
-
-↓
-
-National Recognition
-
-↓
-
-Eligible to Register Party
-
-No artificial XP.
-
-Real organizational growth.
-
-🚨 Now I Want to Challenge One of Our Assumptions
-
-After designing this phase, I think there's one major problem we need to solve before we continue to Party Creation.
-
-The Question
-
-What happens if all 10 party slots in a country are already occupied?
-
-If we don't answer this now, we'll build the rest of the system on unstable foundations.
-
-Here are three possible models:
-
-Option A — Fixed Party Slots (our original idea)
-Maximum 10 parties.
-A new party can only form if one dissolves or merges.
-
-Pros
-
-Stable politics.
-Easy to balance.
-
-Cons
-
-New political players may wait a long time.
-Option B — Dynamic Registration (my current favorite)
-
-Every country has:
-
-10 Parliamentary Party slots (parties eligible for national elections or with national status).
-Unlimited Political Groups.
-
-When a new group becomes strong enough, it can challenge the weakest parliamentary party. If it meets legal requirements and surpasses that party in support, it replaces it in national politics.
-
-This creates constant competition without unlimited party fragmentation.
-
-Option C — Unlimited Parties
-
-Any player can create a party.
-
-This sounds realistic but, in a multiplayer game with 75+ countries, it risks hundreds of tiny inactive parties cluttering the political system.
-
-My Recommendation
-
-I would choose Option B.
-
-It preserves a manageable national political landscape while ensuring that every new player always has a path into national politics through their Political Group. It also creates an exciting long-term goal: replacing an established party isn't a menu action—it's an achievement earned through organization, public support, and sustained political work. That, in my opinion, is a much stronger gameplay loop than simply paying a fee to register a new party.
-
-Good. This is the phase that will make or break the game.
-
-Everything before this was setup.
-
-P5 is where the player actually starts playing.
-
-And before I write anything, I want to establish one design principle that I think will define WORLDr.
-
-⚠️ The GearCity Principle
-
-Ask yourself:
-
-Why can someone spend 500 hours in GearCity?
-
-Not because there are 500 buttons.
-
-Because every button changes the future of your company.
-
-Politics should feel exactly the same.
-
-Every click should make the player think:
-
-"If I do this today, what happens six months from now?"
-
-Not:
-
-"+2 popularity"
-
-POLITICAL DESIGN
+# End of Part 2

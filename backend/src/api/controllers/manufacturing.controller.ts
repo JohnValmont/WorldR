@@ -2884,29 +2884,69 @@ export class ManufacturingController {
           .first();
         if (existingModel) throw new AppError('A model with this name already exists', 400, 'NAME_TAKEN');
 
-        // Recalculate scores with fixed base components + new quality/package
-        let scores = calculateDesignScores({ 
-          vehicleClass: sourceModel.vehicle_class, 
-          platform: sourceModel.platform_type, 
-          powerUnit: sourceModel.power_unit_type, 
-          drivetrain: sourceModel.drivetrain_type, 
-          interiorTier: sourceModel.interior_tier, 
-          safetyTier: sourceModel.safety_tier, 
-          qualityTarget 
-        });
+        const clock = await trx('world_clock').first();
+        const currentYear = clock?.current_year ?? 1;
+        const currentMonth = clock?.current_month ?? 1;
+        const currentDay = clock?.current_day ?? 1;
 
-        // Apply engineering package modifiers
-        if (appliedEngineeringPackage === 'economy-tune') {
-          scores.fuelEfficiencyScore = Math.min(100, scores.fuelEfficiencyScore + 6);
-          scores.performanceScore = Math.max(10, scores.performanceScore - 2);
-          scores.manufacturingCostPerUnit = Math.round(scores.manufacturingCostPerUnit * 1.03);
-        } else if (appliedEngineeringPackage === 'safety-arch') {
-          scores.safetyScore = Math.min(100, (scores.safetyScore || 50) + 8);
-          scores.manufacturingCostPerUnit = Math.round(scores.manufacturingCostPerUnit * 1.05);
-        } else if (appliedEngineeringPackage === 'durability-val') {
-          scores.reliabilityScore = Math.min(100, scores.reliabilityScore + 6);
-          scores.manufacturingCostPerUnit = Math.round(scores.manufacturingCostPerUnit * 1.02);
+        // Facelift dev cost = base_vehicle_dev_cost * facelift_cost_fraction (from country config)
+        const BASE_DEV_COST = Number(autoConfig?.base_vehicle_dev_cost ?? 150000);
+        const BASE_FACELIFT_COST = Math.round(BASE_DEV_COST * Number(autoConfig?.facelift_cost_fraction ?? 0.6));
+
+        const engineerStaff = await trx('company_staff')
+          .where({ company_id: companyId, role: 'automotive-engineer' }).first();
+        const engineerCount = engineerStaff?.quantity || 0;
+        const devCostDiscount = Math.min(engineerCount * 0.05, 0.20);
+        
+        const companyKnowledge = await trx('manufacturing_company_knowledge')
+          .where({ company_id: companyId });
+        const knowledgeMap: Record<string, number> = {};
+        for (const k of companyKnowledge) {
+          knowledgeMap[k.domain] = k.xp_points;
         }
+
+        const engPriorities = typeof sourceModel.engineering_priorities === 'string'
+          ? JSON.parse(sourceModel.engineering_priorities)
+          : (sourceModel.engineering_priorities || {});
+        
+        const engBudgetAlloc = typeof sourceModel.engineering_budget_alloc === 'string'
+          ? JSON.parse(sourceModel.engineering_budget_alloc)
+          : (sourceModel.engineering_budget_alloc || {});
+
+        const engineDesign = {
+          vehicleClass: sourceModel.vehicle_class,
+          platform: sourceModel.platform_type,
+          powerUnit: sourceModel.power_unit_type,
+          drivetrain: sourceModel.drivetrain_type,
+          interiorTier: sourceModel.interior_tier,
+          safetyTier: sourceModel.safety_tier,
+          qualityTarget,
+          priorities: engPriorities,
+          budgetAlloc: engBudgetAlloc,
+          totalBudget: BASE_DEV_COST,
+          appliedEngineeringPackage: appliedEngineeringPackage || undefined
+        };
+
+        const engContext = {
+          engineerCount,
+          engineerSkillLevel: Math.min(5, Math.floor(engineerCount / 20)),
+          companyKnowledge: knowledgeMap,
+          currentMonth,
+          currentYear
+        };
+
+        const outcome = calculateEngineeringOutcome(engineDesign, engContext);
+
+        // Compute base manufacturing cost (Phase 3 logic)
+        let baseCost = 0;
+        baseCost += PLATFORMS[sourceModel.platform_type]?.manufacturingCost || 0;
+        baseCost += POWER_UNITS[sourceModel.power_unit_type]?.manufacturingCost || 0;
+        baseCost += DRIVETRAINS[sourceModel.drivetrain_type]?.manufacturingCost || 0;
+        baseCost += INTERIOR_TIERS[sourceModel.interior_tier]?.manufacturingCost || 0;
+        baseCost += SAFETY_TIERS[sourceModel.safety_tier]?.manufacturingCost || 0;
+        
+        let manufacturingCostPerUnit = Math.round(baseCost * (QUALITY_TARGETS[qualityTarget]?.productionCostMultiplier || 1.0));
+        manufacturingCostPerUnit = Math.round(manufacturingCostPerUnit * outcome.productionCostMultiplier);
 
         const computedSegment = qualityTarget === 'budget' ? 'Economy'
           : qualityTarget === 'premium' ? 'Premium'
@@ -2915,20 +2955,7 @@ export class ManufacturingController {
         
         const finalSalePrice = salePrice && Number(salePrice) > 0
           ? Number(salePrice)
-          : scores.manufacturingCostPerUnit * 1.5;
-
-        const clock = await trx('world_clock').first();
-
-        // Facelift dev cost = base_vehicle_dev_cost * facelift_cost_fraction (from country config)
-        const BASE_FACELIFT_COST = Math.round(
-          Number(autoConfig?.base_vehicle_dev_cost ?? 150000) *
-          Number(autoConfig?.facelift_cost_fraction ?? 0.6)
-        );
-
-        const engineerStaff = await trx('company_staff')
-          .where({ company_id: companyId, role: 'automotive-engineer' }).first();
-        const engineerCount = engineerStaff?.quantity || 0;
-        const devCostDiscount = Math.min(engineerCount * 0.05, 0.20);
+          : Math.round(manufacturingCostPerUnit * 1.5);
 
         const finalDevCost = Math.round(BASE_FACELIFT_COST * (1 - devCostDiscount));
 
@@ -2942,6 +2969,13 @@ export class ManufacturingController {
           .decrement('available_cash', finalDevCost)
           .returning('*');
 
+        // Year/month with overflow handling
+        const wrapMonth = (year: number, month: number) => {
+          while (month > 12) { month -= 12; year++; }
+          return { year, month };
+        };
+        const endTimeline = wrapMonth(currentYear, currentMonth + 1); // Facelift is fast (1 month total)
+
         const [newModel] = await trx('manufacturing_vehicle_models').insert({
           world_instance_id: company.world_instance_id,
           company_id: companyId,
@@ -2953,13 +2987,13 @@ export class ManufacturingController {
           interior_tier: sourceModel.interior_tier,
           safety_tier: sourceModel.safety_tier,
           production_quality: qualityTarget,
-          manufacturing_cost_per_unit: scores.manufacturingCostPerUnit,
-          reliability_score: scores.reliabilityScore,
-          performance_score: scores.performanceScore,
-          fuel_efficiency_score: scores.fuelEfficiencyScore,
-          appeal_score: scores.appealScore,
-          cargo_score: scores.cargoScore,
-          safety_score: scores.safetyScore || 50,
+          manufacturing_cost_per_unit: manufacturingCostPerUnit,
+          reliability_score: outcome.finalScores.reliability,
+          performance_score: outcome.finalScores.performance,
+          fuel_efficiency_score: outcome.finalScores.fuelEfficiency,
+          appeal_score: outcome.finalScores.appeal,
+          cargo_score: outcome.finalScores.cargo,
+          safety_score: outcome.finalScores.safety,
           target_segment: finalSegment,
           sale_price: finalSalePrice,
           development_cost_discount: devCostDiscount,
@@ -2968,13 +3002,35 @@ export class ManufacturingController {
           development_status: 'in_development',
           development_type: 'facelift',
           facelift_source_model_id: sourceModel.id,
-          created_at_world_year: clock?.current_year ?? 1,
-          created_at_world_month: clock?.current_month ?? 1,
-          created_at_world_day: clock?.current_day ?? 1,
-          development_started_at_year: clock?.current_year ?? 1,
-          development_started_at_month: clock?.current_month ?? 1,
-          development_completes_at_year: clock?.current_year ?? 1,
-          development_completes_at_month: (clock?.current_month ?? 1) + 1, // Facelift takes 1 Month
+          // Phase 3 fields
+          engineering_priorities:     JSON.stringify(engPriorities),
+          engineering_budget_alloc:   JSON.stringify(engBudgetAlloc),
+          engineering_complexity:     outcome.complexities.engineering,
+          manufacturing_complexity:   outcome.complexities.manufacturing,
+          assembly_complexity:        outcome.complexities.assembly,
+          vehicle_weight_kg:          outcome.vehicleWeightKg,
+          manufacturing_friendliness: outcome.manufacturingFriendliness,
+          engineering_risk:           outcome.engineeringRisk,
+          prototype_confidence:       outcome.prototypeConfidence,
+          dev_stage:                  'engineering',
+          planned_dev_time_months:    1,
+          prototype_validation_result: null,
+          engineering_assessment:     JSON.stringify(outcome.engineeringReport),
+          engineering_balance_rating: outcome.balanceFlags.length > 0 ? outcome.balanceFlags[0] : null,
+          // Timeline
+          created_at_world_year: currentYear,
+          created_at_world_month: currentMonth,
+          created_at_world_day: currentDay,
+          development_started_at_year: currentYear,
+          development_started_at_month: currentMonth,
+          stage_engineering_completes_year: endTimeline.year,
+          stage_engineering_completes_month: endTimeline.month,
+          stage_prototype_completes_year: endTimeline.year,
+          stage_prototype_completes_month: endTimeline.month,
+          stage_testing_completes_year: endTimeline.year,
+          stage_testing_completes_month: endTimeline.month,
+          development_completes_at_year: endTimeline.year,
+          development_completes_at_month: endTimeline.month,
         }).returning('*');
 
         await trx('company_ledger').insert({

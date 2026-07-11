@@ -517,9 +517,19 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
     }
   }, [deskTab, loadBootstrap, loadMarketData, loadLeaderboard]);
 
-  // Phase 3: liveScore is computed after mfgData is available (see below, after engineerCount)
-  // Placeholder so hooks order stays stable:
-  useEffect(() => { /* liveScore sale price sync — moved below */ }, [dClass, dPlatform, dEngine, dDrivetrain, dInterior, dSafety, dQuality]);
+  const previewEngineerCount = mfgData?.staff?.find((s: any) => s.role === 'automotive-engineer')?.quantity || 0;
+  const liveScore = calcLiveEngineering({
+    vehicleClass: dClass, platform: dPlatform, powerUnit: dEngine, drivetrain: dDrivetrain,
+    interiorTier: dInterior, safetyTier: dSafety, qualityTarget: dQuality,
+    priorities: dPriorities, budgetAlloc: dBudgetAlloc, totalBudget: BASE_DEV_COST,
+    engineerCount: previewEngineerCount,
+  }, bootstrapData);
+
+  // Auto-sync suggested sale price when base architecture changes
+  useEffect(() => { 
+    setDSalePrice(Math.round(liveScore.cost * 1.5));
+  }, [dClass, dPlatform, dEngine, dDrivetrain, dInterior, dSafety, dQuality]);
+  
   // Init budget alloc when base dev cost is known and modal opens
   useEffect(() => {
     if (Object.keys(dBudgetAlloc).length === 0 && BASE_DEV_COST > 0) {
@@ -789,13 +799,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const salesManagerCount = staff.find((s: any) => s.role === 'sales-manager')?.quantity || 0;
   const engineerCount = staff.find((s: any) => s.role === 'automotive-engineer')?.quantity || 0;
 
-  // Phase 3: Live engineering assessment — computed here where engineerCount is available
-  const liveScore = calcLiveEngineering({
-    vehicleClass: dClass, platform: dPlatform, powerUnit: dEngine, drivetrain: dDrivetrain,
-    interiorTier: dInterior, safetyTier: dSafety, qualityTarget: dQuality,
-    priorities: dPriorities, budgetAlloc: dBudgetAlloc, totalBudget: BASE_DEV_COST,
-    engineerCount,
-  }, bootstrapData);
+  // Phase 3: Live engineering assessment — computed above now
 
   // Compute required workers & active lines
   let plannedUnits = 0;
@@ -2925,14 +2929,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               cy="50%"
                               outerRadius={80}
                             >
-                              {pieData.map((entry: any, index: number) => (
-                                <Cell key={`cell-${index}`} fill={[
-                                  '#36d399', '#6ea8fe', '#d4af37', '#b85555', '#a855f7', '#f97316',
-                                  '#ec4899', '#14b8a6', '#6366f1', '#facc15', '#ef4444', '#8b5cf6',
-                                  '#10b981', '#0ea5e9', '#f43f5e', '#84cc16', '#3b82f6', '#d946ef',
-                                  '#06b6d4', '#eab308'
-                                ][index % 20]} />
-                              ))}
+                              {pieData.map((entry: any, index: number) => {
+                                const hash = [...(entry.companyName || '')].reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                                const hue = (hash * 137.5) % 360;
+                                return <Cell key={`cell-${index}`} fill={`hsl(${hue}, 70%, 50%)`} />;
+                              })}
                             </Pie>
                             <RechartsTooltip 
                               formatter={(value: any) => [`${(Number(value)).toFixed(1)}%`, 'Market Share']}
@@ -2940,11 +2941,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             />
                             <Legend 
                               layout="vertical" 
-                              verticalAlign="middle" 
+                              verticalAlign="top" 
                               align="right"
-                              wrapperStyle={{ fontSize: '11px', color: '#fffff0' }}
+                              wrapperStyle={{ fontSize: '11px', color: '#fffff0', padding: '10px' }}
                               formatter={(value, entry: any) => (
-                                <span style={{ color: '#fffff0' }}>
+                                <span style={{ color: '#fffff0', marginLeft: '4px' }}>
                                   {value} ({(entry.payload.marketShare).toFixed(1)}%)
                                 </span>
                               )}

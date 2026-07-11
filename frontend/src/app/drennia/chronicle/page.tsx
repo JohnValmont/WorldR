@@ -193,20 +193,13 @@ export default function ChroniclePage() {
           
           if (char.netWorthHistory && char.netWorthHistory.length > 0) {
             const history = [...char.netWorthHistory];
-            // ensure it's up to 12 items, pad with the oldest known value if less
-            while (history.length < 12) {
-              history.unshift({ ...history[0], month: 'older' });
-            }
+            // Only plot what we have, without padding with the oldest value.
             setNetWorthSeries(history.map((h: any, i: number) => ({
-              month: i === 11 ? 'Now' : `${11 - i}m ago`,
+              month: i === history.length - 1 ? 'Now' : `${history.length - 1 - i}m ago`,
               value: Number(h.total_net_worth || 0)
             })));
           } else {
-            const flatSeries = Array.from({ length: 12 }).map((_, i) => ({
-              month: i === 11 ? 'Now' : `${11 - i}m ago`,
-              value: currentNetWorth
-            }));
-            setNetWorthSeries(flatSeries);
+            setNetWorthSeries([{ month: 'Now', value: currentNetWorth }]);
           }
 
           let parsed: PlayerStats = {
