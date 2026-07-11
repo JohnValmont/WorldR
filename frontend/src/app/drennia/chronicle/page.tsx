@@ -192,14 +192,22 @@ export default function ChroniclePage() {
           const currentNetWorth = Number(char.finances?.net_worth ?? 0);
           
           if (char.netWorthHistory && char.netWorthHistory.length > 0) {
-            const history = [...char.netWorthHistory];
+            let history = [...char.netWorthHistory];
+            // Recharts requires at least two data points to draw an Area/Line.
+            if (history.length === 1) {
+                history = [history[0], history[0]];
+            }
             // Only plot what we have, without padding with the oldest value.
             setNetWorthSeries(history.map((h: any, i: number) => ({
               month: i === history.length - 1 ? 'Now' : `${history.length - 1 - i}m ago`,
               value: Number(h.total_net_worth || 0)
             })));
           } else {
-            setNetWorthSeries([{ month: 'Now', value: currentNetWorth }]);
+            // Recharts requires at least two data points to draw an Area/Line.
+            setNetWorthSeries([
+                { month: 'Start', value: currentNetWorth },
+                { month: 'Now', value: currentNetWorth }
+            ]);
           }
 
           let parsed: PlayerStats = {
