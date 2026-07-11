@@ -141,6 +141,10 @@ BEGIN
   END IF;
 
   SELECT id INTO v_sys_char_id FROM characters WHERE user_id = v_sys_user_id LIMIT 1;
+  INSERT INTO world_instances (id, name, status) VALUES ('pre-alpha-world-1', 'Pre-Alpha World 1', 'active') ON CONFLICT DO NOTHING;
+  INSERT INTO currencies (id, name, symbol, locale, decimal_places) VALUES ('dollar', 'Drennian Dollar', '$', 'en-US', 2) ON CONFLICT DO NOTHING;
+  INSERT INTO countries (id, world_instance_id, name, currency_id, status) VALUES ('drennia', 'pre-alpha-world-1', 'Republic of Drennia', 'dollar', 'active') ON CONFLICT DO NOTHING;
+  
   IF v_sys_char_id IS NULL THEN
     INSERT INTO characters (user_id, world_instance_id, motherland_country_id, name, age,
                             created_at_world_year, created_at_world_month, created_at_world_day)

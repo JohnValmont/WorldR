@@ -43,19 +43,13 @@ export default function LoginPage() {
         STATE_KEYS.forEach(k => localStorage.removeItem(k));
       }
 
+      if (data.user && data.user.character) {
+        localStorage.setItem('worldr_selected_motherland', data.user.character.motherland_country_id || 'drennia');
+        localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(data.user.character));
+      }
+
       setAuth(data.user, data.accessToken, data.refreshToken);
-
-      try {
-        const charRes = await characterApi.getMe();
-        if (charRes.data && charRes.data.id) {
-          localStorage.setItem('worldr_selected_motherland', charRes.data.motherland_country_id || 'drennia');
-          localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(charRes.data));
-          router.push('/drennia/chronicle');
-          return;
-        }
-      } catch (e) {}
-
-      router.push(getFlowRedirectPath());
+      // AuthLayout will handle the redirect via getFlowRedirectPath()
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Failed to create guest session. Please try again.');
     } finally {
@@ -93,26 +87,20 @@ export default function LoginPage() {
         STATE_KEYS.forEach(k => localStorage.removeItem(k));
       }
 
-      setAuth(data.user, data.accessToken, data.refreshToken);
-
       const user = data.user;
+      
+      if (user && user.character) {
+        localStorage.setItem('worldr_selected_motherland', user.character.motherland_country_id || 'drennia');
+        localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(user.character));
+      }
+
+      setAuth(user, data.accessToken, data.refreshToken);
+
       if (!user.is_verified) {
         router.push(`/verify?email=${encodeURIComponent(user.email)}`);
-      } else {
-        try {
-          // Check if user already has an active character
-          const charRes = await characterApi.getMe();
-          if (charRes.data && charRes.data.id) {
-            localStorage.setItem('worldr_selected_motherland', charRes.data.motherland_country_id || 'drennia');
-            localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(charRes.data));
-            router.push('/drennia/chronicle');
-            return;
-          }
-        } catch (e) {
-          // No character found, fall through to onboarding
-        }
-        router.push(getFlowRedirectPath());
       }
+      // Otherwise AuthLayout will handle the redirect via getFlowRedirectPath()
+
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Invalid credentials. Please try again.');
     } finally {

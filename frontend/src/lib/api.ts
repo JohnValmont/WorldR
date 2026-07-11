@@ -79,6 +79,20 @@ api.interceptors.response.use(
       try {
         const { data } = await axios.post(`${API_BASE}/auth/refresh`, { refreshToken });
         setAccessToken(data.accessToken);
+        
+        if (typeof window !== 'undefined') {
+          const zustandStr = localStorage.getItem('worldr-auth');
+          if (zustandStr) {
+            try {
+              const authStore = JSON.parse(zustandStr);
+              if (authStore.state) {
+                authStore.state.accessToken = data.accessToken;
+                localStorage.setItem('worldr-auth', JSON.stringify(authStore));
+              }
+            } catch (e) {}
+          }
+        }
+        
         processQueue(null, data.accessToken);
         originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
         return api(originalRequest);

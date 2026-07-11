@@ -445,6 +445,25 @@ document.getElementById('confirmBtn').addEventListener('click', async () => {
        const errData = await res.json();
        if (errData.error === 'CHARACTER_EXISTS' || errData.message === 'Character already exists') {
           console.log('Character already exists, proceeding to world');
+          try {
+             const charRes = await fetch('/api/v1/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
+             if (charRes.ok) {
+                const charData = await charRes.json();
+                if (charData.character) {
+                   localStorage.setItem('worldr_selected_motherland', charData.character.motherland_country_id || motherland_country_id);
+                   localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(charData.character));
+                   localStorage.setItem('worldr_living_world_entry_v1', 'true');
+                   const authStoreStr = localStorage.getItem('worldr-auth');
+                   if (authStoreStr) {
+                       const authStore = JSON.parse(authStoreStr);
+                       if (authStore.state && authStore.state.user) {
+                           authStore.state.user.character = charData.character;
+                           localStorage.setItem('worldr-auth', JSON.stringify(authStore));
+                       }
+                   }
+                }
+             }
+          } catch(e) { console.error('Failed to fetch existing character', e); }
        } else {
           throw new Error(errData.error || errData.message || 'Failed to create character');
        }
