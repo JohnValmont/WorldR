@@ -13,7 +13,10 @@ export class RegistryController {
         const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
         if (character) world_instance_id = character.world_instance_id;
       }
-      if (!world_instance_id) world_instance_id = 'pre-alpha-world-1';
+      if (!world_instance_id) {
+        const activeInstance = await db('world_instances').where({ status: 'active' }).first();
+        if (activeInstance) world_instance_id = activeInstance.id;
+      }
 
       // Returns public data only
       const companies = await db('companies')

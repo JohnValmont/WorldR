@@ -3,13 +3,18 @@ import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import { runWorldTick } from '../services/worldTick.service';
 
-const WORLD_INSTANCE_ID = 'pre-alpha-world-1';
+
 
 export class WorldController {
   public static async getClock(req: Request, res: Response, next: NextFunction) {
     try {
+      const activeInstance = await db('world_instances').where({ status: 'active' }).first();
+      if (!activeInstance) {
+        return next(new AppError('No active world instance found', 404, 'INSTANCE_NOT_FOUND'));
+      }
+      
       const clock = await db('world_clock')
-        .where({ world_instance_id: WORLD_INSTANCE_ID })
+        .where({ world_instance_id: activeInstance.id })
         .first();
 
       if (!clock) {
@@ -41,8 +46,11 @@ export class WorldController {
    */
   public static async pauseClock(req: Request, res: Response, next: NextFunction) {
     try {
+      const activeInstance = await db('world_instances').where({ status: 'active' }).first();
+      if (!activeInstance) return next(new AppError('No active world instance found', 404, 'INSTANCE_NOT_FOUND'));
+
       const updated = await db('world_clock')
-        .where({ world_instance_id: WORLD_INSTANCE_ID })
+        .where({ world_instance_id: activeInstance.id })
         .update({ status: 'paused', updated_at: db.fn.now() });
       if (!updated) return next(new AppError('World clock not found', 404, 'CLOCK_NOT_FOUND'));
       res.status(200).json({ status: 'success', data: { clockStatus: 'paused' } });
@@ -53,13 +61,16 @@ export class WorldController {
 
   public static async resumeClock(req: Request, res: Response, next: NextFunction) {
     try {
-      const clock = await db('world_clock').where({ world_instance_id: WORLD_INSTANCE_ID }).first();
+      const activeInstance = await db('world_instances').where({ status: 'active' }).first();
+      if (!activeInstance) return next(new AppError('No active world instance found', 404, 'INSTANCE_NOT_FOUND'));
+
+      const clock = await db('world_clock').where({ world_instance_id: activeInstance.id }).first();
       if (!clock) return next(new AppError('World clock not found', 404, 'CLOCK_NOT_FOUND'));
 
       const intervalMs = (clock.real_seconds_per_month || 28800) * 1000;
       const nextClose = new Date(Date.now() + intervalMs);
       await db('world_clock')
-        .where({ world_instance_id: WORLD_INSTANCE_ID })
+        .where({ world_instance_id: activeInstance.id })
         .update({
           status: 'active',
           month_started_at: new Date().toISOString(),
@@ -84,9 +95,12 @@ export class WorldController {
         return next(new AppError('seconds_per_month must be a number between 10 and 31536000', 400, 'BAD_REQUEST'));
       }
 
+      const activeInstance = await db('world_instances').where({ status: 'active' }).first();
+      if (!activeInstance) return next(new AppError('No active world instance found', 404, 'INSTANCE_NOT_FOUND'));
+
       const nextClose = new Date(Date.now() + seconds * 1000);
       const updated = await db('world_clock')
-        .where({ world_instance_id: WORLD_INSTANCE_ID })
+        .where({ world_instance_id: activeInstance.id })
         .update({
           real_seconds_per_month: Math.round(seconds),
           month_started_at: new Date().toISOString(),
@@ -135,9 +149,14 @@ export class WorldController {
    */
   public static async getOperators(req: Request, res: Response, next: NextFunction) {
     try {
+      const activeInstance = await db('world_instances').where({ status: 'active' }).first();
+      if (!activeInstance) {
+        return res.json({ operators: [], month: null });
+      }
+
       // All active characters
       const characters = await db('characters')
-        .where({ status: 'active', world_instance_id: 'pre-alpha-world-1' })
+        .where({ status: 'active', world_instance_id: activeInstance.id })
         .select(
           'id',
           'name',
@@ -157,7 +176,7 @@ export class WorldController {
 
       const characterIds = characters.map((c: any) => c.id);
 
-      // Their companies (one per character via owner_character_id)
+      // Their companies (can be multiple per character)
       const companies = await db('companies')
         .whereIn('owner_character_id', characterIds)
         .where({ status: 'active' })
@@ -181,7 +200,12 @@ export class WorldController {
       }
 
       // Build lookup maps
-      const companyByOwner = new Map(companies.map((c: any) => [c.owner_character_id, c]));
+      const companyByOwner = new Map<string, any[]>();
+      for (const c of companies) {
+        const arr = companyByOwner.get(c.owner_character_id) || [];
+        arr.push(c);
+        companyByOwner.set(c.owner_character_id, arr);
+      }
       const partyByCharacter = new Map(partyMemberships.map((m: any) => [m.character_id, m]));
 
       const operators = characters.map((char: any) => ({
@@ -195,7 +219,7 @@ export class WorldController {
         motherland_country_id: char.motherland_country_id,
         joined_arc: char.created_at_world_month,
         joined_year: char.created_at_world_year,
-        company: companyByOwner.get(char.id) || null,
+        companies: companyByOwner.get(char.id) || [],
         party: partyByCharacter.get(char.id) || null,
       }));
 

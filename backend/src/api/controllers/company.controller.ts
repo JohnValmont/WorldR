@@ -112,9 +112,14 @@ export class CompanyController {
         return next(new AppError('Logistics companies require a minimum of §50,000 in starting capital', 400, 'BAD_REQUEST'));
       }
 
+      const activeInstance = await db('world_instances').where({ status: 'active' }).first();
+      if (!activeInstance) {
+        return next(new AppError('No active world instance found', 404, 'INSTANCE_NOT_FOUND'));
+      }
+
       // Check unique name constraint
       const existingName = await db('companies')
-        .where({ world_instance_id: 'pre-alpha-world-1', country_id })
+        .where({ world_instance_id: activeInstance.id, country_id })
         .whereRaw('LOWER(name) = ?', [name.toLowerCase()])
         .first();
 
@@ -169,7 +174,7 @@ export class CompanyController {
 
         // Create company
         const [company] = await trx('companies').insert({
-          world_instance_id: 'pre-alpha-world-1',
+          world_instance_id: activeInstance.id,
           owner_character_id: character.id,
           country_id,
           headquarters_state_id,

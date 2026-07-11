@@ -10,9 +10,14 @@ export class CharacterController {
         return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
       }
 
-      // We assume one active character per user per world instance (pre-alpha-world-1 for now)
+      const activeInstance = await db('world_instances').where({ status: 'active' }).first();
+      if (!activeInstance) {
+        return res.status(404).json({ message: 'No active world instance found' });
+      }
+
+      // We assume one active character per user per world instance
       const character = await db('characters')
-        .where({ user_id: userId, status: 'active' })
+        .where({ user_id: userId, status: 'active', world_instance_id: activeInstance.id })
         .first();
 
       if (!character) {
@@ -69,9 +74,14 @@ export class CharacterController {
         return next(new AppError('Missing required fields', 400, 'BAD_REQUEST'));
       }
 
+      const activeInstance = await db('world_instances').where({ status: 'active' }).first();
+      if (!activeInstance) {
+        return next(new AppError('No active world instance found', 404, 'INSTANCE_NOT_FOUND'));
+      }
+
       // Check if character already exists for this user
       const existing = await db('characters')
-        .where({ user_id: userId, world_instance_id: 'pre-alpha-world-1' })
+        .where({ user_id: userId, world_instance_id: activeInstance.id })
         .whereNot('status', 'deleted')
         .first();
 
@@ -80,14 +90,14 @@ export class CharacterController {
       }
 
       // Get world clock for created_at_world_*
-      const clock = await db('world_clock').where({ status: 'active' }).first();
+      const clock = await db('world_clock').where({ status: 'active', world_instance_id: activeInstance.id }).first();
       if (!clock) {
         return next(new AppError('World clock not active', 500, 'INTERNAL_ERROR'));
       }
 
       const result = await db.transaction(async (trx) => {
         const [character] = await trx('characters').insert({
-          world_instance_id: 'pre-alpha-world-1',
+          world_instance_id: activeInstance.id,
           user_id: userId,
           motherland_country_id,
           home_state_id: home_state_id || null,
@@ -128,8 +138,13 @@ export class CharacterController {
         return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
       }
 
+      const activeInstance = await db('world_instances').where({ status: 'active' }).first();
+      if (!activeInstance) {
+        return res.status(404).json({ message: 'No active world instance found' });
+      }
+
       const character = await db('characters')
-        .where({ user_id: userId, status: 'active' })
+        .where({ user_id: userId, status: 'active', world_instance_id: activeInstance.id })
         .first();
 
       if (character) {

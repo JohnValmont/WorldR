@@ -4,7 +4,7 @@ import { ManufacturingController } from '../controllers/manufacturing.controller
 import { processEconomyMonth } from './economyTick.service';
 import { processExchangeMonth } from './ipoExchange.service';
 
-const WORLD_INSTANCE_ID = 'pre-alpha-world-1';
+
 const SCHEDULER_INTERVAL_MS = 5_000; // check the clock every 5s
 const MAX_CATCHUP_TICKS = 6; // max months processed per scheduler pass if the server was down
 
@@ -80,8 +80,11 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       // Guarantee no single query can hang the tick indefinitely.
       await trx.raw(`SET LOCAL statement_timeout = ${TICK_STATEMENT_TIMEOUT_MS}`);
 
+      const activeInstance = await trx('world_instances').where({ status: 'active' }).first();
+      if (!activeInstance) return { status: 'skipped', reason: 'no_clock' } as WorldTickResult;
+
       const clock = await trx('world_clock')
-        .where({ world_instance_id: WORLD_INSTANCE_ID })
+        .where({ world_instance_id: activeInstance.id })
         .forUpdate()
         .first();
       if (!clock) return { status: 'skipped', reason: 'no_clock' } as WorldTickResult;
@@ -167,7 +170,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
           await trx.transaction(async (sp) => {
             await sp.raw(`SET LOCAL statement_timeout = ${TICK_STATEMENT_TIMEOUT_MS}`);
             await sp('characters')
-              .where({ world_instance_id: WORLD_INSTANCE_ID, status: 'active' })
+              .where({ world_instance_id: activeInstance.id, status: 'active' })
               .increment('age', 1);
           });
         } catch (err) {
@@ -194,7 +197,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
 
       (global as any).tickProgress = 'Advancing clock...';
       await trx('world_clock')
-        .where({ world_instance_id: WORLD_INSTANCE_ID })
+        .where({ world_instance_id: activeInstance.id })
         .update({
           current_month: newMonth,
           current_year: newYear,
