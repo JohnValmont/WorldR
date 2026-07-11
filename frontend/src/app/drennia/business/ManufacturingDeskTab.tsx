@@ -3103,14 +3103,14 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   </thead>
                   <tbody>
                     {modelSnapshots.sort((a: any, b: any) => b.world_year - a.world_year || b.world_month - a.world_month).map((s: any) => {
-                      const model = models.find((m: any) => m.id === s.vehicle_model_id);
+                      const model = models.find((m: any) => m.id === s.model_id);
                       return (
-                        <tr key={s.id} style={{ borderBottom: `1px dashed ${T.border}33` }}>
+                        <tr key={`${s.model_id}-${s.world_year}-${s.world_month}`} style={{ borderBottom: `1px dashed ${T.border}33` }}>
                           <td style={{ padding: '8px 0', color: T.ivory, fontWeight: 'bold' }}>{model?.name || 'Unknown Model'}</td>
                           <td style={{ padding: '8px 0', color: T.ivory }}>Year {s.world_year}, M{s.world_month}</td>
                           <td style={{ padding: '8px 0', color: T.muted }}>{s.units_produced}</td>
                           <td style={{ padding: '8px 0', color: T.mint }}>{s.units_sold}</td>
-                          <td style={{ padding: '8px 0', color: T.gold }}>{fm(s.revenue_generated)}</td>
+                          <td style={{ padding: '8px 0', color: T.gold }}>{fm(s.sales_revenue)}</td>
                           <td style={{ padding: '8px 0', color: Number(s.direct_contribution) < 0 ? T.red : T.mint }}>{fm(s.direct_contribution)}</td>
                         </tr>
                       );
