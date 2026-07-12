@@ -764,7 +764,7 @@ export default function ExchangePage() {
   const { data: charData } = useSWR('my-character', () => characterApi.getMe().then(r => r.data), { revalidateOnFocus: false });
   const { data: pipeline } = useSWR('ipo-pipeline-count', () => exchangeApi.getPipeline(), { refreshInterval: 20000 });
   const { data: myCompaniesData } = useSWR('my-companies-bourse', () => companyApi.getMy().then(r => r.data), { revalidateOnFocus: false });
-  const myFinanceFirms = myCompaniesData?.companies?.filter((c: any) => c.industry_id === 'finance') || [];
+  const myFinanceFirms = (Array.isArray(myCompaniesData) ? myCompaniesData : (myCompaniesData?.companies || [])).filter((c: any) => c.industry_id === 'finance');
   const myCharacterId: string | null = charData?.character?.id ?? null;
   const list: any[] = listings ?? [];
   const activeId = selectedId ?? list[0]?.id ?? null;
