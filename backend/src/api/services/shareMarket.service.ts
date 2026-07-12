@@ -309,6 +309,14 @@ export async function getListings() {
 
   const result = [];
   for (const co of companies) {
+    // For NPC companies, total shares comes from the actual cap table (varies: 10M or 20M).
+    // For player companies it is always the fixed TOTAL_SHARES constant (1M).
+    let companyTotalShares = TOTAL_SHARES;
+    if (co.is_npc) {
+      const sumRow = await db('company_shares').where({ company_id: co.id }).sum('shares as total').first();
+      companyTotalShares = Number(sumRow?.total ?? TOTAL_SHARES);
+    }
+
     const priceHistory = await db('share_price_history')
       .where({ company_id: co.id })
       .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
@@ -331,11 +339,11 @@ export async function getListings() {
       prev_price: prevPrice,
       best_bid: bestBid?.p ? Number(bestBid.p) : null,
       best_ask: bestAsk?.p ? Number(bestAsk.p) : null,
-      market_cap: latest ? Number(latest.market_cap) : lastPrice != null ? lastPrice * TOTAL_SHARES : null,
+      market_cap: latest ? Number(latest.market_cap) : lastPrice != null ? lastPrice * companyTotalShares : null,
       pe_ratio: latest?.pe_ratio != null ? Number(latest.pe_ratio) : null,
       eps: latest ? Number(latest.eps) : null,
       volume: latest ? Number(latest.volume_shares) : 0,
-      total_shares: TOTAL_SHARES,
+      total_shares: companyTotalShares,
     });
   }
   return result;
@@ -414,10 +422,23 @@ export async function getPortfolio(characterId: string) {
     trades.forEach((trade: any) => latestTrades.set(trade.company_id, trade));
   }
 
+  // Fetch real total shares per company (NPC may have 10M or 20M; players always 1M)
+  const totalSharesMap = new Map<string, number>();
+  for (const id of companyIds) {
+    const co = await db('companies').where({ id }).first();
+    if (co?.is_npc) {
+      const sumRow = await db('company_shares').where({ company_id: id }).sum('shares as total').first();
+      totalSharesMap.set(id, Number(sumRow?.total ?? TOTAL_SHARES));
+    } else {
+      totalSharesMap.set(id, TOTAL_SHARES);
+    }
+  }
+
   const result = holdings.map(h => ({
     ...h,
     last_price: latestTrades.get(h.company_id) ? Number(latestTrades.get(h.company_id).price) : null,
-    ownership_percent: (Number(h.shares) / TOTAL_SHARES) * 100,
+    ownership_percent: (Number(h.shares) / (totalSharesMap.get(h.company_id) ?? TOTAL_SHARES)) * 100,
+    total_shares: totalSharesMap.get(h.company_id) ?? TOTAL_SHARES,
   }));
   return result;
 }

@@ -816,7 +816,13 @@ async function processNpcEquityDecisions(
         .where({ company_id: co.id, holder_character_id: systemCharId })
         .first();
       const treasuryShares = Number(treasuryHolding?.shares ?? 0);
-      const publicFloat    = TOTAL_SHARES - treasuryShares;
+
+      // Derive actual total shares for this NPC company from the cap table
+      const sumRow = await trx('company_shares').where({ company_id: co.id }).sum('shares as total').first();
+      const companyTotalShares = Number(sumRow?.total ?? TOTAL_SHARES);
+      const maxFloatShares = Math.floor(companyTotalShares * 0.30); // max 30% public float
+
+      const publicFloat = companyTotalShares - treasuryShares;
 
       // Last close price
       const lastBar = await trx('share_price_history')
@@ -834,9 +840,9 @@ async function processNpcEquityDecisions(
       if (
         cash < operatingReserve &&
         treasuryShares > NPC_SECONDARY_ORDER_SIZE &&
-        publicFloat < NPC_TREASURY_MAX_FLOAT_SHARES
+        publicFloat < maxFloatShares
       ) {
-        const sellQty = Math.min(NPC_SECONDARY_ORDER_SIZE, NPC_TREASURY_MAX_FLOAT_SHARES - publicFloat);
+        const sellQty = Math.min(NPC_SECONDARY_ORDER_SIZE, maxFloatShares - publicFloat);
         if (sellQty > 0) {
           logger.info(`[drx-npc] ${co.name}: secondary offering ${sellQty} shares @ $${(lastClose * 1.01).toFixed(2)}`);
           await safeNpcOrder(trx, co.id, systemCharId, 'sell', Math.round(lastClose * 1.01 * 100) / 100, sellQty);
@@ -845,8 +851,8 @@ async function processNpcEquityDecisions(
       }
 
       // ── BUYBACK: profitable, cash-rich, treasury can absorb shares ──
-      if (profit > 0 && cash > operatingReserve * 3 && treasuryShares < TOTAL_SHARES) {
-        const maxBuyable = Math.min(NPC_BUYBACK_ORDER_SIZE, TOTAL_SHARES - treasuryShares);
+      if (profit > 0 && cash > operatingReserve * 3 && treasuryShares < companyTotalShares) {
+        const maxBuyable = Math.min(NPC_BUYBACK_ORDER_SIZE, companyTotalShares - treasuryShares);
         const orderCost  = lastClose * 0.98 * maxBuyable;
         if (maxBuyable > 0 && orderCost < cash * 0.05) {
           logger.info(`[drx-npc] ${co.name}: buyback ${maxBuyable} shares @ $${(lastClose * 0.98).toFixed(2)}`);
