@@ -8,9 +8,11 @@ import { Building2, Landmark, Briefcase, TrendingUp, Target, ArrowRightLeft, Lay
 
 const fm = (n: number) => {
   if (n === undefined || n === null) return "$0.00";
-  return n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M`
-  : n >= 1_000   ? `$${(n / 1_000).toFixed(1)}K`
-  : `$${n.toFixed(2)}`;
+  const sign = n < 0 ? "-" : "";
+  const absN = Math.abs(n);
+  return absN >= 1_000_000 ? `${sign}$${(absN / 1_000_000).toFixed(2)}M`
+  : absN >= 1_000   ? `${sign}$${(absN / 1_000).toFixed(1)}K`
+  : `${sign}$${absN.toFixed(2)}`;
 };
 
 const pct = (n: number) => `${n.toFixed(2)}%`;
@@ -57,9 +59,9 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
       setFirm({
         id: fRes.data.id,
         name: fRes.data.name,
-        available_cash: Number(fRes.data.finances?.available_cash ?? 0),
-        company_value: Number(fRes.data.finances?.company_value ?? 0),
-        portfolio_value: Number(hRes.data.totalMarketValue)
+        available_cash: Number(hRes.data.firm.available_cash ?? 0),
+        company_value: Number(hRes.data.firm.company_value ?? 0),
+        portfolio_value: Number(hRes.data.firm.portfolio_value ?? 0)
       });
       setHoldings(hRes.data.holdings);
       setDividends(dRes.data);
