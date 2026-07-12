@@ -414,6 +414,9 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const [showExpandConfirm, setShowExpandConfirm] = useState(false);
   const [expandingFactoryId, setExpandingFactoryId] = useState<string | null>(null);
 
+  // Maintenance state
+  const [factoryMaintModifiers, setFactoryMaintModifiers] = useState<Record<string, number>>({});
+  const [isSavingMaint, setIsSavingMaint] = useState<Record<string, boolean>>({});
   const showNotif = (msg: string, success: boolean) => {
     setNotification({ msg, success });
     setTimeout(() => setNotification(null), 6000);
@@ -766,6 +769,22 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
     } catch (err: any) {
       showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to start expansion.', false);
       setShowExpandConfirm(false);
+    }
+  };
+
+  const handleSaveMaintenance = async (factoryId: string) => {
+    try {
+      const modifier = factoryMaintModifiers[factoryId];
+      if (modifier === undefined) return;
+      
+      setIsSavingMaint(prev => ({ ...prev, [factoryId]: true }));
+      await manufacturingApi.updateFactoryMaintenance(company.id, factoryId, modifier);
+      showNotif(`Maintenance budget updated to ${Math.round(modifier * 100)}%.`, true);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to update maintenance budget.', false);
+    } finally {
+      setIsSavingMaint(prev => ({ ...prev, [factoryId]: false }));
     }
   };
 
@@ -1125,6 +1144,60 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_month)} valueColor="#ff453a" />
                     <FieldRow label="Machine Level" value={factory.machine_level} valueColor="#d4af37" />
                     <FieldRow label="Condition" value={`${factory.condition}%`} valueColor={Number(factory.condition) < 60 ? '#ff453a' : '#30d158'} />
+                  </div>
+
+                  {/* ── MAINTENANCE SLIDER ── */}
+                  <div className="mt-5 border-t border-zinc-800 pt-4">
+                    <div className="text-[10px] font-mono text-terminal-amber tracking-[0.15em] uppercase mb-3">Facility Maintenance</div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-400">Budget Modifier</span>
+                        <span className="text-zinc-200 font-mono font-bold">
+                          {Math.round((factoryMaintModifiers[factory.id] ?? Number(factory.maintenance_budget_modifier || 1.0)) * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="2.0"
+                        step="0.1"
+                        value={factoryMaintModifiers[factory.id] ?? Number(factory.maintenance_budget_modifier || 1.0)}
+                        onChange={(e) => setFactoryMaintModifiers(prev => ({ ...prev, [factory.id]: Number(e.target.value) }))}
+                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                      />
+                      <div className="flex justify-between text-[10px] text-zinc-500 mt-1">
+                        <span>50%</span>
+                        <span>100%</span>
+                        <span>200%</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 mt-3 bg-zinc-900/40 p-3 rounded-md border border-zinc-800">
+                        <div>
+                          <div className="text-[10px] text-zinc-500 mb-1">Projected Cost</div>
+                          <div className="text-xs text-terminal-red">
+                            {fm(Number(factory.maintenance_cost_per_month) * (factoryMaintModifiers[factory.id] ?? Number(factory.maintenance_budget_modifier || 1.0)) * (2.0 - Number(factory.condition)/100))}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-zinc-500 mb-1">Condition Change / Mo</div>
+                          <div className={`text-xs ${((factoryMaintModifiers[factory.id] ?? Number(factory.maintenance_budget_modifier || 1.0)) - 1) * 4 - 1 > 0 ? 'text-terminal-green' : 'text-terminal-red'}`}>
+                            {((factoryMaintModifiers[factory.id] ?? Number(factory.maintenance_budget_modifier || 1.0)) - 1) * 4 - 1 > 0 ? '+' : ''}
+                            {((factoryMaintModifiers[factory.id] ?? Number(factory.maintenance_budget_modifier || 1.0)) - 1) * 4 - 1}%
+                          </div>
+                        </div>
+                      </div>
+
+                      {factoryMaintModifiers[factory.id] !== undefined && factoryMaintModifiers[factory.id] !== Number(factory.maintenance_budget_modifier || 1.0) && (
+                        <div className="mt-2 flex justify-end">
+                          <GoldButton 
+                            onClick={() => handleSaveMaintenance(factory.id)} 
+                            disabled={isSavingMaint[factory.id]}
+                          >
+                            {isSavingMaint[factory.id] ? 'Saving...' : 'Save Budget'}
+                          </GoldButton>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="mt-4">

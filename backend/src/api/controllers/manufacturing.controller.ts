@@ -1611,7 +1611,10 @@ export class ManufacturingController {
         }
       }
 
-      await trx('manufacturing_factories').where({ id: factory.id }).update({ condition: Math.max(10, Number(factory.condition) - 2), updated_at: trx.fn.now() });
+      const modifier = Number(factory.maintenance_budget_modifier || 1.0);
+      const conditionChange = (modifier - 1.0) * 4.0 - 1.0; // 0.5 -> -3, 1.0 -> -1, 2.0 -> +3
+      const newCondition = Math.min(100, Math.max(10, Number(factory.condition) + conditionChange));
+      await trx('manufacturing_factories').where({ id: factory.id }).update({ condition: newCondition, updated_at: trx.fn.now() });
     }
 
     await trx('manufacturing_component_inventory').where({ company_id: companyId, component_id: 'comp_engine' }).update({ units_in_stock: compInventory.engine, updated_at: trx.fn.now() });
@@ -1636,7 +1639,8 @@ export class ManufacturingController {
     let totalMaintenanceCosts = 0;
     for (const factory of factories) {
       const conditionPct = Number(factory.condition) / 100;
-      const baseMaintCost = Math.round(Number(factory.maintenance_cost_per_month) * (2.0 - conditionPct));
+      const modifier = Number(factory.maintenance_budget_modifier || 1.0);
+      const baseMaintCost = Math.round(Number(factory.maintenance_cost_per_month) * modifier * (2.0 - conditionPct));
       const factoryLines = productionLines.filter((l: any) => l.factory_id === factory.id);
       let avgMaintModifier = 1.0;
       if (factoryLines.length > 0) {
@@ -2721,6 +2725,47 @@ export class ManufacturingController {
       });
 
       res.status(200).json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // PATCH /companies/:companyId/manufacturing/factories/:factoryId/maintenance
+  public static async updateFactoryMaintenance(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { companyId, factoryId } = req.params;
+      const { maintenance_budget_modifier } = req.body;
+
+      if (!userId || !companyId || !factoryId || maintenance_budget_modifier === undefined) {
+        return next(new AppError('Missing required fields', 400, 'BAD_REQUEST'));
+      }
+
+      const modifier = Number(maintenance_budget_modifier);
+      if (isNaN(modifier) || modifier < 0.5 || modifier > 2.0) {
+        return next(new AppError('Maintenance budget modifier must be between 0.5 and 2.0', 400, 'BAD_REQUEST'));
+      }
+
+      const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) {
+        return next(new AppError('No active character found', 404, 'NOT_FOUND'));
+      }
+
+      const company = await db('companies').where({ id: companyId, owner_character_id: character.id }).first();
+      if (!company) {
+        return next(new AppError('Company not found or unauthorized', 404, 'NOT_FOUND'));
+      }
+
+      const factory = await db('manufacturing_factories').where({ id: factoryId, company_id: companyId }).first();
+      if (!factory) {
+        return next(new AppError('Factory not found', 404, 'NOT_FOUND'));
+      }
+
+      await db('manufacturing_factories')
+        .where({ id: factoryId })
+        .update({ maintenance_budget_modifier: modifier, updated_at: db.fn.now() });
+
+      res.status(200).json({ message: 'Factory maintenance budget updated successfully.', modifier });
     } catch (error) {
       next(error);
     }
