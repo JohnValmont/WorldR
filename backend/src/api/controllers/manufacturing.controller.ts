@@ -2688,12 +2688,12 @@ export class ManufacturingController {
           programme_id: programmeId,
           status: 'engineering',
           approved_budget: progBudget,
-          started_month_year: startYear,
-          started_arc: startMonth,
-          validation_month_year: valYear,
-          validation_arc: valMonth,
-          completion_month_year: compYear,
-          completion_arc: compMonth
+          started_arc_year: startYear,
+          started_month: startMonth,
+          validation_arc_year: valYear,
+          validation_month: valMonth,
+          completion_arc_year: compYear,
+          completion_month: compMonth
         });
 
         // Ledger
