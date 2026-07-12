@@ -129,28 +129,8 @@ function Listings({ listings, selectedId, onSelect }: { listings: any[]; selecte
 }
 
 // ── Candlestick shape ───────────────────────────────────────────────────────
-function Candle(props: any) {
-  const { x, width, y, height, payload } = props;
-  const o = Number(payload.open_price), c = Number(payload.close_price), hi = Number(payload.high_price), lo = Number(payload.low_price);
-  const span = hi - lo;
-  // y = pixel of `hi`, height = pixel span to `lo` (dataKey is the [low, high] range)
-  const yFor = (v: number) => (span > 0 ? y + ((hi - v) / span) * height : y + height / 2);
-  const up = c >= o;
-  const color = up ? T.mint : T.red;
-  const cx = x + width / 2;
-  const bodyTop = yFor(Math.max(o, c));
-  const bodyBottom = yFor(Math.min(o, c));
-  const bodyW = Math.max(2, width * 0.6);
-  return (
-    <g>
-      <line x1={cx} x2={cx} y1={yFor(hi)} y2={yFor(lo)} stroke={color} strokeWidth={1} />
-      <rect x={cx - bodyW / 2} width={bodyW} y={bodyTop} height={Math.max(1, bodyBottom - bodyTop)} fill={color} />
-    </g>
-  );
-}
-
-// ── Candlestick + volume chart ──────────────────────────────────────────────
-function CandleChart({ companyId }: { companyId: string }) {
+// ── Line + volume chart ──────────────────────────────────────────────
+function PriceChart({ companyId }: { companyId: string }) {
   const { data } = useSWR(['ohlc', companyId], () => exchangeApi.getOhlc(companyId, 24), { refreshInterval: 30000 });
   const rows: any[] = (data ?? []).map((r: any) => ({
     label: `Y${r.game_year} M${r.game_month}`,
@@ -167,14 +147,19 @@ function CandleChart({ companyId }: { companyId: string }) {
   const max = highs.length ? Math.max(...highs) : 1;
   const pad = (max - min) * 0.1 || max * 0.1 || 1;
 
+  const firstClose = rows[0]?.close_price ?? 0;
+  const lastClose = rows[rows.length - 1]?.close_price ?? 0;
+  const up = lastClose >= firstClose;
+  const lineColor = up ? T.mint : T.red;
+
   return (
     <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
-        <div style={label}>Price · Monthly Candles</div>
-        <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>O·H·L·C</div>
+        <div style={label}>Price · Monthly History</div>
+        <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>CLOSE PRICE</div>
       </div>
       {rows.length === 0 ? (
-        <div style={{ fontSize: '11px', color: T.faint }}>No price bars yet. A candle is drawn every game month once the company is listed.</div>
+        <div style={{ fontSize: '11px', color: T.faint }}>No price history yet. A data point is drawn every game month once the company is listed.</div>
       ) : (
         <div style={{ width: '100%', height: 260 }}>
           <ResponsiveContainer width="100%" height="100%">
@@ -198,11 +183,11 @@ function CandleChart({ companyId }: { companyId: string }) {
                 formatter={(value: any, name: any, item: any) => {
                   if (name === 'volume') return [fmtInt(Number(value)), 'Volume'];
                   const p = item?.payload;
-                  return [`O $${fmt(p.open_price)}  H $${fmt(p.high_price)}  L $${fmt(p.low_price)}  C $${fmt(p.close_price)}`, 'OHLC'];
+                  return [`$${fmt(p.close_price)}`, 'Close'];
                 }}
               />
               <Bar yAxisId="vol" dataKey="volume" fill="rgba(75,99,130,0.35)" isAnimationActive={false} />
-              <Bar yAxisId="price" dataKey="range" shape={<Candle />} isAnimationActive={false} />
+              <Line yAxisId="price" type="monotone" dataKey="close_price" stroke={lineColor} strokeWidth={2} dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -877,7 +862,7 @@ export default function ExchangePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {activeId ? (
                   <>
-                    <CandleChart key={`candle-${activeId}-${refreshKey}`} companyId={activeId} />
+                    <PriceChart key={`chart-${activeId}-${refreshKey}`} companyId={activeId} />
                     <OrderBook key={`book-${activeId}-${refreshKey}`} companyId={activeId} />
                     <EarningsPanel key={`earn-${activeId}-${refreshKey}`} companyId={activeId} />
                   </>
