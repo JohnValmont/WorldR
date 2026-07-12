@@ -1755,6 +1755,12 @@ export class ManufacturingController {
             units_in_stock: newStock, inventory_value: Math.max(0, newStock * costPerUnit), storage_cost_per_month: newStock * storageCostPerUnit, updated_at: trx.fn.now()
           });
         }
+
+        const currentAlloc = Math.max(0, Number(alloc.units_allocated) - unitsSold);
+        await trx('manufacturing_market_allocations').where({ id: alloc.id }).update({
+          units_allocated: currentAlloc,
+          updated_at: trx.fn.now()
+        });
       }
 
       const marketShare = Math.min(1, unitsSold / Math.max(1, md.rawBuyerInterest));
@@ -2517,17 +2523,18 @@ export class ManufacturingController {
           .first();
         const othersTotal = Number(otherAllocations?.total ?? 0);
 
-        if (units + othersTotal > totalStock) {
+        // Fetch existing allocation to allow reducing it if state is bugged
+        const existing = await trx('manufacturing_market_allocations')
+          .where({ company_id: companyId, vehicle_model_id: vehicleModelId, region_market_id: regionMarketId })
+          .first();
+        const currentAlloc = existing ? Number(existing.units_allocated) : 0;
+
+        if (units > currentAlloc && units + othersTotal > totalStock) {
           throw new AppError(
             `Cannot allocate ${units} units — only ${Math.max(0, totalStock - othersTotal)} available (${totalStock} in stock, ${othersTotal} allocated elsewhere)`,
             400, 'OVER_ALLOCATION'
           );
         }
-
-        // Upsert allocation
-        const existing = await trx('manufacturing_market_allocations')
-          .where({ company_id: companyId, vehicle_model_id: vehicleModelId, region_market_id: regionMarketId })
-          .first();
 
         if (existing) {
           await trx('manufacturing_market_allocations').where({ id: existing.id }).update({
