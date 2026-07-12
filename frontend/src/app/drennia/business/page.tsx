@@ -971,13 +971,13 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           </div>
           <div className="flex gap-2.5">
             <GhostButton onClick={() => setStep(1)}>← Back</GhostButton>
-            <GoldButton onClick={() => setStep(3)} disabled={!selectedHQ}>Next: Structure →</GoldButton>
+            <GoldButton onClick={() => setStep(isFinance ? 4 : 3)} disabled={!selectedHQ}>Next: {isFinance ? 'Company Name' : 'Structure'} →</GoldButton>
           </div>
         </div>
       )}
 
-      {/* Step 3 — Structure */}
-      {step === 3 && (
+      {/* Step 3 — Structure (skipped for Finance) */}
+      {step === 3 && !isFinance && (
         <div>
           <SectionHeader stamp="STEP 3 OF 7">Legal Structure</SectionHeader>
           <div className="flex flex-col gap-2 mb-6">
@@ -1004,7 +1004,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
             ))}
           </div>
           <div className="flex gap-2.5">
-            <GhostButton onClick={() => setStep(2)}>← Back</GhostButton>
+            <GhostButton onClick={() => setStep(isFinance ? 2 : 3)}>← Back</GhostButton>
             <GoldButton onClick={() => setStep(4)} disabled={!selectedStructure}>Next: Name →</GoldButton>
           </div>
         </div>
@@ -1045,7 +1045,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
             <FieldRow label="Company Name" value={companyNameInput} />
             <FieldRow label="Sector" value={selectedSector} />
             <FieldRow label="HQ State" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ} />
-            <FieldRow label="Legal Structure" value={getLegalStructureName(selectedStructure)} />
+            {!isFinance && <FieldRow label="Legal Structure" value={getLegalStructureName(selectedStructure)} />}
           </div>
           <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-5 mb-6">
             <SectionHeader>Starting Capital</SectionHeader>
