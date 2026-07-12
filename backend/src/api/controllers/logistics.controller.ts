@@ -324,6 +324,7 @@ export class LogisticsController {
         let totalRevenue = 0;
         let totalMaintenance = 0;
         let totalDepreciation = 0;
+        let totalFleetValue = 0;
 
         for (const v of vehicles) {
           const isAssigned = !!v.assigned_operation_pool_id;
@@ -353,6 +354,7 @@ export class LogisticsController {
           let oldValue = purchaseCost * (oldCondition / 100);
           let newValue = purchaseCost * (newCondition / 100);
           totalDepreciation += (oldValue - newValue);
+          totalFleetValue += newValue;
 
           // Update Vehicle Condition
           await trx('company_vehicles')
@@ -385,18 +387,16 @@ export class LogisticsController {
 
         const netProfit = totalRevenue - totalMaintenance - totalPayroll;
         // Negative newCash is intentional: it represents an overdrawn balance (de-facto debt).
-        // company_value is separately floored at 0 to prevent negative net-worth display.
         const newCash = Number(finances.available_cash) + netProfit;
-        const currentCompanyValue = Number(finances.company_value) || 0;
-        const newCompanyValue = Math.max(0, currentCompanyValue - totalDepreciation + netProfit);
+        
+        // Calculate True Book Value (Cash - Debt + Total Fleet Value)
+        const trueBookValue = Math.max(0, newCash - Number(finances.debt || 0) + totalFleetValue);
 
-        // newCompanyValue already incorporates both depreciation and netProfit.
-        // Write it once — no follow-up increment/decrement needed.
         const [updatedFinances] = await trx('company_finances')
           .where({ company_id: companyId })
           .update({
             available_cash: newCash,
-            company_value: newCompanyValue,
+            company_value: trueBookValue,
             last_arc_profit: netProfit,
             updated_at: trx.fn.now()
           })

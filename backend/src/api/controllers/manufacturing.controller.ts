@@ -1894,10 +1894,23 @@ export class ManufacturingController {
       ]);
     }
 
+    // Calculate True Book Value (Cash - Debt + Total Inventory Value)
+    const inventoryQuery = await trx('manufacturing_inventory')
+      .join('manufacturing_vehicle_models', 'manufacturing_inventory.vehicle_model_id', 'manufacturing_vehicle_models.id')
+      .where('manufacturing_inventory.company_id', companyId)
+      .select('manufacturing_inventory.units_in_stock', 'manufacturing_vehicle_models.manufacturing_cost_per_unit');
+    
+    let totalInventoryValue = 0;
+    for (const item of inventoryQuery) {
+      totalInventoryValue += Number(item.units_in_stock) * Number(item.manufacturing_cost_per_unit);
+    }
+    
+    const financesForBookVal = await trx('company_finances').where({ company_id: companyId }).first();
+    const trueBookValue = Math.max(0, pState.runningCash - Number(financesForBookVal?.debt || 0) + totalInventoryValue);
+
     await trx('company_finances')
       .where({ company_id: companyId })
-      .update({ available_cash: pState.runningCash, last_arc_profit: finalNetProfit, updated_at: trx.fn.now() })
-      .increment('company_value', finalNetProfit);
+      .update({ available_cash: pState.runningCash, last_arc_profit: finalNetProfit, company_value: trueBookValue, updated_at: trx.fn.now() });
 
     if (totalUnitsSold > 0) {
       await trx('companies').where({ id: companyId }).update({ reputation: trx.raw('LEAST(100, reputation + 1)'), updated_at: trx.fn.now() });
@@ -3052,13 +3065,13 @@ export class ManufacturingController {
 
         // Compute base manufacturing cost (Phase 3 logic)
         let baseCost = 0;
-        baseCost += PLATFORMS[sourceModel.platform_type]?.manufacturingCost || 0;
-        baseCost += POWER_UNITS[sourceModel.power_unit_type]?.manufacturingCost || 0;
-        baseCost += DRIVETRAINS[sourceModel.drivetrain_type]?.manufacturingCost || 0;
-        baseCost += INTERIOR_TIERS[sourceModel.interior_tier]?.manufacturingCost || 0;
-        baseCost += SAFETY_TIERS[sourceModel.safety_tier]?.manufacturingCost || 0;
+        baseCost += PLATFORMS[sourceModel.platform_type]?.baseCost || 0;
+        baseCost += POWER_UNITS[sourceModel.power_unit_type]?.baseCost || 0;
+        baseCost += DRIVETRAINS[sourceModel.drivetrain_type]?.baseCost || 0;
+        baseCost += INTERIOR_TIERS[sourceModel.interior_tier]?.baseCost || 0;
+        baseCost += SAFETY_TIERS[sourceModel.safety_tier]?.baseCost || 0;
         
-        let manufacturingCostPerUnit = Math.round(baseCost * (QUALITY_TARGETS[qualityTarget]?.productionCostMultiplier || 1.0));
+        let manufacturingCostPerUnit = Math.round(baseCost * (QUALITY_TARGETS[qualityTarget]?.costMultiplier || 1.0));
         manufacturingCostPerUnit = Math.round(manufacturingCostPerUnit * outcome.productionCostMultiplier);
 
         const computedSegment = qualityTarget === 'budget' ? 'Economy'
