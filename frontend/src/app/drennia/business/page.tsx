@@ -865,6 +865,14 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
   // Player has an operational company but no finance firm yet — Finance slot is available
   const financeSlotOnly = !!company && !financeCompany;
 
+  // Auto-select Finance & Services and reset capital when only that slot is open
+  useEffect(() => {
+    if (financeSlotOnly && selectedSector !== 'Finance & Services') {
+      setSelectedSector('Finance & Services');
+      setChosenCapital(50000);
+    }
+  }, [financeSlotOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const STEP_LABELS = isFinance
     ? ['Sector', 'Headquarters', 'Company Name', 'Starting Capital', 'Confirm Filing']
     : ['Sector', 'Headquarters', 'Structure', 'Company Name', 'Starting Capital', isLogistics ? 'Operating Model' : 'Subsector', 'Confirm Filing'];
@@ -917,7 +925,14 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
               return (
                 <button
                   key={s.id}
-                  onClick={() => !locked && setSelectedSector(s.id)}
+                  onClick={() => {
+                    if (locked) return;
+                    setSelectedSector(s.id);
+                    // Reset capital to the correct minimum for this sector
+                    if (s.id === 'Finance & Services') setChosenCapital(50000);
+                    else if (s.id === 'Manufacturing') setChosenCapital(500000);
+                    else setChosenCapital(50000);
+                  }}
                   disabled={locked}
                   className={`rounded-md border px-4 py-3.5 text-left transition-colors ${
                     selectedSector === s.id
