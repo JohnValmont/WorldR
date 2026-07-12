@@ -15,6 +15,7 @@ import { formatWorldDate } from '@/lib/calendar';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import ManufacturingDeskTab from './ManufacturingDeskTab';
 import EquityDeskTab from './EquityDeskTab';
+import CapitalPartnersDeskTab from './CapitalPartnersDeskTab';
 import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import {
   Card, Button, StatChip, StatCard, DataRow, Badge, StatusDot, SectionHeading, TerminalPanel, Tabs, PageShell
@@ -220,6 +221,7 @@ export default function BusinessPage() {
   const [registryKey, setRegistryKey] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [mfgData, setMfgData] = useState<any>(null);
+  const [financeCompany, setFinanceCompany] = useState<any>(null); // Capital Partners firm if player has one
 
   // Start Business state
   const [step, setStep] = useState(1);
@@ -249,12 +251,14 @@ export default function BusinessPage() {
 
           companyApi.getMy().then(compRes => {
             const companies = compRes.data;
-            if (companies.length > 0) {
-              const myCompany = companies.sort((a: any, b: any) => new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime())[0];
-              if (!myCompany) {
-                setCompany(null);
-                return;
-              }
+
+            // Separate finance firm from operational company
+            const financeFirm = companies.find((c: any) => c.industry_id === 'finance') || null;
+            setFinanceCompany(financeFirm);
+
+            const operationalCompanies = companies.filter((c: any) => c.industry_id !== 'finance');
+            if (operationalCompanies.length > 0) {
+              const myCompany = operationalCompanies.sort((a: any, b: any) => new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime())[0];
               
               if (myCompany.industry_id === 'manufacturing') {
                 import('../../../lib/api').then(({ manufacturingApi }) => {
@@ -564,7 +568,15 @@ export default function BusinessPage() {
         
         {activeTab === 'companies' && (
             <div>
-              {selectedCompanyId && company ? (
+              {/* Finance firm selected → Capital Partners desk */}
+              {selectedCompanyId && financeCompany && selectedCompanyId === financeCompany.id ? (
+                <CapitalPartnersDeskTab
+                  firmId={financeCompany.id}
+                  firmName={financeCompany.name}
+                  playerCash={playerCash}
+                  onRefresh={refreshAll}
+                />
+              ) : selectedCompanyId && company ? (
                 <div>
                   {/* Detailed company view could go here, but usually it delegates to ManufacturingDeskTab */}
                   {company.sector === 'manufacturing' || company.sectorId === 'manufacturing' ? (
@@ -591,8 +603,8 @@ export default function BusinessPage() {
                 </div>
               ) : (
                 <PageShell className="py-6">
-                  <div className="mt-4">
-                    {company ? (
+                  <div className="mt-4 flex flex-col gap-3">
+                    {company && (
                       <Card
                         pad="md"
                         hover
@@ -611,7 +623,26 @@ export default function BusinessPage() {
                           Manage
                         </Button>
                       </Card>
-                    ) : (
+                    )}
+                    {financeCompany && (
+                      <Card
+                        pad="md"
+                        hover
+                        className="flex items-center justify-between gap-4 cursor-pointer"
+                        onClick={() => setSelectedCompanyId(financeCompany.id)}
+                      >
+                        <div>
+                          <div className="text-sm font-bold text-zinc-100">{financeCompany.name}</div>
+                          <div className="text-[11px] text-zinc-500 mt-0.5">
+                            Capital Partners Firm · Finance
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm" iconRight={ArrowRight}>
+                          Portfolio
+                        </Button>
+                      </Card>
+                    )}
+                    {!company && !financeCompany && (
                       <div className="text-zinc-600 text-xs">No companies registered.</div>
                     )}
                   </div>
@@ -619,6 +650,7 @@ export default function BusinessPage() {
               )}
             </div>
           )}
+
         
         
         {activeTab === 'analytics' && (

@@ -2,6 +2,7 @@ import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import { logger } from '../../utils/logger';
 import { placeOrder, getLastClose, TOTAL_SHARES } from './shareMarket.service';
+import { recalcPortfolioValues } from './capitalPartners.service';
 
 /**
  * IPO & DRX Bourse engine.
@@ -778,6 +779,10 @@ export async function processExchangeMonth(trx: any, year: number, month: number
     .whereNotNull('lockup_until_month')
     .whereRaw('(lockup_until_year * 12 + lockup_until_month) <= (? * 12 + ?)', [year, month])
     .update({ lockup_until_year: null, lockup_until_month: null, updated_at: trx.fn.now() });
+
+  // ── Step J: Capital Partners portfolio value recalculation ──
+  // Update company_value for all finance firms = portfolio market value + firm cash.
+  await recalcPortfolioValues(trx);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

@@ -112,6 +112,10 @@ export class CompanyController {
         return next(new AppError('Logistics companies require a minimum of $50,000 in starting capital', 400, 'BAD_REQUEST'));
       }
 
+      if (industry_id === 'finance' && Number(starting_capital) < 50000) {
+        return next(new AppError('A Capital Partners firm requires at least $50,000 in seed capital', 400, 'BAD_REQUEST'));
+      }
+
       const activeInstance = await db('world_instances').where({ status: 'active' }).first();
       if (!activeInstance) {
         return next(new AppError('No active world instance found', 404, 'INSTANCE_NOT_FOUND'));
@@ -130,6 +134,27 @@ export class CompanyController {
       const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
       if (!character) {
         return next(new AppError('Active character required to create a company', 400, 'NO_CHARACTER'));
+      }
+
+      // ── Slot enforcement ──────────────────────────────────────────────────
+      // Each character may have at most ONE company per industry bucket:
+      //   manufacturing | shipping-logistics → one operational company
+      //   finance                            → one Capital Partners firm
+      const existingCompanies = await db('companies')
+        .where({ owner_character_id: character.id, status: 'active', is_npc: false })
+        .select('industry_id');
+
+      if (industry_id === 'finance') {
+        const hasFinance = existingCompanies.some((c: any) => c.industry_id === 'finance');
+        if (hasFinance) {
+          return next(new AppError('You already have a Capital Partners firm. Only one is allowed per character.', 400, 'SLOT_TAKEN'));
+        }
+      } else {
+        // For all operational industries, allow only one active company total
+        const hasOperational = existingCompanies.some((c: any) => c.industry_id !== 'finance');
+        if (hasOperational) {
+          return next(new AppError('You already have an operating company. Only one operational company per character is allowed.', 400, 'SLOT_TAKEN'));
+        }
       }
 
       // Validate the chosen legal structure (sole-trader / private-company / public-corporation)
@@ -199,13 +224,31 @@ export class CompanyController {
           company_value: Number(starting_capital)
         }).returning('*');
 
-        // Cap table: founder holds all 1,000,000 authorized shares
+        // Cap table:
+        // Finance firms don't issue tradeable public shares — they ARE the investor.
+        // We give the founder 1 symbolic share at the firm's initial value.
+        // For all other industries, 1,000,000 shares at cost basis.
+        const sharesIssued = industry_id === 'finance' ? 1 : 1_000_000;
+        const avgCost = sharesIssued === 1
+          ? Number(starting_capital)
+          : Number(starting_capital) / sharesIssued;
+
         await trx('company_shares').insert({
           company_id: company.id,
           holder_character_id: character.id,
-          shares: 1000000,
-          avg_cost_basis: Number(starting_capital) / 1000000
+          shares: sharesIssued,
+          avg_cost_basis: avgCost
         });
+
+        // For finance companies, auto-create a dividend_policy so the firm
+        // receives dividends from any company that has a payout policy.
+        // (The firm itself does not pay dividends outward — it retains earnings.)
+        if (industry_id === 'finance') {
+          await trx('dividend_policies').insert({
+            company_id: company.id,
+            payout_percent: 0, // finance firms don't pay OUT dividends
+          }).onConflict('company_id').ignore();
+        }
 
         return { ...company, finances };
       });
