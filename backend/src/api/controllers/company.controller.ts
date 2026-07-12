@@ -224,14 +224,9 @@ export class CompanyController {
           company_value: Number(starting_capital)
         }).returning('*');
 
-        // Cap table:
-        // Finance firms don't issue tradeable public shares — they ARE the investor.
-        // We give the founder 1 symbolic share at the firm's initial value.
-        // For all other industries, 1,000,000 shares at cost basis.
-        const sharesIssued = industry_id === 'finance' ? 1 : 1_000_000;
-        const avgCost = sharesIssued === 1
-          ? Number(starting_capital)
-          : Number(starting_capital) / sharesIssued;
+        // Cap table: Give founder 1,000,000 shares at cost basis
+        const sharesIssued = 1_000_000;
+        const avgCost = Number(starting_capital) / sharesIssued;
 
         await trx('company_shares').insert({
           company_id: company.id,

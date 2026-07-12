@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../../lib/api';
+import EquityDeskTab from './EquityDeskTab';
 
 const fmt = (n: number) =>
   n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M`
@@ -42,7 +43,7 @@ interface Props {
 }
 
 export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, onRefresh, onGoToExchange }: Props) {
-  const [tab, setTab] = useState<'portfolio' | 'dividends' | 'treasury' | 'performance' | 'strategy'>('portfolio');
+  const [tab, setTab] = useState<'portfolio' | 'dividends' | 'treasury' | 'performance' | 'strategy' | 'structure'>('portfolio');
   const [firm, setFirm] = useState<FirmSummary | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [dividends, setDividends] = useState<DividendReceipt[]>([]);
@@ -178,6 +179,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
         {tabBtn('treasury', 'Treasury')}
         {tabBtn('performance', 'Performance')}
         {tabBtn('strategy', 'Strategy')}
+        {tabBtn('structure', 'Structure')}
       </div>
 
       {/* ── Portfolio Tab ── */}
@@ -453,6 +455,11 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Structure & Equity Tab ── */}
+      {tab === 'structure' && (
+        <EquityDeskTab companyId={firmId} companyName={firmName} />
       )}
     </div>
   );
