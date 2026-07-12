@@ -126,7 +126,11 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
   let snapshotsInserted = 0;
   for (const char of activeChars) {
     const fin = await trx('character_finances').where({ character_id: char.id }).first();
-    const cash = Number(fin?.cash_in_hand || 0);
+    const buyEscrow = await trx('share_orders')
+      .where({ character_id: char.id, status: 'open', side: 'buy' })
+      .sum('escrow_amount as total_escrow')
+      .first();
+    const cash = Number(fin?.cash_in_hand || 0) + Number(buyEscrow?.total_escrow || 0);
     let equity = 0;
 
     const shares = await trx('company_shares as cs')
@@ -136,13 +140,15 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
       .select(
         'cs.shares',
         'cf.company_value',
-        trx.raw(`(SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) as total_shares`)
+        trx.raw(`(SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND side = 'sell' AND status = 'open'), 0) as total_shares`),
+        trx.raw(`COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND character_id = cs.holder_character_id AND side = 'sell' AND status = 'open'), 0) as escrowed_shares`)
       );
 
     for (const s of shares) {
       const tot = Number(s.total_shares || 0);
+      const myShares = Number(s.shares) + Number(s.escrowed_shares || 0);
       if (tot > 0) {
-        equity += (Number(s.shares) / tot) * Number(s.company_value);
+        equity += (myShares / tot) * Number(s.company_value);
       }
     }
 

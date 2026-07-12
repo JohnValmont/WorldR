@@ -388,18 +388,32 @@ export class WorldController {
         SELECT 
           c.id, 
           c.name, 
-          COALESCE(cf.cash_in_hand, 0) as cash,
+          COALESCE(cf.cash_in_hand, 0) + COALESCE((SELECT SUM(escrow_amount) FROM share_orders WHERE character_id = c.id AND side = 'buy' AND status = 'open'), 0) as cash,
           (
             SELECT COALESCE(SUM(
-              (CAST(cs.shares AS FLOAT) / NULLIF((SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id), 0)) * compf.company_value
+              (
+                (CAST(cs.shares AS FLOAT) + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND character_id = cs.holder_character_id AND side = 'sell' AND status = 'open'), 0))
+                / 
+                NULLIF(
+                  (SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) 
+                  + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND side = 'sell' AND status = 'open'), 0)
+                , 0)
+              ) * compf.company_value
             ), 0)
             FROM company_shares cs
             JOIN company_finances compf ON compf.company_id = cs.company_id
             WHERE cs.holder_character_id = c.id
           ) as equity,
-          COALESCE(cf.cash_in_hand, 0) + (
+          COALESCE(cf.cash_in_hand, 0) + COALESCE((SELECT SUM(escrow_amount) FROM share_orders WHERE character_id = c.id AND side = 'buy' AND status = 'open'), 0) + (
             SELECT COALESCE(SUM(
-              (CAST(cs.shares AS FLOAT) / NULLIF((SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id), 0)) * compf.company_value
+              (
+                (CAST(cs.shares AS FLOAT) + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND character_id = cs.holder_character_id AND side = 'sell' AND status = 'open'), 0))
+                / 
+                NULLIF(
+                  (SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) 
+                  + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND side = 'sell' AND status = 'open'), 0)
+                , 0)
+              ) * compf.company_value
             ), 0)
             FROM company_shares cs
             JOIN company_finances compf ON compf.company_id = cs.company_id

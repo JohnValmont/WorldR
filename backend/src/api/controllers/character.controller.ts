@@ -28,7 +28,13 @@ export class CharacterController {
         .where({ character_id: character.id })
         .first();
 
-      let trueNetWorth = Number(finances?.cash_in_hand || 0);
+      // Add cash locked in open BUY orders
+      const buyEscrow = await db('share_orders')
+        .where({ character_id: character.id, status: 'open', side: 'buy' })
+        .sum('escrow_amount as total_escrow')
+        .first();
+
+      let trueNetWorth = Number(finances?.cash_in_hand || 0) + Number(buyEscrow?.total_escrow || 0);
 
       // Dynamically calculate equity value
       const equityValues = await db('company_shares as cs')
@@ -38,13 +44,15 @@ export class CharacterController {
         .select(
           'cs.shares',
           'cf.company_value',
-          db.raw(`(SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) as total_shares`)
+          db.raw(`(SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND side = 'sell' AND status = 'open'), 0) as total_shares`),
+          db.raw(`COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND character_id = cs.holder_character_id AND side = 'sell' AND status = 'open'), 0) as escrowed_shares`)
         );
 
       for (const row of equityValues) {
         const total = Number(row.total_shares || 0);
+        const myShares = Number(row.shares) + Number(row.escrowed_shares || 0);
         if (total > 0) {
-          trueNetWorth += (Number(row.shares) / total) * Number(row.company_value);
+          trueNetWorth += (myShares / total) * Number(row.company_value);
         }
       }
 
