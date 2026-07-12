@@ -459,6 +459,21 @@ function OrderTicket({ companyId, lastClose, onPlaced, myFinanceFirms = [] }: { 
           <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Quantity (shares)</div>
           <input aria-label="Quantity of shares" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="0" inputMode="numeric" style={inputStyle} />
         </div>
+        {myFinanceFirms.length > 0 && (
+          <div>
+            <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Trade As</div>
+            <select
+              value={purchaserCompanyId}
+              onChange={(e) => setPurchaserCompanyId(e.target.value)}
+              style={{ ...inputStyle, cursor: 'pointer' }}
+            >
+              <option value="">Personal Portfolio</option>
+              {myFinanceFirms.map((f: any) => (
+                <option key={f.id} value={f.id}>{f.name} (Firm)</option>
+              ))}
+            </select>
+          </div>
+        )}
         {band && (
           <div style={{ ...mono, fontSize: '9px', color: T.faint }}>
             Circuit breaker: ${fmt(band.lo)} – ${fmt(band.hi)} (±20% of last close)
