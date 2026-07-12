@@ -28,7 +28,7 @@ const label: React.CSSProperties = { ...mono, fontSize: '9px', textTransform: 'u
 
 function fmt(n: number | null | undefined, dec = 2): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
 function fmtInt(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
@@ -358,9 +358,9 @@ function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: stri
         </div>
         {price && Number(price) > 0 && quantity && Number(quantity) > 0 && (
           <div style={{ ...mono, fontSize: '10px', color: T.muted, lineHeight: 1.6 }}>
-            Offer: <span style={{ color: T.gold }}>${(Number(price) * Number(quantity)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            Offer: <span style={{ color: T.gold }}>${(Number(price) * Number(quantity)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             {impliedCap != null && (
-              <span style={{ color: T.faint }}> · Cap ${impliedCap.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              <span style={{ color: T.faint }}> · Cap ${impliedCap.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
             )}
           </div>
         )}

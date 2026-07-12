@@ -9,10 +9,7 @@ import { Building2, Landmark, Briefcase, TrendingUp, Target, ArrowRightLeft, Lay
 const fm = (n: number) => {
   if (n === undefined || n === null) return "$0.00";
   const sign = n < 0 ? "-" : "";
-  const absN = Math.abs(n);
-  return absN >= 1_000_000 ? `${sign}$${(absN / 1_000_000).toFixed(2)}M`
-  : absN >= 1_000   ? `${sign}$${(absN / 1_000).toFixed(1)}K`
-  : `${sign}$${absN.toFixed(2)}`;
+  return `${sign}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 };
 
 const pct = (n: number) => `${n.toFixed(2)}%`;

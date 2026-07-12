@@ -99,32 +99,57 @@ export async function placeOrder(params: {
     // ---- Escrow ----
     if (side === 'buy') {
       const cost = price * quantity;
-      const fin = await trx('character_finances').where({ character_id: characterId }).forUpdate().first();
-      if (!fin || Number(fin.cash_in_hand) < cost) {
-        throw new AppError('Insufficient cash to cover this buy order', 400, 'INSUFFICIENT_FUNDS');
+      if (purchaserCompanyId) {
+        const fin = await trx('company_finances').where({ company_id: purchaserCompanyId }).forUpdate().first();
+        if (!fin || Number(fin.available_cash) < cost) {
+          throw new AppError('Insufficient firm cash to cover this buy order', 400, 'INSUFFICIENT_FUNDS');
+        }
+        await trx('company_finances').where({ company_id: purchaserCompanyId }).decrement('available_cash', cost);
+      } else {
+        const fin = await trx('character_finances').where({ character_id: characterId }).forUpdate().first();
+        if (!fin || Number(fin.cash_in_hand) < cost) {
+          throw new AppError('Insufficient cash to cover this buy order', 400, 'INSUFFICIENT_FUNDS');
+        }
+        await trx('character_finances').where({ character_id: characterId }).decrement('cash_in_hand', cost);
       }
-      await trx('character_finances').where({ character_id: characterId }).decrement('cash_in_hand', cost);
     } else {
-      const holding = await trx('company_shares')
-        .where({ company_id: companyId, holder_character_id: characterId })
-        .forUpdate()
-        .first();
-      if (!holding || Number(holding.shares) < quantity) {
-        throw new AppError('Insufficient shares to cover this sell order', 400, 'INSUFFICIENT_SHARES');
+      if (purchaserCompanyId) {
+        const holding = await trx('company_shares')
+          .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
+          .forUpdate()
+          .first();
+        if (!holding || Number(holding.shares) < quantity) {
+          throw new AppError('Insufficient firm shares to cover this sell order', 400, 'INSUFFICIENT_SHARES');
+        }
+        await trx('company_shares')
+          .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
+          .decrement('shares', quantity);
+        await trx('company_shares')
+          .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
+          .update({ updated_at: trx.fn.now() });
+      } else {
+        const holding = await trx('company_shares')
+          .where({ company_id: companyId, holder_character_id: characterId })
+          .forUpdate()
+          .first();
+        if (!holding || Number(holding.shares) < quantity) {
+          throw new AppError('Insufficient shares to cover this sell order', 400, 'INSUFFICIENT_SHARES');
+        }
+        // Bug A fix: knex does not support chaining .decrement().update() — split into two calls
+        await trx('company_shares')
+          .where({ company_id: companyId, holder_character_id: characterId })
+          .decrement('shares', quantity);
+        await trx('company_shares')
+          .where({ company_id: companyId, holder_character_id: characterId })
+          .update({ updated_at: trx.fn.now() });
       }
-      // Bug A fix: knex does not support chaining .decrement().update() — split into two calls
-      await trx('company_shares')
-        .where({ company_id: companyId, holder_character_id: characterId })
-        .decrement('shares', quantity);
-      await trx('company_shares')
-        .where({ company_id: companyId, holder_character_id: characterId })
-        .update({ updated_at: trx.fn.now() });
     }
 
     const [order] = await trx('share_orders')
       .insert({
         company_id: companyId,
         character_id: characterId,
+        purchaser_company_id: purchaserCompanyId || null,
         side,
         price,
         quantity,
@@ -157,32 +182,50 @@ export async function placeOrder(params: {
 
       const buyerId = side === 'buy' ? characterId : counter.character_id;
       const sellerId = side === 'sell' ? characterId : counter.character_id;
+      const buyerCompanyId = side === 'buy' ? purchaserCompanyId : counter.purchaser_company_id;
+      const sellerCompanyId = side === 'sell' ? purchaserCompanyId : counter.purchaser_company_id;
       const buyOrderId = side === 'buy' ? order.id : counter.id;
       const sellOrderId = side === 'sell' ? order.id : counter.id;
 
       // Seller receives cash (buyer's escrow is the source)
-      await trx('character_finances').where({ character_id: sellerId }).increment('cash_in_hand', notional);
+      if (sellerCompanyId) {
+        await trx('company_finances').where({ company_id: sellerCompanyId }).increment('available_cash', notional);
+      } else {
+        await trx('character_finances').where({ character_id: sellerId }).increment('cash_in_hand', notional);
+      }
 
       // Bug B fix: BOTH the aggressor-buy and a resting-buy order must get their per-fill
       // escrow surplus refunded when execution happens below their limit price.
       // Case 1: incoming order is buy, it executes against a resting sell at a lower price
       if (side === 'buy' && execPrice < price) {
         const refund = (price - execPrice) * fillQty;
-        await trx('character_finances').where({ character_id: characterId }).increment('cash_in_hand', refund);
+        if (buyerCompanyId) {
+          await trx('company_finances').where({ company_id: buyerCompanyId }).increment('available_cash', refund);
+        } else {
+          await trx('character_finances').where({ character_id: characterId }).increment('cash_in_hand', refund);
+        }
         // Bug C fix: decrement escrow_amount so cancel later refunds the correct remaining cash
         await trx('share_orders').where({ id: order.id }).decrement('escrow_amount', refund);
       }
       // Case 2: incoming order is a sell, it executes against a resting buy at a higher price
       if (side === 'sell' && execPrice > price) {
         const surplus = (execPrice - price) * fillQty;
-        await trx('character_finances').where({ character_id: buyerId }).increment('cash_in_hand', surplus);
+        if (buyerCompanyId) {
+          await trx('company_finances').where({ company_id: buyerCompanyId }).increment('available_cash', surplus);
+        } else {
+          await trx('character_finances').where({ character_id: buyerId }).increment('cash_in_hand', surplus);
+        }
         // Bug C fix: decrement escrow on the resting buy order so its cancel refund is correct
         await trx('share_orders').where({ id: counter.id }).decrement('escrow_amount', surplus);
       }
 
       // Buyer receives shares (update cap table with weighted avg cost basis)
+      const existingQuery = buyerCompanyId 
+        ? { company_id: companyId, holder_company_id: buyerCompanyId } 
+        : { company_id: companyId, holder_character_id: buyerId };
+
       const existing = await trx('company_shares')
-        .where({ company_id: companyId, holder_character_id: buyerId })
+        .where(existingQuery)
         .forUpdate()
         .first();
       if (existing) {
@@ -195,12 +238,13 @@ export async function placeOrder(params: {
           if (!Number.isFinite(newAvg)) newAvg = execPrice; // Fallback if calculation fails
         }
         await trx('company_shares')
-          .where({ company_id: companyId, holder_character_id: buyerId })
+          .where(existingQuery)
           .update({ shares: totalShares, avg_cost_basis: newAvg, updated_at: trx.fn.now() });
       } else {
         await trx('company_shares').insert({
           company_id: companyId,
-          holder_character_id: buyerId,
+          holder_character_id: buyerCompanyId ? null : buyerId,
+          holder_company_id: buyerCompanyId || null,
           shares: fillQty,
           avg_cost_basis: execPrice,
         });
@@ -266,26 +310,37 @@ export async function cancelOrder(orderId: string, characterId: string) {
       // Bug C fix: use the live escrow_amount column (already decremented on each fill)
       // instead of recalculating price * unfilled, which ignores any already-refunded surplus.
       const escrowRemaining = Number(order.escrow_amount);
-      await trx('character_finances')
-        .where({ character_id: characterId })
-        .increment('cash_in_hand', escrowRemaining);
+      if (order.purchaser_company_id) {
+        await trx('company_finances')
+          .where({ company_id: order.purchaser_company_id })
+          .increment('available_cash', escrowRemaining);
+      } else {
+        await trx('character_finances')
+          .where({ character_id: characterId })
+          .increment('cash_in_hand', escrowRemaining);
+      }
     } else {
       // Return locked shares
+      const existingQuery = order.purchaser_company_id
+        ? { company_id: order.company_id, holder_company_id: order.purchaser_company_id }
+        : { company_id: order.company_id, holder_character_id: characterId };
+
       const existing = await trx('company_shares')
-        .where({ company_id: order.company_id, holder_character_id: characterId })
+        .where(existingQuery)
         .first();
       if (existing) {
         // Bug D fix: also touch updated_at when restoring locked shares on cancel
         await trx('company_shares')
-          .where({ company_id: order.company_id, holder_character_id: characterId })
+          .where(existingQuery)
           .increment('shares', unfilled);
         await trx('company_shares')
-          .where({ company_id: order.company_id, holder_character_id: characterId })
+          .where(existingQuery)
           .update({ updated_at: trx.fn.now() });
       } else {
         await trx('company_shares').insert({
           company_id: order.company_id,
-          holder_character_id: characterId,
+          holder_character_id: order.purchaser_company_id ? null : characterId,
+          holder_company_id: order.purchaser_company_id || null,
           shares: unfilled,
           avg_cost_basis: 0,
         });
