@@ -1156,7 +1156,8 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
               ◈ Drennia Commercial Registry — Filing Confirmation
             </div>
             <FieldRow label="Company Name" value={companyNameInput} />
-            <FieldRow label="Legal Structure" value={selectedStructure === 'sole-trader' ? 'Sole Trader' : selectedStructure === 'private-company' ? 'Private Company' : 'Corporation'} />
+            <FieldRow label="Legal Structure" value={isFinance ? 'Private Company' : selectedStructure === 'sole-trader' ? 'Sole Trader' : selectedStructure === 'private-company' ? 'Private Company' : 'Corporation'} />
+
             <FieldRow label="Sector" value={selectedSector} />
             <FieldRow label="Headquarters" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ} />
             {!isFinance && (
@@ -1188,7 +1189,8 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           Filing Summary
         </div>
         <FieldRow label="Company Name" value={companyNameInput || 'TBD'} />
-        <FieldRow label="Legal Structure" value={selectedStructure === 'sole-trader' ? 'Sole Trader' : selectedStructure === 'private-company' ? 'Private Company' : 'Corporation'} />
+        <FieldRow label="Legal Structure" value={isFinance ? 'Private Company' : selectedStructure === 'sole-trader' ? 'Sole Trader' : selectedStructure === 'private-company' ? 'Private Company' : 'Corporation'} />
+
         <FieldRow label="Sector" value={selectedSector || 'TBD'} />
         <FieldRow label="Headquarters" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ || 'TBD'} />
         {!isFinance && (
