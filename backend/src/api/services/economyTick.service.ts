@@ -80,9 +80,26 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
     for (const holder of holders) {
       const amount = Math.floor((pool * Number(holder.shares)) / totalShares * 100) / 100;
       if (amount <= 0) continue;
-      await trx('character_finances')
-        .where({ character_id: holder.holder_character_id })
-        .increment('cash_in_hand', amount);
+
+      // If the holder has a Capital Partners firm, credit the FIRM instead of personal cash.
+      // This is the core mechanic: the firm "receives" dividends from its investment portfolio.
+      const capitalFirm = await trx('companies')
+        .where({ owner_character_id: holder.holder_character_id, industry_id: 'finance', status: 'active', is_npc: false })
+        .first('id');
+
+      if (capitalFirm) {
+        // Credit the firm's treasury
+        await trx('company_finances')
+          .where({ company_id: capitalFirm.id })
+          .increment('available_cash', amount)
+          .increment('company_value', amount);
+      } else {
+        // Normal path: credit personal wallet
+        await trx('character_finances')
+          .where({ character_id: holder.holder_character_id })
+          .increment('cash_in_hand', amount);
+      }
+
       await trx('dividend_payments').insert({
         company_id: policy.company_id,
         holder_character_id: holder.holder_character_id,

@@ -190,11 +190,12 @@ const SECTORS = [
   { id: 'Manufacturing',        desc: 'Production, parts, assembly, and industrial output.',              available: true },
   { id: 'Retail & Consumer',    desc: 'Consumer goods, storefronts, and distribution.',                   available: false, note: 'Later' },
   { id: 'Agriculture & Food',   desc: 'Farming, processing, and food supply chains.',                     available: false, note: 'Later' },
-  { id: 'Finance & Services',   desc: 'Banking, lending, insurance, and advisory.',                       available: false, note: 'Later' },
+  { id: 'Finance & Services',   desc: 'Capital Partners firm — hold shares, earn dividends, compound wealth.', available: true, note: 'Capital Partners' },
   { id: 'Construction',         desc: 'Infrastructure, building, and civil development.',                  available: false, note: 'Later' },
   { id: 'Technology',           desc: 'Tools, communications, and emerging tech.',                        available: false, note: 'Later' },
   { id: 'Energy',               desc: 'Fuel, steam, coal, and energy distribution.',                      available: false, note: 'Later' },
 ];
+
 
 // ─── HQ OPTIONS ──────────────────────────────────────────────────────────────
 const HQ_OPTIONS = [
@@ -386,28 +387,49 @@ export default function BusinessPage() {
 
   const handleRegisterCompany = async () => {
     setStartError('');
+    const isFinance = selectedSector === 'Finance & Services';
+    const isLogistics = selectedSector === 'Shipping & Logistics';
+
     const FILING_FEE = selectedStructure === 'sole-trader' ? 500 : selectedStructure === 'private-company' ? 5000 : 50000;
     const total = chosenCapital + FILING_FEE;
     if (playerCash < total) {
       setStartError(`Insufficient cash. You need ${formatMoney(total)} (${formatMoney(chosenCapital)} capital + ${formatMoney(FILING_FEE)} filing fee). You have ${formatMoney(playerCash)}.`);
       return;
     }
-    if (!selectedModel) {
+
+    // Finance firms don't have a vehicle model — skip that check
+    if (!isFinance && !selectedModel) {
       setStartError('Please select a first operating model.');
       return;
     }
+
     const finalName = companyNameInput.trim();
 
     setIsSubmitting(true);
     import('../../../lib/api').then(({ companyApi }) => {
-      const isLogistics = selectedSector === 'Shipping & Logistics';
+      let industryId: string;
+      let subsectorId: string | null;
+      let structureId = selectedStructure;
+
+      if (isFinance) {
+        industryId = 'finance';
+        subsectorId = null;
+        structureId = 'private-company'; // Capital Partners firms are always private companies
+      } else if (isLogistics) {
+        industryId = 'shipping-logistics';
+        subsectorId = null;
+      } else {
+        industryId = 'manufacturing';
+        subsectorId = selectedModel || null;
+      }
+
       companyApi.create({
         name: finalName,
         country_id: 'drennia',
         headquarters_state_id: selectedHQ,
-        industry_id: isLogistics ? 'shipping-logistics' : 'manufacturing',
-        subsector_id: isLogistics ? null : selectedModel,
-        legal_structure_id: selectedStructure,
+        industry_id: industryId,
+        subsector_id: subsectorId,
+        legal_structure_id: structureId,
         currency_id: 'dollar',
         starting_capital: chosenCapital
       }).then((res: any) => {
@@ -423,7 +445,9 @@ export default function BusinessPage() {
               type: 'business_start',
               year: gDate.worldYear,
               month: gDate.worldMonth,
-              text: `${characterName} started ${finalName} (${selectedModel}) headquartered in ${HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ}, in ${formatGameDate(gDate)}.`,
+              text: isFinance
+                ? `${characterName} founded ${finalName} (Capital Partners firm) headquartered in ${HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ}, in ${formatGameDate(gDate)}.`
+                : `${characterName} started ${finalName} (${selectedModel}) headquartered in ${HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ}, in ${formatGameDate(gDate)}.`,
               relatedCompanyId: res.data?.id
             }
           ]
@@ -441,6 +465,7 @@ export default function BusinessPage() {
       });
     });
   };
+
 
   if (!authorized) return null;
 
@@ -822,23 +847,30 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
 // START BUSINESS TAB
 // ───────────────────────���─────────────────────────────────────────────────────
 function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, selectedHQ, setSelectedHQ, companyNameInput, setCompanyNameInput, nameError, setNameError, startError, playerCash, company, onRegister, checkName, chosenCapital, setChosenCapital, selectedStructure, setSelectedStructure, selectedModel, setSelectedModel, isSubmitting }: any) {
-  if (company) {
+  const isLogistics = selectedSector === 'Shipping & Logistics';
+  const isFinance   = selectedSector === 'Finance & Services';
+
+  // Block only if they already have the SAME type they are trying to create
+  // (a player with a manufacturing co can still register a Capital Partners firm)
+  if (company && !isFinance) {
     return (
       <div className="max-w-[540px] rounded-md border border-zinc-800 bg-zinc-900/60 p-5">
         <div className="text-[11px] font-mono uppercase tracking-[0.15em] text-terminal-amber font-bold mb-4">Company Already Registered</div>
         <p className="text-[13px] text-zinc-500 leading-relaxed m-0">
-          You have already registered <strong className="text-zinc-100">{company.name}</strong>. Pre-alpha currently supports one active company. Multiple companies, subsidiaries, and holding structures are coming soon.
+          You have already registered <strong className="text-zinc-100">{company.name}</strong>. Pre-alpha currently supports one active operational company. You may still open a <strong className="text-zinc-100">Capital Partners firm</strong> as a second slot — select Finance &amp; Services to continue.
         </p>
       </div>
     );
   }
 
-  const isLogistics = selectedSector === 'Shipping & Logistics';
-  const STEP_LABELS = ['Sector', 'Headquarters', 'Structure', 'Company Name', 'Starting Capital', isLogistics ? 'Operating Model' : 'Subsector', 'Confirm Filing'];
-  const FILING_FEE = selectedStructure === 'sole-trader' ? 500 : selectedStructure === 'private-company' ? 5000 : 50000;
-  const total = chosenCapital + FILING_FEE;
+  const STEP_LABELS = isFinance
+    ? ['Sector', 'Headquarters', 'Company Name', 'Starting Capital', 'Confirm Filing']
+    : ['Sector', 'Headquarters', 'Structure', 'Company Name', 'Starting Capital', isLogistics ? 'Operating Model' : 'Subsector', 'Confirm Filing'];
+  const FILING_FEE = 5000; // Finance firms are always private-company: $5,000 filing fee
+  const effectiveFee = isFinance ? FILING_FEE : (selectedStructure === 'sole-trader' ? 500 : selectedStructure === 'private-company' ? 5000 : 50000);
+  const total = chosenCapital + effectiveFee;
   const canAfford = playerCash >= total;
-  const totalCost = FILING_FEE + chosenCapital;
+  const totalCost = effectiveFee + chosenCapital;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 lg:gap-10 h-full items-start">
@@ -1003,17 +1035,17 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-5 mb-6">
             <SectionHeader>Starting Capital</SectionHeader>
             <p className="text-xs text-zinc-500 leading-relaxed mb-4">
-              Minimum: <strong className="text-terminal-amber">{formatMoney(selectedSector === 'Manufacturing' ? 500000 : 50000)}</strong>. No maximum — invest as much as your Cash in Hand allows, minus the filing fee ({getLegalStructureName(selectedStructure)} fee: <strong className="text-terminal-red">{formatMoney(FILING_FEE)}</strong>).
+              Minimum: <strong className="text-terminal-amber">{formatMoney(isFinance ? 50000 : selectedSector === 'Manufacturing' ? 500000 : 50000)}</strong>. No maximum — invest as much as your Cash in Hand allows, minus the filing fee ({isFinance ? 'Private Company' : getLegalStructureName(selectedStructure)} fee: <strong className="text-terminal-red">{formatMoney(effectiveFee)}</strong>).
             </p>
             <div className="mb-4">
               <Label>Company Starting Capital ($)</Label>
               <input
                 type="number"
-                min={selectedSector === 'Manufacturing' ? 500000 : 50000}
+                min={isFinance ? 50000 : selectedSector === 'Manufacturing' ? 500000 : 50000}
                 step={10000}
                 value={chosenCapital}
                 onChange={e => {
-                  const minCap = selectedSector === 'Manufacturing' ? 500000 : 50000;
+                  const minCap = isFinance ? 50000 : selectedSector === 'Manufacturing' ? 500000 : 50000;
                   const v = parseInt(e.target.value) || minCap;
                   setChosenCapital(Math.max(minCap, v));
                 }}
@@ -1021,7 +1053,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
               />
             </div>
             <FieldRow label="Chosen Capital" value={formatMoney(chosenCapital)} valueColor="#30d158" />
-            <FieldRow label={`Filing Fee (${getLegalStructureName(selectedStructure)})`} value={formatMoney(FILING_FEE)} valueColor="#ff453a" />
+            <FieldRow label={`Filing Fee (${isFinance ? 'Private Company' : getLegalStructureName(selectedStructure)})`} value={formatMoney(effectiveFee)} valueColor="#ff453a" />
             <div className="flex justify-between mt-3 pt-2.5 border-t border-zinc-800">
               <span className="text-xs font-bold text-zinc-100">Total Required</span>
               <span className="text-base font-mono font-bold text-terminal-amber">{formatMoney(total)}</span>
@@ -1037,14 +1069,17 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
             )}
           </div>
           <div className="flex gap-2.5">
-            <GhostButton onClick={() => setStep(4)}>← Back</GhostButton>
-            <GoldButton onClick={() => setStep(6)} disabled={!canAfford || chosenCapital < (selectedSector === 'Manufacturing' ? 500000 : 50000)}>Next: Operating Model →</GoldButton>
+            <GhostButton onClick={() => setStep(isFinance ? 3 : 4)}>← Back</GhostButton>
+            <GoldButton
+              onClick={() => setStep(isFinance ? 7 : 6)}
+              disabled={!canAfford || chosenCapital < (isFinance ? 50000 : selectedSector === 'Manufacturing' ? 500000 : 50000)}
+            >{isFinance ? 'Next: Confirm Filing →' : 'Next: Operating Model →'}</GoldButton>
           </div>
         </div>
       )}
 
-      {/* Step 6 — Operating Model / Subsector */}
-      {step === 6 && (
+      {/* Step 6 — Operating Model / Subsector (skipped for Finance) */}
+      {step === 6 && !isFinance && (
         <div>
           <SectionHeader stamp="STEP 6 OF 7">{isLogistics ? 'Select Operating Model' : 'Select Manufacturing Subsector'}</SectionHeader>
           <p className="text-xs text-zinc-500 mb-5 leading-relaxed">
@@ -1124,10 +1159,12 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
             <FieldRow label="Legal Structure" value={selectedStructure === 'sole-trader' ? 'Sole Trader' : selectedStructure === 'private-company' ? 'Private Company' : 'Corporation'} />
             <FieldRow label="Sector" value={selectedSector} />
             <FieldRow label="Headquarters" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ} />
-            <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={isLogistics ? selectedModel : getSubsectorName(selectedModel)} valueColor="#f5a623" />
+            {!isFinance && (
+              <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={isLogistics ? selectedModel : getSubsectorName(selectedModel)} valueColor="#f5a623" />
+            )}
             <FieldRow label="Filing Date" value={formatGameDate()} />
             <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor="#30d158" />
-            <FieldRow label="Filing Fee" value={formatMoney(FILING_FEE)} valueColor="#ff453a" />
+            <FieldRow label="Filing Fee" value={formatMoney(effectiveFee)} valueColor="#ff453a" />
             <FieldRow label="Total Deducted from Cash" value={formatMoney(total)} valueColor="#f5a623" />
           </div>
           <p className="text-[11px] text-zinc-500 mb-5 leading-relaxed">
@@ -1135,7 +1172,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           </p>
           {startError && <div className="text-[11px] text-terminal-red mb-4 rounded-md border border-terminal-red/50 bg-terminal-red/10 p-2.5">{startError}</div>}
           <div className="flex gap-2.5">
-            <GhostButton onClick={() => setStep(6)} disabled={isSubmitting}>← Back</GhostButton>
+            <GhostButton onClick={() => setStep(isFinance ? 5 : 6)} disabled={isSubmitting}>← Back</GhostButton>
             <GoldButton onClick={onRegister} disabled={isSubmitting}>
               {isSubmitting ? 'Registering...' : '◈ Confirm Filing & Register'}
             </GoldButton>
@@ -1154,14 +1191,23 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
         <FieldRow label="Legal Structure" value={selectedStructure === 'sole-trader' ? 'Sole Trader' : selectedStructure === 'private-company' ? 'Private Company' : 'Corporation'} />
         <FieldRow label="Sector" value={selectedSector || 'TBD'} />
         <FieldRow label="Headquarters" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ || 'TBD'} />
-        <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={selectedModel ? (isLogistics ? selectedModel : getSubsectorName(selectedModel)) : 'TBD'} valueColor="#f5a623" />
+        {!isFinance && (
+          <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={selectedModel ? (isLogistics ? selectedModel : getSubsectorName(selectedModel)) : 'TBD'} valueColor="#f5a623" />
+        )}
         <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor="#30d158" />
         <FieldRow label="Total Cost" value={formatMoney(totalCost)} valueColor="#ff453a" />
         <FieldRow label="Remaining Cash" value={formatMoney(playerCash - totalCost)} />
-        <div className="mt-5 rounded-md border border-dashed border-terminal-green/60 bg-terminal-green/5 p-4">
-          <div className="text-[10px] font-mono text-terminal-green uppercase tracking-[0.08em] mb-2">Recommendation</div>
-          <div className="text-[11px] text-zinc-200 leading-normal">After filing, your first step should be to visit the Procurement desk to acquire your first operational asset: {selectedModel === 'Port Shuttle Operator' || selectedModel === 'Local Courier Operator' ? 'Used Delivery Van' : 'Box Truck'}.</div>
-        </div>
+        {isFinance ? (
+          <div className="mt-5 rounded-md border border-dashed border-terminal-amber/60 bg-terminal-amber/5 p-4">
+            <div className="text-[10px] font-mono text-terminal-amber uppercase tracking-[0.08em] mb-2">Next Steps</div>
+            <div className="text-[11px] text-zinc-200 leading-normal">After filing, fund your firm via <strong>Fund Firm</strong>, then buy shares on the <strong>DRX Bourse</strong> to start earning dividends each arc.</div>
+          </div>
+        ) : (
+          <div className="mt-5 rounded-md border border-dashed border-terminal-green/60 bg-terminal-green/5 p-4">
+            <div className="text-[10px] font-mono text-terminal-green uppercase tracking-[0.08em] mb-2">Recommendation</div>
+            <div className="text-[11px] text-zinc-200 leading-normal">After filing, your first step should be to visit the Procurement desk to acquire your first operational asset: {selectedModel === 'Port Shuttle Operator' || selectedModel === 'Local Courier Operator' ? 'Used Delivery Van' : 'Box Truck'}.</div>
+          </div>
+        )}
       </div>
 
     </div>
