@@ -82,7 +82,7 @@ export default function SelfAnalyticsDashboard({ companyId }: SelfAnalyticsDashb
   }
 
   const chartData = data.segments.map(s => ({
-    name: s.targetSegment || s.marketName,
+    name: s.marketName || s.targetSegment,
     Units: s.totalUnitsSold,
     Revenue: s.totalRevenue
   }));
@@ -92,7 +92,7 @@ export default function SelfAnalyticsDashboard({ companyId }: SelfAnalyticsDashb
       
       {/* Chart Section */}
       <div className="bg-[#0c0d13] border border-[#27272a] rounded-lg p-6 mb-8 shadow-md">
-        <h3 className="text-xl font-cinzel text-zinc-200 mb-6">Units Sold by Segment</h3>
+        <h3 className="text-xl font-cinzel text-zinc-200 mb-6">Units Sold by Market</h3>
         <div className="h-72 w-full font-mono text-sm">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -117,7 +117,7 @@ export default function SelfAnalyticsDashboard({ companyId }: SelfAnalyticsDashb
             <div className="mb-4">
               <div className="flex justify-between items-start mb-2">
                 <h4 className="text-lg font-cinzel font-semibold text-zinc-100">
-                  {segment.targetSegment || segment.marketName}
+                  {segment.marketName || segment.targetSegment}
                 </h4>
                 <div className="flex items-center space-x-1 px-2 py-1 bg-[#18181b] border border-[#27272a] rounded text-xs">
                   {segment.trend === 'up' && <TrendingUp className="w-3 h-3 text-emerald-500" />}
