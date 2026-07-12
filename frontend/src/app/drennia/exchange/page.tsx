@@ -550,9 +550,16 @@ function MyDesk({ refreshKey }: { refreshKey: number }) {
         <div style={{ ...label, marginBottom: '12px' }}>My Holdings</div>
         {holdings.length === 0 && <div style={{ fontSize: '11px', color: T.faint }}>You hold no shares.</div>}
         {holdings.map((h: any) => (
-          <div key={h.company_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
+          <div key={`${h.company_id}_${h.holder_company_id || 'personal'}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
             <div>
-              <div style={{ fontSize: '12px', color: T.ivory, fontWeight: 700 }}>{h.name}</div>
+              <div style={{ fontSize: '12px', color: T.ivory, fontWeight: 700 }}>
+                {h.name}
+                {h.holder_name ? (
+                  <span style={{ color: T.gold, fontSize: '10px', marginLeft: '6px', fontWeight: 400 }}>[{h.holder_name}]</span>
+                ) : (
+                  <span style={{ color: T.faint, fontSize: '10px', marginLeft: '6px', fontWeight: 400 }}>[Personal]</span>
+                )}
+              </div>
               <div style={{ ...mono, fontSize: '9px', color: T.faint }}>{fmt(h.ownership_percent, 2)}% ownership · basis ${fmt(Number(h.avg_cost_basis))}</div>
             </div>
             <div style={{ textAlign: 'right', ...mono }}>
@@ -574,6 +581,11 @@ function MyDesk({ refreshKey }: { refreshKey: number }) {
               <div style={{ fontSize: '11px', color: T.ivory }}>
                 <span style={{ ...mono, fontWeight: 700, color: o.side === 'buy' ? T.mint : T.red, textTransform: 'uppercase' }}>{o.side}</span>
                 {' '}{o.company_name}
+                {o.purchaser_company_name ? (
+                  <span style={{ color: T.gold, fontSize: '9px', marginLeft: '6px', fontFamily: 'sans-serif' }}>[{o.purchaser_company_name}]</span>
+                ) : (
+                  <span style={{ color: T.faint, fontSize: '9px', marginLeft: '6px', fontFamily: 'sans-serif' }}>[Personal]</span>
+                )}
               </div>
               <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
                 {fmtInt(Number(o.quantity) - Number(o.filled_quantity))} sh @ ${fmt(Number(o.price))}

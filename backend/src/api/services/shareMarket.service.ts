@@ -457,11 +457,18 @@ export async function getPriceHistory(companyId: string) {
 }
 
 export async function getPortfolio(characterId: string) {
+  const firms = await db('companies').where({ owner_character_id: characterId, industry_id: 'finance' });
+  const firmIds = firms.map(f => f.id);
+
   const holdings = await db('company_shares as s')
     .join('companies as c', 'c.id', 's.company_id')
-    .where({ 's.holder_character_id': characterId })
+    .leftJoin('companies as holder', 'holder.id', 's.holder_company_id')
+    .where(function() {
+      this.where({ 's.holder_character_id': characterId })
+          .orWhereIn('s.holder_company_id', firmIds);
+    })
     .where('s.shares', '>', 0)
-    .select('s.company_id', 'c.name', 'c.legal_structure_id', 's.shares', 's.avg_cost_basis', 'c.owner_character_id', 'c.is_npc');
+    .select('s.company_id', 'c.name', 'c.legal_structure_id', 's.shares', 's.avg_cost_basis', 'c.owner_character_id', 'c.is_npc', 's.holder_character_id', 's.holder_company_id', 'holder.name as holder_name');
 
   // Batch fetch the latest trade for all companies in the portfolio to avoid N+1 queries
   const companyIds = holdings.map(h => h.company_id);
@@ -502,10 +509,11 @@ export async function getPortfolio(characterId: string) {
 export async function getMyOrders(characterId: string) {
   return db('share_orders as o')
     .join('companies as c', 'c.id', 'o.company_id')
+    .leftJoin('companies as holder', 'holder.id', 'o.purchaser_company_id')
     .where({ 'o.character_id': characterId })
     .orderBy('o.created_at', 'desc')
     .limit(50)
-    .select('o.*', 'c.name as company_name');
+    .select('o.*', 'c.name as company_name', 'holder.name as purchaser_company_name');
 }
 
 /**
