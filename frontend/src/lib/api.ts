@@ -300,7 +300,8 @@ export const manufacturingApi = {
   fireStaff: (companyId: string, role: string, quantity: number = 1) => api.post(`/companies/${companyId}/manufacturing/staff/fire`, { role, quantity }),
   startEngineeringProgramme: (companyId: string, programmeId: string) => api.post(`/companies/${companyId}/manufacturing/programmes/start`, { programmeId }),
   startFactoryExpansion: (companyId: string, factoryId: string) => api.post(`/companies/${companyId}/manufacturing/factories/${factoryId}/expand`),
-  startFactoryOverhaul: (companyId: string, factoryId: string, tier: number) => api.post(`/companies/${companyId}/manufacturing/factories/${factoryId}/overhaul`, { tier }),
+  recoverFactoryCondition: (companyId: string, factoryId: string) => api.post(`/companies/${companyId}/manufacturing/factories/${factoryId}/recover-condition`),
+  toggleFactoryAutoRecovery: (companyId: string, factoryId: string) => api.post(`/companies/${companyId}/manufacturing/factories/${factoryId}/toggle-auto-recovery`),
   processArcAdmin: (companyId: string) => api.post(`/admin/manufacturing/process-company/${companyId}`),
   // Market & Sales
   getMarkets: (companyId: string) => api.get(`/companies/${companyId}/manufacturing/markets?t=${Date.now()}`),

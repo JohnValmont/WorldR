@@ -1256,25 +1256,19 @@ export class ManufacturingController {
     console.log(`[produceForCompany] Month ${clock.current_month} Fetching factories for ${companyId}...`);
     const allFactoriesRaw = await trx('manufacturing_factories').where({ company_id: companyId });
     for (const factory of allFactoriesRaw) {
-      if (factory.status === 'overhaul') {
-        const compYear = factory.overhaul_completion_year ?? 1;
-        const compMonth = factory.overhaul_completion_arc ?? 1;
-        if (currentYear > compYear || (currentYear === compYear && currentMonth >= compMonth)) {
-          const newMachineLevel = factory.overhaul_tier === 2 ? (factory.machine_level ?? 1) + 1 : (factory.machine_level ?? 1);
+      if (factory.auto_condition_recovery && Number(factory.condition) < 100) {
+        if (runningCash >= 20000) {
+          runningCash -= 20000;
+          const newCondition = Math.min(100.0, Number(factory.condition) + 5.0);
           await trx('manufacturing_factories').where({ id: factory.id }).update({
-            status: 'active',
-            condition: 100.0,
-            machine_level: newMachineLevel,
-            overhaul_tier: null,
+            condition: newCondition,
             updated_at: trx.fn.now()
           });
-          factory.status = 'active';
-          factory.condition = 100.0;
-          factory.machine_level = newMachineLevel;
-          await trx('company_records').insert({
-            world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business',
-            summary: `Factory Overhaul completed for ${factory.name}. Operations resumed.`,
-            created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay
+          factory.condition = newCondition;
+          await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', 20000);
+          await trx('company_ledger').insert({
+            company_id: companyId, game_year: currentYear, game_month: currentMonth, game_day: currentDay,
+            entry_type: 'maintenance', description: `Auto-Recovery (${factory.name})`, amount: -20000, balance_after: runningCash
           });
         }
       }
@@ -2861,100 +2855,85 @@ export class ManufacturingController {
     }
   }
 
-  // POST /companies/:companyId/manufacturing/factories/:factoryId/overhaul
-  public static async startFactoryOverhaul(req: Request, res: Response, next: NextFunction) {
+  // POST /companies/:companyId/manufacturing/factories/:factoryId/recover-condition
+  public static async recoverFactoryCondition(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;
       const { companyId, factoryId } = req.params;
-      const { tier } = req.body;
 
-      if (!userId || !companyId || !factoryId || !tier) {
+      if (!userId || !companyId || !factoryId) {
         return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
       }
 
-      if (tier !== 1 && tier !== 2) {
-        return next(new AppError('Invalid overhaul tier', 400, 'BAD_REQUEST'));
-      }
-
-      const OVERHAUL_COST = tier === 1 ? 500000 : 5000000;
-      const OVERHAUL_DURATION_ARCS = tier === 1 ? 1 : 3;
+      const RECOVERY_COST = 20000;
+      const RECOVERY_AMOUNT = 5.0;
 
       const result = await db.transaction(async (trx) => {
         const { company, currencySymbol } = await verifyManufacturingCompany(trx, userId, companyId);
 
-        // Load the factory
-        const factory = await trx('manufacturing_factories')
-          .where({ id: factoryId, company_id: companyId })
-          .forUpdate()
-          .first();
+        const factory = await trx('manufacturing_factories').where({ id: factoryId, company_id: companyId }).forUpdate().first();
         if (!factory) throw new AppError('Factory not found', 404, 'NOT_FOUND');
+        if (factory.status !== 'active') throw new AppError(`Factory is ${factory.status}. Cannot recover condition.`, 400, 'INVALID_STATUS');
+        if (Number(factory.condition) >= 100) throw new AppError('Factory condition is already at 100%', 400, 'BAD_REQUEST');
 
-        // Must be active
-        if (factory.status !== 'active') {
-          throw new AppError(`Factory is already in ${factory.status} status. Cannot start overhaul.`, 400, 'INVALID_STATUS');
-        }
-
-        // Check funds
         const finances = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
-        if (Number(finances.available_cash) < OVERHAUL_COST) {
-          throw new AppError(`Insufficient company funds. Requires ${currencySymbol}${OVERHAUL_COST.toLocaleString()}.`, 400, 'INSUFFICIENT_FUNDS');
+        if (Number(finances.available_cash) < RECOVERY_COST) {
+          throw new AppError(`Insufficient funds. Requires ${currencySymbol}${RECOVERY_COST.toLocaleString()}.`, 400, 'INSUFFICIENT_FUNDS');
         }
 
-        // Deduct cost immediately
         const [updatedFinances] = await trx('company_finances')
           .where({ company_id: companyId })
-          .decrement('available_cash', OVERHAUL_COST)
+          .decrement('available_cash', RECOVERY_COST)
           .returning('*');
+
+        const newCondition = Math.min(100.0, Number(factory.condition) + RECOVERY_AMOUNT);
+        await trx('manufacturing_factories').where({ id: factoryId }).update({
+          condition: newCondition,
+          updated_at: trx.fn.now(),
+        });
 
         const clock = await trx('world_clock').first();
         const startYear = clock?.current_year ?? 1;
         const startMonth = clock?.current_month ?? 1;
 
-        // Calculate completion month (OVERHAUL_DURATION_ARCS months from now, wrapping year at 12)
-        const rawCompletionMonth = startMonth + OVERHAUL_DURATION_ARCS;
-        let compYear = startYear + Math.floor((rawCompletionMonth - 1) / 12);
-        let compMonth = ((rawCompletionMonth - 1) % 12) + 1;
-
-        // Set factory to overhaul
-        await trx('manufacturing_factories').where({ id: factoryId }).update({
-          status: 'overhaul',
-          overhaul_tier: tier,
-          overhaul_completion_year: compYear,
-          overhaul_completion_arc: compMonth,
-          updated_at: trx.fn.now(),
-        });
-
-        // Ledger entry
         await trx('company_ledger').insert({
-          company_id: companyId,
-          game_year: startYear,
-          game_month: startMonth,
-          game_day: clock?.current_day ?? 1,
-          entry_type: 'factory_overhaul',
-          description: `Factory Overhaul (Tier ${tier})`,
-          amount: -OVERHAUL_COST,
-          balance_after: updatedFinances.available_cash,
-        });
-
-        // Company record
-        await trx('company_records').insert({
-          world_instance_id: company.world_instance_id,
-          company_id: companyId,
-          record_type: 'business',
-          summary: `Initiated Factory Overhaul (Tier ${tier}). Production halted for ${OVERHAUL_DURATION_ARCS} month(s).`,
-          created_at_world_year: startYear,
-          created_at_world_month: startMonth,
-          created_at_world_day: clock?.current_day ?? 1,
+          company_id: companyId, game_year: startYear, game_month: startMonth, game_day: clock?.current_day ?? 1,
+          entry_type: 'maintenance', description: `Manual Factory Recovery (${factory.name})`, amount: -RECOVERY_COST, balance_after: updatedFinances.available_cash,
         });
 
         return {
-          status: 'overhaul',
-          completionYear: compYear,
-          completionArc: compMonth,
+          condition: newCondition,
           availableCash: updatedFinances.available_cash,
         };
       });
 
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // POST /companies/:companyId/manufacturing/factories/:factoryId/toggle-auto-recovery
+  public static async toggleFactoryAutoRecovery(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { companyId, factoryId } = req.params;
+      
+      if (!userId || !companyId || !factoryId) return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
+
+      const result = await db.transaction(async (trx) => {
+        await verifyManufacturingCompany(trx, userId, companyId);
+
+        const factory = await trx('manufacturing_factories').where({ id: factoryId, company_id: companyId }).forUpdate().first();
+        if (!factory) throw new AppError('Factory not found', 404, 'NOT_FOUND');
+
+        const newValue = !factory.auto_condition_recovery;
+        await trx('manufacturing_factories').where({ id: factoryId }).update({
+          auto_condition_recovery: newValue,
+          updated_at: trx.fn.now(),
+        });
+        return { auto_condition_recovery: newValue };
+      });
       res.status(200).json(result);
     } catch (error) {
       next(error);

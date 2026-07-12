@@ -414,9 +414,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const [showExpandConfirm, setShowExpandConfirm] = useState(false);
   const [expandingFactoryId, setExpandingFactoryId] = useState<string | null>(null);
 
-  const [showOverhaulConfirm, setShowOverhaulConfirm] = useState(false);
-  const [overhaulFactoryId, setOverhaulFactoryId] = useState<string | null>(null);
-  const [overhaulTier, setOverhaulTier] = useState<1 | 2>(1);
+
   const showNotif = (msg: string, success: boolean) => {
     setNotification({ msg, success });
     setTimeout(() => setNotification(null), 6000);
@@ -772,16 +770,24 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
     }
   };
 
-  const handleStartOverhaul = async (factoryId: string, tier: number) => {
+  const handleRecoverCondition = async (factoryId: string) => {
     try {
-      await manufacturingApi.startFactoryOverhaul(company.id, factoryId, tier);
-      showNotif(`Factory Overhaul (Tier ${tier}) initiated. Factory is now offline.`, true);
-      setShowOverhaulConfirm(false);
-      setOverhaulFactoryId(null);
+      await manufacturingApi.recoverFactoryCondition(company.id, factoryId);
+      showNotif(`Factory condition recovered by 5%. ${fm(20000)} deducted.`, true);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to initiate overhaul.', false);
-      setShowOverhaulConfirm(false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to recover condition.', false);
+    }
+  };
+
+  const handleToggleAutoRecovery = async (factoryId: string) => {
+    try {
+      const res = await manufacturingApi.toggleFactoryAutoRecovery(company.id, factoryId);
+      const isAuto = res.data?.data?.auto_condition_recovery ?? false;
+      showNotif(`Auto-recovery ${isAuto ? 'enabled' : 'disabled'} for factory.`, true);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to toggle auto-recovery.', false);
     }
   };
 
@@ -1265,68 +1271,31 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     );
                   })()}
 
-                  {/* ── FACTORY OVERHAUL ── */}
+                  {/* ── FACTORY CONDITION RECOVERY ── */}
                   <div className="mt-5 border-t border-zinc-800 pt-4">
-                    <div className="text-[10px] font-mono text-terminal-amber tracking-[0.15em] uppercase mb-3">Factory Overhaul</div>
-                    {factory.status === 'overhaul' ? (
-                      <div>
-                        <div className="mb-3">
-                          <Badge variant="red">Offline: Overhaul in Progress (Tier {factory.overhaul_tier})</Badge>
-                        </div>
-                        <div className="text-sm text-zinc-300">
-                          Production lines are halted. Factory will return to service in Year {factory.overhaul_completion_year}, Month {factory.overhaul_completion_arc}.
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="text-xs text-zinc-400 mb-3">
-                          Factory condition decays over time. When it gets too low, you must initiate an overhaul to restore it. <strong>Production will be halted during the overhaul.</strong>
-                        </div>
-                        
-                        {showOverhaulConfirm && overhaulFactoryId === factory.id ? (
-                          <div className="bg-zinc-900/50 p-4 rounded-md border border-zinc-800">
-                            <h4 className="text-terminal-amber font-bold text-sm mb-2">Select Overhaul Tier</h4>
-                            
-                            <div className="flex flex-col gap-3 mb-4">
-                              <label className="flex items-start gap-3 p-3 border border-zinc-800 rounded-md cursor-pointer hover:bg-zinc-800/50">
-                                <input type="radio" name="overhaul_tier" checked={overhaulTier === 1} onChange={() => setOverhaulTier(1)} className="mt-1" />
-                                <div>
-                                  <div className="font-bold text-zinc-200">Tier 1: Routine Refurbishment</div>
-                                  <div className="text-xs text-zinc-400">Restores condition to 100%. Takes 1 Month.</div>
-                                  <div className="text-xs text-terminal-red mt-1">Cost: {fm(500000)}</div>
-                                </div>
-                              </label>
-                              <label className="flex items-start gap-3 p-3 border border-zinc-800 rounded-md cursor-pointer hover:bg-zinc-800/50">
-                                <input type="radio" name="overhaul_tier" checked={overhaulTier === 2} onChange={() => setOverhaulTier(2)} className="mt-1" />
-                                <div>
-                                  <div className="font-bold text-zinc-200">Tier 2: Deep Modernization</div>
-                                  <div className="text-xs text-zinc-400">Restores condition and increases Machine Level by +1. Takes 3 Months.</div>
-                                  <div className="text-xs text-terminal-red mt-1">Cost: {fm(5000000)}</div>
-                                </div>
-                              </label>
-                            </div>
-
-                            <div className="flex items-center gap-3">
-                              <GoldButton 
-                                onClick={() => handleStartOverhaul(factory.id, overhaulTier)}
-                                disabled={Number(finances?.available_cash) < (overhaulTier === 1 ? 500000 : 5000000)}
-                              >
-                                Confirm & Halt Production
-                              </GoldButton>
-                              <GhostButton onClick={() => { setShowOverhaulConfirm(false); setOverhaulFactoryId(null); }}>
-                                Cancel
-                              </GhostButton>
-                            </div>
-                            {Number(finances?.available_cash) < (overhaulTier === 1 ? 500000 : 5000000) && (
-                              <div className="text-[11px] text-terminal-red mt-2">Insufficient funds for selected tier.</div>
-                            )}
-                          </div>
-                        ) : (
-                          <GhostButton onClick={() => { setShowOverhaulConfirm(true); setOverhaulFactoryId(factory.id); setOverhaulTier(1); }}>
-                            Initiate Overhaul...
-                          </GhostButton>
-                        )}
-                      </div>
+                    <div className="text-[10px] font-mono text-terminal-amber tracking-[0.15em] uppercase mb-3">Condition Management</div>
+                    <div className="text-xs text-zinc-400 mb-3">
+                      Factory condition decays over time. Maintain it manually, or enable Auto-Recovery to automatically deduct funds when condition drops below 100%.
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                      <GhostButton 
+                        onClick={() => handleRecoverCondition(factory.id)}
+                        disabled={Number(factory.condition) >= 100 || Number(finances?.available_cash) < 20000}
+                      >
+                        Restore Condition (+5%) — {fm(20000)}
+                      </GhostButton>
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
+                        <input 
+                          type="checkbox" 
+                          checked={factory.auto_condition_recovery} 
+                          onChange={() => handleToggleAutoRecovery(factory.id)} 
+                        />
+                        Auto-Recover (Spends {fm(20000)}/mo if &lt; 100%)
+                      </label>
+                    </div>
+                    {Number(finances?.available_cash) < 20000 && (
+                      <div className="text-[11px] text-terminal-red mt-2">Insufficient funds for manual recovery.</div>
                     )}
                   </div>
                 </PanelBox>
