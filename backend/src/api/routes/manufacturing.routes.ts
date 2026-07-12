@@ -26,6 +26,7 @@ router.post('/companies/:companyId/manufacturing/programmes/start', authMiddlewa
 router.patch('/companies/:companyId/manufacturing/production/lines/:lineId/pause', authMiddleware, ManufacturingController.pauseProductionLine);
 router.patch('/companies/:companyId/manufacturing/production/lines/:lineId/resume', authMiddleware, ManufacturingController.resumeProductionLine);
 router.post('/companies/:companyId/manufacturing/factories/:factoryId/expand', authMiddleware, ManufacturingController.startFactoryExpansion);
+router.post('/companies/:companyId/manufacturing/factories/:factoryId/overhaul', authMiddleware, ManufacturingController.startFactoryOverhaul);
 
 // Market & Sales routes
 router.get('/companies/:companyId/manufacturing/markets', authMiddleware, ManufacturingController.getMarkets);
