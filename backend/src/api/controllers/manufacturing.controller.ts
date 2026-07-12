@@ -2563,12 +2563,11 @@ export class ManufacturingController {
           .first();
         const currentAlloc = existing ? Number(existing.units_allocated) : 0;
 
-        if (units > currentAlloc && units + othersTotal > totalStock) {
-          throw new AppError(
-            `Cannot allocate ${units} units — only ${Math.max(0, totalStock - othersTotal)} available (${totalStock} in stock, ${othersTotal} allocated elsewhere)`,
-            400, 'OVER_ALLOCATION'
-          );
-        }
+        // NOTE: We intentionally removed the strict real-time stock limits here. 
+        // This allows allocations to act as "Standing Orders" or target max sales,
+        // preventing the problem where newly manufactured cars are unallocatable for the month.
+        // The simulation engine inside simulateSalesDemand / settleForCompany 
+        // strictly uses Math.min(unitsSold, inventory) to prevent ghost cars.
 
         if (existing) {
           await trx('manufacturing_market_allocations').where({ id: existing.id }).update({

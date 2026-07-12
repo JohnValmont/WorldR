@@ -2699,7 +2699,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           {/* Summary Row */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
             <PanelBox>
-              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1.5">Available Inventory</div>
+              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1.5">Current Inventory</div>
               <div className="text-2xl font-mono text-zinc-100">
                 {inventory.reduce((a: number, b: any) => a + Number(b.units_in_stock), 0)}
                 <span className="text-sm text-zinc-500 ml-1">units</span>
@@ -2863,7 +2863,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
                                   <div className="flex items-center gap-4 flex-wrap">
                                     <div className="flex items-center gap-2">
-                                      <span className="text-[11px] text-zinc-500">Units:</span>
+                                      <span className="text-[11px] text-zinc-500">Target Units:</span>
                                       <input
                                         type="number"
                                         min="0"

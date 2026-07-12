@@ -1,37 +1,63 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../../lib/api';
 import EquityDeskTab from './EquityDeskTab';
+import { Card, Button, StatCard, EmptyState, Badge, Tabs, ProgressBar } from '@/components/ui';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
+import { Building2, Landmark, Briefcase, TrendingUp, Target, ArrowRightLeft } from 'lucide-react';
 
-const fmt = (n: number) =>
+const fm = (n: number) =>
   n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M`
   : n >= 1_000   ? `$${(n / 1_000).toFixed(1)}K`
   : `$${n.toFixed(2)}`;
 
 const pct = (n: number) => `${n.toFixed(2)}%`;
 
-const T = {
-  bg: '#090A0F', panel: '#11131A', paper: '#1E1A15',
-  border: '#2A2630', borderGold: 'rgba(201,162,74,0.22)',
-  gold: '#C9A24A', ivory: '#F4EBD6', muted: '#A79D8C',
-  faint: '#6B6358', mint: '#36D399', red: '#B85555', steel: '#4B6382',
-};
-const mono: React.CSSProperties = { fontFamily: 'monospace' };
-const label: React.CSSProperties = { ...mono, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.gold, fontWeight: 700 };
-
-interface Holding {
-  company_id: string; company_name: string; industry_id: string; is_npc: boolean;
-  shares: number; avg_cost_basis: number; current_price: number; market_value: number;
-  unrealized_pnl: number; ownership_pct: number; total_shares: number;
-}
+const COLORS = ['#d4af37', '#36d399', '#6ea8fe', '#a78bfa', '#fb923c', '#f472b6'];
 
 interface FirmSummary {
-  id: string; name: string; available_cash: number; company_value: number; portfolio_value: number;
+  id: string;
+  name: string;
+  available_cash: number;
+  company_value: number;
+  portfolio_value: number;
+}
+
+interface Holding {
+  company_id: string;
+  company_name: string;
+  is_npc: boolean;
+  shares: number;
+  avg_cost_basis: number;
+  current_price: number;
+  market_value: number;
+  unrealized_pnl: number;
+  ownership_pct: number;
 }
 
 interface DividendReceipt {
-  company_id: string; company_name: string; game_year: number; game_month: number;
-  shares_held: number; amount: number;
+  company_name: string;
+  game_year: number;
+  game_month: number;
+  amount: string;
+  shares_held: string;
+}
+
+interface TreasuryLedgerEntry {
+  id: string;
+  game_year: number;
+  game_month: number;
+  game_day: number;
+  description: string;
+  amount: string;
+  balance_after: string;
+}
+
+interface PerformanceMetrics {
+  net_deposits: number;
+  current_value: number;
+  total_return_pct: number;
+  total_dividends: number;
 }
 
 interface Props {
@@ -43,421 +69,353 @@ interface Props {
 }
 
 export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, onRefresh, onGoToExchange }: Props) {
-  const [tab, setTab] = useState<'portfolio' | 'dividends' | 'treasury' | 'performance' | 'strategy' | 'structure'>('portfolio');
+  const [tab, setTab] = useState('portfolio');
   const [firm, setFirm] = useState<FirmSummary | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [dividends, setDividends] = useState<DividendReceipt[]>([]);
-  const [ledger, setLedger] = useState<any[]>([]);
-  const [performance, setPerformance] = useState<any>(null);
-  const [injectAmount, setInjectAmount] = useState('');
-  const [injectMsg, setInjectMsg] = useState<{ text: string; ok: boolean } | null>(null);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [withdrawMsg, setWithdrawMsg] = useState<{ text: string; ok: boolean } | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [ledger, setLedger] = useState<TreasuryLedgerEntry[]>([]);
+  const [performance, setPerformance] = useState<PerformanceMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const [injectAmount, setInjectAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [injectMsg, setInjectMsg] = useState<{ text: string, ok: boolean } | null>(null);
+  const [withdrawMsg, setWithdrawMsg] = useState<{ text: string, ok: boolean } | null>(null);
+
+  const loadData = useCallback(async () => {
     try {
-      // Use the axios `api` client — it injects the Bearer token automatically
-      const [pRes, dRes, lRes, perfRes] = await Promise.all([
-        api.get(`/companies/${firmId}/portfolio`).then(r => r.data),
-        api.get(`/companies/${firmId}/dividends`).then(r => r.data),
-        api.get(`/companies/${firmId}/ledger`).then(r => r.data),
-        api.get(`/companies/${firmId}/performance`).then(r => r.data),
+      const [fRes, hRes, dRes, pRes, lRes] = await Promise.all([
+        api.get(`/companies/${firmId}`),
+        api.get(`/companies/${firmId}/portfolio`),
+        api.get(`/companies/${firmId}/dividends`),
+        api.get(`/companies/${firmId}/performance`),
+        api.get(`/companies/${firmId}/ledger`)
       ]);
-      if (pRes.firm) { setFirm(pRes.firm); setHoldings(pRes.holdings || []); }
-      if (Array.isArray(dRes)) setDividends(dRes);
-      if (Array.isArray(lRes)) setLedger(lRes);
-      if (perfRes) setPerformance(perfRes);
+      setFirm({
+        id: fRes.data.company.id,
+        name: fRes.data.company.name,
+        available_cash: Number(fRes.data.company.available_cash),
+        company_value: Number(fRes.data.company.company_value),
+        portfolio_value: Number(hRes.data.totalMarketValue)
+      });
+      setHoldings(hRes.data.holdings);
+      setDividends(dRes.data);
+      setPerformance(pRes.data);
+      setLedger(lRes.data);
     } catch (e) {
-      console.error('Capital Partners load error', e);
+      console.error(e);
     } finally {
       setLoading(false);
     }
   }, [firmId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const handleInject = async () => {
-    const amount = Number(injectAmount);
-    if (!amount || amount <= 0 || isNaN(amount)) { setInjectMsg({ text: 'Enter a positive amount.', ok: false }); return; }
-    if (amount > playerCash) { setInjectMsg({ text: `Insufficient personal cash. You have ${fmt(playerCash)}.`, ok: false }); return; }
+    const val = Number(injectAmount);
+    if (!val || val <= 0) return;
     setBusy(true); setInjectMsg(null);
     try {
-      // Use the dedicated finance-firm fund endpoint (bypasses sole-trader guard)
-      await api.post(`/companies/${firmId}/fund-firm`, { amount });
-      setInjectMsg({ text: `${fmt(amount)} transferred into the firm.`, ok: true });
+      await api.post(`/companies/${firmId}/fund-firm`, { amount: val });
+      setInjectMsg({ text: `Transferred ${fm(val)} to firm.`, ok: true });
       setInjectAmount('');
-      load();
-      onRefresh();
+      loadData(); onRefresh();
     } catch (e: any) {
-      const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Transfer failed.';
-      setInjectMsg({ text: msg, ok: false });
+      setInjectMsg({ text: e.response?.data?.error || 'Transfer failed.', ok: false });
     } finally { setBusy(false); }
   };
 
   const handleWithdraw = async () => {
-    const amount = Number(withdrawAmount);
-    if (!amount || amount <= 0 || isNaN(amount)) { setWithdrawMsg({ text: 'Enter a positive amount.', ok: false }); return; }
-    if (firm && amount > firm.available_cash) { setWithdrawMsg({ text: `Insufficient firm cash. Firm has ${fmt(firm.available_cash)}.`, ok: false }); return; }
+    const val = Number(withdrawAmount);
+    if (!val || val <= 0) return;
     setBusy(true); setWithdrawMsg(null);
     try {
-      await api.post(`/companies/${firmId}/withdraw-capital`, { amount });
-      setWithdrawMsg({ text: `${fmt(amount)} withdrawn to personal wallet.`, ok: true });
+      await api.post(`/companies/${firmId}/withdraw-capital`, { amount: val });
+      setWithdrawMsg({ text: `Withdrew ${fm(val)} from firm.`, ok: true });
       setWithdrawAmount('');
-      load();
-      onRefresh();
+      loadData(); onRefresh();
     } catch (e: any) {
-      const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Withdrawal failed.';
-      setWithdrawMsg({ text: msg, ok: false });
+      setWithdrawMsg({ text: e.response?.data?.error || 'Withdrawal failed.', ok: false });
     } finally { setBusy(false); }
   };
 
-  const totalUnrealizedPnl = holdings.reduce((s, h) => s + h.unrealized_pnl, 0);
-  const totalDividendsReceived = dividends.reduce((s, d) => s + Number(d.amount), 0);
+  const totalUnrealizedPnl = holdings.reduce((sum, h) => sum + h.unrealized_pnl, 0);
+  const totalDividendsReceived = dividends.reduce((sum, d) => sum + Number(d.amount), 0);
 
-  const containerStyle: React.CSSProperties = {
-    background: T.bg, color: T.ivory, minHeight: '100vh', padding: '24px',
-    display: 'flex', flexDirection: 'column', gap: '20px',
-  };
+  const tabs = [
+    { id: 'portfolio', label: 'Holdings', icon: Briefcase },
+    { id: 'treasury', label: 'Treasury', icon: Landmark },
+    { id: 'performance', label: 'Performance', icon: TrendingUp },
+    { id: 'dividends', label: 'Dividends', icon: ArrowRightLeft },
+    { id: 'strategy', label: 'Strategy', icon: Target },
+    { id: 'structure', label: 'Structure', icon: Building2 },
+  ];
 
-  const panelStyle: React.CSSProperties = {
-    background: T.panel, border: `1px solid ${T.border}`, padding: '20px', borderRadius: '4px',
-  };
-
-  const tabBtn = (id: typeof tab, text: string) => (
-    <button
-      key={id}
-      onClick={() => setTab(id)}
-      style={{
-        ...mono, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em',
-        padding: '8px 16px', cursor: 'pointer', border: 'none',
-        background: tab === id ? T.paper : 'transparent',
-        borderBottom: tab === id ? `2px solid ${T.gold}` : `2px solid transparent`,
-        color: tab === id ? T.gold : T.faint,
-      }}
-    >{text}</button>
-  );
-
-  if (loading) return (
-    <div style={{ ...containerStyle, alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ ...mono, color: T.faint, fontSize: '12px' }}>Loading portfolio…</div>
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-zinc-500 text-sm font-mono tracking-widest uppercase">LOADING DESK...</div>
+      </div>
+    );
+  }
 
   return (
-    <div style={containerStyle}>
-      {/* ── Header ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-24">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-zinc-800 pb-4">
         <div>
-          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Capital Partners Firm</div>
-          <div style={{ fontSize: '22px', fontWeight: 700, color: T.ivory, marginTop: '4px' }}>{firmName}</div>
-          <div style={{ ...mono, fontSize: '10px', color: T.muted, marginTop: '2px' }}>Finance · Investment Holding Entity</div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-mono tracking-widest text-zinc-500 uppercase">Capital Partners Firm</span>
+            <Badge variant="amber">Active</Badge>
+          </div>
+          <h1 className="text-3xl font-bold text-zinc-100 tracking-tight">{firmName}</h1>
         </div>
       </div>
 
-      {/* ── KPI strip ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-        {[
-          { label: 'Firm Cash',            value: fmt(firm?.available_cash ?? 0),   color: T.mint },
-          { label: 'Portfolio Value',       value: fmt(firm?.portfolio_value ?? 0),  color: T.gold },
-          { label: 'Unrealised P&L',        value: fmt(totalUnrealizedPnl),          color: totalUnrealizedPnl >= 0 ? T.mint : T.red },
-          { label: 'Total Dividends Rcvd', value: fmt(totalDividendsReceived),       color: T.steel },
-        ].map(k => (
-          <div key={k.label} style={{ ...panelStyle, padding: '14px' }}>
-            <div style={label}>{k.label}</div>
-            <div style={{ ...mono, fontSize: '18px', fontWeight: 700, color: k.color, marginTop: '6px' }}>{k.value}</div>
-          </div>
-        ))}
+      {/* KPI STRIP */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Firm Cash" value={fm(firm?.available_cash ?? 0)} valueColor="green" />
+        <StatCard label="Portfolio Value" value={fm(firm?.portfolio_value ?? 0)} valueColor="amber" />
+        <StatCard label="Unrealized P&L" value={fm(totalUnrealizedPnl)} valueColor={totalUnrealizedPnl >= 0 ? "green" : "red"} />
+        <StatCard label="Total Dividends Rcvd" value={fm(totalDividendsReceived)} valueColor="white" />
       </div>
 
-      {/* ── Tabs ── */}
-      <div style={{ borderBottom: `1px solid ${T.border}`, display: 'flex', gap: '0' }}>
-        {tabBtn('portfolio', 'Holdings')}
-        {tabBtn('dividends', 'Dividends')}
-        {tabBtn('treasury', 'Treasury')}
-        {tabBtn('performance', 'Performance')}
-        {tabBtn('strategy', 'Strategy')}
-        {tabBtn('structure', 'Structure')}
-      </div>
+      <Tabs tabs={tabs} activeId={tab} onChange={setTab} className="mb-6" />
 
-      {/* ── Portfolio Tab ── */}
+      {/* PORTFOLIO TAB */}
       {tab === 'portfolio' && (
-        <div style={panelStyle}>
-          <div style={{ ...label, marginBottom: '14px' }}>Current Holdings</div>
-          {holdings.length === 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'flex-start' }}>
-              <div style={{ ...mono, fontSize: '11px', color: T.faint }}>
-                No holdings yet. Buy shares on the DRX Bourse to build your portfolio. Dividends will flow here each arc from companies with payout policies.
-              </div>
-              {onGoToExchange && (
-                <button
-                  onClick={onGoToExchange}
-                  style={{
-                    ...mono, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em',
-                    padding: '8px 16px', cursor: 'pointer', border: `1px solid ${T.gold}`,
-                    background: 'transparent', color: T.gold, borderRadius: '4px'
-                  }}
-                >
-                  Go to DRX Bourse →
-                </button>
-              )}
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <Card kicker="Current Holdings">
+                {holdings.length === 0 ? (
+                  <EmptyState 
+                    heading="No Holdings Yet" 
+                    message="Buy shares on the DRX Bourse to build your portfolio. Dividends will flow here each arc."
+                    action={onGoToExchange ? { label: "Go to DRX Bourse", onClick: onGoToExchange, variant: "secondary" } : undefined}
+                  />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm font-mono text-left">
+                      <thead>
+                        <tr className="text-zinc-500 border-b border-zinc-800 uppercase tracking-wider text-[10px]">
+                          <th className="pb-2 font-medium">Company</th>
+                          <th className="pb-2 text-right font-medium">Shares</th>
+                          <th className="pb-2 text-right font-medium">Avg Cost</th>
+                          <th className="pb-2 text-right font-medium">Price</th>
+                          <th className="pb-2 text-right font-medium">Market Value</th>
+                          <th className="pb-2 text-right font-medium">P&L</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-800/50">
+                        {holdings.map(h => (
+                          <tr key={h.company_id} className="group hover:bg-zinc-800/20 transition-colors">
+                            <td className="py-3 text-zinc-200">
+                              <div className="flex items-center gap-2">
+                                {h.company_name}
+                                {h.is_npc && <Badge variant="zinc">NPC</Badge>}
+                              </div>
+                            </td>
+                            <td className="py-3 text-right text-zinc-400">{Number(h.shares).toLocaleString()}</td>
+                            <td className="py-3 text-right text-zinc-400">${Number(h.avg_cost_basis).toFixed(2)}</td>
+                            <td className="py-3 text-right text-zinc-200">${Number(h.current_price).toFixed(2)}</td>
+                            <td className="py-3 text-right text-gold font-bold">{fm(h.market_value)}</td>
+                            <td className={`py-3 text-right font-medium ${h.unrealized_pnl >= 0 ? 'text-mint' : 'text-red'}`}>
+                              {h.unrealized_pnl >= 0 ? '+' : ''}{fm(h.unrealized_pnl)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
             </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: '11px' }}>
-              <thead>
-                <tr style={{ color: T.faint }}>
-                  {['Company', 'Shares', 'Avg Cost', 'Price', 'Market Value', 'P&L', 'Ownership'].map(h => (
-                    <th key={h} style={{ textAlign: h === 'Company' ? 'left' : 'right', padding: '6px 8px', fontWeight: 400, textTransform: 'uppercase', fontSize: '9px', letterSpacing: '0.1em', borderBottom: `1px solid ${T.border}` }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {holdings.map(h => (
-                  <tr key={h.company_id} style={{ borderBottom: `1px solid ${T.border}` }}>
-                    <td style={{ padding: '8px', color: T.ivory }}>
-                      <span>{h.company_name}</span>
-                      {h.is_npc && <span style={{ marginLeft: '6px', fontSize: '9px', color: T.faint, border: `1px solid ${T.border}`, padding: '1px 4px' }}>NPC</span>}
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '8px', color: T.muted }}>{Number(h.shares).toLocaleString()}</td>
-                    <td style={{ textAlign: 'right', padding: '8px', color: T.muted }}>${Number(h.avg_cost_basis).toFixed(2)}</td>
-                    <td style={{ textAlign: 'right', padding: '8px', color: T.ivory }}>${Number(h.current_price).toFixed(2)}</td>
-                    <td style={{ textAlign: 'right', padding: '8px', color: T.gold, fontWeight: 700 }}>{fmt(h.market_value)}</td>
-                    <td style={{ textAlign: 'right', padding: '8px', color: h.unrealized_pnl >= 0 ? T.mint : T.red }}>
-                      {h.unrealized_pnl >= 0 ? '+' : ''}{fmt(h.unrealized_pnl)}
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '8px', color: T.muted }}>{pct(h.ownership_pct)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+            <div className="lg:col-span-1">
+              <Card kicker="Allocation" className="h-full flex flex-col">
+                {holdings.length > 0 ? (
+                  <div className="flex-1 min-h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={holdings} dataKey="market_value" nameKey="company_name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2}>
+                          {holdings.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                        </Pie>
+                        <RechartsTooltip formatter={(value: any) => fm(value as number)} contentStyle={{ backgroundColor: '#090A0F', borderColor: '#27272a', color: '#fff', fontSize: '12px', fontFamily: 'monospace' }} itemStyle={{ color: '#d4af37' }} />
+                        <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', color: '#a1a1aa' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-zinc-500 font-mono text-xs">No data available</div>
+                )}
+              </Card>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* ── Dividends Tab ── */}
-      {tab === 'dividends' && (
-        <div style={panelStyle}>
-          <div style={{ ...label, marginBottom: '14px' }}>Dividend Receipts</div>
-          {dividends.length === 0 ? (
-            <div style={{ ...mono, fontSize: '11px', color: T.faint }}>
-              No dividends received yet. NPC companies (HaulPro, Veridian, Apex, Valuecorp) pay 30% of arc profit each month. Player manufacturing companies pay if their owner sets a payout policy.
-            </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: '11px' }}>
-              <thead>
-                <tr style={{ color: T.faint }}>
-                  {['Company', 'Year', 'Month', 'Shares Held', 'Dividend Rcvd'].map(h => (
-                    <th key={h} style={{ textAlign: h === 'Company' ? 'left' : 'right', padding: '6px 8px', fontWeight: 400, textTransform: 'uppercase', fontSize: '9px', letterSpacing: '0.1em', borderBottom: `1px solid ${T.border}` }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {dividends.map((d, i) => (
-                  <tr key={i} style={{ borderBottom: `1px solid ${T.border}` }}>
-                    <td style={{ padding: '8px', color: T.ivory }}>{d.company_name}</td>
-                    <td style={{ textAlign: 'right', padding: '8px', color: T.muted }}>Y{d.game_year}</td>
-                    <td style={{ textAlign: 'right', padding: '8px', color: T.muted }}>M{d.game_month}</td>
-                    <td style={{ textAlign: 'right', padding: '8px', color: T.muted }}>{Number(d.shares_held).toLocaleString()}</td>
-                    <td style={{ textAlign: 'right', padding: '8px', color: T.mint, fontWeight: 700 }}>{fmt(Number(d.amount))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {/* ── Treasury Tab ── */}
+      {/* TREASURY TAB */}
       {tab === 'treasury' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Balance Sheet Panel */}
-          <div style={{ ...panelStyle, display: 'flex', gap: '32px', alignItems: 'center' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Firm Cash</div>
-              <div style={{ ...mono, fontSize: '20px', color: T.mint, fontWeight: 700 }}>{fmt(firm?.available_cash ?? 0)}</div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Portfolio Value</div>
-              <div style={{ ...mono, fontSize: '20px', color: T.gold, fontWeight: 700 }}>{fmt(firm?.portfolio_value ?? 0)}</div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Total Assets</div>
-              <div style={{ ...mono, fontSize: '20px', color: T.ivory, fontWeight: 700 }}>{fmt(firm?.company_value ?? 0)}</div>
-            </div>
-            <div style={{ flex: 1, borderLeft: `1px solid ${T.border}`, paddingLeft: '32px' }}>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Cash Deployed</div>
-              <div style={{ ...mono, fontSize: '14px', color: T.muted }}>
-                {firm && firm.company_value > 0 ? pct((firm.portfolio_value / firm.company_value) * 100) : '0%'}
+        <div className="space-y-6">
+          <Card kicker="Liquidity Status">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div>
+                <div className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase mb-2">Firm Cash</div>
+                <div className="text-2xl font-bold font-mono text-mint">{fm(firm?.available_cash ?? 0)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase mb-2">Portfolio Value</div>
+                <div className="text-2xl font-bold font-mono text-gold">{fm(firm?.portfolio_value ?? 0)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase mb-2">Total Assets</div>
+                <div className="text-2xl font-bold font-mono text-zinc-100">{fm(firm?.company_value ?? 0)}</div>
               </div>
             </div>
+            <div className="mt-8 border-t border-zinc-800/50 pt-6">
+              <div className="flex justify-between items-center mb-2">
+                <div className="text-[10px] font-mono tracking-widest text-zinc-400 uppercase">Cash Deployed</div>
+                <div className="text-xs font-mono font-medium text-zinc-300">
+                  {firm && firm.company_value > 0 ? pct((firm.portfolio_value / firm.company_value) * 100) : '0%'}
+                </div>
+              </div>
+              <ProgressBar value={firm && firm.company_value > 0 ? (firm.portfolio_value / firm.company_value) * 100 : 0} />
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card kicker="Transfer In">
+              <div className="text-xs text-zinc-400 font-mono mb-4">Transfer personal cash to the firm's treasury.</div>
+              <div className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase mb-4">Personal Cash: <span className="text-zinc-200">{fm(playerCash)}</span></div>
+              <div className="flex gap-2 mb-2">
+                <input type="number" min="1" value={injectAmount} onChange={e => setInjectAmount(e.target.value)} placeholder="Amount" className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-200 font-mono text-sm px-3 py-2 rounded focus:outline-none focus:border-gold/50" />
+                <Button variant="primary" onClick={handleInject} disabled={busy}>Transfer In</Button>
+              </div>
+              {injectMsg && <div className={`text-xs font-mono mt-2 ${injectMsg.ok ? 'text-mint' : 'text-red'}`}>{injectMsg.text}</div>}
+            </Card>
+
+            <Card kicker="Withdraw Capital">
+              <div className="text-xs text-zinc-400 font-mono mb-4">Withdraw idle firm cash back to your personal wallet.</div>
+              <div className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase mb-4">Firm Cash: <span className="text-zinc-200">{fm(firm?.available_cash ?? 0)}</span></div>
+              <div className="flex gap-2 mb-2">
+                <input type="number" min="1" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} placeholder="Amount" className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-200 font-mono text-sm px-3 py-2 rounded focus:outline-none focus:border-gold/50" />
+                <Button variant="secondary" onClick={handleWithdraw} disabled={busy}>Withdraw</Button>
+              </div>
+              {withdrawMsg && <div className={`text-xs font-mono mt-2 ${withdrawMsg.ok ? 'text-mint' : 'text-red'}`}>{withdrawMsg.text}</div>}
+            </Card>
           </div>
 
-          <div style={{ display: 'flex', gap: '24px' }}>
-            {/* Fund Firm Action */}
-            <div style={{ ...panelStyle, flex: 1 }}>
-              <div style={{ ...label, marginBottom: '14px' }}>Transfer Capital into Firm</div>
-              <div style={{ ...mono, fontSize: '10px', color: T.faint, marginBottom: '16px', lineHeight: '1.6' }}>
-                Transfer personal cash to the firm's treasury. Use this to buy shares.
-              </div>
-              <div style={{ ...mono, fontSize: '9px', color: T.muted, marginBottom: '8px' }}>
-                Personal cash: <span style={{ color: T.ivory }}>{fmt(playerCash)}</span>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                <input
-                  type="number" min="1" value={injectAmount}
-                  onChange={e => setInjectAmount(e.target.value)}
-                  placeholder="Amount"
-                  style={{ flex: 1, ...mono, background: T.bg, border: `1px solid ${T.border}`, color: T.ivory, padding: '8px 10px', fontSize: '12px', outline: 'none' }}
-                />
-                <button
-                  onClick={handleInject} disabled={busy}
-                  style={{
-                    ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
-                    padding: '0 16px', cursor: busy ? 'wait' : 'pointer', border: 'none',
-                    background: T.gold, color: T.bg, opacity: busy ? 0.6 : 1,
-                  }}
-                >Transfer In</button>
-              </div>
-              {injectMsg && <div style={{ fontSize: '11px', color: injectMsg.ok ? T.mint : T.red }}>{injectMsg.text}</div>}
-            </div>
-
-            {/* Withdraw Action */}
-            <div style={{ ...panelStyle, flex: 1 }}>
-              <div style={{ ...label, marginBottom: '14px' }}>Withdraw Capital</div>
-              <div style={{ ...mono, fontSize: '10px', color: T.faint, marginBottom: '16px', lineHeight: '1.6' }}>
-                Withdraw idle firm cash back to your personal wallet.
-              </div>
-              <div style={{ ...mono, fontSize: '9px', color: T.muted, marginBottom: '8px' }}>
-                Firm cash: <span style={{ color: T.ivory }}>{fmt(firm?.available_cash ?? 0)}</span>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                <input
-                  type="number" min="1" value={withdrawAmount}
-                  onChange={e => setWithdrawAmount(e.target.value)}
-                  placeholder="Amount"
-                  style={{ flex: 1, ...mono, background: T.bg, border: `1px solid ${T.border}`, color: T.ivory, padding: '8px 10px', fontSize: '12px', outline: 'none' }}
-                />
-                <button
-                  onClick={handleWithdraw} disabled={busy}
-                  style={{
-                    ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
-                    padding: '0 16px', cursor: busy ? 'wait' : 'pointer', border: `1px solid ${T.gold}`,
-                    background: 'transparent', color: T.gold, opacity: busy ? 0.6 : 1,
-                  }}
-                >Withdraw</button>
-              </div>
-              {withdrawMsg && <div style={{ fontSize: '11px', color: withdrawMsg.ok ? T.mint : T.red }}>{withdrawMsg.text}</div>}
-            </div>
-          </div>
-
-          {/* Ledger */}
-          <div style={panelStyle}>
-            <div style={{ ...label, marginBottom: '14px' }}>Treasury Ledger</div>
+          <Card kicker="Treasury Ledger">
             {ledger.length === 0 ? (
-              <div style={{ ...mono, fontSize: '11px', color: T.faint }}>No ledger entries found.</div>
+              <EmptyState heading="No Transactions" message="Capital transfers and dividend receipts will appear here." />
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: '11px' }}>
-                <thead>
-                  <tr style={{ color: T.faint }}>
-                    {['Date', 'Description', 'Amount', 'Balance'].map(h => (
-                      <th key={h} style={{ textAlign: h === 'Description' ? 'left' : 'right', padding: '6px 8px', fontWeight: 400, textTransform: 'uppercase', fontSize: '9px', letterSpacing: '0.1em', borderBottom: `1px solid ${T.border}` }}>{h}</th>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm font-mono text-left">
+                  <thead>
+                    <tr className="text-zinc-500 border-b border-zinc-800 uppercase tracking-wider text-[10px]">
+                      <th className="pb-2 font-medium">Date</th>
+                      <th className="pb-2 font-medium">Description</th>
+                      <th className="pb-2 text-right font-medium">Amount</th>
+                      <th className="pb-2 text-right font-medium">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/50">
+                    {ledger.map((entry, i) => (
+                      <tr key={entry.id || i} className="group hover:bg-zinc-800/20 transition-colors">
+                        <td className="py-3 text-zinc-400">Y{entry.game_year} M{entry.game_month} D{entry.game_day}</td>
+                        <td className="py-3 text-zinc-200">{entry.description}</td>
+                        <td className={`py-3 text-right font-medium ${Number(entry.amount) > 0 ? 'text-mint' : 'text-red'}`}>
+                          {Number(entry.amount) > 0 ? '+' : ''}{fm(Number(entry.amount))}
+                        </td>
+                        <td className="py-3 text-right text-zinc-200">{fm(Number(entry.balance_after))}</td>
+                      </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* PERFORMANCE TAB */}
+      {tab === 'performance' && performance && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <StatCard label="Total Return (ROI)" value={`${performance.total_return_pct > 0 ? '+' : ''}${Number(performance.total_return_pct).toFixed(2)}%`} valueColor={performance.total_return_pct >= 0 ? 'green' : 'red'} />
+            <StatCard label="Net Deposits" value={fm(performance.net_deposits)} />
+            <StatCard label="Current Value" value={fm(performance.current_value)} valueColor="amber" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <StatCard label="Dividend Yield (All-time)" value={performance.current_value > 0 ? pct((performance.total_dividends / performance.current_value) * 100) : '0%'} valueColor="green" />
+            <StatCard label="Total Dividends Claimed" value={fm(performance.total_dividends)} />
+          </div>
+        </div>
+      )}
+
+      {/* DIVIDENDS TAB */}
+      {tab === 'dividends' && (
+        <Card kicker="Dividend Receipts">
+          {dividends.length === 0 ? (
+            <EmptyState heading="No Dividends Yet" message="Companies with payout policies will deposit dividends here every arc." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm font-mono text-left">
+                <thead>
+                  <tr className="text-zinc-500 border-b border-zinc-800 uppercase tracking-wider text-[10px]">
+                    <th className="pb-2 font-medium">Company</th>
+                    <th className="pb-2 text-right font-medium">Year</th>
+                    <th className="pb-2 text-right font-medium">Month</th>
+                    <th className="pb-2 text-right font-medium">Shares Held</th>
+                    <th className="pb-2 text-right font-medium">Dividend Rcvd</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {ledger.map((entry, i) => (
-                    <tr key={entry.id || i} style={{ borderBottom: `1px solid ${T.border}` }}>
-                      <td style={{ textAlign: 'right', padding: '8px', color: T.muted }}>Y{entry.game_year} M{entry.game_month} D{entry.game_day}</td>
-                      <td style={{ padding: '8px', color: T.ivory }}>{entry.description}</td>
-                      <td style={{ textAlign: 'right', padding: '8px', color: Number(entry.amount) > 0 ? T.mint : T.red, fontWeight: 700 }}>
-                        {Number(entry.amount) > 0 ? '+' : ''}{fmt(Number(entry.amount))}
-                      </td>
-                      <td style={{ textAlign: 'right', padding: '8px', color: T.ivory }}>{fmt(Number(entry.balance_after))}</td>
+                <tbody className="divide-y divide-zinc-800/50">
+                  {dividends.map((d, i) => (
+                    <tr key={i} className="group hover:bg-zinc-800/20 transition-colors">
+                      <td className="py-3 text-zinc-200">{d.company_name}</td>
+                      <td className="py-3 text-right text-zinc-400">Y{d.game_year}</td>
+                      <td className="py-3 text-right text-zinc-400">M{d.game_month}</td>
+                      <td className="py-3 text-right text-zinc-400">{Number(d.shares_held).toLocaleString()}</td>
+                      <td className="py-3 text-right text-mint font-bold">{fm(Number(d.amount))}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+        </Card>
       )}
 
-      {/* ── Performance Tab ── */}
-      {tab === 'performance' && performance && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div style={{ ...panelStyle, display: 'flex', gap: '32px', alignItems: 'center' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Total Return (ROI)</div>
-              <div style={{ ...mono, fontSize: '20px', color: performance.total_return_pct >= 0 ? T.mint : T.red, fontWeight: 700 }}>
-                {performance.total_return_pct > 0 ? '+' : ''}{Number(performance.total_return_pct).toFixed(2)}%
-              </div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Net Deposits</div>
-              <div style={{ ...mono, fontSize: '20px', color: T.ivory, fontWeight: 700 }}>
-                {fmt(performance.net_deposits)}
-              </div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Current Value</div>
-              <div style={{ ...mono, fontSize: '20px', color: T.gold, fontWeight: 700 }}>
-                {fmt(performance.current_value)}
-              </div>
-            </div>
-          </div>
-          
-          <div style={{ ...panelStyle, display: 'flex', gap: '32px', alignItems: 'center' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Dividend Yield (All-time)</div>
-              <div style={{ ...mono, fontSize: '20px', color: T.mint, fontWeight: 700 }}>
-                {performance.current_value > 0 ? pct((performance.total_dividends / performance.current_value) * 100) : '0%'}
-              </div>
-            </div>
-            <div style={{ flex: 2 }}>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Total Dividends Claimed</div>
-              <div style={{ ...mono, fontSize: '20px', color: T.ivory, fontWeight: 700 }}>
-                {fmt(performance.total_dividends)}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Strategy Tab ── */}
+      {/* STRATEGY TAB */}
       {tab === 'strategy' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div style={{ ...panelStyle }}>
-            <div style={{ ...label, marginBottom: '14px' }}>Investment Strategy & Policies</div>
-            <div style={{ ...mono, fontSize: '11px', color: T.faint, marginBottom: '20px', lineHeight: '1.6' }}>
-              Define your firm's asset allocation targets and portfolio management rules. This helps you track deviations from your target strategy.
-            </div>
-            
-            <div style={{ display: 'flex', gap: '24px' }}>
-              <div style={{ flex: 1, border: `1px solid ${T.border}`, padding: '16px', borderRadius: '4px' }}>
-                <div style={{ ...mono, fontSize: '10px', color: T.ivory, textTransform: 'uppercase', marginBottom: '12px', fontWeight: 700 }}>Sector Allocation Targets</div>
-                <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
-                  Target allocation modeling is coming in the next terminal update. You will be able to set target percentages for Automotive, Heavy Industry, Energy, etc.
-                </div>
+        <Card kicker="Investment Strategy & Policies">
+          <div className="text-xs font-mono text-zinc-400 mb-6">
+            Define your firm's asset allocation targets and portfolio management rules. This helps you track deviations from your target strategy.
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="border border-zinc-800 rounded p-6 bg-zinc-950/30">
+              <div className="text-[10px] font-mono tracking-widest text-zinc-300 uppercase mb-3">Sector Allocation Targets</div>
+              <div className="text-xs font-mono text-zinc-500 leading-relaxed">
+                Target allocation modeling is coming in the next terminal update. You will be able to set target percentages for Automotive, Heavy Industry, Energy, etc.
               </div>
-              
-              <div style={{ flex: 1, border: `1px solid ${T.border}`, padding: '16px', borderRadius: '4px' }}>
-                <div style={{ ...mono, fontSize: '10px', color: T.ivory, textTransform: 'uppercase', marginBottom: '12px', fontWeight: 700 }}>Dividend Reinvestment (DRIP)</div>
-                <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-                  <button style={{ flex: 1, padding: '8px', background: T.paper, border: `1px solid ${T.gold}`, color: T.gold, ...mono, fontSize: '9px', fontWeight: 700 }}>MANUAL</button>
-                  <button style={{ flex: 1, padding: '8px', background: 'transparent', border: `1px solid ${T.border}`, color: T.muted, ...mono, fontSize: '9px', opacity: 0.5, cursor: 'not-allowed' }}>AUTO-DRIP</button>
-                </div>
-                <div style={{ ...mono, fontSize: '10px', color: T.faint }}>
-                  Currently set to manual. Dividends accumulate in the firm's treasury. Auto-DRIP requires a Level 2 Finance License.
-                </div>
+            </div>
+            <div className="border border-zinc-800 rounded p-6 bg-zinc-950/30">
+              <div className="text-[10px] font-mono tracking-widest text-zinc-300 uppercase mb-3">Dividend Reinvestment (DRIP)</div>
+              <div className="flex gap-2 mb-3">
+                <div className="flex-1 text-center py-2 border border-gold/50 bg-gold/10 text-gold font-mono text-[10px] uppercase font-bold rounded">Manual</div>
+                <div className="flex-1 text-center py-2 border border-zinc-800 text-zinc-600 font-mono text-[10px] uppercase cursor-not-allowed rounded">Auto-DRIP</div>
+              </div>
+              <div className="text-xs font-mono text-zinc-500 leading-relaxed">
+                Currently set to manual. Dividends accumulate in the firm's treasury. Auto-DRIP requires a Level 2 Finance License.
               </div>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* ── Structure & Equity Tab ── */}
+      {/* STRUCTURE TAB */}
       {tab === 'structure' && (
         <EquityDeskTab companyId={firmId} companyName={firmName} />
       )}

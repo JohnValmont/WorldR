@@ -711,10 +711,10 @@ export async function getLedger(req: Request, res: Response, next: NextFunction)
 
     const events = await db('pol_ledger_events')
       .where({ state_id: activeState.id })
-      .orderBy('month', 'desc')
+      .orderBy('arc', 'desc')
       .orderBy('id', 'desc')
       .limit(limit)
-      .select('id', 'month', 'kind', 'headline', 'body');
+      .select('id', 'arc as month', 'kind', 'headline', 'body');
 
     return res.json(events);
   } catch (error) {
