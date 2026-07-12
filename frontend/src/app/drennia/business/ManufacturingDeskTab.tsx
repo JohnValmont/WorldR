@@ -2713,7 +2713,9 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
             </PanelBox>
             <PanelBox>
               <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-1.5">Marketing / Month</div>
-              <div className="text-2xl font-mono text-terminal-red">{fm(latestReport?.marketing_costs || 0)}</div>
+              <div className="text-2xl font-mono text-terminal-red">
+                {fm(marketData?.allocations?.reduce((acc: number, alloc: any) => acc + (MKT_COSTS[alloc.marketing_tier] || 0), 0) || 0)}
+              </div>
               <div className="text-[11px] text-zinc-600 mt-1">Active Markets: {activeMarketCount}</div>
             </PanelBox>
             <PanelBox className={salesManagerCount > 0 ? 'border-terminal-green/40' : ''}>
