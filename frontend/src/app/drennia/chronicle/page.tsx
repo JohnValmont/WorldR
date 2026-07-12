@@ -133,6 +133,7 @@ export default function ChroniclePage() {
   const [recentRecords, setRecentRecords] = useState<any[]>([]);
   const [activeContracts, setActiveContracts] = useState(0);
   const [netWorthSeries, setNetWorthSeries]   = useState(MOCK_NET_WORTH_SERIES);
+  const [netWorth, setNetWorth] = useState(0);
   const [ledgerFeed, setLedgerFeed] = useState<any[]>([]);
   const [showFirstDay, setShowFirstDay] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
@@ -158,7 +159,6 @@ export default function ChroniclePage() {
   ];
 
   const companyCash = Number(company?.finances?.available_cash ?? 0);
-  const netWorth    = playerCash + companyCash;
 
   const handleRestartLife = useCallback(async () => {
     if (typeof window === 'undefined') return;
@@ -190,6 +190,7 @@ export default function ChroniclePage() {
           const currentCash = Number(char.finances?.cash_in_hand ?? 0);
           
           const currentNetWorth = Number(char.finances?.net_worth ?? 0);
+          setNetWorth(currentNetWorth);
           
           if (char.netWorthHistory && char.netWorthHistory.length > 0) {
             let history = [...char.netWorthHistory];
