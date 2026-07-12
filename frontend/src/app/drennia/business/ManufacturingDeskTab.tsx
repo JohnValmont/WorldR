@@ -485,7 +485,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           tier: a.marketing_tier
         };
       });
-      setAllocationForm(prev => ({ ...newForm, ...prev }));
+      setAllocationForm(prev => ({ ...prev, ...newForm }));
     } catch (err) {
       console.error(err);
     } finally {
