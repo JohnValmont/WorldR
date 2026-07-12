@@ -32,17 +32,11 @@ export async function getPortfolio(companyId: string, requestingUserId: string) 
     .first('characters.id');
   if (!character) throw new AppError('Unauthorized', 403, 'FORBIDDEN');
 
-  // Holdings: all shares held by owner character (excluding their own companies)
+  // Holdings: all shares held by owner character EXCLUDING their own companies
+  // Use a subquery for latest price to avoid complex knex leftJoin+andOn issues with db.raw()
   const holdings = await db('company_shares as cs')
     .join('companies as co', 'co.id', 'cs.company_id')
     .join('company_finances as cf', 'cf.company_id', 'cs.company_id')
-    .leftJoin('share_price_history as sph', function () {
-      this.on('sph.company_id', '=', 'cs.company_id')
-        .andOn('sph.game_year', '=',
-          db.raw(`(SELECT MAX(h2.game_year) FROM share_price_history h2 WHERE h2.company_id = cs.company_id)`))
-        .andOn('sph.game_month', '=',
-          db.raw(`(SELECT MAX(h3.game_month) FROM share_price_history h3 WHERE h3.company_id = cs.company_id AND h3.game_year = (SELECT MAX(h4.game_year) FROM share_price_history h4 WHERE h4.company_id = cs.company_id))`));
-    })
     .where({ 'cs.holder_character_id': company.owner_character_id })
     .where('cs.shares', '>', 0)
     .whereNot({ 'co.owner_character_id': company.owner_character_id }) // exclude own companies
@@ -53,17 +47,27 @@ export async function getPortfolio(companyId: string, requestingUserId: string) 
       'co.is_npc',
       'cs.shares',
       'cs.avg_cost_basis',
-      'sph.close_price as current_price',
-      db.raw(`(SELECT SUM(s2.shares) FROM company_shares s2 WHERE s2.company_id = cs.company_id AND s2.shares > 0) as total_shares`),
+      // Latest close price via correlated subquery — reliable across all knex versions
+      db.raw(`(
+        SELECT h.close_price
+        FROM share_price_history h
+        WHERE h.company_id = cs.company_id
+        ORDER BY h.game_year DESC, h.game_month DESC
+        LIMIT 1
+      ) as current_price`),
+      db.raw(`(
+        SELECT SUM(s2.shares) FROM company_shares s2
+        WHERE s2.company_id = cs.company_id AND s2.shares > 0
+      ) as total_shares`),
       'cf.last_arc_profit'
     );
 
   const enriched = holdings.map((h: any) => {
-    const currentPrice = Number(h.current_price || h.avg_cost_basis || 0);
+    const currentPrice = Number(h.current_price ?? h.avg_cost_basis ?? 0);
     const shares = Number(h.shares);
     const totalShares = Number(h.total_shares || shares);
     const marketValue = shares * currentPrice;
-    const costBasis = shares * Number(h.avg_cost_basis || 0);
+    const costBasis = shares * Number(h.avg_cost_basis ?? 0);
     const unrealizedPnl = marketValue - costBasis;
     const ownershipPct = totalShares > 0 ? (shares / totalShares) * 100 : 0;
 
@@ -73,7 +77,7 @@ export async function getPortfolio(companyId: string, requestingUserId: string) 
       industry_id: h.industry_id,
       is_npc: h.is_npc,
       shares,
-      avg_cost_basis: Number(h.avg_cost_basis || 0),
+      avg_cost_basis: Number(h.avg_cost_basis ?? 0),
       current_price: currentPrice,
       market_value: marketValue,
       unrealized_pnl: unrealizedPnl,
@@ -88,8 +92,8 @@ export async function getPortfolio(companyId: string, requestingUserId: string) 
     firm: {
       id: company.id,
       name: company.name,
-      available_cash: Number(company.available_cash || 0),
-      company_value: Number(company.company_value || 0),
+      available_cash: Number(company.available_cash ?? 0),
+      company_value: Number(company.company_value ?? 0),
       portfolio_value: totalPortfolioValue,
     },
     holdings: enriched,
@@ -128,6 +132,10 @@ export async function getDividendHistory(companyId: string, requestingUserId: st
 /**
  * Recomputes company_value for all active Capital Partners firms.
  * Called at the end of each arc tick by processExchangeMonth.
+ *
+ * portfolio_value = SUM(shares_held × latest_close_price) for all holdings
+ *                  EXCLUDING own companies (to avoid circular valuation)
+ * company_value   = portfolio_value + firm's available_cash
  */
 export async function recalcPortfolioValues(trx: any): Promise<void> {
   const financeFirms = await trx('companies as c')
@@ -135,31 +143,35 @@ export async function recalcPortfolioValues(trx: any): Promise<void> {
     .select('c.id', 'c.owner_character_id');
 
   for (const firm of financeFirms) {
-    // Sum: shares × latest close_price for each holding the owner-character has
-    const holdings = await trx('company_shares as cs')
+    // Correlated subquery for latest close price — identical pattern to getPortfolio above
+    const row = await trx('company_shares as cs')
       .join('companies as co', 'co.id', 'cs.company_id')
-      .leftJoin(
-        trx.raw(`(
-          SELECT DISTINCT ON (company_id) company_id, close_price
-          FROM share_price_history
-          ORDER BY company_id, game_year DESC, game_month DESC
-        ) as latest_price`),
-        'latest_price.company_id', 'cs.company_id'
-      )
       .where({ 'cs.holder_character_id': firm.owner_character_id })
       .where('cs.shares', '>', 0)
+      // Exclude the firm's OWN companies (their own manufacturing co / the finance firm itself)
+      .whereNot({ 'co.owner_character_id': firm.owner_character_id })
       .select(
-        trx.raw('COALESCE(SUM(cs.shares * COALESCE(latest_price.close_price, 0)), 0) as portfolio_value')
+        trx.raw(`
+          COALESCE(SUM(
+            cs.shares * COALESCE((
+              SELECT h.close_price
+              FROM share_price_history h
+              WHERE h.company_id = cs.company_id
+              ORDER BY h.game_year DESC, h.game_month DESC
+              LIMIT 1
+            ), 0)
+          ), 0) as portfolio_value
+        `)
       )
       .first();
 
-    const portfolioValue = Number(holdings?.portfolio_value || 0);
+    const portfolioValue = Number(row?.portfolio_value ?? 0);
 
     const finRow = await trx('company_finances')
       .where({ company_id: firm.id })
       .first('available_cash');
 
-    const totalValue = portfolioValue + Number(finRow?.available_cash || 0);
+    const totalValue = portfolioValue + Number(finRow?.available_cash ?? 0);
 
     await trx('company_finances')
       .where({ company_id: firm.id })

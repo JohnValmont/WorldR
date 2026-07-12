@@ -1,10 +1,10 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { companyApi } from '../../../lib/api';
+import { api } from '../../../lib/api';
 
 const fmt = (n: number) =>
   n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M`
-  : n >= 1_000 ? `$${(n / 1_000).toFixed(1)}K`
+  : n >= 1_000   ? `$${(n / 1_000).toFixed(1)}K`
   : `$${n.toFixed(2)}`;
 
 const pct = (n: number) => `${n.toFixed(2)}%`;
@@ -53,9 +53,10 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // Use the axios `api` client — it injects the Bearer token automatically
       const [pRes, dRes] = await Promise.all([
-        fetch(`/api/v1/companies/${firmId}/portfolio`, { credentials: 'include' }).then(r => r.json()),
-        fetch(`/api/v1/companies/${firmId}/dividends`, { credentials: 'include' }).then(r => r.json()),
+        api.get(`/companies/${firmId}/portfolio`).then(r => r.data),
+        api.get(`/companies/${firmId}/dividends`).then(r => r.data),
       ]);
       if (pRes.firm) { setFirm(pRes.firm); setHoldings(pRes.holdings || []); }
       if (Array.isArray(dRes)) setDividends(dRes);
@@ -70,21 +71,19 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
 
   const handleInject = async () => {
     const amount = Number(injectAmount);
-    if (!amount || amount <= 0) { setInjectMsg({ text: 'Enter a positive amount.', ok: false }); return; }
+    if (!amount || amount <= 0 || isNaN(amount)) { setInjectMsg({ text: 'Enter a positive amount.', ok: false }); return; }
     if (amount > playerCash) { setInjectMsg({ text: `Insufficient personal cash. You have ${fmt(playerCash)}.`, ok: false }); return; }
     setBusy(true); setInjectMsg(null);
     try {
-      await fetch(`/api/v1/companies/${firmId}/inject-capital`, {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount }),
-      }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || e.message || 'Failed'); }); return r.json(); });
+      // Use the dedicated finance-firm fund endpoint (bypasses sole-trader guard)
+      await api.post(`/companies/${firmId}/fund-firm`, { amount });
       setInjectMsg({ text: `${fmt(amount)} transferred into the firm.`, ok: true });
       setInjectAmount('');
       load();
       onRefresh();
     } catch (e: any) {
-      setInjectMsg({ text: e.message || 'Transfer failed.', ok: false });
+      const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Transfer failed.';
+      setInjectMsg({ text: msg, ok: false });
     } finally { setBusy(false); }
   };
 
@@ -102,6 +101,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
 
   const tabBtn = (id: typeof tab, text: string) => (
     <button
+      key={id}
       onClick={() => setTab(id)}
       style={{
         ...mono, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em',
@@ -113,9 +113,11 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
     >{text}</button>
   );
 
-  if (loading) return <div style={{ ...containerStyle, alignItems: 'center', justifyContent: 'center' }}>
-    <div style={{ ...mono, color: T.faint, fontSize: '12px' }}>Loading portfolio…</div>
-  </div>;
+  if (loading) return (
+    <div style={{ ...containerStyle, alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ ...mono, color: T.faint, fontSize: '12px' }}>Loading portfolio…</div>
+    </div>
+  );
 
   return (
     <div style={containerStyle}>
@@ -131,10 +133,10 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
       {/* ── KPI strip ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
         {[
-          { label: 'Firm Cash', value: fmt(firm?.available_cash ?? 0), color: T.mint },
-          { label: 'Portfolio Value', value: fmt(firm?.portfolio_value ?? 0), color: T.gold },
-          { label: 'Unrealised P&L', value: fmt(totalUnrealizedPnl), color: totalUnrealizedPnl >= 0 ? T.mint : T.red },
-          { label: 'Total Dividends Rcvd', value: fmt(totalDividendsReceived), color: T.steel },
+          { label: 'Firm Cash',            value: fmt(firm?.available_cash ?? 0),   color: T.mint },
+          { label: 'Portfolio Value',       value: fmt(firm?.portfolio_value ?? 0),  color: T.gold },
+          { label: 'Unrealised P&L',        value: fmt(totalUnrealizedPnl),          color: totalUnrealizedPnl >= 0 ? T.mint : T.red },
+          { label: 'Total Dividends Rcvd', value: fmt(totalDividendsReceived),       color: T.steel },
         ].map(k => (
           <div key={k.label} style={{ ...panelStyle, padding: '14px' }}>
             <div style={label}>{k.label}</div>
@@ -147,7 +149,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
       <div style={{ borderBottom: `1px solid ${T.border}`, display: 'flex', gap: '0' }}>
         {tabBtn('portfolio', 'Holdings')}
         {tabBtn('dividends', 'Dividends')}
-        {tabBtn('inject', 'Inject Capital')}
+        {tabBtn('inject', 'Fund Firm')}
       </div>
 
       {/* ── Portfolio Tab ── */}
@@ -156,7 +158,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
           <div style={{ ...label, marginBottom: '14px' }}>Current Holdings</div>
           {holdings.length === 0 ? (
             <div style={{ ...mono, fontSize: '11px', color: T.faint }}>
-              No holdings yet. Buy shares on the DRX Bourse to build your portfolio.
+              No holdings yet. Buy shares on the DRX Bourse to build your portfolio. Dividends will flow here each arc from companies with payout policies.
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: '11px' }}>
@@ -174,9 +176,9 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
                       <span>{h.company_name}</span>
                       {h.is_npc && <span style={{ marginLeft: '6px', fontSize: '9px', color: T.faint, border: `1px solid ${T.border}`, padding: '1px 4px' }}>NPC</span>}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px', color: T.muted }}>{h.shares.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right', padding: '8px', color: T.muted }}>${h.avg_cost_basis.toFixed(2)}</td>
-                    <td style={{ textAlign: 'right', padding: '8px', color: T.ivory }}>${h.current_price.toFixed(2)}</td>
+                    <td style={{ textAlign: 'right', padding: '8px', color: T.muted }}>{Number(h.shares).toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', padding: '8px', color: T.muted }}>${Number(h.avg_cost_basis).toFixed(2)}</td>
+                    <td style={{ textAlign: 'right', padding: '8px', color: T.ivory }}>${Number(h.current_price).toFixed(2)}</td>
                     <td style={{ textAlign: 'right', padding: '8px', color: T.gold, fontWeight: 700 }}>{fmt(h.market_value)}</td>
                     <td style={{ textAlign: 'right', padding: '8px', color: h.unrealized_pnl >= 0 ? T.mint : T.red }}>
                       {h.unrealized_pnl >= 0 ? '+' : ''}{fmt(h.unrealized_pnl)}
@@ -196,7 +198,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
           <div style={{ ...label, marginBottom: '14px' }}>Dividend Receipts</div>
           {dividends.length === 0 ? (
             <div style={{ ...mono, fontSize: '11px', color: T.faint }}>
-              No dividends received yet. Companies that set a payout policy distribute earnings to shareholders each arc.
+              No dividends received yet. NPC companies (HaulPro, Veridian, Apex, Valuecorp) pay 30% of arc profit each month. Player manufacturing companies pay if their owner sets a payout policy.
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: '11px' }}>
@@ -223,12 +225,12 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
         </div>
       )}
 
-      {/* ── Inject Capital Tab ── */}
+      {/* ── Fund Firm Tab ── */}
       {tab === 'inject' && (
         <div style={{ ...panelStyle, maxWidth: '480px' }}>
           <div style={{ ...label, marginBottom: '14px' }}>Transfer Capital into Firm</div>
           <div style={{ ...mono, fontSize: '11px', color: T.muted, marginBottom: '16px', lineHeight: '1.6' }}>
-            Transfer personal cash into your Capital Partners firm's treasury. The firm's cash can then be used to buy shares on the DRX Bourse.
+            Transfer personal cash into your firm's investment treasury. Use this capital to buy shares on the DRX Bourse.
           </div>
           <div style={{ ...mono, fontSize: '10px', color: T.faint, marginBottom: '12px' }}>
             Personal cash available: <span style={{ color: T.ivory }}>{fmt(playerCash)}</span>
@@ -256,7 +258,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
           <div style={{ marginTop: '20px', borderTop: `1px solid ${T.border}`, paddingTop: '16px' }}>
             <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Note on dividends</div>
             <div style={{ ...mono, fontSize: '10px', color: T.muted, lineHeight: '1.6' }}>
-              When companies you hold shares in pay dividends, earnings are credited to your <strong style={{ color: T.ivory }}>personal cash wallet</strong>, not the firm's treasury. Transfer them in to reinvest.
+              Dividends are credited to your <strong style={{ color: T.ivory }}>personal cash wallet</strong> first. Transfer them here to reinvest.
             </div>
           </div>
         </div>

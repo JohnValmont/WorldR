@@ -350,6 +350,78 @@ export class CompanyController {
   }
 
   /**
+   * POST /companies/:id/fund-firm  { amount }
+   * Finance companies only: transfer personal cash → firm cash.
+   * This is the equivalent of inject-capital but for Capital Partners firms
+   * (which use private-company legal structure, so the sole-trader guard on
+   * inject-capital would block them).
+   */
+  public static async fundFirm(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { id } = req.params;
+      const { amount } = req.body;
+
+      if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+      if (!amount || Number(amount) <= 0 || isNaN(Number(amount))) {
+        return next(new AppError('Amount must be a positive number.', 400, 'BAD_REQUEST'));
+      }
+
+      const result = await db.transaction(async (trx) => {
+        const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+        if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+        const company = await trx('companies').where({ id, owner_character_id: character.id }).first();
+        if (!company) throw new AppError('Company not found or unauthorized', 404, 'NOT_FOUND');
+
+        if (company.industry_id !== 'finance') {
+          throw new AppError('This endpoint is only for Capital Partners firms.', 400, 'WRONG_INDUSTRY');
+        }
+
+        const charFinances = await trx('character_finances')
+          .where({ character_id: character.id })
+          .forUpdate()
+          .first();
+        if (!charFinances) throw new AppError('Character finances not found', 500, 'INTERNAL');
+
+        const personalCash = Number(charFinances.cash_in_hand);
+        if (personalCash < Number(amount)) {
+          throw new AppError(
+            `Insufficient personal funds. You have $${personalCash.toLocaleString()} but need $${Number(amount).toLocaleString()}.`,
+            400,
+            'INSUFFICIENT_FUNDS'
+          );
+        }
+
+        await trx('character_finances')
+          .where({ character_id: character.id })
+          .decrement('cash_in_hand', Number(amount));
+
+        const [updatedFinances] = await trx('company_finances')
+          .where({ company_id: company.id })
+          .increment('available_cash', Number(amount))
+          .increment('company_value', Number(amount))
+          .returning('*');
+
+        await CompanyController.syncNetWorth(trx, character.id);
+
+        return {
+          available_cash: updatedFinances.available_cash,
+          personal_cash_remaining: personalCash - Number(amount),
+        };
+      });
+
+      res.status(200).json({
+        success: true,
+        message: `$${Number(amount).toLocaleString()} transferred into Capital Partners firm.`,
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * POST /companies/:id/issue-shares  { sharesToIssue, pricePerShare }
    * Private Company only: founder issues new shares to themselves.
    * - sharesToIssue × pricePerShare cash deducted from personal wallet
