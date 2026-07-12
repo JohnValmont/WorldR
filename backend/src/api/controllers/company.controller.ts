@@ -403,6 +403,18 @@ export class CompanyController {
           .increment('company_value', Number(amount))
           .returning('*');
 
+        const clock = await trx('world_clock').first();
+        await trx('company_ledger').insert({
+          company_id: company.id,
+          game_year: clock?.current_year || 1,
+          game_month: clock?.current_month || 1,
+          game_day: clock?.current_day || 1,
+          entry_type: 'capital_injection',
+          description: `Firm funding`,
+          amount: Number(amount),
+          balance_after: updatedFinances.available_cash,
+        });
+
         await CompanyController.syncNetWorth(trx, character.id);
 
         return {
@@ -837,4 +849,18 @@ export class CompanyController {
       next(error);
     }
   }
+
+  public static async getLedger(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const ledger = await db('company_ledger')
+        .where({ company_id: id })
+        .orderBy('created_at', 'desc')
+        .limit(20);
+      res.json(ledger);
+    } catch (e) {
+      next(e);
+    }
+  }
 }
+

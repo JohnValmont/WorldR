@@ -129,6 +129,47 @@ export async function getDividendHistory(companyId: string, requestingUserId: st
   return history;
 }
 
+/** Returns performance metrics for a Capital Partners firm. */
+export async function getPerformance(companyId: string, requestingUserId: string) {
+  const company = await db('companies as c')
+    .join('company_finances as f', 'f.company_id', 'c.id')
+    .where({ 'c.id': companyId })
+    .first('c.owner_character_id', 'c.industry_id', 'f.company_value');
+
+  if (!company) throw new AppError('Company not found', 404, 'NOT_FOUND');
+  if (company.industry_id !== 'finance') throw new AppError('Not a Capital Partners firm', 400, 'BAD_REQUEST');
+
+  const character = await db('characters')
+    .join('users', 'users.id', 'characters.user_id')
+    .where({ 'users.id': requestingUserId, 'characters.id': company.owner_character_id })
+    .first('characters.id');
+  if (!character) throw new AppError('Unauthorized', 403, 'FORBIDDEN');
+
+  const ledger = await db('company_ledger').where({ company_id: companyId });
+  let netDeposits = 0;
+  for (const entry of ledger) {
+    if (entry.entry_type === 'capital_injection') netDeposits += Number(entry.amount);
+    if (entry.entry_type === 'capital_withdrawal') netDeposits -= Math.abs(Number(entry.amount));
+  }
+
+  const dividends = await db('dividend_payments')
+    .where({ holder_character_id: company.owner_character_id })
+    .sum('amount as total')
+    .first();
+  const totalDividends = Number(dividends?.total || 0);
+
+  const totalReturnPct = netDeposits > 0 
+    ? ((Number(company.company_value) - netDeposits) / netDeposits) * 100 
+    : 0;
+
+  return {
+    total_return_pct: totalReturnPct,
+    net_deposits: netDeposits,
+    current_value: Number(company.company_value),
+    total_dividends: totalDividends,
+  };
+}
+
 /**
  * Recomputes company_value for all active Capital Partners firms.
  * Called at the end of each arc tick by processExchangeMonth.

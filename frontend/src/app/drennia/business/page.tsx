@@ -600,6 +600,7 @@ export default function BusinessPage() {
                   firmName={financeCompany.name}
                   playerCash={playerCash}
                   onRefresh={refreshAll}
+                  onGoToExchange={() => setActiveTab('exchange')}
                 />
               ) : selectedCompanyId && company ? (
                 <div>

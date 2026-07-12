@@ -38,15 +38,20 @@ interface Props {
   firmName: string;
   playerCash: number;
   onRefresh: () => void;
+  onGoToExchange?: () => void;
 }
 
-export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, onRefresh }: Props) {
-  const [tab, setTab] = useState<'portfolio' | 'dividends' | 'inject'>('portfolio');
+export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, onRefresh, onGoToExchange }: Props) {
+  const [tab, setTab] = useState<'portfolio' | 'dividends' | 'treasury' | 'performance' | 'strategy'>('portfolio');
   const [firm, setFirm] = useState<FirmSummary | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [dividends, setDividends] = useState<DividendReceipt[]>([]);
+  const [ledger, setLedger] = useState<any[]>([]);
+  const [performance, setPerformance] = useState<any>(null);
   const [injectAmount, setInjectAmount] = useState('');
   const [injectMsg, setInjectMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawMsg, setWithdrawMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -54,12 +59,16 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
     setLoading(true);
     try {
       // Use the axios `api` client — it injects the Bearer token automatically
-      const [pRes, dRes] = await Promise.all([
+      const [pRes, dRes, lRes, perfRes] = await Promise.all([
         api.get(`/companies/${firmId}/portfolio`).then(r => r.data),
         api.get(`/companies/${firmId}/dividends`).then(r => r.data),
+        api.get(`/companies/${firmId}/ledger`).then(r => r.data),
+        api.get(`/companies/${firmId}/performance`).then(r => r.data),
       ]);
       if (pRes.firm) { setFirm(pRes.firm); setHoldings(pRes.holdings || []); }
       if (Array.isArray(dRes)) setDividends(dRes);
+      if (Array.isArray(lRes)) setLedger(lRes);
+      if (perfRes) setPerformance(perfRes);
     } catch (e) {
       console.error('Capital Partners load error', e);
     } finally {
@@ -84,6 +93,23 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
     } catch (e: any) {
       const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Transfer failed.';
       setInjectMsg({ text: msg, ok: false });
+    } finally { setBusy(false); }
+  };
+
+  const handleWithdraw = async () => {
+    const amount = Number(withdrawAmount);
+    if (!amount || amount <= 0 || isNaN(amount)) { setWithdrawMsg({ text: 'Enter a positive amount.', ok: false }); return; }
+    if (firm && amount > firm.available_cash) { setWithdrawMsg({ text: `Insufficient firm cash. Firm has ${fmt(firm.available_cash)}.`, ok: false }); return; }
+    setBusy(true); setWithdrawMsg(null);
+    try {
+      await api.post(`/companies/${firmId}/withdraw-capital`, { amount });
+      setWithdrawMsg({ text: `${fmt(amount)} withdrawn to personal wallet.`, ok: true });
+      setWithdrawAmount('');
+      load();
+      onRefresh();
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Withdrawal failed.';
+      setWithdrawMsg({ text: msg, ok: false });
     } finally { setBusy(false); }
   };
 
@@ -149,7 +175,9 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
       <div style={{ borderBottom: `1px solid ${T.border}`, display: 'flex', gap: '0' }}>
         {tabBtn('portfolio', 'Holdings')}
         {tabBtn('dividends', 'Dividends')}
-        {tabBtn('inject', 'Fund Firm')}
+        {tabBtn('treasury', 'Treasury')}
+        {tabBtn('performance', 'Performance')}
+        {tabBtn('strategy', 'Strategy')}
       </div>
 
       {/* ── Portfolio Tab ── */}
@@ -157,8 +185,22 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
         <div style={panelStyle}>
           <div style={{ ...label, marginBottom: '14px' }}>Current Holdings</div>
           {holdings.length === 0 ? (
-            <div style={{ ...mono, fontSize: '11px', color: T.faint }}>
-              No holdings yet. Buy shares on the DRX Bourse to build your portfolio. Dividends will flow here each arc from companies with payout policies.
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'flex-start' }}>
+              <div style={{ ...mono, fontSize: '11px', color: T.faint }}>
+                No holdings yet. Buy shares on the DRX Bourse to build your portfolio. Dividends will flow here each arc from companies with payout policies.
+              </div>
+              {onGoToExchange && (
+                <button
+                  onClick={onGoToExchange}
+                  style={{
+                    ...mono, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em',
+                    padding: '8px 16px', cursor: 'pointer', border: `1px solid ${T.gold}`,
+                    background: 'transparent', color: T.gold, borderRadius: '4px'
+                  }}
+                >
+                  Go to DRX Bourse →
+                </button>
+              )}
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: '11px' }}>
@@ -225,40 +267,189 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
         </div>
       )}
 
-      {/* ── Fund Firm Tab ── */}
-      {tab === 'inject' && (
-        <div style={{ ...panelStyle, maxWidth: '480px' }}>
-          <div style={{ ...label, marginBottom: '14px' }}>Transfer Capital into Firm</div>
-          <div style={{ ...mono, fontSize: '11px', color: T.muted, marginBottom: '16px', lineHeight: '1.6' }}>
-            Transfer personal cash into your firm's investment treasury. Use this capital to buy shares on the DRX Bourse.
-          </div>
-          <div style={{ ...mono, fontSize: '10px', color: T.faint, marginBottom: '12px' }}>
-            Personal cash available: <span style={{ color: T.ivory }}>{fmt(playerCash)}</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Amount ($)</div>
-              <input
-                type="number" min="1" value={injectAmount}
-                onChange={e => setInjectAmount(e.target.value)}
-                placeholder="50000"
-                style={{ ...mono, width: '100%', boxSizing: 'border-box', background: T.bg, border: `1px solid ${T.border}`, color: T.ivory, padding: '8px 10px', fontSize: '12px', outline: 'none' }}
-              />
+      {/* ── Treasury Tab ── */}
+      {tab === 'treasury' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Balance Sheet Panel */}
+          <div style={{ ...panelStyle, display: 'flex', gap: '32px', alignItems: 'center' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Firm Cash</div>
+              <div style={{ ...mono, fontSize: '20px', color: T.mint, fontWeight: 700 }}>{fmt(firm?.available_cash ?? 0)}</div>
             </div>
-            <button
-              onClick={handleInject} disabled={busy}
-              style={{
-                ...mono, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em',
-                padding: '10px 0', cursor: busy ? 'wait' : 'pointer', border: 'none',
-                background: T.gold, color: T.bg, opacity: busy ? 0.6 : 1,
-              }}
-            >{busy ? 'Processing…' : 'Transfer to Firm'}</button>
-            {injectMsg && <div style={{ fontSize: '11px', color: injectMsg.ok ? T.mint : T.red }}>{injectMsg.text}</div>}
+            <div style={{ flex: 1 }}>
+              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Portfolio Value</div>
+              <div style={{ ...mono, fontSize: '20px', color: T.gold, fontWeight: 700 }}>{fmt(firm?.portfolio_value ?? 0)}</div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Total Assets</div>
+              <div style={{ ...mono, fontSize: '20px', color: T.ivory, fontWeight: 700 }}>{fmt(firm?.company_value ?? 0)}</div>
+            </div>
+            <div style={{ flex: 1, borderLeft: `1px solid ${T.border}`, paddingLeft: '32px' }}>
+              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Cash Deployed</div>
+              <div style={{ ...mono, fontSize: '14px', color: T.muted }}>
+                {firm && firm.company_value > 0 ? pct((firm.portfolio_value / firm.company_value) * 100) : '0%'}
+              </div>
+            </div>
           </div>
-          <div style={{ marginTop: '20px', borderTop: `1px solid ${T.border}`, paddingTop: '16px' }}>
-            <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Note on dividends</div>
-            <div style={{ ...mono, fontSize: '10px', color: T.muted, lineHeight: '1.6' }}>
-              Dividends are credited to your <strong style={{ color: T.ivory }}>personal cash wallet</strong> first. Transfer them here to reinvest.
+
+          <div style={{ display: 'flex', gap: '24px' }}>
+            {/* Fund Firm Action */}
+            <div style={{ ...panelStyle, flex: 1 }}>
+              <div style={{ ...label, marginBottom: '14px' }}>Transfer Capital into Firm</div>
+              <div style={{ ...mono, fontSize: '10px', color: T.faint, marginBottom: '16px', lineHeight: '1.6' }}>
+                Transfer personal cash to the firm's treasury. Use this to buy shares.
+              </div>
+              <div style={{ ...mono, fontSize: '9px', color: T.muted, marginBottom: '8px' }}>
+                Personal cash: <span style={{ color: T.ivory }}>{fmt(playerCash)}</span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                <input
+                  type="number" min="1" value={injectAmount}
+                  onChange={e => setInjectAmount(e.target.value)}
+                  placeholder="Amount"
+                  style={{ flex: 1, ...mono, background: T.bg, border: `1px solid ${T.border}`, color: T.ivory, padding: '8px 10px', fontSize: '12px', outline: 'none' }}
+                />
+                <button
+                  onClick={handleInject} disabled={busy}
+                  style={{
+                    ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
+                    padding: '0 16px', cursor: busy ? 'wait' : 'pointer', border: 'none',
+                    background: T.gold, color: T.bg, opacity: busy ? 0.6 : 1,
+                  }}
+                >Transfer In</button>
+              </div>
+              {injectMsg && <div style={{ fontSize: '11px', color: injectMsg.ok ? T.mint : T.red }}>{injectMsg.text}</div>}
+            </div>
+
+            {/* Withdraw Action */}
+            <div style={{ ...panelStyle, flex: 1 }}>
+              <div style={{ ...label, marginBottom: '14px' }}>Withdraw Capital</div>
+              <div style={{ ...mono, fontSize: '10px', color: T.faint, marginBottom: '16px', lineHeight: '1.6' }}>
+                Withdraw idle firm cash back to your personal wallet.
+              </div>
+              <div style={{ ...mono, fontSize: '9px', color: T.muted, marginBottom: '8px' }}>
+                Firm cash: <span style={{ color: T.ivory }}>{fmt(firm?.available_cash ?? 0)}</span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                <input
+                  type="number" min="1" value={withdrawAmount}
+                  onChange={e => setWithdrawAmount(e.target.value)}
+                  placeholder="Amount"
+                  style={{ flex: 1, ...mono, background: T.bg, border: `1px solid ${T.border}`, color: T.ivory, padding: '8px 10px', fontSize: '12px', outline: 'none' }}
+                />
+                <button
+                  onClick={handleWithdraw} disabled={busy}
+                  style={{
+                    ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
+                    padding: '0 16px', cursor: busy ? 'wait' : 'pointer', border: `1px solid ${T.gold}`,
+                    background: 'transparent', color: T.gold, opacity: busy ? 0.6 : 1,
+                  }}
+                >Withdraw</button>
+              </div>
+              {withdrawMsg && <div style={{ fontSize: '11px', color: withdrawMsg.ok ? T.mint : T.red }}>{withdrawMsg.text}</div>}
+            </div>
+          </div>
+
+          {/* Ledger */}
+          <div style={panelStyle}>
+            <div style={{ ...label, marginBottom: '14px' }}>Treasury Ledger</div>
+            {ledger.length === 0 ? (
+              <div style={{ ...mono, fontSize: '11px', color: T.faint }}>No ledger entries found.</div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: '11px' }}>
+                <thead>
+                  <tr style={{ color: T.faint }}>
+                    {['Date', 'Description', 'Amount', 'Balance'].map(h => (
+                      <th key={h} style={{ textAlign: h === 'Description' ? 'left' : 'right', padding: '6px 8px', fontWeight: 400, textTransform: 'uppercase', fontSize: '9px', letterSpacing: '0.1em', borderBottom: `1px solid ${T.border}` }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ledger.map((entry, i) => (
+                    <tr key={entry.id || i} style={{ borderBottom: `1px solid ${T.border}` }}>
+                      <td style={{ textAlign: 'right', padding: '8px', color: T.muted }}>Y{entry.game_year} M{entry.game_month} D{entry.game_day}</td>
+                      <td style={{ padding: '8px', color: T.ivory }}>{entry.description}</td>
+                      <td style={{ textAlign: 'right', padding: '8px', color: Number(entry.amount) > 0 ? T.mint : T.red, fontWeight: 700 }}>
+                        {Number(entry.amount) > 0 ? '+' : ''}{fmt(Number(entry.amount))}
+                      </td>
+                      <td style={{ textAlign: 'right', padding: '8px', color: T.ivory }}>{fmt(Number(entry.balance_after))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Performance Tab ── */}
+      {tab === 'performance' && performance && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ ...panelStyle, display: 'flex', gap: '32px', alignItems: 'center' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Total Return (ROI)</div>
+              <div style={{ ...mono, fontSize: '20px', color: performance.total_return_pct >= 0 ? T.mint : T.red, fontWeight: 700 }}>
+                {performance.total_return_pct > 0 ? '+' : ''}{Number(performance.total_return_pct).toFixed(2)}%
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Net Deposits</div>
+              <div style={{ ...mono, fontSize: '20px', color: T.ivory, fontWeight: 700 }}>
+                {fmt(performance.net_deposits)}
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Current Value</div>
+              <div style={{ ...mono, fontSize: '20px', color: T.gold, fontWeight: 700 }}>
+                {fmt(performance.current_value)}
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ ...panelStyle, display: 'flex', gap: '32px', alignItems: 'center' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Dividend Yield (All-time)</div>
+              <div style={{ ...mono, fontSize: '20px', color: T.mint, fontWeight: 700 }}>
+                {performance.current_value > 0 ? pct((performance.total_dividends / performance.current_value) * 100) : '0%'}
+              </div>
+            </div>
+            <div style={{ flex: 2 }}>
+              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '8px' }}>Total Dividends Claimed</div>
+              <div style={{ ...mono, fontSize: '20px', color: T.ivory, fontWeight: 700 }}>
+                {fmt(performance.total_dividends)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Strategy Tab ── */}
+      {tab === 'strategy' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ ...panelStyle }}>
+            <div style={{ ...label, marginBottom: '14px' }}>Investment Strategy & Policies</div>
+            <div style={{ ...mono, fontSize: '11px', color: T.faint, marginBottom: '20px', lineHeight: '1.6' }}>
+              Define your firm's asset allocation targets and portfolio management rules. This helps you track deviations from your target strategy.
+            </div>
+            
+            <div style={{ display: 'flex', gap: '24px' }}>
+              <div style={{ flex: 1, border: `1px solid ${T.border}`, padding: '16px', borderRadius: '4px' }}>
+                <div style={{ ...mono, fontSize: '10px', color: T.ivory, textTransform: 'uppercase', marginBottom: '12px', fontWeight: 700 }}>Sector Allocation Targets</div>
+                <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
+                  Target allocation modeling is coming in the next terminal update. You will be able to set target percentages for Automotive, Heavy Industry, Energy, etc.
+                </div>
+              </div>
+              
+              <div style={{ flex: 1, border: `1px solid ${T.border}`, padding: '16px', borderRadius: '4px' }}>
+                <div style={{ ...mono, fontSize: '10px', color: T.ivory, textTransform: 'uppercase', marginBottom: '12px', fontWeight: 700 }}>Dividend Reinvestment (DRIP)</div>
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+                  <button style={{ flex: 1, padding: '8px', background: T.paper, border: `1px solid ${T.gold}`, color: T.gold, ...mono, fontSize: '9px', fontWeight: 700 }}>MANUAL</button>
+                  <button style={{ flex: 1, padding: '8px', background: 'transparent', border: `1px solid ${T.border}`, color: T.muted, ...mono, fontSize: '9px', opacity: 0.5, cursor: 'not-allowed' }}>AUTO-DRIP</button>
+                </div>
+                <div style={{ ...mono, fontSize: '10px', color: T.faint }}>
+                  Currently set to manual. Dividends accumulate in the firm's treasury. Auto-DRIP requires a Level 2 Finance License.
+                </div>
+              </div>
             </div>
           </div>
         </div>
