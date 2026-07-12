@@ -170,7 +170,7 @@ export const exchangeApi = {
   getListings: () => api.get('/exchange/listings').then(res => res.data),
   getOrderBook: (companyId: string) => api.get(`/exchange/${companyId}/book`).then(res => res.data),
   getTrades: (companyId: string) => api.get(`/exchange/${companyId}/trades`).then(res => res.data),
-  placeOrder: (companyId: string, data: { side: 'buy' | 'sell'; price: number; quantity: number }) =>
+  placeOrder: (companyId: string, data: { side: 'buy' | 'sell'; price: number; quantity: number; purchaserCompanyId?: string }) =>
     api.post(`/exchange/${companyId}/orders`, data).then(res => res.data),
   cancelOrder: (orderId: string) => api.delete(`/exchange/orders/${orderId}`).then(res => res.data),
   getMyOrders: () => api.get('/exchange/my-orders').then(res => res.data),

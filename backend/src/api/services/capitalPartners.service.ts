@@ -32,14 +32,13 @@ export async function getPortfolio(companyId: string, requestingUserId: string) 
     .first('characters.id');
   if (!character) throw new AppError('Unauthorized', 403, 'FORBIDDEN');
 
-  // Holdings: all shares held by owner character EXCLUDING their own companies
+  // Holdings: shares held directly by the Capital Partners firm
   // Use a subquery for latest price to avoid complex knex leftJoin+andOn issues with db.raw()
   const holdings = await db('company_shares as cs')
     .join('companies as co', 'co.id', 'cs.company_id')
     .join('company_finances as cf', 'cf.company_id', 'cs.company_id')
-    .where({ 'cs.holder_character_id': company.owner_character_id })
+    .where({ 'cs.holder_company_id': companyId })
     .where('cs.shares', '>', 0)
-    .whereNot({ 'co.owner_character_id': company.owner_character_id }) // exclude own companies
     .select(
       'co.id as company_id',
       'co.name as company_name',
@@ -114,7 +113,7 @@ export async function getDividendHistory(companyId: string, requestingUserId: st
 
   const history = await db('dividend_payments as dp')
     .join('companies as co', 'co.id', 'dp.company_id')
-    .where({ 'dp.holder_character_id': company.owner_character_id })
+    .where({ 'dp.holder_company_id': companyId })
     .orderBy([{ column: 'dp.game_year', order: 'desc' }, { column: 'dp.game_month', order: 'desc' }])
     .limit(100)
     .select(
@@ -187,10 +186,8 @@ export async function recalcPortfolioValues(trx: any): Promise<void> {
     // Correlated subquery for latest close price — identical pattern to getPortfolio above
     const row = await trx('company_shares as cs')
       .join('companies as co', 'co.id', 'cs.company_id')
-      .where({ 'cs.holder_character_id': firm.owner_character_id })
+      .where({ 'cs.holder_company_id': firm.id })
       .where('cs.shares', '>', 0)
-      // Exclude the firm's OWN companies (their own manufacturing co / the finance firm itself)
-      .whereNot({ 'co.owner_character_id': firm.owner_character_id })
       .select(
         trx.raw(`
           COALESCE(SUM(

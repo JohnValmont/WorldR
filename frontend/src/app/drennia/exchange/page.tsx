@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
-import { exchangeApi, characterApi } from '../../../lib/api';
+import { exchangeApi, characterApi, companyApi } from '../../../lib/api';
 import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Line, LineChart } from 'recharts';
 
 const T = {
@@ -382,10 +382,11 @@ function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: stri
 }
 
 // ── Trade ticket ─────────────────────────────────────────────────────────────
-function OrderTicket({ companyId, lastClose, onPlaced }: { companyId: string; lastClose: number | null; onPlaced: () => void }) {
+function OrderTicket({ companyId, lastClose, onPlaced, myFinanceFirms = [] }: { companyId: string; lastClose: number | null; onPlaced: () => void; myFinanceFirms?: any[] }) {
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
   const [price, setPrice] = useState(lastClose != null ? String(lastClose) : '');
   const [quantity, setQuantity] = useState('');
+  const [purchaserCompanyId, setPurchaserCompanyId] = useState<string>('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
@@ -406,7 +407,7 @@ function OrderTicket({ companyId, lastClose, onPlaced }: { companyId: string; la
     setBusy(true);
     setMsg(null);
     try {
-      const result = await exchangeApi.placeOrder(companyId, { side, price: p, quantity: q });
+      const result = await exchangeApi.placeOrder(companyId, { side, price: p, quantity: q, purchaserCompanyId: purchaserCompanyId || undefined });
       const filled = Number(result?.order?.filled_quantity ?? 0);
       setMsg({ text: filled >= q ? `Filled ${fmtInt(q)} shares.` : filled > 0 ? `Partially filled ${fmtInt(filled)}/${fmtInt(q)}; rest resting on book.` : 'Order resting on the book.', ok: true });
       setPrice('');
@@ -747,6 +748,8 @@ export default function ExchangePage() {
   const { data: listings, mutate: mutateListings } = useSWR('exchange-listings', () => exchangeApi.getListings(), { refreshInterval: 15000 });
   const { data: charData } = useSWR('my-character', () => characterApi.getMe().then(r => r.data), { revalidateOnFocus: false });
   const { data: pipeline } = useSWR('ipo-pipeline-count', () => exchangeApi.getPipeline(), { refreshInterval: 20000 });
+  const { data: myCompaniesData } = useSWR('my-companies-bourse', () => companyApi.getMy().then(r => r.data), { revalidateOnFocus: false });
+  const myFinanceFirms = myCompaniesData?.companies?.filter((c: any) => c.industry_id === 'finance') || [];
   const myCharacterId: string | null = charData?.character?.id ?? null;
   const list: any[] = listings ?? [];
   const activeId = selectedId ?? list[0]?.id ?? null;
@@ -865,7 +868,7 @@ export default function ExchangePage() {
                     onLaunched={onPlaced}
                   />
                 )}
-                {activeId && !showQuickIpo && <OrderTicket companyId={activeId} lastClose={active?.last_price ?? null} onPlaced={onPlaced} />}
+                {activeId && !showQuickIpo && <OrderTicket companyId={activeId} lastClose={active?.last_price ?? null} onPlaced={onPlaced} myFinanceFirms={myFinanceFirms} />}
                 {activeId && showQuickIpo && (
                   <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '12px 16px', fontSize: '11px', color: T.faint }}>
                     Place buy/sell limit orders here once your IPO is live.

@@ -815,11 +815,18 @@ export class CompanyController {
     try {
       const { id } = req.params;
       const holders = await db('company_shares as s')
-        .join('characters as ch', 'ch.id', 's.holder_character_id')
+        .leftJoin('characters as ch', 'ch.id', 's.holder_character_id')
+        .leftJoin('companies as c', 'c.id', 's.holder_company_id')
         .where({ 's.company_id': id })
         .where('s.shares', '>', 0)
         .orderBy('s.shares', 'desc')
-        .select('s.holder_character_id', 'ch.name', 's.shares', 's.avg_cost_basis');
+        .select(
+          's.holder_character_id', 
+          's.holder_company_id', 
+          db.raw('COALESCE(ch.name, c.name) as name'), 
+          's.shares', 
+          's.avg_cost_basis'
+        );
 
       const policy = await db('dividend_policies').where({ company_id: id }).first();
       const recentDividends = await db('dividend_payments')

@@ -46,6 +46,7 @@ export async function getLastClose(trx: any, companyId: string): Promise<number 
 export async function placeOrder(params: {
   companyId: string;
   characterId: string;
+  purchaserCompanyId?: string;
   side: 'buy' | 'sell';
   price: number;
   quantity: number;
@@ -53,7 +54,7 @@ export async function placeOrder(params: {
   skipCircuitBreaker?: boolean;
   existingTrx?: any;          // run inside a caller's transaction (e.g. the world tick) instead of a new one
 }) {
-  const { companyId, characterId, side, price, quantity, isNpc = false, skipCircuitBreaker = false, existingTrx } = params;
+  const { companyId, characterId, purchaserCompanyId, side, price, quantity, isNpc = false, skipCircuitBreaker = false, existingTrx } = params;
 
   if (!Number.isFinite(price) || price <= 0) throw new AppError('Invalid price', 400, 'BAD_REQUEST');
   if (!Number.isInteger(quantity) || quantity <= 0) throw new AppError('Invalid quantity', 400, 'BAD_REQUEST');

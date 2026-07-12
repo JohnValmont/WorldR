@@ -52,12 +52,13 @@ export class ShareMarketController {
   public static async placeOrder(req: Request, res: Response, next: NextFunction) {
     try {
       const character = await requireCharacter(req);
-      const { side, price, quantity } = req.body;
+      const { side, price, quantity, purchaserCompanyId } = req.body;
       if (side !== 'buy' && side !== 'sell') return next(new AppError('side must be buy or sell', 400, 'BAD_REQUEST'));
 
       const result = await market.placeOrder({
         companyId: req.params.companyId,
         characterId: character.id,
+        purchaserCompanyId,
         side,
         price: Number(price),
         quantity: Number(quantity),
