@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
@@ -384,10 +384,17 @@ function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: stri
 // ── Trade ticket ─────────────────────────────────────────────────────────────
 function OrderTicket({ companyId, lastClose, onPlaced }: { companyId: string; lastClose: number | null; onPlaced: () => void }) {
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
-  const [price, setPrice] = useState('');
+  const [price, setPrice] = useState(lastClose != null ? String(lastClose) : '');
   const [quantity, setQuantity] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  // Reset price when the selected company changes
+  useEffect(() => {
+    setPrice(lastClose != null ? String(lastClose) : '');
+    setQuantity('');
+    setMsg(null);
+  }, [companyId]);
 
   const submit = async () => {
     const p = Number(price);
@@ -416,11 +423,15 @@ function OrderTicket({ companyId, lastClose, onPlaced }: { companyId: string; la
     ...mono, width: '100%', boxSizing: 'border-box', background: T.bg, border: `1px solid ${T.border}`, color: T.ivory,
     padding: '8px 10px', fontSize: '12px', outline: 'none',
   };
+  const placeholderStyle = `
+    input::placeholder { color: ${T.faint}; opacity: 0.5; }
+  `;
 
   const band = lastClose != null ? { lo: lastClose * 0.8, hi: lastClose * 1.2 } : null;
 
   return (
     <div style={{ background: T.paper, border: `1px solid ${T.borderGold}`, padding: '16px' }}>
+      <style>{placeholderStyle}</style>
       <div style={{ ...label, marginBottom: '12px' }}>Place Order</div>
       <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
         {(['buy', 'sell'] as const).map((s) => (
