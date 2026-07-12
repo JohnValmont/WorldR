@@ -633,10 +633,15 @@ export async function processExchangeMonth(trx: any, year: number, month: number
   }
 
   // ── Step C+D: monthly OHLC snapshot + earnings-driven mark for already-listed companies ──
+  // Includes both player public-corporations AND NPC exchange-listed companies.
   const listedCompanies = await trx('companies as c')
     .join('company_finances as f', 'f.company_id', 'c.id')
-    .where({ 'c.legal_structure_id': 'public-corporation', 'c.is_npc': false, 'c.status': 'active' })
-    .select('c.id', 'f.last_arc_profit');
+    .where({ 'c.status': 'active' })
+    .where(function (this: any) {
+      this.where({ 'c.legal_structure_id': 'public-corporation', 'c.is_npc': false })
+          .orWhere({ 'c.is_exchange_listed': true, 'c.is_npc': true });
+    })
+    .select('c.id', 'c.is_npc', 'f.last_arc_profit');
 
   for (const co of listedCompanies) {
     if (justListed.has(co.id)) continue; // opening bar already written this tick
@@ -760,10 +765,172 @@ export async function processExchangeMonth(trx: any, year: number, month: number
     await safeNpcOrder(trx, co.id, systemCharId, 'sell', lastClose + spread / 2, MM_ORDER_SIZE);
   }
 
+  // ── Step H: NPC Treasury Brain — buyback / secondary offering decisions ──
+  await processNpcEquityDecisions(trx, year, month, systemCharId);
+
+  // ── Step I: Sweep system_npc cash_in_hand → company_finances.available_cash ──
+  // When NPC sells treasury shares, cash lands in character_finances. Transfer it back.
+  await sweepNpcCharacterCash(trx, systemCharId);
+
   // ── Step G: lockup expiry ──
   await trx('company_shares')
     .whereNotNull('lockup_until_year')
     .whereNotNull('lockup_until_month')
     .whereRaw('(lockup_until_year * 12 + lockup_until_month) <= (? * 12 + ?)', [year, month])
     .update({ lockup_until_year: null, lockup_until_month: null, updated_at: trx.fn.now() });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NPC TREASURY BRAIN
+// ══════════════════════════════════════════════════════════════════════════════
+
+const NPC_TREASURY_MAX_FLOAT_SHARES = 300_000;  // max 30% of 1,000,000 can be public
+const NPC_BUYBACK_ORDER_SIZE        = 5_000;    // shares per buyback order
+const NPC_SECONDARY_ORDER_SIZE      = 10_000;   // shares per secondary offering order
+const NPC_OPERATING_RESERVE_MONTHS  = 2;        // cash buffer multiplier
+
+/**
+ * Each month, every NPC exchange-listed company decides whether to:
+ *  - Do a share buyback (profitable + cash-rich + treasury has shares to buy back)
+ *  - Do a secondary offering (cash-poor + treasury still has float capacity)
+ *  - Do nothing (neutral — market-maker quotes in Step F are enough)
+ */
+async function processNpcEquityDecisions(
+  trx: any,
+  year: number,
+  month: number,
+  systemCharId: string
+): Promise<void> {
+  const npcCompanies = await trx('companies as c')
+    .join('company_finances as f', 'f.company_id', 'c.id')
+    .where({ 'c.is_npc': true, 'c.is_exchange_listed': true, 'c.status': 'active' })
+    .select('c.id', 'c.name', 'f.available_cash', 'f.last_arc_profit', 'f.company_value');
+
+  for (const co of npcCompanies) {
+    try {
+      const profit = Number(co.last_arc_profit) || 0;
+      const cash   = Number(co.available_cash)  || 0;
+
+      // How many treasury shares does system_npc still hold?
+      const treasuryHolding = await trx('company_shares')
+        .where({ company_id: co.id, holder_character_id: systemCharId })
+        .first();
+      const treasuryShares = Number(treasuryHolding?.shares ?? 0);
+      const publicFloat    = TOTAL_SHARES - treasuryShares;
+
+      // Last close price
+      const lastBar = await trx('share_price_history')
+        .where({ company_id: co.id })
+        .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
+        .first();
+      if (!lastBar) continue;
+      const lastClose = Number(lastBar.close_price);
+
+      // Rough operating cash reserve (3% of company value × 2 months)
+      const estimatedMonthlyCosts = Number(co.company_value) * 0.03;
+      const operatingReserve = estimatedMonthlyCosts * NPC_OPERATING_RESERVE_MONTHS;
+
+      // ── SECONDARY OFFERING: cash dangerously low, still has float capacity ──
+      if (
+        cash < operatingReserve &&
+        treasuryShares > NPC_SECONDARY_ORDER_SIZE &&
+        publicFloat < NPC_TREASURY_MAX_FLOAT_SHARES
+      ) {
+        const sellQty = Math.min(NPC_SECONDARY_ORDER_SIZE, NPC_TREASURY_MAX_FLOAT_SHARES - publicFloat);
+        if (sellQty > 0) {
+          logger.info(`[drx-npc] ${co.name}: secondary offering ${sellQty} shares @ $${(lastClose * 1.01).toFixed(2)}`);
+          await safeNpcOrder(trx, co.id, systemCharId, 'sell', Math.round(lastClose * 1.01 * 100) / 100, sellQty);
+        }
+        continue; // one action per month per company
+      }
+
+      // ── BUYBACK: profitable, cash-rich, treasury can absorb shares ──
+      if (profit > 0 && cash > operatingReserve * 3 && treasuryShares < TOTAL_SHARES) {
+        const maxBuyable = Math.min(NPC_BUYBACK_ORDER_SIZE, TOTAL_SHARES - treasuryShares);
+        const orderCost  = lastClose * 0.98 * maxBuyable;
+        if (maxBuyable > 0 && orderCost < cash * 0.05) {
+          logger.info(`[drx-npc] ${co.name}: buyback ${maxBuyable} shares @ $${(lastClose * 0.98).toFixed(2)}`);
+          await safeNpcBuyback(trx, co.id, systemCharId, Math.round(lastClose * 0.98 * 100) / 100, maxBuyable);
+        }
+      }
+    } catch (err: any) {
+      logger.warn(`[drx-npc] treasury decision failed for ${co.name}: ${err.message}`);
+    }
+  }
+}
+
+/**
+ * NPC buyback: deducts cost from company_finances, funds character escrow,
+ * then places a standard buy order through the existing matching engine.
+ */
+async function safeNpcBuyback(
+  trx: any,
+  companyId: string,
+  systemCharId: string,
+  price: number,
+  quantity: number
+): Promise<void> {
+  const cost = price * quantity;
+  const fin  = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
+  if (!fin || Number(fin.available_cash) < cost) return;
+
+  // Move company cash → character escrow
+  await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', cost);
+  await trx('character_finances').where({ character_id: systemCharId }).increment('cash_in_hand', cost);
+
+  try {
+    await placeOrder({
+      companyId,
+      characterId: systemCharId,
+      side: 'buy',
+      price,
+      quantity,
+      isNpc: true,
+      skipCircuitBreaker: true,
+      existingTrx: trx,
+    });
+  } catch {
+    // Roll back on order failure
+    await trx('character_finances').where({ character_id: systemCharId }).decrement('cash_in_hand', cost);
+    await trx('company_finances').where({ company_id: companyId }).increment('available_cash', cost);
+  }
+}
+
+/**
+ * After the exchange month, sweep any cash the system_npc character
+ * accumulated from selling treasury shares back into company_finances.
+ * Apportions by share of sell trade proceeds per company this month.
+ */
+async function sweepNpcCharacterCash(trx: any, systemCharId: string): Promise<void> {
+  const charFin = await trx('character_finances').where({ character_id: systemCharId }).forUpdate().first();
+  if (!charFin) return;
+  const surplus = Number(charFin.cash_in_hand) || 0;
+  if (surplus <= 0) return;
+
+  // Find which NPC companies sold shares recently (last 30 trades)
+  const sellTrades = await trx('share_trades as t')
+    .join('companies as c', 'c.id', 't.company_id')
+    .where({ 't.seller_character_id': systemCharId, 'c.is_npc': true })
+    .orderBy('t.executed_at', 'desc')
+    .limit(30)
+    .select('t.company_id', 't.price', 't.quantity');
+
+  const proceedsMap = new Map<string, number>();
+  for (const t of sellTrades) {
+    const prev = proceedsMap.get(t.company_id) ?? 0;
+    proceedsMap.set(t.company_id, prev + Number(t.price) * Number(t.quantity));
+  }
+
+  if (proceedsMap.size === 0) return;
+
+  const totalProceeds = [...proceedsMap.values()].reduce((a, b) => a + b, 0);
+  if (totalProceeds <= 0) return;
+
+  for (const [companyId, proceeds] of proceedsMap.entries()) {
+    const share  = proceeds / totalProceeds;
+    const amount = Math.floor(surplus * share);
+    if (amount <= 0) continue;
+    await trx('company_finances').where({ company_id: companyId }).increment('available_cash', amount);
+    await trx('character_finances').where({ character_id: systemCharId }).decrement('cash_in_hand', amount);
+  }
 }

@@ -19,10 +19,15 @@ import { AppError } from '../../utils/errors';
 export const TOTAL_SHARES = 1_000_000;
 export const CIRCUIT_BREAKER_LIMIT = 0.20; // ±20% from last month's close
 
-async function assertPublicPlayerCompany(trx: any, companyId: string) {
+async function assertListedCompany(trx: any, companyId: string) {
   const company = await trx('companies').where({ id: companyId }).first();
   if (!company) throw new AppError('Company not found', 404, 'NOT_FOUND');
-  if (company.is_npc) throw new AppError('NPC companies are not listed on the exchange', 400, 'NOT_LISTED');
+  // Allow NPC companies if they are explicitly exchange-listed
+  if (company.is_npc) {
+    if (!company.is_exchange_listed) throw new AppError('This NPC company is not listed on the exchange', 400, 'NOT_LISTED');
+    return company;
+  }
+  // For player companies, must be a Public Corporation
   if (company.legal_structure_id !== 'public-corporation') {
     throw new AppError('Company is not publicly listed', 400, 'NOT_LISTED');
   }
@@ -54,7 +59,7 @@ export async function placeOrder(params: {
   if (!Number.isInteger(quantity) || quantity <= 0) throw new AppError('Invalid quantity', 400, 'BAD_REQUEST');
 
   const run = async (trx: any) => {
-    await assertPublicPlayerCompany(trx, companyId);
+    await assertListedCompany(trx, companyId);
 
     const clock = await trx('world_clock').first();
     const gameYear = clock?.current_year || 1;
@@ -292,11 +297,15 @@ export async function cancelOrder(orderId: string, characterId: string) {
 }
 
 export async function getListings() {
-  // Public player companies with monthly OHLC-derived stats + live book top.
+  // All listed companies: public player corps + NPC companies marked as exchange-listed.
   const companies = await db('companies as c')
     .join('company_finances as f', 'f.company_id', 'c.id')
-    .where({ 'c.legal_structure_id': 'public-corporation', 'c.is_npc': false, 'c.status': 'active' })
-    .select('c.id', 'c.name', 'c.country_id', 'c.industry_id', 'c.subsector_id', 'c.owner_character_id', 'f.company_value', 'f.last_arc_profit');
+    .where({ 'c.status': 'active' })
+    .where(function () {
+      this.where({ 'c.legal_structure_id': 'public-corporation', 'c.is_npc': false })
+          .orWhere({ 'c.is_exchange_listed': true, 'c.is_npc': true });
+    })
+    .select('c.id', 'c.name', 'c.country_id', 'c.industry_id', 'c.subsector_id', 'c.owner_character_id', 'c.is_npc', 'c.is_exchange_listed', 'f.company_value', 'f.last_arc_profit');
 
   const result = [];
   for (const co of companies) {
