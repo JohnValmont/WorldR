@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import { exchangeApi, characterApi, companyApi } from '../../../lib/api';
-import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Line, LineChart } from 'recharts';
+import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Line, LineChart, Area } from 'recharts';
 
 const T = {
   bg: '#090A0F',
@@ -164,6 +164,12 @@ function PriceChart({ companyId }: { companyId: string }) {
         <div style={{ width: '100%', height: 260 }}>
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={rows} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id={`colorPrice_${companyId}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={lineColor} stopOpacity={0.35} />
+                  <stop offset="95%" stopColor={lineColor} stopOpacity={0} />
+                </linearGradient>
+              </defs>
               <CartesianGrid stroke={T.border} strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="label" tick={{ fill: T.faint, fontSize: 9, fontFamily: 'monospace' }} axisLine={{ stroke: T.border }} tickLine={false} />
               <YAxis
@@ -177,7 +183,7 @@ function PriceChart({ companyId }: { companyId: string }) {
               />
               <YAxis yAxisId="vol" orientation="right" hide domain={[0, (dataMax: number) => dataMax * 4]} />
               <Tooltip
-                cursor={{ fill: 'rgba(201,162,74,0.06)' }}
+                cursor={{ stroke: T.faint, strokeWidth: 1, strokeDasharray: '4 4', fill: 'transparent' }}
                 contentStyle={{ background: T.panelSoft, border: `1px solid ${T.borderGold}`, fontSize: '11px', fontFamily: 'monospace' }}
                 labelStyle={{ color: T.ivory }}
                 formatter={(value: any, name: any, item: any) => {
@@ -186,8 +192,8 @@ function PriceChart({ companyId }: { companyId: string }) {
                   return [`$${fmt(p.close_price)}`, 'Close'];
                 }}
               />
-              <Bar yAxisId="vol" dataKey="volume" fill="rgba(75,99,130,0.35)" isAnimationActive={false} />
-              <Line yAxisId="price" type="monotone" dataKey="close_price" stroke={lineColor} strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Bar yAxisId="vol" dataKey="volume" fill="rgba(75,99,130,0.15)" isAnimationActive={false} />
+              <Area yAxisId="price" type="monotone" dataKey="close_price" stroke={lineColor} strokeWidth={2} fillOpacity={1} fill={`url(#colorPrice_${companyId})`} activeDot={{ r: 4, fill: lineColor, stroke: T.bg, strokeWidth: 2 }} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
