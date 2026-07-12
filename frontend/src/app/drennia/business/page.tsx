@@ -589,7 +589,7 @@ export default function BusinessPage() {
       {/* ── Tab Content ── */}
       <div className="flex-1 overflow-y-auto animate-slide-in">
         {activeTab === 'overview'  && <PageShell className="py-6"><OverviewTab company={company} playerCash={playerCash} netWorth={netWorth} onStartBusiness={() => setActiveTab('start')} onViewContracts={() => { setActiveTab('companies'); setSelectedCompanyId(null); }} onViewRegistry={() => setActiveTab('registry')} /></PageShell>}
-        {activeTab === 'start'     && <PageShell className="py-6"><StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} selectedStructure={selectedStructure} setSelectedStructure={setSelectedStructure} selectedModel={selectedModel} setSelectedModel={setSelectedModel} isSubmitting={isSubmitting} /></PageShell>}
+        {activeTab === 'start'     && <PageShell className="py-6"><StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} financeCompany={financeCompany} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} selectedStructure={selectedStructure} setSelectedStructure={setSelectedStructure} selectedModel={selectedModel} setSelectedModel={setSelectedModel} isSubmitting={isSubmitting} /></PageShell>}
         
         {activeTab === 'companies' && (
             <div>
@@ -846,22 +846,24 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
 // ─────────────────────────────────────────────────────────────────────────────
 // START BUSINESS TAB
 // ───────────────────────���─────────────────────────────────────────────────────
-function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, selectedHQ, setSelectedHQ, companyNameInput, setCompanyNameInput, nameError, setNameError, startError, playerCash, company, onRegister, checkName, chosenCapital, setChosenCapital, selectedStructure, setSelectedStructure, selectedModel, setSelectedModel, isSubmitting }: any) {
+function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, selectedHQ, setSelectedHQ, companyNameInput, setCompanyNameInput, nameError, setNameError, startError, playerCash, company, financeCompany, onRegister, checkName, chosenCapital, setChosenCapital, selectedStructure, setSelectedStructure, selectedModel, setSelectedModel, isSubmitting }: any) {
   const isLogistics = selectedSector === 'Shipping & Logistics';
   const isFinance   = selectedSector === 'Finance & Services';
 
-  // Block only if they already have the SAME type they are trying to create
-  // (a player with a manufacturing co can still register a Capital Partners firm)
-  if (company && !isFinance) {
+  // Player already has BOTH slots filled — fully block
+  if (company && financeCompany) {
     return (
       <div className="max-w-[540px] rounded-md border border-zinc-800 bg-zinc-900/60 p-5">
-        <div className="text-[11px] font-mono uppercase tracking-[0.15em] text-terminal-amber font-bold mb-4">Company Already Registered</div>
+        <div className="text-[11px] font-mono uppercase tracking-[0.15em] text-terminal-amber font-bold mb-4">Both Company Slots Filled</div>
         <p className="text-[13px] text-zinc-500 leading-relaxed m-0">
-          You have already registered <strong className="text-zinc-100">{company.name}</strong>. Pre-alpha currently supports one active operational company. You may still open a <strong className="text-zinc-100">Capital Partners firm</strong> as a second slot — select Finance &amp; Services to continue.
+          You have <strong className="text-zinc-100">{company.name}</strong> (operational) and <strong className="text-zinc-100">{financeCompany.name}</strong> (Capital Partners). No additional company slots are available in pre-alpha.
         </p>
       </div>
     );
   }
+
+  // Player has an operational company but no finance firm yet — Finance slot is available
+  const financeSlotOnly = !!company && !financeCompany;
 
   const STEP_LABELS = isFinance
     ? ['Sector', 'Headquarters', 'Company Name', 'Starting Capital', 'Confirm Filing']
@@ -896,29 +898,42 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {step === 1 && (
         <div>
           <SectionHeader stamp="STEP 1 OF 7">Select Your Sector</SectionHeader>
-          <p className="text-xs text-zinc-500 mb-5 leading-relaxed">
-            <strong className="text-terminal-amber">Shipping & Logistics</strong> and <strong className="text-terminal-amber">Manufacturing</strong> are available in the current version. Other sectors are coming soon.
-          </p>
+          {financeSlotOnly ? (
+            <div className="mb-4 rounded-md border border-terminal-amber/40 bg-terminal-amber/5 px-4 py-3">
+              <div className="text-[10px] font-mono text-terminal-amber uppercase tracking-[0.15em] font-bold mb-1">Second Slot — Finance Only</div>
+              <p className="text-[11px] text-zinc-400 leading-relaxed m-0">
+                You already operate <strong className="text-zinc-100">{company.name}</strong>. Your second slot is reserved for a <strong className="text-zinc-100">Capital Partners firm</strong>. Only Finance &amp; Services is available.
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-zinc-500 mb-5 leading-relaxed">
+              <strong className="text-terminal-amber">Shipping &amp; Logistics</strong> and <strong className="text-terminal-amber">Manufacturing</strong> are available in the current version. Other sectors are coming soon.
+            </p>
+          )}
           <div className="flex flex-col gap-2 mb-6">
-            {SECTORS.map(s => (
-              <button
-                key={s.id}
-                onClick={() => s.available && setSelectedSector(s.id)}
-                disabled={!s.available}
-                className={`rounded-md border px-4 py-3.5 text-left transition-colors ${
-                  selectedSector === s.id
-                    ? 'border-terminal-amber bg-terminal-amber/10'
-                    : 'border-zinc-800 bg-zinc-900/40'
-                } ${s.available ? 'cursor-pointer hover:border-zinc-600' : 'cursor-not-allowed opacity-40'}`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className={`text-[13px] font-semibold ${s.available ? 'text-zinc-100' : 'text-zinc-600'}`}>{s.id}</span>
-                  {!s.available && <span className="text-[9px] font-mono text-zinc-600 tracking-[0.1em]">{(s as any).note || 'LOCKED'}</span>}
-                  {selectedSector === s.id && <span className="text-[9px] font-mono text-terminal-amber tracking-[0.1em]">SELECTED ✓</span>}
-                </div>
-                <div className="text-[11px] text-zinc-500 mt-1">{s.desc}</div>
-              </button>
-            ))}
+            {SECTORS.map(s => {
+              // When the player only has the finance slot left, lock everything except Finance & Services
+              const locked = financeSlotOnly ? s.id !== 'Finance & Services' : !s.available;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => !locked && setSelectedSector(s.id)}
+                  disabled={locked}
+                  className={`rounded-md border px-4 py-3.5 text-left transition-colors ${
+                    selectedSector === s.id
+                      ? 'border-terminal-amber bg-terminal-amber/10'
+                      : 'border-zinc-800 bg-zinc-900/40'
+                  } ${!locked ? 'cursor-pointer hover:border-zinc-600' : 'cursor-not-allowed opacity-40'}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-[13px] font-semibold ${!locked ? 'text-zinc-100' : 'text-zinc-600'}`}>{s.id}</span>
+                    {locked && <span className="text-[9px] font-mono text-zinc-600 tracking-[0.1em]">{financeSlotOnly ? 'SLOT TAKEN' : ((s as any).note || 'LOCKED')}</span>}
+                    {selectedSector === s.id && <span className="text-[9px] font-mono text-terminal-amber tracking-[0.1em]">SELECTED ✓</span>}
+                  </div>
+                  <div className="text-[11px] text-zinc-500 mt-1">{s.desc}</div>
+                </button>
+              );
+            })}
           </div>
           <GoldButton onClick={() => setStep(2)} disabled={!selectedSector}>Next: Headquarters →</GoldButton>
         </div>
