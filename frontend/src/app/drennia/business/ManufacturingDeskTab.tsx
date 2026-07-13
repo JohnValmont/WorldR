@@ -478,11 +478,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       const res = await manufacturingApi.getMarkets(company.id);
       setMarketData(res.data);
 
-      // Initialize form state
+      // Initialize form state — use monthly_target (standing order intent) as the UI value
       const newForm: Record<string, { units: number, tier: string }> = {};
       res.data.allocations?.forEach((a: any) => {
         newForm[`${a.vehicle_model_id}-${a.region_market_id}`] = {
-          units: a.units_allocated,
+          units: Number(a.monthly_target ?? a.units_allocated),  // Layer 2: show intent, not tick value
           tier: a.marketing_tier
         };
       });
@@ -2776,6 +2776,86 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               <span>Inventory Central Stock: <strong className="text-zinc-200">{invRow?.units_in_stock || 0}</strong></span>
                               <span>Storage Cost: <span className="text-terminal-red">{fm(invRow?.storage_cost_per_month || 0)} / Month</span></span>
                             </div>
+
+                            {/* ── LAYER 3: Supply vs Allocation Intelligence Panel ── */}
+                            {(() => {
+                              // Monthly production for this model across all active production lines
+                              const monthlyProd = productionLines
+                                .filter((l: any) => l.model_id_ref === m.id && l.status === 'active')
+                                .reduce((s: number, l: any) => s + Number(l.target_units_per_month || 0), 0);
+
+                              // Total monthly target allocated across all markets for this model
+                              const totalAllocTarget = (marketData?.allocations || [])
+                                .filter((a: any) => a.vehicle_model_id === m.id)
+                                .reduce((s: number, a: any) => s + Number(a.units_allocated || 0), 0);
+
+                              const currentStock = Number(invRow?.units_in_stock || 0);
+                              const supplyNextMonth = currentStock + monthlyProd;
+                              const surplus = supplyNextMonth - totalAllocTarget;
+                              const monthsCover = totalAllocTarget > 0
+                                ? (supplyNextMonth / totalAllocTarget).toFixed(1)
+                                : '∞';
+                              const isOverAllocated = surplus < 0;
+                              const isUnderallocated = totalAllocTarget === 0 && currentStock > 0;
+
+                              if (monthlyProd === 0 && totalAllocTarget === 0) return null;
+
+                              return (
+                                <div className={`mb-3 rounded border p-3 text-xs ${
+                                  isOverAllocated
+                                    ? 'border-terminal-amber/40 bg-terminal-amber/5'
+                                    : isUnderallocated
+                                    ? 'border-zinc-700/60 bg-zinc-900/40'
+                                    : 'border-zinc-700/40 bg-zinc-900/30'
+                                }`}>
+                                  <div className="text-[10px] font-mono text-terminal-amber tracking-[0.1em] uppercase mb-2">
+                                    Supply Intelligence
+                                  </div>
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1.5">
+                                    <div>
+                                      <div className="text-zinc-500 text-[10px]">Producing / Month</div>
+                                      <div className="font-mono text-zinc-200 font-semibold">{monthlyProd} units</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-zinc-500 text-[10px]">Current Stock</div>
+                                      <div className="font-mono text-zinc-200 font-semibold">{currentStock} units</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-zinc-500 text-[10px]">Total Targeted / Month</div>
+                                      <div className={`font-mono font-semibold ${isOverAllocated ? 'text-terminal-amber' : 'text-zinc-200'}`}>
+                                        {totalAllocTarget} units
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="text-zinc-500 text-[10px]">Stock Cover</div>
+                                      <div className={`font-mono font-semibold ${
+                                        Number(monthsCover) < 1 ? 'text-terminal-red' :
+                                        Number(monthsCover) < 2 ? 'text-terminal-amber' : 'text-terminal-green'
+                                      }`}>
+                                        {monthsCover}× months
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {isOverAllocated && (
+                                    <div className="mt-2 pt-2 border-t border-terminal-amber/20 text-terminal-amber text-[11px]">
+                                      ⚠ Allocation ({totalAllocTarget}) exceeds available supply ({supplyNextMonth} = {currentStock} stock + {monthlyProd} production).
+                                      Markets will receive {Math.abs(surplus)} fewer units than targeted, distributed proportionally.
+                                    </div>
+                                  )}
+                                  {isUnderallocated && (
+                                    <div className="mt-2 pt-2 border-t border-zinc-700/30 text-zinc-500 text-[11px]">
+                                      ℹ {currentStock} units in stock with no market allocation. Set allocations below to start selling.
+                                    </div>
+                                  )}
+                                  {!isOverAllocated && !isUnderallocated && surplus > 0 && (
+                                    <div className="mt-2 pt-2 border-t border-zinc-700/30 text-zinc-500 text-[11px]">
+                                      ✓ Supply sufficient. {surplus} surplus units will carry over to next month's stock.
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                            {/* ──────────────────────────────────────────────────────── */}
 
                             {(invRow?.units_in_stock || 0) === 0 && (
                               <div className="mb-4 rounded border border-terminal-red/30 bg-terminal-red/10 p-3 text-xs text-terminal-red">

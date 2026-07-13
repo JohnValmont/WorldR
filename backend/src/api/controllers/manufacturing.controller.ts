@@ -1676,7 +1676,7 @@ export class ManufacturingController {
     }
     runningCash -= totalStorageCosts;
 
-    const activeAllocationCount = await trx('manufacturing_market_allocations').where('company_id', companyId).where('units_allocated', '>', 0).count('id as cnt').first();
+    const activeAllocationCount = await trx('manufacturing_market_allocations').where('company_id', companyId).where('monthly_target', '>', 0).count('id as cnt').first();
     const activeMarketCount = Number(activeAllocationCount?.cnt ?? 0);
 
     const marketStatsMap = new Map<string, any>();
@@ -1777,9 +1777,12 @@ export class ManufacturingController {
           });
         }
 
-        const currentAlloc = Math.max(0, Number(alloc.units_allocated) - unitsSold);
+        // LAYER 2: Reset units_allocated to monthly_target after each settle.
+        // This prevents the "draining to zero" bug where sales reduce the allocation
+        // permanently. Layer 1's proportional cap handles inventory limits each tick.
+        const resetTarget = Number(alloc.monthly_target ?? alloc.units_allocated);
         await trx('manufacturing_market_allocations').where({ id: alloc.id }).update({
-          units_allocated: currentAlloc,
+          units_allocated: resetTarget,
           updated_at: trx.fn.now()
         });
       }
@@ -2158,7 +2161,7 @@ export class ManufacturingController {
              .join('manufacturing_vehicle_models', 'manufacturing_market_allocations.vehicle_model_id', 'manufacturing_vehicle_models.id')
              .join('manufacturing_region_markets', 'manufacturing_market_allocations.region_market_id', 'manufacturing_region_markets.id')
              .where('manufacturing_market_allocations.company_id', company.id)
-             .where('manufacturing_market_allocations.units_allocated', '>', 0)
+             .where('manufacturing_market_allocations.monthly_target', '>', 0)
              .whereIn('manufacturing_vehicle_models.development_status', ['launched', 'discontinued'])
              .select(
                'manufacturing_market_allocations.*',
@@ -2195,7 +2198,49 @@ export class ManufacturingController {
                'manufacturing_region_markets.brand_awareness_sensitivity',
                'manufacturing_region_markets.brand_trust_sensitivity'
              );
-             allMarketAllocations.push(...marketAllocations);
+
+             // ── LAYER 1: Proportional Inventory Cap ──────────────────────────
+             // Sync each allocation's units_allocated to the player's monthly_target,
+             // then proportionally cap by actual inventory so the demand engine sees
+             // accurate supply. The DB is NOT updated here — only in-memory objects.
+             const modelInventoryCache = new Map<string, number>();
+             for (const alloc of marketAllocations) {
+               // Reset to the player's standing monthly target
+               alloc.units_allocated = Number(alloc.monthly_target);
+
+               const modelId = alloc.vehicle_model_id;
+               if (!modelInventoryCache.has(modelId)) {
+                 const invRow = await trx('manufacturing_inventory')
+                   .where({ company_id: company.id, vehicle_model_id: modelId })
+                   .first();
+                 modelInventoryCache.set(modelId, invRow ? Number(invRow.units_in_stock) : 0);
+               }
+             }
+
+             // Group by model, then proportionally distribute inventory
+             const allocationsByModel = new Map<string, any[]>();
+             for (const alloc of marketAllocations) {
+               if (!allocationsByModel.has(alloc.vehicle_model_id)) {
+                 allocationsByModel.set(alloc.vehicle_model_id, []);
+               }
+               allocationsByModel.get(alloc.vehicle_model_id)!.push(alloc);
+             }
+             for (const [modelId, modelAllocs] of allocationsByModel.entries()) {
+               const totalInventory = modelInventoryCache.get(modelId) ?? 0;
+               const totalTargeted = modelAllocs.reduce((s, a) => s + Number(a.units_allocated), 0);
+               if (totalTargeted > 0 && totalInventory < totalTargeted) {
+                 // Inventory is scarce — distribute proportionally
+                 for (const alloc of modelAllocs) {
+                   const proportion = Number(alloc.units_allocated) / totalTargeted;
+                   alloc.units_allocated = Math.floor(totalInventory * proportion);
+                 }
+               } else if (totalTargeted > 0) {
+                 // Inventory sufficient — cap each alloc at its monthly target (already set above)
+               }
+             }
+             // ─────────────────────────────────────────────────────────────────
+
+             allMarketAllocations.push(...marketAllocations.filter((a: any) => a.units_allocated > 0));
         }
 
         const brandMap = new Map<string, any>();
@@ -2452,7 +2497,7 @@ export class ManufacturingController {
       
       const activeAllocationCount = await db('manufacturing_market_allocations')
         .where('company_id', companyId)
-        .where('units_allocated', '>', 0)
+        .where('monthly_target', '>', 0)
         .count('id as cnt')
         .first();
       const activeMarketCount = Number(activeAllocationCount?.cnt ?? 0);
@@ -2467,7 +2512,7 @@ export class ManufacturingController {
         .join('manufacturing_vehicle_models', 'manufacturing_market_allocations.vehicle_model_id', 'manufacturing_vehicle_models.id')
         .join('manufacturing_region_markets', 'manufacturing_market_allocations.region_market_id', 'manufacturing_region_markets.id')
         .where('manufacturing_market_allocations.company_id', companyId)
-        .where('manufacturing_market_allocations.units_allocated', '>', 0)
+        .where('manufacturing_market_allocations.monthly_target', '>', 0)
         .whereIn('manufacturing_vehicle_models.development_status', ['launched', 'discontinued'])
         .select(
             'manufacturing_market_allocations.*',
@@ -2510,12 +2555,40 @@ export class ManufacturingController {
 
       const salesBonusMap = new Map<string, number>();
       salesBonusMap.set(companyId, salesManagerBonus);
+
+      // Apply Layer 1 proportional inventory cap to the forecast so the player sees
+      // the same effective supply numbers as the real tick will use.
+      const forecastInventoryCache = new Map<string, number>();
+      for (const alloc of joinedAllocations) {
+        alloc.units_allocated = Number(alloc.monthly_target);
+        if (!forecastInventoryCache.has(alloc.vehicle_model_id)) {
+          const invRow = await db('manufacturing_inventory')
+            .where({ company_id: companyId, vehicle_model_id: alloc.vehicle_model_id })
+            .first();
+          forecastInventoryCache.set(alloc.vehicle_model_id, invRow ? Number(invRow.units_in_stock) : 0);
+        }
+      }
+      const forecastByModel = new Map<string, any[]>();
+      for (const alloc of joinedAllocations) {
+        if (!forecastByModel.has(alloc.vehicle_model_id)) forecastByModel.set(alloc.vehicle_model_id, []);
+        forecastByModel.get(alloc.vehicle_model_id)!.push(alloc);
+      }
+      for (const [modelId, modelAllocs] of forecastByModel.entries()) {
+        const totalInv = forecastInventoryCache.get(modelId) ?? 0;
+        const totalTarget = modelAllocs.reduce((s, a) => s + Number(a.units_allocated), 0);
+        if (totalTarget > 0 && totalInv < totalTarget) {
+          for (const alloc of modelAllocs) {
+            alloc.units_allocated = Math.floor(totalInv * (Number(alloc.units_allocated) / totalTarget));
+          }
+        }
+      }
+
       const forecast = ManufacturingController.simulateSalesDemand(
-          joinedAllocations,
+          joinedAllocations.filter((a: any) => a.units_allocated > 0),
           brandMap,
           MARKETING_MULT,
           salesBonusMap
-      );;
+      );
 
       res.status(200).json({ markets, allocations, brandData, recentSales, recentBrandResults, forecast, companyAwareness, companyReputation });
     } catch (error) {
@@ -2593,6 +2666,7 @@ export class ManufacturingController {
         if (existing) {
           await trx('manufacturing_market_allocations').where({ id: existing.id }).update({
             units_allocated: units,
+            monthly_target: units,  // Layer 2: persist standing order
             marketing_tier: marketingTier ?? existing.marketing_tier,
             updated_at: trx.fn.now(),
           });
@@ -2603,6 +2677,7 @@ export class ManufacturingController {
             vehicle_model_id: vehicleModelId,
             region_market_id: regionMarketId,
             units_allocated: units,
+            monthly_target: units,  // Layer 2: persist standing order
             marketing_tier: marketingTier ?? 'none',
           });
         }
