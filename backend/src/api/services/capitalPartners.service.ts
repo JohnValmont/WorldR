@@ -159,7 +159,10 @@ export async function getPerformance(companyId: string, requestingUserId: string
   }
 
   const dividends = await db('dividend_payments')
-    .where({ holder_character_id: company.owner_character_id })
+    .where(function() {
+      this.where({ holder_company_id: companyId })
+          .orWhere({ holder_character_id: company.owner_character_id });
+    })
     .sum('amount as total')
     .first();
   const totalDividends = Number(dividends?.total || 0);
@@ -216,7 +219,13 @@ export async function recalcPortfolioValues(trx: any): Promise<void> {
       .where({ company_id: firm.id })
       .first('available_cash');
 
-    const totalValue = portfolioValue + Number(finRow?.available_cash ?? 0);
+    const escrowSum = await trx('share_orders')
+      .where({ purchaser_company_id: firm.id, status: 'open', side: 'buy' })
+      .sum('escrow_amount as total_escrow')
+      .first();
+    const escrowCash = Number(escrowSum?.total_escrow || 0);
+
+    const totalValue = portfolioValue + Number(finRow?.available_cash ?? 0) + escrowCash;
 
     await trx('company_finances')
       .where({ company_id: firm.id })

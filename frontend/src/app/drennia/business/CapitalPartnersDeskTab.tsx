@@ -74,7 +74,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
   useEffect(() => { loadData(); }, [loadData]);
 
   const handleInject = async () => {
-    const val = Number(injectAmount);
+    const val = Number(String(injectAmount).replace(/,/g, ''));
     if (!val || val <= 0) return;
     setBusy(true); setInjectMsg(null);
     try {
@@ -90,7 +90,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
   };
 
   const handleWithdraw = async () => {
-    const val = Number(withdrawAmount);
+    const val = Number(String(withdrawAmount).replace(/,/g, ''));
     if (!val || val <= 0) return;
     setBusy(true); setWithdrawMsg(null);
     try {
