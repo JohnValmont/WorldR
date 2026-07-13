@@ -1179,9 +1179,9 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
                     // STATE: CONSTRUCTION UNDERWAY
                     if (expStatus === 'construction_underway') {
-                      const startedArc = factory.expansion_started_arc;
+                      const startedArc = factory.expansion_started_month;
                       const startedYear = factory.expansion_started_year;
-                      const compMonth = factory.expansion_completion_arc;
+                      const compMonth = factory.expansion_completion_month;
                       const compYear = factory.expansion_completion_year;
                       return (
                         <div className="mt-5 border-t border-zinc-800 pt-4">
@@ -2232,7 +2232,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         )}
                         {inProgress && (
                           <div style={{ fontSize: '11px', color: T.faint, textAlign: 'center', marginTop: '8px' }}>
-                            Started Month {activeProg.started_arc}, Year {activeProg.started_month_year}. Validation: M{activeProg.validation_arc} Y{activeProg.validation_month_year}. Approved: M{activeProg.completion_arc} Y{activeProg.completion_month_year}.
+                            Started Month {activeProg.started_month}, Year {activeProg.started_arc_year}. Validation: M{activeProg.validation_month} Y{activeProg.validation_arc_year}. Approved: M{activeProg.completion_month} Y{activeProg.completion_arc_year}.
                           </div>
                         )}
                       </div>
