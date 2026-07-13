@@ -81,19 +81,26 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
       const amount = Math.floor((pool * Number(holder.shares)) / totalShares * 100) / 100;
       if (amount <= 0) continue;
 
-      // If the holder has a Capital Partners firm, credit the FIRM instead of personal cash.
-      // This is the core mechanic: the firm "receives" dividends from its investment portfolio.
-      const capitalFirm = await trx('companies')
-        .where({ owner_character_id: holder.holder_character_id, industry_id: 'finance', status: 'active', is_npc: false })
-        .first('id');
+      // If the shares are held by a firm directly, or if the holder has a Capital Partners firm
+      // we credit the FIRM instead of personal cash.
+      let firmIdToCredit = holder.holder_company_id;
+      
+      if (!firmIdToCredit && holder.holder_character_id) {
+        const capitalFirm = await trx('companies')
+          .where({ owner_character_id: holder.holder_character_id, industry_id: 'finance', status: 'active', is_npc: false })
+          .first('id');
+        if (capitalFirm) {
+          firmIdToCredit = capitalFirm.id;
+        }
+      }
 
-      if (capitalFirm) {
+      if (firmIdToCredit) {
         // Credit the firm's treasury
         await trx('company_finances')
-          .where({ company_id: capitalFirm.id })
+          .where({ company_id: firmIdToCredit })
           .increment('available_cash', amount)
           .increment('company_value', amount);
-      } else {
+      } else if (holder.holder_character_id) {
         // Normal path: credit personal wallet
         await trx('character_finances')
           .where({ character_id: holder.holder_character_id })
@@ -102,7 +109,8 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
 
       await trx('dividend_payments').insert({
         company_id: policy.company_id,
-        holder_character_id: holder.holder_character_id,
+        holder_character_id: firmIdToCredit ? null : holder.holder_character_id,
+        holder_company_id: firmIdToCredit || null,
         game_year: year,
         game_month: month,
         shares_held: holder.shares,

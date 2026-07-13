@@ -164,7 +164,14 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
             
             <div className="flex flex-col items-end">
               <div className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-1">Treasury Balance</div>
-              <div className="text-2xl font-mono text-mint font-bold">{fm(firm?.available_cash ?? 0)}</div>
+              <div className="text-2xl font-mono text-mint font-bold flex items-baseline gap-2">
+                {fm(firm?.available_cash ?? 0)}
+                {firm?.escrow_cash > 0 && (
+                  <span className="text-xs text-zinc-500 font-normal ml-1">
+                    (+{fm(firm.escrow_cash).replace('$', '')} in escrow)
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -225,6 +232,14 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
               countUp
               sparkline={[{value:20},{value:18},{value:22},{value:15},{value:25}]}
             />
+            {firm?.escrow_cash > 0 && (
+              <StatCard
+                label="Cash in Escrow (Orders)"
+                value={fm(firm.escrow_cash)}
+                valueColor="amber"
+                trend="flat"
+              />
+            )}
             <StatCard
               label="Portfolio Value"
               value={fm(firm?.portfolio_value || 0)}

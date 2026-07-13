@@ -287,8 +287,8 @@ function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: stri
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   const submit = async () => {
-    const p = Number(price);
-    const q = Number(quantity);
+    const p = Number(String(price).replace(/,/g, ''));
+    const q = Number(String(quantity).replace(/,/g, ''));
     if (!Number.isFinite(p) || p <= 0) {
       setMsg({ text: 'Enter a valid IPO price per share.', ok: false });
       return;
@@ -389,8 +389,8 @@ function OrderTicket({ companyId, lastClose, onPlaced, myFinanceFirms = [] }: { 
   }, [companyId]);
 
   const submit = async () => {
-    const p = Number(price);
-    const q = Number(quantity);
+    const p = Number(String(price).replace(/,/g, ''));
+    const q = Number(String(quantity).replace(/,/g, ''));
     if (!Number.isFinite(p) || p <= 0 || !Number.isInteger(q) || q <= 0) {
       setMsg({ text: 'Enter a valid price and whole-share quantity.', ok: false });
       return;
@@ -608,7 +608,7 @@ function IoiForm({ ipo, onDone }: { ipo: any; onDone: () => void }) {
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   const submit = async () => {
-    const p = Number(price), q = Number(qty);
+    const p = Number(String(price).replace(/,/g, '')), q = Number(String(qty).replace(/,/g, ''));
     if (!Number.isFinite(p) || p <= 0 || !Number.isInteger(q) || q <= 0) {
       setMsg({ text: 'Enter a valid price and whole-share quantity.', ok: false });
       return;

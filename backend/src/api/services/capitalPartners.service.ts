@@ -87,11 +87,18 @@ export async function getPortfolio(companyId: string, requestingUserId: string) 
 
   const totalPortfolioValue = enriched.reduce((s: number, h: any) => s + h.market_value, 0);
 
+  const escrowSum = await db('share_orders')
+    .where({ purchaser_company_id: companyId, status: 'open', side: 'buy' })
+    .sum('escrow_amount as total_escrow')
+    .first();
+  const escrowCash = Number(escrowSum?.total_escrow || 0);
+
   return {
     firm: {
       id: company.id,
       name: company.name,
       available_cash: Number(company.available_cash ?? 0),
+      escrow_cash: escrowCash,
       company_value: Number(company.company_value ?? 0),
       portfolio_value: totalPortfolioValue,
     },
