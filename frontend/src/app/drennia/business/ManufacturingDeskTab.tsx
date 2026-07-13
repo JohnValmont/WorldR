@@ -2921,7 +2921,6 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                   const planTarget = Number(l.target_units_per_month || 0);
                                   const planQuality = l.quality_setting || 'Standard';
                                   const defectRate = planQuality === 'Premium' ? 0.01 : planQuality === 'Budget' ? 0.05 : 0.03;
-                                  const totalWorkers = staff.filter((st: any) => st.assignment_id === f?.id).reduce((acc: number, st: any) => acc + st.quantity, 0);
                                   const staffingRatio = f ? Math.min(1, totalWorkers / (f.worker_requirement || 30)) : 1;
                                   const efficiency = staffingRatio * ((f?.condition || 100) / 100);
                                   const estUnitsRaw = Math.floor(planTarget * efficiency);
