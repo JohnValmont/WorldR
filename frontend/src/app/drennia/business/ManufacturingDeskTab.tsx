@@ -2864,13 +2864,13 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                             {(() => {
                               // Monthly production for this model across all active production lines
                               const monthlyProd = productionLines
-                                .filter((l: any) => l.model_id_ref === m.id && l.status === 'active')
+                                .filter((l: any) => (l.assigned_vehicle_model_id === m.id || l.model_id_ref === m.id) && l.status === 'active')
                                 .reduce((s: number, l: any) => s + Number(l.target_units_per_month || 0), 0);
 
                               // Total monthly target allocated across all markets for this model
                               const totalAllocTarget = (marketData?.allocations || [])
                                 .filter((a: any) => a.vehicle_model_id === m.id)
-                                .reduce((s: number, a: any) => s + Number(a.units_allocated || 0), 0);
+                                .reduce((s: number, a: any) => s + Number(a.monthly_target ?? a.units_allocated ?? 0), 0);
 
                               const currentStock = Number(invRow?.units_in_stock || 0);
                               const supplyNextMonth = currentStock + monthlyProd;
