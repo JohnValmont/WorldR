@@ -1125,3 +1125,460 @@ By centralizing players, characters, geography, world configuration, and shared 
 
 # End of Chapter 4
 
+# 11_DATABASE_SPECIFICATION.md
+
+# Chapter 5 — Relationships & Constraints
+
+Project: WORLDr
+
+Module: Backend Infrastructure
+
+Version: Pre-Alpha v0.1
+
+Status: Foundation Specification
+
+---
+
+# 1. Purpose
+
+This chapter defines how entities within the WORLDr database relate to one another and how data integrity is enforced.
+
+Relationships ensure that the simulation remains internally consistent while allowing different gameplay systems to interact through shared entities.
+
+Constraints protect the database from invalid, incomplete, or contradictory data.
+
+---
+
+# 2. Relationship Principles
+
+All relationships shall follow these principles:
+
+- Explicit Ownership
+- Referential Integrity
+- Minimal Duplication
+- Predictable Navigation
+- Consistent Naming
+
+Relationships should accurately reflect the structure of the simulation.
+
+---
+
+# 3. Relationship Types
+
+The database primarily uses three relationship types.
+
+## One-to-One (1:1)
+
+One record corresponds to exactly one related record.
+
+Examples:
+
+- Character ↔ Character Profile
+- Country ↔ National Statistics
+- Government ↔ Current Cabinet
+
+---
+
+## One-to-Many (1:N)
+
+One parent owns many children.
+
+Examples:
+
+- Country → Regions
+- Region → Provinces
+- Province → Cities
+- Character → Businesses
+- Government → Ministries
+
+This is the most common relationship type.
+
+---
+
+## Many-to-Many (N:N)
+
+Many records relate to many others through junction tables.
+
+Examples:
+
+- Characters ↔ Organizations
+- Countries ↔ Treaties
+- Businesses ↔ Products
+- Citizens ↔ Laws (Affected By)
+
+Many-to-many relationships should always use dedicated junction tables.
+
+---
+
+# 4. Foreign Keys
+
+Relationships between tables shall be enforced using foreign keys.
+
+Example:
+
+```text
+characters
+      │
+      ▼
+governments.leader_id
+```
+
+Another example:
+
+```text
+countries
+      │
+      ▼
+regions.country_id
+```
+
+Foreign keys ensure that referenced records exist before relationships can be created.
+
+---
+
+# 5. Referential Integrity
+
+The database shall prevent:
+
+- Orphan records
+- Invalid references
+- Broken relationships
+- Duplicate ownership
+
+If a referenced entity does not exist, the operation shall fail.
+
+---
+
+# 6. Cascade Rules
+
+Cascade behavior should be applied carefully.
+
+Preferred actions include:
+
+| Operation | Recommended Action |
+|-----------|--------------------|
+| Delete | Restrict or Soft Delete |
+| Update Primary Key | Never Allowed |
+| Update Foreign Key | Cascade only when appropriate |
+
+Automatic deletion should be avoided for gameplay entities to preserve historical data.
+
+---
+
+# 7. Unique Constraints
+
+Unique constraints enforce business requirements.
+
+Examples include:
+
+- Username
+- Email Address
+- Country Code
+- Currency Code
+- Political Party Abbreviation (within a country)
+- Government Term Number (within a country)
+
+Unique constraints prevent duplicate records where uniqueness is required.
+
+---
+
+# 8. Check Constraints
+
+Check constraints validate acceptable values.
+
+Examples:
+
+- Population ≥ 0
+- Tax Rate between 0 and 100
+- GDP ≥ 0
+- Character Age ≥ 18
+- Election Round ≥ 1
+
+Validation should occur at both the application and database layers.
+
+---
+
+# 9. Nullability
+
+Columns should be nullable only when the absence of a value is meaningful.
+
+Examples of nullable fields:
+
+- Middle Name
+- Date of Death
+- Resignation Date
+- Business Closure Date
+
+Required gameplay data should be marked as NOT NULL.
+
+---
+
+# 10. Transactions
+
+Operations involving multiple related tables shall execute within a single database transaction.
+
+Examples:
+
+- Forming a government
+- Creating a business
+- Registering a political party
+- Purchasing land
+- Signing a treaty
+
+Transactions guarantee that either all related changes succeed or none are applied.
+
+---
+
+# 11. Historical Integrity
+
+Relationships should preserve historical information.
+
+Instead of deleting relationships:
+
+- record start date
+- record end date
+- archive when necessary
+
+Examples:
+
+A minister leaves office.
+
+Do not delete the appointment.
+
+Instead:
+
+- appointment_start
+- appointment_end
+
+This preserves the historical timeline.
+
+---
+
+# 12. Constraint Philosophy
+
+Database constraints protect structural correctness.
+
+Simulation rules remain the responsibility of the Simulation Engine.
+
+Examples:
+
+Database ensures:
+
+- Character exists
+- Country exists
+- Government exists
+
+Simulation Engine ensures:
+
+- Character is eligible to become President
+- Election has completed
+- Required majority has been reached
+
+This separation keeps responsibilities clear.
+
+---
+
+# 13. Summary
+
+Relationships and constraints form the structural backbone of the WORLDr database.
+
+By enforcing referential integrity, appropriate relationship types, transactional consistency, and strong validation rules at the database level, the system maintains reliable and consistent data while leaving gameplay decisions to the Simulation Engine.
+
+---
+
+# End of Chapter 5
+
+# 11_DATABASE_SPECIFICATION.md
+
+# Chapter 6 — Performance & Optimization
+
+Project: WORLDr
+
+Module: Backend Infrastructure
+
+Version: Pre-Alpha v0.1
+
+Status: Foundation Specification
+
+---
+
+# 1. Purpose
+
+This chapter defines the performance principles used by the WORLDr database.
+
+The objective is to ensure that the database remains responsive as the simulation grows from hundreds to millions of entities while maintaining correctness and data integrity.
+
+Performance improvements shall never compromise simulation accuracy.
+
+---
+
+# 2. Performance Philosophy
+
+The database should be:
+
+- Correct before fast
+- Simple before complex
+- Measured before optimized
+- Scalable by design
+
+Optimization should address verified bottlenecks rather than anticipated ones.
+
+Premature optimization should be avoided.
+
+---
+
+# 3. Indexing Strategy
+
+Indexes improve query performance but increase storage requirements and write costs.
+
+Indexes should be created for:
+
+- Primary Keys
+- Foreign Keys
+- Frequently filtered columns
+- Frequently sorted columns
+- Frequently joined columns
+
+Examples include:
+
+- character_id
+- country_id
+- business_id
+- created_at
+- status
+
+Indexes should be reviewed periodically as query patterns evolve.
+
+---
+
+# 4. Query Design
+
+Queries should be:
+
+- Explicit
+- Predictable
+- Efficient
+- Readable
+
+Recommended practices:
+
+- Select only required columns
+- Avoid unnecessary joins
+- Limit returned rows where appropriate
+- Filter using indexed columns
+- Prefer server-side pagination
+
+Complex queries should be analyzed before deployment.
+
+---
+
+# 5. Normalization and Denormalization
+
+The database should remain normalized by default.
+
+Denormalization is acceptable when:
+
+- it provides measurable performance improvements
+- duplicated data can be kept consistent
+- maintenance complexity remains reasonable
+
+Examples include cached totals or precomputed statistics.
+
+The authoritative source of truth must always remain clear.
+
+---
+
+# 6. Caching
+
+Frequently requested information may be cached outside the database.
+
+Suitable candidates include:
+
+- Country profiles
+- Public leaderboards
+- World statistics
+- Static configuration
+- Reference data
+
+Caches are temporary performance optimizations.
+
+They shall never become authoritative data stores.
+
+---
+
+# 7. Pagination
+
+Large result sets should never be loaded in a single request.
+
+Interfaces should support pagination for data such as:
+
+- Citizens
+- Businesses
+- Laws
+- Historical records
+- Notifications
+
+Pagination improves responsiveness and reduces resource usage.
+
+---
+
+# 8. Background Processing
+
+Long-running database operations should execute asynchronously where appropriate.
+
+Examples include:
+
+- Historical report generation
+- Statistical aggregation
+- Large imports
+- Data cleanup
+- Backup preparation
+
+Gameplay interactions should remain responsive while background tasks execute independently.
+
+---
+
+# 9. Monitoring
+
+Database performance should be continuously monitored.
+
+Key metrics include:
+
+- Query execution time
+- Slow queries
+- Active connections
+- CPU usage
+- Memory usage
+- Storage growth
+- Transaction duration
+
+Monitoring enables proactive identification of performance issues.
+
+---
+
+# 10. Future Scaling
+
+The database architecture should support future optimization techniques without requiring major redesign.
+
+Potential enhancements include:
+
+- Read replicas
+- Connection pooling
+- Table partitioning
+- Materialized views
+- Dedicated analytics databases
+
+These techniques should be introduced only when justified by actual workload.
+
+---
+
+# 11. Summary
+
+The WORLDr database prioritizes correctness, maintainability, and measured optimization over premature complexity.
+
+By combining effective indexing, efficient query design, selective caching, background processing, and continuous monitoring, the database can scale alongside the simulation while remaining reliable and easy to maintain.
+
+---
+
+# End of Chapter 6
+

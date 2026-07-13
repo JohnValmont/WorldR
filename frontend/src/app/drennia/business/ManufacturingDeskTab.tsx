@@ -2801,13 +2801,23 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
             <div className="text-zinc-500 text-xs p-6 font-mono animate-pulse">Loading sales data...</div>
           ) : (
             <>
-              {/* Models / Pricing */}
               {models.length === 0 ? (
                 <EmptyState title="No models available" subtitle="Design and launch a vehicle model first to sell vehicles." action={<GhostButton onClick={() => setDeskTab('design')}>Go to R&D / Design</GhostButton>} />
               ) : (
-                <PanelBox>
-                  <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Inventory &amp; Pricing</h3>
-                  <div className="flex flex-col gap-3">
+                <>
+                  <div className="mb-5 rounded-md border border-terminal-blue/30 bg-terminal-blue/5 p-4 text-xs text-zinc-400 leading-relaxed">
+                    <div className="font-bold text-terminal-blue mb-2 uppercase tracking-[0.1em] text-[10px]">📖 How Sales Allocations Work</div>
+                    <ul className="list-disc pl-5 space-y-2">
+                      <li><strong className="text-zinc-200">Standing Orders:</strong> The numbers you set here are your <em>Monthly Target Allocations</em>. They remain active month-over-month until you change them.</li>
+                      <li><strong className="text-zinc-200">Supply &amp; Inventory:</strong> Vehicles are dispatched from your central stock. The <em>Supply Intelligence</em> panel shows if your monthly production covers your allocation targets.</li>
+                      <li><strong className="text-zinc-200">Proportional Capping:</strong> If your total targets exceed your available central stock, the simulation will automatically scale down allocations proportionally across all your active markets. No market will be left empty unless stock is zero.</li>
+                      <li><strong className="text-zinc-200">Marketing Boosts:</strong> Higher marketing tiers increase brand awareness and local demand, but consume more budget. Costs are deducted every month per active market.</li>
+                    </ul>
+                  </div>
+
+                  <PanelBox>
+                    <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Inventory, Pricing &amp; Market Allocations</h3>
+                    <div className="flex flex-col gap-3">
                     {models.filter((m: any) => m.development_status === 'launched').map((m: any) => {
                       const invRow = inventory.find((inv: any) => inv.vehicle_model_id === m.id);
                       return (
@@ -3043,6 +3053,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                     })}
                   </div>
                 </PanelBox>
+                </>
               )}
 
               
