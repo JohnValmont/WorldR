@@ -515,7 +515,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   }, [selectedLeaderboardRegion]);
 
   useEffect(() => {
-    if (deskTab === 'design' || deskTab === 'production' || deskTab === 'factory') {
+    if (deskTab === 'design' || deskTab === 'production' || deskTab === 'factory' || deskTab === 'sales') {
       loadBootstrap();
     }
     if (deskTab === 'market' || deskTab === 'sales') {
@@ -1816,46 +1816,36 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                           <div style={{ fontSize: '20px', fontWeight: 700, color: T.ivory }}>📖 Sales & Operations Guide</div>
                           <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Understanding Market Allocations</div>
                         </div>
-                        <button onClick={() => setShowSalesGuide(false)} style={{ background: 'none', border: 'none', color: T.muted, fontSize: '22px', cursor: 'pointer' }}>✕</button>
+                        <button onClick={() => setShowSalesGuide(false)} style={{ background: 'none', border: 'none', color: T.muted, fontSize: '22px', cursor: 'pointer' }}>×</button>
                       </div>
 
                       <div className="space-y-6 text-sm text-zinc-300 leading-relaxed">
-                        <section>
-                          <h3 className="text-terminal-amber font-semibold mb-2">1. The Monthly Simulation Cycle</h3>
-                          <p>Every month, the simulation resolves in a strict sequence: <strong>Production happens first, then Sales.</strong></p>
-                          <ul className="list-disc pl-5 mt-2 space-y-1 text-zinc-400">
-                            <li><strong>Produce:</strong> Active factory lines build vehicles and add them to your Central Inventory.</li>
-                            <li><strong>Sell:</strong> Your market allocations draw from that inventory (which includes the units you just produced).</li>
-                          </ul>
-                          <p className="mt-2 text-xs text-zinc-500"><em>Example: If you have 50 cars in stock and produce 100 this month, your allocations can sell up to 150 units.</em></p>
-                        </section>
+                        
+                        <div>
+                          <h3 style={{ color: T.highlight, marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${T.border}`, paddingBottom: '4px' }}>1. The Monthly Sequence</h3>
+                          <p>The simulation processes ticks in a strict order: <strong>Production</strong> happens first, followed by <strong>Sales</strong>. This means any inventory you manufacture this month is immediately available to be sold in the same month.</p>
+                        </div>
 
-                        <section>
-                          <h3 className="text-terminal-amber font-semibold mb-2">2. Standing Orders (Target Units)</h3>
-                          <p>The numbers you enter in the "Target Units" box are <strong>Standing Orders</strong>. You only need to set them once, and they will persist month-over-month until you change them.</p>
-                          <p className="mt-2">If you set a target of 60 for Drennport, the company will aim to send up to 60 units to Drennport every month, regardless of your current stock level when you click save.</p>
-                        </section>
+                        <div>
+                          <h3 style={{ color: T.highlight, marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${T.border}`, paddingBottom: '4px' }}>2. Standing Orders</h3>
+                          <p>The units you allocate to a market act as a <strong>Standing Order</strong> (a monthly target). They will remain active month-over-month until you manually change them. You do not need to re-allocate units every month.</p>
+                        </div>
 
-                        <section>
-                          <h3 className="text-terminal-amber font-semibold mb-2">3. Supply Intelligence & Proportional Capping</h3>
-                          <p>If your total Target Units across all markets exceed your available Central Stock, the engine enforces a <strong>Proportional Cap</strong>.</p>
+                        <div>
+                          <h3 style={{ color: T.highlight, marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${T.border}`, paddingBottom: '4px' }}>3. Supply Intelligence & Capping</h3>
+                          <p>All dispatched vehicles draw from your <strong>Central Stock</strong>. The Supply Intelligence panel calculates if your expected monthly production can cover your targets.</p>
                           <ul className="list-disc pl-5 mt-2 space-y-1 text-zinc-400">
-                            <li>The simulation will automatically scale down shipments to all active markets proportionally.</li>
-                            <li>No market will be completely starved of vehicles unless your total stock is exactly zero.</li>
-                            <li>After the monthly tick, your allocations are safely reset back to your original Standing Orders so they don't permanently drain to zero.</li>
+                            <li>If your targets exceed available supply, the simulation will automatically <strong>scale down allocations proportionally</strong> across all your active markets.</li>
+                            <li>No market will be left empty unless your total stock is exactly zero.</li>
+                            <li>Once the month ends, your allocations are reset back to their target levels.</li>
                           </ul>
-                        </section>
+                        </div>
 
-                        <section>
-                          <h3 className="text-terminal-amber font-semibold mb-2">4. Marketing & Awareness</h3>
-                          <p>Marketing budgets boost your brand awareness and local market demand. The higher the tier, the stronger the effect, but the more budget it consumes.</p>
-                          <ul className="list-disc pl-5 mt-2 space-y-1 text-zinc-400">
-                            <li><strong>Local:</strong> Small boost. Cost-effective for budget models.</li>
-                            <li><strong>Regional:</strong> Moderate boost. Standard for establishing a presence.</li>
-                            <li><strong>National:</strong> Major boost. Expensive, but necessary to dominate large markets.</li>
-                          </ul>
-                          <p className="mt-2 text-xs text-terminal-red">⚠️ Marketing costs are deducted <strong>per active market</strong> every month. A national campaign across 4 markets costs 4x as much.</p>
-                        </section>
+                        <div>
+                          <h3 style={{ color: T.highlight, marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${T.border}`, paddingBottom: '4px' }}>4. Marketing</h3>
+                          <p>Higher marketing tiers increase brand awareness and local market demand, but they consume more monthly budget. Marketing costs are deducted <strong>per active market</strong> at the end of each month.</p>
+                        </div>
+
                       </div>
 
                       <div className="mt-8 flex justify-end">
