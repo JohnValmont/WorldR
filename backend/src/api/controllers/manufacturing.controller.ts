@@ -1426,7 +1426,7 @@ export class ManufacturingController {
     const expandingFactory = factories.find((f: any) => f.expansion_status === 'construction_underway');
     if (expandingFactory) {
       const compYear = Number(expandingFactory.expansion_completion_year);
-      const compMonth   = Number(expandingFactory.expansion_completion_arc);
+      const compMonth   = Number(expandingFactory.expansion_completion_month);
       const isComplete = currentYear > compYear || (currentYear === compYear && currentMonth >= compMonth);
 
       if (isComplete) {
@@ -1449,8 +1449,8 @@ export class ManufacturingController {
     }
 
     if (activeProgramme) {
-      const isAtLeastValidation = currentYear > activeProgramme.validation_month_year || (currentYear === activeProgramme.validation_month_year && currentMonth >= activeProgramme.validation_arc);
-      const isAtLeastCompletion = currentYear > activeProgramme.completion_month_year || (currentYear === activeProgramme.completion_month_year && currentMonth >= activeProgramme.completion_arc);
+      const isAtLeastValidation = currentYear > activeProgramme.validation_arc_year || (currentYear === activeProgramme.validation_arc_year && currentMonth >= activeProgramme.validation_month);
+      const isAtLeastCompletion = currentYear > activeProgramme.completion_arc_year || (currentYear === activeProgramme.completion_arc_year && currentMonth >= activeProgramme.completion_month);
       const progName = ENGINEERING_PROGRAMMES_CATALOG[activeProgramme.programme_id]?.name || activeProgramme.programme_id;
 
       if (isAtLeastCompletion) {
