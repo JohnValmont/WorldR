@@ -1021,13 +1021,21 @@ export class ManufacturingController {
 
   // ── Company Reputation/Awareness Helper ──────────────────────────────────────────
   public static async getCompanyAwarenessAndTrust(trx: any, companyId: string, countryId: string) {
-    const domesticMarkets = await trx('manufacturing_region_markets')
+    let domesticMarkets = await trx('manufacturing_region_markets')
       .whereRaw('LOWER(country_id) = LOWER(?)', [countryId || 'drennia'])
       .where(function(this: any) {
         this.where('status', 'active').orWhereNull('status').orWhere('status', '');
       });
 
-    if (domesticMarkets.length === 0) return { companyAwareness: 0, companyReputation: 0 };
+    if (!domesticMarkets || domesticMarkets.length === 0) {
+      domesticMarkets = await trx('manufacturing_region_markets')
+        .whereRaw('LOWER(country_id) = LOWER(?)', ['drennia'])
+        .where(function(this: any) {
+          this.where('status', 'active').orWhereNull('status').orWhere('status', '');
+        });
+    }
+
+    if (!domesticMarkets || domesticMarkets.length === 0) return { companyAwareness: 0, companyReputation: 0 };
 
     const companyBrands = await trx('manufacturing_brand_awareness').where({ company_id: companyId });
     const brandMap = new Map<string, any>();
@@ -2499,12 +2507,21 @@ export class ManufacturingController {
       const { company } = await verifyManufacturingCompany(db, userId, companyId);
 
       // All markets for this company's country
-      const markets = await db('manufacturing_region_markets')
+      let markets = await db('manufacturing_region_markets')
         .whereRaw('LOWER(country_id) = LOWER(?)', [company.country_id || 'drennia'])
         .where(function() {
           this.where('status', 'active').orWhereNull('status').orWhere('status', '');
         })
         .orderBy('population', 'desc');
+
+      if (!markets || markets.length === 0) {
+        markets = await db('manufacturing_region_markets')
+          .whereRaw('LOWER(country_id) = LOWER(?)', ['drennia'])
+          .where(function() {
+            this.where('status', 'active').orWhereNull('status').orWhere('status', '');
+          })
+          .orderBy('population', 'desc');
+      }
 
       // All allocations for this company
       const allocations = await db('manufacturing_market_allocations')

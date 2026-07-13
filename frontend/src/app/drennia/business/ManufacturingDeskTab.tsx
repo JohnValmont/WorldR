@@ -2939,7 +2939,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               </div>
                             )}
 
-                            {marketData?.markets && marketData.markets.length === 0 ? (
+                            {(!marketData?.markets || marketData.markets.length === 0) ? (
                               <div className="mb-4 rounded border border-terminal-red/30 bg-terminal-red/10 p-4 text-xs text-terminal-red text-center">
                                 <strong>⚠️ No Markets Found</strong>
                                 <p className="mt-1 opacity-80">
@@ -3195,7 +3195,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <PanelBox>
                 <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Market Intelligence</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {marketData?.markets && marketData.markets.length === 0 ? (
+                  {(!marketData?.markets || marketData.markets.length === 0) ? (
                     <div className="col-span-1 md:col-span-2 p-6 rounded-md border border-terminal-red/30 bg-terminal-red/5 text-center flex flex-col items-center justify-center gap-3 text-zinc-300">
                       <div className="w-12 h-12 rounded-full bg-terminal-red/10 flex items-center justify-center text-terminal-red text-2xl">⚠️</div>
                       <h4 className="font-bold text-sm text-zinc-100 m-0">No Regional Markets Found</h4>
