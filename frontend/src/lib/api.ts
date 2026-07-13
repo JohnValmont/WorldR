@@ -2,7 +2,8 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../store/auth.store';
 const getApiBaseUrl = () => {
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (!envUrl) return 'http://localhost:4000/api/v1';
+  // If no explicit URL is set, use the relative path so Next.js rewrites proxy it correctly
+  if (!envUrl || envUrl.trim() === '') return '/api/v1';
   return envUrl.endsWith('/api/v1') ? envUrl : `${envUrl.replace(/\/$/, '')}/api/v1`;
 };
 const API_BASE = getApiBaseUrl();

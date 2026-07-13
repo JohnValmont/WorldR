@@ -401,6 +401,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
   // Market & Sales specific state
   const [marketData, setMarketData] = useState<any>(null);
+  const [marketError, setMarketError] = useState<string | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
   const [allocationForm, setAllocationForm] = useState<Record<string, { units: number, tier: string }>>({});
   const [leaderboardData, setLeaderboardData] = useState<any>(null);
@@ -474,6 +475,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const loadMarketData = useCallback(async () => {
     if (!company?.id) return;
     setMarketLoading(true);
+    setMarketError(null);
     try {
       const res = await manufacturingApi.getMarkets(company.id);
       setMarketData(res.data);
@@ -487,8 +489,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
         };
       });
       setAllocationForm(prev => ({ ...prev, ...newForm }));
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Unknown error fetching market data';
+      console.error('[loadMarketData]', msg, err);
+      setMarketError(msg);
     } finally {
       setMarketLoading(false);
     }
@@ -2799,6 +2803,12 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           
           {marketLoading ? (
             <div className="text-zinc-500 text-xs p-6 font-mono animate-pulse">Loading sales data...</div>
+          ) : marketError ? (
+            <div className="rounded-md border border-terminal-red/40 bg-terminal-red/10 p-5 text-xs text-terminal-red">
+              <div className="font-bold text-sm mb-1">⚠ Market Data Load Failed</div>
+              <div className="font-mono opacity-80 mb-3">{marketError}</div>
+              <GhostButton onClick={loadMarketData}>Retry</GhostButton>
+            </div>
           ) : (
             <>
               {models.filter((m: any) => m.development_status === 'launched').length === 0 ? (
@@ -3189,6 +3199,12 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
           {marketLoading ? (
             <div className="text-zinc-500 text-xs p-6 font-mono animate-pulse">Loading market data...</div>
+          ) : marketError ? (
+            <div className="rounded-md border border-terminal-red/40 bg-terminal-red/10 p-5 text-xs text-terminal-red">
+              <div className="font-bold text-sm mb-1">⚠ Market Data Load Failed</div>
+              <div className="font-mono opacity-80 mb-3">{marketError}</div>
+              <GhostButton onClick={loadMarketData}>Retry</GhostButton>
+            </div>
           ) : (
             <>
               {/* Market Intelligence */}
