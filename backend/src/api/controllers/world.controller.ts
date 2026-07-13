@@ -368,9 +368,45 @@ export class WorldController {
         .join('company_finances as cf', 'cf.company_id', 'c.id')
         .where('c.status', 'active')
         .andWhere('c.world_instance_id', activeInstanceId)
-        .orderBy('cf.company_value', 'desc')
-        .limit(10)
-        .select('c.id', 'c.name', 'c.industry_id', 'cf.company_value', 'cf.last_arc_profit');
+        .select(
+          'c.id', 
+          'c.name', 
+          'c.industry_id', 
+          'cf.last_arc_profit',
+          db.raw(`
+            CASE 
+              WHEN c.is_exchange_listed = true THEN 
+                COALESCE(
+                  (
+                    SELECT (sph.close_price * (SELECT SUM(shares) FROM company_shares WHERE company_id = c.id))
+                    FROM share_price_history sph
+                    WHERE sph.company_id = c.id
+                    ORDER BY sph.game_year DESC, sph.game_month DESC
+                    LIMIT 1
+                  ),
+                  cf.company_value
+                )
+              ELSE cf.company_value 
+            END as company_value
+          `)
+        )
+        .orderByRaw(`
+            CASE 
+              WHEN c.is_exchange_listed = true THEN 
+                COALESCE(
+                  (
+                    SELECT (sph.close_price * (SELECT SUM(shares) FROM company_shares WHERE company_id = c.id))
+                    FROM share_price_history sph
+                    WHERE sph.company_id = c.id
+                    ORDER BY sph.game_year DESC, sph.game_month DESC
+                    LIMIT 1
+                  ),
+                  cf.company_value
+                )
+              ELSE cf.company_value 
+            END DESC
+        `)
+        .limit(10);
 
 
 

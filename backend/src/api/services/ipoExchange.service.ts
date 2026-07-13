@@ -837,8 +837,8 @@ async function processNpcEquityDecisions(
       if (!lastBar) continue;
       const lastClose = Number(lastBar.close_price);
 
-      // Rough operating cash reserve (3% of company value × 2 months)
-      const estimatedMonthlyCosts = Number(co.company_value) * 0.03;
+      // Rough operating cash reserve (capped to prevent hyper-offerings from brand value)
+      const estimatedMonthlyCosts = Math.min(Number(co.company_value) * 0.03, 10_000_000);
       const operatingReserve = estimatedMonthlyCosts * NPC_OPERATING_RESERVE_MONTHS;
 
       // ── SECONDARY OFFERING: cash dangerously low, still has float capacity ──
@@ -849,8 +849,9 @@ async function processNpcEquityDecisions(
       ) {
         const sellQty = Math.min(NPC_SECONDARY_ORDER_SIZE, maxFloatShares - publicFloat);
         if (sellQty > 0) {
-          logger.info(`[drx-npc] ${co.name}: secondary offering ${sellQty} shares @ $${(lastClose * 1.01).toFixed(2)}`);
-          await safeNpcOrder(trx, co.id, systemCharId, 'sell', Math.round(lastClose * 1.01 * 100) / 100, sellQty);
+          // Offer shares at a 5% discount to attract liquidity, not a premium
+          logger.info(`[drx-npc] ${co.name}: secondary offering ${sellQty} shares @ $${(lastClose * 0.95).toFixed(2)}`);
+          await safeNpcOrder(trx, co.id, systemCharId, 'sell', Math.round(lastClose * 0.95 * 100) / 100, sellQty);
         }
         continue; // one action per month per company
       }

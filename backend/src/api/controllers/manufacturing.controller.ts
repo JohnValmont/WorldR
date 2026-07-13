@@ -1894,7 +1894,7 @@ export class ManufacturingController {
       ]);
     }
 
-    // Calculate True Book Value (Cash - Debt + Total Inventory Value)
+    // Calculate True Book Value (Cash - Debt + Total Inventory Value + Fixed Assets + Intangibles)
     const inventoryQuery = await trx('manufacturing_inventory')
       .join('manufacturing_vehicle_models', 'manufacturing_inventory.vehicle_model_id', 'manufacturing_vehicle_models.id')
       .where('manufacturing_inventory.company_id', companyId)
@@ -1904,9 +1904,30 @@ export class ManufacturingController {
     for (const item of inventoryQuery) {
       totalInventoryValue += Number(item.units_in_stock) * Number(item.manufacturing_cost_per_unit);
     }
+
+    // Fixed Assets (Factories)
+    const factoryQuery = await trx('manufacturing_factories').where({ company_id: companyId, status: 'active' }).select('capacity_per_month', 'expansion_cost');
+    let totalFactoryValue = 0;
+    for (const f of factoryQuery) {
+      totalFactoryValue += Number(f.capacity_per_month || 0) * 50000 + Number(f.expansion_cost || 0);
+    }
+
+    // Intangibles (Brand Awareness & Reputation)
+    const brandQuery = await trx('manufacturing_brand_awareness').where({ company_id: companyId }).select('awareness', 'reputation');
+    let totalBrandValue = 0;
+    for (const b of brandQuery) {
+      totalBrandValue += (Number(b.awareness || 0) * Number(b.reputation || 0)) * 10000;
+    }
+
+    // Intangibles (Engineering Reputation)
+    const engQuery = await trx('manufacturing_engineering_reputation').where({ company_id: companyId }).first();
+    let totalEngineeringValue = 0;
+    if (engQuery) {
+      totalEngineeringValue = (Number(engQuery.reliability_rep || 0) + Number(engQuery.mfg_efficiency_rep || 0)) * 1000000;
+    }
     
     const financesForBookVal = await trx('company_finances').where({ company_id: companyId }).first();
-    const trueBookValue = Math.max(0, pState.runningCash - Number(financesForBookVal?.debt || 0) + totalInventoryValue);
+    const trueBookValue = Math.max(0, pState.runningCash - Number(financesForBookVal?.debt || 0) + totalInventoryValue + totalFactoryValue + totalBrandValue + totalEngineeringValue);
 
     await trx('company_finances')
       .where({ company_id: companyId })
