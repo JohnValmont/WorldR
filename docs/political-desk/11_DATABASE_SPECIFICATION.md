@@ -520,3 +520,608 @@ By separating core data, gameplay systems, and infrastructure into clearly defin
 
 # End of Chapter 2
 
+# 11_DATABASE_SPECIFICATION.md
+
+# Chapter 3 — Schema Organization
+
+Project: WORLDr
+
+Module: Backend Infrastructure
+
+Version: Pre-Alpha v0.1
+
+Status: Foundation Specification
+
+---
+
+# 1. Purpose
+
+This chapter defines how database schemas are organized within WORLDr.
+
+A schema is a logical container that groups related tables, views, functions, and other database objects. Organizing the database into schemas keeps the project modular, improves maintainability, and clearly establishes ownership boundaries between simulation systems.
+
+Each schema represents a major subsystem of the game.
+
+---
+
+# 2. Design Principles
+
+Schema organization follows these principles:
+
+- Single Responsibility
+- Domain Ownership
+- Clear Boundaries
+- Low Coupling
+- High Cohesion
+- Future Scalability
+
+A schema should contain only objects related to its own domain.
+
+---
+
+# 3. Schema Structure
+
+The recommended database structure is:
+
+```text
+auth/
+core/
+political/
+economy/
+population/
+business/
+military/
+diplomacy/
+simulation/
+analytics/
+system/
+```
+
+Each schema is responsible for one major area of the game.
+
+---
+
+# 4. Core Schema
+
+The **core** schema contains foundational world entities shared across the simulation.
+
+Typical tables include:
+
+- players
+- characters
+- countries
+- regions
+- provinces
+- cities
+- world_calendar
+- resources
+- currencies
+- languages
+
+These tables are referenced by many other schemas.
+
+The Core schema should remain stable and change infrequently.
+
+---
+
+# 5. Gameplay Schemas
+
+Gameplay systems are separated into dedicated schemas.
+
+### political
+
+Responsible for:
+
+- governments
+- legislatures
+- elections
+- political_parties
+- laws
+- ministries
+- public_offices
+
+---
+
+### economy
+
+Responsible for:
+
+- markets
+- industries
+- taxation
+- inflation
+- gdp
+- budgets
+- trade
+
+---
+
+### population
+
+Responsible for:
+
+- citizens
+- households
+- education
+- employment
+- migration
+- demographics
+
+---
+
+### business
+
+Responsible for:
+
+- businesses
+- factories
+- products
+- inventories
+- logistics
+- contracts
+
+---
+
+### military
+
+Responsible for:
+
+- armed_forces
+- units
+- bases
+- conflicts
+- equipment
+
+---
+
+### diplomacy
+
+Responsible for:
+
+- treaties
+- alliances
+- sanctions
+- international_relations
+
+---
+
+# 6. Simulation Schema
+
+The **simulation** schema contains engine-level data rather than gameplay data.
+
+Examples include:
+
+- simulation_ticks
+- scheduled_events
+- world_state
+- event_queue
+- simulation_settings
+
+This schema supports the operation of the Simulation Engine.
+
+---
+
+# 7. Analytics Schema
+
+The **analytics** schema stores derived information.
+
+Examples include:
+
+- economic_statistics
+- population_statistics
+- historical_reports
+- rankings
+- dashboards
+
+Data inside this schema can always be regenerated from authoritative gameplay data.
+
+It should never become the primary source of truth.
+
+---
+
+# 8. System Schema
+
+The **system** schema contains operational infrastructure.
+
+Examples include:
+
+- audit_logs
+- background_jobs
+- notifications
+- feature_flags
+- application_settings
+- error_logs
+- maintenance_records
+
+This schema supports the game platform rather than the game world.
+
+---
+
+# 9. Cross-Schema Relationships
+
+Schemas are independent but connected through foreign keys.
+
+Example:
+
+```text
+core.characters
+        │
+        ▼
+political.governments
+        │
+        ▼
+political.ministers
+```
+
+Another example:
+
+```text
+core.countries
+        │
+        ▼
+economy.markets
+        │
+        ▼
+business.businesses
+```
+
+Relationships should always use explicit foreign key constraints.
+
+---
+
+# 10. Ownership Rules
+
+Each database object has exactly one owning schema.
+
+Examples:
+
+| Object | Owner |
+|---------|-------|
+| Character | core |
+| Government | political |
+| Business | business |
+| Citizen | population |
+| Treaty | diplomacy |
+| Market | economy |
+| Military Unit | military |
+
+Only the owning domain should modify its tables.
+
+Other domains may reference them through foreign keys.
+
+---
+
+# 11. Naming Standards
+
+Schemas
+
+- lowercase
+- singular
+- descriptive
+
+Tables
+
+- lowercase
+- plural
+- snake_case
+
+Columns
+
+- lowercase
+- snake_case
+
+Examples:
+
+```text
+political.governments
+
+population.citizens
+
+business.factories
+
+economy.markets
+```
+
+Consistency is mandatory across the database.
+
+---
+
+# 12. Future Expansion
+
+The schema organization is designed to accommodate future systems without restructuring existing domains.
+
+Potential future schemas include:
+
+- culture
+- religion
+- tourism
+- science
+- energy
+- healthcare
+- transportation
+- environment
+
+New schemas should integrate through foreign keys and the Simulation Engine while preserving existing ownership boundaries.
+
+---
+
+# 13. Summary
+
+The schema organization of WORLDr divides the database into clearly defined domains, each responsible for a specific area of the simulation.
+
+By separating foundational data, gameplay systems, simulation infrastructure, analytics, and operational services into dedicated schemas, the database remains modular, maintainable, and scalable while supporting future expansion without significant architectural changes.
+
+---
+
+# End of Chapter 3
+
+# 11_DATABASE_SPECIFICATION.md
+
+# Chapter 4 — Core Data Model
+
+Project: WORLDr
+
+Module: Backend Infrastructure
+
+Version: Pre-Alpha v0.1
+
+Status: Foundation Specification
+
+---
+
+# 1. Purpose
+
+This chapter defines the core entities that form the foundation of the WORLDr database.
+
+These entities represent the permanent objects that nearly every gameplay system depends upon.
+
+Political systems, economy, businesses, AI, military, diplomacy, and future modules shall all reference these core entities rather than creating duplicate representations.
+
+---
+
+# 2. Core Entity Hierarchy
+
+The world follows a hierarchical structure.
+
+```text
+World
+│
+├── Continents
+│
+├── Countries
+│   │
+│   ├── Regions
+│   │   │
+│   │   ├── Provinces
+│   │   │   │
+│   │   │   ├── Cities
+│   │   │   │
+│   │   │   └── Locations
+│   │   │
+│   │   └── Territories
+│   │
+│   └── National Institutions
+│
+└── Global Systems
+```
+
+This hierarchy should remain stable throughout the lifetime of the project.
+
+---
+
+# 3. Primary Core Entities
+
+The Core Domain owns the following entities.
+
+| Entity | Purpose |
+|---------|---------|
+| Player | User account |
+| Character | Playable identity |
+| World | Global simulation |
+| Continent | Large geographical division |
+| Country | Sovereign nation |
+| Region | Administrative division |
+| Province | Local administrative area |
+| City | Population center |
+| Territory | Simulation map area |
+| Currency | Monetary definition |
+| Language | Supported language |
+| Resource | Natural resource definition |
+
+These entities are shared throughout the simulation.
+
+---
+
+# 4. Player
+
+A Player represents a real user of WORLDr.
+
+A Player:
+
+- owns an account
+- may own multiple characters
+- stores account preferences
+- authenticates through Supabase Auth
+
+The Player does **not** directly participate in gameplay.
+
+Gameplay occurs through Characters.
+
+---
+
+# 5. Character
+
+The Character is the primary gameplay entity.
+
+Every player action originates from a Character.
+
+A Character may:
+
+- own businesses
+- hold government office
+- vote
+- create organizations
+- own property
+- participate in diplomacy
+- command military units
+- conduct research
+
+Characters are referenced by nearly every gameplay system.
+
+---
+
+# 6. World
+
+The World represents the persistent simulation.
+
+It stores global information including:
+
+- current simulation tick
+- current world date
+- active simulation version
+- global settings
+- world configuration
+
+Normally there is only one active World.
+
+The architecture allows multiple worlds if required in the future.
+
+---
+
+# 7. Geographic Model
+
+The geographical hierarchy is:
+
+```text
+World
+
+↓
+
+Continent
+
+↓
+
+Country
+
+↓
+
+Region
+
+↓
+
+Province
+
+↓
+
+City
+
+↓
+
+Territory
+```
+
+Each level has a clearly defined parent.
+
+Geographic entities should never create circular relationships.
+
+---
+
+# 8. Territory
+
+Territories are the smallest simulation units used by the engine.
+
+They support:
+
+- ownership
+- resources
+- population
+- buildings
+- infrastructure
+- military occupation
+- businesses
+
+Most simulation calculations occur at the Territory level.
+
+Higher geographical entities aggregate Territory data.
+
+---
+
+# 9. Shared Reference Entities
+
+Some entities define reusable information rather than gameplay state.
+
+Examples include:
+
+- Currency
+- Language
+- Resource
+- Industry Type
+- Government Type
+- Building Type
+
+These entities change infrequently and are referenced throughout the database.
+
+---
+
+# 10. Entity Identity
+
+Every core entity shall possess:
+
+- globally unique identifier
+- creation timestamp
+- update timestamp
+- status
+- version
+
+Identifiers remain permanent throughout the entity's lifetime.
+
+Primary keys shall never change.
+
+---
+
+# 11. Soft Deletion
+
+Core entities should generally use soft deletion rather than permanent removal.
+
+Deleted entities remain available for:
+
+- historical records
+- replay
+- analytics
+- auditing
+
+Example status values include:
+
+- Active
+- Archived
+- Deprecated
+- Deleted
+
+Physical deletion should be reserved for exceptional administrative operations.
+
+---
+
+# 12. Design Rules
+
+Core entities shall:
+
+- represent real simulation objects
+- avoid duplicate information
+- maintain referential integrity
+- remain independent of gameplay logic
+- serve as authoritative references for other domains
+
+Business rules belong in the Simulation Engine, not in the entity definitions.
+
+---
+
+# 13. Summary
+
+The Core Data Model establishes the foundational entities upon which the entire WORLDr simulation is built.
+
+By centralizing players, characters, geography, world configuration, and shared reference data into a stable and authoritative domain, every gameplay system can reference a consistent representation of the world while maintaining clear ownership, strong data integrity, and long-term scalability.
+
+---
+
+# End of Chapter 4
+

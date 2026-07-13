@@ -154,6 +154,7 @@ export interface ParticipantState {
   modelTracking: Map<string, any>;
   activeMarketCount: number;
   approvedResearchNames: string[];
+  approvedStandards: any[];       // all approved engineering programme rows
   marketStatsMap: Map<string, any>;
   staff: any[];
 }
@@ -1465,7 +1466,10 @@ export class ManufacturingController {
 
     const approvedStandards = await trx('manufacturing_engineering_programmes').where({ company_id: companyId, status: 'approved' });
     const hasAssemblyTimeStudy = approvedStandards.some((p: any) => p.programme_id === 'assembly-time');
-    const hasSPC = approvedStandards.some((p: any) => p.programme_id === 'spc');
+    const hasSPC               = approvedStandards.some((p: any) => p.programme_id === 'spc');
+    const hasDurabilityVal     = approvedStandards.some((p: any) => p.programme_id === 'durability-val');
+    const hasSafetyArch        = approvedStandards.some((p: any) => p.programme_id === 'safety-arch');
+    const hasEconomyTune       = approvedStandards.some((p: any) => p.programme_id === 'economy-tune');
 
     let totalUnitsProduced = 0;
     let totalProductionCosts = 0;
@@ -1581,7 +1585,8 @@ export class ManufacturingController {
         }
 
         const qualityKey = line.quality_setting || 'Standard';
-        const baseDefectRate = QUALITY_DEFECT_RATES[qualityKey as keyof typeof QUALITY_DEFECT_RATES] ?? 0.03;
+        let baseDefectRate = QUALITY_DEFECT_RATES[qualityKey as keyof typeof QUALITY_DEFECT_RATES] ?? 0.03;
+        if (hasDurabilityVal) baseDefectRate = Math.max(0.005, baseDefectRate - 0.005); // durability-val: −0.5% base defect
         
         let effectiveInspectors = Math.min(inspectorCount, Math.floor((baseDefectRate - 0.005) / 0.005));
         if (effectiveInspectors < 0) effectiveInspectors = 0;
@@ -1632,7 +1637,9 @@ export class ManufacturingController {
         }
       }
 
-      await trx('manufacturing_factories').where({ id: factory.id }).update({ condition: Math.max(10, Number(factory.condition) - 2), updated_at: trx.fn.now() });
+      // durability-val: reduces condition decay from 2pts to 1pt per month
+      const conditionDecay = hasDurabilityVal ? 1 : 2;
+      await trx('manufacturing_factories').where({ id: factory.id }).update({ condition: Math.max(10, Number(factory.condition) - conditionDecay), updated_at: trx.fn.now() });
     }
 
     await trx('manufacturing_component_inventory').where({ company_id: companyId, component_id: 'comp_engine' }).update({ units_in_stock: compInventory.engine, updated_at: trx.fn.now() });
@@ -1697,6 +1704,7 @@ export class ManufacturingController {
       modelTracking,
       activeMarketCount,
       approvedResearchNames,
+      approvedStandards,   // pass through so sell loop can apply score boosts
       marketStatsMap,
       staff
     };
@@ -2236,6 +2244,28 @@ export class ManufacturingController {
                  }
                } else if (totalTargeted > 0) {
                  // Inventory sufficient — cap each alloc at its monthly target (already set above)
+               }
+             }
+             // ─────────────────────────────────────────────────────────────────
+
+             // ── Engineering Programme Score Boosts ───────────────────────────
+             // Apply economy-tune (+5 fuel efficiency, +2 appeal) and
+             // safety-arch (+8 reliability) as in-memory bonuses to alloc objects
+             // so simulateSalesDemand uses the boosted scores.
+             const pState = participantStates.find((ps: any) => ps.company.id === company.id);
+             if (pState) {
+               const hasEcoTune   = pState.approvedStandards.some((p: any) => p.programme_id === 'economy-tune');
+               const hasSafetyAr  = pState.approvedStandards.some((p: any) => p.programme_id === 'safety-arch');
+               if (hasEcoTune || hasSafetyAr) {
+                 for (const alloc of marketAllocations) {
+                   if (hasEcoTune) {
+                     alloc.fuel_efficiency_score = Math.min(100, Number(alloc.fuel_efficiency_score ?? 60) + 5);
+                     alloc.appeal_score          = Math.min(100, Number(alloc.appeal_score ?? 50) + 2);
+                   }
+                   if (hasSafetyAr) {
+                     alloc.reliability_score = Math.min(100, Number(alloc.reliability_score ?? 60) + 8);
+                   }
+                 }
                }
              }
              // ─────────────────────────────────────────────────────────────────

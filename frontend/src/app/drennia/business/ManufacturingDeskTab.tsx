@@ -2194,46 +2194,108 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
 
             {designTab === 'research' && (
               <div>
+                <div style={{ fontSize: '11px', color: T.faint, marginBottom: '20px', lineHeight: 1.7 }}>
+                  Engineering Programmes are permanent company-wide standards approved after a research period. Once approved they apply automatically each month tick — no further action required.
+                </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {Object.entries((bootstrapData?.engineeringProgrammes || {}) as Record<string, any>).map(([id, prog]) => {
                     const activeProg = research.find((r: any) => r.programme_id === id);
                     const isCompleted = activeProg?.status === 'approved';
                     const inProgress = activeProg?.status === 'engineering' || activeProg?.status === 'validation';
                     const prereqCompleted = !prog.prereq || research.some((r: any) => r.programme_id === prog.prereq && r.status === 'approved');
                     const isLocked = !prereqCompleted;
+                    const canAfford = Number(finances?.available_cash || 0) >= (prog.budget || 0);
+                    const hasEngineers = engineerCount >= (prog.minEng || 1);
+
+                    const borderColor = isCompleted ? 'rgba(48,209,88,0.35)' : inProgress ? 'rgba(245,158,11,0.35)' : isLocked ? T.border : T.border;
+                    const bgColor = isCompleted ? 'rgba(48,209,88,0.04)' : inProgress ? 'rgba(245,158,11,0.04)' : 'rgba(255,255,255,0.02)';
 
                     return (
-                      <div key={id} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, padding: '16px', borderRadius: '2px', opacity: isLocked ? 0.6 : 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                          <div>
-                            <div style={{ fontSize: '14px', fontWeight: 700, color: T.gold }}>{prog.name}</div>
-                            {prog.prereq && <div style={{ fontSize: '10px', color: T.red, marginTop: '4px' }}>Requires: {(bootstrapData?.engineeringProgrammes || {})[prog.prereq].name}</div>}
+                      <div key={id} style={{ background: bgColor, border: `1px solid ${borderColor}`, padding: '18px', borderRadius: '2px', opacity: isLocked ? 0.65 : 1 }}>
+
+                        {/* Header row */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                              <div style={{ fontSize: '14px', fontWeight: 700, color: isCompleted ? T.mint : T.gold }}>{prog.name}</div>
+                              {prog.category && (
+                                <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.blue, background: 'rgba(110,168,254,0.1)', border: '1px solid rgba(110,168,254,0.2)', padding: '2px 6px', borderRadius: '2px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                  {prog.category}
+                                </div>
+                              )}
+                            </div>
+                            {prog.prereq && (
+                              <div style={{ fontSize: '10px', color: prereqCompleted ? T.mint : T.red, marginTop: '4px' }}>
+                                {prereqCompleted ? '✓' : '🔒'} Requires: {(bootstrapData?.engineeringProgrammes || {})[prog.prereq]?.name}
+                              </div>
+                            )}
                           </div>
-                          {isCompleted && <div style={{ color: T.mint, fontSize: '12px', fontWeight: 600 }}>✓ Completed</div>}
-                          {inProgress && <div style={{ color: '#f59e0b', fontSize: '12px', fontWeight: 600 }}>In Progress ({activeProg.status})</div>}
+                          <div style={{ marginLeft: '12px', textAlign: 'right', flexShrink: 0 }}>
+                            {isCompleted && <div style={{ color: T.mint, fontSize: '12px', fontWeight: 700 }}>✓ Approved</div>}
+                            {inProgress && <div style={{ color: '#f59e0b', fontSize: '12px', fontWeight: 700 }}>In Progress ({activeProg.status})</div>}
+                          </div>
                         </div>
 
-                        <div style={{ fontSize: '12px', color: T.muted, marginBottom: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                        {/* Description */}
+                        {prog.description && (
+                          <div style={{ fontSize: '11px', color: T.muted, lineHeight: 1.7, marginBottom: '14px' }}>
+                            {prog.description}
+                          </div>
+                        )}
+
+                        {/* Effects */}
+                        {prog.effects && prog.effects.length > 0 && (
+                          <div style={{ marginBottom: '14px', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`, borderRadius: '2px' }}>
+                            <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Effects on Approval</div>
+                            {prog.effects.map((eff: any, i: number) => (
+                              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', padding: '4px 0', borderBottom: i < prog.effects.length - 1 ? `1px dotted ${T.border}` : 'none' }}>
+                                <span style={{ fontSize: '11px', color: T.faint, flex: 1 }}>{eff.label}</span>
+                                <span style={{ fontSize: '11px', color: T.mint, fontFamily: 'monospace', textAlign: 'right', maxWidth: '55%' }}>{eff.value}</span>
+                              </div>
+                            ))}
+                            {prog.appliesTo && (
+                              <div style={{ fontSize: '10px', color: T.faint, marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${T.border}`, fontStyle: 'italic' }}>
+                                ↳ {prog.appliesTo}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Specs grid */}
+                        <div style={{ fontSize: '12px', color: T.muted, marginBottom: '14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                           <FieldRow label="Budget" value={fm(prog.budget || 0)} valueColor={T.red} />
                           <FieldRow label="Base Duration" value={`${prog.baseDuration || 0} Months`} />
                           <FieldRow label="Min Engineers" value={prog.minEng} />
                           <FieldRow label="Rec. Engineers" value={prog.recEng} />
                         </div>
 
+                        {/* In-progress timeline */}
+                        {inProgress && (
+                          <div style={{ fontSize: '11px', color: T.faint, textAlign: 'center', padding: '8px', background: 'rgba(245,158,11,0.06)', borderRadius: '2px', marginBottom: '10px' }}>
+                            Started M{activeProg.started_month} Y{activeProg.started_arc_year}
+                            <span style={{ margin: '0 8px', color: T.border }}>→</span>
+                            <span style={{ color: activeProg.status === 'validation' ? T.mint : T.faint }}>Validation M{activeProg.validation_month} Y{activeProg.validation_arc_year}</span>
+                            <span style={{ margin: '0 8px', color: T.border }}>→</span>
+                            <span style={{ color: T.gold }}>Approved M{activeProg.completion_month} Y{activeProg.completion_arc_year}</span>
+                          </div>
+                        )}
+
+                        {/* Action button */}
                         {!isCompleted && !inProgress && (
                           <GoldButton
                             onClick={() => handleStartResearch(id)}
-                            disabled={isLocked || engineerCount < prog.minEng || Number(finances?.available_cash || 0) < prog.budget}
+                            disabled={isLocked || !hasEngineers || !canAfford}
                             style={{ width: '100%', fontSize: '12px', padding: '8px' }}
                           >
-                            {isLocked ? 'Locked' : engineerCount < prog.minEng ? 'Not enough engineers' : Number(finances?.available_cash || 0) < prog.budget ? 'Not enough cash' : 'Start Programme'}
+                            {isLocked
+                              ? '🔒 Locked — Complete prerequisite first'
+                              : !hasEngineers
+                              ? `Need ${prog.minEng} Automotive Engineer${prog.minEng > 1 ? 's' : ''} (you have ${engineerCount})`
+                              : !canAfford
+                              ? `Insufficient funds (need ${fm(prog.budget)})`
+                              : 'Start Programme'}
                           </GoldButton>
-                        )}
-                        {inProgress && (
-                          <div style={{ fontSize: '11px', color: T.faint, textAlign: 'center', marginTop: '8px' }}>
-                            Started Month {activeProg.started_month}, Year {activeProg.started_arc_year}. Validation: M{activeProg.validation_month} Y{activeProg.validation_arc_year}. Approved: M{activeProg.completion_month} Y{activeProg.completion_arc_year}.
-                          </div>
                         )}
                       </div>
                     );
@@ -2241,6 +2303,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                 </div>
               </div>
              )}
+
 
             {/* === KNOWLEDGE SUB-TAB === */}
             {designTab === 'knowledge' && (() => {

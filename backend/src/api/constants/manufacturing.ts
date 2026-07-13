@@ -262,9 +262,64 @@ export const REPUTATION_TRAITS = [
 // Base catalog for engineering programmes.
 // Note: 'budget' and 'baseDuration' are now driven by the country config.
 export const ENGINEERING_PROGRAMMES_CATALOG: Record<string, any> = {
-  'economy-tune': { name: 'Economy Powertrain Calibration', minEng: 1, recEng: 2, prereq: null, budget: 200000, baseDuration: 2 },
-  'safety-arch': { name: 'Reinforced Safety Architecture', minEng: 2, recEng: 3, prereq: null, budget: 350000, baseDuration: 3 },
-  'durability-val': { name: 'Durability Validation Programme', minEng: 1, recEng: 2, prereq: null, budget: 150000, baseDuration: 2 },
-  'assembly-time': { name: 'Assembly Time Study', minEng: 1, recEng: 2, prereq: null, budget: 100000, baseDuration: 1 },
-  'spc': { name: 'Statistical Process Control', minEng: 2, recEng: 3, prereq: 'assembly-time', budget: 250000, baseDuration: 2 }
+  'economy-tune': {
+    name: 'Economy Powertrain Calibration',
+    minEng: 1, recEng: 2, prereq: null, budget: 200000, baseDuration: 2,
+    category: 'Production Efficiency',
+    description: 'Optimises engine and transmission calibration for lower fuel consumption and reduced running costs. Improves your vehicle\'s appeal to budget-conscious buyers in economy-segment markets.',
+    effects: [
+      { label: 'Fuel Efficiency Score', value: '+5 pts on all production lines using this programme' },
+      { label: 'Appeal Score', value: '+2 pts (economy positioning)' },
+      { label: 'Market Fit', value: 'Improves competitiveness in Economy-preference markets' },
+    ],
+    appliesTo: 'All launched models via production line settings',
+  },
+  'safety-arch': {
+    name: 'Reinforced Safety Architecture',
+    minEng: 2, recEng: 3, prereq: null, budget: 350000, baseDuration: 3,
+    category: 'Vehicle Standards',
+    description: 'Introduces structural reinforcement standards and crash-safety protocols across your model range. Directly boosts reliability scores and reduces warranty reserve costs.',
+    effects: [
+      { label: 'Reliability Score', value: '+8 pts on all active models' },
+      { label: 'Warranty Reserve', value: 'Reduced reserve cost per unit sold' },
+      { label: 'Brand Trust', value: 'Safety record contributes to trust growth in all markets' },
+    ],
+    appliesTo: 'Applied at the model level — all launched and future models benefit',
+  },
+  'durability-val': {
+    name: 'Durability Validation Programme',
+    minEng: 1, recEng: 2, prereq: null, budget: 150000, baseDuration: 2,
+    category: 'Quality Assurance',
+    description: 'Runs extended road and stress tests to validate long-term component durability. Reduces the rate at which factory condition degrades and lowers your per-unit defect rate.',
+    effects: [
+      { label: 'Factory Condition Decay', value: 'Reduced by 1 pt/month (from −2 to −1)' },
+      { label: 'Base Defect Rate', value: '−0.5% across all quality settings' },
+      { label: 'Maintenance Cost', value: 'Slight reduction in monthly maintenance bills' },
+    ],
+    appliesTo: 'Factory-level — applies to all production lines in your workshop',
+  },
+  'assembly-time': {
+    name: 'Assembly Time Study',
+    minEng: 1, recEng: 2, prereq: null, budget: 100000, baseDuration: 1,
+    category: 'Production Efficiency',
+    description: 'Industrial engineers map every step of your assembly process to eliminate bottlenecks. Directly increases production output per month with the same workforce.',
+    effects: [
+      { label: 'Production Efficiency', value: '+5% units produced per month (finalEfficiency × 1.05)' },
+      { label: 'Labour Hours', value: 'Reduced per unit — same workers produce more' },
+      { label: 'Prerequisite', value: 'Required before Statistical Process Control can be started' },
+    ],
+    appliesTo: 'Factory-level — all active production lines benefit immediately on approval',
+  },
+  'spc': {
+    name: 'Statistical Process Control',
+    minEng: 2, recEng: 3, prereq: 'assembly-time', budget: 250000, baseDuration: 2,
+    category: 'Quality Assurance',
+    description: 'Builds on the Assembly Time Study with real-time statistical monitoring of production tolerances. Significantly amplifies the impact of your Quality Inspectors, making each inspector more effective at catching defects.',
+    effects: [
+      { label: 'Inspector Effectiveness', value: '+0.5% extra defect reduction per inspector on duty' },
+      { label: 'Defect Rate', value: 'Meaningful reduction at Standard and Premium quality settings' },
+      { label: 'Warranty Costs', value: 'Lower defect rates reduce reserve provisions' },
+    ],
+    appliesTo: 'Stacks with Quality Inspectors — hire at least 1 inspector to see the benefit',
+  },
 };
