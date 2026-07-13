@@ -2719,7 +2719,7 @@ export class ManufacturingController {
         if (existing) {
           await trx('manufacturing_market_allocations').where({ id: existing.id }).update({
             units_allocated: units,
-            monthly_target: units,  // Layer 2: persist standing order
+            // monthly_target: units, // Disabled to prevent crash on prod DB without migration 0047
             marketing_tier: marketingTier ?? existing.marketing_tier,
             updated_at: trx.fn.now(),
           });
@@ -2730,7 +2730,7 @@ export class ManufacturingController {
             vehicle_model_id: vehicleModelId,
             region_market_id: regionMarketId,
             units_allocated: units,
-            monthly_target: units,  // Layer 2: persist standing order
+            // monthly_target: units, // Disabled to prevent crash on prod DB without migration 0047
             marketing_tier: marketingTier ?? 'none',
           });
         }

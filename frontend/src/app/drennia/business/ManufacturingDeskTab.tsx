@@ -2926,7 +2926,29 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               // Monthly production for this model across all active production lines
                               const monthlyProd = productionLines
                                 .filter((l: any) => (l.assigned_vehicle_model_id === m.id || l.model_id_ref === m.id) && l.status === 'active')
-                                .reduce((s: number, l: any) => s + Number(l.target_units_per_month || 0), 0);
+                                .reduce((s: number, l: any) => {
+                                  const f = factories.find((fac: any) => fac.id === l.factory_id);
+                                  const planTarget = Number(l.target_units_per_month || 0);
+                                  const planQuality = l.quality_setting || 'Standard';
+                                  const defectRate = planQuality === 'Premium' ? 0.01 : planQuality === 'Budget' ? 0.05 : 0.03;
+                                  const totalWorkers = staff.filter((st: any) => st.assignment_id === f?.id).reduce((acc: number, st: any) => acc + st.quantity, 0);
+                                  const staffingRatio = f ? Math.min(1, totalWorkers / (f.worker_requirement || 30)) : 1;
+                                  const efficiency = staffingRatio * ((f?.condition || 100) / 100);
+                                  const estUnitsRaw = Math.floor(planTarget * efficiency);
+                                  
+                                  const cInv = mfgData?.componentInventory || [];
+                                  const getInv = (cid: string) => cInv.find((i: any) => i.component_id === cid)?.units_in_stock || 0;
+                                  let maxC = Math.floor(getInv('comp_engine'));
+                                  maxC = Math.min(maxC, Math.floor(getInv('comp_transmission')));
+                                  maxC = Math.min(maxC, Math.floor(getInv('comp_tyres') / 4));
+                                  maxC = Math.min(maxC, Math.floor(getInv('comp_steel')));
+                                  maxC = Math.min(maxC, Math.floor(getInv('comp_glass')));
+                                  maxC = Math.min(maxC, Math.floor(getInv('comp_electronics')));
+
+                                  const estUnitsProd = f ? Math.min(f.capacity_per_month, Math.min(estUnitsRaw, maxC)) : estUnitsRaw;
+                                  const estDefects = Math.floor(estUnitsProd * defectRate);
+                                  return s + (estUnitsProd - estDefects);
+                                }, 0);
 
                               // Total monthly target allocated across all markets for this model
                               const totalAllocTarget = (marketData?.allocations || [])
