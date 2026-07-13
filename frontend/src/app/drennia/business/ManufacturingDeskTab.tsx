@@ -2939,7 +2939,15 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                               </div>
                             )}
 
-                            {marketData?.markets?.map((market: any) => {
+                            {marketData?.markets && marketData.markets.length === 0 ? (
+                              <div className="mb-4 rounded border border-terminal-red/30 bg-terminal-red/10 p-4 text-xs text-terminal-red text-center">
+                                <strong>⚠️ No Markets Found</strong>
+                                <p className="mt-1 opacity-80">
+                                  There are no active markets for your company's region ({company?.country_id || 'Unknown'}). Please contact support if this error persists.
+                                </p>
+                              </div>
+                            ) : (
+                              marketData?.markets?.map((market: any) => {
                               const formKey = `${m.id}-${market.id}`;
                               const alloc = allocationForm[formKey] || { units: 0, tier: 'none' };
                               const brand = marketData.brandData?.find((b: any) => b.region_market_id === market.id);
@@ -3046,7 +3054,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                                   </div>
                                 </div>
                               );
-                            })}
+                            })
+                            )}
                           </div>
                         </div>
                       );
@@ -3186,8 +3195,18 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
               <PanelBox>
                 <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Market Intelligence</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {marketData?.markets?.map((market: any) => (
-                    <div key={market.id} className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3.5 hover:border-zinc-700 transition-colors">
+                  {marketData?.markets && marketData.markets.length === 0 ? (
+                    <div className="col-span-1 md:col-span-2 p-6 rounded-md border border-terminal-red/30 bg-terminal-red/5 text-center flex flex-col items-center justify-center gap-3 text-zinc-300">
+                      <div className="w-12 h-12 rounded-full bg-terminal-red/10 flex items-center justify-center text-terminal-red text-2xl">⚠️</div>
+                      <h4 className="font-bold text-sm text-zinc-100 m-0">No Regional Markets Found</h4>
+                      <p className="text-xs max-w-md opacity-80 m-0">
+                        We could not find any active markets for your company's region ({company?.country_id || 'Unknown'}). If this persists, please try refreshing the page or checking your company registry.
+                      </p>
+                    </div>
+                  ) : (
+                    marketData?.markets?.map((market: any) => (
+                      <div key={market.id} className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3.5 hover:border-zinc-700 transition-colors">
+
                       <div className="text-xs font-semibold text-terminal-amber mb-2">{market.name}</div>
                       <div className="grid grid-cols-2 gap-2 text-[11px]">
                         <div className="text-zinc-500">Population: <span className="text-zinc-200">{Number(market.population).toLocaleString('en-US')}</span></div>
@@ -3201,7 +3220,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         <span>Van: {Math.round(market.preference_utility_van * 100)}%</span>
                       </div>
                     </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </PanelBox>
 

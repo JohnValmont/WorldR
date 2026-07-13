@@ -1022,7 +1022,10 @@ export class ManufacturingController {
   // ── Company Reputation/Awareness Helper ──────────────────────────────────────────
   public static async getCompanyAwarenessAndTrust(trx: any, companyId: string, countryId: string) {
     const domesticMarkets = await trx('manufacturing_region_markets')
-      .where({ country_id: countryId, status: 'active' });
+      .whereRaw('LOWER(country_id) = LOWER(?)', [countryId || 'drennia'])
+      .where(function(this: any) {
+        this.where('status', 'active').orWhereNull('status').orWhere('status', '');
+      });
 
     if (domesticMarkets.length === 0) return { companyAwareness: 0, companyReputation: 0 };
 
@@ -2497,7 +2500,10 @@ export class ManufacturingController {
 
       // All markets for this company's country
       const markets = await db('manufacturing_region_markets')
-        .where({ country_id: company.country_id, status: 'active' })
+        .whereRaw('LOWER(country_id) = LOWER(?)', [company.country_id || 'drennia'])
+        .where(function() {
+          this.where('status', 'active').orWhereNull('status').orWhere('status', '');
+        })
         .orderBy('population', 'desc');
 
       // All allocations for this company
