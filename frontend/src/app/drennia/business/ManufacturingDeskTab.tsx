@@ -783,7 +783,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const handleToggleAutoRecovery = async (factoryId: string) => {
     try {
       const res = await manufacturingApi.toggleFactoryAutoRecovery(company.id, factoryId);
-      const isAuto = res.data?.data?.auto_condition_recovery ?? false;
+      const isAuto = res.data?.auto_condition_recovery ?? false;
       showNotif(`Auto-recovery ${isAuto ? 'enabled' : 'disabled'} for factory.`, true);
       onRefresh();
     } catch (err: any) {
