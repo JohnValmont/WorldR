@@ -2842,9 +2842,9 @@ export class ManufacturingController {
         await trx('manufacturing_factories').where({ id: factoryId }).update({
           expansion_status:             'construction_underway',
           expansion_started_year:      startYear,
-          expansion_started_arc:        startMonth,
+          expansion_started_month:      startMonth,
           expansion_completion_year:   compYear,
-          expansion_completion_arc:     compMonth,
+          expansion_completion_month:   compMonth,
           expansion_cost:               EXPANSION_COST,
           updated_at:                   trx.fn.now(),
         });
