@@ -2801,7 +2801,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
             <div className="text-zinc-500 text-xs p-6 font-mono animate-pulse">Loading sales data...</div>
           ) : (
             <>
-              {models.length === 0 ? (
+              {models.filter((m: any) => m.development_status === 'launched').length === 0 ? (
                 <EmptyState title="No models available" subtitle="Design and launch a vehicle model first to sell vehicles." action={<GhostButton onClick={() => setDeskTab('design')}>Go to R&D / Design</GhostButton>} />
               ) : (
                 <>
