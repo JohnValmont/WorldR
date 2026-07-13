@@ -181,10 +181,13 @@ function calcLiveScores(design: any, bootstrapData: any) {
 
 // ─── Reusable Atoms ─────────────────────────────────────────────────────────
 
-function SectionHeader({ children, stamp }: { children: React.ReactNode; stamp?: string }) {
+function SectionHeader({ children, stamp, action }: { children: React.ReactNode; stamp?: string; action?: React.ReactNode }) {
   return (
     <div className="flex items-end justify-between gap-3 border-b border-zinc-800 pb-2.5 mb-5">
-      <h2 className="text-base font-semibold text-zinc-100 tracking-wide m-0">{children}</h2>
+      <h2 className="text-base font-semibold text-zinc-100 tracking-wide m-0 flex items-center gap-3">
+        {children}
+        {action && <div>{action}</div>}
+      </h2>
       {stamp && (
         <span className="text-[9px] font-mono text-terminal-amber uppercase tracking-[0.2em] pb-0.5 shrink-0">
           {stamp}
@@ -386,6 +389,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
   const [showDiscontinueConfirm, setShowDiscontinueConfirm] = useState(false);
   const [discontinuingModelId, setDiscontinuingModelId] = useState<string | null>(null);
   const [showCompareModal, setShowCompareModal] = useState(false);
+  const [showSalesGuide, setShowSalesGuide] = useState(false);
   const [compareModel1, setCompareModel1] = useState<string>('');
   const [compareModel2, setCompareModel2] = useState<string>('');
 
@@ -1801,6 +1805,66 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                   </div>
                 )}
 
+                {/* ── SALES OPERATIONS GUIDE MODAL ── */}
+                {showSalesGuide && (
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(3px)' }}
+                    onClick={() => setShowSalesGuide(false)}>
+                    <div style={{ width: '800px', maxWidth: '98vw', maxHeight: '90vh', overflowY: 'auto', background: '#0d0d0d', border: `1px solid ${T.border}`, padding: '32px', position: 'relative' }}
+                      onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                        <div>
+                          <div style={{ fontSize: '20px', fontWeight: 700, color: T.ivory }}>📖 Sales & Operations Guide</div>
+                          <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Understanding Market Allocations</div>
+                        </div>
+                        <button onClick={() => setShowSalesGuide(false)} style={{ background: 'none', border: 'none', color: T.muted, fontSize: '22px', cursor: 'pointer' }}>✕</button>
+                      </div>
+
+                      <div className="space-y-6 text-sm text-zinc-300 leading-relaxed">
+                        <section>
+                          <h3 className="text-terminal-amber font-semibold mb-2">1. The Monthly Simulation Cycle</h3>
+                          <p>Every month, the simulation resolves in a strict sequence: <strong>Production happens first, then Sales.</strong></p>
+                          <ul className="list-disc pl-5 mt-2 space-y-1 text-zinc-400">
+                            <li><strong>Produce:</strong> Active factory lines build vehicles and add them to your Central Inventory.</li>
+                            <li><strong>Sell:</strong> Your market allocations draw from that inventory (which includes the units you just produced).</li>
+                          </ul>
+                          <p className="mt-2 text-xs text-zinc-500"><em>Example: If you have 50 cars in stock and produce 100 this month, your allocations can sell up to 150 units.</em></p>
+                        </section>
+
+                        <section>
+                          <h3 className="text-terminal-amber font-semibold mb-2">2. Standing Orders (Target Units)</h3>
+                          <p>The numbers you enter in the "Target Units" box are <strong>Standing Orders</strong>. You only need to set them once, and they will persist month-over-month until you change them.</p>
+                          <p className="mt-2">If you set a target of 60 for Drennport, the company will aim to send up to 60 units to Drennport every month, regardless of your current stock level when you click save.</p>
+                        </section>
+
+                        <section>
+                          <h3 className="text-terminal-amber font-semibold mb-2">3. Supply Intelligence & Proportional Capping</h3>
+                          <p>If your total Target Units across all markets exceed your available Central Stock, the engine enforces a <strong>Proportional Cap</strong>.</p>
+                          <ul className="list-disc pl-5 mt-2 space-y-1 text-zinc-400">
+                            <li>The simulation will automatically scale down shipments to all active markets proportionally.</li>
+                            <li>No market will be completely starved of vehicles unless your total stock is exactly zero.</li>
+                            <li>After the monthly tick, your allocations are safely reset back to your original Standing Orders so they don't permanently drain to zero.</li>
+                          </ul>
+                        </section>
+
+                        <section>
+                          <h3 className="text-terminal-amber font-semibold mb-2">4. Marketing & Awareness</h3>
+                          <p>Marketing budgets boost your brand awareness and local market demand. The higher the tier, the stronger the effect, but the more budget it consumes.</p>
+                          <ul className="list-disc pl-5 mt-2 space-y-1 text-zinc-400">
+                            <li><strong>Local:</strong> Small boost. Cost-effective for budget models.</li>
+                            <li><strong>Regional:</strong> Moderate boost. Standard for establishing a presence.</li>
+                            <li><strong>National:</strong> Major boost. Expensive, but necessary to dominate large markets.</li>
+                          </ul>
+                          <p className="mt-2 text-xs text-terminal-red">⚠️ Marketing costs are deducted <strong>per active market</strong> every month. A national campaign across 4 markets costs 4x as much.</p>
+                        </section>
+                      </div>
+
+                      <div className="mt-8 flex justify-end">
+                        <GhostButton onClick={() => setShowSalesGuide(false)}>Close Guide</GhostButton>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* ── DESIGN FORM MODAL (Phase 3 Wizard) ── */}
                 {showDesignModal && (
                   <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(3px)' }}
@@ -2761,7 +2825,12 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
       ──────────────────────────────────────────────────────────────────────── */}
       {deskTab === 'sales' && (
         <div className="flex flex-col gap-5">
-          <SectionHeader stamp="SALES DESK">Sales Operations</SectionHeader>
+          <SectionHeader 
+            stamp="SALES DESK"
+            action={<button onClick={() => setShowSalesGuide(true)} className="px-2 py-1 bg-terminal-blue/10 text-terminal-blue border border-terminal-blue/30 rounded text-[10px] font-bold uppercase tracking-wider hover:bg-terminal-blue/20 transition-colors">📖 Guide</button>}
+          >
+            Sales Operations
+          </SectionHeader>
 
           {/* Summary Row */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
@@ -2815,15 +2884,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                 <EmptyState title="No models available" subtitle="Design and launch a vehicle model first to sell vehicles." action={<GhostButton onClick={() => setDeskTab('design')}>Go to R&D / Design</GhostButton>} />
               ) : (
                 <>
-                  <div className="mb-5 rounded-md border border-terminal-blue/30 bg-terminal-blue/5 p-4 text-xs text-zinc-400 leading-relaxed">
-                    <div className="font-bold text-terminal-blue mb-2 uppercase tracking-[0.1em] text-[10px]">📖 How Sales Allocations Work</div>
-                    <ul className="list-disc pl-5 space-y-2">
-                      <li><strong className="text-zinc-200">Standing Orders:</strong> The numbers you set here are your <em>Monthly Target Allocations</em>. They remain active month-over-month until you change them.</li>
-                      <li><strong className="text-zinc-200">Supply &amp; Inventory:</strong> Vehicles are dispatched from your central stock. The <em>Supply Intelligence</em> panel shows if your monthly production covers your allocation targets.</li>
-                      <li><strong className="text-zinc-200">Proportional Capping:</strong> If your total targets exceed your available central stock, the simulation will automatically scale down allocations proportionally across all your active markets. No market will be left empty unless stock is zero.</li>
-                      <li><strong className="text-zinc-200">Marketing Boosts:</strong> Higher marketing tiers increase brand awareness and local demand, but consume more budget. Costs are deducted every month per active market.</li>
-                    </ul>
-                  </div>
+
 
                   <PanelBox>
                     <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Inventory, Pricing &amp; Market Allocations</h3>
