@@ -1822,17 +1822,17 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                       <div className="space-y-6 text-sm text-zinc-300 leading-relaxed">
                         
                         <div>
-                          <h3 style={{ color: T.highlight, marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${T.border}`, paddingBottom: '4px' }}>1. The Monthly Sequence</h3>
+                          <h3 style={{ color: T.gold, marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${T.border}`, paddingBottom: '4px' }}>1. The Monthly Sequence</h3>
                           <p>The simulation processes ticks in a strict order: <strong>Production</strong> happens first, followed by <strong>Sales</strong>. This means any inventory you manufacture this month is immediately available to be sold in the same month.</p>
                         </div>
 
                         <div>
-                          <h3 style={{ color: T.highlight, marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${T.border}`, paddingBottom: '4px' }}>2. Standing Orders</h3>
+                          <h3 style={{ color: T.gold, marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${T.border}`, paddingBottom: '4px' }}>2. Standing Orders</h3>
                           <p>The units you allocate to a market act as a <strong>Standing Order</strong> (a monthly target). They will remain active month-over-month until you manually change them. You do not need to re-allocate units every month.</p>
                         </div>
 
                         <div>
-                          <h3 style={{ color: T.highlight, marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${T.border}`, paddingBottom: '4px' }}>3. Supply Intelligence & Capping</h3>
+                          <h3 style={{ color: T.gold, marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${T.border}`, paddingBottom: '4px' }}>3. Supply Intelligence & Capping</h3>
                           <p>All dispatched vehicles draw from your <strong>Central Stock</strong>. The Supply Intelligence panel calculates if your expected monthly production can cover your targets.</p>
                           <ul className="list-disc pl-5 mt-2 space-y-1 text-zinc-400">
                             <li>If your targets exceed available supply, the simulation will automatically <strong>scale down allocations proportionally</strong> across all your active markets.</li>
@@ -1842,7 +1842,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
                         </div>
 
                         <div>
-                          <h3 style={{ color: T.highlight, marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${T.border}`, paddingBottom: '4px' }}>4. Marketing</h3>
+                          <h3 style={{ color: T.gold, marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${T.border}`, paddingBottom: '4px' }}>4. Marketing</h3>
                           <p>Higher marketing tiers increase brand awareness and local market demand, but they consume more monthly budget. Marketing costs are deducted <strong>per active market</strong> at the end of each month.</p>
                         </div>
 
