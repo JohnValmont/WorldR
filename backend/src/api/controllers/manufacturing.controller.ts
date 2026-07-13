@@ -1694,7 +1694,7 @@ export class ManufacturingController {
     }
     runningCash -= totalStorageCosts;
 
-    const activeAllocationCount = await trx('manufacturing_market_allocations').where('company_id', companyId).where('monthly_target', '>', 0).count('id as cnt').first();
+    const activeAllocationCount = await trx('manufacturing_market_allocations').where('company_id', companyId).whereRaw('COALESCE(monthly_target, units_allocated, 0) > 0').count('id as cnt').first();
     const activeMarketCount = Number(activeAllocationCount?.cnt ?? 0);
 
     const marketStatsMap = new Map<string, any>();
@@ -1799,7 +1799,7 @@ export class ManufacturingController {
         // LAYER 2: Reset units_allocated to monthly_target after each settle.
         // This prevents the "draining to zero" bug where sales reduce the allocation
         // permanently. Layer 1's proportional cap handles inventory limits each tick.
-        const resetTarget = Number(alloc.monthly_target ?? alloc.units_allocated);
+        const resetTarget = Number(alloc.monthly_target ?? alloc.units_allocated ?? 0);
         await trx('manufacturing_market_allocations').where({ id: alloc.id }).update({
           units_allocated: resetTarget,
           updated_at: trx.fn.now()
@@ -2180,7 +2180,7 @@ export class ManufacturingController {
              .join('manufacturing_vehicle_models', 'manufacturing_market_allocations.vehicle_model_id', 'manufacturing_vehicle_models.id')
              .join('manufacturing_region_markets', 'manufacturing_market_allocations.region_market_id', 'manufacturing_region_markets.id')
              .where('manufacturing_market_allocations.company_id', company.id)
-             .where('manufacturing_market_allocations.monthly_target', '>', 0)
+             .whereRaw('COALESCE(manufacturing_market_allocations.monthly_target, manufacturing_market_allocations.units_allocated, 0) > 0')
              .whereIn('manufacturing_vehicle_models.development_status', ['launched', 'discontinued'])
              .select(
                'manufacturing_market_allocations.*',
@@ -2224,8 +2224,8 @@ export class ManufacturingController {
              // accurate supply. The DB is NOT updated here — only in-memory objects.
              const modelInventoryCache = new Map<string, number>();
              for (const alloc of marketAllocations) {
-               // Reset to the player's standing monthly target
-               alloc.units_allocated = Number(alloc.monthly_target);
+               // Reset to the player's standing monthly target (fall back to units_allocated if column missing)
+               alloc.units_allocated = Number(alloc.monthly_target ?? alloc.units_allocated ?? 0);
 
                const modelId = alloc.vehicle_model_id;
                if (!modelInventoryCache.has(modelId)) {
