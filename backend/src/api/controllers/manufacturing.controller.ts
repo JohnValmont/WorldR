@@ -1694,7 +1694,7 @@ export class ManufacturingController {
     }
     runningCash -= totalStorageCosts;
 
-    const activeAllocationCount = await trx('manufacturing_market_allocations').where('company_id', companyId).whereRaw('COALESCE(monthly_target, units_allocated, 0) > 0').count('id as cnt').first();
+    const activeAllocationCount = await trx('manufacturing_market_allocations').where('company_id', companyId).where('units_allocated', '>', 0).count('id as cnt').first();
     const activeMarketCount = Number(activeAllocationCount?.cnt ?? 0);
 
     const marketStatsMap = new Map<string, any>();
@@ -2180,7 +2180,7 @@ export class ManufacturingController {
              .join('manufacturing_vehicle_models', 'manufacturing_market_allocations.vehicle_model_id', 'manufacturing_vehicle_models.id')
              .join('manufacturing_region_markets', 'manufacturing_market_allocations.region_market_id', 'manufacturing_region_markets.id')
              .where('manufacturing_market_allocations.company_id', company.id)
-             .whereRaw('COALESCE(manufacturing_market_allocations.monthly_target, manufacturing_market_allocations.units_allocated, 0) > 0')
+             .where('manufacturing_market_allocations.units_allocated', '>', 0)
              .whereIn('manufacturing_vehicle_models.development_status', ['launched', 'discontinued'])
              .select(
                'manufacturing_market_allocations.*',
@@ -2550,7 +2550,7 @@ export class ManufacturingController {
       
       const activeAllocationCount = await db('manufacturing_market_allocations')
         .where('company_id', companyId)
-        .whereRaw('COALESCE(monthly_target, units_allocated, 0) > 0')
+        .where('units_allocated', '>', 0)
         .count('id as cnt')
         .first();
       const activeMarketCount = Number(activeAllocationCount?.cnt ?? 0);
@@ -2565,7 +2565,7 @@ export class ManufacturingController {
         .join('manufacturing_vehicle_models', 'manufacturing_market_allocations.vehicle_model_id', 'manufacturing_vehicle_models.id')
         .join('manufacturing_region_markets', 'manufacturing_market_allocations.region_market_id', 'manufacturing_region_markets.id')
         .where('manufacturing_market_allocations.company_id', companyId)
-        .whereRaw('COALESCE(manufacturing_market_allocations.monthly_target, manufacturing_market_allocations.units_allocated, 0) > 0')
+        .where('manufacturing_market_allocations.units_allocated', '>', 0)
         .whereIn('manufacturing_vehicle_models.development_status', ['launched', 'discontinued'])
         .select(
             'manufacturing_market_allocations.*',
