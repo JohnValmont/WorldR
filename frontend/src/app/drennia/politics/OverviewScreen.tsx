@@ -6,6 +6,7 @@ import { T, MONO } from './_lib/theme';
 import { JURISDICTION_MODEL } from './_lib/model';
 import type { PoliticsSection } from './_components/PoliticsSidebar';
 import { Panel, Stamp, Meter, StatTile } from './_components/DeskUI';
+import { Hemicycle, partyColor, type SeatBloc } from './_components/Viz';
 import { formatGameDateShort } from '@/lib/calendar';
 
 interface Props {
@@ -55,11 +56,27 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
   const jid = selectedJurisdictionId;
   const { data: billData } = useSWR(['ov-bills', jid], () => politicsApi.getBills(jid).catch(() => null), { refreshInterval: 20000 });
   const { data: ledger = [] } = useSWR(['ov-ledger', jid], () => politicsApi.getLedger(8, jid).catch(() => []), { refreshInterval: 20000 });
+  const { data: polls } = useSWR(['ov-polls', jid], () => politicsApi.getPolls(jid).catch(() => null), { refreshInterval: 20000 });
   const [busy, setBusy] = useState<string | null>(null);
 
   const jMeta = JURISDICTION_MODEL[jid] || JURISDICTION_MODEL.ironvale;
-  const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
-  const support: number | null = myParty ? (myParty.popularity ?? myParty.approval ?? myParty.projected_share ?? null) : null;
+  const partyList = Array.isArray(parties) ? parties : [];
+  const myParty = partyList.find((p: any) => p.leader_character_id === character?.id);
+
+  // Projected standing derived from the live engine run (perParty), joined to colours.
+  const perParty: any[] = Array.isArray(polls?.perParty) ? polls.perParty : [];
+  const totalVotes = perParty.reduce((a, p) => a + Number(p.votes || 0), 0);
+  const myVotes = myParty ? Number(perParty.find((p) => p.partyId === myParty.id)?.votes || 0) : 0;
+  const myProjectedSeats = myParty ? Number(perParty.find((p) => p.partyId === myParty.id)?.seats || 0) : 0;
+  const support: number | null = totalVotes > 0 && myParty ? (myVotes / totalVotes) * 100 : null;
+  const seatBlocs: SeatBloc[] = perParty
+    .map((pp: any) => {
+      const idx = partyList.findIndex((p: any) => p.id === pp.partyId);
+      const p = partyList[idx];
+      return { partyId: pp.partyId, name: p?.name || 'Independent', color: partyColor(p, idx < 0 ? 0 : idx), seats: Number(pp.seats || 0), isMine: myParty ? pp.partyId === myParty.id : false };
+    })
+    .sort((a, b) => b.seats - a.seats);
+  const hasChamber = seatBlocs.some((b) => b.seats > 0);
 
   const bills: any[] = Array.isArray(billData?.bills) ? billData.bills : [];
   const floorBill = bills.find((b: any) => {
@@ -71,7 +88,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
 
   const events: any[] = Array.isArray(ledger) ? ledger : [];
 
-  // Jurisdiction Conditions (Task E / GDD $11) — now visible for the first time.
+  // Jurisdiction Conditions (Task E / GDD §11) — now visible for the first time.
   const cond: any = overview?.conditions;
   const hasConditions = cond && typeof cond === 'object';
 
@@ -119,7 +136,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
         </Panel>
       )}
 
-      {/* ── Jurisdiction Conditions strip (Task E / GDD $11) ─────────────────── */}
+      {/* ── Jurisdiction Conditions strip (Task E / GDD §11) ─────────────────── */}
       {hasConditions && (
         <Panel title="Jurisdiction Conditions">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
@@ -150,9 +167,22 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
         <Panel title="Standing">
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             <Gauge pct={support} />
+            {hasChamber && (
+              <div style={{ width: '100%' }}>
+                <Hemicycle blocs={seatBlocs} total={jMeta.seats} majority={jMeta.majority} height={104} />
+                <div style={{ textAlign: 'center', fontFamily: MONO, fontSize: 10, color: T.faint, marginTop: -2 }}>
+                  Projected chamber · {jMeta.majority} for a majority
+                </div>
+              </div>
+            )}
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
               <StatTile label="Action Points" value={myAp?.current_ap ?? 0} sub="+12 each month · no cap" tone={T.gold} />
-              <StatTile label="Seats Target" value={jMeta.seats} sub={`${jMeta.majority} for a majority`} tone={T.ivory} />
+              <StatTile
+                label={myParty ? 'Projected Seats' : 'Seats Target'}
+                value={myParty ? `${myProjectedSeats} / ${jMeta.seats}` : jMeta.seats}
+                sub={`${jMeta.majority} for a majority`}
+                tone={myParty && myProjectedSeats >= jMeta.majority ? T.mint : T.ivory}
+              />
             </div>
             {!myParty && <Btn label="Found a Party" primary onClick={() => onNavigate('party')} />}
           </div>
