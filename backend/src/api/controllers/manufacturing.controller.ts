@@ -1938,18 +1938,18 @@ export class ManufacturingController {
     const brandQuery = await trx('manufacturing_brand_awareness').where({ company_id: companyId }).select('awareness', 'reputation');
     let totalBrandValue = 0;
     for (const b of brandQuery) {
-      totalBrandValue += (Number(b.awareness || 0) * Number(b.reputation || 0)) * 10000;
+      totalBrandValue += (Number(b.awareness || 0) * Number(b.reputation || 0)) * 100;
     }
 
     // Intangibles (Engineering Reputation)
     const engQuery = await trx('manufacturing_engineering_reputation').where({ company_id: companyId }).first();
     let totalEngineeringValue = 0;
     if (engQuery) {
-      totalEngineeringValue = (Number(engQuery.reliability_rep || 0) + Number(engQuery.mfg_efficiency_rep || 0)) * 1000000;
+      totalEngineeringValue = (Number(engQuery.reliability_rep || 0) + Number(engQuery.mfg_efficiency_rep || 0)) * 10000;
     }
     
     const financesForBookVal = await trx('company_finances').where({ company_id: companyId }).first();
-    const trueBookValue = Math.max(0, pState.runningCash - Number(financesForBookVal?.debt || 0) + totalInventoryValue + totalFactoryValue + totalBrandValue + totalEngineeringValue);
+    const trueBookValue = Math.floor(Math.max(0, pState.runningCash - Number(financesForBookVal?.debt || 0) + totalInventoryValue + totalFactoryValue + totalBrandValue + totalEngineeringValue));
 
     await trx('company_finances')
       .where({ company_id: companyId })

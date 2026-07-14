@@ -535,7 +535,7 @@ export default function ChroniclePage() {
                     <div>
                       <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Net Worth</p>
                       <p className="text-2xl md:text-3xl font-mono font-bold text-terminal-amber amber-glow leading-tight">
-                        ${netWorth.toLocaleString('en-US')}
+                        {formatMoney(netWorth)}
                       </p>
                       <p className={`text-[11px] font-mono font-bold ${up ? 'text-terminal-green' : 'text-terminal-red'}`}>
                         {up ? '▲' : '▼'} {up ? '+' : '−'}${Math.abs(delta).toLocaleString('en-US')} ({pct.toFixed(1)}%) this month
