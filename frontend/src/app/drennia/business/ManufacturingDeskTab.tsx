@@ -4124,6 +4124,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                 <label className="block text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wider">Size (Acres)</label>
                 <input type="number" min="10" className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-100" value={landAcres} onChange={e => setLandAcres(e.target.value)} />
               </div>
+              {landStateId && (
+                <div className="mt-2 text-sm text-zinc-400">
+                  Total Cost: <span className="font-bold text-zinc-100">{fm(1000000 * (Number(statesForCountry.find((s: any) => s.id === landStateId)?.economic_multiplier) || 1.0) * Number(landAcres || 10))}</span>
+                </div>
+              )}
             </div>
             <div className="flex gap-3 justify-end">
               <GhostButton onClick={() => setShowLandModal(false)}>Cancel</GhostButton>
@@ -4151,6 +4156,13 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                   ))}
                 </select>
               </div>
+              {constructFactoryPlotId && (
+                <div className="mt-2 text-sm text-zinc-400">
+                  Total Cost: <span className="font-bold text-zinc-100">
+                    {fm((constructFactoryTypeId === 'large-complex' ? 25000000 : constructFactoryTypeId === 'medium-plant' ? 8000000 : 2500000) * (Number(statesForCountry.find((s: any) => s.id === landPlots.find((p: any) => p.id === constructFactoryPlotId)?.state_id)?.economic_multiplier) || 1.0))}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="flex gap-3 justify-end">
               <GhostButton onClick={() => setShowConstructFactoryModal(false)}>Cancel</GhostButton>
