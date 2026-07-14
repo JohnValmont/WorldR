@@ -140,7 +140,8 @@ export default function ChroniclePage() {
   const [characterAge, setCharacterAge] = useState<number>(18);
   const [leaderboards, setLeaderboards] = useState<any>(null);
   const [leaderboardTab, setLeaderboardTab] = useState<'wealth' | 'marketCap'>('wealth');
-  const formatMoney = (value: any) => { 
+  const [bestSellersTab, setBestSellersTab] = useState<'monthly' | 'allTime'>('monthly');
+  const formatMoney = (value: any) => {
     if (!value && value !== 0) return "$0"; 
     const num = Number(value);
     if (Number.isNaN(num)) return "$0";
@@ -320,34 +321,56 @@ export default function ChroniclePage() {
 
 
       {/* Top 10 Most Popular Cars */}
-      <Card kicker="Best Sellers (Drennia)" icon={Star}>
-        {leaderboards?.popularCarsArc && (
-          <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-2">
-            Month {leaderboards.popularCarsArc.month}, Year {leaderboards.popularCarsArc.year}
-          </div>
-        )}
-        {!leaderboards?.popularCars ? (
-          <div className="text-zinc-500 text-[11px] py-4">Loading...</div>
-        ) : leaderboards.popularCars.length === 0 ? (
-          <EmptyState icon={Star} message="No cars sold in Drennia this month." className="py-2" />
-        ) : (
-          <div className="flex flex-col gap-1.5 mt-2">
-            {leaderboards.popularCars.map((car: any, idx: number) => (
-              <div key={idx} className="flex items-center justify-between bg-zinc-900/50 p-2 border border-zinc-800 rounded">
-                <div className="flex items-center gap-3">
-                  <div className="text-[10px] text-zinc-500 font-mono w-4">#{idx + 1}</div>
-                  <div className="flex flex-col">
-                    <span className="text-[12px] font-bold text-zinc-200">{car.model_name}</span>
-                    <span className="text-[10px] text-zinc-500">{car.company_name}</span>
-                  </div>
-                </div>
-                <div className="text-[12px] text-terminal-amber font-mono">
-                  {Number(car.total_sold).toLocaleString()} sold
-                </div>
+      <Card kicker="Best Sellers (Drennia)" icon={Star} className="border border-zinc-800">
+          <div className="border-b border-zinc-800 pb-2 mb-4 flex justify-between items-end">
+            {leaderboards?.popularCarsArc && bestSellersTab === 'monthly' ? (
+              <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">
+                Month {leaderboards.popularCarsArc.month}, Year {leaderboards.popularCarsArc.year}
               </div>
-            ))}
+            ) : (
+              <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">
+                All Time
+              </div>
+            )}
+            <div className="flex gap-4 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+              <button 
+                onClick={() => setBestSellersTab('monthly')} 
+                className={bestSellersTab === 'monthly' ? 'text-terminal-amber border-b border-terminal-amber pb-1 transition-colors' : 'hover:text-zinc-300 pb-1 transition-colors'}
+              >
+                Monthly
+              </button>
+              <button 
+                onClick={() => setBestSellersTab('allTime')} 
+                className={bestSellersTab === 'allTime' ? 'text-terminal-amber border-b border-terminal-amber pb-1 transition-colors' : 'hover:text-zinc-300 pb-1 transition-colors'}
+              >
+                All Time
+              </button>
+            </div>
           </div>
-        )}
+          
+          {(() => {
+            const list = bestSellersTab === 'monthly' ? leaderboards?.popularCars : leaderboards?.popularCarsAllTime;
+            if (!list) return <div className="text-zinc-500 text-[11px] py-4">Loading...</div>;
+            if (list.length === 0) return <EmptyState icon={Star} message={`No cars sold in Drennia ${bestSellersTab === 'monthly' ? 'this month' : 'yet'}.`} className="py-2" />;
+            return (
+              <div className="flex flex-col gap-1.5 mt-2">
+                {list.map((car: any, idx: number) => (
+                  <div key={idx} className="flex items-center justify-between bg-zinc-900/50 p-2 border border-zinc-800 rounded">
+                    <div className="flex items-center gap-3">
+                      <div className="text-[10px] text-zinc-500 font-mono w-4">#{idx + 1}</div>
+                      <div className="flex flex-col">
+                        <span className="text-[12px] font-bold text-zinc-200">{car.model_name}</span>
+                        <span className="text-[10px] text-zinc-500">{car.company_name}</span>
+                      </div>
+                    </div>
+                    <div className="text-[12px] text-terminal-amber font-mono">
+                      {Number(car.total_sold).toLocaleString()} sold
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
       </Card>
 
       {/* Global Leaderboards */}

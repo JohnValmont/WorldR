@@ -375,7 +375,7 @@ export class WorldController {
       if (prevMonth === 0) { prevMonth = 8; prevYear = currentYear - 1; }
 
       // ── Run all three independent queries in PARALLEL ────────────────────────
-      const [topCompanies, popularCars, richestPlayersResult] = await Promise.all([
+      const [topCompanies, popularCars, popularCarsAllTime, richestPlayersResult] = await Promise.all([
 
         // ── Global 500: precompute share price, share count, inventory via CTE ──
         db.raw(`
@@ -438,6 +438,17 @@ export class WorldController {
           .where('r.world_instance_id', activeInstanceId)
           .where('r.world_year',  prevYear)
           .where('r.world_month', prevMonth)
+          .select('m.id as model_id', 'm.name as model_name', 'c.name as company_name')
+          .sum('r.units_sold as total_sold')
+          .groupBy('m.id', 'm.name', 'c.name')
+          .orderByRaw('SUM(r.units_sold) DESC')
+          .limit(10),
+
+        // ── Best Sellers: all time ───────────────────────────────────────────
+        db('manufacturing_sales_results as r')
+          .join('manufacturing_vehicle_models as m', 'm.id', 'r.vehicle_model_id')
+          .join('companies as c', 'c.id', 'm.company_id')
+          .where('r.world_instance_id', activeInstanceId)
           .select('m.id as model_id', 'm.name as model_name', 'c.name as company_name')
           .sum('r.units_sold as total_sold')
           .groupBy('m.id', 'm.name', 'c.name')
@@ -534,9 +545,11 @@ export class WorldController {
       res.status(200).json({
         topCompanies: (topCompanies as any).rows || topCompanies,
         popularCars,
+        popularCarsAllTime,
         popularCarsArc,
         richestPlayers: (richestPlayersResult as any).rows || richestPlayersResult
       });
+
     } catch (error) {
       next(error);
     }
