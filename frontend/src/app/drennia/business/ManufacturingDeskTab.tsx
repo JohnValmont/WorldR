@@ -326,7 +326,7 @@ const MFG_TABS: { id: MfgTab; label: string; icon: any }[] = [
 ];
 
 // ─── MAIN COMPONENT ─────────────────────────────────────────────────────────
-export default function ManufacturingDeskTab({ company, mfgData, playerCash, characterName, onRefresh, isAdmin }: any) {
+export default function ManufacturingDeskTab({ company, mfgData, playerCash, netWorth, characterName, onRefresh, isAdmin }: any) {
   const [deskTab, setDeskTab] = useState<MfgTab>('overview');
   const [notification, setNotification] = useState<{ msg: string; success: boolean } | null>(null);
   const [bootstrapData, setBootstrapData] = useState<any>(null);
@@ -910,7 +910,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           {/* Top Stats */}
           <StatCard
             label="Company Value"
-            value={finances?.company_value ? fm(finances.company_value) : 'Not Available'}
+            value={finances ? fm(Math.max(0, Number(finances.available_cash || 0) - Number(finances.debt || 0))) : 'Not Available'}
             valueColor="white"
             trend="up"
             countUp
@@ -926,7 +926,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
           />
           <StatCard
             label="Net Worth"
-            value={finances?.company_value ? fm(finances.company_value) : 'Not Available'}
+            value={netWorth != null ? fm(netWorth) : (finances ? fm(Math.max(0, Number(finances.available_cash || 0) - Number(finances.debt || 0))) : 'Not Available')}
             valueColor="amber"
             trend="up"
             countUp
@@ -3571,8 +3571,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, cha
             <PanelBox>
               <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Current Position</h3>
               <FieldRow label="Available Cash" value={fm(finances?.available_cash || 0)} valueColor={T.mint} />
-              <FieldRow label="Company Value" value={finances?.company_value ? fm(finances.company_value) : 'Not Available'} />
-              <FieldRow label="Factory Asset Value" value={factories.length > 0 ? fm(factories.reduce((sum: number, f: any) => sum + (Number(f.capacity_per_month) * 1000), 0)) : 'Not Available'} />
+              <FieldRow label="Company Value (Book)" value={finances ? fm(Math.max(0, Number(finances.available_cash || 0) - Number(finances.debt || 0))) : 'Not Available'} />
               <FieldRow label="Inventory Value" value={fm(inventoryValue)} />
               <FieldRow label="Last Month Revenue" value={finances?.last_arc_profit !== undefined ? (latestReport ? fm(latestReport.gross_revenue) : fm(0)) : 'Not Available'} valueColor={T.mint} />
               <FieldRow label="Last Month Operating Profit" value={finances?.last_arc_profit !== undefined ? (latestReport ? fm(Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0)) : fm(0)) : 'Not Available'} />

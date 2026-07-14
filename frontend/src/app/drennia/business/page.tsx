@@ -223,6 +223,7 @@ export default function BusinessPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [mfgData, setMfgData] = useState<any>(null);
   const [financeCompany, setFinanceCompany] = useState<any>(null); // Capital Partners firm if player has one
+  const [apiNetWorth, setApiNetWorth] = useState<number | null>(null); // Server-computed net worth (all companies + inventory)
 
   // Start Business state
   const [step, setStep] = useState(1);
@@ -245,6 +246,10 @@ export default function BusinessPage() {
           const char = res.data;
           setCharacterName(char.name);
           setPlayerCash(Number(char.finances?.cash_in_hand || 0));
+          // Use the backend-computed net worth (includes all companies, inventory, finance firm)
+          if (char.finances?.net_worth != null) {
+            setApiNetWorth(Number(char.finances.net_worth));
+          }
 
           const fileStr = localStorage.getItem('worldr_citizen_file_v1');
           if (fileStr) setCitizenFile(JSON.parse(fileStr));
@@ -369,11 +374,13 @@ export default function BusinessPage() {
   };
 
   // ─── Net Worth ──────────────────────────────────────────────────────────
+  // Fallback local calc (used only before API loads or as company-level breakdown)
   const calcCompanyValue = (comp: any) => {
     const fleetVal = fleet.reduce((acc, v) => acc + (v.currentValue || 0), 0);
     return Number(comp.companyCash || 0) + fleetVal - Number(comp.debt || 0);
   };
-  const netWorth = playerCash + (company ? calcCompanyValue(company) : 0);
+  // Prefer the server-computed value which correctly includes all companies + inventory
+  const netWorth = apiNetWorth ?? (playerCash + (company ? calcCompanyValue(company) : 0));
 
   // ─── Start Business ──────────────────────────────────────────────────────
   const checkName = () => {
@@ -610,6 +617,7 @@ export default function BusinessPage() {
                       company={company}
                       mfgData={mfgData}
                       playerCash={playerCash}
+                      netWorth={netWorth}
                       characterName={characterName}
                       onRefresh={refreshAll}
                       isAdmin={isAdmin}

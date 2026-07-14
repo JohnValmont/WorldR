@@ -384,9 +384,9 @@ export class WorldController {
                     ORDER BY sph.game_year DESC, sph.game_month DESC
                     LIMIT 1
                   ),
-                  cf.company_value
+                  GREATEST(0, cf.available_cash - COALESCE(cf.debt, 0) + COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0))
                 )
-              ELSE cf.company_value 
+              ELSE GREATEST(0, cf.available_cash - COALESCE(cf.debt, 0) + COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0))
             END as company_value
           `)
         )
@@ -401,9 +401,9 @@ export class WorldController {
                     ORDER BY sph.game_year DESC, sph.game_month DESC
                     LIMIT 1
                   ),
-                  cf.company_value
+                  GREATEST(0, cf.available_cash - COALESCE(cf.debt, 0) + COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0))
                 )
-              ELSE cf.company_value 
+              ELSE GREATEST(0, cf.available_cash - COALESCE(cf.debt, 0) + COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0))
             END DESC
         `)
         .limit(10);
