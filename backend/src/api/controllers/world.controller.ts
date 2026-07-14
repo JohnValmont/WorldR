@@ -449,7 +449,10 @@ export class WorldController {
                   (SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) 
                   + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND side = 'sell' AND status = 'open'), 0)
                 , 0)
-              ) * compf.company_value
+              ) * GREATEST(0,
+                compf.available_cash - COALESCE(compf.debt, 0) +
+                COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = cs.company_id), 0)
+              )
             ), 0)
             FROM company_shares cs
             JOIN company_finances compf ON compf.company_id = cs.company_id

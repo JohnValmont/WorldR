@@ -16,14 +16,17 @@ export class CompanyController {
       .where({ 'cs.holder_character_id': characterId, 'c.status': 'active' })
       .select(
         'cs.shares',
-        'cf.company_value',
+        'cf.available_cash',
+        'cf.debt',
+        trx.raw(`COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0) as inventory_value`),
         trx.raw(`(SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) as total_shares`)
       );
 
     for (const row of equityValues) {
       const total = Number(row.total_shares || 0);
       if (total > 0) {
-        trueNetWorth += (Number(row.shares) / total) * Number(row.company_value);
+        const realCompanyValue = Math.max(0, Number(row.available_cash) - Number(row.debt || 0) + Number(row.inventory_value || 0));
+        trueNetWorth += (Number(row.shares) / total) * realCompanyValue;
       }
     }
     

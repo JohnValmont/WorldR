@@ -36,14 +36,18 @@ export class CharacterController {
 
       let trueNetWorth = Number(finances?.cash_in_hand || 0) + Number(buyEscrow?.total_escrow || 0);
 
-      // Dynamically calculate equity value
+      // Dynamically calculate equity value using real cash-based valuation.
+      // We use available_cash - debt + inventory_at_cost rather than the stored company_value
+      // which can be inflated by simulation formulas (factory capacity multipliers, etc.).
       const equityValues = await db('company_shares as cs')
         .join('companies as c', 'c.id', 'cs.company_id')
         .join('company_finances as cf', 'cf.company_id', 'c.id')
         .where({ 'cs.holder_character_id': character.id, 'c.status': 'active' })
         .select(
           'cs.shares',
-          'cf.company_value',
+          'cf.available_cash',
+          'cf.debt',
+          db.raw(`COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0) as inventory_value`),
           db.raw(`(SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND side = 'sell' AND status = 'open'), 0) as total_shares`),
           db.raw(`COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND character_id = cs.holder_character_id AND side = 'sell' AND status = 'open'), 0) as escrowed_shares`)
         );
@@ -52,7 +56,9 @@ export class CharacterController {
         const total = Number(row.total_shares || 0);
         const myShares = Number(row.shares) + Number(row.escrowed_shares || 0);
         if (total > 0) {
-          trueNetWorth += (myShares / total) * Number(row.company_value);
+          // Real value = cash the company actually holds minus its debt plus inventory at cost
+          const realCompanyValue = Math.max(0, Number(row.available_cash) - Number(row.debt || 0) + Number(row.inventory_value || 0));
+          trueNetWorth += (myShares / total) * realCompanyValue;
         }
       }
 
