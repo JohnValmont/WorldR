@@ -307,8 +307,9 @@ export class ManufacturingController {
 
       // Load states for this country (for frontend display)
       const statesForCountry = await db('states')
-        .where({ country_id: company.country_id })
-        .select('id', 'name', 'economic_multiplier');
+        .leftJoin('manufacturing_region_markets', 'states.id', 'manufacturing_region_markets.state_id')
+        .where({ 'states.country_id': company.country_id })
+        .select('states.id', 'states.name', 'manufacturing_region_markets.economic_multiplier');
 
       // Components
       const componentCatalogue = await db('manufacturing_component_catalogue')
@@ -494,7 +495,8 @@ export class ManufacturingController {
         const state = await trx('states').where({ id: targetStateId }).first();
         if (!state) throw new AppError('State not found', 404);
         
-        const mult = Number(state.economic_multiplier) || 1.0;
+        const market = await trx('manufacturing_region_markets').where({ state_id: targetStateId }).first();
+        const mult = Number(market?.economic_multiplier) || 1.0;
         const cost = 50000 * mult;
 
         const fin = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
@@ -530,8 +532,9 @@ export class ManufacturingController {
 
         const state = await trx('states').where({ id: stateId }).first();
         if (!state) throw new AppError('State not found', 404);
-
-        const mult = Number(state.economic_multiplier) || 1.0;
+        
+        const market = await trx('manufacturing_region_markets').where({ state_id: stateId }).first();
+        const mult = Number(market?.economic_multiplier) || 1.0;
         const cost = (1000000 * mult) * acres;
 
         const fin = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
@@ -580,7 +583,9 @@ export class ManufacturingController {
         if (plot.total_acres - plot.used_acres < requiredAcres) throw new AppError('Not enough free acres on this plot', 400);
 
         const state = await trx('states').where({ id: plot.state_id }).first();
-        const mult = Number(state.economic_multiplier) || 1.0;
+        
+        const market = await trx('manufacturing_region_markets').where({ state_id: plot.state_id }).first();
+        const mult = Number(market?.economic_multiplier) || 1.0;
         
         let baseCost = 2500000;
         if (fType.id === 'medium-plant') baseCost = 8000000;
@@ -645,7 +650,9 @@ export class ManufacturingController {
         if (currentCount >= maxLines) throw new AppError('Factory is at maximum production lines', 400);
 
         const state = await trx('states').where({ id: factory.state_id }).first();
-        const mult = Number(state.economic_multiplier) || 1.0;
+        
+        const market = await trx('manufacturing_region_markets').where({ state_id: factory.state_id }).first();
+        const mult = Number(market?.economic_multiplier) || 1.0;
         const cost = 1500000 * mult;
 
         const fin = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
@@ -728,7 +735,9 @@ export class ManufacturingController {
         const requiredAcres = fType.id === 'small-workshop' ? 1 : (fType.id === 'medium-plant' ? 3 : 10);
 
         const state = await trx('states').where({ id: plot.state_id }).first();
-        const mult = Number(state.economic_multiplier) || 1.0;
+        
+        const market = await trx('manufacturing_region_markets').where({ state_id: plot.state_id }).first();
+        const mult = Number(market?.economic_multiplier) || 1.0;
         
         let baseCost = 2500000;
         if (fType.id === 'medium-plant') baseCost = 8000000;
@@ -771,7 +780,9 @@ export class ManufacturingController {
 
         const factory = await trx('manufacturing_factories').where({ id: line.factory_id }).first();
         const state = await trx('states').where({ id: factory.state_id }).first();
-        const mult = Number(state.economic_multiplier) || 1.0;
+        
+        const market = await trx('manufacturing_region_markets').where({ state_id: factory.state_id }).first();
+        const mult = Number(market?.economic_multiplier) || 1.0;
         const originalCost = 1500000 * mult;
         const salvageValue = Math.floor(originalCost * 0.3);
 
@@ -2972,7 +2983,7 @@ export class ManufacturingController {
               'manufacturing_production_lines.assigned_vehicle_model_id': alloc.vehicle_model_id
             });
             
-          const currentProduction = activeLines.reduce((sum, line) => sum + Number(line.target_units_per_arc ?? 0), 0);
+          const currentProduction = activeLines.reduce((sum, line) => sum + Number(line.target_units_per_month ?? 0), 0);
           
           forecastInventoryCache.set(alloc.vehicle_model_id, (invRow ? Number(invRow.units_in_stock) : 0) + currentProduction);
         }
