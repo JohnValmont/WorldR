@@ -1,5 +1,5 @@
 export const BANKRUPTCY_FLOOR = 0;
-export const PRODUCTION_BUFFER = 1.1;
+export const PRODUCTION_BUFFER = 1.15;          // was 1.1 — respond slightly faster to demand
 export const PRICE_STEP = 0.04;
 export const MARKETING_REVENUE_PCT = 0.05;
 export const ZERO_DEMAND_FACELIFT_MONTHS = 3;
@@ -7,6 +7,13 @@ export const MIN_UNITS = 10;
 export const MIN_UNITS_FLOOR = 0;
 export const AWARENESS_BUMP_THRESHOLD = 30;
 export const MODEL_AGE_FACELIFT = 36;
+
+// B7 Market Expansion: if sell-through ratio exceeds this threshold, the brain
+// signals that the NPC should be seeded into additional markets next tick.
+export const NPC_EXPAND_SELL_RATIO = 0.92;
+
+// Maximum number of region markets an NPC will expand into automatically.
+export const NPC_MAX_MARKETS = 10;
 
 
 export const NPC_ROSTER = [
@@ -32,9 +39,9 @@ export const NPC_ROSTER = [
       safety: 45,
     },
     salePrice: 14500,
-    targetUnitsPerArc: 100,
-    marketingTier: 'local',
-    staff: { supervisor: 1, salesManager: 1, engineer: 0, inspector: 0 },
+    targetUnitsPerArc: 400,        // was 100 — matches new 1500-cap factory
+    marketingTier: 'regional',     // was local
+    staff: { supervisor: 1, salesManager: 2, engineer: 0, inspector: 0 },
   },
   {
     key: 'veridian',
@@ -58,9 +65,9 @@ export const NPC_ROSTER = [
       safety: 80,
     },
     salePrice: 27000,
-    targetUnitsPerArc: 90,
+    targetUnitsPerArc: 350,        // was 90
     marketingTier: 'regional',
-    staff: { supervisor: 1, salesManager: 1, engineer: 0, inspector: 0 },
+    staff: { supervisor: 1, salesManager: 2, engineer: 0, inspector: 0 },
   },
   {
     key: 'apex',
@@ -84,9 +91,9 @@ export const NPC_ROSTER = [
       safety: 70,
     },
     salePrice: 58000,
-    targetUnitsPerArc: 40,
-    marketingTier: 'regional',
-    staff: { supervisor: 1, salesManager: 1, engineer: 1, inspector: 1 },
+    targetUnitsPerArc: 200,        // was 40 — premium segment is rightly smaller
+    marketingTier: 'national',     // premium brands go national
+    staff: { supervisor: 1, salesManager: 2, engineer: 1, inspector: 1 },
   },
   {
     key: 'haulpro',
@@ -110,8 +117,8 @@ export const NPC_ROSTER = [
       safety: 60,
     },
     salePrice: 34000,
-    targetUnitsPerArc: 80,
-    marketingTier: 'local',
-    staff: { supervisor: 1, salesManager: 1, engineer: 0, inspector: 0 },
+    targetUnitsPerArc: 400,        // was 80
+    marketingTier: 'regional',
+    staff: { supervisor: 1, salesManager: 2, engineer: 0, inspector: 0 },
   },
 ];

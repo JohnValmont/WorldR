@@ -8,7 +8,9 @@ import {
   MIN_UNITS_FLOOR,
   AWARENESS_BUMP_THRESHOLD,
   MODEL_AGE_FACELIFT,
-  NPC_ROSTER
+  NPC_ROSTER,
+  NPC_EXPAND_SELL_RATIO,
+  NPC_MAX_MARKETS
 } from '../constants/npc';
 
 // Defines the inputs required for an NPC company to make its monthly decisions
@@ -39,6 +41,8 @@ export interface NpcBrainOutput {
   newMarketingTier: string;
   faceliftFlag: boolean;
   newZeroDemandStreak: number;
+  // B7: signals that the NPC should try to enter additional region markets
+  expandMarkets: boolean;
 }
 
 // Allowed marketing tiers and their costs for logic comparison
@@ -75,6 +79,7 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
   let newMarketingTier = marketingTier;
   let faceliftFlag = false;
   let newZeroDemandStreak = zeroDemandStreak;
+  let expandMarkets = false;
 
   // B2 Rule: If we completely sold out, increase the price step and boost production generously
   if (reasonCode === 'Sold Out') {
@@ -133,12 +138,24 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
     faceliftFlag = true;
   }
 
+  // B7 Rule: Market Expansion — if we're consistently selling nearly everything
+  // we allocate, we have untapped demand: try to enter new markets.
+  if (
+    unitsAllocatedLastArc > 0 &&
+    reasonCode !== 'Zero Demand' &&
+    reasonCode !== 'Low Brand Awareness' &&
+    (unitsSoldLastArc / unitsAllocatedLastArc) >= NPC_EXPAND_SELL_RATIO
+  ) {
+    expandMarkets = true;
+  }
+
   return {
     newSalePrice,
     newTargetUnits,
     newMarketingTier,
     faceliftFlag,
-    newZeroDemandStreak
+    newZeroDemandStreak,
+    expandMarkets
   };
 }
 
@@ -181,12 +198,12 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
       factoryCapacity = factory ? factory.capacity_per_month : 0;
     }
 
-    // Get market allocation details (assume 1 main market for now for NPCs)
-    const allocation = await trx('manufacturing_market_allocations')
-      .where({ company_id: companyId, vehicle_model_id: modelId })
-      .first();
+    // Get ALL market allocations for this model (multi-market support)
+    const allocations = await trx('manufacturing_market_allocations')
+      .where({ company_id: companyId, vehicle_model_id: modelId });
+    const allocation = allocations[0] || null; // primary allocation for brain input
     const marketingTier = allocation ? allocation.marketing_tier : 'none';
-    const unitsAllocatedLastArc = allocation ? allocation.units_allocated : 0;
+    const unitsAllocatedLastArc = allocations.reduce((s: number, a: any) => s + Number(a.units_allocated), 0);
     const regionMarketId = allocation ? allocation.region_market_id : null;
 
     // Get market awareness
@@ -334,14 +351,53 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
         .update({ target_units_per_month: output.newTargetUnits });
     }
 
-    if (allocation) {
-      (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - update allocation`;
-      await trx('manufacturing_market_allocations')
-        .where({ id: allocation.id })
-        .update({
-          marketing_tier: output.newMarketingTier,
-          units_allocated: output.newTargetUnits + inventoryInStock
-        });
+    if (allocations.length > 0) {
+      (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - update allocations`;
+      // Spread units evenly across all markets; any remainder goes to the primary market
+      const perMarket = Math.max(1, Math.floor((output.newTargetUnits) / allocations.length));
+      const remainder = output.newTargetUnits - (perMarket * allocations.length);
+      for (let i = 0; i < allocations.length; i++) {
+        const extraUnits = i === 0 ? remainder : 0; // give remainder to primary market
+        await trx('manufacturing_market_allocations')
+          .where({ id: allocations[i].id })
+          .update({
+            marketing_tier: output.newMarketingTier,
+            units_allocated: perMarket + extraUnits + (i === 0 ? inventoryInStock : 0)
+          });
+      }
+
+      // B7 Market Expansion: enter new markets if sell-through is high and cap not reached
+      if (output.expandMarkets && allocations.length < NPC_MAX_MARKETS) {
+        (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - B7 expand markets`;
+        const coveredMarketIds = new Set(allocations.map((a: any) => a.region_market_id));
+        const uncoveredMarkets = await trx('manufacturing_region_markets')
+          .whereNotIn('id', [...coveredMarketIds])
+          .limit(2); // expand to at most 2 new markets per tick to avoid flooding
+        for (const newMarket of uncoveredMarkets) {
+          if (allocations.length + uncoveredMarkets.indexOf(newMarket) >= NPC_MAX_MARKETS) break;
+          await trx('manufacturing_market_allocations')
+            .insert({
+              company_id: companyId,
+              world_instance_id: allocation!.world_instance_id,
+              vehicle_model_id: modelId,
+              region_market_id: newMarket.id,
+              units_allocated: perMarket,
+              marketing_tier: output.newMarketingTier
+            })
+            .onConflict(['company_id', 'vehicle_model_id', 'region_market_id'])
+            .ignore();
+          // Seed brand awareness for the new market at a low starting value
+          await trx('manufacturing_brand_awareness')
+            .insert({
+              company_id: companyId,
+              region_market_id: newMarket.id,
+              awareness: 10,
+              reputation: 30
+            })
+            .onConflict(['company_id', 'region_market_id'])
+            .ignore();
+        }
+      }
     }
 
     // Sync NPC memory
