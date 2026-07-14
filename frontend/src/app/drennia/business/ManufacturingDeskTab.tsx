@@ -443,7 +443,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
   // ─── Data-driven config from API ─────────────────────────────────────────
   const currencySymbol: string = mfgData?.currencySymbol ?? '?';
   const autoConfig = mfgData?.countryAutoConfig ?? {};
-  const statesForCountry: { id: string; name: string }[] = mfgData?.statesForCountry ?? [];
+  const statesForCountry: { id: string; name: string; economic_multiplier?: string | number }[] = mfgData?.statesForCountry ?? [];
   const licenses: any[] = mfgData?.licenses ?? [];
   const landPlots: any[] = mfgData?.landPlots ?? [];
 
@@ -4063,6 +4063,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                 <option value="">-- Select State --</option>
                 {statesForCountry.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+              {licenseStateId && (
+                <div className="mt-3 text-sm text-zinc-400">
+                  License Cost: <span className="font-bold text-zinc-100">{fm(5000000 * (Number(statesForCountry.find(s => s.id === licenseStateId)?.economic_multiplier) || 1.0))}</span>
+                </div>
+              )}
             </div>
             <div className="flex gap-3 justify-end">
               <GhostButton onClick={() => setShowLicenseModal(false)}>Cancel</GhostButton>

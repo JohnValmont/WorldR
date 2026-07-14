@@ -308,7 +308,7 @@ export class ManufacturingController {
       // Load states for this country (for frontend display)
       const statesForCountry = await db('states')
         .where({ country_id: company.country_id })
-        .select('id', 'name');
+        .select('id', 'name', 'economic_multiplier');
 
       // Components
       const componentCatalogue = await db('manufacturing_component_catalogue')
