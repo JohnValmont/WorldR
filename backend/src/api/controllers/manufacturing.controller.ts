@@ -2963,7 +2963,18 @@ export class ManufacturingController {
           const invRow = await db('manufacturing_inventory')
             .where({ company_id: companyId, vehicle_model_id: alloc.vehicle_model_id })
             .first();
-          forecastInventoryCache.set(alloc.vehicle_model_id, invRow ? Number(invRow.units_in_stock) : 0);
+            
+          const activeLines = await db('manufacturing_production_lines')
+            .join('manufacturing_factories', 'manufacturing_production_lines.factory_id', 'manufacturing_factories.id')
+            .where({
+              'manufacturing_factories.company_id': companyId,
+              'manufacturing_production_lines.status': 'active',
+              'manufacturing_production_lines.assigned_vehicle_model_id': alloc.vehicle_model_id
+            });
+            
+          const currentProduction = activeLines.reduce((sum, line) => sum + Number(line.target_units_per_arc ?? 0), 0);
+          
+          forecastInventoryCache.set(alloc.vehicle_model_id, (invRow ? Number(invRow.units_in_stock) : 0) + currentProduction);
         }
       }
       const forecastByModel = new Map<string, any[]>();

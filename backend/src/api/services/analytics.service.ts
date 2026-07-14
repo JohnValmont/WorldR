@@ -155,10 +155,12 @@ export class AnalyticsService {
     const allSales = await db('manufacturing_sales_results')
       .where({ 'manufacturing_sales_results.world_year': targetYear, 'manufacturing_sales_results.world_month': targetMonth })
       .join('manufacturing_region_markets', 'manufacturing_sales_results.region_market_id', 'manufacturing_region_markets.id')
+      .join('companies', 'manufacturing_sales_results.company_id', 'companies.id')
       .where({ 'manufacturing_region_markets.country_id': countryId })
       .select(
         'manufacturing_sales_results.*',
-        'manufacturing_region_markets.name as market_name'
+        'manufacturing_region_markets.name as market_name',
+        'companies.name as company_name'
       );
 
     const segmentMap = new Map<string, any>();
@@ -173,7 +175,8 @@ export class AnalyticsService {
           totalRevenue: 0,
           reasonCodes: [],
           averageSalePrice: 0,
-          saturationSignal: 'Balanced'
+          saturationSignal: 'Balanced',
+          companySalesMap: new Map<string, number>()
         });
       }
 
@@ -183,6 +186,9 @@ export class AnalyticsService {
       // Track reason codes weighted by units sold or just count instances. The prompt says "If a large percentage of sales in this segment had the 'Sold Out' reason code". Weighting by units is more accurate for the whole market.
       // Wait, 'Sold Out' means they sold everything, so weighting by units sold might underrepresent it if they didn't have much. Let's just tally the reason codes per sale record.
       segment.reasonCodes.push({ reason: sale.main_reason_code, units: Number(sale.units_sold) });
+      
+      const compSales = segment.companySalesMap.get(sale.company_name) || 0;
+      segment.companySalesMap.set(sale.company_name, compSales + Number(sale.units_sold));
     }
 
     for (const segment of segmentMap.values()) {
@@ -207,8 +213,17 @@ export class AnalyticsService {
         }
       }
 
+      segment.companies = [];
+      for (const [companyName, units] of segment.companySalesMap.entries()) {
+        segment.companies.push({
+          companyName,
+          marketShare: segment.totalUnitsSold > 0 ? (units / segment.totalUnitsSold) * 100 : 0
+        });
+      }
+
       // Clean up reason codes before returning to keep response small and anonymized
       delete segment.reasonCodes;
+      delete segment.companySalesMap;
     }
 
     return {
