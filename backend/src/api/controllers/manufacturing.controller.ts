@@ -35,7 +35,8 @@ import {
   calculateBalanceRating,
 } from '../constants/engineeringEngine';
 import { MARKET_SEGMENTS } from '../constants/marketSegments';
-import { runNpcBrainForCompany } from '../services/npcBrain.service';
+import { runNpcBrainForCompany, spawnNpc } from '../services/npcBrain.service';
+import { BANKRUPTCY_FLOOR } from '../constants/npc';
 import { processPoliticalArc, worldClockToArc } from '../services/politics.service';
 
 // ── Score Calculation (Original formulas) ─────────────────────────────────────
@@ -2297,6 +2298,25 @@ export class ManufacturingController {
         for (const pState of participantStates) {
            const compResults = pooledSalesResults.filter((r: any) => r.alloc.company_id === pState.company.id);
            await ManufacturingController.settleForCompany(trx, pState, compResults, clock, brandMap);
+        }
+
+        // 6. BANKRUPTCY HANDLING (NPCs only)
+        for (const company of participants) {
+           if (company.is_npc) {
+              const fin = await trx('company_finances').where({ company_id: company.id }).first();
+              if (fin && parseFloat(fin.available_cash) < BANKRUPTCY_FLOOR) {
+                 // Retire the old NPC
+                 await trx('companies').where({ id: company.id }).update({ status: 'bankrupt' });
+                 await trx('manufacturing_factories').where({ company_id: company.id }).update({ status: 'inactive' });
+                 await trx('manufacturing_production_lines').where({ company_id: company.id }).update({ status: 'inactive' });
+                 await trx('manufacturing_market_allocations').where({ company_id: company.id }).del();
+                 
+                 // Re-seed a FRESH NPC of the same personality
+                 await spawnNpc(trx, company.npc_personality, company.country_id, clock);
+                 
+                 console.log(`[NPC Bankruptcy] ${company.name} (${company.id}) went bankrupt with ${fin.available_cash} cash. Respawned fresh ${company.npc_personality}!`);
+              }
+           }
         }
 
         // Process Political Month Hook

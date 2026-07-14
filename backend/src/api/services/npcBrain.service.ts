@@ -427,6 +427,24 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
         });
     }
 
+    // Fast Facelift
+    if (output.faceliftFlag) {
+      const BASE_FACELIFT_COST = 90000;
+      if (availableCash >= BASE_FACELIFT_COST) {
+         await trx('manufacturing_vehicle_models')
+           .where({ id: modelId })
+           .update({ 
+              created_at_world_year: currentYear, 
+              created_at_world_month: currentMonth,
+              updated_at: trx.fn.now()
+           });
+         await trx('company_finances')
+           .where({ company_id: companyId })
+           .decrement('available_cash', BASE_FACELIFT_COST);
+         
+         console.log(`[NPC Facelift] Company ${companyId} facelifted model ${modelId} for $${BASE_FACELIFT_COST}`);
+      }
+    }
   }
 }
 
