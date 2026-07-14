@@ -495,7 +495,7 @@ export class ManufacturingController {
         if (!state) throw new AppError('State not found', 404);
         
         const mult = Number(state.economic_multiplier) || 1.0;
-        const cost = 5000000 * mult;
+        const cost = 50000 * mult;
 
         const fin = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
         if (Number(fin.available_cash) < cost) throw new AppError('Insufficient cash for license', 400);

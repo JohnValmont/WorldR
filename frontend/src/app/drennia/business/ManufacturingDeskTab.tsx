@@ -11,7 +11,7 @@ import {
   AreaChart, Area, BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend
 } from 'recharts';
-import { LayoutDashboard, Factory, FlaskConical, ShoppingCart, Activity, BarChart3, Users, DollarSign, ScrollText, PieChart, Tags, Globe, LineChart } from 'lucide-react';
+import { LayoutDashboard, Factory, FlaskConical, ShoppingCart, Activity, BarChart3, Users, DollarSign, ScrollText, PieChart, Tags, Globe, LineChart, Info } from 'lucide-react';
 
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
@@ -421,6 +421,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
 
   // Licensing & Land state
   const [showLicenseModal, setShowLicenseModal] = useState(false);
+  const [showGuideModal, setShowGuideModal] = useState(false);
   const [licenseStateId, setLicenseStateId] = useState('');
   
   const [showLandModal, setShowLandModal] = useState(false);
@@ -1163,7 +1164,12 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
       ═══════════════════════════════════════════════════════ */}
       {deskTab === 'factory' && (
         <div>
-          <SectionHeader stamp="FACILITIES">Factory</SectionHeader>
+          <div className="flex justify-between items-center mb-6">
+            <SectionHeader stamp="FACILITIES">Factory</SectionHeader>
+            <GhostButton onClick={() => setShowGuideModal(true)} iconRight={Info}>
+              Factory Guide
+            </GhostButton>
+          </div>
 
           {/* ── LICENSES ── */}
           <div className="mb-8">
@@ -4065,13 +4071,33 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
               </select>
               {licenseStateId && (
                 <div className="mt-3 text-sm text-zinc-400">
-                  License Cost: <span className="font-bold text-zinc-100">{fm(5000000 * (Number(statesForCountry.find(s => s.id === licenseStateId)?.economic_multiplier) || 1.0))}</span>
+                  License Cost: <span className="font-bold text-zinc-100">{fm(50000 * (Number(statesForCountry.find(s => s.id === licenseStateId)?.economic_multiplier) || 1.0))}</span>
                 </div>
               )}
             </div>
             <div className="flex gap-3 justify-end">
               <GhostButton onClick={() => setShowLicenseModal(false)}>Cancel</GhostButton>
               <GoldButton onClick={handlePurchaseLicense} disabled={!licenseStateId}>Purchase License</GoldButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showGuideModal && (
+        <div className="fixed inset-0 bg-black/85 z-[999] flex items-center justify-center p-5" onClick={() => setShowGuideModal(false)}>
+          <div className="bg-zinc-950 border border-zinc-800 rounded-md w-full max-w-2xl p-6 overflow-y-auto max-h-[85vh]" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-zinc-100 mb-4 border-b border-zinc-800 pb-2">Factory & Manufacturing Guide</h2>
+            <div className="text-sm text-zinc-300 space-y-4 mb-6 leading-relaxed">
+              <p><strong className="text-zinc-100">1. State Licenses:</strong> Before you can build factories, you must purchase a manufacturing license for a specific state. The cost of a license scales with the state's economic multiplier.</p>
+              <p><strong className="text-zinc-100">2. Land Plots:</strong> After obtaining a license, you purchase land plots in that state. Land is bought by the acre, and different factory types require different amounts of acres. You can sell land later to recover 80% of its cost.</p>
+              <p><strong className="text-zinc-100">3. Factories:</strong> Factories are built on your land plots. They take time to construct (measured in months/ticks). Once completed, they provide a base capacity (units per month) and worker capacity.</p>
+              <p><strong className="text-zinc-100">4. Production Lines:</strong> Inside completed factories, you construct production lines. Each line costs cash and time to build. The number of lines a factory can hold is determined by its type (e.g. Small Workshop vs Large Complex) and its expansion status.</p>
+              <p><strong className="text-zinc-100">5. Factory Expansions:</strong> Factories can be expanded to increase their max production lines and worker capacity, allowing for greater output without buying more land.</p>
+              <p><strong className="text-zinc-100">6. Production Plans:</strong> Once a line is idle, you can assign it a launched vehicle model and set a monthly target. The total units across all lines cannot exceed the factory's capacity. Workers are automatically calculated based on your targets.</p>
+              <p><strong className="text-zinc-100">7. Maintenance & Condition:</strong> Factories degrade over time. If their condition drops too low, production efficiency suffers. You can manually recover condition or enable auto-recovery to maintain them at a monthly cost.</p>
+            </div>
+            <div className="flex justify-end">
+              <GoldButton onClick={() => setShowGuideModal(false)}>Got It</GoldButton>
             </div>
           </div>
         </div>
