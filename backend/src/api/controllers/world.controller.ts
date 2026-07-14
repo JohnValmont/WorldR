@@ -410,15 +410,31 @@ export class WorldController {
 
 
 
+      // Get the clock so we can scope popular cars to the last completed arc
+      const clock = await db('world_clocks')
+        .where({ world_instance_id: activeInstanceId })
+        .first();
+      const currentYear  = clock ? Number(clock.current_year)  : 1;
+      const currentMonth = clock ? Number(clock.current_month) : 1;
+      // Use previous arc (current arc is still in-flight)
+      let prevYear  = currentYear;
+      let prevMonth = currentMonth - 1;
+      if (prevMonth === 0) { prevMonth = 8; prevYear = currentYear - 1; }
+
       const popularCars = await db('manufacturing_sales_results as r')
         .join('manufacturing_vehicle_models as m', 'm.id', 'r.vehicle_model_id')
         .join('companies as c', 'c.id', 'm.company_id')
         .where('r.world_instance_id', activeInstanceId)
+        .where('r.world_year',  prevYear)
+        .where('r.world_month', prevMonth)
         .select('m.id as model_id', 'm.name as model_name', 'c.name as company_name')
         .sum('r.units_sold as total_sold')
         .groupBy('m.id', 'm.name', 'c.name')
         .orderByRaw('SUM(r.units_sold) DESC')
         .limit(10);
+
+      // Include the arc label so the frontend can display "Month X, Year Y"
+      const popularCarsArc = { year: prevYear, month: prevMonth };
 
       const richestPlayers = await db.raw(`
         SELECT 
@@ -476,6 +492,7 @@ export class WorldController {
       res.status(200).json({
         topCompanies,
         popularCars,
+        popularCarsArc,
         richestPlayers: richestPlayers.rows || richestPlayers
       });
     } catch (error) {

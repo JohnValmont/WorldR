@@ -320,7 +320,12 @@ export default function ChroniclePage() {
 
 
       {/* Top 10 Most Popular Cars */}
-      <Card kicker="Top 10 Most Popular Cars (Drennia)" icon={Star}>
+      <Card kicker="Best Sellers (Drennia)" icon={Star}>
+        {leaderboards?.popularCarsArc && (
+          <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-2">
+            Month {leaderboards.popularCarsArc.month}, Year {leaderboards.popularCarsArc.year}
+          </div>
+        )}
         {!leaderboards?.popularCars ? (
           <div className="text-zinc-500 text-[11px] py-4">Loading...</div>
         ) : leaderboards.popularCars.length === 0 ? (
