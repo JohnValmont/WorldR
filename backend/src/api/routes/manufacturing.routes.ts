@@ -11,7 +11,14 @@ router.get('/manufacturing/bootstrap', ManufacturingController.getBootstrap);
 // Company-scoped manufacturing routes (auth required)
 router.get('/companies/:companyId/manufacturing/data', authMiddleware, ManufacturingController.getCompanyManufacturingData);
 router.post('/companies/:companyId/manufacturing/components/procure', authMiddleware, ManufacturingController.procureComponents);
-router.post('/companies/:companyId/manufacturing/factories/lease', authMiddleware, ManufacturingController.leaseFactory);
+router.post('/companies/:companyId/manufacturing/licenses', authMiddleware, ManufacturingController.purchaseLicense);
+router.post('/companies/:companyId/manufacturing/land', authMiddleware, ManufacturingController.purchaseLand);
+router.post('/companies/:companyId/manufacturing/factories/construct', authMiddleware, ManufacturingController.constructFactory);
+router.post('/companies/:companyId/manufacturing/factories/:factoryId/production-lines/construct', authMiddleware, ManufacturingController.constructProductionLine);
+router.delete('/companies/:companyId/manufacturing/land/:landPlotId', authMiddleware, ManufacturingController.sellLand);
+router.delete('/companies/:companyId/manufacturing/factories/:factoryId', authMiddleware, ManufacturingController.scrapFactory);
+router.delete('/companies/:companyId/manufacturing/production/lines/:lineId', authMiddleware, ManufacturingController.scrapProductionLine);
+
 router.post('/companies/:companyId/manufacturing/models', authMiddleware, ManufacturingController.createVehicleModel);
 router.post('/companies/:companyId/manufacturing/models/:modelId/launch', authMiddleware, ManufacturingController.launchVehicleModel);
 router.patch('/companies/:companyId/manufacturing/models/:modelId/price', authMiddleware, ManufacturingController.updateModelPrice);

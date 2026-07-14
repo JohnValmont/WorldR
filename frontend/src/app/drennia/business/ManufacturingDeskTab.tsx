@@ -419,6 +419,21 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
   const [showExpandConfirm, setShowExpandConfirm] = useState(false);
   const [expandingFactoryId, setExpandingFactoryId] = useState<string | null>(null);
 
+  // Licensing & Land state
+  const [showLicenseModal, setShowLicenseModal] = useState(false);
+  const [licenseStateId, setLicenseStateId] = useState('');
+  
+  const [showLandModal, setShowLandModal] = useState(false);
+  const [landStateId, setLandStateId] = useState('');
+  const [landAcres, setLandAcres] = useState('10');
+  const [landName, setLandName] = useState('');
+
+  const [showConstructFactoryModal, setShowConstructFactoryModal] = useState(false);
+  const [constructFactoryPlotId, setConstructFactoryPlotId] = useState('');
+  const [constructFactoryTypeId, setConstructFactoryTypeId] = useState('small-workshop');
+  const [constructFactoryName, setConstructFactoryName] = useState('');
+
+
 
   const showNotif = (msg: string, success: boolean) => {
     setNotification({ msg, success });
@@ -429,6 +444,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
   const currencySymbol: string = mfgData?.currencySymbol ?? '?';
   const autoConfig = mfgData?.countryAutoConfig ?? {};
   const statesForCountry: { id: string; name: string }[] = mfgData?.statesForCountry ?? [];
+  const licenses: any[] = mfgData?.licenses ?? [];
+  const landPlots: any[] = mfgData?.landPlots ?? [];
 
   // Currency formatter — uses company's currency symbol, not a hardcoded $
   const fm = (val: any) => {
@@ -548,14 +565,49 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
 
   // ── Handlers ────────────────────────────────────────────────�����─────────────
 
-  const handleLeaseFactory = async (factoryTypeId: string) => {
+  const handlePurchaseLicense = async () => {
     try {
-      await manufacturingApi.leaseFactory(company.id, factoryTypeId);
-      showNotif('Factory leased. Production lines created.', true);
+      await manufacturingApi.purchaseLicense(company.id, { targetStateId: licenseStateId });
+      showNotif('State manufacturing license purchased.', true);
+      setShowLicenseModal(false);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to purchase license.', false);
+    }
+  };
+
+  const handlePurchaseLand = async () => {
+    try {
+      await manufacturingApi.purchaseLand(company.id, { stateId: landStateId, acres: Number(landAcres), name: landName });
+      showNotif('Land plot purchased.', true);
+      setShowLandModal(false);
+      setLandName('');
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to purchase land.', false);
+    }
+  };
+
+  const handleConstructFactory = async () => {
+    try {
+      await manufacturingApi.constructFactory(company.id, { landPlotId: constructFactoryPlotId, factoryTypeId: constructFactoryTypeId, name: constructFactoryName });
+      showNotif('Factory construction started. It will take 5 months.', true);
+      setShowConstructFactoryModal(false);
+      setConstructFactoryName('');
       onRefresh();
       setDeskTab('factory');
     } catch (err: any) {
-      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to lease factory.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to construct factory.', false);
+    }
+  };
+
+  const handleConstructProductionLine = async (factoryId: string) => {
+    try {
+      await manufacturingApi.constructProductionLine(company.id, factoryId);
+      showNotif('Production line construction started. It will take 2 months.', true);
+      onRefresh();
+    } catch (err: any) {
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to construct production line.', false);
     }
   };
 
@@ -692,6 +744,22 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
       onRefresh();
     } catch (err: any) {
       showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to resume line.', false);
+    }
+  };
+
+  const handleScrapProductionLine = async (lineId: string, lineStatus: string, targetUnits: number) => {
+    if (lineStatus === 'active' && targetUnits > 0) {
+      showNotif('Cannot scrap an active production line. Pause production first.', false);
+      return;
+    }
+    if (confirm('Are you sure you want to scrap this production line? You will recover 30% of its cost, but this action cannot be undone.')) {
+      try {
+        await manufacturingApi.scrapProductionLine(company.id, lineId);
+        showNotif('Production line scrapped.', true);
+        onRefresh();
+      } catch (err: any) {
+        showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to scrap line.', false);
+      }
     }
   };
 
@@ -1097,35 +1165,67 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
         <div>
           <SectionHeader stamp="FACILITIES">Factory</SectionHeader>
 
+          {/* ── LICENSES ── */}
+          <div className="mb-8">
+            <h3 className="text-[13px] font-bold text-zinc-100 uppercase tracking-widest mb-4 border-b border-zinc-800 pb-2">Manufacturing Licenses</h3>
+            {licenses.length === 0 ? (
+              <EmptyState title="No Licenses" subtitle="You need a manufacturing license in a state before you can purchase land there." action={<GoldButton onClick={() => setShowLicenseModal(true)}>Purchase License</GoldButton>} />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {licenses.map(lic => (
+                  <PanelBox key={lic.id} className="border-terminal-blue/30 bg-terminal-blue/5">
+                    <div className="font-bold text-terminal-blue mb-1">{resolveState(lic.state_id)}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-terminal-blue/70 font-mono">Active License</div>
+                  </PanelBox>
+                ))}
+                <div onClick={() => setShowLicenseModal(true)}>
+                  <PanelBox className="flex items-center justify-center cursor-pointer hover:border-zinc-500 transition-colors border-dashed h-full">
+                    <span className="text-sm font-medium text-zinc-400">+ Purchase License</span>
+                  </PanelBox>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── LAND PLOTS ── */}
+          <div className="mb-8">
+            <h3 className="text-[13px] font-bold text-zinc-100 uppercase tracking-widest mb-4 border-b border-zinc-800 pb-2">Land Plots</h3>
+            {landPlots.length === 0 ? (
+              <EmptyState title="No Land Plots" subtitle="Purchase land in a licensed state to construct factories." action={<GoldButton onClick={() => setShowLandModal(true)}>Purchase Land</GoldButton>} />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {landPlots.map(plot => (
+                  <PanelBox key={plot.id}>
+                    <div className="font-bold text-zinc-100 mb-1">{plot.name}</div>
+                    <div className="text-[11px] text-zinc-400 mb-3">{resolveState(plot.state_id)} · {plot.total_acres} Acres</div>
+                    <div className="flex gap-2">
+                      <GoldButton onClick={() => { setConstructFactoryPlotId(plot.id); setShowConstructFactoryModal(true); }}>Build Factory Here</GoldButton>
+                      <GhostButton color="#b85555" onClick={async () => {
+                        if (confirm(`Are you sure you want to sell ${plot.name}? This will recover 80% of the land cost.`)) {
+                          try {
+                            await manufacturingApi.sellLand(company.id, plot.id);
+                            onRefresh();
+                          } catch (err: any) {
+                            alert(err.response?.data?.message || err.message);
+                          }
+                        }
+                      }}>Sell Plot</GhostButton>
+                    </div>
+                  </PanelBox>
+                ))}
+                <div onClick={() => setShowLandModal(true)}>
+                  <PanelBox className="flex items-center justify-center cursor-pointer hover:border-zinc-500 transition-colors border-dashed h-full">
+                    <span className="text-sm font-medium text-zinc-400">+ Purchase Land</span>
+                  </PanelBox>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── FACTORIES ── */}
+          <h3 className="text-[13px] font-bold text-zinc-100 uppercase tracking-widest mb-4 border-b border-zinc-800 pb-2">Factories</h3>
           {factories.length === 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <EmptyState
-                title="No factories yet"
-                subtitle="Lease a Small Workshop to begin automobile manufacturing. The lease cost is deducted immediately from company cash."
-                action={<GoldButton onClick={() => handleLeaseFactory('small-workshop')}>Lease Small Workshop</GoldButton>}
-              />
-              {/* Factory info card */}
-              <PanelBox>
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-[13px] font-bold text-zinc-100 m-0">Small Workshop</h3>
-                  <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-terminal-green">● Available</span>
-                </div>
-                <p className="text-[11px] leading-relaxed text-zinc-500 mb-4 mt-1">Entry-level automobile assembly facility. Suitable for compact cars, sedans and utility vans.</p>
-                <FieldRow label="Capacity" value={`${bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_capacity_per_month ?? 100} units / Month`} />
-                <FieldRow label="Production Lines" value="1" />
-                <FieldRow label="Lease Cost" value={`${fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_month ?? 25000)} / Month`} valueColor="#ff453a" />
-                <FieldRow label="Maintenance" value={`${fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_maintenance_per_month ?? 8000)} / Month`} valueColor="#ff453a" />
-                <FieldRow label="Recommended Workers" value="30" />
-                <div className="mt-4">
-                  <GoldButton onClick={() => handleLeaseFactory('small-workshop')} disabled={Number(finances?.available_cash || 0) < (bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_month ?? 25000)}>
-                    Lease Small Workshop
-                  </GoldButton>
-                  {Number(finances?.available_cash || 0) < (bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_month ?? 25000) && (
-                    <div className="text-[11px] text-terminal-red mt-1.5">Insufficient cash. Need {fm(bootstrapData?.factoryTypes?.find((ft: any) => ft.id === 'small-workshop')?.base_lease_cost_per_month ?? 25000)}.</div>
-                  )}
-                </div>
-              </PanelBox>
-            </div>
+            <div className="text-sm text-zinc-500 mb-8">No factories constructed. Build a factory on one of your land plots.</div>
           ) : (
             <div className="flex flex-col gap-4">
               {factories.map((factory: any) => (
@@ -1148,19 +1248,41 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                     </Badge>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-                    <FieldRow label="Capacity / Month" value={`${factory.capacity_per_month} units`} />
-                    <FieldRow label="Lease Cost / Month" value={fm(factory.lease_cost_per_month)} valueColor="#ff453a" />
-                    <FieldRow label="Production Lines" value={factory.max_production_lines || 1} />
-                    <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_month)} valueColor="#ff453a" />
-                    <FieldRow label="Machine Level" value={factory.machine_level} valueColor="#d4af37" />
-                    <FieldRow label="Condition" value={`${factory.condition}%`} valueColor={Number(factory.condition) < 60 ? '#ff453a' : '#30d158'} />
-                  </div>
+                  {factory.building_status === 'under_construction' ? (
+                    <div className="rounded-md border border-terminal-amber/40 bg-terminal-amber/5 p-3.5 mb-3 mt-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <StatusDot variant="warning" />
+                        <span className="text-[11px] font-bold text-terminal-amber">Construction in Progress</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+                        <FieldRow label="Started" value={formatWorldDateShort(factory.created_at_world_year, factory.created_at_world_month)} />
+                        <FieldRow label="Completes" value={formatWorldDateShort(factory.building_completion_year, factory.building_completion_month)} />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+                        <FieldRow label="Capacity / Month" value={`${factory.capacity_per_month} units`} />
+                        <FieldRow label="Lease Cost / Month" value={fm(factory.lease_cost_per_month)} valueColor="#ff453a" />
+                        <FieldRow label="Production Lines" value={factory.max_production_lines || 1} />
+                        <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_month)} valueColor="#ff453a" />
+                        <FieldRow label="Machine Level" value={factory.machine_level} valueColor="#d4af37" />
+                        <FieldRow label="Condition" value={`${factory.condition}%`} valueColor={Number(factory.condition) < 60 ? '#ff453a' : '#30d158'} />
+                      </div>
 
-                  <div className="mt-4">
-                    <GhostButton onClick={() => setDeskTab('production')}>Open Production →</GhostButton>
-                  </div>
-
+                      <div className="mt-4 flex gap-2">
+                        <GhostButton onClick={() => setDeskTab('production')}>Open Production →</GhostButton>
+                        <GhostButton color="#b85555" onClick={async () => {
+                          if (confirm(`Are you sure you want to scrap ${factory.name}? You will recover 30% of the construction cost, but this cannot be undone. All production lines must be scrapped first.`)) {
+                            try {
+                              await manufacturingApi.scrapFactory(company.id, factory.id);
+                              onRefresh();
+                            } catch (err: any) {
+                              alert(err.response?.data?.message || err.message);
+                            }
+                          }
+                        }}>Scrap Factory</GhostButton>
+                      </div>
                   {/* ── FACILITY GROWTH ── */}
                   {factory.factory_type_id === 'small-workshop' && (() => {
                     const expStatus = factory.expansion_status;
@@ -1306,6 +1428,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                       <div className="text-[11px] text-terminal-red mt-2">Insufficient funds for manual recovery.</div>
                     )}
                   </div>
+                  </>
+                  )}
                 </PanelBox>
               ))}
 
@@ -2649,14 +2773,18 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                       <div className="flex items-center justify-between gap-3 mb-3">
                         <div className="text-xs font-bold text-terminal-amber">Production Line {line.line_number}</div>
                         <Badge
-                          variant={!assignedModel ? 'zinc' : line.status === 'active' ? 'green' : line.status === 'paused' ? 'red' : 'zinc'}
+                          variant={line.construction_status === 'under_construction' ? 'amber' : !assignedModel ? 'zinc' : line.status === 'active' ? 'green' : line.status === 'paused' ? 'red' : 'zinc'}
                           dot
                         >
-                          {!assignedModel ? 'Idle' : line.status}
+                          {line.construction_status === 'under_construction' ? 'Under Construction' : !assignedModel ? 'Idle' : line.status}
                         </Badge>
                       </div>
 
-                      {isEditing ? (
+                      {line.status === 'under_construction' ? (
+                        <div className="text-[11px] text-zinc-500">
+                          Construction in progress. Completes: {formatWorldDateShort(line.building_completion_year, line.building_completion_month)}
+                        </div>
+                      ) : isEditing ? (
                         <div>
                           <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-3 mb-3">
                             <div>
@@ -2794,12 +2922,26 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                             {assignedModel && line.status === 'paused' && (
                               <GhostButton color="#30d158" onClick={() => handleResumeProductionLine(line.id)}>Resume Production</GhostButton>
                             )}
+                            <GhostButton color="#b85555" onClick={() => handleScrapProductionLine(line.id, line.status, line.target_units_per_month || 0)}>Scrap Line</GhostButton>
                           </div>
                         </div>
                       )}
                     </div>
                   );
                 })}
+
+                {/* Add Production Line */}
+                {lines.length < factory.max_production_lines && (
+                  <div className="mt-4 border-t border-zinc-800 pt-3 flex justify-between items-center">
+                     <span className="text-xs text-zinc-500">Line capacity: {lines.length} / {factory.max_production_lines}</span>
+                     <GoldButton 
+                        onClick={() => handleConstructProductionLine(factory.id)} 
+                        disabled={factory.building_status === 'under_construction' || Number(finances?.available_cash) < 15000}
+                     >
+                       Construct Production Line ({fm(15000)})
+                     </GoldButton>
+                  </div>
+                )}
               </PanelBox>
             );
           })}
@@ -3905,6 +4047,86 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
       ═══════════════════════════════════════════════════════ */}
       {deskTab === 'equity' && (
         <EquityDeskTab companyId={company.id} companyName={company.name} />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════
+          MODALS
+      ═══════════════════════════════════════════════════════ */}
+      {showLicenseModal && (
+        <div className="fixed inset-0 bg-black/85 z-[999] flex items-center justify-center p-5" onClick={() => setShowLicenseModal(false)}>
+          <div className="bg-zinc-950 border border-zinc-800 rounded-md w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-zinc-100 mb-2">Purchase Manufacturing License</h2>
+            <p className="text-sm text-zinc-400 mb-6">Select a state to purchase a manufacturing license. The cost varies based on the state's economic multiplier.</p>
+            <div className="mb-6">
+              <label className="block text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wider">Target State</label>
+              <select className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-100" value={licenseStateId} onChange={e => setLicenseStateId(e.target.value)}>
+                <option value="">-- Select State --</option>
+                {statesForCountry.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <GhostButton onClick={() => setShowLicenseModal(false)}>Cancel</GhostButton>
+              <GoldButton onClick={handlePurchaseLicense} disabled={!licenseStateId}>Purchase License</GoldButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLandModal && (
+        <div className="fixed inset-0 bg-black/85 z-[999] flex items-center justify-center p-5" onClick={() => setShowLandModal(false)}>
+          <div className="bg-zinc-950 border border-zinc-800 rounded-md w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-zinc-100 mb-2">Purchase Land Plot</h2>
+            <p className="text-sm text-zinc-400 mb-6">Purchase a plot of land for future factory construction.</p>
+            <div className="flex flex-col gap-4 mb-6">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wider">Licensed State</label>
+                <select className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-100" value={landStateId} onChange={e => setLandStateId(e.target.value)}>
+                  <option value="">-- Select Licensed State --</option>
+                  {licenses.map(lic => <option key={lic.id} value={lic.state_id}>{resolveState(lic.state_id)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wider">Plot Name</label>
+                <input type="text" className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-100" placeholder="e.g. Northside Industrial Park" value={landName} onChange={e => setLandName(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wider">Size (Acres)</label>
+                <input type="number" min="10" className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-100" value={landAcres} onChange={e => setLandAcres(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <GhostButton onClick={() => setShowLandModal(false)}>Cancel</GhostButton>
+              <GoldButton onClick={handlePurchaseLand} disabled={!landStateId || !landName || Number(landAcres) < 1}>Purchase Land</GoldButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showConstructFactoryModal && (
+        <div className="fixed inset-0 bg-black/85 z-[999] flex items-center justify-center p-5" onClick={() => setShowConstructFactoryModal(false)}>
+          <div className="bg-zinc-950 border border-zinc-800 rounded-md w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-zinc-100 mb-2">Construct Factory</h2>
+            <p className="text-sm text-zinc-400 mb-6">Begin construction of a new manufacturing facility on your selected land plot.</p>
+            <div className="flex flex-col gap-4 mb-6">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wider">Factory Name</label>
+                <input type="text" className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-100" placeholder="e.g. Plant 1" value={constructFactoryName} onChange={e => setConstructFactoryName(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wider">Factory Type</label>
+                <select className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-100" value={constructFactoryTypeId} onChange={e => setConstructFactoryTypeId(e.target.value)}>
+                  {bootstrapData?.factoryTypes?.map((ft: any) => (
+                    <option key={ft.id} value={ft.id}>{ft.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <GhostButton onClick={() => setShowConstructFactoryModal(false)}>Cancel</GhostButton>
+              <GoldButton onClick={handleConstructFactory} disabled={!constructFactoryName}>Start Construction</GoldButton>
+            </div>
+          </div>
+        </div>
       )}
 
       </main>
