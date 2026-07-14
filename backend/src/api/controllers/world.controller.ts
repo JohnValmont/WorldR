@@ -364,136 +364,178 @@ export class WorldController {
       const activeInstance = await db('world_instances').where({ status: 'active' }).first();
       const activeInstanceId = activeInstance ? activeInstance.id : null;
 
-      const topCompanies = await db('companies as c')
-        .join('company_finances as cf', 'cf.company_id', 'c.id')
-        .where('c.status', 'active')
-        .andWhere('c.world_instance_id', activeInstanceId)
-        .select(
-          'c.id', 
-          'c.name', 
-          'c.industry_id', 
-          'cf.last_arc_profit',
-          db.raw(`
-            CASE 
-              WHEN c.is_exchange_listed = true THEN 
-                COALESCE(
-                  (
-                    SELECT (sph.close_price * (SELECT SUM(shares) FROM company_shares WHERE company_id = c.id))
-                    FROM share_price_history sph
-                    WHERE sph.company_id = c.id
-                    ORDER BY sph.game_year DESC, sph.game_month DESC
-                    LIMIT 1
-                  ),
-                  GREATEST(0, cf.available_cash - COALESCE(cf.debt, 0) + COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0))
-                )
-              ELSE GREATEST(0, cf.available_cash - COALESCE(cf.debt, 0) + COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0))
-            END as company_value
-          `)
-        )
-        .orderByRaw(`
-            CASE 
-              WHEN c.is_exchange_listed = true THEN 
-                COALESCE(
-                  (
-                    SELECT (sph.close_price * (SELECT SUM(shares) FROM company_shares WHERE company_id = c.id))
-                    FROM share_price_history sph
-                    WHERE sph.company_id = c.id
-                    ORDER BY sph.game_year DESC, sph.game_month DESC
-                    LIMIT 1
-                  ),
-                  GREATEST(0, cf.available_cash - COALESCE(cf.debt, 0) + COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0))
-                )
-              ELSE GREATEST(0, cf.available_cash - COALESCE(cf.debt, 0) + COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0))
-            END DESC
-        `)
-        .limit(10);
-
-
-
-      // Get the clock so we can scope popular cars to the last completed arc
+      // ── Clock: needed to scope popular cars to last completed arc ────────────
       const clock = await db('world_clocks')
         .where({ world_instance_id: activeInstanceId })
         .first();
       const currentYear  = clock ? Number(clock.current_year)  : 1;
       const currentMonth = clock ? Number(clock.current_month) : 1;
-      // Use previous arc (current arc is still in-flight)
       let prevYear  = currentYear;
       let prevMonth = currentMonth - 1;
       if (prevMonth === 0) { prevMonth = 8; prevYear = currentYear - 1; }
 
-      const popularCars = await db('manufacturing_sales_results as r')
-        .join('manufacturing_vehicle_models as m', 'm.id', 'r.vehicle_model_id')
-        .join('companies as c', 'c.id', 'm.company_id')
-        .where('r.world_instance_id', activeInstanceId)
-        .where('r.world_year',  prevYear)
-        .where('r.world_month', prevMonth)
-        .select('m.id as model_id', 'm.name as model_name', 'c.name as company_name')
-        .sum('r.units_sold as total_sold')
-        .groupBy('m.id', 'm.name', 'c.name')
-        .orderByRaw('SUM(r.units_sold) DESC')
-        .limit(10);
+      // ── Run all three independent queries in PARALLEL ────────────────────────
+      const [topCompanies, popularCars, richestPlayersResult] = await Promise.all([
 
-      // Include the arc label so the frontend can display "Month X, Year Y"
+        // ── Global 500: precompute share price, share count, inventory via CTE ──
+        db.raw(`
+          WITH
+          latest_price AS (
+            SELECT DISTINCT ON (company_id) company_id, close_price
+            FROM share_price_history
+            ORDER BY company_id, game_year DESC, game_month DESC
+          ),
+          share_totals AS (
+            SELECT company_id, SUM(shares) AS total_shares
+            FROM company_shares
+            GROUP BY company_id
+          ),
+          inv_val AS (
+            SELECT mi.company_id,
+              SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) AS val
+            FROM manufacturing_inventory mi
+            JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id
+            GROUP BY mi.company_id
+          ),
+          book_val AS (
+            SELECT cf.company_id,
+              GREATEST(0,
+                cf.available_cash - COALESCE(cf.debt, 0) + COALESCE(iv.val, 0)
+              ) AS bv,
+              cf.last_arc_profit
+            FROM company_finances cf
+            LEFT JOIN inv_val iv ON iv.company_id = cf.company_id
+          )
+          SELECT
+            c.id,
+            c.name,
+            c.industry_id,
+            bv.last_arc_profit,
+            CASE
+              WHEN c.is_exchange_listed = true
+                THEN COALESCE(lp.close_price * st.total_shares, bv.bv)
+              ELSE bv.bv
+            END AS company_value
+          FROM companies c
+          JOIN book_val bv ON bv.company_id = c.id
+          LEFT JOIN latest_price lp ON lp.company_id = c.id
+          LEFT JOIN share_totals st ON st.company_id = c.id
+          WHERE c.status = 'active'
+            AND c.world_instance_id = ?
+          ORDER BY
+            CASE
+              WHEN c.is_exchange_listed = true
+                THEN COALESCE(lp.close_price * st.total_shares, bv.bv)
+              ELSE bv.bv
+            END DESC
+          LIMIT 10
+        `, [activeInstanceId]),
+
+        // ── Best Sellers: last completed arc only ────────────────────────────
+        db('manufacturing_sales_results as r')
+          .join('manufacturing_vehicle_models as m', 'm.id', 'r.vehicle_model_id')
+          .join('companies as c', 'c.id', 'm.company_id')
+          .where('r.world_instance_id', activeInstanceId)
+          .where('r.world_year',  prevYear)
+          .where('r.world_month', prevMonth)
+          .select('m.id as model_id', 'm.name as model_name', 'c.name as company_name')
+          .sum('r.units_sold as total_sold')
+          .groupBy('m.id', 'm.name', 'c.name')
+          .orderByRaw('SUM(r.units_sold) DESC')
+          .limit(10),
+
+        // ── Richest Players: CTE-based, each subquery runs once ──────────────
+        db.raw(`
+          WITH
+          buy_escrow AS (
+            SELECT character_id, SUM(escrow_amount) AS total
+            FROM share_orders
+            WHERE side = 'buy' AND status = 'open'
+            GROUP BY character_id
+          ),
+          total_shares AS (
+            SELECT company_id, SUM(shares) AS total
+            FROM company_shares
+            GROUP BY company_id
+          ),
+          open_sells_by_char AS (
+            SELECT company_id, character_id, SUM(quantity) AS qty
+            FROM share_orders
+            WHERE side = 'sell' AND status = 'open'
+            GROUP BY company_id, character_id
+          ),
+          total_open_sells AS (
+            SELECT company_id, SUM(quantity) AS qty
+            FROM share_orders
+            WHERE side = 'sell' AND status = 'open'
+            GROUP BY company_id
+          ),
+          inv_val AS (
+            SELECT mi.company_id,
+              SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) AS val
+            FROM manufacturing_inventory mi
+            JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id
+            GROUP BY mi.company_id
+          ),
+          company_real_value AS (
+            SELECT cf.company_id,
+              GREATEST(0, cf.available_cash - COALESCE(cf.debt, 0)
+                       + COALESCE(iv.val, 0)) AS real_value,
+              cf.last_arc_profit
+            FROM company_finances cf
+            LEFT JOIN inv_val iv ON iv.company_id = cf.company_id
+          ),
+          char_equity AS (
+            SELECT cs.holder_character_id AS char_id,
+              COALESCE(SUM(
+                (CAST(cs.shares AS FLOAT) + COALESCE(osbc.qty, 0))
+                / NULLIF(COALESCE(ts.total, 0) + COALESCE(tos.qty, 0), 0)
+                * crv.real_value
+              ), 0) AS equity
+            FROM company_shares cs
+            JOIN company_real_value crv ON crv.company_id = cs.company_id
+            LEFT JOIN total_shares ts ON ts.company_id = cs.company_id
+            LEFT JOIN open_sells_by_char osbc
+              ON osbc.company_id = cs.company_id
+             AND osbc.character_id = cs.holder_character_id
+            LEFT JOIN total_open_sells tos ON tos.company_id = cs.company_id
+            GROUP BY cs.holder_character_id
+          ),
+          char_trend AS (
+            SELECT c2.owner_character_id AS char_id,
+              MAX(cf2.last_arc_profit) AS best_profit
+            FROM companies c2
+            JOIN company_finances cf2 ON cf2.company_id = c2.id
+            GROUP BY c2.owner_character_id
+          )
+          SELECT
+            c.id,
+            c.name,
+            COALESCE(cf.cash_in_hand, 0) + COALESCE(be.total, 0) AS cash,
+            COALESCE(ce.equity, 0) AS equity,
+            COALESCE(cf.cash_in_hand, 0) + COALESCE(be.total, 0)
+              + COALESCE(ce.equity, 0) AS net_worth,
+            ct.best_profit AS trend
+          FROM characters c
+          LEFT JOIN character_finances cf ON cf.character_id = c.id
+          LEFT JOIN buy_escrow be ON be.character_id = c.id
+          LEFT JOIN char_equity ce ON ce.char_id = c.id
+          LEFT JOIN char_trend ct ON ct.char_id = c.id
+          WHERE c.status = 'active'
+            AND c.name NOT ILIKE '%NPC%'
+            AND c.world_instance_id = ?
+          ORDER BY net_worth DESC
+          LIMIT 10
+        `, [activeInstanceId]),
+      ]);
+
       const popularCarsArc = { year: prevYear, month: prevMonth };
 
-      const richestPlayers = await db.raw(`
-        SELECT 
-          c.id, 
-          c.name, 
-          COALESCE(cf.cash_in_hand, 0) + COALESCE((SELECT SUM(escrow_amount) FROM share_orders WHERE character_id = c.id AND side = 'buy' AND status = 'open'), 0) as cash,
-          (
-            SELECT COALESCE(SUM(
-              (
-                (CAST(cs.shares AS FLOAT) + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND character_id = cs.holder_character_id AND side = 'sell' AND status = 'open'), 0))
-                / 
-                NULLIF(
-                  (SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) 
-                  + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND side = 'sell' AND status = 'open'), 0)
-                , 0)
-              ) * compf.company_value
-            ), 0)
-            FROM company_shares cs
-            JOIN company_finances compf ON compf.company_id = cs.company_id
-            WHERE cs.holder_character_id = c.id
-          ) as equity,
-          COALESCE(cf.cash_in_hand, 0) + COALESCE((SELECT SUM(escrow_amount) FROM share_orders WHERE character_id = c.id AND side = 'buy' AND status = 'open'), 0) + (
-            SELECT COALESCE(SUM(
-              (
-                (CAST(cs.shares AS FLOAT) + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND character_id = cs.holder_character_id AND side = 'sell' AND status = 'open'), 0))
-                / 
-                NULLIF(
-                  (SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) 
-                  + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND side = 'sell' AND status = 'open'), 0)
-                , 0)
-              ) * GREATEST(0,
-                compf.available_cash - COALESCE(compf.debt, 0) +
-                COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = cs.company_id), 0)
-              )
-            ), 0)
-            FROM company_shares cs
-            JOIN company_finances compf ON compf.company_id = cs.company_id
-            WHERE cs.holder_character_id = c.id
-          ) as net_worth,
-          (
-            SELECT compf2.last_arc_profit 
-            FROM companies c2 
-            JOIN company_finances compf2 ON compf2.company_id = c2.id 
-            WHERE c2.owner_character_id = c.id 
-            ORDER BY compf2.company_value DESC 
-            LIMIT 1
-          ) as trend
-        FROM characters c
-        LEFT JOIN character_finances cf ON cf.character_id = c.id
-        WHERE c.status = 'active' AND c.name NOT ILIKE '%NPC%' AND c.world_instance_id = ?
-        ORDER BY net_worth DESC
-        LIMIT 10
-      `, [activeInstanceId]);
-
       res.status(200).json({
-        topCompanies,
+        topCompanies: (topCompanies as any).rows || topCompanies,
         popularCars,
         popularCarsArc,
-        richestPlayers: richestPlayers.rows || richestPlayers
+        richestPlayers: (richestPlayersResult as any).rows || richestPlayersResult
       });
     } catch (error) {
       next(error);
