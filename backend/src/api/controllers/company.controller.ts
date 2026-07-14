@@ -238,6 +238,15 @@ export class CompanyController {
           avg_cost_basis: avgCost
         });
 
+        // Auto-grant HQ state license
+        if (headquarters_state_id) {
+          await trx('company_state_licenses').insert({
+            company_id: company.id,
+            state_id: headquarters_state_id,
+            status: 'active'
+          });
+        }
+
         // For finance companies, auto-create a dividend_policy so the firm
         // receives dividends from any company that has a payout policy.
         // (The firm itself does not pay dividends outward — it retains earnings.)

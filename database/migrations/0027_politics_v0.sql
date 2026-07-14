@@ -9,7 +9,13 @@ CREATE TABLE pol_states (
     country_id VARCHAR(50) NOT NULL REFERENCES countries(id) ON DELETE CASCADE,
     population INTEGER NOT NULL,
     registered_voters INTEGER NOT NULL,
-    base_turnout NUMERIC(4,3) NOT NULL
+    base_turnout NUMERIC(4,3) NOT NULL,
+    cond_prosperity NUMERIC(4,2) NOT NULL DEFAULT 50.00,
+    cond_jobs NUMERIC(4,2) NOT NULL DEFAULT 50.00,
+    cond_order NUMERIC(4,2) NOT NULL DEFAULT 50.00,
+    cond_cohesion NUMERIC(4,2) NOT NULL DEFAULT 50.00,
+    cond_budget NUMERIC(4,2) NOT NULL DEFAULT 50.00,
+    cond_updated_arc INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE pol_parties (

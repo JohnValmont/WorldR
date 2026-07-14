@@ -474,8 +474,8 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
         motherland_country_id: countryId,
         name: 'System NPC',
         age: 30,
-        created_at_world_year: clock.world_year,
-        created_at_world_month: clock.world_month,
+        created_at_world_year: clock.current_year,
+        created_at_world_month: clock.current_month,
         created_at_world_day: 0
       })
       .returning('*');
@@ -491,7 +491,11 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
     return;
   }
 
-  // 3. Create Company
+  // 3. Create Company (append numeral if it's a respawn to avoid unique constraint)
+  const pastCount = await trx('companies').where({ npc_personality: roster.key, country_id: countryId }).count('id as c').first();
+  const numPast = parseInt(pastCount?.c as string) || 0;
+  const companyName = numPast > 0 ? `${roster.name} ${numPast + 1}` : roster.name;
+
   const [company] = await trx('companies')
     .insert({
       owner_character_id: sysChar.id,
@@ -501,17 +505,24 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       industry_id: 'manufacturing',
       legal_structure_id: 'sole-trader',
       currency_id: 'dollar', // fallback
-      name: roster.name,
+      name: companyName,
       status: 'active',
       is_npc: true,
       npc_personality: roster.key,
       reputation: 50,
       reliability: 50,
-      created_at_world_year: clock.world_year,
-      created_at_world_month: clock.world_month,
+      created_at_world_year: clock.current_year,
+      created_at_world_month: clock.current_month,
       created_at_world_day: 0
     })
     .returning('*');
+
+  // Auto-grant HQ state license
+  await trx('company_state_licenses').insert({
+    company_id: company.id,
+    state_id: 'drennia-drennport',
+    status: 'active'
+  });
 
   // Finances
   await trx('company_finances').insert({
@@ -528,7 +539,7 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
     .insert({
       company_id: company.id,
       world_instance_id: clock.world_instance_id,
-      name: `${roster.name} Standard`,
+      name: `${companyName} Standard`,
       vehicle_class: roster.build.platform === 'heavy-duty' ? 'Utility Van' : (roster.build.platform === 'economy' ? 'Compact Car' : 'Sedan'),
       platform_type: roster.build.platform,
       power_unit_type: roster.build.powerUnit,
@@ -547,8 +558,8 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       development_status: 'launched',
       dev_stage: 'ready_to_launch',
       status: 'active',
-      created_at_world_year: clock.world_year,
-      created_at_world_month: clock.world_month,
+      created_at_world_year: clock.current_year,
+      created_at_world_month: clock.current_month,
       created_at_world_day: 0
     })
     .returning('*');
@@ -561,13 +572,13 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       country_id: countryId,
       state_id: 'drennia-drennport',
       factory_type_id: factoryType.id,
-      name: `${roster.name} Primary Facility`,
+      name: `${companyName} Primary Facility`,
       lease_cost_per_month: 25000,
       maintenance_cost_per_month: 8000,
       capacity_per_month: 500,
       status: 'active',
-      created_at_world_year: clock.world_year,
-      created_at_world_month: clock.world_month,
+      created_at_world_year: clock.current_year,
+      created_at_world_month: clock.current_month,
       created_at_world_day: 0
     })
     .returning('*');

@@ -1,8 +1,8 @@
 import { db } from './src/config/database';
 async function run() {
   try {
-    const info = await db('users').columnInfo();
-    console.log(info.id.type);
+    const users = await db('users').select('*');
+    console.log(users);
   } catch(e) {
     console.error(e);
   } finally {

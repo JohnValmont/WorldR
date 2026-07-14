@@ -2187,3 +2187,209 @@ Through atomic transactions, controlled rollback, domain isolation, structured r
 ---
 
 # End of Chapter 9
+
+# 13_SIMULATION_ENGINE.md
+
+# Chapter 10 — Implementation Standards
+
+Project: WORLDr
+
+Module: Core Simulation
+
+Version: Pre-Alpha v0.1
+
+Status: Foundation Specification
+
+---
+
+# 1. Purpose
+
+This chapter defines the implementation standards for every system developed within the WORLDr Simulation Engine.
+
+These standards establish a common engineering approach across all simulation domains, ensuring that new gameplay systems remain deterministic, maintainable, extensible, and consistent with the overall engine architecture.
+
+Every simulation module shall comply with these standards.
+
+---
+
+# 2. Design Principles
+
+All simulation systems shall follow these principles:
+
+- Deterministic Execution
+- Single Responsibility
+- Modular Design
+- Event-Driven Communication
+- Explicit State Changes
+- Consistent Error Handling
+- Performance Awareness
+
+These principles apply to both existing and future gameplay systems.
+
+---
+
+# 3. Simulation Module Structure
+
+Every simulation module should contain:
+
+- Domain Logic
+- Input Validation
+- State Modification
+- Event Publication
+- Logging
+- Configuration
+
+Modules should expose clear interfaces and avoid implementation leakage.
+
+---
+
+# 4. Domain Boundaries
+
+Each module owns a specific gameplay domain.
+
+Examples:
+
+| Module | Responsibility |
+|---------|----------------|
+| Politics | Governments, Elections, Laws |
+| Economy | Markets, Taxes, GDP |
+| Population | Citizens, Demographics |
+| Business | Companies, Production |
+| Military | Units, Operations |
+| Diplomacy | Treaties, Alliances |
+
+Modules should never directly modify another module's internal state.
+
+Cross-domain interaction should occur through the Simulation Engine and event system.
+
+---
+
+# 5. State Modification Rules
+
+Simulation modules shall:
+
+- Validate inputs before execution
+- Modify only owned state
+- Publish resulting events
+- Return deterministic results
+
+Modules shall never bypass the State Manager.
+
+All authoritative state changes must pass through the standard execution pipeline.
+
+---
+
+# 6. Event Standards
+
+Modules should communicate using standardized simulation events.
+
+Every published event should include:
+
+- Event Type
+- Timestamp
+- Source Module
+- Relevant Entity Identifier
+- Event Payload
+
+Events should describe completed state changes rather than intended actions.
+
+---
+
+# 7. Configuration
+
+Simulation behavior should be configurable whenever practical.
+
+Examples include:
+
+- Tick intervals
+- Tax limits
+- Population growth rates
+- Production multipliers
+- AI difficulty
+- Economic balancing values
+
+Configuration should be separated from implementation logic to simplify balancing and future tuning.
+
+---
+
+# 8. Testing Requirements
+
+Every simulation module should be verified before deployment.
+
+Testing should include:
+
+- Unit Tests
+- Integration Tests
+- Deterministic Replay Tests
+- Performance Tests
+- Edge Case Validation
+- Regression Tests
+
+Simulation results should remain reproducible across repeated executions using identical inputs.
+
+---
+
+# 9. Documentation Standards
+
+Each simulation module should maintain technical documentation covering:
+
+- Purpose
+- Responsibilities
+- Inputs
+- Outputs
+- Dependencies
+- Events Published
+- Events Consumed
+- Configuration Parameters
+
+Documentation should evolve alongside implementation.
+
+---
+
+# 10. Future Expansion
+
+Future gameplay systems should integrate using the established engine architecture.
+
+Examples include:
+
+- Religion
+- Culture
+- Education
+- Healthcare
+- Climate
+- Tourism
+- Space Exploration
+
+New systems should require only the addition of new domain modules without modifying the Simulation Engine's core architecture.
+
+---
+
+# 11. Compliance Checklist
+
+Before introducing a new simulation module, verify that it:
+
+- Owns a clearly defined domain
+- Uses deterministic logic
+- Validates all inputs
+- Modifies only authorized state
+- Publishes standardized events
+- Uses centralized configuration
+- Includes automated tests
+- Meets performance expectations
+- Includes technical documentation
+
+Compliance with these standards ensures consistency across the entire simulation.
+
+---
+
+# 12. Summary
+
+The WORLDr Simulation Engine Implementation Standards define the engineering practices required for every simulation module within the project.
+
+By enforcing modular architecture, deterministic execution, clear domain ownership, standardized event communication, centralized configuration, comprehensive testing, and consistent documentation, the Simulation Engine remains scalable, maintainable, and capable of supporting the long-term evolution of a persistent multiplayer world.
+
+---
+
+# End of Chapter 10
+
+# End of Document

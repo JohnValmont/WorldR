@@ -1,0 +1,1 @@
+﻿const { Client } = require("pg"); const client = new Client({ connectionString: "postgresql://postgres:postgres@localhost:5432/worldr_db" }); async function run() { await client.connect(); const res = await client.query("SELECT * FROM manufacturing_region_markets WHERE name = 'Drennport Consumer Market'"); console.table(res.rows); await client.end(); } run();
