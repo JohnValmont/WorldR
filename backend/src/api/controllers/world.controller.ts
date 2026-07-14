@@ -365,7 +365,7 @@ export class WorldController {
       const activeInstanceId = activeInstance ? activeInstance.id : null;
 
       // ── Clock: needed to scope popular cars to last completed arc ────────────
-      const clock = await db('world_clocks')
+      const clock = await db('world_clock')
         .where({ world_instance_id: activeInstanceId })
         .first();
       const currentYear  = clock ? Number(clock.current_year)  : 1;
