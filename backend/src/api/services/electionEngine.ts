@@ -21,22 +21,33 @@ export interface EngineCandidate {
   credibility: number; // 0..100
   isIncumbent: boolean;
   effortBySegment: Record<string, number>;
+  constituencyId: string;
+}
+
+export interface EngineConstituency {
+  id: string;
+  registeredVoters: number;
+  conditions?: Conditions | null;
 }
 
 export interface ElectionInput {
   candidates: EngineCandidate[];
-  registeredVoters: number;
-  /** Total seats to allocate for this jurisdiction. Defaults to POL_COUNCIL_SEATS. */
-  totalSeats?: number;
-  /** Jurisdiction Conditions (GDD $11). When supplied, modulates per-bloc turnout. */
-  conditions?: Conditions | null;
+  constituencies: EngineConstituency[];
+}
+
+export interface ConstituencyResult {
+  constituencyId: string;
+  winnerCandidateId: string | null;
+  winnerPartyId: string | null;
+  votes: Record<string, number>;
+  segmentShares: Record<string, Record<string, number>>;
 }
 
 export interface ElectionResult {
-  perCandidate: { candidateId: string; partyId: string; votes: number; seatRank: number; wonSeat: boolean }[];
+  perConstituency: ConstituencyResult[];
+  perCandidate: { candidateId: string; partyId: string; votes: number; seatRank: number; wonSeat: boolean; constituencyId: string }[];
   perParty: { partyId: string; votes: number; seats: number }[];
   totalSeatsAllocated: number;
-  segmentShares: Record<string, Record<string, number>>;
 }
 
 export function computeFit(platform: Platform, segment: VoterSegment): number {
@@ -112,128 +123,117 @@ export function computeTurnout(
   return base * conditionTurnoutMultiplier(segment.key, conditions);
 }
 
-export function computeVotes(input: ElectionInput): Record<string, number> {
+export function computeVotesForConstituency(
+  constituency: EngineConstituency,
+  candidates: EngineCandidate[]
+): { votes: Record<string, number>; shares: Record<string, Record<string, number>> } {
   const votes: Record<string, number> = {};
-  for (const c of input.candidates) {
+  for (const c of candidates) {
     votes[c.candidateId] = 0;
   }
 
-  for (const segment of SEGMENTS) {
-    const turnout = computeTurnout(segment, input.candidates, input.conditions);
-    const shares = computeSegmentShares(input.candidates, segment);
-    const segmentVoters = segment.size * input.registeredVoters * turnout;
+  const segmentShares: Record<string, Record<string, number>> = {};
 
-    for (const c of input.candidates) {
+  for (const segment of SEGMENTS) {
+    const turnout = computeTurnout(segment, candidates, constituency.conditions);
+    const shares = computeSegmentShares(candidates, segment);
+    segmentShares[segment.key] = shares;
+    
+    const segmentVoters = segment.size * constituency.registeredVoters * turnout;
+
+    for (const c of candidates) {
       votes[c.candidateId] += segmentVoters * (shares[c.candidateId] || 0);
     }
   }
 
-  for (const c of input.candidates) {
+  for (const c of candidates) {
     votes[c.candidateId] = Math.round(votes[c.candidateId]);
   }
 
-  return votes;
+  return { votes, shares: segmentShares };
 }
 
-export function allocateSeatsDHondt(partyVotes: Record<string, number>, totalSeats: number = POL_COUNCIL_SEATS): Record<string, number> {
-  const seats: Record<string, number> = {};
-  for (const partyId of Object.keys(partyVotes)) {
-    seats[partyId] = 0;
+export function runElection(input: ElectionInput): ElectionResult {
+  const perConstituency: ConstituencyResult[] = [];
+  const candidateResults: Record<string, { partyId: string; votes: number; wonSeat: boolean; constituencyId: string }> = {};
+  const partyVotes: Record<string, number> = {};
+  const partySeats: Record<string, number> = {};
+  let totalSeatsAllocated = 0;
+
+  for (const c of input.candidates) {
+    candidateResults[c.candidateId] = { partyId: c.partyId, votes: 0, wonSeat: false, constituencyId: c.constituencyId };
+    partyVotes[c.partyId] = 0;
+    partySeats[c.partyId] = 0;
   }
 
-  for (let i = 0; i < totalSeats; i++) {
-    let winningParty = null;
-    let maxQuotient = -1;
+  // 1. Run First Past the Post (FPTP) in each constituency
+  for (const constituency of input.constituencies) {
+    const candsInConst = input.candidates.filter(c => c.constituencyId === constituency.id);
+    const { votes, shares } = computeVotesForConstituency(constituency, candsInConst);
+    
+    let winnerId: string | null = null;
+    let winnerParty: string | null = null;
+    let maxVotes = -1;
 
-    for (const [partyId, votes] of Object.entries(partyVotes)) {
-      const currentSeats = seats[partyId];
-      const quotient = votes / (currentSeats + 1);
-
-      if (quotient > maxQuotient) {
-        maxQuotient = quotient;
-        winningParty = partyId;
-      } else if (quotient === maxQuotient && winningParty !== null) {
-        // deterministic tie-break: 1. more total votes, 2. lexicographically smaller partyId
-        const currentWinnerVotes = partyVotes[winningParty] || 0;
-        if (votes > currentWinnerVotes) {
-          winningParty = partyId;
-        } else if (votes === currentWinnerVotes) {
-          if (partyId < winningParty) {
-            winningParty = partyId;
-          }
+    for (const c of candsInConst) {
+      const v = votes[c.candidateId];
+      candidateResults[c.candidateId].votes += v;
+      partyVotes[c.partyId] += v;
+      
+      if (v > maxVotes) {
+        maxVotes = v;
+        winnerId = c.candidateId;
+        winnerParty = c.partyId;
+      } else if (v === maxVotes && winnerId !== null) {
+        // tie breaker by id
+        if (c.candidateId < winnerId) {
+          winnerId = c.candidateId;
+          winnerParty = c.partyId;
         }
       }
     }
 
-    if (winningParty !== null) {
-      seats[winningParty]++;
+    if (winnerId && winnerParty) {
+      candidateResults[winnerId].wonSeat = true;
+      partySeats[winnerParty]++;
+      totalSeatsAllocated++;
     }
+
+    perConstituency.push({
+      constituencyId: constituency.id,
+      winnerCandidateId: winnerId,
+      winnerPartyId: winnerParty,
+      votes,
+      segmentShares: shares
+    });
   }
 
-  return seats;
-}
-
-export function runElection(input: ElectionInput): ElectionResult {
-  const votes = computeVotes(input);
-  
-  const segmentShares: Record<string, Record<string, number>> = {};
-  for (const segment of SEGMENTS) {
-    segmentShares[segment.key] = computeSegmentShares(input.candidates, segment);
+  // 2. Format results
+  const perCandidate = [];
+  for (const [candidateId, data] of Object.entries(candidateResults)) {
+    perCandidate.push({
+      candidateId,
+      partyId: data.partyId,
+      votes: data.votes,
+      seatRank: data.wonSeat ? 1 : 2, // FPTP means rank 1 won, rank 2+ lost
+      wonSeat: data.wonSeat,
+      constituencyId: data.constituencyId
+    });
   }
 
-  const partyVotes: Record<string, number> = {};
-  for (const c of input.candidates) {
-    partyVotes[c.partyId] = (partyVotes[c.partyId] || 0) + votes[c.candidateId];
-  }
-
-  const totalSeats = input.totalSeats ?? POL_COUNCIL_SEATS;
-  const partySeats = allocateSeatsDHondt(partyVotes, totalSeats);
-
-  // Group candidates by party
-  const candidatesByParty: Record<string, EngineCandidate[]> = {};
-  for (const c of input.candidates) {
-    if (!candidatesByParty[c.partyId]) candidatesByParty[c.partyId] = [];
-    candidatesByParty[c.partyId].push(c);
-  }
-
-  const perCandidate: ElectionResult["perCandidate"] = [];
-  const perParty: ElectionResult["perParty"] = [];
-  let totalSeatsAllocated = 0;
-
-  for (const [partyId, seatsWon] of Object.entries(partySeats)) {
+  const perParty = [];
+  for (const [partyId, votes] of Object.entries(partyVotes)) {
     perParty.push({
       partyId,
-      votes: partyVotes[partyId] || 0,
-      seats: seatsWon
+      votes,
+      seats: partySeats[partyId] || 0
     });
-    totalSeatsAllocated += seatsWon;
-
-    const partyCands = candidatesByParty[partyId] || [];
-    // Sort descending by votes, tie-break candidateId
-    partyCands.sort((a, b) => {
-      const vA = votes[a.candidateId];
-      const vB = votes[b.candidateId];
-      if (vA !== vB) return vB - vA;
-      return a.candidateId.localeCompare(b.candidateId);
-    });
-
-    for (let i = 0; i < partyCands.length; i++) {
-      const c = partyCands[i];
-      const wonSeat = i < seatsWon;
-      perCandidate.push({
-        candidateId: c.candidateId,
-        partyId: c.partyId,
-        votes: votes[c.candidateId],
-        seatRank: i + 1,
-        wonSeat
-      });
-    }
   }
 
   return {
+    perConstituency,
     perCandidate,
     perParty,
-    totalSeatsAllocated,
-    segmentShares
+    totalSeatsAllocated
   };
 }

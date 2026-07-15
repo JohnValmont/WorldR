@@ -81,7 +81,7 @@ export const JURISDICTIONS: Record<string, JurisdictionSpec> = {
   drennport: { seats: 120, majority: 61,  termMonths: 24, electionOffsetMonths: 6,  tier: 'state' },
   westport:  { seats: 72,  majority: 37,  termMonths: 24, electionOffsetMonths: 12, tier: 'state' },
   greenmere: { seats: 50,  majority: 26,  termMonths: 24, electionOffsetMonths: 18, tier: 'state' },
-  national:  { seats: 250, majority: 126, termMonths: 48, electionOffsetMonths: 0,  tier: 'national' },
+  national:  { seats: 20, majority: 11, termMonths: 48, electionOffsetMonths: 0,  tier: 'national' },
 };
 
 // Safe fallback for any unknown/unseeded jurisdiction code (mirrors a typical

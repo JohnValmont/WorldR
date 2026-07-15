@@ -135,9 +135,12 @@ export function buildPulse(ctx: PulseContext): PoliticalPulse {
     }
   }
 
-  // ── Per-segment pulse ──────────────────────────────────────────────────────
+  // ── Per-segment pulse ────────────────────────────────────────────────────────
+  const myConstRes = projection.perConstituency.find(c => myCandidateId && c.votes[myCandidateId] !== undefined);
+  const prevConstRes = prevProjection?.perConstituency?.find(c => myCandidateId && c.votes[myCandidateId] !== undefined);
+  
   const segments: SegmentPulse[] = SEGMENTS.map(seg => {
-    const shares = projection.segmentShares[seg.key] || {};
+    const shares = myConstRes?.segmentShares?.[seg.key] || {};
     let leaderCandidateId: string | null = null;
     let leaderShare = 0;
     let secondShare = 0;
@@ -167,8 +170,8 @@ export function buildPulse(ctx: PulseContext): PoliticalPulse {
     }
 
     let delta = 0;
-    if (myCandidateId && prevProjection) {
-      const prevShare = (prevProjection.segmentShares[seg.key] || {})[myCandidateId] || 0;
+    if (myCandidateId && prevConstRes) {
+      const prevShare = (prevConstRes.segmentShares[seg.key] || {})[myCandidateId] || 0;
       const d = myShare - prevShare;
       delta = Math.abs(d) >= POL_PULSE.MOMENTUM_MIN_DELTA ? d : 0;
     }

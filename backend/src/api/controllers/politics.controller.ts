@@ -345,16 +345,24 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
 
     const clock = await db('world_clock').first();
     const actualArc = worldClockToArc(clock);
+    
+    const conditions = await readConditionsFromRow(activeState);
+    const constituenciesRows = await db('pol_constituencies').where({ state_id: activeState.id });
+    const engineConstituencies = constituenciesRows.map(r => ({
+      id: r.id,
+      registeredVoters: r.registered_voters || 80000,
+      conditions
+    }));
 
     // Current projection (all resolved campaign effort).
     const engineCands = await buildEngineCandidates(db, cycle.id);
-    const projection = runElection({ candidates: engineCands, registeredVoters, totalSeats: getSeatsForState(activeState.code) });
+    const projection = runElection({ candidates: engineCands, constituencies: engineConstituencies });
 
     // Previous-month projection powers momentum. Free & safe: the engine is pure and re-runnable.
     let prevProjection = null;
     try {
       const prevCands = await buildEngineCandidates(db, cycle.id, actualArc - 1);
-      prevProjection = runElection({ candidates: prevCands, registeredVoters, totalSeats: getSeatsForState(activeState.code) });
+      prevProjection = runElection({ candidates: prevCands, constituencies: engineConstituencies });
     } catch {
       prevProjection = null;
     }
@@ -524,8 +532,10 @@ export async function declareCandidacy(req: Request, res: Response, next: NextFu
     const userId = req.user?.id;
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
 
-    const activeState = await resolveState(req.body.stateId as string | undefined);
+    const { stateId, constituencyId } = req.body;
+    if (!constituencyId) return next(new AppError('Must select a constituency', 400, 'BAD_REQUEST'));
 
+    const activeState = await resolveState(stateId as string | undefined);
     const cycle = await getOrCreateCurrentCycle(activeState.id);
 
     const result = await db.transaction(async (trx) => {
@@ -543,15 +553,36 @@ export async function declareCandidacy(req: Request, res: Response, next: NextFu
         .first();
       if (existingCandidacy) throw new AppError('Already declared candidacy in this cycle', 409, 'CONFLICT');
 
+      // Check if there is already a candidate for this constituency in the same party
+      const existingConstituencyCand = await trx('pol_candidates')
+        .where({ cycle_id: cycle.id, party_id: party.id, constituency_id: constituencyId })
+        .first();
+
+      if (existingConstituencyCand) {
+        if (existingConstituencyCand.character_id !== null) {
+          throw new AppError('Party already has a named candidate in this constituency', 409, 'CONFLICT');
+        } else {
+          // Replace the generic NPC candidate
+          await trx('pol_candidates').where({ id: existingConstituencyCand.id }).del();
+        }
+      }
+
       // Check incumbent status
+      let targetCycleId = cycle.id;
+      if (cycle.cycle_number > 1) {
+        const prevCycle = await trx('pol_cycles').where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 }).first();
+        if (prevCycle) targetCycleId = prevCycle.id;
+      }
+      
       const existingSeat = await trx('pol_council_seats')
-        .where({ state_id: activeState.id, character_id: character.id })
+        .where({ cycle_id: targetCycleId, character_id: character.id })
         .first();
       const isIncumbent = !!existingSeat;
 
       const [candidate] = await trx('pol_candidates').insert({
         cycle_id: cycle.id,
         party_id: party.id,
+        constituency_id: constituencyId,
         character_id: character.id,
         is_npc: false,
         platform: party.platform,
@@ -1049,7 +1080,13 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
     const resultBills = [];
 
     // Get current seats
-    const seats = await db('pol_council_seats').where({ state_id: activeState.id });
+    let targetCycleId = cycle.id;
+    if (['filing', 'campaign', 'polling', 'formation'].includes(cycle.phase) && cycle.cycle_number > 1) {
+      const prevCycle = await db('pol_cycles').where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 }).first();
+      if (prevCycle) targetCycleId = prevCycle.id;
+    }
+
+    const seats = await db('pol_council_seats').where({ cycle_id: targetCycleId });
     const seatCounts: Record<string, number> = {};
     for (const s of seats) {
       seatCounts[s.party_id] = (seatCounts[s.party_id] || 0) + 1;

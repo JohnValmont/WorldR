@@ -3,16 +3,16 @@
 // isActive: true = this jurisdiction has a live political cycle in the DB.
 // This is the authoritative display-order list for the JurisdictionSwitcher.
 export const JURISDICTIONS = [
-  { id: 'ironvale',  name: 'Ironvale',  isLocked: false, isActive: true  },
+  { id: 'ironvale',  name: 'Ironvale',  isLocked: true, isActive: false  },
   { id: 'drennport', name: 'Drennport', isLocked: true,  isActive: false },
   { id: 'westport',  name: 'Westport',  isLocked: true,  isActive: false },
   { id: 'greenmere', name: 'Greenmere', isLocked: true,  isActive: false },
-  { id: 'national',  name: 'National',  isLocked: true,  isActive: false }, // deferred
+  { id: 'national',  name: 'National',  isLocked: false,  isActive: true },
 ] as const;
 
 export type JurisdictionId = (typeof JURISDICTIONS)[number]['id'];
-export const DEFAULT_JURISDICTION_ID: JurisdictionId = 'ironvale';
+export const DEFAULT_JURISDICTION_ID: JurisdictionId = 'national';
 
 // Legacy aliases — kept so any existing imports don't break immediately.
-export const POL_ACTIVE_STATE_CODE = 'ironvale';
-export const POL_ACTIVE_STATE_NAME = 'Ironvale';
+export const POL_ACTIVE_STATE_CODE = 'national';
+export const POL_ACTIVE_STATE_NAME = 'National';

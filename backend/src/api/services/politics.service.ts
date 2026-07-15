@@ -235,30 +235,49 @@ export async function getOrCreateCurrentCycle(stateId: string) {
   return cycle;
 }
 
-export async function ensureNpcCandidates(trx: any, cycleId: string) {
+export async function ensureCandidates(trx: any, cycleId: string) {
   const cycle = await trx('pol_cycles').where({ id: cycleId }).first();
   if (!cycle) return;
 
-  const npcParties = await trx('pol_parties').where({ is_npc: true, state_id: cycle.state_id });
+  const parties = await trx('pol_parties').where({ state_id: cycle.state_id });
+  const constituencies = await trx('pol_constituencies').where({ state_id: cycle.state_id });
   
-  for (const party of npcParties) {
-    const existing = await trx('pol_candidates')
-      .where({ cycle_id: cycleId, party_id: party.id })
-      .first();
-      
-    if (!existing) {
-      const seat = await trx('pol_council_seats')
-        .where({ party_id: party.id, state_id: cycle.state_id })
+  for (const party of parties) {
+    for (const constituency of constituencies) {
+      const existing = await trx('pol_candidates')
+        .where({ cycle_id: cycleId, party_id: party.id, constituency_id: constituency.id })
         .first();
+        
+      if (!existing) {
+        const seat = await trx('pol_council_seats')
+          .where({ party_id: party.id, state_id: cycle.state_id, constituency_id: constituency.id })
+          .first();
 
-      await trx('pol_candidates').insert({
-        cycle_id: cycleId,
-        party_id: party.id,
-        character_id: null,
-        is_npc: true,
-        platform: party.platform,
-        is_incumbent: !!seat
-      });
+        // For player parties, we might want to attach a character from the roster.
+        // But for simplicity in v0.1, we'll just create generic NPC candidates to fill out their slate.
+        // Wait, if it's the player's party, we should use their roster members first!
+        const members = await trx('pol_party_members')
+          .where({ party_id: party.id })
+          .select('character_id');
+        
+        // Find a member who isn't a candidate yet
+        const currentCands = await trx('pol_candidates').where({ cycle_id: cycleId, party_id: party.id });
+        const usedCharIds = new Set(currentCands.map((c: any) => c.character_id).filter(Boolean));
+        const availableMember = members.find((m: any) => !usedCharIds.has(m.character_id));
+
+        const charId = availableMember ? availableMember.character_id : null;
+        const isNpcChar = party.is_npc || charId === null; // If we ran out of player-roster, fill with generic NPCs
+
+        await trx('pol_candidates').insert({
+          cycle_id: cycleId,
+          party_id: party.id,
+          constituency_id: constituency.id,
+          character_id: charId,
+          is_npc: isNpcChar,
+          platform: party.platform,
+          is_incumbent: !!seat
+        });
+      }
     }
   }
 }
@@ -314,7 +333,8 @@ export async function buildEngineCandidates(trx: any, cycleId: string, maxArc?: 
       platform: c.platform,
       credibility,
       isIncumbent: c.is_incumbent,
-      effortBySegment
+      effortBySegment,
+      constituencyId: c.constituency_id
     });
   }
 
@@ -388,7 +408,7 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
   await fireConditionCrises(trx, stateId, currentMonth);
 
   if (newPhase === 'filing') {
-    await ensureNpcCandidates(trx, cycle.id);
+    await ensureCandidates(trx, cycle.id);
   }
 
   if (newPhase === 'campaign') {
@@ -483,11 +503,16 @@ async function runNpcCampaignBrain(trx: any, stateId: string, cycleId: string, c
   // Read PREVIOUS month's effort to run a projection. Avoid state-bleed.
   const prevEngineCands = await buildEngineCandidates(trx, cycleId, currentMonth - 1);
   const state = await trx('pol_states').where({ id: stateId }).first();
-  const registeredVoters = state ? state.registered_voters || 1600000 : 1600000;
+  const constituenciesRows = await trx('pol_constituencies').where({ state_id: stateId });
+  const engineConstituencies = constituenciesRows.map((r: any) => ({
+    id: r.id,
+    registeredVoters: r.registered_voters || 80000,
+    conditions: readConditionsFromRow(state)
+  }));
   
   const projection = runElection({
     candidates: prevEngineCands,
-    registeredVoters
+    constituencies: engineConstituencies
   });
 
   const npcCandidates = await trx('pol_candidates')
@@ -505,8 +530,9 @@ async function runNpcCampaignBrain(trx: any, stateId: string, cycleId: string, c
 
     // Find segments where the candidate is trailing in the projection.
     const trailingSegments = [];
+    const constRes = projection.perConstituency.find(c => c.constituencyId === cand.constituency_id);
     for (const seg of SEGMENTS) {
-      const shares = projection.segmentShares[seg.key] || {};
+      const shares = constRes?.segmentShares?.[seg.key] || {};
       const myShare = shares[cand.id] || 0;
       if (myShare < POL_NPC_TRAILING_SHARE) {
         trailingSegments.push({ segment: seg.key, share: myShare });
@@ -576,10 +602,19 @@ async function resolveElection(trx: any, cycleId: string) {
   const cycle = await trx('pol_cycles').where({ id: cycleId }).first();
   const engineCands = await buildEngineCandidates(trx, cycleId);
   const state = await trx('pol_states').where({ id: cycle.state_id }).first();
-  const registeredVoters = state ? state.registered_voters || 1600000 : 1600000;
   const conditions = readConditionsFromRow(state);
+  
+  const constituenciesRows = await trx('pol_constituencies').where({ state_id: cycle.state_id });
+  const engineConstituencies = constituenciesRows.map((r: any) => ({
+    id: r.id,
+    registeredVoters: r.registered_voters || 80000,
+    conditions
+  }));
 
-  const result = runElection({ candidates: engineCands, registeredVoters, totalSeats: getSeatsForState(state?.code), conditions });
+  const result = runElection({ 
+    candidates: engineCands, 
+    constituencies: engineConstituencies 
+  });
 
   // Determine previous cycle winners for seat loss calculation
   const prevCycle = await trx('pol_cycles')
@@ -623,6 +658,7 @@ async function resolveElection(trx: any, cycleId: string) {
         state_id: cycle.state_id,
         cycle_id: cycleId,
         party_id: party.partyId,
+        constituency_id: c.constituencyId,
         character_id: dbCand?.character_id || null,
         is_npc: dbCand?.is_npc || false
       });
@@ -636,10 +672,16 @@ async function resolveElection(trx: any, cycleId: string) {
 
     // Fill remaining seats with generic NPCs for that party
     while (seatsAllocated < seatsToAllocate) {
+      // Find a constituency they won but don't have a candidate for (rare)
+      // or just pick an empty constituency ID?
+      // Since it's FPTP, they only get a seat if they actually won a constituency.
+      // So this fallback loop should find the constituency they won.
+      const wonConstId = result.perCandidate.find(c => c.partyId === party.partyId && c.wonSeat)?.constituencyId || null;
       await trx('pol_council_seats').insert({
         state_id: cycle.state_id,
         cycle_id: cycleId,
         party_id: party.partyId,
+        constituency_id: wonConstId,
         character_id: null,
         is_npc: true
       });
