@@ -660,7 +660,7 @@ async function resolveElection(trx: any, cycleId: string) {
         party_id: party.partyId,
         constituency_id: c.constituencyId,
         character_id: dbCand?.character_id || null,
-        is_npc: dbCand?.is_npc || false
+        is_npc: dbCand ? dbCand.is_npc : c.candidateId.startsWith('npc_')
       });
       seatsAllocated++;
       

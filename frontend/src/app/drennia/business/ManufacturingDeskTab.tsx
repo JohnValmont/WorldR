@@ -564,7 +564,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
     }
   }, [BASE_DEV_COST]);
 
-  // ── Handlers ────────────────────────────────────────────────�����─────────────
+  // ── Handlers ────────────────────────────────────────────────—————─────────────
 
   const handlePurchaseLicense = async () => {
     try {
@@ -3707,7 +3707,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
         </div>
       )}
 
-      {/* ═════════════════════════��═════════════════════════════
+      {/* ═════════════════════════——═════════════════════════════
           FINANCE TAB
       ═══════════════════════════════════════════════════════ */}
       {deskTab === 'finance' && (

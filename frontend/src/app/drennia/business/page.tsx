@@ -705,7 +705,7 @@ export default function BusinessPage() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OVERVIEW TAB
-// ���────────────────────────────────────────────────────────────────────────────
+// ———────────────────────────────────────────────────────────────────────────────
 function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewContracts, onViewRegistry }: {
   company: Company | null; playerCash: number; netWorth: number;
   onStartBusiness: () => void; onViewContracts: () => void; onViewRegistry: () => void;
@@ -854,7 +854,7 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
 
 // ─────────────────────────────────────────────────────────────────────────────
 // START BUSINESS TAB
-// ───────────────────────���─────────────────────────────────────────────────────
+// ───────────────────────———─────────────────────────────────────────────────────
 function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, selectedHQ, setSelectedHQ, companyNameInput, setCompanyNameInput, nameError, setNameError, startError, playerCash, company, financeCompany, onRegister, checkName, chosenCapital, setChosenCapital, selectedStructure, setSelectedStructure, selectedModel, setSelectedModel, isSubmitting }: any) {
   const isLogistics = selectedSector === 'Shipping & Logistics';
   const isFinance   = selectedSector === 'Finance & Services';
@@ -1255,7 +1255,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
   );
 }
 
-// ─────────────────────────────────────────────────────────���───────────────────
+// ─────────────────────────────────────────────────────────———───────────────────
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPANY DESK TAB (Shipping & Logistics)
 // ─────────────────────────────────────────────────────────────────────────────
