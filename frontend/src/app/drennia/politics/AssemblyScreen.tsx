@@ -44,7 +44,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
           {jModel.tier === 'state' ? 'State Assembly' : 'National Parliament'} of {jModel.name}
         </h1>
         <div style={{ color: T.faint, fontSize: 13 }}>
-          {jModel.seats} seats · {jModel.majority} for a majority
+          {jModel.seats} seats — {jModel.majority} for a majority
         </div>
       </div>
 

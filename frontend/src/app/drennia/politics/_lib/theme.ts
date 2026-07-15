@@ -1,7 +1,7 @@
-// ─────────────────────────────────────────────────────
+// —
 // WORLDr — Political Desk shared theme tokens (the "T" palette).
 // AAA Luxury Strategy: Deep obsidian, frosted glass, glowing gold accents.
-// ─────────────────────────────────────────────────────
+// —
 export const T = {
   // Base backgrounds (dark, rich depth)
   bg:        '#08090C', // Deep obsidian

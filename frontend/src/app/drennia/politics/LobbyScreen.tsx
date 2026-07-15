@@ -47,7 +47,7 @@ export default function LobbyScreen({ selectedJurisdictionId, onJurisdictionChan
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <Stamp style={{ color: T.gold }}>LOBBY & TENDERS</Stamp>
         <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
-          Lobbying · {jurisdiction?.name}
+          Lobbying — {jurisdiction?.name}
         </h1>
         <div style={{ color: T.faint, fontSize: 13 }}>
           Where cash, companies, and the Council meet — donate, petition, and bid for state contracts.
@@ -65,7 +65,7 @@ export default function LobbyScreen({ selectedJurisdictionId, onJurisdictionChan
             <Panel title="CITIZEN DONATION">
               <div style={{ color: T.muted, fontSize: 13, marginBottom: 12 }}>Donate personal cash to a party to build political influence.</div>
               <select value={donateParty} onChange={(e) => setDonateParty(e.target.value)} style={{ ...inputStyle, marginBottom: 10 }}>
-                <option value="">Select a party…</option>
+                <option value="">Select a party—</option>
                 {partyList.map((p: any) => <option key={p.id} value={p.id}>{p.name} {p.abbreviation ? `[${p.abbreviation}]` : ''}</option>)}
               </select>
               <input type="number" value={amount} min={100} step={100} onChange={(e) => setAmount(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 12 }} />

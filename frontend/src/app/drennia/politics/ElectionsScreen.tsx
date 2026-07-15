@@ -46,7 +46,7 @@ function leaning(seg: any): string {
 
 /** The scheduled-election banner: countdown + term progress. No phase ceremony —
  *  campaigning and legislating are open at all times; the vote simply resolves on
- *  Election Day (GDD $3–4 / Task C removed the phase gates). */
+ *  Election Day (GDD $3—4 / Task C removed the phase gates). */
 function ElectionHero({
   jurisdictionName,
   cycle,
@@ -70,10 +70,10 @@ function ElectionHero({
   // 1 in-game month = 8 real hours (GDD $3).
   const realHours = months != null ? months * REAL_HOURS_PER_MONTH : null;
   const realNote = realHours != null && months! > 0
-    ? `≈ ${Math.floor(realHours / 24)}d ${realHours % 24}h real time`
+    ? `— ${Math.floor(realHours / 24)}d ${realHours % 24}h real time`
     : null;
 
-  // Term progress toward Election Day (0–100). Hidden if we can't compute it.
+  // Term progress toward Election Day (0—100). Hidden if we can't compute it.
   const termProgress = months != null && termMonths > 0
     ? Math.max(0, Math.min(100, ((termMonths - months) / termMonths) * 100))
     : null;
@@ -87,10 +87,10 @@ function ElectionHero({
         {unit && <span style={{ fontFamily: MONO, fontSize: 16, letterSpacing: '0.24em', color: T.gold }}>{unit}</span>}
       </div>
       <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.14em', color: T.muted, marginTop: 8, textTransform: 'uppercase' }}>
-        {jurisdictionName} Assembly{cycleNumber != null ? ` · Cycle ${cycleNumber}` : ''}
+        {jurisdictionName} Assembly{cycleNumber != null ? ` — Cycle ${cycleNumber}` : ''}
       </div>
       <div style={{ fontFamily: MONO, fontSize: 10.5, color: T.faint, marginTop: 4 }}>
-        {seats} seats · {majority} for a majority{electionArc != null ? ` · resolves at arc ${electionArc}` : ''}{realNote ? ` · ${realNote}` : ''}
+        {seats} seats — {majority} for a majority{electionArc != null ? ` — resolves at arc ${electionArc}` : ''}{realNote ? ` — ${realNote}` : ''}
       </div>
 
       {termProgress != null && (
@@ -123,7 +123,7 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
 
       <div>
-        <Stamp>Electorate · {jurisdiction?.name}</Stamp>
+        <Stamp>Electorate — {jurisdiction?.name}</Stamp>
         <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '8px 0 0' }}>Read the Room</h1>
         <p style={{ color: T.muted, fontSize: 14, marginTop: 6, maxWidth: 640 }}>Every bloc has an ideal platform. Court the ones no rival owns — standing where others stand splits the vote.</p>
       </div>
@@ -178,8 +178,8 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
                   return (
                     <div key={p.id || p.party_id || i}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ color: isMine ? T.gold : T.text, fontSize: 13, fontWeight: isMine ? 700 : 400 }}>{p.name || p.party_name || 'Party'}{isMine ? ' · You' : ''}</span>
-                        <span style={{ color: T.muted, fontFamily: MONO, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{seats != null ? `${seats} seats · ${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`}</span>
+                        <span style={{ color: isMine ? T.gold : T.text, fontSize: 13, fontWeight: isMine ? 700 : 400 }}>{p.name || p.party_name || 'Party'}{isMine ? ' — You' : ''}</span>
+                        <span style={{ color: T.muted, fontFamily: MONO, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{seats != null ? `${seats} seats — ${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`}</span>
                       </div>
                       <Meter value={barVal} tone={isMine ? T.gold : T.blue} height={7} />
                     </div>

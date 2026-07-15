@@ -166,7 +166,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                 {abbreviation.slice(0, 3) || '?'}
               </div>
               <div style={{ display: 'flex', gap: 16, flex: 1 }}>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter party name…" maxLength={40}
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter party name—" maxLength={40}
                   style={{ flex: 1, padding: '14px 18px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${T.border}`, borderRadius: 6, color: T.ivory, fontSize: 15, outline: 'none', transition: 'border 0.2s', fontFamily: SANS }}
                   onFocus={(e) => e.target.style.borderColor = T.goldLine} onBlur={(e) => e.target.style.borderColor = T.border} />
                 <input value={abbreviation} onChange={(e) => setAbbreviation(e.target.value.toUpperCase())} placeholder="ABBR" maxLength={6}
@@ -248,7 +248,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                 <div style={{ color: T.ivory, fontSize: 16, display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
                   <span style={{ fontWeight: 600 }}>{name || 'Unnamed Party'}</span>
                   {abbreviation && <span style={{ color: T.faint, fontFamily: MONO, fontWeight: 600 }}>[{abbreviation}]</span>}
-                  {creed && <span style={{ color: T.gold, fontSize: 14, fontWeight: 500, textShadow: `0 0 8px ${T.goldSoft}` }}>• {CREEDS[creed].name}</span>}
+                  {creed && <span style={{ color: T.gold, fontSize: 14, fontWeight: 500, textShadow: `0 0 8px ${T.goldSoft}` }}>— {CREEDS[creed].name}</span>}
                 </div>
               </div>
             </div>

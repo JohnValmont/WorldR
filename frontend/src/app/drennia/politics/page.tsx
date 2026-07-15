@@ -116,7 +116,7 @@ export default function PoliticsDesk() {
         <main style={{ flex: 1, overflowY: 'auto', background: T.bg }}>
           <div style={{ maxWidth: 1240, margin: '0 auto', padding: '28px 32px' }}>
             {loading ? (
-              <div style={{ color: T.muted, fontFamily: MONO, fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Convening the Political Desk…</div>
+              <div style={{ color: T.muted, fontFamily: MONO, fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Convening the Political Desk—</div>
             ) : error ? (
               <div style={{ color: T.red, border: `1px solid ${T.red}55`, background: `${T.red}14`, padding: 16, borderRadius: 4 }}>{String((error as any)?.message || error)}</div>
             ) : activeSection === 'overview' ? (

@@ -86,7 +86,7 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
       <div style={{ marginTop: 'auto', padding: 20, borderTop: `1px solid ${T.border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ width: 8, height: 8, borderRadius: 99, background: T.mint, display: 'inline-block', boxShadow: `0 0 10px ${T.mint}` }} />
-          <span style={{ color: T.text, fontFamily: MONO, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em', fontWeight: 600 }}>Leader · You</span>
+          <span style={{ color: T.text, fontFamily: MONO, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em', fontWeight: 600 }}>Leader — You</span>
         </div>
       </div>
     </aside>

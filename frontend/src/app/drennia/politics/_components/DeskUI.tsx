@@ -1,8 +1,8 @@
-// ────────────────────────────────────────────────────────────────────────────
+// —
 // WORLDr — Political Desk shared UI primitives ("Terminal-luxury" design system).
 // Dark, sharp, gold-accented. Import these instead of hand-rolling panels so the
 // desk stays visually consistent. All colours come from the T palette.
-// ────────────────────────────────────────────────────────────────────────────
+// —
 'use client';
 import React from 'react';
 import { T, MONO } from '../_lib/theme';
@@ -76,7 +76,7 @@ export function StatTile({
   );
 }
 
-/** Labeled horizontal meter (0–100). Tone can be overridden or auto by value. */
+/** Labeled horizontal meter (0—100). Tone can be overridden or auto by value. */
 export function Meter({
   label,
   value,
@@ -141,7 +141,7 @@ export function PhaseTimeline({ steps, activeKey }: { steps: PhaseStep[]; active
             >
               {s.label}
             </span>
-            {i < steps.length - 1 && <span style={{ color: T.border, fontSize: 12 }}>→</span>}
+            {i < steps.length - 1 && <span style={{ color: T.border, fontSize: 12 }}>—</span>}
           </React.Fragment>
         );
       })}

@@ -81,7 +81,7 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <Stamp style={{ color: T.gold }}>THE POLICY DESK</Stamp>
         <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
-          Policies · {jurisdiction?.name}
+          Policies — {jurisdiction?.name}
         </h1>
         <div style={{ color: T.faint, fontSize: 13 }}>
           Every policy in force across the jurisdiction. Propose a change to send it to the chamber.

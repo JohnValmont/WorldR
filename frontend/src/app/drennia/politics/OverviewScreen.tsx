@@ -18,7 +18,7 @@ interface Props {
   onRefresh: () => void;
 }
 
-// Condition colours: 0–10 scale.
+// Condition colours: 0—10 scale.
 function condTone(v: number) { return v >= 6.5 ? T.mint : v >= 4 ? T.gold : T.red; }
 
 /** Support arc gauge. */
@@ -84,10 +84,10 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-      {/* ── Page header ─────────────────────────────────────────────────────── */}
+      {/* — Page header — */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <Stamp>This Month · {jMeta.name}</Stamp>
+          <Stamp>This Month — {jMeta.name}</Stamp>
           <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '8px 0 0', letterSpacing: '-0.01em' }}>
             {myParty ? myParty.name : 'Political Desk'}
             {myParty?.abbreviation && <span style={{ color: T.faint, fontSize: 20, fontFamily: MONO, textTransform: 'uppercase', marginLeft: 8 }}>[{myParty.abbreviation}]</span>}
@@ -104,7 +104,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
         )}
       </div>
 
-      {/* ── No party — founding call-to-action ──────────────────────────────── */}
+      {/* — No party — founding call-to-action — */}
       {!myParty && (
         <Panel accent>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
@@ -119,7 +119,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
         </Panel>
       )}
 
-      {/* ── Jurisdiction Conditions strip (Task E / GDD $11) ─────────────────── */}
+      {/* — Jurisdiction Conditions strip (Task E / GDD $11) — */}
       {hasConditions && (
         <Panel title="Jurisdiction Conditions">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
@@ -138,12 +138,12 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
             })}
           </div>
           <div style={{ fontFamily: MONO, fontSize: 10, color: T.faint, marginTop: 12, letterSpacing: '0.06em' }}>
-            0–10 · moved by the governing party's active policy each month · feeds bloc turnout and crisis events
+            0—10 — moved by the governing party's active policy each month — feeds bloc turnout and crisis events
           </div>
         </Panel>
       )}
 
-      {/* ── 3-column centre: Standing | On the Floor | Chronicle ────────────── */}
+      {/* — 3-column centre: Standing | On the Floor | Chronicle — */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1.2fr) minmax(200px, 1.4fr) minmax(200px, 1.4fr)', gap: 16 }}>
 
         {/* Standing */}
@@ -151,7 +151,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             <Gauge pct={support} />
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <StatTile label="Action Points" value={myAp?.current_ap ?? 0} sub="+12 each month · no cap" tone={T.gold} />
+              <StatTile label="Action Points" value={myAp?.current_ap ?? 0} sub="+12 each month — no cap" tone={T.gold} />
               <StatTile label="Seats Target" value={jMeta.seats} sub={`${jMeta.majority} for a majority`} tone={T.ivory} />
             </div>
             {!myParty && <Btn label="Found a Party" primary onClick={() => onNavigate('party')} />}
@@ -164,7 +164,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <div style={{ color: T.ivory, fontWeight: 700, fontSize: 14 }}>{floorBill.title || floorBill.name || floorBill.type || 'Bill on the floor'}</div>
-                <div style={{ fontFamily: MONO, fontSize: 10.5, color: T.faint, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{floorBill.type || 'motion'} · {floorBill.status || 'open'}</div>
+                <div style={{ fontFamily: MONO, fontSize: 10.5, color: T.faint, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{floorBill.type || 'motion'} — {floorBill.status || 'open'}</div>
               </div>
               {(ayes != null || nays != null) && (
                 <div style={{ display: 'flex', gap: 12 }}>
@@ -203,7 +203,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
         </Panel>
       </div>
 
-      {/* ── Recommended Move (contextual, quiet footer) ───────────────────────── */}
+      {/* — Recommended Move (contextual, quiet footer) — */}
       <Panel title="Recommended Move">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
           <div style={{ color: T.muted, fontSize: 13.5, lineHeight: 1.6, flex: 1, minWidth: 240 }}>

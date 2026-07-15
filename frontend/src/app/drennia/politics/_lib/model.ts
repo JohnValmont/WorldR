@@ -1,13 +1,13 @@
-// ─────────────────────────────────────────────────────────────────────────────
+// —
 // WORLDr — Political Desk Model (display / config source of truth)
-// ─────────────────────────────────────────────────────────────────────────────
+// —
 // Encodes locked GDD v0.5 decisions as a DISPLAY + CONFIG layer on top of the
 // already-wired engine constants. Maps new plain names onto EXISTING backend IDs
 // so nothing breaks. Engine math stays authoritative in backend/.../politics.ts.
-// ─────────────────────────────────────────────────────────────────────────────
+// —
 import type { Axis } from '@/lib/politicsConstants';
 
-// ─── Creeds (plain ideology names -> existing doctrine IDs) ──────────────────
+// — Creeds (plain ideology names -> existing doctrine IDs) —
 export type CreedId =
   | 'forge_accord' | 'the_ledger' | 'the_homestead'
   | 'the_commons'  | 'the_vanguard' | 'the_compact';
@@ -37,7 +37,7 @@ export const CREED_ORDER: CreedId[] = [
 export const CREED_NAME_BY_ID: Record<CreedId, string> =
   Object.fromEntries(CREED_ORDER.map((id) => [id, CREEDS[id].name])) as Record<CreedId, string>;
 
-// ─── Pillars (policy axes) -> plain names + rung ladders ───────────────────
+// — Pillars (policy axes) -> plain names + rung ladders —
 export interface PillarRung { value: number; label: string; }
 export interface Pillar { axis: Axis; name: string; low: string; high: string; rungs: PillarRung[]; }
 
@@ -52,7 +52,7 @@ export const PILLARS: Pillar[] = [
 export const PILLAR_BY_AXIS: Record<Axis, Pillar> =
   Object.fromEntries(PILLARS.map((p) => [p.axis, p])) as Record<Axis, Pillar>;
 
-// ─── Voter Blocs (plain names -> existing segment keys) ───────────────────
+// — Voter Blocs (plain names -> existing segment keys) —
 export interface BlocLabel { key: string; name: string; who: string; }
 
 export const BLOCS: BlocLabel[] = [
@@ -68,7 +68,7 @@ export const BLOC_NAME_BY_KEY: Record<string, string> =
 export const BLOC_WHO_BY_KEY: Record<string, string> =
   Object.fromEntries(BLOCS.map((b) => [b.key, b.who]));
 
-// ─── Jurisdictions (federal model, GDD D6) ──────────────────────────
+// — Jurisdictions (federal model, GDD D6) —
 // Drennia = federal parliamentary system (Australia-inspired). State Assemblies and
 // the National Parliament are SEPARATE elections on SEPARATE clocks. seats/termMonths
 // are the TARGET model; live engine currently runs Ironvale at 61 seats / 48mo.
@@ -87,7 +87,7 @@ export const JURISDICTION_MODEL: Record<string, JurisdictionModel> = {
   national:  { id: 'national',  name: 'National Parliament', tier: 'national', character: 'Federal Parliament of Drennia',  seats: 250, majority: 126, termMonths: 48, electionOffsetMonths: 0  },
 };
 
-// ─── AP model (GDD D3): 12/month, no cap, weighted costs ──────────────────
+// — AP model (GDD D3): 12/month, no cap, weighted costs —
 export const AP_MODEL = {
   GRANT_PER_MONTH: 12,
   CAP: null as number | null,
