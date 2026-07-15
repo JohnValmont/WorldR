@@ -214,9 +214,9 @@ export class CompanyController {
           status: 'active',
           reputation: 50,
           reliability: 50,
-          created_at_world_year: clock.current_year,
-          created_at_world_month: clock.current_month,
-          created_at_world_day: clock.current_day
+          created_at_world_year: clock?.current_year ?? 1,
+          created_at_world_month: clock?.current_month ?? 1,
+          created_at_world_day: clock?.current_day ?? 1
         }).returning('*');
 
         // Create finances

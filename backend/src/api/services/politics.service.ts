@@ -25,6 +25,7 @@ import {
   ROSTER_CAP_BANDS,
   RECRUIT_COST_CASH,
   RECRUIT_PLATFORM_DRIFT,
+  POL_POLICY_CONDITION_EFFECTS,
 } from '../constants/politics';
 import { EngineCandidate, runElection } from './electionEngine';
 import { fireGoverningEvent, fireConditionCrises } from './governingEvents';
@@ -346,8 +347,12 @@ export async function applyConditionDrift(trx: any, stateId: string, currentMont
   if (Number(state.cond_updated_arc ?? 0) >= currentMonth) return; // already drifted this month
 
   const platform = await resolveGoverningPlatform(trx, stateId);
+  const existingPolicy = await trx('pol_state_policy').where({ state_id: stateId }).first();
+  const legislatedPolicy = existingPolicy?.policy_platform || {};
+  const effectivePlatform = { ...platform, ...legislatedPolicy };
+  
   const current = readConditionsFromRow(state);
-  const targets = computeConditionTargets(platform as any);
+  const targets = computeConditionTargets(effectivePlatform as any);
   const next = driftConditions(current, targets);
 
   await trx('pol_states').where({ id: stateId }).update({
@@ -968,16 +973,26 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
         if (isNaN(newRate)) newRate = 0.20; // fallback POL_DEFAULT_INDUSTRY_TAX_RATE
         
         const existing = await trx('pol_state_policy').where({ state_id: stateId }).first();
+        
+        // Map tax rate to taxation axis (20 to 80 range)
+        const taxationAxis = Math.max(0, Math.min(100, Math.round(100 - (newRate * 250))));
+        const currentPlatform = existing?.policy_platform || {};
+        const newPlatform = { ...currentPlatform, taxation: taxationAxis };
+        
         if (existing) {
-          await trx('pol_state_policy').where({ state_id: stateId }).update({ industry_tax_rate: newRate, updated_arc: currentMonth });
+          await trx('pol_state_policy').where({ state_id: stateId }).update({ industry_tax_rate: newRate, policy_platform: newPlatform, updated_arc: currentMonth });
         } else {
-          await trx('pol_state_policy').insert({ state_id: stateId, industry_tax_rate: newRate, infrastructure_level: 1, updated_arc: currentMonth });
+          await trx('pol_state_policy').insert({ state_id: stateId, industry_tax_rate: newRate, policy_platform: newPlatform, infrastructure_level: 1, updated_arc: currentMonth });
         }
+
+        const effectLevel = taxationAxis <= 35 ? 'low' : (taxationAxis >= 65 ? 'high' : 'mid');
+        const effects = POL_POLICY_CONDITION_EFFECTS.taxation[effectLevel];
+        const deltas = Object.entries(effects).filter(([_, val]) => val !== 0).map(([key, val]) => `${key} ${val > 0 ? '+' : ''}${val}`).join(', ');
 
         await trx('pol_ledger_events').insert({
           state_id: stateId, arc: currentMonth, kind: 'bill_passed',
           headline: `INDUSTRY TAX REVISED`,
-          body: `Council passes the new industry tax rate of ${(newRate * 100).toFixed(1)}%.`
+          body: `Council passes the new industry tax rate of ${(newRate * 100).toFixed(1)}%. Effects on state: ${deltas || 'None'}`
         });
       }
     } else {

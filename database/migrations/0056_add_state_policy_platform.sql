@@ -1,0 +1,1 @@
+ALTER TABLE pol_state_policy ADD COLUMN IF NOT EXISTS policy_platform JSONB;

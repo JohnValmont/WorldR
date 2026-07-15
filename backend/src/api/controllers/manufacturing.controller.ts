@@ -599,9 +599,13 @@ export class ManufacturingController {
         await trx('manufacturing_land_plots').where({ id: plot.id }).increment('used_acres', requiredAcres);
 
         const clock = await trx('world_clock').where({ world_instance_id: company.world_instance_id }).first();
-        const totalMonths = clock.current_month + 5;
-        const compYear = clock.current_year + Math.floor(totalMonths / 12);
-        const compMonth = totalMonths % 12;
+        const totalMonths = (clock?.current_month ?? 1) + 5;
+        let compMonth = totalMonths % 12;
+        let compYear = (clock?.current_year ?? 1) + Math.floor(totalMonths / 12);
+        if (compMonth === 0) {
+            compMonth = 12;
+            compYear -= 1;
+        }
 
         const [factory] = await trx('manufacturing_factories').insert({
           world_instance_id: company.world_instance_id,
@@ -618,7 +622,11 @@ export class ManufacturingController {
           ownership_type: 'owned',
           building_status: 'under_construction',
           building_completion_year: compYear,
-          building_completion_month: compMonth
+          building_completion_month: compMonth,
+          created_at_world_year: clock?.current_year ?? 1,
+          created_at_world_month: clock?.current_month ?? 1,
+          created_at_world_day: clock?.current_day ?? 1
+
         }).returning('*');
         
         return { message: 'Factory construction started', factory };
@@ -661,9 +669,9 @@ export class ManufacturingController {
         await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', cost).increment('company_value', cost);
 
         const clock = await trx('world_clock').where({ world_instance_id: company.world_instance_id }).first();
-        const totalMonths = clock.current_month + 2;
-        const compYear = clock.current_year + Math.floor(totalMonths / 12);
-        const compMonth = totalMonths % 12;
+        const totalMonths = (clock?.current_month ?? 1) + 2;
+        const compYear = (clock?.current_year ?? 1) + Math.floor((totalMonths - 1) / 12);
+        const compMonth = ((totalMonths - 1) % 12) + 1;
 
         const [line] = await trx('manufacturing_production_lines').insert({
           world_instance_id: company.world_instance_id,
@@ -703,7 +711,7 @@ export class ManufacturingController {
 
         const salvageValue = Math.floor(Number(plot.purchase_price) * 0.8);
 
-        await trx('company_finances').where({ company_id: companyId }).increment('available_cash', salvageValue).decrement('company_value', Number(plot.purchase_price) - salvageValue);
+        await trx('company_finances').where({ company_id: companyId }).increment('available_cash', salvageValue).decrement('company_value', Number(plot.purchase_price));
         await trx('manufacturing_land_plots').where({ id: landPlotId }).delete();
 
         return { message: 'Land sold', salvageValue };
@@ -751,7 +759,7 @@ export class ManufacturingController {
         const originalCost = (baseCost * mult) + expansionCost;
         const salvageValue = Math.floor(originalCost * 0.3);
 
-        await trx('company_finances').where({ company_id: companyId }).increment('available_cash', salvageValue).decrement('company_value', originalCost - salvageValue);
+        await trx('company_finances').where({ company_id: companyId }).increment('available_cash', salvageValue).decrement('company_value', originalCost);
         await trx('manufacturing_land_plots').where({ id: factory.land_plot_id }).decrement('used_acres', requiredAcres);
         await trx('manufacturing_factories').where({ id: factoryId }).delete();
 
@@ -786,7 +794,7 @@ export class ManufacturingController {
         const originalCost = 1500000 * mult;
         const salvageValue = Math.floor(originalCost * 0.3);
 
-        await trx('company_finances').where({ company_id: companyId }).increment('available_cash', salvageValue).decrement('company_value', originalCost - salvageValue);
+        await trx('company_finances').where({ company_id: companyId }).increment('available_cash', salvageValue).decrement('company_value', originalCost);
         await trx('manufacturing_production_lines').where({ id: lineId }).delete();
 
         return { message: 'Production line scrapped', salvageValue };
@@ -1144,7 +1152,7 @@ export class ManufacturingController {
         
         // After expansion, max_production_lines may have grown; use the factory type defaults as cap basis
         const totalCap = Number(factory.capacity_per_month ?? factoryType.base_capacity_per_month ?? 100);
-        const lineCount = Number(factoryType.max_production_lines ?? 1);
+        const lineCount = (factory.expansion_status === 'expanded') ? 2 : Number(factoryType.max_production_lines ?? 1);
         const PER_LINE_CAP = Math.ceil(totalCap / lineCount);
         if (targetUnitsPerArc && Number(targetUnitsPerArc) > PER_LINE_CAP) {
           throw new AppError(`Each production line cannot exceed ${PER_LINE_CAP} units/Month`, 400, 'EXCEEDS_LINE_CAP');
@@ -1509,7 +1517,7 @@ export class ManufacturingController {
     const finances = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
     let runningCash = Number(finances.available_cash);
 
-    console.log(`[produceForCompany] Month ${clock.current_month} Fetching factories for ${companyId}...`);
+    console.log(`[produceForCompany] Month ${clock?.current_month ?? 1} Fetching factories for ${companyId}...`);
     const allFactoriesRaw = await trx('manufacturing_factories').where({ company_id: companyId });
     for (const factory of allFactoriesRaw) {
       if (factory.auto_condition_recovery && Number(factory.condition) < 100) {
@@ -1531,8 +1539,8 @@ export class ManufacturingController {
     }
     const allFactories = allFactoriesRaw.filter((f: any) => f.status !== 'closed');
     const factories = allFactories.filter((f: any) => f.status === 'active' && f.building_status === 'completed');
-    console.log(`[produceForCompany] Month ${clock.current_month} Fetched factories for ${companyId}`);
-    console.log(`[produceForCompany] Month ${clock.current_month} Fetching productionLines for ${companyId}...`); const productionLines = await trx('manufacturing_production_lines')
+    console.log(`[produceForCompany] Month ${clock?.current_month ?? 1} Fetched factories for ${companyId}`);
+    console.log(`[produceForCompany] Month ${clock?.current_month ?? 1} Fetching productionLines for ${companyId}...`); const productionLines = await trx('manufacturing_production_lines')
       .join('manufacturing_vehicle_models', 'manufacturing_production_lines.assigned_vehicle_model_id', 'manufacturing_vehicle_models.id')
       .where('manufacturing_production_lines.company_id', companyId)
       .where('manufacturing_production_lines.status', 'active')
@@ -1555,7 +1563,7 @@ export class ManufacturingController {
         'manufacturing_vehicle_models.id as model_id_ref'
       );
 
-    console.log(`[produceForCompany] Month ${clock.current_month} Fetched productionLines for ${companyId}`); const staff = await trx('company_staff').where({ company_id: companyId });
+    console.log(`[produceForCompany] Month ${clock?.current_month ?? 1} Fetched productionLines for ${companyId}`); const staff = await trx('company_staff').where({ company_id: companyId });
 
     // ─── 0. Vehicle Development Updates (Phase 3B per-stage) ─────────────
     const developingModels = await trx('manufacturing_vehicle_models')
@@ -1746,7 +1754,7 @@ export class ManufacturingController {
     for (const factory of factories) {
       const factoryType = await trx('manufacturing_factory_types').where({ id: factory.factory_type_id }).first();
       const factoryCapacityPerArc    = Number(factory.capacity_per_month);
-      const factoryWorkerCapacity    = Number(factoryType.worker_requirement);
+      const factoryWorkerCapacity    = Number(factory.worker_capacity ?? factoryType.worker_requirement);
 
       const factoryLines = productionLines.filter((l: any) => String(l.factory_id) === String(factory.id));
 
@@ -2625,7 +2633,7 @@ export class ManufacturingController {
            .join('companies', 'manufacturing_factories.company_id', 'companies.id')
            .where('companies.country_id', countryId)
            .where('manufacturing_factories.expansion_status', 'construction_underway')
-           .select('manufacturing_factories.*', 'companies.world_instance_id');
+           .select('manufacturing_factories.*', 'companies.world_instance_id', 'manufacturing_factories.id as factory_id');
 
         const countryAutoConfig = await trx('manufacturing_country_auto_config').where({ country_id: countryId }).first() ?? {};
         const EXP_CAPACITY  = Number(countryAutoConfig.expanded_capacity_per_month ?? 200);
@@ -2635,21 +2643,26 @@ export class ManufacturingController {
         const EXP_WORKERS   = Number(countryAutoConfig.expanded_worker_capacity ?? 80);
 
         for (const factory of expandingFactories) {
-           const compYear = Number(factory.expansion_completion_year);
-           const compMonth = Number(factory.expansion_completion_month);
+           const compYear = Number(factory.expansion_completion_year) || currentYear;
+           const compMonth = Number(factory.expansion_completion_month) || currentMonth;
            const absoluteCompMonth = compYear * 12 + compMonth;
            
            if (absoluteCurrentMonth >= absoluteCompMonth - 1) {
-              await trx('manufacturing_factories').where({ id: factory.id }).update({ expansion_status: 'expanded', capacity_per_month: EXP_CAPACITY, lease_cost_per_month: EXP_LEASE, maintenance_cost_per_month: EXP_MAINT, worker_capacity: EXP_WORKERS, updated_at: trx.fn.now() });
+              try {
+                await trx('manufacturing_factories').where({ id: factory.factory_id }).update({ expansion_status: 'expanded', capacity_per_month: EXP_CAPACITY, lease_cost_per_month: EXP_LEASE, maintenance_cost_per_month: EXP_MAINT, worker_capacity: EXP_WORKERS, updated_at: trx.fn.now() });
 
-              for (let lineNum = 2; lineNum <= EXP_MAX_LINES; lineNum++) {
-                const alreadyExists = await trx('manufacturing_production_lines').where({ factory_id: factory.id, line_number: lineNum }).first();
-                if (!alreadyExists) {
-                  await trx('manufacturing_production_lines').insert({ world_instance_id: factory.world_instance_id, company_id: factory.company_id, factory_id: factory.id, line_number: lineNum, quality_setting: 'Standard', target_units_per_month: 0, status: 'idle' });
+                for (let lineNum = 2; lineNum <= EXP_MAX_LINES; lineNum++) {
+                  const alreadyExists = await trx('manufacturing_production_lines').where({ factory_id: factory.factory_id, line_number: lineNum }).first();
+                  if (!alreadyExists) {
+                    await trx('manufacturing_production_lines').insert({ world_instance_id: factory.world_instance_id, company_id: factory.company_id, factory_id: factory.factory_id, line_number: lineNum, quality_setting: 'Standard', target_units_per_month: 0, status: 'idle' });
+                  }
                 }
-              }
 
-              await trx('company_records').insert({ world_instance_id: factory.world_instance_id, company_id: factory.company_id, record_type: 'business', summary: `Workshop expansion completed. ${EXP_MAX_LINES} production lines now available (capacity: ${EXP_CAPACITY} units/Month).`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: clock?.current_day ?? 1 });
+                await trx('company_records').insert({ world_instance_id: factory.world_instance_id, company_id: factory.company_id, record_type: 'business', summary: `Workshop expansion completed. ${EXP_MAX_LINES} production lines now available (capacity: ${EXP_CAPACITY} units/Month).`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: clock?.current_day ?? 1 });
+              } catch (err) {
+                console.error(`[ManufacturingController] Failed to complete expansion for factory ${factory.factory_id}:`, err);
+                throw err;
+              }
            }
         }
 
@@ -3324,7 +3337,7 @@ export class ManufacturingController {
           .decrement('available_cash', EXPANSION_COST)
           .returning('*');
 
-        const clock = await trx('world_clock').first();
+        const clock = await trx('world_clock').where({ world_instance_id: company.world_instance_id }).first();
         const startYear = clock?.current_year ?? 1;
         const startMonth = clock?.current_month ?? 1;
 

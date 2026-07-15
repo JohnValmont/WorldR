@@ -9,6 +9,7 @@ import PoliticsSidebar, { type PoliticsSection } from './_components/PoliticsSid
 import { formatGameDateShort } from '@/lib/calendar';
 
 import OverviewScreen    from './OverviewScreen';
+import NationScreen      from './NationScreen';
 import ElectionsScreen   from './ElectionsScreen';
 import LegislatureScreen from './LegislatureScreen';
 import PolicyScreen        from './PolicyScreen';
@@ -120,6 +121,8 @@ export default function PoliticsDesk() {
               <div style={{ color: T.red, border: `1px solid ${T.red}55`, background: `${T.red}14`, padding: 16, borderRadius: 4 }}>{String((error as any)?.message || error)}</div>
             ) : activeSection === 'overview' ? (
               <OverviewScreen overview={overview} character={character} parties={parties} myAp={myAp} selectedJurisdictionId={selectedJurisdictionId} onNavigate={setActiveSection} onRefresh={loadData} />
+            ) : activeSection === 'nation' ? (
+              <NationScreen selectedJurisdictionId={selectedJurisdictionId} onJurisdictionChange={setSelectedJurisdictionId} jurisdictionMeta={jurisdictionMeta} overview={overview} ledger={ledger} />
             ) : activeSection === 'elections' ? (
               <ElectionsScreen {...commonProps} />
             ) : activeSection === 'legislature' ? (

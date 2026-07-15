@@ -134,9 +134,9 @@ export class CharacterController {
           charisma: 50,
           influence: 10,
           status: 'active',
-          created_at_world_year: clock.current_year,
-          created_at_world_month: clock.current_month,
-          created_at_world_day: clock.current_day
+          created_at_world_year: clock?.current_year ?? 1,
+          created_at_world_month: clock?.current_month ?? 1,
+          created_at_world_day: clock?.current_day ?? 1
         }).returning('*');
 
         const [finances] = await trx('character_finances').insert({
