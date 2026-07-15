@@ -387,7 +387,7 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
 
     // Currently-held council seats (loss-aversion). Mirror getCouncil's cycle choice.
     let heldCycleId = cycle.id;
-    if (['filing', 'campaign', 'polling', 'formation'].includes(cycle.phase) && cycle.cycle_number > 1) {
+    if (['filing', 'campaign', 'polling'].includes(cycle.phase) && cycle.cycle_number > 1) {
       const prevCycle = await db('pol_cycles')
         .where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 })
         .first();
@@ -669,7 +669,7 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
     // Determine the actual cycle ID to get seats for.
     // If we're in early phases, we might want the previous cycle's seats.
     let targetCycleId = cycle.id;
-    if (['filing', 'campaign', 'polling', 'formation'].includes(cycle.phase) && cycle.cycle_number > 1) {
+    if (['filing', 'campaign', 'polling'].includes(cycle.phase) && cycle.cycle_number > 1) {
       const prevCycle = await db('pol_cycles').where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 }).first();
       if (prevCycle) targetCycleId = prevCycle.id;
     }
@@ -1081,7 +1081,7 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
 
     // Get current seats
     let targetCycleId = cycle.id;
-    if (['filing', 'campaign', 'polling', 'formation'].includes(cycle.phase) && cycle.cycle_number > 1) {
+    if (['filing', 'campaign', 'polling'].includes(cycle.phase) && cycle.cycle_number > 1) {
       const prevCycle = await db('pol_cycles').where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 }).first();
       if (prevCycle) targetCycleId = prevCycle.id;
     }
