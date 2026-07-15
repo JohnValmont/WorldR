@@ -31,7 +31,7 @@ function StatDial({ label, value }: { label: string; value: number }) {
   const normValue = Math.max(0, Math.min(10, value || 0));
   const fill = (normValue / 10) * 100;
   
-  let color = T.ivory;
+  let color: string = T.ivory;
   if (normValue < 4) color = T.red;
   else if (normValue > 7) color = T.blue;
 
