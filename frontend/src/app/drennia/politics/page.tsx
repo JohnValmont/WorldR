@@ -15,6 +15,7 @@ import PolicyScreen        from './PolicyScreen';
 import AssemblyScreen    from './AssemblyScreen';
 import PartyScreen       from './PartyScreen';
 import CampaignScreen    from './CampaignScreen';
+import NationScreen      from './NationScreen';
 import LobbyScreen       from './LobbyScreen';
 
 // Live countdown to the next in-game month (1 month = 8 real hours -> next 0/8/16h).
@@ -125,6 +126,8 @@ export default function PoliticsDesk() {
               <ElectionsScreen {...commonProps} />
             ) : activeSection === 'legislature' ? (
               <LegislatureScreen {...commonProps} />
+            ) : activeSection === 'nation' ? (
+              <NationScreen {...commonProps} />
             ) : activeSection === 'policy' ? (
               <PolicyScreen {...commonProps} />
             ) : activeSection === 'assembly' ? (
