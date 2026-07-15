@@ -114,8 +114,9 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
   const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
   const myPlatform = myParty?.platform;
 
-  const projections: any[] = Array.isArray(polls) ? polls : (polls?.parties || polls?.projections || []);
+  const projections: any[] = Array.isArray(polls) ? polls : (polls?.pulse?.standings || polls?.parties || polls?.projections || []);
   const maxSeats = projections.reduce((m: number, p: any) => Math.max(m, Number(p.projected_seats ?? p.seats ?? 0)), 0);
+  const totalVotes = projections.reduce((sum: number, p: any) => sum + Number(p.votes ?? 0), 0);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -169,11 +170,11 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {projections.slice(0, 8).map((p: any, i: number) => {
-                  const share = Number(p.projected_share ?? p.share ?? p.vote_share ?? 0);
+                  const share = p.projected_share ?? p.share ?? p.vote_share ?? (totalVotes > 0 ? (Number(p.votes ?? 0) / totalVotes) : 0);
                   const seats = p.projected_seats ?? p.seats;
                   const pct = share <= 1 ? share * 100 : share;
                   const barVal = seats != null && maxSeats > 0 ? (Number(seats) / maxSeats) * 100 : pct;
-                  const isMine = myParty && (p.id === myParty.id || p.party_id === myParty.id || p.name === myParty.name);
+                  const isMine = p.isMine || (myParty && (p.id === myParty.id || p.party_id === myParty.id || p.name === myParty.name));
                   return (
                     <div key={p.id || p.party_id || i}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
