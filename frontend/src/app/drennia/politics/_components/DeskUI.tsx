@@ -5,14 +5,14 @@
 // —
 'use client';
 import React from 'react';
-import { T, MONO } from '../_lib/theme';
+import { T, MONO, glassPanelStyle, tabularNums } from '../_lib/theme';
 
 /** Uppercase section stamp with a leading gold tick. */
 export function Stamp({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...style }}>
-      <span style={{ width: 3, height: 11, background: T.gold, borderRadius: 1, display: 'inline-block', flexShrink: 0 }} />
-      <span style={{ fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.22em', fontSize: 10, color: T.faint }}>
+      <span style={{ width: 3, height: 11, background: T.gold, borderRadius: 1, display: 'inline-block', flexShrink: 0, boxShadow: `0 0 6px ${T.goldLine}` }} />
+      <span style={{ fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.22em', fontSize: 10, color: T.gold, opacity: 0.85, textShadow: `0 0 4px ${T.goldSoft}` }}>
         {children}
       </span>
     </div>
@@ -36,16 +36,15 @@ export function Panel({
   return (
     <div
       style={{
-        background: T.panel,
+        ...glassPanelStyle,
         border: `1px solid ${accent ? T.goldLine : T.border}`,
-        borderRadius: 4,
-        padding: 20,
-        boxShadow: accent ? `0 0 0 1px ${T.goldSoft}, 0 8px 30px rgba(0,0,0,0.35)` : 'none',
+        borderTop: `1px solid ${accent ? T.gold : 'rgba(255, 255, 255, 0.15)'}`,
+        boxShadow: accent ? `0 4px 24px rgba(227, 182, 102, 0.15), inset 0 1px 0 rgba(227, 182, 102, 0.2)` : glassPanelStyle.boxShadow,
         ...style,
       }}
     >
       {(title || action) && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           {title ? <Stamp>{title}</Stamp> : <span />}
           {action}
         </div>
@@ -68,21 +67,30 @@ export function StatTile({
   tone?: string;
 }) {
   return (
-    <div style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 4, padding: '14px 16px', minWidth: 0 }}>
+    <div style={{ 
+      background: 'linear-gradient(180deg, rgba(35, 38, 51, 0.85) 0%, rgba(26, 29, 38, 0.75) 100%)', 
+      border: `1px solid ${T.border}`, 
+      borderTop: `1px solid rgba(255,255,255,0.1)`, 
+      borderRadius: 6, 
+      padding: '16px', 
+      minWidth: 0,
+      boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+      transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+    }}>
       <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.faint }}>{label}</div>
-      <div style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: tone, marginTop: 6, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{value}</div>
-      {sub != null && <div style={{ fontFamily: MONO, fontSize: 10.5, color: T.muted, marginTop: 5 }}>{sub}</div>}
+      <div style={{ ...tabularNums, fontSize: 24, fontWeight: 700, color: tone, marginTop: 8, lineHeight: 1, textShadow: tone === T.gold ? `0 0 12px ${T.goldSoft}` : 'none' }}>{value}</div>
+      {sub != null && <div style={{ fontFamily: MONO, fontSize: 10.5, color: T.muted, marginTop: 6 }}>{sub}</div>}
     </div>
   );
 }
 
-/** Labeled horizontal meter (0—100). Tone can be overridden or auto by value. */
+/** Labeled horizontal meter (0—100). Segmented sci-fi look. */
 export function Meter({
   label,
   value,
   display,
   tone,
-  height = 6,
+  height = 8,
 }: {
   label?: string;
   value: number | null;
@@ -96,13 +104,35 @@ export function Meter({
   return (
     <div>
       {(label || display) && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-          {label && <span style={{ color: T.muted, fontSize: 11 }}>{label}</span>}
-          {display != null && <span style={{ color: value == null ? T.faint : barTone, fontFamily: MONO, fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{display}</span>}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+          {label && <span style={{ color: T.muted, fontSize: 11, fontWeight: 500 }}>{label}</span>}
+          {display != null && <span style={{ color: value == null ? T.faint : barTone, ...tabularNums, fontSize: 11, textShadow: `0 0 6px ${barTone}40` }}>{display}</span>}
         </div>
       )}
-      <div style={{ height, background: T.bg, borderRadius: 99, overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: barTone, transition: 'width .4s ease' }} />
+      <div style={{ 
+        height, 
+        background: `rgba(0,0,0,0.5)`, 
+        borderRadius: 2, 
+        border: `1px solid ${T.borderSoft}`,
+        overflow: 'hidden',
+        position: 'relative'
+      }}>
+        {/* Glow effect */}
+        <div style={{
+          position: 'absolute',
+          left: 0, top: 0, height: '100%',
+          width: `${pct}%`,
+          background: barTone,
+          boxShadow: `0 0 10px ${barTone}`,
+          transition: 'width 0.8s cubic-bezier(0.25, 0.8, 0.25, 1)',
+        }} />
+        {/* Segmentation overlay */}
+        <div style={{
+          position: 'absolute',
+          left: 0, top: 0, right: 0, bottom: 0,
+          background: 'repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)',
+          zIndex: 1
+        }} />
       </div>
     </div>
   );

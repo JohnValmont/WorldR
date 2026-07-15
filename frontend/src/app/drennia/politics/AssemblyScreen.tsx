@@ -38,12 +38,12 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
       
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 0' }}>
         <Stamp style={{ color: T.gold }}>THE ASSEMBLY</Stamp>
-        <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
+        <h1 style={{ color: T.ivory, fontSize: 32, fontWeight: 800, margin: 0, letterSpacing: '-0.02em', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
           {jModel.tier === 'state' ? 'State Assembly' : 'National Parliament'} of {jModel.name}
         </h1>
-        <div style={{ color: T.faint, fontSize: 13 }}>
+        <div style={{ color: T.faint, fontSize: 14, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           {jModel.seats} seats — {jModel.majority} for a majority
         </div>
       </div>
@@ -57,13 +57,41 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
         <Panel title="THE CHAMBER"><div style={{ color: T.faint, fontStyle: 'italic', textAlign: 'center', padding: 24 }}>The chamber is empty. Seats are filled at the next election.</div></Panel>
       ) : (
         <Panel title={`COMPOSITION — ${totalSeats} SEATS`} accent>
-          <div style={{ display: 'flex', height: 22, borderRadius: 4, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.panel2 }}>
-            {partySeats.map((p: any, i: number) => (
-              <div key={p.partyId || i} title={`${p.name}: ${p.seats}`} style={{ width: `${(p.seats / totalSeats) * 100}%`, background: PALETTE[i % PALETTE.length] }} />
-            ))}
-            {totalSeats > occupiedSeats && (
-              <div title={`Vacant: ${totalSeats - occupiedSeats}`} style={{ width: `${((totalSeats - occupiedSeats) / totalSeats) * 100}%`, background: T.border }} />
-            )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: 20, background: 'rgba(0,0,0,0.4)', borderRadius: 6, border: `1px solid ${T.borderSoft}`, boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)' }}>
+            {Array.from({ length: totalSeats }).map((_, i) => {
+              // Find which party this seat belongs to
+              let currentOffset = 0;
+              let seatColor: string = T.border;
+              let seatTitle = 'Vacant';
+              
+              for (let partyIdx = 0; partyIdx < partySeats.length; partyIdx++) {
+                const p = partySeats[partyIdx];
+                if (i >= currentOffset && i < currentOffset + p.seats) {
+                  seatColor = PALETTE[partyIdx % PALETTE.length];
+                  seatTitle = p.name;
+                  break;
+                }
+                currentOffset += p.seats;
+              }
+
+              return (
+                <div 
+                  key={i} 
+                  title={seatTitle}
+                  style={{ 
+                    flex: '1 0 calc(10% - 6px)', // approx 10 per row for 20 seats = 2 rows
+                    minWidth: 16,
+                    height: 24, 
+                    background: seatColor,
+                    borderRadius: 2,
+                    boxShadow: seatColor !== T.border ? `0 0 8px ${seatColor}60, inset 0 1px 0 rgba(255,255,255,0.2)` : 'inset 0 1px 0 rgba(0,0,0,0.5)',
+                    border: `1px solid rgba(0,0,0,0.8)`,
+                    opacity: seatColor !== T.border ? 1 : 0.3,
+                    transition: 'transform 0.2s'
+                  }} 
+                />
+              );
+            })}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
             {partySeats.map((p: any, i: number) => (

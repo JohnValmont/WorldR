@@ -28,12 +28,18 @@ function Gauge({ pct }: { pct: number | null }) {
   return (
     <div style={{ position: 'relative', width: 130, height: 130 }}>
       <svg width="130" height="130" viewBox="0 0 130 130">
+        <defs>
+          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
         <circle cx="65" cy="65" r={r} fill="none" stroke={T.border} strokeWidth="9" strokeDasharray={`${arc} ${C}`} strokeLinecap="round" transform="rotate(135 65 65)" />
-        <circle cx="65" cy="65" r={r} fill="none" stroke={T.gold} strokeWidth="9" strokeDasharray={`${(arc * v) / 100} ${C}`} strokeLinecap="round" transform="rotate(135 65 65)" />
+        <circle cx="65" cy="65" r={r} fill="none" stroke={T.gold} strokeWidth="9" strokeDasharray={`${(arc * v) / 100} ${C}`} strokeLinecap="round" transform="rotate(135 65 65)" filter="url(#glow)" />
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.faint }}>Support</div>
-        <div style={{ fontFamily: MONO, fontSize: 22, fontWeight: 800, color: pct == null ? T.faint : T.ivory, lineHeight: 1, marginTop: 3 }}>
+        <div style={{ fontFamily: MONO, fontSize: 24, fontVariantNumeric: 'tabular-nums', fontWeight: 800, color: pct == null ? T.faint : T.ivory, lineHeight: 1, marginTop: 3, textShadow: pct == null ? 'none' : `0 0 12px rgba(255,255,255,0.2)` }}>
           {pct == null ? '—' : `${pct.toFixed(1)}%`}
         </div>
       </div>
@@ -84,13 +90,13 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-      {/* — Page header — */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+      {/* Page header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', padding: '10px 0' }}>
         <div>
           <Stamp>This Month — {jMeta.name}</Stamp>
-          <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '8px 0 0', letterSpacing: '-0.01em' }}>
+          <h1 style={{ color: T.ivory, fontSize: 32, fontWeight: 800, margin: '12px 0 0', letterSpacing: '-0.02em', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
             {myParty ? myParty.name : 'Political Desk'}
-            {myParty?.abbreviation && <span style={{ color: T.faint, fontSize: 20, fontFamily: MONO, textTransform: 'uppercase', marginLeft: 8 }}>[{myParty.abbreviation}]</span>}
+            {myParty?.abbreviation && <span style={{ color: T.faint, fontSize: 20, fontFamily: MONO, textTransform: 'uppercase', marginLeft: 10, textShadow: 'none' }}>[{myParty.abbreviation}]</span>}
           </h1>
           {myParty?.doctrine_id && <div style={{ fontFamily: MONO, fontSize: 11, color: T.faint, marginTop: 4, letterSpacing: '0.08em' }}>{myParty.doctrine_id.replace(/_/g, ' ').toUpperCase()}</div>}
         </div>
@@ -119,9 +125,9 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
         </Panel>
       )}
 
-      {/* — Jurisdiction Conditions strip (Task E / GDD $11) — */}
+      {/* Jurisdiction Conditions strip (Task E / GDD $11) */}
       {hasConditions && (
-        <Panel title="Jurisdiction Conditions">
+        <Panel title="Jurisdiction Conditions" accent>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
             {(['prosperity', 'jobs', 'order', 'cohesion', 'budget'] as const).map((key) => {
               const v = typeof cond[key] === 'number' ? Number(cond[key]) : 5;

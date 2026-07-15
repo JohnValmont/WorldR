@@ -55,8 +55,9 @@ export const glassPanelStyle: React.CSSProperties = {
   backdropFilter: 'blur(16px)',
   WebkitBackdropFilter: 'blur(16px)',
   border: `1px solid ${T.border}`,
+  borderTop: `1px solid rgba(255, 255, 255, 0.15)`, // Simulates overhead lighting on glass edge
   borderRadius: '8px',
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.05)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
   padding: '24px',
   transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
 };
@@ -66,4 +67,10 @@ export const interactiveCardStyle: React.CSSProperties = {
   ...glassPanelStyle,
   background: T.panel2,
   cursor: 'pointer',
+};
+
+/** Typography style for crisp tabular numbers */
+export const tabularNums: React.CSSProperties = {
+  fontFamily: MONO,
+  fontVariantNumeric: 'tabular-nums',
 };

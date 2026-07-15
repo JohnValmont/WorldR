@@ -83,8 +83,8 @@ function ElectionHero({
       <Stamp style={{ justifyContent: 'center' }}>Next Election</Stamp>
       <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.3em', color: T.muted, marginTop: 14 }}>ELECTION DAY</div>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 12, marginTop: 4 }}>
-        <span style={{ fontFamily: MONO, fontSize: 52, fontWeight: 800, color: T.ivory, letterSpacing: '0.02em', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{bigValue}</span>
-        {unit && <span style={{ fontFamily: MONO, fontSize: 16, letterSpacing: '0.24em', color: T.gold }}>{unit}</span>}
+        <span style={{ fontFamily: MONO, fontSize: 64, fontWeight: 800, color: T.ivory, letterSpacing: '0.02em', fontVariantNumeric: 'tabular-nums', lineHeight: 1, textShadow: '0 4px 20px rgba(255,255,255,0.15)' }}>{bigValue}</span>
+        {unit && <span style={{ fontFamily: MONO, fontSize: 18, letterSpacing: '0.24em', color: T.gold, textShadow: `0 0 10px ${T.goldSoft}` }}>{unit}</span>}
       </div>
       <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.14em', color: T.muted, marginTop: 8, textTransform: 'uppercase' }}>
         {jurisdictionName} Assembly{cycleNumber != null ? ` — Cycle ${cycleNumber}` : ''}
@@ -146,13 +146,21 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
                 const fit = fitPct(myPlatform, seg);
                 const sizePct = Math.round(seg.size * 100);
                 return (
-                  <div key={seg.key} style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 4, padding: 16 }}>
+                  <div key={seg.key} style={{ 
+                    background: 'linear-gradient(135deg, rgba(26, 29, 38, 0.8) 0%, rgba(18, 20, 26, 0.6) 100%)', 
+                    border: `1px solid ${T.border}`, 
+                    borderTop: `1px solid rgba(255,255,255,0.1)`, 
+                    borderRadius: 8, 
+                    padding: 20,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                  }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <span style={{ color: T.ivory, fontWeight: 700, fontSize: 15 }}>{BLOC_NAME_BY_KEY[seg.key] || seg.label}</span>
-                      <span style={{ color: T.gold, fontFamily: MONO, fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{sizePct}%</span>
+                      <span style={{ color: T.ivory, fontWeight: 800, fontSize: 16 }}>{BLOC_NAME_BY_KEY[seg.key] || seg.label}</span>
+                      <span style={{ color: T.gold, fontFamily: MONO, fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 10px ${T.goldSoft}` }}>{sizePct}%</span>
                     </div>
-                    <div style={{ color: T.faint, fontFamily: MONO, fontSize: 10.5, marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{leaning(seg)}</div>
-                    <div style={{ marginTop: 10 }}>
+                    <div style={{ color: T.gold, fontFamily: MONO, fontSize: 10, marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.8 }}>{leaning(seg)}</div>
+                    <div style={{ marginTop: 14 }}>
                       <Meter label="Bloc size" value={sizePct} display={`${sizePct}%`} tone={T.blue} height={5} />
                     </div>
                     <div style={{ marginTop: 10 }}>
