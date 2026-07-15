@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { T, MONO, stampStyle } from '../_lib/theme';
+import { T, MONO, SANS, stampStyle } from '../_lib/theme';
 
 export type PoliticsSection =
   | 'overview' | 'nation' | 'party' | 'elections' | 'legislature' | 'policy' | 'assembly' | 'lobby';
@@ -44,37 +44,49 @@ interface Props {
 
 export default function PoliticsSidebar({ active, onSelect, myPartyName, myPartyNation }: Props) {
   return (
-    <aside style={{ width: 232, background: T.panel, borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-      <div style={{ padding: '20px 20px 16px' }}>
-        <div style={stampStyle}>Political Desk</div>
-        <div style={{ color: T.ivory, fontWeight: 600, fontSize: 14, marginTop: 6 }}>{myPartyName || 'Unaligned'}</div>
-        <div style={{ color: T.faint, fontFamily: MONO, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em', marginTop: 2 }}>{myPartyNation || 'Ironvale'}</div>
+    <aside style={{ width: 240, background: 'rgba(8, 9, 12, 0.8)', backdropFilter: 'blur(16px)', borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0, fontFamily: SANS, zIndex: 40 }}>
+      <div style={{ padding: '24px 20px 20px' }}>
+        <div style={{ ...stampStyle, textShadow: `0 0 10px ${T.goldSoft}` }}>Political Desk</div>
+        <div style={{ color: T.ivory, fontWeight: 700, fontSize: 16, marginTop: 8, letterSpacing: '-0.01em' }}>{myPartyName || 'Unaligned'}</div>
+        <div style={{ color: T.gold, fontFamily: MONO, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em', marginTop: 4, textShadow: `0 0 8px ${T.goldSoft}` }}>{myPartyNation || 'Ironvale'}</div>
       </div>
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '4px 12px' }}>
         {ITEMS.map((it) => {
           const on = it.id === active;
           return (
-            <button
-              key={it.id}
-              onClick={() => onSelect(it.id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 4,
-                background: on ? T.goldSoft : 'transparent', color: on ? T.gold : T.muted, cursor: 'pointer',
-                textAlign: 'left', border: `1px solid ${on ? T.goldLine : 'transparent'}`, transition: 'color .15s, background .15s',
-              }}
-              onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = T.ivory; }}
-              onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = T.muted; }}
-            >
-              <Icon name={it.id} />
-              <span style={{ fontSize: 13.5, fontWeight: on ? 600 : 500 }}>{it.label}</span>
-            </button>
+              <button
+                key={it.id}
+                onClick={() => onSelect(it.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 14, padding: '12px 14px', borderRadius: 6,
+                  background: on ? 'rgba(227, 182, 102, 0.1)' : 'transparent', color: on ? T.gold : T.muted, cursor: 'pointer',
+                  textAlign: 'left', border: `1px solid ${on ? T.goldLine : 'transparent'}`, transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: on ? `0 4px 12px ${T.goldSoft}, inset 0 1px 0 rgba(255,255,255,0.05)` : 'none',
+                  textShadow: on ? `0 0 10px ${T.goldSoft}` : 'none'
+                }}
+                onMouseEnter={(e) => { 
+                  if (!on) {
+                    e.currentTarget.style.color = T.ivory;
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                  }
+                }}
+                onMouseLeave={(e) => { 
+                  if (!on) {
+                    e.currentTarget.style.color = T.muted;
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+              >
+                <Icon name={it.id} />
+                <span style={{ fontSize: 14, fontWeight: on ? 700 : 500, letterSpacing: '0.01em' }}>{it.label}</span>
+              </button>
           );
         })}
       </nav>
-      <div style={{ marginTop: 'auto', padding: 16, borderTop: `1px solid ${T.border}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ width: 7, height: 7, borderRadius: 99, background: T.mint, display: 'inline-block' }} />
-          <span style={{ color: T.faint, fontFamily: MONO, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em' }}>Leader · You</span>
+      <div style={{ marginTop: 'auto', padding: 20, borderTop: `1px solid ${T.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 99, background: T.mint, display: 'inline-block', boxShadow: `0 0 10px ${T.mint}` }} />
+          <span style={{ color: T.text, fontFamily: MONO, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em', fontWeight: 600 }}>Leader · You</span>
         </div>
       </div>
     </aside>

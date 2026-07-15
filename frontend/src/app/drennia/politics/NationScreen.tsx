@@ -2,7 +2,7 @@
 import React from 'react';
 import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
-import { T, MONO, stampStyle } from './_lib/theme';
+import { T, MONO, SANS, stampStyle, glassPanelStyle } from './_lib/theme';
 import { JURISDICTIONS, type JurisdictionId } from './_lib/session';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
 import { PILLARS } from './_lib/model';
@@ -18,9 +18,9 @@ interface Props {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 4, padding: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <div style={stampStyle}>{title}</div>
+    <div style={{ ...glassPanelStyle, fontFamily: SANS }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div style={{ ...stampStyle, textShadow: `0 0 10px ${T.goldSoft}` }}>{title}</div>
       </div>
       {children}
     </div>
@@ -31,18 +31,18 @@ function StatDial({ label, value }: { label: string; value: number }) {
   const normValue = Math.max(0, Math.min(10, value || 0));
   const fill = (normValue / 10) * 100;
   
-  let color: string = T.ivory;
+  let color: string = T.gold;
   if (normValue < 4) color = T.red;
-  else if (normValue > 7) color = T.blue;
+  else if (normValue > 7) color = T.mint;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontFamily: SANS }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ color: T.text, fontSize: 13, fontWeight: 600 }}>{label}</span>
-        <span style={{ color, fontFamily: MONO, fontSize: 13, fontWeight: 700 }}>{normValue.toFixed(1)}</span>
+        <span style={{ color: T.text, fontSize: 14, fontWeight: 600, letterSpacing: '0.01em' }}>{label}</span>
+        <span style={{ color, fontFamily: MONO, fontSize: 14, fontWeight: 700, textShadow: `0 0 12px ${color}` }}>{normValue.toFixed(1)}</span>
       </div>
-      <div style={{ height: 6, background: T.panel2, borderRadius: 99, overflow: 'hidden' }}>
-        <div style={{ width: `${fill}%`, height: '100%', background: color }} />
+      <div style={{ height: 8, background: 'rgba(0,0,0,0.3)', borderRadius: 99, overflow: 'hidden', border: `1px solid ${T.borderSoft}` }}>
+        <div style={{ width: `${fill}%`, height: '100%', background: `linear-gradient(90deg, ${T.panel2}, ${color})`, boxShadow: `0 0 10px ${color}`, transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)' }} />
       </div>
     </div>
   );
@@ -66,9 +66,9 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
         <Panel title="Locked"><div style={{ color: T.faint, fontStyle: 'italic' }}>{jurisdiction?.name || 'This state'} is not yet open for political activity.</div></Panel>
       ) : (
         <>
-          <div>
-            <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '6px 0 0' }}>State of {jurisdiction?.name}</h1>
-            <p style={{ color: T.muted, fontSize: 14, marginTop: 6 }}>Overview of the state's economic and political health.</p>
+          <div style={{ fontFamily: SANS }}>
+            <h1 style={{ color: T.ivory, fontSize: 36, fontWeight: 800, margin: '8px 0 0', letterSpacing: '-0.02em', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>State of {jurisdiction?.name}</h1>
+            <p style={{ color: T.muted, fontSize: 15, marginTop: 8, lineHeight: 1.6 }}>Overview of the state's economic and political health.</p>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
@@ -131,11 +131,11 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
           <Panel title="National Dispatch">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {ledger.slice(0, 5).map((l: any) => (
-                <div key={l.id} style={{ display: 'flex', gap: 12, paddingBottom: 12, borderBottom: `1px solid ${T.border}` }}>
-                  <div style={{ color: T.faint, fontFamily: MONO, fontSize: 11, flexShrink: 0, marginTop: 2 }}>{formatGameDateShort(l.arc)}</div>
+                <div key={l.id} style={{ display: 'flex', gap: 16, paddingBottom: 16, borderBottom: `1px solid ${T.borderSoft}` }}>
+                  <div style={{ color: T.gold, fontFamily: MONO, fontSize: 12, flexShrink: 0, marginTop: 4, fontWeight: 600, opacity: 0.8 }}>{formatGameDateShort(l.arc)}</div>
                   <div>
-                    <div style={{ color: T.ivory, fontWeight: 600, fontSize: 14 }}>{l.headline}</div>
-                    <div style={{ color: T.muted, fontSize: 13, marginTop: 4, lineHeight: 1.4 }}>{l.body}</div>
+                    <div style={{ color: T.ivory, fontWeight: 700, fontSize: 15, letterSpacing: '-0.01em' }}>{l.headline}</div>
+                    <div style={{ color: T.text, fontSize: 14, marginTop: 6, lineHeight: 1.5, opacity: 0.8 }}>{l.body}</div>
                   </div>
                 </div>
               ))}

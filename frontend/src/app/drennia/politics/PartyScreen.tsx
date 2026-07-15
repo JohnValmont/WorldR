@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { politicsApi } from '@/lib/api';
 import { JURISDICTIONS, type JurisdictionId } from './_lib/session';
-import { T, MONO, stampStyle } from './_lib/theme';
+import { T, MONO, SANS, stampStyle, glassPanelStyle, interactiveCardStyle } from './_lib/theme';
 import { CREEDS, CREED_ORDER, CREED_NAME_BY_ID, PILLARS, PILLAR_BY_AXIS, type CreedId, BLOC_NAME_BY_KEY } from './_lib/model';
 import type { Axis } from '@/lib/politicsConstants';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
@@ -38,9 +38,9 @@ const TENETS: Record<CreedId, { id: string; name: string; type: string }[]> = {
 
 function Panel({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 4, padding: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <div style={stampStyle}>{title}</div>{action}
+    <div style={{ ...glassPanelStyle, fontFamily: SANS }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div style={{ ...stampStyle, textShadow: `0 0 10px ${T.goldSoft}` }}>{title}</div>{action}
       </div>
       {children}
     </div>
@@ -50,9 +50,16 @@ function Panel({ title, children, action }: { title: string; children: React.Rea
 function Btn({ label, onClick, primary, disabled }: { label: string; onClick: () => void; primary?: boolean; disabled?: boolean }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ padding: '10px 16px', borderRadius: 4, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
-        fontSize: 12.5, fontWeight: 600, fontFamily: MONO, letterSpacing: '0.06em', textTransform: 'uppercase',
-        background: primary ? T.gold : T.panel2, color: primary ? '#1a1408' : T.text, border: `1px solid ${primary ? T.gold : T.border}`, transition: 'all 0.15s ease' }}>
+      style={{
+        padding: '12px 24px', borderRadius: 6, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
+        fontSize: 12, fontWeight: 700, fontFamily: MONO, letterSpacing: '0.1em', textTransform: 'uppercase',
+        background: primary ? `linear-gradient(135deg, ${T.gold}, #B8860B)` : 'rgba(255,255,255,0.03)',
+        color: primary ? '#111' : T.text,
+        border: `1px solid ${primary ? T.goldLine : T.border}`,
+        boxShadow: primary ? `0 4px 15px ${T.goldSoft}, inset 0 1px 0 rgba(255,255,255,0.3)` : 'none',
+        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        textShadow: primary ? 'none' : `0 1px 2px rgba(0,0,0,0.5)`,
+      }}>
       {label}
     </button>
   );
@@ -102,14 +109,14 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
         <Panel title="Locked"><div style={{ color: T.faint, fontStyle: 'italic' }}>{jurisdiction?.name || 'This state'} is not yet open for political activity.</div></Panel>
       ) : myParty ? (
         <>
-          <div>
-            <div style={stampStyle}>Your Party</div>
-            <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 16, height: 16, borderRadius: '50%', background: T.gold }} />
+          <div style={{ fontFamily: SANS }}>
+            <div style={{ ...stampStyle, textShadow: `0 0 10px ${T.goldSoft}` }}>Your Party</div>
+            <h1 style={{ color: T.ivory, fontSize: 32, fontWeight: 800, margin: '8px 0 0', display: 'flex', alignItems: 'center', gap: 14, letterSpacing: '-0.02em' }}>
+              <div style={{ width: 18, height: 18, borderRadius: '50%', background: `radial-gradient(circle at 30% 30%, ${T.gold}, #B8860B)`, boxShadow: `0 0 12px ${T.goldGlow}` }} />
               {myParty.name}
-              {myParty.abbreviation && <span style={{ color: T.faint, fontSize: 20, fontFamily: MONO, textTransform: 'uppercase' }}>[{myParty.abbreviation}]</span>}
+              {myParty.abbreviation && <span style={{ color: T.faint, fontSize: 22, fontFamily: MONO, textTransform: 'uppercase', fontWeight: 600 }}>[{myParty.abbreviation}]</span>}
             </h1>
-            <div style={{ color: T.gold, fontFamily: MONO, fontSize: 12, marginTop: 8, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            <div style={{ color: T.gold, fontFamily: MONO, fontSize: 13, marginTop: 12, textTransform: 'uppercase', letterSpacing: '0.15em', textShadow: `0 0 10px ${T.goldSoft}` }}>
               {CREED_NAME_BY_ID[(myParty.doctrine_id || myParty.doctrineId) as CreedId] || 'Independent'}
             </div>
           </div>
@@ -147,54 +154,61 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
         </>
       ) : (
         <>
-          <div>
-            <div style={stampStyle}>Found a Party</div>
-            <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '6px 0 0' }}>Stand for {jurisdiction?.name}</h1>
-            <p style={{ color: T.muted, fontSize: 14, marginTop: 6 }}>Choose a Creed to set your identity. You are the permanent Leader — only NPC recruits can join your bench.</p>
+          <div style={{ fontFamily: SANS }}>
+            <div style={{ ...stampStyle, textShadow: `0 0 10px ${T.goldSoft}` }}>Found a Party</div>
+            <h1 style={{ color: T.ivory, fontSize: 36, fontWeight: 800, margin: '8px 0 0', letterSpacing: '-0.02em' }}>Stand for {jurisdiction?.name}</h1>
+            <p style={{ color: T.muted, fontSize: 15, marginTop: 8, lineHeight: 1.6, maxWidth: 600 }}>Choose a Creed to set your identity. You are the permanent Leader — only NPC recruits can join your bench.</p>
           </div>
 
           <Panel title="Party Identity">
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-              <div style={{ width: 48, height: 48, borderRadius: 8, background: creed ? T.gold : T.panel2, border: `1px solid ${creed ? T.goldLine : T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 'bold', color: creed ? '#1a1408' : T.faint, transition: 'all 0.2s ease' }}>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'center', fontFamily: SANS }}>
+              <div style={{ width: 56, height: 56, borderRadius: 12, background: creed ? `linear-gradient(135deg, ${T.gold}, #B8860B)` : 'rgba(255,255,255,0.03)', border: `1px solid ${creed ? T.goldLine : T.border}`, boxShadow: creed ? `0 4px 20px ${T.goldSoft}, inset 0 1px 0 rgba(255,255,255,0.3)` : 'inset 0 1px 0 rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: '800', color: creed ? '#111' : T.faint, transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)' }}>
                 {abbreviation.slice(0, 3) || '?'}
               </div>
-              <div style={{ display: 'flex', gap: 12, flex: 1 }}>
+              <div style={{ display: 'flex', gap: 16, flex: 1 }}>
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter party name…" maxLength={40}
-                  style={{ flex: 1, padding: '11px 14px', background: T.bg, border: `1px solid ${T.border}`, borderRadius: 4, color: T.ivory, fontSize: 14, outline: 'none' }} />
+                  style={{ flex: 1, padding: '14px 18px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${T.border}`, borderRadius: 6, color: T.ivory, fontSize: 15, outline: 'none', transition: 'border 0.2s', fontFamily: SANS }}
+                  onFocus={(e) => e.target.style.borderColor = T.goldLine} onBlur={(e) => e.target.style.borderColor = T.border} />
                 <input value={abbreviation} onChange={(e) => setAbbreviation(e.target.value.toUpperCase())} placeholder="ABBR" maxLength={6}
-                  style={{ width: 140, padding: '11px 14px', background: T.bg, border: `1px solid ${T.border}`, borderRadius: 4, color: T.ivory, fontSize: 14, outline: 'none', fontFamily: MONO, textTransform: 'uppercase' }} />
+                  style={{ width: 140, padding: '14px 18px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${T.border}`, borderRadius: 6, color: T.ivory, fontSize: 15, outline: 'none', fontFamily: MONO, textTransform: 'uppercase', transition: 'border 0.2s' }}
+                  onFocus={(e) => e.target.style.borderColor = T.goldLine} onBlur={(e) => e.target.style.borderColor = T.border} />
               </div>
             </div>
           </Panel>
 
           <Panel title="Choose Your Creed">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
               {CREED_ORDER.map((id) => {
                 const c = CREEDS[id]; const on = creed === id;
                 const platform = CREED_PLATFORMS[id];
                 
                 return (
                   <button key={id} onClick={() => { setCreed(id); setTenet(null); }}
-                    style={{ textAlign: 'left', padding: 20, borderRadius: 6, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12,
-                      background: on ? T.goldSoft : T.panel2, border: `1px solid ${on ? T.goldLine : T.border}`, transition: 'all 0.15s ease' }}>
+                    style={{ ...interactiveCardStyle, textAlign: 'left', padding: 24, display: 'flex', flexDirection: 'column', gap: 16,
+                      background: on ? 'rgba(227, 182, 102, 0.05)' : T.panel2, 
+                      border: `1px solid ${on ? T.goldLine : T.border}`, 
+                      boxShadow: on ? `0 8px 32px ${T.goldSoft}, inset 0 1px 0 rgba(255,255,255,0.05)` : interactiveCardStyle.boxShadow,
+                      transform: on ? 'translateY(-2px)' : 'none',
+                      fontFamily: SANS
+                    }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
-                        <div style={{ color: on ? T.gold : T.ivory, fontWeight: 700, fontSize: 18 }}>{c.name}</div>
-                        <div style={{ color: on ? T.gold : T.faint, fontFamily: MONO, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>{c.tagline}</div>
+                        <div style={{ color: on ? T.gold : T.ivory, fontWeight: 700, fontSize: 20, letterSpacing: '-0.01em', textShadow: on ? `0 0 12px ${T.goldSoft}` : 'none' }}>{c.name}</div>
+                        <div style={{ color: on ? T.gold : T.faint, fontFamily: MONO, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 6, fontWeight: 600 }}>{c.tagline}</div>
                       </div>
                       {c.keystone && PILLAR_BY_AXIS[c.keystone] && (
-                        <div style={{ background: on ? T.gold : T.panel, color: on ? '#1a1408' : T.muted, padding: '4px 8px', borderRadius: 4, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', fontWeight: 600 }}>
+                        <div style={{ background: on ? `linear-gradient(135deg, ${T.gold}, #B8860B)` : 'rgba(255,255,255,0.04)', color: on ? '#111' : T.muted, padding: '6px 10px', borderRadius: 6, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', fontWeight: 700, boxShadow: on ? `0 2px 8px ${T.goldSoft}` : 'none', border: `1px solid ${on ? 'transparent' : T.border}` }}>
                           Keystone: {PILLAR_BY_AXIS[c.keystone]?.name}
                         </div>
                       )}
                     </div>
                     
-                    <div style={{ color: T.text, fontSize: 13, lineHeight: 1.5, flex: 1 }}>{c.blurb}</div>
+                    <div style={{ color: T.text, fontSize: 14, lineHeight: 1.6, flex: 1, opacity: 0.9 }}>{c.blurb}</div>
                     
-                    <div style={{ display: 'flex', gap: 4, width: '100%', height: 24, marginTop: 4, alignItems: 'flex-end' }}>
+                    <div style={{ display: 'flex', gap: 6, width: '100%', height: 28, marginTop: 8, alignItems: 'flex-end', padding: 4, background: 'rgba(0,0,0,0.2)', borderRadius: 4, border: `1px solid ${T.borderSoft}` }}>
                       {PILLARS.map(p => (
-                        <div key={p.axis} style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', background: T.panel, borderRadius: 2, overflow: 'hidden', border: `1px solid ${on ? 'rgba(212,175,55,0.2)' : 'transparent'}` }}>
-                          <div style={{ width: '100%', height: `${platform[p.axis]}%`, background: on ? T.gold : T.border }} />
+                        <div key={p.axis} style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', background: 'rgba(255,255,255,0.02)', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ width: '100%', height: `${platform[p.axis]}%`, background: on ? `linear-gradient(0deg, #B8860B, ${T.gold})` : T.faint, boxShadow: on ? `0 0 8px ${T.goldSoft}` : 'none' }} />
                         </div>
                       ))}
                     </div>
@@ -222,25 +236,25 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           )}
 
           {/* Sticky Summary Bar */}
-          <div style={{ position: 'fixed', bottom: 0, left: 240 /* roughly sidebar width */, right: 0, background: 'rgba(26, 26, 26, 0.95)', borderTop: `1px solid ${T.border}`, backdropFilter: 'blur(8px)', padding: '16px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 50 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <div style={{ position: 'fixed', bottom: 0, left: 240 /* roughly sidebar width */, right: 0, background: 'rgba(8, 9, 12, 0.85)', borderTop: `1px solid ${T.border}`, boxShadow: `0 -10px 40px rgba(0,0,0,0.5)`, backdropFilter: 'blur(20px)', padding: '24px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 50, fontFamily: SANS }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
               <div>
                 <div style={stampStyle}>Founding Cost</div>
-                <div style={{ color: T.red, fontFamily: MONO, fontSize: 20, fontWeight: 700 }}>-$25,000</div>
+                <div style={{ color: T.red, fontFamily: MONO, fontSize: 24, fontWeight: 700, textShadow: `0 0 12px rgba(224, 82, 70, 0.4)`, marginTop: 4 }}>-$25,000</div>
               </div>
-              <div style={{ width: 1, height: 32, background: T.border }} />
+              <div style={{ width: 1, height: 40, background: T.border }} />
               <div>
                 <div style={stampStyle}>Party Details</div>
-                <div style={{ color: T.ivory, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                <div style={{ color: T.ivory, fontSize: 16, display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
                   <span style={{ fontWeight: 600 }}>{name || 'Unnamed Party'}</span>
-                  {abbreviation && <span style={{ color: T.faint, fontFamily: MONO }}>[{abbreviation}]</span>}
-                  {creed && <span style={{ color: T.gold, fontSize: 12 }}>• {CREEDS[creed].name}</span>}
+                  {abbreviation && <span style={{ color: T.faint, fontFamily: MONO, fontWeight: 600 }}>[{abbreviation}]</span>}
+                  {creed && <span style={{ color: T.gold, fontSize: 14, fontWeight: 500, textShadow: `0 0 8px ${T.goldSoft}` }}>• {CREEDS[creed].name}</span>}
                 </div>
               </div>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              {err && <div style={{ color: T.red, fontSize: 13 }}>{err}</div>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+              {err && <div style={{ color: T.red, fontSize: 14, fontWeight: 500 }}>{err}</div>}
               <Btn label={busy ? 'Founding\u2026' : 'Found Party'} primary onClick={found} disabled={busy || !name.trim() || !abbreviation.trim() || !creed} />
             </div>
           </div>
