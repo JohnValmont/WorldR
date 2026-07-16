@@ -63,7 +63,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
   };
 
   const savePolicy = async () => {
-    const p = Number(payoutInput);
+    const p = Number(String(payoutInput).replace(/,/g, ''));
     if (!Number.isFinite(p) || p < 0 || p > 50) {
       setNotice({ text: 'Payout must be between 0 and 50 percent.', ok: false });
       return;
@@ -83,7 +83,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
   };
 
   const handleInject = async () => {
-    const amt = Number(injectInput);
+    const amt = Number(String(injectInput).replace(/,/g, ''));
     if (amt <= 0 || !Number.isFinite(amt)) return;
     setBusy(true); setNotice(null);
     try {
@@ -99,7 +99,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
   };
 
   const handleWithdraw = async () => {
-    const amt = Number(withdrawInput);
+    const amt = Number(String(withdrawInput).replace(/,/g, ''));
     if (amt <= 0 || !Number.isFinite(amt)) return;
     setBusy(true); setNotice(null);
     try {
@@ -115,8 +115,8 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
   };
 
   const handleIssue = async () => {
-    const q = Number(issueQty);
-    const p = Number(issuePrice);
+    const q = Number(String(issueQty).replace(/,/g, ''));
+    const p = Number(String(issuePrice).replace(/,/g, ''));
     if (q <= 0 || p <= 0 || !Number.isFinite(q) || !Number.isFinite(p)) return;
     setBusy(true); setNotice(null);
     try {

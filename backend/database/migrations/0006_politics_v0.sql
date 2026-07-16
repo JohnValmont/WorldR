@@ -150,7 +150,7 @@ CREATE TABLE pol_state_policy (
 CREATE TABLE pol_ledger_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     state_id UUID NOT NULL REFERENCES pol_states(id) ON DELETE CASCADE,
-    month INTEGER NOT NULL,
+    arc INTEGER NOT NULL,
     kind VARCHAR(50) NOT NULL,
     headline TEXT NOT NULL,
     body TEXT NOT NULL

@@ -4,7 +4,7 @@ import { api } from '../../../lib/api';
 import EquityDeskTab from './EquityDeskTab';
 import { Card, Button, StatCard, EmptyState as UIEmptyState, Badge, ProgressBar, StatusDot, DataRow } from '@/components/ui';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { Building2, Landmark, Briefcase, TrendingUp, Target, ArrowRightLeft, LayoutDashboard, Search, FileText } from 'lucide-react';
+import { Building2, Landmark, Briefcase, TrendingUp, LayoutDashboard } from 'lucide-react';
 
 const fm = (n: number) => {
   if (n === undefined || n === null) return "$0.00";
@@ -581,7 +581,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
             <Card kicker="Corporate Structure Actions" className="border-terminal-red/20 bg-terminal-red/5">
               <div className="text-sm font-bold text-terminal-red mb-2">Convert to Solo Trader</div>
               <div className="text-xs font-mono text-zinc-400 mb-4">
-                The user requested the ability to convert the Capital Partners firm into a Solo Trader entity. This feature requires regulatory framework updates and is not yet available in this jurisdiction.
+                Converting a Capital Partners firm into a Sole Trader entity is currently restricted by Drennia financial regulations. Upgrades to corporate structure (e.g. Public Corporation) will be supported in future framework updates.
               </div>
               <Button variant="secondary" className="border-terminal-red/30 text-terminal-red/50 cursor-not-allowed">
                 Convert Structure (Unavailable)

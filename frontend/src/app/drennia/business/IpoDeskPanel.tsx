@@ -1,10 +1,5 @@
 'use client';
-import {
-  Card, Button, StatCard, DataRow, EmptyState as UIEmptyState, Badge, StatusDot, SectionHeading, Tabs, ProgressBar
-} from '@/components/ui';
-import {
-  AreaChart, Area, BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart as RechartsLineChart, Line
-} from 'recharts';
+
 import { useState } from 'react';
 import useSWR from 'swr';
 import { exchangeApi } from '../../../lib/api';
@@ -65,12 +60,20 @@ export default function IpoDeskPanel({ companyId, companyName }: { companyId: st
   const refresh = () => { mutateElig(); mutateIpo(); };
 
   const file = async () => {
-    const pMin = Number(priceMin);
-    const pMax = Number(priceMax);
-    const fPct = Number(floatPct) / 100;
-    const lock = Number(lockup);
+    const pMin = Number(String(priceMin).replace(/,/g, ''));
+    const pMax = Number(String(priceMax).replace(/,/g, ''));
+    const fPct = Number(String(floatPct).replace(/,/g, '')) / 100;
+    const lock = Number(String(lockup).replace(/,/g, ''));
     if (!Number.isFinite(pMin) || !Number.isFinite(pMax) || pMin <= 0 || pMax < pMin) {
       setNotice({ text: 'Enter a valid price range (max ≥ min).', ok: false });
+      return;
+    }
+    if (!Number.isFinite(fPct) || fPct < 0.1 || fPct > 0.49) {
+      setNotice({ text: 'Float must be between 10% and 49%.', ok: false });
+      return;
+    }
+    if (!Number.isFinite(lock) || lock < 3 || lock > 12) {
+      setNotice({ text: 'Lockup must be between 3 and 12 months.', ok: false });
       return;
     }
     setBusy(true);
