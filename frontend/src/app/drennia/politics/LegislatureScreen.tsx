@@ -45,7 +45,7 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
     ? formatGameDate(overview.cycle.currentArc) 
     : (overview?.sessionMonthLabel || 'Unknown');
 
-  const jModel = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.ironvale;
+  const jModel = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.national;
   const totalSeats = jModel.seats;
   const majority = jModel.majority;
   const assemblyType = jModel.tier === 'national' ? 'National Assembly' : 'State Assembly';

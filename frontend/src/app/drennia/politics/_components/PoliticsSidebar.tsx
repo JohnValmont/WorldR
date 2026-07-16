@@ -48,7 +48,7 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
       <div style={{ padding: '24px 20px 20px' }}>
         <div style={{ ...stampStyle, textShadow: `0 0 10px ${T.goldSoft}` }}>Political Desk</div>
         <div style={{ color: T.ivory, fontWeight: 700, fontSize: 16, marginTop: 8, letterSpacing: '-0.01em' }}>{myPartyName || 'Unaligned'}</div>
-        <div style={{ color: T.gold, fontFamily: MONO, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em', marginTop: 4, textShadow: `0 0 8px ${T.goldSoft}` }}>{myPartyNation || 'Ironvale'}</div>
+        <div style={{ color: T.gold, fontFamily: MONO, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em', marginTop: 4, textShadow: `0 0 8px ${T.goldSoft}` }}>{myPartyNation || 'National'}</div>
       </div>
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '4px 12px' }}>
         {ITEMS.map((it) => {

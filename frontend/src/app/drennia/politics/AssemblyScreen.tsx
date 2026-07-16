@@ -25,7 +25,7 @@ const PALETTE = ['#d4a24a', '#5f8fbf', '#5fbf8f', '#c8624f', '#9b7fbf', '#c9a24a
 export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, parties }: Props) {
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
-  const jModel = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.ironvale;
+  const jModel = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.national;
   const { data } = useSWR(isLocked ? null : ['council', selectedJurisdictionId], () => politicsApi.getCouncil(selectedJurisdictionId).catch(() => null));
 
   const partySeats: any[] = Array.isArray(data?.partySeats) ? data.partySeats.filter((p: any) => p.seats > 0) : [];

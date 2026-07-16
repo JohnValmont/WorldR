@@ -41,13 +41,9 @@ import { readConditionsFromRow } from '../services/conditions';
 
 /** Resolve a pol_state row by optional stateId (which is actually the state code), falling back to the active state. */
 async function resolveState(stateId?: string) {
-  if (stateId) {
-    const s = await db('pol_states').where({ code: stateId }).first();
-    if (!s) throw new AppError('State not found', 404, 'NOT_FOUND');
-    return s;
-  }
-  const s = await db('pol_states').where({ is_active: true }).first();
-  if (!s) throw new AppError('No active state', 404, 'NOT_FOUND');
+  const code = stateId || 'national';
+  const s = await db('pol_states').where({ code }).first();
+  if (!s) throw new AppError('State not found', 404, 'NOT_FOUND');
   return s;
 }
 
@@ -1075,7 +1071,7 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
       .limit(50);
 
     const activePolicy = await db('pol_state_policy').where({ state_id: activeState.id }).first();
-    const cycle = await db('pol_cycles').where({ state_id: activeState.id, status: 'open' }).first();
+    const cycle = await getOrCreateCurrentCycle(activeState.id);
 
     const resultBills = [];
 

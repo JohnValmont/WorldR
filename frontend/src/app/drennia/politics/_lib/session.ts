@@ -3,10 +3,6 @@
 // isActive: true = this jurisdiction has a live political cycle in the DB.
 // This is the authoritative display-order list for the JurisdictionSwitcher.
 export const JURISDICTIONS = [
-  { id: 'ironvale',  name: 'Ironvale',  isLocked: true, isActive: false  },
-  { id: 'drennport', name: 'Drennport', isLocked: true,  isActive: false },
-  { id: 'westport',  name: 'Westport',  isLocked: true,  isActive: false },
-  { id: 'greenmere', name: 'Greenmere', isLocked: true,  isActive: false },
   { id: 'national',  name: 'National',  isLocked: false,  isActive: true },
 ] as const;
 

@@ -65,7 +65,7 @@ export default function PoliticsDesk() {
   const loading = !character && !errChar && !overview && !errOver;
   const error = errChar || errOver || errParties;
 
-  const jMeta = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.ironvale;
+  const jMeta = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.national;
 
   const jurisdictionMeta = useMemo(() => {
     const meta: Record<string, any> = {};

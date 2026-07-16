@@ -63,7 +63,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
   const { data: ledger = [] } = useSWR(['ov-ledger', jid], () => politicsApi.getLedger(8, jid).catch(() => []), { refreshInterval: 20000 });
   const [busy, setBusy] = useState<string | null>(null);
 
-  const jMeta = JURISDICTION_MODEL[jid] || JURISDICTION_MODEL.ironvale;
+  const jMeta = JURISDICTION_MODEL[jid] || JURISDICTION_MODEL.national;
   const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
   const support: number | null = myParty ? (myParty.popularity ?? myParty.approval ?? myParty.projected_share ?? null) : null;
 

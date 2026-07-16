@@ -108,7 +108,7 @@ function ElectionHero({
 export default function ElectionsScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, overview, character, parties }: Props) {
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
-  const jModel = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.ironvale;
+  const jModel = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.national;
   const { data: polls } = useSWR(isLocked ? null : ['polls', selectedJurisdictionId], () => politicsApi.getPolls(selectedJurisdictionId).catch(() => null));
 
   const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
@@ -133,7 +133,7 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
       ) : (
         <>
           <ElectionHero
-            jurisdictionName={jurisdiction?.name || 'Ironvale'}
+            jurisdictionName={jurisdiction?.name || 'National'}
             cycle={overview?.cycle}
             seats={jModel.seats}
             majority={jModel.majority}
