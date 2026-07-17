@@ -119,7 +119,7 @@ export default function PoliticsDesk() {
               <div style={{ color: T.muted, fontFamily: MONO, fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Convening the Political Desk—</div>
             ) : error ? (
               <div style={{ color: T.red, border: `1px solid ${T.red}55`, background: `${T.red}14`, padding: 16, borderRadius: 4 }}>
-                {String((error as any)?.response?.data?.message || (error as any)?.message || error)}
+                {String((error as any)?.response?.data?.error || (error as any)?.response?.data?.message || (error as any)?.message || error)}
               </div>
             ) : activeSection === 'overview' ? (
               <OverviewScreen overview={overview} character={character} parties={parties} myAp={myAp} selectedJurisdictionId={selectedJurisdictionId} onNavigate={setActiveSection} onRefresh={loadData} />
