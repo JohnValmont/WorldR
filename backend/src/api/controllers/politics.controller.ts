@@ -42,7 +42,13 @@ import { readConditionsFromRow } from '../services/conditions';
 /** Resolve a pol_state row by optional stateId (which is actually the state code), falling back to the active state. */
 async function resolveState(stateId?: string) {
   const code = stateId || 'national';
-  const s = await db('pol_states').where({ code }).first();
+  let s = await db('pol_states').where({ code }).first();
+  if (!s) {
+    s = await db('pol_states').where({ is_active: true }).first();
+  }
+  if (!s) {
+    s = await db('pol_states').first(); // Ultimate fallback
+  }
   if (!s) throw new AppError('State not found', 404, 'NOT_FOUND');
   return s;
 }
