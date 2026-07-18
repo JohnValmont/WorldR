@@ -378,7 +378,9 @@ async function refreshNpcIoi(trx: any, listing: any, systemCharId: string) {
   const rawScore = (companyValue / 1_000_000) * (1 + profit / companyValue) * reputationFactor;
   const score = clamp(rawScore, 0, 1);
 
-  const fraction = clamp(0.15 + 0.45 * score, 0.15, 0.60);
+  // Underwriters guarantee the minimum 50% float subscription so the IPO doesn't automatically fail.
+  // Good companies will see up to 150% demand, driving the clearing price up.
+  const fraction = clamp(0.50 + 1.0 * score, 0.50, 1.50);
   const sharesWanted = Math.round(Number(listing.float_shares) * fraction);
   const price = clamp(
     Number(listing.ipo_price_max) * (0.80 + 0.20 * score),
@@ -492,6 +494,12 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
     }
     const buyerId = ioi.character_id ?? systemCharId;
     const cost = clearingPrice * qty;
+
+    if (ioi.is_npc) {
+      // NPC magically creates cash for IPO allocations to provide liquidity.
+      await trx('character_finances').where({ character_id: buyerId }).increment('cash_in_hand', cost);
+    }
+
     const buyerFin = await trx('character_finances').where({ character_id: buyerId }).forUpdate().first();
     if (!buyerFin || Number(buyerFin.cash_in_hand) < cost) {
       // Insufficient cash on listing day → allocation fails.
@@ -680,9 +688,20 @@ export async function processExchangeMonth(trx: any, year: number, month: number
       low = Math.min(open, ...prices);
       close = Number(lastTrade.price);
     } else {
-      // No volume → NPC sentiment marks the price by the earnings surprise impulse.
+      // Calculate Intrinsic Book Value per share to anchor NPC sentiment
+      const finRow = await trx('company_finances').where({ company_id: co.id }).first();
+      const bookValue = Number(finRow?.company_value || 0);
+      const sumRow = await trx('company_shares').where({ company_id: co.id }).sum('shares as total').first();
+      const companyTotalShares = Number(sumRow?.total ?? TOTAL_SHARES);
+      const bookValuePerShare = companyTotalShares > 0 ? (bookValue / companyTotalShares) : prevClose;
+
+      // No volume → NPC sentiment marks the price by the earnings surprise impulse AND intrinsic value drift.
       const impulse = clamp(prevClose * surprise * IMPULSE_COEFF, -prevClose * IMPULSE_CLAMP, prevClose * IMPULSE_CLAMP);
-      close = Math.max(0.01, prevClose + impulse);
+      
+      // Drift 5% of the gap between current price and book value per month
+      const drift = (bookValuePerShare - prevClose) * 0.05;
+
+      close = Math.max(0.01, prevClose + impulse + drift);
       high = Math.max(open, close);
       low = Math.min(open, close);
     }

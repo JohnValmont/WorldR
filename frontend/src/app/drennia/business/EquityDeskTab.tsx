@@ -4,6 +4,7 @@ import useSWR from 'swr';
 import { companyApi, characterApi } from '../../../lib/api';
 import IpoDeskPanel from './IpoDeskPanel';
 import { Card, Button } from '@/components/ui';
+import Link from 'next/link';
 
 function fmt(n: number | null | undefined, dec = 0): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
@@ -147,7 +148,9 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
             <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
               <div className="text-[13px] font-bold text-zinc-500 mb-1">Market Capital Raising</div>
               <div className="text-[11px] text-zinc-500 mb-3 leading-relaxed">Public corporations cannot use ad-hoc owner injections. You must raise capital through the DRX Exchange.</div>
-              <Button disabled variant="secondary" className="w-full opacity-50">Managed via Exchange</Button>
+              <Link href="/drennia/exchange">
+                <Button variant="secondary" className="w-full">Manage via Exchange</Button>
+              </Link>
             </div>
           ) : currentStructureId === 'sole-trader' ? (
             <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
@@ -175,7 +178,9 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
             <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
               <div className="text-[13px] font-bold text-zinc-500 mb-1">Dividend Distribution</div>
               <div className="text-[11px] text-zinc-500 mb-3 leading-relaxed">Public corporations cannot allow direct ad-hoc owner drawings. You must set a Dividend Policy to distribute profits.</div>
-              <Button disabled variant="secondary" className="w-full opacity-50">Use Dividend Policy</Button>
+              <Button variant="secondary" className="w-full" onClick={() => document.getElementById('dividend-policy')?.scrollIntoView({ behavior: 'smooth' })}>
+                Use Dividend Policy
+              </Button>
             </div>
           ) : (
             <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
@@ -254,7 +259,8 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
       </Card>
 
       {/* Dividend policy */}
-      <Card kicker="Dividend Policy" accent>
+      <div id="dividend-policy">
+        <Card kicker="Dividend Policy" accent>
         <div className="text-xs text-zinc-400 leading-relaxed mb-4">
           Each month the company earns a profit, this percentage is paid out of company cash to all shareholders pro-rata.
           Current policy: <span className="font-mono text-terminal-green font-bold">{fmt(payoutPercent, 0)}%</span> of monthly profit.
@@ -277,7 +283,8 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
           </Button>
         </div>
         <div className="font-mono text-[9px] text-zinc-500 mt-3">0–50% allowed. Applies only to the owner's companies.</div>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }
