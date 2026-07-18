@@ -1324,7 +1324,9 @@ export class ManufacturingController {
     marketAllocations: any[],
     brandMap: Map<string, { awareness: number, reputation: number }>,
     MARKETING_MULT: Record<string, number>,
-    salesManagerBonusMap: Map<string, number>
+    salesManagerBonusMap: Map<string, number>,
+    currentWorldYear: number,
+    currentWorldMonth: number
   ) {
     const allocationsByMarket = new Map<string, any[]>();
     for (const alloc of marketAllocations) {
@@ -1413,7 +1415,17 @@ export class ManufacturingController {
           const isTargetMatch = allocSegment === segment.id;
           
           const FIT_EXP = 4.0;
-          let fitEff = Math.pow(fitRaw, FIT_EXP) * (isTargetMatch ? segment.targetFitBonus : 1.0);
+          
+          const launchedYear = Number(alloc.launched_year || currentWorldYear);
+          const launchedMonth = Number(alloc.launched_month || currentWorldMonth);
+          const ageMonths = Math.max(0, (currentWorldYear - launchedYear) * 12 + (currentWorldMonth - launchedMonth));
+          
+          let agePenaltyMult = 1.0;
+          if (ageMonths > 12) {
+            agePenaltyMult = Math.max(0.40, 1.0 - ((ageMonths - 12) * 0.025));
+          }
+          
+          let fitEff = Math.pow(fitRaw, FIT_EXP) * (isTargetMatch ? segment.targetFitBonus : 1.0) * agePenaltyMult;
           const appealNorm = Number(alloc.appeal_score) / 65;
           if (segment.minAppeal > 0 && appealNorm < segment.minAppeal) {
             fitEff *= Math.pow(appealNorm / segment.minAppeal, 2); // prestige gate
@@ -2502,7 +2514,9 @@ export class ManufacturingController {
                'manufacturing_region_markets.preference_premium',
                'manufacturing_region_markets.vehicle_attribute_weights',
                'manufacturing_region_markets.brand_awareness_sensitivity',
-               'manufacturing_region_markets.brand_trust_sensitivity'
+               'manufacturing_region_markets.brand_trust_sensitivity',
+               'manufacturing_vehicle_models.launched_year',
+               'manufacturing_vehicle_models.launched_month'
              );
 
              // ── LAYER 1: Proportional Inventory Cap ──────────────────────────
@@ -2593,7 +2607,9 @@ export class ManufacturingController {
           allMarketAllocations,
           brandMap,
           MARKETING_MULT,
-          companySalesManagerBonus
+          companySalesManagerBonus,
+          currentYear,
+          currentMonth
         );
 
 
@@ -2925,6 +2941,8 @@ export class ManufacturingController {
       const usefulSalesManagers = Math.min(salesManagerCount, activeMarketCount);
       const salesManagerBonus  = Math.min(usefulSalesManagers * 0.04, 0.16);
 
+      const clock = await db('world_clock').first();
+
       const MARKETING_MULT: Record<string, number> = {
         none: 1.0, local: 1.15, regional: 1.30, national: 1.50,
       };
@@ -2967,7 +2985,9 @@ export class ManufacturingController {
             'manufacturing_region_markets.preference_economy',
             'manufacturing_region_markets.preference_standard',
             'manufacturing_region_markets.preference_premium',
-            'manufacturing_region_markets.vehicle_attribute_weights'
+            'manufacturing_region_markets.vehicle_attribute_weights',
+            'manufacturing_vehicle_models.launched_year',
+            'manufacturing_vehicle_models.launched_month'
         );
 
       const brandMap = new Map<string, any>();
@@ -3020,7 +3040,9 @@ export class ManufacturingController {
           joinedAllocations.filter((a: any) => a.units_allocated > 0),
           brandMap,
           MARKETING_MULT,
-          salesBonusMap
+          salesBonusMap,
+          clock?.current_year ?? 1,
+          clock?.current_month ?? 1
       );
 
       res.status(200).json({ markets, allocations, brandData, recentSales, recentBrandResults, forecast, companyAwareness, companyReputation });
