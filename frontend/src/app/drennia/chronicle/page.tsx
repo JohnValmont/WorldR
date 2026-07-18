@@ -131,6 +131,7 @@ export default function ChroniclePage() {
   const [characterName, setCharacterName] = useState('');
   const [playerCash, setPlayerCash]       = useState(0);
   const [company, setCompany]             = useState<CompanySnapshot | null>(null);
+  const [totalCompanyCash, setTotalCompanyCash] = useState(0);
   const [recentRecords, setRecentRecords] = useState<any[]>([]);
   const [activeContracts, setActiveContracts] = useState(0);
   const [netWorthSeries, setNetWorthSeries]   = useState(MOCK_NET_WORTH_SERIES);
@@ -161,7 +162,7 @@ export default function ChroniclePage() {
     { attr: 'Reliability', value: citizenFile?.reliability ?? 60 },
   ];
 
-  const companyCash = Number(company?.finances?.available_cash ?? 0);
+  const currentCompanyCash = Number(company?.finances?.available_cash ?? 0);
 
   const handleRestartLife = useCallback(async () => {
     if (typeof window === 'undefined') return;
@@ -230,10 +231,17 @@ export default function ChroniclePage() {
           companyApi.getMy().then(compRes => {
             const companies = compRes.data || [];
             if (companies.length > 0) {
-              const myCompany = companies.sort((a: any, b: any) =>
+              const myCompany = [...companies].sort((a: any, b: any) =>
                 new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
               )[0];
               setCompany(myCompany);
+              
+              let totalCash = 0;
+              for (const c of companies) {
+                totalCash += Number(c.finances?.available_cash ?? 0);
+              }
+              setTotalCompanyCash(totalCash);
+
               const contracts = getContracts();
               setActiveContracts(
                 contracts.filter(c => c.status === 'awarded' && c.awardedToCompanyId === myCompany.id).length
@@ -524,7 +532,7 @@ export default function ChroniclePage() {
           {company && (
             <StatChip
               label="Company Cash"
-              value={companyCash}
+              value={totalCompanyCash}
               prefix="$"
               valueColor="amber"
               countUp
@@ -743,9 +751,9 @@ export default function ChroniclePage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[9px] font-mono text-zinc-600">Cash</p>
+                    <p className="text-[9px] font-mono text-zinc-600">Total Cash</p>
                     <p className="text-[14px] font-mono font-bold text-terminal-green terminal-glow">
-                      ${companyCash.toLocaleString('en-US')}
+                      ${totalCompanyCash.toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </p>
                   </div>
                 </div>
