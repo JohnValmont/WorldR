@@ -174,7 +174,10 @@ async function applyNpcFacelifts(trx: Knex, companyId: string, currentYear: numb
 
     if (ageMonths >= 24) {
       const newModelId = crypto.randomUUID();
-      const newModelName = model.name.endsWith(' II') ? model.name.replace(' II', ' III') : (model.name.endsWith(' III') ? model.name.replace(' III', ' IV') : model.name + ' II');
+      let newModelName = model.name + ' II';
+      if (model.name.endsWith(' IV')) newModelName = model.name.replace(' IV', ' V');
+      else if (model.name.endsWith(' III')) newModelName = model.name.replace(' III', ' IV');
+      else if (model.name.endsWith(' II')) newModelName = model.name.replace(' II', ' III');
       
       const newModel = {
         ...model,
@@ -189,7 +192,7 @@ async function applyNpcFacelifts(trx: Knex, companyId: string, currentYear: numb
         created_at_world_month: currentMonth,
         created_at: new Date(),
         updated_at: new Date(),
-        manufacturing_cost_per_unit: Number(model.manufacturing_cost_per_unit) * 1.05
+        manufacturing_cost_per_unit: Math.round(Number(model.manufacturing_cost_per_unit) * 1.05)
       };
       
       await trx('manufacturing_vehicle_models').insert(newModel);
