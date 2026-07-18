@@ -543,7 +543,7 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
 
     // Second pass: Largest Remainder Method (distribute 1 share to those with highest fractional remainder)
     if (leftover > 0) {
-      initialAllocations.sort((a, b) => b.remainder - a.remainder);
+      initialAllocations.sort((a: any, b: any) => b.remainder - a.remainder);
       for (const item of initialAllocations) {
         if (leftover > 0 && item.qty < Number(item.ioi.quantity_requested)) {
           item.qty += 1;
