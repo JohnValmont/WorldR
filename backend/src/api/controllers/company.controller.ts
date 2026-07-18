@@ -830,7 +830,7 @@ export class CompanyController {
         .leftJoin('characters as ch', 'ch.id', 's.holder_character_id')
         .leftJoin('companies as c', 'c.id', 's.holder_company_id')
         .where({ 's.company_id': id })
-        .where('s.shares', '>', 0)
+        .whereNot('s.shares', 0)
         .orderBy('s.shares', 'desc')
         .select(
           's.holder_character_id', 

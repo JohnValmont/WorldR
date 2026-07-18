@@ -84,12 +84,15 @@ export async function getEligibility(companyId: string, characterId: string) {
     { key: 'no_active', label: 'No IPO already in progress', pass: !activeIpo },
   ];
 
+  const sumRow = await db('company_shares').where({ company_id: companyId }).sum('shares as total').first();
+  const actualShares = Number(sumRow?.total ?? TOTAL_SHARES) || TOTAL_SHARES;
+
   return {
     eligible: checks.every((c) => c.pass),
     checks,
     company_value: companyValue,
     filing_fee: IPO_FILING_FEE,
-    min_price_floor: (companyValue / TOTAL_SHARES) * 0.5,
+    min_price_floor: (companyValue / actualShares) * 0.5,
     available_cash: Number(finances?.available_cash ?? 0),
     active_ipo: activeIpo ?? null,
   };
@@ -144,7 +147,9 @@ export async function fileIpo(params: {
       throw new AppError(`Insufficient company cash for the $${IPO_FILING_FEE.toLocaleString()} filing fee`, 400, 'INSUFFICIENT_FUNDS');
     }
 
-    const floatShares = Math.round(TOTAL_SHARES * floatPercent);
+    const sumRow = await trx('company_shares').where({ company_id: companyId }).sum('shares as total').first();
+    const actualShares = Number(sumRow?.total ?? TOTAL_SHARES) || TOTAL_SHARES;
+    const floatShares = Math.round(actualShares * floatPercent);
     const reviewEnd = addMonths(curYear, curMonth, REVIEW_MONTHS);
 
     await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', IPO_FILING_FEE);
@@ -311,18 +316,21 @@ export async function getCompanyDetail(companyId: string) {
 
   const lastPrice = latest ? Number(latest.close_price) : null;
   const prevPrice = prev ? Number(prev.close_price) : null;
+  const sumRow = await db('company_shares').where({ company_id: companyId }).sum('shares as total').first();
+  const actualShares = Number(sumRow?.total ?? TOTAL_SHARES) || TOTAL_SHARES;
+
   return {
     ...company,
     last_price: lastPrice,
     prev_price: prevPrice,
     change_pct: lastPrice != null && prevPrice != null && prevPrice > 0 ? ((lastPrice - prevPrice) / prevPrice) * 100 : null,
-    market_cap: latest ? Number(latest.market_cap) : lastPrice != null ? lastPrice * TOTAL_SHARES : null,
+    market_cap: latest ? Number(latest.market_cap) : lastPrice != null ? lastPrice * actualShares : null,
     pe_ratio: latest?.pe_ratio != null ? Number(latest.pe_ratio) : null,
     eps: latest ? Number(latest.eps) : null,
     volume: latest ? Number(latest.volume_shares) : 0,
     high_52: high52,
     low_52: low52,
-    total_shares: TOTAL_SHARES,
+    total_shares: actualShares,
     listing: listing ?? null,
   };
 }
@@ -336,6 +344,9 @@ export async function getOhlc(companyId: string, months = 24) {
 }
 
 export async function getEarnings(companyId: string, months = 12) {
+  const sumRow = await db('company_shares').where({ company_id: companyId }).sum('shares as total').first();
+  const actualShares = Number(sumRow?.total ?? TOTAL_SHARES) || TOTAL_SHARES;
+
   const rows = await db('share_price_history')
     .where({ company_id: companyId })
     .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
@@ -343,8 +354,8 @@ export async function getEarnings(companyId: string, months = 12) {
     .select('game_year', 'game_month', 'eps', 'analyst_estimate', 'profit_surprise_pct', 'close_price', 'pe_ratio');
   return rows.map((r: any) => ({
     ...r,
-    implied_profit: Number(r.eps) * TOTAL_SHARES,
-    estimate_profit: r.analyst_estimate != null ? Number(r.analyst_estimate) * TOTAL_SHARES : null,
+    implied_profit: Number(r.eps) * actualShares,
+    estimate_profit: r.analyst_estimate != null ? Number(r.analyst_estimate) * actualShares : null,
   }));
 }
 
@@ -554,7 +565,10 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
 
   // Credit proceeds to company cash.
   if (proceeds > 0) {
-    await trx('company_finances').where({ company_id: listing.company_id }).increment('available_cash', proceeds);
+    await trx('company_finances')
+      .where({ company_id: listing.company_id })
+      .increment('available_cash', proceeds)
+      .increment('company_value', proceeds);
   }
 
   // Lock up the founder's retained shares.
@@ -574,6 +588,9 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
     updated_at: trx.fn.now(),
   });
 
+  const sumRow = await trx('company_shares').where({ company_id: listing.company_id }).sum('shares as total').first();
+  const actualShares = Number(sumRow?.total ?? TOTAL_SHARES);
+
   // First OHLC bar (all four prices = clearing).
   await trx('share_price_history')
     .insert({
@@ -585,7 +602,7 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
       low_price: clearingPrice,
       close_price: clearingPrice,
       volume_shares: 0,
-      market_cap: clearingPrice * TOTAL_SHARES,
+      market_cap: clearingPrice * actualShares,
       eps: 0,
       pe_ratio: null,
     })
@@ -672,8 +689,11 @@ export async function processExchangeMonth(trx: any, year: number, month: number
     const trades = await trx('share_trades').where({ company_id: co.id, game_year: year, game_month: month });
     const volume = trades.reduce((s: number, t: any) => s + Number(t.quantity), 0);
 
+    const sumRow = await trx('company_shares').where({ company_id: co.id }).sum('shares as total').first();
+    const companyTotalShares = Number(sumRow?.total ?? TOTAL_SHARES) || TOTAL_SHARES;
+
     const profit = Number(co.last_arc_profit) || 0;
-    const eps = profit / TOTAL_SHARES;
+    const eps = profit / companyTotalShares;
 
     // Analyst estimate = trailing 3-month average profit (per share).
     const trailing = await trx('share_price_history')
@@ -681,7 +701,7 @@ export async function processExchangeMonth(trx: any, year: number, month: number
       .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
       .limit(3);
     const estEps = trailing.length ? trailing.reduce((s: number, r: any) => s + Number(r.eps), 0) / trailing.length : eps;
-    const analystEstimate = estEps * TOTAL_SHARES;
+    const analystEstimate = estEps * companyTotalShares;
     const surprise = estEps !== 0 ? (eps - estEps) / Math.abs(estEps) : 0;
 
     let open = prevClose;
@@ -699,8 +719,6 @@ export async function processExchangeMonth(trx: any, year: number, month: number
       // Calculate Intrinsic Book Value per share to anchor NPC sentiment
       const finRow = await trx('company_finances').where({ company_id: co.id }).first();
       const bookValue = Number(finRow?.company_value || 0);
-      const sumRow = await trx('company_shares').where({ company_id: co.id }).sum('shares as total').first();
-      const companyTotalShares = Number(sumRow?.total ?? TOTAL_SHARES);
       const bookValuePerShare = companyTotalShares > 0 ? (bookValue / companyTotalShares) : prevClose;
 
       // No volume → NPC sentiment marks the price by the earnings surprise impulse AND intrinsic value drift.
@@ -726,7 +744,7 @@ export async function processExchangeMonth(trx: any, year: number, month: number
         low_price: low,
         close_price: close,
         volume_shares: volume,
-        market_cap: close * TOTAL_SHARES,
+        market_cap: close * companyTotalShares,
         eps,
         pe_ratio: pe != null ? Number(pe.toFixed(2)) : null,
         analyst_estimate: Number(analystEstimate.toFixed(2)),

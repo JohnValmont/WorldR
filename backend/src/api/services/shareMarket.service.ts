@@ -385,13 +385,8 @@ export async function getListings() {
 
   const result = [];
   for (const co of companies) {
-    // For NPC companies, total shares comes from the actual cap table (varies: 10M or 20M).
-    // For player companies it is always the fixed TOTAL_SHARES constant (1M).
-    let companyTotalShares = TOTAL_SHARES;
-    if (co.is_npc) {
-      const sumRow = await db('company_shares').where({ company_id: co.id }).sum('shares as total').first();
-      companyTotalShares = Number(sumRow?.total ?? TOTAL_SHARES);
-    }
+    const sumRow = await db('company_shares').where({ company_id: co.id }).sum('shares as total').first();
+    const companyTotalShares = Number(sumRow?.total ?? TOTAL_SHARES);
 
     const priceHistory = await db('share_price_history')
       .where({ company_id: co.id })
@@ -505,16 +500,11 @@ export async function getPortfolio(characterId: string) {
     trades.forEach((trade: any) => latestTrades.set(trade.company_id, trade));
   }
 
-  // Fetch real total shares per company (NPC may have 10M or 20M; players always 1M)
+  // Fetch real total shares per company (player issuances can change this)
   const totalSharesMap = new Map<string, number>();
   for (const id of companyIds) {
-    const co = await db('companies').where({ id }).first();
-    if (co?.is_npc) {
-      const sumRow = await db('company_shares').where({ company_id: id }).sum('shares as total').first();
-      totalSharesMap.set(id, Number(sumRow?.total ?? TOTAL_SHARES));
-    } else {
-      totalSharesMap.set(id, TOTAL_SHARES);
-    }
+    const sumRow = await db('company_shares').where({ company_id: id }).sum('shares as total').first();
+    totalSharesMap.set(id, Number(sumRow?.total ?? TOTAL_SHARES));
   }
 
   const result = holdings.map(h => ({
