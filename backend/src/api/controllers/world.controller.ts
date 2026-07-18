@@ -372,7 +372,7 @@ export class WorldController {
       const currentMonth = clock ? Number(clock.current_month) : 1;
       let prevYear  = currentYear;
       let prevMonth = currentMonth - 1;
-      if (prevMonth === 0) { prevMonth = 8; prevYear = currentYear - 1; }
+      if (prevMonth === 0) { prevMonth = 12; prevYear = currentYear - 1; }
 
       // ── Run all three independent queries in PARALLEL ────────────────────────
       const [topCompanies, popularCars, popularCarsAllTime, richestPlayersResult] = await Promise.all([
