@@ -42,9 +42,10 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
         // We'll just fetch all markets for the company's country
         // For simplicity, we could rely on a generic endpoint, but let's use the company's markets endpoint if it returns them
         const res = await api.get(`/companies/${companyId}/manufacturing/markets`);
-        setSegments(res.data.data.markets || []);
-        if (res.data.data.markets?.length > 0) {
-          setSelectedSegment(res.data.data.markets[0].id);
+        const markets = res.data.markets || res.data.data?.markets || [];
+        setSegments(markets);
+        if (markets.length > 0) {
+          setSelectedSegment(markets[0].id);
         }
       } catch (err) {
         console.error("Failed to load markets", err);
