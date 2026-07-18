@@ -2714,14 +2714,14 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
               <PanelBox key={factory.id} className="mb-5">
                 <div className="flex items-center justify-between gap-3 mb-1">
                   <h3 className="text-sm font-bold text-zinc-100 m-0">{factory.name}</h3>
-                  {totalWorkers < (factory.worker_requirement || 30) && (
-                    <Badge variant="red" dot>Understaffed</Badge>
+                  {totalWorkers === 0 && (
+                    <Badge variant="red" dot>No Workers</Badge>
                   )}
                 </div>
                 <div className="text-[11px] text-zinc-500 mb-4">
-                  Capacity: {factory.capacity_per_month} units/Month · Workers Required: {factory.worker_requirement || 30} · Current Workers: {totalWorkers}
-                  {totalWorkers < (factory.worker_requirement || 30) && (
-                    <span className="text-terminal-red ml-2">Production will be reduced</span>
+                  Capacity: {factory.capacity_per_month} units/Month · Max Worker Capacity: {factory.worker_capacity || 30} · Current Workers: {totalWorkers}
+                  {totalWorkers < (factory.worker_capacity || 30) && (
+                    <span className="text-terminal-amber ml-2">Consider hiring up to capacity for complex models</span>
                   )}
                 </div>
 
