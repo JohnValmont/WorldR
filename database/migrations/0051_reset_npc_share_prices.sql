@@ -26,10 +26,10 @@ DECLARE
   verid_price NUMERIC;
   apex_price  NUMERIC;
   val_price   NUMERIC;
-  haulp_shares BIGINT := 20000000;
-  verid_shares BIGINT := 20000000;
-  apex_shares  BIGINT := 10000000;
-  val_shares   BIGINT := 10000000;
+  haulp_shares BIGINT := 1000000;
+  verid_shares BIGINT := 1000000;
+  apex_shares  BIGINT := 1000000;
+  val_shares   BIGINT := 1000000;
   cur_yr  INT;
   cur_mo  INT;
 BEGIN

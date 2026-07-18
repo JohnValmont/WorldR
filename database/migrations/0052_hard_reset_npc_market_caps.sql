@@ -48,10 +48,10 @@ BEGIN
   IF cur_mo IS NULL THEN cur_mo := 1; END IF;
 
   -- 1. Get exact total shares for each NPC from the DB (avoids hardcoding 20M if it changed)
-  IF haulp_id IS NOT NULL THEN SELECT COALESCE(SUM(shares), 20000000) INTO haulp_shares FROM company_shares WHERE company_id = haulp_id; END IF;
-  IF verid_id IS NOT NULL THEN SELECT COALESCE(SUM(shares), 20000000) INTO verid_shares FROM company_shares WHERE company_id = verid_id; END IF;
-  IF apex_id  IS NOT NULL THEN SELECT COALESCE(SUM(shares), 10000000) INTO apex_shares  FROM company_shares WHERE company_id = apex_id; END IF;
-  IF val_id   IS NOT NULL THEN SELECT COALESCE(SUM(shares), 10000000) INTO val_shares   FROM company_shares WHERE company_id = val_id; END IF;
+  IF haulp_id IS NOT NULL THEN SELECT COALESCE(SUM(shares), 1000000) INTO haulp_shares FROM company_shares WHERE company_id = haulp_id; END IF;
+  IF verid_id IS NOT NULL THEN SELECT COALESCE(SUM(shares), 1000000) INTO verid_shares FROM company_shares WHERE company_id = verid_id; END IF;
+  IF apex_id  IS NOT NULL THEN SELECT COALESCE(SUM(shares), 1000000) INTO apex_shares  FROM company_shares WHERE company_id = apex_id; END IF;
+  IF val_id   IS NOT NULL THEN SELECT COALESCE(SUM(shares), 1000000) INTO val_shares   FROM company_shares WHERE company_id = val_id; END IF;
 
   -- 2. Fetch inventory values per NPC
   SELECT COALESCE(SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit), 0)

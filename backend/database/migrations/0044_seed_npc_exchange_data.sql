@@ -12,10 +12,10 @@ DECLARE
   verid_id     UUID;
   apex_id      UUID;
   val_id       UUID;
-  haulp_shares BIGINT  := 20000000;
-  verid_shares BIGINT  := 20000000;
-  apex_shares  BIGINT  := 10000000;
-  val_shares   BIGINT  := 10000000;
+  haulp_shares BIGINT  := 1000000;
+  verid_shares BIGINT  := 1000000;
+  apex_shares  BIGINT  := 1000000;
+  val_shares   BIGINT  := 1000000;
   haulp_price  NUMERIC := 44.00;
   verid_price  NUMERIC := 38.50;
   apex_price   NUMERIC := 18.50;
