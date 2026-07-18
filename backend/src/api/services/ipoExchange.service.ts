@@ -540,7 +540,9 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
   if (founderId && totalAllocated > 0) {
     await trx('company_shares')
       .where({ company_id: listing.company_id, holder_character_id: founderId })
-      .decrement('shares', totalAllocated)
+      .decrement('shares', totalAllocated);
+    await trx('company_shares')
+      .where({ company_id: listing.company_id, holder_character_id: founderId })
       .update({ updated_at: trx.fn.now() });
   }
 
