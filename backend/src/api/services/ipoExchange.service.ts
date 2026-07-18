@@ -638,10 +638,7 @@ export async function processExchangeMonth(trx: any, year: number, month: number
   const listedCompanies = await trx('companies as c')
     .join('company_finances as f', 'f.company_id', 'c.id')
     .where({ 'c.status': 'active' })
-    .where(function (this: any) {
-      this.where({ 'c.legal_structure_id': 'public-corporation', 'c.is_npc': false })
-          .orWhere({ 'c.is_exchange_listed': true, 'c.is_npc': true });
-    })
+    .where({ 'c.is_exchange_listed': true })
     .select('c.id', 'c.is_npc', 'f.last_arc_profit');
 
   for (const co of listedCompanies) {

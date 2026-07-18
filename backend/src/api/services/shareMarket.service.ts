@@ -357,10 +357,7 @@ export async function getListings() {
   const companies = await db('companies as c')
     .join('company_finances as f', 'f.company_id', 'c.id')
     .where({ 'c.status': 'active' })
-    .where(function () {
-      this.where({ 'c.legal_structure_id': 'public-corporation', 'c.is_npc': false })
-          .orWhere({ 'c.is_exchange_listed': true, 'c.is_npc': true });
-    })
+    .where({ 'c.is_exchange_listed': true })
     .select('c.id', 'c.name', 'c.country_id', 'c.industry_id', 'c.subsector_id', 'c.owner_character_id', 'c.is_npc', 'c.is_exchange_listed', 'f.company_value', 'f.last_arc_profit');
 
   const result = [];
