@@ -107,10 +107,12 @@ export async function placeOrder(params: {
         await trx('company_finances').where({ company_id: purchaserCompanyId }).decrement('available_cash', cost);
       } else {
         const fin = await trx('character_finances').where({ character_id: characterId }).forUpdate().first();
-        if (!fin || Number(fin.cash_in_hand) < cost) {
+        if ((!fin || Number(fin.cash_in_hand) < cost) && !isNpc) {
           throw new AppError('Insufficient cash to cover this buy order', 400, 'INSUFFICIENT_FUNDS');
         }
-        await trx('character_finances').where({ character_id: characterId }).decrement('cash_in_hand', cost);
+        if (fin || isNpc) {
+          await trx('character_finances').where({ character_id: characterId }).decrement('cash_in_hand', cost);
+        }
       }
     } else {
       if (purchaserCompanyId) {
@@ -118,30 +120,51 @@ export async function placeOrder(params: {
           .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
           .forUpdate()
           .first();
-        if (!holding || Number(holding.shares) < quantity) {
+        if ((!holding || Number(holding.shares) < quantity) && !isNpc) {
           throw new AppError('Insufficient firm shares to cover this sell order', 400, 'INSUFFICIENT_SHARES');
         }
-        await trx('company_shares')
-          .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
-          .decrement('shares', quantity);
-        await trx('company_shares')
-          .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
-          .update({ updated_at: trx.fn.now() });
+        if (holding) {
+          await trx('company_shares')
+            .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
+            .decrement('shares', quantity);
+          await trx('company_shares')
+            .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
+            .update({ updated_at: trx.fn.now() });
+        } else if (isNpc) {
+          await trx('company_shares').insert({
+            company_id: companyId,
+            holder_company_id: purchaserCompanyId,
+            shares: -quantity,
+            avg_cost_basis: price,
+          });
+        }
       } else {
         const holding = await trx('company_shares')
           .where({ company_id: companyId, holder_character_id: characterId })
           .forUpdate()
           .first();
-        if (!holding || Number(holding.shares) < quantity) {
+        if (!holding) {
+          if (isNpc) {
+            await trx('company_shares').insert({
+              company_id: companyId,
+              holder_character_id: characterId,
+              shares: -quantity,
+              avg_cost_basis: price,
+            });
+          } else {
+            throw new AppError('Insufficient shares to cover this sell order', 400, 'INSUFFICIENT_SHARES');
+          }
+        } else if (Number(holding.shares) < quantity && !isNpc) {
           throw new AppError('Insufficient shares to cover this sell order', 400, 'INSUFFICIENT_SHARES');
+        } else {
+          // Bug A fix: knex does not support chaining .decrement().update() — split into two calls
+          await trx('company_shares')
+            .where({ company_id: companyId, holder_character_id: characterId })
+            .decrement('shares', quantity);
+          await trx('company_shares')
+            .where({ company_id: companyId, holder_character_id: characterId })
+            .update({ updated_at: trx.fn.now() });
         }
-        // Bug A fix: knex does not support chaining .decrement().update() — split into two calls
-        await trx('company_shares')
-          .where({ company_id: companyId, holder_character_id: characterId })
-          .decrement('shares', quantity);
-        await trx('company_shares')
-          .where({ company_id: companyId, holder_character_id: characterId })
-          .update({ updated_at: trx.fn.now() });
       }
     }
 
