@@ -1,4 +1,5 @@
 import { Knex } from 'knex';
+import * as crypto from 'crypto';
 import { 
   PRODUCTION_BUFFER, 
   PRICE_STEP, 
@@ -159,6 +160,73 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
   };
 }
 
+async function applyNpcFacelifts(trx: Knex, companyId: string, currentYear: number, currentMonth: number, availableCash: number): Promise<number> {
+  const FACELIFT_COST = 10000000; // $10M
+  if (availableCash < FACELIFT_COST) return availableCash;
+
+  const models = await trx('manufacturing_vehicle_models')
+    .where({ company_id: companyId, development_status: 'launched', status: 'active' });
+
+  for (const model of models) {
+    const launchedYear = Number(model.launched_year || currentYear);
+    const launchedMonth = Number(model.launched_month || currentMonth);
+    const ageMonths = Math.max(0, (currentYear - launchedYear) * 12 + (currentMonth - launchedMonth));
+
+    if (ageMonths >= 24) {
+      const newModelId = crypto.randomUUID();
+      const newModelName = model.name.endsWith(' II') ? model.name.replace(' II', ' III') : (model.name.endsWith(' III') ? model.name.replace(' III', ' IV') : model.name + ' II');
+      
+      const newModel = {
+        ...model,
+        id: newModelId,
+        name: newModelName,
+        reliability_score: Math.min(100, Number(model.reliability_score) + 5),
+        performance_score: Math.min(100, Number(model.performance_score) + 5),
+        appeal_score: Math.min(100, Number(model.appeal_score) + 5),
+        launched_year: currentYear,
+        launched_month: currentMonth,
+        created_at_world_year: currentYear,
+        created_at_world_month: currentMonth,
+        created_at: new Date(),
+        updated_at: new Date(),
+        manufacturing_cost_per_unit: Number(model.manufacturing_cost_per_unit) * 1.05
+      };
+      
+      await trx('manufacturing_vehicle_models').insert(newModel);
+      
+      // Transfer production lines
+      await trx('manufacturing_production_lines')
+        .where({ company_id: companyId, assigned_vehicle_model_id: model.id })
+        .update({ assigned_vehicle_model_id: newModelId, updated_at: new Date() });
+        
+      // Copy allocations
+      const allocations = await trx('manufacturing_market_allocations')
+        .where({ company_id: companyId, vehicle_model_id: model.id });
+        
+      for (const alloc of allocations) {
+        const { id, ...allocWithoutId } = alloc;
+        const newAlloc = { ...allocWithoutId, id: crypto.randomUUID(), vehicle_model_id: newModelId };
+        await trx('manufacturing_market_allocations').insert(newAlloc);
+      }
+      
+      // Discontinue old model
+      await trx('manufacturing_vehicle_models')
+        .where({ id: model.id })
+        .update({ status: 'discontinued', discontinued_year: currentYear, discontinued_month: currentMonth, updated_at: new Date() });
+        
+      // Charge the company
+      availableCash -= FACELIFT_COST;
+      await trx('company_finances')
+        .where({ company_id: companyId })
+        .update({ available_cash: availableCash, updated_at: new Date() });
+        
+      // Only do one facelift per tick
+      break;
+    }
+  }
+  return availableCash;
+}
+
 /**
  * DB WRAPPER: Resolves the state for an NPC company and processes its decisions in a transaction block.
  * Uses Knex transaction (`trx`) so the demand engine month can wrap everything securely.
@@ -169,7 +237,10 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     .where({ company_id: companyId })
     .first();
   if (!finance) return;
-  const availableCash = parseFloat(finance.available_cash) || 0;
+  let availableCash = parseFloat(finance.available_cash) || 0;
+
+  // NEW: Automatic NPC Facelifts (V2 models)
+  availableCash = await applyNpcFacelifts(trx, companyId, currentYear, currentMonth, availableCash);
 
   // 2. Fetch all launched, active models for the NPC company
   const models = await trx('manufacturing_vehicle_models')
