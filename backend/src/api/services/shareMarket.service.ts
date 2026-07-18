@@ -22,14 +22,8 @@ export const CIRCUIT_BREAKER_LIMIT = 0.20; // ±20% from last month's close
 async function assertListedCompany(trx: any, companyId: string) {
   const company = await trx('companies').where({ id: companyId }).first();
   if (!company) throw new AppError('Company not found', 404, 'NOT_FOUND');
-  // Allow NPC companies if they are explicitly exchange-listed
-  if (company.is_npc) {
-    if (!company.is_exchange_listed) throw new AppError('This NPC company is not listed on the exchange', 400, 'NOT_LISTED');
-    return company;
-  }
-  // For player companies, must be a Public Corporation
-  if (company.legal_structure_id !== 'public-corporation') {
-    throw new AppError('Company is not publicly listed', 400, 'NOT_LISTED');
+  if (!company.is_exchange_listed) {
+    throw new AppError('This company is not listed on the exchange. An IPO must be completed first.', 400, 'NOT_LISTED');
   }
   return company;
 }
@@ -123,6 +117,13 @@ export async function placeOrder(params: {
         if ((!holding || Number(holding.shares) < quantity) && !isNpc) {
           throw new AppError('Insufficient firm shares to cover this sell order', 400, 'INSUFFICIENT_SHARES');
         }
+        if (holding && holding.lockup_until_year != null && holding.lockup_until_month != null && !isNpc) {
+          const ly = Number(holding.lockup_until_year);
+          const lm = Number(holding.lockup_until_month);
+          if (gameYear < ly || (gameYear === ly && gameMonth < lm)) {
+            throw new AppError(`Shares are locked up until Year ${ly} Month ${lm}`, 400, 'LOCKED_UP');
+          }
+        }
         if (holding) {
           await trx('company_shares')
             .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
@@ -156,6 +157,12 @@ export async function placeOrder(params: {
           }
         } else if (Number(holding.shares) < quantity && !isNpc) {
           throw new AppError('Insufficient shares to cover this sell order', 400, 'INSUFFICIENT_SHARES');
+        } else if (holding.lockup_until_year != null && holding.lockup_until_month != null && !isNpc) {
+          const ly = Number(holding.lockup_until_year);
+          const lm = Number(holding.lockup_until_month);
+          if (gameYear < ly || (gameYear === ly && gameMonth < lm)) {
+            throw new AppError(`Shares are locked up until Year ${ly} Month ${lm}`, 400, 'LOCKED_UP');
+          }
         } else {
           // Bug A fix: knex does not support chaining .decrement().update() — split into two calls
           await trx('company_shares')
@@ -217,29 +224,27 @@ export async function placeOrder(params: {
         await trx('character_finances').where({ character_id: sellerId }).increment('cash_in_hand', notional);
       }
 
-      // Bug B fix: BOTH the aggressor-buy and a resting-buy order must get their per-fill
-      // escrow surplus refunded when execution happens below their limit price.
-      // Case 1: incoming order is buy, it executes against a resting sell at a lower price
-      if (side === 'buy' && execPrice < price) {
-        const refund = (price - execPrice) * fillQty;
-        if (buyerCompanyId) {
-          await trx('company_finances').where({ company_id: buyerCompanyId }).increment('available_cash', refund);
-        } else {
-          await trx('character_finances').where({ character_id: characterId }).increment('cash_in_hand', refund);
-        }
-        // Bug C fix: decrement escrow_amount so cancel later refunds the correct remaining cash
-        await trx('share_orders').where({ id: order.id }).decrement('escrow_amount', refund);
-      }
-      // Case 2: incoming order is a sell, it executes against a resting buy at a higher price
-      if (side === 'sell' && execPrice > price) {
-        const surplus = (execPrice - price) * fillQty;
+      // Handle escrow and surplus for the BUY order
+      const isIncomingBuy = (side === 'buy');
+      const buyLimitPrice = isIncomingBuy ? price : Number(counter.price);
+      
+      const expectedCost = buyLimitPrice * fillQty;
+      const actualCost = execPrice * fillQty;
+      const surplus = expectedCost - actualCost; // >= 0
+
+      if (surplus > 0) {
         if (buyerCompanyId) {
           await trx('company_finances').where({ company_id: buyerCompanyId }).increment('available_cash', surplus);
         } else {
           await trx('character_finances').where({ character_id: buyerId }).increment('cash_in_hand', surplus);
         }
-        // Bug C fix: decrement escrow on the resting buy order so its cancel refund is correct
-        await trx('share_orders').where({ id: counter.id }).decrement('escrow_amount', surplus);
+      }
+
+      // Decrement the buyer's escrow by the FULL expected cost of the filled shares
+      if (isIncomingBuy) {
+        await trx('share_orders').where({ id: order.id }).decrement('escrow_amount', expectedCost);
+      } else {
+        await trx('share_orders').where({ id: counter.id }).decrement('escrow_amount', expectedCost);
       }
 
       // Buyer receives shares (update cap table with weighted avg cost basis)

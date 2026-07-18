@@ -23,8 +23,8 @@ const BOOKBUILD_MONTHS = 3;             // roadshow window
 const MM_SPREAD_PCT = 0.025;            // 2.5% market-maker spread
 const MM_ORDER_SIZE = 5000;             // shares per market-maker quote
 const IPO_POP = 1.15;                   // opening ask = clearing × 1.15
-const IMPULSE_COEFF = 0.12;             // earnings surprise → price impulse coefficient
-const IMPULSE_CLAMP = 0.15;             // ±15% of last close per month
+const IMPULSE_COEFF = 0.40;             // earnings surprise → price impulse coefficient
+const IMPULSE_CLAMP = 0.30;             // ±30% of last close per month
 const DRX_BASE_VALUE = 1000;            // index anchors here at first listing
 
 // ── Month arithmetic (12 months = 1 game year) ──────────────────────────────
@@ -119,6 +119,9 @@ export async function fileIpo(params: {
     if (company.legal_structure_id !== 'public-corporation') {
       throw new AppError('Company must be a Public Corporation to file an IPO', 400, 'NOT_PUBLIC');
     }
+    if (company.is_exchange_listed) {
+      throw new AppError('Company is already listed on the exchange', 400, 'ALREADY_LISTED');
+    }
     const companyValue = Number(finances?.company_value ?? 0);
     const debt = Number(finances?.debt ?? 0);
     const ageMonths = monthsBetween(company.created_at_world_year, company.created_at_world_month, curYear, curMonth);
@@ -180,8 +183,15 @@ export async function withdrawIpo(companyId: string, characterId: string) {
     const listing = await trx('ipo_listings')
       .where({ company_id: companyId })
       .whereIn('status', ['pending_review', 'book_building'])
+      .forUpdate()
       .first();
     if (!listing) throw new AppError('No active IPO to withdraw', 404, 'NOT_FOUND');
+
+    const pendingIois = await trx('ipo_indications').where({ ipo_id: listing.id, status: 'pending', is_npc: false }).forUpdate();
+    for (const ioi of pendingIois) {
+      const refund = Number(ioi.price_per_share) * Number(ioi.quantity_requested);
+      await trx('character_finances').where({ character_id: ioi.character_id }).increment('cash_in_hand', refund);
+    }
 
     await trx('ipo_indications').where({ ipo_id: listing.id, status: 'pending' }).update({ status: 'withdrawn', updated_at: trx.fn.now() });
     await trx('ipo_listings').where({ id: listing.id }).update({ status: 'withdrawn', updated_at: trx.fn.now() });
@@ -215,6 +225,8 @@ export async function submitIoi(params: { ipoId: string; characterId: string; pr
   if (!Number.isFinite(pricePerShare) || pricePerShare <= 0) throw new AppError('Invalid price', 400, 'BAD_REQUEST');
   if (!Number.isInteger(quantity) || quantity <= 0) throw new AppError('Invalid quantity', 400, 'BAD_REQUEST');
 
+  const safePrice = Number(Number(pricePerShare).toFixed(4));
+
   return db.transaction(async (trx) => {
     const listing = await trx('ipo_listings').where({ id: ipoId }).first();
     if (!listing) throw new AppError('IPO not found', 404, 'NOT_FOUND');
@@ -223,23 +235,32 @@ export async function submitIoi(params: { ipoId: string; characterId: string; pr
     const company = await trx('companies').where({ id: listing.company_id }).first();
     if (company?.owner_character_id === characterId) throw new AppError('Founders cannot submit an IOI for their own IPO', 400, 'IS_FOUNDER');
 
-    const cost = pricePerShare * quantity;
-    const fin = await trx('character_finances').where({ character_id: characterId }).first();
+    // One live IOI per player per IPO — replace any existing pending one.
+    const existing = await trx('ipo_indications')
+      .where({ ipo_id: ipoId, character_id: characterId, status: 'pending', is_npc: false })
+      .forUpdate()
+      .first();
+
+    if (existing) {
+      const refund = Number(existing.price_per_share) * Number(existing.quantity_requested);
+      await trx('character_finances').where({ character_id: characterId }).increment('cash_in_hand', refund);
+      await trx('ipo_indications').where({ id: existing.id }).update({ status: 'withdrawn', updated_at: trx.fn.now() });
+    }
+
+    const cost = safePrice * quantity;
+    const fin = await trx('character_finances').where({ character_id: characterId }).forUpdate().first();
     if (!fin || Number(fin.cash_in_hand) < cost) {
       throw new AppError(`Insufficient cash to place this indication of interest. Requires $${cost.toFixed(2)}`, 400, 'INSUFFICIENT_FUNDS');
     }
 
-    // One live IOI per player per IPO — replace any existing pending one.
-    await trx('ipo_indications')
-      .where({ ipo_id: ipoId, character_id: characterId, status: 'pending', is_npc: false })
-      .update({ status: 'withdrawn', updated_at: trx.fn.now() });
+    await trx('character_finances').where({ character_id: characterId }).decrement('cash_in_hand', cost);
 
     const [ioi] = await trx('ipo_indications')
       .insert({
         ipo_id: ipoId,
         character_id: characterId,
         is_npc: false,
-        price_per_share: pricePerShare,
+        price_per_share: safePrice,
         quantity_requested: quantity,
         status: 'pending',
       })
@@ -250,9 +271,13 @@ export async function submitIoi(params: { ipoId: string; characterId: string; pr
 
 export async function cancelIoi(ioiId: string, characterId: string) {
   return db.transaction(async (trx) => {
-    const ioi = await trx('ipo_indications').where({ id: ioiId, character_id: characterId }).first();
+    const ioi = await trx('ipo_indications').where({ id: ioiId, character_id: characterId }).forUpdate().first();
     if (!ioi) throw new AppError('Indication not found', 404, 'NOT_FOUND');
     if (ioi.status !== 'pending') throw new AppError('Indication is no longer active', 400, 'NOT_PENDING');
+    
+    const refund = Number(ioi.price_per_share) * Number(ioi.quantity_requested);
+    await trx('character_finances').where({ character_id: characterId }).increment('cash_in_hand', refund);
+    
     await trx('ipo_indications').where({ id: ioiId }).update({ status: 'withdrawn', updated_at: trx.fn.now() });
     return { cancelled: true };
   });
@@ -430,7 +455,9 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
   const priceMin = Number(listing.ipo_price_min);
   const priceMax = Number(listing.ipo_price_max);
 
-  const allIois = await trx('ipo_indications').where({ ipo_id: listing.id, status: 'pending' });
+  const allIois = await trx('ipo_indications')
+    .where({ ipo_id: listing.id, status: 'pending' })
+    .forUpdate();
   // Only IOIs willing to meet the floor participate.
   const eligible = allIois
     .filter((i: any) => Number(i.price_per_share) >= priceMin)
@@ -444,7 +471,13 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
 
   // Undersubscribed below 50% → IPO fails, company stays private, fee already lost.
   if (totalDemand < floatShares * 0.5) {
-    for (const i of allIois) await trx('ipo_indications').where({ id: i.id }).update({ status: 'failed', quantity_allocated: 0, updated_at: trx.fn.now() });
+    for (const i of allIois) {
+      if (!i.is_npc) {
+        const refund = Number(i.price_per_share) * Number(i.quantity_requested);
+        await trx('character_finances').where({ character_id: i.character_id }).increment('cash_in_hand', refund);
+      }
+      await trx('ipo_indications').where({ id: i.id }).update({ status: 'failed', quantity_allocated: 0, updated_at: trx.fn.now() });
+    }
     await trx('ipo_listings').where({ id: listing.id }).update({ status: 'failed', updated_at: trx.fn.now() });
     logger.info(`[ipo] ${listing.company_id} IPO FAILED — demand ${totalDemand}/${floatShares} (<50%)`);
     return;
@@ -468,7 +501,13 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
   }
 
   // Allocate: full fills above clearing, pro-rata at the clearing price.
-  for (const i of ineligible) await trx('ipo_indications').where({ id: i.id }).update({ status: 'failed', quantity_allocated: 0, updated_at: trx.fn.now() });
+  for (const i of ineligible) {
+    if (!i.is_npc) {
+      const refund = Number(i.price_per_share) * Number(i.quantity_requested);
+      await trx('character_finances').where({ character_id: i.character_id }).increment('cash_in_hand', refund);
+    }
+    await trx('ipo_indications').where({ id: i.id }).update({ status: 'failed', quantity_allocated: 0, updated_at: trx.fn.now() });
+  }
 
   let remaining = targetShares;
   const above = eligible.filter((i: any) => Number(i.price_per_share) > clearingPrice);
@@ -505,25 +544,27 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
   const founderId = (await trx('companies').where({ id: listing.company_id }).first())?.owner_character_id;
 
   for (const { ioi, qty, proRated } of allocations) {
+    const buyerId = ioi.character_id ?? systemCharId;
+    
     if (qty <= 0) {
+      if (!ioi.is_npc) {
+        const refund = Number(ioi.price_per_share) * Number(ioi.quantity_requested);
+        await trx('character_finances').where({ character_id: buyerId }).increment('cash_in_hand', refund);
+      }
       await trx('ipo_indications').where({ id: ioi.id }).update({ status: 'failed', quantity_allocated: 0, updated_at: trx.fn.now() });
       continue;
     }
-    const buyerId = ioi.character_id ?? systemCharId;
+
     const cost = clearingPrice * qty;
 
-    if (ioi.is_npc) {
-      // NPC magically creates cash for IPO allocations to provide liquidity.
-      await trx('character_finances').where({ character_id: buyerId }).increment('cash_in_hand', cost);
+    if (!ioi.is_npc) {
+      // Refund surplus if clearing price was lower than bid, or if pro-rated
+      const escrowed = Number(ioi.price_per_share) * Number(ioi.quantity_requested);
+      const refund = escrowed - cost;
+      if (refund > 0) {
+        await trx('character_finances').where({ character_id: buyerId }).increment('cash_in_hand', refund);
+      }
     }
-
-    const buyerFin = await trx('character_finances').where({ character_id: buyerId }).forUpdate().first();
-    if (!buyerFin || Number(buyerFin.cash_in_hand) < cost) {
-      // Insufficient cash on listing day → allocation fails.
-      await trx('ipo_indications').where({ id: ioi.id }).update({ status: 'failed', quantity_allocated: 0, updated_at: trx.fn.now() });
-      continue;
-    }
-    await trx('character_finances').where({ character_id: buyerId }).decrement('cash_in_hand', cost);
 
     const holding = await trx('company_shares')
       .where({ company_id: listing.company_id, holder_character_id: buyerId })
@@ -588,6 +629,11 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
     updated_at: trx.fn.now(),
   });
 
+  await trx('companies').where({ id: listing.company_id }).update({
+    is_exchange_listed: true,
+    updated_at: trx.fn.now()
+  });
+
   const sumRow = await trx('company_shares').where({ company_id: listing.company_id }).sum('shares as total').first();
   const actualShares = Number(sumRow?.total ?? TOTAL_SHARES);
 
@@ -635,9 +681,11 @@ export async function processExchangeMonth(trx: any, year: number, month: number
   }
 
   // ── Step A: advance regulatory review → book-building ──
-  const inReview = await trx('ipo_listings').where({ status: 'pending_review' });
-  for (const l of inReview) {
-    if (reached(l.review_ends_year, l.review_ends_month, year, month)) {
+  const activeListings = await trx('ipo_listings')
+    .whereIn('status', ['pending_review', 'book_building'])
+    .forUpdate();
+  for (const l of activeListings) {
+    if (l.status === 'pending_review' && reached(l.review_ends_year, l.review_ends_month, year, month)) {
       const bookEnd = addMonths(year, month, BOOKBUILD_MONTHS);
       await trx('ipo_listings').where({ id: l.id }).update({
         status: 'book_building',
@@ -724,8 +772,14 @@ export async function processExchangeMonth(trx: any, year: number, month: number
       // No volume → NPC sentiment marks the price by the earnings surprise impulse AND intrinsic value drift.
       const impulse = clamp(prevClose * surprise * IMPULSE_COEFF, -prevClose * IMPULSE_CLAMP, prevClose * IMPULSE_CLAMP);
       
-      // Drift 5% of the gap between current price and book value per month
-      const drift = (bookValuePerShare - prevClose) * 0.05;
+      // Aggressive catch-up for deeply undervalued penny stocks
+      let driftRate = 0.20;
+      if (bookValuePerShare > prevClose * 3) {
+        driftRate = 0.50; // Massively undervalued: close half the gap immediately (can yield 1000%+ monthly gains)
+      } else if (bookValuePerShare > prevClose * 1.5) {
+        driftRate = 0.30;
+      }
+      const drift = (bookValuePerShare - prevClose) * driftRate;
 
       close = Math.max(0.01, prevClose + impulse + drift);
       high = Math.max(open, close);
@@ -794,7 +848,8 @@ export async function processExchangeMonth(trx: any, year: number, month: number
     for (const o of staleNpc) {
       const unfilled = Number(o.quantity) - Number(o.filled_quantity);
       if (o.side === 'buy') {
-        await trx('character_finances').where({ character_id: o.character_id }).increment('cash_in_hand', Number(o.price) * unfilled);
+        const refund = Number(o.escrow_amount);
+        await trx('character_finances').where({ character_id: o.character_id }).increment('cash_in_hand', refund);
       } else {
         await trx('company_shares')
           .where({ company_id: co.id, holder_character_id: o.character_id })

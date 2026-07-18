@@ -739,6 +739,17 @@ export class CompanyController {
           }
         }
 
+        // IPO/Listing Guard: cannot downgrade a company that is currently listing or already listed
+        if (company.legal_structure_id === 'public-corporation' && legal_structure_id !== 'public-corporation') {
+          const ipoListing = await trx('ipo_listings')
+            .where({ company_id: id })
+            .whereIn('status', ['pending_review', 'book_building', 'listed'])
+            .first();
+          if (ipoListing) {
+            throw new AppError('Cannot downgrade a company that is listed on the exchange or undergoing an IPO. You must remain a public corporation.', 400, 'IS_LISTED');
+          }
+        }
+
         if (Number(finances.available_cash) < fee) {
           throw new AppError(`Insufficient company cash for the $${fee.toLocaleString()} filing fee`, 400, 'INSUFFICIENT_FUNDS');
         }

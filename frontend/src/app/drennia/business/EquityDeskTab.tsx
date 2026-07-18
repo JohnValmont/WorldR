@@ -208,7 +208,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
             const isCurrent = s.id === currentStructureId;
             const currentIdx = STRUCTURE_ORDER.indexOf(currentStructureId ?? '');
             const targetIdx = STRUCTURE_ORDER.indexOf(s.id);
-            const isUpgrade = targetIdx > currentIdx;
+            const isUpgrade = currentStructureId != null && targetIdx > currentIdx;
             return (
               <div key={s.id} className={`rounded border p-4 ${isCurrent ? 'bg-[#1E1A15] border-terminal-amber/30' : 'bg-[#090A0F] border-zinc-800'}`}>
                 <div className="flex justify-between items-baseline mb-2">
@@ -245,7 +245,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
       <Card kicker="Shareholder Register">
         {holders.length === 0 && <div className="text-[11px] text-zinc-500">Loading register…</div>}
         {holders.map((h: any) => (
-          <div key={h.holder_character_id} className="flex justify-between items-center py-2 border-b border-zinc-800/50 last:border-0">
+          <div key={h.holder_character_id ?? h.holder_company_id} className="flex justify-between items-center py-2 border-b border-zinc-800/50 last:border-0">
             <div className="text-xs text-zinc-200">{h.name || h.holder_name}</div>
             <div className="text-right font-mono">
               <div className="text-xs font-bold text-terminal-amber">{fmt(Number(h.percent), 2)}%</div>
