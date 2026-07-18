@@ -82,11 +82,15 @@ export default function IpoDeskPanel({ companyId, companyName }: { companyId: st
       await exchangeApi.fileIpo(companyId, {
         priceMin: pMin, priceMax: pMax, floatPercent: fPct, useOfProceeds: proceeds, lockupMonths: lock,
       });
-      setNotice({ text: `Prospectus filed. $${fmt(elig?.filing_fee)} filing fee deducted. Regulatory review begins.`, ok: true });
+      const msg = `Prospectus filed successfully. $${fmt(elig?.filing_fee)} filing fee deducted. Regulatory review begins.`;
+      setNotice({ text: msg, ok: true });
+      window.alert(msg);
       setProceeds('');
       refresh();
     } catch (e: any) {
-      setNotice({ text: e?.response?.data?.error || e?.response?.data?.message || 'Filing failed.', ok: false });
+      const errMsg = e?.response?.data?.error || e?.response?.data?.message || 'Filing failed.';
+      setNotice({ text: errMsg, ok: false });
+      window.alert(`IPO Filing Failed:\n${errMsg}`);
     } finally {
       setBusy(false);
     }
