@@ -142,8 +142,8 @@ export class CharacterController {
         const [finances] = await trx('character_finances').insert({
           character_id: character.id,
           currency_id,
-          cash_in_hand: 1000000,
-          net_worth: 1000000
+          cash_in_hand: 4000000,
+          net_worth: 4000000
         }).returning('*');
 
         return { ...character, finances };

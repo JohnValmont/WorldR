@@ -16,6 +16,7 @@ import { addNotification } from '../../../lib/notifications';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import NotificationBell from '../../../components/gameplay/NotificationBell';
 import FirstDayModal, { FIRST_DAY_MODAL_KEY } from '../../../components/gameplay/FirstDayModal';
+import ThreeMillionBonusModal, { THREE_MILLION_BONUS_MODAL_KEY } from '../../../components/gameplay/ThreeMillionBonusModal';
 import GuideModal from '../../../components/gameplay/GuideModal';
 import {
   Card, Button, StatChip, DataRow, EmptyState, Badge, StatusDot,
@@ -136,6 +137,7 @@ export default function ChroniclePage() {
   const [netWorth, setNetWorth] = useState(0);
   const [ledgerFeed, setLedgerFeed] = useState<any[]>([]);
   const [showFirstDay, setShowFirstDay] = useState(false);
+  const [showThreeMillionBonus, setShowThreeMillionBonus] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [characterAge, setCharacterAge] = useState<number>(18);
   const [leaderboards, setLeaderboards] = useState<any>(null);
@@ -179,6 +181,9 @@ export default function ChroniclePage() {
     // Show first-day orientation modal if not yet seen
     const seenModal = localStorage.getItem(FIRST_DAY_MODAL_KEY) === 'true';
     if (!seenModal) setShowFirstDay(true);
+
+    const seen3MBonus = localStorage.getItem(THREE_MILLION_BONUS_MODAL_KEY) === 'true';
+    if (!seen3MBonus) setShowThreeMillionBonus(true);
 
     import('../../../lib/api').then(({ characterApi, companyApi, politicsApi, worldApi }) => {
       worldApi.getGlobalLeaderboards().then(res => setLeaderboards(res)).catch(e => console.error(e));
@@ -476,6 +481,12 @@ export default function ChroniclePage() {
           characterName={characterName}
           citizenFile={citizenFile}
           onDismiss={() => setShowFirstDay(false)}
+        />
+      )}
+
+      {showThreeMillionBonus && (
+        <ThreeMillionBonusModal
+          onDismiss={() => setShowThreeMillionBonus(false)}
         />
       )}
 
