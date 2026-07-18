@@ -110,6 +110,8 @@ export async function fileIpo(params: {
   const { companyId, characterId, priceMin, priceMax, floatPercent, useOfProceeds, lockupMonths } = params;
 
   return db.transaction(async (trx) => {
+    // Lock the company row to serialize any concurrent IPO filings
+    await trx('companies').where({ id: companyId }).forUpdate().first();
     const { company, finances } = await loadFounderCompany(trx, companyId, characterId);
     const clock = await trx('world_clock').first();
     const curYear = clock?.current_year ?? 1;
@@ -228,6 +230,10 @@ export async function submitIoi(params: { ipoId: string; characterId: string; pr
   const safePrice = Number(Number(pricePerShare).toFixed(4));
 
   return db.transaction(async (trx) => {
+    // Lock character finances first to serialize IOI submissions for this player
+    const fin = await trx('character_finances').where({ character_id: characterId }).forUpdate().first();
+    if (!fin) throw new AppError('Character finances not found', 404, 'NOT_FOUND');
+
     const listing = await trx('ipo_listings').where({ id: ipoId }).first();
     if (!listing) throw new AppError('IPO not found', 404, 'NOT_FOUND');
     if (listing.status !== 'book_building') throw new AppError('This IPO is not accepting indications of interest', 400, 'NOT_OPEN');
@@ -241,15 +247,16 @@ export async function submitIoi(params: { ipoId: string; characterId: string; pr
       .forUpdate()
       .first();
 
+    let availableCash = Number(fin.cash_in_hand);
     if (existing) {
       const refund = Number(existing.price_per_share) * Number(existing.quantity_requested);
+      availableCash += refund; // Apply refund to available cash for this transaction
       await trx('character_finances').where({ character_id: characterId }).increment('cash_in_hand', refund);
       await trx('ipo_indications').where({ id: existing.id }).update({ status: 'withdrawn', updated_at: trx.fn.now() });
     }
 
     const cost = safePrice * quantity;
-    const fin = await trx('character_finances').where({ character_id: characterId }).forUpdate().first();
-    if (!fin || Number(fin.cash_in_hand) < cost) {
+    if (availableCash < cost) {
       throw new AppError(`Insufficient cash to place this indication of interest. Requires $${cost.toFixed(2)}`, 400, 'INSUFFICIENT_FUNDS');
     }
 
@@ -523,16 +530,31 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
   const totalAtClearing = atClearing.reduce((s: number, i: any) => s + Number(i.quantity_requested), 0);
   if (remaining > 0 && totalAtClearing > 0) {
     let handed = 0;
-    atClearing.forEach((i: any, idx: number) => {
-      let qty: number;
-      if (idx === atClearing.length - 1) {
-        qty = Math.min(Number(i.quantity_requested), remaining - handed);
-      } else {
-        qty = Math.min(Number(i.quantity_requested), Math.floor((remaining * Number(i.quantity_requested)) / totalAtClearing));
-      }
+    
+    // First pass: Floored proportional allocation
+    const initialAllocations = atClearing.map((i: any) => {
+      const exact = (remaining * Number(i.quantity_requested)) / totalAtClearing;
+      const qty = Math.min(Number(i.quantity_requested), Math.floor(exact));
       handed += qty;
-      allocations.push({ ioi: i, qty, proRated: qty < Number(i.quantity_requested) });
+      return { ioi: i, qty, remainder: exact - qty };
     });
+
+    let leftover = remaining - handed;
+
+    // Second pass: Largest Remainder Method (distribute 1 share to those with highest fractional remainder)
+    if (leftover > 0) {
+      initialAllocations.sort((a, b) => b.remainder - a.remainder);
+      for (const item of initialAllocations) {
+        if (leftover > 0 && item.qty < Number(item.ioi.quantity_requested)) {
+          item.qty += 1;
+          leftover -= 1;
+        }
+      }
+    }
+
+    for (const item of initialAllocations) {
+      allocations.push({ ioi: item.ioi, qty: item.qty, proRated: item.qty < Number(item.ioi.quantity_requested) });
+    }
   } else {
     for (const i of atClearing) allocations.push({ ioi: i, qty: 0, proRated: true });
   }
