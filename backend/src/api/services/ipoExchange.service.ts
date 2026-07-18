@@ -218,6 +218,12 @@ export async function submitIoi(params: { ipoId: string; characterId: string; pr
     const company = await trx('companies').where({ id: listing.company_id }).first();
     if (company?.owner_character_id === characterId) throw new AppError('Founders cannot submit an IOI for their own IPO', 400, 'IS_FOUNDER');
 
+    const cost = pricePerShare * quantity;
+    const fin = await trx('character_finances').where({ character_id: characterId }).first();
+    if (!fin || Number(fin.cash_in_hand) < cost) {
+      throw new AppError(`Insufficient cash to place this indication of interest. Requires $${cost.toFixed(2)}`, 400, 'INSUFFICIENT_FUNDS');
+    }
+
     // One live IOI per player per IPO — replace any existing pending one.
     await trx('ipo_indications')
       .where({ ipo_id: ipoId, character_id: characterId, status: 'pending', is_npc: false })
