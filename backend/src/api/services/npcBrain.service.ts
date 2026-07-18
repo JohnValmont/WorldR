@@ -192,7 +192,8 @@ async function applyNpcFacelifts(trx: Knex, companyId: string, currentYear: numb
         created_at_world_month: currentMonth,
         created_at: new Date(),
         updated_at: new Date(),
-        manufacturing_cost_per_unit: Math.round(Number(model.manufacturing_cost_per_unit) * 1.05)
+        manufacturing_cost_per_unit: Math.round(Number(model.manufacturing_cost_per_unit) * 1.05),
+        facelift_source_model_id: model.id
       };
       
       await trx('manufacturing_vehicle_models').insert(newModel);
@@ -215,7 +216,13 @@ async function applyNpcFacelifts(trx: Knex, companyId: string, currentYear: numb
       // Discontinue old model
       await trx('manufacturing_vehicle_models')
         .where({ id: model.id })
-        .update({ status: 'discontinued', discontinued_year: currentYear, discontinued_month: currentMonth, updated_at: new Date() });
+        .update({ 
+          status: 'discontinued', 
+          development_status: 'discontinued',
+          discontinued_year: currentYear, 
+          discontinued_month: currentMonth, 
+          updated_at: new Date() 
+        });
         
       // Charge the company
       availableCash -= FACELIFT_COST;

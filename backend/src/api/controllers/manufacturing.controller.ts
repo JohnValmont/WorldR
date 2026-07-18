@@ -3766,7 +3766,7 @@ export class ManufacturingController {
           .update({
             development_status: 'discontinued',
             discontinued_year: clock?.current_year ?? 1,
-            discontinued_arc: clock?.current_month ?? 1,
+            discontinued_month: clock?.current_month ?? 1,
             updated_at: trx.fn.now()
           });
 
