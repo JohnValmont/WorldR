@@ -1070,9 +1070,9 @@ async function settleNpcTreasuryTrades(trx: any, year: number, month: number, sy
   const trades = await trx('share_trades as t')
     .join('companies as c', 'c.id', 't.company_id')
     .where({ 'c.is_npc': true, 't.game_year': year, 't.game_month': month })
-    .andWhere(function() {
-      this.where('t.seller_character_id', systemCharId)
-          .orWhere('t.buyer_character_id', systemCharId);
+    .andWhere((builder: any) => {
+      builder.where('t.seller_character_id', systemCharId)
+             .orWhere('t.buyer_character_id', systemCharId);
     })
     .select('t.company_id', 't.price', 't.quantity', 't.seller_character_id', 't.buyer_character_id');
 
