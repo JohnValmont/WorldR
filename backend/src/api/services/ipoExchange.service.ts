@@ -780,7 +780,12 @@ export async function processExchangeMonth(trx: any, year: number, month: number
       .limit(3);
     const estEps = trailing.length ? trailing.reduce((s: number, r: any) => s + Number(r.eps), 0) / trailing.length : eps;
     const analystEstimate = estEps * companyTotalShares;
-    const surprise = estEps !== 0 ? (eps - estEps) / Math.abs(estEps) : 0;
+    
+    // Prevent infinite surprise percentages when earnings hover near zero.
+    // We floor the denominator at 2% of the share price, or $0.10.
+    const minDenom = Math.max(0.10, prevClose * 0.02);
+    const denom = Math.max(Math.abs(estEps), minDenom);
+    const surprise = (eps - estEps) / denom;
 
     let open = prevClose;
     let high: number;
@@ -915,7 +920,7 @@ export async function processExchangeMonth(trx: any, year: number, month: number
 
   // ── Step I: Sweep system_npc cash_in_hand → company_finances.available_cash ──
   // When NPC sells treasury shares, cash lands in character_finances. Transfer it back.
-  await sweepNpcCharacterCash(trx, systemCharId);
+  await settleNpcTreasuryTrades(trx, year, month, systemCharId);
 
   // ── Step G: lockup expiry ──
   await trx('company_shares')
@@ -1058,41 +1063,46 @@ async function safeNpcBuyback(
 }
 
 /**
- * After the exchange month, sweep any cash the system_npc character
- * accumulated from selling treasury shares back into company_finances.
- * Apportions by share of sell trade proceeds per company this month.
+ * After the exchange month, perfectly settle the cash impact of all NPC Treasury 
+ * and Market Maker trades (both buys and sells) for the current month.
  */
-async function sweepNpcCharacterCash(trx: any, systemCharId: string): Promise<void> {
-  const charFin = await trx('character_finances').where({ character_id: systemCharId }).forUpdate().first();
-  if (!charFin) return;
-  const surplus = Number(charFin.cash_in_hand) || 0;
-  if (surplus <= 0) return;
-
-  // Find which NPC companies sold shares recently (last 30 trades)
-  const sellTrades = await trx('share_trades as t')
+async function settleNpcTreasuryTrades(trx: any, year: number, month: number, systemCharId: string): Promise<void> {
+  const trades = await trx('share_trades as t')
     .join('companies as c', 'c.id', 't.company_id')
-    .where({ 't.seller_character_id': systemCharId, 'c.is_npc': true })
-    .orderBy('t.executed_at', 'desc')
-    .limit(30)
-    .select('t.company_id', 't.price', 't.quantity');
+    .where({ 'c.is_npc': true, 't.game_year': year, 't.game_month': month })
+    .andWhere(function() {
+      this.where('t.seller_character_id', systemCharId)
+          .orWhere('t.buyer_character_id', systemCharId);
+    })
+    .select('t.company_id', 't.price', 't.quantity', 't.seller_character_id', 't.buyer_character_id');
 
-  const proceedsMap = new Map<string, number>();
-  for (const t of sellTrades) {
-    const prev = proceedsMap.get(t.company_id) ?? 0;
-    proceedsMap.set(t.company_id, prev + Number(t.price) * Number(t.quantity));
+  const netCashChange = new Map<string, number>();
+
+  for (const t of trades) {
+    const value = Number(t.price) * Number(t.quantity);
+    const prev = netCashChange.get(t.company_id) ?? 0;
+    
+    if (t.seller_character_id === systemCharId) {
+      // NPC sold shares -> raised cash
+      netCashChange.set(t.company_id, prev + value);
+    } 
+    if (t.buyer_character_id === systemCharId) {
+      // NPC bought shares -> spent cash
+      netCashChange.set(t.company_id, prev - value);
+    }
   }
 
-  if (proceedsMap.size === 0) return;
+  for (const [companyId, netAmount] of netCashChange.entries()) {
+    if (netAmount === 0) continue;
 
-  for (const [companyId, proceeds] of proceedsMap.entries()) {
-    // Re-fetch cash to ensure we don't go negative
-    const currentFin = await trx('character_finances').where({ character_id: systemCharId }).first();
-    const available = Number(currentFin?.cash_in_hand || 0);
-    const amount = Math.min(proceeds, available);
-    
-    if (amount <= 0) continue;
-    
-    await trx('company_finances').where({ company_id: companyId }).increment('available_cash', amount);
-    await trx('character_finances').where({ character_id: systemCharId }).decrement('cash_in_hand', amount);
+    if (netAmount > 0) {
+      await trx('company_finances').where({ company_id: companyId }).increment('available_cash', netAmount);
+      await trx('character_finances').where({ character_id: systemCharId }).decrement('cash_in_hand', netAmount);
+    } else {
+      const absAmount = Math.abs(netAmount);
+      await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', absAmount);
+      await trx('character_finances').where({ character_id: systemCharId }).increment('cash_in_hand', absAmount);
+    }
   }
 }
+
