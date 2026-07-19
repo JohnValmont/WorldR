@@ -155,6 +155,14 @@ export async function fileIpo(params: {
     const sumRow = await trx('company_shares').where({ company_id: companyId }).sum('shares as total').first();
     const actualShares = Number(sumRow?.total ?? TOTAL_SHARES) || TOTAL_SHARES;
     const floatShares = Math.round(actualShares * floatPercent);
+    
+    // Verify the founder actually owns enough shares to float
+    const founderHolding = await trx('company_shares').where({ company_id: companyId, holder_character_id: characterId }).first();
+    const founderShares = Number(founderHolding?.shares ?? 0);
+    if (founderShares < floatShares) {
+      throw new AppError(`You must own at least ${floatShares.toLocaleString()} shares to float ${(floatPercent * 100).toFixed(0)}% of the company`, 400, 'INSUFFICIENT_SHARES');
+    }
+
     const reviewEnd = addMonths(curYear, curMonth, REVIEW_MONTHS);
 
     await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', IPO_FILING_FEE);
