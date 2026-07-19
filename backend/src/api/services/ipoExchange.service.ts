@@ -808,6 +808,11 @@ export async function processExchangeMonth(trx: any, year: number, month: number
       low = Math.min(open, close);
     }
 
+    // Attach bookValuePerShare to the company object so the MM can use it in Step F
+    const finRowForMM = await trx('company_finances').where({ company_id: co.id }).first();
+    const bv = Number(finRowForMM?.company_value || 0);
+    co._bookValuePerShare = companyTotalShares > 0 ? (bv / companyTotalShares) : close;
+
     const pe = eps > 0 ? close / (eps * 12) : null;
 
     await trx('share_price_history')
@@ -880,9 +885,22 @@ export async function processExchangeMonth(trx: any, year: number, month: number
       await trx('share_orders').where({ id: o.id }).update({ status: 'cancelled', updated_at: trx.fn.now() });
     }
 
-    const spread = Math.max(0.01, lastClose * MM_SPREAD_PCT);
-    await safeNpcOrder(trx, co.id, systemCharId, 'buy', Math.max(0.01, lastClose - spread / 2), MM_ORDER_SIZE);
-    await safeNpcOrder(trx, co.id, systemCharId, 'sell', lastClose + spread / 2, MM_ORDER_SIZE);
+    // Determine MM anchor price
+    let mmAnchor = lastClose;
+    if (co.is_npc && co._bookValuePerShare) {
+      const bvps = co._bookValuePerShare;
+      let driftRate = 0.20;
+      if (bvps > lastClose * 3) driftRate = 0.50;
+      else if (bvps > lastClose * 1.5) driftRate = 0.30;
+      
+      if (bvps > lastClose) {
+         mmAnchor = lastClose + (bvps - lastClose) * driftRate;
+      }
+    }
+
+    const spread = Math.max(0.01, mmAnchor * MM_SPREAD_PCT);
+    await safeNpcOrder(trx, co.id, systemCharId, 'buy', Math.max(0.01, mmAnchor - spread / 2), MM_ORDER_SIZE);
+    await safeNpcOrder(trx, co.id, systemCharId, 'sell', mmAnchor + spread / 2, MM_ORDER_SIZE);
   }
 
   // ── Step H: NPC Treasury Brain — buyback / secondary offering decisions ──
