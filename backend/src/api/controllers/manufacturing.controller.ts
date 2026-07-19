@@ -2093,7 +2093,7 @@ export class ManufacturingController {
         // LAYER 2: Reset units_allocated to monthly_target after each settle.
         // This prevents the "draining to zero" bug where sales reduce the allocation
         // permanently. Layer 1's proportional cap handles inventory limits each tick.
-        const resetTarget = Number(alloc.monthly_target ?? alloc.units_allocated ?? 0);
+        const resetTarget = Number(alloc.monthly_target ?? alloc._original_units_allocated ?? alloc.units_allocated ?? 0);
         await trx('manufacturing_market_allocations').where({ id: alloc.id }).update({
           units_allocated: resetTarget,
           updated_at: trx.fn.now()
@@ -2527,6 +2527,7 @@ export class ManufacturingController {
              for (const alloc of marketAllocations) {
                // Reset to the player's standing monthly target (fall back to units_allocated if column missing)
                alloc.units_allocated = Number(alloc.monthly_target ?? alloc.units_allocated ?? 0);
+               alloc._original_units_allocated = alloc.units_allocated;
 
                const modelId = alloc.vehicle_model_id;
                if (!modelInventoryCache.has(modelId)) {

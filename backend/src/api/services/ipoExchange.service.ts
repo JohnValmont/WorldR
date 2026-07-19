@@ -1080,13 +1080,14 @@ async function sweepNpcCharacterCash(trx: any, systemCharId: string): Promise<vo
 
   if (proceedsMap.size === 0) return;
 
-  const totalProceeds = [...proceedsMap.values()].reduce((a, b) => a + b, 0);
-  if (totalProceeds <= 0) return;
-
   for (const [companyId, proceeds] of proceedsMap.entries()) {
-    const share  = proceeds / totalProceeds;
-    const amount = Math.floor(surplus * share);
+    // Re-fetch cash to ensure we don't go negative
+    const currentFin = await trx('character_finances').where({ character_id: systemCharId }).first();
+    const available = Number(currentFin?.cash_in_hand || 0);
+    const amount = Math.min(proceeds, available);
+    
     if (amount <= 0) continue;
+    
     await trx('company_finances').where({ company_id: companyId }).increment('available_cash', amount);
     await trx('character_finances').where({ character_id: systemCharId }).decrement('cash_in_hand', amount);
   }
