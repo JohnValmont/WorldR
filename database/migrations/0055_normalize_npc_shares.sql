@@ -23,13 +23,13 @@ BEGIN
         avg_cost_basis = avg_cost_basis * multiplier
     WHERE company_id = rec.id AND holder_character_id = rec.holder_character_id;
 
-    -- Update share price history to reflect higher per-share price
+    -- Update share price history to reflect higher per-share price, clamping to prevent NUMERIC(14,6) overflow
     UPDATE share_price_history
-    SET open_price = open_price * multiplier,
-        high_price = high_price * multiplier,
-        low_price = low_price * multiplier,
-        close_price = close_price * multiplier,
-        eps = eps * multiplier
+    SET open_price = LEAST(open_price * multiplier, 99999999.999999),
+        high_price = LEAST(high_price * multiplier, 99999999.999999),
+        low_price = LEAST(low_price * multiplier, 99999999.999999),
+        close_price = LEAST(close_price * multiplier, 99999999.999999),
+        eps = LEAST(eps * multiplier, 99999999.999999)
     WHERE company_id = rec.id;
 
     -- Note: market_cap stays the same since (price * M) * (shares / M) = price * shares

@@ -1,12 +1,12 @@
 const { Pool } = require('pg');
 const pool = new Pool({ connectionString: 'postgresql://postgres.qrwnjcjdsonhrlhdsveu:GURJAR345%40k@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres' });
 async function check() {
-  const tableName = process.argv[2] || 'manufacturing_vehicle_models';
   const res = await pool.query(`
-    SELECT column_name, data_type 
-    FROM information_schema.columns 
-    WHERE table_name = $1
-  `, [tableName]);
+    SELECT c.name, f.available_cash, f.debt, f.company_value, f.last_arc_profit
+    FROM companies c
+    JOIN company_finances f ON c.id = f.company_id
+    WHERE c.name = 'Arcas Engineering'
+  `);
   console.table(res.rows);
   pool.end();
 }

@@ -1,0 +1,1 @@
+const { Client } = require('pg'); const client = new Client({ connectionString: 'postgresql://postgres:postgres@localhost:5432/worldr_db' }); client.connect().then(() => client.query('SELECT SUM(shares) FROM company_shares WHERE company_id = (SELECT id FROM companies WHERE name = \'HaulPro\')')).then(res => { console.log(res.rows); process.exit(0); });
