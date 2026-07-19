@@ -901,9 +901,8 @@ export async function processExchangeMonth(trx: any, year: number, month: number
       if (bvps > lastClose * 3) driftRate = 0.50;
       else if (bvps > lastClose * 1.5) driftRate = 0.30;
       
-      if (bvps > lastClose) {
-         mmAnchor = lastClose + (bvps - lastClose) * driftRate;
-      }
+      // Drift symmetrically towards book value
+      mmAnchor = lastClose + (bvps - lastClose) * driftRate;
     }
 
     const spread = Math.max(0.01, mmAnchor * MM_SPREAD_PCT);
@@ -987,16 +986,21 @@ async function processNpcEquityDecisions(
       const operatingReserve = estimatedMonthlyCosts * NPC_OPERATING_RESERVE_MONTHS;
 
       // ── SECONDARY OFFERING: cash dangerously low, still has float capacity ──
+      // To prevent a death spiral where the NPC continuously undercuts the MM and drives its own price to 0,
+      // it refuses to dilute if the stock is trading at a severe discount to book value (e.g. < 50% BVPS).
+      // It also only offers a slight 2% discount to avoid instantly crashing the lastClose price.
+      const bvps = Number(co.company_value) / Math.max(1, companyTotalShares);
       if (
         cash < operatingReserve &&
         treasuryShares > NPC_SECONDARY_ORDER_SIZE &&
-        publicFloat < maxFloatShares
+        publicFloat < maxFloatShares &&
+        lastClose > bvps * 0.50
       ) {
         const sellQty = Math.min(NPC_SECONDARY_ORDER_SIZE, maxFloatShares - publicFloat);
         if (sellQty > 0) {
-          // Offer shares at a 5% discount to attract liquidity, not a premium
-          logger.info(`[drx-npc] ${co.name}: secondary offering ${sellQty} shares @ $${(lastClose * 0.95).toFixed(2)}`);
-          await safeNpcOrder(trx, co.id, systemCharId, 'sell', Math.round(lastClose * 0.95 * 100) / 100, sellQty);
+          const offerPrice = Math.round(Math.max(0.01, lastClose * 0.98) * 100) / 100;
+          logger.info(`[drx-npc] ${co.name}: secondary offering ${sellQty} shares @ $${offerPrice.toFixed(2)}`);
+          await safeNpcOrder(trx, co.id, systemCharId, 'sell', offerPrice, sellQty);
         }
         continue; // one action per month per company
       }
