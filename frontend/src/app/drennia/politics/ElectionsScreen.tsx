@@ -126,18 +126,18 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <Stamp>Electorate — {jurisdiction?.name}</Stamp>
+          <Stamp>Electorate — Drennia Nation</Stamp>
           <h1 style={{ color: T.ivory, fontSize: 18, fontWeight: 700, margin: '4px 0 0', letterSpacing: '-0.01em' }}>Read the Room</h1>
         </div>
         <p style={{ color: T.faint, fontSize: 12, margin: 0, maxWidth: 480 }}>Every bloc has an ideal platform. Court the ones no rival owns — standing where others stand splits the vote.</p>
       </div>
 
       {isLocked ? (
-        <Panel title="Locked"><div style={{ color: T.faint, fontStyle: 'italic' }}>{jurisdiction?.name} is not yet open for political activity.</div></Panel>
+        <Panel title="Locked"><div style={{ color: T.faint, fontStyle: 'italic' }}>Drennia Nation is not yet open for political activity.</div></Panel>
       ) : (
         <>
           <ElectionHero
-            jurisdictionName={jurisdiction?.name || 'National'}
+            jurisdictionName="National"
             cycle={overview?.cycle}
             seats={jModel.seats}
             majority={jModel.majority}

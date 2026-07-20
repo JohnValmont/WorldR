@@ -67,23 +67,42 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
       ) : (
         <>
           <div style={{ fontFamily: SANS }}>
-            <h1 style={{ color: T.ivory, fontSize: 36, fontWeight: 800, margin: '8px 0 0', letterSpacing: '-0.02em', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>State of {jurisdiction?.name}</h1>
-            <p style={{ color: T.muted, fontSize: 15, marginTop: 8, lineHeight: 1.6 }}>Overview of the state's economic and political health.</p>
+            <h1 style={{ color: T.ivory, fontSize: 36, fontWeight: 800, margin: '8px 0 0', letterSpacing: '-0.02em', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>Drennia Nation</h1>
+            <p style={{ color: T.muted, fontSize: 15, marginTop: 8, lineHeight: 1.6 }}>Overview of the nation's economic and political health.</p>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
-            <Panel title="Jurisdiction Conditions">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <StatDial label="Prosperity" value={conditions?.prosperity ?? 5} />
-                <StatDial label="Jobs & Employment" value={conditions?.jobs ?? 5} />
-                <StatDial label="Public Order" value={conditions?.order ?? 5} />
-                <StatDial label="Social Cohesion" value={conditions?.cohesion ?? 5} />
-                <StatDial label="Budget Health" value={conditions?.budget ?? 5} />
-              </div>
-              <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${T.border}`, color: T.muted, fontSize: 13, lineHeight: 1.5 }}>
-                These dials reflect the core well-being of the state. They drift over time toward targets defined by the governing coalition's platform and enacted laws.
-              </div>
-            </Panel>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Panel title="National Conditions">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <StatDial label="Prosperity" value={conditions?.prosperity ?? 5} />
+                  <StatDial label="Jobs & Employment" value={conditions?.jobs ?? 5} />
+                  <StatDial label="Public Order" value={conditions?.order ?? 5} />
+                  <StatDial label="Social Cohesion" value={conditions?.cohesion ?? 5} />
+                  <StatDial label="Budget Health" value={conditions?.budget ?? 5} />
+                </div>
+                <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${T.border}`, color: T.muted, fontSize: 13, lineHeight: 1.5 }}>
+                  These dials reflect the core well-being of the nation. They drift over time toward targets defined by the governing coalition's platform and enacted laws.
+                </div>
+              </Panel>
+
+              <Panel title="National Demographics">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: T.text, fontSize: 14 }}>Total Population</span>
+                    <span style={{ color: T.ivory, fontFamily: MONO, fontSize: 16, fontWeight: 700 }}>
+                      {overview?.activeState?.population != null ? Number(overview.activeState.population).toLocaleString('en-US') : '2,400,000'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: T.text, fontSize: 14 }}>Registered Voters</span>
+                    <span style={{ color: T.ivory, fontFamily: MONO, fontSize: 16, fontWeight: 700 }}>
+                      {overview?.activeState?.registered_voters != null ? Number(overview.activeState.registered_voters).toLocaleString('en-US') : '1,600,000'}
+                    </span>
+                  </div>
+                </div>
+              </Panel>
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Panel title="Active Laws & Governance">

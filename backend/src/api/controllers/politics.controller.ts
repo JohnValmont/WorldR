@@ -84,7 +84,7 @@ async function resolveState(stateId?: string) {
 export async function getStateOverview(req: Request, res: Response, next: NextFunction) {
   try {
     const states = await db('pol_states');
-    const activeState = states.find((s: any) => s.is_active);
+    const activeState = states.find((s: any) => s.code === 'national') || states.find((s: any) => s.is_active);
     const inactiveStates = states.filter((s: any) => !s.is_active);
 
     let cyclePhase = 'governing';
