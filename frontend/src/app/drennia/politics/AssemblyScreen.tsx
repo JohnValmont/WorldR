@@ -27,6 +27,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
   const isLocked = jurisdiction?.isLocked ?? true;
   const jModel = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.national;
   const { data } = useSWR(isLocked ? null : ['council', selectedJurisdictionId], () => politicsApi.getCouncil(selectedJurisdictionId).catch(() => null));
+  const { data: coalitionData } = useSWR(isLocked ? null : ['coalition-agreement', selectedJurisdictionId], () => politicsApi.getCoalitionAgreement(selectedJurisdictionId).catch(() => null));
 
   const partySeats: any[] = Array.isArray(data?.partySeats) ? data.partySeats.filter((p: any) => p.seats > 0) : [];
   const totalSeats = jModel.seats;
@@ -107,6 +108,94 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
           {premier && <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${T.border}`, color: T.muted, fontSize: 13 }}>Premier: <span style={{ color: T.gold, fontWeight: 600 }}>{premier.characterName || premier.name || 'Unknown'}</span> <span style={{ color: T.faint }}>({premier.partyName || ''})</span></div>}
         </Panel>
       )}
+
+      {/* Coalition Agreement Panel */}
+      {!isLocked && coalitionData?.coalition && (() => {
+        const agreement = coalitionData.agreement;
+        const coalition = coalitionData.coalition;
+        const health = agreement?.health ?? null;
+        const healthTone = health == null ? T.faint : health >= 60 ? '#4ade80' : health >= 30 ? T.gold : T.red;
+        const statusLabel = agreement?.status === 'under_review' ? 'Under Review' : agreement?.status === 'broken' ? 'Broken' : 'Active';
+        const partners: any[] = agreement?.partner_terms ?? [];
+
+        return (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(30,15,60,0.8) 100%)',
+            border: `1px solid rgba(139, 92, 246, 0.25)`,
+            borderTop: `1px solid rgba(139, 92, 246, 0.5)`,
+            borderRadius: 8,
+            padding: '20px 24px',
+            boxShadow: '0 4px 24px rgba(139, 92, 246, 0.1)',
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 3, height: 11, background: '#a78bfa', borderRadius: 1 }} />
+                <span style={{ fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.22em', fontSize: 10, color: '#a78bfa' }}>Coalition Agreement</span>
+              </div>
+              <span style={{
+                padding: '3px 10px', borderRadius: 3, fontSize: 9, fontFamily: MONO, letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                background: agreement?.status === 'broken' ? 'rgba(224,82,70,0.15)' : agreement?.status === 'under_review' ? 'rgba(227,182,102,0.15)' : 'rgba(74,222,128,0.1)',
+                border: `1px solid ${healthTone}40`,
+                color: healthTone,
+              }}>{statusLabel}</span>
+            </div>
+
+            {/* Health bar */}
+            {agreement && (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ color: T.muted, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Agreement Health</span>
+                  <span style={{ color: healthTone, fontFamily: MONO, fontSize: 13, fontWeight: 700 }}>{health}%</span>
+                </div>
+                <div style={{ height: 5, background: 'rgba(0,0,0,0.4)', borderRadius: 99, overflow: 'hidden' }}>
+                  <div style={{ width: `${health ?? 0}%`, height: '100%', background: healthTone, transition: 'width 0.8s ease', boxShadow: `0 0 8px ${healthTone}` }} />
+                </div>
+                <div style={{ color: T.faint, fontSize: 10, marginTop: 4, fontFamily: MONO }}>
+                  {health != null && health >= 60 ? 'Agreement stable — all parties aligned'
+                    : health != null && health >= 30 ? 'Agreement strained — review approaching'
+                    : 'Agreement critical — coalition at risk'}
+                </div>
+              </div>
+            )}
+
+            {/* Member parties */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {/* Lead */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(167,139,250,0.05)', border: '1px solid rgba(167,139,250,0.15)', borderRadius: 5 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ color: '#a78bfa', fontFamily: MONO, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Lead</span>
+                  <span style={{ color: T.ivory, fontWeight: 600, fontSize: 13 }}>{coalition.lead_party?.name ?? 'Unknown'}</span>
+                </div>
+                <span style={{ color: T.faint, fontSize: 11, fontFamily: MONO }}>Cohesion: <span style={{ color: coalition.lead_party?.cohesion >= 60 ? '#4ade80' : coalition.lead_party?.cohesion >= 35 ? T.gold : T.red }}>{coalition.lead_party?.cohesion ?? '?'}%</span></span>
+              </div>
+              {/* Partners */}
+              {partners.map((p: any, i: number) => (
+                <div key={p.party_id ?? i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, borderRadius: 5 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: T.faint, fontFamily: MONO, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Partner</span>
+                    <span style={{ color: T.text, fontWeight: 500, fontSize: 13 }}>{p.name}</span>
+                    <span style={{ color: T.faint, fontSize: 10, fontFamily: MONO }}>{p.seats} seats</span>
+                  </div>
+                  <span style={{ color: T.faint, fontSize: 11, fontFamily: MONO }}>Cohesion: <span style={{ color: p.cohesion >= 60 ? '#4ade80' : p.cohesion >= 35 ? T.gold : T.red }}>{p.cohesion ?? '?'}%</span></span>
+                </div>
+              ))}
+              {partners.length === 0 && !agreement && (
+                <div style={{ color: T.faint, fontSize: 12, fontStyle: 'italic', padding: '8px 0' }}>Single-party majority — no agreement required.</div>
+              )}
+            </div>
+
+            {/* Next review */}
+            {agreement?.next_review_arc && (
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid rgba(255,255,255,0.05)`, display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: T.faint, fontSize: 11, fontFamily: MONO }}>Next review arc</span>
+                <span style={{ color: '#a78bfa', fontFamily: MONO, fontSize: 11, fontWeight: 600 }}>Arc {agreement.next_review_arc}</span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

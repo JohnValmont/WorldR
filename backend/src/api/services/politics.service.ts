@@ -26,6 +26,67 @@ import {
   RECRUIT_COST_CASH,
   RECRUIT_PLATFORM_DRIFT,
   POL_POLICY_CONDITION_EFFECTS,
+  PC_ARC_REGEN,
+  PC_CAP_BASE,
+  PC_CAP_PREMIER,
+  PC_CAP_OPPOSITION,
+  PC_SPEND_COSTS,
+  PC_SPEND_ACTIONS,
+  PcSpendAction,
+  DOCTRINE_FACTIONS,
+  DoctrineId,
+  FACTION_LOYALTY_WARNING,
+  FACTION_DRIFT_PER_ARC,
+  FACTION_RALLY_RESTORE,
+  SCANDAL_BASE_PROB,
+  SCANDAL_SEVERITY_WEIGHTS,
+  SCANDAL_PHASE_DURATION,
+  SCANDAL_PHASE_DAMAGE,
+  SCANDAL_NATURAL_CLEAR_PROB,
+  SCANDAL_NPC_PROB_MULT,
+  CAMPAIGN_STRATEGY_PARAMS,
+  CAMPAIGN_GGS_PER_EFFORT,
+  CAMPAIGN_GGS_CAP,
+  CAMPAIGN_MOMENTUM_DECAY,
+  CAMPAIGN_MOMENTUM_GAIN_ACTION,
+  CAMPAIGN_EVENTS,
+  IG_ENDORSEMENT_THRESHOLDS,
+  IG_ALIGNMENT_SCORE_SCALE,
+  IG_ALIGNMENT_DECAY,
+  IG_PASSIVE_DECAY_PER_ARC,
+  IG_OUTREACH_BASE_GAIN,
+  IG_OUTREACH_AP_COST,
+  IG_OUTREACH_COOLDOWN_ARCS,
+  IG_RALLY_GAIN,
+  IG_RALLY_MOMENTUM_GAIN,
+  IG_RALLY_PC_COST,
+  IG_COMMITMENT_DEADLINE_ARCS,
+  IG_COMMITMENT_HONOR_BONUS,
+  IG_COMMITMENT_BREAK_PENALTY,
+  MEDIA_STANCE_THRESHOLDS,
+  MEDIA_BIAS_AXIS,
+  MEDIA_ALIGNMENT_THRESHOLD,
+  MEDIA_STORY_WEIGHTS,
+  MEDIA_POP_SCALE,
+  MEDIA_STANCE_TONE_MOD,
+  MEDIA_PASSIVE_DECAY,
+  MEDIA_PRESS_CONFERENCE_AP_COST,
+  MEDIA_EXCLUSIVE_AP_COST,
+  MEDIA_EXCLUSIVE_GAIN,
+  MEDIA_PRESS_CONF_GAIN,
+  MEDIA_CONTACT_COOLDOWN_ARCS,
+  MEDIA_TOP_STORIES_PER_ARC,
+  LEGACY_EVENT_SCORES,
+  LEGACY_BENEFITS,
+  LEGACY_LONGEVITY_RANKS,
+  type LegacyDimension,
+  type CoverageStance,
+  type OutletBias,
+  type EndorsementStatus,
+  type CampaignStrategyType,
+  type ScandalType,
+  type ScandalPhase,
+  type ScandalResolution,
 } from '../constants/politics';
 import { EngineCandidate, runElection } from './electionEngine';
 import { fireGoverningEvent, fireConditionCrises } from './governingEvents';
@@ -137,6 +198,191 @@ export async function refreshApCap(trx: any, characterId: string): Promise<void>
   await trx('pol_character_ap')
     .where({ character_id: characterId })
     .update({ ap_cap: cap });
+}
+
+// ── Political Capital (PC) Helpers ───────────────────────────────────────────
+
+/** Compute the PC cap for a character based on their current office(s). */
+export async function computePcCap(trx: any, characterId: string): Promise<number> {
+  // Premier gets a higher cap; Official Opposition leader gets a medium cap.
+  const officeRow = await trx('pol_offices').where({ holder_character_id: characterId }).first();
+  if (officeRow) return PC_CAP_PREMIER;
+  // Check if character leads a party that is the largest non-government party
+  const membership = await trx('pol_party_members')
+    .where({ character_id: characterId, role: 'leader' }).first();
+  if (membership) {
+    // Simple proxy: if party has seats but is not in government, they are opposition
+    const seat = await trx('pol_council_seats').where({ party_id: membership.party_id }).first();
+    if (seat) return PC_CAP_OPPOSITION;
+  }
+  return PC_CAP_BASE;
+}
+
+/** Fetch (or lazily create) the PC row for a character. Creates it with 0 PC. */
+export async function getOrCreateCharacterPc(trx: any, characterId: string) {
+  let row = await trx('pol_character_ap').where({ character_id: characterId }).first();
+  if (!row) {
+    // Initialise the whole AP row (PC columns included) via existing function
+    row = await getOrCreateCharacterAp(trx, characterId);
+  }
+  // If PC columns are missing (old row), patch them in
+  if (row.current_pc === undefined || row.current_pc === null) {
+    const cap = await computePcCap(trx, characterId);
+    await trx('pol_character_ap')
+      .where({ character_id: characterId })
+      .update({ current_pc: 0, pc_cap: cap });
+    row.current_pc = 0;
+    row.pc_cap = cap;
+  }
+  return row;
+}
+
+/**
+ * Atomically spend `cost` PC. Throws AppError if insufficient.
+ */
+export async function spendPc(trx: any, characterId: string, cost: number): Promise<void> {
+  if (cost <= 0) return;
+  const row = await getOrCreateCharacterPc(trx, characterId);
+  if ((row.current_pc ?? 0) < cost) {
+    throw new AppError(
+      `Insufficient Political Capital: need ${cost}, have ${row.current_pc ?? 0}.`,
+      400, 'INSUFFICIENT_PC'
+    );
+  }
+  await trx('pol_character_ap')
+    .where({ character_id: characterId })
+    .decrement('current_pc', cost);
+}
+
+/**
+ * Award PC to a character (capped at pc_cap). Used for landmark events.
+ */
+export async function earnPc(trx: any, characterId: string, amount: number): Promise<void> {
+  if (amount <= 0) return;
+  const row = await getOrCreateCharacterPc(trx, characterId);
+  const cap = row.pc_cap ?? PC_CAP_BASE;
+  const current = row.current_pc ?? 0;
+  const newVal = Math.min(current + amount, cap);
+  await trx('pol_character_ap')
+    .where({ character_id: characterId })
+    .update({ current_pc: newVal });
+}
+
+/**
+ * Passive PC regen: +PC_ARC_REGEN each arc (carries over, does not reset).
+ * Called inside processPoliticalArc alongside AP regen.
+ */
+export async function regenPcForCharacter(
+  trx: any, characterId: string, currentArc: number
+): Promise<void> {
+  const row = await trx('pol_character_ap').where({ character_id: characterId }).first();
+  if (!row) return;
+  if ((row.pc_regen_arc ?? 0) >= currentArc) return; // already done this arc
+  await earnPc(trx, characterId, PC_ARC_REGEN);
+  await trx('pol_character_ap')
+    .where({ character_id: characterId })
+    .update({ pc_regen_arc: currentArc });
+}
+
+// ── Faction Helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Generate the 3 default factions for a newly-founded party.
+ * Called inside the foundParty transaction, after the party row is created.
+ */
+export async function generateFactionsForParty(
+  trx: any, partyId: string, doctrineId: string, currentArc: number
+): Promise<void> {
+  const templates = DOCTRINE_FACTIONS[doctrineId as DoctrineId];
+  if (!templates) return; // unknown doctrine — skip silently
+
+  const rows = templates.map(t => ({
+    party_id: partyId,
+    name: t.name,
+    ideology_lean: JSON.stringify(t.ideology_lean),
+    demand_type: t.demand_type,
+    demand_payload: JSON.stringify(t.demand_payload),
+    membership_share: t.membership_share,
+    loyalty: 70,           // all factions start at 70% loyalty
+    is_restless: false,
+    created_arc: currentArc,
+    updated_arc: currentArc,
+  }));
+
+  await trx('pol_party_factions').insert(rows);
+}
+
+/**
+ * Fetch all factions for a party with computed cohesion score.
+ */
+export async function getPartyFactions(partyId: string) {
+  const factions = await db('pol_party_factions').where({ party_id: partyId }).orderBy('membership_share', 'desc');
+  const cohesion = computePartyCohesion(factions);
+  return { factions, cohesion };
+}
+
+/**
+ * Cohesion = weighted average of all faction loyalties.
+ * Returns 0-100. A single-faction party returns that faction's loyalty.
+ */
+export function computePartyCohesion(factions: any[]): number {
+  if (!factions.length) return 100;
+  const total = factions.reduce((sum, f) => sum + Number(f.membership_share), 0);
+  if (total <= 0) return 100;
+  const weighted = factions.reduce(
+    (sum, f) => sum + Number(f.loyalty) * Number(f.membership_share), 0
+  );
+  return Math.round(weighted / total);
+}
+
+/**
+ * Per-arc faction loyalty drift:
+ * - If party platform has drifted away from a faction's ideology_lean → loyalty drops
+ * - If platform is aligned → loyalty recovers slightly
+ * - Marks is_restless when loyalty < FACTION_LOYALTY_WARNING
+ *
+ * Called inside processPoliticalArc for each player party.
+ */
+export async function updateFactionLoyalties(
+  trx: any, partyId: string, currentArc: number
+): Promise<void> {
+  const party = await trx('pol_parties').where({ id: partyId }).first();
+  if (!party) return;
+
+  const factions = await trx('pol_party_factions').where({ party_id: partyId, updated_arc: trx.raw('updated_arc') });
+  const allFactions = await trx('pol_party_factions').where({ party_id: partyId });
+
+  const platform = party.platform as Record<string, number>;
+
+  for (const faction of allFactions) {
+    // Skip if already updated this arc
+    if (faction.updated_arc >= currentArc) continue;
+
+    const lean = faction.ideology_lean as Record<string, number>;
+    const axes = ['taxation', 'labour', 'investment', 'trade', 'stability'];
+
+    // Compute average distance on all 5 axes (0-100 scale → 0-100 distance)
+    const totalDist = axes.reduce((sum, ax) => {
+      const diff = Math.abs((platform[ax] ?? 50) - (lean[ax] ?? 50));
+      return sum + diff;
+    }, 0);
+    const avgDist = totalDist / axes.length; // 0-100
+
+    // If avg distance > 30 → drift down, else → drift up (capped at 70 passive max)
+    let loyaltyDelta = 0;
+    if (avgDist > 30) {
+      loyaltyDelta = -Math.min(FACTION_DRIFT_PER_ARC, Math.floor(avgDist / 15));
+    } else {
+      loyaltyDelta = Math.min(FACTION_DRIFT_PER_ARC, 1);
+    }
+
+    const newLoyalty = Math.max(0, Math.min(100, Number(faction.loyalty) + loyaltyDelta));
+    const isRestless = newLoyalty < FACTION_LOYALTY_WARNING;
+
+    await trx('pol_party_factions')
+      .where({ id: faction.id })
+      .update({ loyalty: newLoyalty, is_restless: isRestless, updated_arc: currentArc });
+  }
 }
 
 /**
@@ -400,12 +646,39 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
   const apRows = await trx('pol_character_ap').select('character_id');
   for (const row of apRows) {
     await regenApForCharacter(trx, row.character_id, currentMonth);
+    // PC regenerates passively every arc (carries over, does not reset)
+    await regenPcForCharacter(trx, row.character_id, currentMonth);
   }
+
+  // Faction loyalty drift: run for every player-owned (non-NPC) party each arc
+  const playerParties = await trx('pol_parties').where({ state_id: stateId, is_npc: false }).select('id');
+  for (const p of playerParties) {
+    await updateFactionLoyalties(trx, p.id, currentMonth);
+  }
+
+  // Coalition agreement health: degrades when member party factions are restless
+  await updateCoalitionAgreementHealth(trx, stateId, currentMonth);
+
+  // Scandal system: generate new scandals, escalate existing, apply popularity damage
+  await processScandalsForState(trx, stateId, currentMonth);
+
+  // Campaign progress: accumulate GGS, update momentum, fire campaign events
+  await updateCampaignProgressForState(trx, stateId, currentMonth);
+
+  // Interest groups: alignment drift, commitment checking, endorsement update
+  await processInterestGroupsForState(trx, stateId, currentMonth);
+
+  // Media: coverage processing — runs last so it can pick up all stories from this arc
+  await processMediaCoverageForState(trx, stateId, currentMonth);
+
+  // Legacy: longevity increments + economic drift (runs after all other processors)
+  await processLegacyForState(trx, stateId, currentMonth);
 
   // Jurisdiction Conditions (GDD $11): drift toward the governing policy's target,
   // then fire any deterministic crisis events. Both run every month, phase-agnostic.
   await applyConditionDrift(trx, stateId, currentMonth);
   await fireConditionCrises(trx, stateId, currentMonth);
+
 
   if (newPhase === 'filing') {
     await ensureCandidates(trx, cycle.id);
@@ -710,6 +983,41 @@ async function resolveElection(trx: any, cycleId: string) {
     headline: `ELECTION RESULTS: ${topName} Secures Most Seats`,
     body: `The polling stations have closed. ${topName} leads with ${topParty?.seats} seats out of ${getSeatsForState(state?.code)}. The political landscape shifts as parties now scramble to form a viable government.`
   });
+
+  // Legacy hooks
+  if (topPartyDb?.leader_character_id) {
+    await recordLegacyEvent(trx, topPartyDb.leader_character_id, cycle.state_id, cycle.polling_arc, 'election_won');
+  }
+
+  // Find previous seats per party to determine gains/losses
+  const prevSeatCounts: Record<string, number> = {};
+  if (prevCycle) {
+    const prevSeatsAll = await trx('pol_council_seats').where({ cycle_id: prevCycle.id });
+    for (const s of prevSeatsAll) {
+      prevSeatCounts[s.party_id] = (prevSeatCounts[s.party_id] || 0) + 1;
+    }
+  }
+
+  for (const p of result.perParty) {
+    const partyRow = await trx('pol_parties').where({ id: p.partyId }).first();
+    if (!partyRow?.leader_character_id) continue;
+
+    if (p.partyId !== topParty?.partyId) {
+      await recordLegacyEvent(trx, partyRow.leader_character_id, cycle.state_id, cycle.polling_arc, 'election_lost');
+    }
+
+    const oldSeats = prevSeatCounts[p.partyId] || 0;
+    const diff = p.seats - oldSeats;
+    if (diff > 0) {
+      for (let i = 0; i < diff; i++) {
+        await recordLegacyEvent(trx, partyRow.leader_character_id, cycle.state_id, cycle.polling_arc, 'seats_gained');
+      }
+    } else if (diff < 0) {
+      for (let i = 0; i < Math.abs(diff); i++) {
+        await recordLegacyEvent(trx, partyRow.leader_character_id, cycle.state_id, cycle.polling_arc, 'seats_lost');
+      }
+    }
+  }
 }
 
 function getPlatformDistance(p1: Platform, p2: Platform): number {
@@ -830,12 +1138,26 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
   members.accepted = Array.from(accepted);
   members.invited = Array.from(invited);
 
-  if (totalAcceptedSeats >= majoritySeats) {
+  let hasCoalitionArchitect = false;
+  if (largestParty.leader_character_id) {
+    const scores = await getOrCreateLegacyScores(trx, largestParty.leader_character_id);
+    const benefits: string[] = typeof scores.unlocked_benefits === 'string'
+      ? JSON.parse(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+    if (benefits.includes('coalition_architect')) hasCoalitionArchitect = true;
+  }
+  
+  // 3% of 61 seats is roughly 2 seats
+  const effectiveMajorityNeeded = hasCoalitionArchitect ? Math.max(1, majoritySeats - 2) : majoritySeats;
+
+  if (totalAcceptedSeats >= effectiveMajorityNeeded) {
+
     await trx('pol_coalitions').where({ id: forming.id }).update({
       member_party_ids: JSON.stringify(members),
       total_seats: totalAcceptedSeats,
       status: 'formed'
     });
+    // Create the structured coalition agreement object
+    await createCoalitionAgreement(trx, forming.id, largestParty.id, Array.from(accepted), currentMonth);
     await namePremierAndEmitLedger(trx, cycle, largestParty, 'coalition', totalAcceptedSeats);
     if (currentMonth >= cycle.formation_end_arc) await performCycleRollover(trx, cycle, currentMonth);
     return;
@@ -853,6 +1175,135 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
     });
     await namePremierAndEmitLedger(trx, cycle, largestParty, 'minority', totalAcceptedSeats);
     await performCycleRollover(trx, cycle, currentMonth);
+  }
+}
+
+// ── Coalition Agreement Helpers ───────────────────────────────────────────────
+
+/**
+ * Create a structured coalition agreement record when a coalition is formed.
+ * partner_terms captures which parties joined and how many seats they hold.
+ * Health starts at 100 and degrades each arc based on faction loyalty and
+ * whether mandatory legislation is being passed.
+ */
+export async function createCoalitionAgreement(
+  trx: any,
+  coalitionId: string,
+  leadPartyId: string,
+  partnerPartyIds: string[],
+  currentArc: number
+): Promise<void> {
+  // Don't duplicate if agreement already exists for this coalition
+  const existing = await trx('pol_coalition_agreements').where({ coalition_id: coalitionId }).first();
+  if (existing) return;
+
+  // Build partner terms: each partner gets seats + their party name
+  const partnerTerms = await Promise.all(
+    partnerPartyIds.filter(id => id !== leadPartyId).map(async (partyId: string) => {
+      const party = await trx('pol_parties').where({ id: partyId }).first();
+      const seats = await trx('pol_council_seats').where({ party_id: partyId }).count('* as c').first();
+      return {
+        party_id: partyId,
+        name: party?.name ?? 'Unknown',
+        seats: Number(seats?.c ?? 0),
+        agreed_axes: [],
+      };
+    })
+  );
+
+  await trx('pol_coalition_agreements').insert({
+    coalition_id: coalitionId,
+    lead_party_id: leadPartyId,
+    partner_terms: JSON.stringify(partnerTerms),
+    mandatory_legislation: JSON.stringify([]),
+    portfolio_allocation: JSON.stringify([]),
+    review_interval_arcs: 12,
+    next_review_arc: currentArc + 12,
+    status: 'active',
+    health: 100,
+    formed_arc: currentArc,
+  });
+
+  // Legacy hooks: record 'coalition_formed' for lead and partner party leaders
+  const coalition = await trx('pol_coalitions').where({ id: coalitionId }).first();
+  if (coalition) {
+    const cycle = await trx('pol_cycles').where({ id: coalition.cycle_id }).first();
+    if (cycle) {
+      for (const pId of [leadPartyId, ...partnerPartyIds]) {
+        const party = await trx('pol_parties').where({ id: pId }).first();
+        if (party?.leader_character_id) {
+          await recordLegacyEvent(trx, party.leader_character_id, cycle.state_id, currentArc, 'coalition_formed');
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Per-arc coalition health update:
+ * - Low cohesion across member parties → health drops
+ * - Healthy member parties → health recovers slightly
+ * - Below 30 health → agreement enters 'under_review'
+ * - Below 10 health → agreement 'broken'
+ * Called in processPoliticalArc.
+ */
+export async function updateCoalitionAgreementHealth(
+  trx: any, stateId: string, currentArc: number
+): Promise<void> {
+  // Find active agreements for this state's coalition
+  const agreements = await trx('pol_coalition_agreements')
+    .join('pol_coalitions', 'pol_coalition_agreements.coalition_id', 'pol_coalitions.id')
+    .join('pol_cycles', 'pol_coalitions.cycle_id', 'pol_cycles.id')
+    .where('pol_cycles.state_id', stateId)
+    .whereIn('pol_coalition_agreements.status', ['active', 'under_review'])
+    .select('pol_coalition_agreements.*');
+
+  for (const agreement of agreements) {
+    const partnerTerms = typeof agreement.partner_terms === 'string'
+      ? JSON.parse(agreement.partner_terms) : agreement.partner_terms;
+    const allPartyIds = [agreement.lead_party_id, ...partnerTerms.map((t: any) => t.party_id)];
+
+    // Average cohesion across all coalition member parties
+    let totalCohesion = 0;
+    let count = 0;
+    for (const partyId of allPartyIds) {
+      const factions = await trx('pol_party_factions').where({ party_id: partyId });
+      if (factions.length > 0) {
+        // Inline cohesion calculation (avoids circular import)
+        const total = factions.reduce((s: number, f: any) => s + Number(f.membership_share), 0);
+        const weighted = factions.reduce((s: number, f: any) => s + Number(f.loyalty) * Number(f.membership_share), 0);
+        totalCohesion += total > 0 ? weighted / total : 100;
+        count++;
+      }
+    }
+    const avgCohesion = count > 0 ? totalCohesion / count : 100;
+
+    // Health delta based on avg cohesion
+    let healthDelta = 0;
+    if (avgCohesion < 35) healthDelta = -3;
+    else if (avgCohesion < 55) healthDelta = -1;
+    else healthDelta = 1;
+
+    const newHealth = Math.max(0, Math.min(100, Number(agreement.health) + healthDelta));
+    const newStatus = newHealth <= 10 ? 'broken'
+      : newHealth <= 30 ? 'under_review'
+      : 'active';
+
+    await trx('pol_coalition_agreements').where({ id: agreement.id }).update({
+      health: newHealth,
+      status: newStatus,
+      dissolved_arc: newStatus === 'broken' ? currentArc : null,
+    });
+
+    // Legacy: coalition collapsed
+    if (newStatus === 'broken' && agreement.status !== 'broken') {
+      for (const pId of allPartyIds) {
+        const party = await trx('pol_parties').where({ id: pId }).first();
+        if (party?.leader_character_id) {
+          await recordLegacyEvent(trx, party.leader_character_id, stateId, currentArc, 'coalition_collapsed');
+        }
+      }
+    }
   }
 }
 
@@ -876,6 +1327,9 @@ async function namePremierAndEmitLedger(trx: any, cycle: any, largestParty: any,
     if (count === 1) { // 1 means they just got this first one
       await applyFactorDelta(trx, holderCharId, POL_FACTOR_DELTAS.BECOME_PREMIER);
     }
+    
+    // Legacy hook: Government Formed (only for the premier / lead party)
+    await recordLegacyEvent(trx, holderCharId, cycle.state_id, cycle.formation_end_arc, 'government_formed');
   }
 
   let headline = '';
@@ -1162,4 +1616,1171 @@ async function settleTenders(trx: any, stateId: string, currentMonth: number) {
       await trx('pol_tenders').where({ id: tender.id }).update({ status: 'closed' });
     }
   }
+}
+
+// ── Scandal System ────────────────────────────────────────────────────────────
+
+/** Roll a severity (1-5) using configured probability weights. */
+function rollScandalSeverity(): number {
+  const r = Math.random();
+  let cumul = 0;
+  for (let i = 0; i < SCANDAL_SEVERITY_WEIGHTS.length; i++) {
+    cumul += SCANDAL_SEVERITY_WEIGHTS[i];
+    if (r < cumul) return i + 1;
+  }
+  return 1;
+}
+
+const SCANDAL_TYPES: ScandalType[] = ['financial', 'personal', 'governmental', 'electoral'];
+const PHASE_ORDER: ScandalPhase[] = ['rumour', 'investigation', 'allegation', 'explosion', 'inquiry', 'resolved'];
+
+function nextPhase(current: ScandalPhase): ScandalPhase {
+  const idx = PHASE_ORDER.indexOf(current);
+  return idx >= 0 && idx < PHASE_ORDER.length - 1 ? PHASE_ORDER[idx + 1] : 'resolved';
+}
+
+/**
+ * Per-arc scandal processor:
+ * 1. Probabilistically generate new scandals for active parties.
+ * 2. Escalate existing active scandals that have passed their phase duration.
+ * 3. Apply popularity damage based on current phase × severity.
+ * 4. Attempt natural resolution.
+ */
+export async function processScandalsForState(
+  trx: any, stateId: string, currentArc: number
+): Promise<void> {
+  const parties = await trx('pol_parties').where({ state_id: stateId });
+
+  for (const party of parties) {
+    const probMult = party.is_npc ? SCANDAL_NPC_PROB_MULT : 1.0;
+    const roll = Math.random();
+
+    let hasUntouchable = false;
+    if (party.leader_character_id) {
+      const scores = await getOrCreateLegacyScores(trx, party.leader_character_id);
+      const benefits: string[] = typeof scores.unlocked_benefits === 'string'
+        ? JSON.parse(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+      if (benefits.includes('untouchable')) hasUntouchable = true;
+    }
+    const finalProb = SCANDAL_BASE_PROB * probMult * (hasUntouchable ? 0.75 : 1.0);
+
+    // Chance to generate a new scandal (only if party has no rumour-phase scandal already)
+    const hasActiveRumour = await trx('pol_scandals')
+      .where({ party_id: party.id, phase: 'rumour' })
+      .whereNull('resolved_arc').first();
+
+    if (!hasActiveRumour && roll < finalProb) {
+      const severity = rollScandalSeverity();
+      const scandalType = SCANDAL_TYPES[Math.floor(Math.random() * SCANDAL_TYPES.length)];
+      await trx('pol_scandals').insert({
+        state_id: stateId,
+        party_id: party.id,
+        character_id: party.leader_character_id ?? null,
+        scandal_type: scandalType,
+        severity,
+        phase: 'rumour',
+        popularity_damage: 0,
+        discovery_arc: currentArc,
+        phase_entered_arc: currentArc,
+      });
+    }
+
+    // Process existing active scandals for this party
+    const activeScandals = await trx('pol_scandals')
+      .where({ party_id: party.id })
+      .whereNot({ phase: 'resolved' });
+
+    for (const scandal of activeScandals) {
+      const phase = scandal.phase as ScandalPhase;
+      const phaseDuration = SCANDAL_PHASE_DURATION[phase];
+      const arcsInPhase = currentArc - scandal.phase_entered_arc;
+
+      // Apply popularity damage this arc
+      const dmg = SCANDAL_PHASE_DAMAGE[phase] * scandal.severity;
+      if (dmg > 0) {
+        await trx('pol_parties')
+          .where({ id: party.id })
+          .update({ popularity: trx.raw(`GREATEST(0, popularity - ?)`, [dmg]) });
+      }
+
+      // Natural clear check
+      const clearProb = SCANDAL_NATURAL_CLEAR_PROB[phase] / scandal.severity;
+      if (Math.random() < clearProb) {
+        const resolution: ScandalResolution = phase === 'rumour' ? 'suppressed' : 'cleared';
+        await trx('pol_scandals').where({ id: scandal.id }).update({
+          phase: 'resolved',
+          resolution_type: resolution,
+          resolved_arc: currentArc,
+        });
+        // Surviving a scandal awards PC to the party leader
+        if (!party.is_npc && party.leader_character_id) {
+          await earnPc(trx, party.leader_character_id, 2);
+          await recordLegacyEvent(trx, party.leader_character_id, stateId, currentArc, resolution === 'suppressed' ? 'scandal_survived' : 'scandal_resolved');
+        }
+        continue;
+      }
+
+      // Auto-escalate if phase duration exceeded
+      if (phaseDuration > 0 && arcsInPhase >= phaseDuration) {
+        const escalatedPhase = nextPhase(phase);
+        await trx('pol_scandals').where({ id: scandal.id }).update({
+          phase: escalatedPhase,
+          phase_entered_arc: currentArc,
+          resolution_type: escalatedPhase === 'resolved' ? 'weathered' : null,
+          resolved_arc: escalatedPhase === 'resolved' ? currentArc : null,
+        });
+        
+        if (escalatedPhase === 'resolved' && party.leader_character_id) {
+          await recordLegacyEvent(trx, party.leader_character_id, stateId, currentArc, 'scandal_damage');
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Player-initiated scandal intervention.
+ * Deducts AP (or PC for suppress), attempts intervention at configured probability.
+ * Returns { success, outcome_message }.
+ */
+export async function interveneOnScandal(
+  trx: any,
+  scandalId: string,
+  characterId: string,
+  partyId: string,
+  intervention: string,
+  currentArc: number
+): Promise<{ success: boolean; message: string }> {
+  const scandal = await trx('pol_scandals').where({ id: scandalId, party_id: partyId }).first();
+  if (!scandal) throw new AppError('Scandal not found', 404, 'NOT_FOUND');
+  if (scandal.phase === 'resolved') throw new AppError('Scandal already resolved', 409, 'CONFLICT');
+
+  const INTERVENTION_MAP: Record<string, { successProb: number; resolution?: ScandalResolution; flag: string; validPhase: ScandalPhase }> = {
+    suppress:             { successProb: 0.80, resolution: 'suppressed',  flag: 'was_suppressed',   validPhase: 'rumour' },
+    spin:                 { successProb: 0.50, resolution: undefined,     flag: 'was_spun',          validPhase: 'investigation' },
+    investigate_internal: { successProb: 0.40, resolution: 'cleared',     flag: 'was_suppressed',   validPhase: 'allegation' },
+    stonewall:            { successProb: 0.30, resolution: undefined,     flag: 'was_stonewalled',   validPhase: 'explosion' },
+    full_disclosure:      { successProb: 1.00, resolution: 'weathered',   flag: 'was_disclosed',     validPhase: 'explosion' },
+  };
+
+  const def = INTERVENTION_MAP[intervention];
+  if (!def) throw new AppError('Unknown scandal intervention', 400, 'BAD_REQUEST');
+
+  const success = Math.random() < def.successProb;
+
+  const updates: Record<string, any> = { [def.flag]: true };
+
+  if (success && def.resolution) {
+    updates.phase = 'resolved';
+    updates.resolution_type = def.resolution;
+    updates.resolved_arc = currentArc;
+    // Surviving awards PC
+    if (characterId) {
+      await earnPc(trx, characterId, 2);
+      const legacyEventType = def.resolution === 'suppressed' ? 'scandal_survived'
+                            : def.resolution === 'cleared' ? 'scandal_resolved'
+                            : 'scandal_damage';
+      await recordLegacyEvent(trx, characterId, scandal.state_id, currentArc, legacyEventType);
+    }
+  } else if (success && intervention === 'spin') {
+    // Spin: pause escalation for one more phase duration (reset entered arc)
+    updates.phase_entered_arc = currentArc;
+  } else if (success && intervention === 'stonewall') {
+    // Stonewall: costs popularity but resets escalation timer
+    updates.phase_entered_arc = currentArc;
+    await trx('pol_parties')
+      .where({ id: partyId })
+      .update({ popularity: trx.raw(`GREATEST(0, popularity - 2)`) });
+  }
+
+  await trx('pol_scandals').where({ id: scandalId }).update(updates);
+
+  const labels: Record<string, [string, string]> = {
+    suppress:             ['Scandal buried. The rumour never left the room.', 'Suppression failed. An investigative journalist has picked it up.'],
+    spin:                 ['Your narrative team has redirected the story. Escalation delayed.', 'The spin failed. The press is unconvinced.'],
+    investigate_internal: ['Internal investigation complete. You have been cleared.', 'Internal investigation inconclusive. Allegations remain.'],
+    stonewall:            ['Stonewalling successful. Escalation paused — at a popularity cost.', 'Stonewalling backfired. The press doubled down.'],
+    full_disclosure:      ['Full disclosure made. The scandal is resolved — you weathered the storm.', ''],
+  };
+
+  const [winMsg, failMsg] = labels[intervention] ?? ['Intervention applied.', 'Intervention failed.'];
+  return { success, message: success ? winMsg : failMsg };
+}
+
+/**
+ * Fetch all active (non-resolved) scandals for a party with enriched fields.
+ */
+export async function getPartyScandalSummary(partyId: string) {
+  const scandals = await db('pol_scandals')
+    .where({ party_id: partyId })
+    .whereNot({ phase: 'resolved' })
+    .orderBy('discovery_arc', 'desc');
+  return scandals;
+}
+
+// ── Campaign System (Phase 5) ─────────────────────────────────────────────────
+
+/**
+ * Get or create the persistent campaign record for a party in the current cycle.
+ * Called when a candidate is declared or when the party first takes a campaign action.
+ */
+export async function getOrCreateCampaign(
+  trx: any,
+  cycleId: string,
+  partyId: string,
+  currentArc: number,
+  strategy: CampaignStrategyType = 'balanced'
+): Promise<any> {
+  const existing = await trx('pol_campaigns').where({ cycle_id: cycleId, party_id: partyId }).first();
+  if (existing) return existing;
+
+  const [created] = await trx('pol_campaigns').insert({
+    cycle_id: cycleId,
+    party_id: partyId,
+    strategy_type: strategy,
+    budget_allocated: 0,
+    budget_spent: 0,
+    ground_game_score: 0,
+    arc_actions: JSON.stringify([]),
+    fired_events: JSON.stringify([]),
+    status: 'active',
+    momentum: 0,
+    started_arc: currentArc,
+  }).returning('*');
+  return created;
+}
+
+/**
+ * Per-arc campaign update — runs inside processPoliticalArc.
+ * For each active party campaign:
+ *  1. Collect all resolved pol_campaign_actions since last arc.
+ *  2. Compute GGS gain = sum(effort) * GGS_PER_EFFORT * strategy.effort_mult + strategy.reach_bonus.
+ *  3. Apply momentum: +MOMENTUM_GAIN_ACTION per action taken, then decay toward 0.
+ *  4. Fire random campaign events (respecting fired_events dedup).
+ *  5. Update campaign record.
+ */
+export async function updateCampaignProgressForState(
+  trx: any, stateId: string, currentArc: number
+): Promise<void> {
+  // Only process during campaign/filing phases
+  const cycle = await trx('pol_cycles')
+    .where({ state_id: stateId })
+    .whereIn('phase', ['campaign', 'filing', 'governing'])
+    .orderBy('cycle_number', 'desc').first();
+  if (!cycle) return;
+
+  const campaigns = await trx('pol_campaigns')
+    .where({ cycle_id: cycle.id, status: 'active' });
+
+  for (const campaign of campaigns) {
+    const strategy = (campaign.strategy_type ?? 'balanced') as CampaignStrategyType;
+    const params = CAMPAIGN_STRATEGY_PARAMS[strategy];
+
+    // Resolved actions this arc (effort > 0, resolved_arc = currentArc)
+    const resolvedActions = await trx('pol_campaign_actions')
+      .join('pol_candidates', 'pol_campaign_actions.candidate_id', 'pol_candidates.id')
+      .where('pol_candidates.party_id', campaign.party_id)
+      .where('pol_campaign_actions.cycle_id', cycle.id)
+      .where('pol_campaign_actions.resolved_arc', currentArc)
+      .where('pol_campaign_actions.effort', '>', 0)
+      .select('pol_campaign_actions.*');
+
+    const totalEffort = resolvedActions.reduce((s: number, a: any) => s + Number(a.effort), 0);
+    const actionCount = resolvedActions.length;
+
+    // GGS accumulation
+    const ggsGain = (
+      totalEffort * CAMPAIGN_GGS_PER_EFFORT * params.effort_mult +
+      params.reach_bonus
+    );
+    const newGgs = Math.min(CAMPAIGN_GGS_CAP, Number(campaign.ground_game_score) + ggsGain);
+
+    // Momentum: gain per action taken, then decay residual
+    let momentum = Number(campaign.momentum);
+    if (actionCount > 0) {
+      momentum += actionCount * CAMPAIGN_MOMENTUM_GAIN_ACTION;
+    }
+    momentum = momentum * CAMPAIGN_MOMENTUM_DECAY; // decay toward 0 each arc
+    momentum = Math.max(-20, Math.min(20, momentum)); // clamp
+
+    // Campaign events
+    const firedEvents: string[] = typeof campaign.fired_events === 'string'
+      ? JSON.parse(campaign.fired_events) : (campaign.fired_events ?? []);
+    const arcActionsLog: any[] = typeof campaign.arc_actions === 'string'
+      ? JSON.parse(campaign.arc_actions) : (campaign.arc_actions ?? []);
+    const newFiredEvents = [...firedEvents];
+    let popularityDelta = 0;
+    let budgetDelta = 0;
+
+    for (const ev of CAMPAIGN_EVENTS) {
+      // Each event can fire once per campaign (dedup by id)
+      if (!newFiredEvents.includes(ev.id) && Math.random() < ev.prob) {
+        newFiredEvents.push(ev.id);
+        const ggsDelta = ev.ground_game_delta;
+        popularityDelta += ev.popularity_delta;
+        budgetDelta += ev.budget_cost;
+
+        arcActionsLog.push({
+          arc: currentArc,
+          event: ev.id,
+          message: ev.message,
+          ggsImpact: ggsDelta,
+        });
+
+        // Apply event GGS impact
+        const eventGgs = Math.max(0, Math.min(CAMPAIGN_GGS_CAP,
+          Number(campaign.ground_game_score) + ggsGain + ggsDelta));
+
+        // Apply popularity delta directly
+        if (ev.popularity_delta !== 0) {
+          await trx('pol_parties').where({ id: campaign.party_id })
+            .update({ popularity: trx.raw(`GREATEST(0, LEAST(100, popularity + ?))`, [ev.popularity_delta]) });
+        }
+        // Apply budget drain
+        if (ev.budget_cost > 0) {
+          await trx('pol_parties').where({ id: campaign.party_id })
+            .update({ treasury: trx.raw(`GREATEST(0, treasury - ?)`, [ev.budget_cost]) });
+        }
+      }
+    }
+
+    // Log arc summary
+    arcActionsLog.push({
+      arc: currentArc,
+      strategy,
+      total_effort: totalEffort,
+      ggs_gain: Math.round(ggsGain * 10) / 10,
+      momentum: Math.round(momentum * 10) / 10,
+    });
+
+    await trx('pol_campaigns').where({ id: campaign.id }).update({
+      ground_game_score: newGgs,
+      momentum,
+      arc_actions: JSON.stringify(arcActionsLog.slice(-50)), // keep last 50 entries
+      fired_events: JSON.stringify(newFiredEvents),
+      budget_spent: trx.raw(`budget_spent + ?`, [budgetDelta]),
+    });
+  }
+}
+
+/**
+ * Player action: change campaign strategy mid-campaign.
+ * Costs 2 AP. Strategy change takes effect from next arc.
+ */
+export async function setCampaignStrategy(
+  trx: any,
+  partyId: string,
+  cycleId: string,
+  characterId: string,
+  strategy: CampaignStrategyType,
+  currentArc: number
+): Promise<void> {
+  if (!CAMPAIGN_STRATEGY_PARAMS[strategy]) {
+    throw new AppError('Unknown campaign strategy', 400, 'BAD_REQUEST');
+  }
+  await spendAp(trx, characterId, 2);
+  const campaign = await trx('pol_campaigns').where({ cycle_id: cycleId, party_id: partyId }).first();
+  if (!campaign) throw new AppError('No active campaign object', 404, 'NOT_FOUND');
+  await trx('pol_campaigns').where({ id: campaign.id }).update({ strategy_type: strategy });
+}
+
+/**
+ * Get the campaign summary for a party in the current cycle.
+ */
+export async function getPartyCampaignSummary(
+  partyId: string, cycleId: string
+): Promise<any | null> {
+  const campaign = await db('pol_campaigns')
+    .where({ party_id: partyId, cycle_id: cycleId })
+    .first();
+  return campaign ?? null;
+}
+
+// ── Interest Group System (Phase 6) ──────────────────────────────────────────
+
+/**
+ * Compute how well a party's platform aligns with a group's preferences.
+ * Returns 0–1. Formula: weighted sum of (1 - |party - pref| / 100) per axis.
+ */
+function computeAlignmentScore(
+  party: any, group: any
+): number {
+  const axes = ['taxation', 'labour', 'investment', 'trade', 'stability'] as const;
+  const platform = typeof party.platform === 'string' ? JSON.parse(party.platform) : (party.platform ?? {});
+  let score = 0;
+  for (const axis of axes) {
+    const weight = Number(group[`weight_${axis}`] ?? 0.20);
+    const partyVal = Number(platform[axis] ?? 50);
+    const prefVal = Number(group[`pref_${axis}`] ?? 50);
+    score += weight * (1 - Math.abs(partyVal - prefVal) / 100);
+  }
+  return Math.min(1, Math.max(0, score));
+}
+
+/**
+ * Resolve endorsement tier from a relationship score.
+ */
+function resolveEndorsementTier(score: number): EndorsementStatus {
+  if (score >= IG_ENDORSEMENT_THRESHOLDS.allied)      return 'allied';
+  if (score >= IG_ENDORSEMENT_THRESHOLDS.endorsed)    return 'endorsed';
+  if (score >= IG_ENDORSEMENT_THRESHOLDS.sympathetic) return 'sympathetic';
+  return 'none';
+}
+
+/**
+ * Seed interest group relation rows for a party across all groups in the state.
+ * Seeds the initial relationship_score from platform alignment.
+ * Safe to call multiple times (ON CONFLICT DO NOTHING equivalent via check).
+ */
+export async function seedIGRelationsForParty(
+  trx: any, partyId: string, stateId: string
+): Promise<void> {
+  const groups = await trx('pol_interest_groups').where({ state_id: stateId });
+  const party = await trx('pol_parties').where({ id: partyId }).first();
+  if (!party) return;
+
+  for (const group of groups) {
+    const existing = await trx('pol_interest_group_relations')
+      .where({ party_id: partyId, group_id: group.id }).first();
+    if (existing) continue;
+
+    const alignment = computeAlignmentScore(party, group);
+    const seedScore = Math.round(40 + alignment * 35); // 40–75 range at seed
+    const tier = resolveEndorsementTier(seedScore);
+
+    await trx('pol_interest_group_relations').insert({
+      party_id: partyId,
+      group_id: group.id,
+      relationship_score: seedScore,
+      endorsement_status: tier,
+      active_commitments: JSON.stringify([]),
+      contact_log: JSON.stringify([]),
+      momentum: 0,
+    });
+  }
+}
+
+/**
+ * Per-arc interest group processor — runs inside processPoliticalArc.
+ * For each active party in the state:
+ *  1. Compute platform alignment → drift score up/down
+ *  2. Apply passive decay
+ *  3. Check commitments (honor bonus / break penalty)
+ *  4. Update endorsement tier
+ *  5. Apply momentum decay
+ */
+export async function processInterestGroupsForState(
+  trx: any, stateId: string, currentArc: number
+): Promise<void> {
+  const groups = await trx('pol_interest_groups').where({ state_id: stateId });
+  const parties = await trx('pol_parties').where({ state_id: stateId });
+
+  for (const party of parties) {
+    // Ensure seeds exist
+    await seedIGRelationsForParty(trx, party.id, stateId);
+
+    for (const group of groups) {
+      const relation = await trx('pol_interest_group_relations')
+        .where({ party_id: party.id, group_id: group.id }).first();
+      if (!relation) continue;
+
+      let score = Number(relation.relationship_score);
+      const contactLog: any[] = typeof relation.contact_log === 'string'
+        ? JSON.parse(relation.contact_log) : (relation.contact_log ?? []);
+
+      // 1. Platform alignment drift
+      const alignment = computeAlignmentScore(party, group);
+      let alignmentDelta = 0;
+      if (alignment >= 0.6) {
+        // Party is aligned — nudge score up
+        alignmentDelta = +(alignment - 0.5) * IG_ALIGNMENT_SCORE_SCALE;
+      } else {
+        // Misaligned — apply decay
+        alignmentDelta = -(0.6 - alignment) * IG_ALIGNMENT_DECAY * 10;
+      }
+      score += alignmentDelta;
+
+      // 2. Passive decay (parties must actively maintain relationships)
+      score -= IG_PASSIVE_DECAY_PER_ARC;
+
+      // 3. Commitment checking
+      const commitments: any[] = typeof relation.active_commitments === 'string'
+        ? JSON.parse(relation.active_commitments) : (relation.active_commitments ?? []);
+      const updatedCommitments: any[] = [];
+
+      for (const c of commitments) {
+        if (c.honored_arc || c.broken_arc) {
+          updatedCommitments.push(c); // already resolved
+          continue;
+        }
+
+        // Check if party's current platform reflects the commitment
+        const platform = typeof party.platform === 'string'
+          ? JSON.parse(party.platform) : (party.platform ?? {});
+        const partyVal = Number(platform[c.axis] ?? 50);
+        const honored = c.direction === 'raise' ? partyVal >= c.target_value : partyVal <= c.target_value;
+
+        if (honored) {
+          score += IG_COMMITMENT_HONOR_BONUS;
+          contactLog.push({ arc: currentArc, action: 'commitment_honored', axis: c.axis, score_delta: IG_COMMITMENT_HONOR_BONUS });
+          updatedCommitments.push({ ...c, honored_arc: currentArc });
+        } else if (currentArc > c.promised_arc + IG_COMMITMENT_DEADLINE_ARCS) {
+          score -= IG_COMMITMENT_BREAK_PENALTY;
+          contactLog.push({ arc: currentArc, action: 'commitment_broken', axis: c.axis, score_delta: -IG_COMMITMENT_BREAK_PENALTY });
+          updatedCommitments.push({ ...c, broken_arc: currentArc });
+        } else {
+          updatedCommitments.push(c); // still pending
+        }
+      }
+
+      // 4. Momentum decay
+      let momentum = Number(relation.momentum) * 0.80;
+
+      // 5. Clamp and resolve tier
+      score = Math.max(0, Math.min(100, score));
+      const newTier = resolveEndorsementTier(score);
+
+      await trx('pol_interest_group_relations')
+        .where({ party_id: party.id, group_id: group.id })
+        .update({
+          relationship_score: score,
+          endorsement_status: newTier,
+          active_commitments: JSON.stringify(updatedCommitments),
+          contact_log: JSON.stringify(contactLog.slice(-40)),
+          momentum,
+        });
+    }
+  }
+}
+
+/**
+ * Player action: perform manual outreach to an interest group.
+ * Costs AP. Creates a commitment (optional). Score + momentum boost.
+ * Subject to cooldown.
+ */
+export async function performOutreach(
+  trx: any,
+  characterId: string,
+  partyId: string,
+  stateId: string,
+  groupId: string,
+  commitment: { axis: string; direction: 'raise' | 'lower'; target_value: number } | null,
+  currentArc: number
+): Promise<{ message: string; score_after: number; tier: EndorsementStatus }> {
+  const relation = await trx('pol_interest_group_relations')
+    .where({ party_id: partyId, group_id: groupId }).first();
+  if (!relation) throw new AppError('No relation found — ensure the party has been seeded', 404, 'NOT_FOUND');
+
+  // Cooldown check
+  if (relation.last_outreach_arc && currentArc - relation.last_outreach_arc < IG_OUTREACH_COOLDOWN_ARCS) {
+    throw new AppError(
+      `Outreach cooldown active — wait ${IG_OUTREACH_COOLDOWN_ARCS - (currentArc - relation.last_outreach_arc)} more arc(s)`,
+      409, 'COOLDOWN'
+    );
+  }
+
+  let hasElderStatesman = false;
+  const scores = await getOrCreateLegacyScores(trx, characterId);
+  const benefits: string[] = typeof scores.unlocked_benefits === 'string'
+    ? JSON.parse(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+  if (benefits.includes('elder_statesman')) hasElderStatesman = true;
+
+  const apCost = hasElderStatesman ? Math.max(1, IG_OUTREACH_AP_COST - 1) : IG_OUTREACH_AP_COST;
+  await spendAp(trx, characterId, apCost);
+
+
+  let score = Number(relation.relationship_score) + IG_OUTREACH_BASE_GAIN;
+  const contactLog: any[] = typeof relation.contact_log === 'string'
+    ? JSON.parse(relation.contact_log) : (relation.contact_log ?? []);
+
+  const commitments: any[] = typeof relation.active_commitments === 'string'
+    ? JSON.parse(relation.active_commitments) : (relation.active_commitments ?? []);
+
+  let commitmentMsg = '';
+  if (commitment) {
+    const id = `c_${Date.now()}`;
+    commitments.push({
+      id,
+      axis: commitment.axis,
+      direction: commitment.direction,
+      target_value: commitment.target_value,
+      promised_arc: currentArc,
+      honored_arc: null,
+      broken_arc: null,
+    });
+    commitmentMsg = ` You committed to ${commitment.direction === 'raise' ? 'raising' : 'lowering'} ${commitment.axis} policy.`;
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const tier = resolveEndorsementTier(score);
+
+  contactLog.push({
+    arc: currentArc,
+    action: 'manual_outreach',
+    score_delta: IG_OUTREACH_BASE_GAIN,
+    message: `Outreach meeting with group.${commitmentMsg}`,
+  });
+
+  await trx('pol_interest_group_relations')
+    .where({ party_id: partyId, group_id: groupId })
+    .update({
+      relationship_score: score,
+      endorsement_status: tier,
+      active_commitments: JSON.stringify(commitments),
+      contact_log: JSON.stringify(contactLog.slice(-40)),
+      last_outreach_arc: currentArc,
+      momentum: Number(relation.momentum) + IG_OUTREACH_BASE_GAIN / 2,
+    });
+
+  const group = await trx('pol_interest_groups').where({ id: groupId }).first();
+  return {
+    message: `Outreach to ${group?.name ?? 'the group'} successful. Relationship +${IG_OUTREACH_BASE_GAIN}. Now ${tier}.${commitmentMsg}`,
+    score_after: score,
+    tier,
+  };
+}
+
+/**
+ * Player action: rally group support (PC cost).
+ * Short burst of score + momentum.
+ */
+export async function performRallySupport(
+  trx: any,
+  characterId: string,
+  partyId: string,
+  groupId: string,
+  currentArc: number
+): Promise<{ message: string; score_after: number; tier: EndorsementStatus }> {
+  const relation = await trx('pol_interest_group_relations')
+    .where({ party_id: partyId, group_id: groupId }).first();
+  if (!relation) throw new AppError('Relation not found', 404, 'NOT_FOUND');
+
+  let hasElderStatesman = false;
+  const scores = await getOrCreateLegacyScores(trx, characterId);
+  const benefits: string[] = typeof scores.unlocked_benefits === 'string'
+    ? JSON.parse(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+  if (benefits.includes('elder_statesman')) hasElderStatesman = true;
+
+  const pcCost = hasElderStatesman ? Math.max(1, IG_RALLY_PC_COST - 1) : IG_RALLY_PC_COST;
+  await spendPc(trx, characterId, pcCost);
+
+
+  let score = Math.min(100, Number(relation.relationship_score) + IG_RALLY_GAIN);
+  const tier = resolveEndorsementTier(score);
+  const momentum = Number(relation.momentum) + IG_RALLY_MOMENTUM_GAIN;
+
+  const contactLog: any[] = typeof relation.contact_log === 'string'
+    ? JSON.parse(relation.contact_log) : [];
+  contactLog.push({ arc: currentArc, action: 'rally_support', score_delta: IG_RALLY_GAIN });
+
+  await trx('pol_interest_group_relations')
+    .where({ party_id: partyId, group_id: groupId })
+    .update({
+      relationship_score: score,
+      endorsement_status: tier,
+      contact_log: JSON.stringify(contactLog.slice(-40)),
+      momentum,
+    });
+
+  const group = await trx('pol_interest_groups').where({ id: groupId }).first();
+  return {
+    message: `Rally with ${group?.name ?? 'the group'} energised supporters. +${IG_RALLY_GAIN} relationship.`,
+    score_after: score,
+    tier,
+  };
+}
+
+/**
+ * Fetch all interest group relations for a party, enriched with group metadata.
+ */
+export async function getPartyIGRelations(partyId: string, stateId: string) {
+  const rows = await db('pol_interest_group_relations as r')
+    .join('pol_interest_groups as g', 'r.group_id', 'g.id')
+    .where('r.party_id', partyId)
+    .where('g.state_id', stateId)
+    .select(
+      'r.*',
+      'g.name as group_name',
+      'g.segment_key',
+      'g.ideology_lean',
+      'g.influence_weight',
+    )
+    .orderBy('r.relationship_score', 'desc');
+  return rows;
+}
+
+// ── Media Ecosystem (Phase 7) ─────────────────────────────────────────────────
+
+/**
+ * Resolve coverage stance from a relationship score.
+ */
+function resolveStance(score: number): CoverageStance {
+  if (score >= MEDIA_STANCE_THRESHOLDS.allied)     return 'allied';
+  if (score >= MEDIA_STANCE_THRESHOLDS.favourable) return 'favourable';
+  if (score >= MEDIA_STANCE_THRESHOLDS.neutral)    return 'neutral';
+  if (score >= MEDIA_STANCE_THRESHOLDS.sceptical)  return 'sceptical';
+  return 'hostile';
+}
+
+/**
+ * Seed media relations for a party across all outlets in the state.
+ * Seed score = 35–65 based on outlet bias–platform alignment. Idempotent.
+ */
+export async function seedMediaRelationsForParty(
+  trx: any, partyId: string, stateId: string
+): Promise<void> {
+  const outlets = await trx('pol_media_outlets').where({ state_id: stateId });
+  const party = await trx('pol_parties').where({ id: partyId }).first();
+  if (!party) return;
+
+  const platform = typeof party.platform === 'string'
+    ? JSON.parse(party.platform) : (party.platform ?? {});
+
+  let hasMediaLegend = false;
+  if (party.leader_character_id) {
+    const scores = await getOrCreateLegacyScores(trx, party.leader_character_id);
+    const benefits: string[] = typeof scores.unlocked_benefits === 'string'
+      ? JSON.parse(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+    if (benefits.includes('media_legend')) hasMediaLegend = true;
+  }
+
+  for (const outlet of outlets) {
+    const existing = await trx('pol_media_relations')
+      .where({ party_id: partyId, outlet_id: outlet.id }).first();
+    if (existing) continue;
+
+    const biasAxis = MEDIA_BIAS_AXIS[outlet.bias as OutletBias] ?? null;
+    let seed = 50;
+    if (biasAxis) {
+      const partyVal = Number(platform[biasAxis] ?? 50);
+      seed = partyVal >= MEDIA_ALIGNMENT_THRESHOLD ? 58 : 42;
+    }
+    if (outlet.bias === 'populist') seed = 38; // tabloids default adversarial
+
+    if (hasMediaLegend) seed += 10;
+    seed = Math.min(100, Math.max(0, seed));
+
+    const stance = resolveStance(seed);
+    await trx('pol_media_relations').insert({
+      party_id: partyId,
+      outlet_id: outlet.id,
+      relationship_score: seed,
+      coverage_stance: stance,
+      contact_log: JSON.stringify([]),
+    });
+  }
+}
+
+/**
+ * Emit a news story for the current arc. Called by other processors when
+ * noteworthy events occur (scandals, IG endorsements, coalition events, etc.)
+ */
+export async function emitStory(
+  trx: any,
+  stateId: string,
+  partyId: string | null,
+  arc: number,
+  story_type: string,
+  headline: string,
+  body: string,
+): Promise<void> {
+  const weight = MEDIA_STORY_WEIGHTS[story_type] ?? 2;
+  await trx('pol_news_stories').insert({
+    state_id: stateId, party_id: partyId, arc,
+    story_type, headline, body, weight, avg_tone: 0, popularity_delta: 0,
+  });
+}
+
+/**
+ * Per-arc media coverage processor — runs AFTER all event processors.
+ * 1. Seed relations for new parties.
+ * 2. Apply alignment drift + passive decay to all relations.
+ * 3. Collect stories emitted this arc, pick top MEDIA_TOP_STORIES_PER_ARC.
+ * 4. Compute weighted average tone from outlet stances.
+ * 5. Apply popularity delta to party.
+ */
+export async function processMediaCoverageForState(
+  trx: any, stateId: string, currentArc: number
+): Promise<void> {
+  const outlets = await trx('pol_media_outlets').where({ state_id: stateId });
+  const parties = await trx('pol_parties').where({ state_id: stateId });
+
+  // Seed + decay all relations
+  for (const party of parties) {
+    await seedMediaRelationsForParty(trx, party.id, stateId);
+
+    const platform = typeof party.platform === 'string'
+      ? JSON.parse(party.platform) : (party.platform ?? {});
+
+    for (const outlet of outlets) {
+      const rel = await trx('pol_media_relations')
+        .where({ party_id: party.id, outlet_id: outlet.id }).first();
+      if (!rel) continue;
+
+      const biasAxis = MEDIA_BIAS_AXIS[outlet.bias as OutletBias] ?? null;
+      let alignDelta = 0;
+      if (biasAxis) {
+        const partyVal = Number(platform[biasAxis] ?? 50);
+        alignDelta = partyVal >= MEDIA_ALIGNMENT_THRESHOLD ? +0.5 : -0.3;
+      }
+
+      let score = Number(rel.relationship_score) + alignDelta - MEDIA_PASSIVE_DECAY;
+      score = Math.max(0, Math.min(100, score));
+      await trx('pol_media_relations')
+        .where({ party_id: party.id, outlet_id: outlet.id })
+        .update({ relationship_score: score, coverage_stance: resolveStance(score) });
+    }
+  }
+
+  // Collect + rank stories, take top N
+  const stories = await trx('pol_news_stories')
+    .where({ state_id: stateId, arc: currentArc })
+    .whereNot('popularity_delta', '!=', 0) // skip already-processed
+    .orderBy('weight', 'desc')
+    .limit(MEDIA_TOP_STORIES_PER_ARC);
+
+  // Also get un-processed ones (popularity_delta = 0)
+  const rawStories = await trx('pol_news_stories')
+    .where({ state_id: stateId, arc: currentArc, popularity_delta: 0 })
+    .orderBy('weight', 'desc')
+    .limit(MEDIA_TOP_STORIES_PER_ARC);
+
+  for (const story of rawStories) {
+    if (!story.party_id) continue;
+
+    const relations = await trx('pol_media_relations as r')
+      .join('pol_media_outlets as o', 'r.outlet_id', 'o.id')
+      .where('r.party_id', story.party_id)
+      .where('o.state_id', stateId)
+      .select('r.coverage_stance', 'o.base_tone', 'o.credibility', 'o.reach');
+
+    if (relations.length === 0) continue;
+
+    let weightedTone = 0;
+    let totalW = 0;
+    for (const rel of relations) {
+      const toneMod = MEDIA_STANCE_TONE_MOD[rel.coverage_stance as CoverageStance] ?? 0;
+      const tone = Math.max(-1, Math.min(1, Number(rel.base_tone) + toneMod));
+      const w = Number(rel.reach) * (Number(rel.credibility) / 100);
+      weightedTone += tone * w;
+      totalW += w;
+    }
+
+    const avgTone = totalW > 0 ? weightedTone / totalW : 0;
+    const popDelta = Math.round(story.weight * avgTone * MEDIA_POP_SCALE);
+
+    if (popDelta !== 0) {
+      await trx('pol_parties').where({ id: story.party_id })
+        .update({ popularity: trx.raw('GREATEST(0, LEAST(100, popularity + ?))', [popDelta]) });
+    }
+
+    await trx('pol_news_stories').where({ id: story.id })
+      .update({ avg_tone: avgTone, popularity_delta: popDelta });
+  }
+}
+
+/**
+ * Player action: exclusive interview with a single outlet (3 AP, cooldown).
+ */
+export async function doExclusiveInterview(
+  trx: any, characterId: string, partyId: string,
+  outletId: string, currentArc: number
+): Promise<{ message: string; score_after: number; stance: CoverageStance }> {
+  const rel = await trx('pol_media_relations')
+    .where({ party_id: partyId, outlet_id: outletId }).first();
+  if (!rel) throw new AppError('Relation not found', 404, 'NOT_FOUND');
+
+  if (rel.last_contact_arc && currentArc - rel.last_contact_arc < MEDIA_CONTACT_COOLDOWN_ARCS) {
+    throw new AppError(
+      `Press cooldown — wait ${MEDIA_CONTACT_COOLDOWN_ARCS - (currentArc - rel.last_contact_arc)} more arc(s)`,
+      409, 'COOLDOWN'
+    );
+  }
+
+  await spendAp(trx, characterId, MEDIA_EXCLUSIVE_AP_COST);
+  let score = Math.min(100, Number(rel.relationship_score) + MEDIA_EXCLUSIVE_GAIN);
+  const stance = resolveStance(score);
+
+  const log: any[] = typeof rel.contact_log === 'string' ? JSON.parse(rel.contact_log) : [];
+  log.push({ arc: currentArc, action: 'exclusive_interview', score_delta: MEDIA_EXCLUSIVE_GAIN });
+
+  await trx('pol_media_relations')
+    .where({ party_id: partyId, outlet_id: outletId })
+    .update({ relationship_score: score, coverage_stance: stance,
+              contact_log: JSON.stringify(log.slice(-30)), last_contact_arc: currentArc });
+
+  const outlet = await trx('pol_media_outlets').where({ id: outletId }).first();
+  return {
+    message: `Exclusive granted to ${outlet?.name ?? 'outlet'}. +${MEDIA_EXCLUSIVE_GAIN} → ${stance}.`,
+    score_after: score, stance,
+  };
+}
+
+/**
+ * Player action: press conference — all outlets +MEDIA_PRESS_CONF_GAIN (2 AP).
+ */
+export async function doPressConference(
+  trx: any, characterId: string, partyId: string,
+  stateId: string, currentArc: number
+): Promise<{ message: string; outlets_updated: number }> {
+  await spendAp(trx, characterId, MEDIA_PRESS_CONFERENCE_AP_COST);
+  const outlets = await trx('pol_media_outlets').where({ state_id: stateId });
+  let updated = 0;
+
+  for (const outlet of outlets) {
+    const rel = await trx('pol_media_relations')
+      .where({ party_id: partyId, outlet_id: outlet.id }).first();
+    if (!rel) continue;
+
+    const score = Math.min(100, Number(rel.relationship_score) + MEDIA_PRESS_CONF_GAIN);
+    const stance = resolveStance(score);
+    const log: any[] = typeof rel.contact_log === 'string' ? JSON.parse(rel.contact_log) : [];
+    log.push({ arc: currentArc, action: 'press_conference', score_delta: MEDIA_PRESS_CONF_GAIN });
+
+    await trx('pol_media_relations')
+      .where({ party_id: partyId, outlet_id: outlet.id })
+      .update({ relationship_score: score, coverage_stance: stance,
+                contact_log: JSON.stringify(log.slice(-30)) });
+    updated++;
+  }
+
+  return {
+    message: `Press conference held. ${updated} outlets received +${MEDIA_PRESS_CONF_GAIN}.`,
+    outlets_updated: updated,
+  };
+}
+
+/**
+ * Fetch all media relations for a party enriched with outlet metadata.
+ */
+export async function getPartyMediaRelations(partyId: string, stateId: string) {
+  return db('pol_media_relations as r')
+    .join('pol_media_outlets as o', 'r.outlet_id', 'o.id')
+    .where('r.party_id', partyId)
+    .where('o.state_id', stateId)
+    .select('r.*', 'o.name as outlet_name', 'o.outlet_type',
+            'o.bias', 'o.credibility', 'o.reach', 'o.base_tone')
+    .orderBy('r.relationship_score', 'desc');
+}
+
+/**
+ * Fetch recent news stories for a state (latest arcs, top-weighted).
+ */
+export async function getRecentNews(stateId: string, limit = 15) {
+  return db('pol_news_stories as s')
+    .leftJoin('pol_parties as p', 's.party_id', 'p.id')
+    .where('s.state_id', stateId)
+    .select('s.*', 'p.name as party_name', 'p.abbreviation as party_abbr')
+    .orderBy('s.arc', 'desc')
+    .orderBy('s.weight', 'desc')
+    .limit(limit);
+}
+
+// ── Legacy System (Phase 8) ───────────────────────────────────────────────────
+
+/**
+ * Get or create legacy score row for a character (idempotent).
+ */
+export async function getOrCreateLegacyScores(trx: any, characterId: string): Promise<any> {
+  let scores = await trx('pol_legacy_scores').where({ character_id: characterId }).first();
+  if (!scores) {
+    const [row] = await trx('pol_legacy_scores').insert({
+      character_id: characterId,
+      electoral: 0, legislative: 0, coalition: 0,
+      scandal: 0, economic: 0, longevity: 0,
+      total: 0, unlocked_benefits: JSON.stringify([]), last_computed_arc: 0,
+    }).returning('*');
+    scores = row;
+  }
+  return scores;
+}
+
+/**
+ * Resolve rank title from longevity arc count.
+ */
+function resolveLongevityRank(longevityScore: number): string {
+  let title = 'Newcomer';
+  for (const r of LEGACY_LONGEVITY_RANKS) {
+    if (longevityScore >= r.arcs) title = r.title;
+  }
+  return title;
+}
+
+/**
+ * Check and unlock legacy benefits based on current scores.
+ * Returns list of newly unlocked benefit keys.
+ */
+function checkBenefits(scores: any): string[] {
+  const alreadyUnlocked: string[] = typeof scores.unlocked_benefits === 'string'
+    ? JSON.parse(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+  const newlyUnlocked: string[] = [];
+
+  for (const benefit of LEGACY_BENEFITS) {
+    if (alreadyUnlocked.includes(benefit.key)) continue;
+    const dimScore = benefit.dimension === 'total'
+      ? Number(scores.total)
+      : Number(scores[benefit.dimension as string] ?? 0);
+    if (dimScore >= benefit.threshold) {
+      newlyUnlocked.push(benefit.key);
+    }
+  }
+  return newlyUnlocked;
+}
+
+/**
+ * Append a legacy event record and update the aggregate score.
+ * Automatically checks and unlocks benefits.
+ */
+export async function recordLegacyEvent(
+  trx: any,
+  characterId: string,
+  stateId: string,
+  arc: number,
+  eventType: string,
+  narrativeOverride?: string,
+): Promise<{ newly_unlocked: string[] }> {
+  const def = LEGACY_EVENT_SCORES[eventType];
+  if (!def) return { newly_unlocked: [] };
+
+  const scores = await getOrCreateLegacyScores(trx, characterId);
+
+  // Append record
+  if (def.delta !== 0) {
+    await trx('pol_legacy_records').insert({
+      character_id: characterId,
+      state_id: stateId,
+      arc,
+      dimension: def.dimension,
+      event_type: eventType,
+      score_delta: def.delta,
+      headline: def.headline,
+      narrative: narrativeOverride ?? def.headline,
+    });
+  }
+
+  // Update aggregate
+  const updatedScore = Number(scores[def.dimension] ?? 0) + def.delta;
+  await trx('pol_legacy_scores')
+    .where({ character_id: characterId })
+    .update({ [def.dimension]: updatedScore });
+
+  // Re-fetch to get updated total (trigger computes it)
+  const refreshed = await trx('pol_legacy_scores').where({ character_id: characterId }).first();
+
+  // Check benefits
+  const newly = checkBenefits(refreshed);
+  if (newly.length > 0) {
+    const existing: string[] = typeof refreshed.unlocked_benefits === 'string'
+      ? JSON.parse(refreshed.unlocked_benefits) : (refreshed.unlocked_benefits ?? []);
+    await trx('pol_legacy_scores')
+      .where({ character_id: characterId })
+      .update({ unlocked_benefits: JSON.stringify([...existing, ...newly]) });
+
+    // Handle immediate mechanical unlocks
+    if (newly.includes('party_institution')) {
+      const party = await trx('pol_parties').where({ leader_character_id: characterId }).first();
+      if (party) {
+        await trx('pol_parties')
+          .where({ id: party.id })
+          .update({ popularity: trx.raw('LEAST(100, popularity + 5)') });
+      }
+    }
+  }
+
+  return { newly_unlocked: newly };
+}
+
+/**
+ * Per-arc legacy processor — runs after media coverage.
+ * For every active party leader in the state:
+ *  1. +1 longevity per arc as leader
+ *  2. Economic dimension drift based on state conditions
+ *  3. Re-evaluate benefits
+ */
+export async function processLegacyForState(
+  trx: any, stateId: string, currentArc: number
+): Promise<void> {
+  const parties = await trx('pol_parties').where({ state_id: stateId, is_npc: false });
+
+  // Get state conditions to assess economic health
+  const conditions = await trx('pol_state_conditions').where({ state_id: stateId }).first();
+  const economyScore = conditions
+    ? Math.round((Number(conditions.employment ?? 50) + Number(conditions.investment_climate ?? 50)) / 2)
+    : 50;
+  const economyThriving = economyScore >= 65;
+  const economyDeclining = economyScore <= 35;
+
+  for (const party of parties) {
+    if (!party.leader_character_id) continue;
+    const characterId = party.leader_character_id;
+
+    const scores = await getOrCreateLegacyScores(trx, characterId);
+
+    // Skip if already processed this arc
+    if (Number(scores.last_computed_arc) >= currentArc) continue;
+
+    // 1. Longevity: +1 per arc as leader
+    await recordLegacyEvent(trx, characterId, stateId, currentArc, 'arc_as_leader');
+    // Manually increment longevity by 1 (arc count, not score delta)
+    await trx('pol_legacy_scores')
+      .where({ character_id: characterId })
+      .increment('longevity', 1);
+
+    // 2. Economic dimension drift
+    if (economyThriving) {
+      await recordLegacyEvent(trx, characterId, stateId, currentArc, 'economy_thriving',
+        `Economy health ${economyScore}/100 — thriving under your government.`);
+    } else if (economyDeclining) {
+      await recordLegacyEvent(trx, characterId, stateId, currentArc, 'economy_declining',
+        `Economy health ${economyScore}/100 — declining under your government.`);
+    }
+
+    // 3. Mark as computed for this arc
+    await trx('pol_legacy_scores')
+      .where({ character_id: characterId })
+      .update({ last_computed_arc: currentArc });
+  }
+}
+
+/**
+ * Get full legacy summary for a character — scores, rank, benefits (locked + unlocked),
+ * and most recent 20 records.
+ */
+export async function getLegacySummary(characterId: string) {
+  const scores = await db('pol_legacy_scores').where({ character_id: characterId }).first();
+  if (!scores) return null;
+
+  const unlockedKeys: string[] = typeof scores.unlocked_benefits === 'string'
+    ? JSON.parse(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+
+  const rank = resolveLongevityRank(Number(scores.longevity));
+
+  const benefits = LEGACY_BENEFITS.map(b => ({
+    ...b,
+    unlocked: unlockedKeys.includes(b.key),
+    current_score: b.dimension === 'total'
+      ? Number(scores.total)
+      : Number(scores[b.dimension as string] ?? 0),
+  }));
+
+  const records = await db('pol_legacy_records')
+    .where({ character_id: characterId })
+    .orderBy('arc', 'desc')
+    .limit(20)
+    .select('*');
+
+  return {
+    scores: {
+      electoral:   Number(scores.electoral),
+      legislative: Number(scores.legislative),
+      coalition:   Number(scores.coalition),
+      scandal:     Number(scores.scandal),
+      economic:    Number(scores.economic),
+      longevity:   Number(scores.longevity),
+      total:       Number(scores.total),
+    },
+    rank,
+    benefits,
+    records,
+  };
 }

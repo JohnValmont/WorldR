@@ -16,6 +16,7 @@ import PolicyScreen        from './PolicyScreen';
 import AssemblyScreen    from './AssemblyScreen';
 import PartyScreen       from './PartyScreen';
 import LobbyScreen       from './LobbyScreen';
+import LegacyScreen      from './LegacyScreen';
 
 // Live countdown to the next in-game month (1 month = 8 real hours -> next 0/8/16h).
 function NextTick() {
@@ -137,6 +138,8 @@ export default function PoliticsDesk() {
               <PartyScreen {...commonProps} />
             ) : activeSection === 'lobby' ? (
               <LobbyScreen {...commonProps} />
+            ) : activeSection === 'legacy' ? (
+              <LegacyScreen character={character} />
             ) : null}
           </div>
         </main>

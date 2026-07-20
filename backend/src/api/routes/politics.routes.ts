@@ -28,6 +28,24 @@ import {
   recruitNpc,
   setDoctrine,
   setTenet,
+  getMyPc,
+  spendPcAction,
+  getPartyFactionsHandler,
+  getCoalitionAgreement,
+  getMyScandals,
+  actOnScandal,
+  getPartyScandalsSummaryHandler,
+  getMyCampaign,
+  setCampaignStrategyHandler,
+  allocateCampaignBudget,
+  getMyInterestGroups,
+  doOutreach,
+  doRallySupport,
+  getMyMedia,
+  doExclusiveInterviewHandler,
+  doPressConferenceHandler,
+  getNewsFeedHandler,
+  getLegacyHandler,
 } from '../controllers/politics.controller';
 import { getOrCreateCurrentCycle } from '../services/politics.service';
 import { db } from '../../config/database';
@@ -119,5 +137,44 @@ router.post('/general-action', authMiddleware, doGeneralAction);
 router.post('/recruit', authMiddleware, recruitNpc);
 router.patch('/parties/:id/doctrine', authMiddleware, setDoctrine);
 router.patch('/parties/:id/tenet', authMiddleware, setTenet);
+
+// ── Political Capital System ─────────────────────────────────────────────
+// PC is a persistent strategic resource (carries over between arcs).
+router.get('/pc', authMiddleware, getMyPc);
+router.post('/pc/spend', authMiddleware, spendPcAction);
+
+// ── Faction System ──────────────────────────────────────────────────────
+// Internal party factions — publicly readable (opposing parties can scout).
+router.get('/parties/:id/factions', authMiddleware, getPartyFactionsHandler);
+
+// ── Coalition Agreement System ──────────────────────────────────────────
+router.get('/coalition/agreement', authMiddleware, getCoalitionAgreement);
+
+// ── Scandal System ──────────────────────────────────────────────────────
+// Player scandal management.
+router.get('/scandals', authMiddleware, getMyScandals);
+router.post('/scandals/:id/intervene', authMiddleware, actOnScandal);
+router.get('/parties/:id/scandals', authMiddleware, getPartyScandalsSummaryHandler);
+
+// ── Campaign Command Object (Phase 5) ────────────────────────────────────────
+// Persistent multi-arc campaign management for the current election cycle.
+router.get('/campaign', authMiddleware, getMyCampaign);
+router.post('/campaign/strategy', authMiddleware, setCampaignStrategyHandler);
+router.post('/campaign/budget', authMiddleware, allocateCampaignBudget);
+
+// ── Interest Groups (Phase 6) ─────────────────────────────────────────────────
+// Per-party relationships with the 5 voter segment interest groups.
+router.get('/interest-groups', authMiddleware, getMyInterestGroups);
+router.post('/interest-groups/:groupId/outreach', authMiddleware, doOutreach);
+router.post('/interest-groups/:groupId/rally', authMiddleware, doRallySupport);
+
+// ── Media Ecosystem (Phase 7) ────────────────────────────────────────────────
+router.get('/media', authMiddleware, getMyMedia);
+router.get('/news', authMiddleware, getNewsFeedHandler);
+router.post('/media/press-conference', authMiddleware, doPressConferenceHandler);
+router.post('/media/:outletId/exclusive', authMiddleware, doExclusiveInterviewHandler);
+
+// ── Legacy System (Phase 8) ──────────────────────────────────────────────────
+router.get('/legacy/:characterId', authMiddleware, getLegacyHandler);
 
 export default router;

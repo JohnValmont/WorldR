@@ -494,6 +494,555 @@ export const DOCTRINE_TENETS: Record<DoctrineId, [string, string]> = {
 /** Fit bonus applied per-segment when a tenet is active (additive, fraction). */
 export const TENET_FIT_BONUS = 0.08; // +8% fit in the targeted segment
 
+// ── Political Capital (PC) System ─────────────────────────────────────────────
+// PC is a strategic resource separate from AP.
+// AP  = routine throughput  (12 / arc, resets)
+// PC  = high-stakes leverage (slow regen, never resets — leftover carries over)
+//
+// A player builds PC through landmark actions (winning elections, passing major
+// bills, surviving scandals, delivering on coalition commitments) and spends it
+// on extraordinary interventions that bypass normal limits.
+
+export const PC_ARC_REGEN        = 1;   // PC gained passively each arc
+export const PC_CAP_BASE         = 10;  // base maximum PC a character can hold
+export const PC_CAP_PREMIER      = 15;  // cap while holding Premier office
+export const PC_CAP_OPPOSITION   = 12;  // cap while leading the Official Opposition
+
+// ── PC Earn events (applied by arc processor) ─────────────────────────────────
+export const PC_EARN_WIN_ELECTION          = 5;  // party wins a seat majority
+export const PC_EARN_PASS_MAJOR_BILL       = 3;  // major bill passes with your leadership
+export const PC_EARN_SURVIVE_SCANDAL       = 2;  // scandal resolved without resignation
+export const PC_EARN_COALITION_COMMITMENT  = 2;  // coalition agreement review passed
+export const PC_EARN_LEADERSHIP_VICTORY    = 3;  // win a leadership challenge
+
+// ── PC Spend costs ─────────────────────────────────────────────────────────────
+// These are ALL tunable. Change here only.
+export const PC_COST_FORCE_VOTE            = 3;  // force a parliamentary vote through
+export const PC_COST_NEGOTIATE_STRENGTH    = 2;  // enter coalition talks with leverage bonus
+export const PC_COST_RALLY_BASE            = 2;  // emergency rally to restore faction loyalty
+export const PC_COST_SUPPRESS_SCANDAL      = 4;  // bury an emerging scandal (phase: rumour only)
+export const PC_COST_BUY_MEDIA_CYCLE       = 3;  // dominate one arc's news cycle
+export const PC_COST_DISCIPLINE_FACTION    = 3;  // snap a restless faction back into line
+export const PC_COST_TRIGGER_INQUIRY       = 4;  // open a parliamentary inquiry vs. rival
+export const PC_COST_LEADERSHIP_CHALLENGE  = 5;  // formally trigger a leadership ballot
+export const PC_COST_EMERGENCY_DECREE      = 6;  // Premier only: bypass legislature once
+
+// Valid PC spend action IDs (checked in controller)
+export const PC_SPEND_ACTIONS = [
+  'force_vote',
+  'negotiate_strength',
+  'rally_base',
+  'suppress_scandal',
+  'buy_media_cycle',
+  'discipline_faction',
+  'trigger_inquiry',
+  'leadership_challenge',
+  'emergency_decree',
+] as const;
+export type PcSpendAction = typeof PC_SPEND_ACTIONS[number];
+
+export const PC_SPEND_COSTS: Record<PcSpendAction, number> = {
+  force_vote:           PC_COST_FORCE_VOTE,
+  negotiate_strength:   PC_COST_NEGOTIATE_STRENGTH,
+  rally_base:           PC_COST_RALLY_BASE,
+  suppress_scandal:     PC_COST_SUPPRESS_SCANDAL,
+  buy_media_cycle:      PC_COST_BUY_MEDIA_CYCLE,
+  discipline_faction:   PC_COST_DISCIPLINE_FACTION,
+  trigger_inquiry:      PC_COST_TRIGGER_INQUIRY,
+  leadership_challenge: PC_COST_LEADERSHIP_CHALLENGE,
+  emergency_decree:     PC_COST_EMERGENCY_DECREE,
+};
+
+// ── Faction System ─────────────────────────────────────────────────────────────
+// At party founding, 2–3 factions are generated based on the chosen Doctrine.
+// Each faction has a name, a direction bias, and initial loyalty.
+// Cohesion = weighted average of all faction loyalties (weight = membership_share).
+
+export const FACTION_LOYALTY_WARNING   = 35;  // below this → is_restless = true
+export const FACTION_LOYALTY_CRISIS    = 20;  // below this → leadership challenge risk
+export const FACTION_LOYALTY_BREAKAWAY = 10;  // below this → split event possible
+export const FACTION_DRIFT_PER_ARC    = 2;   // loyalty can drift ±2 / arc by default
+export const FACTION_RALLY_RESTORE    = 20;  // PC: rally_base restores loyalty by this
+
+/** Template shape for auto-generated factions at party founding. */
+export interface FactionTemplate {
+  name: string;
+  ideology_lean: Record<Axis, number>;   // ideal platform for THIS faction
+  demand_type: string;
+  demand_payload: Record<string, unknown>;
+  membership_share: number;
+}
+
+/**
+ * Per-doctrine faction templates.
+ * 3 factions per doctrine: Left Wing, Mainstream, Right Wing (relative to doctrine axis).
+ * At founding, loyalty initialises at 70 for all.
+ */
+export const DOCTRINE_FACTIONS: Record<DoctrineId, FactionTemplate[]> = {
+  forge_accord: [
+    { name: 'Industrial Vanguard', ideology_lean: { taxation: 10, labour: 95, investment: 85, trade: 20, stability: 45 }, demand_type: 'policy_axis', demand_payload: { axis: 'labour', direction: 'raise' }, membership_share: 0.35 },
+    { name: 'Reformist Centre',    ideology_lean: { taxation: 20, labour: 80, investment: 80, trade: 20, stability: 50 }, demand_type: 'policy_axis', demand_payload: { axis: 'investment', direction: 'raise' }, membership_share: 0.40 },
+    { name: 'Social Democrats',    ideology_lean: { taxation: 30, labour: 65, investment: 75, trade: 30, stability: 60 }, demand_type: 'ministry_seat', demand_payload: { ministry: 'labour' }, membership_share: 0.25 },
+  ],
+  the_ledger: [
+    { name: 'Fiscal Hawks',        ideology_lean: { taxation: 95, labour: 10, investment: 15, trade: 90, stability: 85 }, demand_type: 'policy_axis', demand_payload: { axis: 'taxation', direction: 'raise' }, membership_share: 0.30 },
+    { name: 'Market Liberals',     ideology_lean: { taxation: 80, labour: 20, investment: 20, trade: 80, stability: 80 }, demand_type: 'policy_axis', demand_payload: { axis: 'trade', direction: 'raise' }, membership_share: 0.45 },
+    { name: 'Moderate Right',      ideology_lean: { taxation: 65, labour: 35, investment: 30, trade: 70, stability: 75 }, demand_type: 'ministry_seat', demand_payload: { ministry: 'finance' }, membership_share: 0.25 },
+  ],
+  the_homestead: [
+    { name: 'Rural Traditionalists', ideology_lean: { taxation: 45, labour: 55, investment: 15, trade: 15, stability: 90 }, demand_type: 'policy_axis', demand_payload: { axis: 'stability', direction: 'raise' }, membership_share: 0.40 },
+    { name: 'Community Builders',    ideology_lean: { taxation: 50, labour: 50, investment: 20, trade: 20, stability: 80 }, demand_type: 'policy_axis', demand_payload: { axis: 'trade', direction: 'lower' }, membership_share: 0.35 },
+    { name: 'Reform Agrarians',      ideology_lean: { taxation: 55, labour: 45, investment: 30, trade: 25, stability: 70 }, demand_type: 'ministry_seat', demand_payload: { ministry: 'agriculture' }, membership_share: 0.25 },
+  ],
+  the_commons: [
+    { name: 'Labour Radicals',      ideology_lean: { taxation: 10, labour: 95, investment: 90, trade: 50, stability: 10 }, demand_type: 'policy_axis', demand_payload: { axis: 'labour', direction: 'raise' }, membership_share: 0.30 },
+    { name: 'Community Left',       ideology_lean: { taxation: 20, labour: 80, investment: 80, trade: 50, stability: 20 }, demand_type: 'policy_axis', demand_payload: { axis: 'investment', direction: 'raise' }, membership_share: 0.45 },
+    { name: 'Progressive Centre',   ideology_lean: { taxation: 30, labour: 65, investment: 70, trade: 55, stability: 35 }, demand_type: 'leadership_change', demand_payload: { reason: 'moderate_tack' }, membership_share: 0.25 },
+  ],
+  the_vanguard: [
+    { name: 'Technocrats',          ideology_lean: { taxation: 45, labour: 55, investment: 55, trade: 90, stability: 25 }, demand_type: 'policy_axis', demand_payload: { axis: 'trade', direction: 'raise' }, membership_share: 0.35 },
+    { name: 'Reformers',            ideology_lean: { taxation: 50, labour: 50, investment: 50, trade: 80, stability: 20 }, demand_type: 'policy_axis', demand_payload: { axis: 'investment', direction: 'raise' }, membership_share: 0.40 },
+    { name: 'Social Reformists',    ideology_lean: { taxation: 55, labour: 45, investment: 45, trade: 70, stability: 30 }, demand_type: 'ministry_seat', demand_payload: { ministry: 'trade' }, membership_share: 0.25 },
+  ],
+  the_compact: [
+    { name: 'Unity Left',           ideology_lean: { taxation: 40, labour: 60, investment: 60, trade: 50, stability: 55 }, demand_type: 'policy_axis', demand_payload: { axis: 'labour', direction: 'raise' }, membership_share: 0.33 },
+    { name: 'Grand Centre',         ideology_lean: { taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 }, demand_type: 'autonomy', demand_payload: { want: 'internal_vote_freedom' }, membership_share: 0.34 },
+    { name: 'Unity Right',          ideology_lean: { taxation: 60, labour: 40, investment: 40, trade: 55, stability: 55 }, demand_type: 'policy_axis', demand_payload: { axis: 'taxation', direction: 'raise' }, membership_share: 0.33 },
+  ],
+  the_syndicate: [
+    { name: 'Direct Action Wing',   ideology_lean: { taxation: 10, labour: 95, investment: 55, trade: 45, stability: 10 }, demand_type: 'policy_axis', demand_payload: { axis: 'labour', direction: 'raise' }, membership_share: 0.35 },
+    { name: 'Worker Cooperativists',ideology_lean: { taxation: 20, labour: 80, investment: 50, trade: 50, stability: 20 }, demand_type: 'policy_axis', demand_payload: { axis: 'investment', direction: 'raise' }, membership_share: 0.40 },
+    { name: 'Democratic Socialists',ideology_lean: { taxation: 30, labour: 65, investment: 45, trade: 55, stability: 30 }, demand_type: 'ministry_seat', demand_payload: { ministry: 'labour' }, membership_share: 0.25 },
+  ],
+  the_directory: [
+    { name: 'Planning Bureau',      ideology_lean: { taxation: 55, labour: 45, investment: 90, trade: 55, stability: 55 }, demand_type: 'policy_axis', demand_payload: { axis: 'investment', direction: 'raise' }, membership_share: 0.35 },
+    { name: 'Industrial Planners',  ideology_lean: { taxation: 50, labour: 50, investment: 80, trade: 50, stability: 50 }, demand_type: 'ministry_seat', demand_payload: { ministry: 'industry' }, membership_share: 0.40 },
+    { name: 'Reform Technocrats',   ideology_lean: { taxation: 45, labour: 55, investment: 70, trade: 50, stability: 45 }, demand_type: 'policy_axis', demand_payload: { axis: 'trade', direction: 'raise' }, membership_share: 0.25 },
+  ],
+};
+
+// ── Interest Group System (Phase 6) ──────────────────────────────────────────
+// Interest groups are persistent world entities (one per voter segment).
+// Relationship score 0–100. Endorsement tier gates segment share bonuses.
+// ALL numbers are tunable constants — never hardcode in service/controller.
+
+export type EndorsementStatus = 'none' | 'sympathetic' | 'endorsed' | 'allied';
+
+/**
+ * Endorsement tier thresholds (relationship_score breakpoints).
+ */
+export const IG_ENDORSEMENT_THRESHOLDS: Record<EndorsementStatus, number> = {
+  none:        0,
+  sympathetic: 40,
+  endorsed:    60,
+  allied:      75,
+};
+
+/**
+ * Platform alignment scoring formula weight.
+ * alignment_score = Σ axis_weight × (1 - |party_value - pref_value| / 100)
+ * This raw score (0–1) is scaled to a 0–100 relationship delta per arc.
+ */
+export const IG_ALIGNMENT_SCORE_SCALE = 6;      // max score delta per arc from platform alignment
+export const IG_ALIGNMENT_DECAY = 0.4;           // score lost per arc when alignment drifts below 0.5
+
+/**
+ * Natural relationship decay per arc (absent any contact or alignment bonus).
+ * Even at high scores, groups drift away without active maintenance.
+ */
+export const IG_PASSIVE_DECAY_PER_ARC = 0.8;
+
+/**
+ * Outreach action costs and success probabilities.
+ * manual_outreach: player-initiated, costs AP. Improves score + creates commitment slot.
+ * rally_support:   spend PC to trigger a volunteer surge (score +boost).
+ */
+export const IG_OUTREACH_AP_COST      = 3;      // AP to perform manual outreach
+export const IG_RALLY_PC_COST         = 2;      // PC to rally group support
+export const IG_OUTREACH_COOLDOWN_ARCS = 2;     // minimum arcs between outreach to same group
+export const IG_OUTREACH_BASE_GAIN    = 8;      // base score gain from manual outreach
+export const IG_RALLY_GAIN            = 6;      // score gain from rally action
+export const IG_RALLY_MOMENTUM_GAIN   = 3;      // momentum added from rally
+
+/**
+ * Commitment mechanics.
+ * When a player makes a commitment to a group (via outreach), the group expects
+ * the party's platform to reflect it within COMMITMENT_DEADLINE_ARCS.
+ * Honoring: bonus. Breaking: severe penalty.
+ */
+export const IG_COMMITMENT_DEADLINE_ARCS = 6;   // arcs before a commitment expires
+export const IG_COMMITMENT_HONOR_BONUS   = 10;  // score gain when commitment honored
+export const IG_COMMITMENT_BREAK_PENALTY = 18;  // score lost when commitment broken
+
+/**
+ * Endorsement share bonuses — added to the segment's vote share calc when endorsed.
+ * These are multiplied by the group's influence_weight in the engine.
+ */
+export const IG_ENDORSEMENT_SHARE_BONUS: Record<EndorsementStatus, number> = {
+  none:        0,
+  sympathetic: 0.03,   // +3% on segment share
+  endorsed:    0.07,   // +7%
+  allied:      0.14,   // +14%
+};
+
+// ── Legacy System (Phase 8) ───────────────────────────────────────────────────
+// A politician's permanent historical record across 6 dimensions.
+// Events are recorded in pol_legacy_records; aggregates in pol_legacy_scores.
+// ALL numbers are tunable constants — never hardcode in service/controller.
+
+export type LegacyDimension = 'electoral' | 'legislative' | 'coalition' | 'scandal' | 'economic' | 'longevity';
+
+/**
+ * Score deltas by event type, per dimension.
+ * Negative scandal score = bad record; positive = clean.
+ */
+export const LEGACY_EVENT_SCORES: Record<string, { dimension: LegacyDimension; delta: number; headline: string }> = {
+  // Electoral
+  election_won:          { dimension: 'electoral',   delta: +12, headline: 'Won state election'             },
+  election_lost:         { dimension: 'electoral',   delta:  -5, headline: 'Lost state election'            },
+  seats_gained:          { dimension: 'electoral',   delta:  +2, headline: 'Net seats gained'               },
+  seats_lost:            { dimension: 'electoral',   delta:  -1, headline: 'Net seats lost'                 },
+  // Legislative
+  legislation_passed:    { dimension: 'legislative', delta:  +6, headline: 'Legislation passed'             },
+  legislation_blocked:   { dimension: 'legislative', delta:  -2, headline: 'Legislative agenda blocked'     },
+  government_formed:     { dimension: 'legislative', delta:  +5, headline: 'Government successfully formed' },
+  // Coalition
+  coalition_formed:      { dimension: 'coalition',   delta:  +8, headline: 'Coalition agreement signed'     },
+  coalition_maintained:  { dimension: 'coalition',   delta:  +3, headline: 'Coalition survived full term'   },
+  coalition_collapsed:   { dimension: 'coalition',   delta:  -8, headline: 'Coalition collapsed'            },
+  // Scandal
+  scandal_survived:      { dimension: 'scandal',     delta:  +4, headline: 'Scandal weathered without harm' },
+  scandal_damage:        { dimension: 'scandal',     delta:  -3, headline: 'Scandal caused lasting damage'  },
+  scandal_resolved:      { dimension: 'scandal',     delta:  +6, headline: 'Scandal fully resolved'         },
+  // Economic
+  economy_thriving:      { dimension: 'economic',    delta:  +3, headline: 'Economy thrived under watch'    },
+  economy_declining:     { dimension: 'economic',    delta:  -2, headline: 'Economy declined under watch'   },
+  // Longevity
+  arc_as_leader:         { dimension: 'longevity',   delta:  +1, headline: 'Arc served as party leader'     },
+  arc_as_member:         { dimension: 'longevity',   delta:  +0, headline: 'Arc served as party member'     }, // counted but no score
+};
+
+/**
+ * Legacy benefits — unlock at dimension/total score thresholds.
+ * Each benefit provides a mechanical advantage described by effect_description.
+ */
+export interface LegacyBenefit {
+  key: string;
+  label: string;
+  description: string;
+  /** Which dimension to check, or 'total' for overall sum */
+  dimension: LegacyDimension | 'total';
+  threshold: number;
+  effect_description: string;
+}
+
+export const LEGACY_BENEFITS: LegacyBenefit[] = [
+  {
+    key:               'elder_statesman',
+    label:             'Elder Statesman',
+    description:       'Your long record commands respect across all factions.',
+    dimension:         'total',
+    threshold:         150,
+    effect_description: 'All outreach and rally actions cost 1 less AP/PC (min 1).',
+  },
+  {
+    key:               'party_institution',
+    label:             'Party Institution',
+    description:       'Your party has become synonymous with your name.',
+    dimension:         'electoral',
+    threshold:         40,
+    effect_description: 'Party gains +5 base popularity (persistent).',
+  },
+  {
+    key:               'coalition_architect',
+    label:             'Coalition Architect',
+    description:       'You are the trusted hand that holds governments together.',
+    dimension:         'coalition',
+    threshold:         30,
+    effect_description: 'Coalition formation requires 3% less seat majority.',
+  },
+  {
+    key:               'untouchable',
+    label:             'Untouchable',
+    description:       'Your clean record makes you resistant to political attack.',
+    dimension:         'scandal',
+    threshold:         20,
+    effect_description: 'Scandals 25% less likely to erupt against your party.',
+  },
+  {
+    key:               'media_legend',
+    label:             'Media Legend',
+    description:       'Decades of exposure have made you a household name.',
+    dimension:         'longevity',
+    threshold:         60,
+    effect_description: 'All new media outlet relations seed 10 points higher.',
+  },
+];
+
+/** Longevity: arcs required to gain each rank title */
+export const LEGACY_LONGEVITY_RANKS: { arcs: number; title: string }[] = [
+  { arcs: 0,   title: 'Newcomer'      },
+  { arcs: 6,   title: 'Activist'      },
+  { arcs: 12,  title: 'Councillor'    },
+  { arcs: 24,  title: 'Veteran'       },
+  { arcs: 48,  title: 'Elder'         },
+  { arcs: 72,  title: 'Statesman'     },
+  { arcs: 100, title: 'Icon'          },
+];
+
+// ── Media Ecosystem (Phase 7) ─────────────────────────────────────────────────
+// Media outlets are persistent world entities seeded once per state.
+// Each party maintains a relationship_score with every outlet.
+// Every arc: the coverage processor generates news stories, applies tone weighting,
+// and converts to popularity deltas.
+// ALL numbers are tunable constants — never hardcode in service/controller.
+
+export type CoverageStance = 'allied' | 'favourable' | 'neutral' | 'sceptical' | 'hostile';
+export type OutletBias = 'labour' | 'capital' | 'civic' | 'trade' | 'populist' | 'neutral';
+
+/**
+ * Coverage stance thresholds (relationship_score breakpoints).
+ */
+export const MEDIA_STANCE_THRESHOLDS: Record<CoverageStance, number> = {
+  allied:     70,
+  favourable: 55,
+  neutral:    40,
+  sceptical:  25,
+  hostile:    0,
+};
+
+/**
+ * Bias–platform axis mapping.
+ * When a party's platform value on the bias axis is ≥ MEDIA_ALIGNMENT_THRESHOLD,
+ * the outlet is considered "ideologically aligned" and the seed score is higher.
+ */
+export const MEDIA_BIAS_AXIS: Record<OutletBias, string | null> = {
+  labour:   'labour',
+  capital:  'taxation',   // high taxation score = capital-friendly (low tax)
+  civic:    'stability',
+  trade:    'trade',
+  populist: null,         // populist outlets don't align to platform axes
+  neutral:  null,
+};
+export const MEDIA_ALIGNMENT_THRESHOLD = 60;  // platform value ≥ this = aligned
+
+/**
+ * Story weight values by story_type (determines if story makes top-3 news cycle).
+ */
+export const MEDIA_STORY_WEIGHTS: Record<string, number> = {
+  scandal_eruption:      9,
+  scandal_escalation:    6,
+  scandal_resolved:      3,
+  campaign_event:        2,
+  endorsement_gained:    4,
+  endorsement_lost:      5,
+  coalition_formed:      8,
+  coalition_crisis:      7,
+  coalition_collapsed:   10,
+  legislation_passed:    5,
+  legislation_blocked:   3,
+  election_called:       8,
+  election_result:       10,
+  policy_announcement:   3,
+  interest_group_deal:   3,
+};
+
+/**
+ * Popularity delta per story from coverage tone (averaged across all outlets).
+ * tone: -1.0 (hostile) to +1.0 (allied). These are per-story multipliers.
+ * Final delta = base_weight × tone × MEDIA_POP_SCALE.
+ */
+export const MEDIA_POP_SCALE = 0.8;  // popularity points per 1.0 tone × 1.0 weight unit
+
+/**
+ * Tone modifier applied per coverage stance.
+ * This is ADDED to base_tone of the outlet for a story about an allied/hostile party.
+ */
+export const MEDIA_STANCE_TONE_MOD: Record<CoverageStance, number> = {
+  allied:     +0.40,
+  favourable: +0.18,
+  neutral:     0.00,
+  sceptical:  -0.18,
+  hostile:    -0.40,
+};
+
+/**
+ * Passive relationship decay per arc (outlets drift toward neutral without contact).
+ */
+export const MEDIA_PASSIVE_DECAY = 0.5;
+
+/**
+ * Press contact action costs.
+ */
+export const MEDIA_PRESS_CONFERENCE_AP_COST = 2;   // improves all outlet relations slightly
+export const MEDIA_EXCLUSIVE_AP_COST        = 3;   // targets one outlet, bigger gain
+export const MEDIA_EXCLUSIVE_GAIN           = 12;  // score gain from exclusive interview
+export const MEDIA_PRESS_CONF_GAIN          = 3;   // score gain across all outlets from press conf
+export const MEDIA_CONTACT_COOLDOWN_ARCS    = 2;   // arcs between exclusive contacts to same outlet
+
+/**
+ * News cycle: max top stories per arc written to pol_news_stories.
+ */
+export const MEDIA_TOP_STORIES_PER_ARC = 3;
+
+// ── Campaign System (Phase 5) ─────────────────────────────────────────────────
+// A party-level persistent campaign object is created at election candidacy.
+// It accumulates ground_game_score each arc and feeds a bonus into the election engine.
+// ALL numbers are tunable constants — never hardcode in service/controller.
+
+export type CampaignStrategyType = 'ground_war' | 'air_war' | 'targeted' | 'balanced' | 'insurgent';
+
+/**
+ * Strategy multipliers applied to ground_game_score per arc.
+ *   effort_mult  — how efficiently campaign actions convert to GGS
+ *   budget_mult  — how much budget spending boosts GGS
+ *   reach_bonus  — flat GGS added per arc regardless of actions (brand presence)
+ */
+export const CAMPAIGN_STRATEGY_PARAMS: Record<CampaignStrategyType, {
+  effort_mult: number;
+  budget_mult: number;
+  reach_bonus: number;
+}> = {
+  ground_war:  { effort_mult: 1.40, budget_mult: 0.80, reach_bonus: 0.5 },
+  air_war:     { effort_mult: 0.70, budget_mult: 1.60, reach_bonus: 1.0 },
+  targeted:    { effort_mult: 1.20, budget_mult: 1.00, reach_bonus: 0.2 },
+  balanced:    { effort_mult: 1.00, budget_mult: 1.00, reach_bonus: 0.5 },
+  insurgent:   { effort_mult: 1.10, budget_mult: 0.50, reach_bonus: 0.8 },
+};
+
+/** GGS (ground_game_score) per unit of effort from pol_campaign_actions, before strategy mult. */
+export const CAMPAIGN_GGS_PER_EFFORT = 0.10;
+
+/** Maximum ground_game_score — beyond this further accumulation is wasted. */
+export const CAMPAIGN_GGS_CAP = 100;
+
+/** Momentum decay per arc (if no actions taken, momentum moves toward 0). */
+export const CAMPAIGN_MOMENTUM_DECAY = 0.85;
+
+/** Momentum gain per canvass / rally resolved this arc. */
+export const CAMPAIGN_MOMENTUM_GAIN_ACTION = 1.5;
+
+/**
+ * Campaign events: random occurrences that fire during arc processing.
+ * Each entry: id, probability per arc (during campaign phase only),
+ * ground_game_delta (±), popularity_delta (±), budget_cost (≥0),
+ * message shown to player.
+ */
+export const CAMPAIGN_EVENTS = [
+  {
+    id: 'opposition_research',
+    prob: 0.06,
+    ground_game_delta: -4,
+    popularity_delta: -1,
+    budget_cost: 0,
+    message: 'Rival opposition research surfaces — a damaging story about a candidate has been leaked to the press.',
+  },
+  {
+    id: 'donor_withdrawal',
+    prob: 0.04,
+    ground_game_delta: 0,
+    popularity_delta: 0,
+    budget_cost: 8000,
+    message: 'A major donor has withdrawn their pledge citing \"strategic differences\". Campaign budget reduced.',
+  },
+  {
+    id: 'local_issue_eruption',
+    prob: 0.08,
+    ground_game_delta: 2,
+    popularity_delta: 2,
+    budget_cost: 0,
+    message: 'A local issue has surged in public consciousness. Voters in affected constituencies are engaging directly with your platform.',
+  },
+  {
+    id: 'media_endorsement',
+    prob: 0.03,
+    ground_game_delta: 3,
+    popularity_delta: 2,
+    budget_cost: 0,
+    message: 'The Drennia Tribune has issued an editorial endorsement. Broad credibility boost across moderate segments.',
+  },
+  {
+    id: 'volunteer_surge',
+    prob: 0.05,
+    ground_game_delta: 6,
+    popularity_delta: 0,
+    budget_cost: 0,
+    message: 'A surge in volunteer sign-ups has supercharged ground operations this arc.',
+  },
+] as const;
+
+export type CampaignEventId = typeof CAMPAIGN_EVENTS[number]['id'];
+
+// ── Scandal System ─────────────────────────────────────────────────────────────
+// Scandals are probabilistic events that fire during arc processing.
+// They escalate through 6 phases unless the player intervenes.
+// ALL numbers here are tunable; do NOT hardcode in service/controller.
+
+export type ScandalType    = 'financial' | 'personal' | 'governmental' | 'electoral';
+export type ScandalPhase   = 'rumour' | 'investigation' | 'allegation' | 'explosion' | 'inquiry' | 'resolved';
+export type ScandalResolution = 'suppressed' | 'cleared' | 'weathered' | 'resignation' | 'expelled';
+
+/** Base probability that a random scandal fires for an active party per arc. */
+export const SCANDAL_BASE_PROB = 0.04;  // 4% per arc per active (non-NPC) player party
+
+/** Severity weights (probability of each severity rolling, must sum to 1.0) */
+export const SCANDAL_SEVERITY_WEIGHTS = [0.35, 0.30, 0.20, 0.10, 0.05]; // 1..5
+
+/** How many arcs each phase lasts before auto-escalating (if not resolved). */
+export const SCANDAL_PHASE_DURATION: Record<ScandalPhase, number> = {
+  rumour:        2,
+  investigation: 3,
+  allegation:    3,
+  explosion:     4,
+  inquiry:       6,
+  resolved:      0,  // terminal
+};
+
+/**
+ * Popularity damage (percentage points) applied to the party per arc
+ * while the scandal is in this phase, multiplied by severity.
+ *   damage = SCANDAL_PHASE_DAMAGE[phase] * severity
+ */
+export const SCANDAL_PHASE_DAMAGE: Record<ScandalPhase, number> = {
+  rumour:        0,     // silent — no public damage yet
+  investigation: 0.3,
+  allegation:    0.8,
+  explosion:     2.0,
+  inquiry:       1.2,
+  resolved:      0,
+};
+
+/**
+ * Natural resolution probability each arc (chance the scandal clears itself
+ * without player action) — lower for higher severity.
+ */
+export const SCANDAL_NATURAL_CLEAR_PROB: Record<ScandalPhase, number> = {
+  rumour:        0.20,
+  investigation: 0.10,
+  allegation:    0.05,
+  explosion:     0.02,
+  inquiry:       0.08,
+  resolved:      0,
+};
+
+/** NPC party scandal probability multiplier (NPCs get slightly less scandal). */
+export const SCANDAL_NPC_PROB_MULT = 0.5;
+
+/**
+ * Player intervention effects — what each action does and its AP / PC cost.
+ * 'suppress' is a PC spend (handled via spendPc).
+ * All others cost AP and are tied to general-action routing.
+ */
+export const SCANDAL_INTERVENTIONS = {
+  suppress:             { phase: 'rumour',        ap_cost: 0,  pc_cost: 4, success_prob: 0.80 },
+  spin:                 { phase: 'investigation', ap_cost: 3,  pc_cost: 0, success_prob: 0.50 },
+  investigate_internal: { phase: 'allegation',    ap_cost: 4,  pc_cost: 0, success_prob: 0.40 },
+  stonewall:            { phase: 'explosion',      ap_cost: 2,  pc_cost: 0, success_prob: 0.30 },
+  full_disclosure:      { phase: 'explosion',      ap_cost: 0,  pc_cost: 0, success_prob: 1.00 },
+} as const;
+
+export type ScandalIntervention = keyof typeof SCANDAL_INTERVENTIONS;
+
 // Self-check
 const EPSILON = 1e-9;
 const totalSize = SEGMENTS.reduce((sum, s) => sum + s.size, 0);

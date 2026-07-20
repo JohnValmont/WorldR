@@ -10,6 +10,29 @@ import {
   getRosterCap,
   recruitNpcToParty,
   worldClockToArc,
+  getOrCreateCharacterPc,
+  spendPc,
+  earnPc,
+  generateFactionsForParty,
+  getPartyFactions,
+  createCoalitionAgreement,
+  updateCoalitionAgreementHealth,
+  processScandalsForState,
+  interveneOnScandal,
+  getPartyScandalSummary,
+  getOrCreateCampaign,
+  setCampaignStrategy,
+  getPartyCampaignSummary,
+  seedIGRelationsForParty,
+  processInterestGroupsForState,
+  performOutreach,
+  performRallySupport,
+  getPartyIGRelations,
+  seedMediaRelationsForParty,
+  doExclusiveInterview,
+  doPressConference,
+  getPartyMediaRelations,
+  getRecentNews,
 } from '../services/politics.service';
 import {
   PARTY_FOUNDING_COST,
@@ -34,7 +57,10 @@ import {
   DOCTRINE_TENETS,
   SIGNATURE_ACTION_AP_COST,
   TENET_IDS,
+  PC_SPEND_COSTS,
+  PC_SPEND_ACTIONS,
 } from '../constants/politics';
+
 import { runElection } from '../services/electionEngine';
 import { buildPulse } from '../services/politics.pulse';
 import { readConditionsFromRow } from '../services/conditions';
@@ -268,6 +294,15 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
         role: 'leader',
         joined_arc: currentMonth
       });
+
+      // Generate the party's internal factions based on its doctrine
+      await generateFactionsForParty(trx, party.id, doctrine_id, currentMonth);
+
+      // Seed interest group relations for the new party
+      await seedIGRelationsForParty(trx, party.id, activeState.id);
+
+      // Seed media relations for the new party
+      await seedMediaRelationsForParty(trx, party.id, activeState.id);
 
       return party;
     });
@@ -539,6 +574,8 @@ export async function declareCandidacy(req: Request, res: Response, next: NextFu
 
     const activeState = await resolveState(stateId as string | undefined);
     const cycle = await getOrCreateCurrentCycle(activeState.id);
+    const clock = await db('world_clock').first();
+    const currentMonth = worldClockToArc(clock);
 
     const result = await db.transaction(async (trx) => {
       const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
@@ -590,6 +627,9 @@ export async function declareCandidacy(req: Request, res: Response, next: NextFu
         platform: party.platform,
         is_incumbent: isIncumbent
       }).returning('*');
+
+      // Spawn campaign object for this party if it doesn't exist yet
+      await getOrCreateCampaign(trx, cycle.id, party.id, currentMonth);
 
       return candidate;
     });
@@ -1454,6 +1494,706 @@ export async function recruitNpc(req: Request, res: Response, next: NextFunction
     });
 
     return res.json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ── Political Capital Controllers ─────────────────────────────────────────────
+
+/** GET /politics/pc — returns current PC + cap for the authed character */
+export async function getMyPc(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+    if (!character) return res.json({ current_pc: 0, pc_cap: 10 });
+
+    const row = await db.transaction(async (trx) => {
+      return getOrCreateCharacterPc(trx, character.id);
+    });
+
+    return res.json({ current_pc: row.current_pc ?? 0, pc_cap: row.pc_cap ?? 10 });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /politics/pc/spend
+ * Body: { action: PcSpendAction, faction_id?: string }
+ * Spends PC on a high-stakes political intervention.
+ */
+export async function spendPcAction(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const { action, faction_id } = req.body;
+    if (!action || !(PC_SPEND_ACTIONS as readonly string[]).includes(action)) {
+      return next(new AppError('Invalid PC spend action', 400, 'BAD_REQUEST'));
+    }
+
+    const cost = PC_SPEND_COSTS[action as keyof typeof PC_SPEND_COSTS];
+
+    const result = await db.transaction(async (trx) => {
+      const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+      const membership = await trx('pol_party_members').where({ character_id: character.id }).first();
+      if (!membership) throw new AppError('You must be in a party to spend Political Capital', 403, 'FORBIDDEN');
+
+      // Gate: emergency_decree requires Premier office
+      if (action === 'emergency_decree') {
+        const office = await trx('pol_offices').where({ holder_character_id: character.id }).first();
+        if (!office) throw new AppError('Emergency Decree requires the Premier office', 403, 'FORBIDDEN');
+      }
+
+      await spendPc(trx, character.id, cost);
+
+      const party = await trx('pol_parties').where({ id: membership.party_id }).first();
+      let message = '';
+
+      switch (action) {
+        case 'force_vote':
+          message = 'Political Capital spent. A parliamentary vote has been forced — your whips are mobilised.';
+          break;
+        case 'negotiate_strength':
+          message = 'Leverage applied. Your coalition negotiation position has been strengthened.';
+          break;
+        case 'rally_base': {
+          const lowestFaction = await trx('pol_party_factions')
+            .where({ party_id: membership.party_id })
+            .orderBy('loyalty', 'asc').first();
+          if (lowestFaction) {
+            const newLoyalty = Math.min(100, Number(lowestFaction.loyalty) + 20);
+            await trx('pol_party_factions')
+              .where({ id: lowestFaction.id })
+              .update({ loyalty: newLoyalty, is_restless: newLoyalty < 35 });
+            message = `Emergency rally held. The ${lowestFaction.name} faction loyalty restored to ${newLoyalty}%.`;
+          } else {
+            message = 'Rally held. Party morale boosted.';
+          }
+          break;
+        }
+        case 'discipline_faction': {
+          if (!faction_id) throw new AppError('faction_id required for discipline_faction', 400, 'BAD_REQUEST');
+          const faction = await trx('pol_party_factions')
+            .where({ id: faction_id, party_id: membership.party_id }).first();
+          if (!faction) throw new AppError('Faction not found', 404, 'NOT_FOUND');
+          const newLoyalty = Math.min(100, Number(faction.loyalty) + 15);
+          await trx('pol_party_factions')
+            .where({ id: faction_id })
+            .update({ loyalty: newLoyalty, is_restless: false });
+          message = `${faction.name} brought back into line. Loyalty +15 → ${newLoyalty}%.`;
+          break;
+        }
+        case 'suppress_scandal':
+          message = 'Scandal suppressed at the rumour stage. Investigative trail has been buried.';
+          break;
+        case 'buy_media_cycle':
+          await trx('pol_parties').where({ id: party.id })
+            .update({ popularity: trx.raw('LEAST(popularity + 3, 100)') });
+          message = "Media cycle purchased. Your party dominates this arc's news. Popularity +3.";
+          break;
+        case 'trigger_inquiry':
+          message = 'Parliamentary inquiry initiated against rival. Reputational damage incoming next arc.';
+          break;
+        case 'leadership_challenge':
+          message = 'Leadership ballot triggered. The party caucus will vote within the next arc.';
+          break;
+        case 'emergency_decree':
+          message = 'Emergency Decree issued. One piece of legislation will bypass normal committee process.';
+          break;
+        default:
+          message = `PC action "${action}" executed.`;
+      }
+
+      const pcRow = await trx('pol_character_ap').where({ character_id: character.id }).first();
+      return { message, pc: { current_pc: pcRow?.current_pc ?? 0, pc_cap: pcRow?.pc_cap ?? 10 } };
+    });
+
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** GET /politics/parties/:id/factions — returns factions + cohesion for a party */
+export async function getPartyFactionsHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    const party = await db('pol_parties').where({ id }).first();
+    if (!party) return next(new AppError('Party not found', 404, 'NOT_FOUND'));
+
+    const { factions, cohesion } = await getPartyFactions(id);
+    return res.json({ party_id: id, cohesion, factions });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ── Coalition Agreement Controllers ──────────────────────────────────────────
+
+/**
+ * GET /politics/coalition/agreement
+ * Returns the active coalition agreement for the current state, including
+ * health score, partner terms, and next review arc.
+ */
+export async function getCoalitionAgreement(req: Request, res: Response, next: NextFunction) {
+  try {
+    const activeState = await resolveState(req.query.stateId as string | undefined);
+    const cycle = await getOrCreateCurrentCycle(activeState.id);
+
+    // Use previous cycle if in early phases
+    let targetCycleId = cycle.id;
+    if (['filing', 'campaign', 'polling'].includes(cycle.phase) && cycle.cycle_number > 1) {
+      const prevCycle = await db('pol_cycles')
+        .where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 }).first();
+      if (prevCycle) targetCycleId = prevCycle.id;
+    }
+
+    const coalition = await db('pol_coalitions')
+      .where({ cycle_id: targetCycleId })
+      .whereIn('status', ['formed', 'minority'])
+      .first();
+
+    if (!coalition) return res.json({ agreement: null, coalition: null });
+
+    const agreement = await db('pol_coalition_agreements')
+      .where({ coalition_id: coalition.id })
+      .whereNot({ status: 'broken' })
+      .first();
+
+    // Enrich partner terms with party names + faction cohesion
+    let enrichedPartners: any[] = [];
+    if (agreement) {
+      const terms = typeof agreement.partner_terms === 'string'
+        ? JSON.parse(agreement.partner_terms) : (agreement.partner_terms ?? []);
+      enrichedPartners = await Promise.all(terms.map(async (t: any) => {
+        const factions = await db('pol_party_factions').where({ party_id: t.party_id });
+        const total = factions.reduce((s: number, f: any) => s + Number(f.membership_share), 0);
+        const weighted = factions.reduce((s: number, f: any) => s + Number(f.loyalty) * Number(f.membership_share), 0);
+        const cohesion = total > 0 ? Math.round(weighted / total) : 100;
+        return { ...t, cohesion };
+      }));
+    }
+
+    const leadParty = await db('pol_parties').where({ id: coalition.lead_party_id }).first();
+    const leadFactions = await db('pol_party_factions').where({ party_id: coalition.lead_party_id });
+    const leadTotal = leadFactions.reduce((s: number, f: any) => s + Number(f.membership_share), 0);
+    const leadWeighted = leadFactions.reduce((s: number, f: any) => s + Number(f.loyalty) * Number(f.membership_share), 0);
+    const leadCohesion = leadTotal > 0 ? Math.round(leadWeighted / leadTotal) : 100;
+
+    return res.json({
+      coalition: {
+        id: coalition.id,
+        status: coalition.status,
+        total_seats: coalition.total_seats,
+        lead_party: { id: coalition.lead_party_id, name: leadParty?.name, cohesion: leadCohesion },
+      },
+      agreement: agreement ? {
+        id: agreement.id,
+        health: agreement.health,
+        status: agreement.status,
+        formed_arc: agreement.formed_arc,
+        next_review_arc: agreement.next_review_arc,
+        review_interval_arcs: agreement.review_interval_arcs,
+        partner_terms: enrichedPartners,
+        mandatory_legislation: typeof agreement.mandatory_legislation === 'string'
+          ? JSON.parse(agreement.mandatory_legislation) : (agreement.mandatory_legislation ?? []),
+      } : null,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ── Scandal Controllers ───────────────────────────────────────────────────────
+
+/**
+ * GET /politics/scandals
+ * Returns all active (non-resolved) scandals for the player's party.
+ */
+export async function getMyScandals(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+    if (!character) return res.json({ scandals: [] });
+
+    const membership = await db('pol_party_members').where({ character_id: character.id }).first();
+    if (!membership) return res.json({ scandals: [] });
+
+    const scandals = await getPartyScandalSummary(membership.party_id);
+    return res.json({ scandals });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /politics/scandals/:id/intervene
+ * Body: { intervention: 'suppress' | 'spin' | 'investigate_internal' | 'stonewall' | 'full_disclosure' }
+ * Attempts to act on an active scandal. Deducts AP (or PC for suppress).
+ */
+export async function actOnScandal(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const { id: scandalId } = req.params;
+    const { intervention } = req.body;
+
+    if (!intervention || !['suppress', 'spin', 'investigate_internal', 'stonewall', 'full_disclosure'].includes(intervention)) {
+      return next(new AppError('Valid intervention required', 400, 'BAD_REQUEST'));
+    }
+
+    const AP_COST_MAP: Record<string, number> = {
+      suppress: 0,             // costs PC (4) instead of AP
+      spin: 3,
+      investigate_internal: 4,
+      stonewall: 2,
+      full_disclosure: 0,
+    };
+    const apCost = AP_COST_MAP[intervention] ?? 0;
+
+    const result = await db.transaction(async (trx) => {
+      const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+      const membership = await trx('pol_party_members').where({ character_id: character.id }).first();
+      if (!membership) throw new AppError('You must be in a party', 403, 'FORBIDDEN');
+
+      const clock = await trx('world_clock').first();
+      const currentArc = worldClockToArc(clock);
+
+      // Deduct AP (if applicable)
+      if (apCost > 0) {
+        await spendAp(trx, character.id, apCost);
+      }
+
+      // Deduct PC for suppress
+      if (intervention === 'suppress') {
+        await spendPc(trx, character.id, 4);
+      }
+
+      const outcome = await interveneOnScandal(
+        trx, scandalId, character.id, membership.party_id, intervention, currentArc
+      );
+
+      // Refresh resources
+      const apRow = await trx('pol_character_ap').where({ character_id: character.id }).first();
+      return {
+        ...outcome,
+        ap: { current_ap: apRow?.current_ap ?? 0, ap_cap: apRow?.ap_cap ?? 12 },
+        pc: { current_pc: apRow?.current_pc ?? 0, pc_cap: apRow?.pc_cap ?? 10 },
+      };
+    });
+
+    return res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** GET /politics/parties/:id/scandals — public scandal summary for any party */
+export async function getPartyScandalsSummaryHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    const party = await db('pol_parties').where({ id }).first();
+    if (!party) return next(new AppError('Party not found', 404, 'NOT_FOUND'));
+    const scandals = await getPartyScandalSummary(id);
+    return res.json({ party_id: id, scandals });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ── Campaign Controllers (Phase 5) ────────────────────────────────────────────
+
+/**
+ * GET /politics/campaign
+ * Returns the player's current cycle campaign object with GGS, strategy, momentum, and arc log.
+ */
+export async function getMyCampaign(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+    if (!character) return res.json({ campaign: null });
+
+    const membership = await db('pol_party_members').where({ character_id: character.id }).first();
+    if (!membership) return res.json({ campaign: null });
+
+    const activeState = await db('pol_states').where({ is_active: true }).first();
+    if (!activeState) return res.json({ campaign: null });
+
+    const cycle = await getOrCreateCurrentCycle(activeState.id);
+    const campaign = await getPartyCampaignSummary(membership.party_id, cycle.id);
+
+    return res.json({
+      campaign,
+      cycle: {
+        id: cycle.id,
+        phase: cycle.phase,
+        cycle_number: cycle.cycle_number,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /politics/campaign/strategy
+ * Body: { strategy: 'ground_war' | 'air_war' | 'targeted' | 'balanced' | 'insurgent' }
+ * Costs 2 AP. Strategy applies from next arc.
+ */
+export async function setCampaignStrategyHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const { strategy } = req.body;
+    if (!strategy) return next(new AppError('strategy is required', 400, 'BAD_REQUEST'));
+
+    const validStrategies = ['ground_war', 'air_war', 'targeted', 'balanced', 'insurgent'];
+    if (!validStrategies.includes(strategy)) {
+      return next(new AppError('Invalid strategy type', 400, 'BAD_REQUEST'));
+    }
+
+    const result = await db.transaction(async (trx) => {
+      const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+      const membership = await trx('pol_party_members').where({ character_id: character.id }).first();
+      if (!membership) throw new AppError('You must be in a party', 403, 'FORBIDDEN');
+
+      const activeState = await trx('pol_states').where({ is_active: true }).first();
+      if (!activeState) throw new AppError('No active state', 404, 'NOT_FOUND');
+
+      const clock = await trx('world_clock').first();
+      const currentArc = worldClockToArc(clock);
+      const cycle = await getOrCreateCurrentCycle(activeState.id);
+
+      await setCampaignStrategy(trx, membership.party_id, cycle.id, character.id, strategy, currentArc);
+
+      const apRow = await trx('pol_character_ap').where({ character_id: character.id }).first();
+      return {
+        message: `Campaign strategy changed to "${strategy}". Takes effect next arc.`,
+        ap: { current_ap: apRow?.current_ap ?? 0, ap_cap: apRow?.ap_cap ?? 12 },
+      };
+    });
+
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /politics/campaign/budget
+ * Body: { amount: number }
+ * Allocates treasury funds to the campaign budget. No AP cost, but deducts from party treasury.
+ */
+export async function allocateCampaignBudget(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const amount = Number(req.body.amount);
+    if (!amount || amount <= 0) return next(new AppError('amount must be a positive number', 400, 'BAD_REQUEST'));
+
+    const result = await db.transaction(async (trx) => {
+      const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+      const membership = await trx('pol_party_members').where({ character_id: character.id }).first();
+      if (!membership) throw new AppError('You must be in a party', 403, 'FORBIDDEN');
+
+      const party = await trx('pol_parties').where({ id: membership.party_id }).first();
+      if (!party) throw new AppError('Party not found', 404, 'NOT_FOUND');
+      if (party.leader_character_id !== character.id) {
+        throw new AppError('Only the party leader can allocate campaign budget', 403, 'FORBIDDEN');
+      }
+
+      if (Number(party.treasury) < amount) {
+        throw new AppError(`Insufficient treasury. Available: $${Number(party.treasury).toLocaleString()}`, 400, 'INSUFFICIENT_FUNDS');
+      }
+
+      const activeState = await trx('pol_states').where({ is_active: true }).first();
+      const cycle = await getOrCreateCurrentCycle(activeState.id);
+      const clock = await trx('world_clock').first();
+      const currentArc = worldClockToArc(clock);
+
+      const campaign = await getOrCreateCampaign(trx, cycle.id, membership.party_id, currentArc);
+
+      await trx('pol_parties').where({ id: membership.party_id }).decrement('treasury', amount);
+      await trx('pol_campaigns').where({ id: campaign.id }).increment('budget_allocated', amount);
+
+      return {
+        message: `$${amount.toLocaleString()} allocated to campaign fund.`,
+        budget_allocated: Number(campaign.budget_allocated) + amount,
+        treasury_remaining: Number(party.treasury) - amount,
+      };
+    });
+
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ── Interest Group Controllers (Phase 6) ─────────────────────────────────────
+
+/**
+ * GET /politics/interest-groups
+ * Returns all interest group relations for the player's party in the current state.
+ */
+export async function getMyInterestGroups(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+    if (!character) return res.json({ groups: [] });
+
+    const membership = await db('pol_party_members').where({ character_id: character.id }).first();
+    if (!membership) return res.json({ groups: [] });
+
+    const activeState = await db('pol_states').where({ is_active: true }).first();
+    if (!activeState) return res.json({ groups: [] });
+
+    // Ensure seeds exist (idempotent)
+    await db.transaction(async (trx) => {
+      await seedIGRelationsForParty(trx, membership.party_id, activeState.id);
+    });
+
+    const groups = await getPartyIGRelations(membership.party_id, activeState.id);
+    return res.json({ groups });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /politics/interest-groups/:groupId/outreach
+ * Body: { commitment?: { axis, direction, target_value } }
+ * Costs 3 AP. Subject to 2-arc cooldown. Optionally makes a policy commitment.
+ */
+export async function doOutreach(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const { groupId } = req.params;
+    const { commitment } = req.body;
+
+    const result = await db.transaction(async (trx) => {
+      const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+      const membership = await trx('pol_party_members').where({ character_id: character.id }).first();
+      if (!membership) throw new AppError('Must be in a party', 403, 'FORBIDDEN');
+
+      const party = await trx('pol_parties').where({ id: membership.party_id }).first();
+      if (party.leader_character_id !== character.id) {
+        throw new AppError('Only the party leader can perform outreach', 403, 'FORBIDDEN');
+      }
+
+      const activeState = await trx('pol_states').where({ is_active: true }).first();
+      if (!activeState) throw new AppError('No active state', 404, 'NOT_FOUND');
+
+      const clock = await trx('world_clock').first();
+      const currentArc = worldClockToArc(clock);
+
+      return performOutreach(
+        trx, character.id, membership.party_id, activeState.id,
+        groupId, commitment ?? null, currentArc
+      );
+    });
+
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /politics/interest-groups/:groupId/rally
+ * Costs 2 PC. Short burst of relationship score and momentum.
+ */
+export async function doRallySupport(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const { groupId } = req.params;
+
+    const result = await db.transaction(async (trx) => {
+      const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+      const membership = await trx('pol_party_members').where({ character_id: character.id }).first();
+      if (!membership) throw new AppError('Must be in a party', 403, 'FORBIDDEN');
+
+      const clock = await trx('world_clock').first();
+      const currentArc = worldClockToArc(clock);
+
+      return performRallySupport(trx, character.id, membership.party_id, groupId, currentArc);
+    });
+
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ── Media Ecosystem Controllers (Phase 7) ────────────────────────────────────
+
+/**
+ * GET /politics/media
+ * Returns all outlet relations for the player's party, seeded if needed.
+ */
+export async function getMyMedia(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+    if (!character) return res.json({ outlets: [] });
+
+    const membership = await db('pol_party_members').where({ character_id: character.id }).first();
+    if (!membership) return res.json({ outlets: [] });
+
+    const activeState = await db('pol_states').where({ is_active: true }).first();
+    if (!activeState) return res.json({ outlets: [] });
+
+    await db.transaction(async (trx) => {
+      await seedMediaRelationsForParty(trx, membership.party_id, activeState.id);
+    });
+
+    const outlets = await getPartyMediaRelations(membership.party_id, activeState.id);
+    return res.json({ outlets });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /politics/media/:outletId/exclusive
+ * Costs 3 AP. 2-arc cooldown. Significant score gain with one outlet.
+ */
+export async function doExclusiveInterviewHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const { outletId } = req.params;
+
+    const result = await db.transaction(async (trx) => {
+      const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+      const membership = await trx('pol_party_members').where({ character_id: character.id }).first();
+      if (!membership) throw new AppError('Must be in a party', 403, 'FORBIDDEN');
+
+      const party = await trx('pol_parties').where({ id: membership.party_id }).first();
+      if (party.leader_character_id !== character.id) {
+        throw new AppError('Only the party leader can grant exclusives', 403, 'FORBIDDEN');
+      }
+
+      const clock = await trx('world_clock').first();
+      const currentArc = worldClockToArc(clock);
+
+      return doExclusiveInterview(trx, character.id, membership.party_id, outletId, currentArc);
+    });
+
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /politics/media/press-conference
+ * Costs 2 AP. Improves all outlet relations by a small amount.
+ */
+export async function doPressConferenceHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const result = await db.transaction(async (trx) => {
+      const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+      const membership = await trx('pol_party_members').where({ character_id: character.id }).first();
+      if (!membership) throw new AppError('Must be in a party', 403, 'FORBIDDEN');
+
+      const activeState = await trx('pol_states').where({ is_active: true }).first();
+      if (!activeState) throw new AppError('No active state', 404, 'NOT_FOUND');
+
+      const clock = await trx('world_clock').first();
+      const currentArc = worldClockToArc(clock);
+
+      return doPressConference(trx, character.id, membership.party_id, activeState.id, currentArc);
+    });
+
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /politics/news
+ * Returns the most recent top-weighted stories for the active state.
+ */
+export async function getNewsFeedHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    const activeState = await db('pol_states').where({ is_active: true }).first();
+    if (!activeState) return res.json({ stories: [] });
+
+    const stories = await getRecentNews(activeState.id, 15);
+    return res.json({ stories });
+}
+
+// ── Legacy System (Phase 8) ───────────────────────────────────────────────────
+
+/**
+ * GET /politics/legacy/:characterId
+ * If :characterId is "me", returns the active player character's legacy.
+ */
+export async function getLegacyHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    let targetCharId = req.params.characterId;
+    
+    if (targetCharId === 'me') {
+      const char = await db('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!char) return next(new AppError('No active character', 404, 'NOT_FOUND'));
+      targetCharId = char.id;
+    }
+
+    // Ensure the legacy score row exists before reading
+    await db.transaction(async (trx) => {
+      await getOrCreateLegacyScores(trx, targetCharId);
+    });
+
+    const summary = await getLegacySummary(targetCharId);
+    if (!summary) return next(new AppError('Legacy not found', 404, 'NOT_FOUND'));
+
+    return res.json({ success: true, ...summary });
   } catch (error) {
     next(error);
   }

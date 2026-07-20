@@ -1240,7 +1240,9 @@ The WORLDr Balancing Implementation Standards establish a structured framework f
 By following disciplined implementation practices supported by testing, documentation, post-release monitoring, and rollback planning, the project ensures that balancing remains a controlled and continuous process that strengthens the long-term health of the persistent simulation.
 
 ---
+Every political role must have meaningful gameplay.
 
+The player should never feel that losing an election removes gameplay. Losing office changes the type of political decisions available, but does not reduce their depth or strategic importance. Governing, opposing, coalition-building, campaigning, lobbying, and influencing public opinion are all first-class gameplay paths with unique mechanics, objectives, and long-term strategies.
 # End of Chapter 8
 
 # End of Document

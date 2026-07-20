@@ -261,8 +261,59 @@ export const politicsApi = {
   doGeneralAction: (type: string, params?: any, stateId?: string) =>
     api.post('/politics/general-action', { type, params, stateId }).then(res => res.data),
   recruitNpc: (stateId?: string) =>
-    api.post('/politics/recruit', { stateId }).then(res => res.data)
+    api.post('/politics/recruit', { stateId }).then(res => res.data),
+
+  // Political Capital System
+  getMyPc: (): Promise<{ current_pc: number; pc_cap: number }> =>
+    api.get('/politics/pc').then(res => res.data),
+  spendPc: (action: string, faction_id?: string) =>
+    api.post('/politics/pc/spend', { action, faction_id }).then(res => res.data),
+
+  // Faction System
+  getPartyFactions: (partyId: string): Promise<{ party_id: string; cohesion: number; factions: any[] }> =>
+    api.get(`/politics/parties/${partyId}/factions`).then(res => res.data),
+
+  // Coalition Agreement
+  getCoalitionAgreement: (stateId?: string): Promise<{ coalition: any; agreement: any }> =>
+    api.get(`/politics/coalition/agreement${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
+
+  // Scandal System
+  getMyScandals: (): Promise<{ scandals: any[] }> =>
+    api.get('/politics/scandals').then(res => res.data),
+  actOnScandal: (scandalId: string, intervention: string) =>
+    api.post(`/politics/scandals/${scandalId}/intervene`, { intervention }).then(res => res.data),
+
+  // Campaign Command Object (Phase 5)
+  getMyCampaign: (): Promise<{ campaign: any; cycle: any }> =>
+    api.get('/politics/campaign').then(res => res.data),
+  setCampaignStrategy: (strategy: string) =>
+    api.post('/politics/campaign/strategy', { strategy }).then(res => res.data),
+  allocateCampaignBudget: (amount: number) =>
+    api.post('/politics/campaign/budget', { amount }).then(res => res.data),
+
+  // Interest Groups (Phase 6)
+  getMyInterestGroups: (): Promise<{ groups: any[] }> =>
+    api.get('/politics/interest-groups').then(res => res.data),
+  doOutreach: (groupId: string, commitment?: { axis: string; direction: 'raise' | 'lower'; target_value: number }) =>
+    api.post(`/politics/interest-groups/${groupId}/outreach`, { commitment }).then(res => res.data),
+  doRallySupport: (groupId: string) =>
+    api.post(`/politics/interest-groups/${groupId}/rally`).then(res => res.data),
+
+  // Media Ecosystem (Phase 7)
+  getMyMedia: (): Promise<{ outlets: any[] }> =>
+    api.get('/politics/media').then(res => res.data),
+  getNewsFeed: (): Promise<{ stories: any[] }> =>
+    api.get('/politics/news').then(res => res.data),
+  doExclusive: (outletId: string) =>
+    api.post(`/politics/media/${outletId}/exclusive`).then(res => res.data),
+  doPressConference: () =>
+    api.post('/politics/media/press-conference').then(res => res.data),
+
+  // Legacy System (Phase 8)
+  getLegacy: (characterId: string = 'me') =>
+    api.get(`/politics/legacy/${characterId}`).then(res => res.data),
 };
+
 
 
 
