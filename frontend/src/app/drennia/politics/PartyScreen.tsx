@@ -20,11 +20,11 @@ interface Props {
 }
 
 const CREED_PLATFORMS: Record<CreedId, Record<Axis, number>> = {
-  forge_accord:  { taxation: 20, labour: 80, investment: 80, trade: 20, stability: 80 },
-  the_ledger:    { taxation: 80, labour: 20, investment: 20, trade: 80, stability: 50 },
-  the_homestead: { taxation: 50, labour: 50, investment: 50, trade: 20, stability: 80 },
+  forge_accord:  { taxation: 20, labour: 80, investment: 80, trade: 20, stability: 50 },
+  the_ledger:    { taxation: 80, labour: 20, investment: 20, trade: 80, stability: 80 },
+  the_homestead: { taxation: 50, labour: 50, investment: 20, trade: 20, stability: 80 },
   the_commons:   { taxation: 20, labour: 80, investment: 80, trade: 50, stability: 20 },
-  the_vanguard:  { taxation: 20, labour: 50, investment: 50, trade: 80, stability: 20 },
+  the_vanguard:  { taxation: 50, labour: 50, investment: 50, trade: 80, stability: 20 },
   the_compact:   { taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 },
   the_syndicate: { taxation: 20, labour: 80, investment: 50, trade: 50, stability: 20 },
   the_directory: { taxation: 50, labour: 50, investment: 80, trade: 50, stability: 50 },
