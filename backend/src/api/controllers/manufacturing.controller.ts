@@ -2184,7 +2184,15 @@ export class ManufacturingController {
 
     if (stateLookup) {
       const policy = await trx('pol_state_policy').where({ state_id: stateLookup.id }).first();
-      const taxRate = Number(policy?.industry_tax_rate || 0);
+      let taxRate = 0.20; // default
+      if (policy) {
+        const activePolicies = typeof policy.active_policies === 'string' ? JSON.parse(policy.active_policies) : (policy.active_policies || {});
+        const taxPolicy = activePolicies.taxation;
+        if (taxPolicy === 'tax_haven') taxRate = 0.10;
+        else if (taxPolicy === 'flat_tax') taxRate = 0.15;
+        else if (taxPolicy === 'progressive') taxRate = 0.25;
+      }
+      
       if (taxRate > 0 && finalNetProfit > 0) {
         taxPaid = Math.round(finalNetProfit * taxRate);
         finalNetProfit -= taxPaid;

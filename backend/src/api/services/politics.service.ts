@@ -608,6 +608,8 @@ async function resolveGoverningPlatform(trx: any, stateId: string): Promise<Reco
  * active policy (GDD $11/$16). Deterministic and idempotent per in-game month:
  * cond_updated_arc guards against running twice for the same month.
  */
+import { POLICY_DEFINITIONS, PolicyCategory } from '../constants/policies';
+
 export async function applyConditionDrift(trx: any, stateId: string, currentMonth: number) {
   const state = await trx('pol_states').where({ id: stateId }).first();
   if (!state) return;
@@ -616,11 +618,43 @@ export async function applyConditionDrift(trx: any, stateId: string, currentMont
   const platform = await resolveGoverningPlatform(trx, stateId);
   const existingPolicy = await trx('pol_state_policy').where({ state_id: stateId }).first();
   const legislatedPolicy = existingPolicy?.policy_platform || {};
+  const activePolicies = existingPolicy?.active_policies 
+    ? (typeof existingPolicy.active_policies === 'string' ? JSON.parse(existingPolicy.active_policies) : existingPolicy.active_policies) 
+    : {};
   const effectivePlatform = { ...platform, ...legislatedPolicy };
   
   const current = readConditionsFromRow(state);
   const targets = computeConditionTargets(effectivePlatform as any);
-  const next = driftConditions(current, targets);
+  let next = driftConditions(current, targets);
+
+  // Stats base values
+  let stat_gdp = Number(state.stat_gdp || 1000000.00);
+  let stat_unemployment = Number(state.stat_unemployment || 5.00);
+  let stat_pollution = Number(state.stat_pollution || 50.00);
+  let stat_per_capita = Number(state.stat_per_capita || 45000.00);
+  let stat_tax_revenue = Number(state.stat_tax_revenue || 150000.00);
+
+  // Apply active policies modifiers
+  for (const [category, option] of Object.entries(activePolicies)) {
+    const mods = POLICY_DEFINITIONS[category as PolicyCategory]?.[option as string];
+    if (mods) {
+      if (mods.stat_gdp) stat_gdp *= mods.stat_gdp;
+      if (mods.stat_unemployment) stat_unemployment += mods.stat_unemployment;
+      if (mods.stat_pollution) stat_pollution *= mods.stat_pollution;
+      if (mods.stat_per_capita) stat_per_capita *= mods.stat_per_capita;
+      if (mods.stat_tax_revenue) stat_tax_revenue *= mods.stat_tax_revenue;
+      
+      if (mods.cond_jobs) next.jobs = Math.max(0, Math.min(100, next.jobs + mods.cond_jobs));
+      if (mods.cond_prosperity) next.prosperity = Math.max(0, Math.min(100, next.prosperity + mods.cond_prosperity));
+      if (mods.cond_order) next.order = Math.max(0, Math.min(100, next.order + mods.cond_order));
+      if (mods.cond_cohesion) next.cohesion = Math.max(0, Math.min(100, next.cohesion + mods.cond_cohesion));
+      if (mods.cond_budget) next.budget = Math.max(0, Math.min(100, next.budget + mods.cond_budget));
+    }
+  }
+  
+  // Ensure stats don't go negative or break logic
+  stat_unemployment = Math.max(1, Math.min(30, stat_unemployment));
+  stat_pollution = Math.max(0, stat_pollution);
 
   await trx('pol_states').where({ id: stateId }).update({
     cond_prosperity: next.prosperity,
@@ -629,6 +663,11 @@ export async function applyConditionDrift(trx: any, stateId: string, currentMont
     cond_cohesion: next.cohesion,
     cond_budget: next.budget,
     cond_updated_arc: currentMonth,
+    stat_gdp,
+    stat_unemployment,
+    stat_pollution,
+    stat_per_capita,
+    stat_tax_revenue
   });
 }
 
@@ -1085,9 +1124,9 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
     }).returning('*').then((r: any) => r[0]);
   }
 
-  const members = typeof forming.member_party_ids === 'string' ? safeParseJSON(forming.member_party_ids) : forming.member_party_ids;
-  let accepted = new Set<string>(members.accepted || []);
-  let invited = new Set<string>(members.invited || []);
+  const parsedMembers = typeof forming.member_party_ids === 'string' ? safeParseJSON(forming.member_party_ids) : (forming.member_party_ids ?? {});
+  let accepted = new Set<string>(parsedMembers.accepted || (Array.isArray(parsedMembers) ? parsedMembers : []));
+  let invited = new Set<string>(parsedMembers.invited || []);
   
   // If largest party is NPC, it auto-invites nearest parties
   if (largestParty.is_npc) {
@@ -1136,8 +1175,10 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
     totalAcceptedSeats += (seatCounts[aId] || 0);
   }
 
-  members.accepted = Array.from(accepted);
-  members.invited = Array.from(invited);
+  const membersToSave = {
+    accepted: Array.from(accepted),
+    invited: Array.from(invited)
+  };
 
   let hasCoalitionArchitect = false;
   if (largestParty.leader_character_id) {
@@ -1153,7 +1194,7 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
   if (totalAcceptedSeats >= effectiveMajorityNeeded) {
 
     await trx('pol_coalitions').where({ id: forming.id }).update({
-      member_party_ids: JSON.stringify(members),
+      member_party_ids: JSON.stringify(membersToSave),
       total_seats: totalAcceptedSeats,
       status: 'formed'
     });
@@ -1165,7 +1206,7 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
   }
 
   await trx('pol_coalitions').where({ id: forming.id }).update({
-    member_party_ids: JSON.stringify(members),
+    member_party_ids: JSON.stringify(membersToSave),
     total_seats: totalAcceptedSeats
   });
 
@@ -1427,7 +1468,8 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
     const npcParties = await trx('pol_parties').where({ state_id: stateId, is_npc: true });
     
     const coalition = await trx('pol_coalitions').where({ cycle_id: cycleId }).whereIn('status', ['formed', 'minority']).first();
-    const govMembers = coalition ? (typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids).accepted || [] : coalition.member_party_ids.accepted || []) : [];
+    const parsedGovMembers = coalition ? (typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : (coalition.member_party_ids ?? {})) : {};
+    const govMembers = parsedGovMembers.accepted || (Array.isArray(parsedGovMembers) ? parsedGovMembers : []);
 
     for (const npc of npcParties) {
       if (!votedParties.has(npc.id)) {
@@ -1465,32 +1507,29 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
         await applyFactorDelta(trx, leaderId, POL_FACTOR_DELTAS.BILL_PASSES);
       }
       await trx('pol_bills').where({ id: bill.id }).update({ status: 'passed' });
-      if (bill.type === 'industry_tax') {
-        let newRate = Number(bill.params.rate);
-        if (isNaN(newRate)) newRate = 0.20; // fallback POL_DEFAULT_INDUSTRY_TAX_RATE
-        
-        const existing = await trx('pol_state_policy').where({ state_id: stateId }).first();
-        
-        // Map tax rate to taxation axis (20 to 80 range)
-        const taxationAxis = Math.max(0, Math.min(100, Math.round(100 - (newRate * 250))));
-        const currentPlatform = existing?.policy_platform || {};
-        const newPlatform = { ...currentPlatform, taxation: taxationAxis };
-        
-        if (existing) {
-          await trx('pol_state_policy').where({ state_id: stateId }).update({ industry_tax_rate: newRate, policy_platform: newPlatform, updated_arc: currentMonth });
-        } else {
-          await trx('pol_state_policy').insert({ state_id: stateId, industry_tax_rate: newRate, policy_platform: newPlatform, infrastructure_level: 1, updated_arc: currentMonth });
+      
+      if (bill.type === 'policy_change') {
+        const { category, option } = bill.params;
+        if (category && option) {
+          const existing = await trx('pol_state_policy').where({ state_id: stateId }).first();
+          const activePolicies = existing?.active_policies 
+            ? (typeof existing.active_policies === 'string' ? JSON.parse(existing.active_policies) : existing.active_policies) 
+            : {};
+          
+          activePolicies[category] = option;
+          
+          if (existing) {
+            await trx('pol_state_policy').where({ state_id: stateId }).update({ active_policies: activePolicies, updated_arc: currentMonth });
+          } else {
+            await trx('pol_state_policy').insert({ state_id: stateId, active_policies: activePolicies, updated_arc: currentMonth });
+          }
+
+          await trx('pol_ledger_events').insert({
+            state_id: stateId, arc: currentMonth, kind: 'bill_passed',
+            headline: `POLICY REVISED: ${category.toUpperCase()}`,
+            body: `Council passes new ${category} policy: ${option.replace(/_/g, ' ').toUpperCase()}. Stats will adjust over the coming month.`
+          });
         }
-
-        const effectLevel = taxationAxis <= 35 ? 'low' : (taxationAxis >= 65 ? 'high' : 'mid');
-        const effects = POL_POLICY_CONDITION_EFFECTS.taxation[effectLevel];
-        const deltas = Object.entries(effects).filter(([_, val]) => val !== 0).map(([key, val]) => `${key} ${val > 0 ? '+' : ''}${val}`).join(', ');
-
-        await trx('pol_ledger_events').insert({
-          state_id: stateId, arc: currentMonth, kind: 'bill_passed',
-          headline: `INDUSTRY TAX REVISED`,
-          body: `Council passes the new industry tax rate of ${(newRate * 100).toFixed(1)}%. Effects on state: ${deltas || 'None'}`
-        });
       }
     } else {
       if (leaderId && !proposerParty.is_npc) {

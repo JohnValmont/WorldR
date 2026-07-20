@@ -436,6 +436,17 @@ export const DOCTRINE_PLATFORMS: Record<DoctrineId, Record<Axis, number>> = {
   the_directory: { taxation: 50, labour: 50, investment: 80, trade: 50, stability: 50 },
 };
 
+export const DOCTRINE_IDENTITIES: Record<DoctrineId, { tagline: string, blurb: string, color: string }> = {
+  forge_accord:  { tagline: 'Workers first', blurb: 'Industry built by the state, jobs protected, borders guarded. Puts working people ahead of markets.', color: '#F59E0B' },
+  the_ledger:    { tagline: 'Free markets', blurb: 'Low taxes, a small state, and open trade. Trusts markets to create prosperity.', color: '#3B82F6' },
+  the_homestead: { tagline: 'Order & tradition', blurb: 'Balanced books, protected industry, and law and order. Values stability over sudden change.', color: '#10B981' },
+  the_commons:   { tagline: 'Redistribute & reform', blurb: 'Redistribution, public investment, and bold reform. Rebuilds the economy around working people.', color: '#EF4444' },
+  the_vanguard:  { tagline: 'Reform & openness', blurb: 'Open trade, pragmatic investment, and bold institutional change. Modernises the state.', color: '#8B5CF6' },
+  the_compact:   { tagline: 'The balanced path', blurb: 'Balanced on every issue. Defined by its record in government, not by rhetoric.', color: '#6366f1' },
+  the_syndicate: { tagline: 'Power to creators', blurb: 'Strong unions, collective ownership, and a worker-first economy. Labour is the source of all value.', color: '#EC4899' },
+  the_directory: { tagline: 'Efficiency & growth', blurb: 'State-led investment, massive infrastructure projects, and data-driven governance. Growth by design.', color: '#14B8A6' },
+};
+
 /** Which general action type is unlocked by each Doctrine. */
 export const DOCTRINE_SIGNATURE_ACTION: Record<DoctrineId, string> = {
   forge_accord:  'union_address',

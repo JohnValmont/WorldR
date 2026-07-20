@@ -122,12 +122,14 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
       </nav>
 
       {/* Leader badge */}
-      <div className="sidebar-leader" style={{ padding: '24px', borderTop: `1px solid rgba(255,255,255,0.06)` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ width: 8, height: 8, borderRadius: 99, background: T.mint, display: 'inline-block', boxShadow: `0 0 12px ${T.mint}` }} />
-          <span style={{ color: 'rgba(255,255,255,0.7)', fontFamily: HEADING, fontSize: 13, fontWeight: 500 }}>Leader — You</span>
+      {myPartyName && (
+        <div className="sidebar-leader" style={{ padding: '24px', borderTop: `1px solid rgba(255,255,255,0.06)` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 99, background: T.mint, display: 'inline-block', boxShadow: `0 0 12px ${T.mint}` }} />
+            <span style={{ color: 'rgba(255,255,255,0.7)', fontFamily: HEADING, fontSize: 13, fontWeight: 500 }}>Leader — You</span>
+          </div>
         </div>
-      </div>
+      )}
     </aside>
   );
 }

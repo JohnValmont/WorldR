@@ -1,0 +1,1 @@
+import { db } from '../src/api/config/database'; async function check() { try { const res = await db.raw('SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ''pol_parties'''); console.log(res.rows); } finally { await db.destroy(); } } check();

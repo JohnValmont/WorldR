@@ -189,8 +189,8 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
     const s = String(b?.status || '').toLowerCase();
     return s.includes('floor') || s.includes('open') || s.includes('voting');
   }) || bills[0];
-  const ayes = floorBill?.ayes ?? floorBill?.votes_for;
-  const nays = floorBill?.nays ?? floorBill?.votes_against;
+  const ayes = floorBill?.tally?.yea ?? floorBill?.ayes ?? floorBill?.votes_for;
+  const nays = floorBill?.tally?.nay ?? floorBill?.nays ?? floorBill?.votes_against;
 
   const events: any[] = Array.isArray(ledger) ? ledger : [];
   const cond: any     = overview?.conditions;
@@ -234,7 +234,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
   const latestDelta = supportHistory.length > 1 ? supportHistory[supportHistory.length - 1] - supportHistory[supportHistory.length - 2] : null;
   const { arrow: trendArrow, color: trendColor } = trendProps(latestDelta);
 
-  async function vote(id: string, v: 'aye' | 'nay') {
+  async function vote(id: string, v: 'yea' | 'nay') {
     try { setBusy(v); await politicsApi.voteBill(id, v); await onRefresh(); } catch { } finally { setBusy(null); }
   }
 
@@ -383,6 +383,62 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
               <div style={{ color: T.faint, fontSize: 11, fontStyle: 'italic', marginTop: 4 }}>These metrics move based on the governing party's policies and impact national stability.</div>
             </div>
           )}
+          
+          {/* National Stats Grid */}
+          {overview?.activeState && (
+            <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ color: T.faint, fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>National Statistics</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', background: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.faint }}>GDP</span>
+                    <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: T.ivory }}>
+                      CR {Number(overview.activeState.stat_gdp || 1000000).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.faint }}>Unemployment</span>
+                    <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: T.ivory }}>
+                      {Number(overview.activeState.stat_unemployment || 5).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.faint }}>Tax Revenue</span>
+                    <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: T.ivory }}>
+                      CR {Number(overview.activeState.stat_tax_revenue || 150000).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.faint }}>Per Capita</span>
+                    <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: T.ivory }}>
+                      CR {Number(overview.activeState.stat_per_capita || 45000).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.faint }}>Pollution</span>
+                    <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: T.ivory }}>
+                      {Number(overview.activeState.stat_pollution || 50).toFixed(1)}
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+              <div style={{ color: T.faint, fontSize: 11, fontStyle: 'italic', marginTop: 4 }}>Macro-economic indicators defining national progress.</div>
+            </div>
+          )}
         </div>
       </GlassPanel>
 
@@ -430,7 +486,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
               )}
               
               <div style={{ display: 'flex', gap: 12, marginTop: 'auto' }}>
-                <div style={{ flex: 1 }}><Btn label="Aye" primary onClick={() => vote(floorBill.id, 'aye')} disabled={!!busy} /></div>
+                <div style={{ flex: 1 }}><Btn label="Aye" primary onClick={() => vote(floorBill.id, 'yea')} disabled={!!busy} /></div>
                 <div style={{ flex: 1 }}><Btn label="Nay" onClick={() => vote(floorBill.id, 'nay')} disabled={!!busy} /></div>
               </div>
             </div>

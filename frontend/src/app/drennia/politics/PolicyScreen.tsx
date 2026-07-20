@@ -1,4 +1,3 @@
-'use client';
 import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
@@ -76,27 +75,22 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
   const { data, mutate } = useSWR(isLocked ? null : ['bills', selectedJurisdictionId], () => politicsApi.getBills(selectedJurisdictionId).catch(() => null));
-  const [rate, setRate] = useState(20);
+  const [targetOption, setTargetOption] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [activeProposal, setActiveProposal] = useState<string | null>(null);
 
-  const activePolicy = data?.activePolicy;
+  const activePolicies = data?.activePolicy?.active_policies || {};
   const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
-
-  useEffect(() => {
-    if (activePolicy) {
-      setRate(Math.round(Number(activePolicy.industry_tax_rate) * 100) || 20);
-    }
-  }, [activePolicy]);
 
   async function refresh() { await mutate(); if (onRefresh) await onRefresh(); }
   
-  async function propose() {
+  async function propose(category: string) {
+    if (!targetOption) return;
     try { 
       setBusy('propose'); 
       setErr(null); 
-      await politicsApi.proposeBill('industry_tax', { rate: rate / 100 }, selectedJurisdictionId); 
+      await politicsApi.proposeBill('policy_change', { category, option: targetOption }, selectedJurisdictionId); 
       await refresh(); 
       setActiveProposal(null);
     } catch (e: any) { 
@@ -108,22 +102,36 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
 
   const policies = [
     {
-      id: 'industry_tax',
-      title: 'Industry Tax Rate',
-      type: 'SPECTRUM',
-      description: 'Determines the percentage of net profits deducted from manufacturing corporations at month-end.',
-      currentValue: activePolicy ? `${(Number(activePolicy.industry_tax_rate) * 100).toFixed(1)}%` : '0.0%',
-      effects: <><CheckCircle2 size={12} color={T.mint} /> Treasury Revenue</>,
+      id: 'taxation',
+      title: 'Taxation Policy',
+      description: 'Determines national tax structure and overall budget efficiency.',
+      currentValue: activePolicies.taxation || 'standard',
+      options: ['tax_haven', 'progressive', 'flat_tax', 'standard'],
       canPropose: !!myParty,
     },
     {
-      id: 'infrastructure',
-      title: 'Infrastructure Level',
-      type: 'TIERED',
-      description: 'The overall level of public infrastructure, affecting transportation and logistics efficiency.',
-      currentValue: `Level ${activePolicy?.infrastructure_level ?? 1}`,
-      effects: <><CheckCircle2 size={12} color={T.mint} /> Logistics Bonus</>,
-      canPropose: false,
+      id: 'labor',
+      title: 'Labor Policy',
+      description: 'Regulates worker rights and impacts job security and corporate costs.',
+      currentValue: activePolicies.labor || 'regulated',
+      options: ['deregulated', 'strong_union', 'subsidized', 'regulated'],
+      canPropose: !!myParty,
+    },
+    {
+      id: 'environment',
+      title: 'Environment Policy',
+      description: 'Controls industrial pollution limits vs economic constraints.',
+      currentValue: activePolicies.environment || 'standard',
+      options: ['green_new_deal', 'balanced', 'unrestricted', 'standard'],
+      canPropose: !!myParty,
+    },
+    {
+      id: 'welfare',
+      title: 'Welfare Policy',
+      description: 'Determines the social safety net provided to citizens.',
+      currentValue: activePolicies.welfare || 'standard',
+      options: ['austerity', 'universal_healthcare', 'standard'],
+      canPropose: !!myParty,
     }
   ];
 
@@ -192,26 +200,17 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
                   {/* Badges */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, flex: '0 0 auto' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      <span style={{ color: T.muted, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Type</span>
-                      <span style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: T.text, padding: '4px 8px', borderRadius: 4, fontSize: 11, fontFamily: MONO, fontWeight: 600 }}>{pol.type}</span>
-                    </div>
-                    <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <span style={{ color: T.muted, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>In Force</span>
-                      <span style={{ background: `${T.blueLine}15`, border: `1px solid ${T.blueLine}40`, color: T.blueBright, padding: '4px 8px', borderRadius: 4, fontSize: 11, fontFamily: MONO, fontWeight: 700, textShadow: `0 0 12px ${T.blueBright}80` }}>{pol.currentValue}</span>
+                      <span style={{ background: `${T.blueLine}15`, border: `1px solid ${T.blueLine}40`, color: T.blueBright, padding: '4px 8px', borderRadius: 4, fontSize: 11, fontFamily: MONO, fontWeight: 700, textShadow: `0 0 12px ${T.blueBright}80` }}>
+                        {pol.currentValue.replace(/_/g, ' ').toUpperCase()}
+                      </span>
                     </div>
-                  </div>
-
-                  {/* Effects */}
-                  <div style={{ flex: '0 0 160px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <span style={{ color: T.muted, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Primary Effect</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: T.ivory, fontSize: 12, fontWeight: 600 }}>{pol.effects}</span>
                   </div>
 
                   {/* Actions */}
                   <div style={{ flex: '0 0 120px', display: 'flex', justifyContent: 'flex-end' }}>
                     {pol.canPropose && !isProposing && (
-                      <OledBtn label="Propose" tone={T.blueBright} onClick={() => { setActiveProposal(pol.id); setErr(null); }} />
+                      <OledBtn label="Propose" tone={T.blueBright} onClick={() => { setActiveProposal(pol.id); setTargetOption(pol.currentValue); setErr(null); }} />
                     )}
                     {isProposing && (
                       <button onClick={() => setActiveProposal(null)} style={{
@@ -237,26 +236,24 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
                     </div>
                     
                     <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-                      {/* Slider Track */}
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: T.ivory, fontSize: 14, fontWeight: 700, fontFamily: MONO }}>
-                          <span>0%</span>
-                          <span style={{ color: T.gold, textShadow: `0 0 12px ${T.gold}80` }}>Target: {rate}%</span>
-                          <span>60%</span>
-                        </div>
-                        <input 
-                          type="range" min="0" max="60" value={rate} 
-                          onChange={(e) => setRate(Number(e.target.value))} 
-                          style={{ 
-                            width: '100%', 
-                            height: 6,
-                            background: 'rgba(255,255,255,0.1)',
-                            borderRadius: 3,
-                            outline: 'none',
-                            appearance: 'none',
-                            cursor: 'ew-resize'
-                          }} 
-                        />
+                      {/* Options Selector */}
+                      <div style={{ flex: 1, display: 'flex', gap: 12 }}>
+                        {pol.options.map(opt => (
+                          <div 
+                            key={opt}
+                            onClick={() => setTargetOption(opt)}
+                            style={{
+                              flex: 1, padding: '12px 16px', borderRadius: 8, cursor: 'pointer',
+                              border: targetOption === opt ? `1px solid ${T.gold}` : `1px solid rgba(255,255,255,0.1)`,
+                              background: targetOption === opt ? 'rgba(255,215,0,0.1)' : 'rgba(0,0,0,0.3)',
+                              color: targetOption === opt ? T.gold : T.ivory,
+                              fontFamily: MONO, fontSize: 11, fontWeight: 700, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            {opt.replace(/_/g, ' ')}
+                          </div>
+                        ))}
                       </div>
                       
                       {/* Submit Module */}
@@ -266,8 +263,8 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
                           icon={busy === 'propose' ? undefined : Zap}
                           tone={T.gold} 
                           primary 
-                          onClick={propose} 
-                          disabled={busy === 'propose'} 
+                          onClick={() => propose(pol.id)} 
+                          disabled={busy === 'propose' || targetOption === pol.currentValue} 
                         />
                         {err && <div style={{ color: T.red, fontSize: 11, fontFamily: MONO, textAlign: 'center' }}>{err}</div>}
                       </div>
@@ -282,3 +279,4 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
     </div>
   );
 }
+

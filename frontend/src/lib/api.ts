@@ -241,11 +241,11 @@ export const politicsApi = {
   getPolls: (stateId?: string) => api.get(`/politics/polls${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
   getCouncil: (stateId?: string) => api.get(`/politics/council${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
   getLedger: (limit: number = 10, stateId?: string) => api.get(`/politics/ledger?limit=${limit}${stateId ? `&stateId=${stateId}` : ''}`).then(res => res.data),
-  manageCoalition: (action: string, targetPartyId: string, stateId?: string) => api.post('/politics/formation/coalition', { action, targetPartyId, stateId }).then(res => res.data),
+  manageCoalition: (action: string, targetPartyId: string, stateId?: string) => api.post(`/politics/formation/coalition${stateId ? `?stateId=${stateId}` : ''}`, { action, targetPartyId }).then(res => res.data),
 
   // Phase 5A: Bills & Lobby
   getBills: (stateId?: string) => api.get(`/politics/bills${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
-  proposeBill: (type: string, params: any, stateId?: string) => api.post('/politics/bills', { type, params, stateId }).then(res => res.data),
+  proposeBill: (type: string, params: any, stateId?: string) => api.post(`/politics/bills${stateId ? `?stateId=${stateId}` : ''}`, { type, params }).then(res => res.data),
   voteBill: (id: string, vote: string) => api.post(`/politics/bills/${id}/vote`, { vote }).then(res => res.data),
   donateToParty: (partyId: string, amount: number) => api.post('/politics/lobby/donate', { partyId, amount }).then(res => res.data),
   petitionParty: (partyId: string, issue: string, amount?: number) => api.post('/politics/lobby/petition', { partyId, issue, amount }).then(res => res.data),
@@ -274,7 +274,7 @@ export const politicsApi = {
     api.get(`/politics/parties/${partyId}/factions`).then(res => res.data),
 
   // Coalition Agreement
-  getCoalitionAgreement: (stateId?: string): Promise<{ coalition: any; agreement: any }> =>
+  getCoalitionAgreement: (stateId?: string): Promise<{ coalition: any; agreement: any; partners?: any[] }> =>
     api.get(`/politics/coalition/agreement${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
 
   // Scandal System

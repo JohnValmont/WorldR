@@ -58,7 +58,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
   const isLocked = jurisdiction?.isLocked ?? true;
   const jModel = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.national;
   const { data } = useSWR(isLocked ? null : ['council', selectedJurisdictionId], () => politicsApi.getCouncil(selectedJurisdictionId).catch(() => null));
-  const { data: coalitionData } = useSWR(isLocked ? null : ['coalition-agreement', selectedJurisdictionId], () => politicsApi.getCoalitionAgreement(selectedJurisdictionId).catch(() => null));
+  const { data: coalitionData } = useSWR<{ coalition: any; agreement: any; partners?: any[] } | null>(isLocked ? null : ['coalition-agreement', selectedJurisdictionId], () => politicsApi.getCoalitionAgreement(selectedJurisdictionId).catch(() => null));
 
   const partySeats: any[] = Array.isArray(data?.partySeats) ? data.partySeats.filter((p: any) => p.seats > 0) : [];
   const totalSeats = jModel.seats;
@@ -224,7 +224,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
             const health = agreement?.health ?? null;
             const healthTone = health == null ? T.faint : health >= 60 ? T.mint : health >= 30 ? T.warning : T.red;
             const statusLabel = agreement?.status === 'under_review' ? 'Under Review' : agreement?.status === 'broken' ? 'Broken' : 'Active';
-            const partners: any[] = Array.isArray(agreement?.partner_terms) ? agreement.partner_terms : [];
+            const partners: any[] = coalitionData.partners?.length ? coalitionData.partners : Array.isArray(agreement?.partner_terms) ? agreement.partner_terms : [];
 
             return (
               <GlassPanel title={<><FileSignature size={14} /> Coalition Agreement</>} accent="#8B5CF6">

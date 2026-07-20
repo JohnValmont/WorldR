@@ -55,6 +55,7 @@ import {
   GENERAL_ACTION_TYPES,
   DOCTRINE_IDS,
   DOCTRINE_PLATFORMS,
+  DOCTRINE_IDENTITIES,
   DOCTRINE_SIGNATURE_ACTION,
   DOCTRINE_TENETS,
   SIGNATURE_ACTION_AP_COST,
@@ -282,13 +283,14 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
       }).returning('*');
 
       const fallbackMonogram = cleanAbbr.slice(0, 2);
+      const ident = DOCTRINE_IDENTITIES[doctrine_id as keyof typeof DOCTRINE_IDENTITIES];
       await trx('pol_party_identities').insert({
         party_id: party.id,
-        color: '#6C7A89',
+        color: ident?.color || '#6C7A89',
         monogram: fallbackMonogram,
         leader: character.name || 'Party Leader',
-        motto: 'A new voice in the Council.',
-        blurb: 'Player-founded party.'
+        motto: ident?.tagline || 'A new voice in the Council.',
+        blurb: ident?.blurb || 'Player-founded party.'
       });
 
       await trx('pol_party_members').insert({
@@ -755,8 +757,8 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
     let members = [];
     if (coalition) {
       govStatus = coalition.status;
-      const mems = typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : coalition.member_party_ids;
-      members = mems.accepted || [];
+      const mems = typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : (coalition.member_party_ids ?? {});
+      members = mems.accepted || (Array.isArray(mems) ? mems : []);
       if (coalition.total_seats >= getMajorityForState(activeState.code) && members.length === 1) {
         govStatus = 'majority';
       } else if (coalition.total_seats >= getMajorityForState(activeState.code)) {
@@ -790,7 +792,7 @@ export async function getLedger(req: Request, res: Response, next: NextFunction)
       .orderBy('arc', 'desc')
       .orderBy('id', 'desc')
       .limit(limit)
-      .select('id', 'arc as month', 'kind', 'headline', 'body');
+      .select('id', 'arc', 'kind', 'headline', 'body');
 
     return res.json(events);
   } catch (error) {
@@ -998,7 +1000,8 @@ export async function postTender(req: Request, res: Response, next: NextFunction
       const coalition = await trx('pol_coalitions').where({ cycle_id: cycle.id }).whereIn('status', ['formed', 'minority']).first();
       if (!coalition) throw new AppError('No governing coalition found', 400, 'BAD_REQUEST');
       
-      const govMembers = typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids).accepted || [] : coalition.member_party_ids.accepted || [];
+      const parsedMembers = typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : (coalition.member_party_ids ?? {});
+      const govMembers = parsedMembers.accepted || (Array.isArray(parsedMembers) ? parsedMembers : []);
       const isGov = coalition.lead_party_id === partyMember.party_id || govMembers.includes(partyMember.party_id);
       
       if (!isGov) {
@@ -1138,7 +1141,8 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
     }
 
     const coalition = cycle ? await db('pol_coalitions').where({ cycle_id: cycle.id }).whereIn('status', ['formed', 'minority']).first() : null;
-    const govMembers = coalition ? (typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids).accepted || [] : coalition.member_party_ids.accepted || []) : [];
+    const parsedGovMembers = coalition ? (typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : (coalition.member_party_ids ?? {})) : {};
+    const govMembers = parsedGovMembers.accepted || (Array.isArray(parsedGovMembers) ? parsedGovMembers : []);
 
     const npcParties = await db('pol_parties').where({ state_id: activeState.id, is_npc: true });
 
@@ -1675,11 +1679,34 @@ export async function getCoalitionAgreement(req: Request, res: Response, next: N
       const terms = typeof agreement.partner_terms === 'string'
         ? safeParseJSON(agreement.partner_terms) : (agreement.partner_terms ?? []);
       enrichedPartners = await Promise.all(terms.map(async (t: any) => {
+        const party = await db('pol_parties').where({ id: t.party_id }).first();
         const factions = await db('pol_party_factions').where({ party_id: t.party_id });
         const total = factions.reduce((s: number, f: any) => s + Number(f.membership_share), 0);
         const weighted = factions.reduce((s: number, f: any) => s + Number(f.loyalty) * Number(f.membership_share), 0);
         const cohesion = total > 0 ? Math.round(weighted / total) : 100;
-        return { ...t, cohesion };
+        
+        // Also get seats to display in the UI
+        const seatsResult = await db('pol_council_seats').where({ cycle_id: targetCycleId, party_id: t.party_id }).first();
+        const seats = seatsResult ? seatsResult.seats : 0;
+
+        return { ...t, cohesion, name: party?.name, abbreviation: party?.abbreviation, seats };
+      }));
+    } else if (coalition.member_party_ids) {
+      // Legacy fallback for coalitions formed before agreements
+      const parsedMembers = typeof coalition.member_party_ids === 'string'
+        ? safeParseJSON(coalition.member_party_ids) : (coalition.member_party_ids ?? {});
+      const memberIds = parsedMembers.accepted || (Array.isArray(parsedMembers) ? parsedMembers : []);
+      enrichedPartners = await Promise.all(memberIds.map(async (partyId: string) => {
+        const party = await db('pol_parties').where({ id: partyId }).first();
+        const factions = await db('pol_party_factions').where({ party_id: partyId });
+        const total = factions.reduce((s: number, f: any) => s + Number(f.membership_share), 0);
+        const weighted = factions.reduce((s: number, f: any) => s + Number(f.loyalty) * Number(f.membership_share), 0);
+        const cohesion = total > 0 ? Math.round(weighted / total) : 100;
+        
+        const seatsResult = await db('pol_council_seats').where({ cycle_id: targetCycleId, party_id: partyId }).first();
+        const seats = seatsResult ? seatsResult.seats : 0;
+
+        return { party_id: partyId, cohesion, name: party?.name, abbreviation: party?.abbreviation, seats };
       }));
     }
 

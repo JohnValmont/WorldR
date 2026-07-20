@@ -56,11 +56,10 @@ SELECT
     0
 FROM pol_states WHERE code = 'ironvale';
 
-INSERT INTO pol_state_policy (state_id, industry_tax_rate, infrastructure_level, updated_arc)
-SELECT id, 0.20, 1, 0 FROM pol_states WHERE code = 'ironvale'
+INSERT INTO pol_state_policy (state_id, active_policies, updated_arc)
+SELECT id, '{"taxation": "standard", "labor": "regulated", "environment": "standard", "welfare": "standard"}'::jsonb, 0 FROM pol_states WHERE code = 'ironvale'
 ON CONFLICT (state_id) DO UPDATE SET 
-    industry_tax_rate = EXCLUDED.industry_tax_rate,
-    infrastructure_level = EXCLUDED.infrastructure_level;
+    active_policies = EXCLUDED.active_policies;
 
 INSERT INTO pol_party_identities (party_id, color, monogram, leader, motto, blurb)
 SELECT id, '#A33A3A', 'LF', 'Councillor Sera Dunne', 'The floor of the factory is the floor of the Council.', 'Worker bloc — labour protection, industrial investment, low tax.'

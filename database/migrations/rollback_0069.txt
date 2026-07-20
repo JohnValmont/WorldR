@@ -1,0 +1,15 @@
+-- DOWN
+BEGIN;
+
+ALTER TABLE pol_state_policy ADD COLUMN IF NOT EXISTS industry_tax_rate NUMERIC(4,3) NOT NULL DEFAULT 0.15;
+ALTER TABLE pol_state_policy ADD COLUMN IF NOT EXISTS infrastructure_level INTEGER NOT NULL DEFAULT 1;
+
+ALTER TABLE pol_state_policy DROP COLUMN IF EXISTS active_policies;
+
+ALTER TABLE pol_states DROP COLUMN IF EXISTS stat_gdp;
+ALTER TABLE pol_states DROP COLUMN IF EXISTS stat_unemployment;
+ALTER TABLE pol_states DROP COLUMN IF EXISTS stat_pollution;
+ALTER TABLE pol_states DROP COLUMN IF EXISTS stat_per_capita;
+ALTER TABLE pol_states DROP COLUMN IF EXISTS stat_tax_revenue;
+
+COMMIT;

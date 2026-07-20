@@ -200,8 +200,22 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               <GlassPanel title={<><Landmark size={14} /> Active Laws & Governance</>}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <DataPoint icon={Coins} label="Industry Tax Rate" value={`${((activePolicy?.industry_tax_rate ?? 0.20) * 100).toFixed(1)}%`} highlight />
-                  <DataPoint icon={Building2} label="Infrastructure Level" value={`Level ${activePolicy?.infrastructure_level ?? 1}`} highlight />
+                  <DataPoint 
+                    icon={Coins} 
+                    label="Corporate Tax Rate" 
+                    value={`${(
+                      (activePolicy?.active_policies?.taxation === 'tax_haven' ? 0.10 :
+                       activePolicy?.active_policies?.taxation === 'flat_tax' ? 0.15 :
+                       activePolicy?.active_policies?.taxation === 'progressive' ? 0.25 :
+                       0.20) * 100).toFixed(0)}%`} 
+                    highlight 
+                  />
+                  <DataPoint 
+                    icon={Building2} 
+                    label="Labor Laws" 
+                    value={(activePolicy?.active_policies?.labor || 'standard').replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())} 
+                    highlight 
+                  />
                 </div>
               </GlassPanel>
 

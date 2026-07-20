@@ -1,0 +1,3 @@
+ALTER TABLE pol_parties ADD COLUMN IF NOT EXISTS tenet_id VARCHAR(50);
+ALTER TABLE pol_parties ADD COLUMN IF NOT EXISTS doctrine_drift JSONB;
+ALTER TABLE pol_parties ADD COLUMN IF NOT EXISTS doctrine_drift_arc INTEGER;

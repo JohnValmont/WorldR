@@ -435,15 +435,32 @@ async function refreshNpcIoi(trx: any, listing: any, systemCharId: string) {
   const rawScore = (companyValue / 1_000_000) * (1 + profit / companyValue) * reputationFactor;
   const score = clamp(rawScore, 0, 1);
 
-  // Underwriters guarantee the minimum 50% float subscription so the IPO doesn't automatically fail.
-  // Good companies will see up to 150% demand, driving the clearing price up.
-  const fraction = clamp(0.50 + 1.0 * score, 0.50, 1.50);
+  const sumRow = await trx('company_shares').where({ company_id: listing.company_id }).sum('shares as total').first();
+  const actualShares = Number(sumRow?.total ?? 1000000) || 1000000;
+  
+  // Calculate a realistic fair price per share based on book value and earnings
+  const intrinsicValuePerShare = companyValue / actualShares;
+  const fairPrice = intrinsicValuePerShare * (1 + (profit / companyValue) * 5) * reputationFactor;
+  const maxReasonablePrice = fairPrice * 2.0;
+
+  // If the player is demanding a floor price that is completely detached from reality, underwriters walk away.
+  let fraction = 0;
+  let price = 0;
+  
+  if (Number(listing.ipo_price_min) <= maxReasonablePrice) {
+    // Underwriters guarantee a minimum 50% float subscription for reasonable IPOs.
+    fraction = clamp(0.50 + 1.0 * score, 0.50, 1.50);
+    const npcWillingPrice = Math.min(Number(listing.ipo_price_max), fairPrice * (0.80 + 0.40 * score));
+    price = clamp(npcWillingPrice, Number(listing.ipo_price_min), Number(listing.ipo_price_max));
+  }
+
   const sharesWanted = Math.round(Number(listing.float_shares) * fraction);
-  const price = clamp(
-    Number(listing.ipo_price_max) * (0.80 + 0.20 * score),
-    Number(listing.ipo_price_min),
-    Number(listing.ipo_price_max)
-  );
+
+  // If sharesWanted is 0, the NPC doesn't bid (or cancels their bid)
+  if (sharesWanted === 0) {
+    await trx('ipo_indications').where({ ipo_id: listing.id, is_npc: true }).delete();
+    return;
+  }
 
   const existing = await trx('ipo_indications').where({ ipo_id: listing.id, is_npc: true, status: 'pending' }).first();
   if (existing) {
@@ -900,7 +917,7 @@ export async function processExchangeMonth(trx: any, year: number, month: number
 
     // Determine MM anchor price
     let mmAnchor = lastClose;
-    if (co.is_npc && co._bookValuePerShare) {
+    if (co._bookValuePerShare) {
       const bvps = co._bookValuePerShare;
       let driftRate = 0.20;
       if (bvps > lastClose * 3) driftRate = 0.50;

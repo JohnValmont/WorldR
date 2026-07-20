@@ -194,13 +194,13 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
                           <div style={{ color: T.faint, fontSize: 12, fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 6 }}><Building2 size={12} /> By: The Assembly</div>
                         </div>
                         <div style={{ color: T.faint, fontSize: 13, marginBottom: 24, lineHeight: 1.6 }}>
-                          An act to amend the jurisdiction policies, with effect from the next session.
+                          {b.description || 'An act to amend the jurisdiction policies, with effect from the next session.'}
                         </div>
 
                         {/* Whip Bar */}
                         <div style={{ marginBottom: 24, padding: '20px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12 }}>
-                            <div style={{ ...stampStyle, fontSize: 10, color: T.gold, borderColor: 'rgba(255,215,0,0.3)' }}>WHIP POLL (REAL)</div>
+                            <div style={{ ...stampStyle, fontSize: 10, color: T.gold, borderColor: 'rgba(255,215,0,0.3)' }}>WHIP ESTIMATE</div>
                             <div style={{ color: b.projectedPass ? T.mint : T.red, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                               {b.projectedPass ? <><CheckCircle2 size={14} /> Passing</> : <><XCircle size={14} /> Failing</>}
                             </div>

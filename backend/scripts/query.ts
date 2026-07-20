@@ -1,0 +1,1 @@
+import { db } from '../src/api/config/database'; async function check() { try { const p = await db('pol_parties').orderBy('created_at', 'desc').first(); console.log('Latest party:', p); const id = await db('pol_party_identities').where({ party_id: p.id }).first(); console.log('Identity:', id); } finally { await db.destroy(); } } check();
