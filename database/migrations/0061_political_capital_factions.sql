@@ -69,12 +69,4 @@ CREATE INDEX IF NOT EXISTS idx_pol_coalition_agreements_status ON pol_coalition_
 
 COMMIT;
 
--- DOWN
-BEGIN;
-DROP TABLE IF EXISTS pol_coalition_agreements;
-DROP TABLE IF EXISTS pol_party_factions;
-ALTER TABLE pol_character_ap
-  DROP COLUMN IF EXISTS current_pc,
-  DROP COLUMN IF EXISTS pc_cap,
-  DROP COLUMN IF EXISTS pc_regen_arc;
-COMMIT;
+
