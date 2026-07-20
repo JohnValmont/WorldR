@@ -3,7 +3,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import useSWR from 'swr';
 import { politicsApi, characterApi } from '@/lib/api';
 import { DEFAULT_JURISDICTION_ID, type JurisdictionId } from './_lib/session';
-import { T, MONO, HEADING, SANS } from './_lib/theme';
+import { T, MONO, HEADING, BODY } from './_lib/theme';
 import { JURISDICTION_MODEL } from './_lib/model';
 import PoliticsSidebar, { type PoliticsSection } from './_components/PoliticsSidebar';
 import { HoverData } from './_components/DeskUI';
@@ -13,13 +13,13 @@ import OverviewScreen    from './OverviewScreen';
 import NationScreen      from './NationScreen';
 import ElectionsScreen   from './ElectionsScreen';
 import LegislatureScreen from './LegislatureScreen';
-import PolicyScreen        from './PolicyScreen';
+import PolicyScreen      from './PolicyScreen';
 import AssemblyScreen    from './AssemblyScreen';
 import PartyScreen       from './PartyScreen';
 import LobbyScreen       from './LobbyScreen';
 import LegacyScreen      from './LegacyScreen';
 
-// Live countdown to the next in-game month (1 month = 8 real hours -> next 0/8/16h).
+// Live countdown to the next in-game month tick
 function NextTick() {
   const [now, setNow] = useState<number>(() => Date.now());
   useEffect(() => {
@@ -36,15 +36,51 @@ function NextTick() {
   const hh = Math.floor(ms / 3600000);
   const mm = Math.floor((ms % 3600000) / 60000);
   const ss = Math.floor((ms % 60000) / 1000);
-  return <span style={{ fontFamily: MONO }}>{pad(hh)}:{pad(mm)}:{pad(ss)}</span>;
+  return (
+    <span style={{ fontFamily: MONO, letterSpacing: '0.05em' }}>
+      {pad(hh)}:{pad(mm)}:{pad(ss)}
+    </span>
+  );
 }
 
-function Metric({ label, value, tone }: { label: string; value: React.ReactNode; tone?: string }) {
+// Header metric pill
+function MetricPill({
+  label, value, tone, tooltip,
+}: {
+  label: string;
+  value: React.ReactNode;
+  tone?: string;
+  tooltip: React.ReactNode;
+}) {
+  const [hover, setHover] = useState(false);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', padding: '0 24px', borderLeft: `1px solid rgba(255,255,255,0.06)` }}>
-      <span style={{ fontFamily: HEADING, fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>{label}</span>
-      <span style={{ fontFamily: MONO, fontSize: 22, fontWeight: 600, color: tone || '#FFFFFF', lineHeight: 1 }}>{value}</span>
-    </div>
+    <HoverData tooltip={tooltip}>
+      <div
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+          padding: '8px 16px',
+          borderLeft: '1px solid rgba(255,255,255,0.06)',
+          cursor: 'help',
+          transition: 'background 0.15s',
+          background: hover ? 'rgba(255,255,255,0.03)' : 'transparent',
+          borderRadius: 4,
+        }}
+      >
+        <span style={{
+          fontFamily: MONO, fontSize: 8.5, letterSpacing: '0.18em',
+          textTransform: 'uppercase', color: T.faint,
+          fontWeight: 600, marginBottom: 3,
+        }}>{label}</span>
+        <span style={{
+          fontFamily: MONO, fontSize: 18, fontWeight: 700,
+          color: tone || T.ivory, lineHeight: 1,
+          letterSpacing: '-0.01em',
+          textShadow: tone ? `0 0 18px ${tone}35` : 'none',
+        }}>{value}</span>
+      </div>
+    </HoverData>
   );
 }
 
@@ -95,77 +131,150 @@ export default function PoliticsDesk() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', background: T.bg, color: T.text }}>
-      {/* Premium Global Header */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between', 
-        padding: '16px 32px', 
-        borderBottom: `1px solid rgba(255,255,255,0.06)`, 
-        background: 'rgba(5, 5, 10, 0.7)', 
-        backdropFilter: 'blur(24px)',
-        flexShrink: 0 
+
+      {/* ─── Premium Global Header ─── */}
+      <header style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 28px',
+        height: 60,
+        borderBottom: '1px solid rgba(255,255,255,0.055)',
+        background: 'linear-gradient(180deg, rgba(7,7,20,0.95) 0%, rgba(5,5,15,0.92) 100%)',
+        backdropFilter: 'blur(32px)',
+        WebkitBackdropFilter: 'blur(32px)',
+        flexShrink: 0,
+        position: 'relative',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #0369A1, #38BDF8)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(3, 105, 161, 0.4)' }}>
-             <span style={{ color: '#FFF', fontWeight: 'bold' }}>D</span>
+        {/* Bottom edge glow on header */}
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: 1,
+          background: 'linear-gradient(90deg, transparent, rgba(79,110,247,0.25), transparent)',
+          pointerEvents: 'none',
+        }} />
+
+        {/* Left: Logo + title */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{
+            width: 34, height: 34, borderRadius: 9,
+            background: 'linear-gradient(135deg, #4F6EF7, #3A5BE0)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 14px rgba(79,110,247,0.45)',
+            flexShrink: 0,
+          }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+              stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 21h18"/><path d="M5 21V10M9 21V10M15 21V10M19 21V10"/>
+              <path d="M3 10 12 4l9 6"/>
+            </svg>
           </div>
           <div>
-            <div style={{ fontSize: 18, fontFamily: HEADING, fontWeight: 600, color: '#FFF', lineHeight: 1.2 }}>Political Desk</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Drennia Republic</div>
+            <div style={{
+              fontSize: 15, fontFamily: HEADING, fontWeight: 700,
+              color: T.ivory, lineHeight: 1.15, letterSpacing: '-0.02em',
+            }}>Political Desk</div>
+            <div style={{ fontSize: 11, color: T.faint, fontFamily: MONO, letterSpacing: '0.05em' }}>
+              Drennia Republic
+            </div>
+          </div>
+          {/* Separator */}
+          <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.08)', marginLeft: 6 }} />
+          {/* Active section badge */}
+          <div style={{
+            padding: '3px 10px', borderRadius: 99,
+            background: 'rgba(79,110,247,0.12)',
+            border: '1px solid rgba(79,110,247,0.25)',
+            fontFamily: HEADING, fontSize: 11.5, fontWeight: 600,
+            color: T.blueBright, textTransform: 'capitalize', letterSpacing: '-0.01em',
+          }}>
+            {activeSection.replace(/_/g, ' ')}
           </div>
         </div>
-        
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+
+        {/* Right: Metrics */}
+        <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
           {cred != null && (
-            <HoverData label="Credibility" tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>Political Credibility allows you to take controversial actions. Earned by winning elections and passing bills.</div>}>
-              <Metric label="Credibility" value={cred} />
-            </HoverData>
+            <MetricPill
+              label="Credibility"
+              value={cred}
+              tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: BODY, lineHeight: 1.6 }}>Political Credibility allows you to take controversial actions. Earned by winning elections and passing bills.</div>}
+            />
           )}
           {cash != null && (
-            <HoverData label="Cash" tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>Liquid campaign and personal funds. Used for lobbying and operations.</div>}>
-              <Metric label="Liquid Cash" value={`$${Number(cash).toLocaleString('en-US')}`} tone={T.mint} />
-            </HoverData>
+            <MetricPill
+              label="Liquid Cash"
+              value={`$${Number(cash).toLocaleString('en-US')}`}
+              tone={T.mint}
+              tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: BODY, lineHeight: 1.6 }}>Liquid campaign and personal funds. Used for lobbying and operations.</div>}
+            />
           )}
-          <HoverData label="Action Points" tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>Action Points (AP) represent your time and energy. Regenerates every 8 real-life hours.<br/><br/><span style={{color: T.warning}}>Max: {myAp.ap_cap}</span></div>}>
-            <Metric label="Action Points" value={`${myAp.current_ap}`} tone={T.warning} />
-          </HoverData>
-          
-          <HoverData label="Game Tick" tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>The game world processes a new month every 8 hours.</div>}>
-            <Metric label={monthYear || "Current Tick"} value={<NextTick />} />
-          </HoverData>
-          
+          <MetricPill
+            label={`AP · ${myAp.current_ap}/${myAp.ap_cap}`}
+            value={`${myAp.current_ap}`}
+            tone={T.warning}
+            tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: BODY, lineHeight: 1.6 }}>Action Points represent your time and energy. Regenerates every 8 real-life hours.<br/><br/><span style={{color: T.warning}}>Cap: {myAp.ap_cap} AP</span></div>}
+          />
+          <MetricPill
+            label={monthYear || 'Tick Timer'}
+            value={<NextTick />}
+            tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: BODY, lineHeight: 1.6 }}>The game world processes a new month every 8 hours.</div>}
+          />
           {monthsToElection != null && (
-            <Metric label="Next Election" value={`${monthsToElection} mo`} tone={T.blueBright} />
+            <MetricPill
+              label="Next Election"
+              value={`${monthsToElection} mo`}
+              tone={T.blueBright}
+              tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: BODY, lineHeight: 1.6 }}>Months remaining until the next general election cycle.</div>}
+            />
           )}
         </div>
-      </div>
+      </header>
 
       <style>{`
         .politics-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
-        .politics-sidebar-container { width: 220px; flex-shrink: 0; }
+        .politics-sidebar-container { width: 228px; flex-shrink: 0; }
+        .politics-main-scroll::-webkit-scrollbar { width: 6px; }
+        .politics-main-scroll::-webkit-scrollbar-track { background: transparent; }
+        .politics-main-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+        .politics-main-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
         @media (max-width: 768px) {
           .politics-layout { flex-direction: column-reverse; }
           .politics-sidebar-container { width: 100%; height: 60px; border-right: none !important; border-top: 1px solid rgba(51,65,85,0.4); }
           .sidebar-nav-groups { flex-direction: row !important; overflow-x: auto; overflow-y: hidden; padding: 0 8px; align-items: center; }
           .sidebar-nav-group-label { display: none !important; }
-          .sidebar-nav-item { flex: 0 0 auto; width: auto !important; margin: 0 4px !important; padding: 8px 12px !important; }
-          .sidebar-nav-item span { display: none !important; } /* Hide labels on mobile bottom nav */
+          .sidebar-nav-item { flex: 0 0 auto; width: auto !important; margin: 0 2px !important; padding: 8px 10px !important; }
+          .sidebar-nav-item span { display: none !important; }
           .sidebar-nav-item svg { margin: 0; }
           .sidebar-brand, .sidebar-leader { display: none !important; }
         }
       `}</style>
 
-      {/* Body */}
+      {/* ─── Body ─── */}
       <div className="politics-layout">
         <PoliticsSidebar active={activeSection} onSelect={setActiveSection} myPartyName={myParty?.name} myPartyNation={jMeta.name} />
-        <main style={{ flex: 1, overflowY: 'auto', background: T.bg }}>
-          <div style={{ maxWidth: 1240, margin: '0 auto', padding: '16px 20px' }}>
+
+        <main className="politics-main-scroll" style={{ flex: 1, overflowY: 'auto', background: T.bg }}>
+          {/* Background ambient */}
+          <div style={{
+            position: 'fixed', top: 0, right: 0, width: 600, height: 600,
+            background: 'radial-gradient(ellipse at top right, rgba(79,110,247,0.04) 0%, transparent 70%)',
+            pointerEvents: 'none', zIndex: 0,
+          }} />
+          <div style={{ maxWidth: 1260, margin: '0 auto', padding: '20px 24px', position: 'relative', zIndex: 1 }}>
             {loading ? (
-              <div style={{ color: T.muted, fontFamily: MONO, fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Convening the Political Desk—</div>
+              <div style={{ padding: '60px 0', textAlign: 'center' }}>
+                <div style={{ color: T.faint, fontFamily: MONO, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+                  Convening the Political Desk
+                  <span style={{ animation: 'none' }}>…</span>
+                </div>
+              </div>
             ) : error ? (
-              <div style={{ color: T.red, border: `1px solid ${T.red}55`, background: `${T.red}14`, padding: 16, borderRadius: 4 }}>
-                {String((error as any)?.response?.data?.error || (error as any)?.response?.data?.message || (error as any)?.message || error)}
+              <div style={{
+                color: T.red, border: `1px solid ${T.red}40`,
+                background: T.redDim, padding: '16px 20px', borderRadius: 12,
+                fontFamily: BODY, fontSize: 13, lineHeight: 1.6,
+              }}>
+                {String((error as any)?.response?.data?.error || (error as any)?.message || error)}
               </div>
             ) : activeSection === 'overview' ? (
               <OverviewScreen overview={overview} character={character} parties={parties} myAp={myAp} selectedJurisdictionId={selectedJurisdictionId} onNavigate={setActiveSection} onRefresh={loadData} />

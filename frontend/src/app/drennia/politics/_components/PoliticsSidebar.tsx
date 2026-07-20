@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import { T, MONO, HEADING, BODY } from '../_lib/theme';
 
 export type PoliticsSection =
@@ -7,12 +7,12 @@ export type PoliticsSection =
 
 function Icon({ name }: { name: PoliticsSection }) {
   const c = {
-    width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none',
-    stroke: 'currentColor', strokeWidth: 1.8,
+    width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none',
+    stroke: 'currentColor', strokeWidth: 1.75,
     strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
   };
   switch (name) {
-    case 'overview':    return (<svg {...c}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>);
+    case 'overview':    return (<svg {...c}><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>);
     case 'nation':      return (<svg {...c}><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>);
     case 'party':       return (<svg {...c}><path d="M4 22V4"/><path d="M4 5h11l-1.6 4L15 13H4"/></svg>);
     case 'elections':   return (<svg {...c}><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8.5 12 2 2 4.5-4.5"/></svg>);
@@ -26,35 +26,10 @@ function Icon({ name }: { name: PoliticsSection }) {
 }
 
 const GROUPS: Array<{ label: string; items: Array<{ id: PoliticsSection; label: string }> }> = [
-  {
-    label: 'Command',
-    items: [
-      { id: 'overview',    label: 'Command Center' },
-      { id: 'nation',      label: 'Nation' },
-    ],
-  },
-  {
-    label: 'Politics',
-    items: [
-      { id: 'party',       label: 'Party' },
-      { id: 'elections',   label: 'Elections' },
-      { id: 'legislature', label: 'Legislature' },
-      { id: 'assembly',    label: 'Assembly' },
-    ],
-  },
-  {
-    label: 'Governance',
-    items: [
-      { id: 'policy',      label: 'Policy' },
-      { id: 'lobby',       label: 'Lobby' },
-    ],
-  },
-  {
-    label: 'Character',
-    items: [
-      { id: 'legacy',      label: 'Legacy' },
-    ],
-  },
+  { label: 'Command', items: [{ id: 'overview', label: 'Command Center' }, { id: 'nation', label: 'Nation' }] },
+  { label: 'Politics', items: [{ id: 'party', label: 'Party' }, { id: 'elections', label: 'Elections' }, { id: 'legislature', label: 'Legislature' }, { id: 'assembly', label: 'Assembly' }] },
+  { label: 'Governance', items: [{ id: 'policy', label: 'Policy' }, { id: 'lobby', label: 'Lobby' }] },
+  { label: 'Character', items: [{ id: 'legacy', label: 'Legacy' }] },
 ];
 
 interface Props {
@@ -64,69 +39,182 @@ interface Props {
   myPartyNation?: string;
 }
 
+function NavItem({ item, isActive, onSelect }: {
+  item: { id: PoliticsSection; label: string };
+  isActive: boolean;
+  onSelect: (id: PoliticsSection) => void;
+}) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      className="sidebar-nav-item"
+      onClick={() => onSelect(item.id)}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 11, width: '100%',
+        padding: '9px 12px', borderRadius: 10, marginBottom: 2,
+        background: isActive
+          ? 'linear-gradient(135deg, rgba(79,110,247,0.15), rgba(79,110,247,0.07))'
+          : hover ? 'rgba(255,255,255,0.04)' : 'transparent',
+        color: isActive ? '#F0F4FF' : hover ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.45)',
+        cursor: 'pointer', textAlign: 'left',
+        border: isActive ? '1px solid rgba(79,110,247,0.28)' : '1px solid transparent',
+        transition: 'all 0.18s cubic-bezier(0.25, 0.8, 0.25, 1)',
+        position: 'relative',
+      }}
+    >
+      {/* Animated left indicator bar */}
+      <span style={{
+        width: 3,
+        height: isActive ? 18 : hover ? 10 : 0,
+        borderRadius: 2, flexShrink: 0,
+        background: isActive ? 'linear-gradient(180deg, #7B9FFF, #4F6EF790)' : 'rgba(255,255,255,0.3)',
+        boxShadow: isActive ? '0 0 8px #7B9FFF60' : 'none',
+        transition: 'all 0.2s ease',
+      }} />
+
+      {/* Icon */}
+      <span style={{
+        color: isActive ? '#7B9FFF' : hover ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.3)',
+        transition: 'color 0.18s ease', flexShrink: 0, display: 'flex', alignItems: 'center',
+      }}>
+        <Icon name={item.id} />
+      </span>
+
+      {/* Label */}
+      <span style={{
+        fontSize: 13, fontWeight: isActive ? 600 : 400,
+        letterSpacing: '-0.01em', fontFamily: "'Inter', sans-serif", flex: 1,
+      }}>
+        {item.label}
+      </span>
+
+      {/* Active chevron */}
+      {isActive && (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="#7B9FFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ opacity: 0.5, flexShrink: 0 }}>
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      )}
+    </button>
+  );
+}
+
 export default function PoliticsSidebar({ active, onSelect, myPartyName, myPartyNation }: Props) {
   return (
-    <aside className="politics-sidebar-container" style={{ background: 'rgba(5, 5, 10, 0.5)', backdropFilter: 'blur(24px)', borderRight: `1px solid rgba(255,255,255,0.06)`, display: 'flex', flexDirection: 'column', flexShrink: 0, fontFamily: BODY, zIndex: 40 }}>
+    <aside className="politics-sidebar-container" style={{
+      background: 'linear-gradient(180deg, rgba(5,5,15,0.97) 0%, rgba(7,7,20,0.95) 100%)',
+      backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)',
+      borderRight: '1px solid rgba(255,255,255,0.06)',
+      display: 'flex', flexDirection: 'column', flexShrink: 0,
+      fontFamily: "'Inter', sans-serif", zIndex: 40, position: 'relative',
+    }}>
+
+      {/* Top accent gradient line */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+        background: 'linear-gradient(90deg, transparent, rgba(79,110,247,0.5), transparent)',
+        pointerEvents: 'none',
+      }} />
+
       {/* Branding header */}
-      <div className="sidebar-brand" style={{ padding: '32px 24px 24px' }}>
-        <div style={{ fontFamily: HEADING, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>Political Desk</div>
-        <div style={{ color: '#FFFFFF', fontWeight: 600, fontSize: 20, fontFamily: HEADING, marginTop: 8, letterSpacing: '-0.02em' }}>{myPartyName || 'Unaligned'}</div>
-        <div style={{ color: 'rgba(255,255,255,0.4)', fontFamily: HEADING, fontSize: 13, marginTop: 4 }}>{myPartyNation || 'National'}</div>
+      <div className="sidebar-brand" style={{ padding: '26px 18px 18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          {/* Icon crest */}
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: 'linear-gradient(135deg, rgba(79,110,247,0.25), rgba(79,110,247,0.10))',
+            border: '1px solid rgba(79,110,247,0.32)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(79,110,247,0.18)',
+            flexShrink: 0,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="#7B9FFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 21h18"/><path d="M5 21V10M9 21V10M15 21V10M19 21V10"/>
+              <path d="M3 10 12 4l9 6"/>
+            </svg>
+          </div>
+
+          <div style={{ minWidth: 0 }}>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              textTransform: 'uppercase', letterSpacing: '0.14em',
+              fontSize: 8.5, color: '#7B9FFF',
+              fontWeight: 600, opacity: 0.75, marginBottom: 3,
+            }}>Political Desk</div>
+            <div style={{
+              color: '#F0F4FF', fontWeight: 700, fontSize: 15,
+              fontFamily: "'Inter', sans-serif",
+              letterSpacing: '-0.02em', lineHeight: 1,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>{myPartyName || 'Unaligned'}</div>
+          </div>
+        </div>
+
+        {/* Jurisdiction pill */}
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '4px 10px', borderRadius: 99,
+          background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.07)',
+        }}>
+          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#10D67A', boxShadow: '0 0 6px #10D67A', flexShrink: 0 }} />
+          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: '#8890A8', fontWeight: 500 }}>
+            {myPartyNation || 'National'}
+          </span>
+        </div>
       </div>
 
-      {/* Navigation groups */}
-      <nav className="sidebar-nav-groups" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px', flex: 1, overflowY: 'auto' }}>
+      {/* Navigation */}
+      <nav className="sidebar-nav-groups" style={{
+        display: 'flex', flexDirection: 'column',
+        padding: '0 10px', flex: 1, overflowY: 'auto', gap: 2,
+      }}>
         {GROUPS.map((group) => (
-          <div key={group.label} style={{ marginBottom: 12 }}>
-            <div className="sidebar-nav-group-label" style={{ fontFamily: HEADING, fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', padding: '12px 12px 8px', fontWeight: 600 }}>
-              {group.label}
+          <div key={group.label} style={{ marginBottom: 6 }}>
+            <div className="sidebar-nav-group-label" style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '10px 12px 5px',
+            }}>
+              <span style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 9, letterSpacing: '0.18em',
+                textTransform: 'uppercase', color: '#454D65',
+                fontWeight: 600, whiteSpace: 'nowrap',
+              }}>{group.label}</span>
+              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.04)' }} />
             </div>
-            {group.items.map((it) => {
-              const on = it.id === active;
-              return (
-                <button
-                  key={it.id}
-                  className="sidebar-nav-item"
-                  onClick={() => onSelect(it.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 12, width: '100%',
-                    padding: '10px 12px', borderRadius: 8, marginBottom: 2,
-                    background: on ? 'rgba(255,255,255,0.06)' : 'transparent',
-                    color: on ? '#FFFFFF' : 'rgba(255,255,255,0.6)',
-                    cursor: 'pointer', textAlign: 'left',
-                    border: '1px solid transparent',
-                    transition: 'all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1)',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!on) {
-                      e.currentTarget.style.color = '#FFFFFF';
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!on) {
-                      e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
-                      e.currentTarget.style.background = 'transparent';
-                    }
-                  }}
-                >
-                  {/* Active indicator bar */}
-                  <span style={{ width: 4, height: 16, borderRadius: 2, flexShrink: 0, background: on ? '#FFFFFF' : 'transparent', transition: 'all 0.2s ease' }} />
-                  <Icon name={it.id} />
-                  <span style={{ fontSize: 14, fontWeight: on ? 500 : 400, letterSpacing: '-0.01em' }}>{it.label}</span>
-                </button>
-              );
-            })}
+            {group.items.map((it) => (
+              <NavItem key={it.id} item={it} isActive={it.id === active} onSelect={onSelect} />
+            ))}
           </div>
         ))}
       </nav>
 
       {/* Leader badge */}
       {myPartyName && (
-        <div className="sidebar-leader" style={{ padding: '24px', borderTop: `1px solid rgba(255,255,255,0.06)` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 99, background: T.mint, display: 'inline-block', boxShadow: `0 0 12px ${T.mint}` }} />
-            <span style={{ color: 'rgba(255,255,255,0.7)', fontFamily: HEADING, fontSize: 13, fontWeight: 500 }}>Leader — You</span>
+        <div className="sidebar-leader" style={{
+          padding: '14px 18px',
+          borderTop: '1px solid rgba(255,255,255,0.05)',
+          background: 'rgba(79,110,247,0.04)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{
+              width: 7, height: 7, borderRadius: '50%',
+              background: '#10D67A', boxShadow: '0 0 8px #10D67A',
+              display: 'inline-block', flexShrink: 0,
+            }} />
+            <span style={{ color: '#8890A8', fontFamily: "'Inter', sans-serif", fontSize: 12, fontWeight: 500 }}>
+              Party Leader
+            </span>
+            <span style={{
+              marginLeft: 'auto',
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 9, letterSpacing: '0.1em',
+              textTransform: 'uppercase', color: '#10D67A', fontWeight: 700, opacity: 0.9,
+            }}>You</span>
           </div>
         </div>
       )}
