@@ -2704,9 +2704,9 @@ export async function processLegacyForState(
   const parties = await trx('pol_parties').where({ state_id: stateId, is_npc: false });
 
   // Get state conditions to assess economic health
-  const conditions = await trx('pol_state_conditions').where({ state_id: stateId }).first();
+  const conditions = await trx('pol_states').where({ id: stateId }).first();
   const economyScore = conditions
-    ? Math.round((Number(conditions.employment ?? 50) + Number(conditions.investment_climate ?? 50)) / 2)
+    ? Math.round((Number(conditions.cond_jobs ?? 50) + Number(conditions.cond_prosperity ?? 50)) / 2)
     : 50;
   const economyThriving = economyScore >= 65;
   const economyDeclining = economyScore <= 35;
