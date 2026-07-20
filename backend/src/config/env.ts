@@ -14,6 +14,8 @@ const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
   BREVO_API_KEY: z.string().optional(),
+  BREVO_SMTP_USER: z.string().optional(),
+  BREVO_SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().default('no-reply@worldr.game'),
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
 });
