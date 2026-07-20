@@ -75,7 +75,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', fontFamily: SANS }}>
               <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <p style={{ color: T.text, fontSize: 14, lineHeight: 1.6, margin: 0 }}>
-                  The <strong>Republic of Drennia</strong> is a federal parliamentary republic situated in the northern industrial corridor. Renowned for its deep-water ports, sprawling manufacturing hubs, and rich labor history, Drennia balances heavy industry with a modernizing service economy. Its political landscape is defined by rigorous debate, powerful interest groups, and a fiercely independent electorate.
+                  The <strong>Nation of Drennia</strong> is a constitutional monarchy situated in the northern industrial corridor. Renowned for its deep-water ports, sprawling manufacturing hubs, and rich labor history, Drennia balances heavy industry with a modernizing service economy. While the Monarch serves as the ceremonial head of state, political power is wielded by the elected National Parliament and fiercely independent regional states.
                 </p>
               </div>
               <div style={{ flex: '1 1 300px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -85,7 +85,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: T.faint, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Government</div>
-                  <div style={{ fontSize: 14, color: T.ivory, fontWeight: 500 }}>Federal Parliamentary Republic</div>
+                  <div style={{ fontSize: 14, color: T.ivory, fontWeight: 500 }}>Constitutional Monarchy</div>
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: T.faint, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Legislature</div>
