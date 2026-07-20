@@ -213,7 +213,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
                   <DataPoint 
                     icon={Building2} 
                     label="Labor Laws" 
-                    value={(activePolicy?.active_policies?.labor || 'standard').replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())} 
+                    value={(activePolicy?.active_policies?.labor || 'standard').replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())} 
                     highlight 
                   />
                 </div>
