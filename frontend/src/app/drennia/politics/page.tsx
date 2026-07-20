@@ -3,9 +3,10 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import useSWR from 'swr';
 import { politicsApi, characterApi } from '@/lib/api';
 import { DEFAULT_JURISDICTION_ID, type JurisdictionId } from './_lib/session';
-import { T, MONO } from './_lib/theme';
+import { T, MONO, SANS } from './_lib/theme';
 import { JURISDICTION_MODEL } from './_lib/model';
 import PoliticsSidebar, { type PoliticsSection } from './_components/PoliticsSidebar';
+import { HoverData } from './_components/DeskUI';
 import { formatGameDateShort } from '@/lib/calendar';
 
 import OverviewScreen    from './OverviewScreen';
@@ -102,17 +103,45 @@ export default function PoliticsDesk() {
           <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.ivory, fontWeight: 700 }}>Politics</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          {cred != null && <Chip label="Cred" value={cred} />}
-          {cash != null && <Chip label="Cash" value={`$${Number(cash).toLocaleString('en-US')}`} tone={T.mint} />}
-          <Chip label="AP" value={`${myAp.current_ap}`} tone={T.gold} />
+          {cred != null && (
+            <HoverData label="Credibility" tooltip={<div style={{ fontFamily: SANS, color: T.text, fontSize: 12 }}>Political Credibility allows you to take controversial actions. Earned by winning elections and passing bills.</div>}>
+              <Chip label="Cred" value={cred} />
+            </HoverData>
+          )}
+          {cash != null && (
+            <HoverData label="Cash" tooltip={<div style={{ fontFamily: SANS, color: T.text, fontSize: 12 }}>Liquid campaign and personal funds. Used for lobbying and operations.</div>}>
+              <Chip label="Cash" value={`$${Number(cash).toLocaleString('en-US')}`} tone={T.mint} />
+            </HoverData>
+          )}
+          <HoverData label="Action Points" tooltip={<div style={{ fontFamily: SANS, color: T.text, fontSize: 12 }}>Action Points (AP) represent your time and energy. Regenerates every 8 real-life hours.<br/><br/><span style={{color: T.gold}}>Max: {myAp.ap_cap}</span></div>}>
+            <Chip label="AP" value={`${myAp.current_ap}`} tone={T.gold} />
+          </HoverData>
+          
           {monthYear && <Chip label="When" value={monthYear} />}
-          <Chip label="Next Month" value={<NextTick />} />
+          <HoverData label="Tick" tooltip={<div style={{ fontFamily: SANS, color: T.text, fontSize: 12 }}>The game world processes a new month every 8 hours.</div>}>
+            <Chip label="Next Month" value={<NextTick />} />
+          </HoverData>
           {monthsToElection != null && <Chip label="Election" value={`${monthsToElection} mo`} tone={T.blue} />}
         </div>
       </div>
 
+      <style>{`
+        .politics-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+        .politics-sidebar-container { width: 220px; flex-shrink: 0; }
+        @media (max-width: 768px) {
+          .politics-layout { flex-direction: column-reverse; }
+          .politics-sidebar-container { width: 100%; height: 60px; border-right: none !important; border-top: 1px solid rgba(51,65,85,0.4); }
+          .sidebar-nav-groups { flex-direction: row !important; overflow-x: auto; overflow-y: hidden; padding: 0 8px; align-items: center; }
+          .sidebar-nav-group-label { display: none !important; }
+          .sidebar-nav-item { flex: 0 0 auto; width: auto !important; margin: 0 4px !important; padding: 8px 12px !important; }
+          .sidebar-nav-item span { display: none !important; } /* Hide labels on mobile bottom nav */
+          .sidebar-nav-item svg { margin: 0; }
+          .sidebar-brand, .sidebar-leader { display: none !important; }
+        }
+      `}</style>
+
       {/* Body */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+      <div className="politics-layout">
         <PoliticsSidebar active={activeSection} onSelect={setActiveSection} myPartyName={myParty?.name} myPartyNation={jMeta.name} />
         <main style={{ flex: 1, overflowY: 'auto', background: T.bg }}>
           <div style={{ maxWidth: 1240, margin: '0 auto', padding: '16px 20px' }}>

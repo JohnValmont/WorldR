@@ -66,19 +66,19 @@ interface Props {
 
 export default function PoliticsSidebar({ active, onSelect, myPartyName, myPartyNation }: Props) {
   return (
-    <aside style={{ width: 220, background: 'rgba(2, 6, 23, 0.85)', backdropFilter: 'blur(14px)', borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0, fontFamily: BODY, zIndex: 40 }}>
+    <aside className="politics-sidebar-container" style={{ background: 'rgba(2, 6, 23, 0.85)', backdropFilter: 'blur(14px)', borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0, fontFamily: BODY, zIndex: 40 }}>
       {/* Branding header */}
-      <div style={{ padding: '20px 16px 16px' }}>
+      <div className="sidebar-brand" style={{ padding: '20px 16px 16px' }}>
         <div style={{ fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.22em', fontSize: 9.5, color: T.blueBright, fontWeight: 600, opacity: 0.85 }}>Political Desk</div>
         <div style={{ color: T.ivory, fontWeight: 700, fontSize: 15, fontFamily: HEADING, marginTop: 8, letterSpacing: '-0.01em' }}>{myPartyName || 'Unaligned'}</div>
         <div style={{ color: T.muted, fontFamily: MONO, fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.14em', marginTop: 3 }}>{myPartyNation || 'National'}</div>
       </div>
 
       {/* Navigation groups */}
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 0, padding: '0 8px', flex: 1, overflowY: 'auto' }}>
+      <nav className="sidebar-nav-groups" style={{ display: 'flex', flexDirection: 'column', gap: 0, padding: '0 8px', flex: 1, overflowY: 'auto' }}>
         {GROUPS.map((group) => (
           <div key={group.label} style={{ marginBottom: 8 }}>
-            <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: T.faint, padding: '10px 8px 4px', fontWeight: 600 }}>
+            <div className="sidebar-nav-group-label" style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: T.faint, padding: '10px 8px 4px', fontWeight: 600 }}>
               {group.label}
             </div>
             {group.items.map((it) => {
@@ -86,6 +86,7 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
               return (
                 <button
                   key={it.id}
+                  className="sidebar-nav-item"
                   onClick={() => onSelect(it.id)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, width: '100%',
@@ -122,7 +123,7 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
       </nav>
 
       {/* Leader badge */}
-      <div style={{ padding: '14px 16px', borderTop: `1px solid ${T.border}` }}>
+      <div className="sidebar-leader" style={{ padding: '14px 16px', borderTop: `1px solid ${T.border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ width: 7, height: 7, borderRadius: 99, background: T.mint, display: 'inline-block', boxShadow: `0 0 8px ${T.mint}` }} />
           <span style={{ color: T.text, fontFamily: MONO, fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.14em', fontWeight: 600 }}>Leader — You</span>

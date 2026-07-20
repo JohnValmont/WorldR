@@ -4,8 +4,56 @@
 // desk stays visually consistent. All colours come from the T palette.
 // —
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { T, MONO, glassPanelStyle, tabularNums } from '../_lib/theme';
+
+/** A tooltip wrapper that reveals rich data on hover. */
+export function HoverData({ label, children, tooltip }: { label?: string; children: React.ReactNode; tooltip: React.ReactNode }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <div 
+      className="hover-data-container" 
+      style={{ position: 'relative', display: 'inline-block' }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      <div style={{ cursor: 'help', borderBottom: `1px dashed ${T.borderSoft}` }}>
+        {label ? <span style={{ color: T.muted, fontSize: 11 }}>{label}: </span> : null}
+        {children}
+      </div>
+      <AnimatePresence>
+        {hover && (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+            style={{
+              position: 'absolute',
+              bottom: '100%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              marginBottom: 8,
+              background: 'rgba(2, 6, 23, 0.95)',
+              backdropFilter: 'blur(16px)',
+              border: `1px solid ${T.border}`,
+              borderTop: `1px solid ${T.goldLine}`,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              padding: 12,
+              borderRadius: 6,
+              zIndex: 100,
+              minWidth: 200,
+              pointerEvents: 'none'
+            }}
+          >
+            {tooltip}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 /** Uppercase section stamp with a leading gold tick. */
 export function Stamp({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
@@ -34,7 +82,9 @@ export function Panel({
   style?: React.CSSProperties;
 }) {
   return (
-    <div
+    <motion.div
+      whileHover={accent ? { scale: 1.005, borderColor: T.goldLine, boxShadow: `0 8px 32px rgba(227, 182, 102, 0.15), inset 0 1px 0 rgba(227, 182, 102, 0.2)` } : undefined}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       style={{
         ...glassPanelStyle,
         border: `1px solid ${accent ? T.goldLine : T.border}`,
@@ -50,7 +100,7 @@ export function Panel({
         </div>
       )}
       {children}
-    </div>
+    </motion.div>
   );
 }
 
@@ -67,20 +117,22 @@ export function StatTile({
   tone?: string;
 }) {
   return (
-    <div style={{ 
-      background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.75) 100%)', 
-      border: `1px solid ${T.border}`, 
-      borderTop: `1px solid rgba(255,255,255,0.08)`, 
-      borderRadius: 6, 
-      padding: '10px 12px', 
-      minWidth: 0,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-      transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-    }}>
+    <motion.div 
+      whileHover={{ scale: 1.02, y: -2 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+      style={{ 
+        background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.75) 100%)', 
+        border: `1px solid ${T.border}`, 
+        borderTop: `1px solid rgba(255,255,255,0.08)`, 
+        borderRadius: 6, 
+        padding: '10px 12px', 
+        minWidth: 0,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+      }}>
       <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.faint }}>{label}</div>
       <div style={{ ...tabularNums, fontSize: 20, fontWeight: 700, color: tone, marginTop: 5, lineHeight: 1 }}>{value}</div>
       {sub != null && <div style={{ fontFamily: MONO, fontSize: 10, color: T.muted, marginTop: 4 }}>{sub}</div>}
-    </div>
+    </motion.div>
   );
 }
 

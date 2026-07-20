@@ -3,7 +3,7 @@ import React from 'react';
 import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
 import { T, MONO, SANS, stampStyle, glassPanelStyle } from './_lib/theme';
-import { Stamp, Meter, Panel, StatTile } from './_components/DeskUI';
+import { Stamp, Meter, Panel, StatTile, HoverData } from './_components/DeskUI';
 
 interface Props {
   character: any;
@@ -45,10 +45,18 @@ export default function LegacyScreen({ character }: Props) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
         <Panel title="LIFETIME ACHIEVEMENTS">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-             <Meter label="Longevity" value={scores?.longevity ?? 0} tone={T.blue} />
-             <Meter label="Electoral" value={scores?.electoral ?? 0} tone={T.gold} />
-             <Meter label="Scandal" value={scores?.scandal ?? 0} tone={T.red} />
-             <Meter label="Economic" value={scores?.economic ?? 0} tone={T.mint} />
+             <HoverData tooltip={<div style={{ fontSize: 12, color: T.text, fontFamily: SANS }}>Score derived from arcs spent as an active party leader or head of state.</div>}>
+               <Meter label="Longevity" value={scores?.longevity ?? 0} tone={T.blue} />
+             </HoverData>
+             <HoverData tooltip={<div style={{ fontSize: 12, color: T.text, fontFamily: SANS }}>Score derived from successful elections, expanding vote share, and forming majorities.</div>}>
+               <Meter label="Electoral" value={scores?.electoral ?? 0} tone={T.gold} />
+             </HoverData>
+             <HoverData tooltip={<div style={{ fontSize: 12, color: T.text, fontFamily: SANS }}>Score derived from avoiding crises and resolving scandals smoothly. Drops sharply upon failure.</div>}>
+               <Meter label="Scandal" value={scores?.scandal ?? 0} tone={T.red} />
+             </HoverData>
+             <HoverData tooltip={<div style={{ fontSize: 12, color: T.text, fontFamily: SANS }}>Score derived from GDP growth and economic stability while in power.</div>}>
+               <Meter label="Economic" value={scores?.economic ?? 0} tone={T.mint} />
+             </HoverData>
           </div>
         </Panel>
 
