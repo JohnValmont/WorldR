@@ -6,7 +6,7 @@
 'use client';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { T, MONO, glassPanelStyle, tabularNums } from '../_lib/theme';
+import { T, MONO, HEADING, glassPanelStyle, tabularNums } from '../_lib/theme';
 
 /** A tooltip wrapper that reveals rich data on hover. */
 export function HoverData({ label, children, tooltip }: { label?: string; children: React.ReactNode; tooltip: React.ReactNode }) {
@@ -60,7 +60,7 @@ export function Stamp({ children, style }: { children: React.ReactNode; style?: 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, ...style }}>
       <span style={{ width: 4, height: 16, background: 'rgba(255,255,255,0.8)', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
-      <span style={{ fontFamily: T.HEADING, fontSize: 15, color: '#FFFFFF', fontWeight: 600, letterSpacing: '0.02em' }}>
+      <span style={{ fontFamily: HEADING, fontSize: 15, color: '#FFFFFF', fontWeight: 600, letterSpacing: '0.02em' }}>
         {children}
       </span>
     </div>
@@ -128,7 +128,7 @@ export function StatTile({
         minWidth: 0,
         boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
       }}>
-      <div style={{ fontFamily: T.HEADING, fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.6)' }}>{label}</div>
+      <div style={{ fontFamily: HEADING, fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.6)' }}>{label}</div>
       <div style={{ ...tabularNums, fontSize: 32, fontWeight: 600, color: tone, marginTop: 12, lineHeight: 1 }}>{value}</div>
       {sub != null && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>{sub}</div>}
     </motion.div>
@@ -200,7 +200,7 @@ export function PhaseTimeline({ steps, activeKey }: { steps: PhaseStep[]; active
           <React.Fragment key={s.key}>
             <span
               style={{
-                fontFamily: T.HEADING,
+                fontFamily: HEADING,
                 fontSize: 12,
                 color,
                 fontWeight: isActive ? 600 : 400,

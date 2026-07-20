@@ -3,7 +3,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import useSWR from 'swr';
 import { politicsApi, characterApi } from '@/lib/api';
 import { DEFAULT_JURISDICTION_ID, type JurisdictionId } from './_lib/session';
-import { T, MONO, SANS } from './_lib/theme';
+import { T, MONO, HEADING, SANS } from './_lib/theme';
 import { JURISDICTION_MODEL } from './_lib/model';
 import PoliticsSidebar, { type PoliticsSection } from './_components/PoliticsSidebar';
 import { HoverData } from './_components/DeskUI';
@@ -42,7 +42,7 @@ function NextTick() {
 function Metric({ label, value, tone }: { label: string; value: React.ReactNode; tone?: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', padding: '0 24px', borderLeft: `1px solid rgba(255,255,255,0.06)` }}>
-      <span style={{ fontFamily: T.HEADING, fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>{label}</span>
+      <span style={{ fontFamily: HEADING, fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>{label}</span>
       <span style={{ fontFamily: MONO, fontSize: 22, fontWeight: 600, color: tone || '#FFFFFF', lineHeight: 1 }}>{value}</span>
     </div>
   );
@@ -111,7 +111,7 @@ export default function PoliticsDesk() {
              <span style={{ color: '#FFF', fontWeight: 'bold' }}>D</span>
           </div>
           <div>
-            <div style={{ fontSize: 18, fontFamily: T.HEADING, fontWeight: 600, color: '#FFF', lineHeight: 1.2 }}>Political Desk</div>
+            <div style={{ fontSize: 18, fontFamily: HEADING, fontWeight: 600, color: '#FFF', lineHeight: 1.2 }}>Political Desk</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Drennia Republic</div>
           </div>
         </div>
