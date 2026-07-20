@@ -33,6 +33,8 @@ import {
   doPressConference,
   getPartyMediaRelations,
   getRecentNews,
+  getOrCreateLegacyScores,
+  getLegacySummary,
 } from '../services/politics.service';
 import {
   PARTY_FOUNDING_COST,
@@ -2164,6 +2166,9 @@ export async function getNewsFeedHandler(req: Request, res: Response, next: Next
 
     const stories = await getRecentNews(activeState.id, 15);
     return res.json({ stories });
+  } catch (error) {
+    next(error);
+  }
 }
 
 // ── Legacy System (Phase 8) ───────────────────────────────────────────────────
