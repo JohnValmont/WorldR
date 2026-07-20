@@ -2,7 +2,7 @@
 import React from 'react';
 import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
-import { T, MONO, SANS, stampStyle, glassPanelStyle } from './_lib/theme';
+import { T, MONO, HEADING, SANS, stampStyle, glassPanelStyle } from './_lib/theme';
 import { Stamp, Meter, Panel, StatTile, HoverData } from './_components/DeskUI';
 
 interface Props {
@@ -28,16 +28,21 @@ export default function LegacyScreen({ character }: Props) {
   if (!legacy) return null;
 
   const { scores, recentEvents } = legacy;
-  const unlocked = Array.isArray(scores?.unlocked_benefits) 
-    ? scores.unlocked_benefits 
-    : JSON.parse(scores?.unlocked_benefits || '[]');
+  let unlocked: string[] = [];
+  try {
+    unlocked = Array.isArray(scores?.unlocked_benefits) 
+      ? scores.unlocked_benefits 
+      : JSON.parse(scores?.unlocked_benefits || '[]');
+  } catch (e) {
+    unlocked = [];
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 800, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: `1px solid ${T.border}`, paddingBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: `1px solid ${T.borderSoft}`, paddingBottom: 16 }}>
         <div>
           <h2 style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.14em', color: T.gold, textTransform: 'uppercase', margin: '0 0 4px 0' }}>CONFIDENTIAL RECORD</h2>
-          <h1 style={{ fontFamily: SANS, fontSize: 24, fontWeight: 300, color: T.ivory, margin: 0, letterSpacing: '-0.02em' }}>Career & Legacy</h1>
+          <h1 style={{ fontFamily: HEADING, fontSize: 24, fontWeight: 300, color: T.ivory, margin: 0, letterSpacing: '-0.02em' }}>Career & Legacy</h1>
         </div>
         <StatTile label="TOTAL SCORE" value={scores?.total ?? 0} tone={T.gold} />
       </div>
@@ -86,7 +91,7 @@ export default function LegacyScreen({ character }: Props) {
 
       <Panel title="HISTORICAL LOG">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {recentEvents?.map((ev: any) => (
+          {Array.isArray(recentEvents) && recentEvents.map((ev: any) => (
             <div key={ev.id} style={{ display: 'flex', gap: 16, padding: '12px 0', borderBottom: `1px solid ${T.borderSoft}` }}>
               <div style={{ width: 80, flexShrink: 0, fontFamily: MONO, fontSize: 11, color: T.faint }}>
                 ARC {ev.arc}
@@ -101,7 +106,7 @@ export default function LegacyScreen({ character }: Props) {
               </div>
             </div>
           ))}
-          {(!recentEvents || recentEvents.length === 0) && (
+          {(!Array.isArray(recentEvents) || recentEvents.length === 0) && (
             <div style={{ fontFamily: MONO, fontSize: 11, color: T.faint }}>No significant events recorded.</div>
           )}
         </div>

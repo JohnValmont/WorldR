@@ -71,6 +71,34 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
             <p style={{ color: T.muted, fontSize: 15, marginTop: 8, lineHeight: 1.6 }}>Overview of the nation's economic and political health.</p>
           </div>
 
+          <Panel title="National Profile">
+            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', fontFamily: SANS }}>
+              <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <p style={{ color: T.text, fontSize: 14, lineHeight: 1.6, margin: 0 }}>
+                  The <strong>Republic of Drennia</strong> is a federal parliamentary republic situated in the northern industrial corridor. Renowned for its deep-water ports, sprawling manufacturing hubs, and rich labor history, Drennia balances heavy industry with a modernizing service economy. Its political landscape is defined by rigorous debate, powerful interest groups, and a fiercely independent electorate.
+                </p>
+              </div>
+              <div style={{ flex: '1 1 300px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: T.faint, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Capital</div>
+                  <div style={{ fontSize: 14, color: T.ivory, fontWeight: 500 }}>Drennport</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: T.faint, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Government</div>
+                  <div style={{ fontSize: 14, color: T.ivory, fontWeight: 500 }}>Federal Parliamentary Republic</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: T.faint, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Legislature</div>
+                  <div style={{ fontSize: 14, color: T.ivory, fontWeight: 500 }}>National Parliament (20 Seats)</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: T.faint, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Currency</div>
+                  <div style={{ fontSize: 14, color: T.ivory, fontWeight: 500 }}>Standard Credit (CR)</div>
+                </div>
+              </div>
+            </div>
+          </Panel>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Panel title="National Conditions">
