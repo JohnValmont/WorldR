@@ -198,87 +198,85 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }}>
-            
-            {/* Live Projections */}
-            <GlassPanel title={<><TrendingUp size={14} /> Live Seat Projections</>} accent={T.mint}>
+          {/* ── PROJECTED RESULT — Nationhood style ── */}
+          <div style={{
+            background: 'rgba(10,12,20,0.7)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 10, overflow: 'hidden',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.faint }}>Projected Result</div>
+              <div style={{ fontFamily: MONO, fontSize: 9, color: T.faint }}>if the vote were held today</div>
+            </div>
+            <div style={{ padding: '8px 16px 12px' }}>
+              <div style={{ fontFamily: SANS, fontSize: 12, color: T.muted, marginBottom: 10 }}>
+                A party needs <strong style={{ color: T.ivory }}>{jModel.majority}</strong> of <strong style={{ color: T.ivory }}>{jModel.seats}</strong> seats to govern alone.
+              </div>
               {projections.length === 0 ? (
-                <div style={{ color: T.faint, fontStyle: 'italic', padding: '32px 0', textAlign: 'center', fontSize: 13 }}>
-                  Projections sharpen as parties file and campaigns build reach. The result is resolved on Election Day.
+                <div style={{ color: T.faint, fontStyle: 'italic', padding: '16px 0', textAlign: 'center', fontSize: 12 }}>
+                  Projections sharpen as parties file and campaigns build reach.
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {projections.slice(0, 8).map((p: any, i: number) => {
                     const share = p.projected_share ?? p.share ?? p.vote_share ?? (totalVotes > 0 ? (Number(p.votes ?? 0) / totalVotes) : 0);
-                    const seats = p.projected_seats ?? p.seats;
+                    const seats = Number(p.projected_seats ?? p.seats ?? 0);
                     const pct = share <= 1 ? share * 100 : share;
-                    const barVal = seats != null && maxSeats > 0 ? (Number(seats) / maxSeats) * 100 : pct;
+                    const barVal = maxSeats > 0 ? (seats / maxSeats) * 75 : pct * 0.75;
                     const isMine = p.isMine || (myParty && (p.id === myParty.id || p.party_id === myParty.id || p.name === myParty.name));
-                    const tone = isMine ? T.gold : T.blue;
-                    
+                    const isMajority = seats >= jModel.majority;
+                    const PARTY_COLORS = ['#4F6EF7', '#7B3FD4', '#D4A843', '#E05252', '#10D67A', '#F57C42', '#5CC8D8', '#C4C4C4'];
+                    const tone = isMine ? T.gold : PARTY_COLORS[i % PARTY_COLORS.length];
                     return (
-                      <div key={p.id || p.party_id || i}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'baseline' }}>
-                          <span style={{ color: isMine ? T.gold : T.ivory, fontSize: 14, fontWeight: isMine ? 700 : 500, fontFamily: HEADING }}>
-                            {p.name || p.party_name || 'Party'}{isMine ? ' (You)' : ''}
-                          </span>
-                          <span style={{ color: tone, fontFamily: MONO, fontSize: 13, fontWeight: 600 }}>
-                            {seats != null ? `${seats} seats ` : ''}
-                            <span style={{ color: T.faint, fontWeight: 400, marginLeft: 4 }}>({pct.toFixed(1)}%)</span>
-                          </span>
+                      <div key={p.id || p.party_id || i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: tone, flexShrink: 0 }} />
+                        <span style={{ color: isMine ? T.gold : T.text, fontSize: 13, fontWeight: isMine ? 700 : 400, fontFamily: SANS, minWidth: 160, flexShrink: 0 }}>
+                          {p.name || p.party_name || 'Party'}{isMine ? ' YOU' : ''}
+                        </span>
+                        <div style={{ flex: 1, height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
+                          <div style={{ height: '100%', width: `${barVal}%`, background: tone, transition: 'width 1s ease', opacity: 0.85 }} />
+                          <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${(jModel.majority / jModel.seats) * 100}%`, width: 1, background: 'rgba(255,255,255,0.2)' }} />
                         </div>
-                        <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${barVal}%`, background: tone, transition: 'width 1s ease', boxShadow: `0 0 12px ${tone}60` }} />
-                        </div>
+                        <span style={{ fontFamily: MONO, fontSize: 12, color: isMajority ? T.mint : (isMine ? T.gold : T.ivory), fontWeight: 600, textAlign: 'right', minWidth: 80, flexShrink: 0 }}>
+                          {seats} seats{isMajority ? ' · ✓' : ''}
+                        </span>
                       </div>
                     );
                   })}
                 </div>
               )}
-            </GlassPanel>
+            </div>
+          </div>
 
-            {/* The Electorate */}
-            <GlassPanel title={<><Users size={14} /> The Electorate</>}>
-              <p style={{ color: T.faint, fontSize: 13, margin: '0 0 20px', lineHeight: 1.5, maxWidth: 600 }}>
-                Every demographic bloc has an ideal platform. Court the ones no rival owns — standing where others stand splits the vote.
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-                {SEGMENTS.map((seg: any) => {
-                  const fit = fitPct(myPlatform, seg);
-                  const sizePct = Math.round(seg.size * 100);
-                  
-                  return (
-                    <div key={seg.key} style={{ 
-                      background: 'rgba(0,0,0,0.3)', 
-                      border: `1px solid rgba(255,255,255,0.05)`, 
-                      borderRadius: 12, 
-                      padding: '12px 16px',
-                      display: 'flex', flexDirection: 'column', gap: 16,
-                      transition: 'transform 0.2s ease, border-color 0.2s ease',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}
-                    onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-                          <span style={{ color: T.ivory, fontWeight: 700, fontSize: 16, fontFamily: HEADING }}>{BLOC_NAME_BY_KEY[seg.key] || seg.label}</span>
-                          <span style={{ color: T.gold, fontFamily: MONO, fontSize: 16, fontWeight: 700 }}>{sizePct}%</span>
-                        </div>
-                        <div style={{ color: T.blueLine, fontFamily: MONO, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                          Primary Issue: {leaning(seg)}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
-                        <OledMeter label="Bloc Size" value={sizePct} display={`${sizePct}%`} tone={T.blue} />
-                        <OledMeter label="Your Platform Fit" value={fit ?? 0} display={fit == null ? '—' : `${fit}%`} tone={fit == null ? T.faint : fit >= 70 ? T.mint : fit >= 40 ? T.warning : T.red} />
-                      </div>
+          {/* ── THE ELECTORATE — compact grid ── */}
+          <div style={{
+            background: 'rgba(10,12,20,0.7)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 10, overflow: 'hidden',
+          }}>
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.faint }}>The Electorate</div>
+              <div style={{ fontFamily: SANS, fontSize: 11, color: T.muted }}>Your platform fit per demographic bloc</div>
+            </div>
+            <div style={{ padding: '10px 16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 6 }}>
+              {SEGMENTS.map((seg: any) => {
+                const fit = fitPct(myPlatform, seg);
+                const sizePct = Math.round(seg.size * 100);
+                const fitColor = fit == null ? T.faint : fit >= 70 ? T.mint : fit >= 40 ? T.warning : T.red;
+                return (
+                  <div key={seg.key} style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: 7, padding: '9px 12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                      <span style={{ color: T.ivory, fontWeight: 600, fontSize: 12, fontFamily: HEADING }}>{BLOC_NAME_BY_KEY[seg.key] || seg.label}</span>
+                      <span style={{ color: fitColor, fontFamily: MONO, fontSize: 11, fontWeight: 700 }}>{fit == null ? '—' : `${fit}%`}</span>
                     </div>
-                  );
-                })}
-              </div>
-            </GlassPanel>
-            
+                    <div style={{ fontFamily: MONO, fontSize: 9, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{leaning(seg)} · {sizePct}% of vote</div>
+                    <div style={{ height: 3, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${fit ?? 0}%`, background: fitColor }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </>
       )}

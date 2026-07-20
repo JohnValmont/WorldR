@@ -103,60 +103,37 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
         </GlassPanel>
       ) : (
         <>
-          {/* ── OLED HERO HEADER ── */}
+          {/* ── NATION HERO — Nationhood style ── */}
           <div style={{
-            display: 'flex', flexDirection: 'column', gap: 12,
-            background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
-            border: `1px solid rgba(255,255,255,0.05)`,
-            borderRadius: 10,
-            padding: '14px 18px',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
-            position: 'relative', overflow: 'hidden'
+            background: 'rgba(10,12,20,0.8)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 10, padding: '14px 18px',
           }}>
-            {/* Decorative Grid Background */}
-            <div style={{
-              position: 'absolute', inset: 0, opacity: 0.1, pointerEvents: 'none',
-              backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-              backgroundSize: '20px 20px',
-            }} />
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14, position: 'relative', zIndex: 1 }}>
-              <div style={{ flex: 1, minWidth: 280 }}>
-                <div style={{ ...stampStyle, marginBottom: 8, color: T.gold, borderColor: 'rgba(255,215,0,0.3)', textShadow: `0 0 10px ${T.goldSoft}` }}>Intelligence Dossier</div>
-                <h1 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, fontFamily: "'Outfit', 'Lexend', system-ui", margin: '0 0 4px', letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)' }}>
-                  Drennia Nation
-                </h1>
-                <div style={{ fontFamily: MONO, fontSize: 12, color: T.blueLine, marginTop: 4, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                  Macro-Economic & Political Health Overview
-                </div>
+            <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.faint, marginBottom: 5 }}>
+              Intelligence Dossier
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <h1 style={{ color: T.ivory, fontSize: 22, fontWeight: 700, fontFamily: HEADING, margin: 0, letterSpacing: '-0.02em' }}>Drennia Nation</h1>
+                <div style={{ color: T.faint, fontSize: 12, marginTop: 3 }}>Macro-economic &amp; political health overview</div>
               </div>
-
-              {/* OLED Metric Blocks (Demographics) */}
-              <div style={{ display: 'flex', gap: 16 }}>
-                <div style={{ 
-                  background: 'rgba(0,0,0,0.4)', border: `1px solid rgba(255,255,255,0.08)`, borderRadius: 12, 
-                  padding: '10px 14px', minWidth: 140, display: 'flex', flexDirection: 'column', alignItems: 'center' 
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: T.faint, fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
-                    Population
+              {/* Inline stat columns — Nationhood pattern */}
+              <div style={{ display: 'flex', borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
+                {[
+                  { label: 'Population', value: overview?.activeState?.population != null ? `${(Number(overview.activeState.population)/1000000).toFixed(1)}M` : '—' },
+                  { label: 'Voters', value: overview?.activeState?.registered_voters != null ? `${(Number(overview.activeState.registered_voters)/1000000).toFixed(1)}M` : '—' },
+                  { label: 'Prosperity', value: `${Math.round(conditions?.prosperity ?? 5)}/10` },
+                  { label: 'Parties', value: String(Array.isArray(ledger) ? 0 : 0) },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ padding: '4px 16px', borderRight: '1px solid rgba(255,255,255,0.06)', textAlign: 'center', minWidth: 80 }}>
+                    <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.faint, marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700, color: T.ivory, lineHeight: 1 }}>{value}</div>
                   </div>
-                  <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700, color: T.ivory, marginTop: 8, textShadow: `0 0 12px rgba(255,255,255,0.2)` }}>
-                    {overview?.activeState?.population != null ? (Number(overview.activeState.population) / 1000000).toFixed(1) : '2.4'}<span style={{ fontSize: 14, color: T.muted }}>M</span>
-                  </div>
-                </div>
-                
-                <div style={{ 
-                  background: 'rgba(0,0,0,0.4)', border: `1px solid rgba(255,255,255,0.08)`, borderRadius: 12, 
-                  padding: '10px 14px', minWidth: 140, display: 'flex', flexDirection: 'column', alignItems: 'center' 
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: T.faint, fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
-                    Voters
-                  </div>
-                  <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700, color: T.ivory, marginTop: 8, textShadow: `0 0 12px rgba(255,255,255,0.2)` }}>
-                    {overview?.activeState?.registered_voters != null ? (Number(overview.activeState.registered_voters) / 1000000).toFixed(1) : '1.6'}<span style={{ fontSize: 14, color: T.muted }}>M</span>
-                  </div>
-                </div>
+                ))}
               </div>
+            </div>
+            <div style={{ color: T.muted, fontSize: 12, marginTop: 10, lineHeight: 1.5 }}>
+              The Nation of Drennia is a constitutional monarchy. The Monarch is ceremonial; real power sits with the elected National Parliament.
             </div>
           </div>
 
@@ -183,15 +160,25 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
             {/* Conditions Column */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <GlassPanel title={<><Activity size={14} /> National Conditions</>}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <OledMeter label="Prosperity" value={conditions?.prosperity ?? 5} tone={condTone(conditions?.prosperity ?? 5)} />
-                  <OledMeter label="Jobs & Employment" value={conditions?.jobs ?? 5} tone={condTone(conditions?.jobs ?? 5)} />
-                  <OledMeter label="Public Order" value={conditions?.order ?? 5} tone={condTone(conditions?.order ?? 5)} />
-                  <OledMeter label="Social Cohesion" value={conditions?.cohesion ?? 5} tone={condTone(conditions?.cohesion ?? 5)} />
-                  <OledMeter label="Budget Health" value={conditions?.budget ?? 5} tone={condTone(conditions?.budget ?? 5)} />
-                </div>
-                <div style={{ marginTop: 24, paddingTop: 16, borderTop: `1px solid rgba(255,255,255,0.05)`, color: T.muted, fontSize: 12, lineHeight: 1.5, fontStyle: 'italic' }}>
-                  These metrics drift over time toward targets defined by the governing coalition's platform and enacted laws.
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[
+                    { label: 'Prosperity', val: conditions?.prosperity ?? 5 },
+                    { label: 'Jobs & Employment', val: conditions?.jobs ?? 5 },
+                    { label: 'Public Order', val: conditions?.order ?? 5 },
+                    { label: 'Social Cohesion', val: conditions?.cohesion ?? 5 },
+                    { label: 'Budget Health', val: conditions?.budget ?? 5 },
+                  ].map(({ label, val }) => (
+                    <div key={label}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.faint }}>{label}</span>
+                        <span style={{ fontFamily: MONO, fontSize: 10, color: condTone(val), fontWeight: 600 }}>{val.toFixed(1)}/10</span>
+                      </div>
+                      <OledMeter label="" value={val * 10} tone={condTone(val)} />
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid rgba(255,255,255,0.05)`, color: T.muted, fontSize: 11, lineHeight: 1.5, fontStyle: 'italic' }}>
+                    Conditions drift toward targets set by the governing coalition.
+                  </div>
                 </div>
               </GlassPanel>
             </div>
