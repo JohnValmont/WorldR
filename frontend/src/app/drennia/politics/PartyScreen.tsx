@@ -121,8 +121,16 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
               {myParty.name}
               {myParty.abbreviation && <span style={{ color: T.faint, fontSize: 22, fontFamily: MONO, textTransform: 'uppercase', fontWeight: 600 }}>[{myParty.abbreviation}]</span>}
             </h1>
-            <div style={{ color: T.gold, fontFamily: MONO, fontSize: 13, marginTop: 12, textTransform: 'uppercase', letterSpacing: '0.15em', textShadow: `0 0 10px ${T.goldSoft}` }}>
-              {CREED_NAME_BY_ID[(myParty.doctrine_id || myParty.doctrineId) as CreedId] || 'Independent'}
+            <div style={{ color: T.gold, fontFamily: MONO, fontSize: 13, marginTop: 12, textTransform: 'uppercase', letterSpacing: '0.15em', textShadow: `0 0 10px ${T.goldSoft}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span>{CREED_NAME_BY_ID[(myParty.doctrine_id || myParty.doctrineId) as CreedId] || 'Independent'}</span>
+              {(myParty.tenet_id || myParty.tenetId) && TENETS[(myParty.doctrine_id || myParty.doctrineId) as CreedId]?.find(t => t.id === (myParty.tenet_id || myParty.tenetId)) && (
+                <>
+                  <span style={{ color: T.border, fontSize: 16, fontWeight: 300 }}>/</span>
+                  <span style={{ color: T.ivory, fontWeight: 600, letterSpacing: '0.1em' }}>
+                    {TENETS[(myParty.doctrine_id || myParty.doctrineId) as CreedId]?.find(t => t.id === (myParty.tenet_id || myParty.tenetId))?.name}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -130,14 +138,18 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {PILLARS.map((p) => {
                 const v = Number(myParty.platform?.[p.axis] ?? 50);
+                const isKeystone = CREEDS[(myParty.doctrine_id || myParty.doctrineId) as CreedId]?.keystone === p.axis;
                 return (
                   <div key={p.axis}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                      <span style={{ color: T.text, fontSize: 13 }}>{p.name}</span>
-                      <span style={{ color: T.gold, fontFamily: MONO, fontSize: 12 }}>{nearestRung(p.axis, v)}</span>
+                      <span style={{ color: isKeystone ? T.gold : T.text, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, fontWeight: isKeystone ? 600 : 400 }}>
+                        {isKeystone && <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.gold, boxShadow: `0 0 8px ${T.goldSoft}` }} />}
+                        {p.name}
+                      </span>
+                      <span style={{ color: isKeystone ? T.gold : T.faint, fontFamily: MONO, fontSize: 12, fontWeight: isKeystone ? 600 : 400 }}>{nearestRung(p.axis, v)}</span>
                     </div>
                     <div style={{ height: 6, background: T.panel2, borderRadius: 99, overflow: 'hidden' }}>
-                      <div style={{ width: `${v}%`, height: '100%', background: T.gold }} />
+                      <div style={{ width: `${v}%`, height: '100%', background: isKeystone ? T.gold : T.border }} />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
                       <span style={{ color: T.faint, fontSize: 10 }}>{p.low}</span>
