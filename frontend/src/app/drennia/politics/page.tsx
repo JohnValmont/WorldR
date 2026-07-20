@@ -39,11 +39,11 @@ function NextTick() {
   return <span style={{ fontFamily: MONO }}>{pad(hh)}:{pad(mm)}:{pad(ss)}</span>;
 }
 
-function Chip({ label, value, tone }: { label: string; value: React.ReactNode; tone?: string }) {
+function Metric({ label, value, tone }: { label: string; value: React.ReactNode; tone?: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 4 }}>
-      <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.faint }}>{label}</span>
-      <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: tone || T.ivory }}>{value}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', padding: '0 24px', borderLeft: `1px solid rgba(255,255,255,0.06)` }}>
+      <span style={{ fontFamily: T.HEADING, fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>{label}</span>
+      <span style={{ fontFamily: MONO, fontSize: 22, fontWeight: 600, color: tone || '#FFFFFF', lineHeight: 1 }}>{value}</span>
     </div>
   );
 }
@@ -95,33 +95,49 @@ export default function PoliticsDesk() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', background: T.bg, color: T.text }}>
-      {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '12px 20px', borderBottom: `1px solid ${T.border}`, background: T.panel, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.faint }}>Drennia</span>
-          <span style={{ color: T.border }}>/</span>
-          <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.ivory, fontWeight: 700 }}>Politics</span>
+      {/* Premium Global Header */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        padding: '16px 32px', 
+        borderBottom: `1px solid rgba(255,255,255,0.06)`, 
+        background: 'rgba(5, 5, 10, 0.7)', 
+        backdropFilter: 'blur(24px)',
+        flexShrink: 0 
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #0369A1, #38BDF8)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(3, 105, 161, 0.4)' }}>
+             <span style={{ color: '#FFF', fontWeight: 'bold' }}>D</span>
+          </div>
+          <div>
+            <div style={{ fontSize: 18, fontFamily: T.HEADING, fontWeight: 600, color: '#FFF', lineHeight: 1.2 }}>Political Desk</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Drennia Republic</div>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           {cred != null && (
-            <HoverData label="Credibility" tooltip={<div style={{ fontFamily: SANS, color: T.text, fontSize: 12 }}>Political Credibility allows you to take controversial actions. Earned by winning elections and passing bills.</div>}>
-              <Chip label="Cred" value={cred} />
+            <HoverData label="Credibility" tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>Political Credibility allows you to take controversial actions. Earned by winning elections and passing bills.</div>}>
+              <Metric label="Credibility" value={cred} />
             </HoverData>
           )}
           {cash != null && (
-            <HoverData label="Cash" tooltip={<div style={{ fontFamily: SANS, color: T.text, fontSize: 12 }}>Liquid campaign and personal funds. Used for lobbying and operations.</div>}>
-              <Chip label="Cash" value={`$${Number(cash).toLocaleString('en-US')}`} tone={T.mint} />
+            <HoverData label="Cash" tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>Liquid campaign and personal funds. Used for lobbying and operations.</div>}>
+              <Metric label="Liquid Cash" value={`$${Number(cash).toLocaleString('en-US')}`} tone={T.mint} />
             </HoverData>
           )}
-          <HoverData label="Action Points" tooltip={<div style={{ fontFamily: SANS, color: T.text, fontSize: 12 }}>Action Points (AP) represent your time and energy. Regenerates every 8 real-life hours.<br/><br/><span style={{color: T.gold}}>Max: {myAp.ap_cap}</span></div>}>
-            <Chip label="AP" value={`${myAp.current_ap}`} tone={T.gold} />
+          <HoverData label="Action Points" tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>Action Points (AP) represent your time and energy. Regenerates every 8 real-life hours.<br/><br/><span style={{color: T.warning}}>Max: {myAp.ap_cap}</span></div>}>
+            <Metric label="Action Points" value={`${myAp.current_ap}`} tone={T.warning} />
           </HoverData>
           
-          {monthYear && <Chip label="When" value={monthYear} />}
-          <HoverData label="Tick" tooltip={<div style={{ fontFamily: SANS, color: T.text, fontSize: 12 }}>The game world processes a new month every 8 hours.</div>}>
-            <Chip label="Next Month" value={<NextTick />} />
+          <HoverData label="Game Tick" tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>The game world processes a new month every 8 hours.</div>}>
+            <Metric label={monthYear || "Current Tick"} value={<NextTick />} />
           </HoverData>
-          {monthsToElection != null && <Chip label="Election" value={`${monthsToElection} mo`} tone={T.blue} />}
+          
+          {monthsToElection != null && (
+            <Metric label="Next Election" value={`${monthsToElection} mo`} tone={T.blueBright} />
+          )}
         </div>
       </div>
 

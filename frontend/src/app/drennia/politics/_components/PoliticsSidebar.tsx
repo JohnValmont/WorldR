@@ -66,19 +66,19 @@ interface Props {
 
 export default function PoliticsSidebar({ active, onSelect, myPartyName, myPartyNation }: Props) {
   return (
-    <aside className="politics-sidebar-container" style={{ background: 'rgba(2, 6, 23, 0.85)', backdropFilter: 'blur(14px)', borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0, fontFamily: BODY, zIndex: 40 }}>
+    <aside className="politics-sidebar-container" style={{ background: 'rgba(5, 5, 10, 0.5)', backdropFilter: 'blur(24px)', borderRight: `1px solid rgba(255,255,255,0.06)`, display: 'flex', flexDirection: 'column', flexShrink: 0, fontFamily: BODY, zIndex: 40 }}>
       {/* Branding header */}
-      <div className="sidebar-brand" style={{ padding: '20px 16px 16px' }}>
-        <div style={{ fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.22em', fontSize: 9.5, color: T.blueBright, fontWeight: 600, opacity: 0.85 }}>Political Desk</div>
-        <div style={{ color: T.ivory, fontWeight: 700, fontSize: 15, fontFamily: HEADING, marginTop: 8, letterSpacing: '-0.01em' }}>{myPartyName || 'Unaligned'}</div>
-        <div style={{ color: T.muted, fontFamily: MONO, fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.14em', marginTop: 3 }}>{myPartyNation || 'National'}</div>
+      <div className="sidebar-brand" style={{ padding: '32px 24px 24px' }}>
+        <div style={{ fontFamily: T.HEADING, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>Political Desk</div>
+        <div style={{ color: '#FFFFFF', fontWeight: 600, fontSize: 20, fontFamily: HEADING, marginTop: 8, letterSpacing: '-0.02em' }}>{myPartyName || 'Unaligned'}</div>
+        <div style={{ color: 'rgba(255,255,255,0.4)', fontFamily: T.HEADING, fontSize: 13, marginTop: 4 }}>{myPartyNation || 'National'}</div>
       </div>
 
       {/* Navigation groups */}
-      <nav className="sidebar-nav-groups" style={{ display: 'flex', flexDirection: 'column', gap: 0, padding: '0 8px', flex: 1, overflowY: 'auto' }}>
+      <nav className="sidebar-nav-groups" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px', flex: 1, overflowY: 'auto' }}>
         {GROUPS.map((group) => (
-          <div key={group.label} style={{ marginBottom: 8 }}>
-            <div className="sidebar-nav-group-label" style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: T.faint, padding: '10px 8px 4px', fontWeight: 600 }}>
+          <div key={group.label} style={{ marginBottom: 12 }}>
+            <div className="sidebar-nav-group-label" style={{ fontFamily: T.HEADING, fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', padding: '12px 12px 8px', fontWeight: 600 }}>
               {group.label}
             </div>
             {group.items.map((it) => {
@@ -89,32 +89,31 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
                   className="sidebar-nav-item"
                   onClick={() => onSelect(it.id)}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                    padding: '9px 10px', borderRadius: 7, marginBottom: 1,
-                    background: on ? T.blueDim : 'transparent',
-                    color: on ? T.blueBright : T.muted,
+                    display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                    padding: '10px 12px', borderRadius: 8, marginBottom: 2,
+                    background: on ? 'rgba(255,255,255,0.06)' : 'transparent',
+                    color: on ? '#FFFFFF' : 'rgba(255,255,255,0.6)',
                     cursor: 'pointer', textAlign: 'left',
-                    border: `1px solid ${on ? T.blueLine : 'transparent'}`,
-                    transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
-                    boxShadow: on ? `0 2px 8px ${T.blueGlow}` : 'none',
+                    border: '1px solid transparent',
+                    transition: 'all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1)',
                   }}
                   onMouseEnter={(e) => {
                     if (!on) {
-                      e.currentTarget.style.color = T.ivory;
+                      e.currentTarget.style.color = '#FFFFFF';
                       e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!on) {
-                      e.currentTarget.style.color = T.muted;
+                      e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
                       e.currentTarget.style.background = 'transparent';
                     }
                   }}
                 >
                   {/* Active indicator bar */}
-                  <span style={{ width: 3, height: 14, borderRadius: 2, flexShrink: 0, background: on ? T.blueBright : 'transparent', boxShadow: on ? `0 0 6px ${T.blueBright}` : 'none', transition: 'all 0.18s ease' }} />
+                  <span style={{ width: 4, height: 16, borderRadius: 2, flexShrink: 0, background: on ? '#FFFFFF' : 'transparent', transition: 'all 0.2s ease' }} />
                   <Icon name={it.id} />
-                  <span style={{ fontSize: 13, fontWeight: on ? 600 : 400, letterSpacing: '0.01em' }}>{it.label}</span>
+                  <span style={{ fontSize: 14, fontWeight: on ? 500 : 400, letterSpacing: '-0.01em' }}>{it.label}</span>
                 </button>
               );
             })}
@@ -123,10 +122,10 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
       </nav>
 
       {/* Leader badge */}
-      <div className="sidebar-leader" style={{ padding: '14px 16px', borderTop: `1px solid ${T.border}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ width: 7, height: 7, borderRadius: 99, background: T.mint, display: 'inline-block', boxShadow: `0 0 8px ${T.mint}` }} />
-          <span style={{ color: T.text, fontFamily: MONO, fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.14em', fontWeight: 600 }}>Leader — You</span>
+      <div className="sidebar-leader" style={{ padding: '24px', borderTop: `1px solid rgba(255,255,255,0.06)` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 99, background: T.mint, display: 'inline-block', boxShadow: `0 0 12px ${T.mint}` }} />
+          <span style={{ color: 'rgba(255,255,255,0.7)', fontFamily: T.HEADING, fontSize: 13, fontWeight: 500 }}>Leader — You</span>
         </div>
       </div>
     </aside>

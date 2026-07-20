@@ -8,17 +8,17 @@ import React from 'react';
 
 export const T = {
   // ── Base Surfaces (OLED-optimised dark) ──
-  bg:           '#020617',   // Deep OLED black-navy
-  surface:      '#0A0E27',   // Deep navy base
-  panel:        'rgba(15, 23, 42, 0.75)',   // Card background
-  panel2:       'rgba(26, 37, 64, 0.80)',   // Elevated card
-  raised:       'rgba(30, 41, 59, 0.88)',   // Hovered / raised state
-  glass:        'rgba(255, 255, 255, 0.03)',
+  bg:           '#000000',   // True OLED Black
+  surface:      '#05050A',   // Ultra deep midnight
+  panel:        'rgba(20, 20, 25, 0.4)',   // Translucent Card background
+  panel2:       'rgba(25, 25, 30, 0.6)',   // Elevated card
+  raised:       'rgba(40, 40, 50, 0.8)',   // Hovered / raised state
+  glass:        'rgba(255, 255, 255, 0.04)',
 
   // ── Borders ──
-  border:       'rgba(51, 65, 85, 0.8)',    // Subtle separators (#334155 @ 80%)
-  borderSoft:   'rgba(51, 65, 85, 0.4)',
-  borderGlow:   'rgba(3, 105, 161, 0.5)',   // Focus / active glow
+  border:       'rgba(255, 255, 255, 0.08)',    // Subtle white borders for depth
+  borderSoft:   'rgba(255, 255, 255, 0.04)',
+  borderGlow:   'rgba(255, 255, 255, 0.15)',    // Focus / active glow
 
   // ── Primary Accent — Political Authority Blue ──
   blue:         '#0369A1',                  // Accent primary (government blue)
@@ -49,11 +49,10 @@ export const T = {
   faint:        '#475569',                  // Timestamps, disabled
 } as const;
 
-// UI Pro Max typography.csv row 16 — Corporate Trust
-// "Lexend designed for readability. Excellent accessibility."
-export const HEADING = "'Lexend', system-ui, sans-serif";
-export const BODY    = "'Source Sans 3', system-ui, sans-serif";
-export const MONO    = "ui-monospace, 'SF Mono', 'IBM Plex Mono', Menlo, monospace";
+// UI Pro Max typography.csv row 5 — Minimal Swiss (Inter)
+export const HEADING = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+export const BODY    = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+export const MONO    = "'JetBrains Mono', 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
 // Legacy alias for backwards compat
 export const SANS    = BODY;
 
@@ -68,17 +67,17 @@ export const stampStyle = {
   opacity: 0.85,
 };
 
-/** Reusable AAA Panel Style — glassmorphism from styles.csv row 3 */
+/** Reusable AAA Panel Style — Glassmorphism from UI Pro Max */
 export const glassPanelStyle: React.CSSProperties = {
   background: T.panel,
-  backdropFilter: 'blur(14px)',
-  WebkitBackdropFilter: 'blur(14px)',
+  backdropFilter: 'blur(40px)',
+  WebkitBackdropFilter: 'blur(40px)',
   border: `1px solid ${T.border}`,
-  borderTop: `1px solid rgba(148, 163, 184, 0.18)`,
-  borderRadius: '8px',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.35), 0 4px 16px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)',
-  padding: '14px 16px',
-  transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+  borderTop: `1px solid rgba(255, 255, 255, 0.15)`, // Top light edge
+  borderRadius: '16px',
+  boxShadow: '0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
+  padding: '24px',
+  transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
 };
 
 /** Hoverable card — adds lift on hover via CSS class `hover-lift` */
