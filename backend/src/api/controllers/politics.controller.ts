@@ -66,6 +66,7 @@ import {
 import { runElection } from '../services/electionEngine';
 import { buildPulse } from '../services/politics.pulse';
 import { readConditionsFromRow } from '../services/conditions';
+import { safeParseJSON } from '../../utils/json';
 
 /** Resolve a pol_state row by optional stateId (which is actually the state code), falling back to the active state. */
 async function resolveState(stateId?: string) {
@@ -667,7 +668,7 @@ export async function manageCoalition(req: Request, res: Response, next: NextFun
       let coalition = await trx('pol_coalitions').where({ cycle_id: cycle.id, status: 'forming' }).first();
       if (!coalition) throw new AppError('No coalition currently forming', 404, 'NOT_FOUND');
 
-      const members = typeof coalition.member_party_ids === 'string' ? JSON.parse(coalition.member_party_ids) : coalition.member_party_ids;
+      const members = typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : coalition.member_party_ids;
       let accepted = new Set<string>(members.accepted || []);
       let invited = new Set<string>(members.invited || []);
 
@@ -754,7 +755,7 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
     let members = [];
     if (coalition) {
       govStatus = coalition.status;
-      const mems = typeof coalition.member_party_ids === 'string' ? JSON.parse(coalition.member_party_ids) : coalition.member_party_ids;
+      const mems = typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : coalition.member_party_ids;
       members = mems.accepted || [];
       if (coalition.total_seats >= getMajorityForState(activeState.code) && members.length === 1) {
         govStatus = 'majority';
@@ -997,7 +998,7 @@ export async function postTender(req: Request, res: Response, next: NextFunction
       const coalition = await trx('pol_coalitions').where({ cycle_id: cycle.id }).whereIn('status', ['formed', 'minority']).first();
       if (!coalition) throw new AppError('No governing coalition found', 400, 'BAD_REQUEST');
       
-      const govMembers = typeof coalition.member_party_ids === 'string' ? JSON.parse(coalition.member_party_ids).accepted || [] : coalition.member_party_ids.accepted || [];
+      const govMembers = typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids).accepted || [] : coalition.member_party_ids.accepted || [];
       const isGov = coalition.lead_party_id === partyMember.party_id || govMembers.includes(partyMember.party_id);
       
       if (!isGov) {
@@ -1073,7 +1074,7 @@ export async function bidTender(req: Request, res: Response, next: NextFunction)
         throw new AppError('Vehicle model class does not match tender requirement', 400, 'BAD_REQUEST');
       }
 
-      const specFloor = typeof tender.spec_floor === 'string' ? JSON.parse(tender.spec_floor) : tender.spec_floor;
+      const specFloor = typeof tender.spec_floor === 'string' ? safeParseJSON(tender.spec_floor) : tender.spec_floor;
       for (const [key, value] of Object.entries(specFloor)) {
         const modelVal = Number(model[`${key}_score`] || 0);
         if (modelVal < Number(value)) {
@@ -1137,7 +1138,7 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
     }
 
     const coalition = cycle ? await db('pol_coalitions').where({ cycle_id: cycle.id }).whereIn('status', ['formed', 'minority']).first() : null;
-    const govMembers = coalition ? (typeof coalition.member_party_ids === 'string' ? JSON.parse(coalition.member_party_ids).accepted || [] : coalition.member_party_ids.accepted || []) : [];
+    const govMembers = coalition ? (typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids).accepted || [] : coalition.member_party_ids.accepted || []) : [];
 
     const npcParties = await db('pol_parties').where({ state_id: activeState.id, is_npc: true });
 
@@ -1672,7 +1673,7 @@ export async function getCoalitionAgreement(req: Request, res: Response, next: N
     let enrichedPartners: any[] = [];
     if (agreement) {
       const terms = typeof agreement.partner_terms === 'string'
-        ? JSON.parse(agreement.partner_terms) : (agreement.partner_terms ?? []);
+        ? safeParseJSON(agreement.partner_terms) : (agreement.partner_terms ?? []);
       enrichedPartners = await Promise.all(terms.map(async (t: any) => {
         const factions = await db('pol_party_factions').where({ party_id: t.party_id });
         const total = factions.reduce((s: number, f: any) => s + Number(f.membership_share), 0);
@@ -1704,7 +1705,7 @@ export async function getCoalitionAgreement(req: Request, res: Response, next: N
         review_interval_arcs: agreement.review_interval_arcs,
         partner_terms: enrichedPartners,
         mandatory_legislation: typeof agreement.mandatory_legislation === 'string'
-          ? JSON.parse(agreement.mandatory_legislation) : (agreement.mandatory_legislation ?? []),
+          ? safeParseJSON(agreement.mandatory_legislation) : (agreement.mandatory_legislation ?? []),
       } : null,
     });
   } catch (error) {

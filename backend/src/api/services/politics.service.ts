@@ -91,6 +91,7 @@ import {
 import { EngineCandidate, runElection } from './electionEngine';
 import { fireGoverningEvent, fireConditionCrises } from './governingEvents';
 import { Conditions, computeConditionTargets, driftConditions, readConditionsFromRow } from './conditions';
+import { safeParseJSON } from '../../utils/json';
 
 /**
  * Convert a world_clock row into a MONOTONIC absolute month ("arc").
@@ -599,7 +600,7 @@ async function resolveGoverningPlatform(trx: any, stateId: string): Promise<Reco
   if (!premierSeat?.party_id) return null;
   const party = await trx('pol_parties').where({ id: premierSeat.party_id }).first();
   if (!party?.platform) return null;
-  return typeof party.platform === 'string' ? JSON.parse(party.platform) : party.platform;
+  return typeof party.platform === 'string' ? safeParseJSON(party.platform) : party.platform;
 }
 
 /**
@@ -1084,7 +1085,7 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
     }).returning('*').then((r: any) => r[0]);
   }
 
-  const members = typeof forming.member_party_ids === 'string' ? JSON.parse(forming.member_party_ids) : forming.member_party_ids;
+  const members = typeof forming.member_party_ids === 'string' ? safeParseJSON(forming.member_party_ids) : forming.member_party_ids;
   let accepted = new Set<string>(members.accepted || []);
   let invited = new Set<string>(members.invited || []);
   
@@ -1142,7 +1143,7 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
   if (largestParty.leader_character_id) {
     const scores = await getOrCreateLegacyScores(trx, largestParty.leader_character_id);
     const benefits: string[] = typeof scores.unlocked_benefits === 'string'
-      ? JSON.parse(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+      ? safeParseJSON(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
     if (benefits.includes('coalition_architect')) hasCoalitionArchitect = true;
   }
   
@@ -1260,7 +1261,7 @@ export async function updateCoalitionAgreementHealth(
 
   for (const agreement of agreements) {
     const partnerTerms = typeof agreement.partner_terms === 'string'
-      ? JSON.parse(agreement.partner_terms) : agreement.partner_terms;
+      ? safeParseJSON(agreement.partner_terms) : agreement.partner_terms;
     const allPartyIds = [agreement.lead_party_id, ...partnerTerms.map((t: any) => t.party_id)];
 
     // Average cohesion across all coalition member parties
@@ -1426,7 +1427,7 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
     const npcParties = await trx('pol_parties').where({ state_id: stateId, is_npc: true });
     
     const coalition = await trx('pol_coalitions').where({ cycle_id: cycleId }).whereIn('status', ['formed', 'minority']).first();
-    const govMembers = coalition ? (typeof coalition.member_party_ids === 'string' ? JSON.parse(coalition.member_party_ids).accepted || [] : coalition.member_party_ids.accepted || []) : [];
+    const govMembers = coalition ? (typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids).accepted || [] : coalition.member_party_ids.accepted || []) : [];
 
     for (const npc of npcParties) {
       if (!votedParties.has(npc.id)) {
@@ -1659,7 +1660,7 @@ export async function processScandalsForState(
     if (party.leader_character_id) {
       const scores = await getOrCreateLegacyScores(trx, party.leader_character_id);
       const benefits: string[] = typeof scores.unlocked_benefits === 'string'
-        ? JSON.parse(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+        ? safeParseJSON(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
       if (benefits.includes('untouchable')) hasUntouchable = true;
     }
     const finalProb = SCANDAL_BASE_PROB * probMult * (hasUntouchable ? 0.75 : 1.0);
@@ -1905,9 +1906,9 @@ export async function updateCampaignProgressForState(
 
     // Campaign events
     const firedEvents: string[] = typeof campaign.fired_events === 'string'
-      ? JSON.parse(campaign.fired_events) : (campaign.fired_events ?? []);
+      ? safeParseJSON(campaign.fired_events) : (campaign.fired_events ?? []);
     const arcActionsLog: any[] = typeof campaign.arc_actions === 'string'
-      ? JSON.parse(campaign.arc_actions) : (campaign.arc_actions ?? []);
+      ? safeParseJSON(campaign.arc_actions) : (campaign.arc_actions ?? []);
     const newFiredEvents = [...firedEvents];
     let popularityDelta = 0;
     let budgetDelta = 0;
@@ -2006,7 +2007,7 @@ function computeAlignmentScore(
   party: any, group: any
 ): number {
   const axes = ['taxation', 'labour', 'investment', 'trade', 'stability'] as const;
-  const platform = typeof party.platform === 'string' ? JSON.parse(party.platform) : (party.platform ?? {});
+  const platform = typeof party.platform === 'string' ? safeParseJSON(party.platform) : (party.platform ?? {});
   let score = 0;
   for (const axis of axes) {
     const weight = Number(group[`weight_${axis}`] ?? 0.20);
@@ -2086,7 +2087,7 @@ export async function processInterestGroupsForState(
 
       let score = Number(relation.relationship_score);
       const contactLog: any[] = typeof relation.contact_log === 'string'
-        ? JSON.parse(relation.contact_log) : (relation.contact_log ?? []);
+        ? safeParseJSON(relation.contact_log) : (relation.contact_log ?? []);
 
       // 1. Platform alignment drift
       const alignment = computeAlignmentScore(party, group);
@@ -2105,7 +2106,7 @@ export async function processInterestGroupsForState(
 
       // 3. Commitment checking
       const commitments: any[] = typeof relation.active_commitments === 'string'
-        ? JSON.parse(relation.active_commitments) : (relation.active_commitments ?? []);
+        ? safeParseJSON(relation.active_commitments) : (relation.active_commitments ?? []);
       const updatedCommitments: any[] = [];
 
       for (const c of commitments) {
@@ -2116,7 +2117,7 @@ export async function processInterestGroupsForState(
 
         // Check if party's current platform reflects the commitment
         const platform = typeof party.platform === 'string'
-          ? JSON.parse(party.platform) : (party.platform ?? {});
+          ? safeParseJSON(party.platform) : (party.platform ?? {});
         const partyVal = Number(platform[c.axis] ?? 50);
         const honored = c.direction === 'raise' ? partyVal >= c.target_value : partyVal <= c.target_value;
 
@@ -2182,7 +2183,7 @@ export async function performOutreach(
   let hasElderStatesman = false;
   const scores = await getOrCreateLegacyScores(trx, characterId);
   const benefits: string[] = typeof scores.unlocked_benefits === 'string'
-    ? JSON.parse(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+    ? safeParseJSON(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
   if (benefits.includes('elder_statesman')) hasElderStatesman = true;
 
   const apCost = hasElderStatesman ? Math.max(1, IG_OUTREACH_AP_COST - 1) : IG_OUTREACH_AP_COST;
@@ -2191,10 +2192,10 @@ export async function performOutreach(
 
   let score = Number(relation.relationship_score) + IG_OUTREACH_BASE_GAIN;
   const contactLog: any[] = typeof relation.contact_log === 'string'
-    ? JSON.parse(relation.contact_log) : (relation.contact_log ?? []);
+    ? safeParseJSON(relation.contact_log) : (relation.contact_log ?? []);
 
   const commitments: any[] = typeof relation.active_commitments === 'string'
-    ? JSON.parse(relation.active_commitments) : (relation.active_commitments ?? []);
+    ? safeParseJSON(relation.active_commitments) : (relation.active_commitments ?? []);
 
   let commitmentMsg = '';
   if (commitment) {
@@ -2258,7 +2259,7 @@ export async function performRallySupport(
   let hasElderStatesman = false;
   const scores = await getOrCreateLegacyScores(trx, characterId);
   const benefits: string[] = typeof scores.unlocked_benefits === 'string'
-    ? JSON.parse(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+    ? safeParseJSON(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
   if (benefits.includes('elder_statesman')) hasElderStatesman = true;
 
   const pcCost = hasElderStatesman ? Math.max(1, IG_RALLY_PC_COST - 1) : IG_RALLY_PC_COST;
@@ -2270,7 +2271,7 @@ export async function performRallySupport(
   const momentum = Number(relation.momentum) + IG_RALLY_MOMENTUM_GAIN;
 
   const contactLog: any[] = typeof relation.contact_log === 'string'
-    ? JSON.parse(relation.contact_log) : [];
+    ? safeParseJSON(relation.contact_log) : [];
   contactLog.push({ arc: currentArc, action: 'rally_support', score_delta: IG_RALLY_GAIN });
 
   await trx('pol_interest_group_relations')
@@ -2334,13 +2335,13 @@ export async function seedMediaRelationsForParty(
   if (!party) return;
 
   const platform = typeof party.platform === 'string'
-    ? JSON.parse(party.platform) : (party.platform ?? {});
+    ? safeParseJSON(party.platform) : (party.platform ?? {});
 
   let hasMediaLegend = false;
   if (party.leader_character_id) {
     const scores = await getOrCreateLegacyScores(trx, party.leader_character_id);
     const benefits: string[] = typeof scores.unlocked_benefits === 'string'
-      ? JSON.parse(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+      ? safeParseJSON(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
     if (benefits.includes('media_legend')) hasMediaLegend = true;
   }
 
@@ -2410,7 +2411,7 @@ export async function processMediaCoverageForState(
     await seedMediaRelationsForParty(trx, party.id, stateId);
 
     const platform = typeof party.platform === 'string'
-      ? JSON.parse(party.platform) : (party.platform ?? {});
+      ? safeParseJSON(party.platform) : (party.platform ?? {});
 
     for (const outlet of outlets) {
       const rel = await trx('pol_media_relations')
@@ -2501,7 +2502,7 @@ export async function doExclusiveInterview(
   let score = Math.min(100, Number(rel.relationship_score) + MEDIA_EXCLUSIVE_GAIN);
   const stance = resolveStance(score);
 
-  const log: any[] = typeof rel.contact_log === 'string' ? JSON.parse(rel.contact_log) : [];
+  const log: any[] = typeof rel.contact_log === 'string' ? safeParseJSON(rel.contact_log) : [];
   log.push({ arc: currentArc, action: 'exclusive_interview', score_delta: MEDIA_EXCLUSIVE_GAIN });
 
   await trx('pol_media_relations')
@@ -2534,7 +2535,7 @@ export async function doPressConference(
 
     const score = Math.min(100, Number(rel.relationship_score) + MEDIA_PRESS_CONF_GAIN);
     const stance = resolveStance(score);
-    const log: any[] = typeof rel.contact_log === 'string' ? JSON.parse(rel.contact_log) : [];
+    const log: any[] = typeof rel.contact_log === 'string' ? safeParseJSON(rel.contact_log) : [];
     log.push({ arc: currentArc, action: 'press_conference', score_delta: MEDIA_PRESS_CONF_GAIN });
 
     await trx('pol_media_relations')
@@ -2612,7 +2613,7 @@ function resolveLongevityRank(longevityScore: number): string {
  */
 function checkBenefits(scores: any): string[] {
   const alreadyUnlocked: string[] = typeof scores.unlocked_benefits === 'string'
-    ? JSON.parse(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+    ? safeParseJSON(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
   const newlyUnlocked: string[] = [];
 
   for (const benefit of LEGACY_BENEFITS) {
@@ -2671,7 +2672,7 @@ export async function recordLegacyEvent(
   const newly = checkBenefits(refreshed);
   if (newly.length > 0) {
     const existing: string[] = typeof refreshed.unlocked_benefits === 'string'
-      ? JSON.parse(refreshed.unlocked_benefits) : (refreshed.unlocked_benefits ?? []);
+      ? safeParseJSON(refreshed.unlocked_benefits) : (refreshed.unlocked_benefits ?? []);
     await trx('pol_legacy_scores')
       .where({ character_id: characterId })
       .update({ unlocked_benefits: JSON.stringify([...existing, ...newly]) });
@@ -2751,7 +2752,7 @@ export async function getLegacySummary(characterId: string) {
   if (!scores) return null;
 
   const unlockedKeys: string[] = typeof scores.unlocked_benefits === 'string'
-    ? JSON.parse(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+    ? safeParseJSON(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
 
   const rank = resolveLongevityRank(Number(scores.longevity));
 
