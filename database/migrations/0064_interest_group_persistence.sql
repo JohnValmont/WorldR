@@ -6,7 +6,7 @@
 -- ── World interest groups (seeded once per state) ───────────────────────────
 CREATE TABLE IF NOT EXISTS pol_interest_groups (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  state_id              UUID NOT NULL REFERENCES states(id) ON DELETE CASCADE,
+  state_id VARCHAR(50) NOT NULL REFERENCES states(id) ON DELETE CASCADE,
   segment_key           TEXT NOT NULL,   -- matches SEGMENTS[].key in politics.ts
   name                  TEXT NOT NULL,
   ideology_lean         TEXT NOT NULL CHECK (ideology_lean IN ('labour', 'capital', 'civic', 'trade', 'neutral')),

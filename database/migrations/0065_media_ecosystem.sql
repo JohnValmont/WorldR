@@ -7,7 +7,7 @@
 -- ── Media Outlets ────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS pol_media_outlets (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  state_id        UUID NOT NULL REFERENCES states(id) ON DELETE CASCADE,
+  state_id VARCHAR(50) NOT NULL REFERENCES states(id) ON DELETE CASCADE,
   name            TEXT NOT NULL,
   outlet_type     TEXT NOT NULL CHECK (outlet_type IN ('newspaper', 'tv', 'online', 'tabloid', 'radio')),
   -- Political bias: which platform axis this outlet prioritises/sympathises with
@@ -67,7 +67,7 @@ CREATE TRIGGER trg_pol_media_rel_updated_at
 -- Generated each arc. Top 3 per state are the "news cycle."
 CREATE TABLE IF NOT EXISTS pol_news_stories (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  state_id      UUID NOT NULL REFERENCES states(id) ON DELETE CASCADE,
+  state_id VARCHAR(50) NOT NULL REFERENCES states(id) ON DELETE CASCADE,
   party_id      UUID REFERENCES pol_parties(id) ON DELETE SET NULL,
   arc           INTEGER NOT NULL,
   -- Story metadata

@@ -8,7 +8,7 @@
 CREATE TABLE IF NOT EXISTS pol_legacy_records (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   character_id    UUID NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
-  state_id        UUID NOT NULL REFERENCES states(id) ON DELETE CASCADE,
+  state_id VARCHAR(50) NOT NULL REFERENCES states(id) ON DELETE CASCADE,
   arc             INTEGER NOT NULL,
   -- Which dimension this event affects
   dimension       TEXT NOT NULL CHECK (dimension IN (

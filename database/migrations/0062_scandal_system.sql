@@ -5,7 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS pol_scandals (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  state_id            UUID NOT NULL REFERENCES states(id) ON DELETE CASCADE,
+  state_id VARCHAR(50) NOT NULL REFERENCES states(id) ON DELETE CASCADE,
   party_id            UUID NOT NULL REFERENCES pol_parties(id) ON DELETE CASCADE,
   character_id        UUID REFERENCES characters(id) ON DELETE SET NULL,
 
