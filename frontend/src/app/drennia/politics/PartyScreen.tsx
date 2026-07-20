@@ -6,6 +6,7 @@ import { T, MONO, SANS, stampStyle, glassPanelStyle, interactiveCardStyle } from
 import { CREEDS, CREED_ORDER, CREED_NAME_BY_ID, PILLARS, PILLAR_BY_AXIS, type CreedId, BLOC_NAME_BY_KEY } from './_lib/model';
 import type { Axis } from '@/lib/politicsConstants';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
+import { Stamp } from './_components/DeskUI';
 
 interface Props {
   selectedJurisdictionId: JurisdictionId;
@@ -176,39 +177,50 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
             </div>
           </Panel>
 
-          <Panel title="Choose Your Creed">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
+          <div style={{ fontFamily: SANS, marginTop: 16 }}>
+            <Stamp>Choose Your Creed</Stamp>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 12 }}>
               {CREED_ORDER.map((id) => {
                 const c = CREEDS[id]; const on = creed === id;
                 const platform = CREED_PLATFORMS[id];
                 
                 return (
                   <button key={id} onClick={() => { setCreed(id); setTenet(null); }}
-                    style={{ ...interactiveCardStyle, textAlign: 'left', padding: 24, display: 'flex', flexDirection: 'column', gap: 16,
-                      background: on ? 'rgba(227, 182, 102, 0.05)' : T.panel2, 
-                      border: `1px solid ${on ? T.goldLine : T.border}`, 
-                      boxShadow: on ? `0 8px 32px ${T.goldSoft}, inset 0 1px 0 rgba(255,255,255,0.05)` : interactiveCardStyle.boxShadow,
-                      transform: on ? 'translateY(-2px)' : 'none',
+                    style={{ 
+                      textAlign: 'left', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 20,
+                      background: on ? T.blueDim : 'rgba(255,255,255,0.02)', 
+                      border: `1px solid ${on ? T.blueLine : 'transparent'}`, 
+                      borderLeft: `3px solid ${on ? T.blueBright : 'transparent'}`,
+                      borderRadius: 6,
+                      boxShadow: on ? `0 4px 20px ${T.blueGlow}` : 'none',
+                      transition: 'all 0.15s ease',
                       fontFamily: SANS
-                    }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ color: on ? T.gold : T.ivory, fontWeight: 700, fontSize: 20, letterSpacing: '-0.01em', textShadow: on ? `0 0 12px ${T.goldSoft}` : 'none' }}>{c.name}</div>
-                        <div style={{ color: on ? T.gold : T.faint, fontFamily: MONO, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 6, fontWeight: 600 }}>{c.tagline}</div>
-                      </div>
-                      {c.keystone && PILLAR_BY_AXIS[c.keystone] && (
-                        <div style={{ background: on ? `linear-gradient(135deg, ${T.gold}, #B8860B)` : 'rgba(255,255,255,0.04)', color: on ? '#111' : T.muted, padding: '6px 10px', borderRadius: 6, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', fontWeight: 700, boxShadow: on ? `0 2px 8px ${T.goldSoft}` : 'none', border: `1px solid ${on ? 'transparent' : T.border}` }}>
-                          Keystone: {PILLAR_BY_AXIS[c.keystone]?.name}
-                        </div>
-                      )}
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!on) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!on) e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                    }}
+                  >
+                    <div style={{ flex: '0 0 160px' }}>
+                      <div style={{ color: on ? T.ivory : T.text, fontWeight: 700, fontSize: 16, letterSpacing: '-0.01em' }}>{c.name}</div>
+                      <div style={{ color: on ? T.blueBright : T.faint, fontFamily: MONO, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 4, fontWeight: 600 }}>{c.tagline}</div>
                     </div>
                     
-                    <div style={{ color: T.text, fontSize: 14, lineHeight: 1.6, flex: 1, opacity: 0.9 }}>{c.blurb}</div>
+                    <div style={{ color: T.faint, fontSize: 13, lineHeight: 1.4, flex: 1 }}>{c.blurb}</div>
+
+                    {c.keystone && PILLAR_BY_AXIS[c.keystone] && (
+                      <div style={{ flex: '0 0 120px', textAlign: 'right' }}>
+                        <div style={{ color: T.muted, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>Keystone</div>
+                        <div style={{ color: on ? T.blueBright : T.text, fontSize: 12, fontWeight: 600 }}>{PILLAR_BY_AXIS[c.keystone]?.name}</div>
+                      </div>
+                    )}
                     
-                    <div style={{ display: 'flex', gap: 6, width: '100%', height: 28, marginTop: 8, alignItems: 'flex-end', padding: 4, background: 'rgba(0,0,0,0.2)', borderRadius: 4, border: `1px solid ${T.borderSoft}` }}>
+                    <div style={{ display: 'flex', gap: 3, width: 80, height: 24, alignItems: 'flex-end', padding: 2, background: 'rgba(0,0,0,0.3)', borderRadius: 3, border: `1px solid ${T.borderSoft}` }}>
                       {PILLARS.map(p => (
-                        <div key={p.axis} style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', background: 'rgba(255,255,255,0.02)', borderRadius: 2, overflow: 'hidden' }}>
-                          <div style={{ width: '100%', height: `${platform[p.axis]}%`, background: on ? `linear-gradient(0deg, #B8860B, ${T.gold})` : T.faint, boxShadow: on ? `0 0 8px ${T.goldSoft}` : 'none' }} />
+                        <div key={p.axis} style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', background: 'rgba(255,255,255,0.02)', borderRadius: 1, overflow: 'hidden' }}>
+                          <div style={{ width: '100%', height: `${platform[p.axis]}%`, background: on ? T.blueBright : T.muted, boxShadow: on ? `0 0 6px ${T.blueBright}` : 'none' }} />
                         </div>
                       ))}
                     </div>
@@ -216,7 +228,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                 );
               })}
             </div>
-          </Panel>
+          </div>
 
           {creed && (
             <Panel title="Choose a Tenet">
