@@ -26,6 +26,8 @@ const CREED_PLATFORMS: Record<CreedId, Record<Axis, number>> = {
   the_commons:   { taxation: 20, labour: 80, investment: 80, trade: 50, stability: 20 },
   the_vanguard:  { taxation: 20, labour: 50, investment: 50, trade: 80, stability: 20 },
   the_compact:   { taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 },
+  the_syndicate: { taxation: 20, labour: 80, investment: 50, trade: 50, stability: 20 },
+  the_directory: { taxation: 50, labour: 50, investment: 80, trade: 50, stability: 50 },
 };
 
 const TENETS: Record<CreedId, { id: string; name: string; type: string }[]> = {
@@ -35,6 +37,8 @@ const TENETS: Record<CreedId, { id: string; name: string; type: string }[]> = {
   the_commons:   [{ id: 'commons_vanguard', name: 'Reform Vanguard', type: 'intensify' }, { id: 'commons_outreach', name: 'Cross-Class Outreach', type: 'broaden' }],
   the_vanguard:  [{ id: 'vanguard_professionals', name: 'Professional Class', type: 'intensify' }, { id: 'vanguard_traders', name: 'Trade First', type: 'broaden' }],
   the_compact:   [{ id: 'compact_builders', name: 'Infrastructure First', type: 'intensify' }, { id: 'compact_populists', name: 'Household Compact', type: 'broaden' }],
+  the_syndicate: [{ id: 'syndicate_radicals', name: 'Industrial Action', type: 'intensify' }, { id: 'syndicate_moderates', name: 'Union Pragmatists', type: 'broaden' }],
+  the_directory: [{ id: 'directory_planners', name: 'Central Planners', type: 'intensify' }, { id: 'directory_pragmatists', name: 'Market Technocrats', type: 'broaden' }],
 };
 
 function Panel({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {

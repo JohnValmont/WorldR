@@ -10,7 +10,8 @@ import type { Axis } from '@/lib/politicsConstants';
 // — Creeds (plain ideology names -> existing doctrine IDs) —
 export type CreedId =
   | 'forge_accord' | 'the_ledger' | 'the_homestead'
-  | 'the_commons'  | 'the_vanguard' | 'the_compact';
+  | 'the_commons'  | 'the_vanguard' | 'the_compact'
+  | 'the_syndicate'| 'the_directory';
 
 export interface Creed {
   id: CreedId;
@@ -27,11 +28,14 @@ export const CREEDS: Record<CreedId, Creed> = {
   the_commons:   { id: 'the_commons',   name: 'Socialist',    tagline: 'Redistribute & reform', blurb: 'Redistribution, public investment, and bold reform. Rebuilds the economy around working people.', keystone: 'taxation' },
   the_vanguard:  { id: 'the_vanguard',  name: 'Progressive',  tagline: 'Reform & openness',     blurb: 'Open trade, pragmatic investment, and bold institutional change. Modernises the state.', keystone: 'stability' },
   the_compact:   { id: 'the_compact',   name: 'Centrist',     tagline: 'The balanced path',     blurb: 'Balanced on every issue. Defined by its record in government, not by rhetoric.', keystone: null },
+  the_syndicate: { id: 'the_syndicate', name: 'Laborist',     tagline: 'Power to creators',     blurb: 'Strong unions, collective ownership, and a worker-first economy. Labour is the source of all value.', keystone: 'labour' },
+  the_directory: { id: 'the_directory', name: 'Technocratic', tagline: 'Efficiency & growth',   blurb: 'State-led investment, massive infrastructure projects, and data-driven governance. Growth by design.', keystone: 'investment' },
 };
 
 export const CREED_ORDER: CreedId[] = [
   'forge_accord', 'the_ledger', 'the_homestead',
   'the_commons', 'the_vanguard', 'the_compact',
+  'the_syndicate', 'the_directory'
 ];
 
 export const CREED_NAME_BY_ID: Record<CreedId, string> =

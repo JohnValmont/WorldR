@@ -420,6 +420,7 @@ export type GeneralActionType = typeof GENERAL_ACTION_TYPES[number];
 export const DOCTRINE_IDS = [
   'forge_accord', 'the_ledger', 'the_homestead',
   'the_commons', 'the_vanguard', 'the_compact',
+  'the_syndicate', 'the_directory',
 ] as const;
 export type DoctrineId = typeof DOCTRINE_IDS[number];
 
@@ -431,6 +432,8 @@ export const DOCTRINE_PLATFORMS: Record<DoctrineId, Record<Axis, number>> = {
   the_commons:   { taxation: 20, labour: 80, investment: 80, trade: 50, stability: 20 },
   the_vanguard:  { taxation: 50, labour: 50, investment: 50, trade: 80, stability: 20 },
   the_compact:   { taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 },
+  the_syndicate: { taxation: 20, labour: 80, investment: 50, trade: 50, stability: 20 },
+  the_directory: { taxation: 50, labour: 50, investment: 80, trade: 50, stability: 50 },
 };
 
 /** Which general action type is unlocked by each Doctrine. */
@@ -441,6 +444,8 @@ export const DOCTRINE_SIGNATURE_ACTION: Record<DoctrineId, string> = {
   the_commons:   'shop_floor_tour',
   the_vanguard:  'listening_tour',
   the_compact:   'coalition_outreach',
+  the_syndicate: 'shop_floor_tour',
+  the_directory: 'investor_roadshow',
 };
 
 // AP costs for signature actions (Creed-locked) — all 6 AP per GDD $7 (AP_MODEL_COSTS.signature).
@@ -469,6 +474,8 @@ export const TENET_IDS = [
   'commons_vanguard', 'commons_outreach',
   'vanguard_professionals', 'vanguard_traders',
   'compact_builders', 'compact_populists',
+  'syndicate_radicals', 'syndicate_moderates',
+  'directory_planners', 'directory_pragmatists',
 ] as const;
 export type TenetId = typeof TENET_IDS[number];
 
@@ -480,6 +487,8 @@ export const DOCTRINE_TENETS: Record<DoctrineId, [string, string]> = {
   the_commons:   ['commons_vanguard',      'commons_outreach'],
   the_vanguard:  ['vanguard_professionals','vanguard_traders'],
   the_compact:   ['compact_builders',      'compact_populists'],
+  the_syndicate: ['syndicate_radicals',    'syndicate_moderates'],
+  the_directory: ['directory_planners',    'directory_pragmatists'],
 };
 
 /** Fit bonus applied per-segment when a tenet is active (additive, fraction). */
