@@ -4,10 +4,10 @@ import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
 import { SEGMENTS } from '@/lib/politicsConstants';
 import { JURISDICTIONS, type JurisdictionId } from './_lib/session';
-import { T, MONO } from './_lib/theme';
+import { T, MONO, HEADING, SANS, stampStyle, glassPanelStyle } from './_lib/theme';
 import { BLOC_NAME_BY_KEY, PILLAR_BY_AXIS, JURISDICTION_MODEL } from './_lib/model';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
-import { Panel, Stamp, Meter, StatTile } from './_components/DeskUI';
+import { Shield, Activity, Users, Map, CalendarClock, TrendingUp } from 'lucide-react';
 
 interface Props {
   selectedJurisdictionId: JurisdictionId;
@@ -21,6 +21,51 @@ interface Props {
 }
 
 const REAL_HOURS_PER_MONTH = 8; // GDD $3
+
+// ── Glass Panel Component (Shared visual language with Command Center) ──
+function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode, children: React.ReactNode, accent?: string, flex?: number | string }) {
+  return (
+    <div style={{
+      ...glassPanelStyle,
+      flex,
+      display: 'flex', flexDirection: 'column',
+      background: 'linear-gradient(145deg, rgba(18, 20, 26, 0.7) 0%, rgba(10, 12, 16, 0.9) 100%)',
+      border: `1px solid rgba(255, 255, 255, 0.08)`,
+      borderTop: accent ? `1px solid ${accent}` : `1px solid rgba(255, 255, 255, 0.15)`,
+      boxShadow: accent ? `0 4px 24px ${accent}20, inset 0 1px 0 rgba(255,255,255,0.05)` : '0 4px 24px rgba(0,0,0,0.4)',
+      borderRadius: 12,
+      overflow: 'hidden',
+    }}>
+      <div style={{ 
+        padding: '16px 20px', 
+        borderBottom: '1px solid rgba(255,255,255,0.05)', 
+        fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: accent || T.faint,
+        background: 'rgba(0,0,0,0.2)',
+        display: 'flex', alignItems: 'center', gap: 8
+      }}>
+        {title}
+      </div>
+      <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ── OLED Meter ──────────────────────────────────────────────
+function OledMeter({ value, label, tone, display }: { value: number, label: string, tone: string, display?: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.faint }}>{label}</span>
+        <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: tone, textShadow: `0 0 8px ${tone}60` }}>{display ?? `${value.toFixed(1)}%`}</span>
+      </div>
+      <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${value}%`, background: tone, transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: `0 0 8px ${tone}` }} />
+      </div>
+    </div>
+  );
+}
 
 // Indicative Fit (display only) — the engine uses the tuned POL_FIT_EXP formula.
 function fitPct(platform: any, seg: any): number | null {
@@ -44,69 +89,6 @@ function leaning(seg: any): string {
   return `${p.name}: ${pole}`;
 }
 
-/** The scheduled-election banner: countdown + term progress. No phase ceremony —
- *  campaigning and legislating are open at all times; the vote simply resolves on
- *  Election Day (GDD $3—4 / Task C removed the phase gates). */
-function ElectionHero({
-  jurisdictionName,
-  cycle,
-  seats,
-  majority,
-  termMonths,
-}: {
-  jurisdictionName: string;
-  cycle: any;
-  seats: number;
-  majority: number;
-  termMonths: number;
-}) {
-  const months: number | null = cycle?.monthsToElection ?? null;
-  const cycleNumber = cycle?.cycleNumber;
-  const electionArc = cycle?.electionArc;
-
-  const bigValue = months == null ? '—' : months <= 0 ? 'IMMINENT' : String(months).padStart(2, '0');
-  const unit = months == null || months <= 0 ? '' : months === 1 ? 'MONTH' : 'MONTHS';
-
-  // 1 in-game month = 8 real hours (GDD $3).
-  const realHours = months != null ? months * REAL_HOURS_PER_MONTH : null;
-  const realNote = realHours != null && months! > 0
-    ? `— ${Math.floor(realHours / 24)}d ${realHours % 24}h real time`
-    : null;
-
-  // Term progress toward Election Day (0—100). Hidden if we can't compute it.
-  const termProgress = months != null && termMonths > 0
-    ? Math.max(0, Math.min(100, ((termMonths - months) / termMonths) * 100))
-    : null;
-
-  return (
-    <Panel accent style={{ textAlign: 'center', padding: '14px 16px 12px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ textAlign: 'left' }}>
-          <Stamp>Next Election</Stamp>
-          <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.2em', color: T.muted, marginTop: 6, textTransform: 'uppercase' }}>
-            {jurisdictionName} Assembly{cycleNumber != null ? ` — Cycle ${cycleNumber}` : ''}
-          </div>
-          <div style={{ fontFamily: MONO, fontSize: 9.5, color: T.faint, marginTop: 2 }}>
-            {seats} seats — {majority} for majority{electionArc != null ? ` — arc ${electionArc}` : ''}
-          </div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 8 }}>
-            <span style={{ fontFamily: MONO, fontSize: 36, fontWeight: 800, color: T.ivory, letterSpacing: '0.02em', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{bigValue}</span>
-            {unit && <span style={{ fontFamily: MONO, fontSize: 13, letterSpacing: '0.18em', color: T.warning }}>{unit}</span>}
-          </div>
-          {realNote && <div style={{ fontFamily: MONO, fontSize: 9.5, color: T.faint, marginTop: 2 }}>{realNote}</div>}
-        </div>
-      </div>
-      {termProgress != null && (
-        <div style={{ marginTop: 10 }}>
-          <Meter label="Term progress" value={termProgress} display={`${Math.round(termProgress)}%`} tone={T.gold} height={4} />
-        </div>
-      )}
-    </Panel>
-  );
-}
-
 export default function ElectionsScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, overview, character, parties }: Props) {
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
@@ -116,90 +98,188 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
   const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
   const myPlatform = myParty?.platform;
 
-  const projections: any[] = Array.isArray(polls) ? polls : (polls?.pulse?.standings || polls?.parties || polls?.projections || []);
+  const rawProjections = polls?.pulse?.standings || polls?.parties || polls?.projections || [];
+  const projections: any[] = Array.isArray(polls) ? polls : (Array.isArray(rawProjections) ? rawProjections : []);
+  
   const maxSeats = projections.reduce((m: number, p: any) => Math.max(m, Number(p.projected_seats ?? p.seats ?? 0)), 0);
   const totalVotes = projections.reduce((sum: number, p: any) => sum + Number(p.votes ?? 0), 0);
 
+  // ── Election Hero Data ──
+  const cycle = overview?.cycle;
+  const months: number | null = cycle?.monthsToElection ?? null;
+  const cycleNumber = cycle?.cycleNumber;
+  const electionArc = cycle?.electionArc;
+
+  const bigValue = months == null ? '—' : months <= 0 ? 'IMMINENT' : String(months).padStart(2, '0');
+  const unit = months == null || months <= 0 ? '' : months === 1 ? 'MONTH' : 'MONTHS';
+
+  const realHours = months != null ? months * REAL_HOURS_PER_MONTH : null;
+  const realNote = realHours != null && months! > 0
+    ? `— ${Math.floor(realHours / 24)}d ${realHours % 24}h real time`
+    : null;
+
+  const termProgress = months != null && jModel.termMonths > 0
+    ? Math.max(0, Math.min(100, ((jModel.termMonths - months) / jModel.termMonths) * 100))
+    : null;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 24, fontFamily: SANS }}>
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
 
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <Stamp>Electorate — Drennia Nation</Stamp>
-          <h1 style={{ color: T.ivory, fontSize: 18, fontWeight: 700, margin: '4px 0 0', letterSpacing: '-0.01em' }}>Read the Room</h1>
-        </div>
-        <p style={{ color: T.faint, fontSize: 12, margin: 0, maxWidth: 480 }}>Every bloc has an ideal platform. Court the ones no rival owns — standing where others stand splits the vote.</p>
-      </div>
-
       {isLocked ? (
-        <Panel title="Locked"><div style={{ color: T.faint, fontStyle: 'italic' }}>Drennia Nation is not yet open for political activity.</div></Panel>
+        <GlassPanel title={<><Shield size={14} /> Locked</>}>
+          <div style={{ color: T.faint, fontStyle: 'italic' }}>Drennia Nation is not yet open for political activity.</div>
+        </GlassPanel>
       ) : (
         <>
-          <ElectionHero
-            jurisdictionName="National"
-            cycle={overview?.cycle}
-            seats={jModel.seats}
-            majority={jModel.majority}
-            termMonths={jModel.termMonths}
-          />
+          {/* ── OLED ELECTION HERO ── */}
+          <div style={{
+            display: 'flex', flexDirection: 'column', gap: 20,
+            background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
+            border: `1px solid ${months != null && months <= 6 ? 'rgba(220,38,38,0.3)' : 'rgba(255,255,255,0.05)'}`,
+            borderRadius: 16,
+            padding: '32px 36px',
+            boxShadow: months != null && months <= 6 ? 'inset 0 1px 0 rgba(220,38,38,0.2), 0 12px 32px rgba(220,38,38,0.1)' : 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
+            position: 'relative', overflow: 'hidden'
+          }}>
+            <div style={{
+              position: 'absolute', inset: 0, opacity: 0.1, pointerEvents: 'none',
+              backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+              backgroundSize: '20px 20px',
+            }} />
 
-          <Panel title="The Electorate">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>
-              {SEGMENTS.map((seg: any) => {
-                const fit = fitPct(myPlatform, seg);
-                const sizePct = Math.round(seg.size * 100);
-                return (
-                  <div key={seg.key} style={{ 
-                    background: 'linear-gradient(135deg, rgba(26, 29, 38, 0.8) 0%, rgba(18, 20, 26, 0.6) 100%)', 
-                    border: `1px solid ${T.border}`, 
-                    borderTop: `1px solid rgba(255,255,255,0.1)`, 
-                    borderRadius: 8, 
-                    padding: 20,
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-                    transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <span style={{ color: T.ivory, fontWeight: 800, fontSize: 16 }}>{BLOC_NAME_BY_KEY[seg.key] || seg.label}</span>
-                      <span style={{ color: T.gold, fontFamily: MONO, fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 10px ${T.goldSoft}` }}>{sizePct}%</span>
-                    </div>
-                    <div style={{ color: T.gold, fontFamily: MONO, fontSize: 10, marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.8 }}>{leaning(seg)}</div>
-                    <div style={{ marginTop: 14 }}>
-                      <Meter label="Bloc size" value={sizePct} display={`${sizePct}%`} tone={T.blue} height={5} />
-                    </div>
-                    <div style={{ marginTop: 10 }}>
-                      <Meter label="Your Fit" value={fit} display={fit == null ? '—' : `${fit}%`} />
-                    </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 24, position: 'relative', zIndex: 1 }}>
+              <div style={{ flex: 1, minWidth: 280 }}>
+                <div style={{ ...stampStyle, marginBottom: 8, color: T.gold, borderColor: 'rgba(255,215,0,0.3)', textShadow: `0 0 10px ${T.goldSoft}` }}>War Room</div>
+                <h1 style={{ color: T.ivory, fontSize: 36, fontWeight: 800, fontFamily: HEADING, margin: '0 0 4px', letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)' }}>
+                  Election Control
+                </h1>
+                <div style={{ fontFamily: MONO, fontSize: 12, color: T.blueLine, marginTop: 4, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  National Assembly {cycleNumber != null ? `— Cycle ${cycleNumber}` : ''}
+                </div>
+                <div style={{ fontFamily: MONO, fontSize: 10, color: T.faint, marginTop: 8, letterSpacing: '0.05em' }}>
+                  {jModel.seats} Seats Total • {jModel.majority} for Majority
+                </div>
+              </div>
+
+              {/* OLED Countdown Block */}
+              <div style={{ 
+                background: months != null && months <= 6 ? 'rgba(220,38,38,0.1)' : 'rgba(0,0,0,0.4)', 
+                border: `1px solid ${months != null && months <= 6 ? 'rgba(220,38,38,0.3)' : 'rgba(255,255,255,0.08)'}`, 
+                borderRadius: 12, padding: '20px 28px', minWidth: 180, display: 'flex', flexDirection: 'column', alignItems: 'center' 
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: months != null && months <= 6 ? T.red : T.faint, fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                  <CalendarClock size={12} /> Countdown
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 12 }}>
+                  <span style={{ fontFamily: MONO, fontSize: 42, fontWeight: 800, color: months != null && months <= 6 ? T.red : T.warning, lineHeight: 1, textShadow: months != null && months <= 6 ? `0 0 24px ${T.red}60` : `0 0 24px ${T.warning}40` }}>
+                    {bigValue}
+                  </span>
+                  {unit && <span style={{ fontFamily: MONO, fontSize: 14, color: months != null && months <= 6 ? T.red : T.warning, letterSpacing: '0.1em' }}>{unit}</span>}
+                </div>
+                {realNote && (
+                  <div style={{ fontFamily: MONO, fontSize: 9, color: T.faint, marginTop: 8, letterSpacing: '0.05em', opacity: 0.8 }}>
+                    {realNote}
                   </div>
-                );
-              })}
+                )}
+              </div>
             </div>
-          </Panel>
 
-          <Panel title="Live Projections — if the vote were held today">
-            {projections.length === 0 ? (
-              <div style={{ color: T.faint, fontStyle: 'italic' }}>Projections sharpen as parties file and campaigns build reach. The result is resolved on Election Day above.</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {projections.slice(0, 8).map((p: any, i: number) => {
-                  const share = p.projected_share ?? p.share ?? p.vote_share ?? (totalVotes > 0 ? (Number(p.votes ?? 0) / totalVotes) : 0);
-                  const seats = p.projected_seats ?? p.seats;
-                  const pct = share <= 1 ? share * 100 : share;
-                  const barVal = seats != null && maxSeats > 0 ? (Number(seats) / maxSeats) * 100 : pct;
-                  const isMine = p.isMine || (myParty && (p.id === myParty.id || p.party_id === myParty.id || p.name === myParty.name));
-                  return (
-                    <div key={p.id || p.party_id || i}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ color: isMine ? T.gold : T.text, fontSize: 13, fontWeight: isMine ? 700 : 400 }}>{p.name || p.party_name || 'Party'}{isMine ? ' — You' : ''}</span>
-                        <span style={{ color: T.muted, fontFamily: MONO, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{seats != null ? `${seats} seats — ${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`}</span>
+            {termProgress != null && (
+              <div style={{ position: 'relative', zIndex: 1, marginTop: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.faint }}>Term Progress</span>
+                  <span style={{ fontFamily: MONO, fontSize: 10, color: T.gold }}>{Math.round(termProgress)}%</span>
+                </div>
+                <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${termProgress}%`, background: T.gold, boxShadow: `0 0 12px ${T.goldSoft}` }} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
+            
+            {/* Live Projections */}
+            <GlassPanel title={<><TrendingUp size={14} /> Live Seat Projections</>} accent={T.mint}>
+              {projections.length === 0 ? (
+                <div style={{ color: T.faint, fontStyle: 'italic', padding: '32px 0', textAlign: 'center', fontSize: 13 }}>
+                  Projections sharpen as parties file and campaigns build reach. The result is resolved on Election Day.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {projections.slice(0, 8).map((p: any, i: number) => {
+                    const share = p.projected_share ?? p.share ?? p.vote_share ?? (totalVotes > 0 ? (Number(p.votes ?? 0) / totalVotes) : 0);
+                    const seats = p.projected_seats ?? p.seats;
+                    const pct = share <= 1 ? share * 100 : share;
+                    const barVal = seats != null && maxSeats > 0 ? (Number(seats) / maxSeats) * 100 : pct;
+                    const isMine = p.isMine || (myParty && (p.id === myParty.id || p.party_id === myParty.id || p.name === myParty.name));
+                    const tone = isMine ? T.gold : T.blue;
+                    
+                    return (
+                      <div key={p.id || p.party_id || i}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'baseline' }}>
+                          <span style={{ color: isMine ? T.gold : T.ivory, fontSize: 14, fontWeight: isMine ? 700 : 500, fontFamily: HEADING }}>
+                            {p.name || p.party_name || 'Party'}{isMine ? ' (You)' : ''}
+                          </span>
+                          <span style={{ color: tone, fontFamily: MONO, fontSize: 13, fontWeight: 600 }}>
+                            {seats != null ? `${seats} seats ` : ''}
+                            <span style={{ color: T.faint, fontWeight: 400, marginLeft: 4 }}>({pct.toFixed(1)}%)</span>
+                          </span>
+                        </div>
+                        <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${barVal}%`, background: tone, transition: 'width 1s ease', boxShadow: `0 0 12px ${tone}60` }} />
+                        </div>
                       </div>
-                      <Meter value={barVal} tone={isMine ? T.gold : T.blue} height={7} />
+                    );
+                  })}
+                </div>
+              )}
+            </GlassPanel>
+
+            {/* The Electorate */}
+            <GlassPanel title={<><Users size={14} /> The Electorate</>}>
+              <p style={{ color: T.faint, fontSize: 13, margin: '0 0 20px', lineHeight: 1.5, maxWidth: 600 }}>
+                Every demographic bloc has an ideal platform. Court the ones no rival owns — standing where others stand splits the vote.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                {SEGMENTS.map((seg: any) => {
+                  const fit = fitPct(myPlatform, seg);
+                  const sizePct = Math.round(seg.size * 100);
+                  
+                  return (
+                    <div key={seg.key} style={{ 
+                      background: 'rgba(0,0,0,0.3)', 
+                      border: `1px solid rgba(255,255,255,0.05)`, 
+                      borderRadius: 12, 
+                      padding: '20px 24px',
+                      display: 'flex', flexDirection: 'column', gap: 16,
+                      transition: 'transform 0.2s ease, border-color 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}
+                    onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                          <span style={{ color: T.ivory, fontWeight: 700, fontSize: 16, fontFamily: HEADING }}>{BLOC_NAME_BY_KEY[seg.key] || seg.label}</span>
+                          <span style={{ color: T.gold, fontFamily: MONO, fontSize: 16, fontWeight: 700 }}>{sizePct}%</span>
+                        </div>
+                        <div style={{ color: T.blueLine, fontFamily: MONO, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                          Primary Issue: {leaning(seg)}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
+                        <OledMeter label="Bloc Size" value={sizePct} display={`${sizePct}%`} tone={T.blue} />
+                        <OledMeter label="Your Platform Fit" value={fit ?? 0} display={fit == null ? '—' : `${fit}%`} tone={fit == null ? T.faint : fit >= 70 ? T.mint : fit >= 40 ? T.warning : T.red} />
+                      </div>
                     </div>
                   );
                 })}
               </div>
-            )}
-          </Panel>
+            </GlassPanel>
+            
+          </div>
         </>
       )}
     </div>
