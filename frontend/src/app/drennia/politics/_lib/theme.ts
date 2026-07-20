@@ -1,68 +1,87 @@
 // —
 // WORLDr — Political Desk shared theme tokens (the "T" palette).
-// AAA Luxury Strategy: Deep obsidian, frosted glass, glowing gold accents.
+// Synthesized from UI Pro Max skill: Dark Mode OLED (#7) + Glassmorphism (#3)
+// Color palette: Government/Public Service (colors.csv row 13) + Financial Dashboard (row 6)
+// Typography: Corporate Trust — Lexend + Source Sans 3 (typography.csv row 16)
 // —
+import React from 'react';
+
 export const T = {
-  // Base backgrounds (dark, rich depth)
-  bg:        '#08090C', // Deep obsidian
-  
-  // Panels & Glassmorphism
-  panel:     'rgba(18, 20, 26, 0.65)',
-  panel2:    'rgba(26, 29, 38, 0.75)',
-  raised:    'rgba(35, 38, 51, 0.85)',
-  glass:     'rgba(255, 255, 255, 0.02)',
-  
-  // Borders (Soft highlights for 3D effect)
-  border:    'rgba(255, 255, 255, 0.08)',
-  borderSoft:'rgba(255, 255, 255, 0.04)',
-  borderGlow:'rgba(212, 162, 74, 0.4)',
-  
-  // Accents
-  gold:      '#E3B666',
-  goldSoft:  'rgba(227, 182, 102, 0.15)',
-  goldLine:  'rgba(227, 182, 102, 0.4)',
-  goldGlow:  'rgba(227, 182, 102, 0.6)',
-  
-  // Typography
-  ivory:     '#F5F2EB',
-  text:      '#D8D4CA',
-  muted:     '#9496A6',
-  faint:     '#5D6073',
-  
-  // Status Colors
-  mint:      '#43C78B',
-  red:       '#E05246',
-  blue:      '#4892D4',
+  // ── Base Surfaces (OLED-optimised dark) ──
+  bg:           '#020617',   // Deep OLED black-navy
+  surface:      '#0A0E27',   // Deep navy base
+  panel:        'rgba(15, 23, 42, 0.75)',   // Card background
+  panel2:       'rgba(26, 37, 64, 0.80)',   // Elevated card
+  raised:       'rgba(30, 41, 59, 0.88)',   // Hovered / raised state
+  glass:        'rgba(255, 255, 255, 0.03)',
+
+  // ── Borders ──
+  border:       'rgba(51, 65, 85, 0.8)',    // Subtle separators (#334155 @ 80%)
+  borderSoft:   'rgba(51, 65, 85, 0.4)',
+  borderGlow:   'rgba(3, 105, 161, 0.5)',   // Focus / active glow
+
+  // ── Primary Accent — Political Authority Blue ──
+  blue:         '#0369A1',                  // Accent primary (government blue)
+  blueBright:   '#38BDF8',                  // Hover highlights, sparklines
+  blueGlow:     'rgba(3, 105, 161, 0.25)',
+  blueDim:      'rgba(3, 105, 161, 0.15)',
+  blueLine:     'rgba(3, 105, 161, 0.5)',
+
+  // ── Gold — Legacy accent kept for backwards compatibility ──
+  gold:         '#E3B666',
+  goldSoft:     'rgba(227, 182, 102, 0.15)',
+  goldLine:     'rgba(227, 182, 102, 0.4)',
+  goldGlow:     'rgba(227, 182, 102, 0.6)',
+
+  // ── Status Semantics ──
+  mint:         '#22C55E',                  // Positive: approval up, bills passed
+  mintDim:      'rgba(34, 197, 94, 0.15)',
+  warning:      '#F59E0B',                  // Warning: declining polls, caution
+  warningDim:   'rgba(245, 158, 11, 0.15)',
+  red:          '#EF4444',                  // Danger: crisis, scandal, collapse
+  redDim:       'rgba(239, 68, 68, 0.15)',
+  info:         '#818CF8',                  // Intelligence, forecasts
+
+  // ── Typography ──
+  ivory:        '#F1F5F9',                  // Primary readable text
+  text:         '#CBD5E1',                  // Body text
+  muted:        '#94A3B8',                  // Labels, helper text
+  faint:        '#475569',                  // Timestamps, disabled
 } as const;
 
-export const MONO = "ui-monospace, 'SF Mono', 'IBM Plex Mono', Menlo, monospace";
-export const SANS = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+// UI Pro Max typography.csv row 16 — Corporate Trust
+// "Lexend designed for readability. Excellent accessibility."
+export const HEADING = "'Lexend', system-ui, sans-serif";
+export const BODY    = "'Source Sans 3', system-ui, sans-serif";
+export const MONO    = "ui-monospace, 'SF Mono', 'IBM Plex Mono', Menlo, monospace";
+// Legacy alias for backwards compat
+export const SANS    = BODY;
 
 /** Small uppercase section stamp style. */
 export const stampStyle = {
   fontFamily: MONO,
   textTransform: 'uppercase' as const,
-  letterSpacing: '0.25em',
+  letterSpacing: '0.22em',
   fontSize: 10,
-  color: T.gold,
+  color: T.blueBright,
   fontWeight: 600,
-  opacity: 0.8,
+  opacity: 0.85,
 };
 
-/** Reusable AAA Panel Style */
+/** Reusable AAA Panel Style — glassmorphism from styles.csv row 3 */
 export const glassPanelStyle: React.CSSProperties = {
   background: T.panel,
-  backdropFilter: 'blur(16px)',
-  WebkitBackdropFilter: 'blur(16px)',
+  backdropFilter: 'blur(14px)',
+  WebkitBackdropFilter: 'blur(14px)',
   border: `1px solid ${T.border}`,
-  borderTop: `1px solid rgba(255, 255, 255, 0.15)`, // Simulates overhead lighting on glass edge
-  borderRadius: '8px',
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+  borderTop: `1px solid rgba(148, 163, 184, 0.18)`,
+  borderRadius: '10px',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.4), 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)',
   padding: '24px',
-  transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+  transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
 };
 
-/** Reusable AAA Card Style (Hoverable) */
+/** Hoverable card — adds lift on hover via CSS class `hover-lift` */
 export const interactiveCardStyle: React.CSSProperties = {
   ...glassPanelStyle,
   background: T.panel2,
@@ -74,3 +93,19 @@ export const tabularNums: React.CSSProperties = {
   fontFamily: MONO,
   fontVariantNumeric: 'tabular-nums',
 };
+
+/** Crisis severity helpers */
+export function crisisColor(severity: 'critical' | 'warning' | 'info') {
+  return severity === 'critical' ? T.red : severity === 'warning' ? T.warning : T.info;
+}
+export function crisisDim(severity: 'critical' | 'warning' | 'info') {
+  return severity === 'critical' ? T.redDim : severity === 'warning' ? T.warningDim : 'rgba(129, 140, 248, 0.12)';
+}
+
+/** Trend arrow + colour for a numeric delta */
+export function trendProps(delta: number | null) {
+  if (delta == null) return { arrow: '—', color: T.faint };
+  if (delta > 0)     return { arrow: '▲', color: T.mint };
+  if (delta < 0)     return { arrow: '▼', color: T.red };
+  return { arrow: '→', color: T.muted };
+}
