@@ -53,7 +53,7 @@ function NavItem({ item, isActive, onSelect }: {
       onMouseLeave={() => setHover(false)}
       style={{
         display: 'flex', alignItems: 'center', gap: 11, width: '100%',
-        padding: '9px 12px', borderRadius: 10, marginBottom: 2,
+        padding: '7px 10px', borderRadius: 8, marginBottom: 1,
         background: isActive
           ? 'linear-gradient(135deg, rgba(79,110,247,0.15), rgba(79,110,247,0.07))'
           : hover ? 'rgba(255,255,255,0.04)' : 'transparent',
@@ -84,7 +84,7 @@ function NavItem({ item, isActive, onSelect }: {
 
       {/* Label */}
       <span style={{
-        fontSize: 13, fontWeight: isActive ? 600 : 400,
+        fontSize: 12, fontWeight: isActive ? 600 : 400,
         letterSpacing: '-0.01em', fontFamily: "'Inter', sans-serif", flex: 1,
       }}>
         {item.label}
@@ -120,18 +120,18 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
       }} />
 
       {/* Branding header */}
-      <div className="sidebar-brand" style={{ padding: '26px 18px 18px' }}>
+      <div className="sidebar-brand" style={{ padding: '14px 14px 10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           {/* Icon crest */}
           <div style={{
-            width: 36, height: 36, borderRadius: 10,
+            width: 26, height: 26, borderRadius: 7,
             background: 'linear-gradient(135deg, rgba(79,110,247,0.25), rgba(79,110,247,0.10))',
             border: '1px solid rgba(79,110,247,0.32)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 16px rgba(79,110,247,0.18)',
+            boxShadow: '0 3px 10px rgba(79,110,247,0.15)',
             flexShrink: 0,
           }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
               stroke="#7B9FFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 21h18"/><path d="M5 21V10M9 21V10M15 21V10M19 21V10"/>
               <path d="M3 10 12 4l9 6"/>
@@ -146,9 +146,9 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
               fontWeight: 600, opacity: 0.75, marginBottom: 3,
             }}>Political Desk</div>
             <div style={{
-              color: '#F0F4FF', fontWeight: 700, fontSize: 15,
+              color: '#F0F4FF', fontWeight: 700, fontSize: 13,
               fontFamily: "'Inter', sans-serif",
-              letterSpacing: '-0.02em', lineHeight: 1,
+              letterSpacing: '-0.01em', lineHeight: 1,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{myPartyName || 'Unaligned'}</div>
           </div>
@@ -156,12 +156,12 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
 
         {/* Jurisdiction pill */}
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          padding: '4px 10px', borderRadius: 99,
-          background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.07)',
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          padding: '3px 7px', borderRadius: 99,
+          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
         }}>
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#10D67A', boxShadow: '0 0 6px #10D67A', flexShrink: 0 }} />
-          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: '#8890A8', fontWeight: 500 }}>
+          <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#10D67A', flexShrink: 0 }} />
+          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: '#8890A8', fontWeight: 500 }}>
             {myPartyNation || 'National'}
           </span>
         </div>
@@ -175,8 +175,8 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
         {GROUPS.map((group) => (
           <div key={group.label} style={{ marginBottom: 6 }}>
             <div className="sidebar-nav-group-label" style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '10px 12px 5px',
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 10px 4px',
             }}>
               <span style={{
                 fontFamily: "'JetBrains Mono', monospace",
@@ -196,7 +196,7 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
       {/* Leader badge */}
       {myPartyName && (
         <div className="sidebar-leader" style={{
-          padding: '14px 18px',
+          padding: '10px 14px',
           borderTop: '1px solid rgba(255,255,255,0.05)',
           background: 'rgba(79,110,247,0.04)',
         }}>

@@ -76,7 +76,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
         background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
         border: `1px solid rgba(255,255,255,0.05)`,
         borderRadius: 16,
-        padding: '32px 36px',
+        padding: '14px 18px',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
         position: 'relative', overflow: 'hidden'
       }}>
@@ -88,7 +88,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', zIndex: 1 }}>
           <div style={{ ...stampStyle, color: T.gold, fontSize: 11, letterSpacing: '0.15em', borderColor: 'rgba(255,215,0,0.3)' }}>THE CHAMBER</div>
-          <h1 style={{ color: T.ivory, fontSize: 36, fontWeight: 800, fontFamily: HEADING, margin: 0, letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)' }}>
+          <h1 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, fontFamily: HEADING, margin: 0, letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)' }}>
             {jModel.tier === 'state' ? 'State Assembly' : 'National Parliament'} <span style={{ color: T.muted, fontWeight: 400 }}>of {jModel.name}</span>
           </h1>
           <div style={{ color: T.faint, fontSize: 13, marginTop: 4 }}>

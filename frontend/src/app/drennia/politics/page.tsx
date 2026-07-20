@@ -60,7 +60,7 @@ function MetricPill({
         onMouseLeave={() => setHover(false)}
         style={{
           display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-          padding: '8px 16px',
+          padding: '5px 12px',
           borderLeft: '1px solid rgba(255,255,255,0.06)',
           cursor: 'help',
           transition: 'background 0.15s',
@@ -69,15 +69,15 @@ function MetricPill({
         }}
       >
         <span style={{
-          fontFamily: MONO, fontSize: 8.5, letterSpacing: '0.18em',
+          fontFamily: MONO, fontSize: 8, letterSpacing: '0.14em',
           textTransform: 'uppercase', color: T.faint,
-          fontWeight: 600, marginBottom: 3,
+          fontWeight: 600, marginBottom: 2,
         }}>{label}</span>
         <span style={{
-          fontFamily: MONO, fontSize: 18, fontWeight: 700,
+          fontFamily: MONO, fontSize: 14, fontWeight: 700,
           color: tone || T.ivory, lineHeight: 1,
           letterSpacing: '-0.01em',
-          textShadow: tone ? `0 0 18px ${tone}35` : 'none',
+          textShadow: tone ? `0 0 14px ${tone}30` : 'none',
         }}>{value}</span>
       </div>
     </HoverData>
@@ -132,13 +132,13 @@ export default function PoliticsDesk() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', background: T.bg, color: T.text }}>
 
-      {/* ─── Premium Global Header ─── */}
+      {/* ─── Compact Header ─── */}
       <header style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 28px',
-        height: 60,
+        padding: '0 20px',
+        height: 46,
         borderBottom: '1px solid rgba(255,255,255,0.055)',
         background: 'linear-gradient(180deg, rgba(7,7,20,0.95) 0%, rgba(5,5,15,0.92) 100%)',
         backdropFilter: 'blur(32px)',
@@ -146,23 +146,23 @@ export default function PoliticsDesk() {
         flexShrink: 0,
         position: 'relative',
       }}>
-        {/* Bottom edge glow on header */}
+        {/* Bottom edge glow */}
         <div style={{
           position: 'absolute', bottom: 0, left: 0, right: 0, height: 1,
-          background: 'linear-gradient(90deg, transparent, rgba(79,110,247,0.25), transparent)',
+          background: 'linear-gradient(90deg, transparent, rgba(79,110,247,0.22), transparent)',
           pointerEvents: 'none',
         }} />
 
         {/* Left: Logo + title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 34, height: 34, borderRadius: 9,
+            width: 26, height: 26, borderRadius: 7,
             background: 'linear-gradient(135deg, #4F6EF7, #3A5BE0)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 14px rgba(79,110,247,0.45)',
+            boxShadow: '0 3px 10px rgba(79,110,247,0.4)',
             flexShrink: 0,
           }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
               stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 21h18"/><path d="M5 21V10M9 21V10M15 21V10M19 21V10"/>
               <path d="M3 10 12 4l9 6"/>
@@ -170,21 +170,18 @@ export default function PoliticsDesk() {
           </div>
           <div>
             <div style={{
-              fontSize: 15, fontFamily: HEADING, fontWeight: 700,
-              color: T.ivory, lineHeight: 1.15, letterSpacing: '-0.02em',
+              fontSize: 13, fontFamily: HEADING, fontWeight: 700,
+              color: T.ivory, lineHeight: 1.2, letterSpacing: '-0.01em',
             }}>Political Desk</div>
-            <div style={{ fontSize: 11, color: T.faint, fontFamily: MONO, letterSpacing: '0.05em' }}>
-              Drennia Republic
-            </div>
           </div>
           {/* Separator */}
-          <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.08)', marginLeft: 6 }} />
+          <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.07)', marginLeft: 4 }} />
           {/* Active section badge */}
           <div style={{
-            padding: '3px 10px', borderRadius: 99,
-            background: 'rgba(79,110,247,0.12)',
-            border: '1px solid rgba(79,110,247,0.25)',
-            fontFamily: HEADING, fontSize: 11.5, fontWeight: 600,
+            padding: '2px 8px', borderRadius: 99,
+            background: 'rgba(79,110,247,0.10)',
+            border: '1px solid rgba(79,110,247,0.22)',
+            fontFamily: HEADING, fontSize: 11, fontWeight: 600,
             color: T.blueBright, textTransform: 'capitalize', letterSpacing: '-0.01em',
           }}>
             {activeSection.replace(/_/g, ' ')}
@@ -232,7 +229,7 @@ export default function PoliticsDesk() {
 
       <style>{`
         .politics-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
-        .politics-sidebar-container { width: 228px; flex-shrink: 0; }
+        .politics-sidebar-container { width: 176px; flex-shrink: 0; }
         .politics-main-scroll::-webkit-scrollbar { width: 6px; }
         .politics-main-scroll::-webkit-scrollbar-track { background: transparent; }
         .politics-main-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
@@ -260,7 +257,7 @@ export default function PoliticsDesk() {
             background: 'radial-gradient(ellipse at top right, rgba(79,110,247,0.04) 0%, transparent 70%)',
             pointerEvents: 'none', zIndex: 0,
           }} />
-          <div style={{ maxWidth: 1260, margin: '0 auto', padding: '20px 24px', position: 'relative', zIndex: 1 }}>
+          <div style={{ maxWidth: 1260, margin: '0 auto', padding: '16px 20px', position: 'relative', zIndex: 1 }}>
             {loading ? (
               <div style={{ padding: '60px 0', textAlign: 'center' }}>
                 <div style={{ color: T.faint, fontFamily: MONO, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase' }}>

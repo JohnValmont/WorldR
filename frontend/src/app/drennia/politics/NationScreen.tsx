@@ -109,7 +109,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
             background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
             border: `1px solid rgba(255,255,255,0.05)`,
             borderRadius: 16,
-            padding: '32px 36px',
+            padding: '14px 18px',
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
             position: 'relative', overflow: 'hidden'
           }}>
@@ -123,7 +123,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 24, position: 'relative', zIndex: 1 }}>
               <div style={{ flex: 1, minWidth: 280 }}>
                 <div style={{ ...stampStyle, marginBottom: 8, color: T.gold, borderColor: 'rgba(255,215,0,0.3)', textShadow: `0 0 10px ${T.goldSoft}` }}>Intelligence Dossier</div>
-                <h1 style={{ color: T.ivory, fontSize: 36, fontWeight: 800, fontFamily: "'Outfit', 'Lexend', system-ui", margin: '0 0 4px', letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)' }}>
+                <h1 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, fontFamily: "'Outfit', 'Lexend', system-ui", margin: '0 0 4px', letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)' }}>
                   Drennia Nation
                 </h1>
                 <div style={{ fontFamily: MONO, fontSize: 12, color: T.blueLine, marginTop: 4, letterSpacing: '0.1em', textTransform: 'uppercase' }}>

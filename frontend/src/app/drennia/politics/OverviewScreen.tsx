@@ -247,7 +247,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
         background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
         border: `1px solid rgba(255,255,255,0.05)`,
         borderRadius: 16,
-        padding: '32px 36px',
+        padding: '14px 18px',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
         position: 'relative', overflow: 'hidden'
       }}>

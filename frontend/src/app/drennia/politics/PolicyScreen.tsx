@@ -136,32 +136,24 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 24, fontFamily: SANS }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 24, fontFamily: SANS }}>
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
       
-      {/* ── OLED POLICY HERO ── */}
+      {/* ── POLICY HERO (compact) ── */}
       <div style={{
-        display: 'flex', flexDirection: 'column', gap: 16,
-        background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
-        border: `1px solid rgba(255,255,255,0.05)`,
-        borderRadius: 16,
-        padding: '32px 36px',
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
-        position: 'relative', overflow: 'hidden'
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: 'rgba(10,12,20,0.7)',
+        border: `1px solid rgba(255,255,255,0.06)`,
+        borderRadius: 10,
+        padding: '14px 18px',
       }}>
-        <div style={{
-          position: 'absolute', inset: 0, opacity: 0.1, pointerEvents: 'none',
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-          backgroundSize: '20px 20px',
-        }} />
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', zIndex: 1 }}>
-          <div style={{ ...stampStyle, color: T.gold, fontSize: 11, letterSpacing: '0.15em', borderColor: 'rgba(255,215,0,0.3)' }}>THE POLICY DESK</div>
-          <h1 style={{ color: T.ivory, fontSize: 36, fontWeight: 800, fontFamily: HEADING, margin: 0, letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)' }}>
-            Active Directives <span style={{ color: T.muted, fontWeight: 400 }}>of {jurisdiction?.name}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.faint, fontWeight: 600 }}>Policy Desk</div>
+          <h1 style={{ color: T.ivory, fontSize: 18, fontWeight: 700, fontFamily: HEADING, margin: 0, letterSpacing: '-0.02em' }}>
+            Active Directives <span style={{ color: T.muted, fontWeight: 400, fontSize: 14 }}>· {jurisdiction?.name}</span>
           </h1>
-          <div style={{ color: T.faint, fontSize: 14, marginTop: 4 }}>
-            Every policy currently in force across the jurisdiction. Party Leaders may propose legislative changes.
+          <div style={{ color: T.faint, fontSize: 12 }}>
+            Policies in force. Party Leaders may propose changes.
           </div>
         </div>
       </div>
@@ -186,15 +178,15 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
                 display: 'flex', flexDirection: 'column'
               }}>
                 {/* Main Card */}
-                <div style={{ display: 'flex', alignItems: 'center', padding: '24px 28px', gap: 24, position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', padding: '14px 18px', gap: 16, position: 'relative' }}>
                   
                   {/* Title & Desc */}
-                  <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <FileText size={16} color={isProposing ? T.blueBright : T.muted} />
-                      <span style={{ color: isProposing ? T.ivory : T.text, fontWeight: 700, fontSize: 18, fontFamily: HEADING }}>{pol.title}</span>
+                  <div style={{ flex: '1 1 260px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <FileText size={13} color={isProposing ? T.blueBright : T.muted} />
+                      <span style={{ color: isProposing ? T.ivory : T.text, fontWeight: 600, fontSize: 14, fontFamily: HEADING }}>{pol.title}</span>
                     </div>
-                    <div style={{ color: T.faint, fontSize: 13, lineHeight: 1.5 }}>{pol.description}</div>
+                    <div style={{ color: T.faint, fontSize: 12, lineHeight: 1.5 }}>{pol.description}</div>
                   </div>
 
                   {/* Badges */}
