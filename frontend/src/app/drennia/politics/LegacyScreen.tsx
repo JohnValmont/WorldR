@@ -103,7 +103,7 @@ export default function LegacyScreen({ character }: Props) {
   }
   if (!legacy) return null;
 
-  const { scores, recentEvents } = legacy;
+  const { scores, rank, benefits, records } = legacy;
   
   // Safe JSON Parsing for unlocked benefits
   let unlocked: string[] = [];
@@ -223,12 +223,12 @@ export default function LegacyScreen({ character }: Props) {
       {/* HISTORICAL LOG */}
       <GlassPanel title={<><History size={14} /> Historical Timeline</>}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {(!Array.isArray(recentEvents) || recentEvents.length === 0) ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: T.faint, fontStyle: 'italic' }}>
+          {(!Array.isArray(records) || records.length === 0) ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: T.faint, fontStyle: 'italic', background: glassPanelStyle.background, border: glassPanelStyle.border, borderRadius: 12 }}>
               No significant historical events recorded yet.
             </div>
           ) : (
-            recentEvents.map((ev: any, i: number) => {
+            records.map((ev: any, i: number) => {
               const isPositive = ev.score_delta > 0;
               const isNegative = ev.score_delta < 0;
               const tone = isPositive ? T.mint : isNegative ? T.red : T.blueBright;
