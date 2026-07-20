@@ -80,7 +80,7 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
       
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <Stamp style={{ color: T.gold }}>THE POLICY DESK</Stamp>
-        <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
+        <h1 style={{ color: T.ivory, fontSize: 18, fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>
           Policies — {jurisdiction?.name}
         </h1>
         <div style={{ color: T.faint, fontSize: 13 }}>
@@ -94,7 +94,7 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
           <div style={{ color: T.faint, fontStyle: 'italic', fontSize: 14 }}>The {jurisdiction?.name} policy desk is not yet open.</div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
           {policies.map((pol) => {
             const isProposing = activeProposal === pol.id;
 

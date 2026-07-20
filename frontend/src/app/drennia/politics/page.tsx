@@ -114,7 +114,7 @@ export default function PoliticsDesk() {
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <PoliticsSidebar active={activeSection} onSelect={setActiveSection} myPartyName={myParty?.name} myPartyNation={jMeta.name} />
         <main style={{ flex: 1, overflowY: 'auto', background: T.bg }}>
-          <div style={{ maxWidth: 1240, margin: '0 auto', padding: '28px 32px' }}>
+          <div style={{ maxWidth: 1240, margin: '0 auto', padding: '16px 20px' }}>
             {loading ? (
               <div style={{ color: T.muted, fontFamily: MONO, fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Convening the Political Desk—</div>
             ) : error ? (

@@ -177,7 +177,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           </Panel>
 
           <Panel title="Choose Your Creed">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
               {CREED_ORDER.map((id) => {
                 const c = CREEDS[id]; const on = creed === id;
                 const platform = CREED_PLATFORMS[id];
@@ -253,7 +253,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
               </div>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               {err && <div style={{ color: T.red, fontSize: 14, fontWeight: 500 }}>{err}</div>}
               <Btn label={busy ? 'Founding\u2026' : 'Found Party'} primary onClick={found} disabled={busy || !name.trim() || !abbreviation.trim() || !creed} />
             </div>

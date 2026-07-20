@@ -189,19 +189,19 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, fontFamily: "'Source Sans 3', system-ui, sans-serif" }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontFamily: "'Source Sans 3', system-ui, sans-serif" }}>
 
       {/* ── Page header ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', padding: '8px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '4px 0 8px' }}>
         <div>
           <Stamp>{jMeta.name} — Command Center</Stamp>
-          <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 800, fontFamily: "'Lexend', system-ui", margin: '10px 0 0', letterSpacing: '-0.02em' }}>
+          <h1 style={{ color: T.ivory, fontSize: 18, fontWeight: 700, fontFamily: "'Lexend', system-ui", margin: '4px 0 0', letterSpacing: '-0.01em' }}>
             {myParty ? myParty.name : 'Political Desk'}
-            {myParty?.abbreviation && <span style={{ color: T.faint, fontSize: 18, fontFamily: MONO, textTransform: 'uppercase', marginLeft: 10 }}>[{myParty.abbreviation}]</span>}
+            {myParty?.abbreviation && <span style={{ color: T.faint, fontSize: 13, fontFamily: MONO, textTransform: 'uppercase', marginLeft: 8 }}>[{myParty.abbreviation}]</span>}
           </h1>
-          {myParty?.doctrine_id && <div style={{ fontFamily: MONO, fontSize: 11, color: T.faint, marginTop: 4, letterSpacing: '0.08em' }}>{myParty.doctrine_id.replace(/_/g, ' ').toUpperCase()}</div>}
+          {myParty?.doctrine_id && <div style={{ fontFamily: MONO, fontSize: 10, color: T.faint, marginTop: 2, letterSpacing: '0.06em' }}>{myParty.doctrine_id.replace(/_/g, ' ').toUpperCase()}</div>}
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {/* Approval trend chip */}
           {support != null && (
             <div style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 10, padding: '10px 16px', textAlign: 'center', minWidth: 100 }}>

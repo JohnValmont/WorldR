@@ -63,7 +63,7 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
       
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ ...stampStyle, color: T.gold, fontSize: 11, letterSpacing: '0.15em' }}>THE LEGISLATURE</div>
-        <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
+        <h1 style={{ color: T.ivory, fontSize: 18, fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>
           {assemblyType} of {jurisdiction?.name || 'the Jurisdiction'}
         </h1>
         <div style={{ color: T.faint, fontSize: 13 }}>

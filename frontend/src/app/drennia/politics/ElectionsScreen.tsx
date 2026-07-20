@@ -79,28 +79,30 @@ function ElectionHero({
     : null;
 
   return (
-    <Panel accent style={{ textAlign: 'center', padding: '26px 24px 20px' }}>
-      <Stamp style={{ justifyContent: 'center' }}>Next Election</Stamp>
-      <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.3em', color: T.muted, marginTop: 14 }}>ELECTION DAY</div>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 12, marginTop: 4 }}>
-        <span style={{ fontFamily: MONO, fontSize: 64, fontWeight: 800, color: T.ivory, letterSpacing: '0.02em', fontVariantNumeric: 'tabular-nums', lineHeight: 1, textShadow: '0 4px 20px rgba(255,255,255,0.15)' }}>{bigValue}</span>
-        {unit && <span style={{ fontFamily: MONO, fontSize: 18, letterSpacing: '0.24em', color: T.gold, textShadow: `0 0 10px ${T.goldSoft}` }}>{unit}</span>}
+    <Panel accent style={{ textAlign: 'center', padding: '14px 16px 12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ textAlign: 'left' }}>
+          <Stamp>Next Election</Stamp>
+          <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.2em', color: T.muted, marginTop: 6, textTransform: 'uppercase' }}>
+            {jurisdictionName} Assembly{cycleNumber != null ? ` — Cycle ${cycleNumber}` : ''}
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 9.5, color: T.faint, marginTop: 2 }}>
+            {seats} seats — {majority} for majority{electionArc != null ? ` — arc ${electionArc}` : ''}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 8 }}>
+            <span style={{ fontFamily: MONO, fontSize: 36, fontWeight: 800, color: T.ivory, letterSpacing: '0.02em', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{bigValue}</span>
+            {unit && <span style={{ fontFamily: MONO, fontSize: 13, letterSpacing: '0.18em', color: T.warning }}>{unit}</span>}
+          </div>
+          {realNote && <div style={{ fontFamily: MONO, fontSize: 9.5, color: T.faint, marginTop: 2 }}>{realNote}</div>}
+        </div>
       </div>
-      <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: '0.14em', color: T.muted, marginTop: 8, textTransform: 'uppercase' }}>
-        {jurisdictionName} Assembly{cycleNumber != null ? ` — Cycle ${cycleNumber}` : ''}
-      </div>
-      <div style={{ fontFamily: MONO, fontSize: 10.5, color: T.faint, marginTop: 4 }}>
-        {seats} seats — {majority} for a majority{electionArc != null ? ` — resolves at arc ${electionArc}` : ''}{realNote ? ` — ${realNote}` : ''}
-      </div>
-
       {termProgress != null && (
-        <div style={{ maxWidth: 520, margin: '18px auto 0', textAlign: 'left' }}>
-          <Meter label="Term progress" value={termProgress} display={`${Math.round(termProgress)}%`} tone={T.gold} height={6} />
+        <div style={{ marginTop: 10 }}>
+          <Meter label="Term progress" value={termProgress} display={`${Math.round(termProgress)}%`} tone={T.gold} height={4} />
         </div>
       )}
-      <div style={{ fontFamily: MONO, fontSize: 10.5, color: T.faint, marginTop: 12, letterSpacing: '0.04em' }}>
-        Campaign, court blocs and propose laws anytime — there are no locked phases. The vote simply resolves on Election Day.
-      </div>
     </Panel>
   );
 }
@@ -119,13 +121,15 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
   const totalVotes = projections.reduce((sum: number, p: any) => sum + Number(p.votes ?? 0), 0);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
 
-      <div>
-        <Stamp>Electorate — {jurisdiction?.name}</Stamp>
-        <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 700, margin: '8px 0 0' }}>Read the Room</h1>
-        <p style={{ color: T.muted, fontSize: 14, marginTop: 6, maxWidth: 640 }}>Every bloc has an ideal platform. Court the ones no rival owns — standing where others stand splits the vote.</p>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <Stamp>Electorate — {jurisdiction?.name}</Stamp>
+          <h1 style={{ color: T.ivory, fontSize: 18, fontWeight: 700, margin: '4px 0 0', letterSpacing: '-0.01em' }}>Read the Room</h1>
+        </div>
+        <p style={{ color: T.faint, fontSize: 12, margin: 0, maxWidth: 480 }}>Every bloc has an ideal platform. Court the ones no rival owns — standing where others stand splits the vote.</p>
       </div>
 
       {isLocked ? (

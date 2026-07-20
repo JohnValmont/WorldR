@@ -59,7 +59,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
   const policyPlatform = activePolicy?.policy_platform || {};
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
 
       {isLocked ? (
@@ -71,7 +71,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
             <p style={{ color: T.muted, fontSize: 15, marginTop: 8, lineHeight: 1.6 }}>Overview of the state's economic and political health.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
             <Panel title="Jurisdiction Conditions">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <StatDial label="Prosperity" value={conditions?.prosperity ?? 5} />
@@ -85,7 +85,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
               </div>
             </Panel>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Panel title="Active Laws & Governance">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

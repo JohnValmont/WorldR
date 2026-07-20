@@ -75,9 +75,9 @@ export const glassPanelStyle: React.CSSProperties = {
   WebkitBackdropFilter: 'blur(14px)',
   border: `1px solid ${T.border}`,
   borderTop: `1px solid rgba(148, 163, 184, 0.18)`,
-  borderRadius: '10px',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.4), 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)',
-  padding: '24px',
+  borderRadius: '8px',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.35), 0 4px 16px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)',
+  padding: '14px 16px',
   transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
 };
 

@@ -44,7 +44,7 @@ export function Panel({
       }}
     >
       {(title || action) && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           {title ? <Stamp>{title}</Stamp> : <span />}
           {action}
         </div>
@@ -68,18 +68,18 @@ export function StatTile({
 }) {
   return (
     <div style={{ 
-      background: 'linear-gradient(180deg, rgba(35, 38, 51, 0.85) 0%, rgba(26, 29, 38, 0.75) 100%)', 
+      background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.75) 100%)', 
       border: `1px solid ${T.border}`, 
-      borderTop: `1px solid rgba(255,255,255,0.1)`, 
+      borderTop: `1px solid rgba(255,255,255,0.08)`, 
       borderRadius: 6, 
-      padding: '16px', 
+      padding: '10px 12px', 
       minWidth: 0,
-      boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
       transition: 'transform 0.2s ease, box-shadow 0.2s ease'
     }}>
-      <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.faint }}>{label}</div>
-      <div style={{ ...tabularNums, fontSize: 24, fontWeight: 700, color: tone, marginTop: 8, lineHeight: 1, textShadow: tone === T.gold ? `0 0 12px ${T.goldSoft}` : 'none' }}>{value}</div>
-      {sub != null && <div style={{ fontFamily: MONO, fontSize: 10.5, color: T.muted, marginTop: 6 }}>{sub}</div>}
+      <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.faint }}>{label}</div>
+      <div style={{ ...tabularNums, fontSize: 20, fontWeight: 700, color: tone, marginTop: 5, lineHeight: 1 }}>{value}</div>
+      {sub != null && <div style={{ fontFamily: MONO, fontSize: 10, color: T.muted, marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
