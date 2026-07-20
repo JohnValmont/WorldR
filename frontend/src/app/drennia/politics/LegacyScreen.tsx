@@ -83,7 +83,7 @@ function OledMeter({ label, value, tone, max = 100 }: { label: string; value: nu
 export default function LegacyScreen({ character }: Props) {
   const { data: legacy, error, isLoading } = useSWR(
     character?.id ? ['legacy', character.id] : null,
-    () => politicsApi.getLegacy('me')
+    () => politicsApi.getLegacy(character.id)
   );
 
   if (isLoading) {
