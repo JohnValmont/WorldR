@@ -45,7 +45,7 @@ function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode,
       }}>
         {title}
       </div>
-      <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' }}>
         {children}
       </div>
     </div>
@@ -123,7 +123,7 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
     : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 24, fontFamily: SANS }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 24, fontFamily: SANS }}>
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
 
       {isLocked ? (
@@ -148,7 +148,7 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
               backgroundSize: '20px 20px',
             }} />
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 24, position: 'relative', zIndex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14, position: 'relative', zIndex: 1 }}>
               <div style={{ flex: 1, minWidth: 280 }}>
                 <div style={{ ...stampStyle, marginBottom: 8, color: T.gold, borderColor: 'rgba(255,215,0,0.3)', textShadow: `0 0 10px ${T.goldSoft}` }}>War Room</div>
                 <h1 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, fontFamily: HEADING, margin: '0 0 4px', letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)' }}>
@@ -198,7 +198,7 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }}>
             
             {/* Live Projections */}
             <GlassPanel title={<><TrendingUp size={14} /> Live Seat Projections</>} accent={T.mint}>
@@ -252,7 +252,7 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
                       background: 'rgba(0,0,0,0.3)', 
                       border: `1px solid rgba(255,255,255,0.05)`, 
                       borderRadius: 12, 
-                      padding: '20px 24px',
+                      padding: '12px 16px',
                       display: 'flex', flexDirection: 'column', gap: 16,
                       transition: 'transform 0.2s ease, border-color 0.2s ease',
                     }}

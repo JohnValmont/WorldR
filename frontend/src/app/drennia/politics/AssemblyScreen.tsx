@@ -46,7 +46,7 @@ function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode,
           {title}
         </div>
       )}
-      <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' }}>
         {children}
       </div>
     </div>
@@ -67,12 +67,12 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
   const premier = data?.premier;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 24, fontFamily: SANS }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 24, fontFamily: SANS }}>
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
       
       {/* ── OLED ASSEMBLY HERO ── */}
       <div style={{
-        display: 'flex', flexDirection: 'column', gap: 24,
+        display: 'flex', flexDirection: 'column', gap: 14,
         background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
         border: `1px solid rgba(255,255,255,0.05)`,
         borderRadius: 16,
@@ -99,17 +99,17 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
         <div style={{ display: 'flex', gap: 20, position: 'relative', zIndex: 1, flexWrap: 'wrap', marginTop: 8 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Total Seats</span>
-            <span style={{ color: T.ivory, fontSize: 24, fontWeight: 700, fontFamily: MONO }}>{totalSeats}</span>
+            <span style={{ color: T.ivory, fontSize: 18, fontWeight: 700, fontFamily: MONO }}>{totalSeats}</span>
           </div>
           <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Majority Needed</span>
-            <span style={{ color: T.ivory, fontSize: 24, fontWeight: 700, fontFamily: MONO }}>{majority}</span>
+            <span style={{ color: T.ivory, fontSize: 18, fontWeight: 700, fontFamily: MONO }}>{majority}</span>
           </div>
           <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Occupied Seats</span>
-            <span style={{ color: occupiedSeats >= majority ? T.mint : T.warning, fontSize: 24, fontWeight: 700, fontFamily: MONO }}>{occupiedSeats}</span>
+            <span style={{ color: occupiedSeats >= majority ? T.mint : T.warning, fontSize: 18, fontWeight: 700, fontFamily: MONO }}>{occupiedSeats}</span>
           </div>
         </div>
       </div>
@@ -123,12 +123,12 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
           <div style={{ color: T.faint, fontStyle: 'italic', textAlign: 'center', padding: '40px 0' }}>The chamber is empty. Seats are filled at the next election.</div>
         </GlassPanel>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }}>
           
           <GlassPanel title={<><Landmark size={14} /> Composition</>} accent={T.blueLine}>
             {/* Glowing Seat Visualizer */}
             <div style={{ 
-              display: 'flex', flexWrap: 'wrap', gap: 8, padding: '28px', 
+              display: 'flex', flexWrap: 'wrap', gap: 8, padding: '16px', 
               background: 'rgba(0,0,0,0.5)', 
               borderRadius: 12, 
               border: `1px solid rgba(255,255,255,0.05)`, 

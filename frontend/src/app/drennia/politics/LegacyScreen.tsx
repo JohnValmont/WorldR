@@ -42,7 +42,7 @@ function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode,
           {title}
         </div>
       )}
-      <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' }}>
         {children}
       </div>
     </div>
@@ -96,7 +96,7 @@ export default function LegacyScreen({ character }: Props) {
   }
   if (error) {
     return (
-      <div style={{ padding: '24px', background: `${T.red}15`, border: `1px solid ${T.red}40`, color: T.red, borderRadius: 8, fontSize: 13, fontFamily: MONO, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ padding: '16px', background: `${T.red}15`, border: `1px solid ${T.red}40`, color: T.red, borderRadius: 8, fontSize: 13, fontFamily: MONO, display: 'flex', alignItems: 'center', gap: 12 }}>
         <Shield size={16} /> ERROR RETRIEVING LEGACY FILE.
       </div>
     );
@@ -122,11 +122,11 @@ export default function LegacyScreen({ character }: Props) {
   const maxScore = Math.max(100, scores?.longevity ?? 0, scores?.electoral ?? 0, scores?.scandal ?? 0, scores?.economic ?? 0);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 24, fontFamily: SANS }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 24, fontFamily: SANS }}>
       
       {/* ── OLED HERO HEADER ── */}
       <div style={{
-        display: 'flex', flexDirection: 'column', gap: 24,
+        display: 'flex', flexDirection: 'column', gap: 14,
         background: 'linear-gradient(135deg, rgba(30,20,0,0.8) 0%, rgba(10,12,16,0.95) 100%)',
         border: `1px solid rgba(255,215,0,0.1)`,
         borderRadius: 16,
@@ -158,18 +158,18 @@ export default function LegacyScreen({ character }: Props) {
             boxShadow: `0 8px 32px rgba(0,0,0,0.5), inset 0 2px 20px rgba(255,215,0,0.05)`
           }}>
             <span style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Lifetime Score</span>
-            <span style={{ color: T.gold, fontSize: 32, fontWeight: 800, fontFamily: MONO, textShadow: `0 0 16px ${T.gold}80` }}>
+            <span style={{ color: T.gold, fontSize: 18, fontWeight: 700, fontFamily: MONO, textShadow: `0 0 16px ${T.gold}80` }}>
               {(scores?.total ?? 0).toLocaleString()}
             </span>
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         
         {/* LIFETIME ACHIEVEMENTS */}
         <GlassPanel title={<><Trophy size={14} /> Lifetime Achievements</>} accent={T.blueLine}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div title="Score derived from arcs spent as an active party leader or head of state.">
               <OledMeter label="Longevity" value={scores?.longevity ?? 0} tone={T.blueBright} max={maxScore} />
             </div>

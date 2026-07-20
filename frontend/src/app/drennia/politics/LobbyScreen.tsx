@@ -55,7 +55,7 @@ export default function LobbyScreen({ selectedJurisdictionId, onJurisdictionChan
       </div>
 
       {isLocked ? (
-        <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 8, padding: '24px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 8, padding: '16px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <Shield size={20} color={T.muted} />
           <div style={{ color: T.faint, fontStyle: 'italic', fontSize: 14 }}>The {jurisdiction?.name} lobby is not yet open.</div>
         </div>

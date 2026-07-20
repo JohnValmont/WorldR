@@ -40,7 +40,7 @@ function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode,
       }}>
         {title}
       </div>
-      <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' }}>
         {children}
       </div>
     </div>
@@ -94,7 +94,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
   const safeLedger = Array.isArray(ledger) ? ledger : [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 24, fontFamily: SANS }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 24, fontFamily: SANS }}>
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
 
       {isLocked ? (
@@ -120,7 +120,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
               backgroundSize: '20px 20px',
             }} />
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 24, position: 'relative', zIndex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14, position: 'relative', zIndex: 1 }}>
               <div style={{ flex: 1, minWidth: 280 }}>
                 <div style={{ ...stampStyle, marginBottom: 8, color: T.gold, borderColor: 'rgba(255,215,0,0.3)', textShadow: `0 0 10px ${T.goldSoft}` }}>Intelligence Dossier</div>
                 <h1 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, fontFamily: "'Outfit', 'Lexend', system-ui", margin: '0 0 4px', letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)' }}>
@@ -140,7 +140,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: T.faint, fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
                     Population
                   </div>
-                  <div style={{ fontFamily: MONO, fontSize: 24, fontWeight: 800, color: T.ivory, marginTop: 8, textShadow: `0 0 12px rgba(255,255,255,0.2)` }}>
+                  <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700, color: T.ivory, marginTop: 8, textShadow: `0 0 12px rgba(255,255,255,0.2)` }}>
                     {overview?.activeState?.population != null ? (Number(overview.activeState.population) / 1000000).toFixed(1) : '2.4'}<span style={{ fontSize: 14, color: T.muted }}>M</span>
                   </div>
                 </div>
@@ -152,7 +152,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: T.faint, fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
                     Voters
                   </div>
-                  <div style={{ fontFamily: MONO, fontSize: 24, fontWeight: 800, color: T.ivory, marginTop: 8, textShadow: `0 0 12px rgba(255,255,255,0.2)` }}>
+                  <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700, color: T.ivory, marginTop: 8, textShadow: `0 0 12px rgba(255,255,255,0.2)` }}>
                     {overview?.activeState?.registered_voters != null ? (Number(overview.activeState.registered_voters) / 1000000).toFixed(1) : '1.6'}<span style={{ fontSize: 14, color: T.muted }}>M</span>
                   </div>
                 </div>
@@ -168,7 +168,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
                   The <strong>Nation of Drennia</strong> is a constitutional monarchy situated in the northern industrial corridor. Renowned for its deep-water ports, sprawling manufacturing hubs, and rich labor history, Drennia balances heavy industry with a modernizing service economy. While the Monarch serves as the ceremonial head of state, political power is wielded by the elected National Parliament and fiercely independent regional states.
                 </p>
               </div>
-              <div style={{ flex: '1 1 300px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, background: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+              <div style={{ flex: '1 1 300px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, background: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
                 <DataPoint icon={Building2} label="Capital" value="Drennport" />
                 <DataPoint icon={Crown} label="Government" value="Const. Monarchy" />
                 <DataPoint icon={Landmark} label="Legislature" value="National Parliament" />
@@ -178,10 +178,10 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
           </GlassPanel>
 
           {/* ── 2-COLUMN DASHBOARD ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
             
             {/* Conditions Column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <GlassPanel title={<><Activity size={14} /> National Conditions</>}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   <OledMeter label="Prosperity" value={conditions?.prosperity ?? 5} tone={condTone(conditions?.prosperity ?? 5)} />
@@ -197,7 +197,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
             </div>
 
             {/* Governance & Platform Column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <GlassPanel title={<><Landmark size={14} /> Active Laws & Governance</>}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <DataPoint 

@@ -66,7 +66,7 @@ function Panel({ title, children, action, accent, flex }: { title: React.ReactNo
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{title}</div>
         {action}
       </div>
-      <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column', fontFamily: SANS }}>
+      <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column', fontFamily: SANS }}>
         {children}
       </div>
     </div>
@@ -291,7 +291,7 @@ function ScandalPanel({ onRefresh }: { onRefresh: () => void }) {
       border: `1px solid ${count > 0 ? 'rgba(239,68,68,0.35)' : T.border}`,
       borderTop: count > 0 ? '1px solid rgba(239,68,68,0.6)' : `1px solid ${T.border}`,
       borderRadius: 8,
-      padding: '20px 24px',
+      padding: '12px 16px',
       boxShadow: count > 0 ? '0 4px 24px rgba(239,68,68,0.12)' : 'none',
     }}>
       {/* Header */}
@@ -460,7 +460,7 @@ function CampaignPanel({ partyId, onRefresh }: { partyId: string; onRefresh: () 
       border: `1px solid ${meta.accentColor}30`,
       borderTop: `2px solid ${meta.accentColor}`,
       borderRadius: 8,
-      padding: '20px 24px',
+      padding: '12px 16px',
       boxShadow: `0 4px 32px ${meta.accentColor}10`,
     }}>
       {/* Header */}
@@ -681,7 +681,7 @@ function InterestGroupPanel({ partyId, onRefresh }: { partyId: string; onRefresh
       border: `1px solid rgba(251,191,36,0.18)`,
       borderTop: `2px solid rgba(251,191,36,0.6)`,
       borderRadius: 8,
-      padding: '20px 24px',
+      padding: '12px 16px',
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
@@ -906,7 +906,7 @@ function MediaPanel({ partyId, onRefresh }: { partyId: string; onRefresh: () => 
       border: '1px solid rgba(134,239,172,0.15)',
       borderTop: '2px solid rgba(134,239,172,0.55)',
       borderRadius: 8,
-      padding: '20px 24px',
+      padding: '12px 16px',
     }}>
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -1037,7 +1037,7 @@ function NewsFeedPanel() {
       border: '1px solid rgba(167,139,250,0.15)',
       borderTop: '2px solid rgba(167,139,250,0.5)',
       borderRadius: 8,
-      padding: '20px 24px',
+      padding: '12px 16px',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
         <div style={{ width: 3, height: 11, background: '#a78bfa', borderRadius: 1, boxShadow: '0 0 6px #a78bfa40' }} />
@@ -1136,7 +1136,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
               backgroundSize: '20px 20px',
             }} />
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 24, position: 'relative', zIndex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14, position: 'relative', zIndex: 1 }}>
               <div style={{ flex: 1, minWidth: 280 }}>
                 <div style={{ ...stampStyle, marginBottom: 8, color: T.gold, borderColor: 'rgba(255,215,0,0.3)', textShadow: `0 0 10px ${T.goldSoft}` }}>Your Party</div>
                 <h1 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, fontFamily: HEADING, margin: '0 0 4px', letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -1193,7 +1193,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
             border: `1px solid rgba(139, 92, 246, 0.25)`,
             borderTop: `1px solid rgba(139, 92, 246, 0.5)`,
             boxShadow: '0 4px 24px rgba(139, 92, 246, 0.1)',
-            display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
+            display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
           }}>
             {/* AP */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1371,7 +1371,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
             <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
               <div>
                 <div style={stampStyle}>Founding Cost</div>
-                <div style={{ color: T.red, fontFamily: MONO, fontSize: 24, fontWeight: 700, textShadow: `0 0 12px rgba(224, 82, 70, 0.4)`, marginTop: 4 }}>-$25,000</div>
+                <div style={{ color: T.red, fontFamily: MONO, fontSize: 18, fontWeight: 700, textShadow: `0 0 12px rgba(224, 82, 70, 0.4)`, marginTop: 4 }}>-$25,000</div>
               </div>
               <div style={{ width: 1, height: 40, background: T.border }} />
               <div>

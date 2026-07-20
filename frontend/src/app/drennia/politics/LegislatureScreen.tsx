@@ -45,7 +45,7 @@ function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode,
           {title}
         </div>
       )}
-      <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' }}>
         {children}
       </div>
     </div>
@@ -78,7 +78,7 @@ function StatBox({ label, value, accent }: { label: string, value: React.ReactNo
     <div style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: `1px solid rgba(255,255,255,0.05)`, borderTop: accent ? `1px solid ${accent}` : undefined, borderRadius: 8, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8, transition: 'background 0.2s ease', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', inset: 0, background: accent ? `linear-gradient(180deg, ${accent}10 0%, transparent 100%)` : 'transparent', pointerEvents: 'none' }} />
       <div style={{ ...stampStyle, fontSize: 10, color: T.faint, zIndex: 1 }}>{label}</div>
-      <div style={{ color: T.ivory, fontSize: 24, fontWeight: 700, fontFamily: MONO, zIndex: 1 }}>{value}</div>
+      <div style={{ color: T.ivory, fontSize: 18, fontWeight: 700, fontFamily: MONO, zIndex: 1 }}>{value}</div>
     </div>
   );
 }
@@ -112,12 +112,12 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 24, fontFamily: SANS }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 24, fontFamily: SANS }}>
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
       
       {/* ── OLED ASSEMBLY HERO ── */}
       <div style={{
-        display: 'flex', flexDirection: 'column', gap: 24,
+        display: 'flex', flexDirection: 'column', gap: 14,
         background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
         border: `1px solid rgba(255,255,255,0.05)`,
         borderRadius: 16,
@@ -160,7 +160,7 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
           <div style={{ color: T.faint, fontStyle: 'italic' }}>The {jurisdiction?.name} legislature is not currently in session.</div>
         </GlassPanel>
       ) : (
-        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           
           {/* Left Column (Main Content) */}
           <div style={{ flex: 1, minWidth: 300, display: 'flex', flexDirection: 'column', gap: 32 }}>

@@ -154,7 +154,7 @@ export function StatTile({
         border: `1px solid ${T.border}`,
         borderTop: `1px solid rgba(255,255,255,0.10)`,
         borderRadius: 14,
-        padding: '18px 20px',
+        padding: '12px 14px',
         minWidth: 0,
         position: 'relative',
         overflow: 'hidden',
@@ -174,7 +174,7 @@ export function StatTile({
         }}>{kicker}</div>
       )}
       <div style={{ fontFamily: HEADING, fontSize: 12, fontWeight: 500, color: T.muted, marginBottom: 10 }}>{label}</div>
-      <div style={{ ...tabularNums, fontSize: 28, fontWeight: 700, color: tone, lineHeight: 1, letterSpacing: '-0.02em' }}>{value}</div>
+      <div style={{ ...tabularNums, fontSize: 18, fontWeight: 700, color: tone, lineHeight: 1, letterSpacing: '-0.02em' }}>{value}</div>
       {sub != null && <div style={{ fontSize: 11, color: T.faint, marginTop: 8, fontFamily: HEADING }}>{sub}</div>}
     </motion.div>
   );

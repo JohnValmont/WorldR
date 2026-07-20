@@ -63,7 +63,7 @@ function Gauge({ pct }: { pct: number | null }) {
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.faint }}>Support</div>
-        <div style={{ fontFamily: MONO, fontSize: 24, fontWeight: 800, color: pct == null ? T.faint : T.ivory, lineHeight: 1, marginTop: 4, textShadow: pct == null ? 'none' : `0 0 12px ${gaugeColor}40` }}>
+        <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700, color: pct == null ? T.faint : T.ivory, lineHeight: 1, marginTop: 4, textShadow: pct == null ? 'none' : `0 0 12px ${gaugeColor}40` }}>
           {pct == null ? '—' : `${pct.toFixed(1)}%`}
         </div>
       </div>
@@ -239,7 +239,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 24 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 24 }}>
 
       {/* ── OLED HERO HEADER ── */}
       <div style={{
@@ -258,10 +258,10 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
           backgroundSize: '20px 20px',
         }} />
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 24, position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14, position: 'relative', zIndex: 1 }}>
           <div style={{ flex: 1, minWidth: 280 }}>
             <Stamp>{jMeta.name} — Command Center</Stamp>
-            <h1 style={{ color: T.ivory, fontSize: 32, fontWeight: 800, fontFamily: "'Outfit', 'Lexend', system-ui", margin: '8px 0 4px', letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)' }}>
+            <h1 style={{ color: T.ivory, fontSize: 18, fontWeight: 700, fontFamily: "'Outfit', 'Lexend', system-ui", margin: '8px 0 4px', letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)' }}>
               {myParty ? myParty.name : 'Political Desk'}
               {myParty?.abbreviation && <span style={{ color: T.faint, fontSize: 18, fontFamily: MONO, textTransform: 'uppercase', marginLeft: 12, fontWeight: 500 }}>[{myParty.abbreviation}]</span>}
             </h1>
@@ -290,7 +290,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
                   <Activity size={12} /> Approval
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 8 }}>
-                  <span style={{ fontFamily: MONO, fontSize: 32, fontWeight: 800, color: T.ivory, textShadow: `0 0 16px ${trendColor}60` }}>
+                  <span style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700, color: T.ivory, textShadow: `0 0 16px ${trendColor}60` }}>
                     {support.toFixed(1)}<span style={{ fontSize: 16, color: T.muted }}>%</span>
                   </span>
                 </div>
@@ -310,7 +310,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: monthsToElection <= 6 ? T.red : T.faint, fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
                   <CalendarDays size={12} /> Election
                 </div>
-                <div style={{ fontFamily: MONO, fontSize: 32, fontWeight: 800, color: monthsToElection <= 6 ? T.red : T.warning, marginTop: 8, textShadow: monthsToElection <= 6 ? `0 0 16px ${T.red}60` : 'none' }}>
+                <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700, color: monthsToElection <= 6 ? T.red : T.warning, marginTop: 8, textShadow: monthsToElection <= 6 ? `0 0 16px ${T.red}60` : 'none' }}>
                   {monthsToElection <= 0 ? 'IMMINENT' : monthsToElection}
                 </div>
                 <div style={{ fontFamily: MONO, fontSize: 11, color: monthsToElection <= 6 ? T.red : T.faint, marginTop: 4, letterSpacing: '0.05em' }}>
@@ -327,7 +327,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
         <div style={{ 
           background: 'linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(29,78,216,0.05) 100%)', 
           border: `1px solid ${T.blueLine}`, borderRadius: 12, padding: '24px 32px', 
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap',
           boxShadow: `0 8px 32px rgba(37,99,235,0.1)`
         }}>
           <div>
@@ -443,7 +443,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
       </GlassPanel>
 
       {/* ── 3-COLUMN DASH ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
         
         {/* Tactical Recommendations */}
         <GlassPanel title="Tactical Recommendations">
