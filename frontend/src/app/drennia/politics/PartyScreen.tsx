@@ -2,11 +2,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { politicsApi } from '@/lib/api';
 import { JURISDICTIONS, type JurisdictionId } from './_lib/session';
-import { T, MONO, SANS, stampStyle, glassPanelStyle, interactiveCardStyle } from './_lib/theme';
+import { T, MONO, SANS, HEADING, stampStyle, glassPanelStyle, interactiveCardStyle } from './_lib/theme';
 import { CREEDS, CREED_ORDER, CREED_NAME_BY_ID, PILLARS, PILLAR_BY_AXIS, type CreedId, BLOC_NAME_BY_KEY } from './_lib/model';
 import type { Axis } from '@/lib/politicsConstants';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
 import { Stamp, Meter } from './_components/DeskUI';
+import { Shield, Target, Map, Building2, Coins, Activity, Flag, AlertCircle, Users, Zap, Crown } from 'lucide-react';
 
 interface Props {
   selectedJurisdictionId: JurisdictionId;
@@ -42,29 +43,50 @@ const TENETS: Record<CreedId, { id: string; name: string; type: string }[]> = {
   the_directory: [{ id: 'directory_planners', name: 'Central Planners', type: 'intensify' }, { id: 'directory_pragmatists', name: 'Market Technocrats', type: 'broaden' }],
 };
 
-function Panel({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+function Panel({ title, children, action, accent, flex }: { title: React.ReactNode; children: React.ReactNode; action?: React.ReactNode; accent?: string; flex?: number | string }) {
   return (
-    <div style={{ ...glassPanelStyle, fontFamily: SANS }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div style={{ ...stampStyle, textShadow: `0 0 10px ${T.goldSoft}` }}>{title}</div>{action}
+    <div style={{
+      ...glassPanelStyle,
+      flex,
+      display: 'flex', flexDirection: 'column',
+      background: 'linear-gradient(145deg, rgba(18, 20, 26, 0.7) 0%, rgba(10, 12, 16, 0.9) 100%)',
+      border: `1px solid rgba(255, 255, 255, 0.08)`,
+      borderTop: accent ? `1px solid ${accent}` : `1px solid rgba(255, 255, 255, 0.15)`,
+      boxShadow: accent ? `0 4px 24px ${accent}20, inset 0 1px 0 rgba(255,255,255,0.05)` : '0 4px 24px rgba(0,0,0,0.4)',
+      borderRadius: 12,
+      overflow: 'hidden',
+    }}>
+      <div style={{ 
+        padding: '16px 20px', 
+        borderBottom: '1px solid rgba(255,255,255,0.05)', 
+        fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: accent || T.faint,
+        background: 'rgba(0,0,0,0.2)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{title}</div>
+        {action}
       </div>
-      {children}
+      <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column', fontFamily: SANS }}>
+        {children}
+      </div>
     </div>
   );
 }
 
 function Btn({ label, onClick, primary, disabled }: { label: string; onClick: () => void; primary?: boolean; disabled?: boolean }) {
+  const [hover, setHover] = useState(false);
   return (
     <button onClick={onClick} disabled={disabled}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{
-        padding: '12px 24px', borderRadius: 6, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
+        padding: '10px 16px', borderRadius: 6, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
         fontSize: 12, fontWeight: 700, fontFamily: MONO, letterSpacing: '0.1em', textTransform: 'uppercase',
-        background: primary ? `linear-gradient(135deg, ${T.gold}, #B8860B)` : 'rgba(255,255,255,0.03)',
-        color: primary ? '#111' : T.text,
-        border: `1px solid ${primary ? T.goldLine : T.border}`,
-        boxShadow: primary ? `0 4px 15px ${T.goldSoft}, inset 0 1px 0 rgba(255,255,255,0.3)` : 'none',
+        background: primary ? (hover ? 'rgba(255,215,0,0.15)' : 'rgba(255,215,0,0.1)') : (hover ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)'),
+        color: primary ? T.gold : T.ivory,
+        border: `1px solid ${primary ? T.goldLine : 'rgba(255,255,255,0.1)'}`,
+        boxShadow: primary ? `0 0 16px ${T.goldSoft}` : 'none',
         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-        textShadow: primary ? 'none' : `0 1px 2px rgba(0,0,0,0.5)`,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8
       }}>
       {label}
     </button>
@@ -1099,27 +1121,45 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
         <Panel title="Locked"><div style={{ color: T.faint, fontStyle: 'italic' }}>{jurisdiction?.name || 'This state'} is not yet open for political activity.</div></Panel>
       ) : myParty ? (
         <>
-          <div style={{ fontFamily: SANS }}>
-            <div style={{ ...stampStyle, textShadow: `0 0 10px ${T.goldSoft}` }}>Your Party</div>
-            <h1 style={{ color: T.ivory, fontSize: 32, fontWeight: 800, margin: '8px 0 0', display: 'flex', alignItems: 'center', gap: 14, letterSpacing: '-0.02em' }}>
-              <div style={{ width: 18, height: 18, borderRadius: '50%', background: `radial-gradient(circle at 30% 30%, ${T.gold}, #B8860B)`, boxShadow: `0 0 12px ${T.goldGlow}` }} />
-              {myParty.name}
-              {myParty.abbreviation && <span style={{ color: T.faint, fontSize: 22, fontFamily: MONO, textTransform: 'uppercase', fontWeight: 600 }}>[{myParty.abbreviation}]</span>}
-            </h1>
-            <div style={{ color: T.gold, fontFamily: MONO, fontSize: 13, marginTop: 12, textTransform: 'uppercase', letterSpacing: '0.15em', textShadow: `0 0 10px ${T.goldSoft}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span>{CREED_NAME_BY_ID[(myParty.doctrine_id || myParty.doctrineId) as CreedId] || 'Independent'}</span>
-              {(myParty.tenet_id || myParty.tenetId) && TENETS[(myParty.doctrine_id || myParty.doctrineId) as CreedId]?.find(t => t.id === (myParty.tenet_id || myParty.tenetId)) && (
-                <>
-                  <span style={{ color: T.border, fontSize: 16, fontWeight: 300 }}>/</span>
-                  <span style={{ color: T.ivory, fontWeight: 600, letterSpacing: '0.1em' }}>
-                    {TENETS[(myParty.doctrine_id || myParty.doctrineId) as CreedId]?.find(t => t.id === (myParty.tenet_id || myParty.tenetId))?.name}
-                  </span>
-                </>
-              )}
+          <div style={{
+            display: 'flex', flexDirection: 'column', gap: 20,
+            background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
+            border: `1px solid rgba(255,255,255,0.05)`,
+            borderRadius: 16,
+            padding: '32px 36px',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
+            position: 'relative', overflow: 'hidden', fontFamily: SANS
+          }}>
+            <div style={{
+              position: 'absolute', inset: 0, opacity: 0.1, pointerEvents: 'none',
+              backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+              backgroundSize: '20px 20px',
+            }} />
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 24, position: 'relative', zIndex: 1 }}>
+              <div style={{ flex: 1, minWidth: 280 }}>
+                <div style={{ ...stampStyle, marginBottom: 8, color: T.gold, borderColor: 'rgba(255,215,0,0.3)', textShadow: `0 0 10px ${T.goldSoft}` }}>Your Party</div>
+                <h1 style={{ color: T.ivory, fontSize: 36, fontWeight: 800, fontFamily: HEADING, margin: '0 0 4px', letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ width: 18, height: 18, borderRadius: '50%', background: `radial-gradient(circle at 30% 30%, ${T.gold}, #B8860B)`, boxShadow: `0 0 12px ${T.goldGlow}` }} />
+                  {myParty.name}
+                  {myParty.abbreviation && <span style={{ color: T.faint, fontSize: 22, fontFamily: MONO, textTransform: 'uppercase', fontWeight: 600 }}>[{myParty.abbreviation}]</span>}
+                </h1>
+                <div style={{ color: T.gold, fontFamily: MONO, fontSize: 13, marginTop: 12, textTransform: 'uppercase', letterSpacing: '0.15em', textShadow: `0 0 10px ${T.goldSoft}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span>{CREED_NAME_BY_ID[(myParty.doctrine_id || myParty.doctrineId) as CreedId] || 'Independent'}</span>
+                  {(myParty.tenet_id || myParty.tenetId) && TENETS[(myParty.doctrine_id || myParty.doctrineId) as CreedId]?.find(t => t.id === (myParty.tenet_id || myParty.tenetId)) && (
+                    <>
+                      <span style={{ color: T.border, fontSize: 16, fontWeight: 300 }}>/</span>
+                      <span style={{ color: T.ivory, fontWeight: 600, letterSpacing: '0.1em' }}>
+                        {TENETS[(myParty.doctrine_id || myParty.doctrineId) as CreedId]?.find(t => t.id === (myParty.tenet_id || myParty.tenetId))?.name}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
-          <Panel title="Platform & Planks">
+          <Panel title={<><Flag size={14} /> Platform & Planks</>} accent={T.gold}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {PILLARS.map((p) => {
                 const v = Number(myParty.platform?.[p.axis] ?? 50);
