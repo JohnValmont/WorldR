@@ -211,18 +211,31 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                     <div style={{ color: T.faint, fontSize: 13, lineHeight: 1.4, flex: 1 }}>{c.blurb}</div>
 
                     {c.keystone && PILLAR_BY_AXIS[c.keystone] && (
-                      <div style={{ flex: '0 0 120px', textAlign: 'right' }}>
+                      <div style={{ flex: '0 0 100px' }}>
                         <div style={{ color: T.muted, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>Keystone</div>
                         <div style={{ color: on ? T.blueBright : T.text, fontSize: 12, fontWeight: 600 }}>{PILLAR_BY_AXIS[c.keystone]?.name}</div>
                       </div>
                     )}
                     
-                    <div style={{ display: 'flex', gap: 3, width: 80, height: 24, alignItems: 'flex-end', padding: 2, background: 'rgba(0,0,0,0.3)', borderRadius: 3, border: `1px solid ${T.borderSoft}` }}>
-                      {PILLARS.map(p => (
-                        <div key={p.axis} style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', background: 'rgba(255,255,255,0.02)', borderRadius: 1, overflow: 'hidden' }}>
-                          <div style={{ width: '100%', height: `${platform[p.axis]}%`, background: on ? T.blueBright : T.muted, boxShadow: on ? `0 0 6px ${T.blueBright}` : 'none' }} />
-                        </div>
-                      ))}
+                    <div style={{ flex: '0 0 200px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {PILLARS.map(p => {
+                          const val = platform[p.axis];
+                          if (val === 50) return null; // Only show defining stances
+                          return (
+                            <div key={p.axis} style={{ 
+                              padding: '2px 6px', background: on ? 'rgba(56, 189, 248, 0.1)' : 'rgba(255,255,255,0.03)', 
+                              border: `1px solid ${on ? T.blueLine : T.borderSoft}`, 
+                              borderRadius: 4, fontSize: 9.5, fontFamily: MONO, 
+                              color: on ? T.blueBright : T.muted,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em'
+                            }}>
+                              {nearestRung(p.axis, val)}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </button>
                 );
