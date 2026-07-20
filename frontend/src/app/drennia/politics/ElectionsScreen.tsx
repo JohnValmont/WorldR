@@ -37,7 +37,7 @@ function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode,
       overflow: 'hidden',
     }}>
       <div style={{ 
-        padding: '16px 20px', 
+        padding: '10px 14px', 
         borderBottom: '1px solid rgba(255,255,255,0.05)', 
         fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: accent || T.faint,
         background: 'rgba(0,0,0,0.2)',
@@ -134,10 +134,10 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
         <>
           {/* ── OLED ELECTION HERO ── */}
           <div style={{
-            display: 'flex', flexDirection: 'column', gap: 20,
+            display: 'flex', flexDirection: 'column', gap: 12,
             background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
             border: `1px solid ${months != null && months <= 6 ? 'rgba(220,38,38,0.3)' : 'rgba(255,255,255,0.05)'}`,
-            borderRadius: 16,
+            borderRadius: 10,
             padding: '14px 18px',
             boxShadow: months != null && months <= 6 ? 'inset 0 1px 0 rgba(220,38,38,0.2), 0 12px 32px rgba(220,38,38,0.1)' : 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
             position: 'relative', overflow: 'hidden'

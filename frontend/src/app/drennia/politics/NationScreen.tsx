@@ -32,7 +32,7 @@ function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode,
       overflow: 'hidden',
     }}>
       <div style={{ 
-        padding: '16px 20px', 
+        padding: '10px 14px', 
         borderBottom: '1px solid rgba(255,255,255,0.05)', 
         fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: accent || T.faint,
         background: 'rgba(0,0,0,0.2)',
@@ -105,10 +105,10 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
         <>
           {/* ── OLED HERO HEADER ── */}
           <div style={{
-            display: 'flex', flexDirection: 'column', gap: 20,
+            display: 'flex', flexDirection: 'column', gap: 12,
             background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
             border: `1px solid rgba(255,255,255,0.05)`,
-            borderRadius: 16,
+            borderRadius: 10,
             padding: '14px 18px',
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
             position: 'relative', overflow: 'hidden'
@@ -135,7 +135,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
               <div style={{ display: 'flex', gap: 16 }}>
                 <div style={{ 
                   background: 'rgba(0,0,0,0.4)', border: `1px solid rgba(255,255,255,0.08)`, borderRadius: 12, 
-                  padding: '16px 20px', minWidth: 140, display: 'flex', flexDirection: 'column', alignItems: 'center' 
+                  padding: '10px 14px', minWidth: 140, display: 'flex', flexDirection: 'column', alignItems: 'center' 
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: T.faint, fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
                     Population
@@ -147,7 +147,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
                 
                 <div style={{ 
                   background: 'rgba(0,0,0,0.4)', border: `1px solid rgba(255,255,255,0.08)`, borderRadius: 12, 
-                  padding: '16px 20px', minWidth: 140, display: 'flex', flexDirection: 'column', alignItems: 'center' 
+                  padding: '10px 14px', minWidth: 140, display: 'flex', flexDirection: 'column', alignItems: 'center' 
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: T.faint, fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
                     Voters
@@ -164,11 +164,11 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
           <GlassPanel title={<><Map size={14} /> National Profile</>}>
             <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
               <div style={{ flex: '1 1 300px' }}>
-                <p style={{ color: T.text, fontSize: 14, lineHeight: 1.6, margin: 0, opacity: 0.9 }}>
+                <p style={{ color: T.text, fontSize: 12, lineHeight: 1.6, margin: 0, opacity: 0.9 }}>
                   The <strong>Nation of Drennia</strong> is a constitutional monarchy situated in the northern industrial corridor. Renowned for its deep-water ports, sprawling manufacturing hubs, and rich labor history, Drennia balances heavy industry with a modernizing service economy. While the Monarch serves as the ceremonial head of state, political power is wielded by the elected National Parliament and fiercely independent regional states.
                 </p>
               </div>
-              <div style={{ flex: '1 1 300px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, background: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+              <div style={{ flex: '1 1 300px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
                 <DataPoint icon={Building2} label="Capital" value="Drennport" />
                 <DataPoint icon={Crown} label="Government" value="Const. Monarchy" />
                 <DataPoint icon={Landmark} label="Legislature" value="National Parliament" />
@@ -183,7 +183,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
             {/* Conditions Column */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <GlassPanel title={<><Activity size={14} /> National Conditions</>}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <OledMeter label="Prosperity" value={conditions?.prosperity ?? 5} tone={condTone(conditions?.prosperity ?? 5)} />
                   <OledMeter label="Jobs & Employment" value={conditions?.jobs ?? 5} tone={condTone(conditions?.jobs ?? 5)} />
                   <OledMeter label="Public Order" value={conditions?.order ?? 5} tone={condTone(conditions?.order ?? 5)} />

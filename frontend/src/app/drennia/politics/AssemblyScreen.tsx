@@ -37,7 +37,7 @@ function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode,
     }}>
       {title && (
         <div style={{ 
-          padding: '16px 20px', 
+          padding: '10px 14px', 
           borderBottom: '1px solid rgba(255,255,255,0.05)', 
           fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: accent || T.faint,
           background: 'rgba(0,0,0,0.2)',
@@ -75,7 +75,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
         display: 'flex', flexDirection: 'column', gap: 14,
         background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
         border: `1px solid rgba(255,255,255,0.05)`,
-        borderRadius: 16,
+        borderRadius: 10,
         padding: '14px 18px',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
         position: 'relative', overflow: 'hidden'
@@ -96,7 +96,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 20, position: 'relative', zIndex: 1, flexWrap: 'wrap', marginTop: 8 }}>
+        <div style={{ display: 'flex', gap: 12, position: 'relative', zIndex: 1, flexWrap: 'wrap', marginTop: 8 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Total Seats</span>
             <span style={{ color: T.ivory, fontSize: 18, fontWeight: 700, fontFamily: MONO }}>{totalSeats}</span>
@@ -204,7 +204,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
 
             {/* Premier Status */}
             {premier && (
-              <div style={{ marginTop: 24, padding: '16px 20px', background: 'rgba(255,215,0,0.05)', border: `1px solid rgba(255,215,0,0.2)`, borderRadius: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ marginTop: 24, padding: '10px 14px', background: 'rgba(255,215,0,0.05)', border: `1px solid rgba(255,215,0,0.2)`, borderRadius: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
                 <Users size={18} color={T.gold} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <span style={{ color: T.gold, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Head of Government</span>
@@ -230,7 +230,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
               <GlassPanel title={<><FileSignature size={14} /> Coalition Agreement</>} accent="#8B5CF6">
                 
                 {/* Header & Status */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <h3 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, fontFamily: HEADING, margin: 0 }}>Ruling Coalition</h3>
                   <span style={{
                     padding: '4px 12px', borderRadius: 4, fontSize: 10, fontFamily: MONO, letterSpacing: '0.1em',
@@ -247,7 +247,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
 
                 {/* Health bar */}
                 {agreement && (
-                  <div style={{ marginBottom: 32, padding: '20px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8 }}>
+                  <div style={{ marginBottom: 16, padding: '12px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'baseline' }}>
                       <span style={{ color: T.muted, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Agreement Health</span>
                       <span style={{ color: healthTone, fontFamily: MONO, fontSize: 16, fontWeight: 700, textShadow: `0 0 12px ${healthTone}60` }}>{health}%</span>
@@ -268,7 +268,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
                   <div style={{ ...stampStyle, color: T.faint, fontSize: 10, letterSpacing: '0.1em' }}>MEMBER PARTIES</div>
                   
                   {/* Lead */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <span style={{ padding: '2px 6px', background: 'rgba(139,92,246,0.2)', color: '#a78bfa', fontFamily: MONO, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', borderRadius: 4 }}>Lead</span>
                       <span style={{ color: T.ivory, fontWeight: 700, fontSize: 14 }}>{coalition.lead_party?.name ?? 'Unknown'}</span>
@@ -281,7 +281,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
                   
                   {/* Partners */}
                   {partners.map((p: any, i: number) => (
-                    <div key={p.party_id ?? i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'rgba(255,255,255,0.02)', border: `1px solid rgba(255,255,255,0.05)`, borderRadius: 8 }}>
+                    <div key={p.party_id ?? i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: `1px solid rgba(255,255,255,0.05)`, borderRadius: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <span style={{ padding: '2px 6px', background: 'rgba(255,255,255,0.1)', color: T.faint, fontFamily: MONO, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', borderRadius: 4 }}>Partner</span>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>

@@ -57,7 +57,7 @@ function Panel({ title, children, action, accent, flex }: { title: React.ReactNo
       overflow: 'hidden',
     }}>
       <div style={{ 
-        padding: '16px 20px', 
+        padding: '10px 14px', 
         borderBottom: '1px solid rgba(255,255,255,0.05)', 
         fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: accent || T.faint,
         background: 'rgba(0,0,0,0.2)',
@@ -1114,7 +1114,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: myParty ? 0 : 80 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: myParty ? 0 : 80 }}>
       <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
 
       {isLocked ? (
@@ -1122,10 +1122,10 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
       ) : myParty ? (
         <>
           <div style={{
-            display: 'flex', flexDirection: 'column', gap: 20,
+            display: 'flex', flexDirection: 'column', gap: 12,
             background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
             border: `1px solid rgba(255,255,255,0.05)`,
-            borderRadius: 16,
+            borderRadius: 10,
             padding: '14px 18px',
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
             position: 'relative', overflow: 'hidden', fontFamily: SANS
@@ -1268,7 +1268,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           </div>
 
           <Panel title="Party Identity">
-            <div style={{ display: 'flex', gap: 20, alignItems: 'center', fontFamily: SANS }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontFamily: SANS }}>
               <div style={{ width: 56, height: 56, borderRadius: 12, background: creed ? `linear-gradient(135deg, ${T.gold}, #B8860B)` : 'rgba(255,255,255,0.03)', border: `1px solid ${creed ? T.goldLine : T.border}`, boxShadow: creed ? `0 4px 20px ${T.goldSoft}, inset 0 1px 0 rgba(255,255,255,0.3)` : 'inset 0 1px 0 rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: '800', color: creed ? '#111' : T.faint, transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)' }}>
                 {abbreviation.slice(0, 3) || '?'}
               </div>
@@ -1293,7 +1293,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                 return (
                   <button key={id} onClick={() => { setCreed(id); setTenet(null); }}
                     style={{ 
-                      textAlign: 'left', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 20,
+                      textAlign: 'left', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12,
                       background: on ? T.blueDim : 'rgba(255,255,255,0.02)', 
                       border: `1px solid ${on ? T.blueLine : 'transparent'}`, 
                       borderLeft: `3px solid ${on ? T.blueBright : 'transparent'}`,

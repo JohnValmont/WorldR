@@ -108,14 +108,14 @@ function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode,
       overflow: 'hidden',
     }}>
       <div style={{ 
-        padding: '16px 20px', 
+        padding: '10px 14px', 
         borderBottom: '1px solid rgba(255,255,255,0.05)', 
         fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: accent || T.faint,
         background: 'rgba(0,0,0,0.2)',
       }}>
         {title}
       </div>
-      <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '12px', flex: 1, display: 'flex', flexDirection: 'column' }}>
         {children}
       </div>
     </div>
@@ -243,10 +243,10 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
 
       {/* ── OLED HERO HEADER ── */}
       <div style={{
-        display: 'flex', flexDirection: 'column', gap: 20,
+        display: 'flex', flexDirection: 'column', gap: 12,
         background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
         border: `1px solid rgba(255,255,255,0.05)`,
-        borderRadius: 16,
+        borderRadius: 10,
         padding: '14px 18px',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
         position: 'relative', overflow: 'hidden'
@@ -284,7 +284,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
             {support != null && (
               <div style={{ 
                 background: 'rgba(0,0,0,0.4)', border: `1px solid rgba(255,255,255,0.08)`, borderRadius: 12, 
-                padding: '16px 20px', minWidth: 140, display: 'flex', flexDirection: 'column', alignItems: 'center' 
+                padding: '10px 14px', minWidth: 140, display: 'flex', flexDirection: 'column', alignItems: 'center' 
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: T.faint, fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
                   <Activity size={12} /> Approval
@@ -305,7 +305,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
               <div style={{ 
                 background: monthsToElection <= 6 ? 'rgba(220,38,38,0.1)' : 'rgba(0,0,0,0.4)', 
                 border: `1px solid ${monthsToElection <= 6 ? 'rgba(220,38,38,0.3)' : 'rgba(255,255,255,0.08)'}`, 
-                borderRadius: 12, padding: '16px 20px', minWidth: 140, display: 'flex', flexDirection: 'column', alignItems: 'center' 
+                borderRadius: 12, padding: '10px 14px', minWidth: 140, display: 'flex', flexDirection: 'column', alignItems: 'center' 
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: monthsToElection <= 6 ? T.red : T.faint, fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
                   <CalendarDays size={12} /> Election
@@ -335,7 +335,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
               <AlertCircle size={16} /> Action Required
             </div>
             <h2 style={{ color: T.ivory, fontSize: 20, margin: '0 0 8px', fontFamily: HEADING, fontWeight: 600 }}>Get Started: Found a Party</h2>
-            <div style={{ color: T.faint, fontSize: 14, lineHeight: 1.6, maxWidth: 600 }}>
+            <div style={{ color: T.faint, fontSize: 12, lineHeight: 1.6, maxWidth: 600 }}>
               You have no active political presence. Found a movement, choose your Creed, and stand for {jMeta.name}. Your Creed locks your ideological identity and unlocks a unique Signature action.
             </div>
           </div>
@@ -373,7 +373,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
           {hasConditions && (
             <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ color: T.faint, fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Jurisdiction Conditions</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', background: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
                 {(['prosperity', 'jobs', 'order', 'cohesion', 'budget'] as const).map((key) => {
                   const v = typeof cond[key] === 'number' ? Number(cond[key]) : 5;
                   const label = key.charAt(0).toUpperCase() + key.slice(1);
@@ -388,7 +388,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
           {overview?.activeState && (
             <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ color: T.faint, fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>National Statistics</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', background: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>

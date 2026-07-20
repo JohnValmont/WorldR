@@ -55,7 +55,7 @@ function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode,
     }}>
       {title && (
         <div style={{ 
-          padding: '16px 20px', 
+          padding: '10px 14px', 
           borderBottom: '1px solid rgba(255,255,255,0.05)', 
           fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: accent || T.faint,
           background: 'rgba(0,0,0,0.2)',
@@ -220,7 +220,7 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
                     padding: '12px 16px', 
                     background: 'rgba(0,0,0,0.4)', 
                     borderTop: `1px solid rgba(255,255,255,0.05)`, 
-                    display: 'flex', flexDirection: 'column', gap: 20 
+                    display: 'flex', flexDirection: 'column', gap: 12 
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <Settings size={14} color={T.gold} />

@@ -36,7 +36,7 @@ function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode,
     }}>
       {title && (
         <div style={{ 
-          padding: '16px 20px', 
+          padding: '10px 14px', 
           borderBottom: '1px solid rgba(255,255,255,0.05)', 
           fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: accent || T.faint,
           background: 'rgba(0,0,0,0.2)',
@@ -75,7 +75,7 @@ function OledBtn({ label, onClick, primary, disabled, tone = T.mint }: { label: 
 
 function StatBox({ label, value, accent }: { label: string, value: React.ReactNode, accent?: string }) {
   return (
-    <div style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: `1px solid rgba(255,255,255,0.05)`, borderTop: accent ? `1px solid ${accent}` : undefined, borderRadius: 8, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8, transition: 'background 0.2s ease', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: `1px solid rgba(255,255,255,0.05)`, borderTop: accent ? `1px solid ${accent}` : undefined, borderRadius: 8, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8, transition: 'background 0.2s ease', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', inset: 0, background: accent ? `linear-gradient(180deg, ${accent}10 0%, transparent 100%)` : 'transparent', pointerEvents: 'none' }} />
       <div style={{ ...stampStyle, fontSize: 10, color: T.faint, zIndex: 1 }}>{label}</div>
       <div style={{ color: T.ivory, fontSize: 18, fontWeight: 700, fontFamily: MONO, zIndex: 1 }}>{value}</div>
@@ -120,7 +120,7 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
         display: 'flex', flexDirection: 'column', gap: 14,
         background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
         border: `1px solid rgba(255,255,255,0.05)`,
-        borderRadius: 16,
+        borderRadius: 10,
         padding: '14px 18px',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
         position: 'relative', overflow: 'hidden'
@@ -150,7 +150,7 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
       </div>
 
       {err && (
-        <div style={{ padding: '16px 20px', background: `${T.red}15`, border: `1px solid ${T.red}40`, color: T.red, borderRadius: 8, fontSize: 13, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ padding: '10px 14px', background: `${T.red}15`, border: `1px solid ${T.red}40`, color: T.red, borderRadius: 8, fontSize: 13, display: 'flex', alignItems: 'center', gap: 12 }}>
           <XCircle size={16} /> {err}
         </div>
       )}
@@ -180,7 +180,7 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {proposedBills.map((b: any) => {
                     const total = (b.tally?.yea || 0) + (b.tally?.nay || 0) + (b.tally?.abstain || 0);
                     const pYea = total > 0 ? ((b.tally?.yea || 0) / total) * 100 : 0;
@@ -193,12 +193,12 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
                           <div style={{ color: T.ivory, fontWeight: 700, fontSize: 20, fontFamily: HEADING }}>{b.title || b.name || 'Legislative Bill'}</div>
                           <div style={{ color: T.faint, fontSize: 12, fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 6 }}><Building2 size={12} /> By: The Assembly</div>
                         </div>
-                        <div style={{ color: T.faint, fontSize: 13, marginBottom: 24, lineHeight: 1.6 }}>
+                        <div style={{ color: T.faint, fontSize: 13, marginBottom: 12, lineHeight: 1.6 }}>
                           {b.description || 'An act to amend the jurisdiction policies, with effect from the next session.'}
                         </div>
 
                         {/* Whip Bar */}
-                        <div style={{ marginBottom: 24, padding: '20px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8 }}>
+                        <div style={{ marginBottom: 12, padding: '12px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12 }}>
                             <div style={{ ...stampStyle, fontSize: 10, color: T.gold, borderColor: 'rgba(255,215,0,0.3)' }}>WHIP ESTIMATE</div>
                             <div style={{ color: b.projectedPass ? T.mint : T.red, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -237,7 +237,7 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
             </div>
 
             {/* IN COMMITTEE & UPCOMING AGENDA */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ ...stampStyle, color: T.muted }}>IN COMMITTEE</div>
@@ -287,7 +287,7 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
                     return (
                       <div key={b.id} style={{ 
                         display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', 
-                        padding: '16px 20px', 
+                        padding: '10px 14px', 
                         borderTop: i > 0 ? `1px solid rgba(255,255,255,0.05)` : 'none',
                         transition: 'background 0.2s ease'
                       }}

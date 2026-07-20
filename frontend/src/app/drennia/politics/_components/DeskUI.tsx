@@ -116,7 +116,7 @@ export function Panel({
       }}
     >
       {(kicker || title || action) && (
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 12 }}>
           {kicker && (
             <div style={{
               fontFamily: MONO, fontSize: 9, letterSpacing: '0.22em',

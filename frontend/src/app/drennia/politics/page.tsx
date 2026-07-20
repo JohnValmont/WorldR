@@ -257,7 +257,7 @@ export default function PoliticsDesk() {
             background: 'radial-gradient(ellipse at top right, rgba(79,110,247,0.04) 0%, transparent 70%)',
             pointerEvents: 'none', zIndex: 0,
           }} />
-          <div style={{ maxWidth: 1260, margin: '0 auto', padding: '16px 20px', position: 'relative', zIndex: 1 }}>
+          <div style={{ maxWidth: 1260, margin: '0 auto', padding: '10px 14px', position: 'relative', zIndex: 1 }}>
             {loading ? (
               <div style={{ padding: '60px 0', textAlign: 'center' }}>
                 <div style={{ color: T.faint, fontFamily: MONO, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
@@ -268,7 +268,7 @@ export default function PoliticsDesk() {
             ) : error ? (
               <div style={{
                 color: T.red, border: `1px solid ${T.red}40`,
-                background: T.redDim, padding: '16px 20px', borderRadius: 12,
+                background: T.redDim, padding: '10px 14px', borderRadius: 12,
                 fontFamily: BODY, fontSize: 13, lineHeight: 1.6,
               }}>
                 {String((error as any)?.response?.data?.error || (error as any)?.message || error)}

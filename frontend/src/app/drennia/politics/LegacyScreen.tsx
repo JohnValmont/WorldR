@@ -33,7 +33,7 @@ function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode,
     }}>
       {title && (
         <div style={{ 
-          padding: '16px 20px', 
+          padding: '10px 14px', 
           borderBottom: '1px solid rgba(255,255,255,0.05)', 
           fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: accent || T.faint,
           background: 'rgba(0,0,0,0.2)',
@@ -129,7 +129,7 @@ export default function LegacyScreen({ character }: Props) {
         display: 'flex', flexDirection: 'column', gap: 14,
         background: 'linear-gradient(135deg, rgba(30,20,0,0.8) 0%, rgba(10,12,16,0.95) 100%)',
         border: `1px solid rgba(255,215,0,0.1)`,
-        borderRadius: 16,
+        borderRadius: 10,
         padding: '14px 18px',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
         position: 'relative', overflow: 'hidden'
@@ -146,7 +146,7 @@ export default function LegacyScreen({ character }: Props) {
             <h1 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, fontFamily: HEADING, margin: 0, letterSpacing: '-0.02em', textShadow: `0 0 20px ${T.gold}40` }}>
               Career <span style={{ color: T.muted, fontWeight: 400 }}>&amp; Legacy</span>
             </h1>
-            <div style={{ color: T.faint, fontSize: 14, marginTop: 4 }}>
+            <div style={{ color: T.faint, fontSize: 12, marginTop: 2 }}>
               The permanent historical record of your achievements, perks, and monumental events.
             </div>
           </div>
@@ -192,7 +192,7 @@ export default function LegacyScreen({ character }: Props) {
               const has = unlocked.includes(b.key);
               return (
                 <div key={b.key} style={{ 
-                  padding: '16px 20px', 
+                  padding: '10px 14px', 
                   background: has ? 'rgba(255,215,0,0.05)' : 'rgba(255,255,255,0.02)', 
                   border: `1px solid ${has ? 'rgba(255,215,0,0.3)' : 'rgba(255,255,255,0.05)'}`, 
                   borderRadius: 8,
@@ -237,7 +237,7 @@ export default function LegacyScreen({ character }: Props) {
               return (
                 <div key={ev.id} style={{ 
                   display: 'flex', 
-                  gap: 20, 
+                  gap: 12, 
                   padding: '20px 0', 
                   borderTop: i > 0 ? `1px solid rgba(255,255,255,0.05)` : 'none',
                   position: 'relative'
