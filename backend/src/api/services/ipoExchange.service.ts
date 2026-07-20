@@ -651,12 +651,11 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
       .update({ updated_at: trx.fn.now() });
   }
 
-  // Credit proceeds to company cash.
-  if (proceeds > 0) {
-    await trx('company_finances')
-      .where({ company_id: listing.company_id })
-      .increment('available_cash', proceeds)
-      .increment('company_value', proceeds);
+  // Credit proceeds to the selling founder.
+  if (proceeds > 0 && founderId) {
+    await trx('character_finances')
+      .where({ character_id: founderId })
+      .increment('cash_in_hand', proceeds);
   }
 
   // Lock up the founder's retained shares.
