@@ -1,0 +1,201 @@
+>   private static async settleForCompany(trx: any, pState: ParticipantState, salesResults: any[], clock: any, brandMap: Map<string, any>): Promise<void> {
+      const currentYear = clock?.current_year ?? 1;
+      const currentMonth = clock?.current_month ?? 1;
+      const currentDay = clock?.current_day ?? 1;
+      const companyId = pState.company.id;
+      const company = pState.company;
+  
+      const countryAutoConfig = await trx('manufacturing_country_auto_config').where({ country_id: company.country_id }).first() ?? {};
+      const storageCostPerUnit = Number(countryAutoConfig.storage_cost_per_unit_per_month ?? 150);
+      const MARKETING_COSTS: Record<string, number> = {
+        none: 0,
+        local: Number(countryAutoConfig.marketing_cost_local ?? 3500),
+        regional: Number(countryAutoConfig.marketing_cost_regional ?? 12000),
+        national: Number(countryAutoConfig.marketing_cost_national ?? 35000),
+      };
+      const tierRank: Record<string, number> = { 'none': 0, 'local': 1, 'regional': 2, 'national': 3 };
+  
+      let totalGrossRevenue = 0;
+      let totalUnitsSold = 0;
+      let totalMarketingCosts = 0;
+      let totalShippingCosts = 0;
+  
+      const highestMktTierPerMarket = new Map<string, string>();
+      for (const md of salesResults) {
+         const mId = md.alloc.region_market_id;
+         const t = md.mktTier || 'none';
+         if (!highestMktTierPerMarket.has(mId) || tierRank[t] > tierRank[highestMktTierPerMarket.get(mId)!]) {
+             highestMktTierPerMarket.set(mId, t);
+         }
+      }
+      
+      for (const [mId, t] of highestMktTierPerMarket.entries()) {
+         const cost = MARKETING_COSTS[t] ?? 0;
+         totalMarketingCosts += cost;
+         pState.runningCash -= cost;
+         const modelsInMarket = salesResults.filter(r => r.alloc.region_market_id === mId);
+         if (modelsInMarket.length > 0 && cost > 0) {
+             const splitCost = Math.round(cost / modelsInMarket.length);
+             for (const md of modelsInMarket) {
+                 const mt = pState.modelTracking.get(md.alloc.vehicle_model_id);
+                 if (mt) mt.marketingCost += splitCost;
+             }
+         }
+      }
+  
+      for (const md of salesResults) {
+        const alloc = md.alloc;
+        const mainReasonCode = md.mainReasonCode;
+        const marketPurchaseCapacity = md.marketPurchaseCapacity;
+        const totalHouseholds = md.totalHouseholds;
+  
+        const invRecord = await trx('manufacturing_inventory').where({ company_id: companyId, vehicle_model_id: alloc.vehicle_model_id }).first();
+        const actualStock = invRecord ? Number(invRecord.units_in_stock) : 0;
+        const unitsSold = Math.min(md.unitsSold, actualStock);
+  
+        if (unitsSold > 0 && pState.regionalInventoryMap && pState.regionalInventoryMap.has(alloc.vehicle_model_id)) {
+           const mId = alloc.vehicle_model_id;
+           const marketState = alloc.market_state_id || pState.company.headquarters_state_id;
+           const stMap = pState.regionalInventoryMap.get(mId)!;
+           
+           let remainingToFulfill = unitsSold;
+           if (stMap.has(marketState)) {
+               const localStock = stMap.get(marketState)!;
+               const fulfilled = Math.min(remainingToFulfill, localStock);
+               stMap.set(marketState, localStock - fulfilled);
+               remainingToFulfill -= fulfilled;
+           }
+           if (remainingToFulfill > 0) {
+               for (const [sId, stock] of stMap.entries()) {
+                   if (sId === marketState || stock <= 0) continue;
+                   const fulfilled = Math.min(remainingToFulfill, stock);
+                   stMap.set(sId, stock - fulfilled);
+                   remainingToFulfill -= fulfilled;
+                   totalShippingCosts += (fulfilled * 250);
+                   if (remainingToFulfill <= 0) break;
+               }
+           }
+           if (remainingToFulfill > 0) {
+               totalShippingCosts += (remainingToFulfill * 600);
+           }
+        }
+  
+        if (unitsSold > 0) {
+          const revenue = Math.round(unitsSold * Number(alloc.sale_price));
+          totalGrossRevenue += revenue;
+          totalUnitsSold += unitsSold;
+          pState.runningCash += revenue;
+  
+          const mt = pState.modelTracking.get(alloc.vehicle_model_id);
+          if (mt) {
+             mt.unitsSold += unitsSold;
+             mt.salesRevenue += revenue;
+          }
+  
+  
+          if (invRecord) {
+            const newStock = Math.max(0, actualStock - unitsSold);
+            const costPerUnit = Number(alloc.manufacturing_cost_per_unit);
+            await trx('manufacturing_inventory').where({ id: invRecord.id }).update({
+              units_in_stock: newStock, inventory_value: Math.max(0, newStock * costPerUnit), storage_cost_per_month: newStock * storageCostPerUnit, updated_at: trx.fn.now()
+            });
+          }
+  
+          // LAYER 2: Reset units_allocated to monthly_target after each settle.
+          // This prevents the "draining to zero" bug where sales reduce the allocation
+          // permanently. Layer 1's proportional cap handles inventory limits each tick.
+          const resetTarget = Number(alloc.monthly_target ?? alloc._original_units_allocated ?? alloc.units_allocated ?? 0);
+          await trx('manufacturing_market_allocations').where({ id: alloc.id }).update({
+            units_allocated: resetTarget,
+            updated_at: trx.fn.now()
+          });
+        }
+  
+        const marketShare = Math.min(1, unitsSold / Math.max(1, md.rawBuyerInterest));
+        await trx('manufacturing_sales_results').insert({
+          world_instance_id: company.world_instance_id, company_id: companyId, vehicle_model_id: alloc.vehicle_model_id, region_market_id: alloc.region_market_id,
+          world_year: currentYear, world_month: currentMonth, units_sold: unitsSold, sale_price: alloc.sale_price, revenue: unitsSold * Number(alloc.sale_price),
+          market_share_estimate: marketShare, addressable_households: totalHouseholds, market_purchase_capacity: marketPurchaseCapacity,
+          affordability_multiplier: Math.round(md.affordability * 10000) / 10000, vehicle_market_fit_multiplier: Math.round(md.fitMultiplier * 10000) / 10000,
+          awareness_multiplier: Math.round(md.awarenessMult * 10000) / 10000, trust_multiplier: Math.round(md.trustMult * 10000) / 10000,
+          distribution_multiplier: Math.round(md.distMult * 10000) / 10000, marketing_multiplier: Math.round(md.mktMult * 10000) / 10000,
+          raw_buyer_interest: Math.round(md.rawBuyerInterest * 10000) / 10000, final_assigned_demand: md.finalAssignedDemand, main_reason_code: mainReasonCode
+        });
+  
+        if (!pState.marketStatsMap.has(alloc.region_market_id)) {
+          pState.marketStatsMap.set(alloc.region_market_id, {
+            marketPurchaseCapacity: marketPurchaseCapacity,
+            awarenessSensitivity: Number(alloc.brand_awareness_sensitivity) || 1.0,
+            trustSensitivity: Number(alloc.brand_trust_sensitivity) || 1.0,
+            distStrength: Number(alloc.distribution_strength) || 0.7,
+            totalUnitsSold: 0,
+            weightedReliabilitySum: 0,
+            weightedDefectRateSum: 0,
+          });
+        }
+        const ms = pState.marketStatsMap.get(alloc.region_market_id);
+        
+        if (unitsSold > 0) {
+           ms.totalUnitsSold += unitsSold;
+           ms.weightedReliabilitySum += (unitsSold * Number(alloc.reliability_score));
+           const mtForDefects = pState.modelTracking.get(alloc.vehicle_model_id);
+           const defectRate = (mtForDefects && (mtForDefects.unitsProduced + mtForDefects.defectiveUnits) > 0)
+              ? (mtForDefects.defectiveUnits / (mtForDefects.unitsProduced + mtForDefects.defectiveUnits))
+              : 0;
+           ms.weightedDefectRateSum += (unitsSold * defectRate);
+        }
+      }
+  
+      const totalUnitsUnsold = pState.totalUnitsProduced - totalUnitsSold;
+  
+      if (totalShippingCosts > 0) {
+         pState.runningCash -= totalShippingCosts;
+         await trx('company_ledger').insert({ company_id: companyId, game_year: currentYear, game_month: currentMonth, game_day: currentDay, entry_type: 'expense', description: 'Logistics & Shipping Costs', amount: -totalShippingCosts, balance_after: pState.runningCash });
+      }
+  
+      let totalWarrantyReserveCost = 0;
+      const hasSafetyArch = pState.approvedStandards.some((p: any) => p.programme_id === 'safety-arch');
+      for (const [mId, mt] of pState.modelTracking) {
+        if (mt.unitsSold <= 0) continue;
+        const mModel = await trx('manufacturing_vehicle_models').select('reliability_score', 'manufacturing_cost_per_unit').where({ id: mId }).first();
+        if (!mModel) continue;
+        
+        let effectiveReliability = Number(mModel.reliability_score ?? 60);
+        if (hasSafetyArch) effectiveReliability = Math.min(100, effectiveReliability + 8);
+        
+        const warrantyModifiers = deriveWarrantyReserve({ ...mModel, reliability_score: effectiveReliability } as any);
+        const wReservePerUnit = warrantyModifiers.warrantyReservePerUnit(Number(mModel.manufacturing_cost_per_unit ?? 0));
+        const wReserveTotal = wReservePerUnit * mt.unitsSold;
+        totalWarrantyReserveCost += wReserveTotal;
+      }
+      if (totalWarrantyReserveCost > 0) {
+        pState.runningCash -= totalWarrantyReserveCost;
+        pState.totalWarrantyReserveCost = totalWarrantyReserveCost;
+      }
+  
+      // Use actualWagesPaid (not totalStaffWages) to match cash movement and arc report
+      const netProfit = totalGrossRevenue - pState.totalProductionCosts - pState.actualWagesPaid - pState.totalLeaseCosts - pState.totalMaintenanceCosts - pState.totalStorageCosts - totalMarketingCosts - totalWarrantyReserveCost - totalShippingCosts;
+  
+      let finalNetProfit = netProfit;
+      let taxPaid = 0;
+  
+      // Look up the state by its ID (headquarters_state_id is the state code like 'drennia-drennport')
+      // We strip the country prefix if it exists to match the code in pol_states (which is just 'ironvale', 'drennport', etc.)
+      const rawStateId = company.headquarters_state_id || '';
+      const stateCode = rawStateId.replace(new RegExp(`^${company.country_id || ''}-`), '');
+  
+      const stateObj = await trx('pol_states')
+        .where({ code: stateCode })
+        .first();
+      
+      // Fallback: if not found by code, try to match by ID in case headquarters_state_id is a UUID
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawStateId);
+      const stateLookup = stateObj || (isUuid ? 
+        await trx('pol_states').where({ id: rawStateId }).first() : null);
+  
+      if (stateLookup) {
+        const policy = await trx('pol_state_policy').where({ state_id: stateLookup.id }).first();
+        let taxRate = 0.20; // default
+        if (policy) {
+          const activePolicies = typeof policy.active_policies === 'string' ? JSON.parse(policy.active_policies) : (policy.active_policies || {});
+          const taxPolicy = activePolicies.taxation;

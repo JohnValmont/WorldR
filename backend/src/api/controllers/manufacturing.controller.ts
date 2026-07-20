@@ -1496,8 +1496,8 @@ export class ManufacturingController {
         else if (md.awarenessMult < 0.3) mainReasonCode = 'Low Brand Awareness';
         else if (md.distMult < 0.5) mainReasonCode = 'Weak Distribution';
         else if (capacityRatio < 1.0) mainReasonCode = 'Market Capacity Capped (Cannibalised)';
-        else if (unitsSold === Number(alloc.units_allocated) && unitsSold > 0) mainReasonCode = 'Sold Out';
-        else if (unitsSold === 0 && Number(alloc.units_allocated) > 0) mainReasonCode = 'Zero Demand';
+        else if (unitsSold === Number(alloc.units_allocated) && (unitsSold > 0 || Number(alloc._original_units_allocated) > 0)) mainReasonCode = 'Sold Out';
+        else if (unitsSold === 0 && Number(alloc._original_units_allocated ?? alloc.units_allocated) > 0) mainReasonCode = 'Zero Demand';
 
         const marketShare = Math.min(1, unitsSold / Math.max(1, md.rawBuyerInterest));
         
@@ -2591,7 +2591,7 @@ export class ManufacturingController {
              }
              // ─────────────────────────────────────────────────────────────────
 
-             allMarketAllocations.push(...marketAllocations.filter((a: any) => a.units_allocated > 0));
+             allMarketAllocations.push(...marketAllocations.filter((a: any) => (a._original_units_allocated ?? a.units_allocated) > 0));
         }
 
         const brandMap = new Map<string, any>();
@@ -2960,7 +2960,6 @@ export class ManufacturingController {
         .join('manufacturing_vehicle_models', 'manufacturing_market_allocations.vehicle_model_id', 'manufacturing_vehicle_models.id')
         .join('manufacturing_region_markets', 'manufacturing_market_allocations.region_market_id', 'manufacturing_region_markets.id')
         .where('manufacturing_market_allocations.company_id', companyId)
-        .where('manufacturing_market_allocations.units_allocated', '>', 0)
         .whereIn('manufacturing_vehicle_models.development_status', ['launched', 'discontinued'])
         .select(
             'manufacturing_market_allocations.*',
@@ -3012,6 +3011,8 @@ export class ManufacturingController {
       const forecastInventoryCache = new Map<string, number>();
       for (const alloc of joinedAllocations) {
         alloc.units_allocated = Number(alloc.monthly_target ?? alloc.units_allocated ?? 0);
+        alloc._original_units_allocated = alloc.units_allocated;
+
         if (!forecastInventoryCache.has(alloc.vehicle_model_id)) {
           const invRow = await db('manufacturing_inventory')
             .where({ company_id: companyId, vehicle_model_id: alloc.vehicle_model_id })
@@ -3022,6 +3023,7 @@ export class ManufacturingController {
             .where({
               'manufacturing_factories.company_id': companyId,
               'manufacturing_production_lines.status': 'active',
+              'manufacturing_production_lines.construction_status': 'completed',
               'manufacturing_production_lines.assigned_vehicle_model_id': alloc.vehicle_model_id
             });
             
@@ -3046,7 +3048,7 @@ export class ManufacturingController {
       }
 
       const forecast = ManufacturingController.simulateSalesDemand(
-          joinedAllocations.filter((a: any) => a.units_allocated > 0),
+          joinedAllocations.filter((a: any) => (a._original_units_allocated ?? a.units_allocated) > 0),
           brandMap,
           MARKETING_MULT,
           salesBonusMap,

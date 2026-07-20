@@ -1,0 +1,201 @@
+>   private static async produceForCompany(trx: any, company: any, clock: any): Promise<ParticipantState> {
+      const currentYear = clock?.current_year ?? 1;
+      const currentMonth = clock?.current_month ?? 1;
+      const currentDay = clock?.current_day ?? 1;
+      const companyId = company.id;
+  
+      const finances = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
+      let runningCash = Number(finances.available_cash);
+  
+      console.log(`[produceForCompany] Month ${clock?.current_month ?? 1} Fetching factories for ${companyId}...`);
+      const allFactoriesRaw = await trx('manufacturing_factories').where({ company_id: companyId });
+      for (const factory of allFactoriesRaw) {
+        if (factory.auto_condition_recovery && Number(factory.condition) < 100) {
+          if (runningCash >= 20000) {
+            runningCash -= 20000;
+            const newCondition = Math.min(100.0, Number(factory.condition) + 5.0);
+            await trx('manufacturing_factories').where({ id: factory.id }).update({
+              condition: newCondition,
+              updated_at: trx.fn.now()
+            });
+            factory.condition = newCondition;
+            await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', 20000);
+            await trx('company_ledger').insert({
+              company_id: companyId, game_year: currentYear, game_month: currentMonth, game_day: currentDay,
+              entry_type: 'maintenance', description: `Auto-Recovery (${factory.name})`, amount: -20000, balance_after: runningCash
+            });
+          }
+        }
+      }
+      const allFactories = allFactoriesRaw.filter((f: any) => f.status !== 'closed');
+      const factories = allFactories.filter((f: any) => f.status === 'active' && f.building_status === 'completed');
+      console.log(`[produceForCompany] Month ${clock?.current_month ?? 1} Fetched factories for ${companyId}`);
+      console.log(`[produceForCompany] Month ${clock?.current_month ?? 1} Fetching productionLines for ${companyId}...`); const productionLines = await trx('manufacturing_production_lines')
+        .join('manufacturing_vehicle_models', 'manufacturing_production_lines.assigned_vehicle_model_id', 'manufacturing_vehicle_models.id')
+        .where('manufacturing_production_lines.company_id', companyId)
+        .where('manufacturing_production_lines.status', 'active')
+        .where('manufacturing_production_lines.construction_status', 'completed')
+        .whereNotNull('manufacturing_production_lines.assigned_vehicle_model_id')
+        .where('manufacturing_production_lines.target_units_per_month', '>', 0)
+        .whereNot('manufacturing_vehicle_models.development_status', 'discontinued')
+        .select(
+          'manufacturing_production_lines.*',
+          'manufacturing_vehicle_models.name as model_name',
+          'manufacturing_vehicle_models.vehicle_class',
+          'manufacturing_vehicle_models.manufacturing_cost_per_unit',
+          'manufacturing_vehicle_models.appeal_score',
+          'manufacturing_vehicle_models.reliability_score',
+          'manufacturing_vehicle_models.fuel_efficiency_score',
+          'manufacturing_vehicle_models.cargo_score',
+          'manufacturing_vehicle_models.manufacturing_friendliness',
+          'manufacturing_vehicle_models.assembly_complexity',
+          'manufacturing_vehicle_models.sale_price',
+          'manufacturing_vehicle_models.id as model_id_ref'
+        );
+  
+      console.log(`[produceForCompany] Month ${clock?.current_month ?? 1} Fetched productionLines for ${companyId}`); const staff = await trx('company_staff').where({ company_id: companyId });
+  
+      // ─── 0. Vehicle Development Updates (Phase 3B per-stage) ─────────────
+      const developingModels = await trx('manufacturing_vehicle_models')
+        .where({ company_id: companyId, status: 'active', development_status: 'in_development' });
+  
+      const knowledgeRows = await trx('manufacturing_company_knowledge').where({ company_id: companyId });
+      const knowledgeXpMap: Record<string, number> = {};
+      for (const k of knowledgeRows) knowledgeXpMap[k.domain] = Number(k.xp_points);
+  
+      const engRepForCulture = await trx('manufacturing_engineering_reputation').where({ company_id: companyId }).first();
+      const cultureScore = Number(engRepForCulture?.engineering_culture_score ?? 0);
+  
+      for (const model of developingModels) {
+        let devStage = model.dev_stage as string | null;
+  
+        // Variables to track completion dates for subsequent checks in case of cascading
+        let engEndsYear = model.stage_engineering_completes_year ?? 1;
+        let engEndsMonth = model.stage_engineering_completes_month ?? 1;
+        let protoEndsYear = model.stage_prototype_completes_year ?? 1;
+        let protoEndsMonth = model.stage_prototype_completes_month ?? 1;
+        let testingEndsYear = model.stage_testing_completes_year ?? 1;
+        let testingEndsMonth = model.stage_testing_completes_month ?? 1;
+        let completesYear = model.development_completes_at_year ?? 1;
+        let completesMonth = model.development_completes_at_month ?? 1;
+  
+        const absCurrent = currentYear * 12 + currentMonth;
+        
+        const absEngEnds = engEndsYear * 12 + engEndsMonth;
+        // Stage: engineering → prototype
+        if (devStage === 'engineering' && absCurrent >= absEngEnds - 1) {
+          const bonuses = applyKnowledgeBonuses(knowledgeXpMap);
+          const newReliability = Math.min(100, Number(model.reliability_score ?? 60) + bonuses.reliabilityBonus);
+          const newMfgFriendliness = Math.min(100, Number(model.manufacturing_friendliness ?? 50) + bonuses.mfgFriendlinessBonus);
+          const newConfidence = Math.min(100, Number(model.prototype_confidence ?? 50) + bonuses.prototypeConfidenceBonus);
+          const newComplexity = Math.max(10, Number(model.engineering_complexity ?? 50) - bonuses.engineeringComplexityReduction);
+  
+          await trx('manufacturing_vehicle_models').where({ id: model.id }).update({
+            dev_stage: 'prototype', reliability_score: newReliability, manufacturing_friendliness: newMfgFriendliness, prototype_confidence: newConfidence, engineering_complexity: newComplexity, updated_at: trx.fn.now()
+          });
+  
+          const bonusSummary = Object.entries(bonuses).filter(([, v]) => (v as number) > 0).map(([k, v]) => `${k.replace('Bonus','').replace('Reduction', '')}: +${(v as number).toFixed(1)}`).join(', ');
+          await trx('company_records').insert({
+            world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `${model.name} has entered the Prototype stage.${bonusSummary ? ` Knowledge bonuses applied: ${bonusSummary}.` : ''}`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay
+          });
+          devStage = 'prototype';
+        }
+  
+        const absProtoEnds = protoEndsYear * 12 + protoEndsMonth;
+        // Stage: prototype → testing
+        if (devStage === 'prototype' && absCurrent >= absProtoEnds - 1) {
+          const validation = evaluatePrototypeValidation(model);
+          const currentCultureScore = Number(cultureScore || 0);
+          const newCultureScore = applyEngineeringCulture(currentCultureScore, validation);
+          const cultureDelta = newCultureScore - currentCultureScore;
+  
+          let extraCostCharged = 0;
+          let extraArcMessage = '';
+  
+          if (!validation.passed && validation.extraCostPct > 0) {
+            const baseCost = Number(model.engineering_complexity ?? 50) * 1000;
+            extraCostCharged = Math.round(baseCost * validation.extraCostPct);
+            if (extraCostCharged > 0) {
+              runningCash -= extraCostCharged;
+              await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', extraCostCharged);
+              await trx('company_ledger').insert({ company_id: companyId, game_year: currentYear, game_month: currentMonth, game_day: currentDay, entry_type: 'expense', description: `Prototype validation failure costs: ${model.name}`, amount: -extraCostCharged, balance_after: runningCash });
+            }
+            extraArcMessage = ` Development extended by ${validation.extraArcs} month(s).`;
+          }
+  
+          const MONTHS_PER_YEAR = 12;
+          const wrapMonth = (year: number, month: number) => {
+            while (month > MONTHS_PER_YEAR) { month -= MONTHS_PER_YEAR; year++; }
+            return { year, month };
+          };
+  
+          const testEnd = wrapMonth(model.stage_testing_completes_year ?? currentYear, (model.stage_testing_completes_month ?? (currentMonth + 1)) + validation.extraArcs);
+          const finalEnd = wrapMonth(model.development_completes_at_year ?? currentYear, (model.development_completes_at_month ?? (currentMonth + 1)) + validation.extraArcs);
+  
+          await trx('manufacturing_vehicle_models').where({ id: model.id }).update({ 
+            dev_stage: 'testing', 
+            stage_testing_completes_year: testEnd.year,
+            stage_testing_completes_month: testEnd.month, 
+            development_completes_at_year: finalEnd.year,
+            development_completes_at_month: finalEnd.month, 
+            prototype_validation_result: JSON.stringify(validation), 
+            updated_at: trx.fn.now() 
+          });
+          await trx('manufacturing_engineering_reputation').where({ company_id: companyId }).update({ engineering_culture_score: newCultureScore, last_updated: trx.fn.now() }).catch(() => {});
+  
+          const validationSummary = validation.passed ? `Prototype validation ${validation.resultClass} (confidence: ${validation.confidenceScore}%).` : `Prototype validation ${validation.resultClass}: ${validation.issues[0]}.${extraArcMessage} Extra cost: ${extraCostCharged.toLocaleString()}.`;
+          await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `${model.name} — ${validationSummary}`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
+          
+          // Update cascade variables in case it was extended
+          testingEndsYear = testEnd.year;
+          testingEndsMonth = testEnd.month;
+          completesYear = finalEnd.year;
+          completesMonth = finalEnd.month;
+          devStage = 'testing';
+        }
+  
+        const absTestingEnds = testingEndsYear * 12 + testingEndsMonth;
+        // Stage: testing → ready_to_launch
+        if (devStage === 'testing' && absCurrent >= absTestingEnds - 1) {
+          await trx('manufacturing_vehicle_models').where({ id: model.id }).update({ dev_stage: 'ready_to_launch', updated_at: trx.fn.now() });
+          devStage = 'ready_to_launch';
+        }
+  
+        const absCompletes = completesYear * 12 + completesMonth;
+        // Final: ready_to_launch (this part generates permanent assessment at the end of testing)
+        if (absCurrent >= absCompletes - 1 && model.development_status !== 'ready_to_launch') {
+          const assessment = calculateEngineeringAssessment(model);
+          const balanceRating = calculateBalanceRating(model);
+          await trx('manufacturing_vehicle_models').where({ id: model.id }).update({ development_status: 'ready_to_launch', dev_stage: 'ready_to_launch', engineering_assessment: JSON.stringify(assessment), engineering_balance_rating: balanceRating, updated_at: trx.fn.now() });
+          await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `Vehicle development completed: ${model.name}.`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
+        }
+      }
+  
+      // ─── 0.5 Engineering Programmes Updates ─────────────────────────────
+      let approvedResearchNames: string[] = [];
+      const activeProgramme = await trx('manufacturing_engineering_programmes').where({ company_id: companyId }).whereIn('status', ['engineering', 'validation']).first();
+  
+      const countryAutoConfig = await trx('manufacturing_country_auto_config').where({ country_id: company.country_id }).first() ?? {};
+      const EXP_CAPACITY  = Number(countryAutoConfig.expanded_capacity_per_month ?? 200);
+      const EXP_MAX_LINES = Number(countryAutoConfig.expanded_max_lines ?? 2);
+      const EXP_LEASE     = Number(countryAutoConfig.expanded_lease_cost_per_month ?? 45000);
+      const EXP_MAINT     = Number(countryAutoConfig.expanded_maintenance_per_month ?? 15000);
+      const EXP_WORKERS   = Number(countryAutoConfig.expanded_worker_capacity ?? 80);
+      const storageCostPerUnit = Number(countryAutoConfig.storage_cost_per_unit_per_month ?? 150);
+  
+      let expansionCompletedNote = '';
+  
+      if (activeProgramme) {
+        const progName = ENGINEERING_PROGRAMMES_CATALOG[activeProgramme.programme_id]?.name || activeProgramme.programme_id;
+      }
+  
+      const approvedStandards = await trx('manufacturing_engineering_programmes').where({ company_id: companyId, status: 'approved' });
+      const hasAssemblyTimeStudy = approvedStandards.some((p: any) => p.programme_id === 'assembly-time');
+      const hasSPC               = approvedStandards.some((p: any) => p.programme_id === 'spc');
+      const hasDurabilityVal     = approvedStandards.some((p: any) => p.programme_id === 'durability-val');
+      const hasSafetyArch        = approvedStandards.some((p: any) => p.programme_id === 'safety-arch');
+      const hasEconomyTune       = approvedStandards.some((p: any) => p.programme_id === 'economy-tune');
+  
+      let totalUnitsProduced = 0;
+      let totalProductionCosts = 0;
+      let totalDefectiveUnits = 0;
