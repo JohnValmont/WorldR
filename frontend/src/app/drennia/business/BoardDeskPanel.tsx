@@ -195,9 +195,20 @@ function StatusPill({ status, name }: { status: string, name?: string }) {
 }
 
 // ─── Main panel ───────────────────────────────────────────────────────────────
-export default function BoardDeskPanel({ companyId, companyName, staff, onRefresh }: { companyId: string, companyName: string, staff: any[], onRefresh: () => void }) {
+export default function BoardDeskPanel({
+  staff = [],
+  companyId,
+  companyName,
+  onRefresh,
+}: {
+  staff: any[];
+  companyId: string;
+  companyName: string;
+  onRefresh: () => void;
+}) {
   const [expanded, setExpanded] = useState<string | null>("cso");
   const [isHiring, setIsHiring] = useState(false);
+  const [isAllocating, setIsAllocating] = useState(false);
 
   const getDeterministicName = (roleId: string) => {
     if (!companyId) return "Unknown";
@@ -222,6 +233,20 @@ export default function BoardDeskPanel({ companyId, companyName, staff, onRefres
       alert(err?.response?.data?.error || err?.message || 'Failed to hire executive.');
     } finally {
       setIsHiring(false);
+    }
+  };
+
+  const handleAllocate = async (cId: string) => {
+    if (isAllocating) return;
+    setIsAllocating(true);
+    try {
+      await manufacturingApi.triggerCSOAllocation(cId);
+      alert('CSO successfully auto-allocated all inventory and upcoming production across active markets.');
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || err?.message || 'Failed to trigger CSO auto-allocation.');
+    } finally {
+      setIsAllocating(false);
     }
   };
 
@@ -490,7 +515,7 @@ export default function BoardDeskPanel({ companyId, companyName, staff, onRefres
                             marginBottom: 3,
                           }}
                         >
-                          Auto-Allocation Engine — In Development
+                          Auto-Allocation Engine {isHired ? '— Active' : '— In Development'}
                         </div>
                         <div style={{ fontSize: 11, color: "#777", lineHeight: 1.55 }}>
                           When the CSO is activated, they will read your Market
@@ -501,6 +526,31 @@ export default function BoardDeskPanel({ companyId, companyName, staff, onRefres
                           review and override the suggested allocation before it
                           is locked.
                         </div>
+                        {isHired && (
+                          <div style={{ marginTop: 10 }}>
+                            <button
+                              onClick={() => handleAllocate(companyId)}
+                              disabled={isAllocating}
+                              style={{
+                                background: `linear-gradient(135deg, ${pos.color}10 0%, ${pos.color}20 100%)`,
+                                color: pos.color,
+                                border: `1px solid ${pos.color}50`,
+                                padding: "6px 16px",
+                                fontSize: "11px",
+                                fontFamily: "monospace",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.15em",
+                                fontWeight: 700,
+                                cursor: isAllocating ? "not-allowed" : "pointer",
+                                borderRadius: "4px",
+                                opacity: isAllocating ? 0.7 : 1,
+                                transition: "all 0.2s",
+                              }}
+                            >
+                              {isAllocating ? "ALLOCATING..." : "ACTION: AUTO-ALLOCATE CARS"}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

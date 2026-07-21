@@ -370,6 +370,7 @@ export const manufacturingApi = {
   // Phase 3: Engineering Report & Knowledge
   getEngineeringReport: (companyId: string, modelId: string) => api.get(`/companies/${companyId}/manufacturing/models/${modelId}/engineering-report`),
   getCompanyKnowledge: (companyId: string) => api.get(`/companies/${companyId}/manufacturing/knowledge`),
+  triggerCSOAllocation: (companyId: string) => api.post(`/companies/${companyId}/manufacturing/cso/allocate`),
 };
 
 // Chat — global in-game chat

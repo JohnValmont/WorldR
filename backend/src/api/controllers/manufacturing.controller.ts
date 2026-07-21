@@ -2824,6 +2824,32 @@ export class ManufacturingController {
       }
     }
   }
+  
+  // POST /companies/:companyId/manufacturing/cso/allocate
+  public static async triggerCSOAllocations(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { companyId } = req.params;
+
+      if (!userId || !companyId) return next(new AppError('Missing fields', 400, 'BAD_REQUEST'));
+
+      await db.transaction(async (trx) => {
+        const { company } = await verifyManufacturingCompany(trx, userId, companyId);
+        const clock = await trx('world_clock').first();
+        
+        const cso = await trx('company_staff').where({ company_id: companyId, role: 'cso' }).first();
+        if (!cso || cso.quantity <= 0) {
+          throw new AppError('You must hire a Chief Sales Officer (CSO) to use auto-allocation.', 400, 'BAD_REQUEST');
+        }
+
+        await ManufacturingController.runCSOAllocations(trx, clock, [company]);
+      });
+
+      res.status(200).json({ status: 'success', message: 'CSO has auto-allocated all inventory and upcoming production.' });
+    } catch (error) {
+      next(error);
+    }
+  }
   // ────────────────────────────────────────────────────────────────────────────
 
   // POST /admin/manufacturing/process-company/:companyId
