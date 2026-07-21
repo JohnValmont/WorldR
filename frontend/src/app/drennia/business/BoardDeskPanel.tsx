@@ -409,18 +409,44 @@ export default function BoardDeskPanel({
                       </span>
                     )}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <StatusPill status={status} name={execName} />
-                    {pos.hint && (
-                      <span
-                        style={{
-                          fontSize: 10,
-                          color: "#555",
-                          fontStyle: "italic",
-                        }}
-                      >
-                        {pos.hint}
-                      </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <StatusPill status={status} name={execName} />
+                      {pos.hint && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            color: "#555",
+                            fontStyle: "italic",
+                          }}
+                        >
+                          {pos.hint}
+                        </span>
+                      )}
+                    </div>
+                    {/* Action Button beside name */}
+                    {isHired && pos.id === 'cso' && (
+                       <button
+                         onClick={(e) => { e.stopPropagation(); handleAllocate(companyId); }}
+                         disabled={isAllocating}
+                         style={{
+                           background: `linear-gradient(135deg, ${pos.color}10 0%, ${pos.color}20 100%)`,
+                           color: pos.color,
+                           border: `1px solid ${pos.color}50`,
+                           padding: "4px 12px",
+                           fontSize: "10px",
+                           fontFamily: "monospace",
+                           textTransform: "uppercase",
+                           letterSpacing: "0.1em",
+                           fontWeight: 700,
+                           cursor: isAllocating ? "not-allowed" : "pointer",
+                           borderRadius: "4px",
+                           opacity: isAllocating ? 0.7 : 1,
+                           transition: "all 0.2s",
+                         }}
+                       >
+                         {isAllocating ? "ALLOCATING..." : "ACTION: AUTO-ALLOCATE"}
+                       </button>
                     )}
                   </div>
                 </div>
@@ -526,31 +552,6 @@ export default function BoardDeskPanel({
                           review and override the suggested allocation before it
                           is locked.
                         </div>
-                        {isHired && (
-                          <div style={{ marginTop: 10 }}>
-                            <button
-                              onClick={() => handleAllocate(companyId)}
-                              disabled={isAllocating}
-                              style={{
-                                background: `linear-gradient(135deg, ${pos.color}10 0%, ${pos.color}20 100%)`,
-                                color: pos.color,
-                                border: `1px solid ${pos.color}50`,
-                                padding: "6px 16px",
-                                fontSize: "11px",
-                                fontFamily: "monospace",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.15em",
-                                fontWeight: 700,
-                                cursor: isAllocating ? "not-allowed" : "pointer",
-                                borderRadius: "4px",
-                                opacity: isAllocating ? 0.7 : 1,
-                                transition: "all 0.2s",
-                              }}
-                            >
-                              {isAllocating ? "ALLOCATING..." : "ACTION: AUTO-ALLOCATE CARS"}
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}

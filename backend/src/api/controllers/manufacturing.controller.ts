@@ -2767,7 +2767,7 @@ export class ManufacturingController {
            // No supply? Keep targets at 0 or leave as is.
            await trx('manufacturing_market_allocations')
              .where({ company_id: company.id, vehicle_model_id: model.id })
-             .update({ monthly_target: 0, units_allocated: 0 });
+             .update({ units_allocated: 0 });
            continue;
         }
 
@@ -2816,7 +2816,6 @@ export class ManufacturingController {
           await trx('manufacturing_market_allocations')
             .where({ id: alloc.id })
             .update({
-              monthly_target: target,
               units_allocated: target,
               marketing_tier: optimalTier
             });
