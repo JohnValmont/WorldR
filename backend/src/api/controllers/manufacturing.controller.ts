@@ -2823,21 +2823,10 @@ export class ManufacturingController {
           // Allocate proportionally
           const target = Math.floor(totalSupply * proportion);
           
-          // Tune marketing tier based on awareness
-          const brandRow = await trx('manufacturing_brand_awareness').where({ company_id: company.id, region_market_id: alloc.region_market_id }).first();
-          const awareness = brandRow ? Number(brandRow.awareness) : 0;
-          
-          let optimalTier = alloc.marketing_tier || 'none';
-          if (awareness < 40) optimalTier = 'national';
-          else if (awareness < 60) optimalTier = 'regional';
-          else if (awareness > 85) optimalTier = 'none'; // Save money if dominant
-          else optimalTier = 'local';
-          
           await trx('manufacturing_market_allocations')
             .where({ id: alloc.id })
             .update({
-              units_allocated: target,
-              marketing_tier: optimalTier
+              units_allocated: target
             });
         }
       }
