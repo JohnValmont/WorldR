@@ -1263,6 +1263,18 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           </Panel>
           {err && <div style={{ color: T.red, fontSize: 13 }}>{err}</div>}
         </>
+      ) : overview?.globalParty ? (
+        <div style={{ maxWidth: 800, margin: '0 auto', paddingBottom: 60 }}>
+          <div style={{ padding: '24px 32px', background: 'rgba(0,0,0,0.4)', borderRadius: 12, border: `1px solid ${T.border}` }}>
+            <div style={{ fontFamily: SANS }}>
+              <div style={{ ...stampStyle, textShadow: `0 0 10px ${T.goldSoft}` }}>Restricted Action</div>
+              <h1 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, margin: '8px 0 0', letterSpacing: '-0.02em' }}>Already in a Party</h1>
+              <p style={{ color: T.muted, fontSize: 15, marginTop: 8, lineHeight: 1.6, maxWidth: 600 }}>
+                You are already a member of <strong>{overview.globalParty.name}</strong>. A politician can only be active in one state's politics at a time.
+              </p>
+            </div>
+          </div>
+        </div>
       ) : (
         <>
           <div style={{ fontFamily: SANS }}>

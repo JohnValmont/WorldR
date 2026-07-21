@@ -94,6 +94,21 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
     let cyclePhase = 'governing';
     let countdown = 0;
     let cycleSummary: any = null;
+    let globalParty: any = null;
+
+    if (req.user?.id) {
+      try {
+        const character = await db('characters').where({ user_id: req.user.id, status: 'active' }).first();
+        if (character) {
+          const member = await db('pol_party_members').where({ character_id: character.id }).first();
+          if (member) {
+            globalParty = await db('pol_parties').where({ id: member.party_id }).first();
+          }
+        }
+      } catch (e) {
+        // Ignore
+      }
+    }
     
     if (activeState) {
       try {
@@ -145,7 +160,8 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
       // Election-schedule summary (electionArc, monthsToElection, phase timeline).
       cycle: cycleSummary,
       // Jurisdiction Conditions (GDD $11) — normalized 0–10 indicators for the UI.
-      conditions: activeState ? readConditionsFromRow(activeState) : null
+      conditions: activeState ? readConditionsFromRow(activeState) : null,
+      globalParty
     });
   } catch (error) {
     next(error);

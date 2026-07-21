@@ -352,13 +352,13 @@ export async function updateFactionLoyalties(
 
   const allFactions = await trx('pol_party_factions').where({ party_id: partyId });
 
-  const platform = party.platform as Record<string, number>;
+  const platform = typeof party.platform === 'string' ? safeParseJSON(party.platform) : (party.platform ?? {});
 
   for (const faction of allFactions) {
     // Skip if already updated this arc
     if (faction.updated_arc >= currentArc) continue;
 
-    const lean = faction.ideology_lean as Record<string, number>;
+    const lean = typeof faction.ideology_lean === 'string' ? safeParseJSON(faction.ideology_lean) : (faction.ideology_lean ?? {});
     const axes = ['taxation', 'labour', 'investment', 'trade', 'stability'];
 
     // Compute average distance on all 5 axes (0-100 scale → 0-100 distance)
@@ -396,7 +396,7 @@ export async function recruitNpcToParty(
   party: any,
   currentArc: number
 ): Promise<void> {
-  const basePlatform: Platform = party.platform as Platform;
+  const basePlatform: Platform = typeof party.platform === 'string' ? safeParseJSON(party.platform) : (party.platform ?? {});
 
   // Generate drifted platform
   const driftedPlatform: Record<string, number> = {};
@@ -635,7 +635,7 @@ export async function applyConditionDrift(trx: any, stateId: string, currentMont
   const existingPolicy = await trx('pol_state_policy').where({ state_id: stateId }).first();
   const legislatedPolicy = existingPolicy?.policy_platform || {};
   const activePolicies = existingPolicy?.active_policies 
-    ? (typeof existingPolicy.active_policies === 'string' ? JSON.parse(existingPolicy.active_policies) : existingPolicy.active_policies) 
+    ? (typeof existingPolicy.active_policies === 'string' ? safeParseJSON(existingPolicy.active_policies) : existingPolicy.active_policies) 
     : {};
   const effectivePlatform = { ...platform, ...legislatedPolicy };
   
@@ -1323,8 +1323,9 @@ export async function updateCoalitionAgreementHealth(
     .select('pol_coalition_agreements.*');
 
   for (const agreement of agreements) {
-    const partnerTerms = typeof agreement.partner_terms === 'string'
+    const parsedTerms = typeof agreement.partner_terms === 'string'
       ? safeParseJSON(agreement.partner_terms) : agreement.partner_terms;
+    const partnerTerms = Array.isArray(parsedTerms) ? parsedTerms : [];
     const allPartyIds = [agreement.lead_party_id, ...partnerTerms.map((t: any) => t.party_id)];
 
     // Average cohesion across all coalition member parties
@@ -1548,7 +1549,7 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
         if (category && option) {
           const existing = await trx('pol_state_policy').where({ state_id: stateId }).first();
           const activePolicies = existing?.active_policies 
-            ? (typeof existing.active_policies === 'string' ? JSON.parse(existing.active_policies) : existing.active_policies) 
+            ? (typeof existing.active_policies === 'string' ? safeParseJSON(existing.active_policies) : existing.active_policies) 
             : {};
           
           activePolicies[category] = option;
@@ -2507,12 +2508,7 @@ export async function processMediaCoverageForState(
     }
   }
 
-  // Collect + rank stories, take top N
-  const stories = await trx('pol_news_stories')
-    .where({ state_id: stateId, arc: currentArc })
-    .whereNot('popularity_delta', '!=', 0) // skip already-processed
-    .orderBy('weight', 'desc')
-    .limit(MEDIA_TOP_STORIES_PER_ARC);
+
 
   // Also get un-processed ones (popularity_delta = 0)
   const rawStories = await trx('pol_news_stories')
