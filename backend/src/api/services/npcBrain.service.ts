@@ -67,9 +67,16 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
   } = input;
 
   let newSalePrice = salePrice;
+  const sellRatio = unitsAllocatedLastArc > 0 ? (unitsSoldLastArc / unitsAllocatedLastArc) : 0;
   
   // Baseline B6 rule: produce based on what we sold last month + buffer, subtracting inventory
-  const desired = Math.round(unitsSoldLastArc * PRODUCTION_BUFFER);
+  let desired = Math.round(unitsSoldLastArc * PRODUCTION_BUFFER);
+  
+  // If we are selling well, keep a minimum baseline heartbeat so we don't flatline
+  if (sellRatio >= 0.8) {
+    desired = Math.max(desired, Math.round(factoryCapacity * 0.15));
+  }
+  
   let newTargetUnits = Math.max(MIN_UNITS_FLOOR, Math.min(desired - inventoryInStock, factoryCapacity));
   
   // If there is no sales history (e.g. Month 1 from seed), preserve the seeded target units!
@@ -88,16 +95,20 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
     if (salePrice < maxAllowedPrice) {
       newSalePrice = Math.min(salePrice * (1 + PRICE_STEP), maxAllowedPrice);
     }
-    const desiredSoldOut = Math.round(unitsSoldLastArc * (PRODUCTION_BUFFER + 0.10));
+    const desiredSoldOut = Math.max(
+      Math.round(unitsSoldLastArc * (PRODUCTION_BUFFER + 0.50)),
+      Math.round(factoryCapacity * 0.25)
+    );
     newTargetUnits = Math.max(MIN_UNITS_FLOOR, Math.min(desiredSoldOut - inventoryInStock, factoryCapacity));
   }
   // B1 Rule: If we lost market share and didn't sell out, we are too expensive, so drop price
-  else if (marketShareThisArc < marketShareLastArc) {
+  // Also drop price if we are hoarding inventory (selling less than 50% of allocation)
+  else if (marketShareThisArc < marketShareLastArc || sellRatio < 0.5) {
     const marketShareDrop = marketShareLastArc - marketShareThisArc;
-    const sellRatio = unitsAllocatedLastArc > 0 ? (unitsSoldLastArc / unitsAllocatedLastArc) : 0;
     
     // Hysteresis: Only cut price if marketShare drops by > 0.03 AND unitsSold/unitsAllocated < 0.9
-    if (marketShareDrop > 0.03 && sellRatio < 0.9) {
+    // OR if we are just fundamentally failing to sell our stock (sellRatio < 0.5)
+    if ((marketShareDrop > 0.03 && sellRatio < 0.9) || sellRatio < 0.5) {
       newSalePrice = salePrice * (1 - PRICE_STEP);
     }
   }
