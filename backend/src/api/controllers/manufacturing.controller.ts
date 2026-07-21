@@ -2749,9 +2749,12 @@ export class ManufacturingController {
       
       if (activeAllocs.length === 0) continue;
 
+      if (activeAllocs.length === 0) continue;
+
       // 2.5 Pre-fetch company resources to simulate exact factory output limits
-      const staff = await trx('company_staff').where({ company_id: company.id, role: 'factory-worker' }).first();
-      let workerCount = staff ? Number(staff.quantity) : 0;
+      const allStaff = await trx('company_staff').where({ company_id: company.id });
+      const fwRow = allStaff.find((s: any) => s.role === 'factory-worker');
+      let workerCount = fwRow ? Number(fwRow.quantity) : 0;
 
       const compRows = await trx('manufacturing_component_inventory').where({ company_id: company.id });
       const compInv = {
@@ -2762,6 +2765,77 @@ export class ManufacturingController {
         glass: compRows.find((c: any) => c.component_id === 'comp_glass')?.units_in_stock || 0,
         electronics: compRows.find((c: any) => c.component_id === 'comp_electronics')?.units_in_stock || 0,
       };
+
+      // 2.6 Instant UI-synced Demand Simulation
+      // The CSO needs to predict demand using the *current* prices, not last month's trailing sales results.
+      const joinedAllocations = await trx('manufacturing_market_allocations')
+        .join('manufacturing_vehicle_models', 'manufacturing_market_allocations.vehicle_model_id', 'manufacturing_vehicle_models.id')
+        .join('manufacturing_region_markets', 'manufacturing_market_allocations.region_market_id', 'manufacturing_region_markets.id')
+        .where('manufacturing_market_allocations.company_id', company.id)
+        .whereIn('manufacturing_vehicle_models.development_status', ['launched', 'discontinued'])
+        .select(
+            'manufacturing_market_allocations.*',
+            'manufacturing_vehicle_models.name as model_name',
+            'manufacturing_vehicle_models.vehicle_class',
+            'manufacturing_vehicle_models.target_segment',
+            'manufacturing_vehicle_models.sale_price',
+            'manufacturing_vehicle_models.manufacturing_cost_per_unit',
+            'manufacturing_vehicle_models.reliability_score',
+            'manufacturing_vehicle_models.performance_score',
+            'manufacturing_vehicle_models.fuel_efficiency_score',
+            'manufacturing_vehicle_models.appeal_score',
+            'manufacturing_vehicle_models.cargo_score',
+            'manufacturing_region_markets.population',
+            'manufacturing_region_markets.state_id as market_state_id',
+            'manufacturing_region_markets.average_income',
+            'manufacturing_region_markets.economic_multiplier',
+            'manufacturing_region_markets.preference_compact',
+            'manufacturing_region_markets.preference_sedan',
+            'manufacturing_region_markets.preference_utility_van',
+            'manufacturing_region_markets.competition_level',
+            'manufacturing_region_markets.market_tier',
+            'manufacturing_region_markets.distribution_strength',
+            'manufacturing_region_markets.avg_household_size',
+            'manufacturing_region_markets.vehicle_ownership_rate',
+            'manufacturing_region_markets.baseline_replacement_rate',
+            'manufacturing_region_markets.first_time_buyer_rate',
+            'manufacturing_region_markets.purchase_need_intensity',
+            'manufacturing_region_markets.vehicle_price_comfort_ratio',
+            'manufacturing_region_markets.price_sensitivity',
+            'manufacturing_region_markets.preference_economy',
+            'manufacturing_region_markets.preference_standard',
+            'manufacturing_region_markets.preference_premium',
+            'manufacturing_region_markets.vehicle_attribute_weights',
+            'manufacturing_vehicle_models.launched_year',
+            'manufacturing_vehicle_models.launched_month'
+        );
+
+      const brandData = await trx('manufacturing_brand_awareness').where({ company_id: company.id });
+      const brandMap = new Map<string, any>();
+      for (const b of brandData) {
+        brandMap.set(`${company.id}_${b.region_market_id}`, b);
+      }
+
+      const smRow = allStaff.find((s: any) => s.role === 'sales-manager');
+      const salesManagerCount = smRow ? Number(smRow.quantity) : 0;
+      const activeAllocationCount = joinedAllocations.length;
+      const usefulSalesManagers = Math.min(salesManagerCount, activeAllocationCount);
+      const salesManagerBonus  = Math.min(usefulSalesManagers * 0.04, 0.16);
+      const salesBonusMap = new Map<string, number>();
+      salesBonusMap.set(company.id, salesManagerBonus);
+
+      const MARKETING_MULT: Record<string, number> = {
+        none: 1.0, local: 1.15, regional: 1.30, national: 1.50,
+      };
+
+      const csoForecast = ManufacturingController.simulateSalesDemand(
+          joinedAllocations,
+          brandMap,
+          MARKETING_MULT,
+          salesBonusMap,
+          clock?.current_year ?? 1,
+          clock?.current_month ?? 1
+      );
 
       // 3. For each model, calculate total supply and distribute
       for (const model of launchedModels) {
@@ -2835,27 +2909,8 @@ export class ManufacturingController {
         const demandScores = new Map<string, number>();
 
         for (const market of markets) {
-          const brandRow = await trx('manufacturing_brand_awareness').where({ company_id: company.id, region_market_id: market.id }).first();
-          const awareness = brandRow ? Number(brandRow.awareness) : 0;
-          const trust = brandRow ? Number(brandRow.reputation) : 0;
-          
-          let score = 0;
-          const lastMonthSales = await trx('manufacturing_sales_results')
-            .where({ company_id: company.id, vehicle_model_id: model.id, region_market_id: market.id })
-            .orderBy('id', 'desc')
-            .first();
-
-          if (lastMonthSales) {
-            // Intelligent CSO: Use actual past demand (raw_buyer_interest) instead of just units_sold
-            // This ensures we don't penalize markets where we simply under-supplied, and perfectly accounts for vehicle class/fit.
-            score = Number(lastMonthSales.raw_buyer_interest || 0);
-          } else {
-            // Fallback heuristic for brand new vehicle launches with no sales history
-            const pop = Number(market.population);
-            const econ = Number(market.economic_multiplier);
-            const baseCap = (pop / 1000) * econ;
-            score = baseCap * (0.1 + (awareness / 100)) * (0.2 + (trust / 100));
-          }
+          const marketForecast = csoForecast.find((f: any) => f.alloc.region_market_id === market.id && f.alloc.vehicle_model_id === model.id);
+          const score = marketForecast ? marketForecast.rawBuyerInterest : 0;
           
           demandScores.set(market.id, score);
           totalDemandScore += score;
