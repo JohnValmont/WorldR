@@ -408,6 +408,7 @@ export interface WorldClock {
   pol_next_arc_close_at?: string | null;
   status: 'active' | 'paused';
   updated_at: string;
+  server_time?: string;
 }
 
 export const worldApi = {

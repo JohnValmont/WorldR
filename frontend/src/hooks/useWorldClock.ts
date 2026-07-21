@@ -30,6 +30,14 @@ export function useWorldClock() {
   }, [clock]);
 
   // Live countdown to next tick
+  const [serverSkew, setServerSkew] = useState<number>(0);
+  
+  useEffect(() => {
+    if (clock?.server_time) {
+       setServerSkew(new Date(clock.server_time).getTime() - Date.now());
+    }
+  }, [clock?.server_time]);
+
   const [secondsToTick, setSecondsToTick] = useState<number | null>(null);
   useEffect(() => {
     if (!clock?.next_arc_close_at || clock.status !== 'active') {
@@ -37,23 +45,28 @@ export function useWorldClock() {
       return;
     }
     const target = new Date(clock.next_arc_close_at).getTime();
-    let fired = false;
+    let timeoutId: NodeJS.Timeout | null = null;
+    
     const update = () => {
-      const s = Math.max(0, Math.floor((target - Date.now()) / 1000));
+      const syncedNow = Date.now() + serverSkew;
+      const s = Math.max(0, Math.floor((target - syncedNow) / 1000));
       setSecondsToTick(s);
-      if (s === 0 && !fired) {
-        fired = true;
-        // Give the server a few seconds to process, then revalidate
-        setTimeout(() => {
+      
+      if (s === 0 && !timeoutId) {
+        // Poll backend softly if we reached 0 but next_arc hasn't advanced yet
+        timeoutId = setTimeout(() => {
           mutate();
-          fired = false; // Allow re-firing if still 0s after mutate
+          timeoutId = null;
         }, 5_000);
       }
     };
     update();
     const timer = setInterval(update, 1_000);
-    return () => clearInterval(timer);
-  }, [clock?.next_arc_close_at, clock?.status, mutate]);
+    return () => {
+      clearInterval(timer);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [clock?.next_arc_close_at, clock?.status, mutate, serverSkew]);
 
   // Live countdown to next politics tick
   const [polSecondsToTick, setPolSecondsToTick] = useState<number | null>(null);
@@ -63,22 +76,27 @@ export function useWorldClock() {
       return;
     }
     const target = new Date(clock.pol_next_arc_close_at).getTime();
-    let fired = false;
+    let timeoutId: NodeJS.Timeout | null = null;
+    
     const update = () => {
-      const s = Math.max(0, Math.floor((target - Date.now()) / 1000));
+      const syncedNow = Date.now() + serverSkew;
+      const s = Math.max(0, Math.floor((target - syncedNow) / 1000));
       setPolSecondsToTick(s);
-      if (s === 0 && !fired) {
-        fired = true;
-        setTimeout(() => {
+      
+      if (s === 0 && !timeoutId) {
+        timeoutId = setTimeout(() => {
           mutate();
-          fired = false;
+          timeoutId = null;
         }, 5_000);
       }
     };
     update();
     const timer = setInterval(update, 1_000);
-    return () => clearInterval(timer);
-  }, [clock?.pol_next_arc_close_at, clock?.status, mutate]);
+    return () => {
+      clearInterval(timer);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [clock?.pol_next_arc_close_at, clock?.status, mutate, serverSkew]);
 
   return { clock, secondsToTick, polSecondsToTick, error, isLoading, refresh: mutate };
 }

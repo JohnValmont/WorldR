@@ -21,7 +21,12 @@ export class WorldController {
         return next(new AppError('No active world clock found', 404, 'CLOCK_NOT_FOUND'));
       }
 
-      res.status(200).json(clock);
+      const clockPayload = {
+        ...clock,
+        server_time: new Date().toISOString()
+      };
+
+      res.status(200).json(clockPayload);
     } catch (error) {
       next(error);
     }
