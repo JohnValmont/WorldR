@@ -3100,9 +3100,18 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                               const isOverAllocated = surplus < 0;
                               const isUnderallocated = totalAllocTarget === 0 && currentStock > 0;
 
-                              if (monthlyProd === 0 && totalAllocTarget === 0) return null;
+                              if (monthlyProd === 0 && totalAllocTarget === 0 && currentStock === 0) return null;
 
                               return (
+                                <>
+                                {currentStock === 0 && monthlyProd === 0 && (
+                                  <div className="mb-4 rounded border border-terminal-red/30 bg-terminal-red/10 p-3 text-xs text-terminal-red">
+                                    <strong>⚠️ 0 Inventory Stock</strong>
+                                    <p className="mt-1 opacity-80">
+                                      You cannot sell any cars if you have 0 in stock. If you planned to produce cars but stock is 0, your production likely failed (check HR for workers and Procurement for components). Revenue is only generated when units are actually sold.
+                                    </p>
+                                  </div>
+                                )}
                                 <div className={`mb-3 rounded border p-3 text-xs ${
                                   isOverAllocated
                                     ? 'border-terminal-amber/40 bg-terminal-amber/5'
@@ -3155,18 +3164,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                                     </div>
                                   )}
                                 </div>
+                                </>
                               );
                             })()}
                             {/* ──────────────────────────────────────────────────────── */}
-
-                            {(invRow?.units_in_stock || 0) === 0 && monthlyProd === 0 && (
-                              <div className="mb-4 rounded border border-terminal-red/30 bg-terminal-red/10 p-3 text-xs text-terminal-red">
-                                <strong>⚠️ 0 Inventory Stock</strong>
-                                <p className="mt-1 opacity-80">
-                                  You cannot sell any cars if you have 0 in stock. If you planned to produce cars but stock is 0, your production likely failed (check HR for workers and Procurement for components). Revenue is only generated when units are actually sold.
-                                </p>
-                              </div>
-                            )}
 
                             {(!marketData?.markets || marketData.markets.length === 0) ? (
                               <div className="mb-4 rounded border border-terminal-red/30 bg-terminal-red/10 p-4 text-xs text-terminal-red text-center">
