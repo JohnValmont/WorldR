@@ -93,12 +93,13 @@ export default function PoliticsDesk() {
   const { data: parties = [], mutate: mutateParties, error: errParties } = useSWR(['parties', selectedJurisdictionId], () => politicsApi.getParties(selectedJurisdictionId));
   const { data: ledger = [], mutate: mutateLedger } = useSWR(['ledger', selectedJurisdictionId], () => politicsApi.getLedger(20, selectedJurisdictionId));
   const { data: myApData, mutate: mutateAp } = useSWR('myAp', () => politicsApi.getMyAp());
+  const { data: myPcData, mutate: mutatePc } = useSWR('myPc', () => politicsApi.getMyPc());
 
   const myAp = (myApData as { current_ap: number; ap_cap: number }) || { current_ap: 0, ap_cap: 12 };
 
   const loadData = useCallback(async () => {
-    await Promise.all([mutateChar(), mutateOver(), mutateParties(), mutateLedger(), mutateAp()]);
-  }, [mutateChar, mutateOver, mutateParties, mutateLedger, mutateAp]);
+    await Promise.all([mutateChar(), mutateOver(), mutateParties(), mutateLedger(), mutateAp(), mutatePc()]);
+  }, [mutateChar, mutateOver, mutateParties, mutateLedger, mutateAp, mutatePc]);
 
   const loading = !character && !errChar && !overview && !errOver;
   const error = errChar || errOver || errParties;
@@ -120,7 +121,8 @@ export default function PoliticsDesk() {
     overview,
     character,
     parties,
-    myAp,
+    myAp: myApData as any,
+    myPc: myPcData as any,
     onRefresh: loadData,
   };
 

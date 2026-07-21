@@ -230,7 +230,8 @@ export const politicsApi = {
   getState: () => api.get('/politics/state').then(res => res.data),
   getCycle: (stateId?: string) => api.get(`/politics/cycle${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
   getParties: (stateId?: string) => api.get(`/politics/parties${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
-  foundParty: (data: any, stateId?: string) => api.post('/politics/parties', { ...data, stateId }).then(res => res.data),
+  foundParty: (payload: { name: string; abbreviation: string; doctrine_id: string; tenet_id: string | null }, stateId?: string) =>
+    api.post('/politics/parties', { ...payload, stateId }).then(res => res.data),
   joinParty: (id: string) => api.post(`/politics/parties/${id}/join`).then(res => res.data),
   leaveParty: (id: string) => api.post(`/politics/parties/${id}/leave`).then(res => res.data),
   updatePlatform: (id: string, platform: any) => api.put(`/politics/parties/${id}/platform`, { platform }).then(res => res.data),
