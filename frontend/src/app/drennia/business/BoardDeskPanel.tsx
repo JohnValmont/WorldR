@@ -49,7 +49,7 @@ const BOARD_POSITIONS = [
       "Oversee production line throughput & efficiency",
       "Coordinate procurement with production targets",
       "Manage factory maintenance schedules",
-      "Ensure operational KPIs are met each arc",
+      "Ensure operational KPIs are met each month",
     ],
     hint: "Coming soon — Operations automation",
   },
@@ -60,9 +60,9 @@ const BOARD_POSITIONS = [
     icon: "📊",
     color: "#f4b942",
     description:
-      "Commands all sales and market allocation strategy. When activated, the CSO reads your Market Intelligence data each arc and automatically distributes both your upcoming production vehicles and existing inventory across markets — prioritising markets where your brand awareness is highest and demand is strongest.",
+      "Commands all sales and market allocation strategy. When activated, the CSO reads your Market Intelligence data each month and automatically distributes both your upcoming production vehicles and existing inventory across markets — prioritising markets where your brand awareness is highest and demand is strongest.",
     responsibilities: [
-      "Analyse market demand signals each arc",
+      "Analyse market demand signals each month",
       "Auto-allocate inventory to markets by demand score",
       "Adjust marketing tiers based on brand awareness",
       "Maximise revenue per unit across all active markets",
@@ -82,7 +82,7 @@ const BOARD_POSITIONS = [
     responsibilities: [
       "Set and optimise marketing tiers per market",
       "Track brand awareness & trust movement",
-      "Approve advertising spend each arc",
+      "Approve advertising spend each month",
       "Design seasonal or launch-specific campaigns",
     ],
     hint: "Coming soon — Marketing automation",
@@ -129,7 +129,7 @@ const BOARD_POSITIONS = [
       "Manages the entire supply chain: raw material sourcing, component purchasing, supplier negotiations, and keeping procurement costs in line with production needs.",
     responsibilities: [
       "Manage component and materials sourcing",
-      "Optimise procurement spend each arc",
+      "Optimise procurement spend each month",
       "Identify supply chain bottlenecks",
       "Maintain procurement forecasts aligned with production",
     ],
@@ -494,7 +494,7 @@ export default function BoardDeskPanel({ companyId, companyName, staff, onRefres
                         </div>
                         <div style={{ fontSize: 11, color: "#777", lineHeight: 1.55 }}>
                           When the CSO is activated, they will read your Market
-                          Intelligence each arc and automatically distribute both
+                          Intelligence each month and automatically distribute both
                           your upcoming production units and existing inventory
                           across all markets, weighted by brand awareness, demand
                           strength, and existing market share. You will be able to

@@ -1200,13 +1200,22 @@ export class ManufacturingController {
         const { company } = await verifyManufacturingCompany(trx, userId, companyId);
         const clock = await trx('world_clock').first();
 
+        const boardRoles = ['ceo', 'cfo', 'coo', 'cso', 'cmo', 'cto', 'chro', 'cpo'];
+        const isBoardRole = boardRoles.includes(role);
+
         const existing = await trx('company_staff').where({ company_id: companyId, role }).forUpdate().first();
         if (existing) {
+          if (isBoardRole && existing.quantity + quantity > 1) {
+            throw new AppError(`Cannot hire more than one ${validRole.label}`, 400, 'BAD_REQUEST');
+          }
           await trx('company_staff').where({ id: existing.id }).update({
             quantity: existing.quantity + quantity,
             updated_at: trx.fn.now()
           });
         } else {
+          if (isBoardRole && quantity > 1) {
+            throw new AppError(`Cannot hire more than one ${validRole.label}`, 400, 'BAD_REQUEST');
+          }
           await trx('company_staff').insert({ company_id: companyId, role, quantity });
         }
 
