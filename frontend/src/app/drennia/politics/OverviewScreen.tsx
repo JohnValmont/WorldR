@@ -187,8 +187,8 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
   const bills: any[] = Array.isArray(billData?.bills) ? billData.bills : [];
   const floorBill = bills.find((b: any) => {
     const s = String(b?.status || '').toLowerCase();
-    return s.includes('floor') || s.includes('open') || s.includes('voting');
-  }) || bills[0];
+    return s === 'proposed'; // Only 'proposed' bills are live on the floor
+  }) || null;
   const ayes = floorBill?.tally?.yea ?? floorBill?.ayes ?? floorBill?.votes_for;
   const nays = floorBill?.tally?.nay ?? floorBill?.nays ?? floorBill?.votes_against;
 

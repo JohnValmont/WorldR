@@ -350,7 +350,6 @@ export async function updateFactionLoyalties(
   const party = await trx('pol_parties').where({ id: partyId }).first();
   if (!party) return;
 
-  const factions = await trx('pol_party_factions').where({ party_id: partyId, updated_arc: trx.raw('updated_arc') });
   const allFactions = await trx('pol_party_factions').where({ party_id: partyId });
 
   const platform = party.platform as Record<string, number>;
@@ -478,7 +477,16 @@ export async function getOrCreateCurrentCycle(stateId: string) {
     }).returning('*');
     cycle = inserted;
   }
-  
+
+  // Always re-derive phase from the current arc so stale DB rows self-heal
+  // without waiting for the next processPoliticalArc tick. This is safe because
+  // derivePhase is pure and deterministic given the cycle's arc boundaries.
+  const freshPhase = derivePhase(cycle, currentMonth);
+  if (cycle.phase !== freshPhase) {
+    await db('pol_cycles').where({ id: cycle.id }).update({ phase: freshPhase });
+    cycle = { ...cycle, phase: freshPhase };
+  }
+
   return cycle;
 }
 
@@ -496,9 +504,17 @@ export async function ensureCandidates(trx: any, cycleId: string) {
         .first();
         
       if (!existing) {
-        const seat = await trx('pol_council_seats')
-          .where({ party_id: party.id, state_id: cycle.state_id, constituency_id: constituency.id })
+        // Use ONLY the most-recent closed cycle for incumbency so that seats
+        // from elections two cycles ago don't wrongly mark a candidate as incumbent.
+        const prevCycleRow = await trx('pol_cycles')
+          .where({ state_id: cycle.state_id, status: 'closed' })
+          .orderBy('cycle_number', 'desc')
           .first();
+        const seat = prevCycleRow
+          ? await trx('pol_council_seats')
+              .where({ cycle_id: prevCycleRow.id, party_id: party.id, constituency_id: constituency.id })
+              .first()
+          : null;
 
         // For player parties, we might want to attach a character from the roster.
         // But for simplicity in v0.1, we'll just create generic NPC candidates to fill out their slate.
@@ -1239,11 +1255,17 @@ export async function createCoalitionAgreement(
   const existing = await trx('pol_coalition_agreements').where({ coalition_id: coalitionId }).first();
   if (existing) return;
 
-  // Build partner terms: each partner gets seats + their party name
+  // Build partner terms: each partner gets seats + their party name.
+  // Must filter by cycle_id — otherwise we'd sum seats across ALL past elections.
+  const coalitionRow = await trx('pol_coalitions').where({ id: coalitionId }).first();
+  const cycleIdForSeats = coalitionRow?.cycle_id || null;
+
   const partnerTerms = await Promise.all(
     partnerPartyIds.filter(id => id !== leadPartyId).map(async (partyId: string) => {
       const party = await trx('pol_parties').where({ id: partyId }).first();
-      const seats = await trx('pol_council_seats').where({ party_id: partyId }).count('* as c').first();
+      const seatsQuery = trx('pol_council_seats').where({ party_id: partyId });
+      if (cycleIdForSeats) seatsQuery.andWhere({ cycle_id: cycleIdForSeats });
+      const seats = await seatsQuery.count('* as c').first();
       return {
         party_id: partyId,
         name: party?.name ?? 'Unknown',
@@ -1424,10 +1446,14 @@ async function performCycleRollover(trx: any, oldCycle: any, currentMonth: numbe
   const pollingArc = startMonth + getTermMonthsForState(oldStateRow?.code);
   const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;
 
+  // A new cycle always begins in the governing phase: the election just concluded
+  // and the government is being (or has been) formed. The phase will stay
+  // 'governing' until startFiling approaches, at which point processPoliticalArc
+  // and getOrCreateCurrentCycle both re-derive it automatically.
   await trx('pol_cycles').insert({
     state_id: oldCycle.state_id,
     cycle_number: oldCycle.cycle_number + 1,
-    phase: 'closed', // Will be derived properly on next process
+    phase: 'governing',
     start_arc: startMonth,
     polling_arc: pollingArc,
     formation_end_arc: formationEndArc,
@@ -1467,7 +1493,16 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
 
     const npcParties = await trx('pol_parties').where({ state_id: stateId, is_npc: true });
     
-    const coalition = await trx('pol_coalitions').where({ cycle_id: cycleId }).whereIn('status', ['formed', 'minority']).first();
+    // Coalition lookup must use the same targetCycleId as the seat counts so that
+    // NPC auto-votes reflect the correct governing bloc. Fall back to the previous
+    // cycle when the fresh cycle has no coalition yet (post-rollover window).
+    let coalition = await trx('pol_coalitions').where({ cycle_id: targetCycleId }).whereIn('status', ['formed', 'minority']).first();
+    if (!coalition && currentCycle && currentCycle.cycle_number > 1 && targetCycleId === cycleId) {
+      const prevForCoalition = await trx('pol_cycles').where({ state_id: stateId, cycle_number: currentCycle.cycle_number - 1 }).first();
+      if (prevForCoalition) {
+        coalition = await trx('pol_coalitions').where({ cycle_id: prevForCoalition.id }).whereIn('status', ['formed', 'minority']).first();
+      }
+    }
     const parsedGovMembers = coalition ? (typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : (coalition.member_party_ids ?? {})) : {};
     const govMembers = parsedGovMembers.accepted || (Array.isArray(parsedGovMembers) ? parsedGovMembers : []);
 

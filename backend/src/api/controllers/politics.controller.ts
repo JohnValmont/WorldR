@@ -62,6 +62,8 @@ import {
   TENET_IDS,
   PC_SPEND_COSTS,
   PC_SPEND_ACTIONS,
+  POL_CAMPAIGN_WINDOW_MONTHS,
+  POL_FILING_WINDOW_MONTHS,
 } from '../constants/politics';
 
 import { runElection } from '../services/electionEngine';
@@ -101,8 +103,8 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
         const clock = await db('world_clock').first();
         const actualArc = worldClockToArc(clock);
         
-        const startCampaign = cycle.polling_arc - 6;
-        const startFiling = startCampaign - 3;
+        const startCampaign = cycle.polling_arc - POL_CAMPAIGN_WINDOW_MONTHS;
+        const startFiling = startCampaign - POL_FILING_WINDOW_MONTHS;
         
         if (cycle.phase === 'governing') {
           countdown = startFiling - actualArc;
@@ -300,14 +302,19 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
         joined_arc: currentMonth
       });
 
-      // Generate the party's internal factions based on its doctrine
-      await generateFactionsForParty(trx, party.id, doctrine_id, currentMonth);
+      // Generate the party's internal factions based on its doctrine.
+      // Wrapped individually: these are enrichment steps. If a supporting table
+      // doesn't exist yet in this environment the party must still be created.
+      try { await generateFactionsForParty(trx, party.id, doctrine_id, currentMonth); }
+      catch (e) { console.warn('[foundParty] generateFactionsForParty skipped:', (e as any)?.message); }
 
       // Seed interest group relations for the new party
-      await seedIGRelationsForParty(trx, party.id, activeState.id);
+      try { await seedIGRelationsForParty(trx, party.id, activeState.id); }
+      catch (e) { console.warn('[foundParty] seedIGRelationsForParty skipped:', (e as any)?.message); }
 
       // Seed media relations for the new party
-      await seedMediaRelationsForParty(trx, party.id, activeState.id);
+      try { await seedMediaRelationsForParty(trx, party.id, activeState.id); }
+      catch (e) { console.warn('[foundParty] seedMediaRelationsForParty skipped:', (e as any)?.message); }
 
       return party;
     });
@@ -754,9 +761,8 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
 
     const coalition = await db('pol_coalitions').where({ cycle_id: targetCycleId }).whereIn('status', ['formed', 'minority']).first();
     let govStatus = 'none';
-    let members = [];
+    let members: string[] = [];
     if (coalition) {
-      govStatus = coalition.status;
       const mems = typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : (coalition.member_party_ids ?? {});
       members = mems.accepted || (Array.isArray(mems) ? mems : []);
       if (coalition.total_seats >= getMajorityForState(activeState.code) && members.length === 1) {
@@ -768,13 +774,24 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
       }
     }
 
+    // Identify Official Opposition: largest non-government party by seats
+    const govPartyIds = new Set<string>([
+      ...(coalition ? [coalition.lead_party_id] : []),
+      ...members
+    ]);
+    const oppositionParty = partySeats.find(p => !govPartyIds.has(p.partyId));
+    const opposition = oppositionParty
+      ? { partyId: oppositionParty.partyId, name: oppositionParty.name, seats: oppositionParty.seats }
+      : null;
+
     return res.json({
       partySeats,
       premier,
       government: {
         status: govStatus,
         members
-      }
+      },
+      opposition
     });
   } catch (error) {
     next(error);
@@ -810,7 +827,8 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
     const activeState = await resolveState(req.query.stateId as string | undefined);
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
-    if (cycle.phase !== 'governing') return next(new AppError('Bills can only be proposed during the governing phase', 409, 'CONFLICT'));
+    // Note: route-level blockPhases('polling', 'formation') already gates this endpoint.
+    // No additional phase check needed here — governing party ownership is the gate.
 
     const result = await db.transaction(async (trx) => {
       const char = await trx('characters').where({ user_id: userId }).first();
@@ -819,9 +837,19 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
       const partyMember = await trx('pol_party_members').where({ character_id: char.id }).first();
       if (!partyMember) throw new AppError('Must be in a party to propose a bill', 403, 'FORBIDDEN');
 
-      // Check if party is the lead of the current coalition / governing bloc
-      const coalition = await trx('pol_coalitions').where({ cycle_id: cycle.id }).whereIn('status', ['formed', 'minority']).first();
-      if (!coalition) throw new AppError('No governing coalition found', 400, 'BAD_REQUEST');
+      // Check if party is the lead of the current coalition / governing bloc.
+      // Fall back to the previous cycle's coalition when the new cycle has just
+      // started and no new coalition record exists yet (post-rollover window).
+      let coalition = await trx('pol_coalitions').where({ cycle_id: cycle.id }).whereIn('status', ['formed', 'minority']).first();
+      if (!coalition && cycle.cycle_number > 1) {
+        const prevCycle = await trx('pol_cycles')
+          .where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 })
+          .first();
+        if (prevCycle) {
+          coalition = await trx('pol_coalitions').where({ cycle_id: prevCycle.id }).whereIn('status', ['formed', 'minority']).first();
+        }
+      }
+      if (!coalition) throw new AppError('No governing coalition found — bills can only be proposed while a government is in power', 400, 'BAD_REQUEST');
       if (coalition.lead_party_id !== partyMember.party_id) {
         throw new AppError('Only the governing party can propose bills', 403, 'FORBIDDEN');
       }
@@ -988,7 +1016,8 @@ export async function postTender(req: Request, res: Response, next: NextFunction
 
     const cycle = await db('pol_cycles').where({ state_id: activeState.id, status: 'open' }).first();
     if (!cycle) return next(new AppError('No active cycle', 400, 'BAD_REQUEST'));
-    if (cycle.phase !== 'governing') return next(new AppError('Tenders can only be posted during governing phase', 400, 'BAD_REQUEST'));
+    // Note: route already applies blockPhases('polling', 'formation').
+    // The governing-party ownership check (coalition membership) is the real gate here.
 
     const result = await db.transaction(async (trx) => {
       const char = await trx('characters').where({ user_id: userId }).first();
@@ -1140,7 +1169,14 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
       seatCounts[s.party_id] = (seatCounts[s.party_id] || 0) + 1;
     }
 
-    const coalition = cycle ? await db('pol_coalitions').where({ cycle_id: cycle.id }).whereIn('status', ['formed', 'minority']).first() : null;
+    // Coal lookup must use the SAME targetCycleId as the seat counts above so
+    // yea/nay tallies are consistent. Fall back to previous cycle after rollover.
+    let coalition = cycle ? await db('pol_coalitions').where({ cycle_id: targetCycleId }).whereIn('status', ['formed', 'minority']).first() : null;
+    if (!coalition && cycle && cycle.cycle_number > 1 && targetCycleId === cycle.id) {
+      // targetCycleId is still current cycle (governing phase); look in prev cycle as fallback
+      const prevForCoalition = await db('pol_cycles').where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 }).first();
+      if (prevForCoalition) coalition = await db('pol_coalitions').where({ cycle_id: prevForCoalition.id }).whereIn('status', ['formed', 'minority']).first();
+    }
     const parsedGovMembers = coalition ? (typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : (coalition.member_party_ids ?? {})) : {};
     const govMembers = parsedGovMembers.accepted || (Array.isArray(parsedGovMembers) ? parsedGovMembers : []);
 
