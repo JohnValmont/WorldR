@@ -441,6 +441,7 @@ export class WorldController {
           .select('m.id as model_id', 'm.name as model_name', 'c.name as company_name')
           .sum('r.units_sold as total_sold')
           .groupBy('m.id', 'm.name', 'c.name')
+          .havingRaw('SUM(r.units_sold) > 0')
           .orderByRaw('SUM(r.units_sold) DESC')
           .limit(10),
 
@@ -452,6 +453,7 @@ export class WorldController {
           .select('m.id as model_id', 'm.name as model_name', 'c.name as company_name')
           .sum('r.units_sold as total_sold')
           .groupBy('m.id', 'm.name', 'c.name')
+          .havingRaw('SUM(r.units_sold) > 0')
           .orderByRaw('SUM(r.units_sold) DESC')
           .limit(10),
 
