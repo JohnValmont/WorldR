@@ -1,7 +1,8 @@
 'use client';
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import useSWR from 'swr';
-import { politicsApi, characterApi } from '@/lib/api';
+import { politicsApi, characterApi, worldApi, authApi } from '@/lib/api';
+import { useAuthStore } from '@/store/auth.store';
 import { DEFAULT_JURISDICTION_ID, type JurisdictionId } from './_lib/session';
 import { T, MONO, HEADING, BODY } from './_lib/theme';
 import { JURISDICTION_MODEL } from './_lib/model';
@@ -18,6 +19,57 @@ import AssemblyScreen    from './AssemblyScreen';
 import PartyScreen       from './PartyScreen';
 import LobbyScreen       from './LobbyScreen';
 import LegacyScreen      from './LegacyScreen';
+
+function ForcePolTickBtn({ onTick }: { onTick: () => void }) {
+  const [isAdvancing, setIsAdvancing] = useState(false);
+  const [isAdminDynamic, setIsAdminDynamic] = useState(false);
+  const user = useAuthStore(state => state.user);
+  const isAdmin = user?.role === 'admin' || isAdminDynamic;
+
+  useEffect(() => {
+    authApi.me().then(res => setIsAdminDynamic(res.data.isAdmin)).catch(() => {});
+  }, []);
+
+  if (!isAdmin) return null;
+
+  const handleForcePolTick = async () => {
+    if (isAdvancing) return;
+    setIsAdvancing(true);
+    try {
+      const res = await worldApi.forcePoliticsTick();
+      const result = res?.data ?? res;
+      if (result?.data?.status === 'ticked' || result?.status === 'success') {
+        onTick();
+        return;
+      }
+      alert('Politics tick did not advance.');
+      onTick();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to advance politics tick');
+    } finally {
+      setIsAdvancing(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleForcePolTick}
+      disabled={isAdvancing}
+      style={{
+        background: isAdvancing ? 'rgba(255,255,255,0.03)' : `linear-gradient(135deg, #a78bfa, #7c3aed)`,
+        color: isAdvancing ? T.muted : '#fff',
+        border: `1px solid ${isAdvancing ? T.border : '#a78bfa'}`,
+        padding: '4px 10px', borderRadius: 4,
+        fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em',
+        fontWeight: 700, cursor: isAdvancing ? 'not-allowed' : 'pointer',
+        opacity: isAdvancing ? 0.7 : 1, whiteSpace: 'nowrap',
+        marginLeft: 8
+      }}
+    >
+      {isAdvancing ? 'PROCESSING...' : 'FORCE POL TICK'}
+    </button>
+  );
+}
 
 // Live countdown to the next in-game month tick
 function NextTick() {
@@ -226,6 +278,7 @@ export default function PoliticsDesk() {
               tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: BODY, lineHeight: 1.6 }}>Months remaining until the next general election cycle.</div>}
             />
           )}
+          <ForcePolTickBtn onTick={loadData} />
         </div>
       </header>
 
