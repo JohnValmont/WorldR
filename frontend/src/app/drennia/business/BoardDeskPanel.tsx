@@ -62,7 +62,7 @@ const BOARD_POSITIONS = [
     icon: "📊",
     color: "#f4b942",
     description:
-      "Commands all sales and market allocation strategy. When activated, the CSO reads your Market Intelligence data each arc and automatically distributes your available inventory across markets — prioritising markets where your brand awareness is highest and demand is strongest.",
+      "Commands all sales and market allocation strategy. When activated, the CSO reads your Market Intelligence data each arc and automatically distributes both your upcoming production vehicles and existing inventory across markets — prioritising markets where your brand awareness is highest and demand is strongest.",
     responsibilities: [
       "Analyse market demand signals each arc",
       "Auto-allocate inventory to markets by demand score",
@@ -471,11 +471,12 @@ export default function BoardDeskPanel({ companyName }: { companyName: string })
                         </div>
                         <div style={{ fontSize: 11, color: "#777", lineHeight: 1.55 }}>
                           When the CSO is activated, they will read your Market
-                          Intelligence each arc and automatically distribute your
-                          available inventory across all markets, weighted by brand
-                          awareness, demand strength, and existing market share.
-                          You will be able to review and override the suggested
-                          allocation before it is locked.
+                          Intelligence each arc and automatically distribute both
+                          your upcoming production units and existing inventory
+                          across all markets, weighted by brand awareness, demand
+                          strength, and existing market share. You will be able to
+                          review and override the suggested allocation before it
+                          is locked.
                         </div>
                       </div>
                     </div>
