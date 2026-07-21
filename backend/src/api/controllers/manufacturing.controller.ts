@@ -2765,7 +2765,7 @@ export class ManufacturingController {
           const estUnitsRaw = Math.floor(planTarget * condition);
           
           const planQuality = line.quality_setting || 'Standard';
-          const defectRate = planQuality === 'Premium' ? 0.01 : planQuality === 'Budget' ? 0.05 : 0.03;
+          const defectRate = QUALITY_DEFECT_RATES[planQuality] || 0.03;
           const estDefects = Math.floor(estUnitsRaw * defectRate);
           
           estProduction += Math.max(0, estUnitsRaw - estDefects);
