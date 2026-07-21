@@ -159,10 +159,7 @@ export async function getPerformance(companyId: string, requestingUserId: string
   }
 
   const dividends = await db('dividend_payments')
-    .where(function() {
-      this.where({ holder_company_id: companyId })
-          .orWhere({ holder_character_id: company.owner_character_id });
-    })
+    .where({ holder_company_id: companyId })
     .sum('amount as total')
     .first();
   const totalDividends = Number(dividends?.total || 0);
@@ -207,7 +204,7 @@ export async function recalcPortfolioValues(trx: any): Promise<void> {
               WHERE h.company_id = cs.company_id
               ORDER BY h.game_year DESC, h.game_month DESC
               LIMIT 1
-            ), 0)
+            ), cs.avg_cost_basis, 0)
           ), 0) as portfolio_value
         `)
       )

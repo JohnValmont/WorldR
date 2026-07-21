@@ -180,26 +180,28 @@ export const POL_POLICY_CONDITION_EFFECTS: Record<Axis, { low: ConditionDelta; m
   },
 };
 
+import { NationalStat } from './macroEconomy';
+
 // Per-bloc turnout sensitivity to Conditions (GDD $5 diagram: Turnout × Conditions).
 // Positive ⇒ the bloc turns out MORE as the condition rises above neutral. Keyed
 // by SEGMENTS[].key. The summed swing is clamped to ±POL_CONDITION_TURNOUT_MAX_SWING.
-export const POL_CONDITION_TURNOUT_SENSITIVITY: Record<string, Partial<Record<ConditionKey, number>>> = {
-  industrial_workers:      { jobs: +0.6, prosperity: +0.2, order: -0.1 },
-  logistics_trade_workers: { prosperity: +0.4, jobs: +0.3 },
-  factory_business_owners: { prosperity: +0.5, budget: +0.3, order: +0.2 },
-  civic_professionals:     { cohesion: +0.4, order: +0.2, prosperity: +0.2 },
-  suburban_families:       { order: +0.4, cohesion: +0.3, prosperity: +0.2 },
+export const POL_CONDITION_TURNOUT_SENSITIVITY: Record<string, Partial<Record<NationalStat, number>>> = {
+  industrial_workers:      { cost_of_living: -0.6, prosperity: +0.2, order_safety: -0.1 },
+  logistics_trade_workers: { prosperity: +0.4, cost_of_living: -0.3 },
+  factory_business_owners: { prosperity: +0.5, fiscal_health: +0.3, order_safety: +0.2 },
+  civic_professionals:     { equity: +0.4, order_safety: +0.2, prosperity: +0.2 },
+  suburban_families:       { order_safety: +0.4, equity: +0.3, prosperity: +0.2 },
 };
 export const POL_CONDITION_TURNOUT_MAX_SWING = 0.30; // turnout multiplier clamped to [0.70, 1.30]
 
 // Crisis thresholds (GDD $11). A condition at/below its threshold fires the crisis
 // deterministically from real state — no scripting. Each crisis dings the governing
 // party's credibility/treasury only (never the tuned election math).
-export const POL_CRISIS_THRESHOLDS: Record<string, { key: ConditionKey; at: number; headline: string; body: string }> = {
-  crisis_debt:     { key: 'budget',   at: 3, headline: 'DEBT CRISIS',      body: 'The treasury is stretched to breaking point as the budget deteriorates.' },
-  crisis_jobs:     { key: 'jobs',     at: 3, headline: 'CIVIL UNREST',     body: 'Mass unemployment drives workers into the streets in protest.' },
-  crisis_order:    { key: 'order',    at: 3, headline: 'PUBLIC UNREST',    body: 'Order breaks down as unrest spreads across the jurisdiction.' },
-  crisis_cohesion: { key: 'cohesion', at: 3, headline: 'RISING EXTREMISM', body: 'A fractured society sees extremist movements gain ground.' },
+export const POL_CRISIS_THRESHOLDS: Record<string, { key: NationalStat; at: number; headline: string; body: string }> = {
+  crisis_debt:     { key: 'fiscal_health',   at: 30, headline: 'DEBT CRISIS',      body: 'The treasury is stretched to breaking point as the budget deteriorates.' },
+  crisis_jobs:     { key: 'cost_of_living',  at: 30, headline: 'CIVIL UNREST',     body: 'Mass unemployment drives workers into the streets in protest.' },
+  crisis_order:    { key: 'order_safety',    at: 30, headline: 'LAWLESSNESS',      body: 'Organised crime and riots overwhelm the state apparatus.' },
+  crisis_cohesion: { key: 'equity',          at: 30, headline: 'SOCIAL FRACTURE',  body: 'Deep societal divides paralyze civic institutions.' },
 };
 export const POL_CRISIS_CREDIBILITY_HIT = 3;     // subtracted from the governing leader's credibility
 export const POL_CRISIS_TREASURY_HIT     = 10000; // subtracted from the governing party's treasury

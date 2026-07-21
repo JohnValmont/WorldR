@@ -10,9 +10,12 @@ import {
   POL_INCUMBENCY_BONUS,
   POL_BASE_TURNOUT,
   POL_COUNCIL_SEATS,
-  POL_VOTE_JITTER
+  POL_VOTE_JITTER,
+  POL_CONDITION_TURNOUT_SENSITIVITY,
+  POL_CONDITION_TURNOUT_MAX_SWING
 } from '../constants/politics';
-import { Conditions, conditionTurnoutMultiplier } from './conditions';
+import { NationalStats } from './nationalEconomy.service';
+import { NationalStat } from '../constants/macroEconomy';
 
 export interface EngineCandidate {
   candidateId: string;
@@ -27,7 +30,7 @@ export interface EngineCandidate {
 export interface EngineConstituency {
   id: string;
   registeredVoters: number;
-  conditions?: Conditions | null;
+  conditions: NationalStats | null;
 }
 
 export interface ElectionInput {
@@ -109,9 +112,10 @@ export function computeSegmentShares(candidates: EngineCandidate[], segment: Vot
 export function computeTurnout(
   segment: VoterSegment,
   candidates: EngineCandidate[],
-  conditions?: Conditions | null
+  conditions: NationalStats | null
 ): number {
   if (candidates.length === 0) return 0;
+
   let totalReach = 0;
   for (const c of candidates) {
     const effortInSegment = c.effortBySegment[segment.key] || 0;
@@ -119,8 +123,25 @@ export function computeTurnout(
   }
   const avgReach = totalReach / candidates.length;
   const base = POL_BASE_TURNOUT * (0.8 + 0.4 * avgReach);
-  // Conditions (GDD $5/$11) scale turnout per bloc; 1.0 when no conditions given.
-  return base * conditionTurnoutMultiplier(segment.key, conditions);
+  
+  // Conditions Turnout Multiplier
+  let mult = 1.0;
+  if (conditions) {
+    const sensitivity = POL_CONDITION_TURNOUT_SENSITIVITY[segment.key];
+    if (sensitivity) {
+      let swing = 0;
+      for (const [k, factor] of Object.entries(sensitivity)) {
+        const statKey = k as NationalStat;
+        const val = conditions[statKey] ?? 50;
+        // Deviation from neutral (50) on a scale of -5 to +5 to match the old 0-10 scale magnitude
+        const deviation = (val - 50) / 10;
+        swing += deviation * (factor as number);
+      }
+      swing = Math.max(-POL_CONDITION_TURNOUT_MAX_SWING, Math.min(POL_CONDITION_TURNOUT_MAX_SWING, swing));
+      mult = 1.0 + swing;
+    }
+  }
+  return base * mult;
 }
 
 export function computeVotesForConstituency(

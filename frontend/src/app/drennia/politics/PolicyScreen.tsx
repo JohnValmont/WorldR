@@ -3,6 +3,7 @@ import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
 import { JURISDICTIONS, type JurisdictionId } from './_lib/session';
 import { T, MONO, HEADING, SANS, stampStyle, glassPanelStyle } from './_lib/theme';
+import { POLICY_CATALOG, PolicyCategoryDef } from './_lib/macroEconomy';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
 import { Shield, FileText, Settings, ArrowRight, Zap, CheckCircle2 } from 'lucide-react';
 
@@ -100,40 +101,7 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
     }
   }
 
-  const policies = [
-    {
-      id: 'taxation',
-      title: 'Taxation Policy',
-      description: 'Determines national tax structure and overall budget efficiency.',
-      currentValue: activePolicies.taxation || 'standard',
-      options: ['tax_haven', 'progressive', 'flat_tax', 'standard'],
-      canPropose: !!myParty,
-    },
-    {
-      id: 'labor',
-      title: 'Labor Policy',
-      description: 'Regulates worker rights and impacts job security and corporate costs.',
-      currentValue: activePolicies.labor || 'regulated',
-      options: ['deregulated', 'strong_union', 'subsidized', 'regulated'],
-      canPropose: !!myParty,
-    },
-    {
-      id: 'environment',
-      title: 'Environment Policy',
-      description: 'Controls industrial pollution limits vs economic constraints.',
-      currentValue: activePolicies.environment || 'standard',
-      options: ['green_new_deal', 'balanced', 'unrestricted', 'standard'],
-      canPropose: !!myParty,
-    },
-    {
-      id: 'welfare',
-      title: 'Welfare Policy',
-      description: 'Determines the social safety net provided to citizens.',
-      currentValue: activePolicies.welfare || 'standard',
-      options: ['austerity', 'universal_healthcare', 'standard'],
-      canPropose: !!myParty,
-    }
-  ];
+  const policies = POLICY_CATALOG;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 24, fontFamily: SANS }}>
@@ -184,9 +152,8 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
                   <div style={{ flex: '1 1 260px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <FileText size={13} color={isProposing ? T.blueBright : T.muted} />
-                      <span style={{ color: isProposing ? T.ivory : T.text, fontWeight: 600, fontSize: 14, fontFamily: HEADING }}>{pol.title}</span>
+                      <span style={{ color: isProposing ? T.ivory : T.text, fontWeight: 600, fontSize: 14, fontFamily: HEADING }}>{pol.name}</span>
                     </div>
-                    <div style={{ color: T.faint, fontSize: 12, lineHeight: 1.5 }}>{pol.description}</div>
                   </div>
 
                   {/* Badges */}
@@ -194,15 +161,15 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <span style={{ color: T.muted, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>In Force</span>
                       <span style={{ background: `${T.blueLine}15`, border: `1px solid ${T.blueLine}40`, color: T.blueBright, padding: '4px 8px', borderRadius: 4, fontSize: 11, fontFamily: MONO, fontWeight: 700, textShadow: `0 0 12px ${T.blueBright}80` }}>
-                        {pol.currentValue.replace(/_/g, ' ').toUpperCase()}
+                        {(pol.options.find(o => o.id === activePolicies[pol.id])?.name || activePolicies[pol.id] || 'None').toUpperCase()}
                       </span>
                     </div>
                   </div>
 
                   {/* Actions */}
                   <div style={{ flex: '0 0 120px', display: 'flex', justifyContent: 'flex-end' }}>
-                    {pol.canPropose && !isProposing && (
-                      <OledBtn label="Propose" tone={T.blueBright} onClick={() => { setActiveProposal(pol.id); setTargetOption(pol.currentValue); setErr(null); }} />
+                    {!!myParty && !isProposing && (
+                      <OledBtn label="Propose" tone={T.blueBright} onClick={() => { setActiveProposal(pol.id); setTargetOption(activePolicies[pol.id]); setErr(null); }} />
                     )}
                     {isProposing && (
                       <button onClick={() => setActiveProposal(null)} style={{
@@ -228,35 +195,35 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
                     </div>
                     
                     <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-                      {/* Options Selector */}
-                      <div style={{ flex: 1, display: 'flex', gap: 12 }}>
-                        {pol.options.map(opt => (
-                          <div 
-                            key={opt}
-                            onClick={() => setTargetOption(opt)}
-                            style={{
-                              flex: 1, padding: '12px 16px', borderRadius: 8, cursor: 'pointer',
-                              border: targetOption === opt ? `1px solid ${T.gold}` : `1px solid rgba(255,255,255,0.1)`,
-                              background: targetOption === opt ? 'rgba(255,215,0,0.1)' : 'rgba(0,0,0,0.3)',
-                              color: targetOption === opt ? T.gold : T.ivory,
-                              fontFamily: MONO, fontSize: 11, fontWeight: 700, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em',
-                              transition: 'all 0.2s'
-                            }}
-                          >
-                            {opt.replace(/_/g, ' ')}
+                      {!!myParty && isProposing && (
+                        <div style={{ padding: '16px 18px', borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.2)' }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                            {pol.options.map(opt => (
+                              <button key={opt.id} onClick={() => setTargetOption(opt.id)}
+                                style={{
+                                  padding: '8px 12px', borderRadius: 6,
+                                  background: targetOption === opt.id ? `${T.blueBright}20` : 'rgba(255,255,255,0.03)',
+                                  border: `1px solid ${targetOption === opt.id ? T.blueBright : 'rgba(255,255,255,0.1)'}`,
+                                  color: targetOption === opt.id ? T.ivory : T.muted,
+                                  fontSize: 12, fontWeight: targetOption === opt.id ? 700 : 500,
+                                  cursor: 'pointer'
+                                }}>
+                                {opt.name.toUpperCase()}
+                              </button>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      )}
                       
                       {/* Submit Module */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: 160 }}>
                         <OledBtn 
-                          label={busy === 'propose' ? 'Drafting...' : 'Submit to Floor'} 
-                          icon={busy === 'propose' ? undefined : Zap}
+                          label={busy === 'propose' ? 'Proposing...' : 'Submit Policy Reform'} 
+                          icon={busy === 'propose' ? undefined : CheckCircle2}
                           tone={T.gold} 
                           primary 
                           onClick={() => propose(pol.id)} 
-                          disabled={busy === 'propose' || targetOption === pol.currentValue} 
+                          disabled={busy === 'propose' || targetOption === activePolicies[pol.id]} 
                         />
                         {err && <div style={{ color: T.red, fontSize: 11, fontFamily: MONO, textAlign: 'center' }}>{err}</div>}
                       </div>

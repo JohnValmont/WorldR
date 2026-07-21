@@ -68,7 +68,7 @@ import {
 
 import { runElection } from '../services/electionEngine';
 import { buildPulse } from '../services/politics.pulse';
-import { readConditionsFromRow } from '../services/conditions';
+import { readNationalStatsFromRow } from '../services/nationalEconomy.service';
 import { safeParseJSON } from '../../utils/json';
 
 /** Resolve a pol_state row by optional stateId (which is actually the state code), falling back to the active state. */
@@ -160,7 +160,7 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
       // Election-schedule summary (electionArc, monthsToElection, phase timeline).
       cycle: cycleSummary,
       // Jurisdiction Conditions (GDD $11) — normalized 0–10 indicators for the UI.
-      conditions: activeState ? readConditionsFromRow(activeState) : null,
+      conditions: activeState ? readNationalStatsFromRow(activeState) : null,
       globalParty
     });
   } catch (error) {
@@ -408,7 +408,7 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
     const clock = await db('world_clock').first();
     const actualArc = worldClockToArc(clock);
     
-    const conditions = await readConditionsFromRow(activeState);
+    const conditions = await readNationalStatsFromRow(activeState);
     const constituenciesRows = await db('pol_constituencies').where({ state_id: activeState.id });
     const engineConstituencies = constituenciesRows.map(r => ({
       id: r.id,
@@ -1951,6 +1951,7 @@ export async function setCampaignStrategyHandler(req: Request, res: Response, ne
 
       const membership = await trx('pol_party_members').where({ character_id: character.id }).first();
       if (!membership) throw new AppError('You must be in a party', 403, 'FORBIDDEN');
+      if (membership.role !== 'leader') throw new AppError('Only the Party Leader can set campaign strategy', 403, 'FORBIDDEN');
 
       const activeState = await trx('pol_states').where({ is_active: true }).first();
       if (!activeState) throw new AppError('No active state', 404, 'NOT_FOUND');

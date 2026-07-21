@@ -90,7 +90,7 @@ import {
 } from '../constants/politics';
 import { EngineCandidate, runElection } from './electionEngine';
 import { fireGoverningEvent, fireConditionCrises } from './governingEvents';
-import { Conditions, computeConditionTargets, driftConditions, readConditionsFromRow } from './conditions';
+import { NationalStats, readNationalStatsFromRow, calculateNationalEconomy, enactPolicy } from './nationalEconomy.service';
 import { safeParseJSON } from '../../utils/json';
 
 /**
@@ -604,87 +604,20 @@ export async function buildEngineCandidates(trx: any, cycleId: string, maxArc?: 
   return engineCandidates;
 }
 
-/** Fetch the current Conditions for a state (falls back to neutral if unseeded). */
-export async function getStateConditions(trx: any, stateId: string): Promise<Conditions> {
+export async function getStateConditions(trx: any, stateId: string): Promise<NationalStats> {
   const state = await trx('pol_states').where({ id: stateId }).first();
-  return readConditionsFromRow(state);
-}
-
-/** The governing party's active-policy platform (premier's party), or null if no government. */
-async function resolveGoverningPlatform(trx: any, stateId: string): Promise<Record<string, number> | null> {
-  const premierSeat = await trx('pol_offices').where({ state_id: stateId, office: 'premier' }).first();
-  if (!premierSeat?.party_id) return null;
-  const party = await trx('pol_parties').where({ id: premierSeat.party_id }).first();
-  if (!party?.platform) return null;
-  return typeof party.platform === 'string' ? safeParseJSON(party.platform) : party.platform;
+  return readNationalStatsFromRow(state);
 }
 
 /**
  * Drift a state's Conditions toward the target implied by the governing party's
- * active policy (GDD $11/$16). Deterministic and idempotent per in-game month:
- * cond_updated_arc guards against running twice for the same month.
+ * active policy. Now handled by the V1 Final Macro-Economy engine.
  */
-import { POLICY_DEFINITIONS, PolicyCategory } from '../constants/policies';
-
 export async function applyConditionDrift(trx: any, stateId: string, currentMonth: number) {
   const state = await trx('pol_states').where({ id: stateId }).first();
   if (!state) return;
-  if (Number(state.cond_updated_arc ?? 0) >= currentMonth) return; // already drifted this month
-
-  const platform = await resolveGoverningPlatform(trx, stateId);
-  const existingPolicy = await trx('pol_state_policy').where({ state_id: stateId }).first();
-  const legislatedPolicy = existingPolicy?.policy_platform || {};
-  const activePolicies = existingPolicy?.active_policies 
-    ? (typeof existingPolicy.active_policies === 'string' ? safeParseJSON(existingPolicy.active_policies) : existingPolicy.active_policies) 
-    : {};
-  const effectivePlatform = { ...platform, ...legislatedPolicy };
-  
-  const current = readConditionsFromRow(state);
-  const targets = computeConditionTargets(effectivePlatform as any);
-  let next = driftConditions(current, targets);
-
-  // Stats base values
-  let stat_gdp = Number(state.stat_gdp || 1000000.00);
-  let stat_unemployment = Number(state.stat_unemployment || 5.00);
-  let stat_pollution = Number(state.stat_pollution || 50.00);
-  let stat_per_capita = Number(state.stat_per_capita || 45000.00);
-  let stat_tax_revenue = Number(state.stat_tax_revenue || 150000.00);
-
-  // Apply active policies modifiers
-  for (const [category, option] of Object.entries(activePolicies)) {
-    const mods = POLICY_DEFINITIONS[category as PolicyCategory]?.[option as string];
-    if (mods) {
-      if (mods.stat_gdp) stat_gdp *= mods.stat_gdp;
-      if (mods.stat_unemployment) stat_unemployment += mods.stat_unemployment;
-      if (mods.stat_pollution) stat_pollution *= mods.stat_pollution;
-      if (mods.stat_per_capita) stat_per_capita *= mods.stat_per_capita;
-      if (mods.stat_tax_revenue) stat_tax_revenue *= mods.stat_tax_revenue;
-      
-      if (mods.cond_jobs) next.jobs = Math.max(0, Math.min(100, next.jobs + mods.cond_jobs));
-      if (mods.cond_prosperity) next.prosperity = Math.max(0, Math.min(100, next.prosperity + mods.cond_prosperity));
-      if (mods.cond_order) next.order = Math.max(0, Math.min(100, next.order + mods.cond_order));
-      if (mods.cond_cohesion) next.cohesion = Math.max(0, Math.min(100, next.cohesion + mods.cond_cohesion));
-      if (mods.cond_budget) next.budget = Math.max(0, Math.min(100, next.budget + mods.cond_budget));
-    }
-  }
-  
-  // Ensure stats don't go negative or break logic
-  stat_unemployment = Math.max(1, Math.min(30, stat_unemployment));
-  stat_pollution = Math.max(0, stat_pollution);
-
-  await trx('pol_states').where({ id: stateId }).update({
-    cond_prosperity: next.prosperity,
-    cond_jobs: next.jobs,
-    cond_order: next.order,
-    cond_cohesion: next.cohesion,
-    cond_budget: next.budget,
-    cond_updated_arc: currentMonth,
-    stat_gdp,
-    stat_unemployment,
-    stat_pollution,
-    stat_per_capita,
-    stat_tax_revenue
-  });
+  // We use currentMonth as the uniqueness check for idempotency on ticks if needed, but calculateNationalEconomy can be run idempotently since it just computes from enacted_month
+  await calculateNationalEconomy(trx, stateId, currentMonth, true);
 }
 
 export async function processPoliticalArc(trx: any, stateId: string, currentMonth: number) {
@@ -730,8 +663,7 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
   // Legacy: longevity increments + economic drift (runs after all other processors)
   await processLegacyForState(trx, stateId, currentMonth);
 
-  // Jurisdiction Conditions (GDD $11): drift toward the governing policy's target,
-  // then fire any deterministic crisis events. Both run every month, phase-agnostic.
+  // National stats update via V1 Final Macro-Economy engine.
   await applyConditionDrift(trx, stateId, currentMonth);
   await fireConditionCrises(trx, stateId, currentMonth);
 
@@ -836,7 +768,7 @@ async function runNpcCampaignBrain(trx: any, stateId: string, cycleId: string, c
   const engineConstituencies = constituenciesRows.map((r: any) => ({
     id: r.id,
     registeredVoters: r.registered_voters || 80000,
-    conditions: readConditionsFromRow(state)
+    conditions: readNationalStatsFromRow(state)
   }));
   
   const projection = runElection({
@@ -931,7 +863,7 @@ async function resolveElection(trx: any, cycleId: string) {
   const cycle = await trx('pol_cycles').where({ id: cycleId }).first();
   const engineCands = await buildEngineCandidates(trx, cycleId);
   const state = await trx('pol_states').where({ id: cycle.state_id }).first();
-  const conditions = readConditionsFromRow(state);
+  const conditions = readNationalStatsFromRow(state);
   
   const constituenciesRows = await trx('pol_constituencies').where({ state_id: cycle.state_id });
   const engineConstituencies = constituenciesRows.map((r: any) => ({

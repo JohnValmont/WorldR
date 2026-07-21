@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { T, MONO, HEADING, BODY } from '../_lib/theme';
 
 export type PoliticsSection =
-  | 'overview' | 'nation' | 'party' | 'elections' | 'legislature' | 'policy' | 'assembly' | 'lobby' | 'legacy';
+  | 'overview' | 'nation' | 'development' | 'party' | 'elections' | 'legislature' | 'policy' | 'assembly' | 'lobby' | 'legacy';
 
 function Icon({ name }: { name: PoliticsSection }) {
   const c = {
@@ -14,6 +14,7 @@ function Icon({ name }: { name: PoliticsSection }) {
   switch (name) {
     case 'overview':    return (<svg {...c}><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>);
     case 'nation':      return (<svg {...c}><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>);
+    case 'development': return (<svg {...c}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>);
     case 'party':       return (<svg {...c}><path d="M4 22V4"/><path d="M4 5h11l-1.6 4L15 13H4"/></svg>);
     case 'elections':   return (<svg {...c}><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8.5 12 2 2 4.5-4.5"/></svg>);
     case 'legislature': return (<svg {...c}><path d="M3 21h18"/><path d="M5 21V10M9 21V10M15 21V10M19 21V10"/><path d="M3 10 12 4l9 6"/></svg>);
@@ -26,7 +27,7 @@ function Icon({ name }: { name: PoliticsSection }) {
 }
 
 const GROUPS: Array<{ label: string; items: Array<{ id: PoliticsSection; label: string }> }> = [
-  { label: 'Command', items: [{ id: 'overview', label: 'Command Center' }, { id: 'nation', label: 'Nation' }] },
+  { label: 'Command', items: [{ id: 'overview', label: 'Command Center' }, { id: 'nation', label: 'Nation' }, { id: 'development', label: 'Development' }] },
   { label: 'Politics', items: [{ id: 'party', label: 'Party' }, { id: 'elections', label: 'Elections' }, { id: 'legislature', label: 'Legislature' }, { id: 'assembly', label: 'Assembly' }] },
   { label: 'Governance', items: [{ id: 'policy', label: 'Policy' }, { id: 'lobby', label: 'Lobby' }] },
   { label: 'Character', items: [{ id: 'legacy', label: 'Legacy' }] },

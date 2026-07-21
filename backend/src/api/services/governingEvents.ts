@@ -16,7 +16,17 @@ import {
   POL_CRISIS_CREDIBILITY_HIT,
   POL_CRISIS_TREASURY_HIT,
 } from '../constants/politics';
-import { readConditionsFromRow, detectCrises } from './conditions';
+import { readNationalStatsFromRow, NationalStats } from './nationalEconomy.service';
+
+function detectCrises(stats: NationalStats): string[] {
+  const active: string[] = [];
+  for (const [kind, spec] of Object.entries(POL_CRISIS_THRESHOLDS)) {
+    if ((stats as any)[spec.key] <= spec.at) {
+      active.push(kind);
+    }
+  }
+  return active;
+}
 
 /** Resolves which character holds the Premier seat for a state. Returns null if none. */
 async function resolvePremierCharacter(trx: any, stateId: string): Promise<any | null> {
@@ -151,7 +161,7 @@ export async function fireConditionCrises(
   const state = await trx('pol_states').where({ id: stateId }).first();
   if (!state) return;
 
-  const conditions = readConditionsFromRow(state);
+  const conditions = readNationalStatsFromRow(state);
   const active = detectCrises(conditions);
   if (active.length === 0) return;
 

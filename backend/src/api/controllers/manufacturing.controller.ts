@@ -2757,13 +2757,13 @@ export class ManufacturingController {
       let newIncome = Math.floor(Number(market.average_income) * incomeGrowthMultiplier);
       
       // Apply the same multiplier to the economic_multiplier (which represents GDP per capita conceptually)
-      let newEconMult = Math.floor(Number(market.economic_multiplier) * incomeGrowthMultiplier);
+      let newEconMult = parseFloat((Number(market.economic_multiplier) * incomeGrowthMultiplier).toFixed(3));
       
       // Safety bounds for income
       if (newIncome < 5000) newIncome = 5000;
       if (newIncome > 150000) newIncome = 150000;
-      if (newEconMult < 5000) newEconMult = 5000;
-      if (newEconMult > 150000) newEconMult = 150000;
+      if (newEconMult < 0.2) newEconMult = 0.2;
+      if (newEconMult > 10.0) newEconMult = 10.0;
 
       await trx('manufacturing_region_markets').where({ id: market.id }).update({
         population: newPopulation,
@@ -2962,10 +2962,23 @@ export class ManufacturingController {
 
         for (const alloc of modelAllocs) {
           const score = demandScores.get(alloc.region_market_id) || 0;
-          const proportion = totalDemandScore > 0 ? score / totalDemandScore : 1 / modelAllocs.length;
           
-          // Allocate proportionally
-          const target = Math.floor(totalSupply * proportion);
+          let target = 0;
+          const cappedDemand = Math.ceil(score * 1.15); // 15% buffer for variance
+
+          if (totalSupply >= totalDemandScore * 1.15) {
+            // Abundant supply: allocate exactly what is expected + buffer
+            target = cappedDemand;
+          } else {
+            // Constrained supply: allocate proportionally
+            const proportion = totalDemandScore > 0 ? score / totalDemandScore : 1 / modelAllocs.length;
+            target = Math.floor(totalSupply * proportion);
+          }
+          
+          // Absolute fallback if everything is 0
+          if (target === 0 && totalSupply > 0 && totalDemandScore === 0) {
+             target = Math.floor(totalSupply / modelAllocs.length);
+          }
           
           await trx('manufacturing_market_allocations')
             .where({ id: alloc.id })

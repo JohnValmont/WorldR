@@ -214,14 +214,20 @@ function FactionPanel({ partyId, onSpendPc }: { partyId: string; onSpendPc?: (ac
                 <div style={{ width: `${loyalty}%`, height: '100%', background: tone, transition: 'width 0.6s ease' }} />
               </div>
               {/* Demand */}
-              {f.demand_payload && (
-                <div style={{ marginTop: 6, color: T.faint, fontSize: 10, fontFamily: MONO }}>
-                  {f.demand_type === 'policy_axis' && f.demand_payload.axis && `Demands: ${String(f.demand_payload.axis).charAt(0).toUpperCase() + String(f.demand_payload.axis).slice(1)} ${f.demand_payload.direction === 'raise' ? '▲' : '▼'}`}
-                  {f.demand_type === 'ministry_seat' && f.demand_payload.ministry && `Demands: ${String(f.demand_payload.ministry)} ministry seat`}
-                  {f.demand_type === 'leadership_change' && 'Demands: Leadership change'}
-                  {f.demand_type === 'autonomy' && 'Demands: Internal voting autonomy'}
-                </div>
-              )}
+              {f.demand_payload && (() => {
+                let payload = f.demand_payload;
+                if (typeof payload === 'string') {
+                  try { payload = JSON.parse(payload); } catch { return null; }
+                }
+                return (
+                  <div style={{ marginTop: 6, color: T.faint, fontSize: 10, fontFamily: MONO }}>
+                    {f.demand_type === 'policy_axis' && payload.axis && `Demands: ${String(payload.axis).charAt(0).toUpperCase() + String(payload.axis).slice(1)} ${payload.direction === 'raise' ? '▲' : '▼'}`}
+                    {f.demand_type === 'ministry_seat' && payload.ministry && `Demands: ${String(payload.ministry)} ministry seat`}
+                    {f.demand_type === 'leadership_change' && 'Demands: Leadership change'}
+                    {f.demand_type === 'autonomy' && 'Demands: Internal voting autonomy'}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
@@ -389,7 +395,7 @@ const STRATEGY_META: Record<string, { label: string; tagline: string; effort: st
   insurgent:   { label: 'Insurgent',        tagline: 'High energy, low budget',       effort: '×1.10', budget: '×0.50', reach: '+0.8/arc', accentColor: '#fb923c' },
 };
 
-function CampaignPanel({ partyId, onRefresh }: { partyId: string; onRefresh: () => void }) {
+function CampaignPanel({ partyId, isLeader, onRefresh }: { partyId: string; isLeader: boolean; onRefresh: () => void }) {
   const [data, setData] = useState<{ campaign: any; cycle: any } | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -530,7 +536,7 @@ function CampaignPanel({ partyId, onRefresh }: { partyId: string; onRefresh: () 
             const isActive = key === strategy;
             return (
               <button key={key}
-                disabled={busy || isActive}
+                disabled={busy || isActive || !isLeader}
                 onClick={() => changeStrategy(key)}
                 title={`${sm.tagline} | Effort ${sm.effort} · Budget ${sm.budget} · Reach ${sm.reach}`}
                 style={{
@@ -557,14 +563,14 @@ function CampaignPanel({ partyId, onRefresh }: { partyId: string; onRefresh: () 
         </div>
       </div>
 
-      {/* Budget allocation */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 20, opacity: isLeader ? 1 : 0.5 }}>
         <span style={{ fontFamily: MONO, fontSize: 10, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em', whiteSpace: 'nowrap' }}>Allocate Budget</span>
         <input
           type="number"
           value={budgetInput}
           onChange={e => setBudgetInput(e.target.value)}
-          placeholder="Amount from treasury"
+          placeholder={isLeader ? "Amount from treasury" : "Leader only"}
+          disabled={!isLeader}
           style={{
             flex: 1, padding: '8px 12px', background: 'rgba(0,0,0,0.4)',
             border: `1px solid ${T.border}`, borderRadius: 5,
@@ -572,7 +578,7 @@ function CampaignPanel({ partyId, onRefresh }: { partyId: string; onRefresh: () 
           }}
         />
         <button
-          disabled={busy || !budgetInput}
+          disabled={busy || !budgetInput || !isLeader}
           onClick={allocateBudget}
           style={{
             padding: '8px 16px', borderRadius: 5,
@@ -633,7 +639,7 @@ const IDEOLOGY_ICON: Record<string, string> = {
   neutral: '◈',
 };
 
-function InterestGroupPanel({ partyId, onRefresh }: { partyId: string; onRefresh: () => void }) {
+function InterestGroupPanel({ partyId, isLeader, onRefresh }: { partyId: string; isLeader: boolean; onRefresh: () => void }) {
   const [data, setData] = useState<any[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -795,14 +801,14 @@ function InterestGroupPanel({ partyId, onRefresh }: { partyId: string; onRefresh
                   {/* Action buttons */}
                   <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                     <button
-                      disabled={!!busy}
+                      disabled={!!busy || !isLeader}
                       onClick={() => outreach(g.group_id)}
                       style={{
                         padding: '6px 14px', borderRadius: 4,
                         background: `${em.color}10`, border: `1px solid ${em.color}40`,
                         color: em.color, fontSize: 9, fontFamily: MONO, letterSpacing: '0.08em',
-                        textTransform: 'uppercase', cursor: busy ? 'not-allowed' : 'pointer',
-                        opacity: busy ? 0.5 : 1, transition: 'opacity 0.2s',
+                        textTransform: 'uppercase', cursor: (busy || !isLeader) ? 'not-allowed' : 'pointer',
+                        opacity: (busy || !isLeader) ? 0.5 : 1, transition: 'opacity 0.2s',
                       }}>
                       {busy === g.group_id + 'out' ? '…' : 'Outreach · 3 AP'}
                     </button>
@@ -858,7 +864,7 @@ const BIAS_COLOR: Record<string, string> = {
   neutral:  'rgba(255,255,255,0.3)',
 };
 
-function MediaPanel({ partyId, onRefresh }: { partyId: string; onRefresh: () => void }) {
+function MediaPanel({ partyId, isLeader, onRefresh }: { partyId: string; isLeader: boolean; onRefresh: () => void }) {
   const [outlets, setOutlets] = useState<any[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -973,9 +979,9 @@ function MediaPanel({ partyId, onRefresh }: { partyId: string; onRefresh: () => 
                 <div style={{ padding: '0 13px 12px', borderTop: `1px solid ${sm.color}12` }}>
                   <div style={{ color: T.faint, fontSize: 10, fontFamily: MONO, margin: '8px 0 10px' }}>{sm.popEffect}</div>
                   <button
-                    disabled={!!busy}
+                    disabled={!!busy || !isLeader}
                     onClick={() => exclusive(o.outlet_id)}
-                    style={{ padding: '5px 12px', borderRadius: 4, background: `${sm.color}0e`, border: `1px solid ${sm.color}35`, color: sm.color, fontSize: 9, fontFamily: MONO, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.5 : 1 }}>
+                    style={{ padding: '5px 12px', borderRadius: 4, background: `${sm.color}0e`, border: `1px solid ${sm.color}35`, color: sm.color, fontSize: 9, fontFamily: MONO, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: (busy || !isLeader) ? 'not-allowed' : 'pointer', opacity: (busy || !isLeader) ? 0.5 : 1 }}>
                     {busy === o.outlet_id + 'excl' ? '…' : 'Exclusive Interview · 3 AP'}
                   </button>
                 </div>
@@ -1082,7 +1088,11 @@ function NewsFeedPanel() {
 export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, overview, character, parties, myAp, myPc, onRefresh }: Props) {
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
-  const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
+  const globalPartyId = overview?.globalParty?.id;
+  const myParty = Array.isArray(parties) && globalPartyId 
+    ? parties.find((p: any) => p.id === globalPartyId) 
+    : undefined;
+  const isLeader = myParty && character && myParty.leader_character_id === character.id;
 
   const [name, setName] = useState('');
   const [abbreviation, setAbbreviation] = useState('');
@@ -1244,18 +1254,18 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           <ScandalPanel onRefresh={onRefresh} />
 
           {/* Campaign Command HQ */}
-          <CampaignPanel partyId={myParty.id} onRefresh={onRefresh} />
+          <CampaignPanel partyId={myParty.id} isLeader={!!isLeader} onRefresh={onRefresh} />
 
           {/* Interest Groups */}
-          <InterestGroupPanel partyId={myParty.id} onRefresh={onRefresh} />
+          <InterestGroupPanel partyId={myParty.id} isLeader={!!isLeader} onRefresh={onRefresh} />
 
           {/* Media Landscape */}
-          <MediaPanel partyId={myParty.id} onRefresh={onRefresh} />
+          <MediaPanel partyId={myParty.id} isLeader={!!isLeader} onRefresh={onRefresh} />
 
           {/* News Feed */}
           <NewsFeedPanel />
 
-          <Panel title="Roster" action={<Btn label={busy ? '…' : 'Recruit Candidate'} onClick={recruit} disabled={busy} />}>
+          <Panel title="Roster" action={isLeader ? <Btn label={busy ? '…' : 'Recruit Candidate'} onClick={recruit} disabled={busy} /> : undefined}>
             <div style={{ color: T.muted, fontSize: 14 }}>
               Bench: <span style={{ color: T.ivory, fontWeight: 600 }}>{myParty.member_count ?? myParty.members?.length ?? myParty.roster?.length ?? 0}</span> candidate(s).
               Recruiting pulls in an NPC loosely aligned to your platform.

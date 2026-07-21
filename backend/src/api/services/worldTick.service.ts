@@ -185,8 +185,9 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       const newMonth = month === 12 ? 1 : month + 1;
       const newYear = month === 12 ? year + 1 : year;
       const intervalMs = (clock.real_seconds_per_month || 28800) * 1000;
-      // Drift-free schedule: anchor to the previous deadline unless forced or badly behind
-      const anchor = !opts.force && nextClose > 0 && now - nextClose < intervalMs ? nextClose : now;
+      // Drift-free schedule: allow catching up to MAX_CATCHUP_TICKS before resetting the anchor
+      const maxCatchupMs = MAX_CATCHUP_TICKS * intervalMs;
+      const anchor = !opts.force && nextClose > 0 && now - nextClose < maxCatchupMs ? nextClose : now;
       const monthStartedAt = new Date(anchor);
       const nextArcCloseAt = new Date(anchor + intervalMs);
 
@@ -317,7 +318,8 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
       const newMonth = month === 12 ? 1 : month + 1;
       const newYear = month === 12 ? year + 1 : year;
       const intervalMs = (clock.pol_real_seconds_per_month || 86400) * 1000;
-      const anchor = !opts.force && nextClose > 0 && now - nextClose < intervalMs ? nextClose : now;
+      const maxCatchupMs = MAX_CATCHUP_TICKS * intervalMs;
+      const anchor = !opts.force && nextClose > 0 && now - nextClose < maxCatchupMs ? nextClose : now;
       const monthStartedAt = new Date(anchor);
       const nextArcCloseAt = new Date(anchor + intervalMs);
 

@@ -19,6 +19,7 @@ import AssemblyScreen    from './AssemblyScreen';
 import PartyScreen       from './PartyScreen';
 import LobbyScreen       from './LobbyScreen';
 import LegacyScreen      from './LegacyScreen';
+import DevelopmentScreen from './DevelopmentScreen';
 
 function ForcePolTickBtn({ onTick }: { onTick: () => void }) {
   const [isAdvancing, setIsAdvancing] = useState(false);
@@ -332,6 +333,8 @@ export default function PoliticsDesk() {
               <OverviewScreen overview={overview} character={character} parties={parties} myAp={myAp} selectedJurisdictionId={selectedJurisdictionId} onNavigate={setActiveSection} onRefresh={loadData} />
             ) : activeSection === 'nation' ? (
               <NationScreen selectedJurisdictionId={selectedJurisdictionId} onJurisdictionChange={setSelectedJurisdictionId} jurisdictionMeta={jurisdictionMeta} overview={overview} ledger={ledger} />
+            ) : activeSection === 'development' ? (
+              <DevelopmentScreen overview={overview} jurisdictionMeta={jurisdictionMeta} />
             ) : activeSection === 'elections' ? (
               <ElectionsScreen {...commonProps} />
             ) : activeSection === 'legislature' ? (
