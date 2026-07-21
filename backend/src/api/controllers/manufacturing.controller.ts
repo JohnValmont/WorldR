@@ -2794,12 +2794,23 @@ export class ManufacturingController {
           const awareness = brandRow ? Number(brandRow.awareness) : 0;
           const trust = brandRow ? Number(brandRow.reputation) : 0;
           
-          const pop = Number(market.population);
-          const econ = Number(market.economic_multiplier);
-          
-          // Heuristic: Base market size weighted by awareness and trust
-          const baseCap = (pop / 1000) * econ;
-          const score = baseCap * (0.1 + (awareness / 100)) * (0.2 + (trust / 100));
+          let score = 0;
+          const lastMonthSales = await trx('manufacturing_sales_results')
+            .where({ company_id: company.id, vehicle_model_id: model.id, region_market_id: market.id })
+            .orderBy('id', 'desc')
+            .first();
+
+          if (lastMonthSales) {
+            // Intelligent CSO: Use actual past demand (raw_buyer_interest) instead of just units_sold
+            // This ensures we don't penalize markets where we simply under-supplied, and perfectly accounts for vehicle class/fit.
+            score = Number(lastMonthSales.raw_buyer_interest || 0);
+          } else {
+            // Fallback heuristic for brand new vehicle launches with no sales history
+            const pop = Number(market.population);
+            const econ = Number(market.economic_multiplier);
+            const baseCap = (pop / 1000) * econ;
+            score = baseCap * (0.1 + (awareness / 100)) * (0.2 + (trust / 100));
+          }
           
           demandScores.set(market.id, score);
           totalDemandScore += score;
