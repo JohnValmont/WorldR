@@ -2749,6 +2749,20 @@ export class ManufacturingController {
       
       if (activeAllocs.length === 0) continue;
 
+      // 2.5 Pre-fetch company resources to simulate exact factory output limits
+      const staff = await trx('company_staff').where({ company_id: company.id, role: 'factory-worker' }).first();
+      let workerCount = staff ? Number(staff.quantity) : 0;
+
+      const compRows = await trx('manufacturing_component_inventory').where({ company_id: company.id });
+      const compInv = {
+        engine: compRows.find((c: any) => c.component_id === 'comp_engine')?.units_in_stock || 0,
+        transmission: compRows.find((c: any) => c.component_id === 'comp_transmission')?.units_in_stock || 0,
+        tyres: compRows.find((c: any) => c.component_id === 'comp_tyres')?.units_in_stock || 0,
+        steel: compRows.find((c: any) => c.component_id === 'comp_steel')?.units_in_stock || 0,
+        glass: compRows.find((c: any) => c.component_id === 'comp_glass')?.units_in_stock || 0,
+        electronics: compRows.find((c: any) => c.component_id === 'comp_electronics')?.units_in_stock || 0,
+      };
+
       // 3. For each model, calculate total supply and distribute
       for (const model of launchedModels) {
         const inv = await trx('manufacturing_inventory').where({ company_id: company.id, vehicle_model_id: model.id }).first();
@@ -2760,15 +2774,46 @@ export class ManufacturingController {
         let estProduction = 0;
         for (const line of prodLines) {
           const factory = await trx('manufacturing_factories').where({ id: line.factory_id }).first();
-          const condition = factory ? (Number(factory.condition) / 100) : 1;
+          const factoryType = await trx('manufacturing_factory_types').where({ id: factory.factory_type_id }).first();
+          
+          const factoryCapacity = Number(factory.capacity_per_month);
+          const factoryWorkerReq = Number(factory.worker_capacity ?? factoryType.worker_requirement);
+          
           const planTarget = Number(line.target_units_per_month || 0);
-          const estUnitsRaw = Math.floor(planTarget * condition);
+          const requiredWorkers = planTarget > 0 ? Math.ceil((planTarget / factoryCapacity) * factoryWorkerReq) : 0;
+          
+          let laborEfficiency = 1.0;
+          if (requiredWorkers > 0) {
+            laborEfficiency = workerCount === 0 ? 0 : Math.min(1.0, workerCount / requiredWorkers);
+            workerCount = Math.max(0, workerCount - requiredWorkers);
+          }
+          
+          const condition = factory ? (Number(factory.condition) / 100) : 1;
+          const estUnitsRaw = Math.floor(planTarget * condition * laborEfficiency);
+          
+          // Component Limits
+          let maxC = Math.floor(compInv.engine);
+          maxC = Math.min(maxC, Math.floor(compInv.transmission));
+          maxC = Math.min(maxC, Math.floor(compInv.tyres / 4));
+          maxC = Math.min(maxC, Math.floor(compInv.steel));
+          maxC = Math.min(maxC, Math.floor(compInv.glass));
+          maxC = Math.min(maxC, Math.floor(compInv.electronics));
+          
+          const estUnitsProd = Math.min(estUnitsRaw, maxC);
+          
+          // Deduct used components for the next production line
+          compInv.engine -= estUnitsProd;
+          compInv.transmission -= estUnitsProd;
+          compInv.tyres -= estUnitsProd * 4;
+          compInv.steel -= estUnitsProd;
+          compInv.glass -= estUnitsProd;
+          compInv.electronics -= estUnitsProd;
           
           const planQuality = line.quality_setting || 'Standard';
           const defectRate = QUALITY_DEFECT_RATES[planQuality] || 0.03;
-          const estDefects = Math.floor(estUnitsRaw * defectRate);
+          const estDefects = Math.floor(estUnitsProd * defectRate);
           
-          estProduction += Math.max(0, estUnitsRaw - estDefects);
+          estProduction += Math.max(0, estUnitsProd - estDefects);
         }
 
         const totalSupply = currentStock + estProduction;
