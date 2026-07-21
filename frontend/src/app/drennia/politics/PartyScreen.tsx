@@ -1099,12 +1099,16 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
 
   async function found() {
     if (!name.trim() || !creed) return;
+    setBusy(true); setErr(null);
     try {
-      setBusy(true); setErr(null);
       await politicsApi.foundParty({ name: name.trim(), abbreviation: abbreviation.trim().toUpperCase(), doctrine_id: creed, tenet_id: tenet }, selectedJurisdictionId);
       await onRefresh();
-    } catch (e: any) { setErr(e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Failed to found party'); }
-    finally { setBusy(false); }
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Failed to found party';
+      setErr(msg);
+      // Ensure the user sees the error even if the footer is obscured
+      window.alert('Could not found party: ' + msg);
+    } finally { setBusy(false); }
   }
 
   async function recruit() {
@@ -1266,6 +1270,18 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
             <h1 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, margin: '8px 0 0', letterSpacing: '-0.02em' }}>Stand for {jurisdiction?.name}</h1>
             <p style={{ color: T.muted, fontSize: 15, marginTop: 8, lineHeight: 1.6, maxWidth: 600 }}>Choose a Creed to set your identity. You are the permanent Leader — only NPC recruits can join your bench.</p>
           </div>
+
+          {/* Error Banner */}
+          {err && (
+            <div style={{ background: 'rgba(224,82,70,0.12)', border: '1px solid rgba(224,82,70,0.5)', borderRadius: 8, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, fontFamily: SANS }}>
+              <span style={{ color: '#E05246', fontSize: 20 }}>⚠</span>
+              <div>
+                <div style={{ color: '#E05246', fontWeight: 700, fontSize: 14, marginBottom: 2 }}>Could not found party</div>
+                <div style={{ color: '#f87171', fontSize: 13 }}>{err}</div>
+              </div>
+              <button onClick={() => setErr(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'rgba(224,82,70,0.7)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
+            </div>
+          )}
 
           <Panel title="Party Identity">
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontFamily: SANS }}>
