@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { manufacturingApi, worldApi } from '../../../lib/api';
 import EquityDeskTab from './EquityDeskTab';
+import BoardDeskPanel from './BoardDeskPanel';
 import { formatWorldDate, formatWorldDateShort } from '@/lib/calendar';
 import {
   Card, Button, StatCard, DataRow, EmptyState as UIEmptyState, Badge, StatusDot, SectionHeading, Tabs, ProgressBar
@@ -11,7 +12,7 @@ import {
   AreaChart, Area, BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend
 } from 'recharts';
-import { LayoutDashboard, Factory, FlaskConical, ShoppingCart, Activity, BarChart3, Users, DollarSign, ScrollText, PieChart, Tags, Globe, LineChart, Info } from 'lucide-react';
+import { LayoutDashboard, Factory, FlaskConical, ShoppingCart, Activity, BarChart3, Users, DollarSign, ScrollText, PieChart, Tags, Globe, LineChart, Info, Briefcase } from 'lucide-react';
 
 
 // ─── Theme ─────────────────────────────────────────────────────────────────
@@ -308,12 +309,13 @@ function EmptyState({ icon, title, subtitle, action }: { icon?: string; title: s
 // ─── Tab type ───────────────────────────────────────────────────────────────
 
 
-type MfgTab = 'overview' | 'factory' | 'design' | 'procurement' | 'production' | 'sales' | 'market' | 'history' | 'staff' | 'finance' | 'records' | 'equity';
+type MfgTab = 'overview' | 'factory' | 'design' | 'board' | 'procurement' | 'production' | 'sales' | 'market' | 'history' | 'staff' | 'finance' | 'records' | 'equity';
 
 const MFG_TABS: { id: MfgTab; label: string; icon: any }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'factory', label: 'Factory', icon: Factory },
   { id: 'design', label: 'R&D / Design', icon: FlaskConical },
+  { id: 'board', label: 'Board', icon: Briefcase },
   { id: 'procurement', label: 'Procurement', icon: ShoppingCart },
   { id: 'production', label: 'Production', icon: Activity },
   { id: 'sales', label: 'Sales Operations', icon: Tags },
@@ -2715,14 +2717,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                 <div className="flex items-center justify-between gap-3 mb-1">
                   <h3 className="text-sm font-bold text-zinc-100 m-0">{factory.name}</h3>
                   {totalWorkers === 0 && (
-                    <Badge variant="red" dot>No Workers</Badge>
+                    <Badge variant="red" dot>No Company Workers</Badge>
                   )}
                 </div>
                 <div className="text-[11px] text-zinc-500 mb-4">
-                  Capacity: {factory.capacity_per_month} units/Month · Max Worker Capacity: {factory.worker_capacity || 30} · Current Workers: {totalWorkers}
-                  {totalWorkers < (factory.worker_capacity || 30) && (
-                    <span className="text-terminal-amber ml-2">Consider hiring up to capacity for complex models</span>
-                  )}
+                  Capacity: {factory.capacity_per_month} units/Month · Max Required Workers: {factory.worker_capacity || 30} per month
                 </div>
 
                 {lines.map((line: any) => {
@@ -3160,7 +3159,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                             })()}
                             {/* ──────────────────────────────────────────────────────── */}
 
-                            {(invRow?.units_in_stock || 0) === 0 && (
+                            {(invRow?.units_in_stock || 0) === 0 && monthlyProd === 0 && (
                               <div className="mb-4 rounded border border-terminal-red/30 bg-terminal-red/10 p-3 text-xs text-terminal-red">
                                 <strong>⚠️ 0 Inventory Stock</strong>
                                 <p className="mt-1 opacity-80">
@@ -4053,6 +4052,13 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
       ═══════════════════════════════════════════════════════ */}
       {deskTab === 'equity' && (
         <EquityDeskTab companyId={company.id} companyName={company.name} />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════
+          BOARD TAB
+      ═══════════════════════════════════════════════════════ */}
+      {deskTab === 'board' && (
+        <BoardDeskPanel companyName={company.name} />
       )}
 
       {/* ═══════════════════════════════════════════════════════
