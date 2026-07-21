@@ -70,7 +70,11 @@ export default function WorldTimeControl() {
         ) : (
           <div style={{ color: T.muted, fontSize: '9px' }} aria-live="polite">
             {secondsToTick !== null && (
-              <span>BIZ TICK IN <span style={{ textTransform: 'none' }}>{formatCountdown(secondsToTick)}</span></span>
+              secondsToTick === 0 ? (
+                <span style={{ color: '#E5A93D', fontWeight: 'bold' }}>PROCESSING BIZ TICK...</span>
+              ) : (
+                <span>BIZ TICK IN <span style={{ textTransform: 'none' }}>{formatCountdown(secondsToTick)}</span></span>
+              )
             )}
           </div>
         )}
