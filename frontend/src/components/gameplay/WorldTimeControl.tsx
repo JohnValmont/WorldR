@@ -21,7 +21,7 @@ const T = {
  * whole world (all countries, players + NPCs) immediately.
  */
 export default function WorldTimeControl() {
-  const { clock, secondsToTick, refresh } = useWorldClock();
+  const { clock, secondsToTick, polSecondsToTick, refresh } = useWorldClock();
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [isAdminDynamic, setIsAdminDynamic] = useState(false);
   const user = useAuthStore(state => state.user);
@@ -76,11 +76,17 @@ export default function WorldTimeControl() {
         <div style={{ color: T.ivory }}>{dateStr}</div>
         {clock.status === 'paused' ? (
           <div style={{ color: T.muted, fontSize: '9px' }}>WORLD PAUSED</div>
-        ) : secondsToTick !== null ? (
+        ) : (
           <div style={{ color: T.muted, fontSize: '9px' }} aria-live="polite">
-            NEXT MONTH IN <span style={{ textTransform: 'none' }}>{formatCountdown(secondsToTick)}</span>
+            {secondsToTick !== null && (
+              <span>BIZ TICK IN <span style={{ textTransform: 'none' }}>{formatCountdown(secondsToTick)}</span></span>
+            )}
+            {secondsToTick !== null && polSecondsToTick !== null && <span style={{ margin: '0 4px' }}>|</span>}
+            {polSecondsToTick !== null && (
+              <span>POL TICK IN <span style={{ textTransform: 'none' }}>{formatCountdown(polSecondsToTick)}</span></span>
+            )}
           </div>
-        ) : null}
+        )}
       </div>
       {isAdmin && (
         <button

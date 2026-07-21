@@ -400,6 +400,11 @@ export interface WorldClock {
   real_seconds_per_month: number;
   month_started_at: string | null;
   next_arc_close_at: string | null;
+  pol_current_year?: number;
+  pol_current_month?: number;
+  pol_real_seconds_per_month?: number;
+  pol_month_started_at?: string | null;
+  pol_next_arc_close_at?: string | null;
   status: 'active' | 'paused';
   updated_at: string;
 }

@@ -112,7 +112,7 @@ export default function PoliticsDesk() {
     return meta;
   }, [overview]);
 
-  const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
+  const myParty = Array.isArray(parties) ? parties.find((p: any) => p.owner_character_id === character?.id) : undefined;
 
   const commonProps = {
     selectedJurisdictionId,

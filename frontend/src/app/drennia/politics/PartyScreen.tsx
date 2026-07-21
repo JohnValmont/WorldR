@@ -1082,7 +1082,7 @@ function NewsFeedPanel() {
 export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, overview, character, parties, myAp, myPc, onRefresh }: Props) {
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
-  const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
+  const myParty = Array.isArray(parties) ? parties.find((p: any) => p.owner_character_id === character?.id) : undefined;
 
   const [name, setName] = useState('');
   const [abbreviation, setAbbreviation] = useState('');

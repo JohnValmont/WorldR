@@ -55,7 +55,32 @@ export function useWorldClock() {
     return () => clearInterval(timer);
   }, [clock?.next_arc_close_at, clock?.status, mutate]);
 
-  return { clock, secondsToTick, error, isLoading, refresh: mutate };
+  // Live countdown to next politics tick
+  const [polSecondsToTick, setPolSecondsToTick] = useState<number | null>(null);
+  useEffect(() => {
+    if (!clock?.pol_next_arc_close_at || clock.status !== 'active') {
+      setPolSecondsToTick(null);
+      return;
+    }
+    const target = new Date(clock.pol_next_arc_close_at).getTime();
+    let fired = false;
+    const update = () => {
+      const s = Math.max(0, Math.floor((target - Date.now()) / 1000));
+      setPolSecondsToTick(s);
+      if (s === 0 && !fired) {
+        fired = true;
+        setTimeout(() => {
+          mutate();
+          fired = false;
+        }, 5_000);
+      }
+    };
+    update();
+    const timer = setInterval(update, 1_000);
+    return () => clearInterval(timer);
+  }, [clock?.pol_next_arc_close_at, clock?.status, mutate]);
+
+  return { clock, secondsToTick, polSecondsToTick, error, isLoading, refresh: mutate };
 }
 
 /** Format a seconds countdown as e.g. "7h 59m 30s" or "45s". */

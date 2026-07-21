@@ -637,7 +637,7 @@ export default function ChroniclePage() {
                 { label: 'Register a company', href: '/drennia/business', done: !!company },
                 { label: 'Join a political party', href: '/drennia/politics', done: false },
                 { label: 'Check the World Feed', href: '/drennia/world', done: false },
-              ].map(item => (
+              ].map((item: any) => (
                 <a
                   key={item.label}
                   href={item.href}

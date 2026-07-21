@@ -2711,15 +2711,7 @@ export class ManufacturingController {
         }
 
         // Process Political Month Hook
-        (global as any).tickProgress = `Processing country: ${countryId} - Step 6: Politics Hook`;
-        const activeState = await trx('pol_states')
-          .where({ country_id: countryId, is_active: true })
-          .first();
-        if (activeState) {
-          // Politics runs on a MONOTONIC arc (absolute month), not the calendar
-          // month, so cycle scheduling / AP refresh compare against the same base.
-          await processPoliticalArc(trx, activeState.id, worldClockToArc(clock));
-        }
+        // Politics has been separated into its own scheduler run.
 
         return { processedCompanies: participants.length };
   } // End of processCountryMonth
