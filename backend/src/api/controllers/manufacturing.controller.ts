@@ -2722,8 +2722,109 @@ export class ManufacturingController {
         // Process Political Month Hook
         // Politics has been separated into its own scheduler run.
 
+        // 6. CSO Auto-Allocation (for next month)
+        (global as any).tickProgress = `Processing country: ${countryId} - Step 6: CSO Planning`;
+        await ManufacturingController.runCSOAllocations(trx, clock, participants);
+
         return { processedCompanies: participants.length };
   } // End of processCountryMonth
+
+  // ── CSO Auto-Allocation Engine ────────────────────────────────────────────────
+  public static async runCSOAllocations(trx: any, clock: any, participants: any[]) {
+    // This runs at the end of the month to set the monthly_target for the *upcoming* month
+    for (const company of participants) {
+      if (company.is_npc) continue; // NPCs manage their own allocations in step 2
+
+      const cso = await trx('company_staff').where({ company_id: company.id, role: 'cso' }).first();
+      if (!cso || cso.quantity <= 0) continue;
+
+      // 1. Fetch launched models
+      const launchedModels = await trx('manufacturing_vehicle_models')
+        .where({ company_id: company.id, development_status: 'launched' });
+      if (launchedModels.length === 0) continue;
+
+      // 2. Fetch current active markets (any market where they have an allocation row)
+      const activeAllocs = await trx('manufacturing_market_allocations')
+        .where({ company_id: company.id });
+      
+      if (activeAllocs.length === 0) continue;
+
+      // 3. For each model, calculate total supply and distribute
+      for (const model of launchedModels) {
+        const inv = await trx('manufacturing_inventory').where({ company_id: company.id, vehicle_model_id: model.id }).first();
+        const currentStock = inv ? Number(inv.units_in_stock) : 0;
+        
+        const prodLines = await trx('manufacturing_production_lines')
+          .where({ company_id: company.id, assigned_vehicle_model_id: model.id, status: 'active', construction_status: 'completed' });
+        
+        let estProduction = 0;
+        for (const line of prodLines) {
+          estProduction += Number(line.target_units_per_month || 0); 
+        }
+
+        const totalSupply = currentStock + estProduction;
+        if (totalSupply <= 0) {
+           // No supply? Keep targets at 0 or leave as is.
+           await trx('manufacturing_market_allocations')
+             .where({ company_id: company.id, vehicle_model_id: model.id })
+             .update({ monthly_target: 0, units_allocated: 0 });
+           continue;
+        }
+
+        const modelAllocs = activeAllocs.filter((a: any) => a.vehicle_model_id === model.id);
+        if (modelAllocs.length === 0) continue;
+
+        const marketIds = modelAllocs.map((a: any) => a.region_market_id);
+        const markets = await trx('manufacturing_region_markets').whereIn('id', marketIds);
+        
+        let totalDemandScore = 0;
+        const demandScores = new Map<string, number>();
+
+        for (const market of markets) {
+          const brandRow = await trx('manufacturing_brand_awareness').where({ company_id: company.id, region_market_id: market.id }).first();
+          const awareness = brandRow ? Number(brandRow.awareness) : 0;
+          const trust = brandRow ? Number(brandRow.reputation) : 0;
+          
+          const pop = Number(market.population);
+          const econ = Number(market.economic_multiplier);
+          
+          // Heuristic: Base market size weighted by awareness and trust
+          const baseCap = (pop / 1000) * econ;
+          const score = baseCap * (0.1 + (awareness / 100)) * (0.2 + (trust / 100));
+          
+          demandScores.set(market.id, score);
+          totalDemandScore += score;
+        }
+
+        for (const alloc of modelAllocs) {
+          const score = demandScores.get(alloc.region_market_id) || 0;
+          const proportion = totalDemandScore > 0 ? score / totalDemandScore : 1 / modelAllocs.length;
+          
+          // Allocate proportionally
+          const target = Math.floor(totalSupply * proportion);
+          
+          // Tune marketing tier based on awareness
+          const brandRow = await trx('manufacturing_brand_awareness').where({ company_id: company.id, region_market_id: alloc.region_market_id }).first();
+          const awareness = brandRow ? Number(brandRow.awareness) : 0;
+          
+          let optimalTier = alloc.marketing_tier || 'none';
+          if (awareness < 40) optimalTier = 'national';
+          else if (awareness < 60) optimalTier = 'regional';
+          else if (awareness > 85) optimalTier = 'none'; // Save money if dominant
+          else optimalTier = 'local';
+          
+          await trx('manufacturing_market_allocations')
+            .where({ id: alloc.id })
+            .update({
+              monthly_target: target,
+              units_allocated: target,
+              marketing_tier: optimalTier
+            });
+        }
+      }
+    }
+  }
+  // ────────────────────────────────────────────────────────────────────────────
 
   // POST /admin/manufacturing/process-company/:companyId
   // Admin force-processing of a single country's month (kept for testing).
