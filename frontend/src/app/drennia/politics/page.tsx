@@ -27,11 +27,11 @@ function NextTick() {
     return () => clearInterval(t);
   }, []);
   const d = new Date(now);
-  const boundary = (Math.floor(d.getHours() / 8) + 1) * 8;
+  const nextHour = (Math.floor((d.getHours() - 2) / 6) + 1) * 6 + 2;
   const next = new Date(d);
-  next.setHours(boundary, 0, 0, 0);
+  next.setHours(nextHour, 0, 0, 0);
   let ms = next.getTime() - now;
-  if (ms < 0) ms += 8 * 3600 * 1000;
+  if (ms < 0) ms += 6 * 3600 * 1000;
   const pad = (n: number) => String(n).padStart(2, '0');
   const hh = Math.floor(ms / 3600000);
   const mm = Math.floor((ms % 3600000) / 60000);
@@ -112,7 +112,7 @@ export default function PoliticsDesk() {
     return meta;
   }, [overview]);
 
-  const myParty = Array.isArray(parties) ? parties.find((p: any) => p.owner_character_id === character?.id) : undefined;
+  const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
 
   const commonProps = {
     selectedJurisdictionId,

@@ -48,7 +48,7 @@ export default function WorldTimeControl() {
       // Skipped — surface WHY instead of silently reloading into the same state.
       if (result?.reason === 'tick_in_progress') {
         const step = result?.step ? ` (current step: ${result.step})` : '';
-        alert(`A world tick is already running${step}. Please wait a moment and try again — a stuck tick now recovers automatically within a few minutes.`);
+        alert(`A world tick is already running${step}. Please wait a moment and try again – a stuck tick now recovers automatically within a few minutes.`);
       } else if (result?.reason === 'paused') {
         alert('The world clock is paused. Resume it before forcing a tick.');
       } else if (result?.reason === 'not_due') {
@@ -61,6 +61,28 @@ export default function WorldTimeControl() {
       await refresh();
     } catch (err: any) {
       alert(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to advance world tick');
+    } finally {
+      setIsAdvancing(false);
+    }
+  };
+
+  const handleForcePolTick = async () => {
+    if (isAdvancing) return;
+    setIsAdvancing(true);
+    try {
+      const res = await worldApi.forcePoliticsTick();
+      const result = res?.data ?? res;
+
+      if (result?.data?.status === 'ticked' || result?.status === 'success') {
+        await refresh();
+        window.location.reload();
+        return;
+      }
+
+      alert('Politics tick did not advance.');
+      await refresh();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to advance politics tick');
     } finally {
       setIsAdvancing(false);
     }
@@ -89,26 +111,48 @@ export default function WorldTimeControl() {
         )}
       </div>
       {isAdmin && (
-        <button
-          onClick={handleForceTick}
-          disabled={isAdvancing}
-          style={{
-            background: isAdvancing ? 'rgba(255,255,255,0.03)' : `linear-gradient(135deg, ${T.gold}, #8A6E2A)`,
-            color: isAdvancing ? T.muted : '#0a0709',
-            border: `1px solid ${isAdvancing ? T.border : T.gold}`,
-            padding: '6px 12px',
-            fontSize: '10px',
-            fontFamily: 'monospace',
-            textTransform: 'uppercase',
-            letterSpacing: '0.15em',
-            fontWeight: 700,
-            cursor: isAdvancing ? 'not-allowed' : 'pointer',
-            opacity: isAdvancing ? 0.7 : 1,
-            whiteSpace: 'nowrap'
-          }}
-        >
-          {isAdvancing ? 'PROCESSING WORLD...' : 'FORCE TICK — ADMIN'}
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={handleForceTick}
+            disabled={isAdvancing}
+            style={{
+              background: isAdvancing ? 'rgba(255,255,255,0.03)' : `linear-gradient(135deg, ${T.gold}, #8A6E2A)`,
+              color: isAdvancing ? T.muted : '#0a0709',
+              border: `1px solid ${isAdvancing ? T.border : T.gold}`,
+              padding: '6px 12px',
+              fontSize: '10px',
+              fontFamily: 'monospace',
+              textTransform: 'uppercase',
+              letterSpacing: '0.15em',
+              fontWeight: 700,
+              cursor: isAdvancing ? 'not-allowed' : 'pointer',
+              opacity: isAdvancing ? 0.7 : 1,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {isAdvancing ? 'PROCESSING...' : 'FORCE BIZ TICK'}
+          </button>
+          <button
+            onClick={handleForcePolTick}
+            disabled={isAdvancing}
+            style={{
+              background: isAdvancing ? 'rgba(255,255,255,0.03)' : `linear-gradient(135deg, #a78bfa, #7c3aed)`,
+              color: isAdvancing ? T.muted : '#fff',
+              border: `1px solid ${isAdvancing ? T.border : '#a78bfa'}`,
+              padding: '6px 12px',
+              fontSize: '10px',
+              fontFamily: 'monospace',
+              textTransform: 'uppercase',
+              letterSpacing: '0.15em',
+              fontWeight: 700,
+              cursor: isAdvancing ? 'not-allowed' : 'pointer',
+              opacity: isAdvancing ? 0.7 : 1,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {isAdvancing ? 'PROCESSING...' : 'FORCE POL TICK'}
+          </button>
+        </div>
       )}
     </div>
   );

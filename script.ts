@@ -1,0 +1,1 @@
+import { db } from './backend/src/config/database'; async function run() { const char = await db('characters').first(); const ap = await db('pol_action_points').where({ character_id: char.id }).first(); const pc = await db('pol_political_capital').where({ character_id: char.id }).first(); console.log(JSON.stringify({ ap, pc })); process.exit(0); } run();

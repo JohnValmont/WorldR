@@ -416,6 +416,7 @@ export const worldApi = {
   getGlobalLeaderboards: () => api.get('/world/global-leaderboards').then(res => res.data),
   // Admin tick controls
   forceTick: () => api.post('/world/tick').then(res => res.data),
+  forcePoliticsTick: () => api.post('/world/politics-tick').then(res => res.data),
   pauseClock: () => api.post('/world/clock/pause').then(res => res.data),
   resumeClock: () => api.post('/world/clock/resume').then(res => res.data),
   setClockSpeed: (secondsPerMonth: number) => api.patch('/world/clock/speed', { seconds_per_month: secondsPerMonth }).then(res => res.data),

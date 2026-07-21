@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
-import { runWorldTick } from '../services/worldTick.service';
+import { runWorldTick, runPoliticsTick } from '../services/worldTick.service';
 
 
 
@@ -34,6 +34,15 @@ export class WorldController {
   public static async forceTick(req: Request, res: Response, next: NextFunction) {
     try {
       const result = await runWorldTick({ force: true });
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async forcePoliticsTick(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await runPoliticsTick({ force: true });
       res.status(200).json({ status: 'success', data: result });
     } catch (error) {
       next(error);
