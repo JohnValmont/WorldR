@@ -2841,6 +2841,18 @@ export class ManufacturingController {
           throw new AppError('You must hire a Chief Sales Officer (CSO) to use auto-allocation.', 400, 'BAD_REQUEST');
         }
 
+        const launchedModels = await trx('manufacturing_vehicle_models')
+          .where({ company_id: companyId, development_status: 'launched' });
+        if (launchedModels.length === 0) {
+          throw new AppError('You must launch at least one vehicle model before the CSO can allocate it.', 400, 'BAD_REQUEST');
+        }
+
+        const activeAllocs = await trx('manufacturing_market_allocations')
+          .where({ company_id: companyId });
+        if (activeAllocs.length === 0) {
+          throw new AppError('You must manually allocate a model to at least one market first (even just 0 units) so the CSO knows which markets you want to compete in.', 400, 'BAD_REQUEST');
+        }
+
         await ManufacturingController.runCSOAllocations(trx, clock, [company]);
       });
 
