@@ -227,9 +227,9 @@ export const registryApi = {
 
 // Politics
 export const politicsApi = {
-  getState: () => api.get('/politics/state').then(res => res.data),
-  getCycle: (stateId?: string) => api.get(`/politics/cycle${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
-  getParties: (stateId?: string) => api.get(`/politics/parties${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
+  getState: () => api.get(`/politics/state?t=${Date.now()}`).then(res => res.data),
+  getCycle: (stateId?: string) => api.get(`/politics/cycle${stateId ? `?stateId=${stateId}&t=${Date.now()}` : `?t=${Date.now()}`}`).then(res => res.data),
+  getParties: (stateId?: string) => api.get(`/politics/parties${stateId ? `?stateId=${stateId}&t=${Date.now()}` : `?t=${Date.now()}`}`).then(res => res.data),
   foundParty: (payload: { name: string; abbreviation: string; doctrine_id: string; tenet_id: string | null }, stateId?: string) =>
     api.post('/politics/parties', { ...payload, stateId }).then(res => res.data),
   joinParty: (id: string) => api.post(`/politics/parties/${id}/join`).then(res => res.data),
@@ -258,7 +258,7 @@ export const politicsApi = {
 
   // AP System
   getMyAp: (): Promise<{ current_ap: number; ap_cap: number }> =>
-    api.get('/politics/ap').then(res => res.data),
+    api.get(`/politics/ap?t=${Date.now()}`).then(res => res.data),
   doGeneralAction: (type: string, params?: any, stateId?: string) =>
     api.post('/politics/general-action', { type, params, stateId }).then(res => res.data),
   recruitNpc: (stateId?: string) =>
@@ -266,13 +266,13 @@ export const politicsApi = {
 
   // Political Capital System
   getMyPc: (): Promise<{ current_pc: number; pc_cap: number }> =>
-    api.get('/politics/pc').then(res => res.data),
+    api.get(`/politics/pc?t=${Date.now()}`).then(res => res.data),
   spendPc: (action: string, faction_id?: string) =>
     api.post('/politics/pc/spend', { action, faction_id }).then(res => res.data),
 
   // Faction System
   getPartyFactions: (partyId: string): Promise<{ party_id: string; cohesion: number; factions: any[] }> =>
-    api.get(`/politics/parties/${partyId}/factions`).then(res => res.data),
+    api.get(`/politics/parties/${partyId}/factions?t=${Date.now()}`).then(res => res.data),
 
   // Coalition Agreement
   getCoalitionAgreement: (stateId?: string): Promise<{ coalition: any; agreement: any; partners?: any[] }> =>
@@ -280,13 +280,13 @@ export const politicsApi = {
 
   // Scandal System
   getMyScandals: (): Promise<{ scandals: any[] }> =>
-    api.get('/politics/scandals').then(res => res.data),
+    api.get(`/politics/scandals?t=${Date.now()}`).then(res => res.data),
   actOnScandal: (scandalId: string, intervention: string) =>
     api.post(`/politics/scandals/${scandalId}/intervene`, { intervention }).then(res => res.data),
 
   // Campaign Command Object (Phase 5)
   getMyCampaign: (): Promise<{ campaign: any; cycle: any }> =>
-    api.get('/politics/campaign').then(res => res.data),
+    api.get(`/politics/campaign?t=${Date.now()}`).then(res => res.data),
   setCampaignStrategy: (strategy: string) =>
     api.post('/politics/campaign/strategy', { strategy }).then(res => res.data),
   allocateCampaignBudget: (amount: number) =>
@@ -294,7 +294,7 @@ export const politicsApi = {
 
   // Interest Groups (Phase 6)
   getMyInterestGroups: (): Promise<{ groups: any[] }> =>
-    api.get('/politics/interest-groups').then(res => res.data),
+    api.get(`/politics/interest-groups?t=${Date.now()}`).then(res => res.data),
   doOutreach: (groupId: string, commitment?: { axis: string; direction: 'raise' | 'lower'; target_value: number }) =>
     api.post(`/politics/interest-groups/${groupId}/outreach`, { commitment }).then(res => res.data),
   doRallySupport: (groupId: string) =>
@@ -302,9 +302,9 @@ export const politicsApi = {
 
   // Media Ecosystem (Phase 7)
   getMyMedia: (): Promise<{ outlets: any[] }> =>
-    api.get('/politics/media').then(res => res.data),
+    api.get(`/politics/media?t=${Date.now()}`).then(res => res.data),
   getNewsFeed: (): Promise<{ stories: any[] }> =>
-    api.get('/politics/news').then(res => res.data),
+    api.get(`/politics/news?t=${Date.now()}`).then(res => res.data),
   doExclusive: (outletId: string) =>
     api.post(`/politics/media/${outletId}/exclusive`).then(res => res.data),
   doPressConference: () =>
@@ -312,7 +312,7 @@ export const politicsApi = {
 
   // Legacy System (Phase 8)
   getLegacy: (characterId: string = 'me') =>
-    api.get(`/politics/legacy/${characterId}`).then(res => res.data),
+    api.get(`/politics/legacy/${characterId}?t=${Date.now()}`).then(res => res.data),
 };
 
 
