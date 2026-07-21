@@ -4058,7 +4058,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
           BOARD TAB
       ═══════════════════════════════════════════════════════ */}
       {deskTab === 'board' && (
-        <BoardDeskPanel companyName={company.name} />
+        <BoardDeskPanel companyId={company.id} companyName={company.name} staff={staff} onRefresh={onRefresh} />
       )}
 
       {/* ═══════════════════════════════════════════════════════

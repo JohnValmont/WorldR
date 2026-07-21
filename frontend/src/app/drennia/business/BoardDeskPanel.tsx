@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { manufacturingApi } from "../../../lib/api";
 
 // ─── Board positions definition ───────────────────────────────────────────────
 const BOARD_POSITIONS = [
@@ -18,7 +19,6 @@ const BOARD_POSITIONS = [
       "Represent the company externally",
       "Final sign-off on all C-suite decisions",
     ],
-    status: "active",
     hint: null,
   },
   {
@@ -35,7 +35,6 @@ const BOARD_POSITIONS = [
       "Produce monthly financial health reports",
       "Identify and mitigate solvency risks",
     ],
-    status: "vacant",
     hint: "Coming soon — Finance automation",
   },
   {
@@ -52,7 +51,6 @@ const BOARD_POSITIONS = [
       "Manage factory maintenance schedules",
       "Ensure operational KPIs are met each arc",
     ],
-    status: "vacant",
     hint: "Coming soon — Operations automation",
   },
   {
@@ -69,7 +67,6 @@ const BOARD_POSITIONS = [
       "Adjust marketing tiers based on brand awareness",
       "Maximise revenue per unit across all active markets",
     ],
-    status: "vacant",
     highlight: true,
     hint: "Auto-allocation feature — in development",
     badge: "FLAGSHIP ROLE",
@@ -88,7 +85,6 @@ const BOARD_POSITIONS = [
       "Approve advertising spend each arc",
       "Design seasonal or launch-specific campaigns",
     ],
-    status: "vacant",
     hint: "Coming soon — Marketing automation",
   },
   {
@@ -105,7 +101,6 @@ const BOARD_POSITIONS = [
       "Approve technology and platform choices",
       "Track engineering culture and knowledge scores",
     ],
-    status: "vacant",
     hint: "Coming soon — R&D automation",
   },
   {
@@ -122,7 +117,6 @@ const BOARD_POSITIONS = [
       "Manage wage budgets",
       "Ensure staffing ratios meet efficiency targets",
     ],
-    status: "vacant",
     hint: "Coming soon — HR automation",
   },
   {
@@ -139,30 +133,29 @@ const BOARD_POSITIONS = [
       "Identify supply chain bottlenecks",
       "Maintain procurement forecasts aligned with production",
     ],
-    status: "vacant",
     hint: "Coming soon — Procurement automation",
   },
 ];
 
 // ─── Tiny status badge ────────────────────────────────────────────────────────
-function StatusPill({ status }: { status: string }) {
+function StatusPill({ status, name }: { status: string, name?: string }) {
   if (status === "active") {
     return (
       <span
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: 4,
+          gap: 6,
           background: "rgba(54,211,153,0.12)",
           border: "1px solid rgba(54,211,153,0.35)",
           color: "#36d399",
-          fontSize: 9,
+          fontSize: 10,
           fontFamily: "monospace",
           fontWeight: 700,
-          letterSpacing: "0.12em",
+          letterSpacing: "0.08em",
           textTransform: "uppercase",
           borderRadius: 4,
-          padding: "2px 7px",
+          padding: "3px 8px",
         }}
       >
         <span
@@ -174,7 +167,7 @@ function StatusPill({ status }: { status: string }) {
             display: "inline-block",
           }}
         />
-        Occupied
+        {name ? `Occupied — ${name}` : "Occupied"}
       </span>
     );
   }
@@ -202,8 +195,35 @@ function StatusPill({ status }: { status: string }) {
 }
 
 // ─── Main panel ───────────────────────────────────────────────────────────────
-export default function BoardDeskPanel({ companyName }: { companyName: string }) {
+export default function BoardDeskPanel({ companyId, companyName, staff, onRefresh }: { companyId: string, companyName: string, staff: any[], onRefresh: () => void }) {
   const [expanded, setExpanded] = useState<string | null>("cso");
+  const [isHiring, setIsHiring] = useState(false);
+
+  const getDeterministicName = (roleId: string) => {
+    if (!companyId) return "Unknown";
+    let seed = roleId.charCodeAt(0);
+    for (let i = 0; i < companyId.length; i++) {
+      seed += companyId.charCodeAt(i);
+    }
+    const firstNames = ["James", "Emma", "Oliver", "Sophia", "William", "Isabella", "Elias", "Mia", "Alexander", "Charlotte", "Julian", "Amelia", "Sebastian", "Harper", "Arthur", "Evelyn"];
+    const lastNames = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas"];
+    const first = firstNames[seed % firstNames.length];
+    const last = lastNames[(seed * 7) % lastNames.length];
+    return `${first} ${last}`;
+  };
+
+  const handleHire = async (roleId: string) => {
+    if (isHiring) return;
+    setIsHiring(true);
+    try {
+      await manufacturingApi.hireStaff(companyId, roleId, 1);
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || err?.message || 'Failed to hire executive.');
+    } finally {
+      setIsHiring(false);
+    }
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -269,6 +289,9 @@ export default function BoardDeskPanel({ companyName }: { companyName: string })
         {BOARD_POSITIONS.map((pos) => {
           const isOpen = expanded === pos.id;
           const isHighlight = pos.highlight;
+          const isHired = pos.id === 'ceo' || (staff && staff.some((s: any) => s.role === pos.id && s.quantity > 0));
+          const status = isHired ? "active" : "vacant";
+          const execName = isHired && pos.id !== 'ceo' ? getDeterministicName(pos.id) : undefined;
 
           return (
             <div
@@ -362,7 +385,7 @@ export default function BoardDeskPanel({ companyName }: { companyName: string })
                     )}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <StatusPill status={pos.status} />
+                    <StatusPill status={status} name={execName} />
                     {pos.hint && (
                       <span
                         style={{
@@ -482,8 +505,35 @@ export default function BoardDeskPanel({ companyName }: { companyName: string })
                     </div>
                   )}
 
+                  {/* Hire Action */}
+                  {pos.id === "cso" && !isHired && (
+                    <div style={{ marginTop: 16 }}>
+                      <button
+                        onClick={() => handleHire(pos.id)}
+                        disabled={isHiring}
+                        style={{
+                          background: `linear-gradient(135deg, ${pos.color}10 0%, ${pos.color}20 100%)`,
+                          color: pos.color,
+                          border: `1px solid ${pos.color}50`,
+                          padding: "6px 16px",
+                          fontSize: "11px",
+                          fontFamily: "monospace",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.15em",
+                          fontWeight: 700,
+                          cursor: isHiring ? "not-allowed" : "pointer",
+                          borderRadius: "4px",
+                          opacity: isHiring ? 0.7 : 1,
+                          transition: "all 0.2s",
+                        }}
+                      >
+                        {isHiring ? "HIRING..." : `HIRE ${pos.title} — $35,000 / MONTH`}
+                      </button>
+                    </div>
+                  )}
+
                   {/* All other vacant seats */}
-                  {pos.status === "vacant" && pos.id !== "cso" && (
+                  {status === "vacant" && pos.id !== "cso" && (
                     <div
                       style={{
                         marginTop: 14,
