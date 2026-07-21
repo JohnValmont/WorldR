@@ -2759,7 +2759,16 @@ export class ManufacturingController {
         
         let estProduction = 0;
         for (const line of prodLines) {
-          estProduction += Number(line.target_units_per_month || 0); 
+          const factory = await trx('manufacturing_factories').where({ id: line.factory_id }).first();
+          const condition = factory ? (Number(factory.condition) / 100) : 1;
+          const planTarget = Number(line.target_units_per_month || 0);
+          const estUnitsRaw = Math.floor(planTarget * condition);
+          
+          const planQuality = line.quality_setting || 'Standard';
+          const defectRate = planQuality === 'Premium' ? 0.01 : planQuality === 'Budget' ? 0.05 : 0.03;
+          const estDefects = Math.floor(estUnitsRaw * defectRate);
+          
+          estProduction += Math.max(0, estUnitsRaw - estDefects);
         }
 
         const totalSupply = currentStock + estProduction;
