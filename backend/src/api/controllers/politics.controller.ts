@@ -187,10 +187,7 @@ export async function getParties(req: Request, res: Response, next: NextFunction
     // Base query — always works even before migration 0008
     const parties = await db('pol_parties')
       .where({ 'pol_parties.state_id': activeState.id })
-      .select('pol_parties.*')
-      .leftJoin('pol_party_members', 'pol_parties.id', 'pol_party_members.party_id')
-      .count('pol_party_members.character_id as member_count')
-      .groupBy('pol_parties.id');
+      .select('pol_parties.*', db.raw('(SELECT count(*) FROM pol_party_members WHERE pol_party_members.party_id = pol_parties.id) as member_count'));
 
     // Optionally enrich with identities — silently skipped if table doesn't exist yet
     let identityMap: Record<string, any> = {};
@@ -249,7 +246,7 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
       }
     }
 
-    const stateIdForFound = (req.body.stateId as string | undefined);
+    const stateIdForFound = (req.query.stateId as string | undefined) || (req.body.stateId as string | undefined);
     const activeState = await resolveState(stateIdForFound);
 
     // Derive the platform from the chosen doctrine

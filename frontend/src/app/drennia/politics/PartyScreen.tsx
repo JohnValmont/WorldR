@@ -1046,8 +1046,8 @@ function NewsFeedPanel() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {stories.slice(0, 8).map((s: any) => {
-          const typeColor = STORY_TYPE_COLOR[s.story_type] ?? 'rgba(255,255,255,0.25)';
-          const typeLabel = STORY_TYPE_LABEL[s.story_type] ?? s.story_type.toUpperCase();
+          const typeColor = STORY_TYPE_COLOR[s.story_type || ''] ?? 'rgba(255,255,255,0.25)';
+          const typeLabel = STORY_TYPE_LABEL[s.story_type || ''] ?? (s.story_type ? s.story_type.toUpperCase() : 'NEWS');
           const tone = Number(s.avg_tone);
           const popDelta = Number(s.popularity_delta);
 
