@@ -1367,7 +1367,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           )}
 
           {/* Sticky Summary Bar */}
-          <div style={{ position: 'fixed', bottom: 0, left: 240 /* roughly sidebar width */, right: 0, background: 'rgba(8, 9, 12, 0.85)', borderTop: `1px solid ${T.border}`, boxShadow: `0 -10px 40px rgba(0,0,0,0.5)`, backdropFilter: 'blur(20px)', padding: '24px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 50, fontFamily: SANS }}>
+          <div style={{ position: 'fixed', bottom: 0, left: 240 /* roughly sidebar width */, right: 0, background: 'rgba(8, 9, 12, 0.85)', borderTop: `1px solid ${T.border}`, boxShadow: `0 -10px 40px rgba(0,0,0,0.5)`, backdropFilter: 'blur(20px)', padding: '24px 96px 24px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 50, fontFamily: SANS }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
               <div>
                 <div style={stampStyle}>Founding Cost</div>
