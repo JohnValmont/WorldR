@@ -2438,6 +2438,10 @@ export class ManufacturingController {
         // Obtain a row lock on the country to strictly serialize country-level processing and prevent double-processing
         await trx('countries').where({ id: countryId }).forUpdate().first();
 
+        // 0. Macro-Economic Simulation
+        // Grow populations, fluctuate incomes, and adjust economy before any companies process sales.
+        await ManufacturingController.simulateMacroEconomyMonth(trx, countryId);
+
         // 0. Advance construction timers for GearCity Logistics
         const absCurrentMonth = currentYear * 12 + currentMonth;
         await trx('manufacturing_factories')
@@ -2728,6 +2732,43 @@ export class ManufacturingController {
 
         return { processedCompanies: participants.length };
   } // End of processCountryMonth
+
+  // ── Macro-Economic Engine ───────────────────────────────────────────────────
+  public static async simulateMacroEconomyMonth(trx: any, countryId: string) {
+    const markets = await trx('manufacturing_region_markets').where({ country_id: countryId, status: 'active' });
+    
+    for (const market of markets) {
+      // 1. Population Drift
+      // Base annual growth ~ 0.5% to 1.5%. Monthly is roughly 1/12th of that.
+      // Math.random() * 0.001 - 0.0002 gives a range of -0.02% to +0.08% per month.
+      const popGrowthMultiplier = 1.0 + (Math.random() * 0.001 - 0.0002);
+      let newPopulation = Math.floor(Number(market.population) * popGrowthMultiplier);
+      
+      // Safety bounds for population (don't let it crash to 0 or explode to 100B)
+      if (newPopulation < 1000) newPopulation = 1000;
+      
+      // 2. Income Fluctuation
+      // Base annual wage growth ~ 1% to 3%. Monthly is roughly 1/12th of that.
+      // Math.random() * 0.004 - 0.001 gives a range of -0.1% to +0.3% per month.
+      const incomeGrowthMultiplier = 1.0 + (Math.random() * 0.004 - 0.001);
+      let newIncome = Math.floor(Number(market.average_income) * incomeGrowthMultiplier);
+      
+      // Apply the same multiplier to the economic_multiplier (which represents GDP per capita conceptually)
+      let newEconMult = Math.floor(Number(market.economic_multiplier) * incomeGrowthMultiplier);
+      
+      // Safety bounds for income
+      if (newIncome < 5000) newIncome = 5000;
+      if (newIncome > 150000) newIncome = 150000;
+      if (newEconMult < 5000) newEconMult = 5000;
+      if (newEconMult > 150000) newEconMult = 150000;
+
+      await trx('manufacturing_region_markets').where({ id: market.id }).update({
+        population: newPopulation,
+        average_income: newIncome,
+        economic_multiplier: newEconMult
+      });
+    }
+  }
 
   // ── CSO Auto-Allocation Engine ────────────────────────────────────────────────
   public static async runCSOAllocations(trx: any, clock: any, participants: any[]) {
