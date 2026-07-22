@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { politicsApi } from '../../lib/api';
+import { Lock } from 'lucide-react';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -165,14 +166,15 @@ function Card2({ onGoToBusiness, onGoToPolitics }: { onGoToBusiness: () => void;
             form a government, and pass bills that directly change the business environment.
           </p>
           <button
-            onClick={onGoToPolitics}
+            onClick={(e) => { e.preventDefault(); alert('Political desk is Coming soon.'); }}
             style={{
-              background: T.amberDim, border: `1px solid rgba(201,162,74,0.5)`,
-              color: T.amber, fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase',
-              letterSpacing: '0.15em', padding: '7px 14px', borderRadius: 3, cursor: 'pointer',
+              background: T.amberDim, border: `1px solid rgba(201,162,74,0.3)`,
+              color: T.muted, fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase',
+              letterSpacing: '0.15em', padding: '7px 14px', borderRadius: 3, cursor: 'not-allowed',
+              display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%'
             }}
           >
-            Open Political Desk →
+            <Lock size={12} /> Political Desk (Coming Soon)
           </button>
         </div>
       </div>

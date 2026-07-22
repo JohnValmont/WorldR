@@ -219,6 +219,7 @@ function FactionPanel({ partyId, onSpendPc }: { partyId: string; onSpendPc?: (ac
                 if (typeof payload === 'string') {
                   try { payload = JSON.parse(payload); } catch { return null; }
                 }
+                if (!payload || typeof payload !== 'object') return null;
                 return (
                   <div style={{ marginTop: 6, color: T.faint, fontSize: 10, fontFamily: MONO }}>
                     {f.demand_type === 'policy_axis' && payload.axis && `Demands: ${String(payload.axis).charAt(0).toUpperCase() + String(payload.axis).slice(1)} ${payload.direction === 'raise' ? '▲' : '▼'}`}

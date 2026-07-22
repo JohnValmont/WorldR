@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { ArrowLeft, LayoutGrid, Briefcase, Landmark, Globe, Home, BookOpen } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Briefcase, Landmark, Globe, Home, BookOpen, Lock } from 'lucide-react';
 import GuideModal from '../gameplay/GuideModal';
 import { useAuthStore } from '../../store/auth.store';
 
@@ -131,8 +131,8 @@ export default function BackBar() {
             <Landmark size={14} />
           </Link>
         ) : (
-          <a href="#" onClick={(e) => { e.preventDefault(); alert('Political desk is Coming soon [ 3 Aug 2026 tentative ].'); }} title="Politics Desk" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
-            <Landmark size={14} />
+          <a href="#" onClick={(e) => { e.preventDefault(); alert('Political desk is Coming soon.'); }} title="Politics Desk" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5 flex items-center justify-center'}`}>
+            <Lock size={14} className="opacity-80" />
           </a>
         )}
         <Link href="/drennia/world" title="World Feed" className={`p-1.5 rounded transition-colors ${section === 'world' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>

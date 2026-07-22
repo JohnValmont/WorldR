@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Lock } from 'lucide-react';
 
 // ─── WORLDr Active Navigation ──────────────────────────────────────────────────
 // FROZEN: Government, Elections, Party, Parliament, Ministries (later Politics module).
@@ -39,7 +40,7 @@ export default function LivingWorldNav() {
           <Link
             key={tab.name}
             href={tab.name === 'Politics' ? '#' : tab.path}
-            onClick={tab.name === 'Politics' ? (e) => { e.preventDefault(); alert('Political desk is Coming soon [ 3 Aug 2026 tentative ].'); } : undefined}
+            onClick={tab.name === 'Politics' ? (e) => { e.preventDefault(); alert('Political desk is Coming soon.'); } : undefined}
             className="flex items-center justify-center whitespace-nowrap transition-all duration-150"
             style={{
               height: '42px',
@@ -66,6 +67,7 @@ export default function LivingWorldNav() {
               }
             }}
           >
+            {tab.name === 'Politics' && <Lock size={12} className="mr-1.5 opacity-60" />}
             {tab.name}
           </Link>
         );
