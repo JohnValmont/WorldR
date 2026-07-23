@@ -47,9 +47,12 @@ const BANKS = [
   }
 ];
 
-type BankingTabId = 'overview' | 'personal' | 'corporate' | 'debt';
+type GlobalSidebarTab = 'institutions' | 'profile' | 'debt' | 'treasury';
 
-export default function BanksTab({ company, onRefresh, selectedBankId, onSelectBank }: { company: any, onRefresh?: () => void, selectedBankId: string | null, onSelectBank: (id: string | null) => void }) {
+export default function BanksTab({ company, onRefresh }: { company: any, onRefresh?: () => void }) {
+  const [activeSidebarTab, setActiveSidebarTab] = useState<GlobalSidebarTab>('institutions');
+  const [selectedBankId, setSelectedBankId] = useState<string | null>(null);
+  
   const [personalDossier, setPersonalDossier] = useState<any>(null);
   const [corporateDossier, setCorporateDossier] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -129,7 +132,7 @@ export default function BanksTab({ company, onRefresh, selectedBankId, onSelectB
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center w-full min-h-[500px]">
+      <div className="flex h-full items-center justify-center w-full min-h-[500px] bg-[#090A0F]">
         <div className="flex flex-col items-center gap-4 animate-pulse">
           <Landmark size={32} className="text-terminal-amber opacity-50" />
           <div className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest">Accessing Financial District...</div>
@@ -138,38 +141,166 @@ export default function BanksTab({ company, onRefresh, selectedBankId, onSelectB
     );
   }
 
+  // Handle sub-routing
+  const renderContent = () => {
+    if (activeSidebarTab === 'institutions') {
+      if (selectedBankId) {
+        return (
+          <BankPortal 
+            bank={BANKS.find(b => b.id === selectedBankId)!} 
+            company={company}
+            personalDossier={personalDossier}
+            corporateDossier={corporateDossier}
+            onBack={() => setSelectedBankId(null)}
+            onTakeLoan={handleTakeLoan}
+            isSubmitting={isSubmitting}
+            getRatingColor={getRatingColor}
+          />
+        );
+      } else {
+        return (
+          <FinancialDistrict 
+            banks={BANKS}
+            onSelectBank={setSelectedBankId}
+          />
+        );
+      }
+    }
+    
+    if (activeSidebarTab === 'profile') {
+      return (
+        <FinancialProfile 
+          company={company}
+          personalDossier={personalDossier}
+          corporateDossier={corporateDossier}
+          getRatingColor={getRatingColor}
+        />
+      );
+    }
+
+    if (activeSidebarTab === 'debt') {
+      return (
+        <div className="p-6 md:p-8 max-w-5xl space-y-6 animate-slide-in">
+          <h3 className="font-serif text-2xl font-bold text-zinc-100">Active Debt Schedule</h3>
+          <div className="bg-[#11131A] border border-zinc-800 rounded-lg p-8 flex flex-col items-center justify-center min-h-[300px]">
+            <Activity size={32} className="text-zinc-800 mb-4" />
+            <div className="text-zinc-500 text-sm">No active debt facilities.</div>
+          </div>
+        </div>
+      );
+    }
+
+    if (activeSidebarTab === 'treasury') {
+      return (
+        <div className="p-6 md:p-8 max-w-5xl space-y-6 animate-slide-in">
+          <h3 className="font-serif text-2xl font-bold text-zinc-100">Treasury & Wealth</h3>
+          <div className="bg-[#11131A] border border-zinc-800 rounded-lg p-8 flex flex-col items-center justify-center min-h-[300px]">
+            <Wallet size={32} className="text-zinc-800 mb-4" />
+            <div className="text-zinc-500 text-sm">Wealth management systems are currently offline.</div>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
-    <div className={`flex flex-col h-full ${selectedBankId ? 'bg-[#090A0F]' : ''}`}>
-      {selectedBankId ? (
-        <BankPortal 
-          bank={BANKS.find(b => b.id === selectedBankId)!} 
-          company={company}
-          personalDossier={personalDossier}
-          corporateDossier={corporateDossier}
-          onBack={() => onSelectBank(null)}
-          onTakeLoan={handleTakeLoan}
-          isSubmitting={isSubmitting}
-          getRatingColor={getRatingColor}
-        />
-      ) : (
-        <FinancialDistrict 
-          banks={BANKS}
-          company={company}
-          personalDossier={personalDossier}
-          corporateDossier={corporateDossier}
-          onSelectBank={onSelectBank}
-          getRatingColor={getRatingColor}
-        />
-      )}
+    <div className="flex flex-col h-full bg-[#090A0F]">
+      {/* Optional Top Bar if needed, but since it's full screen, it's covered by sidebar layout */}
+      <div className="flex flex-col md:flex-row flex-1 min-h-0">
+        
+        {/* ── MASTER SIDEBAR ── */}
+        <div className="flex md:flex-col gap-1.5 md:min-w-[220px] md:max-w-[220px] md:border-r border-zinc-800 pr-5 pt-5 overflow-x-auto bg-[#090A0F] shrink-0">
+          <div className="px-4 mb-6 flex items-center gap-2">
+            <Landmark size={18} className="text-terminal-amber" />
+            <span className="font-serif text-lg font-bold text-zinc-100 uppercase tracking-widest text-[13px]">Financial District</span>
+          </div>
+          
+          {(['institutions', 'profile', 'debt', 'treasury'] as const).map((tab) => {
+            const isActive = activeSidebarTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => {
+                  setActiveSidebarTab(tab);
+                  // Optional: if they click institutions again, reset to marketplace view
+                  if (tab === 'institutions' && activeSidebarTab === 'institutions') {
+                    setSelectedBankId(null);
+                  }
+                }}
+                className={`px-4 py-3 text-[12px] font-semibold text-left whitespace-nowrap rounded-r-md border-l-2 transition-colors cursor-pointer
+                  ${isActive
+                    ? 'bg-zinc-800/40 text-terminal-amber border-terminal-amber'
+                    : 'text-zinc-500 bg-transparent border-transparent hover:text-zinc-300 hover:bg-zinc-800/20'}`}
+              >
+                {tab === 'institutions' ? 'Banking Institutions' : 
+                 tab === 'profile' ? 'Financial Profile' : 
+                 tab === 'debt' ? 'Active Debt Schedule' : 
+                 'Treasury & Wealth'}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── MAIN CONTENT AREA ── */}
+        <div className="flex-1 overflow-y-auto bg-[#090A0F]">
+          {renderContent()}
+        </div>
+
+      </div>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FINANCIAL DISTRICT (MARKETPLACE)
+// INSTITUTIONS MARKETPLACE (FINANCIAL DISTRICT)
 // ─────────────────────────────────────────────────────────────────────────────
-function FinancialDistrict({ banks, company, personalDossier, corporateDossier, onSelectBank, getRatingColor }: any) {
-  
+function FinancialDistrict({ banks, onSelectBank }: any) {
+  return (
+    <div className="flex flex-col animate-slide-in w-full pb-10 p-6 md:p-8 max-w-7xl mx-auto space-y-8">
+      
+      <div>
+        <h2 className="font-serif text-2xl font-bold text-zinc-100 mb-2">Banking Institutions</h2>
+        <p className="text-sm text-zinc-400">Select an institution to view their specific lending facilities and requirements.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {banks.map((bank: any) => (
+          <div 
+            key={bank.id} 
+            className="bg-[#11131A] border border-zinc-800 rounded-lg p-6 hover:border-zinc-600 transition-colors cursor-pointer group relative overflow-hidden flex flex-col"
+            onClick={() => onSelectBank(bank.id)}
+          >
+            {/* Hover flare */}
+            <div className="absolute -inset-10 opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none" style={{ background: `radial-gradient(circle, ${bank.color} 0%, transparent 70%)` }} />
+            
+            <div className="flex items-center gap-3 mb-4 relative z-10">
+              <div className="w-10 h-10 rounded bg-[#1E1A15] border border-zinc-800 flex items-center justify-center shadow-inner" style={{ color: bank.color }}>
+                <Landmark size={20} />
+              </div>
+              <div className="font-serif font-bold text-zinc-100 text-lg leading-tight">{bank.name}</div>
+            </div>
+            
+            <div className="text-xs text-zinc-400 mb-6 flex-1 relative z-10 leading-relaxed">
+              {bank.description}
+            </div>
+            
+            <div className="pt-4 border-t border-zinc-800/50 flex justify-between items-center relative z-10">
+              <span className="text-[10px] font-mono uppercase text-zinc-500">Enter Portal</span>
+              <ArrowRight size={14} className="text-zinc-600 group-hover:text-zinc-300 transition-colors transform group-hover:translate-x-1" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FINANCIAL PROFILE
+// ─────────────────────────────────────────────────────────────────────────────
+function FinancialProfile({ company, personalDossier, corporateDossier, getRatingColor }: any) {
   // Fake some values for the Radar Chart if they don't exist
   const radarData = [
     { subject: 'Character', value: Math.max(10, Math.min(100, personalDossier?.metrics?.character || 50)) },
@@ -188,136 +319,94 @@ function FinancialDistrict({ banks, company, personalDossier, corporateDossier, 
   const COLORS = [T.mint, T.red];
 
   return (
-    <div className="flex flex-col animate-slide-in w-full space-y-10 pb-10">
-        
-        {/* Consolidated Profile */}
-        <section>
-          <div className="flex items-center gap-2 mb-6">
-            <Activity size={16} className="text-zinc-500" />
-            <h3 className="font-mono text-sm uppercase tracking-widest text-zinc-300">Unified Credit Profile</h3>
-          </div>
+    <div className="flex flex-col animate-slide-in w-full pb-10 p-6 md:p-8 max-w-7xl mx-auto space-y-10">
+      <div>
+        <h2 className="font-serif text-2xl font-bold text-zinc-100 mb-2">Unified Credit Profile</h2>
+        <p className="text-sm text-zinc-400">Your consolidated financial health and credit standing.</p>
+      </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Scores */}
-            <div className="col-span-1 flex flex-col gap-4">
-              <div className="bg-[#11131A] border border-zinc-800 rounded-lg p-6 flex-1 flex flex-col justify-center">
-                <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2">Personal Rating</div>
-                <div className="flex items-baseline gap-3">
-                  <div className="text-4xl font-serif font-bold" style={{ color: getRatingColor(personalDossier?.ratingTier || 'D') }}>
-                    {personalDossier?.ratingTier || 'N/A'}
-                  </div>
-                  <div className="text-xs text-zinc-400">Score: {personalDossier?.riskScore || 0}/100</div>
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Scores */}
+        <div className="col-span-1 flex flex-col gap-4">
+          <div className="bg-[#11131A] border border-zinc-800 rounded-lg p-6 flex-1 flex flex-col justify-center">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2">Personal Rating</div>
+            <div className="flex items-baseline gap-3">
+              <div className="text-4xl font-serif font-bold" style={{ color: getRatingColor(personalDossier?.ratingTier || 'D') }}>
+                {personalDossier?.ratingTier || 'N/A'}
               </div>
-              <div className={`bg-[#11131A] border border-zinc-800 rounded-lg p-6 flex-1 flex flex-col justify-center ${!company ? 'opacity-50 grayscale' : ''}`}>
-                <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2">Corporate Rating</div>
-                {company ? (
-                  <div className="flex items-baseline gap-3">
-                    <div className="text-4xl font-serif font-bold" style={{ color: getRatingColor(corporateDossier?.ratingTier || 'D') }}>
-                      {corporateDossier?.ratingTier || 'N/A'}
-                    </div>
-                    <div className="text-xs text-zinc-400">Score: {corporateDossier?.riskScore || 0}/100</div>
-                  </div>
-                ) : (
-                  <div className="text-xs text-zinc-500 italic mt-2">No active company</div>
-                )}
-              </div>
-            </div>
-
-            {/* Radar Chart */}
-            <div className="col-span-1 bg-[#11131A] border border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[250px]">
-              <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">The 5 C's (Consolidated)</div>
-              <div className="w-full flex-1">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                    <PolarGrid stroke="#2A2630" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#A79D8C', fontSize: 9 }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                    <Radar name="Credit" dataKey="value" stroke={T.gold} fill={T.gold} fillOpacity={0.2} />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Pie Chart */}
-            <div className="col-span-1 bg-[#11131A] border border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[250px]">
-              <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">Debt to Asset Ratio</div>
-              <div className="w-full flex-1 relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={70}
-                      paddingAngle={5}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: '#1E1A15', border: '1px solid #2A2630', fontSize: '11px', color: '#F4EBD6' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-                {/* Center text manually */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none flex-col">
-                  <span className="text-[10px] font-mono text-zinc-500">NET WORTH</span>
-                  <span className="text-sm font-bold text-zinc-200">${(totalAssets).toLocaleString()}</span>
-                </div>
-              </div>
+              <div className="text-xs text-zinc-400">Score: {personalDossier?.riskScore || 0}/100</div>
             </div>
           </div>
-        </section>
-
-        {/* Banking Institutions */}
-        <section>
-          <div className="flex items-center gap-2 mb-6">
-            <Building2 size={16} className="text-zinc-500" />
-            <h3 className="font-mono text-sm uppercase tracking-widest text-zinc-300">Banking Institutions</h3>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {banks.map((bank: any) => (
-              <div 
-                key={bank.id} 
-                className="bg-[#11131A] border border-zinc-800 rounded-lg p-6 hover:border-zinc-600 transition-colors cursor-pointer group relative overflow-hidden flex flex-col"
-                onClick={() => onSelectBank(bank.id)}
-              >
-                {/* Hover flare */}
-                <div className="absolute -inset-10 opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none" style={{ background: `radial-gradient(circle, ${bank.color} 0%, transparent 70%)` }} />
-                
-                <div className="flex items-center gap-3 mb-4 relative z-10">
-                  <div className="w-10 h-10 rounded bg-[#1E1A15] border border-zinc-800 flex items-center justify-center shadow-inner" style={{ color: bank.color }}>
-                    <Landmark size={20} />
-                  </div>
-                  <div className="font-serif font-bold text-zinc-100 text-lg leading-tight">{bank.name}</div>
+          <div className={`bg-[#11131A] border border-zinc-800 rounded-lg p-6 flex-1 flex flex-col justify-center ${!company ? 'opacity-50 grayscale' : ''}`}>
+            <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2">Corporate Rating</div>
+            {company ? (
+              <div className="flex items-baseline gap-3">
+                <div className="text-4xl font-serif font-bold" style={{ color: getRatingColor(corporateDossier?.ratingTier || 'D') }}>
+                  {corporateDossier?.ratingTier || 'N/A'}
                 </div>
-                
-                <div className="text-xs text-zinc-400 mb-6 flex-1 relative z-10 leading-relaxed">
-                  {bank.description}
-                </div>
-                
-                <div className="pt-4 border-t border-zinc-800/50 flex justify-between items-center relative z-10">
-                  <span className="text-[10px] font-mono uppercase text-zinc-500">Enter Portal</span>
-                  <ArrowRight size={14} className="text-zinc-600 group-hover:text-zinc-300 transition-colors transform group-hover:translate-x-1" />
-                </div>
+                <div className="text-xs text-zinc-400">Score: {corporateDossier?.riskScore || 0}/100</div>
               </div>
-            ))}
+            ) : (
+              <div className="text-xs text-zinc-500 italic mt-2">No active company</div>
+            )}
           </div>
-        </section>
+        </div>
+
+        {/* Radar Chart */}
+        <div className="col-span-1 bg-[#11131A] border border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[250px]">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">The 5 C's (Consolidated)</div>
+          <div className="w-full flex-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                <PolarGrid stroke="#2A2630" />
+                <PolarAngleAxis dataKey="subject" tick={{ fill: '#A79D8C', fontSize: 9 }} />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                <Radar name="Credit" dataKey="value" stroke={T.gold} fill={T.gold} fillOpacity={0.2} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Pie Chart */}
+        <div className="col-span-1 bg-[#11131A] border border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[250px]">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">Debt to Asset Ratio</div>
+          <div className="w-full flex-1 relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={70}
+                  paddingAngle={5}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ backgroundColor: '#1E1A15', border: '1px solid #2A2630', fontSize: '11px', color: '#F4EBD6' }} />
+              </PieChart>
+            </ResponsiveContainer>
+            {/* Center text manually */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none flex-col">
+              <span className="text-[10px] font-mono text-zinc-500">NET WORTH</span>
+              <span className="text-sm font-bold text-zinc-200">${(totalAssets).toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BANK PORTAL
 // ─────────────────────────────────────────────────────────────────────────────
 function BankPortal({ bank, company, personalDossier, corporateDossier, onBack, onTakeLoan, isSubmitting, getRatingColor }: any) {
-  const [activeTab, setActiveTab] = useState<BankingTabId>('overview');
+  const [activeTab, setActiveTab] = useState<'personal' | 'corporate'>('personal');
 
   const getChartData = (dossier: any) => {
     if (!dossier) return [];
@@ -340,7 +429,7 @@ function BankPortal({ bank, company, personalDossier, corporateDossier, onBack, 
     );
 
     return (
-      <div className="max-w-6xl space-y-6 animate-slide-in">
+      <div className="w-full space-y-6 animate-slide-in mt-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Score Card */}
           <div className="lg:col-span-1 bg-[#11131A] border border-zinc-800 rounded-lg p-6 relative overflow-hidden flex flex-col justify-between">
@@ -349,7 +438,7 @@ function BankPortal({ bank, company, personalDossier, corporateDossier, onBack, 
             </div>
             <div>
               <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-6">
-                {type === 'personal' ? 'Personal Credit Rating' : 'Corporate Credit Rating'}
+                {type === 'personal' ? 'Personal Rating' : 'Corporate Rating'}
               </div>
               
               <div className="flex items-baseline gap-4 mb-2">
@@ -411,7 +500,7 @@ function BankPortal({ bank, company, personalDossier, corporateDossier, onBack, 
 
         <div className="mt-8 flex items-center gap-2">
           <Wallet size={14} className="text-zinc-500" />
-          <h3 className="font-mono text-xs uppercase tracking-widest text-zinc-400">Available Credit Facilities</h3>
+          <h3 className="font-mono text-xs uppercase tracking-widest text-zinc-400">Available Facilities</h3>
         </div>
 
         {/* Facilities List */}
@@ -500,95 +589,55 @@ function BankPortal({ bank, company, personalDossier, corporateDossier, onBack, 
   };
 
   return (
-    <div className="flex flex-col h-full animate-slide-in">
+    <div className="flex flex-col h-full animate-slide-in p-6 md:p-8 max-w-7xl mx-auto w-full">
+      
       {/* Top Navigation Bar for Specific Bank */}
-      <div className="flex items-center px-6 py-4 border-b border-zinc-800 bg-[#11131A] shrink-0">
-        <button 
-          onClick={onBack}
-          className="mr-4 p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-zinc-100 flex items-center justify-center"
-        >
-          <ChevronLeft size={20} />
-        </button>
-        <div className="w-8 h-8 rounded border border-zinc-800 flex items-center justify-center mr-3 bg-[#090A0F]" style={{ color: bank.color }}>
-          <Landmark size={14} />
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between border-b border-zinc-800 pb-6 mb-6">
+        <div className="flex items-center">
+          <button 
+            onClick={onBack}
+            className="mr-4 p-2 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-zinc-100 flex items-center justify-center border border-zinc-700"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <div className="w-10 h-10 rounded border border-zinc-800 flex items-center justify-center mr-4 bg-[#090A0F]" style={{ color: bank.color }}>
+            <Landmark size={20} />
+          </div>
+          <div>
+            <h2 className="font-serif text-2xl font-bold text-zinc-100 m-0 leading-tight">
+              {bank.name}
+            </h2>
+            <div className="text-[11px] font-mono uppercase tracking-[0.1em] text-zinc-500 mt-1">
+              Base Lending Rate: {((personalDossier?.baseRate || 0.05)*100).toFixed(1)}%
+            </div>
+          </div>
         </div>
-        <h2 className="font-serif text-xl font-bold text-zinc-100 m-0 uppercase tracking-wide" style={{ textShadow: `0 0 10px ${bank.color}40` }}>
-          {bank.name}
-        </h2>
+        
+        {/* Horizontal Sub-tabs inside the bank portal */}
+        <div className="flex bg-[#11131A] p-1 rounded-md border border-zinc-800 mt-4 lg:mt-0">
+          <button 
+            onClick={() => setActiveTab('personal')}
+            className={`px-4 py-1.5 text-xs font-semibold rounded transition-colors ${activeTab === 'personal' ? 'bg-[#2A2630] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Personal Lending
+          </button>
+          <button 
+            disabled={!company}
+            onClick={() => setActiveTab('corporate')}
+            className={`px-4 py-1.5 text-xs font-semibold rounded transition-colors flex items-center gap-2 ${!company ? 'text-zinc-700 cursor-not-allowed' : activeTab === 'corporate' ? 'bg-[#2A2630] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Commercial Lending {!company && '🔒'}
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-col md:flex-row flex-1 min-h-0">
-        {/* ── INTERNAL SUB-NAV (LEFT SIDEBAR) ── */}
-        <div className="flex md:flex-col gap-1.5 md:min-w-[220px] md:max-w-[220px] md:border-r border-zinc-800 pr-5 pt-5 overflow-x-auto bg-[#090A0F]">
-          {(['overview', 'personal', 'corporate', 'debt'] as const).map((tab) => {
-            const isActive = activeTab === tab;
-            const isLocked = tab === 'corporate' && !company;
-            return (
-              <button
-                key={tab}
-                disabled={isLocked}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-3 text-[12px] font-semibold text-left whitespace-nowrap rounded-r-md border-l-2 transition-colors cursor-pointer
-                  ${isLocked ? 'text-zinc-700 bg-transparent border-transparent cursor-not-allowed'
-                  : isActive
-                    ? 'bg-zinc-800/40'
-                    : 'text-zinc-500 bg-transparent border-transparent hover:text-zinc-300 hover:bg-zinc-800/20'}`}
-                style={{
-                  color: isActive ? bank.color : undefined,
-                  borderColor: isActive ? bank.color : 'transparent',
-                }}
-              >
-                {tab === 'overview' ? 'Institution Overview' : 
-                 tab === 'personal' ? 'Personal Lending' : 
-                 tab === 'corporate' ? 'Commercial Lending' : 
-                 'Active Debt Schedule'}
-                 {isLocked && ' 🔒'}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ── CONTENT AREA ── */}
-        <div className="flex-1 overflow-y-auto p-6 bg-[#090A0F]">
-          {activeTab === 'overview' && (
-            <div className="max-w-4xl space-y-6 animate-slide-in">
-              <div className="bg-[#11131A] border border-zinc-800 rounded-lg overflow-hidden">
-                <div className="h-2 w-full" style={{ backgroundColor: bank.color }} />
-                <div className="p-8">
-                  <h3 className="font-serif text-2xl font-bold text-zinc-100 mb-2">Welcome to {bank.name}</h3>
-                  <p className="text-sm text-zinc-400 leading-relaxed mb-6 max-w-2xl">
-                    {bank.description}
-                  </p>
-                  
-                  <div className="grid grid-cols-2 gap-4 mt-8">
-                    <div className="bg-[#090A0F] border border-zinc-800 rounded p-4">
-                      <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Base Lending Rate</div>
-                      <div className="text-xl font-bold" style={{ color: bank.color }}>{((personalDossier?.baseRate || 0.05)*100).toFixed(1)}%</div>
-                    </div>
-                    <div className="bg-[#090A0F] border border-zinc-800 rounded p-4">
-                      <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Relationship Status</div>
-                      <div className="text-xl font-bold text-zinc-300">Client</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'personal' && renderDossier('personal')}
-          {activeTab === 'corporate' && company && renderDossier('corporate')}
-
-          {activeTab === 'debt' && (
-            <div className="max-w-4xl space-y-6 animate-slide-in">
-              <h3 className="font-serif text-2xl font-bold text-zinc-100">Debt Schedule</h3>
-              <div className="bg-[#11131A] border border-zinc-800 rounded-lg p-8 flex flex-col items-center justify-center min-h-[300px]">
-                <Activity size={32} className="text-zinc-800 mb-4" />
-                <div className="text-zinc-500 text-sm">No active debt facilities with this institution.</div>
-              </div>
-            </div>
-          )}
-        </div>
+      <div className="text-sm text-zinc-400 max-w-3xl leading-relaxed">
+        "{bank.description}"
       </div>
+
+      {activeTab === 'personal' && renderDossier('personal')}
+      {activeTab === 'corporate' && company && renderDossier('corporate')}
+
     </div>
   );
 }
