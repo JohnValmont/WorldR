@@ -25,6 +25,14 @@ export default function BanksTab({ company, onRefresh }: { company: any, onRefre
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  if (!company) {
+    return (
+      <div style={{ padding: '40px', color: T.faint, fontSize: '13px', textAlign: 'center', border: `1px dashed ${T.border}`, background: 'rgba(255,255,255,0.02)' }}>
+        You must register a company to access corporate banking facilities.
+      </div>
+    );
+  }
+
   useEffect(() => {
     if (selectedBank) {
       setLoading(true);
