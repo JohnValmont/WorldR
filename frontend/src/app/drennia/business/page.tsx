@@ -710,7 +710,7 @@ export default function BusinessPage() {
           )
         )}
         {activeTab === 'exchange' && <PageShell className="py-6"><DrennportExchangeTab /></PageShell>}
-        {activeTab === 'banks' && <BanksTab company={company} onRefresh={refreshAll} />}
+        {activeTab === 'banks' && <BanksTab company={company} playerCash={playerCash} onRefresh={refreshAll} />}
         {activeTab === 'registry'  && <PageShell className="py-6"><RegistryTab key={registryKey} company={company} onRefresh={() => setRegistryKey(k => k + 1)} /></PageShell>}
       </div>
     </div>

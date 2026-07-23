@@ -23,33 +23,17 @@ const T = {
 const BANKS = [
   {
     id: 'drennia-national',
-    name: 'Drennia National Bank',
-    description: 'The state-backed behemoth. Lower rates, stricter covenants. High capacity.',
+    name: 'State Bank of Drennia',
+    description: 'The central state banking authority. Provides foundational accounts, personal loans, and strictly regulated corporate facilities.',
     color: '#4B6382',
     accent: 'bg-[#4B6382]/10 border-[#4B6382]',
-    facilities: ['personal', 'tla']
-  },
-  {
-    id: 'valmont-private',
-    name: 'Valmont & Co. Private Wealth',
-    description: 'Exclusive private banking. High rates, lower covenants, growth-focused.',
-    color: '#8F3D3D',
-    accent: 'bg-[#8F3D3D]/10 border-[#8F3D3D]',
-    facilities: ['executive', 'growth']
-  },
-  {
-    id: 'apex-commercial',
-    name: 'Apex Commercial Credit',
-    description: 'Corporate-only lending. Aggressive distressed bailouts and mezzanine debt.',
-    color: '#6B6358',
-    accent: 'bg-[#6B6358]/10 border-[#6B6358]',
-    facilities: ['distressed']
+    facilities: ['personal', 'executive', 'tla', 'growth', 'distressed'] // Combining facilities for now since it's the only bank
   }
 ];
 
 type GlobalSidebarTab = 'institutions' | 'profile' | 'debt' | 'treasury';
 
-export default function BanksTab({ company, onRefresh }: { company: any, onRefresh?: () => void }) {
+export default function BanksTab({ company, playerCash, onRefresh }: { company: any, playerCash: number, onRefresh?: () => void }) {
   const [activeSidebarTab, setActiveSidebarTab] = useState<GlobalSidebarTab>('institutions');
   const [selectedBankId, setSelectedBankId] = useState<string | null>(null);
   
@@ -149,6 +133,7 @@ export default function BanksTab({ company, onRefresh }: { company: any, onRefre
           <BankPortal 
             bank={BANKS.find(b => b.id === selectedBankId)!} 
             company={company}
+            playerCash={playerCash}
             personalDossier={personalDossier}
             corporateDossier={corporateDossier}
             onBack={() => setSelectedBankId(null)}
@@ -405,8 +390,9 @@ function FinancialProfile({ company, personalDossier, corporateDossier, getRatin
 // ─────────────────────────────────────────────────────────────────────────────
 // BANK PORTAL
 // ─────────────────────────────────────────────────────────────────────────────
-function BankPortal({ bank, company, personalDossier, corporateDossier, onBack, onTakeLoan, isSubmitting, getRatingColor }: any) {
-  const [activeTab, setActiveTab] = useState<'personal' | 'corporate'>('personal');
+function BankPortal({ bank, company, playerCash, personalDossier, corporateDossier, onBack, onTakeLoan, isSubmitting, getRatingColor }: any) {
+  const [activeTab, setActiveTab] = useState<'accounts' | 'credit' | 'products'>('accounts');
+  const [productsSubTab, setProductsSubTab] = useState<'personal' | 'corporate'>('personal');
 
   const getChartData = (dossier: any) => {
     if (!dossier) return [];
@@ -418,6 +404,62 @@ function BankPortal({ bank, company, personalDossier, corporateDossier, onBack, 
       { month: 'M-1', score: Math.min(100, dossier.riskScore + 2) },
       { month: 'Now', score: dossier.riskScore },
     ];
+  };
+
+  const renderAccounts = () => {
+    return (
+      <div className="w-full space-y-6 animate-slide-in mt-6">
+        <h3 className="font-serif text-xl text-zinc-100">Deposit Accounts</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-[#11131A] border border-zinc-800 rounded-lg p-6 flex flex-col justify-between">
+            <div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2">Personal Checking</div>
+              <div className="text-3xl font-serif font-bold text-zinc-100">
+                ${(playerCash || 0).toLocaleString()}
+              </div>
+            </div>
+            <div className="mt-6 flex gap-2">
+              <button className="flex-1 bg-[#1E1A15] hover:bg-[#2A2630] border border-zinc-700 py-2 rounded text-[10px] font-mono uppercase tracking-widest text-zinc-300 transition-colors">Transfer</button>
+              <button className="flex-1 bg-[#1E1A15] hover:bg-[#2A2630] border border-zinc-700 py-2 rounded text-[10px] font-mono uppercase tracking-widest text-zinc-300 transition-colors">Pay Bills</button>
+            </div>
+          </div>
+          
+          <div className={`bg-[#11131A] border border-zinc-800 rounded-lg p-6 flex flex-col justify-between ${!company ? 'opacity-50 grayscale' : ''}`}>
+            <div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2">Business Operating Account</div>
+              <div className="text-3xl font-serif font-bold text-zinc-100">
+                {company ? `$${(company.finances?.available_cash || 0).toLocaleString()}` : 'No Active Account'}
+              </div>
+            </div>
+            <div className="mt-6 flex gap-2">
+              <button disabled={!company} className="flex-1 bg-[#1E1A15] hover:bg-[#2A2630] border border-zinc-700 py-2 rounded text-[10px] font-mono uppercase tracking-widest text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Transfer</button>
+              <button disabled={!company} className="flex-1 bg-[#1E1A15] hover:bg-[#2A2630] border border-zinc-700 py-2 rounded text-[10px] font-mono uppercase tracking-widest text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Payroll</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <h3 className="font-serif text-xl text-zinc-100 mb-4">Recent Activity</h3>
+          <div className="bg-[#11131A] border border-zinc-800 rounded-lg flex flex-col items-center justify-center min-h-[150px] p-6 text-center">
+            <Activity size={24} className="text-zinc-700 mb-2" />
+            <div className="text-sm text-zinc-500">No recent transactions.</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderCredit = () => {
+    return (
+      <div className="w-full space-y-6 animate-slide-in mt-6">
+        <h3 className="font-serif text-xl text-zinc-100">Active Debt Facilities</h3>
+        <div className="bg-[#11131A] border border-zinc-800 rounded-lg flex flex-col items-center justify-center min-h-[250px] p-6 text-center">
+          <Wallet size={32} className="text-zinc-700 mb-4" />
+          <div className="text-sm text-zinc-400 mb-2">No active loans with {bank.name}.</div>
+          <div className="text-xs text-zinc-600">Navigate to Products & Offers to apply for credit facilities.</div>
+        </div>
+      </div>
+    );
   };
 
   const renderDossier = (type: 'personal' | 'corporate') => {
@@ -616,17 +658,22 @@ function BankPortal({ bank, company, personalDossier, corporateDossier, onBack, 
         {/* Horizontal Sub-tabs inside the bank portal */}
         <div className="flex bg-[#11131A] p-1 rounded-md border border-zinc-800 mt-4 lg:mt-0">
           <button 
-            onClick={() => setActiveTab('personal')}
-            className={`px-4 py-1.5 text-xs font-semibold rounded transition-colors ${activeTab === 'personal' ? 'bg-[#2A2630] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+            onClick={() => setActiveTab('accounts')}
+            className={`px-4 py-1.5 text-xs font-semibold rounded transition-colors ${activeTab === 'accounts' ? 'bg-[#2A2630] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
           >
-            Personal Lending
+            Accounts
           </button>
           <button 
-            disabled={!company}
-            onClick={() => setActiveTab('corporate')}
-            className={`px-4 py-1.5 text-xs font-semibold rounded transition-colors flex items-center gap-2 ${!company ? 'text-zinc-700 cursor-not-allowed' : activeTab === 'corporate' ? 'bg-[#2A2630] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+            onClick={() => setActiveTab('credit')}
+            className={`px-4 py-1.5 text-xs font-semibold rounded transition-colors ${activeTab === 'credit' ? 'bg-[#2A2630] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
           >
-            Commercial Lending {!company && '🔒'}
+            Credit & Loans
+          </button>
+          <button 
+            onClick={() => setActiveTab('products')}
+            className={`px-4 py-1.5 text-xs font-semibold rounded transition-colors ${activeTab === 'products' ? 'bg-[#2A2630] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Products & Offers
           </button>
         </div>
       </div>
@@ -635,8 +682,31 @@ function BankPortal({ bank, company, personalDossier, corporateDossier, onBack, 
         "{bank.description}"
       </div>
 
-      {activeTab === 'personal' && renderDossier('personal')}
-      {activeTab === 'corporate' && company && renderDossier('corporate')}
+      {activeTab === 'accounts' && renderAccounts()}
+      {activeTab === 'credit' && renderCredit()}
+      
+      {activeTab === 'products' && (
+        <div className="mt-8 animate-slide-in">
+          <div className="flex border-b border-zinc-800 mb-6">
+            <button 
+              onClick={() => setProductsSubTab('personal')}
+              className={`px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${productsSubTab === 'personal' ? 'border-terminal-amber text-terminal-amber' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+            >
+              Personal Lending
+            </button>
+            <button 
+              disabled={!company}
+              onClick={() => setProductsSubTab('corporate')}
+              className={`px-4 py-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 ${!company ? 'text-zinc-700 cursor-not-allowed border-transparent' : productsSubTab === 'corporate' ? 'border-terminal-amber text-terminal-amber' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+            >
+              Commercial Lending {!company && '🔒'}
+            </button>
+          </div>
+          
+          {productsSubTab === 'personal' && renderDossier('personal')}
+          {productsSubTab === 'corporate' && company && renderDossier('corporate')}
+        </div>
+      )}
 
     </div>
   );
