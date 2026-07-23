@@ -598,7 +598,7 @@ export default function BoardDeskPanel({
                   {['cso', 'cmo'].includes(pos.id) && !isHired && (
                     <div style={{ marginTop: 16 }}>
                       <button
-                        onClick={() => handleHire(pos.id)}
+                        onClick={(e) => { e.stopPropagation(); handleHire(pos.id); }}
                         disabled={isHiring}
                         style={{
                           background: `linear-gradient(135deg, ${pos.color}10 0%, ${pos.color}20 100%)`,
