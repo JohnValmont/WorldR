@@ -95,10 +95,25 @@ function Btn({ label, onClick, primary, disabled }: { label: string; onClick: ()
 
 function nearestRung(axis: string, value: number) {
   const p = PILLAR_BY_AXIS[axis as keyof typeof PILLAR_BY_AXIS];
-  if (!p) return '';
+  if (!p || !p.rungs?.length) return '';
+  const safeVal = isNaN(value) ? 50 : value;
   let best = p.rungs[0];
-  for (const r of p.rungs) if (Math.abs(r.value - value) < Math.abs(best.value - value)) best = r;
+  for (const r of p.rungs) if (Math.abs(r.value - safeVal) < Math.abs(best.value - safeVal)) best = r;
   return best.label;
+}
+
+/** Safely coerce a party object's doctrine_id from either camelCase or snake_case */
+function getDoctrineId(party: any): CreedId | undefined {
+  return (party?.doctrine_id || party?.doctrineId) as CreedId | undefined;
+}
+
+/** Safe-parse a platform field that Postgres may return as a JSON string or object */
+function parsePlatform(raw: any): Record<string, number> {
+  if (!raw) return {};
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw); } catch { return {}; }
+  }
+  return raw as Record<string, number>;
 }
 
 // ── Faction Loyalty colours ──────────────────────────────────────────────────
@@ -1160,12 +1175,12 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                   {myParty.abbreviation && <span style={{ color: T.faint, fontSize: 22, fontFamily: MONO, textTransform: 'uppercase', fontWeight: 600 }}>[{myParty.abbreviation}]</span>}
                 </h1>
                 <div style={{ color: T.gold, fontFamily: MONO, fontSize: 13, marginTop: 12, textTransform: 'uppercase', letterSpacing: '0.15em', textShadow: `0 0 10px ${T.goldSoft}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span>{CREED_NAME_BY_ID[(myParty.doctrine_id || myParty.doctrineId) as CreedId] || 'Independent'}</span>
-                  {(myParty.tenet_id || myParty.tenetId) && TENETS[(myParty.doctrine_id || myParty.doctrineId) as CreedId]?.find(t => t.id === (myParty.tenet_id || myParty.tenetId)) && (
+                  <span>{CREED_NAME_BY_ID[getDoctrineId(myParty)!] || 'Independent'}</span>
+                  {(myParty.tenet_id || myParty.tenetId) && TENETS[getDoctrineId(myParty)!]?.find(t => t.id === (myParty.tenet_id || myParty.tenetId)) && (
                     <>
                       <span style={{ color: T.border, fontSize: 16, fontWeight: 300 }}>/</span>
                       <span style={{ color: T.ivory, fontWeight: 600, letterSpacing: '0.1em' }}>
-                        {TENETS[(myParty.doctrine_id || myParty.doctrineId) as CreedId]?.find(t => t.id === (myParty.tenet_id || myParty.tenetId))?.name}
+                        {TENETS[getDoctrineId(myParty)!]?.find(t => t.id === (myParty.tenet_id || myParty.tenetId))?.name}
                       </span>
                     </>
                   )}
@@ -1177,8 +1192,9 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           <Panel title={<><Flag size={14} /> Platform & Planks</>} accent={T.gold}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {PILLARS.map((p) => {
-                const v = Number(myParty.platform?.[p.axis] ?? 50);
-                const isKeystone = CREEDS[(myParty.doctrine_id || myParty.doctrineId) as CreedId]?.keystone === p.axis;
+                const _platform = parsePlatform(myParty.platform);
+                const v = isNaN(Number(_platform[p.axis])) ? 50 : Number(_platform[p.axis] ?? 50);
+                const isKeystone = CREEDS[getDoctrineId(myParty)!]?.keystone === p.axis;
                 return (
                   <div key={p.axis}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
@@ -1425,7 +1441,8 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
             
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               {err && <div style={{ color: T.red, fontSize: 14, fontWeight: 500 }}>{err}</div>}
-              <Btn label={busy ? 'Founding\u2026' : 'Found Party'} primary onClick={found} disabled={busy || !name.trim() || !abbreviation.trim() || !creed} />
+              {abbreviation.trim().length === 1 && <div style={{ color: T.gold, fontSize: 12, fontFamily: MONO }}>Abbreviation must be 2–6 chars</div>}
+              <Btn label={busy ? 'Founding\u2026' : 'Found Party'} primary onClick={found} disabled={busy || !name.trim() || abbreviation.trim().length < 2 || !creed} />
             </div>
           </div>
         </>

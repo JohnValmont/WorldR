@@ -411,13 +411,14 @@ export async function recruitNpcToParty(
     .decrement('treasury', RECRUIT_COST_CASH);
 
   // Create a placeholder system character (NPC)
-  // We store NPCs with character_id = null to match existing NPC-candidate pattern
+  // Store the drifted platform so NPCs have distinct ideology data
   await trx('pol_party_members').insert({
     party_id: party.id,
     character_id: null,
     role: 'member',
     joined_arc: currentArc,
     is_recruited_npc: true,
+    platform_snapshot: JSON.stringify(driftedPlatform),
   });
 }
 
