@@ -43,6 +43,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
   const [institutionData, setInstitutionData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -67,6 +68,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
             if (mounted) setCorporateDossier(res.data);
           }).catch(err => {
             console.error('Failed to load corporate dossier:', err);
+            if (mounted) setLoadError(err?.response?.data?.error || 'Backend failed to return portfolio data.');
           })
         );
       }
@@ -148,6 +150,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
             personalDossier={personalDossier}
             corporateDossier={corporateDossier}
             institutionData={institutionData}
+            loadError={loadError}
             onBack={() => setSelectedBankId(null)}
             onTakeLoan={handleTakeLoan}
             isSubmitting={isSubmitting}
