@@ -256,7 +256,7 @@ export default function ChroniclePage() {
               month: ev.month,
               text: `[Month ${ev.month}] ${ev.headline}: ${ev.body}`
             }));
-            const combined = [...polEvents, ...LEDGER_HEADLINES.map(h => ({ ...h, month: null }))];
+            const combined = [...polEvents, ...LEDGER_HEADLINES.map(h => ({ ...h, id: `static_${h.id}`, month: null }))];
             setLedgerFeed(combined);
 
             // Mirror world/ledger movements into the notification feed so the
