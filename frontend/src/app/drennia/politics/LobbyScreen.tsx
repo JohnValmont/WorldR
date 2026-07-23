@@ -33,7 +33,7 @@ export default function LobbyScreen({ selectedJurisdictionId, onJurisdictionChan
   const tenders: any[] = Array.isArray(tenderData) ? tenderData : (tenderData?.tenders || []);
 
   async function donate() {
-    if (!donateParty || amount <= 0) return;
+    if (!donateParty || amount < 100) return;
     try { setBusy(true); setErr(null); setMsg(null); await politicsApi.donateToParty(donateParty, amount); setMsg('Donation recorded.'); if (onRefresh) await onRefresh(); }
     catch (e: any) { setErr(e?.response?.data?.error || e?.response?.data?.message || 'Donation failed'); } finally { setBusy(false); }
   }
@@ -68,8 +68,8 @@ export default function LobbyScreen({ selectedJurisdictionId, onJurisdictionChan
                 <option value="">Select a party—</option>
                 {partyList.map((p: any) => <option key={p.id} value={p.id}>{p.name} {p.abbreviation ? `[${p.abbreviation}]` : ''}</option>)}
               </select>
-              <input type="number" value={amount} min={100} step={100} onChange={(e) => setAmount(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 12 }} />
-              <button onClick={donate} disabled={busy || !donateParty} style={{ width: '100%', padding: '11px', borderRadius: 4, cursor: busy || !donateParty ? 'not-allowed' : 'pointer', opacity: busy || !donateParty ? 0.5 : 1, background: T.gold, color: '#1a1408', border: 'none', fontWeight: 700, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: 12.5 }}>{busy ? 'Sending\u2026' : 'Make Donation'}</button>
+              <input type="number" value={amount} min={100} step={100} onChange={(e) => setAmount(Math.max(100, Number(e.target.value) || 100))} style={{ ...inputStyle, marginBottom: 12 }} />
+              <button onClick={donate} disabled={busy || !donateParty || amount < 100} style={{ width: '100%', padding: '11px', borderRadius: 4, cursor: busy || !donateParty || amount < 100 ? 'not-allowed' : 'pointer', opacity: busy || !donateParty || amount < 100 ? 0.5 : 1, background: T.gold, color: '#1a1408', border: 'none', fontWeight: 700, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: 12.5 }}>{busy ? 'Sending\u2026' : 'Make Donation'}</button>
               {msg && <div style={{ color: T.mint, fontSize: 12, marginTop: 8 }}>{msg}</div>}
               {err && <div style={{ color: T.red, fontSize: 12, marginTop: 8 }}>{err}</div>}
             </Panel>

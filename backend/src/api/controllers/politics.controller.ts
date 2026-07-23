@@ -1277,9 +1277,20 @@ export async function getTenders(req: Request, res: Response, next: NextFunction
     const clock = await db('world_clock').first();
     const currentMonth = worldClockToArc(clock);
 
+    // Batch: load all bids for open tenders in one query to avoid N+1
+    const openTenderIds = tenders.filter(t => t.status === 'open').map(t => t.id);
+    const allBids = openTenderIds.length > 0
+      ? await db('pol_tender_bids').whereIn('tender_id', openTenderIds)
+      : [];
+    const bidsByTender: Record<string, any[]> = {};
+    for (const bid of allBids) {
+      if (!bidsByTender[bid.tender_id]) bidsByTender[bid.tender_id] = [];
+      bidsByTender[bid.tender_id].push(bid);
+    }
+
     for (const tender of tenders) {
       if (tender.status === 'open') {
-        const bids = await db('pol_tender_bids').where({ tender_id: tender.id });
+        const bids = bidsByTender[tender.id] || [];
         tender.bids_count = bids.length;
         if (bids.length > 0) {
           tender.lowest_bid = Math.min(...bids.map(b => Number(b.bid_price)));
@@ -1287,9 +1298,9 @@ export async function getTenders(req: Request, res: Response, next: NextFunction
           tender.lowest_bid = null;
         }
       }
-      tender.remaining_arcs = tender.status === 'active' 
-        ? Math.max(0, (tender.posted_arc + tender.duration_arcs) - currentMonth)
-        : (tender.status === 'open' ? tender.duration_arcs : 0);
+      tender.remaining_arcs = tender.status === 'active'
+        ? Math.max(0, ((tender.posted_arc || 0) + (tender.duration_arcs || 0)) - currentMonth)
+        : (tender.status === 'open' ? (tender.duration_arcs || 0) : 0);
     }
 
     return res.json(tenders);
