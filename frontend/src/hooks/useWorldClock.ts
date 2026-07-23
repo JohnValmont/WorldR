@@ -45,6 +45,10 @@ export function useWorldClock() {
       return;
     }
     const target = new Date(clock.next_arc_close_at).getTime();
+    if (Number.isNaN(target)) {
+      setSecondsToTick(null);
+      return;
+    }
     let timeoutId: NodeJS.Timeout | null = null;
     
     const update = () => {
@@ -76,6 +80,10 @@ export function useWorldClock() {
       return;
     }
     const target = new Date(clock.pol_next_arc_close_at).getTime();
+    if (Number.isNaN(target)) {
+      setPolSecondsToTick(null);
+      return;
+    }
     let timeoutId: NodeJS.Timeout | null = null;
     
     const update = () => {
@@ -103,10 +111,15 @@ export function useWorldClock() {
 
 /** Format a seconds countdown as e.g. "7h 59m 30s" or "45s". */
 export function formatCountdown(totalSeconds: number): string {
+  if (!Number.isFinite(totalSeconds)) return '...';
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   const s = totalSeconds % 60;
-  if (h > 0) return `${h}h ${m}m ${s}s`;
-  if (m > 0) return `${m}m ${s}s`;
+  
+  const mStr = String(m).padStart(2, '0');
+  const sStr = String(s).padStart(2, '0');
+  
+  if (h > 0) return `${h}h ${mStr}m ${sStr}s`;
+  if (m > 0) return `${m}m ${sStr}s`;
   return `${s}s`;
 }
