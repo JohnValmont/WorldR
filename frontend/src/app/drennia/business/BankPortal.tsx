@@ -541,7 +541,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
       <div className="text-center mt-auto pt-6 border-t border-zinc-800/50">
         <div className="text-[9px] font-mono text-zinc-600 tracking-widest uppercase flex items-center justify-center gap-2">
           <ShieldCheck size={10} />
-          <span>Last reviewed by Drennia Financial Authority • {new Date().toISOString().split('T')[0]}</span>
+          <span>Last reviewed by Drennia Financial Authority • LIVE SYSTEM</span>
         </div>
       </div>
     </div>

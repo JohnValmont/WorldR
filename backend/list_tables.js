@@ -1,15 +1,6 @@
-require('dotenv').config();
-const { Client } = require('pg');
-const client = new Client({ connectionString: process.env.DATABASE_URL });
-async function run() {
-  await client.connect();
-  const res = await client.query(`
-    SELECT table_name 
-    FROM information_schema.tables 
-    WHERE table_schema = 'public'
-    LIMIT 20
-  `);
-  console.log(res.rows.map(r => r.table_name));
-  await client.end();
-}
-run();
+const sqlite3 = require('sqlite3'); 
+const db = new sqlite3.Database('../database/worldr.sqlite'); 
+db.all('SELECT name FROM sqlite_master WHERE type="table"', (err, rows) => { 
+  if (err) console.error(err); 
+  else console.log(rows); 
+});
