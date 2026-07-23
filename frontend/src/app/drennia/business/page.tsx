@@ -555,10 +555,16 @@ export default function BusinessPage() {
               <span className="text-terminal-amber">{company.name}</span>
             </>
           )}
+          {activeTab === 'banks' && (
+            <>
+              <span>→</span>
+              <span className="text-terminal-amber">Banks</span>
+            </>
+          )}
         </div>
 
         {/* Subtabs */}
-        {!(activeTab === 'companies' && selectedCompanyId) && (
+        {!(activeTab === 'companies' && selectedCompanyId) && activeTab !== 'banks' && (
           <div className="mt-4">
             <Tabs
               tabs={SUB_TABS.map(t => ({
@@ -581,6 +587,11 @@ export default function BusinessPage() {
         {activeTab === 'companies' && selectedCompanyId && company && (
           <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => setSelectedCompanyId(null)}>
             ← Back to Companies
+          </span>
+        )}
+        {activeTab === 'banks' && (
+          <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => setActiveTab('overview')}>
+            ← Back to Overview
           </span>
         )}
         {activeTab === 'start' && (
