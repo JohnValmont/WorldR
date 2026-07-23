@@ -68,7 +68,7 @@ function OledMeter({ value, label, tone, display }: { value: number, label: stri
 }
 
 // Indicative Fit (display only) — the engine uses the tuned POL_FIT_EXP formula.
-function fitPct(platform: any, seg: any): number | null {
+function fitPct(platform: Record<string, number> | null, seg: any): number | null {
   if (!platform) return null;
   let wsum = 0, acc = 0;
   for (const ax of Object.keys(seg.priorities)) {
@@ -77,6 +77,15 @@ function fitPct(platform: any, seg: any): number | null {
     acc += w * (1 - diff); wsum += w;
   }
   return wsum ? Math.round((acc / wsum) * 100) : null;
+}
+
+/** Safe-parse a platform field that Postgres may return as a JSON string or object */
+function parsePlatform(raw: any): Record<string, number> | null {
+  if (!raw) return null;
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw) as Record<string, number>; } catch { return null; }
+  }
+  return raw as Record<string, number>;
 }
 
 function leaning(seg: any): string {
@@ -96,7 +105,7 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
   const { data: polls } = useSWR(isLocked ? null : ['polls', selectedJurisdictionId], () => politicsApi.getPolls(selectedJurisdictionId).catch(() => null));
 
   const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
-  const myPlatform = myParty?.platform;
+  const myPlatform = parsePlatform(myParty?.platform);
 
   const rawProjections = polls?.pulse?.standings || polls?.parties || polls?.projections || [];
   const projections: any[] = Array.isArray(polls) ? polls : (Array.isArray(rawProjections) ? rawProjections : []);

@@ -1195,13 +1195,22 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
 
     const npcParties = await db('pol_parties').where({ state_id: activeState.id, is_npc: true });
 
+    const majority = getMajorityForState(activeState.code);
+
+    // Batch: pre-load all leader→party mappings so the bill loop has no per-vote DB calls
+    const allLeaders = await db('pol_party_members').where({ role: 'leader' }).whereNotNull('character_id');
+    const leaderToParty: Record<string, string> = {};
+    for (const l of allLeaders) {
+      if (l.character_id) leaderToParty[l.character_id] = l.party_id;
+    }
+
     for (const bill of bills) {
       const votes = await db('pol_bill_votes').where({ bill_id: bill.id });
 
       const votedParties = new Set<string>();
       for (const v of votes) {
-        const pm = await db('pol_party_members').where({ character_id: v.character_id, role: 'leader' }).first();
-        if (pm) votedParties.add(pm.party_id);
+        const pId = leaderToParty[v.character_id];
+        if (pId) votedParties.add(pId);
       }
 
       const projectedVotes = [...votes];
@@ -1226,8 +1235,7 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
       for (const v of projectedVotes) {
         let pId = (v as any)._npc_party_id;
         if (!pId && v.character_id !== 'system') {
-          const pm = await db('pol_party_members').where({ character_id: v.character_id, role: 'leader' }).first();
-          if (pm) pId = pm.party_id;
+          pId = leaderToParty[v.character_id];
         }
         if (pId) {
           const pSeats = seatCounts[pId] || 0;
@@ -1236,12 +1244,12 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
         }
       }
 
-      const abstain = getSeatsForState(activeState.code) - (yea + nay); // total seats for this jurisdiction
+      const abstain = Math.max(0, getSeatsForState(activeState.code) - (yea + nay)); // total seats for this jurisdiction
 
       resultBills.push({
         ...bill,
         tally: { yea, nay, abstain },
-        projectedPass: yea > nay
+        projectedPass: yea >= majority
       });
     }
 

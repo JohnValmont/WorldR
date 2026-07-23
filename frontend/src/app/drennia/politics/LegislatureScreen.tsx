@@ -185,7 +185,7 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
                     const total = (b.tally?.yea || 0) + (b.tally?.nay || 0) + (b.tally?.abstain || 0);
                     const pYea = total > 0 ? ((b.tally?.yea || 0) / total) * 100 : 0;
                     const pNay = total > 0 ? ((b.tally?.nay || 0) / total) * 100 : 0;
-                    const pAbstain = total > 0 ? ((b.tally?.abstain || 0) / total) * 100 : 100;
+                    const pAbstain = total > 0 ? ((b.tally?.abstain || 0) / total) * 100 : 0;
                     
                     return (
                       <GlassPanel key={b.id} title={<><Gavel size={14} /> Legislative Bill</>} accent={T.blueLine}>
