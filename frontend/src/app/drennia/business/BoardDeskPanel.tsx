@@ -85,7 +85,7 @@ const BOARD_POSITIONS = [
       "Approve advertising spend each month",
       "Design seasonal or launch-specific campaigns",
     ],
-    hint: "Coming soon — Marketing automation",
+    badge: "MARKETING AUTOMATION",
   },
   {
     id: "cto",
@@ -209,6 +209,7 @@ export default function BoardDeskPanel({
   const [expanded, setExpanded] = useState<string | null>("cso");
   const [isHiring, setIsHiring] = useState(false);
   const [isAllocating, setIsAllocating] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
 
   const getDeterministicName = (roleId: string) => {
     if (!companyId) return "Unknown";
@@ -247,6 +248,20 @@ export default function BoardDeskPanel({
       alert(err?.response?.data?.error || err?.message || 'Failed to trigger CSO auto-allocation.');
     } finally {
       setIsAllocating(false);
+    }
+  };
+
+  const handleOptimize = async (cId: string) => {
+    if (isOptimizing) return;
+    setIsOptimizing(true);
+    try {
+      await manufacturingApi.triggerCMOOptimization(cId);
+      alert('CMO successfully optimized all marketing tiers based on current awareness levels and budget constraints.');
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || err?.message || 'Failed to trigger CMO optimization.');
+    } finally {
+      setIsOptimizing(false);
     }
   };
 
@@ -446,6 +461,29 @@ export default function BoardDeskPanel({
                          }}
                        >
                          {isAllocating ? "ALLOCATING..." : "ACTION: AUTO-ALLOCATE"}
+                       </button>
+                    )}
+                    {isHired && pos.id === 'cmo' && (
+                       <button
+                         onClick={(e) => { e.stopPropagation(); handleOptimize(companyId); }}
+                         disabled={isOptimizing}
+                         style={{
+                           background: `linear-gradient(135deg, ${pos.color}10 0%, ${pos.color}20 100%)`,
+                           color: pos.color,
+                           border: `1px solid ${pos.color}50`,
+                           padding: "4px 12px",
+                           fontSize: "10px",
+                           fontFamily: "monospace",
+                           textTransform: "uppercase",
+                           letterSpacing: "0.1em",
+                           fontWeight: 700,
+                           cursor: isOptimizing ? "not-allowed" : "pointer",
+                           borderRadius: "4px",
+                           opacity: isOptimizing ? 0.7 : 1,
+                           transition: "all 0.2s",
+                         }}
+                       >
+                         {isOptimizing ? "OPTIMIZING..." : "ACTION: OPTIMIZE CAMPAIGNS"}
                        </button>
                     )}
                   </div>

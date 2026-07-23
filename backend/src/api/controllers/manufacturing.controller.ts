@@ -2796,6 +2796,10 @@ export class ManufacturingController {
         (global as any).tickProgress = `Processing country: ${countryId} - Step 6: CSO Planning`;
         await ManufacturingController.runCSOAllocations(trx, clock, participants);
 
+        // 7. CMO Auto-Allocation (for next month)
+        (global as any).tickProgress = `Processing country: ${countryId} - Step 7: CMO Optimization`;
+        await ManufacturingController.runCMOAllocations(trx, clock, participants);
+
         return { processedCompanies: participants.length };
   } // End of processCountryMonth
 
@@ -3086,6 +3090,103 @@ export class ManufacturingController {
       });
 
       res.status(200).json({ status: 'success', message: 'CSO has auto-allocated all inventory and upcoming production.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+  
+  // ── CMO Auto-Allocation Engine ────────────────────────────────────────────────
+  public static async runCMOAllocations(trx: any, clock: any, participants: any[]) {
+    const MARKETING_TIERS = [
+      { tier: 'none', cost: 0 },
+      { tier: 'local', cost: 3500 },
+      { tier: 'regional', cost: 12000 },
+      { tier: 'national', cost: 35000 }
+    ];
+    const MARKETING_REVENUE_PCT = 0.15;
+
+    for (const company of participants) {
+      const cmo = await trx('company_staff').where({ company_id: company.id, role: 'cmo' }).first();
+      if (!cmo || cmo.quantity <= 0) continue;
+
+      const finances = await trx('company_finances').where({ company_id: company.id }).first();
+      if (!finances) continue;
+      let availableCash = Number(finances.available_cash || 0);
+
+      // Get last month's revenue to calculate budget cap
+      const lastMonth = clock.current_month === 1 ? 12 : clock.current_month - 1;
+      const lastYear = clock.current_month === 1 ? clock.current_year - 1 : clock.current_year;
+      
+      const lastReport = await trx('manufacturing_arc_reports')
+        .where({ company_id: company.id, world_year: lastYear, world_month: lastMonth })
+        .first();
+      
+      const lastRevenue = lastReport ? Number(lastReport.sales_revenue || 0) : 0;
+      const maxSpendPerMarket = lastRevenue > 0 ? lastRevenue * MARKETING_REVENUE_PCT : availableCash * 0.10; // Fallback to 10% cash if no revenue yet
+
+      const allocations = await trx('manufacturing_market_allocations')
+        .where({ company_id: company.id });
+
+      for (const alloc of allocations) {
+        const brand = await trx('manufacturing_brand_awareness')
+          .where({ company_id: company.id, region_market_id: alloc.region_market_id })
+          .first();
+        
+        const awareness = brand ? Number(brand.awareness || 0) : 0;
+        let currentTier = alloc.marketing_tier || 'none';
+        let newTier = currentTier;
+        
+        const currentTierIndex = MARKETING_TIERS.findIndex(t => t.tier === currentTier);
+
+        // Logic: if awareness < 75%, try to upgrade.
+        if (awareness < 75 && currentTierIndex < MARKETING_TIERS.length - 1) {
+          const nextTier = MARKETING_TIERS[currentTierIndex + 1];
+          if (nextTier.cost <= maxSpendPerMarket && availableCash > nextTier.cost) {
+            newTier = nextTier.tier;
+            availableCash -= nextTier.cost;
+          }
+        } 
+        // Logic: if awareness > 95%, downgrade to save money.
+        else if (awareness > 95 && currentTierIndex > 0) {
+          newTier = MARKETING_TIERS[currentTierIndex - 1].tier;
+        }
+
+        if (newTier !== currentTier) {
+          await trx('manufacturing_market_allocations')
+            .where({ id: alloc.id })
+            .update({ marketing_tier: newTier });
+        }
+      }
+    }
+  }
+
+  // POST /companies/:companyId/manufacturing/cmo/optimize
+  public static async triggerCMOAllocations(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { companyId } = req.params;
+
+      if (!userId || !companyId) return next(new AppError('Missing fields', 400, 'BAD_REQUEST'));
+
+      await db.transaction(async (trx) => {
+        const { company } = await verifyManufacturingCompany(trx, userId, companyId);
+        const clock = await trx('world_clock').first();
+        
+        const cmo = await trx('company_staff').where({ company_id: companyId, role: 'cmo' }).first();
+        if (!cmo || cmo.quantity <= 0) {
+          throw new AppError('You must hire a Chief Marketing Officer (CMO) to use campaign optimization.', 400, 'BAD_REQUEST');
+        }
+
+        const activeAllocs = await trx('manufacturing_market_allocations')
+          .where({ company_id: companyId });
+        if (activeAllocs.length === 0) {
+          throw new AppError('You must allocate a model to at least one market first before the CMO can optimize campaigns.', 400, 'BAD_REQUEST');
+        }
+
+        await ManufacturingController.runCMOAllocations(trx, clock, [company]);
+      });
+
+      res.status(200).json({ status: 'success', message: 'CMO has automatically optimized all market campaigns.' });
     } catch (error) {
       next(error);
     }

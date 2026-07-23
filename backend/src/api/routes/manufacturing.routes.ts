@@ -45,6 +45,7 @@ router.post('/companies/:companyId/manufacturing/markets/allocate', authMiddlewa
 router.delete('/companies/:companyId/manufacturing/markets/allocations/:allocId', authMiddleware, ManufacturingController.removeAllocation);
 router.patch('/companies/:companyId/manufacturing/markets/:marketId/marketing', authMiddleware, ManufacturingController.setMarketingTier);
 router.post('/companies/:companyId/manufacturing/cso/allocate', authMiddleware, ManufacturingController.triggerCSOAllocations);
+router.post('/companies/:companyId/manufacturing/cmo/optimize', authMiddleware, ManufacturingController.triggerCMOAllocations);
 
 // Admin-only: process manufacturing month
 router.post('/admin/manufacturing/process-company/:companyId', [authMiddleware, requireAdmin], ManufacturingController.processManufacturingArc);

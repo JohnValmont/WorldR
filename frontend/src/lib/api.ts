@@ -371,6 +371,7 @@ export const manufacturingApi = {
   getEngineeringReport: (companyId: string, modelId: string) => api.get(`/companies/${companyId}/manufacturing/models/${modelId}/engineering-report`),
   getCompanyKnowledge: (companyId: string) => api.get(`/companies/${companyId}/manufacturing/knowledge`),
   triggerCSOAllocation: (companyId: string) => api.post(`/companies/${companyId}/manufacturing/cso/allocate`),
+  triggerCMOOptimization: (companyId: string) => api.post(`/companies/${companyId}/manufacturing/cmo/optimize`),
 };
 
 // Chat — global in-game chat
