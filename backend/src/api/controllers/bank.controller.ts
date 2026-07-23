@@ -105,8 +105,8 @@ export class BankController {
       if (clock) {
         await db('company_credit_ratings').insert({
           company_id: companyId,
-          world_year: clock.year,
-          world_month: clock.month,
+          world_year: clock.current_year,
+          world_month: clock.current_month,
           rating_tier: ratingTier,
           risk_score: riskScore
         }).onConflict(['company_id', 'world_year', 'world_month']).merge();
