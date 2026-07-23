@@ -37,15 +37,13 @@ export default function BanksTab({ company, onRefresh }: { company: any, onRefre
     if (selectedBank) {
       setLoading(true);
       import('@/lib/api').then(({ api }) => {
-        const token = localStorage.getItem('worldr_token');
-        api.get(`/banks/dossier/${company.id}`, {
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-        })
+        api.get(`/banks/dossier/${company.id}`)
         .then(res => {
           setDossier(res.data);
           setLoading(false);
         })
         .catch(err => {
+          console.error('Failed to load dossier:', err.response?.data || err.message);
           setError('Failed to load dossier');
           setLoading(false);
         });
@@ -56,18 +54,15 @@ export default function BanksTab({ company, onRefresh }: { company: any, onRefre
   const handleTakeLoan = async (facilityType: string, amount: number) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    const token = localStorage.getItem('worldr_token');
     try {
       const { api } = await import('@/lib/api');
-      const res = await api.post(`/banks/loan/${company.id}/take`, 
-        { facilityType, principalAmount: amount },
-        { headers: token ? { 'Authorization': `Bearer ${token}` } : {} }
-      );
+      const res = await api.post(`/banks/loan/${company.id}/take`, { facilityType, principalAmount: amount });
       alert(`Loan Secured! Monthly Payment: $${res.data.monthlyPayment}`);
       // Refresh dossier and parent state
       if (onRefresh) onRefresh();
       setSelectedBank(null); 
     } catch (e: any) {
+      console.error('Loan application error:', e);
       alert(e.response?.data?.error || e.message);
     } finally {
       setIsSubmitting(false);
