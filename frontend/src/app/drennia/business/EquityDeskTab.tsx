@@ -201,7 +201,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
         <div className="text-xs text-zinc-400 mb-4">
           {companyName} is registered as{' '}
           <span className="text-zinc-100 font-bold">{currentStructure?.name ?? currentStructureId ?? '…'}</span>.
-          Upgrading pays a one-time filing fee from company cash and raises monthly compliance costs.
+          Changing structure pays a one-time filing fee from company cash.
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {structList.map((s: any) => {
@@ -224,7 +224,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
                     <span>Min company value: <span className="text-zinc-200">${fmt(Number(s.min_company_value))}</span></span>
                   )}
                 </div>
-                {!isCurrent && isUpgrade && (
+                {!isCurrent && (
                   <Button
                     onClick={() => convert(s.id)}
                     disabled={busy}
