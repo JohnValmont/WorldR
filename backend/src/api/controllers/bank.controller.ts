@@ -203,4 +203,114 @@ export class BankController {
     }
   }
 
+  static async getPersonalCreditDossier(req: Request, res: Response, next: NextFunction) {
+    try {
+      const activeInstance = await db('world_instances').where({ status: 'active' }).first();
+      if (!activeInstance) return res.status(404).json({ error: 'No active world' });
+      const character = await db('characters').where({ user_id: req.user!.id, status: 'active', world_instance_id: activeInstance.id }).first();
+      if (!character) return res.status(404).json({ error: 'Character not found' });
+      
+      const finances = await db('character_finances').where({ character_id: character.id }).first();
+      const cash = Number(finances?.cash_in_hand || 0);
+      const netWorth = Number(finances?.net_worth || 0);
+
+      let riskScore = 50; 
+      if (cash > 100000) riskScore += 10;
+      if (cash < 0) riskScore -= 20;
+      if (netWorth > 500000) riskScore += 15;
+      riskScore = Math.max(0, Math.min(100, riskScore));
+
+      let ratingTier = 'D';
+      if (riskScore >= 80) ratingTier = 'AAA';
+      else if (riskScore >= 60) ratingTier = 'BBB';
+      else if (riskScore >= 40) ratingTier = 'B';
+      else if (riskScore >= 20) ratingTier = 'CCC';
+
+      const clock = await db('world_clock').first();
+      if (clock) {
+        await db('character_credit_ratings').insert({
+          character_id: character.id,
+          world_year: clock.year,
+          world_month: clock.month,
+          rating_tier: ratingTier,
+          risk_score: riskScore
+        }).onConflict(['character_id', 'world_year', 'world_month']).merge();
+      }
+
+      const macro = await db('bank_macro_rates').orderBy('created_at', 'desc').first();
+      const baseRate = macro ? Number(macro.base_rate) : 0.05;
+
+      res.json({
+        ratingTier,
+        riskScore,
+        metrics: {
+          character: 70, // Arbitrary base for personal
+          capacity: cash,
+          capital: netWorth,
+          collateral: netWorth * 0.3,
+          conditions: 'Stable'
+        },
+        baseRate
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async takePersonalLoan(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { facilityType, principalAmount } = req.body;
+      const activeInstance = await db('world_instances').where({ status: 'active' }).first();
+      const character = await db('characters').where({ user_id: req.user!.id, status: 'active', world_instance_id: activeInstance.id }).first();
+      if (!character) return res.status(404).json({ error: 'Character not found' });
+
+      let interestRate = 0;
+      let term = 60; // default 5 years
+      const macro = await db('bank_macro_rates').orderBy('created_at', 'desc').first();
+      const baseRate = macro ? Number(macro.base_rate) : 0.05;
+
+      if (facilityType === 'personal') {
+        interestRate = baseRate + 0.06;
+      } else {
+        return res.status(400).json({ error: 'Unknown facility type.' });
+      }
+
+      const clock = await db('world_clock').first();
+      const latestRating = await db('character_credit_ratings').where({ character_id: character.id }).orderBy('world_year', 'desc').orderBy('world_month', 'desc').first();
+      const ratingTier = latestRating?.rating_tier || 'D';
+      
+      if (ratingTier === 'D' || ratingTier === 'CCC') {
+        return res.status(400).json({ error: 'Credit rating too low for personal loan.' });
+      }
+
+      const finances = await db('character_finances').where({ character_id: character.id }).first();
+      const currentCash = Number(finances?.cash_in_hand || 0);
+      
+      await db('character_finances').where({ character_id: character.id }).update({
+         cash_in_hand: currentCash + principalAmount
+      });
+      
+      const r = interestRate / 12;
+      const n = term;
+      const pmt = (principalAmount * r) / (1 - Math.pow(1 + r, -n));
+
+      await db('character_debt_facilities').insert({
+        id: randomUUID(),
+        character_id: character.id,
+        bank_id: 'drennia_national',
+        facility_type: facilityType,
+        principal_amount: principalAmount,
+        interest_rate: interestRate,
+        term_months: term,
+        months_remaining: term,
+        monthly_payment: Math.round(pmt),
+        status: 'active'
+      });
+
+      res.json({ message: 'Personal loan secured successfully.', monthlyPayment: Math.round(pmt) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
 }
