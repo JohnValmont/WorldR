@@ -68,6 +68,8 @@ export const STAFF_ROLES = [
     desc: 'Improves market demand by +4% per manager (up to 1 per active market, max +16%).' },
   { id: 'cso',                     label: 'Chief Sales Officer',     wagePerArc: 35000,
     desc: 'Auto-allocates production and inventory across markets each month based on demand intelligence.' },
+  { id: 'cmo',                     label: 'Chief Marketing Officer', wagePerArc: 20000,
+    desc: 'Auto-optimizes marketing tiers across markets each month based on brand awareness and budget.' },
 ];
 
 // Defect rate by quality setting

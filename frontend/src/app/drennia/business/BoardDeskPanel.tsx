@@ -616,7 +616,7 @@ export default function BoardDeskPanel({
                           transition: "all 0.2s",
                         }}
                       >
-                        {isHiring ? "HIRING..." : `HIRE ${pos.title} — $35,000 / MONTH`}
+                        {isHiring ? "HIRING..." : `HIRE ${pos.title} — $${pos.id === 'cmo' ? '20,000' : '35,000'} / MONTH`}
                       </button>
                     </div>
                   )}
