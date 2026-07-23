@@ -595,7 +595,7 @@ export default function BoardDeskPanel({
                   )}
 
                   {/* Hire Action */}
-                  {pos.id === "cso" && !isHired && (
+                  {['cso', 'cmo'].includes(pos.id) && !isHired && (
                     <div style={{ marginTop: 16 }}>
                       <button
                         onClick={() => handleHire(pos.id)}
@@ -622,7 +622,7 @@ export default function BoardDeskPanel({
                   )}
 
                   {/* All other vacant seats */}
-                  {status === "vacant" && pos.id !== "cso" && (
+                  {status === "vacant" && !['cso', 'cmo'].includes(pos.id) && (
                     <div
                       style={{
                         marginTop: 14,
