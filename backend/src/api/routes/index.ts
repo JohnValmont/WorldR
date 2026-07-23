@@ -9,6 +9,7 @@ import manufacturingRoutes from './manufacturing.routes';
 
 import politicsRoutes from './politics.routes';
 import exchangeRoutes from './exchange.routes';
+import bankRoutes from './bank.routes';
 import investmentsRoutes from './investments.routes';
 import chatRoutes from './chat.routes';
 
@@ -22,6 +23,7 @@ apiRouter.use('/registry', registryRoutes);
 apiRouter.use('/logistics', logisticsRoutes);
 apiRouter.use('/politics', politicsRoutes);
 apiRouter.use('/exchange', exchangeRoutes);
+apiRouter.use('/banks', bankRoutes);
 apiRouter.use('/investments', investmentsRoutes);
 apiRouter.use('/chat', chatRoutes);
 // Manufacturing: mounts bootstrap + company routes + admin month-process endpoint

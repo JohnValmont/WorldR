@@ -2174,7 +2174,38 @@ export class ManufacturingController {
     // Use actualWagesPaid (not totalStaffWages) to match cash movement and arc report
     const netProfit = totalGrossRevenue - pState.totalProductionCosts - pState.actualWagesPaid - pState.totalLeaseCosts - pState.totalMaintenanceCosts - pState.totalStorageCosts - totalMarketingCosts - totalWarrantyReserveCost - totalShippingCosts;
 
-    let finalNetProfit = netProfit;
+    // Debt Facilities Amortization
+    const facilities = await trx('company_debt_facilities').where({ company_id: companyId, status: 'active' });
+    let totalDebtService = 0;
+    let totalInterestExpense = 0;
+    let newTotalDebt = 0;
+    
+    for (const fac of facilities) {
+      if (fac.months_remaining > 0) {
+        totalDebtService += Number(fac.monthly_payment);
+        
+        // Calculate the interest vs principal split (straight-line approximation)
+        const principalPortion = Number(fac.principal_amount) / Number(fac.term_months);
+        const interestPortion = Math.max(0, Number(fac.monthly_payment) - principalPortion);
+        totalInterestExpense += interestPortion;
+
+        const newRemaining = fac.months_remaining - 1;
+        const newStatus = newRemaining <= 0 ? 'cleared' : 'active';
+        await trx('company_debt_facilities').where({ id: fac.id }).update({ months_remaining: newRemaining, status: newStatus, updated_at: trx.fn.now() });
+        if (newRemaining > 0) {
+          // Approximate remaining principal for book value purposes
+          newTotalDebt += Math.round(Number(fac.principal_amount) * (newRemaining / Number(fac.term_months)));
+        }
+      }
+    }
+
+    if (totalDebtService > 0) {
+       pState.runningCash -= totalDebtService;
+       await trx('company_ledger').insert({ company_id: companyId, game_year: currentYear, game_month: currentMonth, game_day: currentDay, entry_type: 'expense', description: 'Debt Service (Amortization & Interest)', amount: -totalDebtService, balance_after: pState.runningCash });
+    }
+
+    let finalNetProfit = netProfit - totalInterestExpense;
+
     let taxPaid = 0;
 
     // Look up the state by its ID (headquarters_state_id is the state code like 'drennia-drennport')
@@ -2248,15 +2279,47 @@ export class ManufacturingController {
       totalInventoryValue += Number(item.units_in_stock) * Number(item.manufacturing_cost_per_unit);
     }
 
-    // Company Value = Cash - Debt + Inventory at cost.
-    // Factories are LEASED (not owned), so they carry zero book value.
-    // Intangible brand/engineering scores are operational metrics, not balance-sheet assets.
-    const financesForBookVal = await trx('company_finances').where({ company_id: companyId }).first();
-    const trueBookValue = Math.floor(Math.max(0, pState.runningCash - Number(financesForBookVal?.debt || 0) + totalInventoryValue));
+    // Company Value = Cash - Debt + Inventory at cost + Fixed Assets (Land, Factories, Lines).
+    // Land Plots
+    const plotsQuery = await trx('manufacturing_land_plots').where({ company_id: companyId }).select('purchase_price');
+    let totalPlotValue = 0;
+    for (const p of plotsQuery) totalPlotValue += Number(p.purchase_price) || 0;
+
+    // Factories
+    const factoriesQuery = await trx('manufacturing_factories')
+      .join('manufacturing_land_plots', 'manufacturing_factories.land_plot_id', 'manufacturing_land_plots.id')
+      .leftJoin('manufacturing_region_markets', 'manufacturing_land_plots.state_id', 'manufacturing_region_markets.state_id')
+      .join('manufacturing_factory_types', 'manufacturing_factories.factory_type_id', 'manufacturing_factory_types.id')
+      .where('manufacturing_factories.company_id', companyId)
+      .select('manufacturing_factories.expansion_status', 'manufacturing_factories.expansion_cost', 'manufacturing_factory_types.id as type_id', 'manufacturing_region_markets.economic_multiplier');
+      
+    let totalFactoryValue = 0;
+    for (const f of factoriesQuery) {
+      let baseCost = 2500000;
+      if (f.type_id === 'medium-plant') baseCost = 8000000;
+      if (f.type_id === 'large-complex') baseCost = 25000000;
+      let expCost = (f.expansion_status === 'expanded' || f.expansion_status === 'construction_underway') ? (Number(f.expansion_cost) || 500000) : 0;
+      totalFactoryValue += (baseCost * (Number(f.economic_multiplier) || 1.0)) + expCost;
+    }
+
+    // Production Lines
+    const linesQuery = await trx('manufacturing_production_lines')
+      .join('manufacturing_factories', 'manufacturing_production_lines.factory_id', 'manufacturing_factories.id')
+      .join('manufacturing_land_plots', 'manufacturing_factories.land_plot_id', 'manufacturing_land_plots.id')
+      .leftJoin('manufacturing_region_markets', 'manufacturing_land_plots.state_id', 'manufacturing_region_markets.state_id')
+      .where('manufacturing_production_lines.company_id', companyId)
+      .select('manufacturing_region_markets.economic_multiplier');
+      
+    let totalLineValue = 0;
+    for (const l of linesQuery) {
+      totalLineValue += 1500000 * (Number(l.economic_multiplier) || 1.0);
+    }
+
+    const trueBookValue = Math.floor(Math.max(0, pState.runningCash - newTotalDebt + totalInventoryValue + totalPlotValue + totalFactoryValue + totalLineValue));
 
     await trx('company_finances')
       .where({ company_id: companyId })
-      .update({ available_cash: pState.runningCash, last_arc_profit: finalNetProfit, company_value: trueBookValue, updated_at: trx.fn.now() });
+      .update({ available_cash: pState.runningCash, last_arc_profit: finalNetProfit, company_value: trueBookValue, debt: newTotalDebt, updated_at: trx.fn.now() });
 
     if (totalUnitsSold > 0) {
       await trx('companies').where({ id: companyId }).update({ reputation: trx.raw('LEAST(100, reputation + 1)'), updated_at: trx.fn.now() });

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import WhatsNewModal from '../components/gameplay/WhatsNewModal';
 
 export const metadata: Metadata = {
   title: 'WORLDr — Secure Auth Gateway',
@@ -21,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-black text-zinc-100 font-sans antialiased">
         <div className="fixed top-0 left-0 w-full pointer-events-none z-[9999] flex justify-center mt-2">
           <div className="flex items-center gap-3 bg-white/5 backdrop-blur-md border border-white/10 text-white/50 text-[10px] uppercase tracking-[0.2em] pl-4 pr-1.5 py-1.5 rounded-full shadow-sm">
-            <span>Pre-Alpha V0.1</span>
+            <span>Pre-Alpha V0.2</span>
             <a 
               href="https://discord.gg/m76prxKgTe" 
               target="_blank" 
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </a>
           </div>
         </div>
+        <WhatsNewModal />
         {children}
       </body>
     </html>

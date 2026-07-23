@@ -16,6 +16,7 @@ import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import ManufacturingDeskTab from './ManufacturingDeskTab';
 import EquityDeskTab from './EquityDeskTab';
 import CapitalPartnersDeskTab from './CapitalPartnersDeskTab';
+import BanksTab from './BanksTab';
 import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import {
   Card, Button, StatChip, StatCard, DataRow, Badge, StatusDot, SectionHeading, TerminalPanel, Tabs, PageShell
@@ -173,7 +174,7 @@ export const WAGE_POLICY_OPTIONS: Array<{ label: string; value: WagePolicy }> = 
 ];
 
 // ─── Sub-tab types ────────────────────────────────────────────────────────────
-type SubTab = 'overview' | 'start' | 'companies' | 'analytics' | 'exchange' | 'registry';
+type SubTab = 'overview' | 'start' | 'companies' | 'analytics' | 'banks' | 'exchange' | 'registry';
 
 const SUB_TABS: { id: SubTab; label: string; requiresCompany?: boolean }[] = [
   { id: 'overview', label: 'Overview' },
@@ -181,6 +182,7 @@ const SUB_TABS: { id: SubTab; label: string; requiresCompany?: boolean }[] = [
   { id: 'companies', label: 'My Companies', requiresCompany: true },
   { id: 'analytics', label: 'Analytics', requiresCompany: true },
   { id: 'exchange', label: 'Drennport Exchange' },
+  { id: 'banks', label: 'Banks' },
   { id: 'registry', label: 'Registry' }
 ];
 
@@ -697,6 +699,7 @@ export default function BusinessPage() {
           )
         )}
         {activeTab === 'exchange' && <PageShell className="py-6"><DrennportExchangeTab /></PageShell>}
+        {activeTab === 'banks' && <PageShell className="py-6"><BanksTab company={company} onRefresh={refreshAll} /></PageShell>}
         {activeTab === 'registry'  && <PageShell className="py-6"><RegistryTab key={registryKey} company={company} onRefresh={() => setRegistryKey(k => k + 1)} /></PageShell>}
       </div>
     </div>
