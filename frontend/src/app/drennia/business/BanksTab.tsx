@@ -39,6 +39,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
   
   const [personalDossier, setPersonalDossier] = useState<any>(null);
   const [corporateDossier, setCorporateDossier] = useState<any>(null);
+  const [institutionData, setInstitutionData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -68,6 +69,15 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
           })
         );
       }
+
+      // Fetch institution data
+      promises.push(
+        api.get('/banks/institution/drennia-national').then(res => {
+          if (mounted) setInstitutionData(res.data);
+        }).catch(err => {
+          console.error('Failed to load institution data:', err);
+        })
+      );
 
       Promise.all(promises).then(() => {
         if (mounted) setLoading(false);
@@ -136,6 +146,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
             playerCash={playerCash}
             personalDossier={personalDossier}
             corporateDossier={corporateDossier}
+            institutionData={institutionData}
             onBack={() => setSelectedBankId(null)}
             onTakeLoan={handleTakeLoan}
             isSubmitting={isSubmitting}
@@ -390,7 +401,7 @@ function FinancialProfile({ company, personalDossier, corporateDossier, getRatin
 // ─────────────────────────────────────────────────────────────────────────────
 // BANK PORTAL
 // ─────────────────────────────────────────────────────────────────────────────
-function BankPortal({ bank, company, playerCash, personalDossier, corporateDossier, onBack, onTakeLoan, isSubmitting, getRatingColor }: any) {
+function BankPortal({ bank, company, playerCash, personalDossier, corporateDossier, institutionData, onBack, onTakeLoan, isSubmitting, getRatingColor }: any) {
   const [activeTab, setActiveTab] = useState<'accounts' | 'credit' | 'products'>('accounts');
   const [productsSubTab, setProductsSubTab] = useState<'personal' | 'corporate'>('personal');
 
@@ -649,8 +660,16 @@ function BankPortal({ bank, company, playerCash, personalDossier, corporateDossi
             <h2 className="font-serif text-2xl font-bold text-zinc-100 m-0 leading-tight">
               {bank.name}
             </h2>
-            <div className="text-[11px] font-mono uppercase tracking-[0.1em] text-zinc-500 mt-1">
-              Base Lending Rate: {((personalDossier?.baseRate || 0.05)*100).toFixed(1)}%
+            <div className="flex items-center gap-4 mt-2">
+              <div className="text-[11px] font-mono uppercase tracking-[0.1em] text-zinc-500">
+                Base Rate: <span className="text-zinc-300">{((institutionData?.baseLendingRate || 0.05)*100).toFixed(1)}%</span>
+              </div>
+              <div className="text-[11px] font-mono uppercase tracking-[0.1em] text-zinc-500">
+                Total Assets: <span className="text-zinc-300">${((institutionData?.totalAssets || 0)/1000000).toFixed(1)}M</span>
+              </div>
+              <div className="text-[11px] font-mono uppercase tracking-[0.1em] text-zinc-500">
+                Available Liquidity: <span className="text-zinc-300">${((institutionData?.availableLiquidity || 0)/1000000).toFixed(1)}M</span>
+              </div>
             </div>
           </div>
         </div>

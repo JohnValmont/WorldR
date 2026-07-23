@@ -3,6 +3,42 @@ import { db } from '../../config/database';
 import { randomUUID } from 'crypto';
 
 export class BankController {
+
+  static async getInstitutionData(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { bankId } = req.params;
+      const bank = await db('banking_institutions').where({ id: bankId }).first();
+      if (!bank) return res.status(404).json({ error: 'Bank not found' });
+      
+      // Calculate lendable liquidity
+      const deposits = Number(bank.total_deposits);
+      const treasury = Number(bank.base_treasury_injection);
+      const rr = Number(bank.reserve_requirement_ratio);
+      
+      const totalAssets = deposits + treasury;
+      const reserveRequired = totalAssets * rr;
+      
+      // We also need to subtract active loans they've already given out.
+      // For now, let's just query total active loans.
+      const loans = await db('banking_active_loans')
+        .where({ bank_id: bankId, status: 'ACTIVE' })
+        .sum('remaining_principal as total_lent');
+        
+      const totalLent = Number(loans[0]?.total_lent || 0);
+      const maxLendable = totalAssets - reserveRequired;
+      const availableLiquidity = maxLendable - totalLent;
+
+      res.json({
+        id: bank.id,
+        name: bank.name,
+        totalAssets,
+        availableLiquidity,
+        baseLendingRate: Number(bank.base_lending_rate)
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
   
   static async getCreditDossier(req: Request, res: Response, next: NextFunction) {
     try {
@@ -66,8 +102,8 @@ export class BankController {
         }).onConflict(['company_id', 'world_year', 'world_month']).merge();
       }
 
-      const macro = await db('bank_macro_rates').orderBy('created_at', 'desc').first();
-      const baseRate = macro ? Number(macro.base_rate) : 0.05;
+      const bank = await db('banking_institutions').where({ id: 'drennia-national' }).first();
+      const baseRate = bank ? Number(bank.base_lending_rate) : 0.05;
 
       const dossier = {
         ratingTier,
@@ -101,8 +137,8 @@ export class BankController {
       }
 
       // Check if they already have an active loan of this type
-      const existingLoan = await db('company_debt_facilities')
-        .where({ company_id: companyId, facility_type: facilityType, status: 'active' })
+      const existingLoan = await db('banking_active_loans')
+        .where({ borrower_id: companyId, facility_type: facilityType, status: 'ACTIVE' })
         .first();
       if (existingLoan) {
         return res.status(400).json({ error: 'You already have an active facility of this type.' });
@@ -115,8 +151,18 @@ export class BankController {
         
       const tier = ratingInfo?.rating_tier || 'D';
       
-      const macro = await db('bank_macro_rates').orderBy('created_at', 'desc').first();
-      const baseRate = macro ? Number(macro.base_rate) : 0.05;
+      const bank = await db('banking_institutions').where({ id: 'drennia-national' }).first();
+      const baseRate = bank ? Number(bank.base_lending_rate) : 0.05;
+      
+      const totalAssets = Number(bank.total_deposits) + Number(bank.base_treasury_injection);
+      const reserveRequired = totalAssets * Number(bank.reserve_requirement_ratio);
+      const loans = await db('banking_active_loans').where({ bank_id: 'drennia-national', status: 'ACTIVE' }).sum('remaining_principal as total_lent');
+      const totalLent = Number(loans[0]?.total_lent || 0);
+      const availableLiquidity = totalAssets - reserveRequired - totalLent;
+
+      if (principalAmount > availableLiquidity) {
+        return res.status(400).json({ error: 'The bank does not have enough liquidity to fund this loan.' });
+      }
       
       let interestRate = baseRate + 0.05;
       let term = 36;
@@ -170,19 +216,16 @@ export class BankController {
       const n = term;
       const pmt = (principalAmount * r) / (1 - Math.pow(1 + r, -n));
 
-      await db('company_debt_facilities').insert({
-        id: randomUUID(),
-        company_id: companyId,
-        bank_id: 'drennia_national',
+      await db('banking_active_loans').insert({
+        bank_id: 'drennia-national',
+        borrower_type: 'company',
+        borrower_id: companyId,
         facility_type: facilityType,
         principal_amount: principalAmount,
+        remaining_principal: principalAmount,
         interest_rate: interestRate,
-        term_months: term,
-        months_remaining: term,
         monthly_payment: Math.round(pmt),
-        status: 'active',
-        cov_min_cash: covMinCash,
-        cov_dividend_block: divBlock
+        next_payment_arc: clock.arc + 1
       });
 
       // Ledger entry
@@ -237,8 +280,8 @@ export class BankController {
         }).onConflict(['character_id', 'world_year', 'world_month']).merge();
       }
 
-      const macro = await db('bank_macro_rates').orderBy('created_at', 'desc').first();
-      const baseRate = macro ? Number(macro.base_rate) : 0.05;
+      const bank = await db('banking_institutions').where({ id: 'drennia-national' }).first();
+      const baseRate = bank ? Number(bank.base_lending_rate) : 0.05;
 
       res.json({
         ratingTier,

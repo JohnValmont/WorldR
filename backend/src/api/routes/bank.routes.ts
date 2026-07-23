@@ -10,5 +10,6 @@ router.get('/dossier/personal', BankController.getPersonalCreditDossier);
 router.post('/loan/personal/take', BankController.takePersonalLoan);
 router.get('/dossier/:companyId', BankController.getCreditDossier);
 router.post('/loan/:companyId/take', BankController.takeLoan);
+router.get('/institution/:bankId', BankController.getInstitutionData);
 
 export default router;
