@@ -116,19 +116,19 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
           <div className="p-6 grid grid-cols-4 gap-6">
             <div>
               <div className="text-[10px] font-mono text-zinc-500 mb-1">TOTAL FACILITIES</div>
-              <div className="text-xl font-serif font-bold text-zinc-100">${(d.totalLiabilities || 0).toLocaleString()}</div>
+              <div className="text-xl font-serif font-bold text-zinc-100">${(d.totalLiabilities || 0).toLocaleString('en-US')}</div>
             </div>
             <div>
               <div className="text-[10px] font-mono text-zinc-500 mb-1">ASSETS (COLLATERAL)</div>
-              <div className="text-xl font-serif font-bold text-[#36D399]">${(d.totalAssets || 0).toLocaleString()}</div>
+              <div className="text-xl font-serif font-bold text-[#36D399]">${(d.totalAssets || 0).toLocaleString('en-US')}</div>
             </div>
             <div>
               <div className="text-[10px] font-mono text-zinc-500 mb-1">EQUITY (BOOK VALUE)</div>
-              <div className="text-xl font-serif font-bold text-zinc-100">${(d.equity || 0).toLocaleString()}</div>
+              <div className="text-xl font-serif font-bold text-zinc-100">${(d.equity || 0).toLocaleString('en-US')}</div>
             </div>
             <div>
               <div className="text-[10px] font-mono text-zinc-500 mb-1">CASH FLOW (TTM)</div>
-              <div className="text-xl font-serif font-bold text-zinc-100">+${(d.mockNetIncome || 0).toLocaleString()}</div>
+              <div className="text-xl font-serif font-bold text-zinc-100">+${(d.mockNetIncome || 0).toLocaleString('en-US')}</div>
             </div>
           </div>
         </div>
@@ -423,7 +423,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
             <h3 className="font-serif text-xl text-zinc-100">Active Debt Maturity Ladder</h3>
             <div className="text-right">
               <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Est. 12m Debt Service</div>
-              <div className="text-lg font-bold font-mono text-[#B85555]">${annualDebtService.toLocaleString()}</div>
+              <div className="text-lg font-bold font-mono text-[#B85555]">${annualDebtService.toLocaleString('en-US')}</div>
             </div>
           </div>
           <div className="h-64 mb-8">
@@ -459,9 +459,9 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                   <tr key={loan.id} className="text-zinc-300 hover:bg-zinc-800/20 transition-colors">
                     <td className="px-4 py-3 text-zinc-500">{i + 1}</td>
                     <td className="px-4 py-3 text-white uppercase">{loan.facility_type}</td>
-                    <td className="px-4 py-3 font-bold">${Number(loan.remaining_principal).toLocaleString()}</td>
+                    <td className="px-4 py-3 font-bold">${Number(loan.remaining_principal).toLocaleString('en-US')}</td>
                     <td className="px-4 py-3">{(Number(loan.interest_rate) * 100).toFixed(2)}%</td>
-                    <td className="px-4 py-3 text-[#B85555]">${Number(loan.monthly_payment).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-[#B85555]">${Number(loan.monthly_payment).toLocaleString('en-US')}</td>
                     <td className="px-4 py-3 text-zinc-500 uppercase">{loan.amortization_type || 'AMORTIZING'}</td>
                     <td className="px-4 py-3 text-[#36D399]">✅ Active</td>
                   </tr>

@@ -393,7 +393,7 @@ function FinancialProfile({ company, personalDossier, corporateDossier, getRatin
             {/* Center text manually */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none flex-col">
               <span className="text-[10px] font-mono text-zinc-500">NET WORTH</span>
-              <span className="text-sm font-bold text-zinc-200">${(totalAssets).toLocaleString()}</span>
+              <span className="text-sm font-bold text-zinc-200">${(totalAssets).toLocaleString('en-US')}</span>
             </div>
           </div>
         </div>

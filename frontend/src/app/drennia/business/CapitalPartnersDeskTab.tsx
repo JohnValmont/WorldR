@@ -471,7 +471,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
                               <td className="py-3 text-zinc-200">{d.company_name}</td>
                               <td className="py-3 text-right text-zinc-400">Y{d.game_year}</td>
                               <td className="py-3 text-right text-zinc-400">M{d.game_month}</td>
-                              <td className="py-3 text-right text-zinc-400">{Number(d.shares_held).toLocaleString()}</td>
+                              <td className="py-3 text-right text-zinc-400">{Number(d.shares_held).toLocaleString('en-US')}</td>
                               <td className="py-3 text-right text-mint font-bold">{fm(Number(d.amount))}</td>
                             </tr>
                           ))}
