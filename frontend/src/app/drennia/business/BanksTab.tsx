@@ -49,9 +49,7 @@ const BANKS = [
 
 type BankingTabId = 'overview' | 'personal' | 'corporate' | 'debt';
 
-export default function BanksTab({ company, onRefresh }: { company: any, onRefresh?: () => void }) {
-  const [selectedBankId, setSelectedBankId] = useState<string | null>(null);
-  
+export default function BanksTab({ company, onRefresh, selectedBankId, onSelectBank }: { company: any, onRefresh?: () => void, selectedBankId: string | null, onSelectBank: (id: string | null) => void }) {
   const [personalDossier, setPersonalDossier] = useState<any>(null);
   const [corporateDossier, setCorporateDossier] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -141,14 +139,14 @@ export default function BanksTab({ company, onRefresh }: { company: any, onRefre
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#090A0F]">
+    <div className={`flex flex-col h-full ${selectedBankId ? 'bg-[#090A0F]' : ''}`}>
       {selectedBankId ? (
         <BankPortal 
           bank={BANKS.find(b => b.id === selectedBankId)!} 
           company={company}
           personalDossier={personalDossier}
           corporateDossier={corporateDossier}
-          onBack={() => setSelectedBankId(null)}
+          onBack={() => onSelectBank(null)}
           onTakeLoan={handleTakeLoan}
           isSubmitting={isSubmitting}
           getRatingColor={getRatingColor}
@@ -159,7 +157,7 @@ export default function BanksTab({ company, onRefresh }: { company: any, onRefre
           company={company}
           personalDossier={personalDossier}
           corporateDossier={corporateDossier}
-          onSelectBank={setSelectedBankId}
+          onSelectBank={onSelectBank}
           getRatingColor={getRatingColor}
         />
       )}
@@ -190,14 +188,7 @@ function FinancialDistrict({ banks, company, personalDossier, corporateDossier, 
   const COLORS = [T.mint, T.red];
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto animate-slide-in">
-      {/* Top Navigation Bar */}
-      <div className="flex items-center px-6 py-4 border-b border-zinc-800 bg-[#11131A] shrink-0 sticky top-0 z-10">
-        <Landmark size={18} className="text-terminal-amber mr-3" />
-        <h2 className="font-serif text-xl font-bold text-zinc-100 m-0">Financial District</h2>
-      </div>
-
-      <div className="p-6 md:p-8 max-w-7xl mx-auto w-full space-y-10">
+    <div className="flex flex-col animate-slide-in w-full space-y-10 pb-10">
         
         {/* Consolidated Profile */}
         <section>
@@ -317,8 +308,6 @@ function FinancialDistrict({ banks, company, personalDossier, corporateDossier, 
             ))}
           </div>
         </section>
-
-      </div>
     </div>
   );
 }

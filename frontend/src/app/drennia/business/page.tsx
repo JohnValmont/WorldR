@@ -221,6 +221,7 @@ export default function BusinessPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [activeTab, setActiveTab] = useState<SubTab>('overview');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [selectedBankId, setSelectedBankId] = useState<string | null>(null);
   const [registryKey, setRegistryKey] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [mfgData, setMfgData] = useState<any>(null);
@@ -555,16 +556,22 @@ export default function BusinessPage() {
               <span className="text-terminal-amber">{company.name}</span>
             </>
           )}
-          {activeTab === 'banks' && (
+          {activeTab === 'banks' && !selectedBankId && (
             <>
               <span>→</span>
-              <span className="text-terminal-amber">Banks</span>
+              <span className="text-terminal-amber">Financial District</span>
+            </>
+          )}
+          {activeTab === 'banks' && selectedBankId && (
+            <>
+              <span>→</span>
+              <span className="text-terminal-amber">Bank Portal</span>
             </>
           )}
         </div>
 
         {/* Subtabs */}
-        {!(activeTab === 'companies' && selectedCompanyId) && activeTab !== 'banks' && (
+        {!(activeTab === 'companies' && selectedCompanyId) && !(activeTab === 'banks' && selectedBankId) && (
           <div className="mt-4">
             <Tabs
               tabs={SUB_TABS.map(t => ({
@@ -576,6 +583,7 @@ export default function BusinessPage() {
               onChange={(id: string) => {
                 setActiveTab(id as SubTab);
                 if (id !== 'companies') setSelectedCompanyId(null);
+                if (id !== 'banks') setSelectedBankId(null);
               }}
             />
           </div>
@@ -589,9 +597,9 @@ export default function BusinessPage() {
             ← Back to Companies
           </span>
         )}
-        {activeTab === 'banks' && (
-          <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => setActiveTab('overview')}>
-            ← Back to Overview
+        {activeTab === 'banks' && selectedBankId && (
+          <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => setSelectedBankId(null)}>
+            ← Back to Financial District
           </span>
         )}
         {activeTab === 'start' && (
@@ -710,7 +718,15 @@ export default function BusinessPage() {
           )
         )}
         {activeTab === 'exchange' && <PageShell className="py-6"><DrennportExchangeTab /></PageShell>}
-        {activeTab === 'banks' && <BanksTab company={company} onRefresh={refreshAll} />}
+        {activeTab === 'banks' && (
+          selectedBankId ? (
+            <BanksTab company={company} onRefresh={refreshAll} selectedBankId={selectedBankId} onSelectBank={setSelectedBankId} />
+          ) : (
+            <PageShell className="py-6">
+              <BanksTab company={company} onRefresh={refreshAll} selectedBankId={selectedBankId} onSelectBank={setSelectedBankId} />
+            </PageShell>
+          )
+        )}
         {activeTab === 'registry'  && <PageShell className="py-6"><RegistryTab key={registryKey} company={company} onRefresh={() => setRegistryKey(k => k + 1)} /></PageShell>}
       </div>
     </div>
