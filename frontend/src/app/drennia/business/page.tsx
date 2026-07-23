@@ -149,7 +149,7 @@ const GhostButton = ({
 
 // ─── Filter types & Constants ──────────────────────────────────────────────────
 export type RouteFilter = 'All' | 'Local' | 'Interstate' | 'International';
-export const ROUTE_FILTER_OPTIONS: Array<{ label: string; value: RouteFilter }> = [
+const ROUTE_FILTER_OPTIONS: Array<{ label: string; value: RouteFilter }> = [
   { label: 'All Routes', value: 'All' },
   { label: 'Local Routes', value: 'Local' },
   { label: 'Interstate Routes', value: 'Interstate' },
@@ -157,7 +157,7 @@ export const ROUTE_FILTER_OPTIONS: Array<{ label: string; value: RouteFilter }> 
 ];
 
 export type ContractSourceFilter = 'All' | 'Government' | 'State-Owned Enterprise' | 'NPC Corporation' | 'Local Business' | 'Private Client' | 'Player Company';
-export const CONTRACT_SOURCE_FILTER_OPTIONS: Array<{ label: string; value: ContractSourceFilter; disabled?: boolean }> = [
+const CONTRACT_SOURCE_FILTER_OPTIONS: Array<{ label: string; value: ContractSourceFilter; disabled?: boolean }> = [
   { label: 'All Sources', value: 'All' },
   { label: 'Government', value: 'Government' },
   { label: 'NPC Corporations', value: 'NPC Corporation' },
@@ -166,7 +166,7 @@ export const CONTRACT_SOURCE_FILTER_OPTIONS: Array<{ label: string; value: Contr
 ];
 
 
-export const WAGE_POLICY_OPTIONS: Array<{ label: string; value: WagePolicy }> = [
+const WAGE_POLICY_OPTIONS: Array<{ label: string; value: WagePolicy }> = [
   { label: 'Low Wages (0.8x)', value: 'Low' },
   { label: 'Standard Wages (1.0x)', value: 'Standard' },
   { label: 'Generous Wages (1.2x)', value: 'Generous' },

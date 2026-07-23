@@ -60,6 +60,17 @@ export class BankController {
       let trustScore = 0;
       let engineeringRep = 0;
       
+      const activeLoans = await db('banking_active_loans').where({ borrower_id: companyId, status: 'ACTIVE' });
+      const totalLiabilities = activeLoans.reduce((sum, l) => sum + Number(l.remaining_principal), 0);
+      const totalAssets = cash + bookValue;
+      const equity = totalAssets - totalLiabilities;
+
+      // Mock Net Income for DSCR (in reality, query ledger)
+      const mockNetIncome = totalAssets * 0.15; 
+      const annualDebtService = activeLoans.reduce((sum, l) => sum + (Number(l.monthly_payment) * 12), 0) || 1;
+      const dscr = mockNetIncome / annualDebtService;
+      const ltv = totalLiabilities / (totalAssets || 1);
+      
       if (company.industry_id === 'manufacturing') {
         // Evaluate trust from awareness
         const brandStats = await db('manufacturing_brand_awareness').where({ company_id: companyId });
@@ -71,18 +82,17 @@ export class BankController {
         }
       }
 
-      // Base Risk Score (0-100)
-      let riskScore = 50; 
-      if (cash > 500000) riskScore += 10;
-      if (cash < 0) riskScore -= 20;
-      if (bookValue > 1000000) riskScore += 10;
+      // Sovereign Score (0-100) based on existing portfolio
+      const ltvScore = ltv < 0.2 ? 95 : ltv < 0.5 ? 85 : ltv < 0.8 ? 70 : 40;
+      const dscrScore = annualDebtService === 0 ? 100 : (dscr > 2.0 ? 90 : dscr > 1.25 ? 75 : 50);
+      const liqScore = cash > 1000000 ? 90 : cash > 100000 ? 70 : 40;
+      const marginScore = 88; // Placeholder for margin trend
+      const industryScore = 80; // Placeholder for industry risk
       
-      riskScore += (reputationScore / 10);
-      riskScore += (trustScore / 10);
-      riskScore += (engineeringRep / 10);
+      let riskScore = (ltvScore * 0.3) + (dscrScore * 0.25) + (liqScore * 0.2) + (marginScore * 0.15) + (industryScore * 0.10);
       
       // Clamp
-      riskScore = Math.max(0, Math.min(100, riskScore));
+      riskScore = Math.max(0, Math.min(100, Math.round(riskScore)));
       
       let ratingTier = 'D';
       if (riskScore >= 80) ratingTier = 'AAA';
@@ -112,9 +122,16 @@ export class BankController {
           character: reputationScore,
           capacity: cash,
           capital: bookValue,
-          collateral: bookValue * 0.5,
-          conditions: 'Stable'
+          collateral: totalAssets,
+          conditions: company.industry_id,
+          totalAssets,
+          totalLiabilities,
+          equity,
+          mockNetIncome,
+          dscr,
+          ltv
         },
+        activeLoans,
         baseRate
       };
 
@@ -127,7 +144,7 @@ export class BankController {
   static async takeLoan(req: Request, res: Response, next: NextFunction) {
     try {
       const { companyId } = req.params;
-      const { facilityType, principalAmount } = req.body; // e.g. 'growth', 250000
+      const { facilityType, principalAmount, term = 36, amortizationType = 'amortizing', purpose = 'general' } = req.body;
       
       const company = await db('companies').where({ id: companyId }).first();
       if (!company) return res.status(404).json({ error: 'Company not found' });
@@ -145,76 +162,101 @@ export class BankController {
       }
 
       const clock = await db('world_clock').first();
-      const ratingInfo = await db('company_credit_ratings')
-        .where({ company_id: companyId, world_year: clock.year, world_month: clock.month })
-        .first();
-        
-      const tier = ratingInfo?.rating_tier || 'D';
       
       const bank = await db('banking_institutions').where({ id: 'drennia-national' }).first();
       const baseRate = bank ? Number(bank.base_lending_rate) : 0.05;
       
-      const totalAssets = Number(bank.total_deposits) + Number(bank.base_treasury_injection);
-      const reserveRequired = totalAssets * Number(bank.reserve_requirement_ratio);
+      const totalAssetsBank = Number(bank.total_deposits) + Number(bank.base_treasury_injection);
+      const reserveRequired = totalAssetsBank * Number(bank.reserve_requirement_ratio);
       const loans = await db('banking_active_loans').where({ bank_id: 'drennia-national', status: 'ACTIVE' }).sum('remaining_principal as total_lent');
       const totalLent = Number(loans[0]?.total_lent || 0);
-      const availableLiquidity = totalAssets - reserveRequired - totalLent;
+      const availableLiquidity = totalAssetsBank - reserveRequired - totalLent;
 
       if (principalAmount > availableLiquidity) {
         return res.status(400).json({ error: 'The bank does not have enough liquidity to fund this loan.' });
       }
+
+      // 5-C Underwriting
+      const activeCompanyLoans = await db('banking_active_loans').where({ borrower_id: companyId, status: 'ACTIVE' });
+      const currentLiabilities = activeCompanyLoans.reduce((sum, l) => sum + Number(l.remaining_principal), 0);
       
-      let interestRate = baseRate + 0.05;
-      let term = 36;
-      let covMinCash = 0;
-      let divBlock = false;
-      let validatedPrincipal = 0;
-
-      if (facilityType === 'tla') {
-        if (tier === 'D' || tier === 'CCC') return res.status(400).json({ error: 'Credit rating too low for Senior Term Loan.' });
-        interestRate = baseRate + 0.04;
-        term = 36;
-        covMinCash = 100000;
-        divBlock = true;
-        validatedPrincipal = 250000;
-      } else if (facilityType === 'growth') {
-        if (Number(company.reputation) < 50) return res.status(400).json({ error: 'Reputation too low for Growth Capital.' });
-        interestRate = baseRate + 0.07;
-        term = 24; 
-        validatedPrincipal = 100000;
-      } else if (facilityType === 'distressed') {
-        const financesForCheck = await db('company_finances').where({ company_id: companyId }).first();
-        if (Number(financesForCheck?.available_cash) >= 0 && tier !== 'D' && tier !== 'CCC') {
-          return res.status(400).json({ error: 'Company is not distressed enough for a bailout.' });
-        }
-        interestRate = 0.22; // 22% fixed
-        term = 12;
-        divBlock = true;
-        validatedPrincipal = 50000;
-      } else {
-        return res.status(400).json({ error: 'Invalid facility type.' });
-      }
-
-      if (Number(principalAmount) !== validatedPrincipal) {
-        return res.status(400).json({ error: 'Invalid principal amount requested for this facility.' });
-      }
-
-      // Update finances correctly (increase cash and debt)
       const finances = await db('company_finances').where({ company_id: companyId }).first();
       const currentCash = Number(finances?.available_cash || 0);
       const currentDebt = Number(finances?.debt || 0);
       const currentVal = Number(finances?.company_value || 0);
+      const totalAssets = currentCash + currentVal;
+
+      const newTotalLiabilities = currentLiabilities + principalAmount;
+      const ltv = newTotalLiabilities / (totalAssets || 1);
+
+      if (ltv > 1.0) {
+        return res.status(400).json({ error: 'Loan denied: Post-deal LTV exceeds 100%. Collateral insufficient.' });
+      }
+
+      const mockNetIncome = totalAssets * 0.15;
+      const annualDebtService = activeCompanyLoans.reduce((sum, l) => sum + (Number(l.monthly_payment) * 12), 0) + (principalAmount * 0.10); // estimate
+      const dscr = mockNetIncome / annualDebtService;
+
+      if (dscr < 1.0) {
+        return res.status(400).json({ error: 'Loan denied: DSCR below 1.0x. Cash flow insufficient.' });
+      }
       
+      // Calculate exact score for premium
+      const ltvScore = ltv < 0.5 ? 95 : ltv < 0.85 ? 85 : ltv < 1.0 ? 70 : 40;
+      const dscrScore = dscr > 2.0 ? 90 : dscr > 1.25 ? 75 : 50;
+      const liqScore = currentCash > principalAmount ? 90 : 60;
+      const overallScore = (ltvScore * 0.3) + (dscrScore * 0.25) + (liqScore * 0.2) + (88 * 0.15) + (80 * 0.10);
+      
+      let riskPremium = overallScore > 85 ? 0.005 : overallScore > 70 ? 0.015 : 0.03;
+      
+      let facilityRate = baseRate;
+      if (facilityType === 'revolver') {
+        facilityRate = baseRate + 0.035;
+      } else if (facilityType === 'term') {
+        facilityRate = 0.0725;
+      } else if (facilityType === 'trade') {
+        facilityRate = baseRate + 0.02;
+      } else {
+        return res.status(400).json({ error: 'Invalid facility type.' });
+      }
+
+      let interestRate = facilityRate + riskPremium;
+      
+      // Calculate max facility
+      const portfolioEquity = totalAssets - currentLiabilities;
+      const maxFacilityByAssets = (portfolioEquity * 0.6) + (totalAssets * 0.8);
+      let maxPrincipal = Math.min(availableLiquidity, maxFacilityByAssets);
+
+      if (Number(principalAmount) > maxPrincipal || Number(principalAmount) <= 0) {
+        return res.status(400).json({ error: `Invalid principal amount. Max for your portfolio is $${Math.floor(maxPrincipal).toLocaleString()}` });
+      }
+
+      // Liquidity Squeeze Rule
+      const liquidityRatio = availableLiquidity / totalAssetsBank;
+      if (liquidityRatio < 0.30) {
+        interestRate += 0.02; // +200 bps penalty if bank is running out of money
+      }
+
+      // State Mandate Rule
+      if (company.industry_id === 'manufacturing') {
+        interestRate -= 0.01; // -100 bps discount for job creators
+      }
+
       await db('company_finances').where({ company_id: companyId }).update({
          available_cash: currentCash + principalAmount,
          debt: currentDebt + principalAmount
       });
       
-      // Calculate monthly payment (amortization)
-      // Standard PMT formula: P * (r / n) / (1 - (1 + r/n)^-n)
-      const r = interestRate / 12;
-      const n = term;
-      const pmt = (principalAmount * r) / (1 - Math.pow(1 + r, -n));
+      let pmt = 0;
+      if (amortizationType === 'balloon') {
+        // Interest only
+        pmt = principalAmount * (interestRate / 12);
+      } else {
+        // Standard Amortizing
+        const r = interestRate / 12;
+        const n = term;
+        pmt = (principalAmount * r) / (1 - Math.pow(1 + r, -n));
+      }
 
       await db('banking_active_loans').insert({
         bank_id: 'drennia-national',
@@ -225,7 +267,9 @@ export class BankController {
         remaining_principal: principalAmount,
         interest_rate: interestRate,
         monthly_payment: Math.round(pmt),
-        next_payment_arc: clock.arc + 1
+        next_payment_arc: clock.arc + 1,
+        amortization_type: amortizationType,
+        purpose: purpose
       });
 
       // Ledger entry
