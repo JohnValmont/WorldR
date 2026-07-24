@@ -339,6 +339,7 @@ export class WorldController {
             nationalCompanies.set(key, {
               companyId: sale.company_id,
               companyName: sale.company_name,
+              isNpc: sale.is_npc,
               unitsSold: 0,
               revenue: 0,
             });

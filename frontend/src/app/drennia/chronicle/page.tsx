@@ -454,7 +454,7 @@ export default function ChroniclePage() {
                       <div className="flex flex-col">
                         <span className={`text-[14px] font-bold ${comp.name === company?.name ? 'text-terminal-green' : 'text-zinc-100'}`}>
                           {comp.name}
-                          {comp.is_npc ? <span className="ml-2 text-[9px] text-zinc-500 border border-zinc-700 px-1 py-0.5 rounded uppercase tracking-wider">NPC</span> : <span className="ml-2 text-[9px] text-terminal-amber border border-terminal-amber/50 px-1 py-0.5 rounded uppercase tracking-wider">Player</span>}
+                          {comp.is_npc ? <span className="ml-2 text-[9px] text-zinc-500 border border-zinc-700 px-1 py-0.5 rounded uppercase tracking-wider">NPC</span> : null}
                         </span>
                         <span className="text-[10px] text-zinc-500 capitalize">{comp.industry_id?.replace('_', ' ')}</span>
                       </div>
