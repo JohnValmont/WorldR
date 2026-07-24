@@ -24,7 +24,7 @@ const label: React.CSSProperties = { ...mono, fontSize: '9px', textTransform: 'u
 
 function fmt(n: number | null | undefined, dec = 0): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
 
 const TOTAL_SHARES = 1_000_000;
