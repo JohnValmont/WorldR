@@ -79,11 +79,15 @@ export class BankController {
       const totalAssets = cash + bookValue;
       const equity = totalAssets - totalLiabilities;
 
+      // State Rescue Guarantee: The National Bank implicitly backs manufacturing firms with a minimum $25M collateral 
+      // allowance so distressed players can borrow their way out of bankruptcy.
+      const effectiveAssets = Math.max(totalAssets, 25_000_000);
+
       // Net income approximation for DSCR
-      const mockNetIncome = Math.max(totalAssets * 0.15, 1);
-      const annualDebtService = activeLoans.reduce((sum: number, l: any) => sum + (Number(l.monthly_payment) * 12), 0) || 1;
-      const dscr = mockNetIncome / annualDebtService;
-      const ltv = totalLiabilities / (Math.abs(totalAssets) || 1);
+      const mockNetIncome = Math.max(effectiveAssets * 0.15, 500_000);
+      const annualDebtService = activeLoans.reduce((sum: number, l: any) => sum + (Number(l.monthly_payment) * 12), 0);
+      const dscr = annualDebtService > 0 ? mockNetIncome / annualDebtService : mockNetIncome;
+      const ltv = totalLiabilities / effectiveAssets;
 
       if (company.industry_id === 'manufacturing') {
         const brandStats = await db('manufacturing_brand_awareness').where({ company_id: companyId });
@@ -202,14 +206,15 @@ export class BankController {
       const currentVal = Number(finances?.company_value || 0);
       const totalAssets = currentCash + currentVal;
 
+      const effectiveAssets = Math.max(totalAssets, 25_000_000);
       const newTotalLiabilities = currentLiabilities + principalAmount;
-      const ltv = newTotalLiabilities / (Math.abs(totalAssets) || 1);
+      const ltv = newTotalLiabilities / effectiveAssets;
 
       if (ltv > 1.0) {
         return res.status(400).json({ error: 'Loan denied: Post-deal LTV exceeds 100%. Collateral insufficient.' });
       }
 
-      const mockNetIncome = Math.max(totalAssets * 0.15, 1);
+      const mockNetIncome = Math.max(effectiveAssets * 0.15, 500_000);
       const annualDebtService = activeCompanyLoans.reduce((sum: number, l: any) => sum + (Number(l.monthly_payment) * 12), 0) + (principalAmount * 0.10);
       const dscr = mockNetIncome / annualDebtService;
 
@@ -237,8 +242,8 @@ export class BankController {
 
       let interestRate = facilityRate + riskPremium;
 
-      const portfolioEquity = totalAssets - currentLiabilities;
-      const maxFacilityByAssets = (portfolioEquity * 0.6) + (totalAssets * 0.8);
+      const portfolioEquity = effectiveAssets - currentLiabilities;
+      const maxFacilityByAssets = (portfolioEquity * 0.6) + (effectiveAssets * 0.8);
       const maxPrincipal = Math.min(availableLiquidity, maxFacilityByAssets);
 
       if (Number(principalAmount) > maxPrincipal || Number(principalAmount) <= 0) {
