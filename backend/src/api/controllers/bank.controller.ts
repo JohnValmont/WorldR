@@ -68,15 +68,21 @@ export class BankController {
       // Financial details
       const finances = await db('company_finances').where({ company_id: companyId }).first();
       const cash = Number(finances?.available_cash || 0);
-      const bookValue = Number(finances?.company_value || 0);
+      const dbEquity = Number(finances?.company_value || 0);
+      const dbDebt = Number(finances?.debt || 0);
 
       let reputationScore = Number(company.reputation || 0);
       let trustScore = 0;
       let engineeringRep = 0;
 
       const activeLoans = await db('banking_active_loans').where({ borrower_id: companyId, status: 'ACTIVE' });
-      const totalLiabilities = activeLoans.reduce((sum: number, l: any) => sum + Number(l.remaining_principal), 0);
-      const totalAssets = cash + bookValue;
+      const bankingLiabilities = activeLoans.reduce((sum: number, l: any) => sum + Number(l.remaining_principal), 0);
+      
+      const totalLiabilities = dbDebt + bankingLiabilities;
+
+      // company_value in DB is Equity from manufacturing perspective: Cash + HardAssets(Land/Factories) - dbDebt.
+      // Therefore, Gross Assets (Collateral) = dbEquity + dbDebt
+      const totalAssets = dbEquity + dbDebt;
       const equity = totalAssets - totalLiabilities;
 
       // State Rescue Guarantee: The National Bank implicitly backs manufacturing firms with a minimum $25M collateral 
@@ -198,13 +204,17 @@ export class BankController {
       }
 
       const activeCompanyLoans = await db('banking_active_loans').where({ borrower_id: companyId, status: 'ACTIVE' });
-      const currentLiabilities = activeCompanyLoans.reduce((sum: number, l: any) => sum + Number(l.remaining_principal), 0);
+      const bankingLiabilities = activeCompanyLoans.reduce((sum: number, l: any) => sum + Number(l.remaining_principal), 0);
 
       const finances = await db('company_finances').where({ company_id: companyId }).first();
       const currentCash = Number(finances?.available_cash || 0);
-      const currentDebt = Number(finances?.debt || 0);
-      const currentVal = Number(finances?.company_value || 0);
-      const totalAssets = currentCash + currentVal;
+      const dbEquity = Number(finances?.company_value || 0);
+      const dbDebt = Number(finances?.debt || 0);
+
+      const currentLiabilities = dbDebt + bankingLiabilities;
+      // company_value in DB is Equity from manufacturing perspective: Cash + HardAssets(Land/Factories) - dbDebt.
+      // Therefore, Gross Assets (Collateral) = dbEquity + dbDebt
+      const totalAssets = dbEquity + dbDebt;
 
       const effectiveAssets = Math.max(totalAssets, 25_000_000);
       const newTotalLiabilities = currentLiabilities + principalAmount;
