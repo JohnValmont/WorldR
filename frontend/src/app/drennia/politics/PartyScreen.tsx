@@ -496,10 +496,10 @@ function CampaignPanel({ partyId, isLeader, onRefresh }: { partyId: string; isLe
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <div style={{ fontFamily: MONO, fontSize: 9, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.08em', background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`, borderRadius: 3, padding: '3px 8px' }}>
-            Allocated ${(campaign.budget_allocated ?? 0).toLocaleString('en-US')}
+            Allocated ${Number(campaign.budget_allocated ?? 0).toLocaleString('en-US')}
           </div>
           <div style={{ fontFamily: MONO, fontSize: 9, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.08em', background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`, borderRadius: 3, padding: '3px 8px' }}>
-            Spent ${(campaign.budget_spent ?? 0).toLocaleString('en-US')}
+            Spent ${Number(campaign.budget_spent ?? 0).toLocaleString('en-US')}
           </div>
         </div>
       </div>

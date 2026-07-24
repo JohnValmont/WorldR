@@ -159,7 +159,7 @@ export default function LegacyScreen({ character }: Props) {
           }}>
             <span style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Lifetime Score</span>
             <span style={{ color: T.gold, fontSize: 18, fontWeight: 700, fontFamily: MONO, textShadow: `0 0 16px ${T.gold}80` }}>
-              {(scores?.total ?? 0).toLocaleString('en-US')}
+              {Number(scores?.total ?? 0).toLocaleString('en-US')}
             </span>
           </div>
         </div>
