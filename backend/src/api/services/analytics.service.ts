@@ -160,7 +160,8 @@ export class AnalyticsService {
       .select(
         'manufacturing_sales_results.*',
         'manufacturing_region_markets.name as market_name',
-        'companies.name as company_name'
+        'companies.name as company_name',
+        'companies.is_npc'
       );
 
     const segmentMap = new Map<string, any>();
@@ -187,8 +188,9 @@ export class AnalyticsService {
       // Wait, 'Sold Out' means they sold everything, so weighting by units sold might underrepresent it if they didn't have much. Let's just tally the reason codes per sale record.
       segment.reasonCodes.push({ reason: sale.main_reason_code, units: Number(sale.units_sold) });
       
-      const compSales = segment.companySalesMap.get(sale.company_name) || 0;
-      segment.companySalesMap.set(sale.company_name, compSales + Number(sale.units_sold));
+      const compData = segment.companySalesMap.get(sale.company_name) || { units: 0, isNpc: sale.is_npc };
+      compData.units += Number(sale.units_sold);
+      segment.companySalesMap.set(sale.company_name, compData);
     }
 
     for (const segment of segmentMap.values()) {
@@ -214,10 +216,11 @@ export class AnalyticsService {
       }
 
       segment.companies = [];
-      for (const [companyName, units] of segment.companySalesMap.entries()) {
+      for (const [companyName, data] of segment.companySalesMap.entries()) {
         segment.companies.push({
           companyName,
-          marketShare: segment.totalUnitsSold > 0 ? (units / segment.totalUnitsSold) * 100 : 0
+          isNpc: data.isNpc,
+          marketShare: segment.totalUnitsSold > 0 ? (data.units / segment.totalUnitsSold) * 100 : 0
         });
       }
 
@@ -288,6 +291,7 @@ export class AnalyticsService {
         .join('companies', 'manufacturing_sales_results.company_id', 'companies.id')
         .select(
           'companies.name as company_name',
+          'companies.is_npc',
           'manufacturing_vehicle_models.name as model_name',
           'manufacturing_sales_results.market_share_estimate',
           // Get all specs and price, we'll nullify them later if Tier 1
@@ -303,6 +307,7 @@ export class AnalyticsService {
       const results = sales.map(s => {
         const base = {
           company_name: s.company_name,
+          is_npc: s.is_npc,
           model_name: s.model_name,
           market_share_estimate: Number(s.market_share_estimate)
         };

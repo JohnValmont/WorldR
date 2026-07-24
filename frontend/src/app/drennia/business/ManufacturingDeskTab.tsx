@@ -3382,7 +3382,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                               })}
                             </Pie>
                             <RechartsTooltip 
-                              formatter={(value: any) => [`${(Number(value)).toFixed(1)}%`, 'Market Share']}
+                              formatter={(value: any, name: any, props: any) => {
+                                const isNpc = props.payload.isNpc;
+                                const suffix = isNpc ? ' (NPC)' : ' (Player)';
+                                return [`${(Number(value)).toFixed(1)}%`, `Market Share${suffix}`];
+                              }}
                               contentStyle={{ backgroundColor: '#0a0a0a', border: '1px solid #2a2a2a' }}
                             />
                             <Legend 
@@ -3390,11 +3394,15 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                               verticalAlign="top" 
                               align="right"
                               wrapperStyle={{ fontSize: '11px', color: '#fffff0', padding: '10px' }}
-                              formatter={(value, entry: any) => (
-                                <span style={{ color: '#fffff0', marginLeft: '4px' }}>
-                                  {value} ({(entry.payload.marketShare).toFixed(1)}%)
-                                </span>
-                              )}
+                              formatter={(value, entry: any) => {
+                                const isNpc = entry.payload.isNpc;
+                                const badge = isNpc ? <span style={{ color: '#A79D8C', marginLeft: '4px' }}>[NPC]</span> : <span style={{ color: '#C9A24A', marginLeft: '4px' }}>[Player]</span>;
+                                return (
+                                  <span style={{ color: '#fffff0', marginLeft: '4px' }}>
+                                    {value} {badge} ({(entry.payload.marketShare).toFixed(1)}%)
+                                  </span>
+                                );
+                              }}
                             />
                           </RechartsPieChart>
                         </ResponsiveContainer>

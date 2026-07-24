@@ -13,6 +13,7 @@ interface ResearchResult {
   company_name: string;
   model_name: string;
   market_share_estimate: number;
+  is_npc: boolean;
   sale_price: number | null;
   reliability_score: number | null;
   performance_score: number | null;
@@ -171,7 +172,10 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
                 ) : (
                   results.map((r, i) => (
                     <tr key={i} className="hover:bg-[#18181b] transition-colors">
-                      <td className="px-4 py-3 text-zinc-200 font-medium">{r.company_name}</td>
+                      <td className="px-4 py-3 text-zinc-200 font-medium">
+                        {r.company_name}
+                        {r.is_npc ? <span className="ml-2 text-[9px] text-zinc-500 border border-zinc-700 px-1 py-0.5 rounded uppercase tracking-wider">NPC</span> : <span className="ml-2 text-[9px] text-amber-500 border border-amber-500/50 px-1 py-0.5 rounded uppercase tracking-wider">Player</span>}
+                      </td>
                       <td className="px-4 py-3 text-zinc-400">{r.model_name}</td>
                       <td className="px-4 py-3 text-right font-mono text-emerald-400">{(r.market_share_estimate * 100).toFixed(1)}%</td>
                       

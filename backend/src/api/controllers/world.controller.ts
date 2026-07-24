@@ -277,6 +277,7 @@ export class WorldController {
           'manufacturing_region_markets.name as market_name',
           'companies.id as company_id',
           'companies.name as company_name',
+          'companies.is_npc',
           'manufacturing_sales_results.units_sold',
           'manufacturing_sales_results.revenue',
           'manufacturing_sales_results.market_share_estimate'
@@ -299,6 +300,7 @@ export class WorldController {
             seg.companies.set(key, {
               companyId: sale.company_id,
               companyName: sale.company_name,
+              isNpc: sale.is_npc,
               unitsSold: 0,
               revenue: 0,
             });
@@ -424,6 +426,7 @@ export class WorldController {
             c.id,
             c.name,
             c.industry_id,
+            c.is_npc,
             bv.last_arc_profit,
             CASE
               WHEN c.is_exchange_listed = true

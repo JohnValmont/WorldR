@@ -37,6 +37,21 @@ test('NPC Month Integration - Pooled Engine Refactor', async (t) => {
   const makeNext = () => ((err?: any) => { if (err) throw err; }) as NextFunction;
 
   await t.test('Setup Database State', async () => {
+    const hasDebtFacilities = await db.schema.hasTable('company_debt_facilities');
+    if (!hasDebtFacilities) {
+      await db.schema.createTable('company_debt_facilities', (table) => {
+        table.uuid('id').primary();
+        table.uuid('company_id');
+        table.string('status');
+        table.decimal('principal_amount');
+        table.integer('term_months');
+        table.integer('months_remaining');
+        table.decimal('monthly_payment');
+        table.timestamp('created_at');
+        table.timestamp('updated_at');
+      });
+    }
+    
     await db('world_instances').insert({ id: worldId, current_year: 1, current_month: 1, name: 'Test World', status: 'active', server_id: 'server1', settings: {} });
     await db('regions').insert({ id: regionId, name: 'Test Region', description: 'Test', geographic_size: 'Medium' });
     await db('manufacturing_region_markets').insert({
