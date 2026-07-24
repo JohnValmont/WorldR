@@ -273,7 +273,6 @@ export class BankController {
 
       await db('company_finances').where({ company_id: companyId }).update({
         available_cash: currentCash + principalAmount,
-        debt: currentDebt + principalAmount,
       });
 
       let pmt = 0;
