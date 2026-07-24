@@ -146,7 +146,7 @@ export class BankController {
         metrics: {
           character: reputationScore,
           capacity: cash,
-          capital: bookValue,
+          capital: equity,
           collateral: totalAssets,
           conditions: company.industry_id,
           totalAssets,
