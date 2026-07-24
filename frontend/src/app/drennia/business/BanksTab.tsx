@@ -45,6 +45,25 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [myCompanies, setMyCompanies] = useState<any[]>([]);
+  const [activeCompany, setActiveCompany] = useState<any>(company);
+
+  useEffect(() => {
+    if (company && !activeCompany) {
+      setActiveCompany(company);
+    }
+  }, [company, activeCompany]);
+
+  useEffect(() => {
+    import('@/lib/api').then(({ companyApi }) => {
+      if (companyApi) {
+        companyApi.getMy().then(res => {
+          setMyCompanies(res.data.filter((c: any) => c.industry_id !== 'finance' && c.status !== 'DELETED' && !c.name?.includes('[DELETED')));
+        }).catch(err => console.error(err));
+      }
+    });
+  }, []);
+
   useEffect(() => {
     let mounted = true;
     setLoading(true);
@@ -62,9 +81,9 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
       );
 
       // Fetch corporate if company exists
-      if (company && company.id) {
+      if (activeCompany && activeCompany.id) {
         promises.push(
-          api.get(`/banks/dossier/${company.id}`).then(res => {
+          api.get(`/banks/dossier/${activeCompany.id}`).then(res => {
             if (mounted) setCorporateDossier(res.data);
           }).catch(err => {
             console.error('Failed to load corporate dossier:', err);
@@ -88,7 +107,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
     });
 
     return () => { mounted = false; };
-  }, [company?.id]);
+  }, [activeCompany?.id]);
 
   const handleTakeLoan = async (type: 'personal' | 'corporate', facilityType: string, amount: number) => {
     if (isSubmitting) return;
@@ -99,7 +118,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
       if (type === 'personal') {
         res = await api.post(`/banks/loan/personal/take`, { facilityType, principalAmount: amount });
       } else {
-        res = await api.post(`/banks/loan/${company.id}/take`, { facilityType, principalAmount: amount });
+        res = await api.post(`/banks/loan/${activeCompany.id}/take`, { facilityType, principalAmount: amount });
       }
       alert(`Loan Secured! Monthly Payment: $${res.data.monthlyPayment}`);
       if (onRefresh) onRefresh();
@@ -109,7 +128,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
         const pd = await api.get('/banks/dossier/personal');
         setPersonalDossier(pd.data);
       } else {
-        const cd = await api.get(`/banks/dossier/${company.id}`);
+        const cd = await api.get(`/banks/dossier/${activeCompany.id}`);
         setCorporateDossier(cd.data);
       }
       
@@ -170,7 +189,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
     if (activeSidebarTab === 'profile') {
       return (
         <FinancialProfile 
-          company={company}
+          company={activeCompany}
           personalDossier={personalDossier}
           corporateDossier={corporateDossier}
           getRatingColor={getRatingColor}
@@ -212,9 +231,29 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
         
         {/* ── MASTER SIDEBAR ── */}
         <div className="flex md:flex-col gap-1.5 md:min-w-[220px] md:max-w-[220px] md:border-r border-zinc-800 pr-5 pt-5 overflow-x-auto bg-[#090A0F] shrink-0">
-          <div className="px-4 mb-6 flex items-center gap-2">
-            <Landmark size={18} className="text-terminal-amber" />
-            <span className="font-serif text-lg font-bold text-zinc-100 uppercase tracking-widest text-[13px]">Financial District</span>
+          <div className="px-4 mb-6 flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <Landmark size={18} className="text-terminal-amber" />
+              <span className="font-serif text-lg font-bold text-zinc-100 uppercase tracking-widest text-[13px]">Financial District</span>
+            </div>
+            
+            {myCompanies.length > 0 && (
+              <div className="flex flex-col gap-1.5 mt-2">
+                <span className="text-[9px] uppercase font-mono text-zinc-500 tracking-widest">Active Corporation</span>
+                <select 
+                  className="bg-[#11131A] text-zinc-300 text-[11px] font-mono border border-zinc-800 rounded px-2 py-1.5 focus:outline-none focus:border-terminal-amber truncate max-w-[170px]"
+                  value={activeCompany?.id || ''}
+                  onChange={(e) => {
+                    const found = myCompanies.find(c => c.id === e.target.value);
+                    if (found) setActiveCompany(found);
+                  }}
+                >
+                  {myCompanies.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
           
           {(['institutions', 'profile', 'debt', 'treasury'] as const).map((tab) => {
