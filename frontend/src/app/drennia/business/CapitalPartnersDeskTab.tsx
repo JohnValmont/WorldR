@@ -413,7 +413,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
                                   {h.is_npc && <Badge variant="zinc">NPC</Badge>}
                                 </div>
                               </td>
-                              <td className="py-3 text-right text-zinc-400">{Number(h.shares).toLocaleString()}</td>
+                              <td className="py-3 text-right text-zinc-400">{Number(h.shares).toLocaleString('en-US')}</td>
                               <td className="py-3 text-right text-zinc-400">${Number(h.avg_cost_basis).toFixed(2)}</td>
                               <td className="py-3 text-right text-zinc-200">${Number(h.current_price).toFixed(2)}</td>
                               <td className="py-3 text-right text-gold font-bold">{fm(h.market_value)}</td>

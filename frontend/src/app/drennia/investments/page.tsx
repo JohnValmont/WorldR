@@ -26,7 +26,7 @@ const label: React.CSSProperties = { ...mono, fontSize: '9px', textTransform: 'u
 
 function fmt(n: number | null | undefined, dec = 2): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
 function fmtInt(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';

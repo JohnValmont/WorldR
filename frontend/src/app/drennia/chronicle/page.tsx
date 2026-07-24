@@ -377,7 +377,7 @@ export default function ChroniclePage() {
                       </div>
                     </div>
                     <div className="text-[12px] text-terminal-amber font-mono">
-                      {Number(car.total_sold).toLocaleString()} sold
+                      {Number(car.total_sold).toLocaleString('en-US')} sold
                     </div>
                   </div>
                 ))}

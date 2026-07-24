@@ -127,11 +127,11 @@ export default function DevelopmentScreen({ overview, jurisdictionMeta }: Props)
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
           <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ fontFamily: MONO, fontSize: 11, color: T.faint, marginBottom: 4 }}>RAW GDP</div>
-            <div style={{ fontFamily: MONO, fontSize: 24, color: T.mint }}>${(Number(state?.raw_gdp || 0)).toLocaleString()} M</div>
+            <div style={{ fontFamily: MONO, fontSize: 24, color: T.mint }}>${(Number(state?.raw_gdp || 0)).toLocaleString('en-US')} M</div>
           </div>
           <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ fontFamily: MONO, fontSize: 11, color: T.faint, marginBottom: 4 }}>POPULATION</div>
-            <div style={{ fontFamily: MONO, fontSize: 24, color: T.blue }}>{(Number(state?.raw_population || 0)).toLocaleString()}</div>
+            <div style={{ fontFamily: MONO, fontSize: 24, color: T.blue }}>{(Number(state?.raw_population || 0)).toLocaleString('en-US')}</div>
           </div>
           <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ fontFamily: MONO, fontSize: 11, color: T.faint, marginBottom: 4 }}>CIVIL SERVICE STANCE</div>

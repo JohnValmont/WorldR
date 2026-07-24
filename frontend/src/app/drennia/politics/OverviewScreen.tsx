@@ -394,7 +394,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.faint }}>GDP</span>
                     <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: T.ivory }}>
-                      CR {Number(overview.activeState.stat_gdp || 1000000).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      CR {Number(overview.activeState.stat_gdp || 1000000).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </span>
                   </div>
                 </div>
@@ -412,7 +412,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.faint }}>Tax Revenue</span>
                     <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: T.ivory }}>
-                      CR {Number(overview.activeState.stat_tax_revenue || 150000).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      CR {Number(overview.activeState.stat_tax_revenue || 150000).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </span>
                   </div>
                 </div>
@@ -421,7 +421,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.faint }}>Per Capita</span>
                     <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: T.ivory }}>
-                      CR {Number(overview.activeState.stat_per_capita || 45000).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      CR {Number(overview.activeState.stat_per_capita || 45000).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </span>
                   </div>
                 </div>

@@ -63,7 +63,7 @@ function OledMeter({ label, value, tone, max = 100 }: { label: string; value: nu
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <span style={{ color: isHovered ? T.ivory : T.text, fontSize: 13, fontWeight: 600, transition: 'color 0.2s ease' }}>{label}</span>
         <span style={{ color: tone, fontFamily: MONO, fontSize: 14, fontWeight: 700, textShadow: isHovered ? `0 0 12px ${tone}60` : 'none', transition: 'all 0.2s ease' }}>
-          {value.toLocaleString()} <span style={{ color: T.muted, fontSize: 10, fontWeight: 400 }}>PTS</span>
+          {value.toLocaleString('en-US')} <span style={{ color: T.muted, fontSize: 10, fontWeight: 400 }}>PTS</span>
         </span>
       </div>
       <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.5)' }}>
@@ -159,7 +159,7 @@ export default function LegacyScreen({ character }: Props) {
           }}>
             <span style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Lifetime Score</span>
             <span style={{ color: T.gold, fontSize: 18, fontWeight: 700, fontFamily: MONO, textShadow: `0 0 16px ${T.gold}80` }}>
-              {(scores?.total ?? 0).toLocaleString()}
+              {(scores?.total ?? 0).toLocaleString('en-US')}
             </span>
           </div>
         </div>

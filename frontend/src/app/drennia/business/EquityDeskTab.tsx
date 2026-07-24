@@ -11,9 +11,9 @@ function fmt(n: number | null | undefined, dec = 0): string {
   const num = Number(n);
   // For very small percentages or holdings (< 0.01), show up to 4 decimals
   if (dec === 0 && num < 0.01 && num > 0) {
-    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
   }
-  return num.toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  return num.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
 
 const STRUCTURE_ORDER = ['sole-trader', 'private-company', 'public-corporation'];
