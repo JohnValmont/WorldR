@@ -101,9 +101,13 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
     const d = corporateDossier?.metrics;
     if (!d) return <div>Loading portfolio...</div>;
 
+    const actualCash = Math.max(0, d.capacity);
+    const actualFixedAssets = Math.max(0, d.totalAssets - d.capacity);
+    const totalDisplayAssets = actualCash + actualFixedAssets || 1;
+
     const pieData = [
-      { name: 'Operating Cash', value: d.capacity },
-      { name: 'Fixed Assets', value: Math.max(0, d.totalAssets - d.capacity) }
+      { name: 'Operating Cash', value: actualCash },
+      { name: 'Fixed Assets', value: actualFixedAssets }
     ].filter(v => v.value > 0);
 
     return (
@@ -154,7 +158,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
                       <span className="text-zinc-400">{entry.name}</span>
                     </span>
-                    <span className="text-zinc-200">{Math.round((entry.value / d.totalAssets) * 100)}%</span>
+                    <span className="text-zinc-200">{Math.round((entry.value / totalDisplayAssets) * 100)}%</span>
                   </div>
                 ))}
                 <div className="pt-4 mt-4 border-t border-zinc-800 flex justify-between items-center text-xs font-mono text-zinc-500">
