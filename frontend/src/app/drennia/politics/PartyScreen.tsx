@@ -278,7 +278,7 @@ function ScandalPanel({ onRefresh }: { onRefresh: () => void }) {
   const [msg, setMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    try { const r = await politicsApi.getMyScandals(); setData(r.scandals ?? []); } catch { setData([]); }
+    try { const r = await politicsApi.getMyScandals(); setData(Array.isArray(r?.scandals) ? r.scandals : []); } catch { setData([]); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -303,7 +303,8 @@ function ScandalPanel({ onRefresh }: { onRefresh: () => void }) {
     } finally { setBusy(null); }
   }
 
-  const count = data?.length ?? 0;
+  const scandalsList = Array.isArray(data) ? data : [];
+  const count = scandalsList.length;
 
   return (
     <div style={{
@@ -332,16 +333,16 @@ function ScandalPanel({ onRefresh }: { onRefresh: () => void }) {
 
       {data === null && <div style={{ color: T.faint, fontSize: 12, fontStyle: 'italic' }}>Loading…</div>}
 
-      {data !== null && data.length === 0 && (
+      {data !== null && scandalsList.length === 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
           <span style={{ color: '#4ade80', fontSize: 12, fontFamily: MONO }}>✓</span>
           <span style={{ color: T.faint, fontSize: 13, fontStyle: 'italic' }}>No active scandals. Your record is clean.</span>
         </div>
       )}
 
-      {data !== null && data.length > 0 && (
+      {data !== null && scandalsList.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {data.map((s: any) => {
+          {scandalsList.map((s: any) => {
             const phaseColor = SCANDAL_PHASE_COLOR[s.phase] ?? T.faint;
             const availableActions = ACTIONS.filter(a => a.phases.includes(s.phase));
             return (
@@ -461,8 +462,8 @@ function CampaignPanel({ partyId, isLeader, onRefresh }: { partyId: string; isLe
     try {
       const all = typeof campaign.arc_actions === 'string'
         ? JSON.parse(campaign.arc_actions) : campaign.arc_actions;
-      // Show only arc-summary entries (have ggs_gain field) and event entries, last 6
-      return all.filter((e: any) => e.ggs_gain !== undefined || e.event).slice(-6).reverse();
+      if (!Array.isArray(all)) return [];
+      return all.filter((e: any) => e && (e.ggs_gain !== undefined || e.event)).slice(-6).reverse();
     } catch { return []; }
   })();
 
@@ -664,7 +665,7 @@ function InterestGroupPanel({ partyId, isLeader, onRefresh }: { partyId: string;
   const load = useCallback(async () => {
     try {
       const res = await politicsApi.getMyInterestGroups();
-      setData(res.groups ?? []);
+      setData(Array.isArray(res?.groups) ? res.groups : []);
     } catch { setData([]); }
   }, []);
 
@@ -692,7 +693,7 @@ function InterestGroupPanel({ partyId, isLeader, onRefresh }: { partyId: string;
     } finally { setBusy(null); }
   }
 
-  if (!data) return null;
+  if (!data || !Array.isArray(data)) return null;
 
   const alliedCount = data.filter((g: any) => g.endorsement_status === 'allied').length;
   const endorsedCount = data.filter((g: any) => g.endorsement_status === 'endorsed').length;
@@ -889,7 +890,7 @@ function MediaPanel({ partyId, isLeader, onRefresh }: { partyId: string; isLeade
   const load = useCallback(async () => {
     try {
       const res = await politicsApi.getMyMedia();
-      setOutlets(res.outlets ?? []);
+      setOutlets(Array.isArray(res?.outlets) ? res.outlets : []);
     } catch { setOutlets([]); }
   }, []);
 
@@ -917,7 +918,7 @@ function MediaPanel({ partyId, isLeader, onRefresh }: { partyId: string; isLeade
     } finally { setBusy(null); }
   }
 
-  if (!outlets) return null;
+  if (!outlets || !Array.isArray(outlets)) return null;
 
   const alliedCount   = outlets.filter(o => o.coverage_stance === 'allied').length;
   const hostileCount  = outlets.filter(o => o.coverage_stance === 'hostile').length;
@@ -1048,10 +1049,10 @@ function NewsFeedPanel() {
   const [stories, setStories] = useState<any[] | null>(null);
 
   useEffect(() => {
-    politicsApi.getNewsFeed().then(res => setStories(res.stories ?? [])).catch(() => setStories([]));
+    politicsApi.getNewsFeed().then(res => setStories(Array.isArray(res?.stories) ? res.stories : [])).catch(() => setStories([]));
   }, []);
 
-  if (!stories || stories.length === 0) return null;
+  if (!stories || !Array.isArray(stories) || stories.length === 0) return null;
 
   return (
     <div style={{
@@ -1105,9 +1106,9 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
   const globalPartyId = overview?.globalParty?.id;
-  const myParty = Array.isArray(parties) && globalPartyId 
+  const myParty = (Array.isArray(parties) && globalPartyId 
     ? parties.find((p: any) => p.id === globalPartyId) 
-    : undefined;
+    : undefined) || overview?.globalParty;
   const isLeader = myParty && character && myParty.leader_character_id === character.id;
 
   const [name, setName] = useState('');
@@ -1230,7 +1231,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.faint }}>Action Points</div>
               <div style={{ display: 'flex', gap: 3 }}>
-                {Array.from({ length: myAp?.ap_cap ?? 12 }).map((_, i) => (
+                {Array.from({ length: Math.max(0, Math.min(50, Number(myAp?.ap_cap) || 12)) }).map((_, i) => (
                   <div key={i} style={{ width: 8, height: 16, borderRadius: 2,
                     background: i < (myAp?.current_ap ?? 0) ? T.gold : 'rgba(255,255,255,0.06)',
                     boxShadow: i < (myAp?.current_ap ?? 0) ? `0 0 4px ${T.goldSoft}` : 'none',
@@ -1247,7 +1248,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.faint }}>Political Capital</div>
               <div style={{ display: 'flex', gap: 3 }}>
-                {Array.from({ length: myPc?.pc_cap ?? 10 }).map((_, i) => (
+                {Array.from({ length: Math.max(0, Math.min(50, Number(myPc?.pc_cap) || 10)) }).map((_, i) => (
                   <div key={i} style={{ width: 8, height: 16, borderRadius: 2,
                     background: i < (myPc?.current_pc ?? 0) ? '#a78bfa' : 'rgba(255,255,255,0.06)',
                     boxShadow: i < (myPc?.current_pc ?? 0) ? '0 0 4px rgba(167,139,250,0.5)' : 'none',
@@ -1407,7 +1408,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           {creed && (
             <Panel title="Choose a Tenet">
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                {TENETS[creed].map((tn) => {
+                {(creed && TENETS[creed] ? TENETS[creed] : []).map((tn) => {
                   const on = tenet === tn.id;
                   return (
                     <button key={tn.id} onClick={() => setTenet(on ? null : tn.id)}
