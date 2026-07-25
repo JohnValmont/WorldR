@@ -502,7 +502,7 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
   const namedHolders: any[] = [];
   
   for (const h of holders) {
-    if (h.char_is_npc || h.comp_is_npc) {
+    if (h.name === 'System NPC' || h.comp_is_npc) {
       publicShares += Number(h.shares);
     } else {
       namedHolders.push({
