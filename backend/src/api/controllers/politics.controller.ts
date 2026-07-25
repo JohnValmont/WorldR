@@ -298,19 +298,19 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
         name: name.trim(),
         abbreviation: cleanAbbr,
         leader_character_id: character.id,
-        platform: derivedPlatform,
+        platform: JSON.stringify(derivedPlatform),
         doctrine_id,
         tenet_id: tenet_id || null,
-        doctrine_drift: {},
+        doctrine_drift: JSON.stringify({}),
         doctrine_drift_arc: currentMonth,
         treasury: 0,
         is_npc: false,
         created_arc: currentMonth,
         slogan: slogan || null,
         crisis_id: crisis || null,
-        ideology_axes: ideologyAxes || null,
-        manifesto_policies: policies || null,
-        founders: founders || []
+        ideology_axes: ideologyAxes ? JSON.stringify(ideologyAxes) : null,
+        manifesto_policies: policies ? JSON.stringify(policies) : null,
+        founders: founders ? JSON.stringify(founders) : JSON.stringify([])
       }).returning('*');
 
       const fallbackMonogram = cleanAbbr.slice(0, 2);
