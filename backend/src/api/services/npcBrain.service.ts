@@ -269,11 +269,12 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
   if (factory) {
     await trx('manufacturing_production_lines').insert({
       id: crypto.randomUUID(),
+      world_instance_id: instance.id,
       company_id: companyId,
       factory_id: factory.id,
       assigned_vehicle_model_id: newModelId,
       status: 'active',
-      target_units_per_month: 150,
+      target_units_per_month: 250,
       created_at: new Date(),
       updated_at: new Date()
     });
@@ -286,12 +287,13 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
     if (existingAllocation) {
       await trx('manufacturing_market_allocations').insert({
         id: crypto.randomUUID(),
+        world_instance_id: instance.id,
         company_id: companyId,
         vehicle_model_id: newModelId,
         region_market_id: existingAllocation.region_market_id,
-        units_allocated: 150,
+        units_allocated: 250,
         sale_price: newModel.sale_price,
-        marketing_tier: 'none',
+        marketing_tier: existingAllocation.marketing_tier,
         created_at: new Date(),
         updated_at: new Date()
       });
