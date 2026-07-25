@@ -500,14 +500,17 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
 
   let publicShares = 0;
   const namedHolders: any[] = [];
+  let totalShares = 0;
   
   for (const h of holders) {
+    const s = Number(h.shares);
+    totalShares += s;
     if (h.name === 'System NPC' || h.comp_is_npc) {
-      publicShares += Number(h.shares);
+      publicShares += s;
     } else {
       namedHolders.push({
         name: h.name || 'Unknown',
-        value: Number(h.shares)
+        value: s
       });
     }
   }
@@ -535,9 +538,7 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
                 data={chartData}
                 cx="50%"
                 cy="50%"
-                innerRadius={45}
                 outerRadius={65}
-                paddingAngle={2}
                 dataKey="value"
                 stroke="none"
                 isAnimationActive={false}
@@ -553,13 +554,18 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
               />
             </PieChart>
           </ResponsiveContainer>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', maxHeight: '140px', paddingRight: '8px', minWidth: '110px' }}>
-            {chartData.map((entry, index) => (
-              <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.name === 'Public' ? T.steel : COLORS[index % COLORS.length], flexShrink: 0 }} />
-                <div style={{ ...mono, fontSize: '9px', color: T.ivory, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{entry.name}</div>
-              </div>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', maxHeight: '140px', paddingRight: '8px', minWidth: '130px' }}>
+            {chartData.map((entry, index) => {
+              const pct = totalShares > 0 ? (entry.value / totalShares) * 100 : 0;
+              return (
+                <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.name === 'Public' ? T.steel : COLORS[index % COLORS.length], flexShrink: 0 }} />
+                  <div style={{ ...mono, fontSize: '9px', color: T.ivory, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {entry.name} <span style={{ color: T.faint }}>({pct.toFixed(1)}%)</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
