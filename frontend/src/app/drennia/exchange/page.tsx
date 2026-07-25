@@ -588,7 +588,7 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
                 return (
                   <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, marginTop: '4px', flexShrink: 0 }} />
-                    <div style={{ ...mono, fontSize: '10px', color: '#f3f4f6', leading: '1.3', wordBreak: 'break-word' }}>
+                    <div style={{ ...mono, fontSize: '10px', color: '#f3f4f6', lineHeight: '1.3', wordBreak: 'break-word' }}>
                       <span style={{ fontWeight: 600 }}>{entry.name}</span>{' '}
                       <span style={{ color: color, fontWeight: 700 }}>({pct.toFixed(1)}%)</span>
                     </div>
