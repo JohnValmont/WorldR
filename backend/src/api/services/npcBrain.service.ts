@@ -232,6 +232,7 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
 
   const newModel = {
     id: newModelId,
+    world_instance_id: instance.id,
     company_id: companyId,
     name: newModelName.substring(0, 60),
     target_segment: topPlayerModel.target_segment,
