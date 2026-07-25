@@ -26,7 +26,7 @@ type SubTab = 'overview' | 'nation' | 'development' | 'elections' | 'legislature
 const SUB_TABS: { id: SubTab; label: string; }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'nation', label: 'Nation' },
-  { id: 'development', label: 'Development' },
+  { id: 'development', label: 'Economy' },
   { id: 'elections', label: 'Elections' },
   { id: 'legislature', label: 'Legislature' },
   { id: 'assembly', label: 'Assembly' },
