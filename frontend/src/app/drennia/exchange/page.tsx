@@ -819,9 +819,9 @@ export default function ExchangePage() {
       <div style={{ padding: '16px 24px 0', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span
           style={{ cursor: 'pointer', color: T.muted, fontSize: '11px', ...mono, textTransform: 'uppercase', letterSpacing: '0.1em' }}
-          onClick={() => router.push('/drennia/market')}
+          onClick={() => router.push('/drennia/business')}
         >
-          ← Back to Market
+          ← Back to Business
         </span>
         <WorldTimeControl />
       </div>
