@@ -462,59 +462,93 @@ export async function getOrderBook(companyId: string) {
   ]);
 
   let bids: Array<{ price: number; quantity: any }> = bidsData.map((b: any) => ({ price: Number(b.price), quantity: Number(b.quantity) }));
-  const asks: Array<{ price: number; quantity: any }> = asksData.map((a: any) => ({ price: Number(a.price), quantity: Number(a.quantity) }));
+  let asks: Array<{ price: number; quantity: any }> = asksData.map((a: any) => ({ price: Number(a.price), quantity: Number(a.quantity) }));
 
-  // Realism Fix: If there are no open buy bids for an exchange-listed company, auto-inject DRX Specialist market-maker bids!
-  if (bids.length === 0) {
-    const company = await db('companies').where({ id: companyId, is_exchange_listed: true }).first();
-    if (company) {
-      const prevBar = await db('share_price_history')
-        .where({ company_id: companyId })
-        .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
-        .first();
-      
-      const finRow = await db('company_finances').where({ company_id: companyId }).first();
-      const lastClose = Number(prevBar?.close_price || 10.00);
-      const bookValue = Number(finRow?.company_value || 0);
-      const bvps = bookValue / 1000000;
-      
-      // Calculate specialist anchor price (anchored near last close & intrinsic book value per share)
-      let anchorPrice = lastClose;
-      if (bvps > 0) {
-        anchorPrice = Math.max(lastClose, lastClose + (bvps - lastClose) * 0.20);
-      }
-      const mmBidPrice = Number((anchorPrice * 0.985).toFixed(2));
+  // Realism Fix: Inject multi-tier DRX Specialist market-maker order depth (bids & asks) for listed companies
+  const company = await db('companies').where({ id: companyId, is_exchange_listed: true }).first();
+  if (company) {
+    const prevBar = await db('share_price_history')
+      .where({ company_id: companyId })
+      .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
+      .first();
+    
+    const finRow = await db('company_finances').where({ company_id: companyId }).first();
+    const lastClose = Number(prevBar?.close_price || 10.00);
+    const bookValue = Number(finRow?.company_value || 0);
+    const bvps = bookValue / 1000000;
+    
+    let anchorPrice = lastClose;
+    if (bvps > 0) {
+      anchorPrice = Math.max(lastClose, lastClose + (bvps - lastClose) * 0.20);
+    }
 
-      // Inject standing bids into DB via System NPC Market Maker
-      const systemUser = await db('users').where({ email: 'system_npc@worldr.game' }).first();
-      if (systemUser) {
-        const sysChar = await db('characters').where({ user_id: systemUser.id }).first();
-        if (sysChar) {
-          // Ensure System MM has ample liquidity cash to absorb sell orders
-          await db('character_finances').where({ character_id: sysChar.id }).update({ cash_in_hand: 100000000 });
-          
-          try {
-            await placeOrder({
-              companyId,
-              characterId: sysChar.id,
-              side: 'buy',
-              price: mmBidPrice,
-              quantity: 5000,
-              isNpc: true
-            });
+    const systemUser = await db('users').where({ email: 'system_npc@worldr.game' }).first();
+    if (systemUser) {
+      const sysChar = await db('characters').where({ user_id: systemUser.id }).first();
+      if (sysChar) {
+        // Ensure System Market Maker has ample cash for market depth
+        await db('character_finances').where({ character_id: sysChar.id }).update({ cash_in_hand: 500000000 });
 
-            // Re-query bids after order placement
-            const freshBids = await db('share_orders')
-              .where({ company_id: companyId, side: 'buy', status: 'open' })
-              .select('price')
-              .sum({ quantity: db.raw('quantity - filled_quantity') })
-              .groupBy('price')
-              .orderBy('price', 'desc')
-              .limit(15);
-            bids = freshBids.map((b: any) => ({ price: Number(b.price), quantity: Number(b.quantity) }));
-          } catch (e) {
-            bids = [{ price: mmBidPrice, quantity: 5000 }];
+        // Auto-inject 5-tier Bid Depth Ladder if bids are empty
+        if (bids.length === 0) {
+          const bidTiers = [
+            { mult: 0.990, qty: 10000 },
+            { mult: 0.975, qty: 25000 },
+            { mult: 0.950, qty: 50000 },
+            { mult: 0.900, qty: 100000 },
+            { mult: 0.850, qty: 250000 },
+          ];
+          for (const tier of bidTiers) {
+            try {
+              await placeOrder({
+                companyId,
+                characterId: sysChar.id,
+                side: 'buy',
+                price: Number((anchorPrice * tier.mult).toFixed(2)),
+                quantity: tier.qty,
+                isNpc: true
+              });
+            } catch (e) {}
           }
+          const freshBids = await db('share_orders')
+            .where({ company_id: companyId, side: 'buy', status: 'open' })
+            .select('price')
+            .sum({ quantity: db.raw('quantity - filled_quantity') })
+            .groupBy('price')
+            .orderBy('price', 'desc')
+            .limit(15);
+          bids = freshBids.map((b: any) => ({ price: Number(b.price), quantity: Number(b.quantity) }));
+        }
+
+        // Auto-inject 5-tier Ask Depth Ladder if asks are empty
+        if (asks.length === 0) {
+          const askTiers = [
+            { mult: 1.010, qty: 10000 },
+            { mult: 1.025, qty: 25000 },
+            { mult: 1.050, qty: 50000 },
+            { mult: 1.100, qty: 100000 },
+            { mult: 1.150, qty: 250000 },
+          ];
+          for (const tier of askTiers) {
+            try {
+              await placeOrder({
+                companyId,
+                characterId: sysChar.id,
+                side: 'sell',
+                price: Number((anchorPrice * tier.mult).toFixed(2)),
+                quantity: tier.qty,
+                isNpc: true
+              });
+            } catch (e) {}
+          }
+          const freshAsks = await db('share_orders')
+            .where({ company_id: companyId, side: 'sell', status: 'open' })
+            .select('price')
+            .sum({ quantity: db.raw('quantity - filled_quantity') })
+            .groupBy('price')
+            .orderBy('price', 'asc')
+            .limit(15);
+          asks = freshAsks.map((a: any) => ({ price: Number(a.price), quantity: Number(a.quantity) }));
         }
       }
     }
