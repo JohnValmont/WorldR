@@ -16,59 +16,76 @@ function condToneClass(v: number) {
   return v >= 65 ? 'text-emerald-400' : v >= 40 ? 'text-amber-400' : 'text-red-400';
 }
 
-function VerticalTrendGraph({ value }: { value: number }) {
+function FullWidthTrendGraph({ value, label }: { value: number, label: string }) {
   const color = condTone(value);
-  // Stable mock history based on current value to show a trend graph
-  const h1 = Math.max(0, Math.min(100, value - 3.2));
-  const h2 = Math.max(0, Math.min(100, value - 1.5));
-  const h3 = Math.max(0, Math.min(100, value + 1.2));
-  const h4 = Math.max(0, Math.min(100, value - 0.5));
-  const h5 = value;
   
-  const points = [h1, h2, h3, h4, h5];
-  const trend = h5 - h4;
-  const TrendIcon = trend > 0 ? TrendingUp : trend < 0 ? TrendingDown : Minus;
+  // Deterministic pseudo-random generation so it doesn't jitter on re-render
+  const seed = label.length + value;
+  const pseudoRandom = (i: number) => {
+    const x = Math.sin(seed + i) * 10000;
+    return x - Math.floor(x);
+  };
+  
+  const numBars = 30;
+  const bars = [];
+  let current = Math.max(0, value - 20); // Start a bit lower to show growth trend
+  for (let i = 0; i < numBars - 1; i++) {
+    bars.push(current);
+    // Random walk that eventually gravitates towards the final value
+    const step = (value - current) / (numBars - i) + (pseudoRandom(i) * 6 - 2);
+    current = Math.max(0, Math.min(100, current + step));
+  }
+  bars.push(value);
   
   return (
-    <div className="flex flex-col items-end justify-between h-full">
-      <div className="flex items-center gap-1 mb-2">
-        <TrendIcon size={12} color={color} />
-        <span className="font-mono text-[10px]" style={{ color }}>{trend > 0 ? '+' : ''}{trend.toFixed(1)}</span>
-      </div>
-      <div className="flex items-end gap-[2px] h-12">
-        {points.map((val, i) => (
-          <div 
-            key={i} 
-            className="w-[6px] rounded-t-[1px] transition-all duration-500" 
-            style={{ 
-              height: `${(val / 100) * 100}%`, 
-              backgroundColor: color,
-              opacity: i === 4 ? 1 : 0.4 + (i * 0.1)
-            }} 
-          />
-        ))}
-      </div>
+    <div className="flex items-end gap-[2px] h-14 w-full mt-4 opacity-90 relative">
+      {/* Faint grid line for 50 mark */}
+      <div className="absolute top-1/2 left-0 right-0 border-t border-white/5 border-dashed" />
+      
+      {bars.map((val, i) => (
+        <div 
+          key={i} 
+          className="flex-1 rounded-t-[1px] transition-all duration-500 relative z-10" 
+          style={{ 
+            height: `${(val / 100) * 100}%`, 
+            backgroundColor: color,
+            opacity: i === numBars - 1 ? 1 : 0.15 + (i / numBars) * 0.5
+          }} 
+        />
+      ))}
     </div>
   );
 }
 
 function StatMeter({ value, label, icon: Icon }: { value: number, label: string, icon: any }) {
   const toneClass = condToneClass(value);
+  const color = condTone(value);
+  
+  // Fake a trend value based on the final gap
+  const trend = value - Math.max(0, Math.min(100, value - 1.5));
+  const TrendIcon = trend > 0 ? TrendingUp : trend < 0 ? TrendingDown : Minus;
   
   return (
-    <div className="flex justify-between items-center p-3 bg-white/[0.02] rounded-lg border border-white/5 hover:border-white/10 transition-colors">
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-black/40 rounded-md border border-white/5">
-          <Icon size={14} className={toneClass} />
+    <div className="flex flex-col p-4 bg-white/[0.02] rounded-lg border border-white/5 hover:border-white/10 hover:bg-white/[0.03] transition-colors">
+      <div className="flex justify-between items-start w-full">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-black/40 rounded-md border border-white/5">
+            <Icon size={16} className={toneClass} />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-mono text-[10px] tracking-[0.15em] uppercase text-slate-400">{label}</span>
+            <span className={`font-mono text-2xl font-bold tracking-tight ${toneClass}`}>{value.toFixed(1)}</span>
+          </div>
         </div>
-        <div className="flex flex-col">
-          <span className="font-mono text-[10px] tracking-[0.15em] uppercase text-slate-400">{label}</span>
-          <span className={`font-mono text-xl font-bold tracking-tight ${toneClass}`}>{value.toFixed(1)}</span>
+        
+        <div className="flex items-center gap-1 bg-black/40 px-2 py-1 rounded border border-white/5">
+          <TrendIcon size={12} color={color} />
+          <span className="font-mono text-[10px]" style={{ color }}>{trend > 0 ? '+' : ''}{trend.toFixed(1)}</span>
         </div>
       </div>
       
-      {/* Vertical Graph */}
-      <VerticalTrendGraph value={value} />
+      {/* Full Width Graph */}
+      <FullWidthTrendGraph value={value} label={label} />
     </div>
   );
 }
