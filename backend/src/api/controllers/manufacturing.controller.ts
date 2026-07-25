@@ -2854,18 +2854,44 @@ export class ManufacturingController {
         .where({ company_id: company.id, development_status: 'launched' });
       if (launchedModels.length === 0) continue;
 
-      // 2. Fetch current active markets (any market where they have an allocation row)
-      const activeAllocs = await trx('manufacturing_market_allocations')
+      // 2. Fetch active markets or all region markets
+      let activeAllocs = await trx('manufacturing_market_allocations')
         .where({ company_id: company.id });
       
-      if (activeAllocs.length === 0) continue;
+      const regionMarkets = await trx('manufacturing_region_markets').select('id');
+      const activeMarketIds = activeAllocs.length > 0
+        ? Array.from(new Set(activeAllocs.map((a: any) => a.region_market_id)))
+        : regionMarkets.map((rm: any) => rm.id);
 
-      if (activeAllocs.length === 0) continue;
+      if (activeMarketIds.length === 0) continue;
 
-      // 2.5 Pre-fetch company resources to simulate exact factory output limits
+      // Ensure EVERY launched model has an allocation entry for EVERY active market
+      for (const model of launchedModels) {
+        for (const marketId of activeMarketIds) {
+          const exists = activeAllocs.find((a: any) => a.vehicle_model_id === model.id && a.region_market_id === marketId);
+          if (!exists) {
+            const [inserted] = await trx('manufacturing_market_allocations').insert({
+              company_id: company.id,
+              vehicle_model_id: model.id,
+              region_market_id: marketId,
+              units_allocated: 0,
+              marketing_tier: 'none'
+            }).returning('*');
+            activeAllocs.push(inserted || {
+              company_id: company.id,
+              vehicle_model_id: model.id,
+              region_market_id: marketId,
+              units_allocated: 0,
+              marketing_tier: 'none'
+            });
+          }
+        }
+      }
+
+      // 2.5 Pre-fetch company resources for efficiency simulation
       const allStaff = await trx('company_staff').where({ company_id: company.id });
       const fwRow = allStaff.find((s: any) => s.role === 'factory-worker');
-      let workerCount = fwRow ? Number(fwRow.quantity) : 0;
+      const totalWorkers = fwRow ? Number(fwRow.quantity) : 0;
 
       const compRows = await trx('manufacturing_component_inventory').where({ company_id: company.id });
       const compInv = {
@@ -2877,8 +2903,7 @@ export class ManufacturingController {
         electronics: compRows.find((c: any) => c.component_id === 'comp_electronics')?.units_in_stock || 0,
       };
 
-      // 2.6 Instant UI-synced Demand Simulation
-      // The CSO needs to predict demand using the *current* prices, not last month's trailing sales results.
+      // 2.6 Instant UI-synced Demand Simulation across ALL launched models & markets
       const joinedAllocations = await trx('manufacturing_market_allocations')
         .join('manufacturing_vehicle_models', 'manufacturing_market_allocations.vehicle_model_id', 'manufacturing_vehicle_models.id')
         .join('manufacturing_region_markets', 'manufacturing_market_allocations.region_market_id', 'manufacturing_region_markets.id')
@@ -2959,56 +2984,23 @@ export class ManufacturingController {
         let estProduction = 0;
         for (const line of prodLines) {
           const factory = await trx('manufacturing_factories').where({ id: line.factory_id }).first();
-          const factoryType = await trx('manufacturing_factory_types').where({ id: factory.factory_type_id }).first();
+          const factoryType = factory ? await trx('manufacturing_factory_types').where({ id: factory.factory_type_id }).first() : null;
           
-          const factoryCapacity = Number(factory.capacity_per_month);
-          const factoryWorkerReq = Number(factory.worker_capacity ?? factoryType.worker_requirement);
-          
+          const factoryCapacity = factory ? Number(factory.capacity_per_month) : 1000;
           const planTarget = Number(line.target_units_per_month || 0);
-          const requiredWorkers = planTarget > 0 ? Math.ceil((planTarget / factoryCapacity) * factoryWorkerReq) : 0;
           
-          let laborEfficiency = 1.0;
-          if (requiredWorkers > 0) {
-            laborEfficiency = workerCount === 0 ? 0 : Math.min(1.0, workerCount / requiredWorkers);
-            workerCount = Math.max(0, workerCount - requiredWorkers);
-          }
-          
-          const condition = factory ? (Number(factory.condition) / 100) : 1;
-          const estUnitsRaw = Math.floor(planTarget * condition * laborEfficiency);
-          
-          // Component Limits
-          let maxC = Math.floor(compInv.engine);
-          maxC = Math.min(maxC, Math.floor(compInv.transmission));
-          maxC = Math.min(maxC, Math.floor(compInv.tyres / 4));
-          maxC = Math.min(maxC, Math.floor(compInv.steel));
-          maxC = Math.min(maxC, Math.floor(compInv.glass));
-          maxC = Math.min(maxC, Math.floor(compInv.electronics));
-          
-          const estUnitsProd = Math.min(estUnitsRaw, maxC);
-          
-          // Deduct used components for the next production line
-          compInv.engine -= estUnitsProd;
-          compInv.transmission -= estUnitsProd;
-          compInv.tyres -= estUnitsProd * 4;
-          compInv.steel -= estUnitsProd;
-          compInv.glass -= estUnitsProd;
-          compInv.electronics -= estUnitsProd;
+          const condition = factory ? (Number(factory.condition) / 100) : 1.0;
+          const laborEfficiency = totalWorkers > 0 ? 1.0 : 0.8;
+          const estUnitsRaw = Math.floor(Math.min(planTarget, factoryCapacity) * condition * laborEfficiency);
           
           const planQuality = line.quality_setting || 'Standard';
           const defectRate = QUALITY_DEFECT_RATES[planQuality] || 0.03;
-          const estDefects = Math.floor(estUnitsProd * defectRate);
+          const estDefects = Math.floor(estUnitsRaw * defectRate);
           
-          estProduction += Math.max(0, estUnitsProd - estDefects);
+          estProduction += Math.max(0, estUnitsRaw - estDefects);
         }
 
         const totalSupply = currentStock + estProduction;
-        if (totalSupply <= 0) {
-           // No supply? Keep targets at 0 or leave as is.
-           await trx('manufacturing_market_allocations')
-             .where({ company_id: company.id, vehicle_model_id: model.id })
-             .update({ units_allocated: 0 });
-           continue;
-        }
 
         const modelAllocs = activeAllocs.filter((a: any) => a.vehicle_model_id === model.id);
         if (modelAllocs.length === 0) continue;
@@ -3036,13 +3028,16 @@ export class ManufacturingController {
           if (totalSupply >= totalDemandScore * 1.15) {
             // Abundant supply: allocate exactly what is expected + buffer
             target = cappedDemand;
-          } else {
-            // Constrained supply: allocate proportionally
+          } else if (totalSupply > 0) {
+            // Constrained supply: allocate proportionally based on supply
             const proportion = totalDemandScore > 0 ? score / totalDemandScore : 1 / modelAllocs.length;
             target = Math.floor(totalSupply * proportion);
+          } else {
+            // Zero current supply (e.g. stock 0 and production building): target demand so standing order is set
+            target = cappedDemand;
           }
           
-          // Absolute fallback if everything is 0
+          // Absolute fallback if demand calculation yielded 0 but supply exists
           if (target === 0 && totalSupply > 0 && totalDemandScore === 0) {
              target = Math.floor(totalSupply / modelAllocs.length);
           }
@@ -3080,10 +3075,21 @@ export class ManufacturingController {
           throw new AppError('You must launch at least one vehicle model before the CSO can allocate it.', 400, 'BAD_REQUEST');
         }
 
-        const activeAllocs = await trx('manufacturing_market_allocations')
+        let activeAllocs = await trx('manufacturing_market_allocations')
           .where({ company_id: companyId });
         if (activeAllocs.length === 0) {
-          throw new AppError('You must manually allocate a model to at least one market first (even just 0 units) so the CSO knows which markets you want to compete in.', 400, 'BAD_REQUEST');
+          const regionMarkets = await trx('manufacturing_region_markets').select('id');
+          for (const m of launchedModels) {
+            for (const rm of regionMarkets) {
+              await trx('manufacturing_market_allocations').insert({
+                company_id: companyId,
+                vehicle_model_id: m.id,
+                region_market_id: rm.id,
+                units_allocated: 0,
+                marketing_tier: 'none'
+              });
+            }
+          }
         }
 
         await ManufacturingController.runCSOAllocations(trx, clock, [company]);
