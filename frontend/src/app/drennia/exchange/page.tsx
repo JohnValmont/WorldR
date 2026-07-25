@@ -535,49 +535,67 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
   // Sort descending by value
   chartData.sort((a, b) => b.value - a.value);
 
-  const COLORS = [T.gold, T.mint, T.burgundy, T.red, T.muted, T.faint];
+  const PALETTE = [
+    '#f59e0b', // Amber Gold
+    '#38bdf8', // Sky Blue (Public)
+    '#10b981', // Emerald Green
+    '#a855f7', // Purple
+    '#f43f5e', // Bright Coral
+    '#fb923c', // Orange
+    '#6366f1', // Indigo
+    '#84cc16'  // Lime
+  ];
 
   return (
     <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px' }}>
-      <div style={{ ...label, marginBottom: '12px' }}>Shareholders</div>
+      <div style={{ ...label, marginBottom: '12px', color: T.gold }}>Shareholders</div>
       {chartData.length === 0 ? (
         <div style={{ fontSize: '11px', color: T.faint }}>No shareholder data available.</div>
       ) : (
-        <div style={{ width: '100%', height: 160, display: 'flex', alignItems: 'center' }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                outerRadius={65}
-                dataKey="value"
-                stroke="none"
-                isAnimationActive={false}
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.name.startsWith('Public') ? T.steel : COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{ background: T.panelSoft, border: `1px solid ${T.borderGold}`, fontSize: '11px', fontFamily: 'monospace' }}
-                itemStyle={{ color: T.ivory }}
-                formatter={(value: any) => [`${fmtInt(Number(value))} sh`, 'Shares']}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', maxHeight: '140px', paddingRight: '8px', minWidth: '130px' }}>
-            {chartData.map((entry, index) => {
-              const pct = totalShares > 0 ? (entry.value / totalShares) * 100 : 0;
-              return (
-                <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.name.startsWith('Public') ? T.steel : COLORS[index % COLORS.length], flexShrink: 0 }} />
-                  <div style={{ ...mono, fontSize: '9px', color: T.ivory, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {entry.name} <span style={{ color: T.faint }}>({pct.toFixed(1)}%)</span>
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ width: '100%', height: 160, display: 'flex', alignItems: 'center' }}>
+            <div style={{ width: '45%', height: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={65}
+                    innerRadius={30}
+                    dataKey="value"
+                    stroke="#111827"
+                    strokeWidth={1}
+                    isAnimationActive={false}
+                  >
+                    {chartData.map((entry, index) => {
+                      const color = entry.name.startsWith('Public') ? '#38bdf8' : PALETTE[index % PALETTE.length];
+                      return <Cell key={`cell-${index}`} fill={color} />;
+                    })}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ background: T.panelSoft, border: `1px solid ${T.borderGold}`, fontSize: '11px', fontFamily: 'monospace', borderRadius: '4px' }}
+                    itemStyle={{ color: T.ivory }}
+                    formatter={(value: any) => [`${fmtInt(Number(value))} sh`, 'Shares']}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{ width: '55%', display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', maxHeight: '150px', paddingLeft: '8px' }}>
+              {chartData.map((entry, index) => {
+                const pct = totalShares > 0 ? (entry.value / totalShares) * 100 : 0;
+                const color = entry.name.startsWith('Public') ? '#38bdf8' : PALETTE[index % PALETTE.length];
+                return (
+                  <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, marginTop: '4px', flexShrink: 0 }} />
+                    <div style={{ ...mono, fontSize: '10px', color: '#f3f4f6', leading: '1.3', wordBreak: 'break-word' }}>
+                      <span style={{ fontWeight: 600 }}>{entry.name}</span>{' '}
+                      <span style={{ color: color, fontWeight: 700 }}>({pct.toFixed(1)}%)</span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
