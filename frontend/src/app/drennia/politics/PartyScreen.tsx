@@ -8,7 +8,8 @@ import type { Axis } from '@/lib/politicsConstants';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
 import { Stamp, Meter } from './_components/DeskUI';
 import PartyCreation, { type PartyState } from './_components/PartyCreation';
-import { Shield, Target, Map, Building2, Coins, Activity, Flag, AlertCircle, Users, Zap, Crown } from 'lucide-react';
+import { Shield, Target, Map, Building2, Coins, Activity, Flag, AlertCircle, Users, Zap, Crown, Flame } from 'lucide-react';
+import { CRISES, CO_FOUNDERS, IDEOLOGY_AXES, POLICY_PILLARS } from './_lib/gameData';
 
 interface Props {
   selectedJurisdictionId: JurisdictionId;
@@ -1370,6 +1371,52 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
             </div>
           </div>
 
+          {/* Founding Principles (if rich data is present) */}
+          {(myParty.crisis_id || (myParty.founders && myParty.founders.length > 0)) && (
+            <Panel title={<span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Flame size={14} /> Founding Spark</span>} accent={T.gold}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+                {myParty.crisis_id && CRISES.find(c => c.id === myParty.crisis_id) && (() => {
+                  const c = CRISES.find(cr => cr.id === myParty.crisis_id)!;
+                  return (
+                    <div style={{ flex: 1, minWidth: 250 }}>
+                      <div style={{ color: T.faint, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.1em' }}>The Catalyst</div>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                        <div style={{ fontSize: 24 }}>{c.icon}</div>
+                        <div>
+                          <div style={{ color: T.ivory, fontSize: 14, fontWeight: 600, fontFamily: SANS, marginBottom: 4 }}>{c.headline}</div>
+                          <div style={{ color: T.muted, fontSize: 12, fontStyle: 'italic', lineHeight: 1.4 }}>"{c.subtext}"</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+                
+                {myParty.founders && myParty.founders.length > 0 && (
+                  <div style={{ flex: 1, minWidth: 250 }}>
+                    <div style={{ color: T.faint, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.1em' }}>Core Founders</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {myParty.founders.map((fid: string) => {
+                        const f = CO_FOUNDERS.find(cf => cf.id === fid);
+                        if (!f) return null;
+                        return (
+                          <div key={fid} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: `1px solid ${f.accent}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: MONO, fontSize: 10, color: f.accent }}>
+                              {f.portrait}
+                            </div>
+                            <div>
+                              <div style={{ color: T.ivory, fontSize: 13, fontWeight: 600, fontFamily: SANS }}>{f.name}</div>
+                              <div style={{ color: T.faint, fontSize: 11, fontFamily: SANS }}>{f.title}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Panel>
+          )}
+
           <Panel title={
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Flag size={14} /> Platform & Planks</span>
@@ -1403,42 +1450,102 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
               )}
             </div>
           } accent={T.gold}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {PILLARS.map((p) => {
-                const _platform = parsePlatform(myParty.platform);
-                const baseValue = isNaN(Number(_platform[p.axis])) ? 50 : Number(_platform[p.axis] ?? 50);
-                const v = isEditingPlatform && platformEdits ? (platformEdits[p.axis] ?? baseValue) : baseValue;
-                const isKeystone = CREEDS[getDoctrineId(myParty)!]?.keystone === p.axis;
-                return (
-                  <div key={p.axis}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                      <span style={{ color: isKeystone ? T.gold : T.text, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, fontWeight: isKeystone ? 600 : 400 }}>
-                        {isKeystone && <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.gold, boxShadow: `0 0 8px ${T.goldSoft}` }} />}
-                        {p.name}
-                      </span>
-                      <span style={{ color: isKeystone ? T.gold : T.faint, fontFamily: MONO, fontSize: 12, fontWeight: isKeystone ? 600 : 400 }}>{nearestRung(p.axis, v)}</span>
-                    </div>
-                    {isEditingPlatform ? (
-                      <input 
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={v}
-                        onChange={(e) => setPlatformEdits({ ...platformEdits, [p.axis]: Number(e.target.value) })}
-                        style={{ width: '100%', cursor: 'pointer' }}
-                      />
-                    ) : (
-                      <div style={{ height: 6, background: T.panel2, borderRadius: 99, overflow: 'hidden' }}>
-                        <div style={{ width: `${v}%`, height: '100%', background: isKeystone ? T.gold : T.border }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              
+              {/* Legacy Pillars */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ color: T.faint, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Legacy Alignment</div>
+                {PILLARS.map((p) => {
+                  const _platform = parsePlatform(myParty.platform);
+                  const baseValue = isNaN(Number(_platform[p.axis])) ? 50 : Number(_platform[p.axis] ?? 50);
+                  const v = isEditingPlatform && platformEdits ? (platformEdits[p.axis] ?? baseValue) : baseValue;
+                  const isKeystone = CREEDS[getDoctrineId(myParty)!]?.keystone === p.axis;
+                  return (
+                    <div key={p.axis}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                        <span style={{ color: isKeystone ? T.gold : T.text, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, fontWeight: isKeystone ? 600 : 400 }}>
+                          {isKeystone && <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.gold, boxShadow: `0 0 8px ${T.goldSoft}` }} />}
+                          {p.name}
+                        </span>
+                        <span style={{ color: isKeystone ? T.gold : T.faint, fontFamily: MONO, fontSize: 12, fontWeight: isKeystone ? 600 : 400 }}>{nearestRung(p.axis, v)}</span>
                       </div>
-                    )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
-                      <span style={{ color: T.faint, fontSize: 10 }}>{p.low}</span>
-                      <span style={{ color: T.faint, fontSize: 10 }}>{p.high}</span>
+                      {isEditingPlatform ? (
+                        <input 
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={v}
+                          onChange={(e) => setPlatformEdits({ ...platformEdits, [p.axis]: Number(e.target.value) })}
+                          style={{ width: '100%', cursor: 'pointer' }}
+                        />
+                      ) : (
+                        <div style={{ height: 6, background: T.panel2, borderRadius: 99, overflow: 'hidden' }}>
+                          <div style={{ width: `${v}%`, height: '100%', background: isKeystone ? T.gold : T.border }} />
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
+                        <span style={{ color: T.faint, fontSize: 10 }}>{p.low}</span>
+                        <span style={{ color: T.faint, fontSize: 10 }}>{p.high}</span>
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
+
+              {/* Modern Ideology Axes (Rich Data) */}
+              {myParty.ideology_axes && Object.keys(myParty.ideology_axes).length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ color: T.faint, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Ideological Axes</div>
+                  {IDEOLOGY_AXES.map((axis) => {
+                    const val = myParty.ideology_axes[axis.id] || 0;
+                    return (
+                      <div key={axis.id}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <span style={{ color: T.ivory, fontSize: 13, fontFamily: SANS, fontWeight: 600 }}>{axis.label}</span>
+                          <span style={{ color: axis.color, fontFamily: MONO, fontSize: 12, fontWeight: 600 }}>
+                            {val > 0 ? `+${val}` : val}
+                          </span>
+                        </div>
+                        <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 99, position: 'relative', display: 'flex' }}>
+                          {/* Center tick */}
+                          <div style={{ position: 'absolute', left: '50%', top: -2, bottom: -2, width: 2, background: 'rgba(255,255,255,0.2)' }} />
+                          <div style={{ width: '50%', height: '100%', display: 'flex', justifyContent: 'flex-end' }}>
+                            {val < 0 && <div style={{ width: `${Math.abs(val)}%`, height: '100%', background: axis.color, borderRadius: '99px 0 0 99px' }} />}
+                          </div>
+                          <div style={{ width: '50%', height: '100%', display: 'flex', justifyContent: 'flex-start' }}>
+                            {val > 0 && <div style={{ width: `${val}%`, height: '100%', background: axis.color, borderRadius: '0 99px 99px 0' }} />}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                          <span style={{ color: T.faint, fontSize: 10 }}>{axis.left}</span>
+                          <span style={{ color: T.faint, fontSize: 10 }}>{axis.right}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Manifesto Policies (Rich Data) */}
+              {myParty.manifesto_policies && Object.keys(myParty.manifesto_policies).length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ color: T.faint, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Manifesto Policies</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                    {Object.entries(myParty.manifesto_policies).map(([pillarId, stanceId]) => {
+                      const pillar = POLICY_PILLARS.find(p => p.id === pillarId);
+                      const stance = pillar?.stances.find(s => s.id === stanceId);
+                      if (!pillar || !stance) return null;
+                      return (
+                        <div key={pillarId} style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)' }}>
+                          <div style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', marginBottom: 4 }}>{pillar.label}</div>
+                          <div style={{ color: T.ivory, fontSize: 13, fontWeight: 600, fontFamily: SANS, marginBottom: 4 }}>{stance.label}</div>
+                          <div style={{ color: T.muted, fontSize: 11, lineHeight: 1.4 }}>{stance.desc}</div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              )}
             </div>
           </Panel>
 

@@ -521,7 +521,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
                 <div className="text-xs text-zinc-400 font-mono mb-4">Transfer personal cash to the firm's treasury.</div>
                 <div className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase mb-4">Personal Cash: <span className="text-zinc-200">{fm(playerCash)}</span></div>
                 <div className="flex gap-2 mb-2">
-                  <input type="number" min="1" value={injectAmount} onChange={e => setInjectAmount(e.target.value)} placeholder="Amount" className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-200 font-mono text-sm px-3 py-2 rounded focus:outline-none focus:border-gold/50" />
+                  <input type="text" inputMode="decimal" min="1" value={injectAmount} onChange={e => setInjectAmount(e.target.value.replace(/,/g, ''))} placeholder="Amount" className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-200 font-mono text-sm px-3 py-2 rounded focus:outline-none focus:border-gold/50" />
                   <Button variant="primary" onClick={handleInject} disabled={busy}>Transfer In</Button>
                 </div>
                 {injectMsg && <div className={`text-xs font-mono mt-2 ${injectMsg.ok ? 'text-mint' : 'text-red'}`}>{injectMsg.text}</div>}
@@ -531,7 +531,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
                 <div className="text-xs text-zinc-400 font-mono mb-4">Withdraw idle firm cash back to your personal wallet.</div>
                 <div className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase mb-4">Firm Cash: <span className="text-zinc-200">{fm(firm?.available_cash ?? 0)}</span></div>
                 <div className="flex gap-2 mb-2">
-                  <input type="number" min="1" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} placeholder="Amount" className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-200 font-mono text-sm px-3 py-2 rounded focus:outline-none focus:border-gold/50" />
+                  <input type="text" inputMode="decimal" min="1" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value.replace(/,/g, ''))} placeholder="Amount" className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-200 font-mono text-sm px-3 py-2 rounded focus:outline-none focus:border-gold/50" />
                   <Button variant="secondary" onClick={handleWithdraw} disabled={busy}>Withdraw</Button>
                 </div>
                 {withdrawMsg && <div className={`text-xs font-mono mt-2 ${withdrawMsg.ok ? 'text-mint' : 'text-red'}`}>{withdrawMsg.text}</div>}

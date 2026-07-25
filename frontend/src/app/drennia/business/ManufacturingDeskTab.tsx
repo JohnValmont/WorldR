@@ -2941,9 +2941,9 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                      <span className="text-xs text-zinc-500">Line capacity: {lines.length} / {factory.max_production_lines}</span>
                      <GoldButton 
                         onClick={() => handleConstructProductionLine(factory.id)} 
-                        disabled={factory.building_status === 'under_construction' || Number(finances?.available_cash) < 15000}
+                        disabled={factory.building_status === 'under_construction' || Number(finances?.available_cash) < (1500000 * (Number(statesForCountry.find(s => s.id === factory.state_id)?.economic_multiplier) || 1.0))}
                      >
-                       Construct Production Line ({fm(15000)})
+                       Construct Production Line ({fm(1500000 * (Number(statesForCountry.find(s => s.id === factory.state_id)?.economic_multiplier) || 1.0))})
                      </GoldButton>
                   </div>
                 )}

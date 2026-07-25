@@ -164,7 +164,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
         return (
           <BankPortal 
             bank={BANKS.find(b => b.id === selectedBankId)!} 
-            company={company}
+            company={activeCompany}
             playerCash={playerCash}
             personalDossier={personalDossier}
             corporateDossier={corporateDossier}
@@ -174,6 +174,11 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
             onTakeLoan={handleTakeLoan}
             isSubmitting={isSubmitting}
             getRatingColor={getRatingColor}
+            myCompanies={myCompanies}
+            onSelectCompany={(cId: string) => {
+               const c = myCompanies.find(x => x.id === cId);
+               if (c) setActiveCompany(c);
+            }}
           />
         );
       } else {

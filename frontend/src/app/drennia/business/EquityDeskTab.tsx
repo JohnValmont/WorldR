@@ -157,7 +157,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
               <div className="text-[13px] font-bold text-terminal-green mb-1">↓ Inject Capital</div>
               <div className="text-[11px] text-zinc-400 mb-3 leading-relaxed min-h-[34px]">Transfer your personal cash into the company ledger (owner loan).</div>
               <div className="flex gap-2 items-center">
-                <input type="number" placeholder="$ Amount" min={1} value={injectInput} onChange={e => setInjectInput(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-terminal-green p-2 text-xs outline-none rounded" />
+                <input type="text" inputMode="decimal" placeholder="$ Amount" value={injectInput} onChange={e => setInjectInput(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-terminal-green p-2 text-xs outline-none rounded" />
                 <Button onClick={handleInject} disabled={busy} variant="primary">Inject</Button>
               </div>
             </div>
@@ -166,9 +166,9 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
               <div className="text-[13px] font-bold text-terminal-green mb-1">↑ Issue Shares</div>
               <div className="text-[11px] text-zinc-400 mb-3 leading-relaxed min-h-[34px]">Issue new shares to yourself to inject capital. Cash is transferred to company, and your equity increases.</div>
               <div className="flex gap-2 items-center">
-                <input type="number" placeholder="Shares" min={1} value={issueQty} onChange={e => setIssueQty(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 p-2 text-xs outline-none rounded" />
+                <input type="text" inputMode="decimal" placeholder="Shares" value={issueQty} onChange={e => setIssueQty(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 p-2 text-xs outline-none rounded" />
                 <span className="text-zinc-500 text-xs">@</span>
-                <input type="number" placeholder="$ Price" min={1} value={issuePrice} onChange={e => setIssuePrice(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 p-2 text-xs outline-none rounded" />
+                <input type="text" inputMode="decimal" placeholder="$ Price" value={issuePrice} onChange={e => setIssuePrice(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 p-2 text-xs outline-none rounded" />
                 <Button onClick={handleIssue} disabled={busy} variant="primary">Issue</Button>
               </div>
             </div>
@@ -187,7 +187,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
               <div className="text-[13px] font-bold text-terminal-amber mb-1">↑ Owner Drawings</div>
               <div className="text-[11px] text-zinc-400 mb-3 leading-relaxed min-h-[34px]">Withdraw company cash to your personal holdings.</div>
               <div className="flex gap-2 items-center">
-                <input type="number" placeholder="$ Amount" min={1} value={withdrawInput} onChange={e => setWithdrawInput(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-terminal-amber p-2 text-xs outline-none rounded" />
+                <input type="text" inputMode="decimal" placeholder="$ Amount" value={withdrawInput} onChange={e => setWithdrawInput(e.target.value)} className="font-mono flex-1 bg-zinc-900 border border-zinc-700 text-terminal-amber p-2 text-xs outline-none rounded" />
                 <Button onClick={handleWithdraw} disabled={busy} variant="secondary" className="text-terminal-amber border-terminal-amber hover:bg-terminal-amber/10">Withdraw</Button>
               </div>
             </div>

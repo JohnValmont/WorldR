@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 
 const COLORS = ['#4B6382', '#C9A24A', '#36D399', '#8F3D3D', '#B85555', '#6B6358'];
 
-export default function BankPortal({ bank, company, playerCash, personalDossier, corporateDossier, institutionData, loadError, onBack, getRatingColor, onTakeLoan, isSubmitting: parentIsSubmitting }: any) {
+export default function BankPortal({ bank, company, playerCash, personalDossier, corporateDossier, institutionData, loadError, onBack, getRatingColor, onTakeLoan, isSubmitting: parentIsSubmitting, myCompanies, onSelectCompany }: any) {
   const [activeTab, setActiveTab] = useState<'portfolio' | 'apply' | 'debt'>('portfolio');
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [selectedFacility, setSelectedFacility] = useState<string | null>(null);
@@ -252,10 +252,10 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                 <div>
                   <label className="block text-[10px] font-mono text-zinc-500 mb-2">AMOUNT ($)</label>
                   <input 
-                    type="number" 
+                    type="text" 
                     className="w-full bg-[#090A0F] border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-100 font-mono outline-none focus:border-[#C9A24A]"
                     value={loanAmount}
-                    onChange={(e) => setLoanAmount(Number(e.target.value))}
+                    onChange={(e) => setLoanAmount(Number(e.target.value.replace(/,/g, '')))}
                   />
                 </div>
                 <div>

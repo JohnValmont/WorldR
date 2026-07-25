@@ -8,6 +8,8 @@ import {
   foundParty,
   joinParty,
   leaveParty,
+  dissolveParty,
+  transferLeadership,
   updatePlatform,
   declareCandidacy,
   queueCampaignAction,
@@ -101,6 +103,8 @@ router.get('/parties', authMiddleware, getParties);
 router.post('/parties', authMiddleware, foundParty);
 router.post('/parties/:id/join', authMiddleware, joinParty);
 router.post('/parties/:id/leave', authMiddleware, leaveParty);
+router.post('/parties/:id/dissolve', authMiddleware, dissolveParty);
+router.post('/parties/:id/transfer', authMiddleware, transferLeadership);
 router.put('/parties/:id/platform', authMiddleware, updatePlatform);
 
 // Candidacy is open in every phase EXCEPT while an election is actively resolving

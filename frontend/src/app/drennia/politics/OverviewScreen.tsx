@@ -270,12 +270,46 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
             </div>
             
             {/* Action Points Inline Display */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginTop: 24 }}>
               <div style={{ padding: '6px 12px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.2)', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Zap size={14} color={T.gold} />
                 <span style={{ fontFamily: MONO, fontSize: 12, color: T.gold, fontWeight: 600 }}>{myAp?.current_ap ?? 0} / {myAp?.ap_cap ?? 12} AP</span>
               </div>
               <span style={{ color: T.faint, fontSize: 12 }}>Available Action Points</span>
+
+              {myParty && myParty.leader_character_id === character?.id && (
+                <div style={{ marginLeft: 'auto' }}>
+                  <button
+                    onClick={async () => {
+                      if (window.confirm('Are you sure you want to permanently delete this party? All party data will be lost (business/finances are NOT affected).')) {
+                        try {
+                          await politicsApi.dissolveParty(myParty.id);
+                          await onRefresh();
+                        } catch (e: any) {
+                          alert(e.response?.data?.message || 'Failed to delete party');
+                        }
+                      }
+                    }}
+                    style={{
+                      background: 'rgba(220,38,38,0.1)',
+                      border: `1px solid rgba(220,38,38,0.4)`,
+                      color: T.red,
+                      fontFamily: "'Barlow Condensed', sans-serif",
+                      fontSize: '12px',
+                      textTransform: 'uppercase',
+                      padding: '6px 16px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      letterSpacing: '0.1em',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(220,38,38,0.2)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(220,38,38,0.1)'}
+                  >
+                    Delete Party
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
