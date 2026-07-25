@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,300;0,400;0,600;0,700;0,800;0,900;1,300;1,700&family=Barlow:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-body: 'Barlow', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --color-void: #080810;
+  --color-ground: #0d0d1a;
+  --color-surface: #12121f;
+  --color-raised: #1a1a2e;
+  --color-border: rgba(255,255,255,0.08);
+  --color-border-bright: rgba(255,255,255,0.18);
+  --color-muted: rgba(255,255,255,0.35);
+  --color-body: rgba(255,255,255,0.72);
+  --color-bright: #ffffff;
+
+  --color-crimson: #c8102e;
+  --color-crimson-bright: #e8192e;
+  --color-gold: #c9a84c;
+  --color-gold-dim: #8a6d2a;
+  --color-teal: #00a8a8;
+  --color-amber: #e07b20;
+  --color-violet: #7c3aed;
+  --color-emerald: #059669;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: #080810;
+  color: #ffffff;
+  font-family: 'Barlow', sans-serif;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+
+::selection {
+  background: rgba(200, 16, 46, 0.4);
+  color: #fff;
+}

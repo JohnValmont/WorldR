@@ -4,10 +4,7 @@ import useSWR from 'swr';
 import { politicsApi, characterApi, worldApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { DEFAULT_JURISDICTION_ID, type JurisdictionId } from './_lib/session';
-import { T, MONO, HEADING, BODY } from './_lib/theme';
 import { JURISDICTION_MODEL } from './_lib/model';
-import PoliticsSidebar, { type PoliticsSection } from './_components/PoliticsSidebar';
-import { HoverData } from './_components/DeskUI';
 import { formatGameDateShort } from '@/lib/calendar';
 
 import OverviewScreen    from './OverviewScreen';
@@ -21,124 +18,26 @@ import LobbyScreen       from './LobbyScreen';
 import LegacyScreen      from './LegacyScreen';
 import DevelopmentScreen from './DevelopmentScreen';
 
-function ForcePolTickBtn({ onTick }: { onTick: () => void }) {
-  const [isAdvancing, setIsAdvancing] = useState(false);
-  const [isAdminDynamic, setIsAdminDynamic] = useState(false);
-  const user = useAuthStore(state => state.user);
-  const isAdmin = user?.role === 'admin' || isAdminDynamic;
+import { Tabs, PageShell } from '@/components/ui';
 
-  useEffect(() => {
-    authApi.me().then(res => setIsAdminDynamic(res.data.isAdmin)).catch(() => {});
-  }, []);
+// ─── Sub-tab types ────────────────────────────────────────────────────────────
+type SubTab = 'overview' | 'nation' | 'development' | 'elections' | 'legislature' | 'assembly' | 'policy' | 'party' | 'lobby' | 'legacy';
 
-  if (!isAdmin) return null;
-
-  const handleForcePolTick = async () => {
-    if (isAdvancing) return;
-    setIsAdvancing(true);
-    try {
-      const res = await worldApi.forcePoliticsTick();
-      const result = res?.data ?? res;
-      if (result?.data?.status === 'ticked' || result?.status === 'success') {
-        onTick();
-        return;
-      }
-      alert('Politics tick did not advance.');
-      onTick();
-    } catch (err: any) {
-      alert(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to advance politics tick');
-    } finally {
-      setIsAdvancing(false);
-    }
-  };
-
-  return (
-    <button
-      onClick={handleForcePolTick}
-      disabled={isAdvancing}
-      style={{
-        background: isAdvancing ? 'rgba(255,255,255,0.03)' : `linear-gradient(135deg, #a78bfa, #7c3aed)`,
-        color: isAdvancing ? T.muted : '#fff',
-        border: `1px solid ${isAdvancing ? T.border : '#a78bfa'}`,
-        padding: '4px 10px', borderRadius: 4,
-        fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em',
-        fontWeight: 700, cursor: isAdvancing ? 'not-allowed' : 'pointer',
-        opacity: isAdvancing ? 0.7 : 1, whiteSpace: 'nowrap',
-        marginLeft: 8
-      }}
-    >
-      {isAdvancing ? 'PROCESSING...' : 'FORCE POL TICK'}
-    </button>
-  );
-}
-
-// Live countdown to the next in-game month tick
-function NextTick() {
-  const [now, setNow] = useState<number>(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  const d = new Date(now);
-  const nextHour = (Math.floor((d.getHours() - 2) / 6) + 1) * 6 + 2;
-  const next = new Date(d);
-  next.setHours(nextHour, 0, 0, 0);
-  let ms = next.getTime() - now;
-  if (ms < 0) ms += 6 * 3600 * 1000;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const hh = Math.floor(ms / 3600000);
-  const mm = Math.floor((ms % 3600000) / 60000);
-  const ss = Math.floor((ms % 60000) / 1000);
-  return (
-    <span style={{ fontFamily: MONO, letterSpacing: '0.05em' }}>
-      {pad(hh)}:{pad(mm)}:{pad(ss)}
-    </span>
-  );
-}
-
-// Header metric pill
-function MetricPill({
-  label, value, tone, tooltip,
-}: {
-  label: string;
-  value: React.ReactNode;
-  tone?: string;
-  tooltip: React.ReactNode;
-}) {
-  const [hover, setHover] = useState(false);
-  return (
-    <HoverData tooltip={tooltip}>
-      <div
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-        style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-          padding: '5px 12px',
-          borderLeft: '1px solid rgba(255,255,255,0.06)',
-          cursor: 'help',
-          transition: 'background 0.15s',
-          background: hover ? 'rgba(255,255,255,0.03)' : 'transparent',
-          borderRadius: 4,
-        }}
-      >
-        <span style={{
-          fontFamily: MONO, fontSize: 8, letterSpacing: '0.14em',
-          textTransform: 'uppercase', color: T.faint,
-          fontWeight: 600, marginBottom: 2,
-        }}>{label}</span>
-        <span style={{
-          fontFamily: MONO, fontSize: 14, fontWeight: 700,
-          color: tone || T.ivory, lineHeight: 1,
-          letterSpacing: '-0.01em',
-          textShadow: tone ? `0 0 14px ${tone}30` : 'none',
-        }}>{value}</span>
-      </div>
-    </HoverData>
-  );
-}
+const SUB_TABS: { id: SubTab; label: string; }[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'nation', label: 'Nation' },
+  { id: 'development', label: 'Development' },
+  { id: 'elections', label: 'Elections' },
+  { id: 'legislature', label: 'Legislature' },
+  { id: 'assembly', label: 'Assembly' },
+  { id: 'policy', label: 'Policy' },
+  { id: 'party', label: 'Party' },
+  { id: 'lobby', label: 'Lobby' },
+  { id: 'legacy', label: 'Legacy' }
+];
 
 export default function PoliticsDesk() {
-  const [activeSection, setActiveSection] = useState<PoliticsSection>('overview');
+  const [activeTab, setActiveTab] = useState<SubTab>('overview');
   const [selectedJurisdictionId, setSelectedJurisdictionId] = useState<JurisdictionId>(DEFAULT_JURISDICTION_ID);
 
   const { data: character, mutate: mutateChar, error: errChar } = useSWR('me', () => characterApi.getMe().then((res: any) => res.data || res));
@@ -165,8 +64,6 @@ export default function PoliticsDesk() {
     return meta;
   }, [overview]);
 
-  const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
-
   const commonProps = {
     selectedJurisdictionId,
     onJurisdictionChange: setSelectedJurisdictionId,
@@ -179,179 +76,81 @@ export default function PoliticsDesk() {
     onRefresh: loadData,
   };
 
-  const cash = character?.finances?.cash_in_hand;
-  const cred = character?.political?.credibility ?? character?.credibility;
-  const monthYear = overview?.cycle?.currentArc != null ? formatGameDateShort(overview.cycle.currentArc) : '';
-  const monthsToElection = overview?.cycle?.monthsToElection ?? overview?.monthsToElection;
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', background: T.bg, color: T.text }}>
-
-      {/* ─── Compact Header ─── */}
-      <header style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 20px',
-        height: 46,
-        borderBottom: '1px solid rgba(255,255,255,0.055)',
-        background: 'linear-gradient(180deg, rgba(7,7,20,0.95) 0%, rgba(5,5,15,0.92) 100%)',
-        backdropFilter: 'blur(32px)',
-        WebkitBackdropFilter: 'blur(32px)',
-        flexShrink: 0,
-        position: 'relative',
-      }}>
-        {/* Bottom edge glow */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: 1,
-          background: 'linear-gradient(90deg, transparent, rgba(79,110,247,0.22), transparent)',
-          pointerEvents: 'none',
-        }} />
-
-        {/* Left: Logo + title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 26, height: 26, borderRadius: 7,
-            background: 'linear-gradient(135deg, #4F6EF7, #3A5BE0)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 3px 10px rgba(79,110,247,0.4)',
-            flexShrink: 0,
-          }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-              stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 21h18"/><path d="M5 21V10M9 21V10M15 21V10M19 21V10"/>
-              <path d="M3 10 12 4l9 6"/>
-            </svg>
+    <div className="flex flex-col h-full bg-[#090A0F] text-zinc-100">
+      
+      {/* ─── Compact Header & Navigation ─── */}
+      <header className="flex-none bg-zinc-950 border-b border-zinc-900/60 sticky top-0 z-10 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-950/80">
+        <div className="flex items-center justify-between px-6 py-2 border-b border-zinc-900/60">
+          <div className="flex items-center gap-3">
+            <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-[0_0_10px_rgba(79,110,247,0.3)]">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21h18"/><path d="M5 21V10M9 21V10M15 21V10M19 21V10"/><path d="M3 10 12 4l9 6"/>
+              </svg>
+            </div>
+            <div className="text-[13px] font-bold text-[#F4EBD6]">Political Desk</div>
           </div>
-          <div>
-            <div style={{
-              fontSize: 13, fontFamily: HEADING, fontWeight: 700,
-              color: T.ivory, lineHeight: 1.2, letterSpacing: '-0.01em',
-            }}>Political Desk</div>
-          </div>
-          {/* Separator */}
-          <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.07)', marginLeft: 4 }} />
-          {/* Active section badge */}
-          <div style={{
-            padding: '2px 8px', borderRadius: 99,
-            background: 'rgba(79,110,247,0.10)',
-            border: '1px solid rgba(79,110,247,0.22)',
-            fontFamily: HEADING, fontSize: 11, fontWeight: 600,
-            color: T.blueBright, textTransform: 'capitalize', letterSpacing: '-0.01em',
-          }}>
-            {activeSection.replace(/_/g, ' ')}
+          
+          <div className="flex items-center gap-6">
+            {character?.political?.credibility != null && (
+              <div className="flex flex-col">
+                <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">Credibility</span>
+                <span className="text-sm font-bold text-zinc-100 font-mono">{character.political.credibility}</span>
+              </div>
+            )}
+            {character?.finances?.cash_in_hand != null && (
+              <div className="flex flex-col">
+                <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">Liquid Cash</span>
+                <span className="text-sm font-bold text-[#36D399] font-mono">${Number(character.finances.cash_in_hand).toLocaleString()}</span>
+              </div>
+            )}
+            <div className="flex flex-col">
+              <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">AP ({myAp.current_ap}/{myAp.ap_cap})</span>
+              <span className="text-sm font-bold text-terminal-amber font-mono">{myAp.current_ap}</span>
+            </div>
+            {overview?.cycle?.currentArc != null && (
+              <div className="flex flex-col">
+                <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">Current Date</span>
+                <span className="text-sm font-bold text-zinc-100 font-mono">{formatGameDateShort(overview.cycle.currentArc)}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right: Metrics */}
-        <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-          {cred != null && (
-            <MetricPill
-              label="Credibility"
-              value={cred}
-              tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: BODY, lineHeight: 1.6 }}>Political Credibility allows you to take controversial actions. Earned by winning elections and passing bills.</div>}
-            />
-          )}
-          {cash != null && (
-            <MetricPill
-              label="Liquid Cash"
-              value={`$${Number(cash).toLocaleString('en-US')}`}
-              tone={T.mint}
-              tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: BODY, lineHeight: 1.6 }}>Liquid campaign and personal funds. Used for lobbying and operations.</div>}
-            />
-          )}
-          <MetricPill
-            label={`AP · ${myAp.current_ap}/${myAp.ap_cap}`}
-            value={`${myAp.current_ap}`}
-            tone={T.warning}
-            tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: BODY, lineHeight: 1.6 }}>Action Points represent your time and energy. Regenerates every 8 real-life hours.<br/><br/><span style={{color: T.warning}}>Cap: {myAp.ap_cap} AP</span></div>}
-          />
-          <MetricPill
-            label={monthYear || 'Tick Timer'}
-            value={<NextTick />}
-            tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: BODY, lineHeight: 1.6 }}>The game world processes a new month every 8 hours.</div>}
-          />
-          {monthsToElection != null && (
-            <MetricPill
-              label="Next Election"
-              value={`${monthsToElection} mo`}
-              tone={T.blueBright}
-              tooltip={<div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: BODY, lineHeight: 1.6 }}>Months remaining until the next general election cycle.</div>}
-            />
-          )}
-          <ForcePolTickBtn onTick={loadData} />
-        </div>
+        <Tabs 
+          tabs={SUB_TABS} 
+          activeId={activeTab} 
+          onChange={(id) => setActiveTab(id as SubTab)}
+          className="px-6 border-0"
+        />
       </header>
 
-      <style>{`
-        .politics-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
-        .politics-sidebar-container { width: 176px; flex-shrink: 0; }
-        .politics-main-scroll::-webkit-scrollbar { width: 6px; }
-        .politics-main-scroll::-webkit-scrollbar-track { background: transparent; }
-        .politics-main-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
-        .politics-main-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
-        @media (max-width: 768px) {
-          .politics-layout { flex-direction: column-reverse; }
-          .politics-sidebar-container { width: 100%; height: 60px; border-right: none !important; border-top: 1px solid rgba(51,65,85,0.4); }
-          .sidebar-nav-groups { flex-direction: row !important; overflow-x: auto; overflow-y: hidden; padding: 0 8px; align-items: center; }
-          .sidebar-nav-group-label { display: none !important; }
-          .sidebar-nav-item { flex: 0 0 auto; width: auto !important; margin: 0 2px !important; padding: 8px 10px !important; }
-          .sidebar-nav-item span { display: none !important; }
-          .sidebar-nav-item svg { margin: 0; }
-          .sidebar-brand, .sidebar-leader { display: none !important; }
-        }
-      `}</style>
-
       {/* ─── Body ─── */}
-      <div className="politics-layout">
-        <PoliticsSidebar active={activeSection} onSelect={setActiveSection} myPartyName={myParty?.name} myPartyNation={jMeta.name} />
-
-        <main className="politics-main-scroll" style={{ flex: 1, overflowY: 'auto', background: T.bg }}>
-          {/* Background ambient */}
-          <div style={{
-            position: 'fixed', top: 0, right: 0, width: 600, height: 600,
-            background: 'radial-gradient(ellipse at top right, rgba(79,110,247,0.04) 0%, transparent 70%)',
-            pointerEvents: 'none', zIndex: 0,
-          }} />
-          <div style={{ maxWidth: 1260, margin: '0 auto', padding: '10px 14px', position: 'relative', zIndex: 1 }}>
-            {loading ? (
-              <div style={{ padding: '60px 0', textAlign: 'center' }}>
-                <div style={{ color: T.faint, fontFamily: MONO, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
-                  Convening the Political Desk
-                  <span style={{ animation: 'none' }}>…</span>
-                </div>
-              </div>
-            ) : error ? (
-              <div style={{
-                color: T.red, border: `1px solid ${T.red}40`,
-                background: T.redDim, padding: '10px 14px', borderRadius: 12,
-                fontFamily: BODY, fontSize: 13, lineHeight: 1.6,
-              }}>
-                {String((error as any)?.response?.data?.error || (error as any)?.message || error)}
-              </div>
-            ) : activeSection === 'overview' ? (
-              <OverviewScreen overview={overview} character={character} parties={parties} myAp={myAp} selectedJurisdictionId={selectedJurisdictionId} onNavigate={setActiveSection} onRefresh={loadData} />
-            ) : activeSection === 'nation' ? (
-              <NationScreen selectedJurisdictionId={selectedJurisdictionId} onJurisdictionChange={setSelectedJurisdictionId} jurisdictionMeta={jurisdictionMeta} overview={overview} ledger={ledger} />
-            ) : activeSection === 'development' ? (
-              <DevelopmentScreen overview={overview} jurisdictionMeta={jurisdictionMeta} />
-            ) : activeSection === 'elections' ? (
-              <ElectionsScreen {...commonProps} />
-            ) : activeSection === 'legislature' ? (
-              <LegislatureScreen {...commonProps} />
-            ) : activeSection === 'policy' ? (
-              <PolicyScreen {...commonProps} />
-            ) : activeSection === 'assembly' ? (
-              <AssemblyScreen {...commonProps} />
-            ) : activeSection === 'party' ? (
-              <PartyScreen {...commonProps} />
-            ) : activeSection === 'lobby' ? (
-              <LobbyScreen {...commonProps} />
-            ) : activeSection === 'legacy' ? (
-              <LegacyScreen character={character} />
-            ) : null}
-          </div>
-        </main>
+      <div className="flex-1 overflow-y-auto">
+        <PageShell className="py-6">
+          {loading ? (
+            <div className="py-12 text-center text-zinc-500 text-xs font-mono uppercase tracking-widest">
+              Convening the Political Desk...
+            </div>
+          ) : error ? (
+            <div className="bg-[#B85555]/10 border border-[#B85555]/40 text-[#B85555] p-4 rounded-xl text-sm">
+              {String((error as any)?.response?.data?.error || (error as any)?.message || error)}
+            </div>
+          ) : (
+            <>
+              {activeTab === 'overview' && <OverviewScreen overview={overview} character={character} parties={parties} myAp={myAp} selectedJurisdictionId={selectedJurisdictionId} onNavigate={setActiveTab} onRefresh={loadData} />}
+              {activeTab === 'nation' && <NationScreen selectedJurisdictionId={selectedJurisdictionId} onJurisdictionChange={setSelectedJurisdictionId} jurisdictionMeta={jurisdictionMeta} overview={overview} ledger={ledger} />}
+              {activeTab === 'development' && <DevelopmentScreen overview={overview} jurisdictionMeta={jurisdictionMeta} />}
+              {activeTab === 'elections' && <ElectionsScreen {...commonProps} />}
+              {activeTab === 'legislature' && <LegislatureScreen {...commonProps} />}
+              {activeTab === 'policy' && <PolicyScreen {...commonProps} />}
+              {activeTab === 'assembly' && <AssemblyScreen {...commonProps} />}
+              {activeTab === 'party' && <PartyScreen {...commonProps} />}
+              {activeTab === 'lobby' && <LobbyScreen {...commonProps} />}
+              {activeTab === 'legacy' && <LegacyScreen character={character} />}
+            </>
+          )}
+        </PageShell>
       </div>
     </div>
   );

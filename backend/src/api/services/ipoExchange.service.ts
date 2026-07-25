@@ -522,8 +522,9 @@ async function refreshNpcIoi(trx: any, listing: any, systemCharId: string) {
   
   fraction = clamp(baseFraction + priceMod, 0, 0.80);
   
-  // Willingness to pay higher prices scales with company score
-  const npcWillingPrice = Math.min(maxPrice, fairPrice * (0.80 + 0.40 * score));
+  // Willingness to pay higher prices scales strongly with company score
+  // NPCs will now bid up to 1.5x fair price for a perfect score to secure allocation
+  const npcWillingPrice = fairPrice * (0.95 + (0.55 * score));
   price = clamp(npcWillingPrice, minPrice, maxPrice);
 
   const sharesWanted = Math.round(Number(listing.float_shares) * fraction);
