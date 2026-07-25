@@ -175,6 +175,131 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
   };
 }
 
+async function performIndustrialEspionage(trx: Knex, companyId: string, currentYear: number, currentMonth: number, availableCash: number): Promise<number> {
+  const ESPIONAGE_COST = 10000000; // $10M
+  if (availableCash < ESPIONAGE_COST) return availableCash;
+
+  // Check if they have fewer than 6 models
+  const modelsCount = await trx('manufacturing_vehicle_models')
+    .where({ company_id: companyId, development_status: 'launched', status: 'active' })
+    .count('* as count');
+  if (Number(modelsCount[0].count) >= 6) return availableCash;
+
+  // Get active instance
+  const instance = await trx('world_instances').where({ status: 'active' }).first();
+  if (!instance) return availableCash;
+
+  // Calculate prev month
+  let prevMonth = currentMonth - 1;
+  let prevYear = currentYear;
+  if (prevMonth < 1) {
+    prevMonth = 12;
+    prevYear--;
+  }
+
+  // Find the top selling player model
+  const topPlayerModel = await trx('manufacturing_sales_results as r')
+    .join('manufacturing_vehicle_models as m', 'm.id', 'r.vehicle_model_id')
+    .join('companies as c', 'c.id', 'm.company_id')
+    .where('r.world_instance_id', instance.id)
+    .where('r.world_year', prevYear)
+    .where('r.world_month', prevMonth)
+    .where('c.is_npc', false)
+    .select('m.*', 'c.name as player_company_name')
+    .sum('r.units_sold as total_sold')
+    .groupBy('m.id', 'c.name', 'c.is_npc')
+    .orderByRaw('SUM(r.units_sold) DESC')
+    .first();
+
+  if (!topPlayerModel || Number(topPlayerModel.total_sold) < 40) return availableCash;
+
+  // Check if we already cloned this model recently (prevent segment spam)
+  const existingClone = await trx('manufacturing_vehicle_models')
+    .where({ company_id: companyId, target_segment: topPlayerModel.target_segment })
+    .where('name', 'like', `%Challenger%`)
+    .first();
+    
+  if (existingClone) return availableCash;
+
+  // Deduct cash
+  availableCash -= ESPIONAGE_COST;
+  await trx('company_finances').where({ company_id: companyId }).update({ available_cash: availableCash });
+
+  const npcCompany = await trx('companies').where({ id: companyId }).first();
+
+  const newModelId = crypto.randomUUID();
+  const newModelName = `${npcCompany.name} ${topPlayerModel.name} Challenger`;
+
+  const newModel = {
+    id: newModelId,
+    company_id: companyId,
+    name: newModelName.substring(0, 60),
+    target_segment: topPlayerModel.target_segment,
+    vehicle_class: topPlayerModel.vehicle_class,
+    platform_type: topPlayerModel.platform_type,
+    power_unit_type: topPlayerModel.power_unit_type,
+    drivetrain_type: topPlayerModel.drivetrain_type,
+    interior_tier: topPlayerModel.interior_tier,
+    safety_tier: topPlayerModel.safety_tier,
+    quality_tier: topPlayerModel.quality_tier,
+    reliability_score: Math.min(100, Number(topPlayerModel.reliability_score) + 2),
+    performance_score: Math.min(100, Number(topPlayerModel.performance_score) + 2),
+    fuel_efficiency_score: Math.min(100, Number(topPlayerModel.fuel_efficiency_score) + 2),
+    appeal_score: Math.min(100, Number(topPlayerModel.appeal_score) + 2),
+    safety_score: Math.min(100, Number(topPlayerModel.safety_score) + 2),
+    cargo_score: Math.min(100, Number(topPlayerModel.cargo_score) + 2),
+    manufacturing_cost_per_unit: topPlayerModel.manufacturing_cost_per_unit,
+    sale_price: Math.max(1, Math.floor(Number(topPlayerModel.sale_price) * 0.95)),
+    development_status: 'launched',
+    status: 'active',
+    launched_year: currentYear,
+    launched_month: currentMonth,
+    created_at_world_year: currentYear,
+    created_at_world_month: currentMonth,
+    created_at: new Date(),
+    updated_at: new Date()
+  };
+
+  await trx('manufacturing_vehicle_models').insert(newModel);
+  console.log(`[NPC Espionage] ${npcCompany.name} cloned ${topPlayerModel.name} into ${newModelName}`);
+
+  // Create factory line
+  const factory = await trx('manufacturing_factories').where({ company_id: companyId }).first();
+  if (factory) {
+    await trx('manufacturing_production_lines').insert({
+      id: crypto.randomUUID(),
+      company_id: companyId,
+      factory_id: factory.id,
+      assigned_vehicle_model_id: newModelId,
+      status: 'active',
+      target_units_per_month: 150,
+      created_at: new Date(),
+      updated_at: new Date()
+    });
+    
+    // Allocate to market
+    const existingAllocation = await trx('manufacturing_market_allocations')
+      .where({ company_id: companyId })
+      .first();
+      
+    if (existingAllocation) {
+      await trx('manufacturing_market_allocations').insert({
+        id: crypto.randomUUID(),
+        company_id: companyId,
+        vehicle_model_id: newModelId,
+        region_market_id: existingAllocation.region_market_id,
+        units_allocated: 150,
+        sale_price: newModel.sale_price,
+        marketing_tier: 'none',
+        created_at: new Date(),
+        updated_at: new Date()
+      });
+    }
+  }
+
+  return availableCash;
+}
+
 async function applyNpcFacelifts(trx: Knex, companyId: string, currentYear: number, currentMonth: number, availableCash: number): Promise<number> {
   const FACELIFT_COST = 10000000; // $10M
   if (availableCash < FACELIFT_COST) return availableCash;
@@ -263,6 +388,9 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     .first();
   if (!finance) return;
   let availableCash = parseFloat(finance.available_cash) || 0;
+
+  // NEW: Industrial Espionage (Clone player models if cash rich)
+  availableCash = await performIndustrialEspionage(trx, companyId, currentYear, currentMonth, availableCash);
 
   // NEW: Automatic NPC Facelifts (V2 models)
   availableCash = await applyNpcFacelifts(trx, companyId, currentYear, currentMonth, availableCash);
