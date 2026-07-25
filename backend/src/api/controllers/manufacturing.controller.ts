@@ -3104,7 +3104,7 @@ export class ManufacturingController {
   
   // ── CMO Auto-Allocation Engine ────────────────────────────────────────────────
   public static async runCMOAllocations(trx: any, clock: any, participants: any[]) {
-    const MARKETING_REVENUE_PCT = 0.15;
+    const MARKETING_ROI_THRESHOLD = 0.10; // CMO willing to spend up to 10% of retail value shipped
 
     for (const company of participants) {
       const cmo = await trx('company_staff').where({ company_id: company.id, role: 'cmo' }).first();
@@ -3112,7 +3112,8 @@ export class ManufacturingController {
 
       const finances = await trx('company_finances').where({ company_id: company.id }).first();
       if (!finances) continue;
-      let availableCash = Number(finances.available_cash || 0);
+      
+      let availableBudget = Number(finances.available_cash || 0);
 
       // Fetch dynamic marketing costs based on company's country HQ
       const countryAutoConfig = await trx('manufacturing_country_auto_config').where({ country_id: company.country_id }).first() ?? {};
@@ -3123,22 +3124,11 @@ export class ManufacturingController {
         { tier: 'national', cost: Number(countryAutoConfig.marketing_cost_national ?? 35000) }
       ];
 
-      // Get last month's revenue to calculate budget cap
-      const lastMonth = clock.current_month === 1 ? 12 : clock.current_month - 1;
-      const lastYear = clock.current_month === 1 ? clock.current_year - 1 : clock.current_year;
-      
-      const lastReport = await trx('manufacturing_arc_reports')
-        .where({ company_id: company.id, world_year: lastYear, world_month: lastMonth })
-        .first();
-      
-      const lastRevenue = lastReport ? Number(lastReport.sales_revenue || 0) : 0;
-      // Allow CMO to use 15% of revenue OR 5% of available cash (to prevent starving startups with low initial revenue)
-      const maxSpendPerMarket = Math.max(lastRevenue * MARKETING_REVENUE_PCT, availableCash * 0.05);
+      const allocations = await trx('manufacturing_market_allocations as a')
+        .join('manufacturing_vehicle_models as m', 'm.id', 'a.vehicle_model_id')
+        .where({ 'a.company_id': company.id })
+        .select('a.*', 'm.sale_price');
 
-      const allocations = await trx('manufacturing_market_allocations')
-        .where({ company_id: company.id });
-
-      // Group allocations by market (since marketing spend is per market, not per allocation)
       const marketAllocs = new Map<string, any[]>();
       for (const alloc of allocations) {
         if (!marketAllocs.has(alloc.region_market_id)) marketAllocs.set(alloc.region_market_id, []);
@@ -3146,41 +3136,27 @@ export class ManufacturingController {
       }
 
       for (const [marketId, allocs] of marketAllocs.entries()) {
-        const brand = await trx('manufacturing_brand_awareness')
-          .where({ company_id: company.id, region_market_id: marketId })
-          .first();
-        
-        const awareness = brand ? Number(brand.awareness || 0) : 0;
-        
-        // Find highest tier currently in this market across all models
-        let highestTierIndex = 0;
+        let totalRetailValue = 0;
         for (const alloc of allocs) {
-          const idx = MARKETING_TIERS.findIndex(t => t.tier === (alloc.marketing_tier || 'none'));
-          if (idx > highestTierIndex) highestTierIndex = idx;
+          totalRetailValue += Number(alloc.units_allocated || 0) * Number(alloc.sale_price || 0);
+        }
+
+        const maxAffordableTierByRoi = totalRetailValue * MARKETING_ROI_THRESHOLD;
+        
+        let bestTierIndex = 0;
+        for (let i = MARKETING_TIERS.length - 1; i >= 0; i--) {
+           const t = MARKETING_TIERS[i];
+           if (t.cost <= maxAffordableTierByRoi && t.cost <= availableBudget) {
+              bestTierIndex = i;
+              break;
+           }
         }
         
-        let newTierIndex = highestTierIndex;
-        const currentCost = MARKETING_TIERS[highestTierIndex].cost;
-
-        // Logic: if awareness < 75%, try to upgrade.
-        if (awareness < 75 && highestTierIndex < MARKETING_TIERS.length - 1) {
-          const nextTier = MARKETING_TIERS[highestTierIndex + 1];
-          const costIncrease = nextTier.cost - currentCost;
-          if (nextTier.cost <= maxSpendPerMarket && availableCash >= costIncrease) {
-            newTierIndex = highestTierIndex + 1;
-            availableCash -= costIncrease;
-          }
-        } 
-        // Logic: if awareness > 95%, downgrade to save money.
-        else if (awareness > 95 && highestTierIndex > 0) {
-          newTierIndex = highestTierIndex - 1;
-          const costDecrease = currentCost - MARKETING_TIERS[newTierIndex].cost;
-          availableCash += costDecrease;
-        }
-
-        const newTier = MARKETING_TIERS[newTierIndex].tier;
-
-        // Sync all allocations in this market to the optimized tier
+        const newTier = MARKETING_TIERS[bestTierIndex].tier;
+        const newTierCost = MARKETING_TIERS[bestTierIndex].cost;
+        
+        availableBudget -= newTierCost; // deduct from local budget so we don't overspend on next markets
+        
         for (const alloc of allocs) {
           if (alloc.marketing_tier !== newTier) {
             await trx('manufacturing_market_allocations')
