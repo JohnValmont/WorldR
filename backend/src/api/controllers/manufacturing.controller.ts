@@ -2585,7 +2585,7 @@ export class ManufacturingController {
         // 2. DECIDE (NPCs only)
         (global as any).tickProgress = `Processing country: ${countryId} - Step 2: Decide (NPCs)`;
         for (const company of participants) {
-           if (company.is_npc && !processedCompanyIds.has(company.id)) {
+           if ((company.is_npc || company.name === 'Aldric Automobiles') && !processedCompanyIds.has(company.id)) {
               await runNpcBrainForCompany(trx, company.id, currentYear, currentMonth);
            }
         }
