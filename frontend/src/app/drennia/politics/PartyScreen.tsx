@@ -7,6 +7,7 @@ import { CREEDS, CREED_ORDER, CREED_NAME_BY_ID, PILLARS, PILLAR_BY_AXIS, type Cr
 import type { Axis } from '@/lib/politicsConstants';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
 import { Stamp, Meter } from './_components/DeskUI';
+import PartyCreation, { type PartyState } from './_components/PartyCreation';
 import { Shield, Target, Map, Building2, Coins, Activity, Flag, AlertCircle, Users, Zap, Crown } from 'lucide-react';
 
 interface Props {
@@ -661,6 +662,7 @@ function InterestGroupPanel({ partyId, isLeader, onRefresh }: { partyId: string;
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [commitmentData, setCommitmentData] = useState<Record<string, { axis: string; direction: 'raise'|'lower'; target_value: number }>>({});
 
   const load = useCallback(async () => {
     try {
@@ -674,8 +676,10 @@ function InterestGroupPanel({ partyId, isLeader, onRefresh }: { partyId: string;
   async function outreach(groupId: string) {
     setBusy(groupId + 'out');
     try {
-      const res = await politicsApi.doOutreach(groupId);
+      const commitment = commitmentData[groupId];
+      const res = await politicsApi.doOutreach(groupId, commitment);
       setMsg((res as any)?.message ?? 'Outreach complete.');
+      setCommitmentData(prev => ({ ...prev, [groupId]: undefined as any }));
       await load(); onRefresh();
     } catch (e: any) {
       setMsg(e?.response?.data?.message || 'Outreach failed.');
@@ -738,12 +742,13 @@ function InterestGroupPanel({ partyId, isLeader, onRefresh }: { partyId: string;
           const icon = IDEOLOGY_ICON[g.ideology_lean] ?? '◈';
 
           // Parse commitments
-          const commitments: any[] = (() => {
+          const allCommitments: any[] = (() => {
             try {
-              const raw = typeof g.active_commitments === 'string' ? JSON.parse(g.active_commitments) : (g.active_commitments ?? []);
-              return raw.filter((c: any) => !c.honored_arc && !c.broken_arc);
+              return typeof g.active_commitments === 'string' ? JSON.parse(g.active_commitments) : (g.active_commitments ?? []);
             } catch { return []; }
           })();
+          const activeCommitments = allCommitments.filter((c: any) => !c.honored_arc && !c.broken_arc);
+          const pastCommitments = allCommitments.filter((c: any) => c.honored_arc || c.broken_arc).sort((a, b) => (b.honored_arc || b.broken_arc) - (a.honored_arc || a.broken_arc));
 
           return (
             <div key={g.group_id} style={{
@@ -799,11 +804,11 @@ function InterestGroupPanel({ partyId, isLeader, onRefresh }: { partyId: string;
                   )}
 
                   {/* Active commitments */}
-                  {commitments.length > 0 && (
+                  {activeCommitments.length > 0 && (
                     <div style={{ marginBottom: 10 }}>
                       <div style={{ color: T.faint, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 5 }}>Active Commitments</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                        {commitments.map((c: any, i: number) => (
+                        {activeCommitments.map((c: any, i: number) => (
                           <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 8px', background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.12)', borderRadius: 3 }}>
                             <span style={{ color: '#fbbf24', fontSize: 9, fontFamily: MONO }}>◆</span>
                             <span style={{ color: T.muted, fontSize: 10 }}>
@@ -812,6 +817,58 @@ function InterestGroupPanel({ partyId, isLeader, onRefresh }: { partyId: string;
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Past commitments */}
+                  {pastCommitments.length > 0 && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ color: T.faint, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 5 }}>Past Commitments</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {pastCommitments.slice(0, 3).map((c: any, i: number) => (
+                          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 8px', background: c.honored_arc ? 'rgba(52,211,153,0.05)' : 'rgba(248,113,113,0.05)', border: c.honored_arc ? '1px solid rgba(52,211,153,0.12)' : '1px solid rgba(248,113,113,0.12)', borderRadius: 3 }}>
+                            <span style={{ color: c.honored_arc ? '#34d399' : '#f87171', fontSize: 9, fontFamily: MONO }}>{c.honored_arc ? '✓' : '✕'}</span>
+                            <span style={{ color: T.muted, fontSize: 10 }}>
+                              {c.direction === 'raise' ? 'Raise' : 'Lower'} <strong style={{ color: T.ivory }}>{c.axis}</strong> to {c.target_value} ({c.honored_arc ? `Honored Arc ${c.honored_arc}` : `Broken Arc ${c.broken_arc}`})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Optional Commitment Selection */}
+                  {isLeader && (
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 12, marginTop: 12, alignItems: 'center' }}>
+                      <span style={{ fontSize: 10, color: T.faint, fontFamily: MONO, marginRight: 4 }}>Commitment (Opt):</span>
+                      <select 
+                        value={commitmentData[g.group_id]?.axis || ''}
+                        onChange={e => setCommitmentData(prev => ({ ...prev, [g.group_id]: { ...prev[g.group_id] || { direction: 'raise', target_value: 50 }, axis: e.target.value } as any }))}
+                        style={{ background: 'rgba(0,0,0,0.5)', border: `1px solid ${T.border}`, color: T.ivory, fontSize: 10, fontFamily: MONO, borderRadius: 3, padding: '2px 4px' }}
+                      >
+                        <option value="">None</option>
+                        {PILLARS.map(p => <option key={p.axis} value={p.axis}>{p.name}</option>)}
+                      </select>
+                      {commitmentData[g.group_id]?.axis && (
+                        <>
+                          <select
+                            value={commitmentData[g.group_id]?.direction || 'raise'}
+                            onChange={e => setCommitmentData(prev => ({ ...prev, [g.group_id]: { ...prev[g.group_id], direction: e.target.value as 'raise'|'lower' } as any }))}
+                            style={{ background: 'rgba(0,0,0,0.5)', border: `1px solid ${T.border}`, color: T.ivory, fontSize: 10, fontFamily: MONO, borderRadius: 3, padding: '2px 4px' }}
+                          >
+                            <option value="raise">Raise to</option>
+                            <option value="lower">Lower to</option>
+                          </select>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={commitmentData[g.group_id]?.target_value ?? 50}
+                            onChange={e => setCommitmentData(prev => ({ ...prev, [g.group_id]: { ...prev[g.group_id], target_value: Number(e.target.value) } as any }))}
+                            style={{ width: 45, background: 'rgba(0,0,0,0.5)', border: `1px solid ${T.border}`, color: T.ivory, fontSize: 10, fontFamily: MONO, borderRadius: 3, padding: '2px 4px' }}
+                          />
+                        </>
+                      )}
                     </div>
                   )}
 
@@ -1111,12 +1168,11 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
     : undefined) || overview?.globalParty;
   const isLeader = myParty && character && myParty.leader_character_id === character.id;
 
-  const [name, setName] = useState('');
-  const [abbreviation, setAbbreviation] = useState('');
-  const [creed, setCreed] = useState<CreedId | null>(null);
-  const [tenet, setTenet] = useState<string | null>(null);
+  const [isEditingPlatform, setIsEditingPlatform] = useState(false);
+  const [platformEdits, setPlatformEdits] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [donationAmount, setDonationAmount] = useState<number>(0);
 
   async function spendPc(action: string, factionId?: string): Promise<any> {
     const res = await politicsApi.spendPc(action, factionId);
@@ -1124,16 +1180,98 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
     return res;
   }
 
-  async function found() {
-    if (!name.trim() || !creed) return;
+  async function donate() {
+    if (donationAmount <= 0) return;
     setBusy(true); setErr(null);
     try {
-      await politicsApi.foundParty({ name: name.trim(), abbreviation: abbreviation.trim().toUpperCase(), doctrine_id: creed, tenet_id: tenet }, selectedJurisdictionId);
+      await politicsApi.donateToParty(myParty.id, donationAmount);
+      setDonationAmount(0);
+      await onRefresh();
+    } catch (e: any) {
+      setErr(e?.response?.data?.message || 'Failed to donate');
+    } finally { setBusy(false); }
+  }
+
+  async function fundraise() {
+    setBusy(true); setErr(null);
+    try {
+      const res = await politicsApi.doGeneralAction('fundraise');
+      setErr((res as any)?.message ?? 'Fundraiser complete.');
+      await onRefresh();
+    } catch (e: any) {
+      setErr(e?.response?.data?.message || 'Fundraiser failed');
+    } finally { setBusy(false); }
+  }
+
+  async function transferLeadership(targetId: string) {
+    if (!window.confirm("Are you sure you want to transfer leadership? This cannot be undone.")) return;
+    setBusy(true); setErr(null);
+    try {
+      const res = await politicsApi.transferLeadership(myParty.id, targetId);
+      setErr((res as any)?.message ?? 'Leadership transferred.');
+      await onRefresh();
+    } catch (e: any) {
+      setErr(e?.response?.data?.message || 'Failed to transfer leadership');
+    } finally { setBusy(false); }
+  }
+
+  async function dissolveParty() {
+    if (!window.confirm("Are you sure you want to dissolve the party? This permanently deletes the party and cannot be undone.")) return;
+    setBusy(true); setErr(null);
+    try {
+      const res = await politicsApi.dissolveParty(myParty.id);
+      setErr((res as any)?.message ?? 'Party dissolved.');
+      await onRefresh();
+    } catch (e: any) {
+      setErr(e?.response?.data?.message || 'Failed to dissolve party');
+    } finally { setBusy(false); }
+  }
+
+  async function savePlatformEdits() {
+    setBusy(true); setErr(null);
+    try {
+      await politicsApi.updatePlatform(myParty.id, platformEdits);
+      setIsEditingPlatform(false);
+      setPlatformEdits(null);
+      await onRefresh();
+    } catch (e: any) {
+      setErr(e?.response?.data?.message || 'Failed to update platform');
+    } finally { setBusy(false); }
+  }
+
+  async function found(partyState: PartyState) {
+    if (!partyState.name.trim() || !partyState.abbreviation.trim()) return;
+    setBusy(true); setErr(null);
+    try {
+      // Option A mapping: We use the economy axis to pick a creed so the API succeeds
+      const e = partyState.ideologyAxes.economy || 0;
+      let doctrine_id: CreedId = 'the_compact';
+      let tenet_id = 'compact_populists';
+      
+      if (e < -30) {
+        doctrine_id = 'the_commons';
+        tenet_id = 'commons_vanguard';
+      } else if (e > 30) {
+        doctrine_id = 'the_ledger';
+        tenet_id = 'ledger_expansionists';
+      }
+
+      await politicsApi.foundParty({ 
+        name: partyState.name.trim(), 
+        abbreviation: partyState.abbreviation.trim().toUpperCase(), 
+        doctrine_id, 
+        tenet_id,
+        slogan: partyState.slogan,
+        colorHex: partyState.colorHex,
+        crisis: partyState.crisis,
+        ideologyAxes: partyState.ideologyAxes,
+        policies: partyState.policies,
+        founders: partyState.founders
+      }, selectedJurisdictionId);
       await onRefresh();
     } catch (e: any) {
       const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Failed to found party';
       setErr(msg);
-      // Ensure the user sees the error even if the footer is obscured
       window.alert('Could not found party: ' + msg);
     } finally { setBusy(false); }
   }
@@ -1171,11 +1309,22 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
               <div style={{ flex: 1, minWidth: 280 }}>
                 <div style={{ ...stampStyle, marginBottom: 8, color: T.gold, borderColor: 'rgba(255,215,0,0.3)', textShadow: `0 0 10px ${T.goldSoft}` }}>Your Party</div>
                 <h1 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, fontFamily: HEADING, margin: '0 0 4px', letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{ width: 18, height: 18, borderRadius: '50%', background: `radial-gradient(circle at 30% 30%, ${T.gold}, #B8860B)`, boxShadow: `0 0 12px ${T.goldGlow}` }} />
+                  <div style={{ 
+                    width: 18, 
+                    height: 18, 
+                    borderRadius: '50%', 
+                    background: myParty.identity?.color || T.gold, 
+                    boxShadow: `0 0 12px ${myParty.identity?.color ? myParty.identity.color + '80' : T.goldGlow}` 
+                  }} />
                   {myParty.name}
                   {myParty.abbreviation && <span style={{ color: T.faint, fontSize: 22, fontFamily: MONO, textTransform: 'uppercase', fontWeight: 600 }}>[{myParty.abbreviation}]</span>}
                 </h1>
-                <div style={{ color: T.gold, fontFamily: MONO, fontSize: 13, marginTop: 12, textTransform: 'uppercase', letterSpacing: '0.15em', textShadow: `0 0 10px ${T.goldSoft}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                {(myParty.slogan || myParty.identity?.motto) && (
+                  <div style={{ color: T.muted, fontSize: 13, fontStyle: 'italic', marginTop: 2, marginBottom: 6, fontFamily: SANS }}>
+                    "{myParty.slogan || myParty.identity?.motto}"
+                  </div>
+                )}
+                <div style={{ color: myParty.identity?.color || T.gold, fontFamily: MONO, fontSize: 13, marginTop: 8, textTransform: 'uppercase', letterSpacing: '0.15em', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span>{CREED_NAME_BY_ID[getDoctrineId(myParty)!] || 'Independent'}</span>
                   {(myParty.tenet_id || myParty.tenetId) && TENETS[getDoctrineId(myParty)!]?.find(t => t.id === (myParty.tenet_id || myParty.tenetId)) && (
                     <>
@@ -1187,14 +1336,78 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                   )}
                 </div>
               </div>
+              
+              <div style={{ flexBasis: '100%' }} />
+
+              <div style={{ flex: 1, minWidth: 280, marginTop: 12, padding: '16px', background: 'rgba(255,215,0,0.05)', borderRadius: 8, border: `1px solid rgba(255,215,0,0.2)` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ color: T.gold, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Party Treasury</span>
+                    <span style={{ color: T.ivory, fontSize: 24, fontWeight: 700, fontFamily: MONO }}>
+                      $ {Number(myParty.treasury || 0).toLocaleString('en-US')}
+                    </span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <Btn label={busy ? "..." : "Hold Fundraiser (1 AP)"} onClick={fundraise} disabled={busy || (myAp?.current_ap ?? 0) < 1} />
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 16 }}>
+                      <input 
+                        type="text" 
+                        inputMode="numeric"
+                        placeholder="Amount" 
+                        value={donationAmount || ''} 
+                        onChange={(e) => setDonationAmount(Number(e.target.value.replace(/,/g, '')))}
+                        style={{ 
+                          width: 120, padding: '8px 12px', borderRadius: 6, background: 'rgba(0,0,0,0.5)', 
+                          border: `1px solid ${T.border}`, color: T.ivory, fontFamily: MONO, fontSize: 13 
+                        }} 
+                      />
+                      <Btn label={busy ? "..." : "Donate"} onClick={donate} disabled={busy || donationAmount <= 0} primary />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <Panel title={<><Flag size={14} /> Platform & Planks</>} accent={T.gold}>
+          <Panel title={
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Flag size={14} /> Platform & Planks</span>
+              {isLeader && !isEditingPlatform && (
+                <button 
+                  onClick={() => {
+                    setIsEditingPlatform(true);
+                    setPlatformEdits(parsePlatform(myParty.platform));
+                  }}
+                  style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: T.ivory, padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontFamily: MONO, textTransform: 'uppercase' }}
+                >
+                  Edit Platform
+                </button>
+              )}
+              {isLeader && isEditingPlatform && (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button 
+                    onClick={() => { setIsEditingPlatform(false); setPlatformEdits(null); }}
+                    style={{ background: 'transparent', border: `1px solid ${T.faint}`, color: T.faint, padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontFamily: MONO, textTransform: 'uppercase' }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={savePlatformEdits}
+                    disabled={busy}
+                    style={{ background: T.gold, border: 'none', color: '#000', padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', fontWeight: 'bold' }}
+                  >
+                    Save
+                  </button>
+                </div>
+              )}
+            </div>
+          } accent={T.gold}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {PILLARS.map((p) => {
                 const _platform = parsePlatform(myParty.platform);
-                const v = isNaN(Number(_platform[p.axis])) ? 50 : Number(_platform[p.axis] ?? 50);
+                const baseValue = isNaN(Number(_platform[p.axis])) ? 50 : Number(_platform[p.axis] ?? 50);
+                const v = isEditingPlatform && platformEdits ? (platformEdits[p.axis] ?? baseValue) : baseValue;
                 const isKeystone = CREEDS[getDoctrineId(myParty)!]?.keystone === p.axis;
                 return (
                   <div key={p.axis}>
@@ -1205,9 +1418,20 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                       </span>
                       <span style={{ color: isKeystone ? T.gold : T.faint, fontFamily: MONO, fontSize: 12, fontWeight: isKeystone ? 600 : 400 }}>{nearestRung(p.axis, v)}</span>
                     </div>
-                    <div style={{ height: 6, background: T.panel2, borderRadius: 99, overflow: 'hidden' }}>
-                      <div style={{ width: `${v}%`, height: '100%', background: isKeystone ? T.gold : T.border }} />
-                    </div>
+                    {isEditingPlatform ? (
+                      <input 
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={v}
+                        onChange={(e) => setPlatformEdits({ ...platformEdits, [p.axis]: Number(e.target.value) })}
+                        style={{ width: '100%', cursor: 'pointer' }}
+                      />
+                    ) : (
+                      <div style={{ height: 6, background: T.panel2, borderRadius: 99, overflow: 'hidden' }}>
+                        <div style={{ width: `${v}%`, height: '100%', background: isKeystone ? T.gold : T.border }} />
+                      </div>
+                    )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
                       <span style={{ color: T.faint, fontSize: 10 }}>{p.low}</span>
                       <span style={{ color: T.faint, fontSize: 10 }}>{p.high}</span>
@@ -1283,13 +1507,91 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           {/* News Feed */}
           <NewsFeedPanel />
 
-          <Panel title="Roster" action={isLeader ? <Btn label={busy ? '…' : 'Recruit Candidate'} onClick={recruit} disabled={busy} /> : undefined}>
-            <div style={{ color: T.muted, fontSize: 14 }}>
-              Bench: <span style={{ color: T.ivory, fontWeight: 600 }}>{myParty.member_count ?? myParty.members?.length ?? myParty.roster?.length ?? 0}</span> candidate(s).
+          <Panel title="Roster" action={isLeader ? <Btn label={busy ? '…' : 'Recruit Candidate (1 AP, $10,000)'} onClick={recruit} disabled={busy} /> : undefined}>
+            <div style={{ color: T.muted, fontSize: 14, marginBottom: 16 }}>
+              Bench: <span style={{ color: T.ivory, fontWeight: 600 }}>{myParty.members?.length ?? myParty.member_count ?? 0}</span> candidate(s).
               Recruiting pulls in an NPC loosely aligned to your platform.
             </div>
+            
+            {myParty.members && myParty.members.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+                {myParty.members.map((m: any) => (
+                  <div key={m.id} style={{
+                    padding: '12px 16px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${T.border}`, borderRadius: 8,
+                    display: 'flex', flexDirection: 'column', gap: 6
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <span style={{ color: T.ivory, fontWeight: 600, fontSize: 15 }}>{m.name}</span>
+                      {m.role === 'leader' && <span style={{ background: `${T.goldSoft}30`, color: T.gold, padding: '2px 6px', borderRadius: 4, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase' }}>Leader</span>}
+                    </div>
+                    <div style={{ color: T.muted, fontSize: 12, display: 'flex', gap: 12, marginTop: 4 }}>
+                      <span>Econ: {m.ideology_score_economic ?? 50}</span>
+                      <span>Social: {m.ideology_score_social ?? 50}</span>
+                    </div>
+                    <div style={{ color: T.faint, fontSize: 11, display: 'flex', gap: 12 }}>
+                      <span>Cred: {m.credibility ?? 0}</span>
+                      <span>Inf: {m.influence ?? 0}</span>
+                    </div>
+                    {isLeader && m.role !== 'leader' && (
+                      <button 
+                        onClick={() => transferLeadership(m.id)}
+                        disabled={busy}
+                        style={{ marginTop: 8, padding: '4px 8px', background: 'rgba(201,162,74,0.1)', border: `1px solid rgba(201,162,74,0.3)`, color: T.gold, fontSize: 10, borderRadius: 4, cursor: 'pointer', fontFamily: MONO, textTransform: 'uppercase' }}
+                      >
+                        Make Leader
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </Panel>
-          {err && <div style={{ color: T.red, fontSize: 13 }}>{err}</div>}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, marginTop: 32 }}>
+            {isLeader ? (
+              <button 
+                onClick={dissolveParty}
+                disabled={busy}
+                style={{
+                  background: 'rgba(224,82,70,0.1)', border: '1px solid rgba(224,82,70,0.3)', 
+                  color: '#f87171', padding: '8px 16px', borderRadius: 6, cursor: 'pointer',
+                  fontFamily: SANS, fontSize: 13, transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(224,82,70,0.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(224,82,70,0.1)'}
+              >
+                {busy ? 'Working...' : 'Dissolve Party'}
+              </button>
+            ) : (
+              <button 
+                onClick={async () => {
+                  if (window.confirm("Are you sure you want to leave this party? This action cannot be undone.")) {
+                    setBusy(true);
+                    try {
+                      await politicsApi.leaveParty(myParty.id);
+                      await onRefresh();
+                    } catch(e: any) {
+                      setErr(e?.response?.data?.message || 'Failed to leave party');
+                    } finally {
+                      setBusy(false);
+                    }
+                  }
+                }}
+                disabled={busy}
+                style={{
+                  background: 'rgba(224,82,70,0.1)', border: '1px solid rgba(224,82,70,0.3)', 
+                  color: '#f87171', padding: '8px 16px', borderRadius: 6, cursor: 'pointer',
+                  fontFamily: SANS, fontSize: 13, transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(224,82,70,0.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(224,82,70,0.1)'}
+              >
+                {busy ? 'Leaving...' : 'Leave Party'}
+              </button>
+            )}
+          </div>
+
+          {err && <div style={{ color: T.red, fontSize: 13, marginTop: 12 }}>{err}</div>}
         </>
       ) : overview?.globalParty ? (
         <div style={{ maxWidth: 800, margin: '0 auto', paddingBottom: 60 }}>
@@ -1304,149 +1606,10 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           </div>
         </div>
       ) : (
-        <>
-          <div style={{ fontFamily: SANS }}>
-            <div style={{ ...stampStyle, textShadow: `0 0 10px ${T.goldSoft}` }}>Found a Party</div>
-            <h1 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, margin: '8px 0 0', letterSpacing: '-0.02em' }}>Stand for {jurisdiction?.name}</h1>
-            <p style={{ color: T.muted, fontSize: 15, marginTop: 8, lineHeight: 1.6, maxWidth: 600 }}>Choose a Creed to set your identity. You are the permanent Leader — only NPC recruits can join your bench.</p>
-          </div>
-
-          {/* Error Banner */}
-          {err && (
-            <div style={{ background: 'rgba(224,82,70,0.12)', border: '1px solid rgba(224,82,70,0.5)', borderRadius: 8, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, fontFamily: SANS }}>
-              <span style={{ color: '#E05246', fontSize: 20 }}>⚠</span>
-              <div>
-                <div style={{ color: '#E05246', fontWeight: 700, fontSize: 14, marginBottom: 2 }}>Could not found party</div>
-                <div style={{ color: '#f87171', fontSize: 13 }}>{err}</div>
-              </div>
-              <button onClick={() => setErr(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'rgba(224,82,70,0.7)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
-            </div>
-          )}
-
-          <Panel title="Party Identity">
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontFamily: SANS }}>
-              <div style={{ width: 56, height: 56, borderRadius: 12, background: creed ? `linear-gradient(135deg, ${T.gold}, #B8860B)` : 'rgba(255,255,255,0.03)', border: `1px solid ${creed ? T.goldLine : T.border}`, boxShadow: creed ? `0 4px 20px ${T.goldSoft}, inset 0 1px 0 rgba(255,255,255,0.3)` : 'inset 0 1px 0 rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: '800', color: creed ? '#111' : T.faint, transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)' }}>
-                {abbreviation.slice(0, 3) || '?'}
-              </div>
-              <div style={{ display: 'flex', gap: 16, flex: 1 }}>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter party name—" maxLength={40}
-                  style={{ flex: 1, padding: '14px 18px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${T.border}`, borderRadius: 6, color: T.ivory, fontSize: 15, outline: 'none', transition: 'border 0.2s', fontFamily: SANS }}
-                  onFocus={(e) => e.target.style.borderColor = T.goldLine} onBlur={(e) => e.target.style.borderColor = T.border} />
-                <input value={abbreviation} onChange={(e) => setAbbreviation(e.target.value.toUpperCase())} placeholder="ABBR" maxLength={6}
-                  style={{ width: 140, padding: '14px 18px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${T.border}`, borderRadius: 6, color: T.ivory, fontSize: 15, outline: 'none', fontFamily: MONO, textTransform: 'uppercase', transition: 'border 0.2s' }}
-                  onFocus={(e) => e.target.style.borderColor = T.goldLine} onBlur={(e) => e.target.style.borderColor = T.border} />
-              </div>
-            </div>
-          </Panel>
-
-          <div style={{ fontFamily: SANS, marginTop: 16 }}>
-            <Stamp>Choose Your Creed</Stamp>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 12 }}>
-              {CREED_ORDER.map((id) => {
-                const c = CREEDS[id]; const on = creed === id;
-                const platform = CREED_PLATFORMS[id];
-                
-                return (
-                  <button key={id} onClick={() => { setCreed(id); setTenet(null); }}
-                    style={{ 
-                      textAlign: 'left', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12,
-                      background: on ? T.blueDim : 'rgba(255,255,255,0.02)', 
-                      border: `1px solid ${on ? T.blueLine : 'transparent'}`, 
-                      borderLeft: `3px solid ${on ? T.blueBright : 'transparent'}`,
-                      borderRadius: 6,
-                      boxShadow: on ? `0 4px 20px ${T.blueGlow}` : 'none',
-                      transition: 'all 0.15s ease',
-                      fontFamily: SANS
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!on) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!on) e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
-                    }}
-                  >
-                    <div style={{ flex: '0 0 160px' }}>
-                      <div style={{ color: on ? T.ivory : T.text, fontWeight: 700, fontSize: 16, letterSpacing: '-0.01em' }}>{c.name}</div>
-                      <div style={{ color: on ? T.blueBright : T.faint, fontFamily: MONO, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 4, fontWeight: 600 }}>{c.tagline}</div>
-                    </div>
-                    
-                    <div style={{ color: T.faint, fontSize: 13, lineHeight: 1.4, flex: 1 }}>{c.blurb}</div>
-
-                    {c.keystone && PILLAR_BY_AXIS[c.keystone] && (
-                      <div style={{ flex: '0 0 100px' }}>
-                        <div style={{ color: T.muted, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>Keystone</div>
-                        <div style={{ color: on ? T.blueBright : T.text, fontSize: 12, fontWeight: 600 }}>{PILLAR_BY_AXIS[c.keystone]?.name}</div>
-                      </div>
-                    )}
-                    
-                    <div style={{ flex: '0 0 200px' }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                        {PILLARS.map(p => {
-                          const val = platform[p.axis];
-                          if (val === 50) return null; // Only show defining stances
-                          return (
-                            <div key={p.axis} style={{ 
-                              padding: '2px 6px', background: on ? 'rgba(56, 189, 248, 0.1)' : 'rgba(255,255,255,0.03)', 
-                              border: `1px solid ${on ? T.blueLine : T.borderSoft}`, 
-                              borderRadius: 4, fontSize: 9.5, fontFamily: MONO, 
-                              color: on ? T.blueBright : T.muted,
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.05em'
-                            }}>
-                              {nearestRung(p.axis, val)}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {creed && (
-            <Panel title="Choose a Tenet">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                {(creed && TENETS[creed] ? TENETS[creed] : []).map((tn) => {
-                  const on = tenet === tn.id;
-                  return (
-                    <button key={tn.id} onClick={() => setTenet(on ? null : tn.id)}
-                      style={{ textAlign: 'left', padding: 14, borderRadius: 4, cursor: 'pointer', background: on ? T.goldSoft : T.panel2, border: `1px solid ${on ? T.goldLine : T.border}`, transition: 'all 0.15s ease' }}>
-                      <div style={{ color: on ? T.gold : T.ivory, fontWeight: 600, fontSize: 14 }}>{tn.name}</div>
-                      <div style={{ color: T.faint, fontFamily: MONO, fontSize: 10.5, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{tn.type}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </Panel>
-          )}
-
-          {/* Sticky Summary Bar */}
-          <div style={{ position: 'fixed', bottom: 0, left: 240 /* roughly sidebar width */, right: 0, background: 'rgba(8, 9, 12, 0.85)', borderTop: `1px solid ${T.border}`, boxShadow: `0 -10px 40px rgba(0,0,0,0.5)`, backdropFilter: 'blur(20px)', padding: '24px 96px 24px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 50, fontFamily: SANS }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-              <div>
-                <div style={stampStyle}>Founding Cost</div>
-                <div style={{ color: T.red, fontFamily: MONO, fontSize: 18, fontWeight: 700, textShadow: `0 0 12px rgba(224, 82, 70, 0.4)`, marginTop: 4 }}>-$25,000</div>
-              </div>
-              <div style={{ width: 1, height: 40, background: T.border }} />
-              <div>
-                <div style={stampStyle}>Party Details</div>
-                <div style={{ color: T.ivory, fontSize: 16, display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-                  <span style={{ fontWeight: 600 }}>{name || 'Unnamed Party'}</span>
-                  {abbreviation && <span style={{ color: T.faint, fontFamily: MONO, fontWeight: 600 }}>[{abbreviation}]</span>}
-                  {creed && <span style={{ color: T.gold, fontSize: 14, fontWeight: 500, textShadow: `0 0 8px ${T.goldSoft}` }}>— {CREEDS[creed].name}</span>}
-                </div>
-              </div>
-            </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {err && <div style={{ color: T.red, fontSize: 14, fontWeight: 500 }}>{err}</div>}
-              {abbreviation.trim().length === 1 && <div style={{ color: T.gold, fontSize: 12, fontFamily: MONO }}>Abbreviation must be 2–6 chars</div>}
-              <Btn label={busy ? 'Founding\u2026' : 'Found Party'} primary onClick={found} disabled={busy || !name.trim() || abbreviation.trim().length < 2 || !creed} />
-            </div>
-          </div>
-        </>
+        <PartyCreation 
+          onComplete={found} 
+          initialLeaderName={character?.name || ''} 
+        />
       )}
     </div>
   );

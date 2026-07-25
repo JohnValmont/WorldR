@@ -103,6 +103,17 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
           const member = await db('pol_party_members').where({ character_id: character.id }).first();
           if (member) {
             globalParty = await db('pol_parties').where({ id: member.party_id }).first();
+            if (globalParty) {
+              const members = await db('pol_party_members')
+                .join('characters', 'pol_party_members.character_id', 'characters.id')
+                .where('pol_party_members.party_id', globalParty.id)
+                .select(
+                  'characters.id', 'characters.name', 'characters.ideology_score_economic', 
+                  'characters.ideology_score_social', 'characters.influence', 
+                  'characters.credibility', 'pol_party_members.role'
+                );
+              globalParty.members = members;
+            }
           }
         }
       } catch (e) {
@@ -224,7 +235,7 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
     const userId = req.user?.id;
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
     
-    const { name, abbreviation, doctrine_id, tenet_id } = req.body;
+    const { name, abbreviation, doctrine_id, tenet_id, slogan, colorHex, crisis, ideologyAxes, policies, founders } = req.body;
     if (!name || name.trim() === '') return next(new AppError('Party name required', 400, 'BAD_REQUEST'));
     if (!abbreviation || abbreviation.trim().length < 2 || abbreviation.trim().length > 6) {
       return next(new AppError('Abbreviation must be 2-6 characters', 400, 'BAD_REQUEST'));
@@ -294,17 +305,22 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
         doctrine_drift_arc: currentMonth,
         treasury: 0,
         is_npc: false,
-        created_arc: currentMonth
+        created_arc: currentMonth,
+        slogan: slogan || null,
+        crisis_id: crisis || null,
+        ideology_axes: ideologyAxes || null,
+        manifesto_policies: policies || null,
+        founders: founders || []
       }).returning('*');
 
       const fallbackMonogram = cleanAbbr.slice(0, 2);
       const ident = DOCTRINE_IDENTITIES[doctrine_id as keyof typeof DOCTRINE_IDENTITIES];
       await trx('pol_party_identities').insert({
         party_id: party.id,
-        color: ident?.color || '#6C7A89',
+        color: colorHex || ident?.color || '#6C7A89',
         monogram: fallbackMonogram,
         leader: character.name || 'Party Leader',
-        motto: ident?.tagline || 'A new voice in the Council.',
+        motto: slogan || ident?.tagline || 'A new voice in the Council.',
         blurb: ident?.blurb || 'Player-founded party.'
       });
 
@@ -532,11 +548,9 @@ export async function leaveParty(req: Request, res: Response, next: NextFunction
       const member = await trx('pol_party_members').where({ party_id: partyId, character_id: character.id }).first();
       if (!member) throw new AppError('Not a member of this party', 404, 'NOT_FOUND');
 
-      // OWNERSHIP RULE: The Leader cannot leave their own party.
-      // Dissolution is a future feature (treasury going negative, account inactive).
       if (member.role === 'leader') {
         throw new AppError(
-          'As Party Leader you cannot leave your own party. Dissolution will be supported in a future update.',
+          'As Party Leader you cannot leave your own party. You must transfer leadership or dissolve the party.',
           409, 'CONFLICT'
         );
       }
@@ -545,6 +559,74 @@ export async function leaveParty(req: Request, res: Response, next: NextFunction
     });
 
     return res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function dissolveParty(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    const { id: partyId } = req.params;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+    await db.transaction(async (trx) => {
+      const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+      const member = await trx('pol_party_members').where({ party_id: partyId, character_id: character.id }).first();
+      if (!member) throw new AppError('Not a member of this party', 404, 'NOT_FOUND');
+
+      if (member.role !== 'leader') {
+        throw new AppError('Only the Party Leader can dissolve the party.', 403, 'FORBIDDEN');
+      }
+
+      // Check if there are other player members
+      const otherPlayers = await trx('pol_party_members')
+        .where({ party_id: partyId, is_recruited_npc: false })
+        .whereNot({ character_id: character.id });
+        
+      if (otherPlayers.length > 0) {
+        throw new AppError('Cannot dissolve a party with other player members. Transfer leadership instead.', 409, 'CONFLICT');
+      }
+
+      await trx('pol_parties').where({ id: partyId }).delete();
+    });
+
+    return res.json({ success: true, message: 'Party dissolved.' });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function transferLeadership(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    const { id: partyId } = req.params;
+    const { targetCharacterId } = req.body;
+    
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+    if (!targetCharacterId) return next(new AppError('targetCharacterId required', 400, 'BAD_REQUEST'));
+
+    await db.transaction(async (trx) => {
+      const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
+      const member = await trx('pol_party_members').where({ party_id: partyId, character_id: character.id }).first();
+      if (!member || member.role !== 'leader') {
+        throw new AppError('Only the Party Leader can transfer leadership.', 403, 'FORBIDDEN');
+      }
+
+      const targetMember = await trx('pol_party_members').where({ party_id: partyId, character_id: targetCharacterId }).first();
+      if (!targetMember) throw new AppError('Target character is not in the party', 404, 'NOT_FOUND');
+      if (targetMember.is_recruited_npc) throw new AppError('Cannot transfer leadership to an NPC candidate.', 400, 'BAD_REQUEST');
+
+      await trx('pol_parties').where({ id: partyId }).update({ leader_character_id: targetCharacterId });
+      await trx('pol_party_members').where({ party_id: partyId, character_id: targetCharacterId }).update({ role: 'leader' });
+      await trx('pol_party_members').where({ party_id: partyId, character_id: character.id }).update({ role: 'member' });
+    });
+
+    return res.json({ success: true, message: 'Leadership transferred.' });
   } catch (error) {
     next(error);
   }

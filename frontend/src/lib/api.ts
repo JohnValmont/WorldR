@@ -230,10 +230,12 @@ export const politicsApi = {
   getState: () => api.get(`/politics/state?t=${Date.now()}`).then(res => res.data),
   getCycle: (stateId?: string) => api.get(`/politics/cycle${stateId ? `?stateId=${stateId}&t=${Date.now()}` : `?t=${Date.now()}`}`).then(res => res.data),
   getParties: (stateId?: string) => api.get(`/politics/parties${stateId ? `?stateId=${stateId}&t=${Date.now()}` : `?t=${Date.now()}`}`).then(res => res.data),
-  foundParty: (payload: { name: string; abbreviation: string; doctrine_id: string; tenet_id: string | null }, stateId?: string) =>
+  foundParty: (payload: { name: string; abbreviation: string; doctrine_id: string; tenet_id: string | null; slogan?: string; colorHex?: string; crisis?: string; ideologyAxes?: any; policies?: any; founders?: string[] }, stateId?: string) =>
     api.post('/politics/parties', { ...payload, stateId }).then(res => res.data),
   joinParty: (id: string) => api.post(`/politics/parties/${id}/join`).then(res => res.data),
   leaveParty: (id: string) => api.post(`/politics/parties/${id}/leave`).then(res => res.data),
+  dissolveParty: (id: string) => api.post(`/politics/parties/${id}/dissolve`).then(res => res.data),
+  transferLeadership: (id: string, targetCharacterId: string) => api.post(`/politics/parties/${id}/transfer`, { targetCharacterId }).then(res => res.data),
   updatePlatform: (id: string, platform: any) => api.put(`/politics/parties/${id}/platform`, { platform }).then(res => res.data),
   declareCandidacy: (stateId?: string) => api.post('/politics/candidacy', { stateId }).then(res => res.data),
   setDoctrine: (id: string, doctrine_id: string, tenet_id: string | null, platform: any) => api.patch(`/politics/parties/${id}/doctrine`, { doctrine_id, tenet_id, platform }).then(res => res.data),
@@ -267,8 +269,8 @@ export const politicsApi = {
   // Political Capital System
   getMyPc: (): Promise<{ current_pc: number; pc_cap: number }> =>
     api.get(`/politics/pc?t=${Date.now()}`).then(res => res.data),
-  spendPc: (action: string, faction_id?: string) =>
-    api.post('/politics/pc/spend', { action, faction_id }).then(res => res.data),
+  spendPc: (action: string, factionId?: string) =>
+    api.post('/politics/pc/spend', { action, faction_id: factionId }).then(res => res.data),
 
   // Faction System
   getPartyFactions: (partyId: string): Promise<{ party_id: string; cohesion: number; factions: any[] }> =>
