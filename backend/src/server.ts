@@ -39,6 +39,18 @@ async function startServer() {
         logger.error('Failed to patch character index on boot:', patchErr);
       }
 
+      // One-time patch: Add bidding_company_id to ipo_indications
+      try {
+        await db.raw('ALTER TABLE ipo_indications ADD COLUMN bidding_company_id UUID REFERENCES companies(id) ON DELETE SET NULL');
+        logger.info('Patched ipo_indications to include bidding_company_id.');
+      } catch (e: any) {
+        if (e.message && e.message.includes('already exists')) {
+          // Ignore if it already exists
+        } else {
+          logger.error('Failed to patch ipo_indications on boot:', e);
+        }
+      }
+
       // One-time patch: fix vehicles created with falsy bug (shifted to Year 1)
       try {
         await db('manufacturing_vehicle_models').where({ created_at_world_year: 1 }).update({
