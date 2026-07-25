@@ -660,7 +660,7 @@ export async function updatePlatform(req: Request, res: Response, next: NextFunc
 
       const [updated] = await trx('pol_parties')
         .where({ id: partyId })
-        .update({ platform })
+        .update({ platform: JSON.stringify(platform) })
         .returning('*');
       return updated;
     });
@@ -1551,7 +1551,7 @@ export async function setDoctrine(req: Request, res: Response, next: NextFunctio
     await db('pol_parties').where({ id: partyId }).update({ doctrine_id, tenet_id: tenet_id || null });
     
     if (req.body.platform) {
-      await db('pol_parties').where({ id: partyId }).update({ platform: req.body.platform });
+      await db('pol_parties').where({ id: partyId }).update({ platform: JSON.stringify(req.body.platform) });
     }
 
     return res.json({ success: true, message: 'Doctrine confirmed.' });

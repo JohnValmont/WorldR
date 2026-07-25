@@ -269,6 +269,12 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
               {myParty?.doctrine_id ? myParty.doctrine_id.replace(/_/g, ' ') : 'NO ACTIVE DOCTRINE'}
             </div>
             
+            {myParty?.slogan && (
+              <div style={{ fontFamily: SANS, fontStyle: 'italic', fontSize: 13, color: T.muted, marginTop: 2, marginBottom: 8 }}>
+                "{myParty.slogan}"
+              </div>
+            )}
+            
             {/* Action Points Inline Display */}
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginTop: 24 }}>
               <div style={{ padding: '6px 12px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.2)', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
