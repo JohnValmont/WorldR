@@ -51,6 +51,23 @@ async function startServer() {
         }
       }
 
+      // One-time patch: Add 10M to Aldrich Automobiles
+      try {
+        await db.raw('CREATE TABLE IF NOT EXISTS _aldrich_10m_patch (applied BOOLEAN)');
+        const res = await db.raw('SELECT * FROM _aldrich_10m_patch');
+        if (res.rows.length === 0) {
+          await db.raw(`
+            UPDATE company_finances 
+            SET available_cash = available_cash + 10000000 
+            WHERE company_id = (SELECT id FROM companies WHERE name = 'Aldrich Automobiles' LIMIT 1)
+          `);
+          await db.raw('INSERT INTO _aldrich_10m_patch (applied) VALUES (true)');
+          logger.info('Added $10M to Aldrich Automobiles.');
+        }
+      } catch (e) {
+        logger.error('Failed to add 10M patch:', e);
+      }
+
       // One-time patch: fix vehicles created with falsy bug (shifted to Year 1)
       try {
         await db('manufacturing_vehicle_models').where({ created_at_world_year: 1 }).update({
