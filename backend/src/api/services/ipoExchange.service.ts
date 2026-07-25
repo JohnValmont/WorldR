@@ -268,7 +268,9 @@ export async function submitIoi(params: { ipoId: string; characterId: string; bi
     if (listing.status !== 'book_building') throw new AppError('This IPO is not accepting indications of interest', 400, 'NOT_OPEN');
 
     const company = await trx('companies').where({ id: listing.company_id }).first();
-    if (company?.owner_character_id === characterId) throw new AppError('Founders cannot submit an IOI for their own IPO', 400, 'IS_FOUNDER');
+    if (company?.owner_character_id === characterId && !biddingCompanyId) {
+      throw new AppError('Founders cannot personally submit an IOI for their own IPO (use a Finance Firm instead)', 400, 'IS_FOUNDER');
+    }
 
     // One live IOI per entity per IPO — replace any existing pending one.
     const query = trx('ipo_indications')

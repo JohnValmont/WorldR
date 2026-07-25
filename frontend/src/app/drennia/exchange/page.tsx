@@ -604,7 +604,7 @@ function MyDesk({ refreshKey }: { refreshKey: number }) {
 function IoiForm({ ipo, myFinanceFirms = [], onDone }: { ipo: any; myFinanceFirms?: any[]; onDone: () => void }) {
   const [price, setPrice] = useState('');
   const [qty, setQty] = useState('');
-  const [biddingCompanyId, setBiddingCompanyId] = useState('');
+  const [biddingCompanyId, setBiddingCompanyId] = useState(ipo.is_founder && myFinanceFirms && myFinanceFirms.length > 0 ? myFinanceFirms[0].id : '');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
@@ -617,15 +617,20 @@ function IoiForm({ ipo, myFinanceFirms = [], onDone }: { ipo: any; myFinanceFirm
     setBusy(true);
     setMsg(null);
     try {
+      let finalBiddingId = biddingCompanyId;
+      if (ipo.is_founder && !finalBiddingId && myFinanceFirms && myFinanceFirms.length > 0) {
+        finalBiddingId = myFinanceFirms[0].id;
+      }
+      
       await exchangeApi.submitIoi(ipo.id, { 
         pricePerShare: p, 
         quantity: q,
-        ...(biddingCompanyId ? { biddingCompanyId } : {})
+        ...(finalBiddingId ? { biddingCompanyId: finalBiddingId } : {})
       });
       setMsg({ text: 'Indication submitted. You will be allocated when the book closes.', ok: true });
       setPrice('');
       setQty('');
-      setBiddingCompanyId('');
+      setBiddingCompanyId(ipo.is_founder && myFinanceFirms && myFinanceFirms.length > 0 ? myFinanceFirms[0].id : '');
       onDone();
     } catch (e: any) {
       setMsg({ text: e?.response?.data?.error || e?.response?.data?.message || 'Submission failed.', ok: false });
@@ -679,11 +684,11 @@ function IoiForm({ ipo, myFinanceFirms = [], onDone }: { ipo: any; myFinanceFirm
           <input aria-label="IOI quantity" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="0" inputMode="numeric" style={inputStyle} />
         </div>
       </div>
-      {myFinanceFirms.length > 0 && (
+      {myFinanceFirms && myFinanceFirms.length > 0 && (
         <div>
           <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', marginBottom: '3px' }}>Bidding Entity</div>
-          <select value={biddingCompanyId} onChange={(e) => setBiddingCompanyId(e.target.value)} style={inputStyle}>
-            <option value="">Personal Account</option>
+          <select value={biddingCompanyId || (ipo.is_founder && myFinanceFirms.length > 0 ? myFinanceFirms[0].id : '')} onChange={(e) => setBiddingCompanyId(e.target.value)} style={inputStyle}>
+            {!ipo.is_founder && <option value="">Personal Account</option>}
             {myFinanceFirms.map(f => (
               <option key={f.id} value={f.id}>{f.name} (Firm)</option>
             ))}
@@ -760,7 +765,7 @@ function Pipeline({ myFinanceFirms = [] }: { myFinanceFirms?: any[] }) {
               <p style={{ fontSize: '10px', color: T.muted, lineHeight: 1.6, margin: '8px 0 0' }}>“{ipo.use_of_proceeds}”</p>
             )}
 
-            {ipo.is_founder ? (
+            {ipo.is_founder && myFinanceFirms.length === 0 ? (
               <div style={{ ...mono, fontSize: '10px', color: T.gold, marginTop: '12px' }}>You are the founder — manage this IPO from the Equity Desk.</div>
             ) : isReview ? (
               <div style={{ ...mono, fontSize: '10px', color: T.faint, marginTop: '12px' }}>Book-building opens after regulatory review.</div>
