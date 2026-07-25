@@ -991,6 +991,7 @@ export default function ExchangePage() {
                     Place buy/sell limit orders here once your IPO is live.
                   </div>
                 )}
+                {activeId && <ShareholdersChart key={`cap-${activeId}-${refreshKey}`} companyId={activeId} />}
                 {activeId && <RecentTrades key={`trades-${activeId}-${refreshKey}`} companyId={activeId} />}
               </div>
             </div>
