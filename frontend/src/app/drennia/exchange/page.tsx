@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import { exchangeApi, characterApi, companyApi } from '../../../lib/api';
-import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Line, LineChart, Area } from 'recharts';
+import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Line, LineChart, Area, PieChart, Pie, Cell } from 'recharts';
 
 const T = {
   bg: '#090A0F',
@@ -489,6 +489,80 @@ function OrderTicket({ companyId, lastClose, onPlaced, myFinanceFirms = [] }: { 
         </button>
         {msg && <div style={{ fontSize: '11px', color: msg.ok ? T.mint : T.red }}>{msg.text}</div>}
       </div>
+    </div>
+  );
+}
+
+// ── Cap Table / Shareholders ──────────────────────────────────────────────────
+function ShareholdersChart({ companyId }: { companyId: string }) {
+  const { data } = useSWR(['cap-table', companyId], () => companyApi.getCapTable(companyId), { refreshInterval: 30000 });
+  const holders = data?.holders ?? [];
+
+  let publicShares = 0;
+  const namedHolders: any[] = [];
+  
+  for (const h of holders) {
+    if (h.char_is_npc || h.comp_is_npc) {
+      publicShares += Number(h.shares);
+    } else {
+      namedHolders.push({
+        name: h.name || 'Unknown',
+        value: Number(h.shares)
+      });
+    }
+  }
+  
+  const chartData = [...namedHolders];
+  if (publicShares > 0) {
+    chartData.push({ name: 'Public', value: publicShares });
+  }
+
+  // Sort descending by value
+  chartData.sort((a, b) => b.value - a.value);
+
+  const COLORS = [T.gold, T.mint, T.steel, T.burgundy, T.faint, T.muted];
+
+  return (
+    <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px' }}>
+      <div style={{ ...label, marginBottom: '12px' }}>Shareholders</div>
+      {chartData.length === 0 ? (
+        <div style={{ fontSize: '11px', color: T.faint }}>No shareholder data available.</div>
+      ) : (
+        <div style={{ width: '100%', height: 160, display: 'flex', alignItems: 'center' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={45}
+                outerRadius={65}
+                paddingAngle={2}
+                dataKey="value"
+                stroke="none"
+                isAnimationActive={false}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.name === 'Public' ? T.steel : COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip 
+                contentStyle={{ background: T.panelSoft, border: `1px solid ${T.borderGold}`, fontSize: '11px', fontFamily: 'monospace' }}
+                itemStyle={{ color: T.ivory }}
+                formatter={(value: any) => [`${fmtInt(Number(value))} sh`, 'Shares']}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', maxHeight: '140px', paddingRight: '8px', minWidth: '110px' }}>
+            {chartData.map((entry, index) => (
+              <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.name === 'Public' ? T.steel : COLORS[index % COLORS.length], flexShrink: 0 }} />
+                <div style={{ ...mono, fontSize: '9px', color: T.ivory, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{entry.name}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -848,7 +848,9 @@ export class CompanyController {
           's.holder_company_id', 
           db.raw('COALESCE(ch.name, c.name) as name'), 
           's.shares', 
-          's.avg_cost_basis'
+          's.avg_cost_basis',
+          'ch.is_npc as char_is_npc',
+          'c.is_npc as comp_is_npc'
         );
 
       const policy = await db('dividend_policies').where({ company_id: id }).first();
