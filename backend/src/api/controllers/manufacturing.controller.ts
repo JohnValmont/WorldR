@@ -2872,6 +2872,7 @@ export class ManufacturingController {
           const exists = activeAllocs.find((a: any) => a.vehicle_model_id === model.id && a.region_market_id === marketId);
           if (!exists) {
             const [inserted] = await trx('manufacturing_market_allocations').insert({
+              world_instance_id: company.world_instance_id,
               company_id: company.id,
               vehicle_model_id: model.id,
               region_market_id: marketId,
@@ -3083,6 +3084,7 @@ export class ManufacturingController {
           for (const m of launchedModels) {
             for (const rm of regionMarkets) {
               await trx('manufacturing_market_allocations').insert({
+                world_instance_id: company.world_instance_id,
                 company_id: companyId,
                 vehicle_model_id: m.id,
                 region_market_id: rm.id,
