@@ -509,7 +509,13 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
     totalShares += s;
     if (h.name === 'System NPC') {
       if (isNpcCorp) {
-        namedHolders.push({ name: 'Company Treasury', value: s });
+        // For NPC Corps listed on exchange, 20% of System NPC holdings represent the Public Float (General Population)
+        const publicFloat = Math.round(s * 0.20);
+        const treasury = s - publicFloat;
+        publicShares += publicFloat;
+        if (treasury > 0) {
+          namedHolders.push({ name: 'Company Treasury', value: treasury });
+        }
       } else {
         publicShares += s;
       }
@@ -523,7 +529,7 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
   
   const chartData = [...namedHolders];
   if (publicShares > 0) {
-    chartData.push({ name: 'Public', value: publicShares });
+    chartData.push({ name: 'Public (General Population)', value: publicShares });
   }
 
   // Sort descending by value
@@ -550,7 +556,7 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
                 isAnimationActive={false}
               >
                 {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.name === 'Public' ? T.steel : COLORS[index % COLORS.length]} />
+                  <Cell key={`cell-${index}`} fill={entry.name.startsWith('Public') ? T.steel : COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip 
@@ -565,7 +571,7 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
               const pct = totalShares > 0 ? (entry.value / totalShares) * 100 : 0;
               return (
                 <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.name === 'Public' ? T.steel : COLORS[index % COLORS.length], flexShrink: 0 }} />
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.name.startsWith('Public') ? T.steel : COLORS[index % COLORS.length], flexShrink: 0 }} />
                   <div style={{ ...mono, fontSize: '9px', color: T.ivory, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {entry.name} <span style={{ color: T.faint }}>({pct.toFixed(1)}%)</span>
                   </div>
