@@ -3383,9 +3383,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                             </Pie>
                             <RechartsTooltip 
                               formatter={(value: any, name: any, props: any) => {
-                                const isNpc = props.payload.isNpc;
-                                const suffix = isNpc ? ' (NPC)' : '';
-                                return [`${(Number(value)).toFixed(1)}%`, `Market Share${suffix}`];
+                                return [`${(Number(value)).toFixed(1)}%`, `Market Share`];
                               }}
                               contentStyle={{ backgroundColor: '#0a0a0a', border: '1px solid #2a2a2a' }}
                             />
@@ -3395,11 +3393,9 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                               align="right"
                               wrapperStyle={{ fontSize: '11px', color: '#fffff0', padding: '10px' }}
                               formatter={(value, entry: any) => {
-                                const isNpc = entry.payload.isNpc;
-                                const badge = isNpc ? <span style={{ color: '#A79D8C', marginLeft: '4px' }}>[NPC]</span> : null;
                                 return (
                                   <span style={{ color: '#fffff0', marginLeft: '4px' }}>
-                                    {value} {badge} ({(entry.payload.marketShare).toFixed(1)}%)
+                                    {value} ({(entry.payload.marketShare).toFixed(1)}%)
                                   </span>
                                 );
                               }}
