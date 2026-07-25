@@ -409,6 +409,12 @@ export async function getListings() {
     const lastPrice = latest ? Number(latest.close_price) : lastTrade ? Number(lastTrade.price) : null;
     const prevPrice = latest && prev ? Number(prev.close_price) : null;
 
+    const epsVal = latest ? Number(latest.eps) : null;
+    let pe_ratio = latest?.pe_ratio != null ? Number(latest.pe_ratio) : null;
+    if (pe_ratio == null && epsVal != null && epsVal > 0 && lastPrice != null) {
+      pe_ratio = Number((lastPrice / (epsVal * 12)).toFixed(2));
+    }
+
     result.push({
       ...co,
       last_price: lastPrice,
@@ -416,8 +422,8 @@ export async function getListings() {
       best_bid: bestBid?.p ? Number(bestBid.p) : null,
       best_ask: bestAsk?.p ? Number(bestAsk.p) : null,
       market_cap: latest ? Number(latest.market_cap) : lastPrice != null ? lastPrice * companyTotalShares : null,
-      pe_ratio: latest?.pe_ratio != null ? Number(latest.pe_ratio) : null,
-      eps: latest ? Number(latest.eps) : null,
+      pe_ratio,
+      eps: epsVal,
       volume: latest ? Number(latest.volume_shares) : 0,
       total_shares: companyTotalShares,
     });
