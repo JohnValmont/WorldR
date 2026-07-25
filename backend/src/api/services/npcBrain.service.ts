@@ -292,7 +292,6 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
         vehicle_model_id: newModelId,
         region_market_id: existingAllocation.region_market_id,
         units_allocated: 250,
-        sale_price: newModel.sale_price,
         marketing_tier: existingAllocation.marketing_tier,
         created_at: new Date(),
         updated_at: new Date()
