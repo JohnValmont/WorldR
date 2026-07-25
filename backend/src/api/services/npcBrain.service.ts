@@ -176,14 +176,14 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
 }
 
 async function performIndustrialEspionage(trx: Knex, companyId: string, currentYear: number, currentMonth: number, availableCash: number): Promise<number> {
-  const ESPIONAGE_COST = 10000000; // $10M
+  const ESPIONAGE_COST = 1000000; // $1M threshold so NPCs execute espionage frequently
   if (availableCash < ESPIONAGE_COST) return availableCash;
 
-  // Check if they have fewer than 6 models
+  // Allow up to 12 active models per NPC
   const modelsCount = await trx('manufacturing_vehicle_models')
     .where({ company_id: companyId, development_status: 'launched', status: 'active' })
     .count('* as count');
-  if (Number(modelsCount[0].count) >= 6) return availableCash;
+  if (Number(modelsCount[0].count) >= 12) return availableCash;
 
   // Get active instance
   const instance = await trx('world_instances').where({ status: 'active' }).first();
@@ -211,15 +211,7 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
     .orderByRaw('SUM(r.units_sold) DESC')
     .first();
 
-  if (!topPlayerModel || Number(topPlayerModel.total_sold) < 40) return availableCash;
-
-  // Check if we already cloned this model recently (prevent segment spam)
-  const existingClone = await trx('manufacturing_vehicle_models')
-    .where({ company_id: companyId, target_segment: topPlayerModel.target_segment })
-    .where('name', 'like', `%Challenger%`)
-    .first();
-    
-  if (existingClone) return availableCash;
+  if (!topPlayerModel || Number(topPlayerModel.total_sold) < 20) return availableCash;
 
   // Deduct cash
   availableCash -= ESPIONAGE_COST;
@@ -303,7 +295,7 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
 }
 
 async function applyNpcFacelifts(trx: Knex, companyId: string, currentYear: number, currentMonth: number, availableCash: number): Promise<number> {
-  const FACELIFT_COST = 10000000; // $10M
+  const FACELIFT_COST = 1000000; // $1M threshold
   if (availableCash < FACELIFT_COST) return availableCash;
 
   const models = await trx('manufacturing_vehicle_models')
@@ -314,7 +306,8 @@ async function applyNpcFacelifts(trx: Knex, companyId: string, currentYear: numb
     const launchedMonth = Number(model.launched_month || currentMonth);
     const ageMonths = Math.max(0, (currentYear - launchedYear) * 12 + (currentMonth - launchedMonth));
 
-    if (ageMonths >= 24) {
+    // Release upgraded model variant every 2 months!
+    if (ageMonths >= 2) {
       const newModelId = crypto.randomUUID();
       let newModelName = model.name + ' II';
       if (model.name.endsWith(' IV')) newModelName = model.name.replace(' IV', ' V');
