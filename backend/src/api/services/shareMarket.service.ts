@@ -164,6 +164,18 @@ export async function placeOrder(params: {
             throw new AppError(`Shares are locked up until Year ${ly} Month ${lm}`, 400, 'LOCKED_UP');
           }
         } else {
+          // Check 49% Public Float Cap: Founders must retain at least 51% of total shares
+          const targetCompany = await trx('companies').where({ id: companyId }).first();
+          if (targetCompany && targetCompany.owner_character_id === characterId) {
+            const sumRow = await trx('company_shares').where({ company_id: companyId }).sum('shares as total').first();
+            const totalShares = Number(sumRow?.total ?? TOTAL_SHARES);
+            const currentShares = Number(holding.shares);
+            const minRequiredFounderShares = Math.ceil(totalShares * 0.51);
+            if (currentShares - quantity < minRequiredFounderShares) {
+              throw new AppError(`Public ownership cannot exceed 49%. As founder, you must retain at least 51% of total shares (${minRequiredFounderShares.toLocaleString()} shares).`, 400, 'FLOAT_CAP_EXCEEDED');
+            }
+          }
+
           // Bug A fix: knex does not support chaining .decrement().update() — split into two calls
           await trx('company_shares')
             .where({ company_id: companyId, holder_character_id: characterId })

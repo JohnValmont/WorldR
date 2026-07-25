@@ -1974,6 +1974,31 @@ export class ManufacturingController {
       }
       totalMaintenanceCosts += Math.round(baseMaintCost * avgMaintModifier) + activeLineCost;
     }
+
+    // ── IDLE ENGINEER UTILITY ──────────────────────────────────────────
+    // Unassigned automotive engineers deliver passive benefits during monthly arc ticks
+    const engineerStaff = staff.find((s: any) => s.role === 'automotive-engineer');
+    const totalEngineers = Number(engineerStaff?.quantity || 0);
+    const activeProgCount = (await trx('manufacturing_engineering_programmes').where({ company_id: companyId }).whereIn('status', ['engineering', 'validation'])).length;
+    const activeDevCount = developingModels.length;
+    const idleEngineers = Math.max(0, totalEngineers - activeProgCount - activeDevCount);
+
+    if (idleEngineers > 0) {
+      // 1. Factory Maintenance Discount (5% per idle engineer, max 50% discount)
+      const discountPct = Math.min(0.50, idleEngineers * 0.05);
+      totalMaintenanceCosts = Math.round(totalMaintenanceCosts * (1.0 - discountPct));
+
+      // 2. Passive Reliability Tuning (+1 reliability/arc for launched models, cap 95)
+      await trx('manufacturing_vehicle_models')
+        .where({ company_id: companyId, development_status: 'launched', status: 'active' })
+        .where('reliability_score', '<', 95)
+        .increment('reliability_score', 1);
+
+      // 3. Passive Engineering Knowledge XP (+10 XP per idle engineer per arc)
+      const xpGain = idleEngineers * 10;
+      await ManufacturingController.addCompanyKnowledge(trx, companyId, 'engineering_processes', xpGain);
+    }
+
     runningCash -= totalMaintenanceCosts;
 
     const allInventory = await trx('manufacturing_inventory').where({ company_id: companyId });
@@ -3111,6 +3136,7 @@ export class ManufacturingController {
         }
 
         await ManufacturingController.runCSOAllocations(trx, clock, [company]);
+        await ManufacturingController.runCMOAllocations(trx, clock, [company]);
       });
 
       res.status(200).json({ status: 'success', message: 'CSO has auto-allocated all inventory and upcoming production.' });
@@ -3141,10 +3167,15 @@ export class ManufacturingController {
         { tier: 'national', cost: Number(countryAutoConfig.marketing_cost_national ?? 35000) }
       ];
 
+      // Pre-fetch region markets for population and tier checks
+      const regionMarkets = await trx('manufacturing_region_markets').select('*');
+      const regionMarketMap = new Map<string, any>();
+      for (const rm of regionMarkets) regionMarketMap.set(rm.id, rm);
+
       const allocations = await trx('manufacturing_market_allocations as a')
         .join('manufacturing_vehicle_models as m', 'm.id', 'a.vehicle_model_id')
         .where({ 'a.company_id': company.id })
-        .select('a.*', 'm.sale_price');
+        .select('a.*', 'm.sale_price', 'm.vehicle_class');
 
       const marketAllocs = new Map<string, any[]>();
       for (const alloc of allocations) {
@@ -3152,18 +3183,49 @@ export class ManufacturingController {
         marketAllocs.get(alloc.region_market_id)!.push(alloc);
       }
 
-      for (const [marketId, allocs] of marketAllocs.entries()) {
+      // Sort markets by market potential (population * economic_multiplier) so budget goes to top markets first (e.g. Drennport before small towns)
+      const sortedMarketEntries = Array.from(marketAllocs.entries()).sort(([mIdA], [mIdB]) => {
+        const rmA = regionMarketMap.get(mIdA);
+        const rmB = regionMarketMap.get(mIdB);
+        const scoreA = Number(rmA?.population || 0) * Number(rmA?.economic_multiplier || 1);
+        const scoreB = Number(rmB?.population || 0) * Number(rmB?.economic_multiplier || 1);
+        return scoreB - scoreA;
+      });
+
+      for (const [marketId, allocs] of sortedMarketEntries) {
+        const regionMarket = regionMarketMap.get(marketId);
+        const population = Number(regionMarket?.population || 0);
+
+        let totalAllocatedUnits = 0;
         let totalRetailValue = 0;
         for (const alloc of allocs) {
+          totalAllocatedUnits += Number(alloc.units_allocated || 0);
           totalRetailValue += Number(alloc.units_allocated || 0) * Number(alloc.sale_price || 0);
+        }
+
+        // Hard cap marketing tier based on market size/population:
+        // Tiny markets (population < 15k or 0 allocated units) can NEVER receive National or Regional marketing.
+        let maxAllowedTierIndex = 3; // 3 = national, 2 = regional, 1 = local, 0 = none
+        if (population < 15000) {
+          maxAllowedTierIndex = 1; // max 'local' for tiny towns like Ironvale
+        } else if (population < 50000) {
+          maxAllowedTierIndex = 2; // max 'regional' for medium towns
+        }
+
+        // If no units allocated at all and population is small, don't spend on marketing
+        if (totalAllocatedUnits === 0 && population < 50000) {
+          maxAllowedTierIndex = 0;
         }
 
         const maxAffordableTierByRoi = totalRetailValue * MARKETING_ROI_THRESHOLD;
         
         let bestTierIndex = 0;
-        for (let i = MARKETING_TIERS.length - 1; i >= 0; i--) {
+        for (let i = Math.min(maxAllowedTierIndex, MARKETING_TIERS.length - 1); i >= 0; i--) {
            const t = MARKETING_TIERS[i];
-           if (t.cost <= maxAffordableTierByRoi && t.cost <= availableBudget) {
+           // If high population market (>= 50k), allow upgrading to National/Regional if budget permits
+           const passesBudget = t.cost <= availableBudget;
+           const passesRoi = population >= 50000 ? true : (t.cost <= maxAffordableTierByRoi);
+           if (passesBudget && passesRoi) {
               bestTierIndex = i;
               break;
            }
