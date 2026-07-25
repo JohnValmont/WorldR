@@ -106,9 +106,13 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
   else if (marketShareThisArc < marketShareLastArc || sellRatio < 0.5) {
     const marketShareDrop = marketShareLastArc - marketShareThisArc;
     
+    // Panic Cut: If we are selling almost nothing, aggressively slash price
+    if (sellRatio < 0.2) {
+      newSalePrice = salePrice * (1 - (PRICE_STEP * 2.5));
+    }
     // Hysteresis: Only cut price if marketShare drops by > 0.03 AND unitsSold/unitsAllocated < 0.9
     // OR if we are just fundamentally failing to sell our stock (sellRatio < 0.5)
-    if ((marketShareDrop > 0.03 && sellRatio < 0.9) || sellRatio < 0.5) {
+    else if ((marketShareDrop > 0.03 && sellRatio < 0.9) || sellRatio < 0.5) {
       newSalePrice = salePrice * (1 - PRICE_STEP);
     }
   }
@@ -194,9 +198,9 @@ async function applyNpcFacelifts(trx: Knex, companyId: string, currentYear: numb
         ...model,
         id: newModelId,
         name: newModelName,
-        reliability_score: Math.min(100, Number(model.reliability_score) + 5),
-        performance_score: Math.min(100, Number(model.performance_score) + 5),
-        appeal_score: Math.min(100, Number(model.appeal_score) + 5),
+        reliability_score: Math.min(100, Number(model.reliability_score) + 12),
+        performance_score: Math.min(100, Number(model.performance_score) + 12),
+        appeal_score: Math.min(100, Number(model.appeal_score) + 12),
         launched_year: currentYear,
         launched_month: currentMonth,
         created_at_world_year: currentYear,

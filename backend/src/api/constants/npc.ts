@@ -1,16 +1,16 @@
 export const BANKRUPTCY_FLOOR = 0;
 export const PRODUCTION_BUFFER = 1.15;          // was 1.1 — respond slightly faster to demand
-export const PRICE_STEP = 0.04;
+export const PRICE_STEP = 0.06;                 // Increased to 6% per month for faster price correction
 export const MARKETING_REVENUE_PCT = 0.05;
-export const ZERO_DEMAND_FACELIFT_MONTHS = 3;
+export const ZERO_DEMAND_FACELIFT_MONTHS = 2;   // Drop from 3 to 2 months for faster reaction
 export const MIN_UNITS = 10;
 export const MIN_UNITS_FLOOR = 0;
-export const AWARENESS_BUMP_THRESHOLD = 30;
+export const AWARENESS_BUMP_THRESHOLD = 70;     // Increased from 30 to 70 to push NPCs to spend more on marketing
 export const MODEL_AGE_FACELIFT = 36;
 
 // B7 Market Expansion: if sell-through ratio exceeds this threshold, the brain
 // signals that the NPC should be seeded into additional markets next tick.
-export const NPC_EXPAND_SELL_RATIO = 0.92;
+export const NPC_EXPAND_SELL_RATIO = 0.85;      // Dropped from 0.92 so NPCs expand more aggressively
 
 // Maximum number of region markets an NPC will expand into automatically.
 export const NPC_MAX_MARKETS = 10;
