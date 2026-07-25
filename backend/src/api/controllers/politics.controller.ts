@@ -590,6 +590,62 @@ export async function dissolveParty(req: Request, res: Response, next: NextFunct
         throw new AppError('Cannot dissolve a party with other player members. Transfer leadership instead.', 409, 'CONFLICT');
       }
 
+      // Scrub party from pol_coalitions member_party_ids (JSONB)
+      const seatsToDelete = await trx('pol_council_seats').where({ party_id: partyId }).count('* as count').first();
+      const partySeats = Number(seatsToDelete?.count || 0);
+
+      const coalitions = await trx('pol_coalitions');
+      for (const c of coalitions) {
+        let updated = false;
+        let lostSeats = false;
+        const members = typeof c.member_party_ids === 'string' ? safeParseJSON(c.member_party_ids) : (c.member_party_ids ?? {});
+        if (members && members.accepted && Array.isArray(members.accepted)) {
+          const originalLen = members.accepted.length;
+          members.accepted = members.accepted.filter((id: string) => id !== partyId);
+          if (members.accepted.length !== originalLen) {
+            updated = true;
+            lostSeats = true;
+          }
+        }
+        if (members && members.invited && Array.isArray(members.invited)) {
+          const originalLen = members.invited.length;
+          members.invited = members.invited.filter((id: string) => id !== partyId);
+          if (members.invited.length !== originalLen) updated = true;
+        }
+        if (updated) {
+          const updateData: any = { member_party_ids: JSON.stringify(members) };
+          if (lostSeats) {
+            updateData.total_seats = Math.max(0, Number(c.total_seats) - partySeats);
+          }
+          await trx('pol_coalitions').where({ id: c.id }).update(updateData);
+        }
+      }
+
+      // Scrub party from pol_coalition_agreements
+      const agreements = await trx('pol_coalition_agreements');
+      for (const a of agreements) {
+        let updated = false;
+        
+        const partnerTerms = typeof a.partner_terms === 'string' ? safeParseJSON(a.partner_terms) : (a.partner_terms ?? []);
+        const originalPartnerLen = partnerTerms.length;
+        const newPartnerTerms = partnerTerms.filter((pt: any) => pt.party_id !== partyId);
+        if (newPartnerTerms.length !== originalPartnerLen) updated = true;
+
+        const portfolio = typeof a.portfolio_allocation === 'string' ? safeParseJSON(a.portfolio_allocation) : (a.portfolio_allocation ?? []);
+        const originalPortfolioLen = portfolio.length;
+        const newPortfolio = portfolio.filter((pa: any) => pa.party_id !== partyId);
+        if (newPortfolio.length !== originalPortfolioLen) updated = true;
+
+        if (updated) {
+          await trx('pol_coalition_agreements')
+            .where({ id: a.id })
+            .update({ 
+              partner_terms: JSON.stringify(newPartnerTerms),
+              portfolio_allocation: JSON.stringify(newPortfolio)
+            });
+        }
+      }
+
       await trx('pol_parties').where({ id: partyId }).delete();
     });
 
