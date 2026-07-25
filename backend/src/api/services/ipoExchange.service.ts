@@ -439,19 +439,37 @@ async function refreshNpcIoi(trx: any, listing: any, systemCharId: string) {
   const actualShares = Number(sumRow?.total ?? 1000000) || 1000000;
   
   // Calculate a realistic fair price per share based on book value and earnings
-  const intrinsicValuePerShare = companyValue / actualShares;
-  const fairPrice = intrinsicValuePerShare * (1 + (profit / companyValue) * 5) * reputationFactor;
-  const maxReasonablePrice = fairPrice * 2.0;
+  const intrinsicValuePerShare = Math.max(0.01, companyValue / actualShares);
+  const earningsMultiplier = Math.max(0.1, 1 + (profit / companyValue) * 5); // Prevent negative fair price
+  const fairPrice = intrinsicValuePerShare * earningsMultiplier * reputationFactor;
+  const maxReasonablePrice = fairPrice * 3.0; // Wider berth for retail public
 
-  // If the player is demanding a floor price that is completely detached from reality, underwriters walk away.
   let fraction = 0;
   let price = 0;
   
-  if (Number(listing.ipo_price_min) <= maxReasonablePrice) {
-    // Underwriters guarantee a minimum 50% float subscription for reasonable IPOs.
-    fraction = clamp(0.50 + 1.0 * score, 0.50, 1.50);
-    const npcWillingPrice = Math.min(Number(listing.ipo_price_max), fairPrice * (0.80 + 0.40 * score));
-    price = clamp(npcWillingPrice, Number(listing.ipo_price_min), Number(listing.ipo_price_max));
+  const minPrice = Number(listing.ipo_price_min);
+  const maxPrice = Number(listing.ipo_price_max);
+
+  if (minPrice <= maxReasonablePrice) {
+    // Retail population demand logic (0% to 80% maximum)
+    const priceRatio = minPrice / fairPrice; 
+    
+    // Base appetite from the company's financial score (up to 40% base)
+    const baseFraction = score * 0.40;
+
+    // Price modifier: scales down from 40% to 0% as the price gets worse (1x to 3x fair value)
+    let priceMod = 0;
+    if (priceRatio <= 1.0) {
+      priceMod = 0.40;
+    } else {
+      priceMod = Math.max(0, 0.40 * (1 - ((priceRatio - 1.0) / 2.0)));
+    }
+    
+    fraction = clamp(baseFraction + priceMod, 0, 0.80);
+    
+    // Willingness to pay higher prices scales with company score
+    const npcWillingPrice = Math.min(maxPrice, fairPrice * (0.80 + 0.40 * score));
+    price = clamp(npcWillingPrice, minPrice, maxPrice);
   }
 
   const sharesWanted = Math.round(Number(listing.float_shares) * fraction);
