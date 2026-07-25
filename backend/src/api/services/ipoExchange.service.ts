@@ -459,7 +459,6 @@ async function refreshNpcIoi(trx: any, listing: any, systemCharId: string) {
   const intrinsicValuePerShare = Math.max(0.01, companyValue / actualShares);
   const earningsMultiplier = Math.max(0.1, 1 + (profit / companyValue) * 5); // Prevent negative fair price
   const fairPrice = intrinsicValuePerShare * earningsMultiplier * reputationFactor;
-  const maxReasonablePrice = fairPrice * 3.0; // Wider berth for retail public
 
   let fraction = 0;
   let price = 0;
@@ -467,27 +466,28 @@ async function refreshNpcIoi(trx: any, listing: any, systemCharId: string) {
   const minPrice = Number(listing.ipo_price_min);
   const maxPrice = Number(listing.ipo_price_max);
 
-  if (minPrice <= maxReasonablePrice) {
-    // Retail population demand logic (0% to 80% maximum)
-    const priceRatio = minPrice / fairPrice; 
-    
-    // Base appetite from the company's financial score (up to 40% base)
-    const baseFraction = score * 0.40;
+  // Retail population demand logic (0% to 80% maximum)
+  const priceRatio = minPrice / fairPrice; 
+  
+  // Base appetite from the company's financial score (up to 40% base)
+  const baseFraction = score * 0.40;
 
-    // Price modifier: scales down from 40% to 0% as the price gets worse (1x to 3x fair value)
-    let priceMod = 0;
-    if (priceRatio <= 1.0) {
-      priceMod = 0.40;
-    } else {
-      priceMod = Math.max(0, 0.40 * (1 - ((priceRatio - 1.0) / 2.0)));
-    }
-    
-    fraction = clamp(baseFraction + priceMod, 0, 0.80);
-    
-    // Willingness to pay higher prices scales with company score
-    const npcWillingPrice = Math.min(maxPrice, fairPrice * (0.80 + 0.40 * score));
-    price = clamp(npcWillingPrice, minPrice, maxPrice);
+  // Price modifier: scales down from +40% (if price is cheap) to -40% (if price is highly inflated)
+  // At priceRatio = 1.0, mod is +0.40
+  // At priceRatio = 6.0, mod is -0.40 (wipes out even a perfect score)
+  let priceMod = 0;
+  if (priceRatio <= 1.0) {
+    priceMod = 0.40;
+  } else {
+    // Scales down smoothly as the price inflates relative to fair value
+    priceMod = 0.40 - ((priceRatio - 1.0) / 5.0) * 0.80; 
   }
+  
+  fraction = clamp(baseFraction + priceMod, 0, 0.80);
+  
+  // Willingness to pay higher prices scales with company score
+  const npcWillingPrice = Math.min(maxPrice, fairPrice * (0.80 + 0.40 * score));
+  price = clamp(npcWillingPrice, minPrice, maxPrice);
 
   const sharesWanted = Math.round(Number(listing.float_shares) * fraction);
 
