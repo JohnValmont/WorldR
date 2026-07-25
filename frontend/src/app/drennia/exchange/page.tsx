@@ -523,7 +523,7 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
   // Sort descending by value
   chartData.sort((a, b) => b.value - a.value);
 
-  const COLORS = [T.gold, T.mint, T.steel, T.burgundy, T.faint, T.muted];
+  const COLORS = [T.gold, T.mint, T.burgundy, T.red, T.muted, T.faint];
 
   return (
     <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px' }}>
