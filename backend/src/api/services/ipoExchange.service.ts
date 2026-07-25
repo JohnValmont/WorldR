@@ -898,31 +898,33 @@ export async function processExchangeMonth(trx: any, year: number, month: number
     let low: number;
     let close: number;
 
+    // Calculate Intrinsic Book Value per share to anchor sentiment
+    const finRow = await trx('company_finances').where({ company_id: co.id }).first();
+    const bookValue = Number(finRow?.company_value || 0);
+    const bookValuePerShare = companyTotalShares > 0 ? (bookValue / companyTotalShares) : prevClose;
+
+    // Calculate earnings surprise impulse & fundamental book value drift
+    const impulse = clamp(prevClose * surprise * IMPULSE_COEFF, -prevClose * IMPULSE_CLAMP, prevClose * IMPULSE_CLAMP);
+    
+    let driftRate = 0.20;
+    if (bookValuePerShare > prevClose * 3) {
+      driftRate = 0.50;
+    } else if (bookValuePerShare > prevClose * 1.5) {
+      driftRate = 0.30;
+    }
+    const drift = (bookValuePerShare - prevClose) * driftRate;
+
+    let baseMark = Math.max(0.01, prevClose + impulse + drift);
+
     if (trades.length > 0) {
       const prices = trades.map((t: any) => Number(t.price));
-      const lastTrade = trades.slice().sort((a: any, b: any) => new Date(b.executed_at).getTime() - new Date(a.executed_at).getTime())[0];
-      high = Math.max(open, ...prices);
-      low = Math.min(open, ...prices);
-      close = Number(lastTrade.price);
+      const lastTradePrice = Number(trades.slice().sort((a: any, b: any) => new Date(b.executed_at).getTime() - new Date(a.executed_at).getTime())[0].price);
+      // Incorporate earnings surprise impulse into last trade close price
+      close = Math.max(0.01, lastTradePrice + impulse);
+      high = Math.max(open, close, ...prices);
+      low = Math.min(open, close, ...prices);
     } else {
-      // Calculate Intrinsic Book Value per share to anchor NPC sentiment
-      const finRow = await trx('company_finances').where({ company_id: co.id }).first();
-      const bookValue = Number(finRow?.company_value || 0);
-      const bookValuePerShare = companyTotalShares > 0 ? (bookValue / companyTotalShares) : prevClose;
-
-      // No volume → NPC sentiment marks the price by the earnings surprise impulse AND intrinsic value drift.
-      const impulse = clamp(prevClose * surprise * IMPULSE_COEFF, -prevClose * IMPULSE_CLAMP, prevClose * IMPULSE_CLAMP);
-      
-      // Aggressive catch-up for deeply undervalued penny stocks
-      let driftRate = 0.20;
-      if (bookValuePerShare > prevClose * 3) {
-        driftRate = 0.50; // Massively undervalued: close half the gap immediately (can yield 1000%+ monthly gains)
-      } else if (bookValuePerShare > prevClose * 1.5) {
-        driftRate = 0.30;
-      }
-      const drift = (bookValuePerShare - prevClose) * driftRate;
-
-      close = Math.max(0.01, prevClose + impulse + drift);
+      close = baseMark;
       high = Math.max(open, close);
       low = Math.min(open, close);
     }
