@@ -3672,14 +3672,26 @@ export class ManufacturingController {
       await db.transaction(async (trx) => {
         const { company, currencySymbol: progSym, autoConfig } = await verifyManufacturingCompany(trx, userId, companyId);
 
-        // 1. Check if already active
-        const activeProg = await trx('manufacturing_engineering_programmes')
-          .where({ company_id: companyId })
+        // 1. Check if THIS specific programme is already active
+        const activeProgSame = await trx('manufacturing_engineering_programmes')
+          .where({ company_id: companyId, programme_id: programmeId })
           .whereIn('status', ['engineering', 'validation'])
           .forUpdate()
           .first();
-        if (activeProg) {
-          throw new AppError(`Your engineering team is currently committed to ${ENGINEERING_PROGRAMMES_CATALOG[activeProg.programme_id]?.name || activeProg.programme_id}. Complete the active programme before approving another one.`, 400, 'ACTIVE_PROGRAMME');
+        if (activeProgSame) {
+          throw new AppError(`You are already running ${progDef.name}. Wait for it to complete.`, 400, 'ACTIVE_PROGRAMME');
+        }
+
+        // Calculate occupied engineers from all currently active programmes
+        const allActiveProgs = await trx('manufacturing_engineering_programmes')
+          .where({ company_id: companyId })
+          .whereIn('status', ['engineering', 'validation'])
+          .forUpdate();
+
+        let occupiedEngineers = 0;
+        for (const prog of allActiveProgs) {
+           const def = ENGINEERING_PROGRAMMES_CATALOG[prog.programme_id];
+           if (def) occupiedEngineers += def.minEng || 1;
         }
 
         // 2. Check if already approved
@@ -3707,9 +3719,14 @@ export class ManufacturingController {
           .where({ company_id: companyId, role: 'automotive-engineer' })
           .first();
         const engCount = engStaff?.quantity || 0;
+        const availableEngineers = engCount - occupiedEngineers;
 
-        if (engCount < progDef.minEng) {
-          throw new AppError(`This programme requires at least ${progDef.minEng} Automotive Engineers.`, 400, 'INSUFFICIENT_STAFF');
+        if (availableEngineers < progDef.minEng) {
+          if (allActiveProgs.length > 0) {
+            throw new AppError(`This programme requires at least ${progDef.minEng} Automotive Engineers. You have ${availableEngineers} available (others are committed to active programmes).`, 400, 'INSUFFICIENT_STAFF');
+          } else {
+            throw new AppError(`This programme requires at least ${progDef.minEng} Automotive Engineers.`, 400, 'INSUFFICIENT_STAFF');
+          }
         }
 
         // 5. Check Cash
@@ -3726,7 +3743,7 @@ export class ManufacturingController {
 
         // Calculate timing
         let durationArcs = progBaseDuration;
-        if (engCount < progDef.recEng) {
+        if (availableEngineers < progDef.recEng) {
           durationArcs += 1;
         }
 
