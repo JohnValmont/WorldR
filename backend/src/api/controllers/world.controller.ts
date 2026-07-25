@@ -553,7 +553,7 @@ export class WorldController {
           LEFT JOIN char_equity ce ON ce.char_id = c.id
           LEFT JOIN char_trend ct ON ct.char_id = c.id
           WHERE c.status = 'active'
-            AND c.name NOT ILIKE '%NPC%'
+            AND c.name != 'System NPC'
             AND c.world_instance_id = ?
           ORDER BY net_worth DESC
           LIMIT 10
