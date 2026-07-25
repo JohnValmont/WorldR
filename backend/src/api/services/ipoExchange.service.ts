@@ -763,9 +763,7 @@ export async function processExchangeMonth(trx: any, year: number, month: number
   // ── Refresh NPC institutional interest for open book-building IPOs ──
   const booking = await trx('ipo_listings').where({ status: 'book_building' });
   for (const l of booking) {
-    if (!reached(l.bookbuild_ends_year, l.bookbuild_ends_month, year, month)) {
-      await refreshNpcIoi(trx, l, systemCharId);
-    }
+    await refreshNpcIoi(trx, l, systemCharId);
   }
 
   // ── Step B: close book-building → clear & list (or fail) ──
