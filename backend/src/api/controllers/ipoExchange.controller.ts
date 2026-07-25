@@ -113,10 +113,11 @@ export class IpoExchangeController {
   public static async submitIoi(req: Request, res: Response, next: NextFunction) {
     try {
       const character = await requireCharacter(req);
-      const { pricePerShare, quantity } = req.body;
+      const { pricePerShare, quantity, biddingCompanyId } = req.body;
       const ioi = await ipo.submitIoi({
         ipoId: req.params.ipoId,
         characterId: character.id,
+        biddingCompanyId,
         pricePerShare: Number(pricePerShare),
         quantity: Number(quantity),
       });

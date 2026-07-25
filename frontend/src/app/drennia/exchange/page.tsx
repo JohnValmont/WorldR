@@ -601,9 +601,10 @@ function MyDesk({ refreshKey }: { refreshKey: number }) {
 }
 
 // ── IPO pipeline card (with IOI form) ───────────────────────────────────────
-function IoiForm({ ipo, onDone }: { ipo: any; onDone: () => void }) {
+function IoiForm({ ipo, myFinanceFirms = [], onDone }: { ipo: any; myFinanceFirms?: any[]; onDone: () => void }) {
   const [price, setPrice] = useState('');
   const [qty, setQty] = useState('');
+  const [biddingCompanyId, setBiddingCompanyId] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
@@ -616,10 +617,15 @@ function IoiForm({ ipo, onDone }: { ipo: any; onDone: () => void }) {
     setBusy(true);
     setMsg(null);
     try {
-      await exchangeApi.submitIoi(ipo.id, { pricePerShare: p, quantity: q });
+      await exchangeApi.submitIoi(ipo.id, { 
+        pricePerShare: p, 
+        quantity: q,
+        ...(biddingCompanyId ? { biddingCompanyId } : {})
+      });
       setMsg({ text: 'Indication submitted. You will be allocated when the book closes.', ok: true });
       setPrice('');
       setQty('');
+      setBiddingCompanyId('');
       onDone();
     } catch (e: any) {
       setMsg({ text: e?.response?.data?.error || e?.response?.data?.message || 'Submission failed.', ok: false });
@@ -646,6 +652,9 @@ function IoiForm({ ipo, onDone }: { ipo: any; onDone: () => void }) {
       <div style={{ marginTop: '10px', background: T.bg, border: `1px solid ${T.borderGold}`, padding: '10px 12px' }}>
         <div style={{ ...mono, fontSize: '10px', color: T.mint }}>
           Your indication: {fmtInt(Number(ipo.my_ioi.quantity_requested))} sh @ ${fmt(Number(ipo.my_ioi.price_per_share))}
+          {ipo.my_ioi.bidding_company_id && (
+            <span style={{ color: T.gold, marginLeft: '6px' }}>[Corporate]</span>
+          )}
         </div>
         <button
           onClick={cancelMine}
@@ -670,6 +679,17 @@ function IoiForm({ ipo, onDone }: { ipo: any; onDone: () => void }) {
           <input aria-label="IOI quantity" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="0" inputMode="numeric" style={inputStyle} />
         </div>
       </div>
+      {myFinanceFirms.length > 0 && (
+        <div>
+          <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', marginBottom: '3px' }}>Bidding Entity</div>
+          <select value={biddingCompanyId} onChange={(e) => setBiddingCompanyId(e.target.value)} style={inputStyle}>
+            <option value="">Personal Account</option>
+            {myFinanceFirms.map(f => (
+              <option key={f.id} value={f.id}>{f.name} (Firm)</option>
+            ))}
+          </select>
+        </div>
+      )}
       <button
         onClick={submit}
         disabled={busy}
@@ -682,7 +702,7 @@ function IoiForm({ ipo, onDone }: { ipo: any; onDone: () => void }) {
   );
 }
 
-function Pipeline() {
+function Pipeline({ myFinanceFirms = [] }: { myFinanceFirms?: any[] }) {
   const { data, mutate } = useSWR('ipo-pipeline', () => exchangeApi.getPipeline(), { refreshInterval: 15000 });
   const rows: any[] = data ?? [];
   return (
@@ -745,7 +765,7 @@ function Pipeline() {
             ) : isReview ? (
               <div style={{ ...mono, fontSize: '10px', color: T.faint, marginTop: '12px' }}>Book-building opens after regulatory review.</div>
             ) : (
-              <IoiForm ipo={ipo} onDone={() => mutate()} />
+              <IoiForm ipo={ipo} myFinanceFirms={myFinanceFirms} onDone={() => mutate()} />
             )}
           </div>
         );
@@ -898,7 +918,7 @@ export default function ExchangePage() {
           </>
         )}
 
-        {tab === 'pipeline' && <Pipeline />}
+        {tab === 'pipeline' && <Pipeline myFinanceFirms={myFinanceFirms} />}
 
         {tab === 'desk' && (
           <div style={{ maxWidth: '640px' }}>

@@ -239,17 +239,29 @@ export async function getCompanyIpo(companyId: string) {
 // INDICATIONS OF INTEREST (book-building)
 // ════════════════════════════════════════════════════════════════════════════
 
-export async function submitIoi(params: { ipoId: string; characterId: string; pricePerShare: number; quantity: number }) {
-  const { ipoId, characterId, pricePerShare, quantity } = params;
+export async function submitIoi(params: { ipoId: string; characterId: string; biddingCompanyId?: string; pricePerShare: number; quantity: number }) {
+  const { ipoId, characterId, biddingCompanyId, pricePerShare, quantity } = params;
   if (!Number.isFinite(pricePerShare) || pricePerShare <= 0) throw new AppError('Invalid price', 400, 'BAD_REQUEST');
   if (!Number.isInteger(quantity) || quantity <= 0) throw new AppError('Invalid quantity', 400, 'BAD_REQUEST');
 
   const safePrice = Number(Number(pricePerShare).toFixed(4));
 
   return db.transaction(async (trx) => {
-    // Lock character finances first to serialize IOI submissions for this player
-    const fin = await trx('character_finances').where({ character_id: characterId }).forUpdate().first();
-    if (!fin) throw new AppError('Character finances not found', 404, 'NOT_FOUND');
+    let availableCash = 0;
+    
+    if (biddingCompanyId) {
+      // Validate firm
+      const firm = await trx('companies').where({ id: biddingCompanyId }).first();
+      if (!firm || firm.owner_character_id !== characterId) throw new AppError('Firm not found or not owned by you', 404, 'NOT_FOUND');
+      if (firm.industry_id !== 'finance' && firm.industry_id !== 'capital_partners') throw new AppError('Only finance firms can bid on IPOs', 400, 'BAD_FIRM_TYPE');
+      
+      const fin = await trx('company_finances').where({ company_id: biddingCompanyId }).forUpdate().first();
+      availableCash = Number(fin.available_cash);
+    } else {
+      const fin = await trx('character_finances').where({ character_id: characterId }).forUpdate().first();
+      if (!fin) throw new AppError('Character finances not found', 404, 'NOT_FOUND');
+      availableCash = Number(fin.cash_in_hand);
+    }
 
     const listing = await trx('ipo_listings').where({ id: ipoId }).first();
     if (!listing) throw new AppError('IPO not found', 404, 'NOT_FOUND');
@@ -258,17 +270,23 @@ export async function submitIoi(params: { ipoId: string; characterId: string; pr
     const company = await trx('companies').where({ id: listing.company_id }).first();
     if (company?.owner_character_id === characterId) throw new AppError('Founders cannot submit an IOI for their own IPO', 400, 'IS_FOUNDER');
 
-    // One live IOI per player per IPO — replace any existing pending one.
-    const existing = await trx('ipo_indications')
-      .where({ ipo_id: ipoId, character_id: characterId, status: 'pending', is_npc: false })
-      .forUpdate()
-      .first();
+    // One live IOI per entity per IPO — replace any existing pending one.
+    const query = trx('ipo_indications')
+      .where({ ipo_id: ipoId, status: 'pending', is_npc: false });
+      
+    if (biddingCompanyId) query.where({ bidding_company_id: biddingCompanyId });
+    else query.where({ character_id: characterId }).whereNull('bidding_company_id');
 
-    let availableCash = Number(fin.cash_in_hand);
+    const existing = await query.forUpdate().first();
+
     if (existing) {
       const refund = Number(existing.price_per_share) * Number(existing.quantity_requested);
       availableCash += refund; // Apply refund to available cash for this transaction
-      await trx('character_finances').where({ character_id: characterId }).increment('cash_in_hand', refund);
+      if (biddingCompanyId) {
+        await trx('company_finances').where({ company_id: biddingCompanyId }).increment('available_cash', refund);
+      } else {
+        await trx('character_finances').where({ character_id: characterId }).increment('cash_in_hand', refund);
+      }
       await trx('ipo_indications').where({ id: existing.id }).update({ status: 'withdrawn', updated_at: trx.fn.now() });
     }
 
@@ -277,12 +295,17 @@ export async function submitIoi(params: { ipoId: string; characterId: string; pr
       throw new AppError(`Insufficient cash to place this indication of interest. Requires $${cost.toFixed(2)}`, 400, 'INSUFFICIENT_FUNDS');
     }
 
-    await trx('character_finances').where({ character_id: characterId }).decrement('cash_in_hand', cost);
+    if (biddingCompanyId) {
+      await trx('company_finances').where({ company_id: biddingCompanyId }).decrement('available_cash', cost);
+    } else {
+      await trx('character_finances').where({ character_id: characterId }).decrement('cash_in_hand', cost);
+    }
 
     const [ioi] = await trx('ipo_indications')
       .insert({
         ipo_id: ipoId,
         character_id: characterId,
+        bidding_company_id: biddingCompanyId || null,
         is_npc: false,
         price_per_share: safePrice,
         quantity_requested: quantity,
@@ -300,7 +323,11 @@ export async function cancelIoi(ioiId: string, characterId: string) {
     if (ioi.status !== 'pending') throw new AppError('Indication is no longer active', 400, 'NOT_PENDING');
     
     const refund = Number(ioi.price_per_share) * Number(ioi.quantity_requested);
-    await trx('character_finances').where({ character_id: characterId }).increment('cash_in_hand', refund);
+    if (ioi.bidding_company_id) {
+      await trx('company_finances').where({ company_id: ioi.bidding_company_id }).increment('available_cash', refund);
+    } else {
+      await trx('character_finances').where({ character_id: characterId }).increment('cash_in_hand', refund);
+    }
     
     await trx('ipo_indications').where({ id: ioiId }).update({ status: 'withdrawn', updated_at: trx.fn.now() });
     return { cancelled: true };
@@ -541,7 +568,11 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
     for (const i of allIois) {
       if (!i.is_npc) {
         const refund = Number(i.price_per_share) * Number(i.quantity_requested);
-        await trx('character_finances').where({ character_id: i.character_id }).increment('cash_in_hand', refund);
+        if (i.bidding_company_id) {
+          await trx('company_finances').where({ company_id: i.bidding_company_id }).increment('available_cash', refund);
+        } else {
+          await trx('character_finances').where({ character_id: i.character_id }).increment('cash_in_hand', refund);
+        }
       }
       await trx('ipo_indications').where({ id: i.id }).update({ status: 'failed', quantity_allocated: 0, updated_at: trx.fn.now() });
     }
@@ -571,7 +602,11 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
   for (const i of ineligible) {
     if (!i.is_npc) {
       const refund = Number(i.price_per_share) * Number(i.quantity_requested);
-      await trx('character_finances').where({ character_id: i.character_id }).increment('cash_in_hand', refund);
+      if (i.bidding_company_id) {
+        await trx('company_finances').where({ company_id: i.bidding_company_id }).increment('available_cash', refund);
+      } else {
+        await trx('character_finances').where({ character_id: i.character_id }).increment('cash_in_hand', refund);
+      }
     }
     await trx('ipo_indications').where({ id: i.id }).update({ status: 'failed', quantity_allocated: 0, updated_at: trx.fn.now() });
   }
@@ -644,24 +679,35 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
       const escrowed = Number(ioi.price_per_share) * Number(ioi.quantity_requested);
       const refund = escrowed - cost;
       if (refund > 0) {
-        await trx('character_finances').where({ character_id: buyerId }).increment('cash_in_hand', refund);
+        if (ioi.bidding_company_id) {
+          await trx('company_finances').where({ company_id: ioi.bidding_company_id }).increment('available_cash', refund);
+        } else {
+          await trx('character_finances').where({ character_id: buyerId }).increment('cash_in_hand', refund);
+        }
       }
     }
 
+    const holderCompanyId = ioi.bidding_company_id || null;
+    const queryCond = holderCompanyId
+      ? { company_id: listing.company_id, holder_company_id: holderCompanyId }
+      : { company_id: listing.company_id, holder_character_id: buyerId };
+
     const holding = await trx('company_shares')
-      .where({ company_id: listing.company_id, holder_character_id: buyerId })
+      .where(queryCond)
       .forUpdate()
       .first();
+
     if (holding) {
       const oldShares = Number(holding.shares);
       const newAvg = (oldShares * Number(holding.avg_cost_basis) + cost) / (oldShares + qty);
       await trx('company_shares')
-        .where({ company_id: listing.company_id, holder_character_id: buyerId })
+        .where(queryCond)
         .update({ shares: oldShares + qty, avg_cost_basis: newAvg, updated_at: trx.fn.now() });
     } else {
       await trx('company_shares').insert({
         company_id: listing.company_id,
-        holder_character_id: buyerId,
+        holder_character_id: holderCompanyId ? null : buyerId,
+        holder_company_id: holderCompanyId,
         shares: qty,
         avg_cost_basis: clearingPrice,
       });

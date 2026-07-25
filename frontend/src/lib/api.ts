@@ -191,7 +191,7 @@ export const exchangeApi = {
   fileIpo: (companyId: string, data: { priceMin: number; priceMax: number; floatPercent: number; useOfProceeds: string; lockupMonths: number }) =>
     api.post(`/exchange/ipo/${companyId}/file`, data).then(res => res.data),
   withdrawIpo: (companyId: string) => api.post(`/exchange/ipo/${companyId}/withdraw`).then(res => res.data),
-  submitIoi: (ipoId: string, data: { pricePerShare: number; quantity: number }) =>
+  submitIoi: (ipoId: string, data: { pricePerShare: number; quantity: number; biddingCompanyId?: string }) =>
     api.post(`/exchange/ipo/${ipoId}/ioi`, data).then(res => res.data),
   cancelIoi: (ioiId: string) => api.delete(`/exchange/ipo/ioi/${ioiId}`).then(res => res.data),
 
