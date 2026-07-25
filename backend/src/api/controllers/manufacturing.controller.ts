@@ -1372,6 +1372,15 @@ export class ManufacturingController {
       let combinedDemandTarget = 0;
       const modelDemands = [];
 
+      // Pre-calculate how many models each company is targeting at each segment in this market
+      // to apply an intra-company cannibalization penalty (prevent spamming same segment)
+      const companySegmentCount: Record<string, number> = {};
+      for (const alloc of allocs) {
+         const seg = (alloc.target_segment || 'unknown').toLowerCase();
+         const key = `${alloc.company_id}_${seg}`;
+         companySegmentCount[key] = (companySegmentCount[key] || 0) + 1;
+      }
+
       for (const alloc of allocs) {
         const salePrice = Number(alloc.sale_price);
 
@@ -1386,6 +1395,10 @@ export class ManufacturingController {
 
         const mktTier = alloc.marketing_tier || 'none';
         const mktMult = MARKETING_MULT[mktTier] ?? 1.0;
+
+        const allocTargetSegment = (alloc.target_segment || 'unknown').toLowerCase();
+        const modelsInSameTargetSegment = companySegmentCount[`${alloc.company_id}_${allocTargetSegment}`] || 1;
+        const cannibalizationMult = 1.0 / Math.pow(modelsInSameTargetSegment, 0.65); // 1=1.0, 2=0.63, 3=0.49, 10=0.22
 
         let totalRawBuyerInterest = 0;
         const segmentInterest: Record<string, number> = {};
@@ -1446,7 +1459,9 @@ export class ManufacturingController {
 
           // Calculate raw interest for this specific segment
           const salesManagerBonus = salesManagerBonusMap.get(alloc.company_id) || 0;
-          const segmentBaseInterest = segmentCapacity * affordability * fitEff * valueForMoney * awarenessMult * trustMult * distMult * mktMult * (1 + salesManagerBonus);
+          
+          // Apply the intra-company cannibalization multiplier
+          const segmentBaseInterest = segmentCapacity * affordability * fitEff * valueForMoney * awarenessMult * trustMult * distMult * mktMult * cannibalizationMult * (1 + salesManagerBonus);
           const rawSegmentInt = Math.max(0, segmentBaseInterest);
           segmentInterest[segmentKey] = rawSegmentInt;
           totalRawBuyerInterest += rawSegmentInt;
