@@ -216,6 +216,15 @@ export async function getCompanyIpo(companyId: string) {
     .first();
   if (!listing) return null;
 
+  if (listing.status === 'book_building') {
+    const systemCharId = await getSystemCharacterId(db);
+    if (systemCharId) {
+      await db.transaction(async (trx) => {
+        await refreshNpcIoi(trx, listing, systemCharId);
+      });
+    }
+  }
+
   const iois = await db('ipo_indications').where({ ipo_id: listing.id, status: 'pending' });
   const totalIoiShares = iois.reduce((s: number, i: any) => s + Number(i.quantity_requested), 0);
   return {
@@ -317,8 +326,16 @@ export async function getPipeline(characterId: string) {
       'f.last_arc_profit'
     );
 
+  const systemCharId = await getSystemCharacterId(db);
   const result = [];
   for (const l of listings) {
+    // Let the public re-evaluate and buy in real-time when the pipeline is viewed
+    if (l.status === 'book_building' && systemCharId) {
+      await db.transaction(async (trx) => {
+        await refreshNpcIoi(trx, l, systemCharId);
+      });
+    }
+
     const iois = await db('ipo_indications').where({ ipo_id: l.id, status: 'pending' });
     const totalIoiShares = iois.reduce((s: number, i: any) => s + Number(i.quantity_requested), 0);
     const myIoi = iois.find((i: any) => i.character_id === characterId && !i.is_npc) ?? null;
