@@ -241,7 +241,6 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
     drivetrain_type: topPlayerModel.drivetrain_type,
     interior_tier: topPlayerModel.interior_tier,
     safety_tier: topPlayerModel.safety_tier,
-    quality_tier: topPlayerModel.quality_tier,
     reliability_score: Math.min(100, Number(topPlayerModel.reliability_score) + 2),
     performance_score: Math.min(100, Number(topPlayerModel.performance_score) + 2),
     fuel_efficiency_score: Math.min(100, Number(topPlayerModel.fuel_efficiency_score) + 2),
