@@ -2849,9 +2849,10 @@ export class ManufacturingController {
       const cso = await trx('company_staff').where({ company_id: company.id, role: 'cso' }).first();
       if (!cso || cso.quantity <= 0) continue;
 
-      // 1. Fetch launched models
+      // 1. Fetch launched and discontinued models
       const launchedModels = await trx('manufacturing_vehicle_models')
-        .where({ company_id: company.id, development_status: 'launched' });
+        .where({ company_id: company.id })
+        .whereIn('development_status', ['launched', 'discontinued']);
       if (launchedModels.length === 0) continue;
 
       // 2. Fetch active markets or all region markets
