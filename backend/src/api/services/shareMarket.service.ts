@@ -444,7 +444,7 @@ export async function getListings() {
 }
 
 export async function getOrderBook(companyId: string) {
-  let [bids, asks] = await Promise.all([
+  const [bidsData, asksData] = await Promise.all([
     db('share_orders')
       .where({ company_id: companyId, side: 'buy', status: 'open' })
       .select('price')
@@ -460,6 +460,9 @@ export async function getOrderBook(companyId: string) {
       .orderBy('price', 'asc')
       .limit(15),
   ]);
+
+  let bids: Array<{ price: number; quantity: any }> = bidsData.map((b: any) => ({ price: Number(b.price), quantity: Number(b.quantity) }));
+  const asks: Array<{ price: number; quantity: any }> = asksData.map((a: any) => ({ price: Number(a.price), quantity: Number(a.quantity) }));
 
   // Realism Fix: If there are no open buy bids for an exchange-listed company, auto-inject DRX Specialist market-maker bids!
   if (bids.length === 0) {
@@ -501,13 +504,14 @@ export async function getOrderBook(companyId: string) {
             });
 
             // Re-query bids after order placement
-            bids = await db('share_orders')
+            const freshBids = await db('share_orders')
               .where({ company_id: companyId, side: 'buy', status: 'open' })
               .select('price')
               .sum({ quantity: db.raw('quantity - filled_quantity') })
               .groupBy('price')
               .orderBy('price', 'desc')
               .limit(15);
+            bids = freshBids.map((b: any) => ({ price: Number(b.price), quantity: Number(b.quantity) }));
           } catch (e) {
             bids = [{ price: mmBidPrice, quantity: 5000 }];
           }
