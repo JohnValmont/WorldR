@@ -486,7 +486,15 @@ async function refreshNpcIoi(trx: any, listing: any, systemCharId: string) {
   
   // Calculate a realistic fair price per share based on book value and earnings
   const intrinsicValuePerShare = Math.max(0.01, companyValue / actualShares);
-  const earningsMultiplier = Math.max(0.1, 1 + (profit / companyValue) * 5); // Prevent negative fair price
+  
+  // Soften the penalty for negative profits so companies with strong assets/reputation aren't destroyed
+  let earningsMultiplier = 1.0;
+  if (profit >= 0) {
+    earningsMultiplier = 1 + Math.min(2.0, (profit / companyValue) * 5); // Reward up to 3x for high profit
+  } else {
+    earningsMultiplier = Math.max(0.6, 1 + (profit / companyValue) * 1.5); // Floor at 0.6x for negative profit
+  }
+  
   const fairPrice = intrinsicValuePerShare * earningsMultiplier * reputationFactor;
 
   let fraction = 0;
