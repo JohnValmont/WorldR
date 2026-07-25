@@ -444,7 +444,7 @@ export async function getListings() {
 }
 
 export async function getOrderBook(companyId: string) {
-  const [bids, asks] = await Promise.all([
+  let [bids, asks] = await Promise.all([
     db('share_orders')
       .where({ company_id: companyId, side: 'buy', status: 'open' })
       .select('price')
@@ -460,6 +460,62 @@ export async function getOrderBook(companyId: string) {
       .orderBy('price', 'asc')
       .limit(15),
   ]);
+
+  // Realism Fix: If there are no open buy bids for an exchange-listed company, auto-inject DRX Specialist market-maker bids!
+  if (bids.length === 0) {
+    const company = await db('companies').where({ id: companyId, is_exchange_listed: true }).first();
+    if (company) {
+      const prevBar = await db('share_price_history')
+        .where({ company_id: companyId })
+        .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
+        .first();
+      
+      const finRow = await db('company_finances').where({ company_id: companyId }).first();
+      const lastClose = Number(prevBar?.close_price || 10.00);
+      const bookValue = Number(finRow?.company_value || 0);
+      const bvps = bookValue / 1000000;
+      
+      // Calculate specialist anchor price (anchored near last close & intrinsic book value per share)
+      let anchorPrice = lastClose;
+      if (bvps > 0) {
+        anchorPrice = Math.max(lastClose, lastClose + (bvps - lastClose) * 0.20);
+      }
+      const mmBidPrice = Number((anchorPrice * 0.985).toFixed(2));
+
+      // Inject standing bids into DB via System NPC Market Maker
+      const systemUser = await db('users').where({ email: 'system_npc@worldr.game' }).first();
+      if (systemUser) {
+        const sysChar = await db('characters').where({ user_id: systemUser.id }).first();
+        if (sysChar) {
+          // Ensure System MM has ample liquidity cash to absorb sell orders
+          await db('character_finances').where({ character_id: sysChar.id }).update({ cash_in_hand: 100000000 });
+          
+          try {
+            await placeOrder({
+              companyId,
+              characterId: sysChar.id,
+              side: 'buy',
+              price: mmBidPrice,
+              quantity: 5000,
+              isNpc: true
+            });
+
+            // Re-query bids after order placement
+            bids = await db('share_orders')
+              .where({ company_id: companyId, side: 'buy', status: 'open' })
+              .select('price')
+              .sum({ quantity: db.raw('quantity - filled_quantity') })
+              .groupBy('price')
+              .orderBy('price', 'desc')
+              .limit(15);
+          } catch (e) {
+            bids = [{ price: mmBidPrice, quantity: 5000 }];
+          }
+        }
+      }
+    }
+  }
+
   return { bids, asks };
 }
 
