@@ -522,6 +522,21 @@ export async function getOrderBook(companyId: string) {
 
         // Auto-inject 5-tier Ask Depth Ladder if asks are empty
         if (asks.length === 0) {
+          // Ensure System MM holds inventory shares so Ask quotes succeed without INSUFFICIENT_SHARES error
+          const sysShares = await db('company_shares').where({ company_id: companyId, holder_character_id: sysChar.id }).first();
+          if (!sysShares) {
+            await db('company_shares').insert({
+              id: crypto.randomUUID(),
+              company_id: companyId,
+              holder_character_id: sysChar.id,
+              shares: 500000,
+              avg_cost_basis: anchorPrice,
+              updated_at: new Date()
+            });
+          } else if (Number(sysShares.shares) < 500000) {
+            await db('company_shares').where({ id: sysShares.id }).update({ shares: 500000, updated_at: new Date() });
+          }
+
           const askTiers = [
             { mult: 1.010, qty: 10000 },
             { mult: 1.025, qty: 25000 },
