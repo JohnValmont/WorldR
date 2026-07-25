@@ -502,11 +502,17 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
   const namedHolders: any[] = [];
   let totalShares = 0;
   
+  const isNpcCorp = data?.company?.is_npc === true;
+  
   for (const h of holders) {
     const s = Number(h.shares);
     totalShares += s;
-    if (h.name === 'System NPC' || h.comp_is_npc) {
-      publicShares += s;
+    if (h.name === 'System NPC') {
+      if (isNpcCorp) {
+        namedHolders.push({ name: 'Company Treasury', value: s });
+      } else {
+        publicShares += s;
+      }
     } else {
       namedHolders.push({
         name: h.name || 'Unknown',
