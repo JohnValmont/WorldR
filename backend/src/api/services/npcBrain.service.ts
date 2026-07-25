@@ -219,9 +219,12 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
 
   const npcCompany = await trx('companies').where({ id: companyId }).first();
 
-  const newModelId = crypto.randomUUID();
-  const newModelName = `${npcCompany.name} ${topPlayerModel.name} Challenger`;
+  const SUFFIXES = ['Rival', 'Apex', 'Titan', 'Spectre', 'Vanguard', 'Strider', 'Pulse', 'Dominator', 'Interceptor'];
+  const randomSuffix = SUFFIXES[Math.floor(Math.random() * SUFFIXES.length)];
+  const classTag = (topPlayerModel.vehicle_class || 'Model').substring(0, 3).toUpperCase();
+  const newModelName = `${npcCompany.name} ${randomSuffix}-${classTag}`;
 
+  const newModelId = crypto.randomUUID();
   const newModel = {
     id: newModelId,
     world_instance_id: instance.id,
