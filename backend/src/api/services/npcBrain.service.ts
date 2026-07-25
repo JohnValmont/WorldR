@@ -348,7 +348,7 @@ async function applyNpcFacelifts(trx: Knex, companyId: string, currentYear: numb
         await trx('manufacturing_market_allocations').insert(newAlloc);
       }
       
-      // Discontinue old model
+      // Discontinue old model & zero out its market allocations to prevent ghost demand
       await trx('manufacturing_vehicle_models')
         .where({ id: model.id })
         .update({ 
@@ -358,6 +358,10 @@ async function applyNpcFacelifts(trx: Knex, companyId: string, currentYear: numb
           discontinued_month: currentMonth, 
           updated_at: new Date() 
         });
+
+      await trx('manufacturing_market_allocations')
+        .where({ company_id: companyId, vehicle_model_id: model.id })
+        .update({ units_allocated: 0, updated_at: new Date() });
         
       // Charge the company
       availableCash -= FACELIFT_COST;
