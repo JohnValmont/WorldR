@@ -270,7 +270,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
             </div>
             
             {myParty?.slogan && (
-              <div style={{ fontFamily: SANS, fontStyle: 'italic', fontSize: 13, color: T.muted, marginTop: 2, marginBottom: 8 }}>
+              <div style={{ fontStyle: 'italic', fontSize: 13, color: T.muted, marginTop: 2, marginBottom: 8 }}>
                 "{myParty.slogan}"
               </div>
             )}
