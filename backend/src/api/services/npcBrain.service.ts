@@ -256,6 +256,7 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
     launched_month: currentMonth,
     created_at_world_year: currentYear,
     created_at_world_month: currentMonth,
+    created_at_world_day: 1,
     created_at: new Date(),
     updated_at: new Date()
   };
