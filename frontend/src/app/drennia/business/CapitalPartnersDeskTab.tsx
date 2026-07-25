@@ -410,7 +410,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
                               <td className="py-3 text-zinc-200">
                                 <div className="flex items-center gap-2">
                                   {h.company_name}
-                                  {h.is_npc && <Badge variant="zinc">NPC</Badge>}
+
                                 </div>
                               </td>
                               <td className="py-3 text-right text-zinc-400">{Number(h.shares).toLocaleString('en-US')}</td>
