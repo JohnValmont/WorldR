@@ -214,7 +214,7 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
             borderRadius: 10, overflow: 'hidden',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.faint }}>Projected Result</div>
+              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.faint }}>Projected Result & Seat Swings</div>
               <div style={{ fontFamily: MONO, fontSize: 9, color: T.faint }}>if the vote were held today</div>
             </div>
             <div style={{ padding: '8px 16px 12px' }}>
@@ -226,29 +226,44 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
                   Projections sharpen as parties file and campaigns build reach.
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {projections.slice(0, 8).map((p: any, i: number) => {
                     const share = p.projected_share ?? p.share ?? p.vote_share ?? (totalVotes > 0 ? (Number(p.votes ?? 0) / totalVotes) : 0);
                     const seats = Number(p.projected_seats ?? p.seats ?? 0);
-                    const pct = share <= 1 ? share * 100 : share;
-                    const barVal = maxSeats > 0 ? (seats / maxSeats) * 75 : pct * 0.75;
+                    const seatChange = Number(p.seat_change ?? p.seatChange ?? 0);
+                    const pct = share <= 1 ? (share * 100).toFixed(1) : Number(share).toFixed(1);
+                    const barVal = maxSeats > 0 ? (seats / maxSeats) * 75 : Number(pct) * 0.75;
                     const isMine = p.isMine || (myParty && (p.id === myParty.id || p.party_id === myParty.id || p.name === myParty.name));
                     const isMajority = seats >= jModel.majority;
                     const PARTY_COLORS = ['#4F6EF7', '#7B3FD4', '#D4A843', '#E05252', '#10D67A', '#F57C42', '#5CC8D8', '#C4C4C4'];
                     const tone = isMine ? T.gold : PARTY_COLORS[i % PARTY_COLORS.length];
+
+                    const swingText = seatChange > 0 ? `▲ +${seatChange}` : seatChange < 0 ? `▼ ${seatChange}` : `► Stable`;
+                    const swingColor = seatChange > 0 ? T.mint : seatChange < 0 ? T.red : T.faint;
+
                     return (
-                      <div key={p.id || p.party_id || i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                      <div key={p.id || p.party_id || i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                         <div style={{ width: 8, height: 8, borderRadius: '50%', background: tone, flexShrink: 0 }} />
-                        <span style={{ color: isMine ? T.gold : T.text, fontSize: 13, fontWeight: isMine ? 700 : 400, fontFamily: SANS, minWidth: 160, flexShrink: 0 }}>
-                          {p.name || p.party_name || 'Party'}{isMine ? ' YOU' : ''}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 160, flexShrink: 0 }}>
+                          <span style={{ color: isMine ? T.gold : T.text, fontSize: 13, fontWeight: isMine ? 700 : 400, fontFamily: SANS }}>
+                            {p.name || p.party_name || 'Party'}{isMine ? ' YOU' : ''}
+                          </span>
+                          <span style={{ color: T.faint, fontSize: 10, fontFamily: MONO }}>
+                            {pct}% vote share
+                          </span>
+                        </div>
                         <div style={{ flex: 1, height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
                           <div style={{ height: '100%', width: `${barVal}%`, background: tone, transition: 'width 1s ease', opacity: 0.85 }} />
                           <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${(jModel.majority / jModel.seats) * 100}%`, width: 1, background: 'rgba(255,255,255,0.2)' }} />
                         </div>
-                        <span style={{ fontFamily: MONO, fontSize: 12, color: isMajority ? T.mint : (isMine ? T.gold : T.ivory), fontWeight: 600, textAlign: 'right', minWidth: 80, flexShrink: 0 }}>
-                          {seats} seats{isMajority ? ' · ✓' : ''}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 120, justifyContent: 'flex-end', flexShrink: 0 }}>
+                          <span style={{ fontFamily: MONO, fontSize: 10, color: swingColor, background: `${swingColor}15`, border: `1px solid ${swingColor}30`, padding: '1px 6px', borderRadius: 4 }}>
+                            {swingText}
+                          </span>
+                          <span style={{ fontFamily: MONO, fontSize: 12, color: isMajority ? T.mint : (isMine ? T.gold : T.ivory), fontWeight: 600, textAlign: 'right', minWidth: 65 }}>
+                            {seats} seats{isMajority ? ' ✓' : ''}
+                          </span>
+                        </div>
                       </div>
                     );
                   })}

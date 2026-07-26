@@ -213,16 +213,39 @@ function FactionPanel({ partyId, onSpendPc }: { partyId: string; onSpendPc?: (ac
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ color: tone, fontFamily: MONO, fontSize: 12, fontWeight: 700 }}>{loyalty}%</span>
-                  {f.is_restless && onSpendPc && (
-                    <button onClick={() => discipline(f.id)} disabled={!!busy}
-                      style={{
-                        padding: '3px 10px', borderRadius: 3, cursor: busy ? 'not-allowed' : 'pointer',
-                        background: 'rgba(224,82,70,0.1)', border: `1px solid rgba(224,82,70,0.3)`,
-                        color: T.red, fontSize: 9, fontFamily: MONO, letterSpacing: '0.08em',
-                        textTransform: 'uppercase', opacity: busy ? 0.5 : 1,
-                      }}>
-                      {busy === f.id ? '…' : '3 PC · Discipline'}
-                    </button>
+                  {f.is_restless && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button onClick={async () => {
+                        try {
+                          setBusy(f.id + 'pacify');
+                          setMsg(null);
+                          await politicsApi.doGeneralAction('statement');
+                          setMsg(`Negotiated with ${f.name} faction. Morale improved.`);
+                          await load();
+                        } catch (e: any) {
+                          setMsg(e?.response?.data?.error || e?.response?.data?.message || 'Failed to pacify');
+                        } finally { setBusy(null); }
+                      }} disabled={!!busy}
+                        style={{
+                          padding: '3px 8px', borderRadius: 3, cursor: busy ? 'not-allowed' : 'pointer',
+                          background: 'rgba(251,191,36,0.1)', border: `1px solid rgba(251,191,36,0.3)`,
+                          color: T.gold, fontSize: 9, fontFamily: MONO, letterSpacing: '0.08em',
+                          textTransform: 'uppercase', opacity: busy ? 0.5 : 1,
+                        }}>
+                        {busy === f.id + 'pacify' ? '…' : '1 AP · Pacify'}
+                      </button>
+                      {onSpendPc && (
+                        <button onClick={() => discipline(f.id)} disabled={!!busy}
+                          style={{
+                            padding: '3px 8px', borderRadius: 3, cursor: busy ? 'not-allowed' : 'pointer',
+                            background: 'rgba(224,82,70,0.1)', border: `1px solid rgba(224,82,70,0.3)`,
+                            color: T.red, fontSize: 9, fontFamily: MONO, letterSpacing: '0.08em',
+                            textTransform: 'uppercase', opacity: busy ? 0.5 : 1,
+                          }}>
+                          {busy === f.id ? '…' : '3 PC · Discipline'}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
