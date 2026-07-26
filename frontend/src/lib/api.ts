@@ -243,7 +243,7 @@ export const politicsApi = {
   queueCampaignAction: (data: any, stateId?: string) => api.post('/politics/campaign/actions', { ...data, stateId }).then(res => res.data),
   getPolls: (stateId?: string) => api.get(`/politics/polls${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
   getCouncil: (stateId?: string) => api.get(`/politics/council${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
-  getLedger: (limit: number = 10, stateId?: string) => api.get(`/politics/ledger?limit=${limit}${stateId ? `&stateId=${stateId}` : ''}`).then(res => res.data),
+  getLedger: (limit: number = 10, stateId?: string, global?: boolean) => api.get(`/politics/ledger?limit=${limit}${stateId ? `&stateId=${stateId}` : ''}${global ? '&global=true' : ''}`).then(res => res.data),
   manageCoalition: (action: string, targetPartyId: string, stateId?: string) => api.post(`/politics/formation/coalition${stateId ? `?stateId=${stateId}` : ''}`, { action, targetPartyId }).then(res => res.data),
 
   // Phase 5A: Bills & Lobby

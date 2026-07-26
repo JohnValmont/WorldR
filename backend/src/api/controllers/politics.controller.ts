@@ -985,18 +985,27 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
 
 export async function getLedger(req: Request, res: Response, next: NextFunction) {
   try {
-    const activeState = await resolveState(req.query.stateId as string | undefined);
+    const isGlobal = req.query.global === 'true';
+    let stateId: string | null = null;
+    if (!isGlobal) {
+      const activeState = await resolveState(req.query.stateId as string | undefined);
+      stateId = activeState.id;
+    }
 
     const rawLimit = parseInt(req.query.limit as string);
     const limit = Number.isFinite(rawLimit) ? Math.min(100, Math.max(1, rawLimit)) : 10;
 
-    const events = await db('pol_ledger_events')
-      .where({ state_id: activeState.id })
+    let query = db('pol_ledger_events')
       .orderBy('arc', 'desc')
       .orderBy('id', 'desc')
       .limit(limit)
-      .select('id', 'arc', 'kind', 'headline', 'body');
+      .select('id', 'arc', 'kind', 'headline', 'body', 'state_id');
 
+    if (stateId) {
+      query = query.where({ state_id: stateId });
+    }
+
+    const events = await query;
     return res.json(events);
   } catch (error) {
     next(error);
