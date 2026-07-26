@@ -839,11 +839,11 @@ export class ManufacturingController {
       const result = await db.transaction(async (trx) => {
         const { company, autoConfig } = await verifyManufacturingCompany(trx, userId, companyId);
 
-        // Check model name uniqueness per company
+        // Check model name uniqueness globally per world instance
         const existingModel = await trx('manufacturing_vehicle_models')
-          .whereRaw('company_id = ? AND LOWER(name) = ?', [companyId, name.toLowerCase()])
+          .whereRaw('world_instance_id = ? AND LOWER(name) = ?', [company.world_instance_id, name.toLowerCase()])
           .first();
-        if (existingModel) throw new AppError('A model with this name already exists', 400, 'NAME_TAKEN');
+        if (existingModel) throw new AppError('A vehicle model with this name already exists in Drennia', 400, 'NAME_TAKEN');
 
         const clock = await trx('world_clock').first();
         const currentYear = clock?.current_year ?? 1;
@@ -4138,11 +4138,11 @@ export class ManufacturingController {
           throw new AppError('Only launched or discontinued models can be facelifted', 400, 'BAD_REQUEST');
         }
 
-        // Check name uniqueness
+        // Check name uniqueness globally per world instance
         const existingModel = await trx('manufacturing_vehicle_models')
-          .whereRaw('company_id = ? AND LOWER(name) = ?', [companyId, name.toLowerCase()])
+          .whereRaw('world_instance_id = ? AND LOWER(name) = ?', [sourceModel.world_instance_id, name.toLowerCase()])
           .first();
-        if (existingModel) throw new AppError('A model with this name already exists', 400, 'NAME_TAKEN');
+        if (existingModel) throw new AppError('A vehicle model with this name already exists in Drennia', 400, 'NAME_TAKEN');
 
         const clock = await trx('world_clock').first();
         const currentYear = clock?.current_year ?? 1;

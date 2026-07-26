@@ -804,9 +804,11 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
 /** Place an NPC order without letting a single failure abort the whole tick. */
 async function safeNpcOrder(trx: any, companyId: string, systemCharId: string, side: 'buy' | 'sell', price: number, quantity: number) {
   try {
-    await placeOrder({ companyId, characterId: systemCharId, side, price: Number(price.toFixed(4)), quantity, isNpc: true, existingTrx: trx });
+    await trx.transaction(async (sp: any) => {
+      await placeOrder({ companyId, characterId: systemCharId, side, price: Number(price.toFixed(4)), quantity, isNpc: true, existingTrx: sp });
+    });
   } catch (e: any) {
-    // Insufficient MM inventory/cash for this quote — skip it silently.
+    // Insufficient MM inventory/cash for this quote — skip it silently without aborting parent transaction.
     logger.warn(`[drx-mm] skipped ${side} ${quantity} @ ${price.toFixed(2)} for ${companyId}: ${e?.message || e}`);
   }
 }

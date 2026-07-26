@@ -175,6 +175,24 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
   };
 }
 
+async function ensureUniqueModelName(trx: Knex, worldInstanceId: string, baseName: string): Promise<string> {
+  let candidate = baseName.trim().substring(0, 60);
+  let counter = 1;
+
+  while (true) {
+    const existing = await trx('manufacturing_vehicle_models')
+      .whereRaw('world_instance_id = ? AND LOWER(name) = ?', [worldInstanceId, candidate.toLowerCase()])
+      .first();
+
+    if (!existing) return candidate;
+
+    counter++;
+    const suffix = counter === 2 ? ' II' : (counter === 3 ? ' III' : (counter === 4 ? ' IV' : ` ${counter}`));
+    const prefix = baseName.substring(0, 60 - suffix.length);
+    candidate = `${prefix}${suffix}`;
+  }
+}
+
 async function performIndustrialEspionage(trx: Knex, companyId: string, currentYear: number, currentMonth: number, availableCash: number): Promise<number> {
   const ESPIONAGE_COST = 1000000; // $1M threshold so NPCs execute espionage frequently
   if (availableCash < ESPIONAGE_COST) return availableCash;
@@ -219,10 +237,11 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
 
   const npcCompany = await trx('companies').where({ id: companyId }).first();
 
-  const SUFFIXES = ['Rival', 'Apex', 'Titan', 'Spectre', 'Vanguard', 'Strider', 'Pulse', 'Dominator', 'Interceptor'];
+  const SUFFIXES = ['Rival', 'Titan', 'Spectre', 'Vanguard', 'Strider', 'Pulse', 'Dominator', 'Interceptor'];
   const randomSuffix = SUFFIXES[Math.floor(Math.random() * SUFFIXES.length)];
   const classTag = (topPlayerModel.vehicle_class || 'Model').substring(0, 3).toUpperCase();
-  const newModelName = `${npcCompany.name} ${randomSuffix}-${classTag}`;
+  const rawModelName = `${npcCompany.name} ${randomSuffix}-${classTag}`;
+  const newModelName = await ensureUniqueModelName(trx, instance.id, rawModelName);
 
   const newModelId = crypto.randomUUID();
   const newModel = {
@@ -312,10 +331,12 @@ async function applyNpcFacelifts(trx: Knex, companyId: string, currentYear: numb
     // Release upgraded model variant every 2 months!
     if (ageMonths >= 2) {
       const newModelId = crypto.randomUUID();
-      let newModelName = model.name + ' II';
-      if (model.name.endsWith(' IV')) newModelName = model.name.replace(' IV', ' V');
-      else if (model.name.endsWith(' III')) newModelName = model.name.replace(' III', ' IV');
-      else if (model.name.endsWith(' II')) newModelName = model.name.replace(' II', ' III');
+      let rawModelName = model.name + ' II';
+      if (model.name.endsWith(' IV')) rawModelName = model.name.replace(' IV', ' V');
+      else if (model.name.endsWith(' III')) rawModelName = model.name.replace(' III', ' IV');
+      else if (model.name.endsWith(' II')) rawModelName = model.name.replace(' II', ' III');
+      
+      const newModelName = await ensureUniqueModelName(trx, model.world_instance_id, rawModelName);
       
       const newModel = {
         ...model,
@@ -761,11 +782,14 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
   });
 
   // Model
+  const rawModelName = `${companyName} Standard`;
+  const modelName = await ensureUniqueModelName(trx, clock.world_instance_id, rawModelName);
+
   const [model] = await trx('manufacturing_vehicle_models')
     .insert({
       company_id: company.id,
       world_instance_id: clock.world_instance_id,
-      name: `${companyName} Standard`,
+      name: modelName,
       vehicle_class: roster.build.platform === 'heavy-duty' ? 'Utility Van' : (roster.build.platform === 'economy' ? 'Compact Car' : 'Sedan'),
       platform_type: roster.build.platform,
       power_unit_type: roster.build.powerUnit,

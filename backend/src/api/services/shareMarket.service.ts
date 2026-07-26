@@ -125,17 +125,16 @@ export async function placeOrder(params: {
           }
         }
         if (holding) {
+          const currentShares = Math.max(0, Number(holding.shares));
+          const newShares = isNpc ? Math.max(0, currentShares - quantity) : currentShares - quantity;
           await trx('company_shares')
             .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
-            .decrement('shares', quantity);
-          await trx('company_shares')
-            .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
-            .update({ updated_at: trx.fn.now() });
+            .update({ shares: newShares, updated_at: trx.fn.now() });
         } else if (isNpc) {
           await trx('company_shares').insert({
             company_id: companyId,
             holder_company_id: purchaserCompanyId,
-            shares: -quantity,
+            shares: 0,
             avg_cost_basis: price,
           });
         }
@@ -149,7 +148,7 @@ export async function placeOrder(params: {
             await trx('company_shares').insert({
               company_id: companyId,
               holder_character_id: characterId,
-              shares: -quantity,
+              shares: 0,
               avg_cost_basis: price,
             });
           } else {
@@ -176,13 +175,11 @@ export async function placeOrder(params: {
             }
           }
 
-          // Bug A fix: knex does not support chaining .decrement().update() — split into two calls
+          const currentShares = Math.max(0, Number(holding.shares));
+          const newShares = isNpc ? Math.max(0, currentShares - quantity) : currentShares - quantity;
           await trx('company_shares')
             .where({ company_id: companyId, holder_character_id: characterId })
-            .decrement('shares', quantity);
-          await trx('company_shares')
-            .where({ company_id: companyId, holder_character_id: characterId })
-            .update({ updated_at: trx.fn.now() });
+            .update({ shares: newShares, updated_at: trx.fn.now() });
         }
       }
     }
@@ -443,19 +440,20 @@ export async function getListings() {
   return result;
 }
 
-export async function getOrderBook(companyId: string) {
+export async function getOrderBook(companyId: string, existingTrx?: any) {
+  const t = existingTrx || db;
   const [bidsData, asksData] = await Promise.all([
-    db('share_orders')
+    t('share_orders')
       .where({ company_id: companyId, side: 'buy', status: 'open' })
       .select('price')
-      .sum({ quantity: db.raw('quantity - filled_quantity') })
+      .sum({ quantity: t.raw('quantity - filled_quantity') })
       .groupBy('price')
       .orderBy('price', 'desc')
       .limit(15),
-    db('share_orders')
+    t('share_orders')
       .where({ company_id: companyId, side: 'sell', status: 'open' })
       .select('price')
-      .sum({ quantity: db.raw('quantity - filled_quantity') })
+      .sum({ quantity: t.raw('quantity - filled_quantity') })
       .groupBy('price')
       .orderBy('price', 'asc')
       .limit(15),
@@ -465,14 +463,14 @@ export async function getOrderBook(companyId: string) {
   let asks: Array<{ price: number; quantity: any }> = asksData.map((a: any) => ({ price: Number(a.price), quantity: Number(a.quantity) }));
 
   // Realism Fix: Inject multi-tier DRX Specialist market-maker order depth (bids & asks) for listed companies
-  const company = await db('companies').where({ id: companyId, is_exchange_listed: true }).first();
+  const company = await t('companies').where({ id: companyId, is_exchange_listed: true }).first();
   if (company) {
-    const prevBar = await db('share_price_history')
+    const prevBar = await t('share_price_history')
       .where({ company_id: companyId })
       .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
       .first();
     
-    const finRow = await db('company_finances').where({ company_id: companyId }).first();
+    const finRow = await t('company_finances').where({ company_id: companyId }).first();
     const lastClose = Number(prevBar?.close_price || 10.00);
     const bookValue = Number(finRow?.company_value || 0);
     const bvps = bookValue / 1000000;
@@ -482,12 +480,12 @@ export async function getOrderBook(companyId: string) {
       anchorPrice = Math.max(lastClose, lastClose + (bvps - lastClose) * 0.20);
     }
 
-    const systemUser = await db('users').where({ email: 'system_npc@worldr.game' }).first();
+    const systemUser = await t('users').where({ email: 'system_npc@worldr.game' }).first();
     if (systemUser) {
-      const sysChar = await db('characters').where({ user_id: systemUser.id }).first();
+      const sysChar = await t('characters').where({ user_id: systemUser.id }).first();
       if (sysChar) {
         // Ensure System Market Maker has ample cash for market depth
-        await db('character_finances').where({ character_id: sysChar.id }).update({ cash_in_hand: 500000000 });
+        await t('character_finances').where({ character_id: sysChar.id }).update({ cash_in_hand: 500000000 });
 
         // Auto-inject 5-tier Bid Depth Ladder if bids are empty
         if (bids.length === 0) {
@@ -506,14 +504,15 @@ export async function getOrderBook(companyId: string) {
                 side: 'buy',
                 price: Number((anchorPrice * tier.mult).toFixed(2)),
                 quantity: tier.qty,
-                isNpc: true
+                isNpc: true,
+                existingTrx: t
               });
             } catch (e) {}
           }
-          const freshBids = await db('share_orders')
+          const freshBids = await t('share_orders')
             .where({ company_id: companyId, side: 'buy', status: 'open' })
             .select('price')
-            .sum({ quantity: db.raw('quantity - filled_quantity') })
+            .sum({ quantity: t.raw('quantity - filled_quantity') })
             .groupBy('price')
             .orderBy('price', 'desc')
             .limit(15);
@@ -523,9 +522,9 @@ export async function getOrderBook(companyId: string) {
         // Auto-inject 5-tier Ask Depth Ladder if asks are empty
         if (asks.length === 0) {
           // Ensure System MM holds inventory shares so Ask quotes succeed without INSUFFICIENT_SHARES error
-          const sysShares = await db('company_shares').where({ company_id: companyId, holder_character_id: sysChar.id }).first();
+          const sysShares = await t('company_shares').where({ company_id: companyId, holder_character_id: sysChar.id }).first();
           if (!sysShares) {
-            await db('company_shares').insert({
+            await t('company_shares').insert({
               id: crypto.randomUUID(),
               company_id: companyId,
               holder_character_id: sysChar.id,
@@ -534,7 +533,7 @@ export async function getOrderBook(companyId: string) {
               updated_at: new Date()
             });
           } else if (Number(sysShares.shares) < 500000) {
-            await db('company_shares').where({ id: sysShares.id }).update({ shares: 500000, updated_at: new Date() });
+            await t('company_shares').where({ id: sysShares.id }).update({ shares: 500000, updated_at: new Date() });
           }
 
           const askTiers = [
@@ -552,14 +551,15 @@ export async function getOrderBook(companyId: string) {
                 side: 'sell',
                 price: Number((anchorPrice * tier.mult).toFixed(2)),
                 quantity: tier.qty,
-                isNpc: true
+                isNpc: true,
+                existingTrx: t
               });
             } catch (e) {}
           }
-          const freshAsks = await db('share_orders')
+          const freshAsks = await t('share_orders')
             .where({ company_id: companyId, side: 'sell', status: 'open' })
             .select('price')
-            .sum({ quantity: db.raw('quantity - filled_quantity') })
+            .sum({ quantity: t.raw('quantity - filled_quantity') })
             .groupBy('price')
             .orderBy('price', 'asc')
             .limit(15);

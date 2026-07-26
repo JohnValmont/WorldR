@@ -132,7 +132,9 @@ function Listings({ listings, selectedId, onSelect }: { listings: any[]; selecte
 // ── Line + volume chart ──────────────────────────────────────────────
 function PriceChart({ companyId }: { companyId: string }) {
   const { data } = useSWR(['ohlc', companyId], () => exchangeApi.getOhlc(companyId, 24), { refreshInterval: 30000 });
-  const rows: any[] = (data ?? []).map((r: any) => ({
+  const rawRows: any[] = data ?? [];
+
+  let rows: any[] = rawRows.map((r: any) => ({
     label: `Y${r.game_year} M${r.game_month}`,
     open_price: Number(r.open_price),
     high_price: Number(r.high_price),
@@ -141,11 +143,30 @@ function PriceChart({ companyId }: { companyId: string }) {
     volume: Number(r.volume_shares),
     range: [Number(r.low_price), Number(r.high_price)],
   }));
+
+  // If only 1 data point exists (e.g. initial month of listing), synthesize a baseline start point
+  // so Recharts renders a horizontal trend line instead of a single isolated dot with a solid block.
+  if (rows.length === 1) {
+    const single = rows[0];
+    rows = [
+      {
+        label: 'Start',
+        open_price: single.open_price,
+        high_price: single.open_price,
+        low_price: single.open_price,
+        close_price: single.open_price,
+        volume: 0,
+        range: [single.open_price, single.open_price],
+      },
+      single,
+    ];
+  }
+
   const lows = rows.map((r) => r.low_price);
   const highs = rows.map((r) => r.high_price);
   const min = lows.length ? Math.min(...lows) : 0;
   const max = highs.length ? Math.max(...highs) : 1;
-  const pad = (max - min) * 0.1 || max * 0.1 || 1;
+  const pad = Math.max((max - min) * 0.15, max * 0.15, 2);
 
   const firstClose = rows[0]?.close_price ?? 0;
   const lastClose = rows[rows.length - 1]?.close_price ?? 0;
@@ -163,11 +184,11 @@ function PriceChart({ companyId }: { companyId: string }) {
       ) : (
         <div style={{ width: '100%', height: 260 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={rows} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+            <ComposedChart data={rows} margin={{ top: 12, right: 8, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id={`colorPrice_${companyId}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={lineColor} stopOpacity={0.35} />
-                  <stop offset="95%" stopColor={lineColor} stopOpacity={0} />
+                  <stop offset="95%" stopColor={lineColor} stopOpacity={0.02} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke={T.border} strokeDasharray="3 3" vertical={false} />
@@ -181,7 +202,7 @@ function PriceChart({ companyId }: { companyId: string }) {
                 domain={[Math.max(0, min - pad), max + pad]}
                 tickFormatter={(v: number) => `$${fmt(v, 2)}`}
               />
-              <YAxis yAxisId="vol" orientation="right" hide domain={[0, (dataMax: number) => dataMax * 4]} />
+              <YAxis yAxisId="vol" orientation="right" hide domain={[0, (dataMax: number) => dataMax * 4 || 10]} />
               <Tooltip
                 cursor={{ stroke: T.faint, strokeWidth: 1, strokeDasharray: '4 4', fill: 'transparent' }}
                 contentStyle={{ background: T.panelSoft, border: `1px solid ${T.borderGold}`, fontSize: '11px', fontFamily: 'monospace' }}
@@ -193,7 +214,18 @@ function PriceChart({ companyId }: { companyId: string }) {
                 }}
               />
               <Bar yAxisId="vol" dataKey="volume" fill="rgba(75,99,130,0.15)" isAnimationActive={false} />
-              <Area yAxisId="price" type="monotone" dataKey="close_price" stroke={lineColor} strokeWidth={2} fillOpacity={1} fill={`url(#colorPrice_${companyId})`} activeDot={{ r: 4, fill: lineColor, stroke: T.bg, strokeWidth: 2 }} isAnimationActive={false} />
+              <Area
+                yAxisId="price"
+                type="monotone"
+                dataKey="close_price"
+                stroke={lineColor}
+                strokeWidth={2.5}
+                fillOpacity={1}
+                fill={`url(#colorPrice_${companyId})`}
+                activeDot={{ r: 6, fill: lineColor, stroke: T.bg, strokeWidth: 2 }}
+                dot={{ r: 4, fill: lineColor, stroke: T.bg, strokeWidth: 1.5 }}
+                isAnimationActive={false}
+              />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -506,6 +538,7 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
   
   for (const h of holders) {
     const s = Number(h.shares);
+    if (s <= 0) continue;
     totalShares += s;
     if (h.name === 'System NPC') {
       if (isNpcCorp) {
@@ -552,50 +585,51 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
       {chartData.length === 0 ? (
         <div style={{ fontSize: '11px', color: T.faint }}>No shareholder data available.</div>
       ) : (
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ width: '100%', height: 160, display: 'flex', alignItems: 'center' }}>
-            <div style={{ width: '45%', height: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={65}
-                    innerRadius={30}
-                    dataKey="value"
-                    stroke="#111827"
-                    strokeWidth={1}
-                    isAnimationActive={false}
-                  >
-                    {chartData.map((entry, index) => {
-                      const color = entry.name.startsWith('Public') ? '#38bdf8' : PALETTE[index % PALETTE.length];
-                      return <Cell key={`cell-${index}`} fill={color} />;
-                    })}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ background: T.panelSoft, border: `1px solid ${T.borderGold}`, fontSize: '11px', fontFamily: 'monospace', borderRadius: '4px' }}
-                    itemStyle={{ color: T.ivory }}
-                    formatter={(value: any) => [`${fmtInt(Number(value))} sh`, 'Shares']}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div style={{ width: '55%', display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', maxHeight: '150px', paddingLeft: '8px' }}>
-              {chartData.map((entry, index) => {
-                const pct = totalShares > 0 ? (entry.value / totalShares) * 100 : 0;
-                const color = entry.name.startsWith('Public') ? '#38bdf8' : PALETTE[index % PALETTE.length];
-                return (
-                  <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, marginTop: '4px', flexShrink: 0 }} />
-                    <div style={{ ...mono, fontSize: '10px', color: '#f3f4f6', lineHeight: '1.3', wordBreak: 'break-word' }}>
-                      <span style={{ fontWeight: 600 }}>{entry.name}</span>{' '}
-                      <span style={{ color: color, fontWeight: 700 }}>({pct.toFixed(1)}%)</span>
-                    </div>
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: 140, height: 140, flexShrink: 0, position: 'relative' }}>
+            <PieChart width={140} height={140}>
+              <Pie
+                data={chartData}
+                cx={70}
+                cy={70}
+                outerRadius={60}
+                innerRadius={30}
+                dataKey="value"
+                stroke="#111827"
+                strokeWidth={1.5}
+                isAnimationActive={false}
+              >
+                {chartData.map((entry, index) => {
+                  const color = entry.name.startsWith('Public') ? '#38bdf8' : PALETTE[index % PALETTE.length];
+                  return <Cell key={`cell-${index}`} fill={color} />;
+                })}
+              </Pie>
+              <Tooltip 
+                contentStyle={{ background: T.panelSoft, border: `1px solid ${T.borderGold}`, fontSize: '11px', fontFamily: 'monospace', borderRadius: '4px' }}
+                itemStyle={{ color: T.ivory }}
+                formatter={(value: any, name: any, item: any) => {
+                  const val = Number(value);
+                  const pct = totalShares > 0 ? ((val / totalShares) * 100).toFixed(1) : '0';
+                  return [`${fmtInt(val)} shares (${pct}%)`, item?.payload?.name ?? 'Shareholder'];
+                }}
+              />
+            </PieChart>
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', maxHeight: '140px', paddingRight: '4px' }}>
+            {chartData.map((entry, index) => {
+              const pct = totalShares > 0 ? (entry.value / totalShares) * 100 : 0;
+              const color = entry.name.startsWith('Public') ? '#38bdf8' : PALETTE[index % PALETTE.length];
+              return (
+                <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, marginTop: '3px', flexShrink: 0 }} />
+                  <div style={{ ...mono, fontSize: '10px', color: '#f3f4f6', lineHeight: '1.3', wordBreak: 'break-word' }}>
+                    <span style={{ fontWeight: 600 }}>{entry.name}</span>{' '}
+                    <span style={{ color: color, fontWeight: 700 }}>({pct.toFixed(1)}%)</span>
+                    <div style={{ fontSize: '9px', color: T.faint }}>{fmtInt(entry.value)} shares</div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
