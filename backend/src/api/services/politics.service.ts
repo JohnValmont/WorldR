@@ -495,8 +495,47 @@ export async function ensureCandidates(trx: any, cycleId: string) {
   const cycle = await trx('pol_cycles').where({ id: cycleId }).first();
   if (!cycle) return;
 
-  const parties = await trx('pol_parties').where({ state_id: cycle.state_id });
-  const constituencies = await trx('pol_constituencies').where({ state_id: cycle.state_id });
+  const stateRow = await trx('pol_states').where({ id: cycle.state_id }).first();
+  let parties = await trx('pol_parties').where({ state_id: cycle.state_id });
+  if (parties.length === 0) {
+    const defaultParties = [
+      { name: 'Workers & Industry Party', short_name: 'WIP', color: '#4F6EF7', description: 'Labor-focused industrial coalition' },
+      { name: 'Drennport Commerce Alliance', short_name: 'DCA', color: '#7B3FD4', description: 'Free trade and commercial enterprise' },
+      { name: 'National Order & Reform', short_name: 'NOR', color: '#D4A843', description: 'Constitutional stability and law & order' },
+      { name: 'Social Heritage Union', short_name: 'SHU', color: '#E05252', description: 'Progressive social welfare and public development' }
+    ];
+    for (const p of defaultParties) {
+      await trx('pol_parties').insert({
+        state_id: cycle.state_id,
+        name: p.name,
+        short_name: p.short_name,
+        color: p.color,
+        description: p.description,
+        is_npc: true,
+        platform: JSON.stringify({ taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 })
+      });
+    }
+    parties = await trx('pol_parties').where({ state_id: cycle.state_id });
+  }
+
+  let constituencies = await trx('pol_constituencies').where({ state_id: cycle.state_id });
+  const targetSeats = getSeatsForState(stateRow?.code);
+  if (constituencies.length < targetSeats) {
+    const cInserts = [];
+    const namePrefix = stateRow?.name || 'Division';
+    const totalPop = stateRow?.population || 2400000;
+    const totalVoters = stateRow?.registered_voters || 1600000;
+    for (let i = constituencies.length + 1; i <= targetSeats; i++) {
+      cInserts.push({
+        state_id: cycle.state_id,
+        name: `${namePrefix} Division ${i}`,
+        population: Math.round(totalPop / targetSeats),
+        registered_voters: Math.round(totalVoters / targetSeats)
+      });
+    }
+    await trx('pol_constituencies').insert(cInserts);
+    constituencies = await trx('pol_constituencies').where({ state_id: cycle.state_id });
+  }
   
   for (const party of parties) {
     for (const constituency of constituencies) {
@@ -517,20 +556,16 @@ export async function ensureCandidates(trx: any, cycleId: string) {
               .first()
           : null;
 
-        // For player parties, we might want to attach a character from the roster.
-        // But for simplicity in v0.1, we'll just create generic NPC candidates to fill out their slate.
-        // Wait, if it's the player's party, we should use their roster members first!
         const members = await trx('pol_party_members')
           .where({ party_id: party.id })
           .select('character_id');
         
-        // Find a member who isn't a candidate yet
         const currentCands = await trx('pol_candidates').where({ cycle_id: cycleId, party_id: party.id });
         const usedCharIds = new Set(currentCands.map((c: any) => c.character_id).filter(Boolean));
         const availableMember = members.find((m: any) => !usedCharIds.has(m.character_id));
 
         const charId = availableMember ? availableMember.character_id : null;
-        const isNpcChar = party.is_npc || charId === null; // If we ran out of player-roster, fill with generic NPCs
+        const isNpcChar = party.is_npc || charId === null;
 
         await trx('pol_candidates').insert({
           cycle_id: cycleId,
@@ -547,6 +582,7 @@ export async function ensureCandidates(trx: any, cycleId: string) {
 }
 
 export async function buildEngineCandidates(trx: any, cycleId: string, maxArc?: number): Promise<EngineCandidate[]> {
+  await ensureCandidates(trx, cycleId);
   const cands = await trx('pol_candidates')
     .leftJoin('characters', 'pol_candidates.character_id', 'characters.id')
     .where({ 'pol_candidates.cycle_id': cycleId })

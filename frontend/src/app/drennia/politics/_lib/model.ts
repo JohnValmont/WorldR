@@ -88,7 +88,7 @@ export const JURISDICTION_MODEL: Record<string, JurisdictionModel> = {
   drennport: { id: 'drennport', name: 'Drennport',           tier: 'state',    character: 'Capital & main port',            seats: 120, majority: 61,  termMonths: 24, electionOffsetMonths: 6  },
   westport:  { id: 'westport',  name: 'Westport',            tier: 'state',    character: 'Trade port',                     seats: 72,  majority: 37,  termMonths: 24, electionOffsetMonths: 12 },
   greenmere: { id: 'greenmere', name: 'Greenmere',           tier: 'state',    character: 'Rural & agricultural',           seats: 50,  majority: 26,  termMonths: 24, electionOffsetMonths: 18 },
-  national:  { id: 'national',  name: 'National Parliament', tier: 'national', character: 'Federal Parliament of Drennia',  seats: 20, majority: 11, termMonths: 48, electionOffsetMonths: 0  },
+  national:  { id: 'national',  name: 'National Parliament', tier: 'national', character: 'Federal Parliament of Drennia',  seats: 151, majority: 76, termMonths: 48, electionOffsetMonths: 0  },
 };
 
 // — AP model (GDD D3): 12/month, no cap, weighted costs —
