@@ -505,15 +505,28 @@ export async function ensureCandidates(trx: any, cycleId: string) {
       { name: 'Social Heritage Union', short_name: 'SHU', color: '#E05252', description: 'Progressive social welfare and public development' }
     ];
     for (const p of defaultParties) {
-      await trx('pol_parties').insert({
+      const [inserted] = await trx('pol_parties').insert({
         state_id: cycle.state_id,
         name: p.name,
-        short_name: p.short_name,
-        color: p.color,
-        description: p.description,
+        abbreviation: p.short_name,
         is_npc: true,
         platform: JSON.stringify({ taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 })
-      });
+      }).returning('*');
+
+      if (inserted) {
+        try {
+          await trx('pol_party_identities').insert({
+            party_id: inserted.id,
+            color: p.color,
+            monogram: p.short_name.slice(0, 2),
+            leader: 'NPC Leader',
+            motto: p.description,
+            blurb: p.description
+          });
+        } catch {
+          // pol_party_identities fallback
+        }
+      }
     }
     parties = await trx('pol_parties').where({ state_id: cycle.state_id });
   }

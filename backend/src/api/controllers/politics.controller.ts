@@ -71,10 +71,10 @@ import { buildPulse } from '../services/politics.pulse';
 import { readNationalStatsFromRow } from '../services/nationalEconomy.service';
 import { safeParseJSON } from '../../utils/json';
 
-/** Resolve a pol_state row by optional stateId (which is actually the state code), falling back to the active state. */
+/** Resolve a pol_state row by optional stateId (code or UUID), falling back to the active state. */
 async function resolveState(stateId?: string) {
-  const code = stateId || 'national';
-  let s = await db('pol_states').where({ code }).first();
+  const codeOrId = stateId || 'national';
+  let s = await db('pol_states').where({ code: codeOrId }).orWhere({ id: codeOrId }).first();
   if (!s) {
     s = await db('pol_states').where({ is_active: true }).first();
   }
@@ -88,7 +88,13 @@ async function resolveState(stateId?: string) {
 export async function getStateOverview(req: Request, res: Response, next: NextFunction) {
   try {
     const states = await db('pol_states');
-    const activeState = states.find((s: any) => s.code === 'national') || states.find((s: any) => s.is_active);
+    const targetCodeOrId = req.query.stateId as string | undefined;
+    let activeState = targetCodeOrId 
+      ? states.find((s: any) => s.code === targetCodeOrId || s.id === targetCodeOrId)
+      : undefined;
+    if (!activeState) {
+      activeState = states.find((s: any) => s.code === 'national') || states.find((s: any) => s.is_active) || states[0];
+    }
     const inactiveStates = states.filter((s: any) => !s.is_active);
 
     let cyclePhase = 'governing';
