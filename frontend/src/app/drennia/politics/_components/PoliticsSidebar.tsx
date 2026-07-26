@@ -27,7 +27,7 @@ function Icon({ name }: { name: PoliticsSection }) {
 }
 
 const GROUPS: Array<{ label: string; items: Array<{ id: PoliticsSection; label: string }> }> = [
-  { label: 'Command', items: [{ id: 'overview', label: 'Command Center' }, { id: 'nation', label: 'Nation' }, { id: 'development', label: 'Development' }] },
+  { label: 'Command', items: [{ id: 'overview', label: 'Overview' }, { id: 'nation', label: 'Nation' }, { id: 'development', label: 'Economy' }] },
   { label: 'Politics', items: [{ id: 'party', label: 'Party' }, { id: 'elections', label: 'Elections' }, { id: 'legislature', label: 'Legislature' }, { id: 'assembly', label: 'Assembly' }] },
   { label: 'Governance', items: [{ id: 'policy', label: 'Policy' }, { id: 'lobby', label: 'Lobby' }] },
   { label: 'Character', items: [{ id: 'legacy', label: 'Legacy' }] },
