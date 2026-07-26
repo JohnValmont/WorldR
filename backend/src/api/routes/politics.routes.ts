@@ -54,11 +54,20 @@ import { db } from '../../config/database';
 
 const router = Router();
 
+// Helper to resolve state for phase middleware
+async function resolveStateForPhase(req: Request) {
+  const code = (req.query.stateId || req.body.stateId || req.body.jurisdictionId || 'national') as string;
+  let state = await db('pol_states').where({ code }).first();
+  if (!state) state = await db('pol_states').where({ id: code }).first();
+  if (!state) state = await db('pol_states').where({ is_active: true }).first();
+  return state;
+}
+
 // Phase-gate middleware
 function requirePhase(allowedPhase: string) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const activeState = await db('pol_states').where({ is_active: true }).first();
+      const activeState = await resolveStateForPhase(req);
       if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
 
       const cycle = await getOrCreateCurrentCycle(activeState.id);
@@ -78,7 +87,7 @@ function requirePhase(allowedPhase: string) {
 function blockPhases(...blockedPhases: string[]) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const activeState = await db('pol_states').where({ is_active: true }).first();
+      const activeState = await resolveStateForPhase(req);
       if (!activeState) return next(new AppError('No active state', 404, 'NOT_FOUND'));
 
       const cycle = await getOrCreateCurrentCycle(activeState.id);
