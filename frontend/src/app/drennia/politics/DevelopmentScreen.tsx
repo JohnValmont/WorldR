@@ -2,6 +2,7 @@
 import React from 'react';
 import Card from '@/components/ui/Card';
 import { formatGameDateShort } from '@/lib/calendar';
+import { JURISDICTION_MODEL } from './_lib/model';
 import { Activity, Target, Shield, Landmark, Scale, Briefcase, Users, Eye, Globe, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface Props {
