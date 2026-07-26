@@ -54,11 +54,15 @@ import { db } from '../../config/database';
 
 const router = Router();
 
+const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 // Helper to resolve state for phase middleware
 async function resolveStateForPhase(req: Request) {
   const code = (req.query.stateId || req.body.stateId || req.body.jurisdictionId || 'national') as string;
   let state = await db('pol_states').where({ code }).first();
-  if (!state) state = await db('pol_states').where({ id: code }).first();
+  if (!state && UUID_REGEX.test(code)) {
+    state = await db('pol_states').where({ id: code }).first();
+  }
   if (!state) state = await db('pol_states').where({ is_active: true }).first();
   return state;
 }

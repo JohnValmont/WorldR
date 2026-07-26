@@ -71,10 +71,20 @@ import { buildPulse } from '../services/politics.pulse';
 import { readNationalStatsFromRow } from '../services/nationalEconomy.service';
 import { safeParseJSON } from '../../utils/json';
 
+const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 /** Resolve a pol_state row by optional stateId (code or UUID), falling back to the active state. */
 async function resolveState(stateId?: string) {
   const codeOrId = stateId || 'national';
-  let s = await db('pol_states').where({ code: codeOrId }).orWhere({ id: codeOrId }).first();
+  const isUuid = UUID_REGEX.test(codeOrId);
+  
+  let s;
+  if (isUuid) {
+    s = await db('pol_states').where({ id: codeOrId }).first();
+  } else {
+    s = await db('pol_states').where({ code: codeOrId }).first();
+  }
+
   if (!s) {
     s = await db('pol_states').where({ is_active: true }).first();
   }
