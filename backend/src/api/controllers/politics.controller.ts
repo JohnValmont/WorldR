@@ -885,6 +885,24 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
       seatCounts[s.party_id] = (seatCounts[s.party_id] || 0) + 1;
     }
 
+    if (seats.length === 0) {
+      try {
+        const engineCands = await buildEngineCandidates(db, cycle.id);
+        const constituenciesRows = await db('pol_constituencies').where({ state_id: activeState.id });
+        const engineConstituencies = constituenciesRows.map(r => ({
+          id: r.id,
+          registeredVoters: r.registered_voters || 80000,
+          conditions: readNationalStatsFromRow(activeState)
+        }));
+        const projection = runElection({ candidates: engineCands, constituencies: engineConstituencies });
+        for (const p of projection.perParty) {
+          seatCounts[p.partyId] = p.seats;
+        }
+      } catch (err) {
+        // Fallback if candidates fail
+      }
+    }
+
     const parties = await db('pol_parties').where({ state_id: activeState.id });
     const partySeats = parties.map(p => ({
       partyId: p.id,
