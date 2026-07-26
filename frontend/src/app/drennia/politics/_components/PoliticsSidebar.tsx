@@ -105,10 +105,9 @@ function NavItem({ item, isActive, onSelect }: {
 
 export default function PoliticsSidebar({ active, onSelect, myPartyName, myPartyNation }: Props) {
   return (
-    <aside className="politics-sidebar-container" style={{
-      background: 'linear-gradient(180deg, rgba(5,5,15,0.97) 0%, rgba(7,7,20,0.95) 100%)',
-      backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)',
-      borderRight: '1px solid rgba(255,255,255,0.06)',
+    <aside className="politics-sidebar-container h-full" style={{
+      background: '#0c0d13',
+      borderRight: '1px solid #23232b',
       display: 'flex', flexDirection: 'column', flexShrink: 0,
       fontFamily: "'Inter', sans-serif", zIndex: 40, position: 'relative',
     }}>

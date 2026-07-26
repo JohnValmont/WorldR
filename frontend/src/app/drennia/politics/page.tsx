@@ -18,26 +18,10 @@ import LobbyScreen       from './LobbyScreen';
 import LegacyScreen      from './LegacyScreen';
 import DevelopmentScreen from './DevelopmentScreen';
 
-import { Tabs, PageShell } from '@/components/ui';
-
-// ─── Sub-tab types ────────────────────────────────────────────────────────────
-type SubTab = 'overview' | 'nation' | 'development' | 'elections' | 'legislature' | 'assembly' | 'policy' | 'party' | 'lobby' | 'legacy';
-
-const SUB_TABS: { id: SubTab; label: string; }[] = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'nation', label: 'Nation' },
-  { id: 'development', label: 'Economy' },
-  { id: 'elections', label: 'Elections' },
-  { id: 'legislature', label: 'Legislature' },
-  { id: 'assembly', label: 'Assembly' },
-  { id: 'policy', label: 'Policy' },
-  { id: 'party', label: 'Party' },
-  { id: 'lobby', label: 'Lobby' },
-  { id: 'legacy', label: 'Legacy' }
-];
+import PoliticsSidebar, { type PoliticsSection } from './_components/PoliticsSidebar';
 
 export default function PoliticsDesk() {
-  const [activeTab, setActiveTab] = useState<SubTab>('overview');
+  const [activeTab, setActiveTab] = useState<PoliticsSection>('overview');
   const [selectedJurisdictionId, setSelectedJurisdictionId] = useState<JurisdictionId>(DEFAULT_JURISDICTION_ID);
 
   const { data: character, mutate: mutateChar, error: errChar } = useSWR('me', () => characterApi.getMe().then((res: any) => res.data || res));
@@ -64,6 +48,11 @@ export default function PoliticsDesk() {
     return meta;
   }, [overview]);
 
+  const globalPartyId = overview?.globalParty?.id;
+  const myParty = (Array.isArray(parties) && globalPartyId 
+    ? parties.find((p: any) => p.id === globalPartyId) 
+    : undefined) || overview?.globalParty;
+
   const commonProps = {
     selectedJurisdictionId,
     onJurisdictionChange: setSelectedJurisdictionId,
@@ -77,11 +66,23 @@ export default function PoliticsDesk() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#090A0F] text-zinc-100">
+    <div className="flex h-full w-full bg-[#0c0d13] text-zinc-100 overflow-hidden">
       
-      {/* ─── Compact Header & Navigation ─── */}
-      <header className="flex-none bg-zinc-950 border-b border-zinc-900/60 sticky top-0 z-10 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-950/80">
-        <div className="flex items-center justify-between px-6 py-2 border-b border-zinc-900/60">
+      {/* ─── Left Sidebar Navigation ─── */}
+      <div className="w-56 shrink-0 border-r border-[#23232b] bg-[#0c0d13] h-full flex flex-col">
+        <PoliticsSidebar
+          active={activeTab}
+          onSelect={(tab) => setActiveTab(tab)}
+          myPartyName={myParty?.name}
+          myPartyNation={jMeta.name}
+        />
+      </div>
+
+      {/* ─── Main Content Area ─── */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#0c0d13]">
+        
+        {/* ─── Compact Header ─── */}
+        <header className="flex-none bg-[#0c0d13] border-b border-[#23232b] px-6 py-2.5 flex items-center justify-between sticky top-0 z-10 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-[0_0_10px_rgba(79,110,247,0.3)]">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -106,7 +107,7 @@ export default function PoliticsDesk() {
             )}
             <div className="flex flex-col">
               <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">AP ({myAp.current_ap}/{myAp.ap_cap})</span>
-              <span className="text-sm font-bold text-terminal-amber font-mono">{myAp.current_ap}</span>
+              <span className="text-sm font-bold text-amber-400 font-mono">{myAp.current_ap}</span>
             </div>
             {overview?.cycle?.currentArc != null && (
               <div className="flex flex-col">
@@ -115,19 +116,10 @@ export default function PoliticsDesk() {
               </div>
             )}
           </div>
-        </div>
+        </header>
 
-        <Tabs 
-          tabs={SUB_TABS} 
-          activeId={activeTab} 
-          onChange={(id) => setActiveTab(id as SubTab)}
-          className="px-6 border-0"
-        />
-      </header>
-
-      {/* ─── Body ─── */}
-      <div className="flex-1 overflow-y-auto">
-        <PageShell className="py-6">
+        {/* ─── Screen Body ─── */}
+        <div className="flex-1 overflow-y-auto p-6 bg-[#0c0d13]">
           {loading ? (
             <div className="py-12 text-center text-zinc-500 text-xs font-mono uppercase tracking-widest">
               Convening the Political Desk...
@@ -150,7 +142,7 @@ export default function PoliticsDesk() {
               {activeTab === 'legacy' && <LegacyScreen character={character} />}
             </>
           )}
-        </PageShell>
+        </div>
       </div>
     </div>
   );
