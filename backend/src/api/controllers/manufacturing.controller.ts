@@ -2605,7 +2605,6 @@ export class ManufacturingController {
              .join('manufacturing_vehicle_models', 'manufacturing_market_allocations.vehicle_model_id', 'manufacturing_vehicle_models.id')
              .join('manufacturing_region_markets', 'manufacturing_market_allocations.region_market_id', 'manufacturing_region_markets.id')
              .where('manufacturing_market_allocations.company_id', company.id)
-             .where('manufacturing_market_allocations.units_allocated', '>', 0)
              .whereIn('manufacturing_vehicle_models.development_status', ['launched', 'discontinued'])
              .select(
                'manufacturing_market_allocations.*',
@@ -2652,8 +2651,9 @@ export class ManufacturingController {
              // accurate supply. The DB is NOT updated here — only in-memory objects.
              const modelInventoryCache = new Map<string, number>();
              for (const alloc of marketAllocations) {
-               // Reset to the player's standing monthly target (fall back to units_allocated if column missing)
-               alloc.units_allocated = Number(alloc.monthly_target ?? alloc.units_allocated ?? 0);
+               // Reset to standing target or units_allocated (fallback to 100 if zero/null)
+               const rawTarget = Number(alloc.monthly_target ?? alloc.units_allocated ?? 0);
+               alloc.units_allocated = rawTarget > 0 ? rawTarget : 100;
                alloc._original_units_allocated = alloc.units_allocated;
 
                const modelId = alloc.vehicle_model_id;
