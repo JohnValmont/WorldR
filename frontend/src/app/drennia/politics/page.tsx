@@ -140,7 +140,7 @@ export default function PoliticsDesk() {
             <>
               {activeTab === 'overview' && <OverviewScreen overview={overview} character={character} parties={parties} myAp={myAp} selectedJurisdictionId={selectedJurisdictionId} onNavigate={setActiveTab} onRefresh={loadData} />}
               {activeTab === 'nation' && <NationScreen selectedJurisdictionId={selectedJurisdictionId} onJurisdictionChange={setSelectedJurisdictionId} jurisdictionMeta={jurisdictionMeta} overview={overview} ledger={ledger} />}
-              {activeTab === 'development' && <DevelopmentScreen overview={overview} jurisdictionMeta={jurisdictionMeta} />}
+              {activeTab === 'development' && <DevelopmentScreen overview={overview} selectedJurisdictionId={selectedJurisdictionId} />}
               {activeTab === 'elections' && <ElectionsScreen {...commonProps} />}
               {activeTab === 'legislature' && <LegislatureScreen {...commonProps} />}
               {activeTab === 'policy' && <PolicyScreen {...commonProps} />}

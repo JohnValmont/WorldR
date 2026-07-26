@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import Card from '@/components/ui/Card';
+import { formatGameDateShort } from '@/lib/calendar';
 import { Activity, Target, Shield, Landmark, Scale, Briefcase, Users, Eye, Globe, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface Props {
@@ -16,7 +17,7 @@ function condToneClass(v: number) {
   return v >= 65 ? 'text-emerald-400' : v >= 40 ? 'text-amber-400' : 'text-red-400';
 }
 
-function SmoothAreaChart({ value, label }: { value: number, label: string }) {
+function SmoothAreaChart({ value, label, currentArc }: { value: number, label: string, currentArc?: number }) {
   const color = condTone(value);
   
   // Deterministic pseudo-random generation
@@ -55,6 +56,9 @@ function SmoothAreaChart({ value, label }: { value: number, label: string }) {
 
   const dFill = `${d} L ${width} ${height} L 0 ${height} Z`;
 
+  const startArc = currentArc != null ? Math.max(1, currentArc - 12) : null;
+  const endArc = currentArc != null ? currentArc : null;
+
   return (
     <div className="w-full mt-6 flex flex-col">
       <div className="h-[80px] w-full relative">
@@ -70,8 +74,8 @@ function SmoothAreaChart({ value, label }: { value: number, label: string }) {
         </svg>
       </div>
       <div className="flex justify-between mt-2 font-mono text-[9px] text-slate-500 tracking-widest opacity-60">
-        <span>Y4 M6</span>
-        <span>Y5 M9</span>
+        <span>{startArc ? formatGameDateShort(startArc) : '12 Months Ago'}</span>
+        <span>{endArc ? formatGameDateShort(endArc) : 'Current Arc'}</span>
       </div>
     </div>
   );
@@ -123,11 +127,13 @@ function StatMeter({ value, label, icon: Icon, positiveModifier, negativeModifie
   );
 }
 
-export default function DevelopmentScreen({ overview, jurisdictionMeta }: Props) {
+export default function DevelopmentScreen({ overview, selectedJurisdictionId }: { overview: any; selectedJurisdictionId?: string }) {
   if (!overview) return null;
 
   const state = overview.activeState;
   const conditions = overview.conditions;
+  const currentArc = overview.cycle?.currentArc;
+  const jModel = selectedJurisdictionId ? (JURISDICTION_MODEL[selectedJurisdictionId as keyof typeof JURISDICTION_MODEL] || JURISDICTION_MODEL.national) : JURISDICTION_MODEL.national;
 
   if (!conditions) {
     return <div className="text-slate-400 p-10 text-center font-mono text-sm">No development data available.</div>;
@@ -143,11 +149,11 @@ export default function DevelopmentScreen({ overview, jurisdictionMeta }: Props)
             Economy & Development
           </h1>
           <p className="font-sans text-sm text-slate-400">
-            Macro-economy, infrastructure, and institutional capacity for {jurisdictionMeta.name}.
+            Macro-economy, infrastructure, and institutional capacity for {jModel.name}.
           </p>
         </div>
         <div className="font-mono text-[10px] font-bold tracking-[0.2em] text-amber-500/90 uppercase bg-amber-500/10 px-3 py-1.5 rounded-sm border border-amber-500/20">
-          ARC {overview.cycle?.electionArc ?? '?'}
+          ARC {currentArc ?? overview.cycle?.electionArc ?? '?'}
         </div>
       </div>
 

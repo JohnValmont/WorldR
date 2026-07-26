@@ -104,7 +104,7 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
   const jModel = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.national;
   const { data: polls } = useSWR(isLocked ? null : ['polls', selectedJurisdictionId], () => politicsApi.getPolls(selectedJurisdictionId).catch(() => null));
 
-  const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
+  const myParty = overview?.globalParty || (Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id || p.members?.some((m: any) => m.character_id === character?.id || m.id === character?.id)) : undefined);
   const myPlatform = parsePlatform(myParty?.platform);
 
   const rawProjections = polls?.pulse?.standings || polls?.parties || polls?.projections || [];

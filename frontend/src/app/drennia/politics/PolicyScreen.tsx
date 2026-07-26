@@ -82,7 +82,7 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
   const [activeProposal, setActiveProposal] = useState<string | null>(null);
 
   const activePolicies = data?.activePolicy?.active_policies || {};
-  const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
+  const myParty = overview?.globalParty || (Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id || p.members?.some((m: any) => m.character_id === character?.id || m.id === character?.id)) : undefined);
 
   async function refresh() { await mutate(); if (onRefresh) await onRefresh(); }
   

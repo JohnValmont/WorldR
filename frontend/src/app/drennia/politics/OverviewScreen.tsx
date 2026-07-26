@@ -91,7 +91,7 @@ export default function OverviewScreen({ overview, character, parties, myAp, sel
   const [busy, setBusy] = useState<string | null>(null);
 
   const jMeta   = JURISDICTION_MODEL[jid] || JURISDICTION_MODEL.national;
-  const myParty = Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id) : undefined;
+  const myParty = overview?.globalParty || (Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id || p.members?.some((m: any) => m.character_id === character?.id || m.id === character?.id)) : undefined);
   const support: number | null = myParty ? (myParty.popularity ?? myParty.approval ?? myParty.projected_share ?? null) : null;
 
   const bills: any[] = Array.isArray(billData?.bills) ? billData.bills : [];
