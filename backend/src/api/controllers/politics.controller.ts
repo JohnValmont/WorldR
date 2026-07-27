@@ -1052,6 +1052,9 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
       const clock = await trx('world_clock').first();
       const currentMonth = worldClockToArc(clock);
 
+      await spendAp(trx, char.id, 2);
+      await spendPc(trx, char.id, 2);
+
       const [bill] = await trx('pol_bills').insert({
         state_id: activeState.id,
         proposed_by_party_id: partyMember.party_id,
@@ -1633,6 +1636,9 @@ export async function setDoctrine(req: Request, res: Response, next: NextFunctio
       return next(new AppError('Only the party leader can set the doctrine', 403, 'FORBIDDEN'));
     }
 
+    await spendAp(db, character.id, 5);
+    await spendPc(db, character.id, 5);
+
     if (tenet_id && doctrine_id) {
       const doctenets = DOCTRINE_TENETS[doctrine_id as keyof typeof DOCTRINE_TENETS];
       if (doctenets && !doctenets.includes(tenet_id)) {
@@ -1680,6 +1686,9 @@ export async function setTenet(req: Request, res: Response, next: NextFunction) 
     if (party.leader_character_id !== character.id) {
       return next(new AppError('Only the party leader can change the tenet', 403, 'FORBIDDEN'));
     }
+
+    await spendAp(db, character.id, 1);
+    await spendPc(db, character.id, 1);
 
     if (tenet_id && party.doctrine_id) {
       const doctenets = DOCTRINE_TENETS[party.doctrine_id as keyof typeof DOCTRINE_TENETS];
@@ -2163,6 +2172,8 @@ export async function setCampaignStrategyHandler(req: Request, res: Response, ne
 
       await setCampaignStrategy(trx, membership.party_id, cycle.id, character.id, strategy, currentArc);
 
+      await spendAp(trx, character.id, 2);
+
       const apRow = await trx('pol_character_ap').where({ character_id: character.id }).first();
       return {
         message: `Campaign strategy changed to "${strategy}". Takes effect next arc.`,
@@ -2292,6 +2303,8 @@ export async function doOutreach(req: Request, res: Response, next: NextFunction
       const clock = await trx('world_clock').first();
       const currentArc = worldClockToArc(clock);
 
+      await spendAp(trx, character.id, 3);
+
       return performOutreach(
         trx, character.id, membership.party_id, activeState.id,
         groupId, commitment ?? null, currentArc
@@ -2324,6 +2337,8 @@ export async function doRallySupport(req: Request, res: Response, next: NextFunc
 
       const clock = await trx('world_clock').first();
       const currentArc = worldClockToArc(clock);
+
+      await spendPc(trx, character.id, 2);
 
       return performRallySupport(trx, character.id, membership.party_id, groupId, currentArc);
     });
@@ -2391,6 +2406,8 @@ export async function doExclusiveInterviewHandler(req: Request, res: Response, n
       const clock = await trx('world_clock').first();
       const currentArc = worldClockToArc(clock);
 
+      await spendAp(trx, character.id, 3);
+
       return doExclusiveInterview(trx, character.id, membership.party_id, outletId, currentArc);
     });
 
@@ -2421,6 +2438,8 @@ export async function doPressConferenceHandler(req: Request, res: Response, next
 
       const clock = await trx('world_clock').first();
       const currentArc = worldClockToArc(clock);
+
+      await spendAp(trx, character.id, 2);
 
       return doPressConference(trx, character.id, membership.party_id, activeState.id, currentArc);
     });
