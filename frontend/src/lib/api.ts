@@ -244,6 +244,7 @@ export const politicsApi = {
   getPolls: (stateId?: string) => api.get(`/politics/polls${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
   getCouncil: (stateId?: string) => api.get(`/politics/council${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
   getLedger: (limit: number = 10, stateId?: string, global?: boolean) => api.get(`/politics/ledger?limit=${limit}${stateId ? `&stateId=${stateId}` : ''}${global ? '&global=true' : ''}`).then(res => res.data),
+  getFormingCoalition: (stateId?: string) => api.get(`/politics/formation/coalition${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
   manageCoalition: (action: string, targetPartyId: string, stateId?: string) => api.post(`/politics/formation/coalition${stateId ? `?stateId=${stateId}` : ''}`, { action, targetPartyId }).then(res => res.data),
 
   // Phase 5A: Bills & Lobby
@@ -251,7 +252,9 @@ export const politicsApi = {
   proposeBill: (type: string, params: any, stateId?: string) => api.post(`/politics/bills${stateId ? `?stateId=${stateId}` : ''}`, { type, params }).then(res => res.data),
   voteBill: (id: string, vote: string) => api.post(`/politics/bills/${id}/vote`, { vote }).then(res => res.data),
   donateToParty: (partyId: string, amount: number) => api.post('/politics/lobby/donate', { partyId, amount }).then(res => res.data),
-  petitionParty: (partyId: string, issue: string, amount?: number) => api.post('/politics/lobby/petition', { partyId, issue, amount }).then(res => res.data),
+  petitionParty: (data: { partyId: string, companyId: string, policyCategory: string, desiredOption: string, offeredFunds: number }) => api.post('/politics/lobby/petition', data).then(res => res.data),
+  respondToPetition: (id: string, action: 'accept' | 'reject') => api.post(`/politics/lobby/petitions/${id}/respond`, { action }).then(res => res.data),
+  getMyPetitions: () => api.get('/politics/lobby/petitions').then(res => res.data),
 
   // Phase 5B: Tenders
   getTenders: (stateId?: string) => api.get(`/politics/tenders${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),

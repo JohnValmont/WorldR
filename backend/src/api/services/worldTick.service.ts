@@ -294,8 +294,9 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
         return { status: 'skipped', reason: 'not_due', nextTickAt: new Date(nextClose).toISOString() } as WorldTickResult;
       }
 
-      const year = clock.pol_current_year ?? 0;
+      const year = clock.pol_current_year ?? 1;
       const month = clock.pol_current_month ?? 1;
+      const arc = year * 12 + (month - 1);
 
       (global as any).tickProgress = 'Fetching states...';
       const states = await trx('pol_states').where({ is_active: true });
@@ -307,7 +308,7 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
         try {
           await trx.transaction(async (sp) => {
             await sp.raw(`SET LOCAL statement_timeout = ${TICK_STATEMENT_TIMEOUT_MS}`);
-            await processPoliticalArc(sp, state.id, month);
+            await processPoliticalArc(sp, state.id, arc);
           });
         } catch (err) {
           failures.push(`state:${state.id}`);

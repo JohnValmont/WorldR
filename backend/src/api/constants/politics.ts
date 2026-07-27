@@ -216,7 +216,8 @@ export const POL_FACTOR_DELTAS = {
   TENDER_WINS: { credibility: 4 },
   LOSE_SEAT: { influence: -5 },
   BILL_FAILS: { credibility: -3 },
-  ACTIVE_CAMPAIGN: { charisma: 2 } // >= 3 actions
+  ACTIVE_CAMPAIGN: { charisma: 2 }, // >= 3 actions
+  BROKEN_PROMISE: { credibility: -15, influence: -10 } // Massive hit for betraying corporate lobbying
 };
 
 // ── Governing Phase Events ────────────────────────────────────────────────────

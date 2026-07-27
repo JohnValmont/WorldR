@@ -1,11 +1,12 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
 import { JURISDICTIONS, type JurisdictionId } from './_lib/session';
 import { T, MONO, HEADING, SANS, stampStyle, glassPanelStyle } from './_lib/theme';
 import { JURISDICTION_MODEL } from './_lib/model';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
+import CoalitionBuilder from './_components/CoalitionBuilder';
 import { Shield, Users, Landmark, FileSignature, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface Props {
@@ -53,12 +54,30 @@ function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode,
   );
 }
 
-export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, parties }: Props) {
+export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, overview, character, parties, onRefresh }: Props) {
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
   const jModel = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.national;
   const { data } = useSWR(isLocked ? null : ['council', selectedJurisdictionId], () => politicsApi.getCouncil(selectedJurisdictionId).catch(() => null));
   const { data: coalitionData } = useSWR<{ coalition: any; agreement: any; partners?: any[] } | null>(isLocked ? null : ['coalition-agreement', selectedJurisdictionId], () => politicsApi.getCoalitionAgreement(selectedJurisdictionId).catch(() => null));
+
+  const [busy, setBusy] = useState(false);
+  const myParty = overview?.globalParty || (Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id || p.members?.some((m: any) => m.character_id === character?.id || m.id === character?.id)) : undefined);
+  const isLeader = myParty && myParty.leader_character_id === character?.id;
+  const pendingPetitions = overview?.pendingPetitions || [];
+
+  async function handleRespondToPetition(petitionId: string, action: 'accept' | 'reject') {
+    if (busy) return;
+    try {
+      setBusy(true);
+      await politicsApi.respondToPetition(petitionId, action);
+      if (onRefresh) await onRefresh();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const partySeats: any[] = Array.isArray(data?.partySeats) ? data.partySeats.filter((p: any) => p.seats > 0) : [];
   const totalSeats = jModel.seats;
@@ -217,8 +236,21 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
             )}
           </GlassPanel>
 
+          {/* Coalition Builder (Formation Phase Only) */}
+          {!isLocked && overview?.cycle?.phase === 'formation' && (
+            <CoalitionBuilder 
+              selectedJurisdictionId={selectedJurisdictionId}
+              myParty={myParty}
+              partySeats={partySeats}
+              parties={parties}
+              majority={majority}
+              totalSeats={totalSeats}
+              onRefresh={onRefresh}
+            />
+          )}
+
           {/* Coalition Agreement Panel */}
-          {!isLocked && coalitionData?.coalition && (() => {
+          {!isLocked && overview?.cycle?.phase !== 'formation' && coalitionData?.coalition && (() => {
             const agreement = coalitionData.agreement;
             const coalition = coalitionData.coalition;
             const health = agreement?.health ?? null;
@@ -313,6 +345,31 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
               </GlassPanel>
             );
           })()}
+
+          {/* Lobbying Petitions (Party Leader Only) */}
+          {isLeader && pendingPetitions.length > 0 && (
+            <GlassPanel title={<><FileSignature size={14} /> Incoming Petitions</>} accent={T.gold}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ color: T.faint, fontSize: 13, marginBottom: 4 }}>Corporate backers are offering funds in exchange for policy commitments.</div>
+                {pendingPetitions.map((p: any) => (
+                  <div key={p.id} style={{ display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.3)', border: `1px solid rgba(255,255,255,0.05)`, borderRadius: 8, padding: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                      <div>
+                        <div style={{ color: T.ivory, fontSize: 15, fontWeight: 700 }}>{p.company_name}</div>
+                        <div style={{ color: T.faint, fontSize: 12 }}>Wants <strong style={{ color: T.text }}>{p.policy_category}</strong> policy set to <strong style={{ color: T.text }}>{p.desired_option}</strong></div>
+                      </div>
+                      <div style={{ color: T.gold, fontFamily: MONO, fontSize: 16, fontWeight: 700 }}>+${Number(p.offered_funds).toLocaleString('en-US')}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => handleRespondToPetition(p.id, 'accept')} disabled={busy} style={{ flex: 1, padding: '8px', borderRadius: 4, background: T.mint, color: '#000', border: 'none', fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.5 : 1 }}>ACCEPT</button>
+                      <button onClick={() => handleRespondToPetition(p.id, 'reject')} disabled={busy} style={{ flex: 1, padding: '8px', borderRadius: 4, background: 'rgba(255,255,255,0.1)', color: T.ivory, border: 'none', fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.5 : 1 }}>REJECT</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </GlassPanel>
+          )}
+
         </div>
       )}
     </div>

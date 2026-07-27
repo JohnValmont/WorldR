@@ -33,7 +33,7 @@ const GROUPS: Array<{ label: string; items: Array<{ id: PoliticsSection; label: 
   { label: 'Character', items: [{ id: 'legacy', label: 'Legacy' }] },
 ];
 
-interface Props {
+
 function NavItem({ item, isActive, onSelect, partyColor }: { item: { id: PoliticsSection; label: string }, isActive: boolean, onSelect: (id: PoliticsSection) => void, partyColor?: string }) {
   const [hover, setHover] = React.useState(false);
   const accent = partyColor || '#7B9FFF';

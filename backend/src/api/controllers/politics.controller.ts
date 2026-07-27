@@ -138,7 +138,21 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
       }
     }
     
+    let pendingPetitions: any[] = [];
     if (activeState) {
+      if (globalParty && globalParty.leader_character_id === req.user?.id) {
+        try {
+          pendingPetitions = await db('pol_petitions')
+            .join('companies', 'pol_petitions.company_id', 'companies.id')
+            .where({
+              'pol_petitions.party_id': globalParty.id,
+              'pol_petitions.status': 'pending'
+            })
+            .select('pol_petitions.*', 'companies.name as company_name');
+        } catch (e) {
+          // Table might not exist yet if migration pending
+        }
+      }
       try {
         const cycle = await getOrCreateCurrentCycle(activeState.id);
         cyclePhase = cycle.phase;
@@ -189,7 +203,8 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
       cycle: cycleSummary,
       // Jurisdiction Conditions (GDD $11) — normalized 0–10 indicators for the UI.
       conditions: activeState ? readNationalStatsFromRow(activeState) : null,
-      globalParty
+      globalParty,
+      pendingPetitions
     });
   } catch (error) {
     next(error);
@@ -804,6 +819,62 @@ export async function declareCandidacy(req: Request, res: Response, next: NextFu
     next(error);
   }
 }
+
+export async function getFormingCoalition(req: Request, res: Response, next: NextFunction) {
+  try {
+    const activeState = await resolveState(req.query.stateId as string | undefined);
+    const cycle = await getOrCreateCurrentCycle(activeState.id);
+
+    if (cycle.phase !== 'formation') {
+      return res.json({ coalition: null });
+    }
+
+    const coalition = await db('pol_coalitions')
+      .where({ cycle_id: cycle.id, status: 'forming' })
+      .first();
+
+    if (!coalition) return res.json({ coalition: null });
+
+    const members = typeof coalition.member_party_ids === 'string' 
+      ? safeParseJSON(coalition.member_party_ids) 
+      : (coalition.member_party_ids ?? { accepted: [], invited: [] });
+    
+    const partyIds = new Set([
+      coalition.lead_party_id,
+      ...(members.accepted || []),
+      ...(members.invited || [])
+    ].filter(Boolean));
+
+    const parties = await db('pol_parties').whereIn('id', Array.from(partyIds));
+    const seatsResult = await db('pol_council_seats').where({ cycle_id: cycle.id });
+    
+    const seatMap: Record<string, number> = {};
+    for (const s of seatsResult) {
+      seatMap[s.party_id] = (seatMap[s.party_id] || 0) + 1;
+    }
+
+    const enrichParty = (id: string) => {
+      const p = parties.find((p: any) => p.id === id);
+      return p ? { id: p.id, name: p.name, abbreviation: p.abbreviation, seats: seatMap[id] || 0 } : null;
+    };
+
+    const formateur = enrichParty(coalition.lead_party_id);
+    const accepted = (members.accepted || []).map(enrichParty).filter(Boolean);
+    const invited = (members.invited || []).map(enrichParty).filter(Boolean);
+
+    return res.json({
+      coalition: {
+        id: coalition.id,
+        formateur,
+        accepted,
+        invited
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+}
 export async function manageCoalition(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user?.id;
@@ -1153,8 +1224,14 @@ export async function petitionParty(req: Request, res: Response, next: NextFunct
   try {
     const userId = req.user?.id;
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
-    const { partyId, companyId, issue } = req.body;
-    if (!partyId || !companyId || !issue) return next(new AppError('partyId, companyId, and issue required', 400, 'BAD_REQUEST'));
+    const { partyId, companyId, policyCategory, desiredOption, offeredFunds } = req.body;
+    
+    if (!partyId || !companyId || !policyCategory || !desiredOption) {
+      return next(new AppError('partyId, companyId, policyCategory, desiredOption required', 400, 'BAD_REQUEST'));
+    }
+
+    const funds = Number(offeredFunds) || 0;
+    if (funds < 0) return next(new AppError('Invalid funds amount', 400, 'BAD_REQUEST'));
 
     const result = await db.transaction(async (trx) => {
       const char = await trx('characters').where({ user_id: userId }).first();
@@ -1163,23 +1240,136 @@ export async function petitionParty(req: Request, res: Response, next: NextFunct
       const company = await trx('companies').where({ id: companyId, owner_character_id: char.id }).first();
       if (!company) throw new AppError('Company not found or not owned by you', 404, 'NOT_FOUND');
 
+      const party = await trx('pol_parties').where({ id: partyId }).first();
+      if (!party) throw new AppError('Party not found', 404, 'NOT_FOUND');
+
+      if (funds > 0) {
+        const finances = await trx('company_finances').where({ company_id: company.id }).first();
+        if (!finances || Number(finances.available_cash) < funds) {
+          throw new AppError('Insufficient company funds', 400, 'BAD_REQUEST');
+        }
+        await trx('company_finances').where({ company_id: company.id }).decrement('available_cash', funds);
+      }
+
       const clock = await trx('world_clock').first();
+      const currentArc = (clock?.current_year || 1) * 12 + (clock?.current_month || 1);
       
-      // Just record in company_records since there is no pol_petitions table
+      const petition = await trx('pol_petitions').insert({
+        state_id: party.state_id,
+        company_id: companyId,
+        party_id: partyId,
+        policy_category: policyCategory,
+        desired_option: desiredOption,
+        offered_funds: funds,
+        status: 'pending',
+        created_arc: currentArc
+      }).returning('*').then((r: any[]) => r[0]);
+
       await trx('company_records').insert({
         world_instance_id: company.world_instance_id,
         company_id: company.id,
         record_type: 'business',
-        summary: `Lobbying Petition sent regarding ${issue}`,
+        summary: `Lobbying Petition sent to ${party.name} regarding ${policyCategory} (${desiredOption}) for $${funds}`,
         created_at_world_year: clock?.current_year || 1,
         created_at_world_month: clock?.current_month || 1,
         created_at_world_day: clock?.current_day || 1
       });
 
-      return { success: true, issue };
+      return { success: true, petition };
     });
 
     return res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function respondToPetition(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+    
+    const petitionId = req.params.id;
+    const { action } = req.body; // 'accept' or 'reject'
+    
+    if (action !== 'accept' && action !== 'reject') {
+      return next(new AppError('Invalid action', 400, 'BAD_REQUEST'));
+    }
+
+    const result = await db.transaction(async (trx) => {
+      const char = await trx('characters').where({ user_id: userId }).first();
+      if (!char) throw new AppError('No character found', 404, 'NOT_FOUND');
+
+      const petition = await trx('pol_petitions').where({ id: petitionId }).first();
+      if (!petition) throw new AppError('Petition not found', 404, 'NOT_FOUND');
+      
+      if (petition.status !== 'pending') {
+        throw new AppError(`Petition is already ${petition.status}`, 400, 'BAD_REQUEST');
+      }
+
+      const party = await trx('pol_parties').where({ id: petition.party_id }).first();
+      if (!party) throw new AppError('Party not found', 404, 'NOT_FOUND');
+
+      if (party.leader_character_id !== char.id) {
+        throw new AppError('Only the party leader can respond to petitions', 403, 'FORBIDDEN');
+      }
+
+      const clock = await trx('world_clock').first();
+      const currentArc = (clock?.current_year || 1) * 12 + (clock?.current_month || 1);
+
+      if (action === 'accept') {
+        if (Number(petition.offered_funds) > 0) {
+          await trx('pol_parties').where({ id: party.id }).increment('treasury', Number(petition.offered_funds));
+        }
+        await trx('pol_petitions').where({ id: petitionId }).update({
+          status: 'accepted',
+          resolved_arc: currentArc
+        });
+        
+        const company = await trx('companies').where({ id: petition.company_id }).first();
+        await trx('pol_ledger_events').insert({
+          state_id: party.state_id, arc: currentArc, kind: 'petition_accepted',
+          headline: `Lobbying Deal Reached`,
+          body: `${party.name} has accepted a lobbying petition from ${company?.name || 'a corporation'} regarding ${petition.policy_category}.`
+        });
+      } else {
+        // Refund the company
+        if (Number(petition.offered_funds) > 0) {
+          await trx('company_finances').where({ company_id: petition.company_id }).increment('available_cash', Number(petition.offered_funds));
+        }
+        await trx('pol_petitions').where({ id: petitionId }).update({
+          status: 'rejected',
+          resolved_arc: currentArc
+        });
+      }
+
+      return { success: true, action };
+    });
+
+    return res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getMyPetitions(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+    
+    const char = await db('characters').where({ user_id: userId }).first();
+    if (!char) throw new AppError('No character found', 404, 'NOT_FOUND');
+
+    const companies = await db('companies').where({ owner_character_id: char.id });
+    if (!companies.length) return res.json([]);
+
+    const petitions = await db('pol_petitions')
+      .join('pol_parties', 'pol_petitions.party_id', 'pol_parties.id')
+      .whereIn('company_id', companies.map((c: any) => c.id))
+      .select('pol_petitions.*', 'pol_parties.name as party_name')
+      .orderBy('pol_petitions.created_at', 'desc');
+
+    return res.json(petitions);
   } catch (error) {
     next(error);
   }

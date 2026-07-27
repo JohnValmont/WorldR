@@ -791,15 +791,17 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
     await runNpcCampaignBrain(trx, stateId, cycle.id, currentMonth);
   }
 
-  if (newPhase === 'polling' && currentMonth === cycle.polling_arc) {
+  let activePhase = newPhase;
+  if (activePhase === 'polling' && currentMonth === cycle.polling_arc) {
     await resolveElection(trx, cycle.id);
+    activePhase = 'formation';
   }
 
-  if (newPhase === 'formation') {
+  if (activePhase === 'formation') {
     await processGovernmentFormation(trx, cycle, currentMonth);
   }
 
-  if (newPhase === 'governing') {
+  if (activePhase === 'governing') {
     await resolveBills(trx, stateId, cycle.id, currentMonth);
     // Fire one deterministic world event per governing month
     await fireGoverningEvent(trx, stateId, currentMonth);
@@ -1436,6 +1438,28 @@ async function performCycleRollover(trx: any, oldCycle: any, currentMonth: numbe
       }
     }
   }
+  // Fail unfulfilled corporate petitions and penalize party leaders
+  const unfulfilledPetitions = await trx('pol_petitions').where({
+    state_id: oldCycle.state_id,
+    status: 'accepted'
+  });
+
+  for (const petition of unfulfilledPetitions) {
+    await trx('pol_petitions').where({ id: petition.id }).update({
+      status: 'failed',
+      resolved_arc: currentMonth
+    });
+
+    const party = await trx('pol_parties').where({ id: petition.party_id }).first();
+    if (party && party.leader_character_id) {
+      await applyFactorDelta(trx, party.leader_character_id, POL_FACTOR_DELTAS.BROKEN_PROMISE);
+      await trx('pol_ledger_events').insert({
+        state_id: oldCycle.state_id, arc: currentMonth, kind: 'petition_failed',
+        headline: `Broken Lobbying Promise`,
+        body: `${party.name} failed to deliver on a policy promise made to corporate backers. The party leadership's credibility has plummeted.`
+      });
+    }
+  }
 
   // Day old cycle closed
   await trx('pol_cycles').where({ id: oldCycle.id }).update({ status: 'closed' });
@@ -1577,6 +1601,30 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
             `Parliament Passes ${category.toUpperCase()} Reform`,
             `${proposerParty.name} successfully navigated the ${category} bill through the legislature, passing the new ${option.replace(/_/g, ' ')} policy.`
           );
+
+          // Fulfill Corporate Petitions
+          const petitionsToFulfill = await trx('pol_petitions').where({
+            state_id: stateId,
+            policy_category: category,
+            desired_option: option,
+            status: 'accepted'
+          });
+
+          for (const petition of petitionsToFulfill) {
+            await trx('pol_petitions').where({ id: petition.id }).update({
+              status: 'fulfilled',
+              resolved_arc: currentMonth
+            });
+            const company = await trx('companies').where({ id: petition.company_id }).first();
+            await trx('pol_ledger_events').insert({
+              state_id: stateId, arc: currentMonth, kind: 'petition_fulfilled',
+              headline: `Corporate Petition Fulfilled`,
+              body: `The government has fulfilled a lobbying promise made to ${company?.name || 'a corporation'} regarding ${category}.`
+            });
+            if (company?.owner_character_id) {
+              await applyFactorDelta(trx, company.owner_character_id, POL_FACTOR_DELTAS.TENDER_WINS); // Reward CEO influence
+            }
+          }
         }
       }
     } else {

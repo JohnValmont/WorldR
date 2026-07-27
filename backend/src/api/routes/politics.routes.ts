@@ -15,12 +15,15 @@ import {
   queueCampaignAction,
   getPolls,
   manageCoalition,
+  getFormingCoalition,
   getCouncil,
   getLedger,
   proposeBill,
   voteBill,
   donateToParty,
   petitionParty,
+  respondToPetition,
+  getMyPetitions,
   postTender,
   bidTender,
   getBills,
@@ -130,6 +133,7 @@ router.post('/campaign/actions', authMiddleware, blockPhases('polling', 'formati
 router.get('/polls', authMiddleware, getPolls);
 
 // Phase 4
+router.get('/formation/coalition', authMiddleware, requirePhase('formation'), getFormingCoalition);
 router.post('/formation/coalition', authMiddleware, requirePhase('formation'), manageCoalition);
 router.get('/council', authMiddleware, getCouncil);
 router.get('/ledger', authMiddleware, getLedger);
@@ -141,6 +145,8 @@ router.post('/bills', authMiddleware, blockPhases('polling', 'formation'), propo
 router.post('/bills/:id/vote', authMiddleware, blockPhases('polling', 'formation'), voteBill);
 router.post('/lobby/donate', authMiddleware, donateToParty);
 router.post('/lobby/petition', authMiddleware, petitionParty);
+router.post('/lobby/petitions/:id/respond', authMiddleware, respondToPetition);
+router.get('/lobby/petitions', authMiddleware, getMyPetitions);
 
 // Phase 5B: Tenders
 router.get('/tenders', authMiddleware, getTenders);
