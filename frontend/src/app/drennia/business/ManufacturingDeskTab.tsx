@@ -2689,6 +2689,59 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
         <div>
           <SectionHeader stamp="PRODUCTION DESK">Production Lines</SectionHeader>
 
+          {/* Global Warnings */}
+          {(() => {
+            if (!hasFactory || !models.some((m: any) => (m.development_status || 'launched') === 'launched')) return null;
+            
+            const activeLines = productionLines.filter((l: any) => l.status === 'active' && l.target_units_per_month > 0);
+            if (activeLines.length === 0) return null;
+
+            const cInv = mfgData?.componentInventory || [];
+            const getInv = (cid: string) => cInv.find((i: any) => i.component_id === cid)?.units_in_stock || 0;
+            
+            let maxByComponents = Math.floor(getInv('comp_engine'));
+            maxByComponents = Math.min(maxByComponents, Math.floor(getInv('comp_transmission')));
+            maxByComponents = Math.min(maxByComponents, Math.floor(getInv('comp_tyres') / 4));
+            maxByComponents = Math.min(maxByComponents, Math.floor(getInv('comp_steel')));
+            maxByComponents = Math.min(maxByComponents, Math.floor(getInv('comp_glass')));
+            maxByComponents = Math.min(maxByComponents, Math.floor(getInv('comp_electronics')));
+
+            let totalRawRequired = 0;
+            let totalWorkersReq = 0;
+            for (const l of activeLines) {
+               const fac = factories.find((f: any) => f.id === l.factory_id);
+               if (!fac) continue;
+               const eff = Math.min(1, totalWorkers / (fac.worker_requirement || 30)) * ((fac.condition || 100) / 100);
+               const lineRaw = Math.floor(l.target_units_per_month * eff);
+               totalRawRequired += lineRaw;
+               totalWorkersReq += fac.worker_requirement || 30;
+            }
+
+            const warnings = [];
+            if (totalRawRequired > 0 && maxByComponents < totalRawRequired) {
+               warnings.push(`Production is severely bottlenecked! You only have components for ${maxByComponents} units, but lines are targeting ${totalRawRequired}. Please procure components below.`);
+            }
+            if (totalWorkers < totalWorkersReq) {
+               warnings.push(`Production is bottlenecked by labor! You have ${totalWorkers} workers, but your active factories require ${totalWorkersReq}.`);
+            }
+
+            if (warnings.length === 0) return null;
+
+            return (
+               <div className="mb-6 space-y-2">
+                 {warnings.map((w, i) => (
+                   <div key={i} className="rounded-md border border-terminal-red bg-terminal-red/10 p-4 flex items-start gap-3">
+                     <div className="text-terminal-red mt-0.5">⚠️</div>
+                     <div>
+                       <div className="text-sm font-bold text-terminal-red mb-1">CRITICAL WARNING</div>
+                       <div className="text-xs text-terminal-red/90 leading-relaxed">{w}</div>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+            )
+          })()}
+
           {/* State 1: No factory */}
           {!hasFactory && (
             <EmptyState
@@ -3973,7 +4026,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
 
                         <div>
                           <h3 className="text-sm font-semibold text-zinc-100 mb-3">Sales</h3>
-                          <FieldRow label="Units Allocated" value={Number(r.units_sold) + Number(r.units_unsold)} />
+                          <FieldRow label="Total Available for Sale" value={Number(r.units_sold) + Number(r.units_unsold)} />
                           <FieldRow label="Units Sold" value={r.units_sold} valueColor="#30d158" />
                           <FieldRow label="Unsold Units" value={r.units_unsold} valueColor={Number(r.units_unsold) > 0 ? '#ff453a' : 'rgb(229, 229, 229)'} />
                           <FieldRow label="Markets Used" value={marketData?.allocations?.length || 1} />
