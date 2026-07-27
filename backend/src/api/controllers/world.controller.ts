@@ -393,8 +393,12 @@ export class WorldController {
       let prevMonth = currentMonth - 1;
       if (prevMonth === 0) { prevMonth = 12; prevYear = currentYear - 1; }
       try {
+        // Sanity-cap: world_year must be <= currentYear to prevent corrupted rows
+        // (e.g. arc counter accidentally stored as year, like "842") from hijacking
+        // the leaderboard. Any row with world_year > currentYear is treated as bad data.
         const latestSale = await db('manufacturing_sales_results as r')
           .where('r.world_instance_id', activeInstanceId)
+          .where('r.world_year', '<=', currentYear)
           .orderBy('r.world_year', 'desc')
           .orderBy('r.world_month', 'desc')
           .select('r.world_year', 'r.world_month')
