@@ -34,21 +34,32 @@ const knexConfig: Knex.Config = {
     acquireTimeoutMillis: 30000,
     idleTimeoutMillis: 30000,
     reapIntervalMillis: 1000,
-    // Safety net: if a connection is returned to the pool while still inside an
-    // aborted transaction (e.g. due to a swallowed error in a .catch(() => {})),
-    // Postgres will reject every subsequent query on it with
-    // "current transaction is aborted, commands ignored until end of transaction block".
-    // Issuing a ROLLBACK in afterCreate clears that state before the connection is
-    // handed to a new request, so a background-tick failure can never lock out login.
+    // afterCreate: fires once when a brand-new physical connection is opened.
+    // We issue a ROLLBACK here as a first-use sanity check.
     afterCreate: (conn: any, done: (err: Error | null, conn: any) => void) => {
       conn.query('ROLLBACK', (err: Error | null) => {
         if (err) {
-          // Log but don't surface — the connection may not be in a transaction at all,
-          // in which case Postgres returns an error we can safely discard.
           logger.warn('[db-pool] afterCreate ROLLBACK warning (benign):', err.message);
         }
         done(null, conn);
       });
+    },
+    // validate: fires EVERY TIME a connection is checked out from the idle pool.
+    // This is the critical guard — afterCreate misses connections that were
+    // returned to the pool while already stuck in an aborted transaction.
+    // pg_transaction_status() returns:
+    //   0 = IDLE    (safe to use)
+    //   1 = ACTIVE  (query in flight — should not happen on idle connections)
+    //   2 = INTRANS (inside a transaction — potentially dangerous)
+    //   4 = INERROR (aborted transaction — POISONED, must be destroyed)
+    validate: (conn: any) => {
+      // txStatus is a synchronous property on libpq-backed connections (node-postgres)
+      const status: number = conn.txStatus ?? conn._client?.txStatus ?? -1;
+      if (status === 4 /* INERROR */) {
+        logger.warn('[db-pool] validate: destroying poisoned connection (INERROR/aborted transaction)');
+        return false; // pool will destroy and create a fresh replacement
+      }
+      return true;
     },
   },
   acquireConnectionTimeout: 60000,
