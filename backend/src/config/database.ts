@@ -34,6 +34,22 @@ const knexConfig: Knex.Config = {
     acquireTimeoutMillis: 30000,
     idleTimeoutMillis: 30000,
     reapIntervalMillis: 1000,
+    // Safety net: if a connection is returned to the pool while still inside an
+    // aborted transaction (e.g. due to a swallowed error in a .catch(() => {})),
+    // Postgres will reject every subsequent query on it with
+    // "current transaction is aborted, commands ignored until end of transaction block".
+    // Issuing a ROLLBACK in afterCreate clears that state before the connection is
+    // handed to a new request, so a background-tick failure can never lock out login.
+    afterCreate: (conn: any, done: (err: Error | null, conn: any) => void) => {
+      conn.query('ROLLBACK', (err: Error | null) => {
+        if (err) {
+          // Log but don't surface — the connection may not be in a transaction at all,
+          // in which case Postgres returns an error we can safely discard.
+          logger.warn('[db-pool] afterCreate ROLLBACK warning (benign):', err.message);
+        }
+        done(null, conn);
+      });
+    },
   },
   acquireConnectionTimeout: 60000,
 };
