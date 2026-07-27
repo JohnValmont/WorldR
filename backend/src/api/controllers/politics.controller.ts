@@ -610,7 +610,7 @@ export async function dissolveParty(req: Request, res: Response, next: NextFunct
       const seatsToDelete = await trx('pol_council_seats').where({ party_id: partyId }).count('* as count').first();
       const partySeats = Number(seatsToDelete?.count || 0);
 
-      const coalitions = await trx('pol_coalitions');
+      const coalitions = await trx('pol_coalitions').forUpdate();
       for (const c of coalitions) {
         let updated = false;
         let lostSeats = false;
@@ -638,7 +638,7 @@ export async function dissolveParty(req: Request, res: Response, next: NextFunct
       }
 
       // Scrub party from pol_coalition_agreements
-      const agreements = await trx('pol_coalition_agreements');
+      const agreements = await trx('pol_coalition_agreements').forUpdate();
       for (const a of agreements) {
         let updated = false;
         
@@ -763,7 +763,7 @@ export async function declareCandidacy(req: Request, res: Response, next: NextFu
       const member = await trx('pol_party_members').where({ character_id: character.id }).first();
       if (!member) throw new AppError('Must be in a party to run', 403, 'FORBIDDEN');
 
-      const party = await trx('pol_parties').where({ id: member.party_id }).first();
+      const party = await trx('pol_parties').where({ id: member.party_id }).forUpdate().first();
       if (party.is_npc) throw new AppError('Cannot run for an NPC party', 403, 'FORBIDDEN');
 
       const existingCandidacy = await trx('pol_candidates')
@@ -841,7 +841,7 @@ export async function manageCoalition(req: Request, res: Response, next: NextFun
       const myParty = await trx('pol_parties').where({ leader_character_id: character.id }).first();
       if (!myParty) throw new AppError('Must be a party leader', 403, 'FORBIDDEN');
 
-      let coalition = await trx('pol_coalitions').where({ cycle_id: cycle.id, status: 'forming' }).first();
+      let coalition = await trx('pol_coalitions').where({ cycle_id: cycle.id, status: 'forming' }).forUpdate().first();
       if (!coalition) throw new AppError('No coalition currently forming', 404, 'NOT_FOUND');
 
       const members = typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : coalition.member_party_ids;
@@ -1718,7 +1718,7 @@ export async function recruitNpc(req: Request, res: Response, next: NextFunction
       if (!membership) throw new AppError('You must be in a party to recruit', 403, 'FORBIDDEN');
       if (membership.role !== 'leader') throw new AppError('Only the Party Leader can recruit NPCs', 403, 'FORBIDDEN');
 
-      const party = await trx('pol_parties').where({ id: membership.party_id }).first();
+      const party = await trx('pol_parties').where({ id: membership.party_id }).forUpdate().first();
       if (!party) throw new AppError('Party not found', 404, 'NOT_FOUND');
 
       // Check roster cap
@@ -2207,7 +2207,7 @@ export async function allocateCampaignBudget(req: Request, res: Response, next: 
       const membership = await trx('pol_party_members').where({ character_id: character.id }).first();
       if (!membership) throw new AppError('You must be in a party', 403, 'FORBIDDEN');
 
-      const party = await trx('pol_parties').where({ id: membership.party_id }).first();
+      const party = await trx('pol_parties').where({ id: membership.party_id }).forUpdate().first();
       if (!party) throw new AppError('Party not found', 404, 'NOT_FOUND');
       if (party.leader_character_id !== character.id) {
         throw new AppError('Only the party leader can allocate campaign budget', 403, 'FORBIDDEN');
