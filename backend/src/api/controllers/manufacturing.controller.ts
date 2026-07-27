@@ -1687,7 +1687,14 @@ export class ManufacturingController {
           prototype_validation_result: JSON.stringify(validation), 
           updated_at: trx.fn.now() 
         });
-        await trx('manufacturing_engineering_reputation').where({ company_id: companyId }).update({ engineering_culture_score: newCultureScore, last_updated: trx.fn.now() }).catch(() => {});
+        await trx.raw(
+          `INSERT INTO manufacturing_engineering_reputation (company_id, engineering_culture_score, last_updated)
+           VALUES (?, ?, now())
+           ON CONFLICT (company_id) DO UPDATE
+             SET engineering_culture_score = EXCLUDED.engineering_culture_score,
+                 last_updated = EXCLUDED.last_updated`,
+          [companyId, newCultureScore]
+        );
 
         const validationSummary = validation.passed ? `Prototype validation ${validation.resultClass} (confidence: ${validation.confidenceScore}%).` : `Prototype validation ${validation.resultClass}: ${validation.issues[0]}.${extraArcMessage} Extra cost: ${extraCostCharged.toLocaleString()}.`;
         await trx('company_records').insert({ world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business', summary: `${model.name} — ${validationSummary}`, created_at_world_year: currentYear, created_at_world_month: currentMonth, created_at_world_day: currentDay });
