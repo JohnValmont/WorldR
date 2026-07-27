@@ -387,9 +387,23 @@ export class WorldController {
         .first();
       const currentYear  = clock ? Number(clock.current_year)  : 1;
       const currentMonth = clock ? Number(clock.current_month) : 1;
+      // Find the ACTUAL last month with sales data rather than blindly assuming
+      // currentMonth-1 was processed. If the tick was stuck, that month may be empty.
       let prevYear  = currentYear;
       let prevMonth = currentMonth - 1;
       if (prevMonth === 0) { prevMonth = 12; prevYear = currentYear - 1; }
+      try {
+        const latestSale = await db('manufacturing_sales_results as r')
+          .where('r.world_instance_id', activeInstanceId)
+          .orderBy('r.world_year', 'desc')
+          .orderBy('r.world_month', 'desc')
+          .select('r.world_year', 'r.world_month')
+          .first();
+        if (latestSale) {
+          prevYear  = Number(latestSale.world_year);
+          prevMonth = Number(latestSale.world_month);
+        }
+      } catch (_) { /* fall back to clock-based guess */ }
 
       // ── Run all three independent queries in PARALLEL ────────────────────────
       const [topCompanies, popularCars, popularCarsAllTime, richestPlayersResult] = await Promise.all([
