@@ -13,7 +13,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
-      router.push('/login');
+      router.push('/landing/onboarding.html?action=login');
     }
   }, [isAuthenticated, user, router]);
 
@@ -27,7 +27,7 @@ export default function SettingsPage() {
       }
     }
     logout();
-    router.push('/login');
+    router.push('/landing/onboarding.html?action=login');
   };
 
   if (!isAuthenticated || !user) return null;
