@@ -2385,7 +2385,8 @@ export class ManufacturingController {
       const totalMarketSold = ms.totalUnitsSold;
       const deliveryExposure = Math.min(1.0, totalMarketSold / Math.max(ms.marketPurchaseCapacity, 1));
 
-      const existingArcResult = await trx('manufacturing_market_brand_arc_results').where({ company_id: companyId, region_market_id: marketId, world_month: currentMonth }).first();
+      // Fix: include world_year in the idempotency check — without it, Y5M1 blocked Y6M1 forever.
+      const existingArcResult = await trx('manufacturing_market_brand_arc_results').where({ company_id: companyId, region_market_id: marketId, world_year: currentYear, world_month: currentMonth }).first();
       if (existingArcResult) continue;
 
       const currBrand = await trx('manufacturing_brand_awareness').where({ company_id: companyId, region_market_id: marketId }).first();
@@ -2425,8 +2426,9 @@ export class ManufacturingController {
         await trx('manufacturing_brand_awareness').where({ id: currBrand.id }).update({ awareness: newAwareness, reputation: newTrust, updated_at: trx.fn.now() });
       }
 
+      // Fix: include world_year in the insert to match the new unique constraint.
       await trx('manufacturing_market_brand_arc_results').insert({
-        company_id: companyId, region_market_id: marketId, world_month: currentMonth,
+        company_id: companyId, region_market_id: marketId, world_year: currentYear, world_month: currentMonth,
         awareness_before: oldAwareness, awareness_after: newAwareness, awareness_delta: Math.round(awarenessDelta), market_marketing_spend: mktMarketingSpend,
         effective_marketing_tier: mktTier, trust_before: oldTrust, trust_after: newTrust,
         trust_delta: Math.round(trustDelta), weighted_reliability: Math.round(wReliability), weighted_defect_rate: wDefectRate,
@@ -2507,7 +2509,13 @@ export class ManufacturingController {
       factory_maintenance_costs: pState.totalMaintenanceCosts, inventory_storage_costs: pState.totalStorageCosts, marketing_costs: totalMarketingCosts,
       summary: `Production: ${pState.totalUnitsProduced.toLocaleString()} units (${pState.totalDefectiveUnits.toLocaleString()} defects).\nSales: ${totalUnitsSold.toLocaleString()} units.\n\nFinancials:\nGross Revenue: ${totalGrossRevenue.toLocaleString()}\nNet Profit: ${netProfit.toLocaleString()}\n\nOverheads:\n${costSummary}\n\nVehicle Breakdown:${modelLines}`
     };
-    await trx('manufacturing_arc_reports').insert(reportData);
+    // ON CONFLICT DO NOTHING: if a re-run happens (e.g. server restart mid-tick), don't crash.
+    await trx.raw(
+      `INSERT INTO manufacturing_arc_reports (${Object.keys(reportData).join(', ')})
+       VALUES (${Object.keys(reportData).map(() => '?').join(', ')})
+       ON CONFLICT (company_id, world_year, world_month) DO NOTHING`,
+      Object.values(reportData)
+    );
 
     if (company.is_npc) {
         const modelStates = new Map<string, any>();
