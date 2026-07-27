@@ -116,6 +116,7 @@ export default function PoliticsDesk() {
           onSelect={(id) => setActiveTab(id as SubTab)}
           myPartyName={myParty?.name}
           myPartyNation={jMeta?.name}
+          partyColor={myParty?.identity?.color || myParty?.colorHex}
         />
 
         <div className="flex-1 overflow-y-auto bg-[#090A0F]">

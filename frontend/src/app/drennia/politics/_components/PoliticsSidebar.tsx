@@ -34,18 +34,10 @@ const GROUPS: Array<{ label: string; items: Array<{ id: PoliticsSection; label: 
 ];
 
 interface Props {
-  active: PoliticsSection;
-  onSelect: (id: PoliticsSection) => void;
-  myPartyName?: string;
-  myPartyNation?: string;
-}
-
-function NavItem({ item, isActive, onSelect }: {
-  item: { id: PoliticsSection; label: string };
-  isActive: boolean;
-  onSelect: (id: PoliticsSection) => void;
-}) {
-  const [hover, setHover] = useState(false);
+function NavItem({ item, isActive, onSelect, partyColor }: { item: { id: PoliticsSection; label: string }, isActive: boolean, onSelect: (id: PoliticsSection) => void, partyColor?: string }) {
+  const [hover, setHover] = React.useState(false);
+  const accent = partyColor || '#7B9FFF';
+  
   return (
     <button
       className="sidebar-nav-item"
@@ -56,11 +48,11 @@ function NavItem({ item, isActive, onSelect }: {
         display: 'flex', alignItems: 'center', gap: 11, width: '100%',
         padding: '7px 10px', borderRadius: 8, marginBottom: 1,
         background: isActive
-          ? 'linear-gradient(135deg, rgba(79,110,247,0.15), rgba(79,110,247,0.07))'
+          ? `linear-gradient(135deg, ${accent}25, ${accent}12)`
           : hover ? 'rgba(255,255,255,0.04)' : 'transparent',
         color: isActive ? '#F0F4FF' : hover ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.45)',
         cursor: 'pointer', textAlign: 'left',
-        border: isActive ? '1px solid rgba(79,110,247,0.28)' : '1px solid transparent',
+        border: isActive ? `1px solid ${accent}47` : '1px solid transparent',
         transition: 'all 0.18s cubic-bezier(0.25, 0.8, 0.25, 1)',
         position: 'relative',
       }}
@@ -70,14 +62,14 @@ function NavItem({ item, isActive, onSelect }: {
         width: 3,
         height: isActive ? 18 : hover ? 10 : 0,
         borderRadius: 2, flexShrink: 0,
-        background: isActive ? 'linear-gradient(180deg, #7B9FFF, #4F6EF790)' : 'rgba(255,255,255,0.3)',
-        boxShadow: isActive ? '0 0 8px #7B9FFF60' : 'none',
+        background: isActive ? `linear-gradient(180deg, ${accent}, ${accent}90)` : 'rgba(255,255,255,0.3)',
+        boxShadow: isActive ? `0 0 8px ${accent}60` : 'none',
         transition: 'all 0.2s ease',
       }} />
 
       {/* Icon */}
       <span style={{
-        color: isActive ? '#7B9FFF' : hover ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.3)',
+        color: isActive ? accent : hover ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.3)',
         transition: 'color 0.18s ease', flexShrink: 0, display: 'flex', alignItems: 'center',
       }}>
         <Icon name={item.id} />
@@ -94,7 +86,7 @@ function NavItem({ item, isActive, onSelect }: {
       {/* Active chevron */}
       {isActive && (
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-          stroke="#7B9FFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          stroke={accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
           style={{ opacity: 0.5, flexShrink: 0 }}>
           <path d="M9 18l6-6-6-6"/>
         </svg>
@@ -103,7 +95,17 @@ function NavItem({ item, isActive, onSelect }: {
   );
 }
 
-export default function PoliticsSidebar({ active, onSelect, myPartyName, myPartyNation }: Props) {
+type Props = {
+  active: PoliticsSection;
+  onSelect: (id: PoliticsSection) => void;
+  myPartyName?: string;
+  myPartyNation?: string;
+  partyColor?: string;
+};
+
+export default function PoliticsSidebar({ active, onSelect, myPartyName, myPartyNation, partyColor }: Props) {
+  const accent = partyColor || '#7B9FFF';
+
   return (
     <aside className="politics-sidebar-container w-56 flex-shrink-0" style={{
       width: 220, minWidth: 220,
@@ -114,27 +116,24 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
       fontFamily: "'Inter', sans-serif", zIndex: 40, position: 'relative',
     }}>
 
-      {/* Top accent gradient line */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, height: 1,
-        background: 'linear-gradient(90deg, transparent, rgba(79,110,247,0.5), transparent)',
+        background: `linear-gradient(90deg, transparent, ${accent}80, transparent)`,
         pointerEvents: 'none',
       }} />
 
-      {/* Branding header */}
       <div className="sidebar-brand" style={{ padding: '14px 14px 10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          {/* Icon crest */}
           <div style={{
             width: 26, height: 26, borderRadius: 7,
-            background: 'linear-gradient(135deg, rgba(79,110,247,0.25), rgba(79,110,247,0.10))',
-            border: '1px solid rgba(79,110,247,0.32)',
+            background: `linear-gradient(135deg, ${accent}40, ${accent}15)`,
+            border: `1px solid ${accent}50`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 3px 10px rgba(79,110,247,0.15)',
+            boxShadow: `0 3px 10px ${accent}25`,
             flexShrink: 0,
           }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-              stroke="#7B9FFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              stroke={accent} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 21h18"/><path d="M5 21V10M9 21V10M15 21V10M19 21V10"/>
               <path d="M3 10 12 4l9 6"/>
             </svg>
@@ -144,7 +143,7 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
             <div style={{
               fontFamily: "'JetBrains Mono', monospace",
               textTransform: 'uppercase', letterSpacing: '0.14em',
-              fontSize: 8.5, color: '#7B9FFF',
+              fontSize: 8.5, color: accent,
               fontWeight: 600, opacity: 0.75, marginBottom: 3,
             }}>Political Desk</div>
             <div style={{
@@ -189,7 +188,7 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
               <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.04)' }} />
             </div>
             {group.items.map((it) => (
-              <NavItem key={it.id} item={it} isActive={it.id === active} onSelect={onSelect} />
+              <NavItem key={it.id} item={it} isActive={it.id === active} onSelect={onSelect} partyColor={partyColor} />
             ))}
           </div>
         ))}

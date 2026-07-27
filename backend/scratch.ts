@@ -1,19 +1,10 @@
-import { db } from './src/config/database';
-import { runWorldTick } from './src/api/services/worldTick.service';
-
-async function main() {
-  console.log('Connecting to DB...');
-  await db.raw('SELECT 1');
-  console.log('Running world tick...');
-  try {
-    const result = await runWorldTick({ force: true });
-    console.log('Tick result:', result);
-  } catch (err: any) {
-    console.error('Tick crashed!', err);
-    console.error(err.stack);
-  } finally {
-    process.exit(0);
-  }
+import knex from 'knex';
+import dotenv from 'dotenv';
+dotenv.config();
+const db = knex({ client: 'pg', connection: process.env.DATABASE_URL });
+async function run() {
+  const tables = await db.raw('SELECT tablename FROM pg_tables WHERE schemaname=''public''');
+  console.dir(tables.rows.map((r:any) => r.tablename).filter((t:string) => t.includes('arc') || t.includes('report') || t.includes('manuf')));
+  process.exit(0);
 }
-
-main();
+run();

@@ -1542,6 +1542,13 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
             await trx('pol_state_policy').insert({ state_id: stateId, active_policies: activePolicies, updated_arc: currentMonth });
           }
 
+          // Trigger the new macroeconomic system
+          try {
+            await enactPolicy(trx, stateId, category, option, currentMonth);
+          } catch (err) {
+            console.error('Failed to enact policy in macroeconomic engine:', err);
+          }
+
           await trx('pol_ledger_events').insert({
             state_id: stateId, arc: currentMonth, kind: 'bill_passed',
             headline: `POLICY REVISED: ${category.toUpperCase()}`,

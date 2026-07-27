@@ -637,30 +637,6 @@ export async function dissolveParty(req: Request, res: Response, next: NextFunct
         }
       }
 
-      // Scrub party from pol_coalition_agreements
-      const agreements = await trx('pol_coalition_agreements').forUpdate();
-      for (const a of agreements) {
-        let updated = false;
-        
-        const partnerTerms = typeof a.partner_terms === 'string' ? safeParseJSON(a.partner_terms) : (a.partner_terms ?? []);
-        const originalPartnerLen = partnerTerms.length;
-        const newPartnerTerms = partnerTerms.filter((pt: any) => pt.party_id !== partyId);
-        if (newPartnerTerms.length !== originalPartnerLen) updated = true;
-
-        const portfolio = typeof a.portfolio_allocation === 'string' ? safeParseJSON(a.portfolio_allocation) : (a.portfolio_allocation ?? []);
-        const originalPortfolioLen = portfolio.length;
-        const newPortfolio = portfolio.filter((pa: any) => pa.party_id !== partyId);
-        if (newPortfolio.length !== originalPortfolioLen) updated = true;
-
-        if (updated) {
-          await trx('pol_coalition_agreements')
-            .where({ id: a.id })
-            .update({ 
-              partner_terms: JSON.stringify(newPartnerTerms),
-              portfolio_allocation: JSON.stringify(newPortfolio)
-            });
-        }
-      }
 
       await trx('pol_parties').where({ id: partyId }).delete();
     });
