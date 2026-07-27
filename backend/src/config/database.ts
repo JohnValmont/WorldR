@@ -119,6 +119,11 @@ export async function runMigrationsAndSeeds(): Promise<void> {
         logger.info(`Successfully applied migration: ${file}`);
       } catch (err) {
         logger.error(`Failed to apply migration ${file}:`, err);
+        // CRITICAL: Issue a ROLLBACK to clean up the aborted transaction on this
+        // connection before returning it to the pool. Without this, the connection
+        // stays in "idle in transaction (aborted)" state and poisons every subsequent
+        // request (login, world tick, etc.) that happens to get this connection.
+        try { await db.raw('ROLLBACK'); } catch (_) {}
         throw err;
       }
     }
