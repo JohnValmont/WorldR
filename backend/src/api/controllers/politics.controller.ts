@@ -35,6 +35,7 @@ import {
   getRecentNews,
   getOrCreateLegacyScores,
   getLegacySummary,
+  emitStory,
 } from '../services/politics.service';
 import {
   PARTY_FOUNDING_COST,
@@ -360,6 +361,15 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
       // Seed media relations for the new party
       try { await seedMediaRelationsForParty(trx, party.id, activeState.id); }
       catch (e) { console.warn('[foundParty] seedMediaRelationsForParty skipped:', (e as any)?.message); }
+
+      // Emit news story about the party foundation
+      try {
+        await emitStory(
+          trx, activeState.id, party.id, currentMonth, 'campaign_event',
+          `New Political Party Formed: ${party.name}`,
+          `${character.name} has officially announced the foundation of ${party.name} (${cleanAbbr}), running on a ${doctrine_id.replace(/_/g, ' ')} platform.`
+        );
+      } catch (e) { console.warn('[foundParty] emitStory skipped:', (e as any)?.message); }
 
       return party;
     });

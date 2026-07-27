@@ -1381,15 +1381,26 @@ async function namePremierAndEmitLedger(trx: any, cycle: any, largestParty: any,
 
   let headline = '';
   let body = '';
+  let storyType = 'coalition_formed';
+  let storyHeadline = '';
+  let storyBody = '';
+
   if (type === 'majority') {
-    headline = `GOVERNMENT FORMED: ${largestParty.name} Secures Majority`;
-    body = `With ${seats} seats, ${largestParty.name} governs without opposition support. A strong mandate has been established.`;
+    headline = 'MAJORITY GOVERNMENT FORMED';
+    body = `${largestParty.name} forms a majority government with ${seats} seats.`;
+    storyHeadline = `${largestParty.name} Forms Majority Government`;
+    storyBody = `Securing a clear mandate, ${largestParty.name} has formed a majority government holding ${seats} seats.`;
   } else if (type === 'coalition') {
-    headline = `COALITION FORMED: ${largestParty.name} Leads New Bloc`;
-    body = `Reaching the critical 31 seats, a coalition led by ${largestParty.name} has officially taken power.`;
+    headline = 'COALITION GOVERNMENT FORMED';
+    body = `${largestParty.name} leads a coalition government commanding ${seats} seats.`;
+    storyHeadline = `Coalition Government Formed Under ${largestParty.name}`;
+    storyBody = `After successful negotiations, ${largestParty.name} has emerged as the lead party of a new coalition government commanding ${seats} seats.`;
   } else {
-    headline = `MINORITY GOVERNMENT: ${largestParty.name} Clings to Power`;
-    body = `Unable to secure a majority bloc, ${largestParty.name} forms a fragile minority government with only ${seats} seats.`;
+    headline = 'MINORITY GOVERNMENT FORMED';
+    body = `${largestParty.name} forms a fragile minority government with only ${seats} seats.`;
+    storyHeadline = `${largestParty.name} Forms Minority Government`;
+    storyBody = `Failing to secure a majority bloc, ${largestParty.name} will attempt to lead a fragile minority government with only ${seats} seats.`;
+    storyType = 'coalition_crisis'; // A minority gov is inherently unstable
   }
 
   await trx('pol_ledger_events').insert({
@@ -1399,6 +1410,12 @@ async function namePremierAndEmitLedger(trx: any, cycle: any, largestParty: any,
     headline,
     body
   });
+
+  await emitStory(
+    trx, cycle.state_id, largestParty.id, cycle.formation_end_arc, storyType,
+    storyHeadline,
+    storyBody
+  );
 }
 
 async function performCycleRollover(trx: any, oldCycle: any, currentMonth: number) {
@@ -1554,6 +1571,12 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
             headline: `POLICY REVISED: ${category.toUpperCase()}`,
             body: `Council passes new ${category} policy: ${option.replace(/_/g, ' ').toUpperCase()}. Stats will adjust over the coming month.`
           });
+
+          await emitStory(
+            trx, stateId, proposerParty.id, currentMonth, 'legislation_passed',
+            `Parliament Passes ${category.toUpperCase()} Reform`,
+            `${proposerParty.name} successfully navigated the ${category} bill through the legislature, passing the new ${option.replace(/_/g, ' ')} policy.`
+          );
         }
       }
     } else {
@@ -1566,6 +1589,12 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
         headline: `BILL FAILED: ${bill.type.replace('_', ' ').toUpperCase()}`,
         body: `Council rejected the proposed ${bill.type.replace('_', ' ')}.`
       });
+
+      await emitStory(
+        trx, stateId, proposerParty.id, currentMonth, 'legislation_blocked',
+        `${bill.type.replace('_', ' ').toUpperCase()} Bill Defeated`,
+        `Failing to secure a majority, the ${bill.type.replace('_', ' ')} bill proposed by ${proposerParty.name} was blocked by the opposition.`
+      );
     }
   }
 }
@@ -1619,6 +1648,13 @@ async function awardTenders(trx: any, stateId: string, currentMonth: number) {
       headline: `Tender Awarded: ${tender.vehicle_class}`,
       body: `The ${tender.vehicle_class} procurement contract was awarded to ${winningBid.company_name} at ${winningBid.bid_price} $ per unit.`
     });
+
+    // We don't have a direct party ID for companies, but we can emit a generic news story (party_id = null)
+    await emitStory(
+      trx, stateId, null, currentMonth, 'policy_announcement',
+      `State Awards ${tender.vehicle_class} Tender to ${winningBid.company_name}`,
+      `Following a competitive bidding process, the Ministry has awarded the lucrative ${tender.vehicle_class} fleet procurement contract to ${winningBid.company_name}.`
+    );
   }
 }
 
