@@ -15,6 +15,7 @@ interface Props {
   character: any;
   parties: any[];
   myAp?: { current_ap: number; ap_cap: number };
+  myPc?: { current_pc: number; pc_cap: number };
   onRefresh?: () => void;
 }
 
@@ -216,14 +217,19 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
                       )}
                       
                       {/* Submit Module */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: 160 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: 180 }}>
                         <OledBtn 
-                          label={busy === 'propose' ? 'Proposing...' : 'Submit Policy Reform'} 
+                          label={busy === 'propose' ? 'Proposing...' : 'Submit Reform (2 AP, 2 PC)'} 
                           icon={busy === 'propose' ? undefined : CheckCircle2}
                           tone={T.gold} 
                           primary 
                           onClick={() => propose(pol.id)} 
-                          disabled={busy === 'propose' || targetOption === activePolicies[pol.id]} 
+                          disabled={
+                            busy === 'propose' || 
+                            targetOption === activePolicies[pol.id] ||
+                            (myAp?.current_ap ?? 0) < 2 ||
+                            (myPc?.current_pc ?? 0) < 2
+                          } 
                         />
                         {err && <div style={{ color: T.red, fontSize: 11, fontFamily: MONO, textAlign: 'center' }}>{err}</div>}
                       </div>

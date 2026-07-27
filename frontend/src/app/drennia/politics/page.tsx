@@ -36,6 +36,7 @@ export default function PoliticsDesk() {
   const { data: myPcData, mutate: mutatePc } = useSWR('myPc', () => politicsApi.getMyPc());
 
   const myAp = (myApData as { current_ap: number; ap_cap: number }) || { current_ap: 0, ap_cap: 12 };
+  const myPc = (myPcData as { current_pc: number; pc_cap: number }) || { current_pc: 0, pc_cap: 10 };
 
   const loadData = useCallback(async () => {
     await Promise.all([mutateChar(), mutateOver(), mutateParties(), mutateLedger(), mutateAp(), mutatePc()]);
@@ -59,8 +60,8 @@ export default function PoliticsDesk() {
     overview,
     character,
     parties,
-    myAp: myApData as any,
-    myPc: myPcData as any,
+    myAp,
+    myPc,
     onRefresh: loadData,
   };
 

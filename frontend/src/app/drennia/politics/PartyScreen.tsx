@@ -1637,7 +1637,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           {/* News Feed */}
           <NewsFeedPanel />
 
-          <Panel title="Roster" action={isLeader ? <Btn label={busy ? '…' : 'Recruit Candidate (1 AP, $10,000)'} onClick={recruit} disabled={busy} /> : undefined}>
+          <Panel title="Roster" action={isLeader ? <Btn label={busy ? '…' : 'Recruit Candidate (1 AP, $10,000)'} onClick={recruit} disabled={busy || (myAp?.current_ap ?? 0) < 1} /> : undefined}>
             <div style={{ color: T.muted, fontSize: 14, marginBottom: 16 }}>
               Bench: <span style={{ color: T.ivory, fontWeight: 600 }}>{myParty.members?.length ?? myParty.member_count ?? 0}</span> candidate(s).
               Recruiting pulls in an NPC loosely aligned to your platform.
