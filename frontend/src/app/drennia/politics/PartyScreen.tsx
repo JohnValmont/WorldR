@@ -183,8 +183,8 @@ function FactionPanel({ partyId, onSpendPc }: { partyId: string; onSpendPc?: (ac
             <span style={{ color: T.muted, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Party Cohesion</span>
             <span style={{ color: cohesionTone, fontSize: 13, fontFamily: MONO, fontWeight: 700 }}>{cohesion ?? '—'}%</span>
           </div>
-          <div style={{ height: 6, background: 'rgba(0,0,0,0.4)', borderRadius: 99, overflow: 'hidden' }}>
-            <div style={{ width: `${cohesion ?? 0}%`, height: '100%', background: cohesionTone, transition: 'width 0.8s ease', boxShadow: `0 0 8px ${cohesionTone}` }} />
+          <div style={{ height: 6, background: 'rgba(0,0,0,0.4)', borderRadius: 99 }}>
+            <div style={{ width: `${cohesion ?? 0}%`, height: '100%', borderRadius: 99, background: cohesionTone, transition: 'width 0.8s ease', boxShadow: `0 0 8px ${cohesionTone}` }} />
           </div>
           <div style={{ color: T.faint, fontSize: 10, marginTop: 4, fontFamily: MONO }}>
             {cohesion == null ? 'Loading…' : cohesion >= 60 ? 'Stable — all factions aligned' : cohesion >= 35 ? 'Strained — some factions restless' : 'Crisis — leadership threatened'}
@@ -250,8 +250,8 @@ function FactionPanel({ partyId, onSpendPc }: { partyId: string; onSpendPc?: (ac
                 </div>
               </div>
               {/* Loyalty bar */}
-              <div style={{ height: 4, background: 'rgba(0,0,0,0.4)', borderRadius: 99, overflow: 'hidden' }}>
-                <div style={{ width: `${loyalty}%`, height: '100%', background: tone, transition: 'width 0.6s ease' }} />
+              <div style={{ height: 4, background: 'rgba(0,0,0,0.4)', borderRadius: 99 }}>
+                <div style={{ width: `${loyalty}%`, height: '100%', borderRadius: 99, background: tone, transition: 'width 0.6s ease' }} />
               </div>
               {/* Demand */}
               {f.demand_payload && (() => {
@@ -538,8 +538,8 @@ function CampaignPanel({ partyId, isLeader, onRefresh }: { partyId: string; isLe
             <span style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Ground Game</span>
             <span style={{ color: meta.accentColor, fontSize: 14, fontFamily: MONO, fontWeight: 700 }}>{ggs}<span style={{ fontSize: 9, color: T.faint }}>/100</span></span>
           </div>
-          <div style={{ height: 6, background: 'rgba(0,0,0,0.5)', borderRadius: 99, overflow: 'hidden' }}>
-            <div style={{ width: `${ggs}%`, height: '100%', background: `linear-gradient(90deg, ${meta.accentColor}80, ${meta.accentColor})`, boxShadow: `0 0 8px ${meta.accentColor}50`, transition: 'width 1s ease' }} />
+          <div style={{ height: 6, background: 'rgba(0,0,0,0.5)', borderRadius: 99 }}>
+            <div style={{ width: `${ggs}%`, height: '100%', borderRadius: 99, background: `linear-gradient(90deg, ${meta.accentColor}80, ${meta.accentColor})`, boxShadow: `0 0 8px ${meta.accentColor}50`, transition: 'width 1s ease' }} />
           </div>
           <div style={{ color: T.faint, fontSize: 9, marginTop: 5, fontFamily: MONO }}>
             {ggs >= 80 ? 'Maximum saturation' : ggs >= 50 ? 'Strong coverage' : ggs >= 25 ? 'Building presence' : 'Early ground ops'}
@@ -553,7 +553,7 @@ function CampaignPanel({ partyId, isLeader, onRefresh }: { partyId: string; isLe
               {momentum >= 0 ? '+' : ''}{momentum.toFixed(1)}
             </span>
           </div>
-          <div style={{ height: 6, background: 'rgba(0,0,0,0.5)', borderRadius: 99, overflow: 'hidden', position: 'relative' }}>
+          <div style={{ height: 6, background: 'rgba(0,0,0,0.5)', borderRadius: 99, position: 'relative' }}>
             <div style={{ position: 'absolute', left: '50%', top: 0, width: 1, height: '100%', background: 'rgba(255,255,255,0.1)' }} />
             <div style={{
               position: 'absolute',
@@ -561,6 +561,7 @@ function CampaignPanel({ partyId, isLeader, onRefresh }: { partyId: string; isLe
               width: `${Math.abs(momentum / 20) * 50}%`,
               height: '100%',
               background: momentum >= 0 ? '#4ade80' : '#ef4444',
+              borderRadius: 99,
               transition: 'all 0.8s ease',
             }} />
           </div>
