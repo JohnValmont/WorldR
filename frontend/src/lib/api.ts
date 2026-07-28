@@ -203,6 +203,12 @@ export const exchangeApi = {
   getDistressed: () => api.get('/exchange/distressed').then(res => res.data),
   acquireDistressed: (companyId: string, acquiringCompanyId?: string) =>
     api.post(`/exchange/distressed/${companyId}/acquire`, { acquiringCompanyId }).then(res => res.data),
+
+  // ── Acquisition Auctions ──
+  getAuctions: () => api.get('/exchange/acquisitions').then(res => res.data),
+  getMyBids: () => api.get('/exchange/acquisitions/my-bids').then(res => res.data),
+  placeBid: (auctionId: string, amount: number) =>
+    api.post(`/exchange/acquisitions/${auctionId}/bid`, { amount }).then(res => res.data),
   };
 
 // Investments — P2P loans and private equity placements

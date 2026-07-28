@@ -4,6 +4,7 @@ import { ManufacturingController } from '../controllers/manufacturing.controller
 import { processEconomyMonth } from './economyTick.service';
 import { processExchangeMonth } from './ipoExchange.service';
 import { processPoliticalArc } from './politics.service';
+import { processAuctions } from './acquisitionAuction.service';
 
 
 
@@ -204,6 +205,19 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       } catch (err) {
         failures.push('exchange');
         logger.error(`[world-tick] Exchange step failed for Y${year} M${month}; skipping.`, err);
+      }
+
+      // 2d. Acquisition auctions — advance phases (registration→bidding) and settle completed
+      (global as any).tickProgress = 'processAuctions';
+      try {
+        await trx.transaction(async (sp: any) => {
+          await sp.raw(`SET LOCAL statement_timeout = ${TICK_STATEMENT_TIMEOUT_MS}`);
+          await sp.raw(`SET LOCAL lock_timeout = ${TICK_LOCK_TIMEOUT_QUERY_MS}`);
+          await processAuctions(sp, year, month);
+        });
+      } catch (err) {
+        failures.push('auctions');
+        logger.error(`[world-tick] Auction step failed for Y${year} M${month}; skipping.`, err);
       }
 
       // 3. Character aging — once per year, at the end of month 12

@@ -28,9 +28,14 @@ router.get('/company/:companyId/ohlc', IpoExchangeController.ohlc);
 router.get('/company/:companyId/earnings', IpoExchangeController.earnings);
 router.get('/company/:companyId', IpoExchangeController.companyDetail);
 
-// ── Distressed Asset Market ──
+// ── Distressed Asset Market (legacy one-click, kept for admin use) ──
 router.get('/distressed', IpoExchangeController.distressed);
 router.post('/distressed/:companyId/acquire', IpoExchangeController.acquire);
+
+// ── Acquisition Auctions ──
+router.get('/acquisitions', IpoExchangeController.getAuctions);
+router.get('/acquisitions/my-bids', IpoExchangeController.getMyBids);
+router.post('/acquisitions/:auctionId/bid', IpoExchangeController.placeBid);
 
 // ── Per-company order book ──
 router.get('/:companyId/book', ShareMarketController.orderBook);

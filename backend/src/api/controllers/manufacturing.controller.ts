@@ -38,6 +38,7 @@ import { MARKET_SEGMENTS } from '../constants/marketSegments';
 import { runNpcBrainForCompany, spawnNpc } from '../services/npcBrain.service';
 import { BANKRUPTCY_FLOOR } from '../constants/npc';
 import { processPoliticalArc, worldClockToArc } from '../services/politics.service';
+import { openAuction } from '../services/acquisitionAuction.service';
 
 // ── Score Calculation (Original formulas) ─────────────────────────────────────
 function calculateDesignScores(design: {
@@ -2938,6 +2939,11 @@ export class ManufacturingController {
                    created_at_world_month: currentMonth,
                    created_at_world_day: clock?.current_day ?? 1
                  }).catch(() => {}); // non-fatal
+
+                 // Open a timed acquisition auction (6 months registration → 3 months bidding)
+                 await openAuction(company.id, trx).catch((err: any) => {
+                   console.error(`[Auction] Failed to open for ${company.name}:`, err.message);
+                 });
               }
 
               // Step 3: If company has no value AND is already distressed for 3+ months, dissolve & respawn

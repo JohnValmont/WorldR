@@ -6,59 +6,74 @@ async function main() {
   const client = new Client(PROD_DB);
   await client.connect();
 
-  console.log('=== Fixing NPC company names ===\n');
+  const npcs = ['Valuecorp', 'Apex Automobili'];
 
-  // Rename ALL bankrupt NPC companies to [DISSOLVED] prefix so future spawns get clean names
-  const bankruptNpcs = await client.query(`
-    SELECT id, name, npc_personality FROM companies 
-    WHERE is_npc = true AND status = 'bankrupt' AND name NOT LIKE '[DISSOLVED]%'
-    ORDER BY name
-  `);
-  console.log(`Found ${bankruptNpcs.rows.length} bankrupt NPCs to rename:`);
-  for (const r of bankruptNpcs.rows) {
-    const newName = `[DISSOLVED] ${r.name}`;
-    await client.query(`UPDATE companies SET name = $1, updated_at = now() WHERE id = $2`, [newName, r.id]);
-    console.log(`  ${r.name} → ${newName}`);
-  }
+  for (const name of npcs) {
+    console.log(`\n===== ${name} =====`);
 
-  // Also rename current "Valuecorp 7" → "Valuecorp" and "Apex Automobili 5" → "Apex Automobili"
-  // since those suffixes were caused by the bug, not real respawns
-  const cleanups: Record<string, string> = {
-    'Valuecorp 7': 'Valuecorp',
-    'Apex Automobili 5': 'Apex Automobili',
-  };
-  console.log('\nCleaning up current active NPC names:');
-  for (const [oldName, newName] of Object.entries(cleanups)) {
-    const res = await client.query(
-      `UPDATE companies SET name = $1, updated_at = now() WHERE name = $2 AND is_npc = true AND status = 'active' RETURNING id`,
-      [newName, oldName]
+    const company = await client.query(
+      `SELECT id, name, status, is_exchange_listed, npc_personality FROM companies WHERE name = $1 AND is_npc = true LIMIT 1`,
+      [name]
     );
-    if (res.rowCount && res.rowCount > 0) {
-      // Also rename their vehicle models
-      await client.query(
-        `UPDATE manufacturing_vehicle_models SET name = REPLACE(name, $1, $2), updated_at = now()
-         WHERE company_id = $3`,
-        [oldName, newName, res.rows[0].id]
-      );
-      // And factory names
-      await client.query(
-        `UPDATE manufacturing_factories SET name = REPLACE(name, $1, $2), updated_at = now()
-         WHERE company_id = $3`,
-        [oldName, newName, res.rows[0].id]
-      );
-      console.log(`  ✓ ${oldName} → ${newName} (+ models + factories)`);
-    } else {
-      console.log(`  (not found): ${oldName}`);
-    }
-  }
+    if (!company.rows[0]) { console.log('  NOT FOUND'); continue; }
+    const c = company.rows[0];
+    console.log(`  Status: ${c.status} | Listed: ${c.is_exchange_listed}`);
 
-  // Final state
-  const active = await client.query(`
-    SELECT name, is_exchange_listed FROM companies WHERE is_npc = true AND status = 'active' ORDER BY name
-  `);
-  console.log('\nActive NPC companies now:');
-  for (const r of active.rows) {
-    console.log(`  ${r.name} | listed:${r.is_exchange_listed}`);
+    const fin = await client.query(`SELECT available_cash, debt, company_value FROM company_finances WHERE company_id = $1`, [c.id]);
+    const f = fin.rows[0];
+    console.log(`  Cash: $${Number(f?.available_cash).toLocaleString()} | Debt: $${Number(f?.debt).toLocaleString()} | Value: $${Number(f?.company_value).toLocaleString()}`);
+
+    const models = await client.query(
+      `SELECT name, status, development_status, sale_price, manufacturing_cost_per_unit, target_segment FROM manufacturing_vehicle_models WHERE company_id = $1`,
+      [c.id]
+    );
+    console.log(`  Models (${models.rows.length}):`);
+    for (const m of models.rows) {
+      console.log(`    [${m.status}/${m.development_status}] ${m.name} | $${Number(m.sale_price).toLocaleString()} | segment: ${m.target_segment}`);
+    }
+
+    const factories = await client.query(
+      `SELECT id, name, status, capacity_per_month FROM manufacturing_factories WHERE company_id = $1`,
+      [c.id]
+    );
+    console.log(`  Factories (${factories.rows.length}):`);
+    for (const fac of factories.rows) {
+      console.log(`    [${fac.status}] ${fac.name} | capacity: ${fac.capacity_per_month}/mo`);
+    }
+
+    const lines = await client.query(
+      `SELECT pl.status, pl.target_units_per_month, mv.name as model
+       FROM manufacturing_production_lines pl
+       LEFT JOIN manufacturing_vehicle_models mv ON mv.id = pl.assigned_vehicle_model_id
+       WHERE pl.company_id = $1`,
+      [c.id]
+    );
+    console.log(`  Production Lines (${lines.rows.length}):`);
+    for (const l of lines.rows) {
+      console.log(`    [${l.status}] ${l.target_units_per_month} units/mo → ${l.model}`);
+    }
+
+    const allocs = await client.query(
+      `SELECT a.units_allocated, a.marketing_tier, rm.name as market, mv.name as model
+       FROM manufacturing_market_allocations a
+       LEFT JOIN manufacturing_region_markets rm ON rm.id = a.region_market_id
+       LEFT JOIN manufacturing_vehicle_models mv ON mv.id = a.vehicle_model_id
+       WHERE a.company_id = $1`,
+      [c.id]
+    );
+    console.log(`  Market Allocations (${allocs.rows.length}):`);
+    for (const a of allocs.rows) {
+      console.log(`    ${a.units_allocated} units → ${a.market} [${a.marketing_tier}] via ${a.model}`);
+    }
+
+    const npcState = await client.query(
+      `SELECT ns.*, mv.name as model_name
+       FROM manufacturing_npc_state ns
+       LEFT JOIN manufacturing_vehicle_models mv ON mv.id = ns.vehicle_model_id
+       WHERE ns.company_id = $1`,
+      [c.id]
+    );
+    console.log(`  NPC Brain State: ${npcState.rows.length > 0 ? `model="${npcState.rows[0].model_name}"` : 'MISSING ⚠️'}`);
   }
 
   await client.end();

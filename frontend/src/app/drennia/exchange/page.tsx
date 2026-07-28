@@ -923,179 +923,284 @@ function Pipeline({ myFinanceFirms = [] }: { myFinanceFirms?: any[] }) {
   );
 }
 
-// ── Distressed Asset Market ─────────────────────────────────────────────────
-function DistressedMarket({ companies, onAcquired }: { companies: any[]; onAcquired: () => void }) {
-  const [acquiring, setAcquiring] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+// ── Acquisition Auctions Tab ─────────────────────────────────────────────────
+function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
+  const { data: auctionsData, mutate: mutateAuctions } = useSWR('acquisitions', () => exchangeApi.getAuctions(), { refreshInterval: 30000 });
+  const { data: myBidsData, mutate: mutateMyBids } = useSWR('my-bids', () => exchangeApi.getMyBids(), { refreshInterval: 30000 });
+  const [bidInputs, setBidInputs] = useState<Record<string, string>>({});
+  const [placing, setPlacing] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<{ id: string; msg: string; type: 'ok' | 'err' }[]>([]);
 
-  const handleAcquire = async (co: any) => {
-    if (acquiring) return;
-    setAcquiring(co.id);
-    setError(null);
-    setSuccess(null);
+  const auctions: any[] = auctionsData ?? [];
+  const myBids: any[] = myBidsData ?? [];
+  const registrationAuctions = auctions.filter((a) => a.status === 'registration');
+  const biddingAuctions      = auctions.filter((a) => a.status === 'bidding');
+
+  function toast(msg: string, type: 'ok' | 'err') {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((t) => [...t, { id, msg, type }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 6000);
+  }
+
+  async function handleBid(auctionId: string) {
+    const raw = bidInputs[auctionId];
+    const amount = Number(raw?.replace(/,/g, ''));
+    if (!amount || amount <= 0) return toast('Enter a valid bid amount.', 'err');
+    setPlacing(auctionId);
     try {
-      const result = await exchangeApi.acquireDistressed(co.id);
-      setSuccess(`✓ ${result.company_name} acquired for $${Number(result.acquisition_price).toLocaleString()}. Debt of $${Number(result.debt_cleared).toLocaleString()} cleared.`);
-      onAcquired();
+      const result = await exchangeApi.placeBid(auctionId, amount);
+      toast(`Bid placed: $${amount.toLocaleString()}. ${result.is_top_bidder ? 'You are the top bidder! 🏆' : 'Bid registered.'}`, 'ok');
+      setBidInputs((b) => ({ ...b, [auctionId]: '' }));
+      mutateAuctions();
+      mutateMyBids();
+      onBidPlaced();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e.message || 'Acquisition failed');
+      toast(e?.response?.data?.message || e.message || 'Bid failed.', 'err');
     } finally {
-      setAcquiring(null);
+      setPlacing(null);
     }
-  };
+  }
+
+  const myBidMap = Object.fromEntries(myBids.map((b: any) => [b.auction_id, b]));
 
   return (
-    <div style={{ maxWidth: '900px' }}>
+    <div style={{ maxWidth: '960px' }}>
+      {/* Toast notifications */}
+      <div style={{ position: 'fixed', top: '16px', right: '16px', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '8px', pointerEvents: 'none' }}>
+        {toasts.map((t) => (
+          <div key={t.id} style={{ background: t.type === 'ok' ? 'rgba(54,211,153,0.15)' : 'rgba(184,85,85,0.15)', border: `1px solid ${t.type === 'ok' ? 'rgba(54,211,153,0.4)' : 'rgba(184,85,85,0.4)'}`, padding: '10px 16px', fontSize: '12px', color: t.type === 'ok' ? T.mint : T.red, maxWidth: '340px', backdropFilter: 'blur(8px)' }}>
+            {t.msg}
+          </div>
+        ))}
+      </div>
+
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ ...label, letterSpacing: '0.2em', marginBottom: '4px' }}>Distressed Asset Market</div>
-        <h2 style={{ margin: '0 0 6px', fontSize: '18px', fontWeight: 700, color: T.ivory }}>Corporate Acquisitions</h2>
-        <p style={{ margin: 0, fontSize: '12px', color: T.muted, lineHeight: 1.6 }}>
-          Companies in severe financial distress are placed here for acquisition. Buy a struggling company at a steep discount (10% of book value),
-          take over its factories, staff, and vehicle models — with all debt cleared on transfer.
+      <div style={{ marginBottom: '28px' }}>
+        <div style={{ ...label, letterSpacing: '0.2em', marginBottom: '4px' }}>Drennport Exchange · Acquisition Desk</div>
+        <h2 style={{ margin: '0 0 6px', fontSize: '20px', fontWeight: 700, color: T.ivory }}>Corporate Acquisitions</h2>
+        <p style={{ margin: 0, fontSize: '12px', color: T.muted, lineHeight: 1.7 }}>
+          Distressed companies are put up for competitive auction. Register your interest during the registration window,
+          then place bids when the auction opens. Highest bid at close wins — debt is cleared on transfer.
         </p>
       </div>
 
-      {/* Toast messages */}
-      {success && (
-        <div style={{ background: 'rgba(54,211,153,0.12)', border: `1px solid rgba(54,211,153,0.3)`, padding: '10px 16px', marginBottom: '16px', fontSize: '12px', color: T.mint, borderRadius: '2px' }}>
-          {success}
-        </div>
-      )}
-      {error && (
-        <div style={{ background: 'rgba(184,85,85,0.12)', border: `1px solid rgba(184,85,85,0.3)`, padding: '10px 16px', marginBottom: '16px', fontSize: '12px', color: T.red, borderRadius: '2px' }}>
-          {error}
-        </div>
-      )}
+      {/* Timeline explainer */}
+      <div style={{ display: 'flex', gap: '0', marginBottom: '32px', overflow: 'hidden', border: `1px solid ${T.border}` }}>
+        {[
+          { phase: '1', label: 'Company Distressed', sub: 'Debt > 5× book value', color: '#B85555' },
+          { phase: '2', label: 'Registration', sub: '6 game months', color: '#8F6A2A' },
+          { phase: '3', label: 'Bidding', sub: '3 game months', color: T.gold },
+          { phase: '4', label: 'Settlement', sub: 'Company transfers', color: T.mint },
+        ].map((s, i) => (
+          <div key={i} style={{ flex: 1, padding: '10px 12px', background: T.panel, borderRight: i < 3 ? `1px solid ${T.border}` : undefined, textAlign: 'center' }}>
+            <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: s.color, color: T.bg, fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px', ...mono }}>{s.phase}</div>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: T.ivory }}>{s.label}</div>
+            <div style={{ fontSize: '9px', color: T.faint, marginTop: '2px' }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
 
       {/* Empty state */}
-      {companies.length === 0 && (
+      {auctions.length === 0 && (
         <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '60px 32px', textAlign: 'center' }}>
-          <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.3 }}>🏭</div>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: T.muted, marginBottom: '6px' }}>No Distressed Assets</div>
+          <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.3 }}>🏛️</div>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: T.muted, marginBottom: '6px' }}>No Active Auctions</div>
           <div style={{ fontSize: '11px', color: T.faint }}>
-            Companies will appear here when their debt exceeds 5× their book value. Check back after the next arc.
+            Auctions open when NPC companies reach financial distress (debt exceeding 5× their book value).
           </div>
         </div>
       )}
 
-      {/* Company cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {companies.map((co) => {
-          const debtRatio = Number(co.debt_ratio ?? 0);
-          const companyValue = Number(co.company_value ?? 0);
-          const debt = Number(co.debt ?? 0);
-          const acquisitionPrice = Number(co.acquisition_price ?? 0);
-          const lastProfit = Number(co.last_arc_profit ?? 0);
-          const ratioWidth = Math.min(100, (debtRatio / 10) * 100); // 10x = full bar
-          const isAcquiring = acquiring === co.id;
-
-          return (
-            <div key={co.id} style={{ background: T.panel, border: `1px solid rgba(232,162,52,0.25)`, padding: '20px 24px', position: 'relative', overflow: 'hidden' }}>
-              {/* Distress glow strip */}
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, #E8A234, #B85555)' }} />
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px', flexWrap: 'wrap' }}>
-                {/* Left: Company info */}
-                <div style={{ flex: '1 1 280px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                    <span style={{ ...mono, fontSize: '8px', color: '#E8A234', textTransform: 'uppercase', letterSpacing: '0.15em', background: 'rgba(232,162,52,0.12)', padding: '2px 7px', border: '1px solid rgba(232,162,52,0.2)' }}>
-                      Distressed
-                    </span>
-                    {co.is_npc && (
-                      <span style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>NPC</span>
+      {/* REGISTRATION PHASE auctions */}
+      {registrationAuctions.length > 0 && (
+        <div style={{ marginBottom: '32px' }}>
+          <div style={{ ...label, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8F6A2A', display: 'inline-block' }} />
+            Registration Phase — {registrationAuctions.length} upcoming
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {registrationAuctions.map((a) => (
+              <div key={a.id} style={{ background: T.panel, border: `1px solid rgba(143,106,42,0.3)`, padding: '18px 22px', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, #8F6A2A, #C9A24A)' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1 1 260px' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ ...mono, fontSize: '8px', color: '#C9A24A', textTransform: 'uppercase', letterSpacing: '0.15em', background: 'rgba(201,162,74,0.1)', padding: '2px 7px', border: '1px solid rgba(201,162,74,0.2)' }}>Registration Open</span>
+                    </div>
+                    <div style={{ fontSize: '17px', fontWeight: 700, color: T.ivory, marginBottom: '3px' }}>{a.name}</div>
+                    <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '12px' }}>{a.industry_id} · {a.country_id}</div>
+                    {a.active_models?.length > 0 && (
+                      <div style={{ marginBottom: '10px' }}>
+                        {a.active_models.map((m: any, i: number) => (
+                          <div key={i} style={{ fontSize: '11px', color: T.muted }}>{m.name} <span style={{ color: T.faint }}>· {m.target_segment} · ${Number(m.sale_price).toLocaleString()}</span></div>
+                        ))}
+                      </div>
                     )}
-                  </div>
-                  <div style={{ fontSize: '17px', fontWeight: 700, color: T.ivory, marginBottom: '3px' }}>{co.name}</div>
-                  <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '14px' }}>
-                    {co.industry_id} · {co.country_id}
-                  </div>
-
-                  {/* Models */}
-                  {co.active_models?.length > 0 && (
-                    <div style={{ marginBottom: '14px' }}>
-                      <div style={{ ...label, marginBottom: '4px' }}>Active Models</div>
-                      {co.active_models.map((m: any, i: number) => (
-                        <div key={i} style={{ fontSize: '11px', color: T.muted, marginBottom: '2px' }}>
-                          {m.name} <span style={{ color: T.faint }}>· {m.target_segment} · ${Number(m.sale_price).toLocaleString()}</span>
-                        </div>
-                      ))}
+                    <div style={{ fontSize: '11px', color: T.faint }}>
+                      Debt / Book: <span style={{ color: a.debt_ratio >= 5 ? '#B85555' : '#E8A234', fontWeight: 700 }}>{a.debt_ratio?.toFixed(1)}×</span>
                     </div>
-                  )}
-
-                  {/* Debt ratio bar */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <div style={{ ...label }}>Debt / Book Value</div>
-                      <div style={{ ...mono, fontSize: '11px', color: debtRatio >= 5 ? '#B85555' : '#E8A234', fontWeight: 700 }}>
-                        {debtRatio.toFixed(1)}×
-                      </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end', minWidth: '160px' }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Reserve Price</div>
+                      <div style={{ ...mono, fontSize: '18px', fontWeight: 700, color: T.gold }}>${fmtBig(a.reserve_price)}</div>
                     </div>
-                    <div style={{ height: '4px', background: 'rgba(255,255,255,0.07)', borderRadius: '2px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${ratioWidth}%`, background: `linear-gradient(90deg, #E8A234, #B85555)`, transition: 'width 0.4s ease' }} />
+                    <div style={{ background: 'rgba(143,106,42,0.1)', border: '1px solid rgba(201,162,74,0.2)', padding: '8px 14px', textAlign: 'center' }}>
+                      <div style={{ ...mono, fontSize: '8px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Bidding Opens In</div>
+                      <div style={{ ...mono, fontSize: '20px', fontWeight: 700, color: T.ivory }}>{a.months_to_bidding_start}</div>
+                      <div style={{ fontSize: '9px', color: T.faint }}>game months</div>
                     </div>
-                    <div style={{ ...mono, fontSize: '9px', color: T.faint, marginTop: '3px' }}>5× threshold for distress listing</div>
+                    <div style={{ ...mono, fontSize: '9px', color: T.faint, textAlign: 'right' }}>
+                      Bids open: Y{a.bidding_start_year}M{a.bidding_start_month}<br />
+                      Closes: Y{a.bidding_end_year}M{a.bidding_end_month}
+                    </div>
                   </div>
-                </div>
-
-                {/* Right: Financials + action */}
-                <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end', minWidth: '180px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 20px', textAlign: 'right' }}>
-                    {[
-                      ['Book Value', `$${fmtBig(companyValue)}`],
-                      ['Total Debt', `$${fmtBig(debt)}`],
-                      ['Last Profit', `${lastProfit >= 0 ? '+' : ''}$${fmtBig(lastProfit)}`],
-                      ['Share Price', co.last_share_price ? `$${fmt(co.last_share_price)}` : '—'],
-                    ].map(([k, v]) => (
-                      <div key={k as string}>
-                        <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{k}</div>
-                        <div style={{ ...mono, fontSize: '12px', color: T.ivory, fontWeight: 600 }}>{v}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Acquisition price highlight */}
-                  <div style={{ background: 'rgba(232,162,52,0.08)', border: '1px solid rgba(232,162,52,0.2)', padding: '10px 16px', textAlign: 'center', minWidth: '150px' }}>
-                    <div style={{ ...mono, fontSize: '8px', color: '#E8A234', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '2px' }}>Acquisition Price</div>
-                    <div style={{ ...mono, fontSize: '20px', fontWeight: 700, color: T.gold }}>${fmtBig(acquisitionPrice)}</div>
-                    <div style={{ fontSize: '9px', color: T.faint, marginTop: '2px' }}>10% of book · debt cleared</div>
-                  </div>
-
-                  <button
-                    id={`acquire-btn-${co.id}`}
-                    disabled={isAcquiring}
-                    onClick={() => handleAcquire(co)}
-                    style={{
-                      width: '100%',
-                      padding: '11px 20px',
-                      background: isAcquiring ? 'rgba(201,162,74,0.15)' : 'linear-gradient(135deg, #C9A24A, #8F6A2A)',
-                      border: '1px solid rgba(201,162,74,0.4)',
-                      color: T.ivory,
-                      cursor: isAcquiring ? 'wait' : 'pointer',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      ...mono,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.12em',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    {isAcquiring ? 'Acquiring...' : '⚡ Acquire Company'}
-                  </button>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-      {/* Info footer */}
-      {companies.length > 0 && (
-        <div style={{ marginTop: '20px', padding: '12px 16px', background: 'rgba(43,38,48,0.5)', border: `1px solid ${T.border}`, fontSize: '11px', color: T.faint, lineHeight: 1.7 }}>
-          <strong style={{ color: T.muted }}>How acquisitions work:</strong> You pay 10% of book value from your character cash. All existing debt is wiped.
-          You gain ownership of the company including its factories, staff, production lines, and vehicle models.
-          The company status is restored to Active and it is no longer NPC-controlled.
+      {/* BIDDING PHASE auctions */}
+      {biddingAuctions.length > 0 && (
+        <div style={{ marginBottom: '32px' }}>
+          <div style={{ ...label, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: T.gold, animation: 'pulse 1.5s infinite' }} />
+            Bidding Live — {biddingAuctions.length} active
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {biddingAuctions.map((a) => {
+              const myBid = myBidMap[a.id];
+              const isTopBidder = myBid && a.current_top_bid && Number(myBid.bid_amount) >= Number(a.current_top_bid);
+              const isPlacing = placing === a.id;
+
+              return (
+                <div key={a.id} style={{ background: T.panel, border: `1px solid rgba(201,162,74,0.35)`, padding: '20px 24px', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, #C9A24A, #36D399)' }} />
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px', flexWrap: 'wrap' }}>
+                    {/* Left */}
+                    <div style={{ flex: '1 1 280px' }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ ...mono, fontSize: '8px', color: T.mint, textTransform: 'uppercase', letterSpacing: '0.15em', background: 'rgba(54,211,153,0.1)', padding: '2px 7px', border: '1px solid rgba(54,211,153,0.25)' }}>⚡ Bidding Open</span>
+                        {isTopBidder && <span style={{ ...mono, fontSize: '8px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.12em', background: 'rgba(201,162,74,0.12)', padding: '2px 7px', border: '1px solid rgba(201,162,74,0.25)' }}>🏆 Your Lead</span>}
+                      </div>
+                      <div style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, marginBottom: '3px' }}>{a.name}</div>
+                      <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '12px' }}>{a.industry_id} · {a.country_id}</div>
+
+                      {a.active_models?.length > 0 && (
+                        <div style={{ marginBottom: '12px' }}>
+                          <div style={{ ...label, marginBottom: '4px' }}>Included Assets</div>
+                          {a.active_models.map((m: any, i: number) => (
+                            <div key={i} style={{ fontSize: '11px', color: T.muted, marginBottom: '2px' }}>
+                              {m.name} <span style={{ color: T.faint }}>· {m.target_segment} · ${Number(m.sale_price).toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Quick stats */}
+                      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                        {[
+                          ['Book Value', `$${fmtBig(a.company_value)}`],
+                          ['Total Debt', `$${fmtBig(a.debt)}`],
+                          ['Debt Ratio', `${a.debt_ratio?.toFixed(1)}×`],
+                        ].map(([k, v]) => (
+                          <div key={k as string}>
+                            <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{k}</div>
+                            <div style={{ ...mono, fontSize: '12px', color: T.ivory, fontWeight: 600 }}>{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Right */}
+                    <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '200px' }}>
+                      {/* Current top bid */}
+                      <div style={{ background: 'rgba(201,162,74,0.08)', border: '1px solid rgba(201,162,74,0.2)', padding: '10px 16px', textAlign: 'center' }}>
+                        <div style={{ ...mono, fontSize: '8px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '2px' }}>
+                          {a.current_top_bid ? 'Current Top Bid' : 'Reserve Price'}
+                        </div>
+                        <div style={{ ...mono, fontSize: '22px', fontWeight: 700, color: T.gold }}>
+                          ${fmtBig(a.current_top_bid ?? a.reserve_price)}
+                        </div>
+                        <div style={{ fontSize: '9px', color: T.faint, marginTop: '2px' }}>
+                          {a.bid_count} bid{a.bid_count !== 1 ? 's' : ''} · min next: ${fmtBig(a.min_next_bid)}
+                        </div>
+                      </div>
+
+                      {/* Countdown */}
+                      <div style={{ textAlign: 'center', padding: '6px' }}>
+                        <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Closes In</div>
+                        <div style={{ ...mono, fontSize: '24px', fontWeight: 700, color: a.months_to_bidding_end <= 1 ? '#B85555' : T.ivory }}>
+                          {a.months_to_bidding_end}
+                        </div>
+                        <div style={{ fontSize: '9px', color: T.faint }}>game month{a.months_to_bidding_end !== 1 ? 's' : ''}</div>
+                      </div>
+
+                      {/* My current bid */}
+                      {myBid && (
+                        <div style={{ background: isTopBidder ? 'rgba(54,211,153,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isTopBidder ? 'rgba(54,211,153,0.25)' : T.border}`, padding: '7px 12px', textAlign: 'center', fontSize: '11px' }}>
+                          <span style={{ color: T.faint }}>Your bid: </span>
+                          <span style={{ color: isTopBidder ? T.mint : T.ivory, fontWeight: 700, ...mono }}>${Number(myBid.bid_amount).toLocaleString()}</span>
+                          {isTopBidder && <span style={{ color: T.mint }}> · Leading</span>}
+                        </div>
+                      )}
+
+                      {/* Bid input */}
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <input
+                          type="number"
+                          placeholder={`Min $${fmtBig(a.min_next_bid)}`}
+                          value={bidInputs[a.id] ?? ''}
+                          onChange={(e) => setBidInputs((b) => ({ ...b, [a.id]: e.target.value }))}
+                          style={{
+                            flex: 1, padding: '9px 10px', background: 'rgba(255,255,255,0.05)',
+                            border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px',
+                            fontFamily: 'monospace', outline: 'none', minWidth: 0,
+                          }}
+                        />
+                        <button
+                          id={`bid-btn-${a.id}`}
+                          disabled={isPlacing}
+                          onClick={() => handleBid(a.id)}
+                          style={{
+                            padding: '9px 14px', background: isPlacing ? 'rgba(201,162,74,0.15)' : 'linear-gradient(135deg, #C9A24A, #8F6A2A)',
+                            border: '1px solid rgba(201,162,74,0.4)', color: T.ivory, cursor: isPlacing ? 'wait' : 'pointer',
+                            fontSize: '11px', fontWeight: 700, ...mono, textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {isPlacing ? '...' : (myBid ? 'Raise' : 'Bid')}
+                        </button>
+                      </div>
+                      <div style={{ fontSize: '9px', color: T.faint, textAlign: 'center' }}>
+                        Paid at settlement only · Debt cleared on transfer
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* MY BIDS summary */}
+      {myBids.length > 0 && (
+        <div style={{ marginTop: '8px', padding: '16px 20px', background: 'rgba(43,38,48,0.6)', border: `1px solid ${T.border}` }}>
+          <div style={{ ...label, marginBottom: '10px' }}>Your Active Bids</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {myBids.map((b: any) => (
+              <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', padding: '5px 0', borderBottom: `1px solid ${T.border}` }}>
+                <div style={{ color: T.ivory, fontWeight: 600 }}>{b.company_name}</div>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <span style={{ ...mono, color: T.gold }}>${Number(b.bid_amount).toLocaleString()}</span>
+                  <span style={{ ...mono, fontSize: '9px', textTransform: 'uppercase', color: b.auction_status === 'bidding' ? T.mint : T.faint }}>{b.auction_status}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -1114,7 +1219,7 @@ export default function ExchangePage() {
   const { data: listings, mutate: mutateListings } = useSWR('exchange-listings', () => exchangeApi.getListings(), { refreshInterval: 15000 });
   const { data: charData } = useSWR('my-character', () => characterApi.getMe().then(r => r.data), { revalidateOnFocus: false });
   const { data: pipeline } = useSWR('ipo-pipeline-count', () => exchangeApi.getPipeline(), { refreshInterval: 20000 });
-  const { data: distressedData, mutate: mutateDistressed } = useSWR('distressed-companies', () => exchangeApi.getDistressed(), { refreshInterval: 30000 });
+  const { data: auctionsCountData } = useSWR('acquisitions-count', () => exchangeApi.getAuctions(), { refreshInterval: 30000 });
   const { data: myCompaniesData } = useSWR('my-companies-bourse', () => companyApi.getMy().then(r => r.data), { revalidateOnFocus: false });
   const myFinanceFirms = (Array.isArray(myCompaniesData) ? myCompaniesData : (myCompaniesData?.companies || [])).filter((c: any) => c.industry_id === 'finance');
   const myCharacterId: string | null = charData?.character?.id ?? null;
@@ -1122,7 +1227,7 @@ export default function ExchangePage() {
   const activeId = selectedId ?? list[0]?.id ?? null;
   const active = list.find((l) => l.id === activeId) ?? null;
   const pipelineCount = (pipeline ?? []).length;
-  const distressedList: any[] = distressedData ?? [];
+  const auctionCount = (auctionsCountData ?? []).length;
 
   // Show quick IPO panel when: company selected, no trades yet, viewer is the owner
   const showQuickIpo = active != null && active.last_price == null && myCharacterId != null && active.owner_character_id === myCharacterId;
@@ -1135,7 +1240,7 @@ export default function ExchangePage() {
   const tabs: { id: Tab; name: string; badge?: number; warn?: boolean }[] = [
     { id: 'bourse', name: 'Bourse' },
     { id: 'pipeline', name: 'IPO Pipeline', badge: pipelineCount },
-    { id: 'acquisitions', name: 'Acquisitions', badge: distressedList.length || undefined, warn: distressedList.length > 0 },
+    { id: 'acquisitions', name: 'Acquisitions', badge: auctionCount || undefined, warn: auctionCount > 0 },
     { id: 'desk', name: 'My Desk' },
   ];
 
@@ -1253,7 +1358,7 @@ export default function ExchangePage() {
         {tab === 'pipeline' && <Pipeline myFinanceFirms={myFinanceFirms} />}
 
         {tab === 'acquisitions' && (
-          <DistressedMarket companies={distressedList} onAcquired={() => { mutateDistressed(); mutateListings(); }} />
+          <AuctionTab onBidPlaced={() => mutateListings()} />
         )}
 
         {tab === 'desk' && (

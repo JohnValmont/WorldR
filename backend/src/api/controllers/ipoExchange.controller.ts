@@ -3,6 +3,7 @@ import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import * as ipo from '../services/ipoExchange.service';
 import * as distressed from '../services/distressedMarket.service';
+import * as auction from '../services/acquisitionAuction.service';
 
 async function requireCharacter(req: Request): Promise<any> {
   const userId = req.user?.id;
@@ -156,6 +157,41 @@ export class IpoExchangeController {
         targetCompanyId: req.params.companyId,
         characterId: character.id,
         acquiringCompanyId,
+      }));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /exchange/acquisitions — all active auctions (registration + bidding)
+  public static async getAuctions(req: Request, res: Response, next: NextFunction) {
+    try {
+      res.status(200).json(await auction.getActiveAuctions());
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /exchange/acquisitions/my-bids — bids placed by the current character
+  public static async getMyBids(req: Request, res: Response, next: NextFunction) {
+    try {
+      const character = await requireCharacter(req);
+      res.status(200).json(await auction.getMyBids(character.id));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // POST /exchange/acquisitions/:auctionId/bid  { amount }
+  public static async placeBid(req: Request, res: Response, next: NextFunction) {
+    try {
+      const character = await requireCharacter(req);
+      const amount = Number(req.body.amount);
+      if (!amount || amount <= 0) throw new AppError('Invalid bid amount.', 400, 'INVALID_AMOUNT');
+      res.status(200).json(await auction.placeBid({
+        auctionId:   req.params.auctionId,
+        characterId: character.id,
+        amount,
       }));
     } catch (error) {
       next(error);
