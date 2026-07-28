@@ -2,10 +2,11 @@ BEGIN;
 
 INSERT INTO pol_states (code, name, is_active, country_id, population, registered_voters, base_turnout)
 VALUES 
-('ironvale', 'Ironvale', TRUE, 'drennia', 2400000, 1600000, 0.58),
+('ironvale', 'Ironvale', FALSE, 'drennia', 2400000, 1600000, 0.58),
 ('drennport', 'Drennport', FALSE, 'drennia', 0, 0, 0.50),
 ('westport', 'Westport', FALSE, 'drennia', 0, 0, 0.50),
-('greenmere', 'Greenmere', FALSE, 'drennia', 0, 0, 0.50)
+('greenmere', 'Greenmere', FALSE, 'drennia', 0, 0, 0.50),
+('national', 'National Parliament', TRUE, 'drennia', 10000000, 7000000, 0.60)
 ON CONFLICT (code) DO UPDATE SET 
     name = EXCLUDED.name,
     is_active = EXCLUDED.is_active,
@@ -19,22 +20,22 @@ DELETE FROM pol_parties WHERE is_npc = TRUE;
 INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_arc)
 SELECT 
     id, 
-    'Ironvale Labour Front', 
+    'National Labour Front', 
     '{"taxation": 30, "labour": 90, "investment": 70, "trade": 50, "stability": 50}'::jsonb, 
     500000.0000, 
     TRUE, 
     0
-FROM pol_states WHERE code = 'ironvale';
+FROM pol_states WHERE code = 'national';
 
 INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_arc)
 SELECT 
     id, 
-    'Industrial Progress Party', 
+    'National Progress Party', 
     '{"taxation": 85, "labour": 35, "investment": 75, "trade": 80, "stability": 60}'::jsonb, 
     500000.0000, 
     TRUE, 
     0
-FROM pol_states WHERE code = 'ironvale';
+FROM pol_states WHERE code = 'national';
 
 INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_arc)
 SELECT 
@@ -44,7 +45,7 @@ SELECT
     500000.0000, 
     TRUE, 
     0
-FROM pol_states WHERE code = 'ironvale';
+FROM pol_states WHERE code = 'national';
 
 INSERT INTO pol_parties (state_id, name, platform, treasury, is_npc, created_arc)
 SELECT 
@@ -54,10 +55,10 @@ SELECT
     50000.0000, 
     TRUE, 
     0
-FROM pol_states WHERE code = 'ironvale';
+FROM pol_states WHERE code = 'national';
 
 INSERT INTO pol_state_policy (state_id, active_policies, updated_arc)
-SELECT id, '{"taxation": "standard", "labor": "regulated", "environment": "standard", "welfare": "standard"}'::jsonb, 0 FROM pol_states WHERE code = 'ironvale'
+SELECT id, '{"taxation": "standard", "labor": "regulated", "environment": "standard", "welfare": "standard"}'::jsonb, 0 FROM pol_states WHERE code = 'national'
 ON CONFLICT (state_id) DO UPDATE SET 
     active_policies = EXCLUDED.active_policies;
 
