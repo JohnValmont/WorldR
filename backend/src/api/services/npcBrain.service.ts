@@ -202,11 +202,11 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
   const ESPIONAGE_COST = 1000000; // $1M threshold so NPCs execute espionage frequently
   if (availableCash < ESPIONAGE_COST) return availableCash;
 
-  // Allow up to 12 active models per NPC
+  // Ensure NPC has at least one active model to replace
   const modelsCount = await trx('manufacturing_vehicle_models')
     .where({ company_id: companyId, development_status: 'launched', status: 'active' })
     .count('* as count');
-  if (Number(modelsCount[0].count) >= 12) return availableCash;
+  if (Number(modelsCount[0].count) < 1) return availableCash;
 
   // Get active instance
   const instance = await trx('world_instances').where({ status: 'active' }).first();
@@ -284,39 +284,42 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
   await trx('manufacturing_vehicle_models').insert(newModel);
   console.log(`[NPC Espionage] ${npcCompany.name} cloned ${topPlayerModel.name} into ${newModelName}`);
 
-  // Create factory line
-  const factory = await trx('manufacturing_factories').where({ company_id: companyId }).first();
-  if (factory) {
-    await trx('manufacturing_production_lines').insert({
-      id: crypto.randomUUID(),
-      world_instance_id: instance.id,
-      company_id: companyId,
-      factory_id: factory.id,
-      assigned_vehicle_model_id: newModelId,
-      status: 'active',
-      target_units_per_month: 250,
-      created_at: new Date(),
-      updated_at: new Date()
-    });
-    
-    // Allocate to market
-    const existingAllocation = await trx('manufacturing_market_allocations')
-      .where({ company_id: companyId })
-      .first();
+  // Find worst performing model to replace
+  const worstModel = await trx('manufacturing_vehicle_models')
+    .where({ company_id: companyId, development_status: 'launched', status: 'active' })
+    .orderBy('appeal_score', 'asc')
+    .first();
+
+  if (worstModel) {
+    // Transfer production lines
+    await trx('manufacturing_production_lines')
+      .where({ company_id: companyId, assigned_vehicle_model_id: worstModel.id })
+      .update({ assigned_vehicle_model_id: newModelId, updated_at: new Date() });
       
-    if (existingAllocation) {
-      await trx('manufacturing_market_allocations').insert({
-        id: crypto.randomUUID(),
-        world_instance_id: instance.id,
-        company_id: companyId,
-        vehicle_model_id: newModelId,
-        region_market_id: existingAllocation.region_market_id,
-        units_allocated: 250,
-        marketing_tier: existingAllocation.marketing_tier,
-        created_at: new Date(),
-        updated_at: new Date()
-      });
+    // Copy allocations
+    const allocations = await trx('manufacturing_market_allocations')
+      .where({ company_id: companyId, vehicle_model_id: worstModel.id });
+      
+    for (const alloc of allocations) {
+      const { id, ...allocWithoutId } = alloc;
+      const newAlloc = { ...allocWithoutId, id: crypto.randomUUID(), vehicle_model_id: newModelId };
+      await trx('manufacturing_market_allocations').insert(newAlloc);
     }
+    
+    // Discontinue old model & zero out its market allocations to prevent ghost demand
+    await trx('manufacturing_vehicle_models')
+      .where({ id: worstModel.id })
+      .update({ 
+        status: 'discontinued', 
+        development_status: 'discontinued',
+        discontinued_year: currentYear, 
+        discontinued_month: currentMonth, 
+        updated_at: new Date() 
+      });
+
+    await trx('manufacturing_market_allocations')
+      .where({ company_id: companyId, vehicle_model_id: worstModel.id })
+      .update({ units_allocated: 0, updated_at: new Date() });
   }
 
   return availableCash;
