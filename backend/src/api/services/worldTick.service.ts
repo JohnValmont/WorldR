@@ -84,9 +84,13 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       } as any;
     }
     // Lock is stale: the previous tick almost certainly died without releasing
-    // it. Reclaim it so the world can advance again. (The world_clock row lock
-    // below still guarantees correctness even if the old run were somehow alive.)
+    // it. Reclaim it so the world can advance again.
     logger.warn(`[world-tick] Reclaiming stale biz-tick lock held for ${Math.round(heldFor / 1000)}s (was at: ${(global as any).tickProgress})`);
+  }
+  // Also defer if a politics tick is mid-flight — they both lock world_clock FOR UPDATE
+  // so starting a biz tick now would just block on the lock for 15 s then error.
+  if (polTickInFlight !== null && Date.now() - polTickInFlight < TICK_LOCK_TIMEOUT_MS) {
+    return { status: 'skipped', reason: 'tick_in_progress' } as any;
   }
   bizTickInFlight = Date.now();
   (global as any).tickProgress = 'Starting transaction...';
@@ -307,6 +311,10 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
       return { status: 'skipped', reason: 'tick_in_progress', step: (global as any).tickProgress } as any;
     }
     logger.warn(`[world-tick] Reclaiming stale pol-tick lock held for ${Math.round(heldFor / 1000)}s`);
+  }
+  // Also defer if a biz tick is mid-flight — they both lock world_clock FOR UPDATE.
+  if (bizTickInFlight !== null && Date.now() - bizTickInFlight < TICK_LOCK_TIMEOUT_MS) {
+    return { status: 'skipped', reason: 'tick_in_progress' } as any;
   }
   polTickInFlight = Date.now();
   (global as any).tickProgress = 'Starting politics transaction...';
