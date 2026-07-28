@@ -3030,7 +3030,29 @@ export class ManufacturingController {
           clock?.current_month ?? 1
       );
 
-      // 3. For each model, calculate total supply and distribute
+      // 3. Pre-fetch all factories and factory types for this company in TWO queries
+      //    instead of 2 queries × N-prod-lines inside the model loop below.
+      //    Also pre-fetch all region markets referenced by this company's allocations.
+      const allFactories = await trx('manufacturing_factories').where({ company_id: company.id });
+      const factoryMap = new Map<string, any>();
+      for (const f of allFactories) factoryMap.set(f.id, f);
+
+      const allFactoryTypeIds = [...new Set(allFactories.map((f: any) => f.factory_type_id).filter(Boolean))];
+      const allFactoryTypes = allFactoryTypeIds.length > 0
+        ? await trx('manufacturing_factory_types').whereIn('id', allFactoryTypeIds)
+        : [];
+      const factoryTypeMap = new Map<string, any>();
+      for (const ft of allFactoryTypes) factoryTypeMap.set(ft.id, ft);
+
+      // Pre-fetch ALL region markets referenced by any allocation for this company
+      const allAllocMarketIds = [...new Set(activeAllocs.map((a: any) => a.region_market_id))];
+      const allRegionMarkets = allAllocMarketIds.length > 0
+        ? await trx('manufacturing_region_markets').whereIn('id', allAllocMarketIds)
+        : [];
+      const regionMarketMap = new Map<string, any>();
+      for (const rm of allRegionMarkets) regionMarketMap.set(rm.id, rm);
+
+      // 4. For each model, calculate total supply and distribute
       for (const model of launchedModels) {
         const inv = await trx('manufacturing_inventory').where({ company_id: company.id, vehicle_model_id: model.id }).first();
         const currentStock = inv ? Number(inv.units_in_stock) : 0;
@@ -3040,8 +3062,9 @@ export class ManufacturingController {
         
         let estProduction = 0;
         for (const line of prodLines) {
-          const factory = await trx('manufacturing_factories').where({ id: line.factory_id }).first();
-          const factoryType = factory ? await trx('manufacturing_factory_types').where({ id: factory.factory_type_id }).first() : null;
+          // Use pre-fetched Maps — no additional DB queries per line
+          const factory = factoryMap.get(line.factory_id);
+          // factoryType pre-fetched but not currently used in capacity calc; kept for future use
           
           const factoryCapacity = factory ? Number(factory.capacity_per_month) : 1000;
           const planTarget = Number(line.target_units_per_month || 0);
@@ -3062,8 +3085,8 @@ export class ManufacturingController {
         const modelAllocs = activeAllocs.filter((a: any) => a.vehicle_model_id === model.id);
         if (modelAllocs.length === 0) continue;
 
-        const marketIds = modelAllocs.map((a: any) => a.region_market_id);
-        const markets = await trx('manufacturing_region_markets').whereIn('id', marketIds);
+        // Use pre-fetched Map instead of a per-model DB query
+        const markets = modelAllocs.map((a: any) => regionMarketMap.get(a.region_market_id)).filter(Boolean);
         
         let totalDemandScore = 0;
         const demandScores = new Map<string, number>();

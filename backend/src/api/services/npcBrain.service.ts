@@ -178,8 +178,9 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
 async function ensureUniqueModelName(trx: Knex, worldInstanceId: string, baseName: string): Promise<string> {
   let candidate = baseName.trim().substring(0, 60);
   let counter = 1;
+  const MAX_NAME_ATTEMPTS = 200; // safety cap — prevents infinite loop if DB has many collisions
 
-  while (true) {
+  while (counter <= MAX_NAME_ATTEMPTS) {
     const existing = await trx('manufacturing_vehicle_models')
       .whereRaw('world_instance_id = ? AND LOWER(name) = ?', [worldInstanceId, candidate.toLowerCase()])
       .first();
@@ -191,6 +192,10 @@ async function ensureUniqueModelName(trx: Knex, worldInstanceId: string, baseNam
     const prefix = baseName.substring(0, 60 - suffix.length);
     candidate = `${prefix}${suffix}`;
   }
+
+  // Fallback: UUID suffix guarantees uniqueness even after 200 collisions
+  const uuid = crypto.randomUUID().substring(0, 8);
+  return `${baseName.trim().substring(0, 51)} ${uuid}`;
 }
 
 async function performIndustrialEspionage(trx: Knex, companyId: string, currentYear: number, currentMonth: number, availableCash: number): Promise<number> {
@@ -465,7 +470,7 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     let prevYear = currentYear;
     let prevMonth = currentMonth - 1;
     if (prevMonth === 0) {
-      prevMonth = 8;
+      prevMonth = 12; // December of the previous year
       prevYear = currentYear - 1;
     }
 
@@ -508,7 +513,7 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     let prevPrevYear = prevYear;
     let prevPrevMonth = prevMonth - 1;
     if (prevPrevMonth === 0) {
-      prevPrevMonth = 8;
+      prevPrevMonth = 12; // December of the prior year
       prevPrevYear = prevYear - 1;
     }
 

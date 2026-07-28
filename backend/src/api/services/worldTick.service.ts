@@ -24,22 +24,35 @@ export interface WorldTickResult {
   failures?: string[];
 }
 
-// In-process re-entrancy guard (the world_clock row lock below guards across
-// processes). Stored as a TIMESTAMP, not a bare boolean, so a tick that dies
-// mid-run (e.g. the process is killed by a platform timeout, or a DB connection
-// is severed) can never wedge the world forever. A lock older than
+// Separate in-process re-entrancy guards for business and politics ticks.
+// Stored as timestamps so a tick that dies mid-run (e.g. killed by a platform
+// timeout) can never wedge the world forever. A lock older than
 // TICK_LOCK_TIMEOUT_MS is treated as dead and reclaimed on the next attempt.
-let inFlightSince: number | null = null;
+let bizTickInFlight: number | null = null;
+let polTickInFlight: number | null = null;
 
-// Backstop: how long a held lock may live before we assume the holder crashed
-// and reclaim it.
-const TICK_LOCK_TIMEOUT_MS = 120_000; // 2 minutes
+// How long a held in-process lock may live before we assume the holder crashed.
+// Set to 20 minutes — long enough that a genuinely slow tick is never
+// prematurely reclaimed, which was the root cause of the cascading lock-wait
+// storm (T1 still running → T2/T3/… keep starting and hitting statement_timeout
+// every 35s, making the UI show "PROCESSING" indefinitely).
+const TICK_LOCK_TIMEOUT_MS = 1_200_000; // 20 minutes
 
 // Hard per-statement timeout inside the tick transaction. Guarantees no single
-// query can hang the tick indefinitely: Postgres aborts it, the transaction
-// throws, and the `finally` releases the lock. A healthy month processes each
-// statement in well under a second, so this never fires normally.
+// query can hang the tick indefinitely.
 const TICK_STATEMENT_TIMEOUT_MS = 30_000; // 30 seconds
+
+// Hard per-statement lock-wait timeout. If a query is blocked waiting for a
+// row lock, Postgres kills it after this many ms. This makes "world_clock is
+// busy" errors fail fast (15 s) instead of waiting the full statement timeout.
+const TICK_LOCK_TIMEOUT_QUERY_MS = 15_000; // 15 seconds
+
+// Maximum wall-clock time the entire biz tick transaction may run. If the
+// countries loop hasn't finished within this window the tick breaks early,
+// advances the clock with however many countries it managed to process, and
+// logs any skipped countries as failures. The world ALWAYS advances — it never
+// freezes because of slow data.
+const TICK_MAX_DURATION_MS = 300_000; // 5 minutes
 
 // Human-readable step of the current tick, exposed on skip responses for
 // diagnostics (e.g. "Processing country: drennia - Step 3: Produce").
@@ -59,8 +72,8 @@ const TICK_STATEMENT_TIMEOUT_MS = 30_000; // 30 seconds
  *  4. Advance current_month / current_year and reschedule next_arc_close_at.
  */
 export async function runWorldTick(opts: { force?: boolean } = {}): Promise<WorldTickResult> {
-  if (inFlightSince !== null) {
-    const heldFor = Date.now() - inFlightSince;
+  if (bizTickInFlight !== null) {
+    const heldFor = Date.now() - bizTickInFlight;
     if (heldFor < TICK_LOCK_TIMEOUT_MS) {
       // A tick is genuinely still running — refuse to double-process, but
       // surface the current step so admins can see where it is.
@@ -73,14 +86,17 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
     // Lock is stale: the previous tick almost certainly died without releasing
     // it. Reclaim it so the world can advance again. (The world_clock row lock
     // below still guarantees correctness even if the old run were somehow alive.)
-    logger.warn(`[world-tick] Reclaiming stale tick lock held for ${Math.round(heldFor / 1000)}s (was at: ${(global as any).tickProgress})`);
+    logger.warn(`[world-tick] Reclaiming stale biz-tick lock held for ${Math.round(heldFor / 1000)}s (was at: ${(global as any).tickProgress})`);
   }
-  inFlightSince = Date.now();
+  bizTickInFlight = Date.now();
   (global as any).tickProgress = 'Starting transaction...';
   try {
     return await db.transaction(async (trx) => {
       // Guarantee no single query can hang the tick indefinitely.
+      // lock_timeout ensures lock-wait failures are fast (15 s) rather than
+      // waiting for the full statement_timeout (30 s).
       await trx.raw(`SET LOCAL statement_timeout = ${TICK_STATEMENT_TIMEOUT_MS}`);
+      await trx.raw(`SET LOCAL lock_timeout = ${TICK_LOCK_TIMEOUT_QUERY_MS}`);
 
       const activeInstance = await trx('world_instances').where({ status: 'active' }).first();
       if (!activeInstance) return { status: 'skipped', reason: 'no_clock' } as WorldTickResult;
@@ -125,11 +141,30 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       let processedCompanies = 0;
       const failures: string[] = [];
 
+      // Record when we entered the countries loop so we can enforce the
+      // 5-minute hard deadline. If the tick is too slow to finish all countries
+      // in time, we break early and advance the clock with what we have —
+      // the world never freezes.
+      const tickStart = Date.now();
+
       for (const countryId of countryIds) {
+        // Hard deadline guard: if we've been running for more than
+        // TICK_MAX_DURATION_MS, stop processing more countries and let the
+        // clock advance. Skipped countries are logged as failures.
+        if (Date.now() - tickStart > TICK_MAX_DURATION_MS) {
+          const remaining = countryIds.filter(id => id !== countryId);
+          logger.warn(`[world-tick] 5-minute deadline exceeded at country ${countryId} for Y${year} M${month}. Skipping ${remaining.length + 1} remaining countries and advancing clock.`);
+          for (const skippedId of [countryId, ...remaining]) {
+            failures.push(`country:${skippedId}:deadline`);
+          }
+          break;
+        }
+
         (global as any).tickProgress = `Processing country: ${countryId}`;
         try {
           await trx.transaction(async (sp) => {
             await sp.raw(`SET LOCAL statement_timeout = ${TICK_STATEMENT_TIMEOUT_MS}`);
+            await sp.raw(`SET LOCAL lock_timeout = ${TICK_LOCK_TIMEOUT_QUERY_MS}`);
             const result = await ManufacturingController.processCountryMonth(sp, countryId, clock);
             processedCompanies += result.processedCompanies;
           });
@@ -144,6 +179,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       try {
         await trx.transaction(async (sp) => {
           await sp.raw(`SET LOCAL statement_timeout = ${TICK_STATEMENT_TIMEOUT_MS}`);
+          await sp.raw(`SET LOCAL lock_timeout = ${TICK_LOCK_TIMEOUT_QUERY_MS}`);
           await processEconomyMonth(sp, year, month);
         });
       } catch (err) {
@@ -158,6 +194,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       try {
         await trx.transaction(async (sp) => {
           await sp.raw(`SET LOCAL statement_timeout = ${TICK_STATEMENT_TIMEOUT_MS}`);
+          await sp.raw(`SET LOCAL lock_timeout = ${TICK_LOCK_TIMEOUT_QUERY_MS}`);
           await processExchangeMonth(sp, year, month);
         });
       } catch (err) {
@@ -171,6 +208,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
         try {
           await trx.transaction(async (sp) => {
             await sp.raw(`SET LOCAL statement_timeout = ${TICK_STATEMENT_TIMEOUT_MS}`);
+            await sp.raw(`SET LOCAL lock_timeout = ${TICK_LOCK_TIMEOUT_QUERY_MS}`);
             await sp('characters')
               .where({ world_instance_id: activeInstance.id, status: 'active' })
               .increment('age', 1);
@@ -223,7 +261,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       } as WorldTickResult;
     });
   } finally {
-    inFlightSince = null;
+    bizTickInFlight = null;
   }
 }
 
@@ -263,17 +301,19 @@ export function startWorldTickScheduler(): NodeJS.Timeout {
 }
 
 export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<WorldTickResult> {
-  if (inFlightSince !== null) {
-    const heldFor = Date.now() - inFlightSince;
+  if (polTickInFlight !== null) {
+    const heldFor = Date.now() - polTickInFlight;
     if (heldFor < TICK_LOCK_TIMEOUT_MS) {
       return { status: 'skipped', reason: 'tick_in_progress', step: (global as any).tickProgress } as any;
     }
+    logger.warn(`[world-tick] Reclaiming stale pol-tick lock held for ${Math.round(heldFor / 1000)}s`);
   }
-  inFlightSince = Date.now();
+  polTickInFlight = Date.now();
   (global as any).tickProgress = 'Starting politics transaction...';
   try {
     return await db.transaction(async (trx) => {
       await trx.raw(`SET LOCAL statement_timeout = ${TICK_STATEMENT_TIMEOUT_MS}`);
+      await trx.raw(`SET LOCAL lock_timeout = ${TICK_LOCK_TIMEOUT_QUERY_MS}`);
 
       const activeInstance = await trx('world_instances').where({ status: 'active' }).first();
       if (!activeInstance) return { status: 'skipped', reason: 'no_clock' } as WorldTickResult;
@@ -308,6 +348,7 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
         try {
           await trx.transaction(async (sp) => {
             await sp.raw(`SET LOCAL statement_timeout = ${TICK_STATEMENT_TIMEOUT_MS}`);
+            await sp.raw(`SET LOCAL lock_timeout = ${TICK_LOCK_TIMEOUT_QUERY_MS}`);
             await processPoliticalArc(sp, state.id, arc);
           });
         } catch (err) {
@@ -353,6 +394,6 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
       } as WorldTickResult;
     });
   } finally {
-    inFlightSince = null;
+    polTickInFlight = null;
   }
 }
