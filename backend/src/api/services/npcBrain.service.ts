@@ -775,6 +775,9 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
     })
     .returning('*');
 
+  // Auto-list on exchange
+  await trx('companies').where({ id: company.id }).update({ is_exchange_listed: true });
+
   // Auto-grant HQ state license
   await trx('company_state_licenses').insert({
     company_id: company.id,
@@ -884,4 +887,19 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       company_id: company.id,
       vehicle_model_id: model.id
     });
+
+  // Seed initial share price history so the exchange can show the company immediately
+  const seedPrice = Math.max(1, Math.round((roster.seedCapital / 1000000) * 100) / 100);
+  await trx('share_price_history').insert({
+    company_id: company.id,
+    game_year: clock.current_year,
+    game_month: clock.current_month,
+    open_price: seedPrice,
+    high_price: seedPrice,
+    low_price: seedPrice,
+    close_price: seedPrice,
+    volume_shares: 0,
+    market_cap: seedPrice * 1_000_000,
+    eps: 0
+  }).onConflict().ignore();
 }
