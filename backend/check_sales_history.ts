@@ -5,14 +5,23 @@ const client = new Client('postgresql://postgres.qrwnjcjdsonhrlhdsveu:GURJAR345%
 async function main() {
   await client.connect();
   try {
-    const res = await client.query("SELECT world_year, world_month, count(*) as c FROM manufacturing_sales_results GROUP BY world_year, world_month ORDER BY world_year DESC, world_month DESC LIMIT 10");
-    console.log("SALES PER MONTH:");
-    res.rows.forEach(r => console.log(`Y${r.world_year} M${r.world_month}: ${r.c} sales`));
+    const res = await client.query(`
+      SELECT 
+        world_year, 
+        world_month, 
+        SUM(units_sold) as total_sold
+      FROM manufacturing_sales_results r 
+      JOIN companies c ON r.company_id = c.id 
+      WHERE c.name LIKE '%Aldrich%' 
+        AND world_year >= 5 
+      GROUP BY world_year, world_month 
+      ORDER BY world_year DESC, world_month DESC;
+    `);
+    console.table(res.rows);
   } catch(e) {
     console.error(e);
   } finally {
     await client.end();
   }
 }
-
 main();

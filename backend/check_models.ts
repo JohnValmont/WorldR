@@ -6,9 +6,10 @@ async function main() {
   await client.connect();
   try {
     const res = await client.query(`
-      SELECT pid, state, wait_event_type, wait_event, query 
-      FROM pg_stat_activity 
-      WHERE pid != pg_backend_pid();
+      SELECT m.name, m.development_status, m.status 
+      FROM manufacturing_vehicle_models m
+      JOIN companies c ON m.company_id = c.id
+      WHERE c.name LIKE '%Aldrich%'
     `);
     console.table(res.rows);
   } catch(e) {

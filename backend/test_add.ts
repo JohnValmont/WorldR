@@ -5,16 +5,13 @@ const client = new Client('postgresql://postgres.qrwnjcjdsonhrlhdsveu:GURJAR345%
 async function main() {
   await client.connect();
   try {
-    const res = await client.query(`
-      SELECT pid, state, wait_event_type, wait_event, query 
-      FROM pg_stat_activity 
-      WHERE pid != pg_backend_pid();
-    `);
-    console.table(res.rows);
+    await client.query(`ALTER TABLE manufacturing_market_brand_arc_results ADD COLUMN world_year INTEGER`);
+    console.log("Column added successfully!");
   } catch(e) {
-    console.error(e);
+    console.error("Failed:", e);
   } finally {
     await client.end();
   }
 }
+
 main();

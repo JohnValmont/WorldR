@@ -6,11 +6,9 @@ async function main() {
   await client.connect();
   try {
     const res = await client.query(`
-      SELECT pid, state, wait_event_type, wait_event, query 
-      FROM pg_stat_activity 
-      WHERE pid != pg_backend_pid();
+      SELECT * FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE '%log%';
     `);
-    console.table(res.rows);
+    console.table(res.rows.map(r => r.table_name));
   } catch(e) {
     console.error(e);
   } finally {

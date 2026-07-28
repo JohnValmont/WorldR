@@ -2379,6 +2379,17 @@ export class ManufacturingController {
     const repTrustSensBonus = repReliabilityScore >= 70 ? 0.15 : repReliabilityScore >= 50 ? 0.07 : 0;
     const repMfgDefectBonus = repMfgScore >= 70 ? 0.002 : 0;
 
+
+    const existingArcResults = await trx('manufacturing_market_brand_arc_results').where({ company_id: companyId, world_year: currentYear, world_month: currentMonth });
+    const existingArcSet = new Set(existingArcResults.map((r: any) => r.region_market_id));
+
+    const existingBrands = await trx('manufacturing_brand_awareness').where({ company_id: companyId });
+    const existingBrandMap = new Map(existingBrands.map((b: any) => [b.region_market_id, b]));
+
+    const brandUpdates = [];
+    const brandInserts = [];
+    const arcResultInserts = [];
+
     for (const [marketId, ms] of pState.marketStatsMap.entries()) {
       const mktTier = highestMktTierPerMarket.get(marketId) || 'none';
       const mktMarketingSpend = MARKETING_COSTS[mktTier] ?? 0;
@@ -2837,9 +2848,9 @@ export class ManufacturingController {
                  await trx('manufacturing_market_allocations').where({ company_id: company.id }).del();
                  
                  // Re-seed a FRESH NPC of the same personality
-                 await spawnNpc(trx, company.npc_personality, company.country_id, clock);
+                 await spawnNpc(trx, company.npc_personality || 'valuecorp', company.country_id, clock);
                  
-                 console.log(`[NPC Bankruptcy] ${company.name} (${company.id}) went bankrupt with ${fin.available_cash} cash. Respawned fresh ${company.npc_personality}!`);
+                 console.log(`[NPC Bankruptcy] ${company.name} (${company.id}) went bankrupt with ${fin.available_cash} cash. Respawned fresh ${company.npc_personality || 'valuecorp'}!`);
               }
            }
         }
