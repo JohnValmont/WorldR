@@ -607,15 +607,16 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     if (allocations.length > 0) {
       (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - update allocations`;
       // Spread units evenly across all markets; any remainder goes to the primary market
-      const perMarket = Math.max(1, Math.floor((output.newTargetUnits) / allocations.length));
-      const remainder = output.newTargetUnits - (perMarket * allocations.length);
+      const perMarket = Math.floor(output.newTargetUnits / allocations.length);
+      const remainder = output.newTargetUnits % allocations.length;
       for (let i = 0; i < allocations.length; i++) {
-        const extraUnits = i === 0 ? remainder : 0; // give remainder to primary market
+        const extraUnits = i < remainder ? 1 : 0; 
+        const marketInv = i === 0 ? inventoryInStock : 0;
         await trx('manufacturing_market_allocations')
           .where({ id: allocations[i].id })
           .update({
             marketing_tier: output.newMarketingTier,
-            units_allocated: perMarket + extraUnits + (i === 0 ? inventoryInStock : 0)
+            units_allocated: Math.max(0, perMarket + extraUnits + marketInv)
           });
       }
 
@@ -634,7 +635,8 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
               world_instance_id: allocation!.world_instance_id,
               vehicle_model_id: modelId,
               region_market_id: newMarket.id,
-              units_allocated: perMarket,
+              // Start with 0 allocation this month since production was already fully divided
+              units_allocated: 0,
               marketing_tier: output.newMarketingTier
             })
             .onConflict(['company_id', 'vehicle_model_id', 'region_market_id'])
