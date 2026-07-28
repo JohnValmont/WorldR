@@ -23,7 +23,7 @@ async function main() {
        console.log("Success! Finished processCountryMonth.");
        throw new Error("ROLLBACK_ON_PURPOSE");
     });
-  } catch(e) {
+  } catch(e: any) {
     if (e.message !== "ROLLBACK_ON_PURPOSE") {
        console.error("ACTUAL CRASH:");
        console.error(e);
