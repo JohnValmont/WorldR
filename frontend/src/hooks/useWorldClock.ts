@@ -56,12 +56,14 @@ export function useWorldClock() {
       const s = Math.max(0, Math.floor((target - syncedNow) / 1000));
       setSecondsToTick(s);
       
-      if (s === 0 && !timeoutId) {
-        // Poll backend softly if we reached 0 but next_arc hasn't advanced yet
-        timeoutId = setTimeout(() => {
-          mutate();
-          timeoutId = null;
-        }, 5_000);
+        if (s === 0) {
+        // Keep polling every 5s until server advances next_arc_close_at
+        if (!timeoutId) {
+          timeoutId = setTimeout(function poll() {
+            mutate();
+            timeoutId = setTimeout(poll, 5_000);
+          }, 5_000);
+        }
       }
     };
     update();
