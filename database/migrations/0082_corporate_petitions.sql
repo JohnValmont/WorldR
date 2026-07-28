@@ -1,7 +1,7 @@
 -- UP
 BEGIN;
 
-CREATE TABLE pol_petitions (
+CREATE TABLE IF NOT EXISTS pol_petitions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     state_id UUID NOT NULL REFERENCES pol_states(id) ON DELETE CASCADE,
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
