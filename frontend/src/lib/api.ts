@@ -197,7 +197,12 @@ export const exchangeApi = {
 
   // ── Quick IPO (simple sell-block listing, alternative to formal IPO filing) ──
   ipoLaunch: (companyId: string, data: { price_per_share: number; quantity: number }) =>
-    api.post(`/exchange/${companyId}/ipo`, data).then(res => res.data)
+    api.post(`/exchange/${companyId}/ipo`, data).then(res => res.data),
+
+  // ── Distressed Asset Market ──
+  getDistressed: () => api.get('/exchange/distressed').then(res => res.data),
+  acquireDistressed: (companyId: string, acquiringCompanyId?: string) =>
+    api.post(`/exchange/distressed/${companyId}/acquire`, { acquiringCompanyId }).then(res => res.data),
   };
 
 // Investments — P2P loans and private equity placements

@@ -923,8 +923,187 @@ function Pipeline({ myFinanceFirms = [] }: { myFinanceFirms?: any[] }) {
   );
 }
 
+// ── Distressed Asset Market ─────────────────────────────────────────────────
+function DistressedMarket({ companies, onAcquired }: { companies: any[]; onAcquired: () => void }) {
+  const [acquiring, setAcquiring] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const handleAcquire = async (co: any) => {
+    if (acquiring) return;
+    setAcquiring(co.id);
+    setError(null);
+    setSuccess(null);
+    try {
+      const result = await exchangeApi.acquireDistressed(co.id);
+      setSuccess(`✓ ${result.company_name} acquired for $${Number(result.acquisition_price).toLocaleString()}. Debt of $${Number(result.debt_cleared).toLocaleString()} cleared.`);
+      onAcquired();
+    } catch (e: any) {
+      setError(e?.response?.data?.message || e.message || 'Acquisition failed');
+    } finally {
+      setAcquiring(null);
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: '900px' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ ...label, letterSpacing: '0.2em', marginBottom: '4px' }}>Distressed Asset Market</div>
+        <h2 style={{ margin: '0 0 6px', fontSize: '18px', fontWeight: 700, color: T.ivory }}>Corporate Acquisitions</h2>
+        <p style={{ margin: 0, fontSize: '12px', color: T.muted, lineHeight: 1.6 }}>
+          Companies in severe financial distress are placed here for acquisition. Buy a struggling company at a steep discount (10% of book value),
+          take over its factories, staff, and vehicle models — with all debt cleared on transfer.
+        </p>
+      </div>
+
+      {/* Toast messages */}
+      {success && (
+        <div style={{ background: 'rgba(54,211,153,0.12)', border: `1px solid rgba(54,211,153,0.3)`, padding: '10px 16px', marginBottom: '16px', fontSize: '12px', color: T.mint, borderRadius: '2px' }}>
+          {success}
+        </div>
+      )}
+      {error && (
+        <div style={{ background: 'rgba(184,85,85,0.12)', border: `1px solid rgba(184,85,85,0.3)`, padding: '10px 16px', marginBottom: '16px', fontSize: '12px', color: T.red, borderRadius: '2px' }}>
+          {error}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {companies.length === 0 && (
+        <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '60px 32px', textAlign: 'center' }}>
+          <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.3 }}>🏭</div>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: T.muted, marginBottom: '6px' }}>No Distressed Assets</div>
+          <div style={{ fontSize: '11px', color: T.faint }}>
+            Companies will appear here when their debt exceeds 5× their book value. Check back after the next arc.
+          </div>
+        </div>
+      )}
+
+      {/* Company cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {companies.map((co) => {
+          const debtRatio = Number(co.debt_ratio ?? 0);
+          const companyValue = Number(co.company_value ?? 0);
+          const debt = Number(co.debt ?? 0);
+          const acquisitionPrice = Number(co.acquisition_price ?? 0);
+          const lastProfit = Number(co.last_arc_profit ?? 0);
+          const ratioWidth = Math.min(100, (debtRatio / 10) * 100); // 10x = full bar
+          const isAcquiring = acquiring === co.id;
+
+          return (
+            <div key={co.id} style={{ background: T.panel, border: `1px solid rgba(232,162,52,0.25)`, padding: '20px 24px', position: 'relative', overflow: 'hidden' }}>
+              {/* Distress glow strip */}
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, #E8A234, #B85555)' }} />
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px', flexWrap: 'wrap' }}>
+                {/* Left: Company info */}
+                <div style={{ flex: '1 1 280px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <span style={{ ...mono, fontSize: '8px', color: '#E8A234', textTransform: 'uppercase', letterSpacing: '0.15em', background: 'rgba(232,162,52,0.12)', padding: '2px 7px', border: '1px solid rgba(232,162,52,0.2)' }}>
+                      Distressed
+                    </span>
+                    {co.is_npc && (
+                      <span style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>NPC</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '17px', fontWeight: 700, color: T.ivory, marginBottom: '3px' }}>{co.name}</div>
+                  <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '14px' }}>
+                    {co.industry_id} · {co.country_id}
+                  </div>
+
+                  {/* Models */}
+                  {co.active_models?.length > 0 && (
+                    <div style={{ marginBottom: '14px' }}>
+                      <div style={{ ...label, marginBottom: '4px' }}>Active Models</div>
+                      {co.active_models.map((m: any, i: number) => (
+                        <div key={i} style={{ fontSize: '11px', color: T.muted, marginBottom: '2px' }}>
+                          {m.name} <span style={{ color: T.faint }}>· {m.target_segment} · ${Number(m.sale_price).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Debt ratio bar */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <div style={{ ...label }}>Debt / Book Value</div>
+                      <div style={{ ...mono, fontSize: '11px', color: debtRatio >= 5 ? '#B85555' : '#E8A234', fontWeight: 700 }}>
+                        {debtRatio.toFixed(1)}×
+                      </div>
+                    </div>
+                    <div style={{ height: '4px', background: 'rgba(255,255,255,0.07)', borderRadius: '2px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${ratioWidth}%`, background: `linear-gradient(90deg, #E8A234, #B85555)`, transition: 'width 0.4s ease' }} />
+                    </div>
+                    <div style={{ ...mono, fontSize: '9px', color: T.faint, marginTop: '3px' }}>5× threshold for distress listing</div>
+                  </div>
+                </div>
+
+                {/* Right: Financials + action */}
+                <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end', minWidth: '180px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 20px', textAlign: 'right' }}>
+                    {[
+                      ['Book Value', `$${fmtBig(companyValue)}`],
+                      ['Total Debt', `$${fmtBig(debt)}`],
+                      ['Last Profit', `${lastProfit >= 0 ? '+' : ''}$${fmtBig(lastProfit)}`],
+                      ['Share Price', co.last_share_price ? `$${fmt(co.last_share_price)}` : '—'],
+                    ].map(([k, v]) => (
+                      <div key={k as string}>
+                        <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{k}</div>
+                        <div style={{ ...mono, fontSize: '12px', color: T.ivory, fontWeight: 600 }}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Acquisition price highlight */}
+                  <div style={{ background: 'rgba(232,162,52,0.08)', border: '1px solid rgba(232,162,52,0.2)', padding: '10px 16px', textAlign: 'center', minWidth: '150px' }}>
+                    <div style={{ ...mono, fontSize: '8px', color: '#E8A234', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '2px' }}>Acquisition Price</div>
+                    <div style={{ ...mono, fontSize: '20px', fontWeight: 700, color: T.gold }}>${fmtBig(acquisitionPrice)}</div>
+                    <div style={{ fontSize: '9px', color: T.faint, marginTop: '2px' }}>10% of book · debt cleared</div>
+                  </div>
+
+                  <button
+                    id={`acquire-btn-${co.id}`}
+                    disabled={isAcquiring}
+                    onClick={() => handleAcquire(co)}
+                    style={{
+                      width: '100%',
+                      padding: '11px 20px',
+                      background: isAcquiring ? 'rgba(201,162,74,0.15)' : 'linear-gradient(135deg, #C9A24A, #8F6A2A)',
+                      border: '1px solid rgba(201,162,74,0.4)',
+                      color: T.ivory,
+                      cursor: isAcquiring ? 'wait' : 'pointer',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      ...mono,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.12em',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {isAcquiring ? 'Acquiring...' : '⚡ Acquire Company'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Info footer */}
+      {companies.length > 0 && (
+        <div style={{ marginTop: '20px', padding: '12px 16px', background: 'rgba(43,38,48,0.5)', border: `1px solid ${T.border}`, fontSize: '11px', color: T.faint, lineHeight: 1.7 }}>
+          <strong style={{ color: T.muted }}>How acquisitions work:</strong> You pay 10% of book value from your character cash. All existing debt is wiped.
+          You gain ownership of the company including its factories, staff, production lines, and vehicle models.
+          The company status is restored to Active and it is no longer NPC-controlled.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
-type Tab = 'bourse' | 'pipeline' | 'desk';
+type Tab = 'bourse' | 'pipeline' | 'acquisitions' | 'desk';
 
 export default function ExchangePage() {
   const router = useRouter();
@@ -935,6 +1114,7 @@ export default function ExchangePage() {
   const { data: listings, mutate: mutateListings } = useSWR('exchange-listings', () => exchangeApi.getListings(), { refreshInterval: 15000 });
   const { data: charData } = useSWR('my-character', () => characterApi.getMe().then(r => r.data), { revalidateOnFocus: false });
   const { data: pipeline } = useSWR('ipo-pipeline-count', () => exchangeApi.getPipeline(), { refreshInterval: 20000 });
+  const { data: distressedData, mutate: mutateDistressed } = useSWR('distressed-companies', () => exchangeApi.getDistressed(), { refreshInterval: 30000 });
   const { data: myCompaniesData } = useSWR('my-companies-bourse', () => companyApi.getMy().then(r => r.data), { revalidateOnFocus: false });
   const myFinanceFirms = (Array.isArray(myCompaniesData) ? myCompaniesData : (myCompaniesData?.companies || [])).filter((c: any) => c.industry_id === 'finance');
   const myCharacterId: string | null = charData?.character?.id ?? null;
@@ -942,6 +1122,7 @@ export default function ExchangePage() {
   const activeId = selectedId ?? list[0]?.id ?? null;
   const active = list.find((l) => l.id === activeId) ?? null;
   const pipelineCount = (pipeline ?? []).length;
+  const distressedList: any[] = distressedData ?? [];
 
   // Show quick IPO panel when: company selected, no trades yet, viewer is the owner
   const showQuickIpo = active != null && active.last_price == null && myCharacterId != null && active.owner_character_id === myCharacterId;
@@ -951,9 +1132,10 @@ export default function ExchangePage() {
     mutateListings();
   };
 
-  const tabs: { id: Tab; name: string; badge?: number }[] = [
+  const tabs: { id: Tab; name: string; badge?: number; warn?: boolean }[] = [
     { id: 'bourse', name: 'Bourse' },
     { id: 'pipeline', name: 'IPO Pipeline', badge: pipelineCount },
+    { id: 'acquisitions', name: 'Acquisitions', badge: distressedList.length || undefined, warn: distressedList.length > 0 },
     { id: 'desk', name: 'My Desk' },
   ];
 
@@ -993,13 +1175,13 @@ export default function ExchangePage() {
               background: tab === t.id ? T.panelSoft : 'transparent',
               border: `1px solid ${tab === t.id ? T.borderGold : T.border}`,
               borderBottom: tab === t.id ? `1px solid ${T.panelSoft}` : `1px solid ${T.border}`,
-              color: tab === t.id ? T.gold : T.faint,
+              color: tab === t.id ? T.gold : (t.warn ? '#E8A234' : T.faint),
               display: 'flex', alignItems: 'center', gap: '8px',
             }}
           >
             {t.name}
-            {t.badge ? (
-              <span style={{ background: T.gold, color: T.bg, borderRadius: '8px', padding: '1px 6px', fontSize: '9px' }}>{t.badge}</span>
+            {t.badge != null && t.badge > 0 ? (
+              <span style={{ background: t.warn ? '#E8A234' : T.gold, color: T.bg, borderRadius: '8px', padding: '1px 6px', fontSize: '9px' }}>{t.badge}</span>
             ) : null}
           </button>
         ))}
@@ -1069,6 +1251,10 @@ export default function ExchangePage() {
         )}
 
         {tab === 'pipeline' && <Pipeline myFinanceFirms={myFinanceFirms} />}
+
+        {tab === 'acquisitions' && (
+          <DistressedMarket companies={distressedList} onAcquired={() => { mutateDistressed(); mutateListings(); }} />
+        )}
 
         {tab === 'desk' && (
           <div style={{ maxWidth: '640px' }}>

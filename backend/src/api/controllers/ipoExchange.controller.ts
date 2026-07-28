@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import * as ipo from '../services/ipoExchange.service';
+import * as distressed from '../services/distressedMarket.service';
 
 async function requireCharacter(req: Request): Promise<any> {
   const userId = req.user?.id;
@@ -132,6 +133,30 @@ export class IpoExchangeController {
     try {
       const character = await requireCharacter(req);
       res.status(200).json(await ipo.cancelIoi(req.params.ioiId, character.id));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /exchange/distressed — all companies in financial distress available for acquisition
+  public static async distressed(req: Request, res: Response, next: NextFunction) {
+    try {
+      res.status(200).json(await distressed.getDistressedCompanies());
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // POST /exchange/distressed/:companyId/acquire — player acquires a distressed company
+  public static async acquire(req: Request, res: Response, next: NextFunction) {
+    try {
+      const character = await requireCharacter(req);
+      const { acquiringCompanyId } = req.body;
+      res.status(200).json(await distressed.acquireDistressedCompany({
+        targetCompanyId: req.params.companyId,
+        characterId: character.id,
+        acquiringCompanyId,
+      }));
     } catch (error) {
       next(error);
     }

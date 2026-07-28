@@ -28,6 +28,10 @@ router.get('/company/:companyId/ohlc', IpoExchangeController.ohlc);
 router.get('/company/:companyId/earnings', IpoExchangeController.earnings);
 router.get('/company/:companyId', IpoExchangeController.companyDetail);
 
+// ── Distressed Asset Market ──
+router.get('/distressed', IpoExchangeController.distressed);
+router.post('/distressed/:companyId/acquire', IpoExchangeController.acquire);
+
 // ── Per-company order book ──
 router.get('/:companyId/book', ShareMarketController.orderBook);
 router.get('/:companyId/trades', ShareMarketController.trades);

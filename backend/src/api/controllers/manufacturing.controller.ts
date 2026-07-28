@@ -2894,13 +2894,62 @@ export class ManufacturingController {
            }
         }
 
-        // 6. BANKRUPTCY HANDLING (NPCs only)
+        // 6. CORPORATE RESCUE SYSTEM (NPCs only)
+        // Instead of instant bankruptcy, NPCs receive emergency loans.
+        // When debt exceeds 500% of company value, they become 'distressed'
+        // and are available for player acquisition on the exchange.
         for (const company of participants) {
            if (company.is_npc) {
-              const fin = await trx('company_finances').where({ company_id: company.id }).first();
-              if (fin && parseFloat(fin.available_cash) < BANKRUPTCY_FLOOR) {
-                 // Retire the old NPC
-                 await trx('companies').where({ id: company.id }).update({ status: 'bankrupt' });
+              const fin = await trx('company_finances').where({ company_id: company.id }).forUpdate().first();
+              if (!fin) continue;
+
+              const cash = parseFloat(fin.available_cash);
+              const debt = parseFloat(fin.debt ?? '0');
+              const companyValue = parseFloat(fin.company_value ?? '0');
+
+              // Step 1: If cash is negative, issue an emergency rescue loan
+              if (cash < 0) {
+                 const loanAmount = Math.abs(cash) + 50000; // cover deficit + 50k buffer
+                 await trx('company_finances').where({ company_id: company.id }).update({
+                   available_cash: 50000, // give them a small buffer
+                   debt: debt + loanAmount,
+                   updated_at: trx.fn.now()
+                 });
+                 console.log(`[NPC Rescue] ${company.name}: issued emergency loan $${loanAmount.toLocaleString()}. New debt: $${(debt + loanAmount).toLocaleString()}`);
+              }
+
+              // Step 2: Check if debt has crossed 500% of company value → mark distressed
+              const newDebt = debt + (cash < 0 ? Math.abs(cash) + 50000 : 0);
+              const debtRatio = companyValue > 0 ? (newDebt / companyValue) : Infinity;
+
+              if (debtRatio >= 5.0 && company.status !== 'distressed') {
+                 await trx('companies').where({ id: company.id }).update({
+                   status: 'distressed',
+                   updated_at: trx.fn.now()
+                 });
+                 // Keep on exchange so players can see and acquire it
+                 console.log(`[NPC Distressed] ${company.name}: debt ratio ${debtRatio.toFixed(1)}x — marked for acquisition`);
+                 await trx('company_records').insert({
+                   world_instance_id: company.world_instance_id,
+                   company_id: company.id,
+                   record_type: 'business',
+                   summary: `${company.name} is in financial distress (debt ${debtRatio.toFixed(1)}x company value). Available for acquisition on the DRX Bourse.`,
+                   created_at_world_year: currentYear,
+                   created_at_world_month: currentMonth,
+                   created_at_world_day: clock?.current_day ?? 1
+                 }).catch(() => {}); // non-fatal
+              }
+
+              // Step 3: If company has no value AND is already distressed for 3+ months, dissolve & respawn
+              // (Safety valve — prevents permanently comatose NPCs clogging the exchange)
+              if (company.status === 'distressed' && companyValue <= 0) {
+                 // Rename the old NPC so the fresh spawn gets the clean canonical name
+                 await trx('companies').where({ id: company.id }).update({
+                   status: 'bankrupt',
+                   name: `[DISSOLVED] ${company.name}`,
+                   is_exchange_listed: false,
+                   updated_at: trx.fn.now()
+                 });
                  await trx('manufacturing_factories').where({ company_id: company.id }).update({ status: 'inactive' });
                  await trx('manufacturing_production_lines').where({ company_id: company.id }).update({ status: 'inactive' });
                  await trx('manufacturing_market_allocations').where({ company_id: company.id }).del();

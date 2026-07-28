@@ -749,10 +749,10 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
     return;
   }
 
-  // 3. Create Company (append numeral if it's a respawn to avoid unique constraint)
-  const pastCount = await trx('companies').where({ npc_personality: roster.key, country_id: countryId }).count('id as c').first();
-  const numPast = parseInt(pastCount?.c as string) || 0;
-  const companyName = numPast > 0 ? `${roster.name} ${numPast + 1}` : roster.name;
+  // 3. Create Company — always use the canonical roster name.
+  // Bankrupt NPCs are renamed to [DISSOLVED] <name> before respawn, so
+  // there is no unique-constraint collision and we never need a numbered suffix.
+  const companyName = roster.name;
 
   const [company] = await trx('companies')
     .insert({
