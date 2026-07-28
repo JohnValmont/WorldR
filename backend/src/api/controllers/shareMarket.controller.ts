@@ -121,4 +121,52 @@ export class ShareMarketController {
       next(error);
     }
   }
+  // POST /exchange/admin/backfill-npc-shares (admin only)
+  // Seeds missing company_shares rows for every active, exchange-listed NPC company
+  // so the cap-table denominator is correct and pie-chart percentages add to 100%.
+  public static async backfillNpcShares(req: Request, res: Response, next: NextFunction) {
+    try {
+      const TOTAL_SHARES = market.TOTAL_SHARES;
+      const npcCompanies = await db('companies')
+        .where({ is_npc: true, status: 'active', is_exchange_listed: true })
+        .select('id', 'name', 'owner_character_id');
+
+      const results: any[] = [];
+
+      for (const co of npcCompanies) {
+        // Sum player-held shares (everything NOT by the owner character)
+        const allSumRow = await db('company_shares').where({ company_id: co.id }).sum('shares as total').first();
+        const currentTotal = Number(allSumRow?.total ?? 0);
+
+        // Check if System NPC already has a row
+        const npcRow = await db('company_shares')
+          .where({ company_id: co.id, holder_character_id: co.owner_character_id })
+          .first();
+
+        const playerHeld = currentTotal - (npcRow ? Number(npcRow.shares) : 0);
+        const correctNpcShares = Math.max(0, TOTAL_SHARES - playerHeld);
+
+        if (!npcRow) {
+          await db('company_shares').insert({
+            company_id: co.id,
+            holder_character_id: co.owner_character_id,
+            shares: correctNpcShares,
+            avg_cost_basis: 0,
+          });
+          results.push({ company: co.name, action: 'inserted', npc_shares: correctNpcShares, player_held: playerHeld });
+        } else if (Number(npcRow.shares) !== correctNpcShares) {
+          await db('company_shares')
+            .where({ company_id: co.id, holder_character_id: co.owner_character_id })
+            .update({ shares: correctNpcShares, updated_at: new Date() });
+          results.push({ company: co.name, action: 'corrected', npc_shares_before: Number(npcRow.shares), npc_shares_after: correctNpcShares, player_held: playerHeld });
+        } else {
+          results.push({ company: co.name, action: 'ok', npc_shares: Number(npcRow.shares), player_held: playerHeld });
+        }
+      }
+
+      res.status(200).json({ fixed: results.length, results });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

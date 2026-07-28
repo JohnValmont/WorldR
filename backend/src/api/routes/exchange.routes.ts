@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { ShareMarketController } from '../controllers/shareMarket.controller';
 import { IpoExchangeController } from '../controllers/ipoExchange.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
+import { authMiddleware, requireAdmin } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -36,6 +36,9 @@ router.post('/distressed/:companyId/acquire', IpoExchangeController.acquire);
 router.get('/acquisitions', IpoExchangeController.getAuctions);
 router.get('/acquisitions/my-bids', IpoExchangeController.getMyBids);
 router.post('/acquisitions/:auctionId/bid', IpoExchangeController.placeBid);
+
+// ── Admin: one-time backfill ──
+router.post('/admin/backfill-npc-shares', [requireAdmin], ShareMarketController.backfillNpcShares);
 
 // ── Per-company order book ──
 router.get('/:companyId/book', ShareMarketController.orderBook);

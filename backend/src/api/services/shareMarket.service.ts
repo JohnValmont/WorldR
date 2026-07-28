@@ -131,10 +131,11 @@ export async function placeOrder(params: {
             .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
             .update({ shares: newShares, updated_at: trx.fn.now() });
         } else if (isNpc) {
+          // NPC had no row yet — treat as if it started with TOTAL_SHARES
           await trx('company_shares').insert({
             company_id: companyId,
             holder_company_id: purchaserCompanyId,
-            shares: 0,
+            shares: Math.max(0, TOTAL_SHARES - quantity),
             avg_cost_basis: price,
           });
         }
@@ -145,10 +146,11 @@ export async function placeOrder(params: {
           .first();
         if (!holding) {
           if (isNpc) {
+            // NPC had no row yet — treat as if it started with TOTAL_SHARES
             await trx('company_shares').insert({
               company_id: companyId,
               holder_character_id: characterId,
-              shares: 0,
+              shares: Math.max(0, TOTAL_SHARES - quantity),
               avg_cost_basis: price,
             });
           } else {

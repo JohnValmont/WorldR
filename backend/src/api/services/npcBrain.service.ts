@@ -902,4 +902,14 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
     market_cap: seedPrice * 1_000_000,
     eps: 0
   }).onConflict().ignore();
+
+  // Seed the System NPC's initial 1,000,000-share holding so the cap-table
+  // denominator is correct from the first trade. Without this row the percentage
+  // math breaks: player shares appear > 100% because the NPC's float is invisible.
+  await trx('company_shares').insert({
+    company_id: company.id,
+    holder_character_id: sysChar.id,
+    shares: 1_000_000,
+    avg_cost_basis: seedPrice,
+  }).onConflict().ignore();
 }
