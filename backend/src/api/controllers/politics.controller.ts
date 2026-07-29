@@ -158,7 +158,7 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
         cyclePhase = cycle.phase;
         
         const clock = await db('world_clock').first();
-        const actualArc = worldClockToArc(clock);
+        const actualArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
         
         const startCampaign = cycle.polling_arc - POL_CAMPAIGN_WINDOW_MONTHS;
         const startFiling = startCampaign - POL_FILING_WINDOW_MONTHS;
@@ -323,7 +323,7 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
         .decrement('net_worth', PARTY_FOUNDING_COST);
 
       const clock = await trx('world_clock').first();
-      const currentMonth = worldClockToArc(clock);
+      const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
       const [party] = await trx('pol_parties').insert({
         state_id: activeState.id,
@@ -421,7 +421,7 @@ export async function queueCampaignAction(req: Request, res: Response, next: Nex
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     const clock = await db('world_clock').first();
-    const currentMonth = worldClockToArc(clock);
+    const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
     const result = await db.transaction(async (trx) => {
       const char = await trx('characters').where({ user_id: userId }).first(); // Don't filter by state_id here unless character has it
@@ -463,7 +463,7 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
     const registeredVoters = activeState.registered_voters || 1600000;
 
     const clock = await db('world_clock').first();
-    const actualArc = worldClockToArc(clock);
+    const actualArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
     
     const conditions = await readNationalStatsFromRow(activeState);
     const constituenciesRows = await db('pol_constituencies').where({ state_id: activeState.id });
@@ -560,7 +560,7 @@ export async function joinParty(req: Request, res: Response, next: NextFunction)
       }
 
       const clock = await trx('world_clock').first();
-      const currentMonth = worldClockToArc(clock);
+      const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
       await trx('pol_party_members').insert({
         party_id: party.id,
@@ -755,7 +755,7 @@ export async function declareCandidacy(req: Request, res: Response, next: NextFu
     const activeState = await resolveState(stateId as string | undefined);
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     const clock = await db('world_clock').first();
-    const currentMonth = worldClockToArc(clock);
+    const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
     const result = await db.transaction(async (trx) => {
       const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
@@ -1107,7 +1107,7 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
       }
 
       const clock = await trx('world_clock').first();
-      const currentMonth = worldClockToArc(clock);
+      const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
       await spendAp(trx, char.id, 2);
       await spendPc(trx, char.id, 2);
@@ -1412,7 +1412,7 @@ export async function postTender(req: Request, res: Response, next: NextFunction
       }
 
       const clock = await trx('world_clock').first();
-      const currentMonth = worldClockToArc(clock);
+      const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
       const [tender] = await trx('pol_tenders').insert({
         state_id: activeState.id,
@@ -1489,7 +1489,7 @@ export async function bidTender(req: Request, res: Response, next: NextFunction)
       }
 
       const clock = await trx('world_clock').first();
-      const currentMonth = worldClockToArc(clock);
+      const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
       // Ensure single active bid per company per tender (optional but good practice)
       await trx('pol_tender_bids').where({ tender_id: tender.id, company_id: company.id }).del();
@@ -1636,7 +1636,7 @@ export async function getTenders(req: Request, res: Response, next: NextFunction
       .limit(50);
 
     const clock = await db('world_clock').first();
-    const currentMonth = worldClockToArc(clock);
+    const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
     // Batch: load all bids for open tenders in one query to avoid N+1
     const openTenderIds = tenders.filter(t => t.status === 'open').map(t => t.id);
@@ -1688,7 +1688,7 @@ export async function getMyAp(req: Request, res: Response, next: NextFunction) {
       await getOrCreateCharacterAp(trx, character.id);
       try {
         const clock = await trx('world_clock').first();
-        const currentArc = worldClockToArc(clock);
+        const currentArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
         await regenApForCharacter(trx, character.id, currentArc);
       } catch {
         // world_clock not available — leave the row as-is
@@ -1920,7 +1920,7 @@ export async function recruitNpc(req: Request, res: Response, next: NextFunction
       await spendAp(trx, character.id, AP_COST_RECRUIT);
 
       const clock = await trx('world_clock').first();
-      const currentArc = worldClockToArc(clock);
+      const currentArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
       // Recruit the NPC
       await recruitNpcToParty(trx, party, currentArc);
@@ -2233,7 +2233,7 @@ export async function actOnScandal(req: Request, res: Response, next: NextFuncti
       if (!membership) throw new AppError('You must be in a party', 403, 'FORBIDDEN');
 
       const clock = await trx('world_clock').first();
-      const currentArc = worldClockToArc(clock);
+      const currentArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
       // Deduct AP (if applicable)
       if (apCost > 0) {
@@ -2343,7 +2343,7 @@ export async function setCampaignStrategyHandler(req: Request, res: Response, ne
       if (!activeState) throw new AppError('No active state', 404, 'NOT_FOUND');
 
       const clock = await trx('world_clock').first();
-      const currentArc = worldClockToArc(clock);
+      const currentArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
       const cycle = await getOrCreateCurrentCycle(activeState.id);
 
       await setCampaignStrategy(trx, membership.party_id, cycle.id, character.id, strategy, currentArc);
@@ -2396,7 +2396,7 @@ export async function allocateCampaignBudget(req: Request, res: Response, next: 
       const activeState = await trx('pol_states').where({ is_active: true }).first();
       const cycle = await getOrCreateCurrentCycle(activeState.id);
       const clock = await trx('world_clock').first();
-      const currentArc = worldClockToArc(clock);
+      const currentArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
       const campaign = await getOrCreateCampaign(trx, cycle.id, membership.party_id, currentArc);
 
@@ -2477,7 +2477,7 @@ export async function doOutreach(req: Request, res: Response, next: NextFunction
       if (!activeState) throw new AppError('No active state', 404, 'NOT_FOUND');
 
       const clock = await trx('world_clock').first();
-      const currentArc = worldClockToArc(clock);
+      const currentArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
       await spendAp(trx, character.id, 3);
 
@@ -2512,7 +2512,7 @@ export async function doRallySupport(req: Request, res: Response, next: NextFunc
       if (!membership) throw new AppError('Must be in a party', 403, 'FORBIDDEN');
 
       const clock = await trx('world_clock').first();
-      const currentArc = worldClockToArc(clock);
+      const currentArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
       await spendPc(trx, character.id, 2);
 
@@ -2580,7 +2580,7 @@ export async function doExclusiveInterviewHandler(req: Request, res: Response, n
       }
 
       const clock = await trx('world_clock').first();
-      const currentArc = worldClockToArc(clock);
+      const currentArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
       await spendAp(trx, character.id, 3);
 
@@ -2613,7 +2613,7 @@ export async function doPressConferenceHandler(req: Request, res: Response, next
       if (!activeState) throw new AppError('No active state', 404, 'NOT_FOUND');
 
       const clock = await trx('world_clock').first();
-      const currentArc = worldClockToArc(clock);
+      const currentArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
       await spendAp(trx, character.id, 2);
 

@@ -111,7 +111,7 @@ export function worldClockToArc(
 
 export async function getCurrentWorldArc(): Promise<number> {
   const clock = await db('world_clock').first();
-  return worldClockToArc(clock);
+  return worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 }
 
 // ── AP (Action Point) Helpers ─────────────────────────────────────────────
