@@ -370,7 +370,7 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
       catch (e) { console.warn('[foundParty] generateFactionsForParty skipped:', (e as any)?.message); }
 
       // Seed interest group relations for the new party
-      try { await seedIGRelationsForParty(trx, party.id, activeState.id); }
+      try { await seedIGRelationsForParty(trx, party.id, activeState.id, crisis || null); }
       catch (e) { console.warn('[foundParty] seedIGRelationsForParty skipped:', (e as any)?.message); }
 
       // Seed media relations for the new party

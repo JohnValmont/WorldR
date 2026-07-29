@@ -2182,7 +2182,7 @@ function resolveEndorsementTier(score: number): EndorsementStatus {
  * Safe to call multiple times (ON CONFLICT DO NOTHING equivalent via check).
  */
 export async function seedIGRelationsForParty(
-  trx: any, partyId: string, stateId: string
+  trx: any, partyId: string, stateId: string, crisisId: string | null = null
 ): Promise<void> {
   const groups = await trx('pol_interest_groups').where({ state_id: stateId });
   const party = await trx('pol_parties').where({ id: partyId }).first();
@@ -2194,7 +2194,26 @@ export async function seedIGRelationsForParty(
     if (existing) continue;
 
     const alignment = computeAlignmentScore(party, group);
-    const seedScore = Math.round(40 + alignment * 35); // 40–75 range at seed
+    let seedScore = Math.round(40 + alignment * 35); // 40–75 range at seed
+
+    // Apply massive crisis narrative bonuses for newly founded parties
+    if (crisisId === 'housing') {
+      if (group.segment_key === 'civic_professionals') seedScore += 18;
+      if (group.segment_key === 'industrial_workers') seedScore += 14;
+    } else if (crisisId === 'corruption') {
+      if (group.segment_key === 'civic_professionals') seedScore += 22;
+      if (group.segment_key === 'suburban_families') seedScore += 10;
+    } else if (crisisId === 'industry') {
+      if (group.segment_key === 'industrial_workers') seedScore += 20;
+      if (group.segment_key === 'logistics_trade_workers') seedScore += 12;
+    } else if (crisisId === 'climate') {
+      if (group.segment_key === 'civic_professionals') seedScore += 25;
+      if (group.segment_key === 'suburban_families') seedScore += 16;
+    }
+    
+    // Cap score at 100 just in case
+    seedScore = Math.min(100, Math.max(0, seedScore));
+
     const tier = resolveEndorsementTier(seedScore);
 
     await trx('pol_interest_group_relations').insert({

@@ -13,14 +13,11 @@ async function check() {
   
   await client.connect();
 
-  // Check columns on brand arc results table
-  const colRes = await client.query(`
-    SELECT column_name, data_type 
-    FROM information_schema.columns 
-    WHERE table_name = 'manufacturing_market_brand_arc_results' 
-    ORDER BY ordinal_position
+  let colRes = await client.query(`
+    SELECT segment_key, name 
+    FROM pol_interest_groups 
   `);
-  console.log('brand_arc_results columns:', colRes.rows.map((r: any) => r.column_name));
+  console.log('pol_interest_groups:', colRes.rows);
 
   // Check how many companies have is_exchange_listed = true
   const exRes = await client.query(`SELECT count(*) FROM companies WHERE is_exchange_listed = true`);

@@ -66,7 +66,7 @@ export default function PartyCreation({
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#080810', fontFamily: "'Barlow', sans-serif" }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 100, overflowY: 'auto', minHeight: '100vh', backgroundColor: '#080810', fontFamily: "'Barlow', sans-serif" }}>
       {/* Progress rail */}
       {phase !== 'intro' && phase !== 'launch' && (
         <div style={{
