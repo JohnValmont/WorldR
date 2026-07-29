@@ -1,9 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { worldApi, type WorldClock } from '../lib/api';
 import { saveWorldDate } from '../lib/worldTime';
+
+// How long (ms) to wait for the server to confirm a new month before
+// declaring the biz tick stalled. Keeps "PROCESSING" from hanging forever.
+const BIZ_TICK_STALL_MS = 90_000; // 90 seconds
 
 /**
  * useWorldClock — live view of the authoritative server world clock.
@@ -14,6 +18,8 @@ import { saveWorldDate } from '../lib/worldTime';
  * - Exposes a live countdown (in seconds) to the next month tick.
  * - When the countdown crosses zero, revalidates so the new month appears
  *   shortly after the server processes the tick.
+ * - Exposes isBizTickStalled: true if the server hasn't confirmed the new
+ *   month within BIZ_TICK_STALL_MS after the countdown hit zero.
  */
 export function useWorldClock() {
   const { data: clock, error, isLoading, mutate } = useSWR<WorldClock>(
@@ -31,17 +37,23 @@ export function useWorldClock() {
 
   // Live countdown to next tick
   const [serverSkew, setServerSkew] = useState<number>(0);
-  
+
   useEffect(() => {
     if (clock?.server_time) {
-       setServerSkew(new Date(clock.server_time).getTime() - Date.now());
+      setServerSkew(new Date(clock.server_time).getTime() - Date.now());
     }
   }, [clock?.server_time]);
 
   const [secondsToTick, setSecondsToTick] = useState<number | null>(null);
+  // Track when the countdown first hit zero so we can detect a stall
+  const bizZeroAt = useRef<number | null>(null);
+  const [isBizTickStalled, setIsBizTickStalled] = useState(false);
+
   useEffect(() => {
     if (!clock?.next_arc_close_at || clock.status !== 'active') {
       setSecondsToTick(null);
+      setIsBizTickStalled(false);
+      bizZeroAt.current = null;
       return;
     }
     const target = new Date(clock.next_arc_close_at).getTime();
@@ -49,28 +61,46 @@ export function useWorldClock() {
       setSecondsToTick(null);
       return;
     }
-    let timeoutId: NodeJS.Timeout | null = null;
-    
+
+    // When next_arc_close_at changes to a future time the tick completed —
+    // clear the stall flag and the zero-anchor.
+    const syncedNow = Date.now() + serverSkew;
+    if (target > syncedNow) {
+      setIsBizTickStalled(false);
+      bizZeroAt.current = null;
+    }
+
+    let pollId: NodeJS.Timeout | null = null;
+
     const update = () => {
-      const syncedNow = Date.now() + serverSkew;
-      const s = Math.max(0, Math.floor((target - syncedNow) / 1000));
+      const now = Date.now() + serverSkew;
+      const s = Math.max(0, Math.floor((target - now) / 1000));
       setSecondsToTick(s);
-      
-        if (s === 0) {
-        // Keep polling every 5s until server advances next_arc_close_at
-        if (!timeoutId) {
-          timeoutId = setTimeout(function poll() {
+
+      if (s === 0) {
+        // Record the first moment we hit zero
+        if (bizZeroAt.current === null) bizZeroAt.current = Date.now();
+
+        // Stall detection: if we've been at zero longer than BIZ_TICK_STALL_MS,
+        // flag it so the UI can surface a helpful message.
+        const waitedMs = Date.now() - bizZeroAt.current;
+        setIsBizTickStalled(waitedMs >= BIZ_TICK_STALL_MS);
+
+        // Poll every 5s until the server confirms the new month
+        if (!pollId) {
+          pollId = setTimeout(function poll() {
             mutate();
-            timeoutId = setTimeout(poll, 5_000);
+            pollId = setTimeout(poll, 5_000);
           }, 5_000);
         }
       }
     };
+
     update();
     const timer = setInterval(update, 1_000);
     return () => {
       clearInterval(timer);
-      if (timeoutId) clearTimeout(timeoutId);
+      if (pollId) clearTimeout(pollId);
     };
   }, [clock?.next_arc_close_at, clock?.status, mutate, serverSkew]);
 
@@ -87,12 +117,12 @@ export function useWorldClock() {
       return;
     }
     let timeoutId: NodeJS.Timeout | null = null;
-    
+
     const update = () => {
       const syncedNow = Date.now() + serverSkew;
       const s = Math.max(0, Math.floor((target - syncedNow) / 1000));
       setPolSecondsToTick(s);
-      
+
       if (s === 0 && !timeoutId) {
         timeoutId = setTimeout(() => {
           mutate();
@@ -108,7 +138,7 @@ export function useWorldClock() {
     };
   }, [clock?.pol_next_arc_close_at, clock?.status, mutate, serverSkew]);
 
-  return { clock, secondsToTick, polSecondsToTick, error, isLoading, refresh: mutate };
+  return { clock, secondsToTick, polSecondsToTick, isBizTickStalled, error, isLoading, refresh: mutate };
 }
 
 /** Format a seconds countdown as e.g. "7h 59m 30s" or "45s". */
@@ -117,10 +147,10 @@ export function formatCountdown(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   const s = totalSeconds % 60;
-  
+
   const mStr = String(m).padStart(2, '0');
   const sStr = String(s).padStart(2, '0');
-  
+
   if (h > 0) return `${h}h ${mStr}m ${sStr}s`;
   if (m > 0) return `${m}m ${sStr}s`;
   return `${s}s`;

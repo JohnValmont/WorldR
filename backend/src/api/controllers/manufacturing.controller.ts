@@ -2392,11 +2392,14 @@ export class ManufacturingController {
     for (const p of plotsQuery) totalPlotValue += Number(p.purchase_price) || 0;
 
     // Factories
+    // Use LEFT JOIN on land_plots so NPC factories (which have no land plot) are still counted.
+    // Without this, NPC book value collapses to zero in month 1 triggering instant distress.
     const factoriesQuery = await trx('manufacturing_factories')
-      .join('manufacturing_land_plots', 'manufacturing_factories.land_plot_id', 'manufacturing_land_plots.id')
+      .leftJoin('manufacturing_land_plots', 'manufacturing_factories.land_plot_id', 'manufacturing_land_plots.id')
       .leftJoin('manufacturing_region_markets', 'manufacturing_land_plots.state_id', 'manufacturing_region_markets.state_id')
       .join('manufacturing_factory_types', 'manufacturing_factories.factory_type_id', 'manufacturing_factory_types.id')
       .where('manufacturing_factories.company_id', companyId)
+      .where('manufacturing_factories.status', 'active')
       .select('manufacturing_factories.expansion_status', 'manufacturing_factories.expansion_cost', 'manufacturing_factory_types.id as type_id', 'manufacturing_region_markets.economic_multiplier');
       
     let totalFactoryValue = 0;
@@ -2405,13 +2408,15 @@ export class ManufacturingController {
       if (f.type_id === 'medium-plant') baseCost = 8000000;
       if (f.type_id === 'large-complex') baseCost = 25000000;
       let expCost = (f.expansion_status === 'expanded' || f.expansion_status === 'construction_underway') ? (Number(f.expansion_cost) || 500000) : 0;
+      // economic_multiplier is null for NPC factories with no land plot — default to 1.0
       totalFactoryValue += (baseCost * (Number(f.economic_multiplier) || 1.0)) + expCost;
     }
 
     // Production Lines
+    // Use LEFT JOIN on land_plots so NPC lines (factories with no land plot) are still counted.
     const linesQuery = await trx('manufacturing_production_lines')
       .join('manufacturing_factories', 'manufacturing_production_lines.factory_id', 'manufacturing_factories.id')
-      .join('manufacturing_land_plots', 'manufacturing_factories.land_plot_id', 'manufacturing_land_plots.id')
+      .leftJoin('manufacturing_land_plots', 'manufacturing_factories.land_plot_id', 'manufacturing_land_plots.id')
       .leftJoin('manufacturing_region_markets', 'manufacturing_land_plots.state_id', 'manufacturing_region_markets.state_id')
       .where('manufacturing_production_lines.company_id', companyId)
       .select('manufacturing_region_markets.economic_multiplier');
@@ -2899,6 +2904,11 @@ export class ManufacturingController {
         // Instead of instant bankruptcy, NPCs receive emergency loans.
         // When debt exceeds 500% of company value, they become 'distressed'
         // and are available for player acquisition on the exchange.
+        //
+        // GRACE PERIOD: New NPCs (< NPC_DISTRESS_GRACE_MONTHS old) are immune
+        // from the distress check — they need time to build brand awareness and
+        // start generating sales revenue before their finances stabilise.
+        const NPC_DISTRESS_GRACE_MONTHS = 6;
         for (const company of participants) {
            if (company.is_npc) {
               const fin = await trx('company_finances').where({ company_id: company.id }).forUpdate().first();
@@ -2908,6 +2918,12 @@ export class ManufacturingController {
               const debt = parseFloat(fin.debt ?? '0');
               const companyValue = parseFloat(fin.company_value ?? '0');
 
+              // Compute age in world months so the grace period is enforced correctly
+              const spawnYear  = Number(company.created_at_world_year  ?? 0);
+              const spawnMonth = Number(company.created_at_world_month ?? 1);
+              const ageMonths  = (currentYear - spawnYear) * 12 + (currentMonth - spawnMonth);
+              const inGracePeriod = ageMonths < NPC_DISTRESS_GRACE_MONTHS;
+
               // Step 1: If cash is negative, issue an emergency rescue loan
               if (cash < 0) {
                  const loanAmount = Math.abs(cash) + 50000; // cover deficit + 50k buffer
@@ -2916,19 +2932,20 @@ export class ManufacturingController {
                    debt: debt + loanAmount,
                    updated_at: trx.fn.now()
                  });
-                 console.log(`[NPC Rescue] ${company.name}: issued emergency loan $${loanAmount.toLocaleString()}. New debt: $${(debt + loanAmount).toLocaleString()}`);
+                 console.log(`[NPC Rescue] ${company.name} (age ${ageMonths}m${inGracePeriod ? ' — GRACE PERIOD' : ''}): issued emergency loan $${loanAmount.toLocaleString()}. New debt: $${(debt + loanAmount).toLocaleString()}`);
               }
 
-              // Step 2: Check if debt has crossed 500% of company value → mark distressed
+              // Step 2: Check if debt has crossed 500% of company value → mark distressed.
+              // Skipped during the grace period — new NPCs must not go distressed before
+              // they have had a chance to build awareness and generate revenue.
               const newDebt = debt + (cash < 0 ? Math.abs(cash) + 50000 : 0);
               const debtRatio = companyValue > 0 ? (newDebt / companyValue) : Infinity;
 
-              if (debtRatio >= 5.0 && company.status !== 'distressed') {
+              if (!inGracePeriod && debtRatio >= 5.0 && company.status !== 'distressed') {
                  await trx('companies').where({ id: company.id }).update({
                    status: 'distressed',
                    updated_at: trx.fn.now()
                  });
-                 // Keep on exchange so players can see and acquire it
                  console.log(`[NPC Distressed] ${company.name}: debt ratio ${debtRatio.toFixed(1)}x — marked for acquisition`);
                  await trx('company_records').insert({
                    world_instance_id: company.world_instance_id,
@@ -2940,15 +2957,56 @@ export class ManufacturingController {
                    created_at_world_day: clock?.current_day ?? 1
                  }).catch(() => {}); // non-fatal
 
+                 // Cancel any open share orders for this company and refund escrow to players
+                 try {
+                   const openOrders = await trx('share_orders')
+                     .where({ company_id: company.id, status: 'open' });
+                   for (const order of openOrders) {
+                     if (order.side === 'buy' && Number(order.escrow_amount) > 0) {
+                       await trx('character_finances')
+                         .where({ character_id: order.character_id })
+                         .increment('cash_in_hand', Number(order.escrow_amount));
+                     }
+                     await trx('share_orders').where({ id: order.id }).update({
+                       status: 'cancelled',
+                       updated_at: trx.fn.now()
+                     });
+                   }
+                   if (openOrders.length > 0) {
+                     console.log(`[NPC Distressed] ${company.name}: cancelled ${openOrders.length} open share order(s) and refunded escrow.`);
+                   }
+                 } catch (orderErr: any) {
+                   console.error(`[NPC Distressed] ${company.name}: failed to cancel share orders:`, orderErr.message);
+                 }
+
                  // Open a timed acquisition auction (6 months registration → 3 months bidding)
                  await openAuction(company.id, trx).catch((err: any) => {
                    console.error(`[Auction] Failed to open for ${company.name}:`, err.message);
                  });
               }
 
-              // Step 3: If company has no value AND is already distressed for 3+ months, dissolve & respawn
+              // Step 3: If company has no value AND is already distressed, dissolve & respawn.
               // (Safety valve — prevents permanently comatose NPCs clogging the exchange)
               if (company.status === 'distressed' && companyValue <= 0) {
+                 // Cancel remaining open share orders before dissolving
+                 try {
+                   const openOrders = await trx('share_orders')
+                     .where({ company_id: company.id, status: 'open' });
+                   for (const order of openOrders) {
+                     if (order.side === 'buy' && Number(order.escrow_amount) > 0) {
+                       await trx('character_finances')
+                         .where({ character_id: order.character_id })
+                         .increment('cash_in_hand', Number(order.escrow_amount));
+                     }
+                     await trx('share_orders').where({ id: order.id }).update({
+                       status: 'cancelled',
+                       updated_at: trx.fn.now()
+                     });
+                   }
+                 } catch (orderErr: any) {
+                   console.error(`[NPC Bankrupt] ${company.name}: failed to cancel share orders:`, orderErr.message);
+                 }
+
                  // Rename the old NPC so the fresh spawn gets the clean canonical name
                  await trx('companies').where({ id: company.id }).update({
                    status: 'bankrupt',
@@ -2963,7 +3021,7 @@ export class ManufacturingController {
                  // Re-seed a FRESH NPC of the same personality
                  await spawnNpc(trx, company.npc_personality || 'valuecorp', company.country_id, clock);
                  
-                 console.log(`[NPC Bankruptcy] ${company.name} (${company.id}) went bankrupt with ${fin.available_cash} cash. Respawned fresh ${company.npc_personality || 'valuecorp'}!`);
+                 console.log(`[NPC Bankruptcy] ${company.name} (${company.id}) dissolved (book value $0). Respawned fresh ${company.npc_personality || 'valuecorp'}!`);
               }
            }
         }

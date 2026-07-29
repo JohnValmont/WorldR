@@ -14,7 +14,7 @@ const T = {
 };
 
 export default function WorldTimeControl() {
-  const { clock, secondsToTick, refresh } = useWorldClock();
+  const { clock, secondsToTick, isBizTickStalled, refresh } = useWorldClock();
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [isAdminDynamic, setIsAdminDynamic] = useState(false);
   const user = useAuthStore(state => state.user);
@@ -71,7 +71,19 @@ export default function WorldTimeControl() {
           <div style={{ color: T.muted, fontSize: '9px' }} aria-live="polite">
             {secondsToTick !== null && (
               secondsToTick === 0 ? (
-                <span style={{ color: '#E5A93D', fontWeight: 'bold' }}>PROCESSING BIZ TICK...</span>
+                isBizTickStalled ? (
+                  <span style={{ color: '#E05050', fontWeight: 'bold' }}>
+                    TICK DELAYED —{' '}
+                    <span
+                      style={{ textDecoration: 'underline', cursor: 'pointer' }}
+                      onClick={() => refresh()}
+                    >
+                      RETRY
+                    </span>
+                  </span>
+                ) : (
+                  <span style={{ color: '#E5A93D', fontWeight: 'bold' }}>PROCESSING BIZ TICK...</span>
+                )
               ) : (
                 <span>BIZ TICK IN <span style={{ textTransform: 'none' }}>{formatCountdown(secondsToTick)}</span></span>
               )
