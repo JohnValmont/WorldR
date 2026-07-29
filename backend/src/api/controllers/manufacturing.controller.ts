@@ -3099,9 +3099,7 @@ export class ManufacturingController {
         .where({ company_id: company.id });
       
       const regionMarkets = await trx('manufacturing_region_markets').select('id');
-      const activeMarketIds = activeAllocs.length > 0
-        ? Array.from(new Set(activeAllocs.map((a: any) => a.region_market_id)))
-        : regionMarkets.map((rm: any) => rm.id);
+      const activeMarketIds = regionMarkets.map((rm: any) => rm.id);
 
       if (activeMarketIds.length === 0) continue;
 
@@ -3339,23 +3337,7 @@ export class ManufacturingController {
           throw new AppError('You must launch at least one vehicle model before the CSO can allocate it.', 400, 'BAD_REQUEST');
         }
 
-        let activeAllocs = await trx('manufacturing_market_allocations')
-          .where({ company_id: companyId });
-        if (activeAllocs.length === 0) {
-          const regionMarkets = await trx('manufacturing_region_markets').select('id');
-          for (const m of launchedModels) {
-            for (const rm of regionMarkets) {
-              await trx('manufacturing_market_allocations').insert({
-                world_instance_id: company.world_instance_id,
-                company_id: companyId,
-                vehicle_model_id: m.id,
-                region_market_id: rm.id,
-                units_allocated: 0,
-                marketing_tier: 'none'
-              });
-            }
-          }
-        }
+        // Note: runCSOAllocations automatically seeds missing allocations for all markets and models.
 
         await ManufacturingController.runCSOAllocations(trx, clock, [company]);
         await ManufacturingController.runCMOAllocations(trx, clock, [company]);
@@ -3426,7 +3408,7 @@ export class ManufacturingController {
         }
 
         // Hard cap marketing tier based on market size/population:
-        // Tiny markets (population < 15k or 0 allocated units) can NEVER receive National or Regional marketing.
+        // Tiny markets (population < 15k) can NEVER receive National or Regional marketing.
         let maxAllowedTierIndex = 3; // 3 = national, 2 = regional, 1 = local, 0 = none
         if (population < 15000) {
           maxAllowedTierIndex = 1; // max 'local' for tiny towns like Ironvale
@@ -3434,8 +3416,8 @@ export class ManufacturingController {
           maxAllowedTierIndex = 2; // max 'regional' for medium towns
         }
 
-        // If no units allocated at all and population is small, don't spend on marketing
-        if (totalAllocatedUnits === 0 && population < 50000) {
+        // If no units allocated at all, NEVER spend on marketing (prevents massive cash bleed)
+        if (totalAllocatedUnits === 0) {
           maxAllowedTierIndex = 0;
         }
 
@@ -3444,9 +3426,8 @@ export class ManufacturingController {
         let bestTierIndex = 0;
         for (let i = Math.min(maxAllowedTierIndex, MARKETING_TIERS.length - 1); i >= 0; i--) {
            const t = MARKETING_TIERS[i];
-           // If high population market (>= 50k), allow upgrading to National/Regional if budget permits
            const passesBudget = t.cost <= availableBudget;
-           const passesRoi = population >= 50000 ? true : (t.cost <= maxAffordableTierByRoi);
+           const passesRoi = t.cost <= maxAffordableTierByRoi; // Strictly enforce ROI to prevent burning cash
            if (passesBudget && passesRoi) {
               bestTierIndex = i;
               break;
