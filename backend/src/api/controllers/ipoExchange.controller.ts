@@ -205,7 +205,7 @@ export class IpoExchangeController {
       const { companyId } = req.body;
       if (!companyId) throw new AppError('Missing companyId', 400, 'BAD_REQUEST');
       
-      const db = (await import('../../config/database')).db;
+      const db = (await import('../../config/database.js')).db;
       await db.transaction(async (trx: any) => {
         const company = await trx('companies').where({ id: companyId }).first();
         if (!company) throw new AppError('Company not found', 404, 'NOT_FOUND');
