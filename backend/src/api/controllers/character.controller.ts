@@ -95,11 +95,25 @@ export class CharacterController {
         return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
       }
 
-      const { name, motherland_country_id, home_state_id, currency_id } = req.body;
+      const { name, motherland_country_id, home_state_id, currency_id, attributes } = req.body;
 
       if (!name || !motherland_country_id || !currency_id) {
         return next(new AppError('Missing required fields', 400, 'BAD_REQUEST'));
       }
+
+      // Map frontend attributes: [Charisma, Cunning, Capital, Diplomacy, Resolve]
+      // Fallback defaults to 3 (which scales to 30)
+      const attrs = Array.isArray(attributes) ? attributes : [5, 3, 4, 3, 5];
+      const charAttr = attrs[0] || 3;
+      const cunAttr = attrs[1] || 3;
+      const capAttr = attrs[2] || 3;
+      const dipAttr = attrs[3] || 3;
+      const resAttr = attrs[4] || 3;
+
+      const charisma = charAttr * 10;
+      const credibility = resAttr * 10;
+      const influence = (cunAttr + dipAttr) * 5;
+      const starting_cash = capAttr * 1000000;
 
       const activeInstance = await db('world_instances').where({ status: 'active' }).first();
       if (!activeInstance) {
@@ -130,9 +144,9 @@ export class CharacterController {
           home_state_id: home_state_id || null,
           name,
           age: 18,
-          credibility: 50,
-          charisma: 50,
-          influence: 10,
+          credibility,
+          charisma,
+          influence,
           status: 'active',
           created_at_world_year: clock?.current_year ?? 1,
           created_at_world_month: clock?.current_month ?? 1,
@@ -142,8 +156,8 @@ export class CharacterController {
         const [finances] = await trx('character_finances').insert({
           character_id: character.id,
           currency_id,
-          cash_in_hand: 4000000,
-          net_worth: 4000000
+          cash_in_hand: starting_cash,
+          net_worth: starting_cash
         }).returning('*');
 
         return { ...character, finances };

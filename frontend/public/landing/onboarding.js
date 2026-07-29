@@ -437,7 +437,8 @@ document.getElementById('confirmBtn').addEventListener('click', async () => {
       body: JSON.stringify({ 
         name: fullName(), 
         motherland_country_id, 
-        currency_id: 'dollar' 
+        currency_id: 'dollar',
+        attributes: attrVals 
       })
     });
     
