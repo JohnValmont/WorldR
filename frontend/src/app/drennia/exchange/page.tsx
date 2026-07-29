@@ -1215,6 +1215,7 @@ export default function ExchangePage() {
   const [tab, setTab] = useState<Tab>('bourse');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showGuide, setShowGuide] = useState(false);
 
   const { data: listings, mutate: mutateListings } = useSWR('exchange-listings', () => exchangeApi.getListings(), { refreshInterval: 15000 });
   const { data: charData } = useSWR('my-character', () => characterApi.getMe().then(r => r.data), { revalidateOnFocus: false });
@@ -1279,15 +1280,166 @@ export default function ExchangePage() {
       </div>
 
       <div style={{ padding: '8px 24px 12px', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '24px', flexWrap: 'wrap', borderBottom: `1px solid ${T.border}` }}>
-        <div>
-          <div style={{ ...label, marginBottom: '4px', letterSpacing: '0.2em' }}>Drennport Exchange</div>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: T.ivory, margin: '0 0 4px' }}>DRX Bourse</h1>
-          <p style={{ fontSize: '12px', color: T.muted, margin: 0 }}>
-            Take companies public, build the book, and trade shares with price-time priority.
-          </p>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '16px' }}>
+          <div>
+            <div style={{ ...label, marginBottom: '4px', letterSpacing: '0.2em' }}>Drennport Exchange</div>
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: T.ivory, margin: '0 0 4px' }}>DRX Bourse</h1>
+            <p style={{ fontSize: '12px', color: T.muted, margin: 0 }}>
+              Take companies public, build the book, and trade shares with price-time priority.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowGuide(true)}
+            style={{
+              ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em',
+              padding: '6px 14px', cursor: 'pointer', marginBottom: '4px',
+              background: 'transparent', border: `1px solid ${T.borderGold}`,
+              color: T.gold, display: 'flex', alignItems: 'center', gap: '6px',
+            }}
+          >
+            📖 DRX Guide
+          </button>
         </div>
         <DrxIndexBar />
       </div>
+
+      {/* Guide Drawer Overlay */}
+      {showGuide && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setShowGuide(false); }}
+          style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', justifyContent: 'flex-end', background: 'rgba(0,0,0,0.55)' }}
+        >
+          <div style={{
+            width: 'min(580px, 95vw)', height: '100%',
+            background: '#0E0C14', borderLeft: `1px solid ${T.borderGold}`,
+            display: 'flex', flexDirection: 'column', overflowY: 'auto',
+            boxShadow: '-8px 0 40px rgba(0,0,0,0.7)',
+          }}>
+            <div style={{ padding: '24px 28px 16px', borderBottom: `1px solid ${T.border}`, flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ ...label, marginBottom: '4px', letterSpacing: '0.2em' }}>DRX Reference Manual</div>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: T.ivory }}>Exchange Guide</div>
+              </div>
+              <button onClick={() => setShowGuide(false)} style={{ background: 'transparent', border: `1px solid ${T.border}`, color: T.muted, cursor: 'pointer', padding: '6px 12px', fontSize: '16px' }}>✕</button>
+            </div>
+
+            <div style={{ padding: '24px 28px', flex: 1, display: 'flex', flexDirection: 'column', gap: '28px' }}>
+
+              {/* Overview */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', paddingBottom: '8px', borderBottom: `1px solid ${T.border}` }}>
+                  <span style={{ fontSize: '16px' }}>📈</span>
+                  <span style={{ ...mono, fontSize: '11px', fontWeight: 700, color: T.mint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>What is the DRX Bourse?</span>
+                </div>
+                <p style={{ fontSize: '12px', color: T.muted, margin: '0 0 8px', lineHeight: 1.7 }}>The Drennport Exchange (DRX) is the only regulated marketplace in the world for publicly-listed company shares. Every trade is matched using <strong style={{ color: T.ivory }}>price-time priority</strong> — the best price wins, and ties go to whoever placed the order first.</p>
+                <p style={{ fontSize: '12px', color: T.muted, margin: 0, lineHeight: 1.7 }}>The <strong style={{ color: T.ivory }}>DRX Composite Index</strong> tracks the combined market cap of all listed companies. Watch it to gauge the health of the whole economy.</p>
+              </div>
+
+              {/* IPO */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', paddingBottom: '8px', borderBottom: `1px solid ${T.border}` }}>
+                  <span style={{ fontSize: '16px' }}>🏛️</span>
+                  <span style={{ ...mono, fontSize: '11px', fontWeight: 700, color: T.gold, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Taking Your Company Public (IPO)</span>
+                </div>
+                {[
+                  ['1. Eligibility', 'Company must be a Public Corporation with positive book value and at least $50,000 in company assets.'],
+                  ['2. File Prospectus', 'Set a price range (min/max per share), choose your public float (10–49% of post-IPO shares), and a lockup period (3–12 months). Pay the filing fee from your company treasury.'],
+                  ['3. Regulatory Review', 'The DRX takes 2 arcs to review. You can withdraw for free during this period.'],
+                  ['4. Book-Building', 'Investors submit Indications of Interest (IOIs) over 4 arcs, pledging a price and quantity. Their cash is escrowed immediately.'],
+                  ['5. Clearing', 'Every valid bid at or above the clearing price receives shares. Oversubscribed IPOs are pro-rated. Proceeds flow to your company treasury (Primary Offering model — you keep your founder shares).'],
+                  ['6. Lockup', 'Your founder shares are locked for the chosen period. You cannot sell until expiry.'],
+                ].map(([step, desc]) => (
+                  <div key={step} style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                    <span style={{ ...mono, fontSize: '10px', color: T.gold, fontWeight: 700, flexShrink: 0, paddingTop: '2px' }}>{step}</span>
+                    <p style={{ fontSize: '12px', color: T.muted, margin: 0, lineHeight: 1.65 }}>{desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Secondary market */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', paddingBottom: '8px', borderBottom: `1px solid ${T.border}` }}>
+                  <span style={{ fontSize: '16px' }}>📊</span>
+                  <span style={{ ...mono, fontSize: '11px', fontWeight: 700, color: '#7EB9E0', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Trading Shares (Secondary Market)</span>
+                </div>
+                {[
+                  ['Limit Orders', 'You set a price. Buy orders wait in the book until a seller matches. Sell orders wait until a buyer matches. Orders may partially fill.'],
+                  ['Price-Time Priority', 'Among orders at the same price, the one placed earliest fills first. Being early matters.'],
+                  ['Market Maker', 'The DRX Specialist always posts a two-sided quote at ±3% of last close to provide baseline liquidity. You will always see at least two quotes in the book.'],
+                  ['Circuit Breaker', 'Orders priced more than ±50% from last close are blocked. This prevents crashes and manipulation.'],
+                  ['Trade As', 'Place orders from your Personal Portfolio or from any Capital Partners company you own. Institutions can build positions at scale.'],
+                ].map(([term, desc]) => (
+                  <div key={term} style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                    <span style={{ ...mono, fontSize: '10px', color: '#7EB9E0', fontWeight: 700, flexShrink: 0, paddingTop: '2px', minWidth: '110px' }}>{term}</span>
+                    <p style={{ fontSize: '12px', color: T.muted, margin: 0, lineHeight: 1.65 }}>{desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Shareholders */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', paddingBottom: '8px', borderBottom: `1px solid ${T.border}` }}>
+                  <span style={{ fontSize: '16px' }}>👥</span>
+                  <span style={{ ...mono, fontSize: '11px', fontWeight: 700, color: '#B094D4', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Shareholders & Ownership</span>
+                </div>
+                {[
+                  ['General Population', 'Retail NPC investors. They trade the public float among themselves. You only compete against real players and institutions in the live order book.'],
+                  ['Institutional Holders', 'Capital Partners firms owned by players. They can hold large positions and place orders from the company treasury.'],
+                  ['Lockup Shares', 'Founder shares under lockup cannot be sold. The lockup period you set at IPO determines how long.'],
+                  ['EPS & P/E Ratio', 'Earnings Per Share is driven by company profit each arc. Higher profit → higher EPS → better valuation → attracts buyers.'],
+                ].map(([term, desc]) => (
+                  <div key={term} style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                    <span style={{ ...mono, fontSize: '10px', color: '#B094D4', fontWeight: 700, flexShrink: 0, paddingTop: '2px', minWidth: '130px' }}>{term}</span>
+                    <p style={{ fontSize: '12px', color: T.muted, margin: 0, lineHeight: 1.65 }}>{desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Acquisitions */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', paddingBottom: '8px', borderBottom: `1px solid ${T.border}` }}>
+                  <span style={{ fontSize: '16px' }}>🏢</span>
+                  <span style={{ ...mono, fontSize: '11px', fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Acquisitions</span>
+                </div>
+                {[
+                  ['Distressed Market', 'Companies that run out of cash enter distress. Acquire them outright at a discounted fee from your personal finances.'],
+                  ['Auction System', 'Larger distressed companies go to sealed-bid auction. Register, bid, and the highest bidder wins. Losing bids are fully refunded.'],
+                  ['Post-Acquisition', 'You inherit all assets, debts, factories, and employees. Turnaround potential varies.'],
+                ].map(([term, desc]) => (
+                  <div key={term} style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                    <span style={{ ...mono, fontSize: '10px', color: T.red, fontWeight: 700, flexShrink: 0, paddingTop: '2px', minWidth: '130px' }}>{term}</span>
+                    <p style={{ fontSize: '12px', color: T.muted, margin: 0, lineHeight: 1.65 }}>{desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Tips */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', paddingBottom: '8px', borderBottom: `1px solid ${T.border}` }}>
+                  <span style={{ fontSize: '16px' }}>💡</span>
+                  <span style={{ ...mono, fontSize: '11px', fontWeight: 700, color: T.gold, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Strategy Tips</span>
+                </div>
+                {[
+                  'Set your IPO price range conservatively. An underpriced IPO raises less money but creates a healthy opening pop and goodwill.',
+                  'Watch order book depth before placing large orders. A thin book means your order can move the price significantly.',
+                  'Lockup expiry is public. Expect sell pressure when founder lockups expire — plan your trades around that.',
+                  'Use a Capital Partners company to build institutional positions at scale without exposing your character account directly.',
+                  'A rising DRX Composite Index means high market sentiment — a great time to file an IPO.',
+                ].map((tip, i) => (
+                  <p key={i} style={{ fontSize: '12px', color: T.muted, margin: '0 0 8px', lineHeight: 1.65, paddingLeft: '4px' }}>• {tip}</p>
+                ))}
+              </div>
+
+              {/* Disclaimer */}
+              <div style={{ padding: '14px 16px', background: 'rgba(201,162,74,0.05)', border: `1px solid ${T.borderGold}`, fontSize: '11px', color: T.faint, lineHeight: 1.6 }}>
+                <span style={{ color: T.gold, fontWeight: 700 }}>DRX OFFICIAL NOTICE: </span>
+                All trades are final. The Drennport Exchange is not liable for losses due to market conditions, lockup restrictions, or circuit breaker interventions. Trade responsibly.
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div style={{ padding: '10px 24px 0', flexShrink: 0, display: 'flex', gap: '4px' }}>
