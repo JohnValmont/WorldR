@@ -3084,6 +3084,7 @@ export class ManufacturingController {
     // This runs at the end of the month to set the monthly_target for the *upcoming* month
     for (const company of participants) {
       if (company.is_npc) continue; // NPCs manage their own allocations in step 2
+      if (company.name.toLowerCase().includes('aldric')) continue; // User requested to disable auto-allocation for this company
 
       const cso = await trx('company_staff').where({ company_id: company.id, role: 'cso' }).first();
       if (!cso || cso.quantity <= 0) continue;
@@ -3354,6 +3355,8 @@ export class ManufacturingController {
     const MARKETING_ROI_THRESHOLD = 0.10; // CMO willing to spend up to 10% of retail value shipped
 
     for (const company of participants) {
+      if (company.name.toLowerCase().includes('aldric')) continue; // User requested to disable auto-allocation for this company
+
       const cmo = await trx('company_staff').where({ company_id: company.id, role: 'cmo' }).first();
       if (!cmo || cmo.quantity <= 0) continue;
 
