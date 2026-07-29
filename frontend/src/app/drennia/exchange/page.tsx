@@ -1240,21 +1240,22 @@ export default function ExchangePage() {
   const handleRetroactiveFix = async () => {
     if (!activeId) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/exchange/admin/retroactive-ipo-fix`, {
+      const token = localStorage.getItem('worldr_access_token') || localStorage.getItem('token');
+      const res = await fetch(`/api/v1/exchange/admin/retroactive-ipo-fix`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ companyId: activeId })
       });
       let data;
       try {
         data = await res.json();
       } catch (err) {
-        alert('Could not parse JSON. The backend might still be deploying. Try again in a minute.');
+        alert('Could not parse response. Try again in a minute.');
         return;
       }
       if (!res.ok) alert('Error: ' + (typeof data.error === 'string' ? data.error : data.message || JSON.stringify(data)));
       else { alert('✅ IPO successfully converted to a Primary Offering!\n\nYour shares have been restored and the proceeds moved to the company treasury.'); setRefreshKey(k => k + 1); mutateListings(); }
-    } catch(e) { alert('Network/Frontend Error: ' + e); }
+    } catch(e) { alert('Network Error: ' + e); }
   };
 
   const tabs: { id: Tab; name: string; badge?: number; warn?: boolean }[] = [
