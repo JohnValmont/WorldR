@@ -526,7 +526,28 @@ export class WorldController {
             JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id
             GROUP BY mi.company_id
           ),
-          company_real_value AS (
+          -- Latest close price per listed company (most recent game_year+month row)
+          latest_price AS (
+            SELECT sph.company_id, sph.close_price
+            FROM share_price_history sph
+            INNER JOIN (
+              SELECT company_id, MAX(game_year * 100 + game_month) AS ym
+              FROM share_price_history
+              GROUP BY company_id
+            ) mx ON mx.company_id = sph.company_id
+              AND (sph.game_year * 100 + sph.game_month) = mx.ym
+          ),
+          -- Fallback: latest individual trade price for companies with no monthly snapshot yet
+          latest_trade AS (
+            SELECT st.company_id, st.price AS close_price
+            FROM share_trades st
+            INNER JOIN (
+              SELECT company_id, MAX(executed_at) AS lat
+              FROM share_trades
+              GROUP BY company_id
+            ) mx ON mx.company_id = st.company_id AND st.executed_at = mx.lat
+          ),
+          company_book_value AS (
             SELECT cf.company_id,
               GREATEST(0, cf.available_cash - COALESCE(cf.debt, 0)
                        + COALESCE(iv.val, 0)) AS real_value,
@@ -537,17 +558,31 @@ export class WorldController {
           char_equity AS (
             SELECT cs.holder_character_id AS char_id,
               COALESCE(SUM(
-                (CAST(cs.shares AS FLOAT) + COALESCE(osbc.qty, 0))
-                / NULLIF(COALESCE(ts.total, 0) + COALESCE(tos.qty, 0), 0)
-                * crv.real_value
+                CASE
+                  -- Listed company with a known stock price: use market cap
+                  WHEN co.is_exchange_listed = 1
+                       AND COALESCE(lp.close_price, lt.close_price) IS NOT NULL
+                       AND COALESCE(lp.close_price, lt.close_price) > 0
+                  THEN
+                    (CAST(cs.shares AS FLOAT) + COALESCE(osbc.qty, 0))
+                    * COALESCE(lp.close_price, lt.close_price)
+                  -- Otherwise (private or not yet traded): book value pro-rata
+                  ELSE
+                    (CAST(cs.shares AS FLOAT) + COALESCE(osbc.qty, 0))
+                    / NULLIF(COALESCE(ts.total, 0) + COALESCE(tos.qty, 0), 0)
+                    * cbv.real_value
+                END
               ), 0) AS equity
             FROM company_shares cs
-            JOIN company_real_value crv ON crv.company_id = cs.company_id
+            JOIN companies co ON co.id = cs.company_id
+            JOIN company_book_value cbv ON cbv.company_id = cs.company_id
             LEFT JOIN total_shares ts ON ts.company_id = cs.company_id
             LEFT JOIN open_sells_by_char osbc
               ON osbc.company_id = cs.company_id
              AND osbc.character_id = cs.holder_character_id
             LEFT JOIN total_open_sells tos ON tos.company_id = cs.company_id
+            LEFT JOIN latest_price lp ON lp.company_id = cs.company_id
+            LEFT JOIN latest_trade lt ON lt.company_id = cs.company_id
             GROUP BY cs.holder_character_id
           ),
           char_trend AS (
