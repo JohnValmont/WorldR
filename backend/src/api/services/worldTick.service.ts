@@ -4,6 +4,7 @@ import { ManufacturingController } from '../controllers/manufacturing.controller
 import { processEconomyMonth } from './economyTick.service';
 import { processExchangeMonth } from './ipoExchange.service';
 import { processPoliticalArc } from './politics.service';
+import { processMacroEconomy } from './economy.service';
 import { processAuctions } from './acquisitionAuction.service';
 
 
@@ -371,6 +372,7 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
           await trx.transaction(async (sp) => {
             await sp.raw(`SET LOCAL statement_timeout = ${TICK_STATEMENT_TIMEOUT_MS}`);
             await sp.raw(`SET LOCAL lock_timeout = ${TICK_LOCK_TIMEOUT_QUERY_MS}`);
+            await processMacroEconomy(sp, state.id, arc);
             await processPoliticalArc(sp, state.id, arc);
           });
         } catch (err) {

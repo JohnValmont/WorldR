@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { DEFAULT_JURISDICTION_ID, type JurisdictionId } from './_lib/session';
 import { JURISDICTION_MODEL } from './_lib/model';
 import { formatGameDateShort } from '@/lib/calendar';
+import { useWorldClock, formatCountdown } from '@/hooks/useWorldClock';
 
 import OverviewScreen    from './OverviewScreen';
 import NationScreen      from './NationScreen';
@@ -27,6 +28,7 @@ type SubTab = 'overview' | 'nation' | 'development' | 'elections' | 'legislature
 export default function PoliticsDesk() {
   const [activeTab, setActiveTab] = useState<SubTab>('overview');
   const [selectedJurisdictionId, setSelectedJurisdictionId] = useState<JurisdictionId>(DEFAULT_JURISDICTION_ID);
+  const { clock, polSecondsToTick, isBizTickStalled } = useWorldClock();
 
   const { data: character, mutate: mutateChar, error: errChar } = useSWR('me', () => characterApi.getMe().then((res: any) => res.data || res));
   const { data: overview, mutate: mutateOver, error: errOver } = useSWR('politicsState', () => politicsApi.getState());
@@ -103,6 +105,20 @@ export default function PoliticsDesk() {
               <div className="flex flex-col">
                 <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">Current Date</span>
                 <span className="text-sm font-bold text-zinc-100 font-mono">{formatGameDateShort(overview.cycle.currentArc)}</span>
+              </div>
+            )}
+            {clock && clock.status !== 'paused' && (
+              <div className="flex flex-col min-w-[90px]">
+                <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">Next Month</span>
+                <span className={`text-sm font-bold font-mono ${polSecondsToTick != null && polSecondsToTick <= 60 ? 'text-terminal-amber animate-pulse' : 'text-zinc-100'}`}>
+                  {isBizTickStalled ? 'DELAYED' : polSecondsToTick != null ? formatCountdown(polSecondsToTick) : '--:--:--'}
+                </span>
+              </div>
+            )}
+            {clock?.status === 'paused' && (
+              <div className="flex flex-col min-w-[90px]">
+                <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">Next Month</span>
+                <span className="text-sm font-bold font-mono text-zinc-500">PAUSED</span>
               </div>
             )}
           </div>

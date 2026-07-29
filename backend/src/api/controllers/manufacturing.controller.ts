@@ -2333,10 +2333,12 @@ export class ManufacturingController {
       let taxRate = 0.20; // default
       if (policy) {
         const activePolicies = typeof policy.active_policies === 'string' ? JSON.parse(policy.active_policies) : (policy.active_policies || {});
-        const taxPolicy = activePolicies.taxation;
-        if (taxPolicy === 'tax_haven') taxRate = 0.10;
-        else if (taxPolicy === 'flat_tax') taxRate = 0.15;
-        else if (taxPolicy === 'progressive') taxRate = 0.25;
+        const taxPolicy = activePolicies.corp_tax;
+        if (taxPolicy === 'holiday') taxRate = 0.05;
+        else if (taxPolicy === 'low') taxRate = 0.12;
+        else if (taxPolicy === 'med') taxRate = 0.22;
+        else if (taxPolicy === 'high') taxRate = 0.32;
+        else if (taxPolicy === 'high_loophole') taxRate = 0.35;
       }
       
       if (taxRate > 0 && finalNetProfit > 0) {

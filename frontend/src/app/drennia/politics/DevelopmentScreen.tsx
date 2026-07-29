@@ -167,7 +167,12 @@ export default function DevelopmentScreen({ overview, selectedJurisdictionId }: 
               Raw GDP
             </div>
             <div className="font-mono text-2xl text-emerald-400">
-              ${(Number(state?.raw_gdp || 0)).toLocaleString('en-US')} M
+              {(() => {
+                const rawGdp = Number(state?.raw_gdp || 0);
+                if (rawGdp >= 1000000) return `$${(rawGdp / 1000000).toLocaleString('en-US', { maximumFractionDigits: 2 })} T`;
+                if (rawGdp >= 1000) return `$${(rawGdp / 1000).toLocaleString('en-US', { maximumFractionDigits: 2 })} B`;
+                return `$${rawGdp.toLocaleString('en-US', { maximumFractionDigits: 2 })} M`;
+              })()}
             </div>
           </div>
           <div className="p-4 border-r border-white/5 flex flex-col justify-center bg-white/[0.01]">
