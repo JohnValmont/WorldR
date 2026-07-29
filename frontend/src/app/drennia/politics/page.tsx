@@ -62,6 +62,7 @@ export default function PoliticsDesk() {
     overview,
     character,
     parties,
+    myAp,
     myPc,
     onRefresh: loadData,
     onNavigate: setActiveTab,
