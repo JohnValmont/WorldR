@@ -165,7 +165,12 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
       .where({ 'cs.holder_character_id': char.id, 'c.status': 'active' })
       .select(
         'cs.shares',
+        'c.is_exchange_listed',
+        'cs.company_id',
         'cf.company_value',
+        'cf.available_cash',
+        'cf.debt',
+        trx.raw(`COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0) as inventory_value`),
         trx.raw(`(SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND side = 'sell' AND status = 'open'), 0) as total_shares`),
         trx.raw(`COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND character_id = cs.holder_character_id AND side = 'sell' AND status = 'open'), 0) as escrowed_shares`)
       );
@@ -173,8 +178,33 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
     for (const s of shares) {
       const tot = Number(s.total_shares || 0);
       const myShares = Number(s.shares) + Number(s.escrowed_shares || 0);
-      if (tot > 0) {
-        equity += (myShares / tot) * Number(s.company_value);
+      if (tot <= 0 || myShares <= 0) continue;
+
+      if (s.is_exchange_listed) {
+        // Listed: market cap basis (last close price × shares owned)
+        const latestPriceRow = await trx('share_price_history')
+          .where({ company_id: s.company_id })
+          .orderBy('game_year', 'desc')
+          .orderBy('game_month', 'desc')
+          .first('close_price');
+        const lastTrade = latestPriceRow ? null : await trx('share_trades')
+          .where({ company_id: s.company_id })
+          .orderBy('executed_at', 'desc')
+          .first('price');
+        const lastPrice = latestPriceRow
+          ? Number(latestPriceRow.close_price)
+          : lastTrade ? Number(lastTrade.price) : null;
+        if (lastPrice != null && lastPrice > 0) {
+          equity += myShares * lastPrice;
+        } else {
+          // No price yet: fall back to book value
+          const bookValue = Math.max(0, Number(s.available_cash) - Number(s.debt || 0) + Number(s.inventory_value || 0));
+          equity += (myShares / tot) * bookValue;
+        }
+      } else {
+        // Private: book value
+        const bookValue = Math.max(0, Number(s.available_cash) - Number(s.debt || 0) + Number(s.inventory_value || 0));
+        equity += (myShares / tot) * bookValue;
       }
     }
 

@@ -36,15 +36,18 @@ export class CharacterController {
 
       let trueNetWorth = Number(finances?.cash_in_hand || 0) + Number(buyEscrow?.total_escrow || 0);
 
-      // Dynamically calculate equity value using real cash-based valuation.
-      // We use available_cash - debt + inventory_at_cost rather than the stored company_value
-      // which can be inflated by simulation formulas (factory capacity multipliers, etc.).
+      // Equity valuation rule:
+      // - LISTED companies: use Market Cap (last stock price × shares owned). This correctly
+      //   reflects the post-IPO world where the company treasury belongs to ALL shareholders.
+      // - PRIVATE companies: use Book Value (cash – debt + inventory at cost).
       const equityValues = await db('company_shares as cs')
         .join('companies as c', 'c.id', 'cs.company_id')
         .join('company_finances as cf', 'cf.company_id', 'c.id')
         .where({ 'cs.holder_character_id': character.id, 'c.status': 'active' })
         .select(
           'cs.shares',
+          'c.is_exchange_listed',
+          'cs.company_id',
           'cf.available_cash',
           'cf.debt',
           db.raw(`COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0) as inventory_value`),
@@ -55,10 +58,33 @@ export class CharacterController {
       for (const row of equityValues) {
         const total = Number(row.total_shares || 0);
         const myShares = Number(row.shares) + Number(row.escrowed_shares || 0);
-        if (total > 0) {
-          // Real value = cash the company actually holds minus its debt plus inventory at cost
-          const realCompanyValue = Math.max(0, Number(row.available_cash) - Number(row.debt || 0) + Number(row.inventory_value || 0));
-          trueNetWorth += (myShares / total) * realCompanyValue;
+        if (total <= 0 || myShares <= 0) continue;
+
+        if (row.is_exchange_listed) {
+          // Listed: value = last close price × my shares (market cap basis)
+          const latestPriceRow = await db('share_price_history')
+            .where({ company_id: row.company_id })
+            .orderBy('game_year', 'desc')
+            .orderBy('game_month', 'desc')
+            .first('close_price');
+          const lastTrade = latestPriceRow ? null : await db('share_trades')
+            .where({ company_id: row.company_id })
+            .orderBy('executed_at', 'desc')
+            .first('price');
+          const lastPrice = latestPriceRow
+            ? Number(latestPriceRow.close_price)
+            : lastTrade ? Number(lastTrade.price) : null;
+          if (lastPrice != null && lastPrice > 0) {
+            trueNetWorth += myShares * lastPrice;
+          } else {
+            // No price yet (just listed): fall back to book value until first trade
+            const bookValue = Math.max(0, Number(row.available_cash) - Number(row.debt || 0) + Number(row.inventory_value || 0));
+            trueNetWorth += (myShares / total) * bookValue;
+          }
+        } else {
+          // Private: book value
+          const bookValue = Math.max(0, Number(row.available_cash) - Number(row.debt || 0) + Number(row.inventory_value || 0));
+          trueNetWorth += (myShares / total) * bookValue;
         }
       }
 

@@ -16,6 +16,8 @@ export class CompanyController {
       .where({ 'cs.holder_character_id': characterId, 'c.status': 'active' })
       .select(
         'cs.shares',
+        'c.is_exchange_listed',
+        'cs.company_id',
         'cf.available_cash',
         'cf.debt',
         trx.raw(`COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0) as inventory_value`),
@@ -24,9 +26,34 @@ export class CompanyController {
 
     for (const row of equityValues) {
       const total = Number(row.total_shares || 0);
-      if (total > 0) {
-        const realCompanyValue = Math.max(0, Number(row.available_cash) - Number(row.debt || 0) + Number(row.inventory_value || 0));
-        trueNetWorth += (Number(row.shares) / total) * realCompanyValue;
+      const myShares = Number(row.shares || 0);
+      if (total <= 0 || myShares <= 0) continue;
+
+      if (row.is_exchange_listed) {
+        // Listed: market cap basis (last close price × shares owned)
+        const latestPriceRow = await trx('share_price_history')
+          .where({ company_id: row.company_id })
+          .orderBy('game_year', 'desc')
+          .orderBy('game_month', 'desc')
+          .first('close_price');
+        const lastTrade = latestPriceRow ? null : await trx('share_trades')
+          .where({ company_id: row.company_id })
+          .orderBy('executed_at', 'desc')
+          .first('price');
+        const lastPrice = latestPriceRow
+          ? Number(latestPriceRow.close_price)
+          : lastTrade ? Number(lastTrade.price) : null;
+        if (lastPrice != null && lastPrice > 0) {
+          trueNetWorth += myShares * lastPrice;
+        } else {
+          // No price yet: fall back to book value
+          const bookValue = Math.max(0, Number(row.available_cash) - Number(row.debt || 0) + Number(row.inventory_value || 0));
+          trueNetWorth += (myShares / total) * bookValue;
+        }
+      } else {
+        // Private: book value
+        const bookValue = Math.max(0, Number(row.available_cash) - Number(row.debt || 0) + Number(row.inventory_value || 0));
+        trueNetWorth += (myShares / total) * bookValue;
       }
     }
     
