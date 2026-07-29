@@ -1245,10 +1245,16 @@ export default function ExchangePage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify({ companyId: activeId })
       });
-      const data = await res.json();
-      if (!res.ok) alert(data.error?.message || data.message || 'Error');
+      let data;
+      try {
+        data = await res.json();
+      } catch (err) {
+        alert('Could not parse JSON. The backend might still be deploying. Try again in a minute.');
+        return;
+      }
+      if (!res.ok) alert(data.error?.message || data.message || 'Backend Error: ' + JSON.stringify(data));
       else { alert('Successfully converted your IPO to a Primary Offering!'); setRefreshKey(k => k + 1); mutateListings(); }
-    } catch(e) { alert('Error: ' + e); }
+    } catch(e) { alert('Network/Frontend Error: ' + e); }
   };
 
   const tabs: { id: Tab; name: string; badge?: number; warn?: boolean }[] = [
