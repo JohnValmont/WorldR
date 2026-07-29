@@ -154,13 +154,15 @@ export async function fileIpo(params: {
 
     const sumRow = await trx('company_shares').where({ company_id: companyId }).sum('shares as total').first();
     const actualShares = Number(sumRow?.total ?? TOTAL_SHARES) || TOTAL_SHARES;
-    const floatShares = Math.round(actualShares * floatPercent);
     
-    // Verify the founder actually owns enough shares to float
+    // Primary Offering: To achieve a post-IPO float of X%, we issue new shares: New = (Current * X) / (1 - X)
+    const floatShares = Math.round((actualShares * floatPercent) / (1 - floatPercent));
+    
+    // In a Primary Offering, the company issues new shares. We no longer check if the founder has enough personal shares to sell.
     const founderHolding = await trx('company_shares').where({ company_id: companyId, holder_character_id: characterId }).first();
     const founderShares = Number(founderHolding?.shares ?? 0);
-    if (founderShares < floatShares) {
-      throw new AppError(`You must own at least ${floatShares.toLocaleString()} shares to float ${(floatPercent * 100).toFixed(0)}% of the company`, 400, 'INSUFFICIENT_SHARES');
+    if (founderShares <= 0) {
+      throw new AppError('You must own shares in the company to take it public.', 400, 'NO_SHARES');
     }
 
     const reviewEnd = addMonths(curYear, curMonth, REVIEW_MONTHS);
@@ -733,21 +735,13 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
     });
   }
 
-  // Deduct allocated shares from the founder's holding.
-  if (founderId && totalAllocated > 0) {
-    await trx('company_shares')
-      .where({ company_id: listing.company_id, holder_character_id: founderId })
-      .decrement('shares', totalAllocated);
-    await trx('company_shares')
-      .where({ company_id: listing.company_id, holder_character_id: founderId })
-      .update({ updated_at: trx.fn.now() });
-  }
-
-  // Credit proceeds to the selling founder.
-  if (proceeds > 0 && founderId) {
-    await trx('character_finances')
-      .where({ character_id: founderId })
-      .increment('cash_in_hand', proceeds);
+  // Primary Offering: Do NOT deduct shares from the founder. Total shares in existence increases.
+  
+  // Credit proceeds to the company treasury, not the founder personally.
+  if (proceeds > 0) {
+    await trx('company_finances')
+      .where({ company_id: listing.company_id })
+      .increment('available_cash', proceeds);
   }
 
   // Lock up the founder's retained shares.
