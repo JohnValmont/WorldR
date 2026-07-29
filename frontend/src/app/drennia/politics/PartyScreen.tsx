@@ -1022,12 +1022,6 @@ function MediaPanel({ partyId, isLeader, onRefresh }: { partyId: string; isLeade
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {alliedCount > 0 && <span style={{ padding: '2px 8px', borderRadius: 3, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.35)', color: '#34d399' }}>{alliedCount} Allied</span>}
           {hostileCount > 0 && <span style={{ padding: '2px 8px', borderRadius: 3, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.35)', color: '#f87171' }}>{hostileCount} Hostile</span>}
-          <button
-            disabled={!!busy}
-            onClick={pressConf}
-            style={{ padding: '4px 10px', borderRadius: 4, background: 'rgba(134,239,172,0.08)', border: '1px solid rgba(134,239,172,0.3)', color: '#86efac', fontSize: 9, fontFamily: MONO, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.5 : 1 }}>
-            {busy === 'press' ? '…' : 'Press Conf · 2 AP'}
-          </button>
         </div>
       </div>
 
@@ -1307,9 +1301,14 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
     finally { setBusy(false); }
   }
 
+  async function pressConfGlobal() {
+    try { setBusy(true); await politicsApi.doPressConference(); await onRefresh(); }
+    catch (e: any) { setErr(e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Action failed.'); }
+    finally { setBusy(false); }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: myParty ? 0 : 80 }}>
-      <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
 
       {isLocked ? (
         <Panel title="Locked"><div style={{ color: T.faint, fontStyle: 'italic' }}>{jurisdiction?.name || 'This state'} is not yet open for political activity.</div></Panel>
@@ -1374,7 +1373,6 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                   </div>
                   
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <Btn label={busy ? "..." : "Hold Fundraiser (1 AP)"} onClick={fundraise} disabled={busy || (myAp?.current_ap ?? 0) < 1} />
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 16 }}>
                       <input 
                         type="text" 
@@ -1393,6 +1391,57 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Unified Actions Bar */}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', background: 'rgba(0,0,0,0.4)', padding: '12px 16px', borderRadius: 8, border: `1px solid rgba(255,255,255,0.05)`, alignItems: 'center' }}>
+            <span style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginRight: 8 }}>Party Actions</span>
+            {isLeader ? (
+              <>
+                <Btn label={busy ? "..." : "Hold Fundraiser (1 AP)"} onClick={fundraise} disabled={!!busy || (myAp?.current_ap ?? 0) < 1} primary />
+                <Btn label={busy ? "..." : "Press Conf (2 AP)"} onClick={pressConfGlobal} disabled={!!busy || (myAp?.current_ap ?? 0) < 2} />
+                <Btn label={busy ? "..." : "Recruit Candidate (1 AP)"} onClick={recruit} disabled={!!busy || (myAp?.current_ap ?? 0) < 1} />
+                <Btn label="Edit Platform" onClick={() => { setIsEditingPlatform(true); setPlatformEdits(parsePlatform(myParty.platform)); }} disabled={!!busy || isEditingPlatform} />
+                <div style={{ flexGrow: 1 }} />
+                <button 
+                  onClick={dissolveParty}
+                  disabled={!!busy}
+                  style={{
+                    background: 'rgba(224,82,70,0.1)', border: '1px solid rgba(224,82,70,0.3)', 
+                    color: '#f87171', padding: '6px 12px', borderRadius: 6, cursor: 'pointer',
+                    fontFamily: SANS, fontSize: 11, transition: 'all 0.2s', fontWeight: 600
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(224,82,70,0.2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(224,82,70,0.1)'}
+                >
+                  {busy ? 'Working...' : 'Dissolve Party'}
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ flexGrow: 1 }} />
+                <button 
+                  onClick={async () => {
+                    if (window.confirm("Are you sure you want to leave this party? This action cannot be undone.")) {
+                      setBusy(true);
+                      try { await politicsApi.leaveParty(myParty.id); await onRefresh(); }
+                      catch (e: any) { setErr(e?.response?.data?.message || 'Failed to leave party'); }
+                      finally { setBusy(false); }
+                    }
+                  }}
+                  disabled={!!busy}
+                  style={{
+                    background: 'rgba(224,82,70,0.1)', border: '1px solid rgba(224,82,70,0.3)', 
+                    color: '#f87171', padding: '6px 12px', borderRadius: 6, cursor: 'pointer',
+                    fontFamily: SANS, fontSize: 11, transition: 'all 0.2s', fontWeight: 600
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(224,82,70,0.2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(224,82,70,0.1)'}
+                >
+                  {busy ? 'Leaving...' : 'Leave Party'}
+                </button>
+              </>
+            )}
           </div>
 
           {/* Founding Principles (if rich data is present) */}
@@ -1444,17 +1493,6 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           <Panel title={
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Flag size={14} /> Platform & Planks</span>
-              {isLeader && !isEditingPlatform && (
-                <button 
-                  onClick={() => {
-                    setIsEditingPlatform(true);
-                    setPlatformEdits(parsePlatform(myParty.platform));
-                  }}
-                  style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: T.ivory, padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontFamily: MONO, textTransform: 'uppercase' }}
-                >
-                  Edit Platform
-                </button>
-              )}
               {isLeader && isEditingPlatform && (
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button 
@@ -1638,7 +1676,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           {/* News Feed */}
           <NewsFeedPanel />
 
-          <Panel title="Roster" action={isLeader ? <Btn label={busy ? '…' : 'Recruit Candidate (1 AP, $10,000)'} onClick={recruit} disabled={busy || (myAp?.current_ap ?? 0) < 1} /> : undefined}>
+          <Panel title="Roster">
             <div style={{ color: T.muted, fontSize: 14, marginBottom: 16 }}>
               Bench: <span style={{ color: T.ivory, fontWeight: 600 }}>{myParty.members?.length ?? myParty.member_count ?? 0}</span> candidate(s).
               Recruiting pulls in an NPC loosely aligned to your platform.
@@ -1678,49 +1716,6 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
             )}
           </Panel>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, marginTop: 32 }}>
-            {isLeader ? (
-              <button 
-                onClick={dissolveParty}
-                disabled={busy}
-                style={{
-                  background: 'rgba(224,82,70,0.1)', border: '1px solid rgba(224,82,70,0.3)', 
-                  color: '#f87171', padding: '8px 16px', borderRadius: 6, cursor: 'pointer',
-                  fontFamily: SANS, fontSize: 13, transition: 'all 0.2s'
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(224,82,70,0.2)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(224,82,70,0.1)'}
-              >
-                {busy ? 'Working...' : 'Dissolve Party'}
-              </button>
-            ) : (
-              <button 
-                onClick={async () => {
-                  if (window.confirm("Are you sure you want to leave this party? This action cannot be undone.")) {
-                    setBusy(true);
-                    try {
-                      await politicsApi.leaveParty(myParty.id);
-                      await onRefresh();
-                    } catch(e: any) {
-                      setErr(e?.response?.data?.message || 'Failed to leave party');
-                    } finally {
-                      setBusy(false);
-                    }
-                  }
-                }}
-                disabled={busy}
-                style={{
-                  background: 'rgba(224,82,70,0.1)', border: '1px solid rgba(224,82,70,0.3)', 
-                  color: '#f87171', padding: '8px 16px', borderRadius: 6, cursor: 'pointer',
-                  fontFamily: SANS, fontSize: 13, transition: 'all 0.2s'
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(224,82,70,0.2)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(224,82,70,0.1)'}
-              >
-                {busy ? 'Leaving...' : 'Leave Party'}
-              </button>
-            )}
-          </div>
 
           {err && <div style={{ color: T.red, fontSize: 13, marginTop: 12 }}>{err}</div>}
         </>

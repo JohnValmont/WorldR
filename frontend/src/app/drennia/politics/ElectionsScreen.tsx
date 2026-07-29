@@ -133,7 +133,7 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 24, fontFamily: SANS }}>
-      <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
+
 
       {isLocked ? (
         <GlassPanel title={<><Shield size={14} /> Locked</>}>

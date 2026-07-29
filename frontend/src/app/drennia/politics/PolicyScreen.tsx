@@ -106,7 +106,7 @@ export default function PolicyScreen({ selectedJurisdictionId, onJurisdictionCha
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 24, fontFamily: SANS }}>
-      <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
+
       
       {/* ── POLICY HERO (compact) ── */}
       <div style={{

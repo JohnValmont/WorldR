@@ -65,7 +65,7 @@ export default function LobbyScreen({ selectedJurisdictionId, onJurisdictionChan
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-      <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
+
       
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <Stamp style={{ color: T.gold }}>LOBBY & TENDERS</Stamp>

@@ -113,7 +113,7 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 24, fontFamily: SANS }}>
-      <JurisdictionSwitcher selected={selectedJurisdictionId} onChange={onJurisdictionChange} meta={jurisdictionMeta} />
+
       
       {/* ── OLED ASSEMBLY HERO ── */}
       <div style={{
