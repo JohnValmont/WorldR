@@ -21,7 +21,7 @@ interface Props {
   myAp?: { current_ap: number; ap_cap: number };
   myPc?: { current_pc: number; pc_cap: number };
   onRefresh: () => void;
-  onNavigate?: (tab: string) => void;
+  onNavigate?: (tab: any) => void;
 }
 
 const CREED_PLATFORMS: Record<CreedId, Record<Axis, number>> = {

@@ -27,7 +27,8 @@ type Phase = typeof PHASES[number]
 
 export default function PartyCreation({ 
   onComplete,
-  initialLeaderName = ''
+  initialLeaderName = '',
+  onCancel
 }: { 
   onComplete?: (party: PartyState) => void,
   initialLeaderName?: string,
