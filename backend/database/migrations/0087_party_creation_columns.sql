@@ -1,0 +1,4 @@
+ALTER TABLE pol_parties ADD COLUMN IF NOT EXISTS crisis_id TEXT;
+ALTER TABLE pol_parties ADD COLUMN IF NOT EXISTS ideology_axes JSONB;
+ALTER TABLE pol_parties ADD COLUMN IF NOT EXISTS manifesto_policies JSONB;
+ALTER TABLE pol_parties ADD COLUMN IF NOT EXISTS founders JSONB;
