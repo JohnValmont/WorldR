@@ -222,17 +222,32 @@ export class IpoExchangeController {
         const proceeds = Number(listing.proceeds_raised);
         const founderId = company.owner_character_id;
         
-        await trx('company_shares')
-          .where({ company_id: company.id, holder_character_id: founderId })
-          .increment('shares', publicShares);
+        const founderHolding = await trx('company_shares').where({ company_id: company.id, holder_character_id: founderId }).first();
+        if (founderHolding) {
+          await trx('company_shares')
+            .where({ company_id: company.id, holder_character_id: founderId })
+            .increment('shares', publicShares);
+        } else {
+          await trx('company_shares').insert({
+            company_id: company.id,
+            holder_character_id: founderId,
+            shares: publicShares,
+            avg_cost_basis: 1, // Nominal
+          });
+        }
           
-        await trx('character_finances')
-          .where({ character_id: founderId })
-          .decrement('cash_in_hand', proceeds);
-          
-        await trx('company_finances')
-          .where({ company_id: company.id })
-          .increment('available_cash', proceeds);
+        const charFinances = await trx('character_finances').where({ character_id: founderId }).first();
+        const availableToDisgorge = Math.min(proceeds, Number(charFinances?.cash_in_hand ?? 0));
+        
+        if (availableToDisgorge > 0) {
+          await trx('character_finances')
+            .where({ character_id: founderId })
+            .decrement('cash_in_hand', availableToDisgorge);
+            
+          await trx('company_finances')
+            .where({ company_id: company.id })
+            .increment('available_cash', availableToDisgorge);
+        }
           
         await trx('ipo_listings').where({ id: listing.id }).update({ use_of_proceeds: 'RETROACTIVELY_FIXED' });
       });
