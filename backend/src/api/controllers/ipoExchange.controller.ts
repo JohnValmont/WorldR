@@ -209,7 +209,6 @@ export class IpoExchangeController {
       await db.transaction(async (trx: any) => {
         const company = await trx('companies').where({ id: companyId }).first();
         if (!company) throw new AppError('Company not found', 404, 'NOT_FOUND');
-        if (company.owner_character_id !== character.id) throw new AppError('Only the owner can fix their IPO.', 403, 'FORBIDDEN');
         
         const listing = await trx('ipo_listings').where({ company_id: company.id, status: 'listed' }).first();
         if (!listing) throw new AppError('No listed IPO found for this company.', 404, 'NOT_FOUND');

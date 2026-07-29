@@ -1315,7 +1315,7 @@ export default function ExchangePage() {
                 <div>
                   <div style={{ fontSize: '15px', fontWeight: 700, color: T.ivory, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {active.name}
-                    {myCharacterId === active.owner_character_id && active.market_cap != null && (
+                    {active.market_cap != null && (
                       <button 
                         onClick={handleRetroactiveFix} 
                         style={{ background: '#442222', border: '1px solid #ff4444', color: '#ffaaaa', fontSize: '9px', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer' }}
