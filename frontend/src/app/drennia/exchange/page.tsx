@@ -1441,20 +1441,20 @@ export default function ExchangePage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div style={{ padding: '10px 24px 0', flexShrink: 0, display: 'flex', gap: '4px' }}>
+      {/* Tabs — horizontally scrollable on mobile */}
+      <div style={{ padding: '10px 16px 0', flexShrink: 0, display: 'flex', gap: '4px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any }}>
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             style={{
               ...mono, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em',
-              padding: '8px 16px', cursor: 'pointer',
+              padding: '8px 14px', cursor: 'pointer', flexShrink: 0,
               background: tab === t.id ? T.panelSoft : 'transparent',
               border: `1px solid ${tab === t.id ? T.borderGold : T.border}`,
               borderBottom: tab === t.id ? `1px solid ${T.panelSoft}` : `1px solid ${T.border}`,
               color: tab === t.id ? T.gold : (t.warn ? '#E8A234' : T.faint),
-              display: 'flex', alignItems: 'center', gap: '8px',
+              display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap',
             }}
           >
             {t.name}
@@ -1466,44 +1466,50 @@ export default function ExchangePage() {
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
         {tab === 'bourse' && (
           <>
             {active && (
-              <div style={{ marginBottom: '16px', padding: '12px 16px', background: T.panelSoft, border: `1px solid ${T.borderGold}`, display: 'flex', gap: '28px', flexWrap: 'wrap', alignItems: 'baseline' }}>
-                <div>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: T.ivory, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {active.name}
-                    {active.market_cap != null && (
-                      <button 
-                        onClick={handleRetroactiveFix} 
-                        style={{ background: '#442222', border: '1px solid #ff4444', color: '#ffaaaa', fontSize: '9px', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer' }}
-                        title="Secret Admin Fix: Converts Secondary IPO to Primary IPO"
-                      >
-                        FIX IPO
-                      </button>
-                    )}
-                  </div>
+              <div style={{ marginBottom: '16px', padding: '12px 14px', background: T.panelSoft, border: `1px solid ${T.borderGold}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: T.ivory }}>{active.name}</span>
+                  {active.market_cap != null && (
+                    <button 
+                      onClick={handleRetroactiveFix} 
+                      style={{ background: '#442222', border: '1px solid #ff4444', color: '#ffaaaa', fontSize: '9px', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer' }}
+                      title="Secret Admin Fix"
+                    >
+                      FIX IPO
+                    </button>
+                  )}
                   <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase' }}>{active.industry_id} · {active.country_id}</div>
                 </div>
-                {[
-                  ['Last', active.last_price != null ? `$${fmt(active.last_price)}` : '—'],
-                  ['Bid', active.best_bid != null ? `$${fmt(active.best_bid)}` : '—'],
-                  ['Ask', active.best_ask != null ? `$${fmt(active.best_ask)}` : '—'],
-                  ['Mkt Cap', active.market_cap != null ? `$${fmtBig(active.market_cap)}` : '—'],
-                  ['P/E', active.pe_ratio != null ? fmt(active.pe_ratio, 1) : '—'],
-                  ['EPS', active.eps != null ? `$${fmt(active.eps, 3)}` : '—'],
-                  ['Book Value', `$${fmtBig(Number(active.company_value))}`],
-                ].map(([k, v]) => (
-                  <div key={k as string}>
-                    <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{k}</div>
-                    <div style={{ ...mono, fontSize: '13px', fontWeight: 700, color: T.ivory }}>{v}</div>
-                  </div>
-                ))}
+                <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', rowGap: '8px' }}>
+                  {[
+                    ['Last', active.last_price != null ? `$${fmt(active.last_price)}` : '—'],
+                    ['Bid', active.best_bid != null ? `$${fmt(active.best_bid)}` : '—'],
+                    ['Ask', active.best_ask != null ? `$${fmt(active.best_ask)}` : '—'],
+                    ['Mkt Cap', active.market_cap != null ? `$${fmtBig(active.market_cap)}` : '—'],
+                    ['P/E', active.pe_ratio != null ? fmt(active.pe_ratio, 1) : '—'],
+                    ['EPS', active.eps != null ? `$${fmt(active.eps, 3)}` : '—'],
+                    ['Book Value', `$${fmtBig(Number(active.company_value))}`],
+                  ].map(([k, v]) => (
+                    <div key={k as string} style={{ minWidth: '60px' }}>
+                      <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{k}</div>
+                      <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) minmax(0, 1.4fr) minmax(240px, 1fr)', gap: '20px', alignItems: 'start' }}>
+            {/* Responsive 3-col → 1-col on mobile */}
+            <style>{`
+              @media (max-width: 768px) { .drx-grid { grid-template-columns: 1fr !important; } }
+              @media (min-width: 769px) and (max-width: 1100px) { .drx-grid { grid-template-columns: 1fr 1fr !important; } }
+              .drx-grid { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(0, 1.4fr) minmax(240px, 1fr); gap: 16px; align-items: start; }
+            `}</style>
+            <div className="drx-grid">
               <Listings listings={list} selectedId={activeId} onSelect={setSelectedId} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {activeId ? (
