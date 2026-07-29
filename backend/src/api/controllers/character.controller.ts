@@ -243,4 +243,89 @@ export class CharacterController {
       next(error);
     }
   }
+  public static async recalculateNetWorthHistory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+      const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) return res.status(404).json({ message: 'No active character found' });
+
+      // Get all historical snapshots for this character
+      const history = await db('character_net_worth_history')
+        .where({ character_id: character.id })
+        .orderBy('world_year')
+        .orderBy('world_month');
+
+      if (history.length === 0) return res.status(200).json({ updated: 0 });
+
+      // Get all company_shares currently held by this character
+      const shareRows = await db('company_shares as cs')
+        .join('companies as co', 'co.id', 'cs.company_id')
+        .join('company_finances as cf', 'cf.company_id', 'co.id')
+        .where({ 'cs.holder_character_id': character.id, 'co.status': 'active' })
+        .select(
+          'cs.company_id',
+          'cs.shares',
+          'co.is_exchange_listed',
+          'cf.available_cash',
+          'cf.debt',
+          db.raw(`(SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) AS total_shares`)
+        );
+
+      let updated = 0;
+      for (const snap of history) {
+        let equity = 0;
+        for (const sr of shareRows) {
+          const myShares = Number(sr.shares);
+          const totalShares = Number(sr.total_shares || 0);
+          if (myShares <= 0 || totalShares <= 0) continue;
+
+          if (sr.is_exchange_listed) {
+            // Try to find the stock price at this historical point
+            const priceRow = await db('share_price_history')
+              .where({ company_id: sr.company_id, game_year: snap.world_year, game_month: snap.world_month })
+              .first('close_price');
+
+            // Try the previous month if no exact match (covers arc gaps)
+            const fallbackPrice = !priceRow
+              ? await db('share_price_history')
+                  .where({ company_id: sr.company_id })
+                  .where(db.raw('(game_year * 100 + game_month) <= ?', [snap.world_year * 100 + snap.world_month]))
+                  .orderBy('game_year', 'desc')
+                  .orderBy('game_month', 'desc')
+                  .first('close_price')
+              : null;
+
+            const price = priceRow
+              ? Number(priceRow.close_price)
+              : fallbackPrice
+              ? Number(fallbackPrice.close_price)
+              : null;
+
+            if (price != null && price > 0) {
+              equity += myShares * price;
+            } else {
+              // No historical price yet (e.g. company listed after this snapshot)
+              const bookValue = Math.max(0, Number(sr.available_cash) - Number(sr.debt || 0));
+              equity += (myShares / totalShares) * bookValue;
+            }
+          } else {
+            const bookValue = Math.max(0, Number(sr.available_cash) - Number(sr.debt || 0));
+            equity += (myShares / totalShares) * bookValue;
+          }
+        }
+
+        const newTotal = Number(snap.cash_in_hand) + equity;
+        await db('character_net_worth_history')
+          .where({ id: snap.id })
+          .update({ equity_value: equity, total_net_worth: newTotal });
+        updated++;
+      }
+
+      res.status(200).json({ success: true, updated, message: `Recalculated ${updated} net worth history records.` });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

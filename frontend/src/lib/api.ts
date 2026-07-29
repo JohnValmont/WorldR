@@ -140,7 +140,8 @@ export const characterApi = {
   getMe: () => api.get('/characters/me'),
   deleteMe: () => api.delete('/characters/me'),
   create: (data: { name: string; motherland_country_id: string; home_state_id?: string; currency_id: string }) =>
-    api.post('/characters', data)
+    api.post('/characters', data),
+  recalculateNetWorth: () => api.post('/characters/me/recalculate-net-worth')
 };
 
 // Companies

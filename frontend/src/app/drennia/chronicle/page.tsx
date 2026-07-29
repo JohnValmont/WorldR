@@ -144,6 +144,7 @@ export default function ChroniclePage() {
   const [leaderboards, setLeaderboards] = useState<any>(null);
   const [leaderboardTab, setLeaderboardTab] = useState<'wealth' | 'marketCap'>('wealth');
   const [bestSellersTab, setBestSellersTab] = useState<'monthly' | 'allTime'>('monthly');
+  const [isRecalculating, setIsRecalculating] = useState(false);
   const formatMoney = (value: any) => {
     if (!value && value !== 0) return "$0"; 
     const num = Number(value);
@@ -176,6 +177,21 @@ export default function ChroniclePage() {
     localStorage.clear();
     window.location.href = '/';
   }, []);
+
+  const handleRecalculateHistory = useCallback(async () => {
+    if (isRecalculating) return;
+    setIsRecalculating(true);
+    try {
+      const { characterApi } = await import('../../../lib/api');
+      await characterApi.recalculateNetWorth();
+      // Reload the page to get the updated history
+      window.location.reload();
+    } catch (e) {
+      console.error('Failed to recalculate net worth', e);
+    } finally {
+      setIsRecalculating(false);
+    }
+  }, [isRecalculating]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -697,9 +713,19 @@ export default function ChroniclePage() {
             <div className="flex items-end justify-between mb-3">
               <div>
                 <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Current Net Worth</p>
-                <p className="text-xl font-mono font-bold text-terminal-amber amber-glow">
-                  ${netWorth.toLocaleString('en-US')}
-                </p>
+                <div className="flex items-center gap-4">
+                  <p className="text-xl font-mono font-bold text-terminal-amber amber-glow">
+                    ${netWorth.toLocaleString('en-US')}
+                  </p>
+                  <button
+                    onClick={handleRecalculateHistory}
+                    disabled={isRecalculating}
+                    className="flex items-center gap-1.5 px-2 py-1 text-[9px] font-mono uppercase tracking-wider text-zinc-400 bg-zinc-900 border border-zinc-700 hover:text-terminal-amber hover:border-terminal-amber/50 hover:bg-terminal-amber/5 transition-colors rounded disabled:opacity-50"
+                  >
+                    <RefreshCw size={10} className={isRecalculating ? 'animate-spin' : ''} />
+                    <span>{isRecalculating ? 'Fixing...' : 'Fix History'}</span>
+                  </button>
+                </div>
               </div>
               <Badge variant="green" dot>Active</Badge>
             </div>
