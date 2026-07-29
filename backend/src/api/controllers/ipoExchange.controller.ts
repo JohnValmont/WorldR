@@ -217,35 +217,42 @@ export class IpoExchangeController {
             throw new AppError('This IPO has already been retroactively fixed.', 400, 'ALREADY_FIXED');
         }
         
-        const publicShares = Number(listing.float_shares);
-        const proceeds = Number(listing.proceeds_raised);
+        const proceeds = Number(listing.proceeds_raised || 0);
+        const clearingPrice = Number(listing.clearing_price || 0);
         const founderId = company.owner_character_id;
         
-        const founderHolding = await trx('company_shares').where({ company_id: company.id, holder_character_id: founderId }).first();
-        if (founderHolding) {
-          await trx('company_shares')
-            .where({ company_id: company.id, holder_character_id: founderId })
-            .increment('shares', publicShares);
-        } else {
-          await trx('company_shares').insert({
-            company_id: company.id,
-            holder_character_id: founderId,
-            shares: publicShares,
-            avg_cost_basis: 1, // Nominal
-          });
+        // Exact number of shares sold to the public (works even if undersubscribed)
+        const soldShares = (clearingPrice > 0) ? Math.round(proceeds / clearingPrice) : 0;
+        
+        if (soldShares > 0 && founderId) {
+          const founderHolding = await trx('company_shares').where({ company_id: company.id, holder_character_id: founderId }).first();
+          if (founderHolding) {
+            await trx('company_shares')
+              .where({ company_id: company.id, holder_character_id: founderId })
+              .increment('shares', soldShares);
+          } else {
+            await trx('company_shares').insert({
+              company_id: company.id,
+              holder_character_id: founderId,
+              shares: soldShares,
+              avg_cost_basis: 1,
+            });
+          }
         }
           
-        const charFinances = await trx('character_finances').where({ character_id: founderId }).first();
-        const availableToDisgorge = Math.min(proceeds, Number(charFinances?.cash_in_hand ?? 0));
-        
-        if (availableToDisgorge > 0) {
-          await trx('character_finances')
-            .where({ character_id: founderId })
-            .decrement('cash_in_hand', availableToDisgorge);
-            
-          await trx('company_finances')
-            .where({ company_id: company.id })
-            .increment('available_cash', availableToDisgorge);
+        if (proceeds > 0 && founderId) {
+          const charFinances = await trx('character_finances').where({ character_id: founderId }).first();
+          const availableToDisgorge = Math.max(0, Math.min(proceeds, Number(charFinances?.cash_in_hand ?? 0)));
+          
+          if (availableToDisgorge > 0) {
+            await trx('character_finances')
+              .where({ character_id: founderId })
+              .decrement('cash_in_hand', availableToDisgorge);
+              
+            await trx('company_finances')
+              .where({ company_id: company.id })
+              .increment('available_cash', availableToDisgorge);
+          }
         }
           
         await trx('ipo_listings').where({ id: listing.id }).update({ use_of_proceeds: 'RETROACTIVELY_FIXED' });
