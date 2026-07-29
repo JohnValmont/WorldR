@@ -1,0 +1,1 @@
+ALTER TABLE pol_parties ADD COLUMN IF NOT EXISTS slogan TEXT;
