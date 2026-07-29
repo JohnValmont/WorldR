@@ -197,4 +197,49 @@ export class IpoExchangeController {
       next(error);
     }
   }
+
+  // POST /exchange/admin/retroactive-ipo-fix
+  public static async retroactiveFix(req: Request, res: Response, next: NextFunction) {
+    try {
+      const character = await requireCharacter(req);
+      const { companyId } = req.body;
+      if (!companyId) throw new AppError('Missing companyId', 400, 'BAD_REQUEST');
+      
+      const db = (await import('../../config/database')).db;
+      await db.transaction(async (trx: any) => {
+        const company = await trx('companies').where({ id: companyId }).first();
+        if (!company) throw new AppError('Company not found', 404, 'NOT_FOUND');
+        if (company.owner_character_id !== character.id) throw new AppError('Only the owner can fix their IPO.', 403, 'FORBIDDEN');
+        
+        const listing = await trx('ipo_listings').where({ company_id: company.id, status: 'listed' }).first();
+        if (!listing) throw new AppError('No listed IPO found for this company.', 404, 'NOT_FOUND');
+        
+        if (listing.use_of_proceeds === 'RETROACTIVELY_FIXED') {
+            throw new AppError('This IPO has already been retroactively fixed.', 400, 'ALREADY_FIXED');
+        }
+        
+        const publicShares = Number(listing.float_shares);
+        const proceeds = Number(listing.proceeds_raised);
+        const founderId = company.owner_character_id;
+        
+        await trx('company_shares')
+          .where({ company_id: company.id, holder_character_id: founderId })
+          .increment('shares', publicShares);
+          
+        await trx('character_finances')
+          .where({ character_id: founderId })
+          .decrement('cash_in_hand', proceeds);
+          
+        await trx('company_finances')
+          .where({ company_id: company.id })
+          .increment('available_cash', proceeds);
+          
+        await trx('ipo_listings').where({ id: listing.id }).update({ use_of_proceeds: 'RETROACTIVELY_FIXED' });
+      });
+      
+      res.status(200).json({ success: true, message: 'IPO successfully converted to a Primary Offering!' });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

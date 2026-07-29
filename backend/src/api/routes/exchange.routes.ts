@@ -39,6 +39,7 @@ router.post('/acquisitions/:auctionId/bid', IpoExchangeController.placeBid);
 
 // ── Admin: one-time backfill ──
 router.post('/admin/backfill-npc-shares', [requireAdmin], ShareMarketController.backfillNpcShares);
+router.post('/admin/retroactive-ipo-fix', IpoExchangeController.retroactiveFix);
 
 // ── Per-company order book ──
 router.get('/:companyId/book', ShareMarketController.orderBook);

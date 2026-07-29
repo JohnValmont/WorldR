@@ -1237,6 +1237,20 @@ export default function ExchangePage() {
     mutateListings();
   };
 
+  const handleRetroactiveFix = async () => {
+    if (!activeId) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/exchange/admin/retroactive-ipo-fix`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ companyId: activeId })
+      });
+      const data = await res.json();
+      if (!res.ok) alert(data.error?.message || data.message || 'Error');
+      else { alert('Successfully converted your IPO to a Primary Offering!'); setRefreshKey(k => k + 1); mutateListings(); }
+    } catch(e) { alert('Error: ' + e); }
+  };
+
   const tabs: { id: Tab; name: string; badge?: number; warn?: boolean }[] = [
     { id: 'bourse', name: 'Bourse' },
     { id: 'pipeline', name: 'IPO Pipeline', badge: pipelineCount },
@@ -1299,7 +1313,18 @@ export default function ExchangePage() {
             {active && (
               <div style={{ marginBottom: '16px', padding: '12px 16px', background: T.panelSoft, border: `1px solid ${T.borderGold}`, display: 'flex', gap: '28px', flexWrap: 'wrap', alignItems: 'baseline' }}>
                 <div>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: T.ivory }}>{active.name}</div>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: T.ivory, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {active.name}
+                    {myCharacterId === active.owner_character_id && active.market_cap != null && (
+                      <button 
+                        onClick={handleRetroactiveFix} 
+                        style={{ background: '#442222', border: '1px solid #ff4444', color: '#ffaaaa', fontSize: '9px', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer' }}
+                        title="Secret Admin Fix: Converts Secondary IPO to Primary IPO"
+                      >
+                        FIX IPO
+                      </button>
+                    )}
+                  </div>
                   <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase' }}>{active.industry_id} · {active.country_id}</div>
                 </div>
                 {[
