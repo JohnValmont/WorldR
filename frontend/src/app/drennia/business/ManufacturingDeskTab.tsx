@@ -3523,7 +3523,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
               {marketData?.forecast && marketData.forecast.length > 0 && (
                 <PanelBox>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-[13px] font-bold text-zinc-100 m-0">Population Purchase Outlook</h3>
+                    <h3 className="text-[13px] font-bold text-zinc-100 m-0">Global Sales Summary</h3>
                   </div>
                   
                   <div className="flex gap-6 mb-4 p-3 bg-zinc-900/50 border border-zinc-800/80 rounded-md">
@@ -3548,6 +3548,50 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                         </>
                       );
                     })()}
+                  </div>
+
+                  {/* New Model Breakdown Table */}
+                  <div className="mb-6 overflow-x-auto">
+                    <table className="w-full text-[11px] text-left border-collapse">
+                      <thead>
+                        <tr className="text-zinc-500 border-b border-zinc-800 text-[10px] font-mono uppercase tracking-[0.06em]">
+                          <th className="px-1.5 py-2 font-medium">Model</th>
+                          <th className="px-1.5 py-2 font-medium text-right">Total Allocated</th>
+                          <th className="px-1.5 py-2 font-medium text-right">Total Interest</th>
+                          <th className="px-1.5 py-2 font-medium text-right text-terminal-amber">Est. Total Sold</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          // Group by model
+                          const summaryByModel: Record<string, { alloc: number; interest: number; sold: number; name: string }> = {};
+                          marketData.forecast.forEach((fc: any) => {
+                            const mid = fc.alloc.vehicle_model_id;
+                            if (!summaryByModel[mid]) {
+                              // Ensure models exists (should be in scope from ManufacturingDeskTab)
+                              const mName = models?.find((m: any) => m.id === mid)?.name || 'Unknown Model';
+                              summaryByModel[mid] = { alloc: 0, interest: 0, sold: 0, name: mName };
+                            }
+                            summaryByModel[mid].alloc += Number(fc.alloc.units_allocated) || 0;
+                            summaryByModel[mid].interest += Math.round(fc.rawBuyerInterest || 0);
+                            summaryByModel[mid].sold += Number(fc.unitsSold) || 0;
+                          });
+                          
+                          return Object.values(summaryByModel).map((sm, idx) => (
+                            <tr key={idx} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
+                              <td className="px-1.5 py-2 text-zinc-200">{sm.name}</td>
+                              <td className="px-1.5 py-2 text-zinc-500 font-mono text-right">{sm.alloc.toLocaleString('en-US')}</td>
+                              <td className="px-1.5 py-2 text-zinc-200 font-mono text-right">{sm.interest.toLocaleString('en-US')}</td>
+                              <td className="px-1.5 py-2 text-terminal-green font-mono font-bold text-right">{sm.sold.toLocaleString('en-US')}</td>
+                            </tr>
+                          ));
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex items-center justify-between mb-3 mt-8">
+                    <h3 className="text-[13px] font-bold text-zinc-100 m-0">Population Purchase Outlook</h3>
                   </div>
 
                   <div className="overflow-x-auto">
