@@ -102,18 +102,18 @@ export class CharacterController {
       }
 
       // Map frontend attributes: [Charisma, Cunning, Capital, Diplomacy, Resolve]
-      // Fallback defaults to 3 (which scales to 30)
-      const attrs = Array.isArray(attributes) ? attributes : [5, 3, 4, 3, 5];
-      const charAttr = attrs[0] || 3;
-      const cunAttr = attrs[1] || 3;
-      const capAttr = attrs[2] || 3;
-      const dipAttr = attrs[3] || 3;
-      const resAttr = attrs[4] || 3;
+      // Fallback defaults to 0 (which scales to 0)
+      const attrs = Array.isArray(attributes) ? attributes : [0, 0, 0, 0, 0];
+      const charAttr = attrs[0] || 0;
+      const cunAttr = attrs[1] || 0;
+      const capAttr = attrs[2] || 0;
+      const dipAttr = attrs[3] || 0;
+      const resAttr = attrs[4] || 0;
 
       const charisma = charAttr * 10;
       const credibility = resAttr * 10;
       const influence = (cunAttr + dipAttr) * 5;
-      const starting_cash = capAttr * 1000000;
+      const starting_cash = 1000000 + (capAttr * 1000000);
 
       const activeInstance = await db('world_instances').where({ status: 'active' }).first();
       if (!activeInstance) {

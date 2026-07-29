@@ -162,7 +162,7 @@ const ATTRS = [
   { k: 'Diplomacy', d: 'Coalitions & treaties' },
   { k: 'Resolve', d: 'Withstand scandal & pressure' },
 ];
-const BASE = 3, MAX = 8, POOL = 10;
+const BASE = 0, MAX = 10, POOL = 10;
 let attrVals = ATTRS.map(() => BASE);
 const attrList = document.getElementById('attrList'), poolEl = document.getElementById('pool');
 function usedPts(){ return attrVals.reduce((s, v) => s + (v - BASE), 0); }
