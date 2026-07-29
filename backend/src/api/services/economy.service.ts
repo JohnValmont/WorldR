@@ -1,5 +1,4 @@
-export const BASE_PER_CAPITA = 0.2; // Yields 1,000,000 for a population of 5,000,000
-
+export const BASE_PER_CAPITA = 0.01; // Yields 50,000 (50 Billion) for a population of 5,000,000
 export async function processMacroEconomy(trx: any, stateId: string, currentArc: number) {
   // 1. Get the state
   const state = await trx('pol_states').where({ id: stateId }).first();
