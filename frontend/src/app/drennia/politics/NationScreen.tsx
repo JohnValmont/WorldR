@@ -122,7 +122,7 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
                 {[
                   { label: 'Population', value: overview?.activeState?.population != null ? `${(Number(overview.activeState.population)/1000000).toFixed(1)}M` : '—' },
                   { label: 'Voters', value: overview?.activeState?.registered_voters != null ? `${(Number(overview.activeState.registered_voters)/1000000).toFixed(1)}M` : '—' },
-                  { label: 'Prosperity', value: `${Math.round(conditions?.prosperity ?? 5)}/10` },
+                  { label: 'Prosperity', value: `${((conditions?.prosperity ?? 50) / 10).toFixed(1)}/10` },
                   { label: 'Parties', value: String(Array.isArray(ledger) ? 0 : 0) },
                 ].map(({ label, value }) => (
                   <div key={label} style={{ padding: '4px 16px', borderRight: '1px solid rgba(255,255,255,0.06)', textAlign: 'center', minWidth: 80 }}>
@@ -162,20 +162,22 @@ export default function NationScreen({ selectedJurisdictionId, onJurisdictionCha
               <GlassPanel title={<><Activity size={14} /> National Conditions</>}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {[
-                    { label: 'Prosperity', val: conditions?.prosperity ?? 5 },
-                    { label: 'Jobs & Employment', val: conditions?.jobs ?? 5 },
-                    { label: 'Public Order', val: conditions?.order ?? 5 },
-                    { label: 'Social Cohesion', val: conditions?.cohesion ?? 5 },
-                    { label: 'Budget Health', val: conditions?.budget ?? 5 },
-                  ].map(({ label, val }) => (
+                    { label: 'Prosperity', rawVal: conditions?.prosperity ?? 50 },
+                    { label: 'Jobs & Employment', rawVal: conditions?.jobs ?? 50 },
+                    { label: 'Public Order', rawVal: conditions?.order ?? 50 },
+                    { label: 'Social Cohesion', rawVal: conditions?.cohesion ?? 50 },
+                    { label: 'Budget Health', rawVal: conditions?.budget ?? 50 },
+                  ].map(({ label, rawVal }) => {
+                    const val = rawVal / 10;
+                    return (
                     <div key={label}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                         <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.faint }}>{label}</span>
                         <span style={{ fontFamily: MONO, fontSize: 10, color: condTone(val), fontWeight: 600 }}>{val.toFixed(1)}/10</span>
                       </div>
-                      <OledMeter label="" value={val * 10} tone={condTone(val)} />
+                      <OledMeter label="" value={val} tone={condTone(val)} />
                     </div>
-                  ))}
+                  )})}
                   <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid rgba(255,255,255,0.05)`, color: T.muted, fontSize: 11, lineHeight: 1.5, fontStyle: 'italic' }}>
                     Conditions drift toward targets set by the governing coalition.
                   </div>
