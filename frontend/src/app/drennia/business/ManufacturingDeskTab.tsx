@@ -2857,9 +2857,9 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                               </select>
                             </div>
                             <div>
-                              <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-[0.1em] mb-1.5">Target / Month <span className="text-zinc-600 normal-case">(max 100)</span></label>
+                              <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-[0.1em] mb-1.5">Target / Month <span className="text-zinc-600 normal-case">(max {Math.ceil(Number(factory.capacity_per_month || 100) / (factory.expansion_status === 'expanded' ? 2 : 1))})</span></label>
                               <input
-                                type="number" min={0} max={100} value={planTarget === 0 ? '' : planTarget}
+                                type="number" min={0} max={Math.ceil(Number(factory.capacity_per_month || 100) / (factory.expansion_status === 'expanded' ? 2 : 1))} value={planTarget === 0 ? '' : planTarget}
                                 onChange={e => setPlanTarget(e.target.value ? Number(e.target.value) : 0)}
                                 className="w-full box-border rounded-sm border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-xs text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors"
                               />
