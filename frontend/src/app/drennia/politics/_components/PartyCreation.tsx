@@ -30,7 +30,8 @@ export default function PartyCreation({
   initialLeaderName = ''
 }: { 
   onComplete?: (party: PartyState) => void,
-  initialLeaderName?: string
+  initialLeaderName?: string,
+  onCancel?: () => void
 }) {
   const [phase, setPhase] = useState<Phase>('intro')
   const [party, setParty] = useState<PartyState>({
@@ -67,6 +68,26 @@ export default function PartyCreation({
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 100, overflowY: 'auto', minHeight: '100vh', backgroundColor: '#080810', fontFamily: "'Barlow', sans-serif" }}>
+      {/* Back button */}
+      {onCancel && (
+        <button
+          onClick={onCancel}
+          style={{
+            position: 'absolute', top: 32, left: 32, zIndex: 150,
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+            color: 'rgba(255,255,255,0.6)', padding: '8px 16px', borderRadius: 4,
+            fontFamily: "'Barlow Condensed', sans-serif", fontSize: 13, fontWeight: 600,
+            letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
+            transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 6
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Cancel
+        </button>
+      )}
+
       {/* Progress rail */}
       {phase !== 'intro' && phase !== 'launch' && (
         <div style={{

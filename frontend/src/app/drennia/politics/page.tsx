@@ -62,9 +62,9 @@ export default function PoliticsDesk() {
     overview,
     character,
     parties,
-    myAp,
     myPc,
     onRefresh: loadData,
+    onNavigate: setActiveTab,
   };
 
   const myParty = overview?.globalParty || (Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id || p.members?.some((m: any) => m.character_id === character?.id || m.id === character?.id)) : undefined);

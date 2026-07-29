@@ -21,6 +21,7 @@ interface Props {
   myAp?: { current_ap: number; ap_cap: number };
   myPc?: { current_pc: number; pc_cap: number };
   onRefresh: () => void;
+  onNavigate?: (tab: string) => void;
 }
 
 const CREED_PLATFORMS: Record<CreedId, Record<Axis, number>> = {
@@ -1206,7 +1207,7 @@ function NewsFeedPanel() {
   );
 }
 
-export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, overview, character, parties, myAp, myPc, onRefresh }: Props) {
+export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, overview, character, parties, myAp, myPc, onRefresh, onNavigate }: Props) {
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
   const globalPartyId = overview?.globalParty?.id;
@@ -1795,6 +1796,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
         <PartyCreation 
           onComplete={found} 
           initialLeaderName={character?.name || ''} 
+          onCancel={onNavigate ? () => onNavigate('overview') : undefined}
         />
       )}
     </div>
