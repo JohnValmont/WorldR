@@ -48,27 +48,31 @@ const TENETS: Record<CreedId, { id: string; name: string; type: string }[]> = {
 function Panel({ title, children, action, accent, flex }: { title: React.ReactNode; children: React.ReactNode; action?: React.ReactNode; accent?: string; flex?: number | string }) {
   return (
     <div style={{
-      ...glassPanelStyle,
       flex,
       display: 'flex', flexDirection: 'column',
-      background: 'linear-gradient(145deg, rgba(18, 20, 26, 0.7) 0%, rgba(10, 12, 16, 0.9) 100%)',
-      border: `1px solid rgba(255, 255, 255, 0.08)`,
-      borderTop: accent ? `1px solid ${accent}` : `1px solid rgba(255, 255, 255, 0.15)`,
-      boxShadow: accent ? `0 4px 24px ${accent}20, inset 0 1px 0 rgba(255,255,255,0.05)` : '0 4px 24px rgba(0,0,0,0.4)',
-      borderRadius: 12,
+      background: 'rgba(15, 17, 26, 0.4)',
+      backdropFilter: 'blur(24px)',
+      WebkitBackdropFilter: 'blur(24px)',
+      border: `1px solid rgba(255, 255, 255, 0.04)`,
+      borderTop: accent ? `1px solid ${accent}50` : `1px solid rgba(255, 255, 255, 0.08)`,
+      boxShadow: accent ? `0 8px 32px ${accent}15, inset 0 1px 0 rgba(255,255,255,0.05)` : '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.02)',
+      borderRadius: 16,
       overflow: 'hidden',
+      position: 'relative'
     }}>
+      {accent && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${accent}, transparent)`, opacity: 0.5 }} />}
       <div style={{ 
-        padding: '10px 14px', 
-        borderBottom: '1px solid rgba(255,255,255,0.05)', 
-        fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: accent || T.faint,
+        padding: '14px 20px', 
+        borderBottom: '1px solid rgba(255,255,255,0.03)', 
+        fontFamily: MONO, fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', 
+        color: accent || T.muted,
         background: 'rgba(0,0,0,0.2)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{title}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{title}</div>
         {action}
       </div>
-      <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column', fontFamily: SANS }}>
+      <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column', fontFamily: SANS }}>
         {children}
       </div>
     </div>
@@ -76,20 +80,34 @@ function Panel({ title, children, action, accent, flex }: { title: React.ReactNo
 }
 
 function Btn({ label, onClick, primary, disabled }: { label: string; onClick: () => void; primary?: boolean; disabled?: boolean }) {
-  const [hover, setHover] = useState(false);
   return (
     <button onClick={onClick} disabled={disabled}
-      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      className="party-btn"
       style={{
-        padding: '10px 16px', borderRadius: 6, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
-        fontSize: 12, fontWeight: 700, fontFamily: MONO, letterSpacing: '0.1em', textTransform: 'uppercase',
-        background: primary ? (hover ? 'rgba(255,215,0,0.15)' : 'rgba(255,215,0,0.1)') : (hover ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)'),
-        color: primary ? T.gold : T.ivory,
-        border: `1px solid ${primary ? T.goldLine : 'rgba(255,255,255,0.1)'}`,
-        boxShadow: primary ? `0 0 16px ${T.goldSoft}` : 'none',
-        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        padding: '8px 16px', borderRadius: 8, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
+        fontSize: 11, fontWeight: 700, fontFamily: MONO, letterSpacing: '0.12em', textTransform: 'uppercase',
+        background: primary ? 'rgba(251, 191, 36, 0.15)' : 'rgba(255,255,255,0.05)',
+        color: primary ? '#fde68a' : T.ivory,
+        border: `1px solid ${primary ? 'rgba(251, 191, 36, 0.4)' : 'rgba(255,255,255,0.1)'}`,
+        boxShadow: primary ? `0 0 20px rgba(251, 191, 36, 0.1)` : 'none',
+        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8
-      }}>
+      }}
+      onMouseEnter={e => {
+        if (!disabled) {
+          e.currentTarget.style.transform = 'translateY(-1px)';
+          e.currentTarget.style.background = primary ? 'rgba(251, 191, 36, 0.25)' : 'rgba(255,255,255,0.1)';
+          e.currentTarget.style.boxShadow = primary ? `0 4px 24px rgba(251, 191, 36, 0.2)` : '0 4px 12px rgba(0,0,0,0.2)';
+        }
+      }}
+      onMouseLeave={e => {
+        if (!disabled) {
+          e.currentTarget.style.transform = 'none';
+          e.currentTarget.style.background = primary ? 'rgba(251, 191, 36, 0.15)' : 'rgba(255,255,255,0.05)';
+          e.currentTarget.style.boxShadow = primary ? `0 0 20px rgba(251, 191, 36, 0.1)` : 'none';
+        }
+      }}
+    >
       {label}
     </button>
   );
@@ -200,11 +218,21 @@ function FactionPanel({ partyId, onSpendPc }: { partyId: string; onSpendPc?: (ac
           const share = Math.round(Number(f.membership_share) * 100);
           return (
             <div key={f.id} style={{
-              background: f.is_restless ? `rgba(224, 82, 70, 0.05)` : 'rgba(255,255,255,0.015)',
-              border: `1px solid ${f.is_restless ? 'rgba(224,82,70,0.25)' : T.border}`,
-              borderRadius: 6, padding: '10px 14px',
-              transition: 'border 0.3s ease',
-            }}>
+              background: f.is_restless ? `rgba(224, 82, 70, 0.05)` : 'rgba(15, 17, 26, 0.5)',
+              border: `1px solid ${f.is_restless ? 'rgba(224,82,70,0.25)' : 'rgba(255,255,255,0.06)'}`,
+              borderRadius: 12, padding: '14px 18px',
+              transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+              boxShadow: f.is_restless ? '0 4px 12px rgba(224, 82, 70, 0.1)' : '0 4px 12px rgba(0,0,0,0.2)',
+            }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.border = `1px solid ${f.is_restless ? 'rgba(224,82,70,0.4)' : 'rgba(255,255,255,0.15)'}`;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.border = `1px solid ${f.is_restless ? 'rgba(224,82,70,0.25)' : 'rgba(255,255,255,0.06)'}`;
+              }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {f.is_restless && <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.red, boxShadow: `0 0 6px ${T.red}` }} />}
@@ -1316,44 +1344,51 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
         <>
           <div style={{
             display: 'flex', flexDirection: 'column', gap: 12,
-            background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(10,15,30,0.95) 100%)',
-            border: `1px solid rgba(255,255,255,0.05)`,
-            borderRadius: 10,
-            padding: '14px 18px',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px rgba(0,0,0,0.5)',
-            position: 'relative', overflow: 'hidden', fontFamily: SANS
+            background: `radial-gradient(ellipse at top right, ${myParty.identity?.color ? myParty.identity.color + '20' : 'rgba(255,215,0,0.15)'} 0%, rgba(10,12,18,0.95) 70%)`,
+            border: `1px solid rgba(255,255,255,0.08)`,
+            borderRadius: 16,
+            padding: '24px',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 24px 48px rgba(0,0,0,0.6)',
+            position: 'relative', overflow: 'hidden', fontFamily: SANS,
+            backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)'
           }}>
             <div style={{
-              position: 'absolute', inset: 0, opacity: 0.1, pointerEvents: 'none',
-              backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-              backgroundSize: '20px 20px',
+              position: 'absolute', inset: 0, opacity: 0.3, pointerEvents: 'none',
+              backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.15) 1px, transparent 0)`,
+              backgroundSize: '24px 24px',
             }} />
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14, position: 'relative', zIndex: 1 }}>
               <div style={{ flex: 1, minWidth: 280 }}>
-                <div style={{ ...stampStyle, marginBottom: 8, color: T.gold, borderColor: 'rgba(255,215,0,0.3)', textShadow: `0 0 10px ${T.goldSoft}` }}>Your Party</div>
-                <h1 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, fontFamily: HEADING, margin: '0 0 4px', letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <div style={{ padding: '4px 10px', borderRadius: 4, background: myParty.identity?.color ? myParty.identity.color + '20' : 'rgba(255,215,0,0.2)', color: myParty.identity?.color || T.gold, fontSize: 10, fontFamily: MONO, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', border: `1px solid ${myParty.identity?.color ? myParty.identity.color + '40' : 'rgba(255,215,0,0.4)'}` }}>
+                    Your Party
+                  </div>
+                </div>
+                <h1 style={{ color: T.ivory, fontSize: 28, fontWeight: 800, fontFamily: HEADING, margin: '0 0 4px', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={{ 
-                    width: 18, 
-                    height: 18, 
+                    width: 20, 
+                    height: 20, 
                     borderRadius: '50%', 
                     background: myParty.identity?.color || T.gold, 
-                    boxShadow: `0 0 12px ${myParty.identity?.color ? myParty.identity.color + '80' : T.goldGlow}` 
+                    boxShadow: `0 0 24px ${myParty.identity?.color ? myParty.identity.color + '90' : T.goldGlow}` 
                   }} />
                   {myParty.name}
-                  {myParty.abbreviation && <span style={{ color: T.faint, fontSize: 22, fontFamily: MONO, textTransform: 'uppercase', fontWeight: 600 }}>[{myParty.abbreviation}]</span>}
+                  {myParty.abbreviation && <span style={{ color: T.muted, fontSize: 24, fontFamily: MONO, textTransform: 'uppercase', fontWeight: 600 }}>[{myParty.abbreviation}]</span>}
                 </h1>
                 {(myParty.slogan || myParty.identity?.motto) && (
-                  <div style={{ color: T.muted, fontSize: 13, fontStyle: 'italic', marginTop: 2, marginBottom: 6, fontFamily: SANS }}>
+                  <div style={{ color: T.faint, fontSize: 14, fontStyle: 'italic', marginTop: 4, marginBottom: 8, fontFamily: SANS }}>
                     "{myParty.slogan || myParty.identity?.motto}"
                   </div>
                 )}
-                <div style={{ color: myParty.identity?.color || T.gold, fontFamily: MONO, fontSize: 13, marginTop: 8, textTransform: 'uppercase', letterSpacing: '0.15em', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span>{CREED_NAME_BY_ID[getDoctrineId(myParty)!] || 'Independent'}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
+                  <span style={{ color: myParty.identity?.color || T.gold, fontFamily: MONO, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+                    {CREED_NAME_BY_ID[getDoctrineId(myParty)!] || 'Independent'}
+                  </span>
                   {(myParty.tenet_id || myParty.tenetId) && TENETS[getDoctrineId(myParty)!]?.find(t => t.id === (myParty.tenet_id || myParty.tenetId)) && (
                     <>
-                      <span style={{ color: T.border, fontSize: 16, fontWeight: 300 }}>/</span>
-                      <span style={{ color: T.ivory, fontWeight: 600, letterSpacing: '0.1em' }}>
+                      <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
+                      <span style={{ color: T.ivory, fontSize: 12, fontWeight: 600, fontFamily: MONO, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                         {TENETS[getDoctrineId(myParty)!]?.find(t => t.id === (myParty.tenet_id || myParty.tenetId))?.name}
                       </span>
                     </>
@@ -1363,30 +1398,31 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
               
               <div style={{ flexBasis: '100%' }} />
 
-              <div style={{ flex: 1, minWidth: 280, marginTop: 12, padding: '16px', background: 'rgba(255,215,0,0.05)', borderRadius: 8, border: `1px solid rgba(255,215,0,0.2)` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <span style={{ color: T.gold, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Party Treasury</span>
-                    <span style={{ color: T.ivory, fontSize: 24, fontWeight: 700, fontFamily: MONO }}>
-                      $ {Number(myParty.treasury || 0).toLocaleString('en-US')}
-                    </span>
-                  </div>
-                  
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 16 }}>
-                      <input 
-                        type="text" 
-                        inputMode="numeric"
-                        placeholder="Amount" 
-                        value={donationAmount || ''} 
-                        onChange={(e) => setDonationAmount(Number(e.target.value.replace(/,/g, '')))}
-                        style={{ 
-                          width: 120, padding: '8px 12px', borderRadius: 6, background: 'rgba(0,0,0,0.5)', 
-                          border: `1px solid ${T.border}`, color: T.ivory, fontFamily: MONO, fontSize: 13 
-                        }} 
-                      />
-                      <Btn label={busy ? "..." : "Donate"} onClick={donate} disabled={busy || donationAmount <= 0} primary />
-                    </div>
+              <div style={{ flex: 1, minWidth: 280, marginTop: 16, padding: '20px', background: 'rgba(0,0,0,0.3)', borderRadius: 12, border: `1px solid rgba(255,255,255,0.06)`, backdropFilter: 'blur(10px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ color: T.muted, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>Party Treasury</span>
+                  <span style={{ color: T.ivory, fontSize: 28, fontWeight: 700, fontFamily: MONO, textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
+                    $ {Number(myParty.treasury || 0).toLocaleString('en-US')}
+                  </span>
+                </div>
+                
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 16 }}>
+                    <input 
+                      type="text" 
+                      inputMode="numeric"
+                      placeholder="Amount" 
+                      value={donationAmount || ''} 
+                      onChange={(e) => setDonationAmount(Number(e.target.value.replace(/,/g, '')))}
+                      style={{ 
+                        width: 140, padding: '10px 14px', borderRadius: 8, background: 'rgba(0,0,0,0.6)', 
+                        border: `1px solid rgba(255,255,255,0.1)`, color: T.ivory, fontFamily: MONO, fontSize: 14,
+                        transition: 'border 0.2s', outline: 'none'
+                      }} 
+                      onFocus={e => e.currentTarget.style.border = `1px solid ${myParty.identity?.color || T.gold}`}
+                      onBlur={e => e.currentTarget.style.border = `1px solid rgba(255,255,255,0.1)`}
+                    />
+                    <Btn label={busy ? "..." : "Donate"} onClick={donate} disabled={busy || donationAmount <= 0} primary />
                   </div>
                 </div>
               </div>
@@ -1394,8 +1430,8 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           </div>
 
           {/* Unified Actions Bar */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', background: 'rgba(0,0,0,0.4)', padding: '12px 16px', borderRadius: 8, border: `1px solid rgba(255,255,255,0.05)`, alignItems: 'center' }}>
-            <span style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginRight: 8 }}>Party Actions</span>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', background: 'rgba(15,17,26,0.6)', padding: '14px 20px', borderRadius: 12, border: `1px solid rgba(255,255,255,0.06)`, alignItems: 'center', backdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+            <span style={{ color: T.muted, fontSize: 10, fontFamily: MONO, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 12 }}>Commands</span>
             {isLeader ? (
               <>
                 <Btn label={busy ? "..." : "Hold Fundraiser (1 AP)"} onClick={fundraise} disabled={!!busy || (myAp?.current_ap ?? 0) < 1} primary />
@@ -1407,12 +1443,13 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                   onClick={dissolveParty}
                   disabled={!!busy}
                   style={{
-                    background: 'rgba(224,82,70,0.1)', border: '1px solid rgba(224,82,70,0.3)', 
-                    color: '#f87171', padding: '6px 12px', borderRadius: 6, cursor: 'pointer',
-                    fontFamily: SANS, fontSize: 11, transition: 'all 0.2s', fontWeight: 600
+                    background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', 
+                    color: '#fca5a5', padding: '8px 16px', borderRadius: 8, cursor: 'pointer',
+                    fontFamily: SANS, fontSize: 11, transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: 600,
+                    textTransform: 'uppercase', letterSpacing: '0.05em'
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(224,82,70,0.2)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(224,82,70,0.1)'}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.2)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
                 >
                   {busy ? 'Working...' : 'Dissolve Party'}
                 </button>
@@ -1431,12 +1468,13 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                   }}
                   disabled={!!busy}
                   style={{
-                    background: 'rgba(224,82,70,0.1)', border: '1px solid rgba(224,82,70,0.3)', 
-                    color: '#f87171', padding: '6px 12px', borderRadius: 6, cursor: 'pointer',
-                    fontFamily: SANS, fontSize: 11, transition: 'all 0.2s', fontWeight: 600
+                    background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', 
+                    color: '#fca5a5', padding: '8px 16px', borderRadius: 8, cursor: 'pointer',
+                    fontFamily: SANS, fontSize: 11, transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: 600,
+                    textTransform: 'uppercase', letterSpacing: '0.05em'
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(224,82,70,0.2)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(224,82,70,0.1)'}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.2)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
                 >
                   {busy ? 'Leaving...' : 'Leave Party'}
                 </button>
@@ -1568,14 +1606,14 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                             {val > 0 ? `+${val}` : val}
                           </span>
                         </div>
-                        <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 99, position: 'relative', display: 'flex' }}>
+                        <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 99, position: 'relative', display: 'flex', boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.5)' }}>
                           {/* Center tick */}
-                          <div style={{ position: 'absolute', left: '50%', top: -2, bottom: -2, width: 2, background: 'rgba(255,255,255,0.2)' }} />
+                          <div style={{ position: 'absolute', left: '50%', top: -3, bottom: -3, width: 2, background: 'rgba(255,255,255,0.3)', borderRadius: 2 }} />
                           <div style={{ width: '50%', height: '100%', display: 'flex', justifyContent: 'flex-end' }}>
-                            {val < 0 && <div style={{ width: `${Math.abs(val)}%`, height: '100%', background: axis.color, borderRadius: '99px 0 0 99px' }} />}
+                            {val < 0 && <div style={{ width: `${Math.abs(val)}%`, height: '100%', background: `linear-gradient(90deg, transparent, ${axis.color})`, borderRadius: '99px 0 0 99px', boxShadow: `0 0 10px ${axis.color}80` }} />}
                           </div>
                           <div style={{ width: '50%', height: '100%', display: 'flex', justifyContent: 'flex-start' }}>
-                            {val > 0 && <div style={{ width: `${val}%`, height: '100%', background: axis.color, borderRadius: '0 99px 99px 0' }} />}
+                            {val > 0 && <div style={{ width: `${val}%`, height: '100%', background: `linear-gradient(90deg, ${axis.color}, transparent)`, borderRadius: '0 99px 99px 0', boxShadow: `0 0 10px ${axis.color}80` }} />}
                           </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
@@ -1598,10 +1636,30 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                       const stance = pillar?.stances.find(s => s.id === stanceId);
                       if (!pillar || !stance) return null;
                       return (
-                        <div key={pillarId} style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)' }}>
-                          <div style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', marginBottom: 4 }}>{pillar.label}</div>
-                          <div style={{ color: T.ivory, fontSize: 13, fontWeight: 600, fontFamily: SANS, marginBottom: 4 }}>{stance.label}</div>
-                          <div style={{ color: T.muted, fontSize: 11, lineHeight: 1.4 }}>{stance.desc}</div>
+                        <div key={pillarId} 
+                          style={{ 
+                            background: 'rgba(15,17,26,0.6)', 
+                            padding: 16, 
+                            borderRadius: 12, 
+                            border: '1px solid rgba(255,255,255,0.06)',
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+                            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                            display: 'flex', flexDirection: 'column', gap: 6
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.4)';
+                            e.currentTarget.style.border = '1px solid rgba(255,255,255,0.15)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.transform = 'none';
+                            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.2)';
+                            e.currentTarget.style.border = '1px solid rgba(255,255,255,0.06)';
+                          }}
+                        >
+                          <div style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', marginBottom: 2 }}>{pillar.label}</div>
+                          <div style={{ color: T.ivory, fontSize: 14, fontWeight: 700, fontFamily: SANS, marginBottom: 2 }}>{stance.label}</div>
+                          <div style={{ color: T.muted, fontSize: 12, lineHeight: 1.5 }}>{stance.desc}</div>
                         </div>
                       );
                     })}
@@ -1613,12 +1671,14 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
 
           {/* Political Capital Resource Bar */}
           <div style={{
-            ...glassPanelStyle,
-            background: 'linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(30,15,60,0.8) 100%)',
+            background: 'linear-gradient(135deg, rgba(15,23,42,0.95) 0%, rgba(30,15,60,0.95) 100%)',
             border: `1px solid rgba(139, 92, 246, 0.25)`,
             borderTop: `1px solid rgba(139, 92, 246, 0.5)`,
-            boxShadow: '0 4px 24px rgba(139, 92, 246, 0.1)',
+            boxShadow: '0 12px 32px rgba(139, 92, 246, 0.15), inset 0 1px 0 rgba(255,255,255,0.05)',
+            borderRadius: 16,
+            backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
             display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+            padding: '16px 20px',
           }}>
             {/* AP */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
