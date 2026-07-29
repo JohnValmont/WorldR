@@ -3522,7 +3522,34 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
               {/* Population Purchase Outlook */}
               {marketData?.forecast && marketData.forecast.length > 0 && (
                 <PanelBox>
-                  <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Population Purchase Outlook</h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[13px] font-bold text-zinc-100 m-0">Population Purchase Outlook</h3>
+                  </div>
+                  
+                  <div className="flex gap-6 mb-4 p-3 bg-zinc-900/50 border border-zinc-800/80 rounded-md">
+                    {(() => {
+                      const totalAlloc = marketData.forecast.reduce((sum: number, fc: any) => sum + (Number(fc.alloc.units_allocated) || 0), 0);
+                      const totalInt = marketData.forecast.reduce((sum: number, fc: any) => sum + Math.round(fc.rawBuyerInterest || 0), 0);
+                      const totalSold = marketData.forecast.reduce((sum: number, fc: any) => sum + (Number(fc.unitsSold) || 0), 0);
+                      return (
+                        <>
+                          <div>
+                            <div className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono mb-1">Total Allocated</div>
+                            <div className="text-sm font-mono text-zinc-200">{totalAlloc.toLocaleString('en-US')}</div>
+                          </div>
+                          <div>
+                            <div className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono mb-1">Total Interest</div>
+                            <div className="text-sm font-mono text-zinc-200">{totalInt.toLocaleString('en-US')}</div>
+                          </div>
+                          <div>
+                            <div className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono mb-1">Est. Total Sold</div>
+                            <div className="text-sm font-mono text-terminal-green font-bold">{totalSold.toLocaleString('en-US')}</div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+
                   <div className="overflow-x-auto">
                   <table className="w-full text-[11px] text-left border-collapse">
                     <thead>
