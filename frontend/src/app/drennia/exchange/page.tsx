@@ -1252,8 +1252,8 @@ export default function ExchangePage() {
         alert('Could not parse JSON. The backend might still be deploying. Try again in a minute.');
         return;
       }
-      if (!res.ok) alert(data.error?.message || data.message || 'Backend Error: ' + JSON.stringify(data));
-      else { alert('Successfully converted your IPO to a Primary Offering!'); setRefreshKey(k => k + 1); mutateListings(); }
+      if (!res.ok) alert('Error: ' + (typeof data.error === 'string' ? data.error : data.message || JSON.stringify(data)));
+      else { alert('✅ IPO successfully converted to a Primary Offering!\n\nYour shares have been restored and the proceeds moved to the company treasury.'); setRefreshKey(k => k + 1); mutateListings(); }
     } catch(e) { alert('Network/Frontend Error: ' + e); }
   };
 
