@@ -20,6 +20,7 @@ router.post('/:id/convert-structure', CompanyController.convertStructure);
 router.put('/:id/dividend-policy', CompanyController.setDividendPolicy);
 router.get('/:id/cap-table', CompanyController.getCapTable);
 router.get('/:id/ledger', CompanyController.getLedger);
+router.post('/:id/declare-bankruptcy', CompanyController.declareBankruptcy);
 
 // Capital Partners firm endpoints
 router.get('/:id/portfolio', async (req: Request, res: Response, next: NextFunction) => {

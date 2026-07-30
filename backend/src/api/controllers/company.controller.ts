@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
-
+import { openAuction } from '../services/acquisitionAuction.service';
 export class CompanyController {
   // Helper to synchronize true net worth after capital movements
   private static async syncNetWorth(trx: any, characterId: number) {
@@ -911,6 +911,68 @@ export class CompanyController {
         .orderBy('created_at', 'desc')
         .limit(20);
       res.json(ledger);
+    } catch (e) {
+      next(e);
+    }
+  }
+
+  public static async declareBankruptcy(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const characterId = req.user?.id;
+      if (!characterId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+
+      await db.transaction(async (trx) => {
+        const company = await trx('companies').where({ id }).first();
+        if (!company) throw new AppError('Company not found', 404, 'NOT_FOUND');
+        if (company.owner_character_id !== characterId) {
+          throw new AppError('Only the owner can declare bankruptcy.', 403, 'FORBIDDEN');
+        }
+        if (company.status === 'distressed' || company.status === 'bankrupt') {
+          throw new AppError('Company is already in distress or bankrupt.', 400, 'BAD_REQUEST');
+        }
+
+        const clock = await trx('world_clock').first();
+        const currentYear = clock?.current_year ?? 1;
+        const currentMonth = clock?.current_month ?? 1;
+
+        // Change status to distressed
+        await trx('companies').where({ id }).update({
+          status: 'distressed',
+          updated_at: trx.fn.now()
+        });
+
+        // Cancel open share orders
+        const openOrders = await trx('share_orders')
+          .where({ company_id: id, status: 'open' });
+        for (const order of openOrders) {
+          if (order.side === 'buy' && Number(order.escrow_amount) > 0) {
+            await trx('character_finances')
+              .where({ character_id: order.character_id })
+              .increment('cash_in_hand', Number(order.escrow_amount));
+          }
+          await trx('share_orders').where({ id: order.id }).update({
+            status: 'cancelled',
+            updated_at: trx.fn.now()
+          });
+        }
+
+        // Add record
+        await trx('company_records').insert({
+          world_instance_id: company.world_instance_id,
+          company_id: company.id,
+          record_type: 'business',
+          summary: `${company.name} has manually declared bankruptcy. Available for acquisition on the DRX Bourse.`,
+          created_at_world_year: currentYear,
+          created_at_world_month: currentMonth,
+          created_at_world_day: clock?.current_day ?? 1
+        }).catch(() => {}); // non-fatal
+
+        // Trigger the auction
+        await openAuction(company.id, trx);
+      });
+
+      res.status(200).json({ message: 'Bankruptcy declared successfully.' });
     } catch (e) {
       next(e);
     }

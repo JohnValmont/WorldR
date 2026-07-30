@@ -164,7 +164,8 @@ export const companyApi = {
     api.post(`/companies/${id}/convert-structure`, { legal_structure_id: legalStructureId }).then(res => res.data),
   setDividendPolicy: (id: string, payoutPercent: number) =>
     api.put(`/companies/${id}/dividend-policy`, { payout_percent: payoutPercent }).then(res => res.data),
-  getCapTable: (id: string) => api.get(`/companies/${id}/cap-table`).then(res => res.data)
+  getCapTable: (id: string) => api.get(`/companies/${id}/cap-table`).then(res => res.data),
+  declareBankruptcy: (id: string) => api.post(`/companies/${id}/declare-bankruptcy`).then(res => res.data)
 };
 
 // Exchange — player-only share market (public corporations)

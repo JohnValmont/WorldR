@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { manufacturingApi } from "../../../lib/api";
+import { manufacturingApi, companyApi } from "../../../lib/api";
 
 // ─── Board positions definition ───────────────────────────────────────────────
 const BOARD_POSITIONS = [
@@ -210,6 +210,7 @@ export default function BoardDeskPanel({
   const [isHiring, setIsHiring] = useState(false);
   const [isAllocating, setIsAllocating] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [isBankrupting, setIsBankrupting] = useState(false);
 
   const getDeterministicName = (roleId: string) => {
     if (!companyId) return "Unknown";
@@ -256,12 +257,29 @@ export default function BoardDeskPanel({
     setIsOptimizing(true);
     try {
       await manufacturingApi.triggerCMOOptimization(cId);
-      alert('CMO successfully optimized all marketing tiers based on current awareness levels and budget constraints.');
+      alert('CMO successfully recalibrated marketing tiers across all active markets.');
       onRefresh();
     } catch (err: any) {
       alert(err?.response?.data?.error || err?.message || 'Failed to trigger CMO optimization.');
     } finally {
       setIsOptimizing(false);
+    }
+  };
+
+  const handleBankrupt = async () => {
+    if (isBankrupting) return;
+    if (!window.confirm("Are you sure you want to declare bankruptcy? This will cancel all open share orders and put the company up for acquisition on the Drennport Exchange.")) {
+      return;
+    }
+    setIsBankrupting(true);
+    try {
+      await companyApi.declareBankruptcy(companyId);
+      alert('Company has successfully declared bankruptcy and is now listed for acquisition.');
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || err?.message || 'Failed to declare bankruptcy.');
+    } finally {
+      setIsBankrupting(false);
     }
   };
 
@@ -484,6 +502,29 @@ export default function BoardDeskPanel({
                          }}
                        >
                          {isOptimizing ? "OPTIMIZING..." : "ACTION: OPTIMIZE CAMPAIGNS"}
+                       </button>
+                    )}
+                    {pos.id === 'ceo' && (
+                       <button
+                         onClick={(e) => { e.stopPropagation(); handleBankrupt(); }}
+                         disabled={isBankrupting}
+                         style={{
+                           background: `linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.2) 100%)`,
+                           color: "#ef4444",
+                           border: `1px solid rgba(239, 68, 68, 0.5)`,
+                           padding: "4px 12px",
+                           fontSize: "10px",
+                           fontFamily: "monospace",
+                           textTransform: "uppercase",
+                           letterSpacing: "0.1em",
+                           fontWeight: 700,
+                           cursor: isBankrupting ? "not-allowed" : "pointer",
+                           borderRadius: "4px",
+                           opacity: isBankrupting ? 0.7 : 1,
+                           transition: "all 0.2s",
+                         }}
+                       >
+                         {isBankrupting ? "PROCESSING..." : "ACTION: BANKRUPT COMPANY"}
                        </button>
                     )}
                   </div>
