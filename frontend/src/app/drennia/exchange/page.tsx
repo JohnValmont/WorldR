@@ -923,6 +923,96 @@ function Pipeline({ myFinanceFirms = [] }: { myFinanceFirms?: any[] }) {
   );
 }
 
+// ── Syndicate Bid Form ──────────────────────────────────────────────────────
+function SyndicateBidForm({ auction: a, myBid, me, myCompanies, isPlacing, onSubmit }: any) {
+  const [totalBid, setTotalBid] = useState(myBid?.bid_amount || '');
+  const [funding, setFunding] = useState<any>({ personal: 0, companies: {} });
+  const [takePrivate, setTakePrivate] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const minBid = Number(a.min_next_bid);
+  
+  // NOTE: We intentionally do NOT use a useEffect here to auto-allocate.
+  // A previous bug caused the effect to wipe company funding rows on every keypress
+  // because [totalBid] changed every character typed. Allocation is manual.
+
+  function handleCompanyFunding(cId: string, val: string) {
+      const v = Number(val);
+      setFunding((f: any) => ({ ...f, companies: { ...f.companies, [cId]: v } }));
+  }
+
+  const allocated = Number(funding.personal || 0) + (Object.values(funding.companies || {}) as number[]).reduce((s: number, x: number) => s + Number(x || 0), 0);
+  const bidNum = Number(totalBid);
+  const diff = bidNum - allocated;
+  // BUG 2 FIX: use tolerance instead of strict float equality
+  const canSubmit = bidNum >= minBid && Math.abs(diff) < 0.01;
+
+  if (!expanded) {
+      return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                 onClick={() => setExpanded(true)}
+                 style={{
+                   padding: '10px 14px', background: 'linear-gradient(135deg, #C9A24A, #8F6A2A)',
+                   border: '1px solid rgba(201,162,74,0.4)', color: T.ivory, cursor: 'pointer',
+                   fontSize: '11px', fontWeight: 700, ...mono, textTransform: 'uppercase', letterSpacing: '0.1em'
+                 }}
+              >
+                 {myBid ? 'Raise Bid (Syndicate)' : 'Open Syndicate Bid'}
+              </button>
+          </div>
+      );
+  }
+
+  return (
+      <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.borderGold}`, padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ ...label, color: T.ivory }}>Funding Syndicate</div>
+          
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+             <span style={{ fontSize: '11px', color: T.muted }}>Total Bid Amount:</span>
+             <input type="number" placeholder={`Min $${fmtBig(minBid)}`} value={totalBid} onChange={e => setTotalBid(e.target.value)}
+                style={{ flex: 1, padding: '6px 8px', background: 'rgba(0,0,0,0.2)', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px', fontFamily: 'monospace' }} />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: T.gold, ...mono }}>
+                <span>Personal Cash (${fmtBig(me?.finances?.cash_in_hand)})</span>
+                <input type="number" value={funding.personal || ''} onChange={e => setFunding((f: any) => ({ ...f, personal: Number(e.target.value) }))}
+                  style={{ width: '100px', padding: '4px', background: 'rgba(0,0,0,0.2)', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '10px', fontFamily: 'monospace', textAlign: 'right' }} />
+             </div>
+             {myCompanies.map((c: any) => (
+               <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: T.ivory, ...mono }}>
+                  <span>{c.name} (${fmtBig(c.finances?.available_cash)})</span>
+                  <input type="number" value={funding.companies[c.id] || ''} onChange={e => handleCompanyFunding(c.id, e.target.value)}
+                    style={{ width: '100px', padding: '4px', background: 'rgba(0,0,0,0.2)', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '10px', fontFamily: 'monospace', textAlign: 'right' }} />
+               </div>
+             ))}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: diff === 0 ? T.mint : T.red, ...mono }}>
+             <span>Allocated: ${fmtBig(allocated)}</span>
+             <span>{diff > 0 ? `Short by $${fmtBig(diff)}` : diff < 0 ? `Over by $${fmtBig(Math.abs(diff))}` : 'Fully Allocated'}</span>
+          </div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '11px', color: T.ivory }}>
+             <input type="checkbox" checked={takePrivate} onChange={e => setTakePrivate(e.target.checked)} />
+             Take company private after acquisition (delist from DRX)
+          </label>
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setExpanded(false)} style={{ flex: 1, padding: '8px', background: 'transparent', border: `1px solid ${T.border}`, color: T.muted, fontSize: '10px', cursor: 'pointer', ...mono }}>CANCEL</button>
+              <button 
+                 disabled={!canSubmit || isPlacing}
+                 onClick={() => onSubmit(bidNum, funding, takePrivate ? 'private' : 'public')}
+                 style={{ flex: 2, padding: '8px', background: canSubmit ? T.mint : T.border, border: 'none', color: T.bg, fontSize: '10px', fontWeight: 700, cursor: canSubmit ? 'pointer' : 'not-allowed', ...mono, opacity: isPlacing ? 0.5 : 1 }}
+              >
+                 {isPlacing ? 'PLACING BID...' : 'PLACE SYNDICATE BID'}
+              </button>
+          </div>
+      </div>
+  );
+}
+
 // ── Acquisition Auctions Tab ─────────────────────────────────────────────────
 function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
   const { data: auctionsData, mutate: mutateAuctions } = useSWR('acquisitions', () => exchangeApi.getAuctions(), { refreshInterval: 30000 });
@@ -942,13 +1032,15 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 6000);
   }
 
-  async function handleBid(auctionId: string) {
-    const raw = bidInputs[auctionId];
-    const amount = Number(raw?.replace(/,/g, ''));
-    if (!amount || amount <= 0) return toast('Enter a valid bid amount.', 'err');
+  const { data: meReq } = useSWR('me', () => characterApi.getMe().then(r => r.data));
+  const { data: compsReq } = useSWR('my-companies', () => companyApi.getMy().then(r => r.data));
+  const myCompanies = compsReq?.companies ?? compsReq ?? [];
+  const me = meReq ?? null;
+
+  async function handleSyndicateBid(auctionId: string, amount: number, fundingSources: any, postAcquisitionStatus: 'public' | 'private') {
     setPlacing(auctionId);
     try {
-      const result = await exchangeApi.placeBid(auctionId, amount);
+      const result = await exchangeApi.placeBid(auctionId, amount, fundingSources, postAcquisitionStatus);
       toast(`Bid placed: $${amount.toLocaleString()}. ${result.is_top_bidder ? 'You are the top bidder! 🏆' : 'Bid registered.'}`, 'ok');
       setBidInputs((b) => ({ ...b, [auctionId]: '' }));
       mutateAuctions();
@@ -1072,7 +1164,9 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {biddingAuctions.map((a) => {
               const myBid = myBidMap[a.id];
-              const isTopBidder = myBid && a.current_top_bid && Number(myBid.bid_amount) >= Number(a.current_top_bid);
+              // BUG 6 FIX: compare top_bidder_id (server-side tiebreaker by created_at) against character ID
+              // getMe returns flat object: { id, name, finances, ... } so character ID is me?.id
+              const isTopBidder = myBid && a.top_bidder_id && a.top_bidder_id === me?.id;
               const isPlacing = placing === a.id;
 
               return (
@@ -1134,9 +1228,9 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
                       <div style={{ textAlign: 'center', padding: '6px' }}>
                         <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Closes In</div>
                         <div style={{ ...mono, fontSize: '24px', fontWeight: 700, color: a.months_to_bidding_end <= 1 ? '#B85555' : T.ivory }}>
-                          {a.months_to_bidding_end}
+                          {a.months_to_bidding_end === 0 ? 'This Tick' : a.months_to_bidding_end}
                         </div>
-                        <div style={{ fontSize: '9px', color: T.faint }}>game month{a.months_to_bidding_end !== 1 ? 's' : ''}</div>
+                        <div style={{ fontSize: '9px', color: T.faint }}>{a.months_to_bidding_end === 0 ? 'closing now!' : `game month${a.months_to_bidding_end !== 1 ? 's' : ''}`}</div>
                       </div>
 
                       {/* My current bid */}
@@ -1148,34 +1242,19 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
                         </div>
                       )}
 
-                      {/* Bid input */}
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <input
-                          type="number"
-                          placeholder={`Min $${fmtBig(a.min_next_bid)}`}
-                          value={bidInputs[a.id] ?? ''}
-                          onChange={(e) => setBidInputs((b) => ({ ...b, [a.id]: e.target.value }))}
-                          style={{
-                            flex: 1, padding: '9px 10px', background: 'rgba(255,255,255,0.05)',
-                            border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px',
-                            fontFamily: 'monospace', outline: 'none', minWidth: 0,
-                          }}
-                        />
-                        <button
-                          id={`bid-btn-${a.id}`}
-                          disabled={isPlacing}
-                          onClick={() => handleBid(a.id)}
-                          style={{
-                            padding: '9px 14px', background: isPlacing ? 'rgba(201,162,74,0.15)' : 'linear-gradient(135deg, #C9A24A, #8F6A2A)',
-                            border: '1px solid rgba(201,162,74,0.4)', color: T.ivory, cursor: isPlacing ? 'wait' : 'pointer',
-                            fontSize: '11px', fontWeight: 700, ...mono, textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {isPlacing ? '...' : (myBid ? 'Raise' : 'Bid')}
-                        </button>
-                      </div>
+                      {/* BUG 10 FIX: key={a.id} ensures form state resets between auctions */}
+                      <SyndicateBidForm
+                         key={a.id}
+                         auction={a}
+                         myBid={myBid}
+                         me={me}
+                         myCompanies={myCompanies}
+                         isPlacing={isPlacing}
+                         onSubmit={(amount: number, fundingSources: any, status: 'public' | 'private') => handleSyndicateBid(a.id, amount, fundingSources, status)}
+                      />
                       <div style={{ fontSize: '9px', color: T.faint, textAlign: 'center' }}>
-                        Paid at settlement only · Debt cleared on transfer
+                        Paid at settlement only · Debt cleared on transfer<br />
+                        <span style={{ color: T.gold }}>Winner issued 90% controlling equity</span>
                       </div>
                     </div>
                   </div>
@@ -1220,7 +1299,8 @@ export default function ExchangePage() {
   const { data: listings, mutate: mutateListings } = useSWR('exchange-listings', () => exchangeApi.getListings(), { refreshInterval: 15000 });
   const { data: charData } = useSWR('my-character', () => characterApi.getMe().then(r => r.data), { revalidateOnFocus: false });
   const { data: pipeline } = useSWR('ipo-pipeline-count', () => exchangeApi.getPipeline(), { refreshInterval: 20000 });
-  const { data: auctionsCountData } = useSWR('acquisitions-count', () => exchangeApi.getAuctions(), { refreshInterval: 30000 });
+  // BUG 8 FIX: use same SWR key 'acquisitions' as AuctionTab so badge updates when bids mutate
+  const { data: auctionsCountData } = useSWR('acquisitions', () => exchangeApi.getAuctions(), { refreshInterval: 30000 });
   const { data: myCompaniesData } = useSWR('my-companies-bourse', () => companyApi.getMy().then(r => r.data), { revalidateOnFocus: false });
   const myFinanceFirms = (Array.isArray(myCompaniesData) ? myCompaniesData : (myCompaniesData?.companies || [])).filter((c: any) => c.industry_id === 'finance');
   const myCharacterId: string | null = charData?.character?.id ?? null;

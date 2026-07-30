@@ -84,6 +84,7 @@ export async function getActiveAuctions() {
     const topBid = await db('company_acquisition_bids')
       .where({ acquisition_id: a.id })
       .orderBy('bid_amount', 'desc')
+      .orderBy('created_at', 'asc')
       .select('bid_amount', 'character_id')
       .first();
 
@@ -148,11 +149,16 @@ export async function placeBid({
   auctionId,
   characterId,
   amount,
+  fundingSources,
+  postAcquisitionStatus = 'public',
 }: {
   auctionId: string;
   characterId: string;
   amount: number;
+  fundingSources?: { personal: number; companies: Record<string, number> };
+  postAcquisitionStatus?: 'public' | 'private';
 }): Promise<any> {
+  const bidAmountNum = Number(amount);
   return db.transaction(async (trx) => {
     const auction = await trx('company_acquisitions').where({ id: auctionId }).first();
     if (!auction) throw new AppError('Auction not found.', 404, 'NOT_FOUND');
@@ -165,64 +171,132 @@ export async function placeBid({
       );
     }
 
+    // BUG 5 FIX: prevent owner from bidding on their own distressed company
+    const auctionedCompany = await trx('companies').where({ id: auction.company_id }).first();
+    if (auctionedCompany?.owner_character_id === characterId) {
+      throw new AppError('You cannot bid on your own company.', 403, 'FORBIDDEN');
+    }
+
+    // BUG 4 FIX: check existing bid FIRST before floor calc so we don't waste DB calls
+    const existingBid = await trx('company_acquisition_bids')
+      .where({ acquisition_id: auctionId, character_id: characterId })
+      .first();
+    if (existingBid && bidAmountNum <= Number(existingBid.bid_amount)) {
+      throw new AppError('New bid must be higher than your existing bid.', 400, 'BID_TOO_LOW');
+    }
+
     // Top bid check
     const topBid = await trx('company_acquisition_bids')
       .where({ acquisition_id: auctionId })
       .whereNot({ character_id: characterId }) // exclude own previous bid
       .orderBy('bid_amount', 'desc')
+      .orderBy('created_at', 'asc')
       .first();
 
     const floor = topBid
       ? Math.ceil(Number(topBid.bid_amount) * (1 + MIN_BID_INCREMENT))
       : Number(auction.reserve_price);
 
-    if (amount < floor) {
+    if (bidAmountNum < floor) {
       throw new AppError(
         `Bid too low. Minimum bid is $${floor.toLocaleString()} (${topBid ? `5% above current top bid` : 'reserve price'}).`,
         400, 'BID_TOO_LOW'
       );
     }
 
-    // Character funds check
+    // Validate funding
+    const funding = fundingSources || { personal: bidAmountNum, companies: {} };
+    let totalFunding = Number(funding.personal) || 0;
+    
+    if (totalFunding < 0) {
+      throw new AppError('Funding amounts cannot be negative.', 400, 'INVALID_AMOUNT');
+    }
+
+    // Check personal funds
     const charFin = await trx('character_finances').where({ character_id: characterId }).first();
-    if (!charFin || Number(charFin.cash_in_hand) < amount) {
-      throw new AppError(
-        `Insufficient funds. You have $${Number(charFin?.cash_in_hand ?? 0).toLocaleString()} available.`,
-        400, 'INSUFFICIENT_FUNDS'
-      );
+    if (!charFin || Number(charFin.cash_in_hand) < totalFunding) {
+      throw new AppError(`Insufficient personal funds for bid.`, 400, 'INSUFFICIENT_FUNDS');
+    }
+
+    for (const [compId, compAmount] of Object.entries(funding.companies || {})) {
+       const amt = Number(compAmount);
+       if (amt < 0) {
+          throw new AppError('Funding amounts cannot be negative.', 400, 'INVALID_AMOUNT');
+       }
+       totalFunding += amt;
+       // Check if character owns this company (must be CEO or Owner)
+       const comp = await trx('companies').where({ id: compId }).first();
+       if (!comp || comp.owner_character_id !== characterId) {
+          throw new AppError(`You do not own company ${comp?.name || compId}.`, 403, 'FORBIDDEN');
+       }
+       const cFin = await trx('company_finances').where({ company_id: compId }).first();
+       if (!cFin || Number(cFin.available_cash) < amt) {
+          throw new AppError(`Insufficient cash in company ${comp.name}.`, 400, 'INSUFFICIENT_FUNDS');
+       }
+    }
+
+    // BUG 1 FIX: use tolerance instead of strict equality to avoid IEEE 754 float drift
+    if (Math.abs(totalFunding - bidAmountNum) > 1) {
+       throw new AppError(`Funding sources total ($${Math.round(totalFunding).toLocaleString()}) does not match bid amount ($${bidAmountNum.toLocaleString()}). Difference: $${Math.round(Math.abs(totalFunding - bidAmountNum))}.`, 400, 'BAD_REQUEST');
     }
 
     const clock = await trx('world_clock').first();
 
-    // Upsert bid (raise existing bid or create new)
-    const existing = await trx('company_acquisition_bids')
-      .where({ acquisition_id: auctionId, character_id: characterId })
-      .first();
-
+    // Upsert bid (raise existing bid or create new) — existingBid already fetched above
+    const existing = existingBid;
+    let bidId = existing?.id;
     if (existing) {
-      if (amount <= Number(existing.bid_amount)) {
-        throw new AppError('New bid must be higher than your existing bid.', 400, 'BID_TOO_LOW');
-      }
       await trx('company_acquisition_bids')
         .where({ id: existing.id })
-        .update({ bid_amount: amount, game_year: clock.current_year, game_month: clock.current_month, updated_at: trx.fn.now() });
+        .update({ 
+          bid_amount: bidAmountNum, 
+          post_acquisition_status: postAcquisitionStatus,
+          game_year: clock.current_year, 
+          game_month: clock.current_month, 
+          updated_at: trx.fn.now() 
+        });
+      await trx('company_acquisition_bid_funding').where({ bid_id: existing.id }).del();
     } else {
-      await trx('company_acquisition_bids').insert({
+      const inserted = await trx('company_acquisition_bids').insert({
         acquisition_id: auctionId,
         character_id:   characterId,
-        bid_amount:     amount,
+        bid_amount:     bidAmountNum,
+        post_acquisition_status: postAcquisitionStatus,
         game_year:      clock.current_year,
         game_month:     clock.current_month,
-      });
+      }).returning('id');
+      bidId = inserted[0].id || inserted[0];
     }
 
-    logger.info(`[Auction] Character ${characterId} bid $${amount} on auction ${auctionId}`);
+    // BUG 7 FIX: use Math.round() to prevent near-zero float junk rows
+    // Insert funding
+    const personalRounded = Math.round(Number(funding.personal) || 0);
+    if (personalRounded > 0) {
+       await trx('company_acquisition_bid_funding').insert({
+          bid_id: bidId,
+          funding_type: 'personal',
+          amount: personalRounded
+       });
+    }
+    for (const [compId, compAmount] of Object.entries(funding.companies || {})) {
+       const compRounded = Math.round(Number(compAmount) || 0);
+       if (compRounded > 0) {
+         await trx('company_acquisition_bid_funding').insert({
+            bid_id: bidId,
+            funding_type: 'company',
+            funding_company_id: compId,
+            amount: compRounded
+         });
+       }
+    }
+
+    logger.info(`[Auction] Character ${characterId} bid $${bidAmountNum} on auction ${auctionId}`);
 
     return {
       success:      true,
       auction_id:   auctionId,
-      your_bid:     amount,
-      is_top_bidder: !topBid || amount > Number(topBid.bid_amount),
+      your_bid:     bidAmountNum,
+      is_top_bidder: !topBid || bidAmountNum > Number(topBid.bid_amount),
     };
   });
 }
@@ -268,6 +342,7 @@ async function settleAuction(trx: any, auction: any, year: number, month: number
   const topBid = await trx('company_acquisition_bids')
     .where({ acquisition_id: auction.id })
     .orderBy('bid_amount', 'desc')
+    .orderBy('created_at', 'asc')
     .first();
 
   if (!topBid || Number(topBid.bid_amount) < Number(auction.reserve_price)) {
@@ -288,20 +363,49 @@ async function settleAuction(trx: any, auction: any, year: number, month: number
   const winningAmount = Number(topBid.bid_amount);
   const winnerId      = topBid.character_id;
 
-  // Deduct winning bid from character
-  const charFin = await trx('character_finances').where({ character_id: winnerId }).first();
-  if (!charFin || Number(charFin.cash_in_hand) < winningAmount) {
-    // Winner can't pay — fall to second bidder or cancel
-    logger.warn(`[Auction] Winner ${winnerId} can't pay $${winningAmount}. Cancelling.`);
+  // Process Syndicate Funding
+  const fundings = await trx('company_acquisition_bid_funding').where({ bid_id: topBid.id });
+  
+  // Verify all funds are present
+  let canPay = true;
+  for (const f of fundings) {
+     if (f.funding_type === 'personal') {
+        const cFin = await trx('character_finances').where({ character_id: winnerId }).first();
+        if (!cFin || Number(cFin.cash_in_hand) < Number(f.amount)) canPay = false;
+     } else if (f.funding_type === 'company') {
+        const cFin = await trx('company_finances').where({ company_id: f.funding_company_id }).first();
+        if (!cFin || Number(cFin.available_cash) < Number(f.amount)) canPay = false;
+     }
+  }
+
+  // Legacy fallback (no funding rows)
+  if (fundings.length === 0) {
+      const cFin = await trx('character_finances').where({ character_id: winnerId }).first();
+      if (!cFin || Number(cFin.cash_in_hand) < winningAmount) canPay = false;
+  }
+
+  if (!canPay) {
+    logger.warn(`[Auction] Winner ${winnerId} lacks funds for bid $${winningAmount}. Cancelling.`);
     await trx('company_acquisitions').where({ id: auction.id }).update({
       status: 'cancelled', updated_at: trx.fn.now()
     });
     return;
   }
 
-  await trx('character_finances')
-    .where({ character_id: winnerId })
-    .decrement('cash_in_hand', winningAmount);
+  // Deduct funds
+  if (fundings.length === 0) {
+      await trx('character_finances')
+        .where({ character_id: winnerId })
+        .decrement('cash_in_hand', winningAmount);
+  } else {
+      for (const f of fundings) {
+          if (f.funding_type === 'personal') {
+              await trx('character_finances').where({ character_id: winnerId }).decrement('cash_in_hand', Number(f.amount));
+          } else if (f.funding_type === 'company') {
+              await trx('company_finances').where({ company_id: f.funding_company_id }).decrement('available_cash', Number(f.amount));
+          }
+      }
+  }
 
   // Transfer company to winner
   await trx('companies').where({ id: auction.company_id }).update({
@@ -317,6 +421,91 @@ async function settleAuction(trx: any, auction: any, year: number, month: number
     debt:        0,
     updated_at:  trx.fn.now(),
   });
+
+  // Handle post_acquisition_status (Private vs Public)
+  if (topBid.post_acquisition_status === 'private') {
+      // Delist the company (cancel IPOs/listings)
+      await trx('ipo_listings').where({ company_id: auction.company_id }).update({ status: 'cancelled', updated_at: trx.fn.now() });
+  }
+
+  // Bailout Dilution: Issue massive new shares to the winner(s) to dilute existing holders
+  const totalSharesRes = await trx('company_shares')
+    .where({ company_id: auction.company_id })
+    .sum('shares as total')
+    .first();
+  const existingShares = Number(totalSharesRes?.total || 0);
+  const sharesToIssue = existingShares > 0 ? (existingShares * 9) : 1000000;
+  
+  if (fundings.length === 0) {
+      // Legacy behavior
+      const existingWinnerShares = await trx('company_shares')
+        .where({ company_id: auction.company_id, holder_character_id: winnerId })
+        .whereNull('holder_company_id')
+        .first();
+
+      if (existingWinnerShares) {
+        const oldShares = Number(existingWinnerShares.shares);
+        const oldCost = Number(existingWinnerShares.avg_cost_basis || 0);
+        const newShares = oldShares + sharesToIssue;
+        const blendedCost = ((oldShares * oldCost) + Number(winningAmount)) / newShares;
+        
+        await trx('company_shares')
+          .where({ id: existingWinnerShares.id })
+          .update({
+            shares: newShares,
+            avg_cost_basis: blendedCost,
+            updated_at: trx.fn.now()
+          });
+      } else {
+        await trx('company_shares').insert({
+          company_id: auction.company_id,
+          holder_character_id: winnerId,
+          shares: sharesToIssue,
+          avg_cost_basis: Number(winningAmount) / sharesToIssue
+        });
+      }
+  } else {
+      // BUG 3 FIX: Syndicate Distribution with remainder tracking to prevent orphaned shares
+      // Sort fundings descending by amount so largest gets the rounding remainder
+      const sortedFundings = [...fundings].sort((a, b) => Number(b.amount) - Number(a.amount));
+      let remainingShares = sharesToIssue;
+
+      for (let fi = 0; fi < sortedFundings.length; fi++) {
+          const f = sortedFundings[fi];
+          const proportion = Number(f.amount) / winningAmount;
+          // Last funder gets all remaining shares (avoids orphan from floor rounding)
+          const allocatedShares = fi === sortedFundings.length - 1
+            ? remainingShares
+            : Math.floor(sharesToIssue * proportion);
+          remainingShares -= allocatedShares;
+          if (allocatedShares <= 0) continue;
+          
+          const hChar = f.funding_type === 'personal' ? winnerId : null;
+          const hComp = f.funding_type === 'company' ? f.funding_company_id : null;
+
+          const query = trx('company_shares').where({ company_id: auction.company_id });
+          if (hChar) query.where({ holder_character_id: hChar }); else query.whereNull('holder_character_id');
+          if (hComp) query.where({ holder_company_id: hComp }); else query.whereNull('holder_company_id');
+          
+          const existingSharesRow = await query.first();
+
+          if (existingSharesRow) {
+             const oldShares = Number(existingSharesRow.shares);
+             const oldCost = Number(existingSharesRow.avg_cost_basis || 0);
+             const newShares = oldShares + allocatedShares;
+             const blendedCost = ((oldShares * oldCost) + Number(f.amount)) / newShares;
+             await trx('company_shares').where({ id: existingSharesRow.id }).update({ shares: newShares, avg_cost_basis: blendedCost, updated_at: trx.fn.now() });
+          } else {
+             await trx('company_shares').insert({
+                 company_id: auction.company_id,
+                 holder_character_id: hChar,
+                 holder_company_id: hComp,
+                 shares: allocatedShares,
+                 avg_cost_basis: Number(f.amount) / allocatedShares
+             });
+          }
+      }
+  }
 
   // Mark auction complete
   await trx('company_acquisitions').where({ id: auction.id }).update({

@@ -414,8 +414,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
   const [selectedLeaderboardRegion, setSelectedLeaderboardRegion] = useState<string>('');
 
   // Finance & Records state
+  // Finance & Records state
   const [ledgerFilter, setLedgerFilter] = useState<string>('All');
   const [selectedArcReportId, setSelectedArcReportId] = useState<string | null>(null);
+  const [financeChartFilter, setFinanceChartFilter] = useState<'expenses' | 'historical' | 'staff'>('expenses');
 
   // Factory Expansion state
   const [showExpandConfirm, setShowExpandConfirm] = useState(false);
@@ -3950,6 +3952,129 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                 subtitle="Your first report will appear after production and sales resolve at Month Close."
               />
             )}
+          </PanelBox>
+
+          {/* Financial Analytics */}
+          <PanelBox>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <h3 className="text-[13px] font-bold text-zinc-100 m-0">Financial Analytics</h3>
+              <div className="flex gap-2 bg-zinc-950 p-1 rounded-sm border border-zinc-800/60">
+                <button
+                  onClick={() => setFinanceChartFilter('expenses')}
+                  className={`px-3 py-1 text-[10px] uppercase font-mono tracking-wider rounded-sm transition-colors ${financeChartFilter === 'expenses' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  Expenses
+                </button>
+                <button
+                  onClick={() => setFinanceChartFilter('historical')}
+                  className={`px-3 py-1 text-[10px] uppercase font-mono tracking-wider rounded-sm transition-colors ${financeChartFilter === 'historical' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  History
+                </button>
+                <button
+                  onClick={() => setFinanceChartFilter('staff')}
+                  className={`px-3 py-1 text-[10px] uppercase font-mono tracking-wider rounded-sm transition-colors ${financeChartFilter === 'staff' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  Staff vs Ops
+                </button>
+              </div>
+            </div>
+
+            <div className="h-[260px] w-full mt-4">
+              {financeChartFilter === 'expenses' && latestReport && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPieChart>
+                    <Pie
+                      data={[
+                        { name: 'Production', value: Number(latestReport.production_costs || 0) },
+                        { name: 'Factory Lease', value: Number(latestReport.factory_lease_costs || 0) },
+                        { name: 'Factory Maint.', value: Number(latestReport.factory_maintenance_costs || 0) },
+                        { name: 'Wages', value: Number(latestReport.staff_wages || 0) },
+                        { name: 'Marketing', value: Number(latestReport.marketing_costs || 0) },
+                        { name: 'Storage', value: Number(latestReport.inventory_storage_costs || 0) }
+                      ].filter(d => d.value > 0)}
+                      cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value"
+                    >
+                      {[
+                        { name: 'Production', value: Number(latestReport.production_costs || 0) },
+                        { name: 'Factory Lease', value: Number(latestReport.factory_lease_costs || 0) },
+                        { name: 'Factory Maint.', value: Number(latestReport.factory_maintenance_costs || 0) },
+                        { name: 'Wages', value: Number(latestReport.staff_wages || 0) },
+                        { name: 'Marketing', value: Number(latestReport.marketing_costs || 0) },
+                        { name: 'Storage', value: Number(latestReport.inventory_storage_costs || 0) }
+                      ].filter(d => d.value > 0).map((entry, index) => {
+                        const colors = ['#b85555', '#d4af37', '#6ea8fe', '#36d399', '#ab7dd6', '#e67e22'];
+                        return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                      })}
+                    </Pie>
+                    <RechartsTooltip
+                      formatter={(value: any) => fm(Number(value))}
+                      contentStyle={{ backgroundColor: '#11131A', borderColor: '#2A2630', fontSize: '12px', fontFamily: 'monospace' }}
+                      itemStyle={{ color: '#fff' }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', color: '#888' }} />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              )}
+              {financeChartFilter === 'expenses' && !latestReport && (
+                <div className="flex items-center justify-center h-full text-xs text-zinc-500 italic">No report available for chart.</div>
+              )}
+
+              {financeChartFilter === 'historical' && allReports?.length > 0 && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={[...allReports].reverse().slice(0, 12)} margin={{ top: 10, right: 10, left: 20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2A2630" vertical={false} />
+                    <XAxis dataKey="world_month" tick={{ fontSize: 10, fill: '#888', fontFamily: 'monospace' }} axisLine={false} tickLine={false} tickFormatter={(val, i) => {
+                       const year = [...allReports].reverse().slice(0, 12)[i]?.world_year;
+                       return `Y${year} M${val}`;
+                    }} />
+                    <YAxis tickFormatter={(val) => fm(val).replace(currencySymbol, '')} tick={{ fontSize: 10, fill: '#888', fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
+                    <RechartsTooltip
+                      formatter={(value: any) => fm(Number(value))}
+                      labelFormatter={(l, p) => `Year ${p[0]?.payload?.world_year} Month ${l}`}
+                      contentStyle={{ backgroundColor: '#11131A', borderColor: '#2A2630', fontSize: '12px', fontFamily: 'monospace' }}
+                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', paddingTop: '10px' }} />
+                    <Bar dataKey="gross_revenue" name="Revenue" fill={T.mint} radius={[2, 2, 0, 0]} maxBarSize={40} />
+                    <Bar dataKey="net_profit" name="Net Profit" fill={T.gold} radius={[2, 2, 0, 0]} maxBarSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+              {financeChartFilter === 'historical' && (!allReports || allReports.length === 0) && (
+                <div className="flex items-center justify-center h-full text-xs text-zinc-500 italic">No historical data available.</div>
+              )}
+
+              {financeChartFilter === 'staff' && latestReport && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPieChart>
+                    <Pie
+                      data={[
+                        { name: 'Staff Wages', value: Number(latestReport.staff_wages || 0) },
+                        { name: 'Other Operations', value: Number(latestReport.production_costs || 0) + Number(latestReport.factory_lease_costs || 0) + Number(latestReport.factory_maintenance_costs || 0) + Number(latestReport.marketing_costs || 0) + Number(latestReport.inventory_storage_costs || 0) }
+                      ].filter(d => d.value > 0)}
+                      cx="50%" cy="50%" innerRadius={0} outerRadius={80} dataKey="value"
+                    >
+                      {[
+                        { name: 'Staff Wages', value: Number(latestReport.staff_wages || 0) },
+                        { name: 'Other Operations', value: Number(latestReport.production_costs || 0) + Number(latestReport.factory_lease_costs || 0) + Number(latestReport.factory_maintenance_costs || 0) + Number(latestReport.marketing_costs || 0) + Number(latestReport.inventory_storage_costs || 0) }
+                      ].filter(d => d.value > 0).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={index === 0 ? T.blue : T.red} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip
+                      formatter={(value: any) => fm(Number(value))}
+                      contentStyle={{ backgroundColor: '#11131A', borderColor: '#2A2630', fontSize: '12px', fontFamily: 'monospace' }}
+                      itemStyle={{ color: '#fff' }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', color: '#888' }} />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              )}
+              {financeChartFilter === 'staff' && !latestReport && (
+                <div className="flex items-center justify-center h-full text-xs text-zinc-500 italic">No report available for chart.</div>
+              )}
+            </div>
           </PanelBox>
 
           {/* Ledger */}

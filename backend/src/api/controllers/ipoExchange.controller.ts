@@ -182,7 +182,7 @@ export class IpoExchangeController {
     }
   }
 
-  // POST /exchange/acquisitions/:auctionId/bid  { amount }
+  // POST /exchange/acquisitions/:auctionId/bid  { amount, fundingSources, postAcquisitionStatus }
   public static async placeBid(req: Request, res: Response, next: NextFunction) {
     try {
       const character = await requireCharacter(req);
@@ -192,6 +192,8 @@ export class IpoExchangeController {
         auctionId:   req.params.auctionId,
         characterId: character.id,
         amount,
+        fundingSources: req.body.fundingSources,
+        postAcquisitionStatus: req.body.postAcquisitionStatus,
       }));
     } catch (error) {
       next(error);

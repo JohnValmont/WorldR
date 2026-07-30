@@ -208,8 +208,8 @@ export const exchangeApi = {
   // ── Acquisition Auctions ──
   getAuctions: () => api.get('/exchange/acquisitions').then(res => res.data),
   getMyBids: () => api.get('/exchange/acquisitions/my-bids').then(res => res.data),
-  placeBid: (auctionId: string, amount: number) =>
-    api.post(`/exchange/acquisitions/${auctionId}/bid`, { amount }).then(res => res.data),
+  placeBid: (auctionId: string, amount: number, fundingSources?: any, postAcquisitionStatus?: string) =>
+    api.post(`/exchange/acquisitions/${auctionId}/bid`, { amount, fundingSources, postAcquisitionStatus }).then(res => res.data),
   };
 
 // Investments — P2P loans and private equity placements
