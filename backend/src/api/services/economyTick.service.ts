@@ -88,6 +88,7 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
       if (!firmIdToCredit && holder.holder_character_id) {
         const capitalFirm = await trx('companies')
           .where({ owner_character_id: holder.holder_character_id, industry_id: 'finance', status: 'active', is_npc: false })
+          .whereNot({ id: policy.company_id }) // Prevent a capital firm from intercepting its own dividends
           .first('id');
         if (capitalFirm) {
           firmIdToCredit = capitalFirm.id;
