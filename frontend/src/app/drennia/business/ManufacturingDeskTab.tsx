@@ -4042,18 +4042,15 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={[...allReports].slice(0, financeTimeline).reverse().map(r => ({
                       ...r,
+                      label: `Y${r.world_year} M${r.world_month}`,
                       total_expenses: Number(r.production_costs || 0) + Number(r.factory_lease_costs || 0) + Number(r.factory_maintenance_costs || 0) + Number(r.staff_wages || 0) + Number(r.marketing_costs || 0) + Number(r.inventory_storage_costs || 0)
                   }))} margin={{ top: 10, right: 10, left: 20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#2A2630" vertical={false} />
-                    <XAxis dataKey="world_month" tick={{ fontSize: 10, fill: '#888', fontFamily: 'monospace' }} axisLine={false} tickLine={false} tickFormatter={(val, i) => {
-                       const mappedArray = [...allReports].slice(0, financeTimeline).reverse();
-                       const year = mappedArray[i]?.world_year;
-                       return `Y${year} M${val}`;
-                    }} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#888', fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
                     <YAxis tickFormatter={(val) => fm(val).replace(currencySymbol, '')} tick={{ fontSize: 10, fill: '#888', fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
                     <RechartsTooltip
                       formatter={(value: any) => fm(Number(value))}
-                      labelFormatter={(l, p) => `Year ${p[0]?.payload?.world_year} Month ${l}`}
+                      labelFormatter={(l, p) => p?.[0]?.payload ? `Year ${p[0].payload.world_year} Month ${p[0].payload.world_month}` : l}
                       contentStyle={{ backgroundColor: '#11131A', borderColor: '#2A2630', fontSize: '12px', fontFamily: 'monospace' }}
                       cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                     />
