@@ -2689,7 +2689,6 @@ export class ManufacturingController {
            const pState = await ManufacturingController.produceForCompany(trx, company, clock);
            participantStates.push(pState);
         }
-
         // 4. SELL (pooled, per market)
         const allMarketAllocations = [];
         for (const company of participants) {
@@ -2743,9 +2742,9 @@ export class ManufacturingController {
              // accurate supply. The DB is NOT updated here — only in-memory objects.
              const modelInventoryCache = new Map<string, number>();
              for (const alloc of marketAllocations) {
-               // Reset to standing target or units_allocated (fallback to 100 if zero/null)
+               // Reset to standing target or units_allocated
                const rawTarget = Number(alloc.monthly_target ?? alloc.units_allocated ?? 0);
-               alloc.units_allocated = rawTarget > 0 ? rawTarget : 100;
+               alloc.units_allocated = rawTarget;
                alloc._original_units_allocated = alloc.units_allocated;
 
                const modelId = alloc.vehicle_model_id;
@@ -2768,7 +2767,16 @@ export class ManufacturingController {
              for (const [modelId, modelAllocs] of allocationsByModel.entries()) {
                const totalInventory = modelInventoryCache.get(modelId) ?? 0;
                const totalTargeted = modelAllocs.reduce((s, a) => s + Number(a.units_allocated), 0);
-               if (totalTargeted > 0 && totalInventory < totalTargeted) {
+               
+               if (totalInventory <= 0 && modelAllocs[0].development_status === 'discontinued') {
+                 // Clean up zero-inventory discontinued models from market completely
+                 for (const alloc of modelAllocs) {
+                   alloc.units_allocated = 0;
+                   alloc._original_units_allocated = 0; 
+                   // Update DB to persist zeroing
+                   await trx('manufacturing_market_allocations').where({ id: alloc.id }).update({ units_allocated: 0 });
+                 }
+               } else if (totalTargeted > 0 && totalInventory < totalTargeted) {
                  // Inventory is scarce — distribute proportionally
                  for (const alloc of modelAllocs) {
                    const proportion = Number(alloc.units_allocated) / totalTargeted;
@@ -3153,6 +3161,7 @@ export class ManufacturingController {
             'manufacturing_vehicle_models.name as model_name',
             'manufacturing_vehicle_models.vehicle_class',
             'manufacturing_vehicle_models.target_segment',
+            'manufacturing_vehicle_models.development_status',
             'manufacturing_vehicle_models.sale_price',
             'manufacturing_vehicle_models.manufacturing_cost_per_unit',
             'manufacturing_vehicle_models.reliability_score',
@@ -3725,6 +3734,7 @@ export class ManufacturingController {
             'manufacturing_vehicle_models.name as model_name',
             'manufacturing_vehicle_models.vehicle_class',
             'manufacturing_vehicle_models.target_segment',
+            'manufacturing_vehicle_models.development_status',
             'manufacturing_vehicle_models.sale_price',
             'manufacturing_vehicle_models.manufacturing_cost_per_unit',
             'manufacturing_vehicle_models.reliability_score',

@@ -79,9 +79,9 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
   
   let newTargetUnits = Math.max(MIN_UNITS_FLOOR, Math.min(desired - inventoryInStock, factoryCapacity));
   
-  // If there is no sales history (e.g. Month 1 from seed), preserve the seeded target units!
+  // If there is no sales history (e.g. Month 1 from seed or facelift), reboot production!
   if (reasonCode === null) {
-    newTargetUnits = input.targetUnits;
+    newTargetUnits = input.targetUnits > 0 ? input.targetUnits : input.factoryCapacity;
   }
   
   let newMarketingTier = marketingTier;
@@ -103,7 +103,7 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
   }
   // B1 Rule: If we lost market share and didn't sell out, we are too expensive, so drop price
   // Also drop price if we are hoarding inventory (selling less than 50% of allocation)
-  else if (marketShareThisArc < marketShareLastArc || sellRatio < 0.5) {
+  else if (reasonCode !== null && (marketShareThisArc < marketShareLastArc || sellRatio < 0.5)) {
     const marketShareDrop = marketShareLastArc - marketShareThisArc;
     
     // Panic Cut: If we are selling almost nothing, aggressively slash price
@@ -442,7 +442,7 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
 
     // Get current active production line and factory constraints
     const prodLine = await trx('manufacturing_production_lines')
-      .where({ company_id: companyId, assigned_vehicle_model_id: modelId, status: 'active' })
+      .where({ company_id: companyId, assigned_vehicle_model_id: modelId })
       .first();
     const targetUnits = prodLine ? prodLine.target_units_per_month : 0;
     
@@ -510,9 +510,8 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
       .first();
     const unitsProducedLastArc = lastSnapshot ? lastSnapshot.units_produced : 0;
 
-    if (!lastSales) {
-      // First month for this model, don't panic and drop production to minimum.
-      return;
+    if (lastSales.length === 0) {
+      // First month for this model, proceed with reasonCode = null to trigger reboot logic
     }
     let prevPrevYear = prevYear;
     let prevPrevMonth = prevMonth - 1;
@@ -583,6 +582,7 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     // Calculate decision
     (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - decideNpcActions`;
     const output = decideNpcActions(input);
+    console.log('[NPC_DEBUG]', JSON.stringify({ companyId, modelId, reasonCode, input, output }, null, 2));
 
     // CRITICAL FIX: Sanitize output to absolutely guarantee no Postgres crash loops due to NaN values!
     if (isNaN(output.newTargetUnits) || output.newTargetUnits === null || output.newTargetUnits === undefined) {
@@ -604,7 +604,10 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
       (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - update prodLine`;
       await trx('manufacturing_production_lines')
         .where({ id: prodLine.id })
-        .update({ target_units_per_month: output.newTargetUnits });
+        .update({ 
+          target_units_per_month: output.newTargetUnits,
+          status: output.newTargetUnits > 0 ? 'active' : 'idle'
+        });
     }
 
     if (allocations.length > 0) {
