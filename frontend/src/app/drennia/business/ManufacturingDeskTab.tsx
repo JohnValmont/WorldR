@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { manufacturingApi, worldApi } from '../../../lib/api';
 import EquityDeskTab from './EquityDeskTab';
 import BoardDeskPanel from './BoardDeskPanel';
+import { BrandMilestoneTracker } from './BrandMilestoneTracker';
 import { formatWorldDate, formatWorldDateShort } from '@/lib/calendar';
 import {
   Card, Button, StatCard, DataRow, EmptyState as UIEmptyState, Badge, StatusDot, SectionHeading, Tabs, ProgressBar
@@ -3067,6 +3068,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
               <div className="text-2xl font-mono text-terminal-amber">
                 {company.reputation} <span className="text-sm text-zinc-500">/ 100</span>
               </div>
+              <BrandMilestoneTracker company={company} finances={finances} models={models} />
             </PanelBox>
           </div>
 

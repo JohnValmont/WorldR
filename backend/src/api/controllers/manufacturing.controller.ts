@@ -2432,10 +2432,44 @@ export class ManufacturingController {
 
     await trx('company_finances')
       .where({ company_id: companyId })
-      .update({ available_cash: pState.runningCash, last_arc_profit: finalNetProfit, company_value: trueBookValue, debt: newTotalDebt, updated_at: trx.fn.now() });
+      .update({ 
+         available_cash: pState.runningCash, 
+         last_arc_profit: finalNetProfit, 
+         company_value: trueBookValue, 
+         debt: newTotalDebt, 
+         lifetime_net_profit: trx.raw('lifetime_net_profit + ?', [finalNetProfit]),
+         lifetime_units_sold: trx.raw('lifetime_units_sold + ?', [totalUnitsSold]),
+         updated_at: trx.fn.now() 
+      });
 
     if (totalUnitsSold > 0) {
-      await trx('companies').where({ id: companyId }).update({ reputation: trx.raw('LEAST(100, reputation + 1)'), updated_at: trx.fn.now() });
+      const updatedFin = await trx('company_finances').where({ company_id: companyId }).first();
+      const lifetimeNetProfit = Number(updatedFin.lifetime_net_profit) || 0;
+      const lifetimeUnitsSold = Number(updatedFin.lifetime_units_sold) || 0;
+      const companyValue = Number(updatedFin.company_value) || 0;
+      
+      const activeModels = await trx('manufacturing_vehicle_models').where({ company_id: companyId, development_status: 'launched' });
+      const maxAppeal = activeModels.reduce((max: number, m: any) => Math.max(max, Number(m.appeal_score) || 0), 0);
+      const maxReliability = activeModels.reduce((max: number, m: any) => Math.max(max, Number(m.reliability_score) || 0), 0);
+      
+      let totalWDefect = 0; let globalTotalSold = 0;
+      for (const ms of pState.marketStatsMap.values()) {
+        globalTotalSold += ms.totalUnitsSold;
+        totalWDefect += ms.weightedDefectRateSum;
+      }
+      const globalAvgDefectRate = globalTotalSold > 0 ? (totalWDefect / globalTotalSold) : 1.0;
+
+      let repCap = 50;
+      if (lifetimeUnitsSold > 10000) repCap = 80;
+      if (repCap === 80 && lifetimeNetProfit > 500000000 && companyValue > 1000000000) repCap = 90;
+      if (repCap === 90 && lifetimeNetProfit > 2000000000 && maxReliability > 80 && maxAppeal > 80) repCap = 95;
+      if (repCap === 95 && lifetimeNetProfit > 3000000000 && totalUnitsSold >= 50000) repCap = 96;
+      if (repCap === 96 && lifetimeNetProfit > 5000000000 && companyValue > 10000000000) repCap = 97;
+      if (repCap === 97 && lifetimeNetProfit > 10000000000 && maxReliability > 90 && maxAppeal > 90) repCap = 98;
+      if (repCap === 98 && lifetimeNetProfit > 20000000000 && globalAvgDefectRate < 0.01) repCap = 99;
+      if (repCap === 99 && lifetimeNetProfit > 50000000000 && companyValue > 100000000000 && lifetimeUnitsSold > 5000000) repCap = 100;
+
+      await trx('companies').where({ id: companyId }).update({ reputation: trx.raw('LEAST(?, reputation + 1)', [repCap]), updated_at: trx.fn.now() });
     }
 
     let localBrandReportLines: string[] = [];
