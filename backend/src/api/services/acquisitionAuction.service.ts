@@ -412,6 +412,7 @@ async function settleAuction(trx: any, auction: any, year: number, month: number
     owner_character_id: winnerId,
     status:             'active',
     is_npc:             false,
+    is_exchange_listed: topBid.post_acquisition_status === 'public',
     npc_personality:    null,
     updated_at:         trx.fn.now(),
   });
