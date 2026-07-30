@@ -418,7 +418,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
   // Finance & Records state
   const [ledgerFilter, setLedgerFilter] = useState<string>('All');
   const [selectedArcReportId, setSelectedArcReportId] = useState<string | null>(null);
-  const [financeChartFilter, setFinanceChartFilter] = useState<'expenses' | 'historical' | 'staff'>('expenses');
+  const [financeChartFilter, setFinanceChartFilter] = useState<'expenses' | 'historical' | 'staff'>('historical');
+  const [financeTimeline, setFinanceTimeline] = useState<number>(12);
 
   // Factory Expansion state
   const [showExpandConfirm, setShowExpandConfirm] = useState(false);
@@ -3959,7 +3960,22 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
           {/* Financial Analytics */}
           <PanelBox>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-              <h3 className="text-[13px] font-bold text-zinc-100 m-0">Financial Analytics</h3>
+              <div className="flex items-center gap-4">
+                <h3 className="text-[13px] font-bold text-zinc-100 m-0">Financial Analytics</h3>
+                {financeChartFilter === 'historical' && (
+                  <select
+                    value={financeTimeline}
+                    onChange={(e) => setFinanceTimeline(Number(e.target.value))}
+                    className="bg-zinc-950 text-zinc-300 text-[10px] uppercase font-mono tracking-wider border border-zinc-800/60 rounded-sm px-2 py-1 outline-none"
+                  >
+                    <option value={6}>6 Months</option>
+                    <option value={12}>12 Months</option>
+                    <option value={24}>24 Months</option>
+                    <option value={60}>5 Years</option>
+                    <option value={9999}>All Time</option>
+                  </select>
+                )}
+              </div>
               <div className="flex gap-2 bg-zinc-950 p-1 rounded-sm border border-zinc-800/60">
                 <button
                   onClick={() => setFinanceChartFilter('expenses')}
@@ -4024,10 +4040,14 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
 
               {financeChartFilter === 'historical' && allReports?.length > 0 && (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={[...allReports].reverse().slice(0, 12)} margin={{ top: 10, right: 10, left: 20, bottom: 0 }}>
+                  <BarChart data={[...allReports].slice(0, financeTimeline).reverse().map(r => ({
+                      ...r,
+                      total_expenses: Number(r.production_costs || 0) + Number(r.factory_lease_costs || 0) + Number(r.factory_maintenance_costs || 0) + Number(r.staff_wages || 0) + Number(r.marketing_costs || 0) + Number(r.inventory_storage_costs || 0)
+                  }))} margin={{ top: 10, right: 10, left: 20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#2A2630" vertical={false} />
                     <XAxis dataKey="world_month" tick={{ fontSize: 10, fill: '#888', fontFamily: 'monospace' }} axisLine={false} tickLine={false} tickFormatter={(val, i) => {
-                       const year = [...allReports].reverse().slice(0, 12)[i]?.world_year;
+                       const mappedArray = [...allReports].slice(0, financeTimeline).reverse();
+                       const year = mappedArray[i]?.world_year;
                        return `Y${year} M${val}`;
                     }} />
                     <YAxis tickFormatter={(val) => fm(val).replace(currencySymbol, '')} tick={{ fontSize: 10, fill: '#888', fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
@@ -4039,6 +4059,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', paddingTop: '10px' }} />
                     <Bar dataKey="gross_revenue" name="Revenue" fill={T.mint} radius={[2, 2, 0, 0]} maxBarSize={40} />
+                    <Bar dataKey="total_expenses" name="Total Expenses" fill={T.red} radius={[2, 2, 0, 0]} maxBarSize={40} />
                     <Bar dataKey="net_profit" name="Net Profit" fill={T.gold} radius={[2, 2, 0, 0]} maxBarSize={40} />
                   </BarChart>
                 </ResponsiveContainer>
