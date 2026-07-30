@@ -3851,7 +3851,7 @@ export class ManufacturingController {
       }
 
       const forecast = ManufacturingController.simulateSalesDemand(
-          joinedAllocations.filter((a: any) => (a._original_units_allocated ?? a.units_allocated) > 0),
+          joinedAllocations,
           brandMap,
           MARKETING_MULT,
           salesBonusMap,
