@@ -23,8 +23,8 @@ const BOOKBUILD_MONTHS = 3;             // roadshow window
 const MM_SPREAD_PCT = 0.025;            // 2.5% market-maker spread
 const MM_ORDER_SIZE = 5000;             // shares per market-maker quote
 const IPO_POP = 1.15;                   // opening ask = clearing × 1.15
-const IMPULSE_COEFF = 0.40;             // earnings surprise → price impulse coefficient
-const IMPULSE_CLAMP = 0.30;             // ±30% of last close per month
+const IMPULSE_COEFF = 0.15;             // earnings surprise → price impulse coefficient
+const IMPULSE_CLAMP = 0.15;             // ±15% of last close per month
 const DRX_BASE_VALUE = 1000;            // index anchors here at first listing
 
 // ── Month arithmetic (12 months = 1 game year) ──────────────────────────────
