@@ -4412,13 +4412,19 @@ export class ManufacturingController {
           knowledgeMap[k.domain] = k.xp_points;
         }
 
-        const engPriorities = typeof sourceModel.engineering_priorities === 'string'
+        const parsedPriorities = typeof sourceModel.engineering_priorities === 'string'
           ? JSON.parse(sourceModel.engineering_priorities)
           : (sourceModel.engineering_priorities || {});
+        const engPriorities = Object.keys(parsedPriorities).length > 0
+          ? parsedPriorities
+          : { powertrain_performance: 20, powertrain_reliability: 20, body_safety: 20, body_reliability: 20, electronics_appeal: 20 };
         
-        const engBudgetAlloc = typeof sourceModel.engineering_budget_alloc === 'string'
+        const parsedBudgetAlloc = typeof sourceModel.engineering_budget_alloc === 'string'
           ? JSON.parse(sourceModel.engineering_budget_alloc)
           : (sourceModel.engineering_budget_alloc || {});
+        const engBudgetAlloc = Object.keys(parsedBudgetAlloc).length > 0
+          ? parsedBudgetAlloc
+          : { powertrain: 20, body: 20, safety: 20, interior: 20, electronics: 20 };
 
         const engineDesign = {
           vehicleClass: sourceModel.vehicle_class,

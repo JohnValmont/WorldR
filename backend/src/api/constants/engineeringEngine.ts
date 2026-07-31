@@ -539,7 +539,7 @@ function generateEngineeringReport(
     : 'Poor manufacturing friendliness — this vehicle will be expensive and slow to build';
 
   const priorityDominant = Object.entries(priorities).sort((a, b) => b[1] - a[1])[0];
-  const priorityAnalysis = `Engineering emphasis on ${priorityDominant[0].replace(/_/g, ' ')} (${priorityDominant[1]} pts) is the defining characteristic of this vehicle's development programme.`;
+  const priorityAnalysis = priorityDominant ? `Engineering emphasis on ${priorityDominant[0].replace(/_/g, ' ')} (${priorityDominant[1]} pts) is the defining characteristic of this vehicle's development programme.` : 'A balanced engineering approach without specific overarching emphasis.';
 
   return {
     overallAssessment: assessments[overallGrade],
