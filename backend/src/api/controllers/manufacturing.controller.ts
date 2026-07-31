@@ -2459,14 +2459,19 @@ export class ManufacturingController {
       }
       const globalAvgDefectRate = globalTotalSold > 0 ? (totalWDefect / globalTotalSold) : 1.0;
 
-      let repCap = 50;
-      if (lifetimeUnitsSold > 10000) repCap = 80;
-      if (repCap === 80 && lifetimeNetProfit > 500000000 && companyValue > 1000000000) repCap = 90;
-      if (repCap === 90 && lifetimeNetProfit > 2000000000 && maxReliability > 80 && maxAppeal > 80) repCap = 95;
-      if (repCap === 95 && lifetimeNetProfit > 3000000000 && totalUnitsSold >= 50000) repCap = 96;
-      if (repCap === 96 && lifetimeNetProfit > 5000000000 && companyValue > 10000000000) repCap = 97;
-      if (repCap === 97 && lifetimeNetProfit > 10000000000 && maxReliability > 90 && maxAppeal > 90) repCap = 98;
-      if (repCap === 98 && lifetimeNetProfit > 20000000000 && globalAvgDefectRate < 0.01) repCap = 99;
+      let repCap = 60;
+      if (lifetimeUnitsSold > 10000) repCap = 70;
+      if (repCap === 70 && lifetimeNetProfit > 500000000 && companyValue > 1000000000) repCap = 80;
+      if (repCap === 80 && lifetimeNetProfit > 2000000000 && maxReliability > 80 && maxAppeal > 80) repCap = 90;
+      if (repCap === 90 && lifetimeNetProfit > 3000000000 && globalTotalSold >= 50000) repCap = 91;
+      if (repCap === 91 && lifetimeNetProfit > 5000000000 && companyValue > 5000000000) repCap = 92;
+      if (repCap === 92 && lifetimeNetProfit > 7000000000 && maxReliability > 85 && maxAppeal > 85) repCap = 93;
+      if (repCap === 93 && lifetimeNetProfit > 10000000000 && globalAvgDefectRate < 0.015) repCap = 94;
+      if (repCap === 94 && lifetimeNetProfit > 15000000000 && companyValue > 20000000000) repCap = 95;
+      if (repCap === 95 && lifetimeNetProfit > 20000000000 && globalTotalSold >= 500000) repCap = 96;
+      if (repCap === 96 && lifetimeNetProfit > 25000000000 && maxReliability > 90 && maxAppeal > 90) repCap = 97;
+      if (repCap === 97 && lifetimeNetProfit > 30000000000 && globalAvgDefectRate < 0.01) repCap = 98;
+      if (repCap === 98 && lifetimeNetProfit > 40000000000 && companyValue > 50000000000) repCap = 99;
       if (repCap === 99 && lifetimeNetProfit > 50000000000 && companyValue > 100000000000 && lifetimeUnitsSold > 5000000) repCap = 100;
 
       await trx('companies').where({ id: companyId }).update({ reputation: trx.raw('LEAST(?, reputation + 1)', [repCap]), updated_at: trx.fn.now() });

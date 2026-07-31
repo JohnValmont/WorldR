@@ -14,33 +14,68 @@ export function BrandMilestoneTracker({ company, finances, models }: any) {
   const maxAppeal = activeModels.reduce((max: number, m: any) => Math.max(max, Number(m.appeal_score) || 0), 0);
   const maxReliability = activeModels.reduce((max: number, m: any) => Math.max(max, Number(m.reliability_score) || 0), 0);
 
-  let currentCap = 50;
+  let currentCap = 60;
   let nextGoal = null;
   
   if (lifetimeUnitsSold < 10000) {
-     nextGoal = { title: "The Proven Manufacturer (Cap: 80)", reqs: [{ label: "Lifetime Units Sold > 10,000", ok: lifetimeUnitsSold >= 10000, cur: lifetimeUnitsSold, tgt: 10000 }] };
+     nextGoal = { title: "The Proven Manufacturer (Cap: 70)", reqs: [{ label: "Lifetime Units Sold > 10,000", ok: lifetimeUnitsSold >= 10000, cur: lifetimeUnitsSold, tgt: 10000 }] };
   } else {
-     currentCap = 80;
+     currentCap = 70;
      if (lifetimeNetProfit < 500000000 || companyValue < 1000000000) {
-        nextGoal = { title: "The Regional Powerhouse (Cap: 90)", reqs: [{ label: "Lifetime Net Profit > $500M", ok: lifetimeNetProfit >= 500000000, cur: lifetimeNetProfit, tgt: 500000000, isCurrency: true }, { label: "Company Value > $1B", ok: companyValue >= 1000000000, cur: companyValue, tgt: 1000000000, isCurrency: true }] };
+        nextGoal = { title: "The Regional Powerhouse (Cap: 80)", reqs: [{ label: "Lifetime Net Profit > $500M", ok: lifetimeNetProfit >= 500000000, cur: lifetimeNetProfit, tgt: 500000000, isCurrency: true }, { label: "Company Value > $1B", ok: companyValue >= 1000000000, cur: companyValue, tgt: 1000000000, isCurrency: true }] };
      } else {
-        currentCap = 90;
+        currentCap = 80;
         if (lifetimeNetProfit < 2000000000 || maxReliability < 80 || maxAppeal < 80) {
-           nextGoal = { title: "Industry Leader (Cap: 95)", reqs: [{ label: "Lifetime Net Profit > $2B", ok: lifetimeNetProfit >= 2000000000, cur: lifetimeNetProfit, tgt: 2000000000, isCurrency: true }, { label: "Active Model Reliability > 80", ok: maxReliability >= 80, cur: maxReliability, tgt: 80 }, { label: "Active Model Appeal > 80", ok: maxAppeal >= 80, cur: maxAppeal, tgt: 80 }] };
+           nextGoal = { title: "Industry Leader (Cap: 90)", reqs: [{ label: "Lifetime Net Profit > $2B", ok: lifetimeNetProfit >= 2000000000, cur: lifetimeNetProfit, tgt: 2000000000, isCurrency: true }, { label: "Active Model Reliability > 80", ok: maxReliability >= 80, cur: maxReliability, tgt: 80 }, { label: "Active Model Appeal > 80", ok: maxAppeal >= 80, cur: maxAppeal, tgt: 80 }] };
         } else {
-           currentCap = 95;
-           if (lifetimeNetProfit < 5000000000 || companyValue < 10000000000) {
-              nextGoal = { title: "Global Icon (Cap: 97)", reqs: [{ label: "Lifetime Net Profit > $5B", ok: lifetimeNetProfit >= 5000000000, cur: lifetimeNetProfit, tgt: 5000000000, isCurrency: true }, { label: "Company Value > $10B", ok: companyValue >= 10000000000, cur: companyValue, tgt: 10000000000, isCurrency: true }] };
+           currentCap = 90;
+           if (lifetimeNetProfit < 3000000000 || lifetimeUnitsSold < 50000) {
+              nextGoal = { title: "Market Dominator (Cap: 91)", reqs: [{ label: "Lifetime Net Profit > $3B", ok: lifetimeNetProfit >= 3000000000, cur: lifetimeNetProfit, tgt: 3000000000, isCurrency: true }, { label: "Lifetime Units Sold > 50,000", ok: lifetimeUnitsSold >= 50000, cur: lifetimeUnitsSold, tgt: 50000 }] };
            } else {
-              currentCap = 97;
-              if (lifetimeNetProfit < 20000000000) {
-                 nextGoal = { title: "Pinnacle of Engineering (Cap: 99)", reqs: [{ label: "Lifetime Net Profit > $20B", ok: lifetimeNetProfit >= 20000000000, cur: lifetimeNetProfit, tgt: 20000000000, isCurrency: true }] };
+              currentCap = 91;
+              if (lifetimeNetProfit < 5000000000 || companyValue < 5000000000) {
+                 nextGoal = { title: "Global Challenger (Cap: 92)", reqs: [{ label: "Lifetime Net Profit > $5B", ok: lifetimeNetProfit >= 5000000000, cur: lifetimeNetProfit, tgt: 5000000000, isCurrency: true }, { label: "Company Value > $5B", ok: companyValue >= 5000000000, cur: companyValue, tgt: 5000000000, isCurrency: true }] };
               } else {
-                 currentCap = 99;
-                 if (lifetimeNetProfit < 50000000000) {
-                    nextGoal = { title: "Automotive Legend (Cap: 100)", reqs: [{ label: "Lifetime Net Profit > $50B", ok: lifetimeNetProfit >= 50000000000, cur: lifetimeNetProfit, tgt: 50000000000, isCurrency: true }] };
+                 currentCap = 92;
+                 if (lifetimeNetProfit < 7000000000 || maxReliability < 85 || maxAppeal < 85) {
+                    nextGoal = { title: "Global Innovator (Cap: 93)", reqs: [{ label: "Lifetime Net Profit > $7B", ok: lifetimeNetProfit >= 7000000000, cur: lifetimeNetProfit, tgt: 7000000000, isCurrency: true }, { label: "Active Model Reliability > 85", ok: maxReliability >= 85, cur: maxReliability, tgt: 85 }, { label: "Active Model Appeal > 85", ok: maxAppeal >= 85, cur: maxAppeal, tgt: 85 }] };
                  } else {
-                    currentCap = 100;
+                    currentCap = 93;
+                    if (lifetimeNetProfit < 10000000000) {
+                       nextGoal = { title: "Quality Exemplar (Cap: 94)", reqs: [{ label: "Lifetime Net Profit > $10B", ok: lifetimeNetProfit >= 10000000000, cur: lifetimeNetProfit, tgt: 10000000000, isCurrency: true }] };
+                    } else {
+                       currentCap = 94;
+                       if (lifetimeNetProfit < 15000000000 || companyValue < 20000000000) {
+                          nextGoal = { title: "Global Icon (Cap: 95)", reqs: [{ label: "Lifetime Net Profit > $15B", ok: lifetimeNetProfit >= 15000000000, cur: lifetimeNetProfit, tgt: 15000000000, isCurrency: true }, { label: "Company Value > $20B", ok: companyValue >= 20000000000, cur: companyValue, tgt: 20000000000, isCurrency: true }] };
+                       } else {
+                          currentCap = 95;
+                          if (lifetimeNetProfit < 20000000000 || lifetimeUnitsSold < 500000) {
+                             nextGoal = { title: "Mass Manufacturer (Cap: 96)", reqs: [{ label: "Lifetime Net Profit > $20B", ok: lifetimeNetProfit >= 20000000000, cur: lifetimeNetProfit, tgt: 20000000000, isCurrency: true }, { label: "Lifetime Units Sold > 500,000", ok: lifetimeUnitsSold >= 500000, cur: lifetimeUnitsSold, tgt: 500000 }] };
+                          } else {
+                             currentCap = 96;
+                             if (lifetimeNetProfit < 25000000000 || maxReliability < 90 || maxAppeal < 90) {
+                                nextGoal = { title: "Pinnacle of Engineering (Cap: 97)", reqs: [{ label: "Lifetime Net Profit > $25B", ok: lifetimeNetProfit >= 25000000000, cur: lifetimeNetProfit, tgt: 25000000000, isCurrency: true }, { label: "Active Model Reliability > 90", ok: maxReliability >= 90, cur: maxReliability, tgt: 90 }, { label: "Active Model Appeal > 90", ok: maxAppeal >= 90, cur: maxAppeal, tgt: 90 }] };
+                             } else {
+                                currentCap = 97;
+                                if (lifetimeNetProfit < 30000000000) {
+                                   nextGoal = { title: "Perfectionist (Cap: 98)", reqs: [{ label: "Lifetime Net Profit > $30B", ok: lifetimeNetProfit >= 30000000000, cur: lifetimeNetProfit, tgt: 30000000000, isCurrency: true }] };
+                                } else {
+                                   currentCap = 98;
+                                   if (lifetimeNetProfit < 40000000000 || companyValue < 50000000000) {
+                                      nextGoal = { title: "Global Titan (Cap: 99)", reqs: [{ label: "Lifetime Net Profit > $40B", ok: lifetimeNetProfit >= 40000000000, cur: lifetimeNetProfit, tgt: 40000000000, isCurrency: true }, { label: "Company Value > $50B", ok: companyValue >= 50000000000, cur: companyValue, tgt: 50000000000, isCurrency: true }] };
+                                   } else {
+                                      currentCap = 99;
+                                      if (lifetimeNetProfit < 50000000000 || companyValue < 100000000000 || lifetimeUnitsSold < 5000000) {
+                                         nextGoal = { title: "Automotive Legend (Cap: 100)", reqs: [{ label: "Lifetime Net Profit > $50B", ok: lifetimeNetProfit >= 50000000000, cur: lifetimeNetProfit, tgt: 50000000000, isCurrency: true }, { label: "Company Value > $100B", ok: companyValue >= 100000000000, cur: companyValue, tgt: 100000000000, isCurrency: true }, { label: "Lifetime Units Sold > 5,000,000", ok: lifetimeUnitsSold >= 5000000, cur: lifetimeUnitsSold, tgt: 5000000 }] };
+                                      } else {
+                                         currentCap = 100;
+                                      }
+                                   }
+                                }
+                             }
+                          }
+                       }
+                    }
                  }
               }
            }
@@ -49,12 +84,19 @@ export function BrandMilestoneTracker({ company, finances, models }: any) {
   }
 
   const allMilestones = [
-    { cap: 80, title: "The Proven Manufacturer", desc: "Lifetime Units Sold > 10,000" },
-    { cap: 90, title: "The Regional Powerhouse", desc: "Lifetime Net Profit > $500M & Company Value > $1B" },
-    { cap: 95, title: "Industry Leader", desc: "Lifetime Net Profit > $2B & Active Model with >80 Reliability/Appeal" },
-    { cap: 97, title: "Global Icon", desc: "Lifetime Net Profit > $5B & Company Value > $10B" },
-    { cap: 99, title: "Pinnacle of Engineering", desc: "Lifetime Net Profit > $20B & Global Defect Rate < 1%" },
-    { cap: 100, title: "Automotive Legend", desc: "Lifetime Net Profit > $50B & Company Value > $100B" }
+    { cap: 70, title: "The Proven Manufacturer", desc: "Lifetime Units Sold > 10,000" },
+    { cap: 80, title: "The Regional Powerhouse", desc: "Lifetime Net Profit > $500M & Company Value > $1B" },
+    { cap: 90, title: "Industry Leader", desc: "Lifetime Net Profit > $2B & Active Model with >80 Reliability/Appeal" },
+    { cap: 91, title: "Market Dominator", desc: "Lifetime Net Profit > $3B & Lifetime Units Sold > 50,000" },
+    { cap: 92, title: "Global Challenger", desc: "Lifetime Net Profit > $5B & Company Value > $5B" },
+    { cap: 93, title: "Global Innovator", desc: "Lifetime Net Profit > $7B & Active Model with >85 Reliability/Appeal" },
+    { cap: 94, title: "Quality Exemplar", desc: "Lifetime Net Profit > $10B" },
+    { cap: 95, title: "Global Icon", desc: "Lifetime Net Profit > $15B & Company Value > $20B" },
+    { cap: 96, title: "Mass Manufacturer", desc: "Lifetime Net Profit > $20B & Lifetime Units Sold > 500,000" },
+    { cap: 97, title: "Pinnacle of Engineering", desc: "Lifetime Net Profit > $25B & Active Model with >90 Reliability/Appeal" },
+    { cap: 98, title: "Perfectionist", desc: "Lifetime Net Profit > $30B" },
+    { cap: 99, title: "Global Titan", desc: "Lifetime Net Profit > $40B & Company Value > $50B" },
+    { cap: 100, title: "Automotive Legend", desc: "Lifetime Net Profit > $50B & Company Value > $100B & 5M Units Sold" }
   ];
 
   return (
