@@ -919,13 +919,16 @@ export class CompanyController {
   public static async declareBankruptcy(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const characterId = req.user?.id;
-      if (!characterId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+      const userId = req.user?.id;
+      if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
 
       await db.transaction(async (trx) => {
+        const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+        if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
+
         const company = await trx('companies').where({ id }).first();
         if (!company) throw new AppError('Company not found', 404, 'NOT_FOUND');
-        if (company.owner_character_id !== characterId) {
+        if (company.owner_character_id !== character.id) {
           throw new AppError('Only the owner can declare bankruptcy.', 403, 'FORBIDDEN');
         }
         if (company.status === 'distressed' || company.status === 'bankrupt') {

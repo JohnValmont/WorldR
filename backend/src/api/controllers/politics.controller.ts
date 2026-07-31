@@ -112,11 +112,13 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
     let countdown = 0;
     let cycleSummary: any = null;
     let globalParty: any = null;
+    let activeCharacterId: number | null = null;
 
     if (req.user?.id) {
       try {
         const character = await db('characters').where({ user_id: req.user.id, status: 'active' }).first();
         if (character) {
+          activeCharacterId = character.id;
           const member = await db('pol_party_members').where({ character_id: character.id }).first();
           if (member) {
             globalParty = await db('pol_parties').where({ id: member.party_id }).first();
@@ -140,7 +142,7 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
     
     let pendingPetitions: any[] = [];
     if (activeState) {
-      if (globalParty && globalParty.leader_character_id === req.user?.id) {
+      if (globalParty && activeCharacterId && globalParty.leader_character_id === activeCharacterId) {
         try {
           pendingPetitions = await db('pol_petitions')
             .join('companies', 'pol_petitions.company_id', 'companies.id')
