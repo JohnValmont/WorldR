@@ -985,7 +985,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
           {/* Top Stats */}
           <StatCard
             label="Company Value"
-            value={finances ? fm(Math.max(0, Number(finances.available_cash || 0) - Number(finances.debt || 0))) : 'Not Available'}
+            value={finances ? fm(Number(finances.company_value || 0)) : 'Not Available'}
             valueColor="white"
             trend="up"
             countUp
@@ -1001,7 +1001,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
           />
           <StatCard
             label="Net Worth"
-            value={netWorth != null ? fm(netWorth) : (finances ? fm(Math.max(0, Number(finances.available_cash || 0) - Number(finances.debt || 0))) : 'Not Available')}
+            value={netWorth != null ? fm(netWorth) : (finances ? fm(Number(finances.company_value || 0)) : 'Not Available')}
             valueColor="amber"
             trend="up"
             countUp
@@ -1131,7 +1131,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                 <DataRow label="Units Produced" value={latestReport.units_produced} />
                 <DataRow label="Units Sold" value={latestReport.units_sold} />
                 <DataRow label="Gross Revenue" value={fm(latestReport.gross_revenue)} valueVariant="green" />
-                <DataRow label="Total Costs" value={fm(Number(latestReport.production_costs || 0) + Number(latestReport.staff_wages || 0) + Number(latestReport.factory_lease_costs || 0) + Number(latestReport.factory_maintenance_costs || 0) + Number(latestReport.inventory_storage_costs || 0))} valueVariant="red" />
+                <DataRow label="Total Costs" value={fm(Number(latestReport.gross_revenue || 0) - Number(latestReport.net_profit || 0))} valueVariant="red" />
                 <DataRow label="Net Profit" value={fm(latestReport.net_profit)} valueVariant={Number(latestReport.net_profit) < 0 ? 'red' : 'green'} />
                 {(() => {
                   const sorted = [...allReports].sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -2863,7 +2863,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                             <div>
                               {(() => {
                                 const otherLines = lines.filter((l: any) => l.id !== line.id);
-                                const otherTotal = otherLines.reduce((sum: number, l: any) => sum + (Number(l.target_units_per_arc) || 0), 0);
+                                const otherTotal = otherLines.reduce((sum: number, l: any) => sum + (Number(l.target_units_per_month) || 0), 0);
                                 const maxAllowed = Math.max(0, Number(factory.capacity_per_month || 100) - otherTotal);
                                 return (
                                   <>
@@ -3861,10 +3861,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
             <PanelBox>
               <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Current Position</h3>
               <FieldRow label="Available Cash" value={fm(finances?.available_cash || 0)} valueColor={T.mint} />
-              <FieldRow label="Company Value (Book)" value={finances ? fm(Math.max(0, Number(finances.available_cash || 0) - Number(finances.debt || 0))) : 'Not Available'} />
+              <FieldRow label="Company Value (Book)" value={finances ? fm(Number(finances.company_value || 0)) : 'Not Available'} />
               <FieldRow label="Inventory Value" value={fm(inventoryValue)} />
               <FieldRow label="Last Month Revenue" value={finances?.last_arc_profit !== undefined ? (latestReport ? fm(latestReport.gross_revenue) : fm(0)) : 'Not Available'} valueColor={T.mint} />
-              <FieldRow label="Last Month Operating Profit" value={finances?.last_arc_profit !== undefined ? (latestReport ? fm(Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0)) : fm(0)) : 'Not Available'} />
+              <FieldRow label="Last Month Operating Profit" value={finances?.last_arc_profit !== undefined ? (latestReport ? fm(latestReport.net_profit) : fm(0)) : 'Not Available'} />
               <FieldRow label="Last Month Net Profit" value={finances?.last_arc_profit !== undefined ? fm(finances.last_arc_profit) : 'Not Available'} valueColor={(finances?.last_arc_profit || 0) < 0 ? T.red : T.mint} />
               <FieldRow label="Outstanding Debt" value={finances?.debt && Number(finances.debt) > 0 ? fm(finances.debt) : 'No debt recorded'} valueColor={(finances?.debt || 0) > 0 ? T.red : T.faint} />
             </PanelBox>

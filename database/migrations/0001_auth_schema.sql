@@ -22,7 +22,7 @@ BEGIN
     END IF;
     RETURN (ym || seq_str)::BIGINT;
 END;
-$$ LANGUAGE plpgsql;
+$ LANGUAGE plpgsql SET search_path = public;
 
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT PRIMARY KEY DEFAULT generate_user_id(),
