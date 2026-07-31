@@ -4000,16 +4000,33 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
 
             <div className="h-[260px] w-full mt-4">
               {financeChartFilter === 'expenses' && latestReport && (
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPieChart>
-                    <Pie
-                      data={[
-                        { name: 'Production', value: Number(latestReport.production_costs || 0) },
-                        { name: 'Factory Lease', value: Number(latestReport.factory_lease_costs || 0) },
-                        { name: 'Factory Maint.', value: Number(latestReport.factory_maintenance_costs || 0) },
-                        { name: 'Wages', value: Number(latestReport.staff_wages || 0) },
-                        { name: 'Marketing', value: Number(latestReport.marketing_costs || 0) },
-                        { name: 'Storage', value: Number(latestReport.inventory_storage_costs || 0) }
+                <div className="flex flex-col h-full w-full">
+                  <div className="flex gap-6 items-center justify-center mb-2 shrink-0">
+                    <div className="text-center bg-zinc-900/50 px-3 py-1.5 rounded border border-zinc-800/50">
+                      <div className="text-[9px] text-zinc-500 uppercase font-mono tracking-wider mb-0.5">Revenue</div>
+                      <div className="text-xs font-mono text-[#36d399] font-bold">{fm(Number(latestReport.gross_revenue || 0))}</div>
+                    </div>
+                    <div className="text-center bg-zinc-900/50 px-3 py-1.5 rounded border border-zinc-800/50">
+                      <div className="text-[9px] text-zinc-500 uppercase font-mono tracking-wider mb-0.5">Total Expenses</div>
+                      <div className="text-xs font-mono text-[#b85555] font-bold">
+                        {fm(Number(latestReport.production_costs || 0) + Number(latestReport.factory_lease_costs || 0) + Number(latestReport.factory_maintenance_costs || 0) + Number(latestReport.staff_wages || 0) + Number(latestReport.marketing_costs || 0) + Number(latestReport.inventory_storage_costs || 0))}
+                      </div>
+                    </div>
+                    <div className="text-center bg-zinc-900/50 px-3 py-1.5 rounded border border-zinc-800/50">
+                      <div className="text-[9px] text-zinc-500 uppercase font-mono tracking-wider mb-0.5">Net Profit</div>
+                      <div className={`text-xs font-mono font-bold ${Number(latestReport.net_profit) >= 0 ? 'text-[#d4af37]' : 'text-red-500'}`}>{fm(Number(latestReport.net_profit || 0))}</div>
+                    </div>
+                  </div>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Pie
+                        data={[
+                          { name: 'Production', value: Number(latestReport.production_costs || 0) },
+                          { name: 'Factory Lease', value: Number(latestReport.factory_lease_costs || 0) },
+                          { name: 'Factory Maint.', value: Number(latestReport.factory_maintenance_costs || 0) },
+                          { name: 'Wages', value: Number(latestReport.staff_wages || 0) },
+                          { name: 'Marketing', value: Number(latestReport.marketing_costs || 0) },
+                          { name: 'Storage', value: Number(latestReport.inventory_storage_costs || 0) }
                       ].filter(d => d.value > 0)}
                       cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value"
                     >
@@ -4033,6 +4050,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                     <Legend wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', color: '#888' }} />
                   </RechartsPieChart>
                 </ResponsiveContainer>
+              </div>
               )}
               {financeChartFilter === 'expenses' && !latestReport && (
                 <div className="flex items-center justify-center h-full text-xs text-zinc-500 italic">No report available for chart.</div>
