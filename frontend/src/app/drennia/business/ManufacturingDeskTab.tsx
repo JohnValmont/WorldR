@@ -3578,20 +3578,24 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                       <tbody>
                         {(() => {
                           // Group by model
-                          const summaryByModel: Record<string, { alloc: number; interest: number; sold: number; name: string }> = {};
+                          const summaryByModel: Record<string, { alloc: number; interest: number; sold: number; name: string; status: string }> = {};
                           marketData.forecast.forEach((fc: any) => {
                             const mid = fc.alloc.vehicle_model_id;
                             if (!summaryByModel[mid]) {
                               // Ensure models exists (should be in scope from ManufacturingDeskTab)
-                              const mName = models?.find((m: any) => m.id === mid)?.name || 'Unknown Model';
-                              summaryByModel[mid] = { alloc: 0, interest: 0, sold: 0, name: mName };
+                              const modelObj = models?.find((m: any) => m.id === mid);
+                              const mName = modelObj?.name || 'Unknown Model';
+                              const mStatus = modelObj?.status || 'active';
+                              summaryByModel[mid] = { alloc: 0, interest: 0, sold: 0, name: mName, status: mStatus };
                             }
                             summaryByModel[mid].alloc += Number(fc.alloc.units_allocated) || 0;
                             summaryByModel[mid].interest += Math.round(fc.rawBuyerInterest || 0);
                             summaryByModel[mid].sold += Number(fc.unitsSold) || 0;
                           });
                           
-                          return Object.values(summaryByModel).map((sm, idx) => (
+                          return Object.values(summaryByModel)
+                            .filter(sm => !(sm.status === 'discontinued' && sm.alloc === 0))
+                            .map((sm, idx) => (
                             <tr key={idx} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
                               <td className="px-1.5 py-2 text-zinc-200">{sm.name}</td>
                               <td className="px-1.5 py-2 text-zinc-500 font-mono text-right">{sm.alloc.toLocaleString('en-US')}</td>
@@ -3629,7 +3633,14 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                       </tr>
                     </thead>
                     <tbody>
-                      {marketData.forecast.map((fc: any, idx: number) => {
+                      {marketData.forecast
+                        .filter((fc: any) => {
+                           const modelObj = models.find((m: any) => m.id === fc.alloc.vehicle_model_id);
+                           const isDiscontinued = modelObj?.status === 'discontinued';
+                           const hasZeroAlloc = (Number(fc.alloc.units_allocated) || 0) === 0;
+                           return !(isDiscontinued && hasZeroAlloc);
+                        })
+                        .map((fc: any, idx: number) => {
                         const mName = models.find((m: any) => m.id === fc.alloc.vehicle_model_id)?.name || 'Unknown Model';
                         const mktName = marketData.markets?.find((m: any) => m.id === fc.alloc.region_market_id)?.name || 'Unknown Market';
 
