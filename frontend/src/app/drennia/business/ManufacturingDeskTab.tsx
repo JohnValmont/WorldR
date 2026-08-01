@@ -354,8 +354,15 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
   const defaultPriorities: Record<string, number> = { reliability: 20, performance: 15, fuel_economy: 20, comfort: 15, practicality: 15, mfg_simplicity: 15 };
   const [dPriorities, setDPriorities] = useState<Record<string, number>>(defaultPriorities);
 
-  // Phase 3: Budget Allocation per bucket (amounts)
-  const [dBudgetAlloc, setDBudgetAlloc] = useState<Record<string, number>>({});
+  // Phase 3: Budget Allocation per bucket (amounts).
+  // Initialised eagerly with the static default fractions so the live-score
+  // preview is never blank on first render (the useEffect below will re-sync
+  // once BASE_DEV_COST is known from the API).
+  const [dBudgetAlloc, setDBudgetAlloc] = useState<Record<string, number>>(() => {
+    const alloc: Record<string, number> = {};
+    for (const b of BUDGET_BUCKETS_FE) { alloc[b.id] = Math.round(150000 * b.defaultPct); }
+    return alloc;
+  });
 
   // Phase 3: Wizard step (1=architecture, 2=engineering direction)
   const [designWizardStep, setDesignWizardStep] = useState<1 | 2>(1);
@@ -558,10 +565,13 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
     engineerCount: previewEngineerCount,
   }, bootstrapData);
 
-  // Auto-sync suggested sale price when base architecture changes
-  useEffect(() => { 
+  // Auto-sync suggested sale price whenever the computed mfg cost changes.
+  // Using liveScore.cost as the dep is more precise than listing all raw selects
+  // and avoids stale closures if priority/budget changes also affect cost.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
     setDSalePrice(Math.round(liveScore.cost * 1.5));
-  }, [dClass, dPlatform, dEngine, dDrivetrain, dInterior, dSafety, dQuality]);
+  }, [liveScore.cost]);
   
   // Init budget alloc when base dev cost is known and modal opens
   useEffect(() => {
@@ -707,26 +717,35 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
   };
 
   const handleSaveProductionPlan = async (lineId: string) => {
+    // Pre-save warnings — only relevant when actually activating a plan
     if (planModelId && planTarget > 0) {
       const workers = mfgData?.staff?.find((s: any) => s.role === 'factory-worker')?.quantity || 0;
       if (workers === 0) {
-        showNotif('Warning: You have 0 Factory Workers. Production will fail until you hire workers via the HR tab.', false);
+        showNotif('Warning: You have 0 Factory Workers. Production will fail until you hire workers via the Staffing tab.', false);
       } else {
         const cInv = mfgData?.componentInventory || [];
         const getInv = (cid: string) => cInv.find((i: any) => i.component_id === cid)?.units_in_stock || 0;
         const missing = ['comp_engine', 'comp_transmission', 'comp_tyres', 'comp_steel', 'comp_glass', 'comp_electronics'].some(cid => getInv(cid) <= 0);
-        
         if (missing) {
-          showNotif('Warning: You lack essential components in inventory. Production will fail until you procure them.', false);
+          showNotif('Warning: You lack essential components in inventory. Production will fail until you procure them via Procurement.', false);
         }
       }
+    }
+
+    // Clarify to the player that setting target = 0 puts the line idle (not an error)
+    if (!planModelId || planTarget === 0) {
+      // Allow the save to continue — the backend will set status to 'idle'
+      // The success notification below will confirm the line was set to idle.
     }
 
     try {
       await manufacturingApi.saveProductionPlan(company.id, {
         lineId, modelId: planModelId || null, qualitySetting: planQuality, targetUnitsPerArc: planTarget,
       });
-      showNotif('Production plan saved.', true);
+      const planMsg = planModelId && planTarget > 0
+        ? `Production plan saved — ${planTarget} units/month of "${mfgData?.models?.find((m: any) => m.id === planModelId)?.name ?? 'model'}" queued.`
+        : 'Production line set to idle.';
+      showNotif(planMsg, true);
       setEditingLineId(null);
       onRefresh();
     } catch (err: any) {
@@ -2686,7 +2705,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
         );
       })()}
 
-      {/* ═══════════════════════════════════════════════════════
+      {/* ═════════════════════════════════════════════���═════════
           PRODUCTION TAB
       ═══════════════════════════════════════════════════════ */}
       {deskTab === 'production' && (
