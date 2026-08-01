@@ -600,13 +600,11 @@ export class ManufacturingController {
         await trx('manufacturing_land_plots').where({ id: plot.id }).increment('used_acres', requiredAcres);
 
         const clock = await trx('world_clock').where({ world_instance_id: company.world_instance_id }).first();
+        // Use the same (totalMonths - 1) / 12 formula as constructProductionLine so that
+        // month 12 + 5 = 17 → year +1, month 5 (not month 0 / year overcounted).
         const totalMonths = (clock?.current_month ?? 1) + 5;
-        let compMonth = totalMonths % 12;
-        let compYear = (clock?.current_year ?? 1) + Math.floor(totalMonths / 12);
-        if (compMonth === 0) {
-            compMonth = 12;
-            compYear -= 1;
-        }
+        const compYear = (clock?.current_year ?? 1) + Math.floor((totalMonths - 1) / 12);
+        const compMonth = ((totalMonths - 1) % 12) + 1;
 
         const [factory] = await trx('manufacturing_factories').insert({
           world_instance_id: company.world_instance_id,
@@ -912,8 +910,7 @@ export class ManufacturingController {
           : 'Mid-Range';
         const finalSegment = reqSegment || computedSegment;
 
-        const baseMfgCost = outcome.finalScores.reliability; // placeholder — actual base cost formula
-        // Compute manufacturing cost from component costs (same as before, adjusted by production cost mult)
+        // Compute manufacturing cost from component costs, adjusted by the engine's production cost multiplier
         const platDef  = PLATFORMS.find(p => p.id === platform);
         const pwrDef   = POWER_UNITS.find(p => p.id === powerUnit);
         const drvDef   = DRIVETRAINS.find(p => p.id === drivetrain);
@@ -1130,6 +1127,11 @@ export class ManufacturingController {
 
         const line = await trx('manufacturing_production_lines').where({ id: lineId, company_id: companyId }).first();
         if (!line) throw new AppError('Production line not found', 404, 'NOT_FOUND');
+
+        // Block planning on a line that is still being built — it cannot produce yet
+        if (line.construction_status !== 'completed') {
+          throw new AppError('This production line is still under construction and cannot be assigned a production plan yet.', 400, 'LINE_NOT_READY');
+        }
 
         // Validate model belongs to company, is launched, and not discontinued
         if (modelId) {
