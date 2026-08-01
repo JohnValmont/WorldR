@@ -189,6 +189,10 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
           filingArc: startFiling,
           campaignArc: startCampaign,
           monthsToElection: Math.max(0, cycle.polling_arc - actualArc),
+          // Arcs until the formation window closes (only meaningful during 'formation' phase)
+          monthsToFormationEnd: cycle.phase === 'formation'
+            ? Math.max(0, cycle.formation_end_arc - actualArc)
+            : null,
         };
       } catch {
         // Cycle not yet seeded or migration pending — return governing state gracefully
@@ -891,8 +895,12 @@ export async function getFormingCoalition(req: Request, res: Response, next: Nex
       return res.json({ coalition: null });
     }
 
+    // Include both 'forming' (negotiations in progress) and 'formed' (majority secured)
+    // so the UI doesn't go blank once a majority coalition is confirmed mid-window.
     const coalition = await db('pol_coalitions')
-      .where({ cycle_id: cycle.id, status: 'forming' })
+      .where({ cycle_id: cycle.id })
+      .whereIn('status', ['forming', 'formed'])
+      .orderByRaw(`CASE WHEN status = 'formed' THEN 0 ELSE 1 END`)
       .first();
 
     if (!coalition) return res.json({ coalition: null });
@@ -921,15 +929,23 @@ export async function getFormingCoalition(req: Request, res: Response, next: Nex
     };
 
     const formateur = enrichParty(coalition.lead_party_id);
-    const accepted = (members.accepted || []).map(enrichParty).filter(Boolean);
+    // Exclude the formateur from accepted to avoid duplicate rendering
+    const accepted = (members.accepted || [])
+      .filter((id: string) => id !== coalition.lead_party_id)
+      .map(enrichParty)
+      .filter(Boolean);
     const invited = (members.invited || []).map(enrichParty).filter(Boolean);
+
+    const confirmedSeats = (formateur?.seats ?? 0) + accepted.reduce((s: number, p: any) => s + (p?.seats ?? 0), 0);
 
     return res.json({
       coalition: {
         id: coalition.id,
+        status: coalition.status,
         formateur,
         accepted,
-        invited
+        invited,
+        confirmedSeats,
       }
     });
 
@@ -940,7 +956,9 @@ export async function getFormingCoalition(req: Request, res: Response, next: Nex
 export async function manageCoalition(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user?.id;
-    const { targetPartyId, action } = req.body; // action: 'invite', 'accept', 'decline'
+    const { targetPartyId, action: rawAction } = req.body; // action: 'invite', 'accept', 'decline' (also accepts legacy 'reject')
+    // Normalise legacy 'reject' -> 'decline' so both old and new clients work
+    const action = rawAction === 'reject' ? 'decline' : rawAction;
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
     if (!targetPartyId || !['invite', 'accept', 'decline'].includes(action)) {
       return next(new AppError('Valid targetPartyId and action required', 400, 'BAD_REQUEST'));

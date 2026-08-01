@@ -130,19 +130,26 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
   // ── Election Hero Data ──
   const cycle = overview?.cycle;
   const phase: string = cycle?.phase ?? 'governing';
-  const months: number | null = cycle?.monthsToElection ?? null;
   const cycleNumber = cycle?.cycleNumber;
+  const isFormation = phase === 'formation';
+
+  // During formation we show the formation window countdown, not months-to-election.
+  const rawMonths: number | null = cycle?.monthsToElection ?? null;
+  // monthsToFormationEnd is provided directly by the API during 'formation' phase.
+  const formationMonthsLeft: number | null = cycle?.monthsToFormationEnd ?? null;
+  const months: number | null = isFormation ? formationMonthsLeft : rawMonths;
 
   const bigValue = months == null ? '—' : months <= 0 ? 'IMMINENT' : String(months).padStart(2, '0');
   const unit = months == null || months <= 0 ? '' : months === 1 ? 'MONTH' : 'MONTHS';
+  const countdownLabel = isFormation ? 'Formation ends in' : 'Countdown';
 
   const realHours = months != null ? months * REAL_HOURS_PER_MONTH : null;
   const realNote = realHours != null && months! > 0
     ? `— ${Math.floor(realHours / 24)}d ${realHours % 24}h real time`
     : null;
 
-  const termProgress = months != null && jModel.termMonths > 0
-    ? Math.max(0, Math.min(100, ((jModel.termMonths - months) / jModel.termMonths) * 100))
+  const termProgress = rawMonths != null && jModel.termMonths > 0
+    ? Math.max(0, Math.min(100, ((jModel.termMonths - rawMonths) / jModel.termMonths) * 100))
     : null;
 
   // ── Player Candidacy State ──
@@ -151,7 +158,6 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
   const constituencies: any[] = constData?.constituencies ?? [];
   const canFile = !!myParty && !myParty.is_npc && ['filing', 'campaign', 'governing'].includes(phase) && !alreadyFiled;
   const isElectionLive = phase === 'polling' || phase === 'formation';
-  const isFormation = phase === 'formation';
 
   // Coalition state (formation phase)
   const { data: coalitionData, mutate: mutateCoalition } = useSWR(
@@ -161,7 +167,7 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
   const [coalitionAction, setCoalitionAction] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [coalitionMsg, setCoalitionMsg] = useState('');
 
-  async function handleCoalitionAction(action: 'invite' | 'accept' | 'reject', targetPartyId: string) {
+  async function handleCoalitionAction(action: 'invite' | 'accept' | 'decline', targetPartyId: string) {
     setCoalitionAction('loading');
     setCoalitionMsg('');
     try {
@@ -260,7 +266,7 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
                 borderRadius: 12, padding: '20px 28px', minWidth: 180, display: 'flex', flexDirection: 'column', alignItems: 'center' 
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: months != null && months <= 6 ? T.red : T.faint, fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
-                  <CalendarClock size={12} /> Countdown
+                  <CalendarClock size={12} /> {countdownLabel}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 12 }}>
                   <span style={{ fontFamily: MONO, fontSize: 42, fontWeight: 800, color: months != null && months <= 6 ? T.red : T.warning, lineHeight: 1, textShadow: months != null && months <= 6 ? `0 0 24px ${T.red}60` : `0 0 24px ${T.warning}40` }}>
@@ -327,16 +333,28 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
 
                 {/* Formation phase — coalition negotiation panel */}
                 {isFormation && (() => {
+                  // API returns enriched shape: { formateur, accepted[], invited[] }
                   const forming = coalitionData?.coalition;
-                  const isLeader = forming && myParty && forming.lead_party_id === myParty.id;
-                  const members: { accepted: string[]; invited: string[] } =
-                    forming?.member_party_ids
-                      ? (typeof forming.member_party_ids === 'string'
-                          ? JSON.parse(forming.member_party_ids)
-                          : forming.member_party_ids)
-                      : { accepted: [], invited: [] };
-                  const isInvited = myParty && members.invited?.includes(myParty.id);
-                  const isAccepted = myParty && members.accepted?.includes(myParty.id);
+                  const formateur = forming?.formateur ?? null;
+                  const acceptedList: any[] = forming?.accepted ?? [];
+                  const invitedList: any[] = forming?.invited ?? [];
+
+                  const isLeader = !!forming && !!myParty && formateur?.id === myParty.id;
+                  const isInvited = !!myParty && invitedList.some((p: any) => p.id === myParty.id);
+                  const isAccepted = !!myParty && acceptedList.some((p: any) => p.id === myParty.id);
+
+                  // Total confirmed seats = formateur seats + all accepted seats
+                  const confirmedSeats = (formateur?.seats ?? 0) + acceptedList.reduce((s: number, p: any) => s + (p.seats ?? 0), 0);
+
+                  // Parties the formateur can still invite (exclude already accepted/invited and self)
+                  const invitableParties = isLeader
+                    ? parties.filter((p: any) =>
+                        !p.is_npc &&
+                        p.id !== myParty!.id &&
+                        !acceptedList.some((a: any) => a.id === p.id) &&
+                        !invitedList.some((i: any) => i.id === p.id)
+                      )
+                    : [];
 
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -363,65 +381,73 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
                           }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span style={{ fontFamily: MONO, fontSize: 10, color: T.faint, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                                Lead party
+                                Formateur
                               </span>
                               <span style={{ fontFamily: SANS, fontSize: 12, color: T.ivory, fontWeight: 600 }}>
-                                {parties.find((p: any) => p.id === forming.lead_party_id)?.name ?? 'Unknown'}
+                                {formateur?.name ?? 'Unknown'}{formateur?.seats != null ? ` · ${formateur.seats} seats` : ''}
                               </span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span style={{ fontFamily: MONO, fontSize: 10, color: T.faint, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                                Seats secured
+                                Confirmed seats
                               </span>
-                              <span style={{ fontFamily: MONO, fontSize: 12, color: forming.total_seats >= jModel.majority ? T.mint : T.warning, fontWeight: 700 }}>
-                                {forming.total_seats ?? 0} / {jModel.majority} needed
-                              </span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontFamily: MONO, fontSize: 10, color: T.faint, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                                Status
-                              </span>
-                              <span style={{ fontFamily: MONO, fontSize: 11, color: forming.status === 'formed' ? T.mint : '#c084fc' }}>
-                                {forming.status === 'formed' ? 'COALITION FORMED' : forming.status === 'forming' ? 'NEGOTIATING' : forming.status?.toUpperCase()}
+                              <span style={{ fontFamily: MONO, fontSize: 12, color: confirmedSeats >= jModel.majority ? T.mint : T.warning, fontWeight: 700 }}>
+                                {confirmedSeats} / {jModel.majority} needed
                               </span>
                             </div>
+                            {acceptedList.length > 0 && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontFamily: MONO, fontSize: 10, color: T.faint, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                                  Partners
+                                </span>
+                                <span style={{ fontFamily: SANS, fontSize: 11, color: T.text }}>
+                                  {acceptedList.map((p: any) => p.name).join(', ')}
+                                </span>
+                              </div>
+                            )}
+                            {invitedList.length > 0 && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontFamily: MONO, fontSize: 10, color: T.faint, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                                  Pending
+                                </span>
+                                <span style={{ fontFamily: SANS, fontSize: 11, color: T.warning }}>
+                                  {invitedList.map((p: any) => p.name).join(', ')}
+                                </span>
+                              </div>
+                            )}
                           </div>
 
-                          {/* Player is the lead party — can invite others */}
-                          {isLeader && forming.status === 'forming' && (
+                          {/* Player is the formateur — can invite others */}
+                          {isLeader && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                               <div style={{ fontFamily: MONO, fontSize: 10, color: T.faint, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                                 Invite parties to join your coalition
                               </div>
-                              {parties
-                                .filter((p: any) => !p.is_npc && p.id !== myParty!.id && !members.accepted?.includes(p.id) && !members.invited?.includes(p.id))
-                                .map((p: any) => (
-                                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '7px 10px' }}>
-                                    <span style={{ fontFamily: SANS, fontSize: 12, color: T.text }}>{p.name}</span>
-                                    <button
-                                      disabled={coalitionAction === 'loading'}
-                                      onClick={() => handleCoalitionAction('invite', p.id)}
-                                      style={{
-                                        fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
-                                        background: 'rgba(192,132,252,0.12)', border: '1px solid rgba(192,132,252,0.3)',
-                                        color: '#c084fc', borderRadius: 5, padding: '4px 10px', cursor: 'pointer',
-                                      }}
-                                    >
-                                      Invite
-                                    </button>
-                                  </div>
-                                ))
-                              }
-                              {members.invited?.length > 0 && (
-                                <div style={{ fontFamily: MONO, fontSize: 10, color: T.faint, marginTop: 2 }}>
-                                  Pending invites: {members.invited.map((id: string) => parties.find((p: any) => p.id === id)?.name ?? id).join(', ')}
+                              {invitableParties.length > 0 ? invitableParties.map((p: any) => (
+                                <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '7px 10px' }}>
+                                  <span style={{ fontFamily: SANS, fontSize: 12, color: T.text }}>{p.name}</span>
+                                  <button
+                                    disabled={coalitionAction === 'loading'}
+                                    onClick={() => handleCoalitionAction('invite', p.id)}
+                                    style={{
+                                      fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
+                                      background: 'rgba(192,132,252,0.12)', border: '1px solid rgba(192,132,252,0.3)',
+                                      color: '#c084fc', borderRadius: 5, padding: '4px 10px', cursor: 'pointer',
+                                    }}
+                                  >
+                                    Invite
+                                  </button>
+                                </div>
+                              )) : (
+                                <div style={{ color: T.faint, fontFamily: SANS, fontSize: 12, fontStyle: 'italic' }}>
+                                  No other player parties available to invite.
                                 </div>
                               )}
                             </div>
                           )}
 
-                          {/* Player was invited — can accept or reject */}
-                          {isInvited && !isAccepted && forming.status === 'forming' && (
+                          {/* Player was invited — can accept or decline */}
+                          {isInvited && !isAccepted && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                               <div style={{ fontFamily: SANS, fontSize: 13, color: T.text }}>
                                 You have been invited to join the coalition. Accept to add your seats.
@@ -429,7 +455,7 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
                               <div style={{ display: 'flex', gap: 8 }}>
                                 <button
                                   disabled={coalitionAction === 'loading'}
-                                  onClick={() => handleCoalitionAction('accept', forming.lead_party_id)}
+                                  onClick={() => handleCoalitionAction('accept', myParty!.id)}
                                   style={{
                                     fontFamily: MONO, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
                                     background: 'rgba(16,214,122,0.12)', border: '1px solid rgba(16,214,122,0.3)',
@@ -440,14 +466,14 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
                                 </button>
                                 <button
                                   disabled={coalitionAction === 'loading'}
-                                  onClick={() => handleCoalitionAction('reject', forming.lead_party_id)}
+                                  onClick={() => handleCoalitionAction('decline', myParty!.id)}
                                   style={{
                                     fontFamily: MONO, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
                                     background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)',
                                     color: T.red, borderRadius: 6, padding: '8px 16px', cursor: 'pointer',
                                   }}
                                 >
-                                  Reject
+                                  Decline
                                 </button>
                               </div>
                             </div>
@@ -461,7 +487,7 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
                             </div>
                           )}
 
-                          {/* Not involved yet */}
+                          {/* Not involved */}
                           {!isLeader && !isInvited && !isAccepted && (
                             <div style={{ color: T.muted, fontFamily: SANS, fontSize: 13 }}>
                               Your party has not been invited to join the forming coalition. Monitor negotiations.
@@ -481,8 +507,8 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
                   );
                 })()}
 
-                {/* No party */}
-                {!myParty.is_npc === false && (
+                {/* NPC party — player can't act */}
+                {myParty.is_npc === true && !isFormation && (
                   <div style={{ color: T.muted, fontFamily: SANS, fontSize: 13 }}>
                     Join a player party to contest elections.
                   </div>
