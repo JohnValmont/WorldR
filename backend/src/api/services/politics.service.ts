@@ -847,8 +847,12 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
     await processGovernmentFormation(trx, freshCycle ?? cycle, currentMonth);
   }
 
+  // resolveBills runs in every phase so bills proposed during filing/campaign
+  // are caught up on the first governing tick rather than waiting a full cycle.
+  // It is idempotent: bills with status !== 'proposed' are ignored.
+  await resolveBills(trx, stateId, cycle.id, currentMonth);
+
   if (activePhase === 'governing') {
-    await resolveBills(trx, stateId, cycle.id, currentMonth);
     // Fire one deterministic world event per governing month
     await fireGoverningEvent(trx, stateId, currentMonth);
   }
@@ -2013,7 +2017,7 @@ export async function getPartyScandalSummary(partyId: string) {
   return scandals;
 }
 
-// ── Campaign System (Phase 5) ─────────────────────────────────────────────────
+// ── Campaign System (Phase 5) ──────���──────────────────────────────────────────
 
 /**
  * Get or create the persistent campaign record for a party in the current cycle.
