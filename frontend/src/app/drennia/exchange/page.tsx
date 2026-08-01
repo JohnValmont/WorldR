@@ -989,9 +989,10 @@ function SyndicateBidForm({ auction: a, myBid, me, myCompanies, isPlacing, onSub
              ))}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: diff === 0 ? T.mint : T.red, ...mono }}>
+          {/* Use same ±0.01 tolerance as canSubmit to avoid float comparison mismatch */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: Math.abs(diff) < 0.01 ? T.mint : T.red, ...mono }}>
              <span>Allocated: ${fmtBig(allocated)}</span>
-             <span>{diff > 0 ? `Short by $${fmtBig(diff)}` : diff < 0 ? `Over by $${fmtBig(Math.abs(diff))}` : 'Fully Allocated'}</span>
+             <span>{diff > 0.01 ? `Short by $${fmtBig(diff)}` : diff < -0.01 ? `Over by $${fmtBig(Math.abs(diff))}` : 'Fully Allocated'}</span>
           </div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '11px', color: T.ivory }}>
@@ -1032,9 +1033,12 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 6000);
   }
 
-  const { data: meReq } = useSWR('me', () => characterApi.getMe().then(r => r.data));
-  const { data: compsReq } = useSWR('my-companies', () => companyApi.getMy().then(r => r.data));
-  const myCompanies = compsReq?.companies ?? compsReq ?? [];
+  // Use the same SWR keys as the parent page so we share one cached request.
+  // getMe returns character flat: { id, name, finances, ... }
+  const { data: meReq } = useSWR('my-character', () => characterApi.getMe().then(r => r.data));
+  // 'my-companies-bourse' matches the parent's key to avoid a second fetch.
+  const { data: compsReq } = useSWR('my-companies-bourse', () => companyApi.getMy().then(r => r.data));
+  const myCompanies: any[] = Array.isArray(compsReq) ? compsReq : (compsReq?.companies ?? []);
   const me = meReq ?? null;
 
   async function handleSyndicateBid(auctionId: string, amount: number, fundingSources: any, postAcquisitionStatus: 'public' | 'private') {
@@ -1136,11 +1140,15 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
                       <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Reserve Price</div>
                       <div style={{ ...mono, fontSize: '18px', fontWeight: 700, color: T.gold }}>${fmtBig(a.reserve_price)}</div>
                     </div>
-                    <div style={{ background: 'rgba(143,106,42,0.1)', border: '1px solid rgba(201,162,74,0.2)', padding: '8px 14px', textAlign: 'center' }}>
-                      <div style={{ ...mono, fontSize: '8px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Bidding Opens In</div>
-                      <div style={{ ...mono, fontSize: '20px', fontWeight: 700, color: T.ivory }}>{a.months_to_bidding_start}</div>
-                      <div style={{ fontSize: '9px', color: T.faint }}>game months</div>
-                    </div>
+                      <div style={{ background: 'rgba(143,106,42,0.1)', border: '1px solid rgba(201,162,74,0.2)', padding: '8px 14px', textAlign: 'center' }}>
+                        <div style={{ ...mono, fontSize: '8px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Bidding Opens In</div>
+                        <div style={{ ...mono, fontSize: '20px', fontWeight: 700, color: T.ivory }}>
+                          {a.months_to_bidding_start == null ? '—' : a.months_to_bidding_start === 0 ? 'Now' : a.months_to_bidding_start}
+                        </div>
+                        <div style={{ fontSize: '9px', color: T.faint }}>
+                          {a.months_to_bidding_start == null ? '' : a.months_to_bidding_start === 0 ? 'opening this tick' : 'game months'}
+                        </div>
+                      </div>
                     <div style={{ ...mono, fontSize: '9px', color: T.faint, textAlign: 'right' }}>
                       Bids open: Y{a.bidding_start_year}M{a.bidding_start_month}<br />
                       Closes: Y{a.bidding_end_year}M{a.bidding_end_month}
@@ -1163,9 +1171,11 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {biddingAuctions.map((a) => {
               const myBid = myBidMap[a.id];
-              // BUG 6 FIX: compare top_bidder_id (server-side tiebreaker by created_at) against character ID
-              // getMe returns flat object: { id, name, finances, ... } so character ID is me?.id
-              const isTopBidder = myBid && a.top_bidder_id && a.top_bidder_id === me?.id;
+              // top_bidder_id is a character UUID from the DB.
+              // getMe returns the character flat: { id, ... } — so me?.id is the character ID.
+              // Also guard charData?.character?.id for any callers using the nested shape.
+              const myCharId = me?.id ?? me?.character?.id ?? null;
+              const isTopBidder = !!(myBid && a.top_bidder_id && myCharId && a.top_bidder_id === myCharId);
               const isPlacing = placing === a.id;
 
               return (
@@ -1224,13 +1234,21 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
                       </div>
 
                       {/* Countdown */}
-                      <div style={{ textAlign: 'center', padding: '6px' }}>
-                        <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Closes In</div>
-                        <div style={{ ...mono, fontSize: '24px', fontWeight: 700, color: a.months_to_bidding_end <= 1 ? '#B85555' : T.ivory }}>
-                          {a.months_to_bidding_end === 0 ? 'This Tick' : a.months_to_bidding_end}
-                        </div>
-                        <div style={{ fontSize: '9px', color: T.faint }}>{a.months_to_bidding_end === 0 ? 'closing now!' : `game month${a.months_to_bidding_end !== 1 ? 's' : ''}`}</div>
-                      </div>
+                      {(() => {
+                        const mEnd: number | null = a.months_to_bidding_end ?? null;
+                        const urgent = mEnd != null && mEnd <= 1;
+                        return (
+                          <div style={{ textAlign: 'center', padding: '6px' }}>
+                            <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Closes In</div>
+                            <div style={{ ...mono, fontSize: '24px', fontWeight: 700, color: urgent ? '#B85555' : T.ivory }}>
+                              {mEnd == null ? '—' : mEnd === 0 ? 'This Tick' : mEnd}
+                            </div>
+                            <div style={{ fontSize: '9px', color: T.faint }}>
+                              {mEnd == null ? '' : mEnd === 0 ? 'closing now!' : `game month${mEnd !== 1 ? 's' : ''}`}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* My current bid */}
                       {myBid && (
@@ -1296,13 +1314,16 @@ export default function ExchangePage() {
   const [showGuide, setShowGuide] = useState(false);
 
   const { data: listings, mutate: mutateListings } = useSWR('exchange-listings', () => exchangeApi.getListings(), { refreshInterval: 15000 });
+  // getMe returns the character object flat: { id, name, finances, ... }
+  // NOT nested as { character: { id } } — use charData?.id directly.
   const { data: charData } = useSWR('my-character', () => characterApi.getMe().then(r => r.data), { revalidateOnFocus: false });
   const { data: pipeline } = useSWR('ipo-pipeline-count', () => exchangeApi.getPipeline(), { refreshInterval: 20000 });
   // BUG 8 FIX: use same SWR key 'acquisitions' as AuctionTab so badge updates when bids mutate
   const { data: auctionsCountData } = useSWR('acquisitions', () => exchangeApi.getAuctions(), { refreshInterval: 30000 });
   const { data: myCompaniesData } = useSWR('my-companies-bourse', () => companyApi.getMy().then(r => r.data), { revalidateOnFocus: false });
   const myFinanceFirms = (Array.isArray(myCompaniesData) ? myCompaniesData : (myCompaniesData?.companies || [])).filter((c: any) => c.industry_id === 'finance');
-  const myCharacterId: string | null = charData?.character?.id ?? null;
+  // getMe returns character flat — charData.id is the character ID, not charData.character.id
+  const myCharacterId: string | null = charData?.id ?? charData?.character?.id ?? null;
   const list: any[] = listings ?? [];
   const activeId = selectedId ?? list[0]?.id ?? null;
   const active = list.find((l) => l.id === activeId) ?? null;
