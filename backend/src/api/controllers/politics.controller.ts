@@ -995,6 +995,15 @@ export async function manageCoalition(req: Request, res: Response, next: NextFun
           throw new AppError('Only the formateur can invite', 403, 'FORBIDDEN');
         }
         if (accepted.has(targetPartyId)) throw new AppError('Already in coalition', 409, 'CONFLICT');
+        // Only allow inviting parties that actually hold seats in this cycle.
+        // Inviting a 0-seat party would create an orphan record and inflate no count.
+        const targetSeats = await trx('pol_council_seats')
+          .where({ party_id: targetPartyId, cycle_id: cycle.id })
+          .count('* as count')
+          .first();
+        if (Number(targetSeats?.count ?? 0) === 0) {
+          throw new AppError('Cannot invite a party that holds no council seats in this session.', 400, 'BAD_REQUEST');
+        }
         invited.add(targetPartyId);
       } else if (action === 'accept') {
         if (myParty.id !== targetPartyId) throw new AppError('Cannot accept for another party', 403, 'FORBIDDEN');
@@ -1238,9 +1247,22 @@ export async function voteBill(req: Request, res: Response, next: NextFunction) 
       const bill = await trx('pol_bills').where({ id: billId, status: 'proposed' }).first();
       if (!bill) throw new AppError('Bill not found or not in proposed status', 404, 'NOT_FOUND');
 
-      // Check if character holds a seat (or their party does and they represent the party)
+      // Only the leader of a party that actually holds council seats in the
+      // current governing cycle may cast a bloc vote. This prevents characters
+      // who lost the election (or never ran) from influencing legislation.
       const partyMember = await trx('pol_party_members').where({ character_id: char.id, role: 'leader' }).first();
       if (!partyMember) throw new AppError('Only party leaders can cast bloc votes', 403, 'FORBIDDEN');
+
+      const cycle = await getOrCreateCurrentCycle(bill.state_id, trx);
+      const hasSeat = await trx('pol_council_seats')
+        .where({ party_id: partyMember.party_id, cycle_id: cycle.id })
+        .first();
+      if (!hasSeat) {
+        throw new AppError(
+          'Your party does not hold a council seat in the current session and cannot vote on legislation.',
+          403, 'FORBIDDEN'
+        );
+      }
 
       await trx('pol_bill_votes')
         .insert({ bill_id: billId, character_id: char.id, vote })

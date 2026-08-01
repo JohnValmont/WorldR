@@ -30,12 +30,18 @@ export default function PoliticsDesk() {
   const [selectedJurisdictionId, setSelectedJurisdictionId] = useState<JurisdictionId>(DEFAULT_JURISDICTION_ID);
   const { clock, polSecondsToTick, isPolTickStalled } = useWorldClock();
 
-  const { data: character, mutate: mutateChar, error: errChar } = useSWR('me', () => characterApi.getMe().then((res: any) => res.data || res));
-  const { data: overview, mutate: mutateOver, error: errOver } = useSWR('politicsState', () => politicsApi.getState());
-  const { data: parties = [], mutate: mutateParties, error: errParties } = useSWR(['parties', selectedJurisdictionId], () => politicsApi.getParties(selectedJurisdictionId));
-  const { data: ledger = [], mutate: mutateLedger } = useSWR(['ledger', selectedJurisdictionId], () => politicsApi.getLedger(20, selectedJurisdictionId));
-  const { data: myApData, mutate: mutateAp } = useSWR('myAp', () => politicsApi.getMyAp());
-  const { data: myPcData, mutate: mutatePc } = useSWR('myPc', () => politicsApi.getMyPc());
+  // 'politics-me' avoids a cache collision with the DRX exchange page's 'me' key.
+  // refreshInterval: 30 000 ms polls all shared state every 30 s so each player
+  // sees other players' actions (party joins, coalition updates, bill votes, etc.)
+  // without a manual page refresh — this is the primary cross-player sync mechanism.
+  const POLL_MS = 30_000;
+
+  const { data: character, mutate: mutateChar, error: errChar } = useSWR('politics-me', () => characterApi.getMe().then((res: any) => res.data || res), { refreshInterval: POLL_MS });
+  const { data: overview, mutate: mutateOver, error: errOver } = useSWR('politicsState', () => politicsApi.getState(), { refreshInterval: POLL_MS });
+  const { data: parties = [], mutate: mutateParties, error: errParties } = useSWR(['parties', selectedJurisdictionId], () => politicsApi.getParties(selectedJurisdictionId), { refreshInterval: POLL_MS });
+  const { data: ledger = [], mutate: mutateLedger } = useSWR(['ledger', selectedJurisdictionId], () => politicsApi.getLedger(20, selectedJurisdictionId), { refreshInterval: POLL_MS });
+  const { data: myApData, mutate: mutateAp } = useSWR('myAp', () => politicsApi.getMyAp(), { refreshInterval: POLL_MS });
+  const { data: myPcData, mutate: mutatePc } = useSWR('myPc', () => politicsApi.getMyPc(), { refreshInterval: POLL_MS });
 
   const myAp = (myApData as { current_ap: number; ap_cap: number }) || { current_ap: 0, ap_cap: 12 };
   const myPc = (myPcData as { current_pc: number; pc_cap: number }) || { current_pc: 0, pc_cap: 10 };
