@@ -990,18 +990,25 @@ async function resolveElection(trx: any, cycleId: string) {
 
   const newWinners = new Set<string>();
 
-  // Write pol_results
-  for (const c of result.perCandidate) {
-    await trx('pol_results').insert({
-      cycle_id: cycleId,
-      candidate_id: c.candidateId,
-      votes: c.votes,
-      seat_rank: c.seatRank,
-      won_seat: c.wonSeat
-    });
+  // Fast batch write pol_results
+  const resultInserts = result.perCandidate.map(c => ({
+    cycle_id: cycleId,
+    candidate_id: c.candidateId,
+    votes: c.votes,
+    seat_rank: c.seatRank,
+    won_seat: c.wonSeat
+  }));
+  if (resultInserts.length > 0) {
+    await trx.batchInsert('pol_results', resultInserts, 500);
   }
 
-  // Write pol_council_seats (exactly 61)
+  // Pre-load candidates to avoid per-candidate database queries
+  const allDbCands = await trx('pol_candidates').where({ cycle_id: cycleId });
+  const candMap = new Map<string, any>(allDbCands.map((c: any) => [c.id, c]));
+
+  const seatInserts: any[] = [];
+
+  // Prepare pol_council_seats
   for (const party of result.perParty) {
     const seatsToAllocate = party.seats;
     if (seatsToAllocate <= 0) continue;
@@ -1011,8 +1018,8 @@ async function resolveElection(trx: any, cycleId: string) {
     let seatsAllocated = 0;
 
     for (const c of wonCands) {
-      const dbCand = await trx('pol_candidates').where({ id: c.candidateId }).first();
-      await trx('pol_council_seats').insert({
+      const dbCand = candMap.get(c.candidateId);
+      seatInserts.push({
         state_id: cycle.state_id,
         cycle_id: cycleId,
         party_id: party.partyId,
@@ -1028,14 +1035,10 @@ async function resolveElection(trx: any, cycleId: string) {
       }
     }
 
-    // Fill remaining seats with generic NPCs for that party
+    // Fill remaining seats with generic NPCs for that party if needed
     while (seatsAllocated < seatsToAllocate) {
-      // Find a constituency they won but don't have a candidate for (rare)
-      // or just pick an empty constituency ID?
-      // Since it's FPTP, they only get a seat if they actually won a constituency.
-      // So this fallback loop should find the constituency they won.
       const wonConstId = result.perCandidate.find(c => c.partyId === party.partyId && c.wonSeat)?.constituencyId || null;
-      await trx('pol_council_seats').insert({
+      seatInserts.push({
         state_id: cycle.state_id,
         cycle_id: cycleId,
         party_id: party.partyId,
@@ -1045,6 +1048,10 @@ async function resolveElection(trx: any, cycleId: string) {
       });
       seatsAllocated++;
     }
+  }
+
+  if (seatInserts.length > 0) {
+    await trx.batchInsert('pol_council_seats', seatInserts, 500);
   }
 
   // Apply loss penalties

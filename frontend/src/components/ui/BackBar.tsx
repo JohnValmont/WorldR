@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { ArrowLeft, LayoutGrid, Briefcase, Landmark, Globe, Home, BookOpen, Lock } from 'lucide-react';
 import GuideModal from '../gameplay/GuideModal';
 import { useAuthStore } from '../../store/auth.store';
+import { authApi } from '../../lib/api';
 
 /**
  * BackBar — a slim, sticky global navigation bar for the in-game (/drennia) shell.
@@ -49,8 +50,14 @@ export default function BackBar() {
   const section = segments[1] || 'chronicle';
   const isHub = section === 'chronicle';
   const [showGuide, setShowGuide] = useState(false);
+  const [isAdminDynamic, setIsAdminDynamic] = useState(false);
   const { user } = useAuthStore();
   const isSuperAdmin = user?.email?.toLowerCase() === 'kyxplayss@gmail.com' || user?.email?.toLowerCase() === 'infoforbiddengaming@gmail.com';
+  const isAdmin = user?.role === 'admin' || isSuperAdmin || isAdminDynamic;
+
+  useEffect(() => {
+    authApi.me().then(res => setIsAdminDynamic(res.data.isAdmin)).catch(() => {});
+  }, []);
 
   // Track in-app navigation depth so Back never leaves the game world.
   useEffect(() => {
@@ -73,45 +80,31 @@ export default function BackBar() {
     }
   };
 
-  const label =
-    SECTION_LABELS[section] || section.charAt(0).toUpperCase() + section.slice(1);
-
   return (
-    <header className="sticky top-0 z-40 flex items-center gap-3 px-4 md:px-6 h-11 border-b border-[#23232b] bg-[#0c0d13]/95 backdrop-blur-sm shrink-0">
+    <header className="sticky top-0 z-30 flex items-center h-10 px-4 bg-[#090A0F]/90 backdrop-blur-md border-b border-zinc-900/60 select-none">
+      {/* Back button */}
       {!isHub ? (
         <button
           onClick={goBack}
-          aria-label="Go back to the previous screen"
-          className="flex items-center gap-1.5 -ml-1.5 rounded-sm px-1.5 py-1 text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-400 transition-colors hover:text-terminal-amber focus:outline-none focus:ring-1 focus:ring-terminal-amber/40"
+          title="Go back"
+          className="flex items-center gap-1.5 px-2 py-1 text-xs font-mono text-zinc-400 hover:text-zinc-100 hover:bg-white/5 rounded transition-colors -ml-1"
         >
-          <ArrowLeft size={12} /> Back
+          <ArrowLeft size={13} />
+          <span>BACK</span>
         </button>
       ) : (
-        <span className="flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-600">
-          <LayoutGrid size={12} /> Hub
-        </span>
+        <div className="flex items-center gap-1.5 text-zinc-600 text-xs font-mono">
+          <LayoutGrid size={13} />
+          <span>HUB</span>
+        </div>
       )}
 
-      <span className="h-4 w-px bg-[#23232b]" />
+      {/* Breadcrumb separator */}
+      <span className="mx-2 text-zinc-700 text-xs">/</span>
 
-      <Link
-        href={HUB}
-        className="text-[10px] font-mono font-black tracking-[0.25em] text-terminal-amber amber-glow transition-colors hover:text-amber-300"
-      >
-        WORLDr
-      </Link>
-
-      <span className="h-4 w-px bg-[#23232b]" />
-
-      <span className="truncate text-[9px] font-mono uppercase tracking-[0.18em] text-zinc-400 flex items-center gap-2">
-        {label}
-        <button
-          onClick={() => setShowGuide(true)}
-          title="Game Guide"
-          className="ml-2 flex items-center gap-1.5 rounded bg-terminal-amber/10 px-2 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-terminal-amber transition-colors hover:bg-terminal-amber/20 focus:outline-none"
-        >
-          <BookOpen size={10} /> Guide
-        </button>
+      {/* Current section label */}
+      <span className="text-xs font-mono font-medium text-zinc-300 capitalize">
+        {SECTION_LABELS[section] || section}
       </span>
 
       {showGuide && <GuideModal onDismiss={() => setShowGuide(false)} />}
@@ -126,13 +119,13 @@ export default function BackBar() {
         <Link href="/drennia/business" title="Business Desk" className="p-1.5 rounded transition-colors text-zinc-500 hover:text-zinc-300 hover:bg-white/5">
           <Briefcase size={14} />
         </Link>
-        {isSuperAdmin ? (
+        {isAdmin ? (
           <Link href="/drennia/politics" title="Politics Desk" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
             <Landmark size={14} />
           </Link>
         ) : (
-          <a href="#" onClick={(e) => { e.preventDefault(); alert('Political desk is Coming soon.'); }} title="Politics Desk" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5 flex items-center justify-center'}`}>
-            <Lock size={14} className="opacity-80" />
+          <a href="#" onClick={(e) => { e.preventDefault(); alert('Political Desk is currently locked for pre-release testing. Only administrators have access.'); }} title="Politics Desk (Locked for testing)" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5 flex items-center justify-center cursor-not-allowed'}`}>
+            <Lock size={14} className="opacity-70 text-amber-500/70" />
           </a>
         )}
         <Link href="/drennia/world" title="World Feed" className={`p-1.5 rounded transition-colors ${section === 'world' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>

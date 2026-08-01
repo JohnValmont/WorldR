@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import useSWR from 'swr';
+import { Lock } from 'lucide-react';
 import { politicsApi, characterApi, worldApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { DEFAULT_JURISDICTION_ID, type JurisdictionId } from './_lib/session';
@@ -31,29 +32,31 @@ export default function PoliticsDesk() {
   const { clock, polSecondsToTick, isPolTickStalled } = useWorldClock();
 
   // 'politics-me' avoids a cache collision with the DRX exchange page's 'me' key.
-  // refreshInterval: 30 000 ms polls all shared state every 30 s so each player
-  // sees other players' actions (party joins, coalition updates, bill votes, etc.)
-  // without a manual page refresh — this is the primary cross-player sync mechanism.
   const POLL_MS = 30_000;
-
-  const { data: character, mutate: mutateChar, error: errChar } = useSWR('politics-me', () => characterApi.getMe().then((res: any) => res.data || res), { refreshInterval: POLL_MS });
-  const { data: overview, mutate: mutateOver, error: errOver } = useSWR('politicsState', () => politicsApi.getState(), { refreshInterval: POLL_MS });
-  const { data: parties = [], mutate: mutateParties, error: errParties } = useSWR(['parties', selectedJurisdictionId], () => politicsApi.getParties(selectedJurisdictionId), { refreshInterval: POLL_MS });
-  const { data: ledger = [], mutate: mutateLedger } = useSWR(['ledger', selectedJurisdictionId], () => politicsApi.getLedger(20, selectedJurisdictionId), { refreshInterval: POLL_MS });
-  const { data: myApData, mutate: mutateAp } = useSWR('myAp', () => politicsApi.getMyAp(), { refreshInterval: POLL_MS });
-  const { data: myPcData, mutate: mutatePc } = useSWR('myPc', () => politicsApi.getMyPc(), { refreshInterval: POLL_MS });
-
-  const myAp = (myApData as { current_ap: number; ap_cap: number }) || { current_ap: 0, ap_cap: 12 };
-  const myPc = (myPcData as { current_pc: number; pc_cap: number }) || { current_pc: 0, pc_cap: 10 };
 
   const [isAdminDynamic, setIsAdminDynamic] = useState(false);
   const [isAdvancingPol, setIsAdvancingPol] = useState(false);
   const user = useAuthStore(state => state.user);
-  const isAdmin = user?.role === 'admin' || isAdminDynamic;
+
+  const isSuperAdminEmail = user?.email && (
+    user.email.toLowerCase() === 'kyxplayss@gmail.com' ||
+    user.email.toLowerCase() === 'infoforbiddengaming@gmail.com'
+  );
+  const isAdmin = user?.role === 'admin' || isSuperAdminEmail || isAdminDynamic;
 
   useEffect(() => {
     authApi.me().then(res => setIsAdminDynamic(res.data.isAdmin)).catch(() => {});
   }, []);
+
+  const { data: character, mutate: mutateChar, error: errChar } = useSWR(isAdmin ? 'politics-me' : null, () => characterApi.getMe().then((res: any) => res.data || res), { refreshInterval: POLL_MS });
+  const { data: overview, mutate: mutateOver, error: errOver } = useSWR(isAdmin ? 'politicsState' : null, () => politicsApi.getState(), { refreshInterval: POLL_MS });
+  const { data: parties = [], mutate: mutateParties, error: errParties } = useSWR(isAdmin ? ['parties', selectedJurisdictionId] : null, () => politicsApi.getParties(selectedJurisdictionId), { refreshInterval: POLL_MS });
+  const { data: ledger = [], mutate: mutateLedger } = useSWR(isAdmin ? ['ledger', selectedJurisdictionId] : null, () => politicsApi.getLedger(20, selectedJurisdictionId), { refreshInterval: POLL_MS });
+  const { data: myApData, mutate: mutateAp } = useSWR(isAdmin ? 'myAp' : null, () => politicsApi.getMyAp(), { refreshInterval: POLL_MS });
+  const { data: myPcData, mutate: mutatePc } = useSWR(isAdmin ? 'myPc' : null, () => politicsApi.getMyPc(), { refreshInterval: POLL_MS });
+
+  const myAp = (myApData as { current_ap: number; ap_cap: number }) || { current_ap: 0, ap_cap: 12 };
+  const myPc = (myPcData as { current_pc: number; pc_cap: number }) || { current_pc: 0, pc_cap: 10 };
 
   const loadData = useCallback(async () => {
     await Promise.all([mutateChar(), mutateOver(), mutateParties(), mutateLedger(), mutateAp(), mutatePc()]);
@@ -79,8 +82,31 @@ export default function PoliticsDesk() {
     }
   };
 
-  const loading = !character && !errChar && !overview && !errOver;
+  const loading = isAdmin && !character && !errChar && !overview && !errOver;
   const error = errChar || errOver || errParties;
+
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col h-screen bg-[#090A0F] text-zinc-100 items-center justify-center p-6 select-none font-mono">
+        <div className="max-w-md w-full bg-zinc-950/80 border border-zinc-800/80 p-8 rounded-xl backdrop-blur-xl shadow-2xl flex flex-col items-center text-center">
+          <div className="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-5 shadow-[0_0_20px_rgba(245,158,11,0.15)]">
+            <Lock size={26} />
+          </div>
+          <div className="text-[11px] font-bold text-amber-500/90 tracking-widest uppercase mb-1">Restricted Access</div>
+          <h1 className="text-xl font-bold text-zinc-100 font-sans mb-3">Political Desk Locked</h1>
+          <p className="text-xs text-zinc-400 font-sans leading-relaxed mb-6">
+            The Political Desk is currently restricted to Administrators during closed pre-release testing. Check back in a future update!
+          </p>
+          <a
+            href="/drennia/chronicle"
+            className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg transition-all border border-zinc-700 shadow-md flex items-center gap-2"
+          >
+            ← Return to Chronicle
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   const jMeta = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.national;
 

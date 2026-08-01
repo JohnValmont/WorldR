@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { authMiddleware } from '../middlewares/auth.middleware';
+import { authMiddleware, requireAdmin } from '../middlewares/auth.middleware';
 import { AppError } from '../../utils/errors';
 import {
   getStateOverview,
@@ -57,6 +57,9 @@ import { getOrCreateCurrentCycle } from '../services/politics.service';
 import { db } from '../../config/database';
 
 const router = Router();
+
+// Lock entire Politics Desk to Admins only
+router.use([authMiddleware, requireAdmin]);
 
 const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
