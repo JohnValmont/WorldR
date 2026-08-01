@@ -106,9 +106,14 @@ export function useWorldClock() {
 
   // Live countdown to next politics tick
   const [polSecondsToTick, setPolSecondsToTick] = useState<number | null>(null);
+  const polZeroAt = useRef<number | null>(null);
+  const [isPolTickStalled, setIsPolTickStalled] = useState(false);
+
   useEffect(() => {
     if (!clock?.pol_next_arc_close_at || clock.status !== 'active') {
       setPolSecondsToTick(null);
+      setIsPolTickStalled(false);
+      polZeroAt.current = null;
       return;
     }
     const target = new Date(clock.pol_next_arc_close_at).getTime();
@@ -116,29 +121,48 @@ export function useWorldClock() {
       setPolSecondsToTick(null);
       return;
     }
-    let timeoutId: NodeJS.Timeout | null = null;
+
+    // If pol_next_arc_close_at moved forward the tick completed — clear stall state.
+    const syncedNow = Date.now() + serverSkew;
+    if (target > syncedNow) {
+      setIsPolTickStalled(false);
+      polZeroAt.current = null;
+    }
+
+    let pollId: NodeJS.Timeout | null = null;
 
     const update = () => {
-      const syncedNow = Date.now() + serverSkew;
-      const s = Math.max(0, Math.floor((target - syncedNow) / 1000));
+      const now = Date.now() + serverSkew;
+      const s = Math.max(0, Math.floor((target - now) / 1000));
       setPolSecondsToTick(s);
 
-      if (s === 0 && !timeoutId) {
-        timeoutId = setTimeout(() => {
-          mutate();
-          timeoutId = null;
-        }, 5_000);
+      if (s === 0) {
+        // Record the first moment we hit zero
+        if (polZeroAt.current === null) polZeroAt.current = Date.now();
+
+        // Declare stall if server hasn't confirmed within 90s (same window as biz tick)
+        const waitedMs = Date.now() - polZeroAt.current;
+        setIsPolTickStalled(waitedMs >= BIZ_TICK_STALL_MS);
+
+        // Poll every 5s until the server confirms the new politics month
+        if (!pollId) {
+          pollId = setTimeout(function poll() {
+            mutate();
+            pollId = setTimeout(poll, 5_000);
+          }, 5_000);
+        }
       }
     };
+
     update();
     const timer = setInterval(update, 1_000);
     return () => {
       clearInterval(timer);
-      if (timeoutId) clearTimeout(timeoutId);
+      if (pollId) clearTimeout(pollId);
     };
   }, [clock?.pol_next_arc_close_at, clock?.status, mutate, serverSkew]);
 
-  return { clock, secondsToTick, polSecondsToTick, isBizTickStalled, error, isLoading, refresh: mutate };
+  return { clock, secondsToTick, polSecondsToTick, isBizTickStalled, isPolTickStalled, error, isLoading, refresh: mutate };
 }
 
 /** Format a seconds countdown as e.g. "7h 59m 30s" or "45s". */

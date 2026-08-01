@@ -30,6 +30,7 @@ export default function CoalitionBuilder({ selectedJurisdictionId, myParty, part
   );
 
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const coalition = formationData?.coalition;
   if (!coalition) {
@@ -42,8 +43,10 @@ export default function CoalitionBuilder({ selectedJurisdictionId, myParty, part
     );
   }
 
-  const { formateur, accepted, invited } = coalition;
-  
+  const { formateur, invited } = coalition;
+  // Exclude the formateur from accepted to avoid duplicate display
+  const accepted: any[] = (coalition.accepted ?? []).filter((p: any) => p.id !== formateur?.id);
+
   const isFormateur = myParty && formateur?.id === myParty.id;
   const amInvited = myParty && invited.some((p: any) => p.id === myParty.id);
   const amAccepted = myParty && accepted.some((p: any) => p.id === myParty.id);
@@ -53,14 +56,16 @@ export default function CoalitionBuilder({ selectedJurisdictionId, myParty, part
   const totalPotentialSeats = acceptedSeats + invitedSeats;
 
   const handleAction = async (action: 'invite' | 'accept' | 'decline', targetPartyId: string) => {
+    setFeedback(null);
     try {
       setLoadingAction(`${action}-${targetPartyId}`);
       await politicsApi.manageCoalition(action, targetPartyId, selectedJurisdictionId);
-      alert(action === 'invite' ? 'Invitation sent' : action === 'accept' ? 'Joined coalition' : 'Declined invitation');
+      const successMsg = action === 'invite' ? 'Invitation sent.' : action === 'accept' ? 'Joined coalition.' : 'Invitation declined.';
+      setFeedback({ ok: true, msg: successMsg });
       await mutate();
       if (onRefresh) onRefresh();
     } catch (err: any) {
-      alert(err?.response?.data?.message || err.message || 'Action failed');
+      setFeedback({ ok: false, msg: err?.response?.data?.message || err.message || 'Action failed.' });
     } finally {
       setLoadingAction(null);
     }
@@ -248,6 +253,20 @@ export default function CoalitionBuilder({ selectedJurisdictionId, myParty, part
           )}
 
         </div>
+
+        {/* Inline feedback */}
+        {feedback && (
+          <div style={{
+            marginTop: 12, display: 'flex', alignItems: 'center', gap: 8,
+            padding: '10px 14px', borderRadius: 7,
+            background: feedback.ok ? 'rgba(16,214,122,0.08)' : 'rgba(220,38,38,0.08)',
+            border: `1px solid ${feedback.ok ? 'rgba(16,214,122,0.25)' : 'rgba(220,38,38,0.25)'}`,
+            color: feedback.ok ? T.mint : T.red, fontSize: 13, fontFamily: SANS,
+          }}>
+            {feedback.ok ? <Check size={14} /> : <AlertCircle size={14} />}
+            {feedback.msg}
+          </div>
+        )}
 
       </div>
     </div>
