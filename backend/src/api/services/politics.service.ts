@@ -476,20 +476,31 @@ export function derivePhase(
   return 'governing';
 }
 
-export async function getOrCreateCurrentCycle(stateId: string) {
+/**
+ * Fetch (or lazily create) the current open election cycle for a state.
+ *
+ * @param stateId - The state to look up.
+ * @param trx     - Optional Knex transaction. When provided, ALL reads and writes
+ *                  run through the same connection so this function participates
+ *                  fully in the caller's transaction (Bug 5 fix: previously all
+ *                  queries bypassed the transaction via the global `db` pool,
+ *                  causing cross-connection reads and unrollable side-effects).
+ */
+export async function getOrCreateCurrentCycle(stateId: string, trx?: any) {
+  const conn = trx ?? db;
   const currentMonth = await getCurrentWorldArc();
-  let cycle = await db('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
-  
+  let cycle = await conn('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
+
   if (!cycle) {
     // Stagger each jurisdiction's first election by its offset so state elections
     // land ~every 6 months across the nation (GDD $3). Ironvale offset = 0.
-    const stateRow = await db('pol_states').where({ id: stateId }).first();
+    const stateRow = await conn('pol_states').where({ id: stateId }).first();
     const pollingArc = currentMonth + POL_FIRST_CYCLE_MONTHS + getElectionOffsetMonths(stateRow?.code);
     const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;
-    
+
     const phase = derivePhase({ polling_arc: pollingArc, formation_end_arc: formationEndArc }, currentMonth);
 
-    const [inserted] = await db('pol_cycles').insert({
+    const [inserted] = await conn('pol_cycles').insert({
       state_id: stateId,
       cycle_number: 1,
       start_arc: currentMonth,
@@ -502,11 +513,10 @@ export async function getOrCreateCurrentCycle(stateId: string) {
   }
 
   // Always re-derive phase from the current arc so stale DB rows self-heal
-  // without waiting for the next processPoliticalArc tick. This is safe because
-  // derivePhase is pure and deterministic given the cycle's arc boundaries.
+  // without waiting for the next processPoliticalArc tick.
   const freshPhase = derivePhase(cycle, currentMonth);
   if (cycle.phase !== freshPhase) {
-    await db('pol_cycles').where({ id: cycle.id }).update({ phase: freshPhase });
+    await conn('pol_cycles').where({ id: cycle.id }).update({ phase: freshPhase });
     cycle = { ...cycle, phase: freshPhase };
   }
 
