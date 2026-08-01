@@ -53,7 +53,7 @@ BEGIN
   NEW.total = NEW.electoral + NEW.legislative + NEW.coalition + NEW.scandal + NEW.economic + NEW.longevity;
   RETURN NEW;
 END;
-$ LANGUAGE plpgsql SET search_path = public;
+$$ LANGUAGE plpgsql SET search_path = public;
 
 DROP TRIGGER IF EXISTS trg_pol_legacy_updated_at ON pol_legacy_scores;
 CREATE TRIGGER trg_pol_legacy_updated_at

@@ -73,7 +73,7 @@ BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$ LANGUAGE plpgsql SET search_path = public;
+$$ LANGUAGE plpgsql SET search_path = public;
 
 DROP TRIGGER IF EXISTS trg_pol_igr_updated_at ON pol_interest_group_relations;
 CREATE TRIGGER trg_pol_igr_updated_at

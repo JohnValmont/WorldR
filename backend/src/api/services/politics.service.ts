@@ -541,6 +541,7 @@ export async function ensureCandidates(trx: any, cycleId: string) {
         name: p.name,
         abbreviation: p.short_name,
         is_npc: true,
+        created_arc: cycle.start_arc ?? 0,
         platform: JSON.stringify({ taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 })
       }).returning('*');
 
