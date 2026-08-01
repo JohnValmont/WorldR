@@ -36,6 +36,7 @@ import {
   getOrCreateLegacyScores,
   getLegacySummary,
   emitStory,
+  processGovernmentFormation,
 } from '../services/politics.service';
 import {
   PARTY_FOUNDING_COST,
@@ -991,10 +992,18 @@ export async function manageCoalition(req: Request, res: Response, next: NextFun
       members.accepted = Array.from(accepted);
       members.invited = Array.from(invited);
 
-      const [updated] = await trx('pol_coalitions')
+      await trx('pol_coalitions')
         .where({ id: coalition.id })
-        .update({ member_party_ids: JSON.stringify(members) })
-        .returning('*');
+        .update({ member_party_ids: JSON.stringify(members) });
+
+      // After any membership change, re-run the formation logic so that if an
+      // acceptance tips the coalition over the majority threshold it immediately
+      // triggers rollover with the correct currentMonth (gap-11 fix).
+      const clock = await trx('world_clock').first();
+      const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
+      await processGovernmentFormation(trx, cycle, currentMonth);
+
+      const updated = await trx('pol_coalitions').where({ id: coalition.id }).first();
       return updated;
     });
 

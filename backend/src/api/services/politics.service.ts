@@ -1129,7 +1129,10 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
     if (currentMonth >= cycle.formation_end_arc) {
       // make sure cycle isn't already closed
       if (cycle.status === 'open') {
-        await performCycleRollover(trx, cycle, currentMonth);
+        // Government was already formed — pass the time it was formed as governmentFormedAt
+        // so the new cycle's start_arc reflects the actual formation date, not the window expiry.
+        const formedAt = existingCoalition.formed_at ?? currentMonth;
+        await performCycleRollover(trx, cycle, currentMonth, formedAt);
       }
     }
     return;
@@ -1158,7 +1161,10 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
       status: 'formed'
     });
     await namePremierAndEmitLedger(trx, cycle, largestParty, 'majority', largestParty.seats);
-    if (currentMonth >= cycle.formation_end_arc) await performCycleRollover(trx, cycle, currentMonth);
+    // Rollover immediately: majority formed, no need to wait for formation_end_arc.
+    // Pass currentMonth as governmentFormedAt so the new term starts from now, not from
+    // the end of the formation window (gap-11 fix).
+    await performCycleRollover(trx, cycle, currentMonth, currentMonth);
     return;
   }
 
@@ -1251,7 +1257,9 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
     // Create the structured coalition agreement object
     await createCoalitionAgreement(trx, forming.id, largestParty.id, Array.from(accepted), currentMonth);
     await namePremierAndEmitLedger(trx, cycle, largestParty, 'coalition', totalAcceptedSeats);
-    if (currentMonth >= cycle.formation_end_arc) await performCycleRollover(trx, cycle, currentMonth);
+    // Rollover immediately once a coalition secures majority, passing the actual
+    // formation moment so the new cycle's start_arc isn't pushed to formation_end_arc.
+    await performCycleRollover(trx, cycle, currentMonth, currentMonth);
     return;
   }
 
@@ -1470,9 +1478,9 @@ async function namePremierAndEmitLedger(trx: any, cycle: any, largestParty: any,
   );
 }
 
-async function performCycleRollover(trx: any, oldCycle: any, currentMonth: number) {
+async function performCycleRollover(trx: any, oldCycle: any, currentMonth: number, governmentFormedAt?: number) {
   if (oldCycle.status === 'closed') return;
-  
+
   // Award active campaign bonus
   const campaigns = await trx('pol_campaign_actions')
     .where({ cycle_id: oldCycle.id })
@@ -1511,10 +1519,15 @@ async function performCycleRollover(trx: any, oldCycle: any, currentMonth: numbe
     }
   }
 
-  // Day old cycle closed
+  // Close old cycle
   await trx('pol_cycles').where({ id: oldCycle.id }).update({ status: 'closed' });
 
-  const startMonth = currentMonth;
+  // start_arc is the month the new government was actually formed.
+  // When a majority or coalition secures enough seats before the formation
+  // window expires, governmentFormedAt is that earlier month so the new
+  // term is not shortened by up to POL_FORMATION_WINDOW_MONTHS arcs.
+  // When the window times out (minority / forced rollover) it equals currentMonth.
+  const startMonth = governmentFormedAt ?? currentMonth;
   // Term length is per-jurisdiction (24mo state, 48mo national — GDD $3).
   const oldStateRow = await trx('pol_states').where({ id: oldCycle.state_id }).first();
   const pollingArc = startMonth + getTermMonthsForState(oldStateRow?.code);

@@ -151,6 +151,30 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
   const constituencies: any[] = constData?.constituencies ?? [];
   const canFile = !!myParty && !myParty.is_npc && ['filing', 'campaign', 'governing'].includes(phase) && !alreadyFiled;
   const isElectionLive = phase === 'polling' || phase === 'formation';
+  const isFormation = phase === 'formation';
+
+  // Coalition state (formation phase)
+  const { data: coalitionData, mutate: mutateCoalition } = useSWR(
+    isFormation && !isLocked ? ['coalition', selectedJurisdictionId] : null,
+    () => politicsApi.getFormingCoalition(selectedJurisdictionId).catch(() => null)
+  );
+  const [coalitionAction, setCoalitionAction] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [coalitionMsg, setCoalitionMsg] = useState('');
+
+  async function handleCoalitionAction(action: 'invite' | 'accept' | 'reject', targetPartyId: string) {
+    setCoalitionAction('loading');
+    setCoalitionMsg('');
+    try {
+      const result = await politicsApi.manageCoalition(action, targetPartyId, selectedJurisdictionId);
+      setCoalitionAction('success');
+      setCoalitionMsg(result?.message || 'Coalition updated.');
+      mutateCoalition();
+      onRefresh?.();
+    } catch (err: any) {
+      setCoalitionAction('error');
+      setCoalitionMsg(err?.response?.data?.message || err?.message || 'Coalition action failed.');
+    }
+  }
 
   const selectedConst = constituencies.find((c: any) => c.id === selectedConstituencyId);
 
@@ -291,8 +315,8 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
                   </div>
                 )}
 
-                {/* Election is live — no filing possible */}
-                {!alreadyFiled && isElectionLive && (
+                {/* Election is live — polling day, no filing */}
+                {!alreadyFiled && phase === 'polling' && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <AlertCircle size={16} color={T.red} />
                     <div style={{ color: T.muted, fontFamily: SANS, fontSize: 13 }}>
@@ -300,6 +324,162 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
                     </div>
                   </div>
                 )}
+
+                {/* Formation phase — coalition negotiation panel */}
+                {isFormation && (() => {
+                  const forming = coalitionData?.coalition;
+                  const isLeader = forming && myParty && forming.lead_party_id === myParty.id;
+                  const members: { accepted: string[]; invited: string[] } =
+                    forming?.member_party_ids
+                      ? (typeof forming.member_party_ids === 'string'
+                          ? JSON.parse(forming.member_party_ids)
+                          : forming.member_party_ids)
+                      : { accepted: [], invited: [] };
+                  const isInvited = myParty && members.invited?.includes(myParty.id);
+                  const isAccepted = myParty && members.accepted?.includes(myParty.id);
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {/* Status row */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#c084fc', boxShadow: '0 0 8px #c084fc80', flexShrink: 0 }} />
+                        <div style={{ fontFamily: MONO, fontSize: 11, color: '#c084fc', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                          Government Formation Window
+                        </div>
+                      </div>
+
+                      {!forming && (
+                        <div style={{ color: T.muted, fontFamily: SANS, fontSize: 13 }}>
+                          Election results are being tallied. Coalition talks will begin shortly.
+                        </div>
+                      )}
+
+                      {forming && (
+                        <>
+                          {/* Forming coalition summary */}
+                          <div style={{
+                            background: 'rgba(192,132,252,0.06)', border: '1px solid rgba(192,132,252,0.15)',
+                            borderRadius: 8, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6,
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontFamily: MONO, fontSize: 10, color: T.faint, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                                Lead party
+                              </span>
+                              <span style={{ fontFamily: SANS, fontSize: 12, color: T.ivory, fontWeight: 600 }}>
+                                {parties.find((p: any) => p.id === forming.lead_party_id)?.name ?? 'Unknown'}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontFamily: MONO, fontSize: 10, color: T.faint, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                                Seats secured
+                              </span>
+                              <span style={{ fontFamily: MONO, fontSize: 12, color: forming.total_seats >= jModel.majority ? T.mint : T.warning, fontWeight: 700 }}>
+                                {forming.total_seats ?? 0} / {jModel.majority} needed
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontFamily: MONO, fontSize: 10, color: T.faint, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                                Status
+                              </span>
+                              <span style={{ fontFamily: MONO, fontSize: 11, color: forming.status === 'formed' ? T.mint : '#c084fc' }}>
+                                {forming.status === 'formed' ? 'COALITION FORMED' : forming.status === 'forming' ? 'NEGOTIATING' : forming.status?.toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Player is the lead party — can invite others */}
+                          {isLeader && forming.status === 'forming' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              <div style={{ fontFamily: MONO, fontSize: 10, color: T.faint, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                                Invite parties to join your coalition
+                              </div>
+                              {parties
+                                .filter((p: any) => !p.is_npc && p.id !== myParty!.id && !members.accepted?.includes(p.id) && !members.invited?.includes(p.id))
+                                .map((p: any) => (
+                                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '7px 10px' }}>
+                                    <span style={{ fontFamily: SANS, fontSize: 12, color: T.text }}>{p.name}</span>
+                                    <button
+                                      disabled={coalitionAction === 'loading'}
+                                      onClick={() => handleCoalitionAction('invite', p.id)}
+                                      style={{
+                                        fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
+                                        background: 'rgba(192,132,252,0.12)', border: '1px solid rgba(192,132,252,0.3)',
+                                        color: '#c084fc', borderRadius: 5, padding: '4px 10px', cursor: 'pointer',
+                                      }}
+                                    >
+                                      Invite
+                                    </button>
+                                  </div>
+                                ))
+                              }
+                              {members.invited?.length > 0 && (
+                                <div style={{ fontFamily: MONO, fontSize: 10, color: T.faint, marginTop: 2 }}>
+                                  Pending invites: {members.invited.map((id: string) => parties.find((p: any) => p.id === id)?.name ?? id).join(', ')}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Player was invited — can accept or reject */}
+                          {isInvited && !isAccepted && forming.status === 'forming' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              <div style={{ fontFamily: SANS, fontSize: 13, color: T.text }}>
+                                You have been invited to join the coalition. Accept to add your seats.
+                              </div>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <button
+                                  disabled={coalitionAction === 'loading'}
+                                  onClick={() => handleCoalitionAction('accept', forming.lead_party_id)}
+                                  style={{
+                                    fontFamily: MONO, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
+                                    background: 'rgba(16,214,122,0.12)', border: '1px solid rgba(16,214,122,0.3)',
+                                    color: T.mint, borderRadius: 6, padding: '8px 16px', cursor: 'pointer',
+                                  }}
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  disabled={coalitionAction === 'loading'}
+                                  onClick={() => handleCoalitionAction('reject', forming.lead_party_id)}
+                                  style={{
+                                    fontFamily: MONO, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
+                                    background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)',
+                                    color: T.red, borderRadius: 6, padding: '8px 16px', cursor: 'pointer',
+                                  }}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Player already accepted */}
+                          {isAccepted && !isLeader && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <CheckCircle size={14} color={T.mint} />
+                              <span style={{ fontFamily: SANS, fontSize: 13, color: T.mint }}>Your party has joined the coalition.</span>
+                            </div>
+                          )}
+
+                          {/* Not involved yet */}
+                          {!isLeader && !isInvited && !isAccepted && (
+                            <div style={{ color: T.muted, fontFamily: SANS, fontSize: 13 }}>
+                              Your party has not been invited to join the forming coalition. Monitor negotiations.
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {/* Feedback message */}
+                      {coalitionAction !== 'idle' && coalitionMsg && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: SANS, fontSize: 12, color: coalitionAction === 'success' ? T.mint : T.red }}>
+                          {coalitionAction === 'success' ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+                          {coalitionMsg}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* No party */}
                 {!myParty.is_npc === false && (
