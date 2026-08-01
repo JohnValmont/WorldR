@@ -470,11 +470,12 @@ export async function queueCampaignAction(req: Request, res: Response, next: Nex
 
     const activeState = await resolveState(req.body.stateId as string | undefined);
 
-    const cycle = await getOrCreateCurrentCycle(activeState.id);
-    const clock = await db('world_clock').first();
-    const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
-
     const result = await db.transaction(async (trx) => {
+      // Fetch cycle inside the transaction so reads are on the same connection.
+      const cycle = await getOrCreateCurrentCycle(activeState.id, trx);
+      const clock = await trx('world_clock').first();
+      const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
+
       const char = await trx('characters').where({ user_id: userId }).first(); // Don't filter by state_id here unless character has it
       if (!char) throw new AppError('No character', 404, 'NOT_FOUND');
 
@@ -804,11 +805,13 @@ export async function declareCandidacy(req: Request, res: Response, next: NextFu
     if (!constituencyId) return next(new AppError('Must select a constituency', 400, 'BAD_REQUEST'));
 
     const activeState = await resolveState(stateId as string | undefined);
-    const cycle = await getOrCreateCurrentCycle(activeState.id);
-    const clock = await db('world_clock').first();
-    const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
     const result = await db.transaction(async (trx) => {
+      // Fetch cycle inside the transaction so all reads share the same connection.
+      const cycle = await getOrCreateCurrentCycle(activeState.id, trx);
+      const clock = await trx('world_clock').first();
+      const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
+
       const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
       if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
 
@@ -937,12 +940,17 @@ export async function manageCoalition(req: Request, res: Response, next: NextFun
 
     const activeState = await resolveState(req.query.stateId as string | undefined);
 
-    const cycle = await getOrCreateCurrentCycle(activeState.id);
-    if (cycle.phase !== 'formation') {
+    // Quick read-only phase gate (no writes, raw db is fine here).
+    const phaseCheck = await getOrCreateCurrentCycle(activeState.id);
+    if (phaseCheck.phase !== 'formation') {
       return next(new AppError('Coalition actions only allowed during formation phase', 409, 'CONFLICT'));
     }
 
     const result = await db.transaction(async (trx) => {
+      // Re-fetch inside the transaction so all subsequent reads/writes are on
+      // the same connection and the cycle object is authoritative within trx.
+      const cycle = await getOrCreateCurrentCycle(activeState.id, trx);
+
       const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
       if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
 
@@ -1129,11 +1137,11 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
 
     const activeState = await resolveState(req.query.stateId as string | undefined);
 
-    const cycle = await getOrCreateCurrentCycle(activeState.id);
-    // Note: route-level blockPhases('polling', 'formation') already gates this endpoint.
-    // No additional phase check needed here — governing party ownership is the gate.
-
     const result = await db.transaction(async (trx) => {
+      // Fetch cycle inside the transaction (Bug 5 fix: cross-connection read guard).
+      // Route-level blockPhases('polling', 'formation') already gates this endpoint.
+      const cycle = await getOrCreateCurrentCycle(activeState.id, trx);
+
       const char = await trx('characters').where({ user_id: userId }).first();
       if (!char) throw new AppError('No character found', 404, 'NOT_FOUND');
 
@@ -2395,7 +2403,8 @@ export async function setCampaignStrategyHandler(req: Request, res: Response, ne
 
       const clock = await trx('world_clock').first();
       const currentArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
-      const cycle = await getOrCreateCurrentCycle(activeState.id);
+      // Pass trx so the cycle read/write runs on the same connection as this transaction.
+      const cycle = await getOrCreateCurrentCycle(activeState.id, trx);
 
       await setCampaignStrategy(trx, membership.party_id, cycle.id, character.id, strategy, currentArc);
 
@@ -2445,7 +2454,8 @@ export async function allocateCampaignBudget(req: Request, res: Response, next: 
       }
 
       const activeState = await trx('pol_states').where({ is_active: true }).first();
-      const cycle = await getOrCreateCurrentCycle(activeState.id);
+      // Pass trx so the cycle read/write runs on the same connection as this transaction.
+      const cycle = await getOrCreateCurrentCycle(activeState.id, trx);
       const clock = await trx('world_clock').first();
       const currentArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
