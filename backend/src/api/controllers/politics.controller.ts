@@ -235,7 +235,10 @@ export async function getConstituencies(req: Request, res: Response, next: NextF
     const activeState = await resolveState(req.query.stateId as string | undefined);
     const cycle = await getOrCreateCurrentCycle(activeState.id);
 
-    const constituencies = await db('pol_constituencies').where({ state_id: activeState.id }).orderBy('name');
+    // Use NULLS LAST so constituencies seeded without a name don't throw/sort oddly.
+    const constituencies = await db('pol_constituencies')
+      .where({ state_id: activeState.id })
+      .orderByRaw('name NULLS LAST');
 
     // Enrich with current-cycle candidacy data
     const candidates = await db('pol_candidates')
@@ -264,8 +267,8 @@ export async function getConstituencies(req: Request, res: Response, next: NextF
       myConstituencyId,
       constituencies: constituencies.map((c: any) => ({
         id: c.id,
-        name: c.name,
-        registeredVoters: c.registered_voters,
+        name: c.name ?? `Constituency ${c.id.slice(0, 6)}`,
+        registeredVoters: c.registered_voters ?? 80000,
         candidates: byConstituency[c.id] || [],
       })),
     });
@@ -525,18 +528,22 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
       conditions
     }));
 
-    // Current projection (all resolved campaign effort).
-    const engineCands = await buildEngineCandidates(db, cycle.id);
-    const projection = runElection({ candidates: engineCands, constituencies: engineConstituencies });
+    // buildEngineCandidates calls ensureCandidates internally which can INSERT
+    // new NPC party / constituency rows. Wrap both calls in a transaction so any
+    // partial failures are rolled back atomically (Bug 7 fix).
+    const { projection, prevProjection } = await db.transaction(async (trx) => {
+      const engineCands = await buildEngineCandidates(trx, cycle.id);
+      const proj = runElection({ candidates: engineCands, constituencies: engineConstituencies });
 
-    // Previous-month projection powers momentum. Free & safe: the engine is pure and re-runnable.
-    let prevProjection = null;
-    try {
-      const prevCands = await buildEngineCandidates(db, cycle.id, actualArc - 1);
-      prevProjection = runElection({ candidates: prevCands, constituencies: engineConstituencies });
-    } catch {
-      prevProjection = null;
-    }
+      let prevProj = null;
+      try {
+        const prevCands = await buildEngineCandidates(trx, cycle.id, actualArc - 1);
+        prevProj = runElection({ candidates: prevCands, constituencies: engineConstituencies });
+      } catch {
+        prevProj = null;
+      }
+      return { projection: proj, prevProjection: prevProj };
+    });
 
     // Who is asking? (party + candidacy this cycle) — nullable for spectators.
     let myPartyId: string | null = null;

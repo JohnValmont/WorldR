@@ -17,6 +17,7 @@ interface Props {
   character: any;
   parties: any[];
   myAp?: { current_ap: number; ap_cap: number };
+  myPc?: { current_pc: number; pc_cap: number };
   onRefresh?: () => void;
 }
 
