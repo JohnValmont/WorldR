@@ -46,9 +46,38 @@ export default function PoliticsDesk() {
   const myAp = (myApData as { current_ap: number; ap_cap: number }) || { current_ap: 0, ap_cap: 12 };
   const myPc = (myPcData as { current_pc: number; pc_cap: number }) || { current_pc: 0, pc_cap: 10 };
 
+  const [isAdminDynamic, setIsAdminDynamic] = useState(false);
+  const [isAdvancingPol, setIsAdvancingPol] = useState(false);
+  const user = useAuthStore(state => state.user);
+  const isAdmin = user?.role === 'admin' || isAdminDynamic;
+
+  useEffect(() => {
+    authApi.me().then(res => setIsAdminDynamic(res.data.isAdmin)).catch(() => {});
+  }, []);
+
   const loadData = useCallback(async () => {
     await Promise.all([mutateChar(), mutateOver(), mutateParties(), mutateLedger(), mutateAp(), mutatePc()]);
   }, [mutateChar, mutateOver, mutateParties, mutateLedger, mutateAp, mutatePc]);
+
+  const handleForcePolTick = async () => {
+    if (isAdvancingPol) return;
+    setIsAdvancingPol(true);
+    try {
+      const res = await worldApi.forcePoliticsTick();
+      const result = res?.data ?? res;
+      if (result?.status === 'success' || result?.data?.status === 'ticked') {
+        await loadData();
+        window.location.reload();
+        return;
+      }
+      alert(result?.message || 'Politics tick executed');
+      await loadData();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to advance politics tick');
+    } finally {
+      setIsAdvancingPol(false);
+    }
+  };
 
   const loading = !character && !errChar && !overview && !errOver;
   const error = errChar || errOver || errParties;
@@ -127,6 +156,15 @@ export default function PoliticsDesk() {
                 <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">Next Month</span>
                 <span className="text-sm font-bold font-mono text-zinc-500">PAUSED</span>
               </div>
+            )}
+            {isAdmin && (
+              <button
+                onClick={handleForcePolTick}
+                disabled={isAdvancingPol}
+                className="px-2.5 py-1.5 text-[10px] font-mono font-bold uppercase tracking-wider rounded border border-purple-500/50 bg-gradient-to-r from-purple-900/60 to-indigo-900/60 hover:from-purple-800/80 hover:to-indigo-800/80 text-purple-200 shadow-[0_0_12px_rgba(147,51,234,0.25)] transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {isAdvancingPol ? 'PROCESSING...' : '⚡ FORCE POL TICK'}
+              </button>
             )}
           </div>
         </div>

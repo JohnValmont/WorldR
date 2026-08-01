@@ -16,6 +16,7 @@ const T = {
 export default function WorldTimeControl() {
   const { clock, secondsToTick, isBizTickStalled, refresh } = useWorldClock();
   const [isAdvancing, setIsAdvancing] = useState(false);
+  const [isAdvancingPol, setIsAdvancingPol] = useState(false);
   const [isAdminDynamic, setIsAdminDynamic] = useState(false);
   const user = useAuthStore(state => state.user);
   const isAdmin = user?.role === 'admin' || isAdminDynamic;
@@ -54,6 +55,27 @@ export default function WorldTimeControl() {
       alert(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to advance world tick');
     } finally {
       setIsAdvancing(false);
+    }
+  };
+
+  const handleForcePolTick = async () => {
+    if (isAdvancingPol) return;
+    setIsAdvancingPol(true);
+    try {
+      const res = await worldApi.forcePoliticsTick();
+      const result = res?.data ?? res;
+
+      if (result?.data?.status === 'ticked' || result?.status === 'success') {
+        await refresh();
+        window.location.reload();
+        return;
+      }
+      alert(result?.message || 'Politics tick executed');
+      await refresh();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to advance politics tick');
+    } finally {
+      setIsAdvancingPol(false);
     }
   };
 
@@ -112,6 +134,26 @@ export default function WorldTimeControl() {
             }}
           >
             {isAdvancing ? 'PROCESSING...' : 'FORCE BIZ TICK'}
+          </button>
+          <button
+            onClick={handleForcePolTick}
+            disabled={isAdvancingPol}
+            style={{
+              background: isAdvancingPol ? 'rgba(255,255,255,0.03)' : 'linear-gradient(135deg, #7B3FD4, #4F1D8A)',
+              color: isAdvancingPol ? T.muted : '#FFFFFF',
+              border: `1px solid ${isAdvancingPol ? T.border : '#7B3FD4'}`,
+              padding: '6px 12px',
+              fontSize: '10px',
+              fontFamily: 'monospace',
+              textTransform: 'uppercase',
+              letterSpacing: '0.15em',
+              fontWeight: 700,
+              cursor: isAdvancingPol ? 'not-allowed' : 'pointer',
+              opacity: isAdvancingPol ? 0.7 : 1,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {isAdvancingPol ? 'PROCESSING...' : 'FORCE POL TICK'}
           </button>
         </div>
       )}
