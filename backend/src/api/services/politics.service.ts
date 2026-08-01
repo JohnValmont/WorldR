@@ -205,16 +205,33 @@ export async function refreshApCap(trx: any, characterId: string): Promise<void>
 
 /** Compute the PC cap for a character based on their current office(s). */
 export async function computePcCap(trx: any, characterId: string): Promise<number> {
-  // Premier gets a higher cap; Official Opposition leader gets a medium cap.
-  const officeRow = await trx('pol_offices').where({ holder_character_id: characterId }).first();
-  if (officeRow) return PC_CAP_PREMIER;
-  // Check if character leads a party that is the largest non-government party
+  // Only the 'premier' office earns the elevated PC cap. Other offices (minister,
+  // speaker, committee chair, etc.) stored in pol_offices do NOT count.
+  const premierOffice = await trx('pol_offices')
+    .where({ holder_character_id: characterId, office: 'premier' })
+    .first();
+  if (premierOffice) return PC_CAP_PREMIER;
+
+  // Check if character leads a party that holds seats in the CURRENT open cycle.
+  // We scope the seat lookup to the latest open cycle to avoid counting seats from
+  // previous cycles (Bug 4: wrong cycle scope on the opposition cap check).
   const membership = await trx('pol_party_members')
     .where({ character_id: characterId, role: 'leader' }).first();
   if (membership) {
-    // Simple proxy: if party has seats but is not in government, they are opposition
-    const seat = await trx('pol_council_seats').where({ party_id: membership.party_id }).first();
-    if (seat) return PC_CAP_OPPOSITION;
+    // Find the most-recent open cycle for the party's state
+    const partyRow = await trx('pol_parties').where({ id: membership.party_id }).first();
+    if (partyRow) {
+      const openCycle = await trx('pol_cycles')
+        .where({ state_id: partyRow.state_id, status: 'open' })
+        .orderBy('polling_arc', 'desc')
+        .first();
+      if (openCycle) {
+        const seat = await trx('pol_council_seats')
+          .where({ party_id: membership.party_id, cycle_id: openCycle.id })
+          .first();
+        if (seat) return PC_CAP_OPPOSITION;
+      }
+    }
   }
   return PC_CAP_BASE;
 }
@@ -448,9 +465,12 @@ export function derivePhase(
   if (currentMonth < startFiling) return 'governing';
   if (currentMonth >= startFiling && currentMonth < startCampaign) return 'filing';
   if (currentMonth >= startCampaign && currentMonth < cycle.polling_arc) return 'campaign';
-  // Use >= so that if the world-clock tick skips the exact polling_arc month the
-  // election is still triggered on the next tick rather than being silently skipped.
-  if (currentMonth >= cycle.polling_arc && currentMonth <= cycle.formation_end_arc) return 'polling';
+  // polling_arc is election day. Arcs strictly after it until formation_end_arc are
+  // the formation window. The processPoliticalArc catch-all (>= polling_arc + !hasResults)
+  // handles the case where the tick skips the exact polling_arc month, so we keep
+  // derivePhase as a clean two-way split: polling = day-of, formation = after.
+  if (currentMonth === cycle.polling_arc) return 'polling';
+  if (currentMonth > cycle.polling_arc && currentMonth <= cycle.formation_end_arc) return 'formation';
   if (currentMonth > cycle.formation_end_arc) return 'governing';
 
   return 'governing';
@@ -806,13 +826,15 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
     !hasResults
   ) {
     await resolveElection(trx, cycle.id);
-    // Update local reference so processGovernmentFormation runs below
     activePhase = 'polling';
     await trx('pol_cycles').where({ id: cycle.id }).update({ phase: 'polling' });
   }
 
   if (activePhase === 'polling' || activePhase === 'formation') {
-    await processGovernmentFormation(trx, cycle, currentMonth);
+    // Re-fetch the cycle row so processGovernmentFormation sees the up-to-date
+    // phase / status that resolveElection or prior ticks may have written.
+    const freshCycle = await trx('pol_cycles').where({ id: cycle.id }).first();
+    await processGovernmentFormation(trx, freshCycle ?? cycle, currentMonth);
   }
 
   if (activePhase === 'governing') {
