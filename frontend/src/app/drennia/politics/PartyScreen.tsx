@@ -144,7 +144,7 @@ function loyaltyTone(loyalty: number) {
   return T.red;
 }
 
-// ── Faction Panel ─────────────────────────────────────────────────────────────
+// ── Faction Panel ──────────────────��──────────────────────────────────────────
 function FactionPanel({ partyId, onSpendPc }: { partyId: string; onSpendPc?: (action: string, factionId?: string) => Promise<void> }) {
   const [data, setData] = useState<{ cohesion: number; factions: any[] } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -1207,6 +1207,212 @@ function NewsFeedPanel() {
   );
 }
 
+// ── All Parties Panel ─────────────────────────────────────────────────────────
+// Shows every party visible in the current jurisdiction, with Join action for
+// non-members. Polled from the parent's 30-second SWR so it stays live.
+function AllPartiesPanel({
+  parties,
+  myPartyId,
+  characterId,
+  onJoin,
+  joinBusy,
+  joinErr,
+}: {
+  parties: any[];
+  myPartyId: string | undefined;
+  characterId: string | undefined;
+  onJoin: (id: string) => void;
+  joinBusy: string | null;
+  joinErr: string | null;
+}) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  // Sort: NPC parties last, then by popularity desc
+  const sorted = [...parties].sort((a, b) => {
+    if (a.is_npc !== b.is_npc) return a.is_npc ? 1 : -1;
+    return Number(b.popularity ?? 0) - Number(a.popularity ?? 0);
+  });
+
+  if (sorted.length === 0) {
+    return (
+      <div style={{ color: T.faint, fontSize: 13, padding: '12px 0', fontStyle: 'italic' }}>
+        No parties exist in this jurisdiction yet. Be the first to found one.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {sorted.map((p: any) => {
+        const isMyParty = p.id === myPartyId;
+        const color = p.identity?.color || p.colorHex || '#6C7A89';
+        const pop = Number(p.popularity ?? 0);
+        const members = Number(p.member_count ?? p.members?.length ?? 0);
+        const treasury = p.treasury != null ? Number(p.treasury) : null;
+        const seats = Number(p.seat_count ?? 0);
+        const doctrine = CREED_NAME_BY_ID[(p.doctrine_id || p.doctrineId) as CreedId] || 'Independent';
+        const isExp = expanded === p.id;
+        const platform = parsePlatform(p.platform);
+
+        return (
+          <div key={p.id} style={{
+            background: isMyParty ? `${color}10` : 'rgba(10,12,20,0.6)',
+            border: `1px solid ${isMyParty ? color + '40' : 'rgba(255,255,255,0.06)'}`,
+            borderLeft: `3px solid ${color}`,
+            borderRadius: 12,
+            overflow: 'hidden',
+            transition: 'all 0.2s ease',
+          }}>
+            {/* Header row — always visible */}
+            <div
+              onClick={() => setExpanded(isExp ? null : p.id)}
+              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', cursor: 'pointer' }}
+              onMouseEnter={e => { if (!isExp) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            >
+              {/* Colour dot */}
+              <div style={{
+                width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                background: color, boxShadow: `0 0 12px ${color}60`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: MONO, fontSize: 10, fontWeight: 700, color: '#000',
+              }}>
+                {p.abbreviation?.slice(0, 2) || p.name?.slice(0, 2)}
+              </div>
+
+              {/* Name + meta */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ color: T.ivory, fontSize: 14, fontWeight: 700, fontFamily: SANS }}>{p.name}</span>
+                  {p.abbreviation && (
+                    <span style={{ color: T.muted, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase' }}>[{p.abbreviation}]</span>
+                  )}
+                  {isMyParty && (
+                    <span style={{ padding: '2px 8px', borderRadius: 4, background: `${color}25`, color, fontSize: 9, fontFamily: MONO, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', border: `1px solid ${color}50` }}>
+                      Your Party
+                    </span>
+                  )}
+                  {p.is_npc && (
+                    <span style={{ padding: '2px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', color: T.faint, fontSize: 9, fontFamily: MONO, letterSpacing: '0.1em', textTransform: 'uppercase', border: `1px solid rgba(255,255,255,0.08)` }}>
+                      NPC
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 14, marginTop: 5, flexWrap: 'wrap' }}>
+                  <span style={{ color: color, fontSize: 10, fontFamily: MONO, fontWeight: 600 }}>{doctrine}</span>
+                  {p.slogan && <span style={{ color: T.faint, fontSize: 10, fontStyle: 'italic', fontFamily: SANS }}>&ldquo;{p.slogan}&rdquo;</span>}
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div style={{ display: 'flex', gap: 20, alignItems: 'center', flexShrink: 0 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: T.faint, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>Members</div>
+                  <div style={{ color: T.ivory, fontSize: 14, fontFamily: MONO, fontWeight: 700 }}>{members}</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: T.faint, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>Popularity</div>
+                  <div style={{ color: pop >= 60 ? T.mint : pop >= 30 ? T.gold : T.muted, fontSize: 14, fontFamily: MONO, fontWeight: 700 }}>{pop}</div>
+                </div>
+                {seats > 0 && (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ color: T.faint, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>Seats</div>
+                    <div style={{ color: T.blueBright, fontSize: 14, fontFamily: MONO, fontWeight: 700 }}>{seats}</div>
+                  </div>
+                )}
+                {treasury != null && (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ color: T.faint, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>Treasury</div>
+                    <div style={{ color: T.mint, fontSize: 13, fontFamily: MONO, fontWeight: 700 }}>${treasury.toLocaleString()}</div>
+                  </div>
+                )}
+                {/* Join button — only for non-member players on player-owned parties when the character has no party */}
+                {!myPartyId && !isMyParty && !p.is_npc && (
+                  <button
+                    disabled={joinBusy === p.id}
+                    onClick={e => { e.stopPropagation(); onJoin(p.id); }}
+                    style={{
+                      padding: '7px 16px', borderRadius: 7, cursor: joinBusy === p.id ? 'not-allowed' : 'pointer',
+                      background: `${color}18`, border: `1px solid ${color}50`,
+                      color, fontSize: 10, fontFamily: MONO, letterSpacing: '0.1em', textTransform: 'uppercase',
+                      fontWeight: 700, opacity: joinBusy === p.id ? 0.5 : 1,
+                      transition: 'all 0.15s ease', flexShrink: 0,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = `${color}30`; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = `${color}18`; }}
+                  >
+                    {joinBusy === p.id ? '…' : 'Join'}
+                  </button>
+                )}
+                {/* Expand chevron */}
+                <div style={{ color: T.faint, fontSize: 10, transition: 'transform 0.2s', transform: isExp ? 'rotate(180deg)' : 'none', marginLeft: 2 }}>▾</div>
+              </div>
+            </div>
+
+            {/* Expanded detail — platform bars */}
+            {isExp && (
+              <div style={{ padding: '0 18px 18px', borderTop: `1px solid ${color}15` }}>
+                {/* Ideology axes or platform bars */}
+                {Object.keys(platform).length > 0 ? (
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ color: T.faint, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 10 }}>Platform</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {PILLARS.map(pillar => {
+                        const val = isNaN(Number(platform[pillar.axis])) ? 50 : Number(platform[pillar.axis] ?? 50);
+                        return (
+                          <div key={pillar.axis}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                              <span style={{ color: T.muted, fontSize: 11 }}>{pillar.name}</span>
+                              <span style={{ color: color, fontSize: 10, fontFamily: MONO }}>{nearestRung(pillar.axis, val)}</span>
+                            </div>
+                            <div style={{ height: 4, background: 'rgba(0,0,0,0.4)', borderRadius: 99 }}>
+                              <div style={{ width: `${val}%`, height: '100%', borderRadius: 99, background: color, opacity: 0.7 }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ color: T.faint, fontSize: 12, marginTop: 12, fontStyle: 'italic' }}>No platform data available.</div>
+                )}
+
+                {/* Members roster */}
+                {p.members && p.members.length > 0 && (
+                  <div style={{ marginTop: 16 }}>
+                    <div style={{ color: T.faint, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>Roster</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {p.members.map((m: any) => (
+                        <div key={m.id} style={{
+                          padding: '4px 10px', borderRadius: 6,
+                          background: m.role === 'leader' ? `${color}18` : 'rgba(255,255,255,0.04)',
+                          border: `1px solid ${m.role === 'leader' ? color + '40' : 'rgba(255,255,255,0.07)'}`,
+                          display: 'flex', alignItems: 'center', gap: 6,
+                        }}>
+                          {m.role === 'leader' && <Crown size={10} style={{ color }} />}
+                          <span style={{ color: m.role === 'leader' ? color : T.muted, fontSize: 11, fontFamily: SANS, fontWeight: m.role === 'leader' ? 700 : 400 }}>
+                            {m.name}
+                          </span>
+                          {m.is_npc === false && (
+                            <span style={{ padding: '1px 5px', background: 'rgba(99,179,237,0.15)', border: '1px solid rgba(99,179,237,0.3)', color: '#63b3ed', fontSize: 8, fontFamily: MONO, textTransform: 'uppercase', borderRadius: 3 }}>
+                              Player
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {joinErr && <div style={{ color: T.red, fontSize: 12, fontFamily: MONO, marginTop: 4 }}>{joinErr}</div>}
+    </div>
+  );
+}
+
 export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, overview, character, parties, myAp, myPc, onRefresh, onNavigate }: Props) {
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
@@ -1221,6 +1427,20 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [donationAmount, setDonationAmount] = useState<number>(0);
+
+  // Join party state (for the AllPartiesPanel — only active when character has no party)
+  const [joinBusy, setJoinBusy] = useState<string | null>(null);
+  const [joinErr, setJoinErr] = useState<string | null>(null);
+
+  async function handleJoinParty(partyId: string) {
+    setJoinBusy(partyId); setJoinErr(null);
+    try {
+      await politicsApi.joinParty(partyId);
+      await onRefresh();
+    } catch (e: any) {
+      setJoinErr(e?.response?.data?.message || e?.response?.data?.error || 'Failed to join party');
+    } finally { setJoinBusy(null); }
+  }
 
   async function spendPc(action: string, factionId?: string): Promise<any> {
     const res = await politicsApi.spendPc(action, factionId);
@@ -1737,6 +1957,30 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           {/* News Feed */}
           <NewsFeedPanel />
 
+          {/* ── All Parties in Jurisdiction ─────────────────────────────────── */}
+          {Array.isArray(parties) && parties.length > 1 && (
+            <Panel
+              title={
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Users size={13} />
+                  <span>All Parties in Jurisdiction</span>
+                  <span style={{ padding: '1px 7px', borderRadius: 10, background: 'rgba(255,255,255,0.07)', color: T.muted, fontSize: 10, fontFamily: MONO }}>
+                    {parties.length}
+                  </span>
+                </div>
+              }
+            >
+              <AllPartiesPanel
+                parties={parties}
+                myPartyId={myParty?.id}
+                characterId={character?.id}
+                onJoin={handleJoinParty}
+                joinBusy={joinBusy}
+                joinErr={joinErr}
+              />
+            </Panel>
+          )}
+
           <Panel title="Roster">
             <div style={{ color: T.muted, fontSize: 14, marginBottom: 16 }}>
               Bench: <span style={{ color: T.ivory, fontWeight: 600 }}>{myParty.members?.length ?? myParty.member_count ?? 0}</span> candidate(s).
@@ -1793,11 +2037,39 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
           </div>
         </div>
       ) : (
-        <PartyCreation 
-          onComplete={found} 
-          initialLeaderName={character?.name || ''} 
-          onCancel={onNavigate ? () => onNavigate('overview') : undefined}
-        />
+        <>
+          {/* Show all existing parties so an unaffiliated player can browse + join */}
+          {Array.isArray(parties) && parties.length > 0 && (
+            <Panel
+              title={
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Users size={13} />
+                  <span>Active Parties — Join or Found Your Own</span>
+                  <span style={{ padding: '1px 7px', borderRadius: 10, background: 'rgba(255,255,255,0.07)', color: T.muted, fontSize: 10, fontFamily: MONO }}>
+                    {parties.length}
+                  </span>
+                </div>
+              }
+            >
+              <div style={{ color: T.faint, fontSize: 12, marginBottom: 16, lineHeight: 1.6 }}>
+                Browse existing parties and click <strong style={{ color: T.ivory }}>Join</strong> to enlist under a leader, or scroll down to found your own.
+              </div>
+              <AllPartiesPanel
+                parties={parties}
+                myPartyId={undefined}
+                characterId={character?.id}
+                onJoin={handleJoinParty}
+                joinBusy={joinBusy}
+                joinErr={joinErr}
+              />
+            </Panel>
+          )}
+          <PartyCreation 
+            onComplete={found} 
+            initialLeaderName={character?.name || ''} 
+            onCancel={onNavigate ? () => onNavigate('overview') : undefined}
+          />
+        </>
       )}
     </div>
   );
