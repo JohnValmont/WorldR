@@ -383,7 +383,7 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
 
       const newMonth = month === 12 ? 1 : month + 1;
       const newYear = month === 12 ? year + 1 : year;
-      const intervalMs = (clock.pol_real_seconds_per_month || 86400) * 1000;
+      const intervalMs = (clock.pol_real_seconds_per_month || 28800) * 1000;
       const maxCatchupMs = MAX_CATCHUP_TICKS * intervalMs;
       const anchor = !opts.force && nextClose > 0 && now - nextClose < maxCatchupMs ? nextClose : now;
       const monthStartedAt = new Date(anchor);
