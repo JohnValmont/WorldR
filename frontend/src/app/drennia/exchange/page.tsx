@@ -1071,8 +1071,7 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
         <div style={{ ...label, letterSpacing: '0.2em', marginBottom: '4px' }}>Drennport Exchange · Acquisition Desk</div>
         <h2 style={{ margin: '0 0 6px', fontSize: '20px', fontWeight: 700, color: T.ivory }}>Corporate Acquisitions</h2>
         <p style={{ margin: 0, fontSize: '12px', color: T.muted, lineHeight: 1.7 }}>
-          Distressed companies are put up for competitive auction. Register your interest during the registration window,
-          then place bids when the auction opens. Highest bid at close wins — debt is cleared on transfer.
+          Distressed companies are put up for competitive auction. After a 6-month notice period, the auction opens for bidding. Highest bid at close wins — debt is cleared on transfer.
         </p>
       </div>
 
@@ -1080,7 +1079,7 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
       <div style={{ display: 'flex', gap: '0', marginBottom: '32px', overflow: 'hidden', border: `1px solid ${T.border}` }}>
         {[
           { phase: '1', label: 'Company Distressed', sub: 'Debt > 5× book value', color: '#B85555' },
-          { phase: '2', label: 'Registration', sub: '6 game months', color: '#8F6A2A' },
+          { phase: '2', label: 'Notice Period', sub: '6 game months', color: '#8F6A2A' },
           { phase: '3', label: 'Bidding', sub: '3 game months', color: T.gold },
           { phase: '4', label: 'Settlement', sub: 'Company transfers', color: T.mint },
         ].map((s, i) => (
@@ -1108,7 +1107,7 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
         <div style={{ marginBottom: '32px' }}>
           <div style={{ ...label, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8F6A2A', display: 'inline-block' }} />
-            Registration Phase — {registrationAuctions.length} upcoming
+            Notice Period — {registrationAuctions.length} upcoming
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {registrationAuctions.map((a) => (
@@ -1117,7 +1116,7 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap' }}>
                   <div style={{ flex: '1 1 260px' }}>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                      <span style={{ ...mono, fontSize: '8px', color: '#C9A24A', textTransform: 'uppercase', letterSpacing: '0.15em', background: 'rgba(201,162,74,0.1)', padding: '2px 7px', border: '1px solid rgba(201,162,74,0.2)' }}>Registration Open</span>
+                      <span style={{ ...mono, fontSize: '8px', color: '#C9A24A', textTransform: 'uppercase', letterSpacing: '0.15em', background: 'rgba(201,162,74,0.1)', padding: '2px 7px', border: '1px solid rgba(201,162,74,0.2)' }}>Notice Period</span>
                     </div>
                     <div style={{ fontSize: '17px', fontWeight: 700, color: T.ivory, marginBottom: '3px' }}>{a.name}</div>
                     <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '12px' }}>{a.industry_id} · {a.country_id}</div>

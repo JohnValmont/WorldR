@@ -4,5 +4,5 @@ async function check() {
   const res = await pool.query("SELECT id, name, is_npc, owner_character_id FROM companies WHERE name = 'Arcas Engineering'");
   console.table(res.rows);
   pool.end();
-}
+  }
 check();
