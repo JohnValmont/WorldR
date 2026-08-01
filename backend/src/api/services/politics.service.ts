@@ -1550,6 +1550,37 @@ async function performCycleRollover(trx: any, oldCycle: any, currentMonth: numbe
   });
 }
 
+/**
+ * Resolves the cycle_id that holds the active sitting legislature (council seats & governing coalition).
+ * 1. If the current open cycle has seats recorded (e.g. freshly resolved election), returns it.
+ * 2. Otherwise returns the latest cycle for this state that has recorded council seats.
+ * 3. Falls back to current cycle id.
+ */
+export async function getSittingCycleId(dbOrTrx: any, stateId: string, currentCycle?: any): Promise<string> {
+  if (!currentCycle) {
+    currentCycle = await dbOrTrx('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
+  }
+  if (!currentCycle) return '';
+
+  const currentSeat = await dbOrTrx('pol_council_seats').where({ cycle_id: currentCycle.id }).first();
+  if (currentSeat) {
+    return currentCycle.id;
+  }
+
+  const latestCycleWithSeats = await dbOrTrx('pol_council_seats')
+    .join('pol_cycles', 'pol_council_seats.cycle_id', 'pol_cycles.id')
+    .where('pol_cycles.state_id', stateId)
+    .orderBy('pol_cycles.cycle_number', 'desc')
+    .select('pol_cycles.id')
+    .first();
+
+  if (latestCycleWithSeats?.id) {
+    return latestCycleWithSeats.id;
+  }
+
+  return currentCycle.id;
+}
+
 export async function resolveBills(trx: any, stateId: string, cycleId: string, currentMonth: number) {
   const proposedBills = await trx('pol_bills')
     .where({ state_id: stateId, status: 'proposed' })
@@ -1558,11 +1589,7 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
   if (proposedBills.length === 0) return;
 
   const currentCycle = await trx('pol_cycles').where({ id: cycleId }).first();
-  let targetCycleId = cycleId;
-  if (currentCycle && currentCycle.cycle_number > 1) {
-    const prevCycle = await trx('pol_cycles').where({ state_id: stateId, cycle_number: currentCycle.cycle_number - 1 }).first();
-    if (prevCycle) targetCycleId = prevCycle.id;
-  }
+  const targetCycleId = await getSittingCycleId(trx, stateId, currentCycle);
 
   const seats = await trx('pol_council_seats').where({ cycle_id: targetCycleId });
   const seatCounts: Record<string, number> = {};
@@ -1582,16 +1609,8 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
 
     const npcParties = await trx('pol_parties').where({ state_id: stateId, is_npc: true });
     
-    // Coalition lookup must use the same targetCycleId as the seat counts so that
-    // NPC auto-votes reflect the correct governing bloc. Fall back to the previous
-    // cycle when the fresh cycle has no coalition yet (post-rollover window).
-    let coalition = await trx('pol_coalitions').where({ cycle_id: targetCycleId }).whereIn('status', ['formed', 'minority']).first();
-    if (!coalition && currentCycle && currentCycle.cycle_number > 1 && targetCycleId === cycleId) {
-      const prevForCoalition = await trx('pol_cycles').where({ state_id: stateId, cycle_number: currentCycle.cycle_number - 1 }).first();
-      if (prevForCoalition) {
-        coalition = await trx('pol_coalitions').where({ cycle_id: prevForCoalition.id }).whereIn('status', ['formed', 'minority']).first();
-      }
-    }
+    // Coalition lookup uses targetCycleId (the sitting cycle)
+    const coalition = await trx('pol_coalitions').where({ cycle_id: targetCycleId }).whereIn('status', ['formed', 'minority']).first();
     const parsedGovMembers = coalition ? (typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : (coalition.member_party_ids ?? {})) : {};
     const govMembers = parsedGovMembers.accepted || (Array.isArray(parsedGovMembers) ? parsedGovMembers : []);
 

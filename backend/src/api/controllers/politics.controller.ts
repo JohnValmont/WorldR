@@ -37,6 +37,7 @@ import {
   getLegacySummary,
   emitStory,
   processGovernmentFormation,
+  getSittingCycleId,
 } from '../services/politics.service';
 import {
   PARTY_FOUNDING_COST,
@@ -568,14 +569,8 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
       .where({ state_id: activeState.id })
       .select('id', 'name', 'is_npc', 'leader_character_id');
 
-    // Currently-held council seats (loss-aversion). Mirror getCouncil's cycle choice.
-    let heldCycleId = cycle.id;
-    if (['filing', 'campaign', 'polling'].includes(cycle.phase) && cycle.cycle_number > 1) {
-      const prevCycle = await db('pol_cycles')
-        .where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 })
-        .first();
-      if (prevCycle) heldCycleId = prevCycle.id;
-    }
+    // Currently-held council seats (loss-aversion).
+    const heldCycleId = await getSittingCycleId(db, activeState.id, cycle);
     const heldSeats = await db('pol_council_seats').where({ cycle_id: heldCycleId }).select('party_id');
     const heldSeatsByParty: Record<string, number> = {};
     for (const s of heldSeats) heldSeatsByParty[s.party_id] = (heldSeatsByParty[s.party_id] || 0) + 1;
@@ -853,11 +848,7 @@ export async function declareCandidacy(req: Request, res: Response, next: NextFu
       }
 
       // Check incumbent status
-      let targetCycleId = cycle.id;
-      if (cycle.cycle_number > 1) {
-        const prevCycle = await trx('pol_cycles').where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 }).first();
-        if (prevCycle) targetCycleId = prevCycle.id;
-      }
+      const targetCycleId = await getSittingCycleId(trx, activeState.id, cycle);
       
       const existingSeat = await trx('pol_council_seats')
         .where({ cycle_id: targetCycleId, character_id: character.id })
@@ -997,8 +988,9 @@ export async function manageCoalition(req: Request, res: Response, next: NextFun
         if (accepted.has(targetPartyId)) throw new AppError('Already in coalition', 409, 'CONFLICT');
         // Only allow inviting parties that actually hold seats in this cycle.
         // Inviting a 0-seat party would create an orphan record and inflate no count.
+        const sittingCycleId = await getSittingCycleId(trx, activeState.id, cycle);
         const targetSeats = await trx('pol_council_seats')
-          .where({ party_id: targetPartyId, cycle_id: cycle.id })
+          .where({ party_id: targetPartyId, cycle_id: sittingCycleId })
           .count('* as count')
           .first();
         if (Number(targetSeats?.count ?? 0) === 0) {
@@ -1046,13 +1038,7 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
 
     const cycle = await getOrCreateCurrentCycle(activeState.id);
     
-    // Determine the actual cycle ID to get seats for.
-    // If we're in early phases, we might want the previous cycle's seats.
-    let targetCycleId = cycle.id;
-    if (['filing', 'campaign', 'polling'].includes(cycle.phase) && cycle.cycle_number > 1) {
-      const prevCycle = await db('pol_cycles').where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 }).first();
-      if (prevCycle) targetCycleId = prevCycle.id;
-    }
+    const targetCycleId = await getSittingCycleId(db, activeState.id, cycle);
 
     const seats = await db('pol_council_seats').where({ cycle_id: targetCycleId });
     const seatCounts: Record<string, number> = {};
@@ -1254,8 +1240,9 @@ export async function voteBill(req: Request, res: Response, next: NextFunction) 
       if (!partyMember) throw new AppError('Only party leaders can cast bloc votes', 403, 'FORBIDDEN');
 
       const cycle = await getOrCreateCurrentCycle(bill.state_id, trx);
+      const sittingCycleId = await getSittingCycleId(trx, bill.state_id, cycle);
       const hasSeat = await trx('pol_council_seats')
-        .where({ party_id: partyMember.party_id, cycle_id: cycle.id })
+        .where({ party_id: partyMember.party_id, cycle_id: sittingCycleId })
         .first();
       if (!hasSeat) {
         throw new AppError(
@@ -1645,12 +1632,8 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
 
     const resultBills = [];
 
-    // Get current seats
-    let targetCycleId = cycle.id;
-    if (['filing', 'campaign', 'polling'].includes(cycle.phase) && cycle.cycle_number > 1) {
-      const prevCycle = await db('pol_cycles').where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 }).first();
-      if (prevCycle) targetCycleId = prevCycle.id;
-    }
+    // Get current sitting seats & coalition
+    const targetCycleId = await getSittingCycleId(db, activeState.id, cycle);
 
     const seats = await db('pol_council_seats').where({ cycle_id: targetCycleId });
     const seatCounts: Record<string, number> = {};
@@ -1658,14 +1641,7 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
       seatCounts[s.party_id] = (seatCounts[s.party_id] || 0) + 1;
     }
 
-    // Coal lookup must use the SAME targetCycleId as the seat counts above so
-    // yea/nay tallies are consistent. Fall back to previous cycle after rollover.
-    let coalition = cycle ? await db('pol_coalitions').where({ cycle_id: targetCycleId }).whereIn('status', ['formed', 'minority']).first() : null;
-    if (!coalition && cycle && cycle.cycle_number > 1 && targetCycleId === cycle.id) {
-      // targetCycleId is still current cycle (governing phase); look in prev cycle as fallback
-      const prevForCoalition = await db('pol_cycles').where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 }).first();
-      if (prevForCoalition) coalition = await db('pol_coalitions').where({ cycle_id: prevForCoalition.id }).whereIn('status', ['formed', 'minority']).first();
-    }
+    const coalition = cycle ? await db('pol_coalitions').where({ cycle_id: targetCycleId }).whereIn('status', ['formed', 'minority']).first() : null;
     const parsedGovMembers = coalition ? (typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : (coalition.member_party_ids ?? {})) : {};
     const govMembers = parsedGovMembers.accepted || (Array.isArray(parsedGovMembers) ? parsedGovMembers : []);
 
@@ -2203,13 +2179,7 @@ export async function getCoalitionAgreement(req: Request, res: Response, next: N
     const activeState = await resolveState(req.query.stateId as string | undefined);
     const cycle = await getOrCreateCurrentCycle(activeState.id);
 
-    // Use previous cycle if in early phases
-    let targetCycleId = cycle.id;
-    if (['filing', 'campaign', 'polling'].includes(cycle.phase) && cycle.cycle_number > 1) {
-      const prevCycle = await db('pol_cycles')
-        .where({ state_id: activeState.id, cycle_number: cycle.cycle_number - 1 }).first();
-      if (prevCycle) targetCycleId = prevCycle.id;
-    }
+    const targetCycleId = await getSittingCycleId(db, activeState.id, cycle);
 
     const coalition = await db('pol_coalitions')
       .where({ cycle_id: targetCycleId })
@@ -2236,8 +2206,8 @@ export async function getCoalitionAgreement(req: Request, res: Response, next: N
         const cohesion = total > 0 ? Math.round(weighted / total) : 100;
         
         // Also get seats to display in the UI
-        const seatsResult = await db('pol_council_seats').where({ cycle_id: targetCycleId, party_id: t.party_id }).first();
-        const seats = seatsResult ? seatsResult.seats : 0;
+        const seatsResult = await db('pol_council_seats').where({ cycle_id: targetCycleId, party_id: t.party_id }).count('* as count').first();
+        const seats = Number(seatsResult?.count || 0);
 
         return { ...t, cohesion, name: party?.name, abbreviation: party?.abbreviation, seats };
       }));
@@ -2253,8 +2223,8 @@ export async function getCoalitionAgreement(req: Request, res: Response, next: N
         const weighted = factions.reduce((s: number, f: any) => s + Number(f.loyalty) * Number(f.membership_share), 0);
         const cohesion = total > 0 ? Math.round(weighted / total) : 100;
         
-        const seatsResult = await db('pol_council_seats').where({ cycle_id: targetCycleId, party_id: partyId }).first();
-        const seats = seatsResult ? seatsResult.seats : 0;
+        const seatsResult = await db('pol_council_seats').where({ cycle_id: targetCycleId, party_id: partyId }).count('* as count').first();
+        const seats = Number(seatsResult?.count || 0);
 
         return { party_id: partyId, cohesion, name: party?.name, abbreviation: party?.abbreviation, seats };
       }));
