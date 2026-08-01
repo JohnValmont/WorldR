@@ -470,8 +470,7 @@ export function derivePhase(
   // handles the case where the tick skips the exact polling_arc month, so we keep
   // derivePhase as a clean two-way split: polling = day-of, formation = after.
   if (currentMonth === cycle.polling_arc) return 'polling';
-  if (currentMonth > cycle.polling_arc && currentMonth <= cycle.formation_end_arc) return 'formation';
-  if (currentMonth > cycle.formation_end_arc) return 'governing';
+  if (currentMonth > cycle.polling_arc) return 'formation';
 
   return 'governing';
 }
@@ -830,17 +829,13 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
   // This catches the case where the world-clock tick skips the exact polling_arc
   // month so the phase jumps straight to 'formation' without ever being 'polling'.
   const hasResults = await trx('pol_council_seats').where({ cycle_id: cycle.id }).first();
-  if (
-    currentMonth >= cycle.polling_arc &&
-    currentMonth <= cycle.formation_end_arc &&
-    !hasResults
-  ) {
+  if (currentMonth >= cycle.polling_arc && !hasResults) {
     await resolveElection(trx, cycle.id);
     activePhase = 'polling';
     await trx('pol_cycles').where({ id: cycle.id }).update({ phase: 'polling' });
   }
 
-  if (activePhase === 'polling' || activePhase === 'formation') {
+  if (activePhase === 'polling' || activePhase === 'formation' || currentMonth >= cycle.polling_arc) {
     // Re-fetch the cycle row so processGovernmentFormation sees the up-to-date
     // phase / status that resolveElection or prior ticks may have written.
     const freshCycle = await trx('pol_cycles').where({ id: cycle.id }).first();
