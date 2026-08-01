@@ -28,7 +28,7 @@ type SubTab = 'overview' | 'nation' | 'development' | 'elections' | 'legislature
 export default function PoliticsDesk() {
   const [activeTab, setActiveTab] = useState<SubTab>('overview');
   const [selectedJurisdictionId, setSelectedJurisdictionId] = useState<JurisdictionId>(DEFAULT_JURISDICTION_ID);
-  const { clock, polSecondsToTick, isBizTickStalled } = useWorldClock();
+  const { clock, polSecondsToTick, isPolTickStalled } = useWorldClock();
 
   const { data: character, mutate: mutateChar, error: errChar } = useSWR('me', () => characterApi.getMe().then((res: any) => res.data || res));
   const { data: overview, mutate: mutateOver, error: errOver } = useSWR('politicsState', () => politicsApi.getState());
@@ -112,7 +112,7 @@ export default function PoliticsDesk() {
               <div className="flex flex-col min-w-[90px]">
                 <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">Next Month</span>
                 <span className={`text-sm font-bold font-mono ${polSecondsToTick != null && polSecondsToTick <= 60 ? 'text-terminal-amber animate-pulse' : 'text-zinc-100'}`}>
-                  {isBizTickStalled ? 'DELAYED' : polSecondsToTick != null ? formatCountdown(polSecondsToTick) : '--:--:--'}
+                  {isPolTickStalled ? 'DELAYED' : polSecondsToTick != null ? formatCountdown(polSecondsToTick) : '--:--:--'}
                 </span>
               </div>
             )}
