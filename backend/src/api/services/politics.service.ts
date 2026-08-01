@@ -448,9 +448,11 @@ export function derivePhase(
   if (currentMonth < startFiling) return 'governing';
   if (currentMonth >= startFiling && currentMonth < startCampaign) return 'filing';
   if (currentMonth >= startCampaign && currentMonth < cycle.polling_arc) return 'campaign';
-  if (currentMonth === cycle.polling_arc) return 'polling';
-  if (currentMonth > cycle.polling_arc && currentMonth <= cycle.formation_end_arc) return 'formation';
-  
+  // Use >= so that if the world-clock tick skips the exact polling_arc month the
+  // election is still triggered on the next tick rather than being silently skipped.
+  if (currentMonth >= cycle.polling_arc && currentMonth <= cycle.formation_end_arc) return 'polling';
+  if (currentMonth > cycle.formation_end_arc) return 'governing';
+
   return 'governing';
 }
 
@@ -792,12 +794,24 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
   }
 
   let activePhase = newPhase;
-  if (activePhase === 'polling' && currentMonth === cycle.polling_arc) {
+
+  // Trigger the election whenever we reach or pass polling_arc AND results have
+  // not been recorded yet (idempotent: resolveElection is safe to call again).
+  // This catches the case where the world-clock tick skips the exact polling_arc
+  // month so the phase jumps straight to 'formation' without ever being 'polling'.
+  const hasResults = await trx('pol_council_seats').where({ cycle_id: cycle.id }).first();
+  if (
+    currentMonth >= cycle.polling_arc &&
+    currentMonth <= cycle.formation_end_arc &&
+    !hasResults
+  ) {
     await resolveElection(trx, cycle.id);
-    activePhase = 'formation';
+    // Update local reference so processGovernmentFormation runs below
+    activePhase = 'polling';
+    await trx('pol_cycles').where({ id: cycle.id }).update({ phase: 'polling' });
   }
 
-  if (activePhase === 'formation') {
+  if (activePhase === 'polling' || activePhase === 'formation') {
     await processGovernmentFormation(trx, cycle, currentMonth);
   }
 

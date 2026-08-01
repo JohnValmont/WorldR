@@ -4,6 +4,7 @@ import { AppError } from '../../utils/errors';
 import {
   getStateOverview,
   getCycle,
+  getConstituencies,
   getParties,
   foundParty,
   joinParty,
@@ -111,6 +112,7 @@ function blockPhases(...blockedPhases: string[]) {
 // Public-ish / overview routes (auth still required by our API design, but no phase restriction)
 router.get('/state', authMiddleware, getStateOverview);
 router.get('/cycle', authMiddleware, getCycle);
+router.get('/constituencies', authMiddleware, getConstituencies);
 router.get('/parties', authMiddleware, getParties);
 
 // Party-building actions — ALWAYS OPEN.

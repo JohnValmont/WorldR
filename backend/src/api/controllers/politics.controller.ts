@@ -225,6 +225,55 @@ export async function getCycle(req: Request, res: Response, next: NextFunction) 
   }
 }
 
+/**
+ * Returns the list of constituencies for the active state, enriched with
+ * which party (if any) already has a candidate there this cycle — so the
+ * frontend can render a picker and show availability.
+ */
+export async function getConstituencies(req: Request, res: Response, next: NextFunction) {
+  try {
+    const activeState = await resolveState(req.query.stateId as string | undefined);
+    const cycle = await getOrCreateCurrentCycle(activeState.id);
+
+    const constituencies = await db('pol_constituencies').where({ state_id: activeState.id }).orderBy('name');
+
+    // Enrich with current-cycle candidacy data
+    const candidates = await db('pol_candidates')
+      .where({ cycle_id: cycle.id })
+      .select('constituency_id', 'party_id', 'character_id', 'is_npc');
+
+    const byConstituency: Record<string, any[]> = {};
+    for (const c of candidates) {
+      if (!byConstituency[c.constituency_id]) byConstituency[c.constituency_id] = [];
+      byConstituency[c.constituency_id].push(c);
+    }
+
+    // If requester is authenticated, mark which constituency (if any) they are already contesting
+    let myConstituencyId: string | null = null;
+    const userId = (req as any).user?.id;
+    if (userId) {
+      const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+      if (character) {
+        const myCand = await db('pol_candidates').where({ cycle_id: cycle.id, character_id: character.id }).first();
+        myConstituencyId = myCand?.constituency_id || null;
+      }
+    }
+
+    return res.json({
+      phase: cycle.phase,
+      myConstituencyId,
+      constituencies: constituencies.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        registeredVoters: c.registered_voters,
+        candidates: byConstituency[c.id] || [],
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getParties(req: Request, res: Response, next: NextFunction) {
   try {
     const activeState = await resolveState(req.query.stateId as string | undefined);
