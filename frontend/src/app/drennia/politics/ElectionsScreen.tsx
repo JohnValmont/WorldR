@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
 import { SEGMENTS } from '@/lib/politicsConstants';
@@ -7,7 +7,7 @@ import { JURISDICTIONS, type JurisdictionId } from './_lib/session';
 import { T, MONO, HEADING, SANS, stampStyle, glassPanelStyle } from './_lib/theme';
 import { BLOC_NAME_BY_KEY, PILLAR_BY_AXIS, JURISDICTION_MODEL } from './_lib/model';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
-import { Shield, Activity, Users, Map, CalendarClock, TrendingUp } from 'lucide-react';
+import { Shield, Activity, Users, Map, CalendarClock, TrendingUp, CheckCircle, AlertCircle, ChevronDown } from 'lucide-react';
 
 interface Props {
   selectedJurisdictionId: JurisdictionId;
@@ -98,11 +98,24 @@ function leaning(seg: any): string {
   return `${p.name}: ${pole}`;
 }
 
-export default function ElectionsScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, overview, character, parties }: Props) {
+export default function ElectionsScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, overview, character, parties, onRefresh }: Props) {
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
   const jModel = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.national;
-  const { data: polls } = useSWR(isLocked ? null : ['polls', selectedJurisdictionId], () => politicsApi.getPolls(selectedJurisdictionId).catch(() => null));
+
+  const { data: polls, mutate: mutatePolls } = useSWR(
+    isLocked ? null : ['polls', selectedJurisdictionId],
+    () => politicsApi.getPolls(selectedJurisdictionId).catch(() => null)
+  );
+  const { data: constData, mutate: mutateConst } = useSWR(
+    isLocked ? null : ['constituencies', selectedJurisdictionId],
+    () => politicsApi.getConstituencies(selectedJurisdictionId).catch(() => null)
+  );
+
+  const [selectedConstituencyId, setSelectedConstituencyId] = useState<string>('');
+  const [candidacyStatus, setCandidacyStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [candidacyMsg, setCandidacyMsg] = useState('');
+  const [showConstPicker, setShowConstPicker] = useState(false);
 
   const myParty = overview?.globalParty || (Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id || p.members?.some((m: any) => m.character_id === character?.id || m.id === character?.id)) : undefined);
   const myPlatform = parsePlatform(myParty?.platform);
@@ -115,9 +128,9 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
 
   // ── Election Hero Data ──
   const cycle = overview?.cycle;
+  const phase: string = cycle?.phase ?? 'governing';
   const months: number | null = cycle?.monthsToElection ?? null;
   const cycleNumber = cycle?.cycleNumber;
-  const electionArc = cycle?.electionArc;
 
   const bigValue = months == null ? '—' : months <= 0 ? 'IMMINENT' : String(months).padStart(2, '0');
   const unit = months == null || months <= 0 ? '' : months === 1 ? 'MONTH' : 'MONTHS';
@@ -131,9 +144,48 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
     ? Math.max(0, Math.min(100, ((jModel.termMonths - months) / jModel.termMonths) * 100))
     : null;
 
+  // ── Player Candidacy State ──
+  const myConstituencyId: string | null = constData?.myConstituencyId ?? null;
+  const alreadyFiled = !!myConstituencyId;
+  const constituencies: any[] = constData?.constituencies ?? [];
+  const canFile = !!myParty && !myParty.is_npc && ['filing', 'campaign', 'governing'].includes(phase) && !alreadyFiled;
+  const isElectionLive = phase === 'polling' || phase === 'formation';
+
+  const selectedConst = constituencies.find((c: any) => c.id === selectedConstituencyId);
+
+  async function handleDeclareCandidacy() {
+    if (!selectedConstituencyId) {
+      setCandidacyMsg('Select a constituency first.');
+      setCandidacyStatus('error');
+      return;
+    }
+    setCandidacyStatus('loading');
+    setCandidacyMsg('');
+    try {
+      await politicsApi.declareCandidacy(selectedConstituencyId, selectedJurisdictionId);
+      setCandidacyStatus('success');
+      setCandidacyMsg('Candidacy declared! Your party will contest this seat.');
+      mutatePolls();
+      mutateConst();
+      onRefresh?.();
+    } catch (err: any) {
+      setCandidacyStatus('error');
+      setCandidacyMsg(err?.response?.data?.message || err?.message || 'Failed to declare candidacy.');
+    }
+  }
+
+  // Phase badge config
+  const PHASE_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+    governing: { label: 'Governing', color: T.blueLine, bg: 'rgba(79,110,247,0.12)' },
+    filing:    { label: 'Filing Open', color: T.mint, bg: 'rgba(16,214,122,0.12)' },
+    campaign:  { label: 'Campaign', color: T.warning, bg: 'rgba(255,183,0,0.12)' },
+    polling:   { label: 'Election Day', color: T.red, bg: 'rgba(220,38,38,0.18)' },
+    formation: { label: 'Gov. Formation', color: '#c084fc', bg: 'rgba(192,132,252,0.12)' },
+  };
+  const badge = PHASE_BADGE[phase] ?? PHASE_BADGE.governing;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 24, fontFamily: SANS }}>
-
 
       {isLocked ? (
         <GlassPanel title={<><Shield size={14} /> Locked</>}>
@@ -159,7 +211,12 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14, position: 'relative', zIndex: 1 }}>
               <div style={{ flex: 1, minWidth: 280 }}>
-                <div style={{ ...stampStyle, marginBottom: 8, color: T.gold, borderColor: 'rgba(255,215,0,0.3)', textShadow: `0 0 10px ${T.goldSoft}` }}>War Room</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div style={{ ...stampStyle, color: T.gold, borderColor: 'rgba(255,215,0,0.3)', textShadow: `0 0 10px ${T.goldSoft}` }}>War Room</div>
+                  <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: badge.color, background: badge.bg, border: `1px solid ${badge.color}30`, padding: '2px 8px', borderRadius: 4 }}>
+                    {badge.label}
+                  </div>
+                </div>
                 <h1 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, fontFamily: HEADING, margin: '0 0 4px', letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)' }}>
                   Election Control
                 </h1>
@@ -206,6 +263,132 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
               </div>
             )}
           </div>
+
+          {/* ── PLAYER ACTION PANEL ── */}
+          {myParty && (
+            <div style={{
+              background: 'rgba(10,12,22,0.85)',
+              border: `1px solid ${alreadyFiled ? 'rgba(16,214,122,0.2)' : isElectionLive ? 'rgba(220,38,38,0.2)' : 'rgba(255,183,0,0.2)'}`,
+              borderRadius: 10, overflow: 'hidden',
+            }}>
+              <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.faint }}>Your Candidacy</div>
+                <div style={{ fontFamily: MONO, fontSize: 10, color: T.faint }}>Party: <span style={{ color: T.ivory }}>{myParty.name}</span></div>
+              </div>
+
+              <div style={{ padding: '14px 16px' }}>
+                {/* Already filed */}
+                {alreadyFiled && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <CheckCircle size={16} color={T.mint} />
+                    <div>
+                      <div style={{ color: T.mint, fontFamily: SANS, fontSize: 13, fontWeight: 600 }}>Candidacy Filed</div>
+                      <div style={{ color: T.faint, fontFamily: MONO, fontSize: 10, marginTop: 2 }}>
+                        Contesting: {constituencies.find((c: any) => c.id === myConstituencyId)?.name ?? 'Your constituency'}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Election is live — no filing possible */}
+                {!alreadyFiled && isElectionLive && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <AlertCircle size={16} color={T.red} />
+                    <div style={{ color: T.muted, fontFamily: SANS, fontSize: 13 }}>
+                      Candidacy filing is closed during the election.
+                    </div>
+                  </div>
+                )}
+
+                {/* No party */}
+                {!myParty.is_npc === false && (
+                  <div style={{ color: T.muted, fontFamily: SANS, fontSize: 13 }}>
+                    Join a player party to contest elections.
+                  </div>
+                )}
+
+                {/* Can file — show constituency picker + button */}
+                {canFile && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ color: T.text, fontFamily: SANS, fontSize: 13 }}>
+                      Select a constituency for your party to contest, then declare candidacy.
+                    </div>
+
+                    {/* Constituency dropdown */}
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        onClick={() => setShowConstPicker(!showConstPicker)}
+                        style={{
+                          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: 7, padding: '9px 12px', cursor: 'pointer', color: selectedConst ? T.ivory : T.faint,
+                          fontFamily: MONO, fontSize: 12,
+                        }}
+                      >
+                        <span>{selectedConst ? selectedConst.name : 'Choose constituency...'}</span>
+                        <ChevronDown size={13} color={T.faint} />
+                      </button>
+
+                      {showConstPicker && constituencies.length > 0 && (
+                        <div style={{
+                          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 50,
+                          background: 'rgba(14,16,24,0.98)', border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: 8, maxHeight: 220, overflowY: 'auto',
+                          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                        }}>
+                          {constituencies.map((c: any) => {
+                            const taken = c.candidates?.some((cd: any) => cd.character_id !== null && !cd.is_npc);
+                            const myPartyHere = c.candidates?.some((cd: any) => cd.party_id === myParty.id);
+                            return (
+                              <button
+                                key={c.id}
+                                onClick={() => { setSelectedConstituencyId(c.id); setShowConstPicker(false); setCandidacyStatus('idle'); }}
+                                style={{
+                                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                  padding: '9px 14px', background: selectedConstituencyId === c.id ? 'rgba(255,183,0,0.08)' : 'transparent',
+                                  border: 'none', borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                  cursor: 'pointer', color: taken && !myPartyHere ? T.faint : T.ivory,
+                                  fontFamily: MONO, fontSize: 11, textAlign: 'left',
+                                }}
+                              >
+                                <span>{c.name}</span>
+                                <span style={{ fontSize: 10, color: myPartyHere ? T.mint : taken ? T.red : T.faint }}>
+                                  {myPartyHere ? 'Your party' : taken ? 'Contested' : `${(c.registeredVoters / 1000).toFixed(0)}k voters`}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Declare button */}
+                    <button
+                      onClick={handleDeclareCandidacy}
+                      disabled={candidacyStatus === 'loading' || !selectedConstituencyId}
+                      style={{
+                        padding: '10px 20px', borderRadius: 7, fontFamily: MONO, fontSize: 12, fontWeight: 700,
+                        letterSpacing: '0.1em', textTransform: 'uppercase', cursor: candidacyStatus === 'loading' || !selectedConstituencyId ? 'not-allowed' : 'pointer',
+                        background: !selectedConstituencyId ? 'rgba(255,255,255,0.04)' : 'rgba(255,183,0,0.15)',
+                        border: `1px solid ${!selectedConstituencyId ? 'rgba(255,255,255,0.08)' : 'rgba(255,183,0,0.4)'}`,
+                        color: !selectedConstituencyId ? T.faint : T.warning,
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {candidacyStatus === 'loading' ? 'Filing...' : 'Declare Candidacy'}
+                    </button>
+
+                    {candidacyStatus !== 'idle' && candidacyMsg && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: SANS, fontSize: 12, color: candidacyStatus === 'success' ? T.mint : T.red }}>
+                        {candidacyStatus === 'success' ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+                        {candidacyMsg}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* ── PROJECTED RESULT — Nationhood style ── */}
           <div style={{
