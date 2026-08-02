@@ -3733,17 +3733,23 @@ export class ManufacturingController {
       const brandData = await db('manufacturing_brand_awareness')
         .where({ company_id: companyId });
 
-      // Latest sales results
-      const recentSales = await db('manufacturing_sales_results')
-        .where({ company_id: companyId })
-        .orderBy('created_at', 'desc')
-        .limit(50);
+      const clock = await db('world_clock').first();
+      const currentYear = clock?.current_year || 1;
+      const currentMonth = clock?.current_month || 1;
+      let targetMonth = currentMonth - 1;
+      let targetYear = currentYear;
+      if (targetMonth === 0) {
+        targetMonth = 12;
+        targetYear -= 1;
+      }
 
-      // Latest brand results
+      // Latest sales results for the most recently completed month
+      const recentSales = await db('manufacturing_sales_results')
+        .where({ company_id: companyId, world_year: targetYear, world_month: targetMonth });
+
+      // Latest brand results for the most recently completed month
       const recentBrandResults = await db('manufacturing_market_brand_arc_results')
-        .where({ company_id: companyId })
-        .orderBy('created_at', 'desc')
-        .limit(50);
+        .where({ company_id: companyId, world_year: targetYear, world_month: targetMonth });
 
       const { companyAwareness, companyReputation } = await ManufacturingController.getCompanyAwarenessAndTrust(db, companyId, company.country_id);
 
@@ -3758,8 +3764,6 @@ export class ManufacturingController {
       const activeMarketCount = Number(activeAllocationCount?.cnt ?? 0);
       const usefulSalesManagers = Math.min(salesManagerCount, activeMarketCount);
       const salesManagerBonus  = Math.min(usefulSalesManagers * 0.04, 0.16);
-
-      const clock = await db('world_clock').first();
 
       const MARKETING_MULT: Record<string, number> = {
         none: 1.0, local: 1.15, regional: 1.30, national: 1.50,
