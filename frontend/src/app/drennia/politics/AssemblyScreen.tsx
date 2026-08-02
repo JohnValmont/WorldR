@@ -108,7 +108,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', zIndex: 1 }}>
           <div style={{ ...stampStyle, color: T.gold, fontSize: 11, letterSpacing: '0.15em', borderColor: 'rgba(255,215,0,0.3)' }}>THE CHAMBER</div>
           <h1 style={{ color: T.ivory, fontSize: 20, fontWeight: 700, fontFamily: HEADING, margin: 0, letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(255,255,255,0.2)' }}>
-            {jModel.tier === 'state' ? 'State Assembly' : 'National Parliament'} <span style={{ color: T.muted, fontWeight: 400 }}>of {jModel.name}</span>
+            {jModel.tier === 'state' ? 'State Assembly' : 'National Parliament'} <span style={{ color: T.muted, fontWeight: 400 }}>{jModel.tier === 'state' ? `of ${jModel.name}` : 'of Drennia'}</span>
           </h1>
           <div style={{ color: T.faint, fontSize: 13, marginTop: 4 }}>
             The composition of the legislature and the current ruling government.
@@ -147,7 +147,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
           <GlassPanel title={<><Landmark size={14} /> Composition</>} accent={T.blueLine}>
             {/* Glowing Seat Visualizer */}
             <div style={{ 
-              display: 'flex', flexWrap: 'wrap', gap: 8, padding: '16px', 
+              display: 'flex', flexWrap: 'wrap', gap: 6, padding: '24px', justifyContent: 'center',
               background: 'rgba(0,0,0,0.5)', 
               borderRadius: 12, 
               border: `1px solid rgba(255,255,255,0.05)`, 
@@ -163,7 +163,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
                   const p = partySeats[partyIdx];
                   if (i >= currentOffset && i < currentOffset + p.seats) {
                     seatColor = PALETTE[partyIdx % PALETTE.length];
-                    seatGlow = `0 0 12px ${seatColor}80, inset 0 1px 2px rgba(255,255,255,0.4)`;
+                    seatGlow = `0 0 10px ${seatColor}80, inset 0 1px 2px rgba(255,255,255,0.4)`;
                     seatTitle = p.name;
                     break;
                   }
@@ -175,17 +175,16 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
                     key={i} 
                     title={seatTitle}
                     style={{ 
-                      flex: '1 0 calc(10% - 8px)', // 10 per row
-                      minWidth: 20,
-                      height: 28, 
+                      width: 14,
+                      height: 14, 
                       background: seatColor,
-                      borderRadius: 4,
+                      borderRadius: '50%',
                       boxShadow: seatGlow,
-                      border: seatColor === 'rgba(255,255,255,0.05)' ? '1px dashed rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.5)',
+                      border: seatColor === 'rgba(255,255,255,0.05)' ? '1px dashed rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.5)',
                       transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                       cursor: 'help'
                     }} 
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)'; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px) scale(1.2)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
                   />
                 );
