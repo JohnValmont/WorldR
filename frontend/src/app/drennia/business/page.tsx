@@ -677,6 +677,13 @@ export default function BusinessPage() {
                     />
                   )}
                 </div>
+              ) : selectedCompanyId ? (
+                <PageShell className="py-6 flex items-center justify-center min-h-[50vh]">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-6 h-6 border-2 border-terminal-amber/20 border-t-terminal-amber rounded-full animate-spin"></div>
+                    <div className="text-zinc-500 font-mono text-[10px] uppercase tracking-[0.2em]">Accessing Company Desk...</div>
+                  </div>
+                </PageShell>
               ) : (
                 <PageShell className="py-6">
                   <div className="mt-4 flex flex-col gap-3">
