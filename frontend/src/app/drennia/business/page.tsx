@@ -261,102 +261,22 @@ export default function BusinessPage() {
           companyApi.getMy().then(compRes => {
             const companies = compRes.data;
 
-            // Separate finance firm from operational company
+            // Separate finance firm from operational companies
             const financeFirm = companies.find((c: any) => c.industry_id === 'finance') || null;
             setFinanceCompany(financeFirm);
 
             const opCompanies = companies.filter((c: any) => c.industry_id !== 'finance');
             opCompanies.sort((a: any, b: any) => new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime());
+
+            // IMPORTANT: loadData must NOT call setSelectedCompanyId here.
+            // loadData is a stale closure (deps=[router]) that never captures the
+            // current selectedCompanyId, so it would always reset the selection to
+            // opCompanies[0] (Aldrich) regardless of what the user actually picked.
+            // Initial selection is handled by the dedicated useEffect below.
+            // Detail loading is handled by the selectedCompanyId useEffect.
             setOperationalCompanies(opCompanies);
 
-            if (opCompanies.length > 0) {
-              const myCompany = selectedCompanyId
-                ? opCompanies.find((c: any) => c.id === selectedCompanyId) || opCompanies[0]
-                : opCompanies[0];
-              setSelectedCompanyId(myCompany.id);
-              
-              if (myCompany.industry_id === 'manufacturing') {
-                import('../../../lib/api').then(({ manufacturingApi }) => {
-                  manufacturingApi.getCompanyData(myCompany.id).then(mfgRes => {
-                    setCompany({
-                      ...myCompany,
-                      sector: myCompany.industry_id,
-                      subsector: myCompany.subsector_id,
-                      state: myCompany.headquarters_state_id,
-                      legalStructure: myCompany.legal_structure_id,
-                      companyCash: myCompany.finances?.available_cash,
-                      debt: myCompany.finances?.debt,
-                      maintenancePolicy: myCompany.finances?.maintenance_policy || 'Standard',
-                    });
-                    setMfgData(mfgRes.data);
-                  }).catch(err => {
-                    console.error("Manufacturing fetch error", err);
-                    setCompany({
-                      ...myCompany,
-                      sector: myCompany.industry_id,
-                      subsector: myCompany.subsector_id,
-                      state: myCompany.headquarters_state_id,
-                      legalStructure: myCompany.legal_structure_id,
-                      companyCash: myCompany.finances?.available_cash,
-                      debt: myCompany.finances?.debt,
-                    });
-                  });
-                });
-              } else {
-                logisticsApi.getCompanyLogistics(myCompany.id).then(logRes => {
-                  const { staff, vehicles, facilities, ledger } = logRes.data;
-                  
-                  // Map staff to a record
-                  const staffRecord: Record<string, number> = {};
-                  staff.forEach((s: any) => staffRecord[s.role] = s.quantity);
-
-                  // Map fleet
-                  const mappedFleet = vehicles.map((v: any, index: number) => {
-                    let tagPrefix = 'VEH';
-                    if (v.type.includes('Van')) tagPrefix = 'VAN';
-                    else if (v.type.includes('Box')) tagPrefix = 'BOX';
-                    else if (v.type.includes('Freight')) tagPrefix = 'FRT';
-                    
-                    return {
-                      id: v.id,
-                      companyId: v.company_id,
-                      type: v.type, // Comes from JOIN
-                      catalogId: v.catalog_vehicle_id,
-                      condition: Number(v.condition),
-                      assignedAutoOpPool: v.assigned_operation_pool_name, // Fix: use the joined name, not the UUID
-                      purchasedAt: v.purchased_at,
-                      capacity: Number(v.capacity) || 0,
-                      purchaseCost: Number(v.purchase_cost) || 0,
-                      monthlyMaintenance: Number(v.monthly_maintenance) || 0,
-                      currentValue: Number(v.current_value) || 0,
-                      assetTag: `${tagPrefix}-${String(index + 1).padStart(3, '0')}`
-                    };
-                  });
-
-                  setCompany({
-                    ...myCompany,
-                    sector: myCompany.industry_id,
-                    state: myCompany.headquarters_state_id,
-                    legalStructure: myCompany.legal_structure_id,
-                    companyCash: myCompany.finances?.available_cash,
-                    maintenancePolicy: myCompany.finances?.maintenance_policy || 'Standard',
-                    staff: staffRecord
-                  });
-                  setFleet(mappedFleet);
-                  setLedger(ledger);
-                }).catch(err => {
-                  console.error("Logistics fetch error", err);
-                  setCompany({
-                    ...myCompany,
-                    sector: myCompany.industry_id,
-                    state: myCompany.headquarters_state_id,
-                    legalStructure: myCompany.legal_structure_id,
-                    companyCash: myCompany.finances?.available_cash,
-                  });
-                });
-              }
-
-            } else {
+            if (opCompanies.length === 0) {
               setCompany(null);
             }
           });
@@ -377,15 +297,22 @@ export default function BusinessPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Load detailed data when selectedCompanyId changes
+  // Load detailed data when selectedCompanyId changes or when data refreshes
   useEffect(() => {
     if (!selectedCompanyId) {
-      // The loadData function already handles defaulting to a company
+      if (operationalCompanies.length > 0) {
+        setSelectedCompanyId(operationalCompanies[0].id);
+      }
       return;
     }
+
     const comp = operationalCompanies.find(c => c.id === selectedCompanyId);
     if (!comp) return;
-    if (company?.id === comp.id) return; // already loaded
+
+    // We do NOT return early if company?.id === comp.id here anymore.
+    // Since loadData now only updates operationalCompanies, this effect
+    // must run to fetch the latest detail data (like manufacturing/logistics)
+    // for the selected company on every refresh.
 
     if (comp.industry_id === 'manufacturing') {
       import('../../../lib/api').then(({ manufacturingApi }) => {
