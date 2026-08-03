@@ -300,14 +300,19 @@ export default function BusinessPage() {
   // Load detailed data when selectedCompanyId changes or when data refreshes
   useEffect(() => {
     if (!selectedCompanyId) {
-      if (operationalCompanies.length > 0) {
-        setSelectedCompanyId(operationalCompanies[0].id);
-      }
+      setCompany(null);
       return;
     }
 
     const comp = operationalCompanies.find(c => c.id === selectedCompanyId);
-    if (!comp) return;
+    if (!comp) {
+      // If it's a finance company, operationalCompanies won't have it,
+      // but we don't need 'company' state for the finance desk anyway.
+      if (financeCompany && selectedCompanyId === financeCompany.id) {
+        setCompany(null);
+      }
+      return;
+    }
 
     // We do NOT return early if company?.id === comp.id here anymore.
     // Since loadData now only updates operationalCompanies, this effect
