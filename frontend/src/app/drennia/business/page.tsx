@@ -225,6 +225,7 @@ export default function BusinessPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [mfgData, setMfgData] = useState<any>(null);
   const [financeCompany, setFinanceCompany] = useState<any>(null); // Capital Partners firm if player has one
+  const [operationalCompanies, setOperationalCompanies] = useState<any[]>([]);
   const [apiNetWorth, setApiNetWorth] = useState<number | null>(null); // Server-computed net worth (all companies + inventory)
 
   // Start Business state
@@ -264,9 +265,15 @@ export default function BusinessPage() {
             const financeFirm = companies.find((c: any) => c.industry_id === 'finance') || null;
             setFinanceCompany(financeFirm);
 
-            const operationalCompanies = companies.filter((c: any) => c.industry_id !== 'finance');
-            if (operationalCompanies.length > 0) {
-              const myCompany = operationalCompanies.sort((a: any, b: any) => new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime())[0];
+            const opCompanies = companies.filter((c: any) => c.industry_id !== 'finance');
+            opCompanies.sort((a: any, b: any) => new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime());
+            setOperationalCompanies(opCompanies);
+
+            if (opCompanies.length > 0) {
+              const myCompany = selectedCompanyId
+                ? opCompanies.find((c: any) => c.id === selectedCompanyId) || opCompanies[0]
+                : opCompanies[0];
+              setSelectedCompanyId(myCompany.id);
               
               if (myCompany.industry_id === 'manufacturing') {
                 import('../../../lib/api').then(({ manufacturingApi }) => {
@@ -369,6 +376,92 @@ export default function BusinessPage() {
   }, [router]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Load detailed data when selectedCompanyId changes
+  useEffect(() => {
+    if (!selectedCompanyId) {
+      // The loadData function already handles defaulting to a company
+      return;
+    }
+    const comp = operationalCompanies.find(c => c.id === selectedCompanyId);
+    if (!comp) return;
+    if (company?.id === comp.id) return; // already loaded
+
+    if (comp.industry_id === 'manufacturing') {
+      import('../../../lib/api').then(({ manufacturingApi }) => {
+        manufacturingApi.getCompanyData(comp.id).then(mfgRes => {
+          setCompany({
+            ...comp,
+            sector: comp.industry_id,
+            subsector: comp.subsector_id,
+            state: comp.headquarters_state_id,
+            legalStructure: comp.legal_structure_id,
+            companyCash: comp.finances?.available_cash,
+            debt: comp.finances?.debt,
+            maintenancePolicy: comp.finances?.maintenance_policy || 'Standard',
+          });
+          setMfgData(mfgRes.data);
+        }).catch(err => {
+          console.error("Manufacturing fetch error", err);
+          setCompany({
+            ...comp,
+            sector: comp.industry_id,
+            state: comp.headquarters_state_id,
+            legalStructure: comp.legal_structure_id,
+            companyCash: comp.finances?.available_cash,
+          });
+        });
+      });
+    } else {
+      import('../../../lib/api').then(({ logisticsApi }) => {
+        logisticsApi.getCompanyLogistics(comp.id).then(logRes => {
+          const { staff, vehicles, facilities, ledger } = logRes.data;
+          const staffRecord: Record<string, number> = {};
+          staff.forEach((s: any) => staffRecord[s.role] = s.quantity);
+          const mappedFleet = vehicles.map((v: any, index: number) => {
+            let tagPrefix = 'VEH';
+            if (v.type.includes('Van')) tagPrefix = 'VAN';
+            else if (v.type.includes('Box')) tagPrefix = 'BOX';
+            else if (v.type.includes('Freight')) tagPrefix = 'FRT';
+            return {
+              id: v.id,
+              companyId: v.company_id,
+              type: v.type,
+              catalogId: v.catalog_vehicle_id,
+              condition: Number(v.condition),
+              assignedAutoOpPool: v.assigned_operation_pool_name,
+              purchasedAt: v.purchased_at,
+              capacity: Number(v.capacity) || 0,
+              purchaseCost: Number(v.purchase_cost) || 0,
+              monthlyMaintenance: Number(v.monthly_maintenance) || 0,
+              currentValue: Number(v.current_value) || 0,
+              assetTag: `${tagPrefix}-${String(index + 1).padStart(3, '0')}`
+            };
+          });
+          setCompany({
+            ...comp,
+            sector: comp.industry_id,
+            state: comp.headquarters_state_id,
+            legalStructure: comp.legal_structure_id,
+            companyCash: comp.finances?.available_cash,
+            maintenancePolicy: comp.finances?.maintenance_policy || 'Standard',
+            staff: staffRecord
+          });
+          setFleet(mappedFleet);
+          setLedger(ledger);
+        }).catch(err => {
+          console.error("Logistics fetch error", err);
+          setCompany({
+            ...comp,
+            sector: comp.industry_id,
+            state: comp.headquarters_state_id,
+            legalStructure: comp.legal_structure_id,
+            companyCash: comp.finances?.available_cash,
+          });
+        });
+      });
+    }
+  }, [selectedCompanyId, operationalCompanies, company?.id]);
 
   // ─── Helpers ────────────────────────────────────────────────────────────
   const refreshAll = () => {
@@ -651,26 +744,27 @@ export default function BusinessPage() {
               ) : (
                 <PageShell className="py-6">
                   <div className="mt-4 flex flex-col gap-3">
-                    {company && (
+                    {operationalCompanies.map((c: any) => (
                       <Card
+                        key={c.id}
                         pad="md"
                         hover
                         className="flex items-center justify-between gap-4 cursor-pointer"
-                        onClick={() => setSelectedCompanyId(company.id)}
+                        onClick={() => setSelectedCompanyId(c.id)}
                       >
                         <div>
-                          <div className="text-sm font-bold text-zinc-100">{company.name}</div>
+                          <div className="text-sm font-bold text-zinc-100">{c.name}</div>
                           <div className="text-[11px] text-zinc-500 mt-0.5">
-                            {company.sectorId === 'shipping-logistics' || company.sector === 'shipping-logistics' ? 'Logistics' : 'Manufacturing'}
+                            {c.industry_id === 'shipping-logistics' ? 'Logistics' : 'Manufacturing'}
                             {' • '}
-                            {getStateName(company.headquartersStateId || company.state)}
+                            {getStateName(c.headquarters_state_id)}
                           </div>
                         </div>
                         <Button variant="ghost" size="sm" iconRight={ArrowRight}>
                           Manage
                         </Button>
                       </Card>
-                    )}
+                    ))}
                     {financeCompany && (
                       <Card
                         pad="md"
@@ -689,7 +783,7 @@ export default function BusinessPage() {
                         </Button>
                       </Card>
                     )}
-                    {!company && !financeCompany && (
+                    {operationalCompanies.length === 0 && !financeCompany && (
                       <div className="text-zinc-600 text-xs">No companies registered.</div>
                     )}
                   </div>
