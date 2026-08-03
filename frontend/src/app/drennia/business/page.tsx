@@ -595,7 +595,11 @@ export default function BusinessPage() {
               tabs={SUB_TABS.map(t => ({
                 id: t.id,
                 label: t.label,
-                locked: t.requiresCompany && !company,
+                locked: t.requiresCompany && (
+                  t.id === 'companies'
+                    ? (operationalCompanies.length === 0 && !financeCompany)
+                    : !company
+                ),
               }))}
               activeId={activeTab}
               onChange={(id: string) => {
