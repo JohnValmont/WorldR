@@ -142,8 +142,10 @@ export async function runMigrationsAndSeeds(): Promise<void> {
         await db.raw(sql);
         logger.info(`Successfully applied seed: ${file}`);
       } catch (err) {
-        logger.error(`Failed to apply seed ${file}:`, err);
-        throw err;
+        // Seeds are idempotent helpers — a failure here must NOT kill the server.
+        // The tick scheduler and all game systems must still start normally.
+        // The root fix for any seed crash should be in the seed file itself (idempotency).
+        logger.error(`Failed to apply seed ${file} (non-fatal — server continues):`, err);
       }
     }
   }

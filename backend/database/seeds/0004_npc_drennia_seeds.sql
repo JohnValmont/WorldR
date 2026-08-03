@@ -1,10 +1,10 @@
-const fs = require('fs');
-const path = require('path');
-
-const file = path.join(__dirname, '../../database/seeds/0004_npc_drennia_seeds.sql');
-
-const sql = `-- WORLDr Seeds: NPC Competitors (Drennia)
--- Idempotent setup for the four NPC manufacturing competitors
+-- WORLDr Seeds: NPC Competitors (Drennia)
+-- Idempotent setup for the four NPC manufacturing competitors.
+--
+-- IMPORTANT: Idempotency checks use `npc_personality` regardless of `is_npc`
+-- because a player can acquire an NPC company (setting is_npc=false).
+-- We must NOT re-insert if a company with that personality already exists,
+-- even if it is now player-owned.
 
 DO $$
 DECLARE
@@ -48,6 +48,9 @@ BEGIN
 
     -- ==========================================
     -- 1. VALUECORP (Budget)
+    -- NOTE: Check by npc_personality, NOT is_npc=TRUE.
+    -- A player may have acquired this company (is_npc becomes false), but the
+    -- company still exists with the same name. Do not re-insert.
     -- ==========================================
     IF NOT EXISTS (SELECT 1 FROM companies WHERE npc_personality = 'valuecorp' AND country_id = 'drennia') THEN
         INSERT INTO companies (owner_character_id, world_instance_id, country_id, headquarters_state_id, industry_id, legal_structure_id, currency_id, name, status, is_npc, npc_personality, reputation, reliability, created_at_world_year, created_at_world_month, created_at_world_day)
@@ -181,7 +184,3 @@ BEGIN
     END IF;
 
 END $$;
-`;
-
-fs.writeFileSync(file, sql);
-console.log('Fully fixed seeds.');
