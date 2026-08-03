@@ -44,7 +44,7 @@ BEGIN
     -- ==========================================
     -- 1. VALUECORP (Budget)
     -- ==========================================
-    IF NOT EXISTS (SELECT 1 FROM companies WHERE is_npc = TRUE AND npc_personality = 'valuecorp' AND country_id = 'drennia') THEN
+    IF NOT EXISTS (SELECT 1 FROM companies WHERE npc_personality = 'valuecorp' AND country_id = 'drennia') THEN
         INSERT INTO companies (owner_character_id, world_instance_id, country_id, headquarters_state_id, industry_id, legal_structure_id, currency_id, name, status, is_npc, npc_personality, reputation, reliability, created_at_world_year, created_at_world_month, created_at_world_day)
         VALUES (v_sys_char_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', 'manufacturing', 'sole-trader', 'dollar', 'Valuecorp', 'active', TRUE, 'valuecorp', 50, 50, 0, 0, 0)
         RETURNING id INTO v_company_id;
@@ -77,7 +77,7 @@ BEGIN
     -- ==========================================
     -- 2. VERIDIAN MOTORS (Family)
     -- ==========================================
-    IF NOT EXISTS (SELECT 1 FROM companies WHERE is_npc = TRUE AND npc_personality = 'veridian' AND country_id = 'drennia') THEN
+    IF NOT EXISTS (SELECT 1 FROM companies WHERE npc_personality = 'veridian' AND country_id = 'drennia') THEN
         INSERT INTO companies (owner_character_id, world_instance_id, country_id, headquarters_state_id, industry_id, legal_structure_id, currency_id, name, status, is_npc, npc_personality, reputation, reliability, created_at_world_year, created_at_world_month, created_at_world_day)
         VALUES (v_sys_char_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', 'manufacturing', 'sole-trader', 'dollar', 'Veridian Motors', 'active', TRUE, 'veridian', 50, 50, 0, 0, 0)
         RETURNING id INTO v_company_id;
@@ -110,7 +110,7 @@ BEGIN
     -- ==========================================
     -- 3. APEX AUTOMOBILI (Performance)
     -- ==========================================
-    IF NOT EXISTS (SELECT 1 FROM companies WHERE is_npc = TRUE AND npc_personality = 'apex' AND country_id = 'drennia') THEN
+    IF NOT EXISTS (SELECT 1 FROM companies WHERE npc_personality = 'apex' AND country_id = 'drennia') THEN
         INSERT INTO companies (owner_character_id, world_instance_id, country_id, headquarters_state_id, industry_id, legal_structure_id, currency_id, name, status, is_npc, npc_personality, reputation, reliability, created_at_world_year, created_at_world_month, created_at_world_day)
         VALUES (v_sys_char_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', 'manufacturing', 'sole-trader', 'dollar', 'Apex Automobili', 'active', TRUE, 'apex', 50, 50, 0, 0, 0)
         RETURNING id INTO v_company_id;
@@ -145,7 +145,7 @@ BEGIN
     -- ==========================================
     -- 4. HAULPRO (Commercial)
     -- ==========================================
-    IF NOT EXISTS (SELECT 1 FROM companies WHERE is_npc = TRUE AND npc_personality = 'haulpro' AND country_id = 'drennia') THEN
+    IF NOT EXISTS (SELECT 1 FROM companies WHERE npc_personality = 'haulpro' AND country_id = 'drennia') THEN
         INSERT INTO companies (owner_character_id, world_instance_id, country_id, headquarters_state_id, industry_id, legal_structure_id, currency_id, name, status, is_npc, npc_personality, reputation, reliability, created_at_world_year, created_at_world_month, created_at_world_day)
         VALUES (v_sys_char_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', 'manufacturing', 'sole-trader', 'dollar', 'HaulPro', 'active', TRUE, 'haulpro', 50, 50, 0, 0, 0)
         RETURNING id INTO v_company_id;
