@@ -3812,6 +3812,22 @@ export class ManufacturingController {
             'manufacturing_vehicle_models.launched_month'
         );
 
+      const approvedStandards = await db('manufacturing_engineering_programmes').where({ company_id: companyId, status: 'approved' });
+      const hasEcoTune   = approvedStandards.some((p: any) => p.programme_id === 'economy-tune');
+      const hasSafetyAr  = approvedStandards.some((p: any) => p.programme_id === 'safety-arch');
+
+      if (hasEcoTune || hasSafetyAr) {
+        for (const alloc of joinedAllocations) {
+          if (hasEcoTune) {
+            alloc.fuel_efficiency_score = Math.min(100, Number(alloc.fuel_efficiency_score ?? 60) + 5);
+            alloc.appeal_score          = Math.min(100, Number(alloc.appeal_score ?? 50) + 2);
+          }
+          if (hasSafetyAr) {
+            alloc.reliability_score = Math.min(100, Number(alloc.reliability_score ?? 60) + 8);
+          }
+        }
+      }
+
       const brandMap = new Map<string, any>();
       for (const b of brandData) {
         brandMap.set(`${companyId}_${b.region_market_id}`, b);
