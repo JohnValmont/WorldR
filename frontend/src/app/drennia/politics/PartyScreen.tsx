@@ -137,6 +137,30 @@ function parsePlatform(raw: any): Record<string, number> {
   return raw as Record<string, number>;
 }
 
+function parseJsonArray(raw: any): any[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+  return [];
+}
+
+function parseJsonObject(raw: any): Record<string, any> {
+  if (!raw) return {};
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) ? parsed : {};
+    } catch { return {}; }
+  }
+  return {};
+}
+
 // ── Faction Loyalty colours ──────────────────────────────────────────────────
 function loyaltyTone(loyalty: number) {
   if (loyalty >= 60) return T.mint;
@@ -1870,11 +1894,14 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                   );
                 })()}
                 
-                {myParty.founders && myParty.founders.length > 0 && (
-                  <div style={{ flex: 1, minWidth: 250 }}>
-                    <div style={{ color: T.faint, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.1em' }}>Core Founders</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {myParty.founders.map((fid: string) => {
+                {(() => {
+                  const founders = parseJsonArray(myParty.founders);
+                  if (founders.length === 0) return null;
+                  return (
+                    <div style={{ flex: 1, minWidth: 250 }}>
+                      <div style={{ color: T.faint, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.1em' }}>Core Founders</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {founders.map((fid: string) => {
                         const f = CO_FOUNDERS.find(cf => cf.id === fid);
                         if (!f) return null;
                         return (
@@ -1889,9 +1916,10 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                           </div>
                         );
                       })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </Panel>
           )}
@@ -1961,79 +1989,87 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
               </div>
 
               {/* Modern Ideology Axes (Rich Data) */}
-              {myParty.ideology_axes && Object.keys(myParty.ideology_axes).length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ color: T.faint, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Ideological Axes</div>
-                  {IDEOLOGY_AXES.map((axis) => {
-                    const val = myParty.ideology_axes[axis.id] || 0;
-                    return (
-                      <div key={axis.id}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <span style={{ color: T.ivory, fontSize: 13, fontFamily: SANS, fontWeight: 600 }}>{axis.label}</span>
-                          <span style={{ color: axis.color, fontFamily: MONO, fontSize: 12, fontWeight: 600 }}>
-                            {val > 0 ? `+${val}` : val}
-                          </span>
-                        </div>
-                        <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 99, position: 'relative', display: 'flex', boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.5)' }}>
-                          {/* Center tick */}
-                          <div style={{ position: 'absolute', left: '50%', top: -3, bottom: -3, width: 2, background: 'rgba(255,255,255,0.3)', borderRadius: 2 }} />
-                          <div style={{ width: '50%', height: '100%', display: 'flex', justifyContent: 'flex-end' }}>
-                            {val < 0 && <div style={{ width: `${Math.abs(val)}%`, height: '100%', background: `linear-gradient(90deg, transparent, ${axis.color})`, borderRadius: '99px 0 0 99px', boxShadow: `0 0 10px ${axis.color}80` }} />}
-                          </div>
-                          <div style={{ width: '50%', height: '100%', display: 'flex', justifyContent: 'flex-start' }}>
-                            {val > 0 && <div style={{ width: `${val}%`, height: '100%', background: `linear-gradient(90deg, ${axis.color}, transparent)`, borderRadius: '0 99px 99px 0', boxShadow: `0 0 10px ${axis.color}80` }} />}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                          <span style={{ color: T.faint, fontSize: 10 }}>{axis.left}</span>
-                          <span style={{ color: T.faint, fontSize: 10 }}>{axis.right}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Manifesto Policies (Rich Data) */}
-              {myParty.manifesto_policies && Object.keys(myParty.manifesto_policies).length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ color: T.faint, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Manifesto Policies</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-                    {Object.entries(myParty.manifesto_policies).map(([pillarId, stanceId]) => {
-                      const pillar = POLICY_PILLARS.find(p => p.id === pillarId);
-                      const stance = pillar?.stances.find(s => s.id === stanceId);
-                      if (!pillar || !stance) return null;
+              {(() => {
+                const axes = parseJsonObject(myParty.ideology_axes);
+                if (Object.keys(axes).length === 0) return null;
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ color: T.faint, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Ideological Axes</div>
+                    {IDEOLOGY_AXES.map((axis) => {
+                      const val = axes[axis.id] || 0;
                       return (
-                        <div key={pillarId} 
-                          style={{ 
-                            background: 'rgba(15,17,26,0.6)', 
-                            padding: 16, 
-                            borderRadius: 12, 
-                            border: '1px solid rgba(255,255,255,0.06)',
-                            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-                            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                            display: 'flex', flexDirection: 'column', gap: 6
-                          }}
-                          onMouseEnter={e => {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.4)';
-                            e.currentTarget.style.border = '1px solid rgba(255,255,255,0.15)';
-                          }}
-                          onMouseLeave={e => {
-                            e.currentTarget.style.transform = 'none';
-                            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.2)';
-                            e.currentTarget.style.border = '1px solid rgba(255,255,255,0.06)';
-                          }}
-                        >
-                          <div style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', marginBottom: 2 }}>{pillar.label}</div>
-                          <div style={{ color: T.ivory, fontSize: 14, fontWeight: 700, fontFamily: SANS, marginBottom: 2 }}>{stance.label}</div>
-                          <div style={{ color: T.muted, fontSize: 12, lineHeight: 1.5 }}>{stance.desc}</div>
+                        <div key={axis.id}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <span style={{ color: T.ivory, fontSize: 13, fontFamily: SANS, fontWeight: 600 }}>{axis.label}</span>
+                            <span style={{ color: axis.color, fontFamily: MONO, fontSize: 12, fontWeight: 600 }}>
+                              {val > 0 ? `+${val}` : val}
+                            </span>
+                          </div>
+                          <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 99, position: 'relative', display: 'flex', boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.5)' }}>
+                            {/* Center tick */}
+                            <div style={{ position: 'absolute', left: '50%', top: -3, bottom: -3, width: 2, background: 'rgba(255,255,255,0.3)', borderRadius: 2 }} />
+                            <div style={{ width: '50%', height: '100%', display: 'flex', justifyContent: 'flex-end' }}>
+                              {val < 0 && <div style={{ width: `${Math.abs(val)}%`, height: '100%', background: `linear-gradient(90deg, transparent, ${axis.color})`, borderRadius: '99px 0 0 99px', boxShadow: `0 0 10px ${axis.color}80` }} />}
+                            </div>
+                            <div style={{ width: '50%', height: '100%', display: 'flex', justifyContent: 'flex-start' }}>
+                              {val > 0 && <div style={{ width: `${val}%`, height: '100%', background: `linear-gradient(90deg, ${axis.color}, transparent)`, borderRadius: '0 99px 99px 0', boxShadow: `0 0 10px ${axis.color}80` }} />}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                            <span style={{ color: T.faint, fontSize: 10 }}>{axis.left}</span>
+                            <span style={{ color: T.faint, fontSize: 10 }}>{axis.right}</span>
+                          </div>
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              )}
+                );
+              })()}
+
+              {/* Manifesto Policies (Rich Data) */}
+              {(() => {
+                const policies = parseJsonObject(myParty.manifesto_policies);
+                if (Object.keys(policies).length === 0) return null;
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ color: T.faint, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Manifesto Policies</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                      {Object.entries(policies).map(([pillarId, stanceId]) => {
+                        const pillar = POLICY_PILLARS.find(p => p.id === pillarId);
+                        const stance = pillar?.stances.find(s => s.id === stanceId);
+                        if (!pillar || !stance) return null;
+                        return (
+                          <div key={pillarId} 
+                            style={{ 
+                              background: 'rgba(15,17,26,0.6)', 
+                              padding: 16, 
+                              borderRadius: 12, 
+                              border: '1px solid rgba(255,255,255,0.06)',
+                              boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+                              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                              display: 'flex', flexDirection: 'column', gap: 6
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                              e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.4)';
+                              e.currentTarget.style.border = '1px solid rgba(255,255,255,0.15)';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.transform = 'none';
+                              e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.2)';
+                              e.currentTarget.style.border = '1px solid rgba(255,255,255,0.06)';
+                            }}
+                          >
+                            <div style={{ color: T.faint, fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', marginBottom: 2 }}>{pillar.label}</div>
+                            <div style={{ color: T.ivory, fontSize: 14, fontWeight: 700, fontFamily: SANS, marginBottom: 2 }}>{stance.label}</div>
+                            <div style={{ color: T.muted, fontSize: 12, lineHeight: 1.5 }}>{stance.desc}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </Panel>
 
