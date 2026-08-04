@@ -2692,23 +2692,24 @@ export class ManufacturingController {
            }
         }
         
+        // 0.5 Advance construction timers — always run so factories never get stuck.
+        // This is idempotent: updating an already-completed factory is a no-op.
+        const absCurrentMonth = currentYear * 12 + currentMonth;
+        await trx('manufacturing_factories')
+           .where('building_status', 'under_construction')
+           .whereRaw('(building_completion_year * 12 + building_completion_month) <= ?', [absCurrentMonth])
+           .update({ building_status: 'completed' });
+           
+        await trx('manufacturing_production_lines')
+           .where('construction_status', 'under_construction')
+           .whereRaw('(construction_completion_year * 12 + construction_completion_month) <= ?', [absCurrentMonth])
+           .update({ construction_status: 'completed' });
+
         if (processedCompanyIds.size === 0) {
            // 0. Macro-Economic Simulation
            // Grow populations, fluctuate incomes, and adjust economy before any companies process sales.
            // This block ONLY runs if this is the absolute first time the country is processed this month.
            await ManufacturingController.simulateMacroEconomyMonth(trx, countryId);
-
-           // 0.5 Advance construction timers for GearCity Logistics
-           const absCurrentMonth = currentYear * 12 + currentMonth;
-           await trx('manufacturing_factories')
-              .where('building_status', 'under_construction')
-              .whereRaw('(building_completion_year * 12 + building_completion_month) <= ?', [absCurrentMonth])
-              .update({ building_status: 'completed' });
-              
-           await trx('manufacturing_production_lines')
-              .where('construction_status', 'under_construction')
-              .whereRaw('(construction_completion_year * 12 + construction_completion_month) <= ?', [absCurrentMonth])
-              .update({ construction_status: 'completed' });
         }
         
         if (processedCompanyIds.size === participants.length) {
