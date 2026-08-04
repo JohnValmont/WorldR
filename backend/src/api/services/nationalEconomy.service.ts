@@ -186,3 +186,76 @@ export async function enactPolicy(trx: any, stateId: string, categoryId: string,
     target_effects: JSON.stringify(effects)
   });
 }
+
+// ── National Policy → Manufacturing Effects ──────────────────────────────────
+export interface ManufacturingPolicyEffect {
+  costMultiplier:    number;  // multiply manufacturing_cost_per_unit
+  demandMultiplier:  number;  // multiply final unit demand across all markets
+  reliabilityBonus:  number;  // flat bonus added to reliability_score (capped at 100)
+  appealBonus:       number;  // flat bonus added to appeal_score
+  marketAccessBonus: number;  // >0 = force all companies to at least 'local' marketing
+}
+
+/**
+ * Aggregate manufacturing policy effects from all national bills active in a country.
+ * Safe to call with no active policies — returns neutral 1.0 multipliers.
+ */
+export async function getNationalPolicyMultipliers(
+  trx: any,
+  countryId: string,
+): Promise<ManufacturingPolicyEffect> {
+  const effect: ManufacturingPolicyEffect = {
+    costMultiplier: 1.0, demandMultiplier: 1.0,
+    reliabilityBonus: 0, appealBonus: 0, marketAccessBonus: 0,
+  };
+
+  const states = await trx('pol_states').where({ country_id: countryId }).select('id');
+  if (!states.length) return effect;
+
+  const stateIds = states.map((s: any) => s.id);
+  const nationalPolicies: ActivePolicy[] = await trx('pol_active_policies')
+    .whereIn('state_id', stateIds)
+    .where({ is_active: true, is_national: true });
+
+  if (!nationalPolicies.length) return effect;
+
+  // Accumulate effects across all active national policies
+  const totals: Record<string, number> = {};
+  for (const pol of nationalPolicies) {
+    const te = typeof pol.target_effects === 'string'
+      ? JSON.parse(pol.target_effects)
+      : (pol.target_effects ?? {});
+    for (const [k, v] of Object.entries(te)) {
+      totals[k] = (totals[k] ?? 0) + Number(v);
+    }
+  }
+
+  // fiscal_health: +10 → -1% manufacturing cost, cap ±10%
+  const fiscalDelta = totals['fiscal_health'] ?? 0;
+  if (fiscalDelta !== 0) {
+    const pct = Math.max(-10, Math.min(10, fiscalDelta / 10));
+    effect.costMultiplier = Math.max(0.90, Math.min(1.10, 1 - pct * 0.01));
+  }
+
+  // prosperity: +10 → +1.5% demand, cap ±8%
+  const prosper = totals['prosperity'] ?? 0;
+  if (prosper !== 0) {
+    const pct = Math.max(-8, Math.min(8, prosper / 10 * 1.5));
+    effect.demandMultiplier = Math.max(0.92, Math.min(1.08, 1 + pct / 100));
+  }
+
+  // order_safety: +10 → +1 reliability point, cap +5
+  const orderEff = totals['order_safety'] ?? 0;
+  if (orderEff > 0) effect.reliabilityBonus = Math.min(5, Math.round(orderEff / 10));
+
+  // equity: +15 → +1 appeal point, cap +3
+  const equityEff = totals['equity'] ?? 0;
+  if (equityEff > 0) effect.appealBonus = Math.min(3, Math.round(equityEff / 15));
+
+  // bureaucracy: <-5 deregulation → market access bonus
+  const burEff = totals['bureaucracy'] ?? 0;
+  if (burEff < -5) effect.marketAccessBonus = 1;
+
+  return effect;
+}
+

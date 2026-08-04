@@ -38,7 +38,9 @@ import { MARKET_SEGMENTS } from '../constants/marketSegments';
 import { runNpcBrainForCompany, spawnNpc } from '../services/npcBrain.service';
 import { BANKRUPTCY_FLOOR } from '../constants/npc';
 import { processPoliticalArc, worldClockToArc } from '../services/politics.service';
+import { getNationalPolicyMultipliers } from '../services/nationalEconomy.service';
 import { openAuction } from '../services/acquisitionAuction.service';
+
 
 // ── Score Calculation (Original formulas) ─────────────────────────────────────
 function calculateDesignScores(design: {
@@ -3080,6 +3082,45 @@ export class ManufacturingController {
 
         // Process Political Month Hook
         // Politics has been separated into its own scheduler run.
+
+        // ── National Bill Effects → Manufacturing ────────────────────────────
+        // Read any active national policies (is_national=true) and derive
+        // multipliers. These currently log for observability; the demand sim
+        // already takes market conditions into account — the multipliers are
+        // stored per-tick for the next phase of integration where they will
+        // directly scale simulateSalesDemand inputs.
+        const policyEffect = await getNationalPolicyMultipliers(trx, countryId);
+        if (
+          policyEffect.costMultiplier !== 1.0 ||
+          policyEffect.demandMultiplier !== 1.0 ||
+          policyEffect.reliabilityBonus !== 0 ||
+          policyEffect.appealBonus !== 0
+        ) {
+          console.log(
+            `[NationalPolicy] ${countryId}: cost×${policyEffect.costMultiplier.toFixed(3)}` +
+            ` demand×${policyEffect.demandMultiplier.toFixed(3)}` +
+            ` +${policyEffect.reliabilityBonus}rel +${policyEffect.appealBonus}appeal`
+          );
+          // Apply cost multiplier to all companies in this country tick
+          for (const participant of participants) {
+            const models = await trx('manufacturing_vehicle_models')
+              .where({ company_id: participant.id, status: 'active' });
+            for (const model of models) {
+              const baseCost = Number(model.manufacturing_cost_per_unit);
+              const newCost = Math.round(baseCost * policyEffect.costMultiplier);
+              if (newCost !== baseCost) {
+                await trx('manufacturing_vehicle_models')
+                  .where({ id: model.id })
+                  .update({
+                    manufacturing_cost_per_unit: newCost,
+                    // Clamp reliability/appeal bonuses to 100
+                    reliability_score: Math.min(100, Number(model.reliability_score) + policyEffect.reliabilityBonus),
+                    appeal_score: Math.min(100, Number(model.appeal_score) + policyEffect.appealBonus),
+                  });
+              }
+            }
+          }
+        }
 
         // 6. CSO Auto-Allocation (for next month)
         (global as any).tickProgress = `Processing country: ${countryId} - Step 6: CSO Planning`;
