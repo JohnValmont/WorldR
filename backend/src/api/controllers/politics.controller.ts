@@ -1064,13 +1064,18 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
       }
     }
 
-    const parties = await db('pol_parties').where({ state_id: activeState.id });
-    const partySeats = parties.map(p => ({
+    // Fetch parties by the IDs that actually appear in the seat records.
+    // Using state_id filter misses parties from other states that won national seats.
+    const seatedPartyIds = Object.keys(seatCounts);
+    const parties = seatedPartyIds.length > 0
+      ? await db('pol_parties').whereIn('id', seatedPartyIds)
+      : await db('pol_parties').where({ state_id: activeState.id }); // fallback for projection path
+    const partySeats = (parties as any[]).map((p: any) => ({
       partyId: p.id,
       name: p.name,
       abbreviation: p.abbreviation,
       seats: seatCounts[p.id] || 0
-    })).filter(p => p.seats > 0).sort((a, b) => b.seats - a.seats);
+    })).filter((p: any) => p.seats > 0).sort((a: any, b: any) => b.seats - a.seats);
 
     const premierOffice = await db('pol_offices').where({ state_id: activeState.id, office: 'premier' }).orderBy('since_arc', 'desc').first();
     let premier = null;

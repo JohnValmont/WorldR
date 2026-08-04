@@ -145,51 +145,96 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }}>
           
           <GlassPanel title={<><Landmark size={14} /> Composition</>} accent={T.blueLine}>
-            {/* Glowing Seat Visualizer */}
-            <div style={{ 
-              display: 'flex', flexWrap: 'wrap', gap: 6, padding: '24px', justifyContent: 'center',
-              background: 'rgba(0,0,0,0.5)', 
-              borderRadius: 12, 
-              border: `1px solid rgba(255,255,255,0.05)`, 
-              boxShadow: 'inset 0 4px 20px rgba(0,0,0,0.8)' 
-            }}>
-              {Array.from({ length: totalSeats }).map((_, i) => {
-                let currentOffset = 0;
-                let seatColor = 'rgba(255,255,255,0.05)'; // Empty seat
-                let seatGlow = 'none';
-                let seatTitle = 'Vacant';
-                
-                for (let partyIdx = 0; partyIdx < partySeats.length; partyIdx++) {
-                  const p = partySeats[partyIdx];
-                  if (i >= currentOffset && i < currentOffset + p.seats) {
-                    seatColor = PALETTE[partyIdx % PALETTE.length];
-                    seatGlow = `0 0 10px ${seatColor}80, inset 0 1px 2px rgba(255,255,255,0.4)`;
-                    seatTitle = p.name;
-                    break;
-                  }
-                  currentOffset += p.seats;
-                }
+            {/* ── SVG Hemicycle Parliament Chart ── */}
+            {(() => {
+              const W = 520, H = 280;
+              const cx = W / 2, cy = H - 10;
+              const ROWS = 4;
+              const ROW_GAP = 28;
+              const SEAT_R = 7;
+              const START_ANGLE = Math.PI; // 180° (left)
+              const END_ANGLE = 0;         // 0°  (right)
 
-                return (
-                  <div 
-                    key={i} 
-                    title={seatTitle}
-                    style={{ 
-                      width: 14,
-                      height: 14, 
-                      background: seatColor,
-                      borderRadius: '50%',
-                      boxShadow: seatGlow,
-                      border: seatColor === 'rgba(255,255,255,0.05)' ? '1px dashed rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.5)',
-                      transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                      cursor: 'help'
-                    }} 
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px) scale(1.2)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
-                  />
-                );
-              })}
-            </div>
+              // Build seat-to-party color map
+              const seatColors: string[] = [];
+              for (const p of partySeats) {
+                const idx = partySeats.indexOf(p);
+                const col = PALETTE[idx % PALETTE.length];
+                for (let s = 0; s < p.seats; s++) seatColors.push(col);
+              }
+              // Fill remaining with empty
+              while (seatColors.length < totalSeats) seatColors.push('rgba(255,255,255,0.07)');
+
+              // Distribute seats across rows (more seats in outer rows proportionally)
+              const seatsPerRow: number[] = [];
+              {
+                // Outer rows have larger circumference, give them proportionally more seats
+                const radii = Array.from({ length: ROWS }, (_, i) => 90 + i * ROW_GAP);
+                const totalArc = radii.reduce((s, r) => s + r, 0);
+                let assigned = 0;
+                for (let row = 0; row < ROWS; row++) {
+                  const share = row < ROWS - 1
+                    ? Math.round((radii[row] / totalArc) * totalSeats)
+                    : totalSeats - assigned;
+                  seatsPerRow.push(Math.max(1, share));
+                  assigned += seatsPerRow[row];
+                }
+              }
+
+              const svgSeats: { x: number; y: number; color: number; title: string }[] = [];
+              let globalIdx = 0;
+              for (let row = 0; row < ROWS; row++) {
+                const radius = 90 + row * ROW_GAP;
+                const count = seatsPerRow[row];
+                for (let s = 0; s < count; s++) {
+                  const angle = START_ANGLE + (s / (count - 1 || 1)) * (END_ANGLE - START_ANGLE);
+                  const x = cx + radius * Math.cos(angle);
+                  const y = cy + radius * Math.sin(angle);
+                  const color = seatColors[globalIdx] ?? 'rgba(255,255,255,0.07)';
+                  // Find party name for this seat
+                  let title = 'Vacant';
+                  let offset = 0;
+                  for (const p of partySeats) {
+                    if (globalIdx >= offset && globalIdx < offset + p.seats) { title = p.name; break; }
+                    offset += p.seats;
+                  }
+                  svgSeats.push({ x, y, color: globalIdx, title });
+                  svgSeats[svgSeats.length - 1] = { x, y, color: color as any, title };
+                  globalIdx++;
+                }
+              }
+
+              return (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 0', background: 'rgba(0,0,0,0.5)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)', boxShadow: 'inset 0 4px 20px rgba(0,0,0,0.8)' }}>
+                  <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', maxWidth: '100%' }}>
+                    {/* Floor line */}
+                    <line x1={20} y1={cy} x2={W - 20} y2={cy} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
+                    {/* Seats */}
+                    {svgSeats.map((seat, i) => (
+                      <circle
+                        key={i}
+                        cx={seat.x}
+                        cy={seat.y}
+                        r={SEAT_R}
+                        fill={seat.color as any}
+                        stroke={seat.color === 'rgba(255,255,255,0.07)' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.4)'}
+                        strokeWidth={1}
+                        style={{ cursor: 'help', transition: 'r 0.15s ease, opacity 0.15s ease' }}
+                        onMouseEnter={(e) => { e.currentTarget.setAttribute('r', '9'); }}
+                        onMouseLeave={(e) => { e.currentTarget.setAttribute('r', String(SEAT_R)); }}
+                      >
+                        <title>{seat.title}</title>
+                      </circle>
+                    ))}
+                    {/* Majority threshold label */}
+                    <text x={cx} y={cy - 6} textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize={10} fontFamily="monospace">
+                      MAJORITY: {majority}
+                    </text>
+                  </svg>
+                </div>
+              );
+            })()}
+
 
             {/* Seat Legend */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 24 }}>
