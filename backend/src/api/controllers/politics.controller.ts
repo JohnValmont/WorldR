@@ -67,6 +67,19 @@ import {
   PC_SPEND_ACTIONS,
   POL_CAMPAIGN_WINDOW_MONTHS,
   POL_FILING_WINDOW_MONTHS,
+  // Competitive fundraising system
+  POL_FUNDRAISE_DONOR_POOL,
+  POL_FUNDRAISE_FATIGUE_FULL_ARC,
+  POL_FUNDRAISE_COMPETITION_HIT,
+  POL_FUNDRAISE_DOCTRINE_BONUS,
+  POL_FUNDRAISE_OUTCOME_TABLE,
+  POL_FUNDRAISE_OUTCOME_MULTS,
+  POL_FUNDRAISE_CRITICAL_BONUS,
+  POL_FUNDRAISE_FLOP_FLAT,
+  POL_FUNDRAISE_DISASTER_FLAT,
+  POL_FUNDRAISE_CHARISMA_MULT_MIN,
+  POL_FUNDRAISE_CHARISMA_MULT_MAX,
+  POL_FUNDRAISE_NARRATIVES,
 } from '../constants/politics';
 
 import { runElection } from '../services/electionEngine';
@@ -1845,15 +1858,142 @@ export async function doGeneralAction(req: Request, res: Response, next: NextFun
 
       const charisma = Number(character.charisma || 0);
       let message = '';
+      const result: Record<string, any> = {};
 
       if (type === 'statement') {
         await trx('pol_parties').where({ id: party.id })
           .update({ popularity: trx.raw('LEAST(popularity + 1, 100)') });
         message = 'Statement issued. Popularity nudged up by 1.';
+
       } else if (type === 'fundraise') {
-        const gain = Math.round(POL_FUNDRAISER_BASE + charisma * POL_FUNDRAISER_CHARISMA_MULT);
-        await trx('pol_parties').where({ id: party.id }).increment('treasury', gain);
-        message = `Fundraiser complete. +$${gain.toLocaleString()} added to party treasury.`;
+        // ── Competitive Fundraising Model ───────────────────────────────────
+        const clockRow = await trx('world_clock').select('pol_current_year', 'pol_current_month').first();
+        const currentArc = worldClockToArc({ current_year: clockRow.pol_current_year, current_month: clockRow.pol_current_month });
+
+        // 1. Popularity-based donor pool share
+        const allParties = await trx('pol_parties').select('id', 'popularity');
+        const totalPop   = allParties.reduce((s: number, p: any) => s + Number(p.popularity || 1), 0);
+        const myPopShare = (Number(party.popularity || 1)) / Math.max(totalPop, 1);
+        let potential    = POL_FUNDRAISE_DONOR_POOL * myPopShare;
+
+        // 2. Charisma multiplier (0.5x → 2.0x)
+        const charismaMult = POL_FUNDRAISE_CHARISMA_MULT_MIN +
+          (charisma / 100) * (POL_FUNDRAISE_CHARISMA_MULT_MAX - POL_FUNDRAISE_CHARISMA_MULT_MIN);
+        potential *= charismaMult;
+
+        // 3. Doctrine alignment bonus
+        const doctrineBonusFrac = POL_FUNDRAISE_DOCTRINE_BONUS[party.doctrine_id] ?? 0;
+        potential *= (1 + doctrineBonusFrac);
+
+        // 4. Donor fatigue
+        const lastFundraiseArc = Number(party.last_fundraise_arc || 0);
+        const arcsSinceLast    = currentArc - lastFundraiseArc;
+        const fatigueMult      = Math.min(1.0, arcsSinceLast / POL_FUNDRAISE_FATIGUE_FULL_ARC);
+        potential *= Math.max(0.33, fatigueMult); // floor 0.33x (never worse than 1/3)
+
+        // 5. Competition penalty
+        // pol_ledger_events uses the arc column directly (integer), no party_id column
+        const competitorCount = await trx('pol_ledger_events')
+          .where({ kind: 'fundraise_result', arc: currentArc })
+          .whereNot('state_id', party.state_id) // different state_id as proxy for different party
+          .count('id as cnt')
+          .first();
+        // Also count same-state fundraisers via body prefix match (best available without party_id)
+        const sameStateCount = await trx('pol_ledger_events')
+          .where({ kind: 'fundraise_result', arc: currentArc, state_id: party.state_id })
+          .count('id as cnt')
+          .first();
+        const competitors    = Math.min(5, Number((competitorCount as any)?.cnt || 0) + Math.max(0, Number((sameStateCount as any)?.cnt || 0) - 1));
+        const competitionMult = Math.max(0.50, 1 - competitors * POL_FUNDRAISE_COMPETITION_HIT);
+        potential *= competitionMult;
+
+        // 6. Outcome roll — charisma-weighted probability table
+        const outcomeRow = POL_FUNDRAISE_OUTCOME_TABLE.find(
+          r => charisma >= r.minCharisma && charisma <= r.maxCharisma
+        ) ?? POL_FUNDRAISE_OUTCOME_TABLE[0];
+        const probs = outcomeRow.probs;
+        const roll  = Math.random();
+        let outcome: 'critical' | 'success' | 'weak' | 'flop' | 'disaster';
+        if      (roll > 1 - probs.critical)                                outcome = 'critical';
+        else if (roll > 1 - probs.critical - probs.success)               outcome = 'success';
+        else if (roll > 1 - probs.critical - probs.success - probs.weak)  outcome = 'weak';
+        else if (roll > probs.disaster)                                    outcome = 'flop';
+        else                                                               outcome = 'disaster';
+
+        // 7. Calculate actual gain
+        let gain: number;
+        if (outcome === 'critical') {
+          gain = Math.round(potential * POL_FUNDRAISE_OUTCOME_MULTS.critical + POL_FUNDRAISE_CRITICAL_BONUS);
+        } else if (outcome === 'success') {
+          gain = Math.round(potential * POL_FUNDRAISE_OUTCOME_MULTS.success);
+        } else if (outcome === 'weak') {
+          gain = Math.round(potential * POL_FUNDRAISE_OUTCOME_MULTS.weak);
+        } else if (outcome === 'flop') {
+          gain = POL_FUNDRAISE_FLOP_FLAT;
+        } else {
+          gain = POL_FUNDRAISE_DISASTER_FLAT; // negative
+        }
+
+        // 8. Apply treasury change
+        if (gain >= 0) {
+          await trx('pol_parties').where({ id: party.id }).increment('treasury', gain);
+        } else {
+          await trx('pol_parties').where({ id: party.id })
+            .update({ treasury: trx.raw('GREATEST(0, treasury + ?)', [gain]) });
+        }
+
+        // 9. Update donor fatigue
+        await trx('pol_parties').where({ id: party.id }).update({ last_fundraise_arc: currentArc });
+
+        // 10. Disaster → auto-generate scandal (match actual pol_scandals schema)
+        if (outcome === 'disaster') {
+          await trx('pol_scandals').insert({
+            id: trx.raw('gen_random_uuid()'),
+            party_id: party.id,
+            character_id: character.id,
+            state_id: party.state_id,
+            scandal_type: 'fundraising_misconduct',
+            phase: 'rumour',
+            severity: 2,
+            popularity_damage: 0,
+            discovery_arc: currentArc,
+            phase_entered_arc: currentArc,
+          });
+        }
+
+        // 11. Log to ledger (pol_ledger_events schema: id, state_id, arc, kind, headline, body)
+        await trx('pol_ledger_events').insert({
+          id: trx.raw('gen_random_uuid()'),
+          state_id: party.state_id,
+          arc: currentArc,
+          kind: 'fundraise_result',
+          headline: `Fundraiser: ${outcome.toUpperCase()} — ${gain >= 0 ? '+' : ''}$${gain.toLocaleString()}`,
+          body: `Party: ${party.name} | Gain: ${gain} | Competitors: ${competitors} | Fatigue: ${Math.round(fatigueMult * 100)}% | Competition: ${Math.round(competitionMult * 100)}%`,
+        });
+
+        // 12. Pick narrative
+        const narrativePool = POL_FUNDRAISE_NARRATIVES[outcome] ?? POL_FUNDRAISE_NARRATIVES.success;
+        const narrative = narrativePool[Math.floor(Math.random() * narrativePool.length)];
+
+        const updatedParty = await trx('pol_parties').where({ id: party.id }).first();
+
+        // Return rich payload for the UI result card
+        (result as any).fundraise = {
+          outcome,
+          gain,
+          narrative,
+          fatigueMult: Math.round(fatigueMult * 100),
+          competitionMult: Math.round(competitionMult * 100),
+          competitors,
+          oldTreasury: Number(party.treasury),
+          newTreasury: Number(updatedParty.treasury),
+          autoScandal: outcome === 'disaster',
+        };
+
+        message = outcome === 'disaster'
+          ? `Disaster. ${narrative} -$${Math.abs(gain).toLocaleString()} and a scandal is circulating.`
+          : `${outcome.charAt(0).toUpperCase() + outcome.slice(1)}. ${gain >= 0 ? '+' : ''}$${gain.toLocaleString()} raised.`;
+
       } else if (type === 'endorsement') {
         message = 'Endorsement drive logged. Candidate boost will apply at next campaign resolution.';
       } else if (type === 'scout') {
@@ -1882,7 +2022,9 @@ export async function doGeneralAction(req: Request, res: Response, next: NextFun
       }
 
       const apRow = await trx('pol_character_ap').where({ character_id: character.id }).first();
-      return { message, ap: { current_ap: apRow.current_ap, ap_cap: apRow.ap_cap } };
+      (result as any).ap = { current_ap: apRow.current_ap, ap_cap: apRow.ap_cap };
+      (result as any).message = message;
+      return result;
     });
 
     return res.json({ success: true, ...result });

@@ -126,6 +126,83 @@ export const POL_FUNDRAISER_BASE = 5000;
 export const POL_FUNDRAISER_CHARISMA_MULT = 100;
 export const POL_ENDORSEMENT_INFLUENCE_COST = 5;
 
+// ── Competitive Fundraising System ──────────────────────────────────────────
+// All values are TUNABLE — change here, never inline.
+
+// Total national donor wealth available per arc across ALL parties
+export const POL_FUNDRAISE_DONOR_POOL = 500_000;
+
+// Donor fatigue: min arcs since last fundraise to avoid penalty (0 = same arc = max penalty)
+export const POL_FUNDRAISE_FATIGUE_FULL_ARC = 3;   // >= 3 arcs = no fatigue
+
+// Competition penalty per rival party that fundraised the same arc
+export const POL_FUNDRAISE_COMPETITION_HIT = 0.10; // -10% per competitor, max -50%
+
+// Doctrine-based donor alignment bonuses (additive on top of base share)
+export const POL_FUNDRAISE_DOCTRINE_BONUS: Record<string, number> = {
+  the_ledger:    0.30,  // business donors love low-tax parties
+  forge_accord:  0.20,  // union donors love labour-first parties
+  the_homestead: 0.15,  // community donors like order & tradition
+};
+
+// Charisma-weighted outcome probability tables [critical, success, weak, flop, disaster]
+// Each row: [charisma_min, charisma_max, probs...]
+export const POL_FUNDRAISE_OUTCOME_TABLE: Array<{
+  minCharisma: number; maxCharisma: number;
+  probs: { critical: number; success: number; weak: number; flop: number; disaster: number };
+}> = [
+  { minCharisma: 0,  maxCharisma: 20,  probs: { critical: 0.05, success: 0.25, weak: 0.30, flop: 0.25, disaster: 0.15 } },
+  { minCharisma: 21, maxCharisma: 50,  probs: { critical: 0.10, success: 0.35, weak: 0.30, flop: 0.17, disaster: 0.08 } },
+  { minCharisma: 51, maxCharisma: 75,  probs: { critical: 0.15, success: 0.45, weak: 0.25, flop: 0.12, disaster: 0.03 } },
+  { minCharisma: 76, maxCharisma: 100, probs: { critical: 0.20, success: 0.55, weak: 0.20, flop: 0.05, disaster: 0.00 } },
+];
+
+// Outcome multipliers applied to the adjusted_potential figure
+export const POL_FUNDRAISE_OUTCOME_MULTS = {
+  critical: 2.5,   // + $15,000 bonus on top
+  success:  1.0,
+  weak:     0.40,
+  flop:     0,     // flat fallback amount used instead
+  disaster: 0,     // flat negative used instead
+};
+export const POL_FUNDRAISE_CRITICAL_BONUS = 15_000;
+export const POL_FUNDRAISE_FLOP_FLAT      = 2_000;    // you still raised a tiny bit
+export const POL_FUNDRAISE_DISASTER_FLAT  = -5_000;   // costs exceeded returns
+
+// Charisma multiplier on potential: 0.5x at charisma=0, 2.0x at charisma=100
+export const POL_FUNDRAISE_CHARISMA_MULT_MIN = 0.5;
+export const POL_FUNDRAISE_CHARISMA_MULT_MAX = 2.0;
+
+// Outcome narrative strings for the result card
+export const POL_FUNDRAISE_NARRATIVES: Record<string, string[]> = {
+  critical: [
+    'The gala was packed. Two major donors doubled their pledges unexpectedly.',
+    'Word spread fast — a last-minute corporate sponsor tripled their contribution.',
+    'Standing ovation at the dinner. Cheques poured in well past midnight.',
+  ],
+  success: [
+    'A solid night. Supporters were generous and the venue was well-attended.',
+    'The event ran smoothly. Donors left satisfied and contributions came in steadily.',
+    'Good turnout. The fundraiser delivered reliable returns for the party chest.',
+  ],
+  weak: [
+    'Attendance was thinner than expected. Some pledges were smaller than hoped.',
+    'A quiet evening. Most major donors sent apologies and smaller cheques.',
+    'The crowd was polite but cautious. Returns were modest at best.',
+  ],
+  flop: [
+    'Venue costs, catering, and staff ate most of what was raised. Barely broke even.',
+    'A forgettable event. The party barely recovered its own expenses on the night.',
+    'Poor timing. Most donors were already committed elsewhere this arc.',
+  ],
+  disaster: [
+    'A donor publicly demanded a refund, alleging misuse of pledged funds. Rumours spreading.',
+    'The event descended into a public argument. Journalists are asking questions.',
+    'A major donor walked out mid-speech. An unsigned complaint is circulating in the press.',
+  ],
+};
+
+
 // ── Jurisdiction Conditions (GDD v0.5 $11 & $16) ────────────────────────────
 // Five per-state indicators the governing party's active policy moves each month;
 // they feed bloc turnout and trigger deterministic crisis events at thresholds.
