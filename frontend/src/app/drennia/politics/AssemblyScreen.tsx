@@ -217,7 +217,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
                         cy={seat.y}
                         r={SEAT_R}
                         fill={seat.color as any}
-                        stroke={seat.color === 'rgba(255,255,255,0.07)' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.4)'}
+                        stroke={String(seat.color) === 'rgba(255,255,255,0.07)' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.4)'}
                         strokeWidth={1}
                         style={{ cursor: 'help', transition: 'r 0.15s ease, opacity 0.15s ease' }}
                         onMouseEnter={(e) => { e.currentTarget.setAttribute('r', '9'); }}

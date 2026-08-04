@@ -2818,7 +2818,18 @@ export async function doExclusiveInterviewHandler(req: Request, res: Response, n
 
       await spendAp(trx, character.id, 3);
 
-      return doExclusiveInterview(trx, character.id, membership.party_id, outletId, currentArc);
+      // 'auto' = pick the outlet the party has the highest warmth with
+      let resolvedOutletId = outletId;
+      if (outletId === 'auto') {
+        const bestOutlet = await trx('pol_media_relations')
+          .where({ party_id: membership.party_id })
+          .orderBy('warmth', 'desc')
+          .first();
+        if (!bestOutlet) throw new AppError('No media outlets available', 400, 'NO_OUTLET');
+        resolvedOutletId = bestOutlet.outlet_id;
+      }
+
+      return doExclusiveInterview(trx, character.id, membership.party_id, resolvedOutletId, currentArc);
     });
 
     return res.json({ success: true, ...result });

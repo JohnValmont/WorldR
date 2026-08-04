@@ -200,7 +200,13 @@ router.post('/interest-groups/:groupId/rally', authMiddleware, doRallySupport);
 router.get('/media', authMiddleware, getMyMedia);
 router.get('/news', authMiddleware, getNewsFeedHandler);
 router.post('/media/press-conference', authMiddleware, doPressConferenceHandler);
+router.post('/media/exclusive-interview', authMiddleware, async (req, res, next) => {
+  // Convenience: pick the outlet with the highest warmth and do an exclusive there
+  req.params.outletId = 'auto';
+  return doExclusiveInterviewHandler(req, res, next);
+});
 router.post('/media/:outletId/exclusive', authMiddleware, doExclusiveInterviewHandler);
+
 
 // ── Legacy System (Phase 8) ──────────────────────────────────────────────────
 router.get('/legacy/:characterId', authMiddleware, getLegacyHandler);

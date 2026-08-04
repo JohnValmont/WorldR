@@ -1460,11 +1460,18 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
     } finally { setBusy(false); }
   }
 
+  const [fundraiseResult, setFundraiseResult] = useState<any>(null);
+
   async function fundraise() {
-    setBusy(true); setErr(null);
+    setBusy(true); setErr(null); setFundraiseResult(null);
     try {
       const res = await politicsApi.doGeneralAction('fundraise');
-      setErr((res as any)?.message ?? 'Fundraiser complete.');
+      // Show rich result card from new backend payload
+      if ((res as any)?.fundraise) {
+        setFundraiseResult((res as any).fundraise);
+      } else {
+        setErr((res as any)?.message ?? 'Fundraiser complete.');
+      }
       await onRefresh();
     } catch (e: any) {
       setErr(e?.response?.data?.message || 'Fundraiser failed');
@@ -1650,58 +1657,195 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
             </div>
           </div>
 
-          {/* Unified Actions Bar */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', background: 'rgba(15,17,26,0.6)', padding: '14px 20px', borderRadius: 12, border: `1px solid rgba(255,255,255,0.06)`, alignItems: 'center', backdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-            <span style={{ color: T.muted, fontSize: 10, fontFamily: MONO, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 12 }}>Commands</span>
-            {isLeader ? (
-              <>
-                <Btn label={busy ? "..." : "Hold Fundraiser (1 AP)"} onClick={fundraise} disabled={!!busy || (myAp?.current_ap ?? 0) < 1} primary />
-                <Btn label={busy ? "..." : "Press Conf (2 AP)"} onClick={pressConfGlobal} disabled={!!busy || (myAp?.current_ap ?? 0) < 2} />
-                <Btn label={busy ? "..." : "Recruit Candidate (1 AP)"} onClick={recruit} disabled={!!busy || (myAp?.current_ap ?? 0) < 1} />
-                <Btn label="Edit Platform" onClick={() => { setIsEditingPlatform(true); setPlatformEdits(parsePlatform(myParty.platform)); }} disabled={!!busy || isEditingPlatform} />
-                <div style={{ flexGrow: 1 }} />
-                <button 
-                  onClick={dissolveParty}
-                  disabled={!!busy}
+          {/* ── Fundraiser Result Card ── */}
+          {fundraiseResult && (() => {
+            const fr = fundraiseResult;
+            const outcomeColors: Record<string, string> = {
+              critical: '#fbbf24', success: '#34d399', weak: '#94a3b8', flop: '#f97316', disaster: '#ef4444'
+            };
+            const outcomeIcons: Record<string, string> = {
+              critical: '🎉', success: '✓', weak: '↘', flop: '─', disaster: '⚠'
+            };
+            const col = outcomeColors[fr.outcome] ?? '#94a3b8';
+            return (
+              <div style={{ background: `linear-gradient(135deg, ${col}12, rgba(15,17,26,0.95))`, border: `1px solid ${col}40`, borderLeft: `3px solid ${col}`, borderRadius: 12, padding: '20px 24px', position: 'relative' }}>
+                <button onClick={() => setFundraiseResult(null)} style={{ position: 'absolute', top: 12, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <span style={{ fontSize: 22 }}>{outcomeIcons[fr.outcome]}</span>
+                  <div>
+                    <div style={{ color: col, fontFamily: MONO, fontSize: 13, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase' }}>Fundraiser — {fr.outcome.toUpperCase()}</div>
+                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontFamily: SANS, marginTop: 2, fontStyle: 'italic' }}>{fr.narrative}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
+                  <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Raised</div>
+                    <div style={{ color: fr.gain >= 0 ? col : '#ef4444', fontFamily: MONO, fontSize: 20, fontWeight: 700 }}>{fr.gain >= 0 ? '+' : ''}${Math.abs(fr.gain).toLocaleString()}</div>
+                  </div>
+                  <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Treasury</div>
+                    <div style={{ color: 'rgba(255,255,255,0.8)', fontFamily: MONO, fontSize: 14, fontWeight: 600 }}>${fr.newTreasury.toLocaleString()}</div>
+                    <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, fontFamily: MONO }}>was ${fr.oldTreasury.toLocaleString()}</div>
+                  </div>
+                  <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Conditions</div>
+                    <div style={{ color: fr.fatigueMult < 60 ? '#f97316' : '#94a3b8', fontSize: 10, fontFamily: MONO }}>{fr.fatigueMult < 60 ? `⚡ Donor fatigue (${fr.fatigueMult}%)` : '✓ Fresh pool'}</div>
+                    <div style={{ color: fr.competitors > 0 ? '#f97316' : '#94a3b8', fontSize: 10, fontFamily: MONO }}>{fr.competitors > 0 ? `⚔ ${fr.competitors} rival${fr.competitors > 1 ? 's' : ''} competing` : '✓ No competition'}</div>
+                  </div>
+                </div>
+                {fr.autoScandal && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '8px 12px', color: '#fca5a5', fontSize: 12, fontFamily: MONO }}>⚠ Scandal generated — check Scandals tab</div>}
+              </div>
+            );
+          })()}
+
+          {/* ── Command Hub ── */}
+          {(() => {
+            const [cmdTab, setCmdTab] = React.useState<'organising'|'comms'|'strategy'|'power'|'signature'>('organising');
+            const tabStyle = (active: boolean): React.CSSProperties => ({
+              padding: '7px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700,
+              fontFamily: MONO, letterSpacing: '0.12em', textTransform: 'uppercase',
+              background: active ? 'rgba(251,191,36,0.15)' : 'transparent',
+              color: active ? '#fde68a' : 'rgba(255,255,255,0.35)',
+              border: active ? '1px solid rgba(251,191,36,0.35)' : '1px solid transparent',
+              transition: 'all 0.15s ease',
+            });
+            const ActionBtn = ({ label, apCost, pcCost, desc, onClick: h, disabled: dis, danger }: { label: string; apCost?: number; pcCost?: number; desc: string; onClick: () => void; disabled?: boolean; danger?: boolean }) => {
+              const apOk = apCost == null || (myAp?.current_ap ?? 0) >= apCost;
+              const pcOk = pcCost == null || (myPc?.current_pc ?? 0) >= pcCost;
+              const canAct = apOk && pcOk && !busy && !(dis);
+              const accent = danger ? '#ef4444' : apCost ? '#fbbf24' : '#a78bfa';
+              return (
+                <div
+                  onClick={canAct ? h : undefined}
+                  title={desc}
                   style={{
-                    background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', 
-                    color: '#fca5a5', padding: '8px 16px', borderRadius: 8, cursor: 'pointer',
-                    fontFamily: SANS, fontSize: 11, transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: 600,
-                    textTransform: 'uppercase', letterSpacing: '0.05em'
+                    padding: '12px 16px', borderRadius: 10, cursor: canAct ? 'pointer' : 'not-allowed',
+                    background: canAct ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.01)',
+                    border: `1px solid ${canAct ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)'}`,
+                    opacity: canAct ? 1 : 0.45, transition: 'all 0.15s ease',
+                    display: 'flex', flexDirection: 'column', gap: 4,
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.2)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+                  onMouseEnter={e => { if (canAct) { e.currentTarget.style.background = `${accent}15`; e.currentTarget.style.borderColor = `${accent}40`; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                  onMouseLeave={e => { if (canAct) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'none'; } }}
                 >
-                  {busy ? 'Working...' : 'Dissolve Party'}
-                </button>
-              </>
-            ) : (
-              <>
-                <div style={{ flexGrow: 1 }} />
-                <button 
-                  onClick={async () => {
-                    if (window.confirm("Are you sure you want to leave this party? This action cannot be undone.")) {
-                      setBusy(true);
-                      try { await politicsApi.leaveParty(myParty.id); await onRefresh(); }
-                      catch (e: any) { setErr(e?.response?.data?.message || 'Failed to leave party'); }
-                      finally { setBusy(false); }
-                    }
-                  }}
-                  disabled={!!busy}
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', 
-                    color: '#fca5a5', padding: '8px 16px', borderRadius: 8, cursor: 'pointer',
-                    fontFamily: SANS, fontSize: 11, transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: 600,
-                    textTransform: 'uppercase', letterSpacing: '0.05em'
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.2)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
-                >
-                  {busy ? 'Leaving...' : 'Leave Party'}
-                </button>
-              </>
-            )}
-          </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ color: canAct ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 600, fontFamily: SANS }}>{label}</span>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {apCost != null && <span style={{ padding: '2px 7px', borderRadius: 3, fontSize: 9, fontFamily: MONO, background: apOk ? 'rgba(251,191,36,0.15)' : 'rgba(239,68,68,0.15)', color: apOk ? '#fbbf24' : '#ef4444', border: `1px solid ${apOk ? 'rgba(251,191,36,0.3)' : 'rgba(239,68,68,0.3)'}` }}>{apCost} AP</span>}
+                      {pcCost != null && <span style={{ padding: '2px 7px', borderRadius: 3, fontSize: 9, fontFamily: MONO, background: pcOk ? 'rgba(167,139,250,0.15)' : 'rgba(239,68,68,0.15)', color: pcOk ? '#a78bfa' : '#ef4444', border: `1px solid ${pcOk ? 'rgba(167,139,250,0.3)' : 'rgba(239,68,68,0.3)'}` }}>{pcCost} PC</span>}
+                    </div>
+                  </div>
+                  <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, fontFamily: SANS, lineHeight: 1.4 }}>{desc}</span>
+                </div>
+              );
+            };
+
+            const sigAction = myParty?.doctrine_id ? ({
+              forge_accord: 'union_address', the_ledger: 'investor_roadshow', the_homestead: 'town_hall',
+              the_commons: 'shop_floor_tour', the_vanguard: 'listening_tour', the_compact: 'coalition_outreach',
+              the_syndicate: 'shop_floor_tour', the_directory: 'investor_roadshow',
+            } as Record<string, string>)[myParty.doctrine_id] : null;
+            const sigLabel = sigAction ? sigAction.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : null;
+
+            async function doAction(type: string) {
+              setBusy(true); setErr(null);
+              try { const res = await politicsApi.doGeneralAction(type); setErr((res as any)?.message ?? 'Done.'); await onRefresh(); }
+              catch (e: any) { setErr(e?.response?.data?.message || 'Action failed.'); }
+              finally { setBusy(false); }
+            }
+            async function doMedia(type: 'press_conference' | 'interview') {
+              setBusy(true); setErr(null);
+              try {
+                const res = type === 'press_conference' ? await politicsApi.doPressConference() : await politicsApi.doExclusiveInterview();
+                setErr((res as any)?.message ?? 'Done.'); await onRefresh();
+              } catch (e: any) { setErr(e?.response?.data?.message || 'Action failed.'); }
+              finally { setBusy(false); }
+            }
+            async function doPc(action: string) {
+              setBusy(true); setErr(null);
+              try { const res = await politicsApi.spendPc(action); setErr((res as any)?.message ?? 'Done.'); await onRefresh(); }
+              catch (e: any) { setErr(e?.response?.data?.message || 'Action failed.'); }
+              finally { setBusy(false); }
+            }
+
+            return (
+              <div style={{ background: 'rgba(10,12,20,0.8)', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', backdropFilter: 'blur(20px)', overflow: 'hidden' }}>
+                {/* Tab bar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.3)', flexWrap: 'wrap' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10, fontFamily: MONO, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginRight: 8 }}>Commands</span>
+                  {(['organising', 'comms', 'strategy', 'power', ...(sigAction ? ['signature'] : [])] as const).map(tab => (
+                    <button key={tab} style={tabStyle(cmdTab === tab)} onClick={() => setCmdTab(tab as any)}>
+                      {tab === 'organising' ? '⚙ Organising' : tab === 'comms' ? '📡 Comms' : tab === 'strategy' ? '🎯 Strategy' : tab === 'power' ? '⚡ Power Plays' : `✦ ${sigLabel}`}
+                    </button>
+                  ))}
+                  <div style={{ flexGrow: 1 }} />
+                  {isLeader && (
+                    <button onClick={dissolveParty} disabled={!!busy} style={{ padding: '6px 14px', borderRadius: 6, cursor: 'pointer', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5', fontSize: 10, fontFamily: MONO, letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'all 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.18)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.08)'}>
+                      Dissolve Party
+                    </button>
+                  )}
+                  {!isLeader && (
+                    <button onClick={async () => { if (window.confirm('Leave this party?')) { setBusy(true); try { await politicsApi.leaveParty(myParty.id); await onRefresh(); } catch (e: any) { setErr(e?.response?.data?.message || 'Failed'); } finally { setBusy(false); } } }} style={{ padding: '6px 14px', borderRadius: 6, cursor: 'pointer', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5', fontSize: 10, fontFamily: MONO, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Leave Party</button>
+                  )}
+                </div>
+
+                {/* Tab content */}
+                <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+                  {cmdTab === 'organising' && (<>
+                    <ActionBtn label="Hold Fundraiser" apCost={1} desc="Draw from national donor pool. Outcome varies — charisma and competition determine your share." onClick={fundraise} />
+                    <ActionBtn label="Recruit Candidate" apCost={1} desc="Pay $5,000 to attract an NPC candidate to your party roster." onClick={recruit} />
+                    <ActionBtn label="Scout Rival" apCost={2} desc="File a scouting report. Rivals' platform positions become visible in your party analytics." onClick={() => doAction('scout')} />
+                    <ActionBtn label="Outreach" apCost={3} desc="Send a policy offer to an interest group. Improves alignment score with that group." onClick={() => doAction('statement')} />
+                  </>)}
+                  {cmdTab === 'comms' && (<>
+                    <ActionBtn label="Press Conference" apCost={1} desc="Increase media warmth with a press outlet. Boosts party reach this arc." onClick={() => doMedia('press_conference')} />
+                    <ActionBtn label="Exclusive Interview" apCost={2} desc="Deeper media engagement — bigger warmth gain with a single outlet." onClick={() => doMedia('interview')} />
+                    <ActionBtn label="Issue Statement" apCost={3} desc="Public statement on a voter segment. Improves popularity by 1." onClick={() => doAction('statement')} />
+                    <ActionBtn label="Buy Media Cycle" pcCost={3} desc="Spend 3 PC to dominate all media outlets for one arc, suppressing rival news." onClick={() => doPc('buy_media_cycle')} />
+                  </>)}
+                  {cmdTab === 'strategy' && (<>
+                    <ActionBtn label="Edit Platform" apCost={0} desc="Adjust your five policy axes. Changes feed directly into voter alignment calculations." onClick={() => { setIsEditingPlatform(true); setPlatformEdits(parsePlatform(myParty.platform)); }} />
+                    <ActionBtn label="Endorse Candidate" apCost={2} desc="Issue an endorsement. Boosts candidate's campaign reach this arc." onClick={() => doAction('endorsement')} />
+                    <ActionBtn label="Negotiate" apCost={2} desc="Coalition outreach. Improves your formation odds with nearby-platform parties." onClick={() => doAction('negotiate')} />
+                    <ActionBtn label="Suppress Scandal" pcCost={4} desc="Bury a rumour-phase scandal before it reaches the press." onClick={() => doPc('suppress_scandal')} />
+                  </>)}
+                  {cmdTab === 'power' && (<>
+                    <ActionBtn label="Force Vote" pcCost={3} desc="Spend 3 PC to push a bill to a parliamentary vote immediately, bypassing debate." onClick={() => doPc('force_vote')} />
+                    <ActionBtn label="Trigger Inquiry" pcCost={4} desc="Open a parliamentary inquiry against a rival. Damages their credibility if it sticks." onClick={() => doPc('trigger_inquiry')} />
+                    <ActionBtn label="Discipline Faction" pcCost={3} desc="Spend 3 PC to snap a restless faction back into line. Restores loyalty." onClick={() => doPc('discipline_faction')} />
+                    <ActionBtn label="Rally the Base" pcCost={2} desc="Emergency rally. Restores 20 loyalty points across all factions." onClick={() => doPc('rally_base')} />
+                    <ActionBtn label="Negotiate Strength" pcCost={2} desc="Enter coalition talks with leverage. Partners make better offers." onClick={() => doPc('negotiate_strength')} />
+                    <ActionBtn label="Emergency Decree" pcCost={6} desc="Premier only: bypass the legislature once. Pass a minor bill without a vote." onClick={() => doPc('emergency_decree')} disabled={!myParty?.isPremier} />
+                  </>)}
+                  {cmdTab === 'signature' && sigAction && (<>
+                    <ActionBtn label={sigLabel!} apCost={6} desc={`Your party's doctrine-locked signature action. High AP cost, powerful and unique effect.`} onClick={() => doAction(sigAction)} />
+                  </>)}
+                </div>
+
+                {/* AP/PC resource bar */}
+                <div style={{ display: 'flex', gap: 20, padding: '10px 16px', borderTop: '1px solid rgba(255,255,255,0.04)', background: 'rgba(0,0,0,0.2)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>AP</span>
+                    <div style={{ display: 'flex', gap: 3 }}>
+                      {Array.from({ length: myAp?.ap_cap ?? 12 }).map((_, i) => (
+                        <div key={i} style={{ width: 8, height: 8, borderRadius: 2, background: i < (myAp?.current_ap ?? 0) ? '#fbbf24' : 'rgba(255,255,255,0.08)', transition: 'background 0.2s', boxShadow: i < (myAp?.current_ap ?? 0) ? '0 0 4px rgba(251,191,36,0.5)' : 'none' }} />
+                      ))}
+                    </div>
+                    <span style={{ color: '#fbbf24', fontFamily: MONO, fontSize: 11, fontWeight: 700 }}>{myAp?.current_ap ?? 0}/{myAp?.ap_cap ?? 12}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>PC</span>
+                    <div style={{ display: 'flex', gap: 3 }}>
+                      {Array.from({ length: myPc?.pc_cap ?? 10 }).map((_, i) => (
+                        <div key={i} style={{ width: 8, height: 8, borderRadius: 2, background: i < (myPc?.current_pc ?? 0) ? '#a78bfa' : 'rgba(255,255,255,0.08)', transition: 'background 0.2s', boxShadow: i < (myPc?.current_pc ?? 0) ? '0 0 4px rgba(167,139,250,0.5)' : 'none' }} />
+                      ))}
+                    </div>
+                    <span style={{ color: '#a78bfa', fontFamily: MONO, fontSize: 11, fontWeight: 700 }}>{myPc?.current_pc ?? 0}/{myPc?.pc_cap ?? 10}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Founding Principles (if rich data is present) */}
           {(myParty.crisis_id || (myParty.founders && myParty.founders.length > 0)) && (

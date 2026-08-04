@@ -328,6 +328,9 @@ export const politicsApi = {
     api.post(`/politics/media/${outletId}/exclusive`).then(res => res.data),
   doPressConference: () =>
     api.post('/politics/media/press-conference').then(res => res.data),
+  doExclusiveInterview: () =>
+    api.post('/politics/media/exclusive-interview').then(res => res.data),
+
 
   // Legacy System (Phase 8)
   getLegacy: (characterId: string = 'me') =>
