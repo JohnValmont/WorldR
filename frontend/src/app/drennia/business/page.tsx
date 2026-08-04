@@ -609,50 +609,191 @@ export default function BusinessPage() {
             {([
               {
                 icon: '🏭', title: 'The Core Loop',
-                body: 'Each game arc (1 month) represents one production &amp; sales cycle. Your factory produces units → they go into inventory → the arc tick automatically runs sales against all active markets. You receive revenue; costs are deducted. Net profit flows to Company Cash.'
+                body: `Each game <strong style="color:#f1f5f9">arc = 1 month</strong>. The sequence every arc:<br/>
+① Your Production Lines produce units → added to inventory.<br/>
+② The arc tick runs: sales against every market you're allocated in.<br/>
+③ Revenue is deposited. Manufacturing cost, factory lease, maintenance, staff wages, and marketing fees are deducted.<br/>
+④ Net profit or loss flows to Company Cash.<br/><br/>
+<em>Nothing happens automatically until the tick fires — plan your numbers before each arc closes.</em>`
               },
               {
-                icon: '🔩', title: 'Factories &amp; Production Lines',
-                body: 'A factory holds one or more Production Lines. Each line is assigned a single vehicle model and a monthly target. Factories have a Capacity limit (e.g. 100 units/month) shared across all lines. Under Construction factories earn zero output — plan ahead. Condition drops over time; fallen condition raises defect rates.'
+                icon: '🔩', title: 'Factories & Production Lines',
+                body: `Go to the <strong style="color:#f1f5f9">Factory tab</strong> to lease a factory. Every factory has:<br/>
+• <strong style="color:#fbbf24">Capacity</strong> — max units/month across all lines (e.g. 100).<br/>
+• <strong style="color:#fbbf24">Lease cost</strong> — fixed overhead every arc, regardless of output.<br/>
+• <strong style="color:#fbbf24">Maintenance cost</strong> — recurring upkeep. Skipping it drops Condition.<br/>
+• <strong style="color:#fbbf24">Condition %</strong> — falls over time. Below ~60% defect rate climbs fast.<br/><br/>
+Each Production Line inside the factory is assigned <em>one vehicle model</em> and a <em>target units/month</em>. You need enough Factory Workers to meet target (Staffing tab shows required vs employed). Factories under construction produce <strong style="color:#ef4444">zero output</strong> — lease early.`
               },
               {
-                icon: '🚗', title: 'Vehicle Models &amp; Design',
-                body: 'Your competitive edge is your model design. Five scores matter to buyers: Reliability, Performance, Fuel Efficiency, Appeal, and Cargo. Each score is 0–100. Higher scores in segments that value them = more demand. Models also have a Platform Type (Economy / Mid / Premium / Luxury) and a Target Segment — these must align with the markets you enter.'
+                icon: '📦', title: 'Procurement — Buying Components',
+                body: `Go to the <strong style="color:#f1f5f9">Procurement tab</strong> (left sidebar inside your company). This is where you buy the physical components your factory needs to build vehicles each arc.<br/><br/>
+<strong style="color:#4ade80">How it works:</strong><br/>
+• Browse the Component Catalogue — each component shows its base cost per unit and your current stock.<br/>
+• Click <em>Purchase Order</em>, enter the quantity, and confirm. The cost is deducted from Company Cash immediately.<br/>
+• Components are consumed arc-by-arc as production runs. If stock hits zero, that Production Line produces nothing.<br/><br/>
+<strong style="color:#fbbf24">Order sizing rule of thumb:</strong><br/>
+Stock ≥ (units/month target) × 3 arcs = a safe 3-month buffer. Order in bulk — it saves the panic of running dry mid-arc.<br/><br/>
+<strong style="color:#ef4444">Warning:</strong> If you start a production line with 0 workers OR 0 component stock, the system warns you and that line outputs zero units.`
               },
               {
-                icon: '📐', title: 'R&amp;D / Engineering',
-                body: 'Design your models in the R&amp;D tab. Each attribute point costs engineering budget and time. Once launched, a model\'s scores are fixed — to improve them you must create a new model or variant. Manufacturing Complexity (how hard it is to build) affects your defect rate and production cost per unit.'
+                icon: '👔', title: 'Staffing — Who to Hire & When',
+                body: `Go to the <strong style="color:#f1f5f9">Staffing tab</strong> inside your company. Six roles are available:<br/><br/>
+<strong style="color:#4ade80">Factory Worker</strong> — Core production labour. Required count = Production Line target units. 0 workers = 0 output. Hire first.<br/>
+<strong style="color:#4ade80">Production Supervisor</strong> — +5% production efficiency per active line covered (1 supervisor per active line).<br/>
+<strong style="color:#4ade80">Quality Inspector</strong> — Each inspector reduces the base defect rate by ~0.5%. E.g. 4 inspectors → base drops from 3% to ~1%.<br/>
+<strong style="color:#4ade80">Sales Manager</strong> — +4% sales effectiveness per market covered. E.g. 3 managers × 4 markets each = significant revenue lift.<br/>
+<strong style="color:#4ade80">Automotive Engineer</strong> — Each engineer reduces future R&amp;D development cost by 5% (cap 20%). Hire before designing new models.<br/>
+<strong style="color:#4ade80">CSO / CMO</strong> — Hired via the Board tab, not Staffing. CSO auto-optimises allocations; CMO auto-optimises marketing tiers.<br/><br/>
+Wages are paid <strong style="color:#ef4444">every arc</strong> automatically. Fire before the arc closes if cash is tight — wages won't be charged for staff you fired mid-arc only if the tick hasn't run yet.`
               },
               {
-                icon: '💰', title: 'Pricing &amp; Cost',
-                body: 'Sale Price is set per model, not per market. Pricing too high kills demand; too low kills margins. Your Break-Even is: Manufacturing Cost Per Unit + Factory Overhead ÷ Units Sold. Use the Performance History tab to track actual margins arc-by-arc. Marketing tier (Local / Regional / National) multiplies demand but costs money upfront each arc.'
+                icon: '🚗', title: 'Vehicle Models & Design Scores',
+                body: `Design your model in the <strong style="color:#f1f5f9">R&amp;D / Design tab</strong>. Five scores drive demand:<br/><br/>
+<strong style="color:#4ade80">Reliability</strong> — Critical for every segment. Low reliability = low demand regardless of price.<br/>
+<strong style="color:#4ade80">Performance</strong> — Matters most for Premium &amp; Luxury segments. Less important for Economy.<br/>
+<strong style="color:#4ade80">Fuel Efficiency</strong> — Key for Economy &amp; Mid segments. Penalised for Utility/Cargo vans.<br/>
+<strong style="color:#4ade80">Appeal</strong> — Interior quality, styling. Driven by Interior Tier and Safety Tier choices.<br/>
+<strong style="color:#4ade80">Cargo</strong> — Only relevant for Utility Van class. Penalised for Compact Cars.<br/><br/>
+Scores are <strong>locked after launch</strong>. To improve a model you must design a new one or a variant. Pick your <em>Platform Type</em> (Economy / Mid / Premium / Luxury) and <em>Target Segment</em> to match the markets you plan to enter — mismatches kill demand.`
               },
               {
-                icon: '🗺️', title: 'Markets &amp; Allocations',
-                body: 'Markets are city-regions with population, income brackets, and segment preferences. You must hold a State Manufacturing Licence to sell in a state. Allocate units per market in Sales Operations. Your allocated units set the ceiling — if demand exceeds allocation you sell out; if demand is below allocation you carry unsold inventory. Unsold inventory still incurs holding costs.'
+                icon: '📐', title: 'R&D / Engineering — Design Process',
+                body: `<strong style="color:#f1f5f9">Design workflow:</strong><br/>
+① Choose Vehicle Class (Compact Car / Sedan / Utility Van)<br/>
+② Choose Platform → drives base cost, reliability, performance, cargo<br/>
+③ Choose Power Unit → affects fuel, performance, weight<br/>
+④ Choose Drivetrain, Interior Tier, Safety Tier<br/>
+⑤ Set Priority sliders (Reliability / Performance / Fuel Economy / Comfort / Manufacturing Simplicity)<br/>
+⑥ Allocate engineering budget across modules<br/>
+⑦ Set a Quality Target (Standard / Enhanced / Premium / Elite)<br/><br/>
+<strong style="color:#fbbf24">Manufacturing Complexity</strong> rises with Premium platforms and Elite quality targets. High complexity = higher production cost per unit AND higher defect rate if you lack Quality Inspectors.<br/><br/>
+<strong style="color:#4ade80">Automotive Engineers</strong> in Staffing reduce your development cost by 5% each (cap 20%). Hire them before you spend heavily on R&amp;D.`
               },
               {
-                icon: '⚔️', title: 'Competition',
-                body: 'NPC rivals and other players compete in the same markets. The demand engine splits available buyers across all competitors based on: model fit score × price affordability × marketing awareness × brand loyalty. A high-score model at a fair price with strong marketing wins market share. Undercutting on price alone is rarely optimal — it compresses your margin and invites a price war.'
+                icon: '💰', title: 'Pricing & Break-Even',
+                body: `Sale Price is set <strong>per model</strong> in the <strong style="color:#f1f5f9">Sales Operations tab</strong> — one price applies across all markets.<br/><br/>
+<strong style="color:#fbbf24">Quick break-even formula:</strong><br/>
+<code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;font-size:11px">(Lease + Maintenance + Staff wages + Marketing) ÷ Units Sold + Manufacturing Cost/unit = minimum viable price</code><br/><br/>
+<strong style="color:#4ade80">Pricing rules:</strong><br/>
+• Price 15–25% above manufacturing cost as a starting point.<br/>
+• Buyers in lower-income markets cannot afford high prices — affordability is checked per market's income bracket.<br/>
+• Raising price too much kills demand faster than it raises revenue (demand function is steep).<br/>
+• Track arc-by-arc margins in <strong>Performance History</strong> tab.<br/><br/>
+<strong style="color:#ef4444">Marketing tiers</strong> (set per allocation, not per model):<br/>
+None (free) → Local ($3,500/arc) → Regional ($12,000) → National ($35,000). Multipliers: 1× / 1.15× / 1.30× / 1.50×.`
               },
               {
-                icon: '👔', title: 'Staff &amp; CSO / CMO',
-                body: 'Hire a CSO (Chief Sales Officer) to auto-optimise your market allocations each arc. Hire a CMO (Chief Marketing Officer) to auto-optimise your marketing spend. Without these roles the system uses conservative defaults. Senior hires cost more per month but generate significantly more revenue than their salary.'
+                icon: '🗺️', title: 'Markets, Licences & Allocations',
+                body: `<strong style="color:#f1f5f9">Before you can sell in a state you need a State Manufacturing Licence.</strong><br/>
+Buy licences in the <em>Sales Operations</em> tab → Licences section. One licence per state, one-time fee.<br/><br/>
+<strong style="color:#4ade80">Markets</strong> are city-regions within a state. Each has:<br/>
+• An income bracket (Low / Middle / High) affecting which price points work.<br/>
+• A segment preference (Economy / Mid-Range / Premium / Luxury).<br/>
+• A market capacity (max total units the market can absorb across all sellers).<br/><br/>
+<strong style="color:#fbbf24">Allocations</strong> (Sales Operations → Market Allocations):<br/>
+Set units allocated and marketing tier per model-market pair. Your allocation is your ceiling — if demand is lower, you sell fewer. Unsold units remain in inventory at a storage cost per unit. <em>Don't over-allocate</em> far beyond your factory output.`
+              },
+              {
+                icon: '⚔️', title: 'Competition & Market Share',
+                body: `NPC rivals and other players compete in the same markets. The demand engine calculates a <strong>fit score</strong> for every competing model in a segment, then splits buyers proportionally.<br/><br/>
+Fit score factors:<br/>
+• Model attribute alignment with segment preferences (raised to the power of 4 — small score gaps compound hard)<br/>
+• Price affordability vs buyer income<br/>
+• Marketing awareness (built over time with consistent marketing spend)<br/>
+• Brand loyalty (existing customers are sticky at a 0.85 retention rate)<br/><br/>
+<strong style="color:#fbbf24">What wins:</strong> High reliability + good price alignment + sustained marketing over multiple arcs. One arc of national marketing does less than three arcs of regional marketing at the same total spend.<br/><br/>
+<strong style="color:#ef4444">What kills you:</strong> Ignoring brand loyalty (switching to zero marketing resets your awareness), launching a model into the wrong segment (fit score ≈ 0), and not having enough inventory to meet demand (you sell out, rival keeps selling).`
               },
               {
                 icon: '📊', title: 'Reading Your Numbers',
-                body: 'Market Share % is calculated per market, per segment. A 15% share in Drennport Mid-Range is strong. Revenue minus Manufacturing Cost minus Factory Overheads minus Marketing = Operating Profit. Company Value rises with sustained profitability and falls with losses or high debt. Track Last Arc Profit in the Overview panel.'
+                body: `<strong style="color:#f1f5f9">Overview tab</strong> — Last Arc Profit, Company Cash, Company Value, Debt.<br/>
+<strong style="color:#f1f5f9">Performance History tab</strong> — Arc-by-arc breakdown:<br/><br/>
+<code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;font-size:11px">
+Revenue<br/>
+− Manufacturing Cost (components × units produced)<br/>
+− Factory Lease<br/>
+− Factory Maintenance<br/>
+− Staff Wages<br/>
+− Marketing Costs<br/>
+− Inventory Storage<br/>
+− Warranty Reserve<br/>
+= Operating Profit
+</code><br/><br/>
+<strong style="color:#fbbf24">Market Intelligence tab</strong> — shows units sold, market share %, sale price, and revenue per market. Use this to identify where you're losing share vs rivals and where you're sold out (meaning you should increase allocation or add a production line).`
               },
               {
                 icon: '🏛️', title: 'National Parliament Bills',
-                body: 'Bills passed in the National Parliament of Drennia affect ALL manufacturing companies nationwide. Fiscal policy bills adjust your production cost. Prosperity bills affect consumer demand. Order &amp; Safety bills improve vehicle reliability scores. Keep an eye on the Politics tab — a hostile legislature can eat into your margins.'
+                body: `Bills passed in the <strong style="color:#f1f5f9">National Parliament of Drennia</strong> affect <strong>ALL</strong> manufacturing companies nationwide — including you and all NPC rivals.<br/><br/>
+<strong style="color:#4ade80">Current effect mapping:</strong><br/>
+• <strong>Fiscal Health bills</strong> → adjust manufacturing cost per unit (±up to 10%)<br/>
+• <strong>Prosperity bills</strong> → scale consumer demand across all markets (±up to 8%)<br/>
+• <strong>Order &amp; Safety bills</strong> → add reliability score points to all vehicle models (up to +5)<br/>
+• <strong>Equity bills</strong> → add appeal score points (up to +3)<br/>
+• <strong>Deregulation (low bureaucracy)</strong> → market access bonus<br/><br/>
+These effects are applied automatically each tick. Monitor the Politics tab — if a hostile legislature is in power, your margins can erode. Control the parliament through your party to pass pro-business bills.`
               },
               {
-                icon: '💡', title: 'Tips for New Manufacturers',
-                body: '① Start with one factory, one model, two or three markets. ② Price 15–25% above manufacturing cost to ensure margin. ③ Set marketing to Local before trying Regional. ④ Hire a CSO as soon as you have three markets. ⑤ Watch your Factory Condition — maintenance saves money vs emergency repairs. ⑥ A Disaster fundraiser in Politics can fund an R&amp;D push.'
+                icon: '🏦', title: 'Finance — Loans & Cash Flow',
+                body: `<strong style="color:#f1f5f9">Finance tab</strong> inside your company shows your full ledger, available cash, and debt.<br/><br/>
+<strong style="color:#4ade80">Borrowing:</strong> You can take a bank loan via the <em>Banks</em> tab at the top of the Business Desk. Sovereign rate applies + any discount for manufacturing companies (State Mandate Clause). Loans appear as Debt on your company balance sheet and are repaid automatically each arc.<br/><br/>
+<strong style="color:#fbbf24">Cash flow tips:</strong><br/>
+• Keep at least 2–3 arcs of overhead (lease + wages + components) in reserve.<br/>
+• A negative Company Cash at tick time means your company cannot pay wages — staff may leave.<br/>
+• Company Value = Cash + Assets − Debt. This is what investors and acquisition bids are based on.<br/><br/>
+<strong style="color:#ef4444">Warning:</strong> If your company falls below the bankruptcy floor and cannot service debt, the system may auto-trigger an asset auction.`
               },
-            ] as {icon:string;title:string;body:string}[]).map((section, i) => (
-              <div key={i} style={{ marginBottom: 22, paddingBottom: 22, borderBottom: i < 10 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+              {
+                icon: '🤝', title: 'Board & Senior Officers',
+                body: `The <strong style="color:#f1f5f9">Board tab</strong> is where you hire senior officers (distinct from factory staff):<br/><br/>
+<strong style="color:#4ade80">CSO — Chief Sales Officer</strong><br/>
+Auto-allocates units across markets each arc to maximise revenue. Without a CSO, you must set allocations manually in Sales Operations. Highly recommended once you have 3+ markets.<br/><br/>
+<strong style="color:#4ade80">CMO — Chief Marketing Officer</strong><br/>
+Auto-selects the optimal marketing tier for each market-model pair. Without a CMO you set tiers manually. Prevents the common mistake of over-spending marketing on markets where you're already dominant.<br/><br/>
+Board officers cost a senior wage each arc. Their decisions are logged in the Records tab so you can review what they chose and override if needed.`
+              },
+              {
+                icon: '📈', title: 'Market Intelligence — Paid Research',
+                body: `The <strong style="color:#f1f5f9">Market Intelligence tab</strong> has two modes:<br/><br/>
+<strong style="color:#4ade80">Free intel:</strong> Your own sales results — units sold, revenue, market share, and which models in your portfolio are performing.<br/><br/>
+<strong style="color:#fbbf24">Paid Research (Tier 1 — basic):</strong> Reveals competitor unit counts and market share in your selected market. Does not reveal their sale price or engineering specs.<br/><br/>
+<strong style="color:#fbbf24">Paid Research (Tier 2 — full):</strong> Reveals all competitor data including sale price, model attributes, and manufacturing cost estimates. Requires sufficient company cash — the system checks before revealing data (no refund if you cancel).<br/><br/>
+Use paid research to spot rivals who are Sold Out (opportunity to grab share by increasing your allocation) or who are pricing aggressively below break-even (they may be burning cash — wait them out).`
+              },
+              {
+                icon: '🔄', title: 'Inventory & The Sold Out Problem',
+                body: `Inventory is built each arc by your Production Lines. It sits in your warehouse until sold.<br/><br/>
+<strong style="color:#4ade80">Sold Out</strong> means demand > your allocation. You left money on the table. Fix: raise allocation or add a production line.<br/>
+<strong style="color:#fbbf24">Unsold stock</strong> means allocation > demand. You're paying storage costs on units nobody wants. Fix: lower allocation, improve your model, cut price, or improve marketing.<br/><br/>
+<strong style="color:#ef4444">Ghost Car warning (fixed):</strong> You cannot sell more units than you physically have in inventory. If production failed (0 workers or 0 components), your allocation is irrelevant — no units exist to sell. Always check the Production tab after setting up a new line to confirm "Est. Units Produced" is non-zero.`
+              },
+              {
+                icon: '📋', title: 'Quick-Start Checklist',
+                body: `<strong style="color:#f1f5f9">Day 1 sequence for a new manufacturing company:</strong><br/><br/>
+<strong style="color:#4ade80">①</strong> <strong>Lease a factory</strong> (Factory tab) — check capacity and lease cost vs your starting capital.<br/>
+<strong style="color:#4ade80">②</strong> <strong>Design a vehicle model</strong> (R&amp;D / Design tab) — start Economy or Mid platform, Compact Car class.<br/>
+<strong style="color:#4ade80">③</strong> <strong>Hire Factory Workers</strong> (Staffing tab) — enough to meet your production line target.<br/>
+<strong style="color:#4ade80">④</strong> <strong>Buy components</strong> (Procurement tab) — order enough for 3 arcs of production.<br/>
+<strong style="color:#4ade80">⑤</strong> <strong>Set up a Production Line</strong> (Production tab) — assign model, set target units.<br/>
+<strong style="color:#4ade80">⑥</strong> <strong>Buy a State Licence</strong> (Sales Operations → Licences) for your home state.<br/>
+<strong style="color:#4ade80">⑦</strong> <strong>Allocate to 2–3 markets</strong> (Sales Operations → Allocations) — set units and marketing tier.<br/>
+<strong style="color:#4ade80">⑧</strong> <strong>Set your sale price</strong> — aim for 20% above manufacturing cost as a start.<br/>
+<strong style="color:#4ade80">⑨</strong> <strong>Hire a Quality Inspector</strong> to cut defect rate.<br/>
+<strong style="color:#4ade80">⑩</strong> <strong>Wait for the arc tick</strong> — review Performance History for results and iterate.`
+              },
+              {
+                icon: '💡', title: 'Common Mistakes to Avoid',
+                body: `<strong style="color:#ef4444">✗ Forgetting to buy components</strong> — No stock = no production, zero revenue.<br/>
+<strong style="color:#ef4444">✗ Zero Factory Workers</strong> — Lines assigned but nobody builds the cars.<br/>
+<strong style="color:#ef4444">✗ Factory still under construction</strong> — Outputs zero, lease still charges every arc.<br/>
+<strong style="color:#ef4444">✗ Wrong segment target</strong> — Economy platform in a Luxury market = near-zero fit score.<br/>
+<strong style="color:#ef4444">✗ Over-allocating</strong> — Allocating 100 units when you produce 25 wastes nothing but sets false expectations.<br/>
+<strong style="color:#ef4444">✗ No State Licence</strong> — You cannot sell in a state without it; allocations are ignored.<br/>
+<strong style="color:#ef4444">✗ Stopping marketing mid-run</strong> — Brand awareness decays at 15% per arc without marketing spend.<br/>
+<strong style="color:#ef4444">✗ Ignoring factory condition</strong> — Below 60% condition the defect rate spikes, reducing effective output.`
+              },
+            ] as {icon:string;title:string;body:string}[]).map((section, i, arr) => (
+              <div key={i} style={{ marginBottom: 22, paddingBottom: 22, borderBottom: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <span style={{ fontSize: 16 }}>{section.icon}</span>
                   <span style={{ color: '#4ade80', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{section.title}</span>
@@ -660,6 +801,7 @@ export default function BusinessPage() {
                 <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5, lineHeight: 1.7, margin: 0, fontFamily: 'system-ui, sans-serif' }} dangerouslySetInnerHTML={{ __html: section.body }} />
               </div>
             ))}
+
           </div>
         </div>
       )}
