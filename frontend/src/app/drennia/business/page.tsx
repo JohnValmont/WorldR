@@ -223,6 +223,7 @@ export default function BusinessPage() {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [registryKey, setRegistryKey] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showMfgGuide, setShowMfgGuide] = useState(false);
   const [mfgData, setMfgData] = useState<any>(null);
   const [financeCompany, setFinanceCompany] = useState<any>(null); // Capital Partners firm if player has one
   const [operationalCompanies, setOperationalCompanies] = useState<any[]>([]);
@@ -561,7 +562,108 @@ export default function BusinessPage() {
       <div className="flex items-center gap-2.5 px-4 md:px-6 pt-3.5 pb-1.5 shrink-0">
         <h1 className="font-serif text-lg font-bold text-zinc-100 m-0">Business</h1>
         {company && <Badge variant="green" dot>{company.sector === 'manufacturing' ? 'Manufacturing' : 'Logistics'}</Badge>}
+        {company?.sector === 'manufacturing' && (
+          <button
+            onClick={() => setShowMfgGuide(true)}
+            title="Manufacturing & Automobiles Guide"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '2px 9px', borderRadius: 6, cursor: 'pointer',
+              background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)',
+              color: '#4ade80', fontSize: 10, fontFamily: 'monospace', fontWeight: 700,
+              letterSpacing: '0.08em', textTransform: 'uppercase', transition: 'all 0.15s',
+              lineHeight: 1.6,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(34,197,94,0.16)'; e.currentTarget.style.borderColor = 'rgba(34,197,94,0.5)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(34,197,94,0.08)'; e.currentTarget.style.borderColor = 'rgba(34,197,94,0.25)'; }}
+          >
+            ? Guide
+          </button>
+        )}
       </div>
+
+      {/* ── Manufacturing & Automobiles Guide Panel ── */}
+      {showMfgGuide && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 999,
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
+          }}
+          onClick={e => { if (e.target === e.currentTarget) setShowMfgGuide(false); }}
+        >
+          <div style={{
+            width: 480, maxWidth: '95vw', height: '100vh', overflowY: 'auto',
+            background: 'rgba(8,10,18,0.98)', borderLeft: '1px solid rgba(34,197,94,0.2)',
+            padding: '28px 28px 48px', display: 'flex', flexDirection: 'column', gap: 0,
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <div>
+                <div style={{ color: '#4ade80', fontFamily: 'monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 4 }}>Business Guide</div>
+                <div style={{ color: '#f1f5f9', fontSize: 20, fontWeight: 800, fontFamily: 'Georgia, serif', letterSpacing: '-0.01em' }}>Manufacturing &amp; Automobiles</div>
+              </div>
+              <button onClick={() => setShowMfgGuide(false)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 16 }}>✕</button>
+            </div>
+
+            {([
+              {
+                icon: '🏭', title: 'The Core Loop',
+                body: 'Each game arc (1 month) represents one production &amp; sales cycle. Your factory produces units → they go into inventory → the arc tick automatically runs sales against all active markets. You receive revenue; costs are deducted. Net profit flows to Company Cash.'
+              },
+              {
+                icon: '🔩', title: 'Factories &amp; Production Lines',
+                body: 'A factory holds one or more Production Lines. Each line is assigned a single vehicle model and a monthly target. Factories have a Capacity limit (e.g. 100 units/month) shared across all lines. Under Construction factories earn zero output — plan ahead. Condition drops over time; fallen condition raises defect rates.'
+              },
+              {
+                icon: '🚗', title: 'Vehicle Models &amp; Design',
+                body: 'Your competitive edge is your model design. Five scores matter to buyers: Reliability, Performance, Fuel Efficiency, Appeal, and Cargo. Each score is 0–100. Higher scores in segments that value them = more demand. Models also have a Platform Type (Economy / Mid / Premium / Luxury) and a Target Segment — these must align with the markets you enter.'
+              },
+              {
+                icon: '📐', title: 'R&amp;D / Engineering',
+                body: 'Design your models in the R&amp;D tab. Each attribute point costs engineering budget and time. Once launched, a model\'s scores are fixed — to improve them you must create a new model or variant. Manufacturing Complexity (how hard it is to build) affects your defect rate and production cost per unit.'
+              },
+              {
+                icon: '💰', title: 'Pricing &amp; Cost',
+                body: 'Sale Price is set per model, not per market. Pricing too high kills demand; too low kills margins. Your Break-Even is: Manufacturing Cost Per Unit + Factory Overhead ÷ Units Sold. Use the Performance History tab to track actual margins arc-by-arc. Marketing tier (Local / Regional / National) multiplies demand but costs money upfront each arc.'
+              },
+              {
+                icon: '🗺️', title: 'Markets &amp; Allocations',
+                body: 'Markets are city-regions with population, income brackets, and segment preferences. You must hold a State Manufacturing Licence to sell in a state. Allocate units per market in Sales Operations. Your allocated units set the ceiling — if demand exceeds allocation you sell out; if demand is below allocation you carry unsold inventory. Unsold inventory still incurs holding costs.'
+              },
+              {
+                icon: '⚔️', title: 'Competition',
+                body: 'NPC rivals and other players compete in the same markets. The demand engine splits available buyers across all competitors based on: model fit score × price affordability × marketing awareness × brand loyalty. A high-score model at a fair price with strong marketing wins market share. Undercutting on price alone is rarely optimal — it compresses your margin and invites a price war.'
+              },
+              {
+                icon: '👔', title: 'Staff &amp; CSO / CMO',
+                body: 'Hire a CSO (Chief Sales Officer) to auto-optimise your market allocations each arc. Hire a CMO (Chief Marketing Officer) to auto-optimise your marketing spend. Without these roles the system uses conservative defaults. Senior hires cost more per month but generate significantly more revenue than their salary.'
+              },
+              {
+                icon: '📊', title: 'Reading Your Numbers',
+                body: 'Market Share % is calculated per market, per segment. A 15% share in Drennport Mid-Range is strong. Revenue minus Manufacturing Cost minus Factory Overheads minus Marketing = Operating Profit. Company Value rises with sustained profitability and falls with losses or high debt. Track Last Arc Profit in the Overview panel.'
+              },
+              {
+                icon: '🏛️', title: 'National Parliament Bills',
+                body: 'Bills passed in the National Parliament of Drennia affect ALL manufacturing companies nationwide. Fiscal policy bills adjust your production cost. Prosperity bills affect consumer demand. Order &amp; Safety bills improve vehicle reliability scores. Keep an eye on the Politics tab — a hostile legislature can eat into your margins.'
+              },
+              {
+                icon: '💡', title: 'Tips for New Manufacturers',
+                body: '① Start with one factory, one model, two or three markets. ② Price 15–25% above manufacturing cost to ensure margin. ③ Set marketing to Local before trying Regional. ④ Hire a CSO as soon as you have three markets. ⑤ Watch your Factory Condition — maintenance saves money vs emergency repairs. ⑥ A Disaster fundraiser in Politics can fund an R&amp;D push.'
+              },
+            ] as {icon:string;title:string;body:string}[]).map((section, i) => (
+              <div key={i} style={{ marginBottom: 22, paddingBottom: 22, borderBottom: i < 10 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 16 }}>{section.icon}</span>
+                  <span style={{ color: '#4ade80', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{section.title}</span>
+                </div>
+                <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5, lineHeight: 1.7, margin: 0, fontFamily: 'system-ui, sans-serif' }} dangerouslySetInnerHTML={{ __html: section.body }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
 
       {/* ── Subtabs & Breadcrumbs ── */}
       <div className="px-4 md:px-6 border-b border-zinc-800 shrink-0">
