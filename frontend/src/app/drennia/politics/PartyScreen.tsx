@@ -1427,6 +1427,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [donationAmount, setDonationAmount] = useState<number>(0);
+  const [cmdTab, setCmdTab] = useState<'organising'|'comms'|'strategy'|'power'|'signature'>('organising');
 
   // Join party state (for the AllPartiesPanel — only active when character has no party)
   const [joinBusy, setJoinBusy] = useState<string | null>(null);
@@ -1560,6 +1561,31 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
   async function pressConfGlobal() {
     try { setBusy(true); await politicsApi.doPressConference(); await onRefresh(); }
     catch (e: any) { setErr(e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Action failed.'); }
+    finally { setBusy(false); }
+  }
+
+  async function doAction(type: string) {
+    setBusy(true); setErr(null);
+    try { const res = await politicsApi.doGeneralAction(type); setErr((res as any)?.message ?? 'Done.'); await onRefresh(); }
+    catch (e: any) { setErr(e?.response?.data?.message || 'Action failed.'); }
+    finally { setBusy(false); }
+  }
+
+  async function doMedia(type: 'press_conference' | 'interview') {
+    setBusy(true); setErr(null);
+    try {
+      const res = type === 'press_conference'
+        ? await politicsApi.doPressConference()
+        : await politicsApi.doExclusiveInterview();
+      setErr((res as any)?.message ?? 'Done.'); await onRefresh();
+    } catch (e: any) { setErr(e?.response?.data?.message || 'Action failed.'); }
+    finally { setBusy(false); }
+  }
+
+  async function doPc(action: string) {
+    setBusy(true); setErr(null);
+    try { const res = await politicsApi.spendPc(action); setErr((res as any)?.message ?? 'Done.'); await onRefresh(); }
+    catch (e: any) { setErr(e?.response?.data?.message || 'Action failed.'); }
     finally { setBusy(false); }
   }
 
@@ -1700,7 +1726,6 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
 
           {/* ── Command Hub ── */}
           {(() => {
-            const [cmdTab, setCmdTab] = React.useState<'organising'|'comms'|'strategy'|'power'|'signature'>('organising');
             const tabStyle = (active: boolean): React.CSSProperties => ({
               padding: '7px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700,
               fontFamily: MONO, letterSpacing: '0.12em', textTransform: 'uppercase',
@@ -1709,11 +1734,11 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
               border: active ? '1px solid rgba(251,191,36,0.35)' : '1px solid transparent',
               transition: 'all 0.15s ease',
             });
-            const ActionBtn = ({ label, apCost, pcCost, desc, onClick: h, disabled: dis, danger }: { label: string; apCost?: number; pcCost?: number; desc: string; onClick: () => void; disabled?: boolean; danger?: boolean }) => {
+            const ActionBtn = ({ label, apCost, pcCost, desc, onClick: h, disabled: dis }: { label: string; apCost?: number; pcCost?: number; desc: string; onClick: () => void; disabled?: boolean }) => {
               const apOk = apCost == null || (myAp?.current_ap ?? 0) >= apCost;
               const pcOk = pcCost == null || (myPc?.current_pc ?? 0) >= pcCost;
-              const canAct = apOk && pcOk && !busy && !(dis);
-              const accent = danger ? '#ef4444' : apCost ? '#fbbf24' : '#a78bfa';
+              const canAct = apOk && pcOk && !busy && !dis;
+              const accent = apCost ? '#fbbf24' : '#a78bfa';
               return (
                 <div
                   onClick={canAct ? h : undefined}
@@ -1747,27 +1772,6 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
             } as Record<string, string>)[myParty.doctrine_id] : null;
             const sigLabel = sigAction ? sigAction.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : null;
 
-            async function doAction(type: string) {
-              setBusy(true); setErr(null);
-              try { const res = await politicsApi.doGeneralAction(type); setErr((res as any)?.message ?? 'Done.'); await onRefresh(); }
-              catch (e: any) { setErr(e?.response?.data?.message || 'Action failed.'); }
-              finally { setBusy(false); }
-            }
-            async function doMedia(type: 'press_conference' | 'interview') {
-              setBusy(true); setErr(null);
-              try {
-                const res = type === 'press_conference' ? await politicsApi.doPressConference() : await politicsApi.doExclusiveInterview();
-                setErr((res as any)?.message ?? 'Done.'); await onRefresh();
-              } catch (e: any) { setErr(e?.response?.data?.message || 'Action failed.'); }
-              finally { setBusy(false); }
-            }
-            async function doPc(action: string) {
-              setBusy(true); setErr(null);
-              try { const res = await politicsApi.spendPc(action); setErr((res as any)?.message ?? 'Done.'); await onRefresh(); }
-              catch (e: any) { setErr(e?.response?.data?.message || 'Action failed.'); }
-              finally { setBusy(false); }
-            }
-
             return (
               <div style={{ background: 'rgba(10,12,20,0.8)', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', backdropFilter: 'blur(20px)', overflow: 'hidden' }}>
                 {/* Tab bar */}
@@ -1780,7 +1784,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                   ))}
                   <div style={{ flexGrow: 1 }} />
                   {isLeader && (
-                    <button onClick={dissolveParty} disabled={!!busy} style={{ padding: '6px 14px', borderRadius: 6, cursor: 'pointer', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5', fontSize: 10, fontFamily: MONO, letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'all 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.18)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.08)'}>
+                    <button onClick={dissolveParty} disabled={!!busy} style={{ padding: '6px 14px', borderRadius: 6, cursor: 'pointer', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5', fontSize: 10, fontFamily: MONO, letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'all 0.15s' }} onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.18)')} onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}>
                       Dissolve Party
                     </button>
                   )}
@@ -1794,31 +1798,28 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                   {cmdTab === 'organising' && (<>
                     <ActionBtn label="Hold Fundraiser" apCost={1} desc="Draw from national donor pool. Outcome varies — charisma and competition determine your share." onClick={fundraise} />
                     <ActionBtn label="Recruit Candidate" apCost={1} desc="Pay $5,000 to attract an NPC candidate to your party roster." onClick={recruit} />
-                    <ActionBtn label="Scout Rival" apCost={2} desc="File a scouting report. Rivals' platform positions become visible in your party analytics." onClick={() => doAction('scout')} />
-                    <ActionBtn label="Outreach" apCost={3} desc="Send a policy offer to an interest group. Improves alignment score with that group." onClick={() => doAction('statement')} />
+                    <ActionBtn label="Scout Rival" apCost={2} desc="File a scouting report. Rivals' platform positions become visible." onClick={() => doAction('scout')} />
+                    <ActionBtn label="Issue Statement" apCost={1} desc="Public statement. Improves popularity by 1." onClick={() => doAction('statement')} />
                   </>)}
                   {cmdTab === 'comms' && (<>
-                    <ActionBtn label="Press Conference" apCost={1} desc="Increase media warmth with a press outlet. Boosts party reach this arc." onClick={() => doMedia('press_conference')} />
-                    <ActionBtn label="Exclusive Interview" apCost={2} desc="Deeper media engagement — bigger warmth gain with a single outlet." onClick={() => doMedia('interview')} />
-                    <ActionBtn label="Issue Statement" apCost={3} desc="Public statement on a voter segment. Improves popularity by 1." onClick={() => doAction('statement')} />
-                    <ActionBtn label="Buy Media Cycle" pcCost={3} desc="Spend 3 PC to dominate all media outlets for one arc, suppressing rival news." onClick={() => doPc('buy_media_cycle')} />
+                    <ActionBtn label="Press Conference" apCost={1} desc="Increase media warmth with all press outlets. Boosts party reach this arc." onClick={pressConfGlobal} />
+                    <ActionBtn label="Exclusive Interview" apCost={2} desc="Deeper media engagement — bigger warmth gain with your top outlet." onClick={async () => { setBusy(true); setErr(null); try { const res = await politicsApi.doExclusiveInterview(); setErr((res as any)?.message ?? 'Done.'); await onRefresh(); } catch (e: any) { setErr(e?.response?.data?.message || 'Failed.'); } finally { setBusy(false); } }} />
+                    <ActionBtn label="Coalition Outreach" apCost={2} desc="Cross-party dialogue. Improves coalition formation odds." onClick={() => doAction('negotiate')} />
+                    <ActionBtn label="Endorse Candidate" apCost={2} desc="Boosts a candidate's campaign reach this arc." onClick={() => doAction('endorsement')} />
                   </>)}
                   {cmdTab === 'strategy' && (<>
-                    <ActionBtn label="Edit Platform" apCost={0} desc="Adjust your five policy axes. Changes feed directly into voter alignment calculations." onClick={() => { setIsEditingPlatform(true); setPlatformEdits(parsePlatform(myParty.platform)); }} />
-                    <ActionBtn label="Endorse Candidate" apCost={2} desc="Issue an endorsement. Boosts candidate's campaign reach this arc." onClick={() => doAction('endorsement')} />
-                    <ActionBtn label="Negotiate" apCost={2} desc="Coalition outreach. Improves your formation odds with nearby-platform parties." onClick={() => doAction('negotiate')} />
-                    <ActionBtn label="Suppress Scandal" pcCost={4} desc="Bury a rumour-phase scandal before it reaches the press." onClick={() => doPc('suppress_scandal')} />
+                    <ActionBtn label="Edit Platform" desc="Adjust your five policy axes. Changes feed into voter alignment." onClick={() => { setIsEditingPlatform(true); setPlatformEdits(parsePlatform(myParty.platform)); }} />
+                    <ActionBtn label="Scout Rival" apCost={2} desc="File a scouting report. Rivals' platform positions become visible." onClick={() => doAction('scout')} />
+                    <ActionBtn label="Suppress Scandal" pcCost={4} desc="Bury a rumour-phase scandal before it reaches the press." onClick={async () => { setBusy(true); setErr(null); try { const res = await politicsApi.spendPc('suppress_scandal'); setErr((res as any)?.message ?? 'Done.'); await onRefresh(); } catch (e: any) { setErr(e?.response?.data?.message || 'Failed.'); } finally { setBusy(false); } }} />
                   </>)}
                   {cmdTab === 'power' && (<>
-                    <ActionBtn label="Force Vote" pcCost={3} desc="Spend 3 PC to push a bill to a parliamentary vote immediately, bypassing debate." onClick={() => doPc('force_vote')} />
-                    <ActionBtn label="Trigger Inquiry" pcCost={4} desc="Open a parliamentary inquiry against a rival. Damages their credibility if it sticks." onClick={() => doPc('trigger_inquiry')} />
-                    <ActionBtn label="Discipline Faction" pcCost={3} desc="Spend 3 PC to snap a restless faction back into line. Restores loyalty." onClick={() => doPc('discipline_faction')} />
-                    <ActionBtn label="Rally the Base" pcCost={2} desc="Emergency rally. Restores 20 loyalty points across all factions." onClick={() => doPc('rally_base')} />
-                    <ActionBtn label="Negotiate Strength" pcCost={2} desc="Enter coalition talks with leverage. Partners make better offers." onClick={() => doPc('negotiate_strength')} />
-                    <ActionBtn label="Emergency Decree" pcCost={6} desc="Premier only: bypass the legislature once. Pass a minor bill without a vote." onClick={() => doPc('emergency_decree')} disabled={!myParty?.isPremier} />
+                    <ActionBtn label="Discipline Faction" pcCost={3} desc="Spend 3 PC to snap a restless faction back into line." onClick={async () => { setBusy(true); setErr(null); try { const res = await politicsApi.spendPc('discipline_faction'); setErr((res as any)?.message ?? 'Done.'); await onRefresh(); } catch (e: any) { setErr(e?.response?.data?.message || 'Failed.'); } finally { setBusy(false); } }} />
+                    <ActionBtn label="Rally the Base" pcCost={2} desc="Emergency rally. Restores loyalty across all factions." onClick={async () => { setBusy(true); setErr(null); try { const res = await politicsApi.spendPc('rally_base'); setErr((res as any)?.message ?? 'Done.'); await onRefresh(); } catch (e: any) { setErr(e?.response?.data?.message || 'Failed.'); } finally { setBusy(false); } }} />
+                    <ActionBtn label="Negotiate Strength" pcCost={2} desc="Enter coalition talks with leverage." onClick={async () => { setBusy(true); setErr(null); try { const res = await politicsApi.spendPc('negotiate_strength'); setErr((res as any)?.message ?? 'Done.'); await onRefresh(); } catch (e: any) { setErr(e?.response?.data?.message || 'Failed.'); } finally { setBusy(false); } }} />
+                    <ActionBtn label="Emergency Decree" pcCost={6} desc="Premier only: bypass the legislature once." onClick={async () => { setBusy(true); setErr(null); try { const res = await politicsApi.spendPc('emergency_decree'); setErr((res as any)?.message ?? 'Done.'); await onRefresh(); } catch (e: any) { setErr(e?.response?.data?.message || 'Failed.'); } finally { setBusy(false); } }} disabled={!myParty?.isPremier} />
                   </>)}
                   {cmdTab === 'signature' && sigAction && (<>
-                    <ActionBtn label={sigLabel!} apCost={6} desc={`Your party's doctrine-locked signature action. High AP cost, powerful and unique effect.`} onClick={() => doAction(sigAction)} />
+                    <ActionBtn label={sigLabel!} apCost={6} desc={`Your doctrine's signature action. High AP cost, powerful unique effect.`} onClick={() => doAction(sigAction)} />
                   </>)}
                 </div>
 
@@ -1846,6 +1847,8 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
               </div>
             );
           })()}
+
+
 
           {/* Founding Principles (if rich data is present) */}
           {(myParty.crisis_id || (myParty.founders && myParty.founders.length > 0)) && (
