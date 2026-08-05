@@ -31,6 +31,7 @@ export class CharacterController {
       // Add cash locked in open BUY orders
       const buyEscrow = await db('share_orders')
         .where({ character_id: character.id, status: 'open', side: 'buy' })
+        .whereNull('purchaser_company_id')
         .sum('escrow_amount as total_escrow')
         .first();
 

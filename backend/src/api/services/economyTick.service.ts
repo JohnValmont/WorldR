@@ -155,6 +155,7 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
     const fin = await trx('character_finances').where({ character_id: char.id }).first();
     const buyEscrow = await trx('share_orders')
       .where({ character_id: char.id, status: 'open', side: 'buy' })
+      .whereNull('purchaser_company_id')
       .sum('escrow_amount as total_escrow')
       .first();
     const cash = Number(fin?.cash_in_hand || 0) + Number(buyEscrow?.total_escrow || 0);
