@@ -2712,6 +2712,23 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
         <div>
           <SectionHeader stamp="PRODUCTION DESK">Production Lines</SectionHeader>
 
+          {/* Global Operations Banner */}
+          {hasFactory && (
+            <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between p-3 rounded-md border border-zinc-800 bg-zinc-900/30">
+               <div className="flex items-center gap-3">
+                 <div className="text-lg">🏭</div>
+                 <div>
+                   <div className="text-sm font-bold text-zinc-200">Global Monthly Fixed Overheads</div>
+                   <div className="text-[11px] text-zinc-500">Fixed costs billed at month-end regardless of production (Staff Wages + Factory Leases)</div>
+                 </div>
+               </div>
+               <div className="text-right mt-3 md:mt-0">
+                 <div className="text-lg font-mono font-bold text-terminal-red">{fm(totalWagesPerArc + leaseCostPerArc + maintCostPerArc)}</div>
+                 <div className="text-[10px] text-zinc-500 font-mono tracking-wider">BILLED MONTHLY</div>
+               </div>
+            </div>
+          )}
+
           {/* Global Warnings */}
           {(() => {
             if (!hasFactory || !models.some((m: any) => (m.development_status || 'launched') === 'launched')) return null;
@@ -2939,7 +2956,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                                   <strong className="text-terminal-green text-[13px] font-mono">+{estInventoryAdded} units</strong>
                                 </div>
                                 <div className="col-span-2 mt-2">
-                                  <div className="text-zinc-500 mb-0.5">Est. Total Prod Cost</div>
+                                  <div className="text-zinc-500 mb-0.5" title="Direct assembly costs. Fixed overheads (lease, wages) are billed separately.">Est. Var. Assembly Cost</div>
                                   <strong className="text-terminal-red text-[13px] font-mono">{fm(estTotalCost)}</strong>
                                   <span className="text-zinc-600 ml-1.5">(excl. parts)</span>
                                 </div>

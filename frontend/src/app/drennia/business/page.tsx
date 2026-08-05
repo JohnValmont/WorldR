@@ -645,7 +645,7 @@ Stock ≥ (units/month target) × 3 arcs = a safe 3-month buffer. Order in bulk 
 <strong style="color:#4ade80">Sales Manager</strong> — +4% sales effectiveness per market covered. E.g. 3 managers × 4 markets each = significant revenue lift.<br/>
 <strong style="color:#4ade80">Automotive Engineer</strong> — Each engineer reduces future R&amp;D development cost by 5% (cap 20%). Hire before designing new models.<br/>
 <strong style="color:#4ade80">CSO / CMO</strong> — Hired via the Board tab, not Staffing. CSO auto-optimises allocations; CMO auto-optimises marketing tiers.<br/><br/>
-Wages are paid <strong style="color:#ef4444">every arc</strong> automatically. Fire before the arc closes if cash is tight — wages won't be charged for staff you fired mid-arc only if the tick hasn't run yet.`
+Wages are paid <strong style="color:#ef4444">every arc</strong> automatically. Fire before the arc closes if cash is tight — wages won't be charged for staff you fired mid-arc only if the tick hasn't run yet.<br/><br/><strong style="color:#ef4444">CRITICAL WARNING:</strong> Staff Wages and Factory Leases are <strong>FIXED COSTS</strong>. You will be billed for them at the end of the month <strong>even if your factory produces 0 cars</strong>. Do not hire staff until you are ready to produce!`
               },
               {
                 icon: '🚗', title: 'Vehicle Models & Design Scores',
