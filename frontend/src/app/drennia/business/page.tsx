@@ -768,6 +768,13 @@ Use paid research to spot rivals who are Sold Out (opportunity to grab share by 
 <strong style="color:#ef4444">Ghost Car warning (fixed):</strong> You cannot sell more units than you physically have in inventory. If production failed (0 workers or 0 components), your allocation is irrelevant — no units exist to sell. Always check the Production tab after setting up a new line to confirm "Est. Units Produced" is non-zero.`
               },
               {
+                icon: '🧾', title: 'Understanding Production Costs',
+                body: `Building cars involves three distinct types of costs:<br/><br/>
+<strong style="color:#4ade80">1. Components Cost (Parts):</strong> ~$94 per unit (Engine, Tyres, Steel, etc). This is paid <strong>instantly upfront</strong> when you click "Buy" in the Procurement tab. You must have parts in stock to build cars.<br/><br/>
+<strong style="color:#fbbf24">2. Variable Assembly Cost:</strong> This is the labour and energy cost of physically assembling the car on the line. It is calculated as your model's <em>Manufacturing Cost per unit minus the ~$94 BOM (parts) cost</em>. It is billed <strong>automatically at month-end</strong>, multiplied by the actual number of units you produced. If you produce 0 units, this cost is $0.<br/><br/>
+<strong style="color:#ef4444">3. Fixed Overheads:</strong> Factory Leases, Factory Maintenance, and Staff Wages. These are billed <strong>automatically at month-end</strong> <em>even if your factory produces absolutely nothing</em>.`
+              },
+              {
                 icon: '📋', title: 'Quick-Start Checklist',
                 body: `<strong style="color:#f1f5f9">Day 1 sequence for a new manufacturing company:</strong><br/><br/>
 <strong style="color:#4ade80">①</strong> <strong>Lease a factory</strong> (Factory tab) — check capacity and lease cost vs your starting capital.<br/>
