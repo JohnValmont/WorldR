@@ -82,8 +82,18 @@ export default function PoliticsDesk() {
     }
   };
 
-  const loading = isAdmin && !character && !errChar && !overview && !errOver;
+  const isLoadingMe = !character && !errChar;
+  const isLoadingOverview = !overview && !errOver;
+  const loading = isAdmin && (isLoadingMe || isLoadingOverview);
   const error = errChar || errOver || errParties;
+
+  const jMeta = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.national;
+
+  const jurisdictionMeta = useMemo(() => {
+    const meta: Record<string, any> = {};
+    if (overview?.activeState) meta[overview.activeState.code] = { id: overview.activeState.code };
+    return meta;
+  }, [overview]);
 
   if (!isAdmin) {
     return (
@@ -107,14 +117,6 @@ export default function PoliticsDesk() {
       </div>
     );
   }
-
-  const jMeta = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.national;
-
-  const jurisdictionMeta = useMemo(() => {
-    const meta: Record<string, any> = {};
-    if (overview?.activeState) meta[overview.activeState.code] = { id: overview.activeState.code };
-    return meta;
-  }, [overview]);
 
   const commonProps = {
     selectedJurisdictionId,

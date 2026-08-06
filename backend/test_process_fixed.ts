@@ -1,4 +1,4 @@
-import { db } from './src/database/db';
+import { db } from './src/config/database';
 import { ManufacturingController } from './src/api/controllers/manufacturing.controller';
 
 async function run() {

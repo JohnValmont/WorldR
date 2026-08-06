@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
 import { SEGMENTS } from '@/lib/politicsConstants';
@@ -98,6 +98,391 @@ function leaning(seg: any): string {
   const pole = ideal >= 60 ? p.high : ideal <= 40 ? p.low : 'Balanced';
   return `${p.name}: ${pole}`;
 }
+
+// ── Drennia Hex Constituency Map ─────────────────────────────────────────────
+// Generates a hexagonal grid shaped like Drennia for any number of
+// constituencies. The silhouette is defined by a set of mask coordinates
+// that omit "ocean" hexes. For counts that don't perfectly fill the mask,
+// extra mask slots are rendered as dim sea tiles.
+
+const PARTY_PALETTE = [
+  '#4F6EF7', '#9F5BD4', '#D4A843', '#E05252',
+  '#10D67A', '#F57C42', '#5CC8D8', '#C47AB0',
+  '#7EC8A4', '#E8A04A', '#A0C4FF', '#CF6679',
+];
+
+// Drennia silhouette: [col, row] offsets that form the nation's shape.
+// Pointy-top hex offset grid: odd rows shift right by 0.5.
+// Shape covers up to 160 slots (enough for National: 151 seats).
+function buildDrenniaSlots(count: number): Array<[number, number]> {
+  const shape: Array<[number, number]> = [];
+
+  // Each entry: [startCol, endCol] for that row.
+  // Row 0 = narrow top-east peninsula, rows 3-7 = wide mid-body,
+  // rows 8-11 = tapering south coast. Upper-left notch is omitted.
+  const rowDefs: Array<[number, number]> = [
+    [5,  9 ],  // row  0  — 6 narrow top east
+    [4,  10],  // row  1  — 7
+    [2,  11],  // row  2  — 10 expanding
+    [0,  12],  // row  3  — 13
+    [0,  13],  // row  4  — 14
+    [0,  14],  // row  5  — 15 widest
+    [0,  14],  // row  6  — 15
+    [0,  13],  // row  7  — 14
+    [1,  13],  // row  8  — 13
+    [2,  12],  // row  9  — 11
+    [3,  11],  // row 10  — 9
+    [4,  10],  // row 11  — 7
+    [5,   9],  // row 12  — 5
+    [6,   8],  // row 13  — 3 tail
+  ];
+  // Total capacity: 6+7+10+13+14+15+15+14+13+11+9+7+5+3 = 142 slots
+  // Extra rows appended automatically if count > 142 (covers National:151)
+
+  for (let r = 0; r < rowDefs.length; r++) {
+    const [startCol, endCol] = rowDefs[r];
+    for (let c = startCol; c <= endCol; c++) {
+      shape.push([c, r]);
+    }
+  }
+
+  if (count <= shape.length) return shape.slice(0, count);
+  // Overflow: add extra rows below
+  let extraRow = rowDefs.length;
+  let extraC = 6;
+  while (shape.length < count) {
+    shape.push([extraC, extraRow]);
+    extraC++;
+    if (extraC > 8) { extraC = 6; extraRow++; }
+  }
+  return shape;
+}
+
+// Pointy-top hexagon polygon points
+function hexPoints(cx: number, cy: number, r: number): string {
+  return Array.from({ length: 6 }, (_, i) => {
+    const angle = (Math.PI / 3) * i - Math.PI / 6; // pointy-top: 0° = top
+    return `${(cx + r * Math.cos(angle)).toFixed(2)},${(cy + r * Math.sin(angle)).toFixed(2)}`;
+  }).join(' ');
+}
+
+interface HexMapProps {
+  constituencies: any[];
+  projections: any[];
+  myConstituencyId: string | null;
+  selectedConstituencyId: string;
+  onSelect: (id: string) => void;
+  myParty: any;
+  canFile: boolean;
+}
+
+function DrenniaHexMap({
+  constituencies,
+  projections,
+  myConstituencyId,
+  selectedConstituencyId,
+  onSelect,
+  myParty,
+  canFile,
+}: HexMapProps) {
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  // Instance-unique ID to prevent SVG filter ID collisions when multiple maps render
+  const filterUid = useRef(`hm-${Math.random().toString(36).slice(2, 7)}`);
+  // Track rendered SVG pixel width for tooltip clamping
+  const [svgPxW, setSvgPxW] = useState(600);
+
+  // Clear stale hover when the constituency list changes (jurisdiction switch)
+  useEffect(() => {
+    setHoveredId(null);
+    setTooltipPos(null);
+  }, [constituencies]);
+
+  // Track actual rendered width of the SVG for tooltip clamping
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width;
+      if (w) setSvgPxW(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Build party → colour record from projections
+  const partyColorMap = useMemo(() => {
+    const rec: Record<string, string> = {};
+    projections.forEach((p: any, i: number) => {
+      const id = p.id ?? p.party_id;
+      if (id) rec[id] = PARTY_PALETTE[i % PARTY_PALETTE.length];
+    });
+    if (myParty?.id && !rec[myParty.id]) {
+      rec[myParty.id] = '#C9A24A';
+    }
+    return rec;
+  }, [projections, myParty]);
+
+  // Build constituency → leading party id
+  // Uses the party of the candidate filed in that constituency.
+  // When multiple candidates are filed, picks the party with the highest
+  // overall projected vote share (best available proxy per-constituency).
+  const constLeaderMap = useMemo(() => {
+    const rec: Record<string, string | null> = {};
+    for (const c of constituencies) {
+      let leadPartyId: string | null = null;
+      let leadShare = -1;
+      if (c.candidates?.length) {
+        for (const cand of c.candidates) {
+          // Find projection for this party by vote share
+          const proj = projections.find((p: any) =>
+            (p.id ?? p.party_id) === cand.party_id
+          );
+          const share = proj
+            ? Number(proj.projected_share ?? proj.share ?? proj.vote_share ?? 0)
+            : 0;
+          if (share > leadShare) { leadShare = share; leadPartyId = cand.party_id; }
+        }
+        // Fallback: first candidate's party
+        if (!leadPartyId) leadPartyId = c.candidates[0]?.party_id ?? null;
+      }
+      rec[c.id] = leadPartyId;
+    }
+    return rec;
+  }, [constituencies, projections]);
+
+  // Geometry constants for pointy-top hexes
+  const R = 22;
+  const HW = R * Math.sqrt(3); // pointy-top: hex width = sqrt(3) * R
+  const HH = R * 2;            // pointy-top: hex height = 2 * R
+  const PADDING = 8;
+
+  const slots = useMemo(() => buildDrenniaSlots(constituencies.length), [constituencies.length]);
+
+  // Compute pixel centres for pointy-top offset grid
+  // Even rows: no offset. Odd rows: shift right by HW/2.
+  const hexCentres = useMemo(() => {
+    return slots.map(([col, row]) => {
+      const x = col * HW + (row % 2 === 1 ? HW / 2 : 0);
+      const y = row * (HH * 0.75);
+      return { x, y };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slots, R]); // HW and HH derive from R
+
+  // Compute SVG viewBox from bounding box of all centres
+  const { viewBox } = useMemo(() => {
+    if (!hexCentres.length) return { viewBox: '0 0 300 200' };
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const h of hexCentres) {
+      minX = Math.min(minX, h.x);
+      maxX = Math.max(maxX, h.x);
+      minY = Math.min(minY, h.y);
+      maxY = Math.max(maxY, h.y);
+    }
+    return {
+      viewBox: `${minX - R - PADDING} ${minY - R - PADDING} ${maxX - minX + (R + PADDING) * 2} ${maxY - minY + (R + PADDING) * 2}`,
+    };
+  }, [hexCentres, R, PADDING]);
+
+  const hoveredConst = hoveredId ? constituencies.find((c: any) => c.id === hoveredId) : null;
+  // Use ?? null to ensure undefined becomes null (avoids type leak)
+  const hoveredLeadPartyId = hoveredId ? (constLeaderMap[hoveredId] ?? null) : null;
+  const hoveredLeadParty = hoveredLeadPartyId
+    ? projections.find((p: any) => (p.id ?? p.party_id) === hoveredLeadPartyId)
+    : null;
+
+  const canSelectHex = canFile && !myConstituencyId;
+  const glowId = filterUid.current + '-glow';
+  const selectedGlowId = filterUid.current + '-sel';
+
+  if (constituencies.length === 0) return null;
+
+  return (
+    <div style={{
+      background: 'linear-gradient(145deg, rgba(10,12,22,0.9) 0%, rgba(6,8,16,0.95) 100%)',
+      border: '1px solid rgba(255,255,255,0.06)',
+      borderRadius: 12, overflow: 'hidden',
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.faint, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Map size={11} />
+          Constituency Map
+        </div>
+        <div style={{ fontFamily: MONO, fontSize: 9, color: T.faint }}>
+          {constituencies.length} seats{canSelectHex ? ' · click to select' : ''}
+        </div>
+      </div>
+
+      <div style={{ position: 'relative', padding: '12px 12px 4px' }}>
+        {/* SVG Map */}
+        <svg
+          ref={svgRef}
+          viewBox={viewBox}
+          style={{ width: '100%', maxHeight: 360, display: 'block', overflow: 'visible' }}
+          onMouseLeave={() => { setHoveredId(null); setTooltipPos(null); }}
+        >
+          <defs>
+            <filter id={glowId} x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+            <filter id={selectedGlowId} x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="5" result="blur" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+          </defs>
+
+          {constituencies.map((c: any, i: number) => {
+            const centre = hexCentres[i];
+            if (!centre) return null;
+            const { x, y } = centre;
+            const leadPartyId = constLeaderMap[c.id] ?? null;
+            const color = leadPartyId ? (partyColorMap[leadPartyId] ?? '#444') : '#2a2830';
+            const isHovered = hoveredId === c.id;
+            const isSelected = selectedConstituencyId === c.id;
+            const isMy = myConstituencyId === c.id;
+            const isContested = (c.candidates?.length ?? 0) > 0;
+            const baseOpacity = isContested ? 0.72 : 0.16;
+            const fillOpacity = isHovered ? Math.min(1, baseOpacity + 0.22) : baseOpacity;
+            const strokeColor = isMy
+              ? '#C9A24A'
+              : isSelected
+              ? 'rgba(201,162,74,0.65)'
+              : isHovered
+              ? 'rgba(255,255,255,0.35)'
+              : 'rgba(255,255,255,0.08)';
+            const strokeWidth = isMy ? 2.5 : isSelected ? 2 : 0.8;
+
+            return (
+              <g
+                key={c.id}
+                style={{ cursor: canSelectHex ? 'pointer' : 'default' }}
+                filter={isMy ? `url(#${selectedGlowId})` : undefined}
+                onMouseEnter={(e) => {
+                  setHoveredId(c.id);
+                  const rect = svgRef.current?.getBoundingClientRect();
+                  if (rect) setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                }}
+                onMouseMove={(e) => {
+                  const rect = svgRef.current?.getBoundingClientRect();
+                  if (rect) setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                }}
+                onClick={() => {
+                  if (!canSelectHex) return;
+                  // Toggle: clicking the already-selected hex deselects it
+                  onSelect(selectedConstituencyId === c.id ? '' : c.id);
+                }}
+              >
+                {/* Glow layer for player constituency */}
+                {isMy && (
+                  <polygon
+                    points={hexPoints(x, y, R - 1)}
+                    fill={color}
+                    opacity={0.25}
+                    stroke="none"
+                  />
+                )}
+                <polygon
+                  points={hexPoints(x, y, R - 1.5)}
+                  fill={color}
+                  fillOpacity={fillOpacity}
+                  stroke={strokeColor}
+                  strokeWidth={strokeWidth}
+                  style={{ transition: 'fill-opacity 0.15s' }}
+                />
+                {/* Gold dot for player's filed constituency */}
+                {isMy && (
+                  <circle cx={x} cy={y} r={4} fill="#C9A24A" opacity={0.95} />
+                )}
+              </g>
+            );
+          })}
+        </svg>
+
+        {/* Hover Tooltip — clamped to actual SVG pixel width */}
+        {hoveredConst && tooltipPos && (
+          <div style={{
+            position: 'absolute',
+            left: Math.min(tooltipPos.x + 14, svgPxW - 180),
+            top: Math.max(4, tooltipPos.y - 72),
+            background: 'rgba(8,10,20,0.97)',
+            border: '1px solid rgba(255,255,255,0.13)',
+            borderRadius: 9,
+            padding: '9px 13px',
+            minWidth: 168,
+            pointerEvents: 'none',
+            zIndex: 10,
+            boxShadow: '0 10px 28px rgba(0,0,0,0.6)',
+          }}>
+            <div style={{ fontFamily: SANS, fontSize: 12, fontWeight: 600, color: T.ivory, marginBottom: 3 }}>
+              {hoveredConst.name}
+            </div>
+            <div style={{ fontFamily: MONO, fontSize: 9, color: T.faint, marginBottom: 5 }}>
+              {((hoveredConst.registeredVoters ?? 0) / 1000).toFixed(0)}k registered voters
+            </div>
+            {hoveredLeadParty ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: partyColorMap[hoveredLeadParty.id ?? hoveredLeadParty.party_id] ?? '#888' }} />
+                <span style={{ fontFamily: MONO, fontSize: 10, color: T.muted }}>
+                  {hoveredLeadParty.name ?? hoveredLeadParty.party_name ?? 'Filed party'}
+                </span>
+              </div>
+            ) : (
+              <div style={{ fontFamily: MONO, fontSize: 10, color: T.faint, marginBottom: 3 }}>No candidates filed</div>
+            )}
+            {(hoveredConst.candidates?.length ?? 0) > 0 && (
+              <div style={{ fontFamily: MONO, fontSize: 9, color: T.faint }}>
+                {hoveredConst.candidates.length} candidate{hoveredConst.candidates.length !== 1 ? 's' : ''} filed
+              </div>
+            )}
+            {canSelectHex && (
+              <div style={{ fontFamily: MONO, fontSize: 8, color: 'rgba(201,162,74,0.75)', marginTop: 5, letterSpacing: '0.08em' }}>
+                {selectedConstituencyId === hoveredConst.id ? 'CLICK TO DESELECT' : 'CLICK TO SELECT'}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Legend */}
+      <div style={{
+        padding: '6px 16px 12px',
+        display: 'flex', flexWrap: 'wrap', gap: '6px 16px',
+      }}>
+        {projections.slice(0, 8).map((p: any, i: number) => {
+          const pid = p.id ?? p.party_id;
+          const color = partyColorMap[pid] ?? PARTY_PALETTE[i % PARTY_PALETTE.length];
+          const seats = Number(p.projected_seats ?? p.seats ?? 0);
+          return (
+            <div key={pid ?? i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: color, opacity: 0.85 }} />
+              <span style={{ fontFamily: MONO, fontSize: 9, color: T.muted }}>
+                {p.name ?? p.party_name} {seats > 0 ? `·${seats}` : ''}
+              </span>
+            </div>
+          );
+        })}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div style={{ width: 8, height: 8, borderRadius: 2, background: '#2a2830' }} />
+          <span style={{ fontFamily: MONO, fontSize: 9, color: T.faint }}>Uncontested</span>
+        </div>
+        {myConstituencyId && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#C9A24A' }} />
+            <span style={{ fontFamily: MONO, fontSize: 9, color: T.warning }}>Your seat</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function ElectionsScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, overview, character, parties, onRefresh }: Props) {
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
@@ -521,53 +906,74 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
                       Select a constituency for your party to contest, then declare candidacy.
                     </div>
 
-                    {/* Constituency dropdown */}
-                    <div style={{ position: 'relative' }}>
-                      <button
-                        onClick={() => setShowConstPicker(!showConstPicker)}
-                        style={{
-                          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
-                          borderRadius: 7, padding: '9px 12px', cursor: 'pointer', color: selectedConst ? T.ivory : T.faint,
-                          fontFamily: MONO, fontSize: 12,
-                        }}
-                      >
-                        <span>{selectedConst ? selectedConst.name : 'Choose constituency...'}</span>
-                        <ChevronDown size={13} color={T.faint} />
-                      </button>
-
-                      {showConstPicker && constituencies.length > 0 && (
-                        <div style={{
-                          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 50,
-                          background: 'rgba(14,16,24,0.98)', border: '1px solid rgba(255,255,255,0.1)',
-                          borderRadius: 8, maxHeight: 220, overflowY: 'auto',
-                          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-                        }}>
-                          {constituencies.map((c: any) => {
-                            const taken = c.candidates?.some((cd: any) => cd.character_id !== null && !cd.is_npc);
-                            const myPartyHere = c.candidates?.some((cd: any) => cd.party_id === myParty.id);
-                            return (
-                              <button
-                                key={c.id}
-                                onClick={() => { setSelectedConstituencyId(c.id); setShowConstPicker(false); setCandidacyStatus('idle'); }}
-                                style={{
-                                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                  padding: '9px 14px', background: selectedConstituencyId === c.id ? 'rgba(255,183,0,0.08)' : 'transparent',
-                                  border: 'none', borderBottom: '1px solid rgba(255,255,255,0.04)',
-                                  cursor: 'pointer', color: taken && !myPartyHere ? T.faint : T.ivory,
-                                  fontFamily: MONO, fontSize: 11, textAlign: 'left',
-                                }}
-                              >
-                                <span>{c.name}</span>
-                                <span style={{ fontSize: 10, color: myPartyHere ? T.mint : taken ? T.red : T.faint }}>
-                                  {myPartyHere ? 'Your party' : taken ? 'Contested' : `${(c.registeredVoters / 1000).toFixed(0)}k voters`}
-                                </span>
-                              </button>
-                            );
-                          })}
+                    {/* Constituency selector — shown as text when map is available, dropdown as fallback */}
+                    {selectedConst ? (
+                      <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        background: 'rgba(201,162,74,0.07)', border: '1px solid rgba(201,162,74,0.25)',
+                        borderRadius: 7, padding: '9px 14px',
+                      }}>
+                        <div>
+                          <div style={{ fontFamily: MONO, fontSize: 11, color: T.warning }}>{selectedConst.name}</div>
+                          <div style={{ fontFamily: MONO, fontSize: 9, color: T.faint, marginTop: 2 }}>
+                            {((selectedConst.registeredVoters ?? 0) / 1000).toFixed(0)}k voters
+                          </div>
                         </div>
-                      )}
-                    </div>
+                        <button
+                          onClick={() => { setSelectedConstituencyId(''); setCandidacyStatus('idle'); }}
+                          style={{ background: 'none', border: 'none', color: T.faint, cursor: 'pointer', fontFamily: MONO, fontSize: 10 }}
+                        >
+                          Change ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ position: 'relative' }}>
+                        <button
+                          onClick={() => setShowConstPicker(!showConstPicker)}
+                          style={{
+                            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: 7, padding: '9px 12px', cursor: 'pointer', color: T.faint,
+                            fontFamily: MONO, fontSize: 12,
+                          }}
+                        >
+                          <span>Click a hex on the map, or choose here…</span>
+                          <ChevronDown size={13} color={T.faint} />
+                        </button>
+
+                        {showConstPicker && constituencies.length > 0 && (
+                          <div style={{
+                            position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 50,
+                            background: 'rgba(14,16,24,0.98)', border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: 8, maxHeight: 220, overflowY: 'auto',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                          }}>
+                            {constituencies.map((c: any) => {
+                              const taken = c.candidates?.some((cd: any) => cd.character_id !== null && !cd.is_npc);
+                              const myPartyHere = c.candidates?.some((cd: any) => cd.party_id === myParty.id);
+                              return (
+                                <button
+                                  key={c.id}
+                                  onClick={() => { setSelectedConstituencyId(c.id); setShowConstPicker(false); setCandidacyStatus('idle'); }}
+                                  style={{
+                                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    padding: '9px 14px', background: selectedConstituencyId === c.id ? 'rgba(255,183,0,0.08)' : 'transparent',
+                                    border: 'none', borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                    cursor: 'pointer', color: taken && !myPartyHere ? T.faint : T.ivory,
+                                    fontFamily: MONO, fontSize: 11, textAlign: 'left',
+                                  }}
+                                >
+                                  <span>{c.name}</span>
+                                  <span style={{ fontSize: 10, color: myPartyHere ? T.mint : taken ? T.red : T.faint }}>
+                                    {myPartyHere ? 'Your party' : taken ? 'Contested' : `${(c.registeredVoters / 1000).toFixed(0)}k voters`}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Declare button */}
                     <button
@@ -595,6 +1001,23 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
                 )}
               </div>
             </div>
+          )}
+
+          {/* ── DRENNIA HEX MAP ── */}
+          {constituencies.length > 0 && (
+            <DrenniaHexMap
+              constituencies={constituencies}
+              projections={projections}
+              myConstituencyId={myConstituencyId}
+              selectedConstituencyId={selectedConstituencyId}
+              onSelect={(id) => {
+                setSelectedConstituencyId(id);
+                setShowConstPicker(false);
+                setCandidacyStatus('idle');
+              }}
+              myParty={myParty}
+              canFile={canFile}
+            />
           )}
 
           {/* ── PROJECTED RESULT — Nationhood style ── */}

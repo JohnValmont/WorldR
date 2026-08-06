@@ -215,7 +215,7 @@ export async function getNationalPolicyMultipliers(
   const stateIds = states.map((s: any) => s.id);
   const nationalPolicies: ActivePolicy[] = await trx('pol_active_policies')
     .whereIn('state_id', stateIds)
-    .where({ is_active: true, is_national: true });
+    .where({ is_active: true });
 
   if (!nationalPolicies.length) return effect;
 

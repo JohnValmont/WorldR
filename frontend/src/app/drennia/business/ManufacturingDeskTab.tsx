@@ -3578,9 +3578,15 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                   
                   <div className="flex gap-6 mb-4 p-3 bg-zinc-900/50 border border-zinc-800/80 rounded-md">
                     {(() => {
-                      const totalAlloc = marketData.forecast.reduce((sum: number, fc: any) => sum + (Number(fc.alloc.units_allocated) || 0), 0);
-                      const totalInt = marketData.forecast.reduce((sum: number, fc: any) => sum + Math.round(fc.rawBuyerInterest || 0), 0);
-                      const totalSold = marketData.forecast.reduce((sum: number, fc: any) => sum + (Number(fc.unitsSold) || 0), 0);
+                      const validForecast = marketData.forecast.filter((fc: any) => {
+                         const modelObj = models?.find((m: any) => m.id === fc.alloc.vehicle_model_id);
+                         const isDiscontinued = (modelObj?.development_status || modelObj?.status) === 'discontinued';
+                         const hasZeroAlloc = (Number(fc.alloc.units_allocated) || 0) === 0;
+                         return !(isDiscontinued && hasZeroAlloc);
+                      });
+                      const totalAlloc = validForecast.reduce((sum: number, fc: any) => sum + (Number(fc.alloc.units_allocated) || 0), 0);
+                      const totalInt = validForecast.reduce((sum: number, fc: any) => sum + Math.round(fc.rawBuyerInterest || 0), 0);
+                      const totalSold = validForecast.reduce((sum: number, fc: any) => sum + (Number(fc.unitsSold) || 0), 0);
                       return (
                         <>
                           <div>
@@ -3621,7 +3627,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                               // Ensure models exists (should be in scope from ManufacturingDeskTab)
                               const modelObj = models?.find((m: any) => m.id === mid);
                               const mName = modelObj?.name || 'Unknown Model';
-                              const mStatus = modelObj?.status || 'active';
+                              const mStatus = modelObj?.development_status || modelObj?.status || 'active';
                               summaryByModel[mid] = { alloc: 0, interest: 0, sold: 0, name: mName, status: mStatus };
                             }
                             summaryByModel[mid].alloc += Number(fc.alloc.units_allocated) || 0;
@@ -3672,7 +3678,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                       {marketData.forecast
                         .filter((fc: any) => {
                            const modelObj = models.find((m: any) => m.id === fc.alloc.vehicle_model_id);
-                           const isDiscontinued = modelObj?.status === 'discontinued';
+                           const isDiscontinued = (modelObj?.development_status || modelObj?.status) === 'discontinued';
                            const hasZeroAlloc = (Number(fc.alloc.units_allocated) || 0) === 0;
                            return !(isDiscontinued && hasZeroAlloc);
                         })

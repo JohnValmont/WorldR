@@ -1,5 +1,5 @@
-import { db } from './src/database/db';
-import { ManufacturingController } from './src/api/controllers/manufacturing.controller';
+const { db } = require('./dist/src/database/db');
+const { ManufacturingController } = require('./dist/src/api/controllers/manufacturing.controller');
 
 async function run() {
   try {
@@ -16,10 +16,10 @@ async function run() {
     
     await db.transaction(async (trx) => {
       try {
-        const outcome = await ManufacturingController.processCountryMonth(trx as any, firstCompany.country_id, clock);
+        const outcome = await ManufacturingController.processCountryMonth(trx, firstCompany.country_id, clock);
         console.log('Outcome:', outcome);
         throw new Error('ROLLBACK_TEST');
-      } catch (err: any) {
+      } catch (err) {
         if (err.message === 'ROLLBACK_TEST') {
           console.log('Success and rolled back');
         } else {
@@ -29,7 +29,7 @@ async function run() {
       }
     });
 
-  } catch (err: any) {
+  } catch (err) {
     if (err.message !== 'ROLLBACK_TEST') {
       console.error('Outer catch:', err);
     }

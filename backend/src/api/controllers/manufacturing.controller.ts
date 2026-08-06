@@ -2777,7 +2777,8 @@ export class ManufacturingController {
                'manufacturing_region_markets.brand_awareness_sensitivity',
                'manufacturing_region_markets.brand_trust_sensitivity',
                'manufacturing_vehicle_models.launched_year',
-               'manufacturing_vehicle_models.launched_month'
+               'manufacturing_vehicle_models.launched_month',
+               'manufacturing_vehicle_models.development_status'
              );
 
              // ── LAYER 1: Proportional Inventory Cap ──────────────────────────
