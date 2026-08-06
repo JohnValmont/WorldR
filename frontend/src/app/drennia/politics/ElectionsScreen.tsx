@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
@@ -109,47 +109,48 @@ const PARTY_PALETTE = [
 
 // Drennia silhouette: wider in the middle-east, notch upper-left.
 // Flat-top hex grid. Even rows no offset, odd rows shift right by HW/2.
+// Drennia silhouette — LANDSCAPE orientation (wider than tall).
+// Pointy-top offset grid: odd rows shift right by HW/2.
+// 20 cols × 9 rows, capacity 158 — covers National (151) comfortably.
 function buildDrenniaSlots(count: number): Array<[number, number]> {
   const shape: Array<[number, number]> = [];
+  // [startCol, endCol] per row — wide mid-body, tapered top and bottom
   const rowDefs: Array<[number, number]> = [
-    [5, 10], // row  0 —  6
-    [3, 10], // row  1 —  8
-    [2, 11], // row  2 — 10
-    [1, 12], // row  3 — 12
-    [0, 12], // row  4 — 13
-    [0, 12], // row  5 — 13
-    [0, 12], // row  6 — 13
-    [1, 12], // row  7 — 12
-    [2, 11], // row  8 — 10
-    [3, 10], // row  9 —  8
-    [3,  9], // row 10 —  7
-    [4,  8], // row 11 —  5
-    [4,  7], // row 12 —  4
-    [5,  7], // row 13 —  3
+    [ 4, 14],  // row 0 — 11  (top coast — slight taper)
+    [ 2, 17],  // row 1 — 16
+    [ 0, 19],  // row 2 — 20  (widest)
+    [ 0, 19],  // row 3 — 20
+    [ 0, 19],  // row 4 — 20  (wide mid belly)
+    [ 1, 18],  // row 5 — 18
+    [ 2, 17],  // row 6 — 16
+    [ 4, 15],  // row 7 — 12
+    [ 6, 13],  // row 8 —  8  (southern coast)
   ];
+  // Capacity: 11+16+20+20+20+18+16+12+8 = 141 base
+  // National (151) overflow appended as extra row below
   for (let r = 0; r < rowDefs.length; r++) {
     const [s, e] = rowDefs[r];
     for (let c = s; c <= e; c++) shape.push([c, r]);
   }
   if (count <= shape.length) return shape.slice(0, count);
+  // Overflow row
   let er = rowDefs.length;
-  let ec = 5;
+  let ec = 7;
   while (shape.length < count) {
     shape.push([ec, er]);
     ec++;
-    if (ec > 7) { ec = 5; er++; }
+    if (ec > 12) { ec = 7; er++; }
   }
   return shape;
 }
 
-// Flat-top hexagon polygon points
+// Pointy-top hexagon polygon points
 function hexPoints(cx: number, cy: number, r: number): string {
   return Array.from({ length: 6 }, (_, i) => {
-    const angle = (Math.PI / 180) * (60 * i);
+    const angle = (Math.PI / 3) * i - Math.PI / 6; // pointy-top: first vertex at top
     return `${(cx + r * Math.cos(angle)).toFixed(2)},${(cy + r * Math.sin(angle)).toFixed(2)}`;
   }).join(' ');
 }
-
 interface HexMapProps {
   constituencies: any[];
   projections: any[];
@@ -239,10 +240,10 @@ function DrenniaHexMap({
     return rec;
   }, [perConstituency]);
 
-  const R = 20;
+  const R = 16;  // smaller radius fits 20-wide landscape shape
   const HW = R * Math.sqrt(3);
   const HH = R * 2;
-  const PADDING = 8;
+  const PADDING = 6;
 
   const slots = useMemo(() => buildDrenniaSlots(constituencies.length), [constituencies.length]);
 
@@ -301,7 +302,7 @@ function DrenniaHexMap({
           <svg
             ref={svgRef}
             viewBox={viewBox}
-            style={{ width: '100%', maxHeight: 380, display: 'block', overflow: 'visible' }}
+            style={{ width: '100%', maxHeight: 260, display: 'block', overflow: 'visible' }}
             onMouseLeave={() => { setHoveredId(null); setTooltipPos(null); }}
           >
             <defs>

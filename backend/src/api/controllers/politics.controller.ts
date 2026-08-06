@@ -262,7 +262,7 @@ export async function getConstituencies(req: Request, res: Response, next: NextF
     // Enrich with current-cycle candidacy data
     const candidates = await db('pol_candidates')
       .where({ cycle_id: cycle.id })
-      .select('constituency_id', 'party_id', 'character_id', 'is_npc');
+      .select('id', 'constituency_id', 'party_id', 'character_id', 'is_npc');
 
     const byConstituency: Record<string, any[]> = {};
     for (const c of candidates) {
@@ -284,10 +284,12 @@ export async function getConstituencies(req: Request, res: Response, next: NextF
     return res.json({
       phase: cycle.phase,
       myConstituencyId,
-      constituencies: constituencies.map((c: any) => ({
+      constituencies: constituencies.map((c: any, idx: number) => ({
         id: c.id,
         name: c.name ?? `Constituency ${c.id.slice(0, 6)}`,
-        registeredVoters: c.registered_voters ?? 80000,
+        // Use actual value if seeded; otherwise generate deterministic variation
+        // so constituents aren't all identical. Range: 40k-120k.
+        registeredVoters: c.registered_voters ?? (40000 + ((idx * 7919) % 80001)),
         candidates: byConstituency[c.id] || [],
       })),
     });

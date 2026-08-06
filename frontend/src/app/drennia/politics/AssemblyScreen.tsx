@@ -147,29 +147,27 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
           <GlassPanel title={<><Landmark size={14} /> Composition</>} accent={T.blueLine}>
             {/* ── SVG Hemicycle Parliament Chart ── */}
             {(() => {
-              const W = 520, H = 280;
-              const cx = W / 2, cy = H - 10;
+              const W = 520, H = 300;
+              const cx = W / 2, cy = H - 20;   // arc origin on the floor
               const ROWS = 4;
-              const ROW_GAP = 28;
-              const SEAT_R = 7;
-              const START_ANGLE = Math.PI; // 180° (left)
-              const END_ANGLE = 0;         // 0°  (right)
+              const ROW_GAP = 30;
+              const SEAT_R = 6;
+              const INNER_R = 80;               // innermost row radius
+              const START_ANGLE = Math.PI;      // left end
+              const END_ANGLE = 0;              // right end
 
-              // Build seat-to-party color map
               const seatColors: string[] = [];
               for (const p of partySeats) {
                 const idx = partySeats.indexOf(p);
                 const col = PALETTE[idx % PALETTE.length];
                 for (let s = 0; s < p.seats; s++) seatColors.push(col);
               }
-              // Fill remaining with empty
               while (seatColors.length < totalSeats) seatColors.push('rgba(255,255,255,0.07)');
 
-              // Distribute seats across rows (more seats in outer rows proportionally)
+              // Distribute seats proportionally by arc length
               const seatsPerRow: number[] = [];
               {
-                // Outer rows have larger circumference, give them proportionally more seats
-                const radii = Array.from({ length: ROWS }, (_, i) => 90 + i * ROW_GAP);
+                const radii = Array.from({ length: ROWS }, (_, i) => INNER_R + i * ROW_GAP);
                 const totalArc = radii.reduce((s, r) => s + r, 0);
                 let assigned = 0;
                 for (let row = 0; row < ROWS; row++) {
@@ -181,25 +179,25 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
                 }
               }
 
-              const svgSeats: { x: number; y: number; color: number; title: string }[] = [];
+              const svgSeats: { x: number; y: number; color: string; title: string }[] = [];
               let globalIdx = 0;
               for (let row = 0; row < ROWS; row++) {
-                const radius = 90 + row * ROW_GAP;
+                const radius = INNER_R + row * ROW_GAP;
                 const count = seatsPerRow[row];
                 for (let s = 0; s < count; s++) {
+                  // angle sweeps from π (left) to 0 (right)
                   const angle = START_ANGLE + (s / (count - 1 || 1)) * (END_ANGLE - START_ANGLE);
                   const x = cx + radius * Math.cos(angle);
-                  const y = cy + radius * Math.sin(angle);
+                  // subtract sin so arch opens UPWARD from floor
+                  const y = cy - radius * Math.sin(angle);
                   const color = seatColors[globalIdx] ?? 'rgba(255,255,255,0.07)';
-                  // Find party name for this seat
                   let title = 'Vacant';
                   let offset = 0;
                   for (const p of partySeats) {
                     if (globalIdx >= offset && globalIdx < offset + p.seats) { title = p.name; break; }
                     offset += p.seats;
                   }
-                  svgSeats.push({ x, y, color: globalIdx, title });
-                  svgSeats[svgSeats.length - 1] = { x, y, color: color as any, title };
+                  svgSeats.push({ x, y, color, title });
                   globalIdx++;
                 }
               }
@@ -209,6 +207,10 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
                   <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', maxWidth: '100%' }}>
                     {/* Floor line */}
                     <line x1={20} y1={cy} x2={W - 20} y2={cy} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
+                    {/* Majority threshold label */}
+                    <text x={cx} y={cy - 8} textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize={10} fontFamily="monospace">
+                      MAJORITY: {majority}
+                    </text>
                     {/* Seats */}
                     {svgSeats.map((seat, i) => (
                       <circle
@@ -216,20 +218,16 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
                         cx={seat.x}
                         cy={seat.y}
                         r={SEAT_R}
-                        fill={seat.color as any}
-                        stroke={String(seat.color) === 'rgba(255,255,255,0.07)' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.4)'}
+                        fill={seat.color}
+                        stroke={seat.color === 'rgba(255,255,255,0.07)' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.4)'}
                         strokeWidth={1}
-                        style={{ cursor: 'help', transition: 'r 0.15s ease, opacity 0.15s ease' }}
-                        onMouseEnter={(e) => { e.currentTarget.setAttribute('r', '9'); }}
+                        style={{ cursor: 'help', transition: 'r 0.15s ease' }}
+                        onMouseEnter={(e) => { e.currentTarget.setAttribute('r', '8'); }}
                         onMouseLeave={(e) => { e.currentTarget.setAttribute('r', String(SEAT_R)); }}
                       >
                         <title>{seat.title}</title>
                       </circle>
                     ))}
-                    {/* Majority threshold label */}
-                    <text x={cx} y={cy - 6} textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize={10} fontFamily="monospace">
-                      MAJORITY: {majority}
-                    </text>
                   </svg>
                 </div>
               );
