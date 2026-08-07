@@ -160,6 +160,7 @@ interface HexMapProps {
   onSelect: (id: string) => void;
   myParty: any;
   canFile: boolean;
+  parties: any[];
 }
 
 function DrenniaHexMap({
@@ -171,6 +172,7 @@ function DrenniaHexMap({
   onSelect,
   myParty,
   canFile,
+  parties,
 }: HexMapProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [clickedId, setClickedId] = useState<string | null>(null);
@@ -199,23 +201,31 @@ function DrenniaHexMap({
   // partyId field on pulse.standings is "partyId" (camelCase)
   const partyColorMap = useMemo(() => {
     const rec: Record<string, string> = {};
+    // Seed with all known parties
+    parties?.forEach((p: any, i: number) => {
+      rec[p.id] = p.colorHex || p.identity?.color || PARTY_PALETTE[i % PARTY_PALETTE.length];
+    });
     projections.forEach((p: any, i: number) => {
       const id = p.partyId ?? p.id ?? p.party_id;
-      if (id) rec[id] = PARTY_PALETTE[i % PARTY_PALETTE.length];
+      if (id && !rec[id]) rec[id] = p.colorHex || p.identity?.color || PARTY_PALETTE[i % PARTY_PALETTE.length];
     });
-    if (myParty?.id && !rec[myParty.id]) rec[myParty.id] = '#C9A24A';
+    if (myParty?.id && !rec[myParty.id]) rec[myParty.id] = myParty.colorHex || myParty.identity?.color || '#C9A24A';
     return rec;
-  }, [projections, myParty]);
+  }, [projections, myParty, parties]);
 
   const partyNameMap = useMemo(() => {
     const rec: Record<string, string> = {};
+    parties?.forEach((p: any) => {
+      rec[p.id] = p.name || p.abbreviation;
+    });
     projections.forEach((p: any) => {
       const id = p.partyId ?? p.id ?? p.party_id;
       const name = p.name ?? p.party_name;
-      if (id && name) rec[id] = name;
+      if (id && name && !rec[id]) rec[id] = name;
     });
+    if (myParty?.id && !rec[myParty.id]) rec[myParty.id] = myParty.name || myParty.abbreviation;
     return rec;
-  }, [projections]);
+  }, [projections, parties, myParty]);
 
   // constituency winner from engine output (most accurate colour source)
   const constWinnerMap = useMemo(() => {
@@ -1038,13 +1048,14 @@ export default function ElectionsScreen({ selectedJurisdictionId, onJurisdiction
               perConstituency={perConstituency}
               myConstituencyId={myConstituencyId}
               selectedConstituencyId={selectedConstituencyId}
-              onSelect={(id) => {
+                                      onSelect={(id) => {
                 setSelectedConstituencyId(id);
                 setShowConstPicker(false);
                 setCandidacyStatus('idle');
               }}
               myParty={myParty}
               canFile={canFile}
+              parties={parties}
             />
           )}
 

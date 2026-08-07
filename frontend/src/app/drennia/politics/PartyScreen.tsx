@@ -168,7 +168,7 @@ function loyaltyTone(loyalty: number) {
   return T.red;
 }
 
-// ── Faction Panel ──────────────────��──────────────────────────────────────────
+// ── Faction Panel ────────────────────────────────────────────────────────────
 function FactionPanel({ partyId, onSpendPc }: { partyId: string; onSpendPc?: (action: string, factionId?: string) => Promise<void> }) {
   const [data, setData] = useState<{ cohesion: number; factions: any[] } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -1684,6 +1684,13 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                   </span>
                 </div>
                 
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 24, borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
+                  <span style={{ color: T.muted, fontSize: 11, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>Current Seats</span>
+                  <span style={{ color: T.blueBright, fontSize: 28, fontWeight: 700, fontFamily: MONO, textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
+                    {Number(myParty.seat_count || 0)}
+                  </span>
+                </div>
+                
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 16 }}>
                     <input 
@@ -1822,7 +1829,6 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                   {cmdTab === 'organising' && (<>
                     <ActionBtn label="Hold Fundraiser" apCost={1} desc="Draw from national donor pool. Outcome varies — charisma and competition determine your share." onClick={fundraise} />
                     <ActionBtn label="Recruit Candidate" apCost={1} desc="Pay $5,000 to attract an NPC candidate to your party roster." onClick={recruit} />
-                    <ActionBtn label="Scout Rival" apCost={2} desc="File a scouting report. Rivals' platform positions become visible." onClick={() => doAction('scout')} />
                     <ActionBtn label="Issue Statement" apCost={1} desc="Public statement. Improves popularity by 1." onClick={() => doAction('statement')} />
                   </>)}
                   {cmdTab === 'comms' && (<>

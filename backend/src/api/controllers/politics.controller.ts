@@ -136,7 +136,14 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
           activeCharacterId = character.id;
           const member = await db('pol_party_members').where({ character_id: character.id }).first();
           if (member) {
-            globalParty = await db('pol_parties').where({ id: member.party_id }).first();
+            globalParty = await db('pol_parties')
+            .where({ id: member.party_id })
+            .select(
+              'pol_parties.*',
+              db.raw('(SELECT count(*) FROM pol_party_members WHERE pol_party_members.party_id = pol_parties.id) as member_count'),
+              db.raw('(SELECT count(*) FROM pol_council_seats WHERE pol_council_seats.party_id = pol_parties.id AND pol_council_seats.cycle_id = ?) as seat_count', [activeState?.id ? (await getOrCreateCurrentCycle(activeState.id)).id : ''])
+            )
+            .first();
             if (globalParty) {
               const members = await db('pol_party_members')
                 .join('characters', 'pol_party_members.character_id', 'characters.id')
@@ -147,6 +154,13 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
                   'characters.credibility', 'pol_party_members.role'
                 );
               globalParty.members = members;
+              const premierOffice = await db('pol_offices').where({ state_id: activeState.id, office: 'premier' }).orderBy('since_arc', 'desc').first();
+              globalParty.isPremier = premierOffice?.party_id === globalParty.id;
+              try {
+                globalParty.identity = await db('pol_party_identities').where({ party_id: globalParty.id }).first() || null;
+              } catch (e) {
+                globalParty.identity = null;
+              }
             }
           }
         }
@@ -543,9 +557,9 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
     
     const conditions = await readNationalStatsFromRow(activeState);
     const constituenciesRows = await db('pol_constituencies').where({ state_id: activeState.id });
-    const engineConstituencies = constituenciesRows.map(r => ({
+    const engineConstituencies = constituenciesRows.map((r, idx) => ({
       id: r.id,
-      registeredVoters: r.registered_voters || 80000,
+      registeredVoters: r.registered_voters ?? (40000 + ((idx * 7919) % 80001)),
       conditions
     }));
 
@@ -1065,9 +1079,9 @@ export async function getCouncil(req: Request, res: Response, next: NextFunction
       try {
         const engineCands = await buildEngineCandidates(db, cycle.id);
         const constituenciesRows = await db('pol_constituencies').where({ state_id: activeState.id });
-        const engineConstituencies = constituenciesRows.map(r => ({
+        const engineConstituencies = constituenciesRows.map((r, idx) => ({
           id: r.id,
-          registeredVoters: r.registered_voters || 80000,
+          registeredVoters: r.registered_voters ?? (40000 + ((idx * 7919) % 80001)),
           conditions: readNationalStatsFromRow(activeState)
         }));
         const projection = runElection({ candidates: engineCands, constituencies: engineConstituencies });

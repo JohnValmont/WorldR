@@ -158,8 +158,8 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
 
               const seatColors: string[] = [];
               for (const p of partySeats) {
-                const idx = partySeats.indexOf(p);
-                const col = PALETTE[idx % PALETTE.length];
+                const fullParty = Array.isArray(parties) ? parties.find(party => party.id === (p.party_id || p.partyId || p.id)) : undefined;
+                const col = fullParty?.identity?.color || fullParty?.colorHex || PALETTE[partySeats.indexOf(p) % PALETTE.length];
                 for (let s = 0; s < p.seats; s++) seatColors.push(col);
               }
               while (seatColors.length < totalSeats) seatColors.push('rgba(255,255,255,0.07)');
@@ -186,7 +186,7 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
                 const count = seatsPerRow[row];
                 for (let s = 0; s < count; s++) {
                   // angle sweeps from π (left) to 0 (right)
-                  const angle = START_ANGLE + (s / (count - 1 || 1)) * (END_ANGLE - START_ANGLE);
+                  const angle = count === 1 ? (START_ANGLE + END_ANGLE) / 2 : START_ANGLE + (s / (count - 1)) * (END_ANGLE - START_ANGLE);
                   const x = cx + radius * Math.cos(angle);
                   // subtract sin so arch opens UPWARD from floor
                   const y = cy - radius * Math.sin(angle);
@@ -237,7 +237,8 @@ export default function AssemblyScreen({ selectedJurisdictionId, onJurisdictionC
             {/* Seat Legend */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 24 }}>
               {partySeats.map((p: any, i: number) => {
-                const color = PALETTE[i % PALETTE.length];
+                const fullParty = Array.isArray(parties) ? parties.find(party => party.id === (p.party_id || p.partyId || p.id)) : undefined;
+                const color = fullParty?.identity?.color || fullParty?.colorHex || PALETTE[i % PALETTE.length];
                 return (
                   <div key={p.partyId || i} style={{ 
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
