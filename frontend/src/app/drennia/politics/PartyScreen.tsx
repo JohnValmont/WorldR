@@ -495,6 +495,7 @@ function CampaignPanel({ partyId, isLeader, onRefresh }: { partyId: string; isLe
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState('');
+  const [targetSegment, setTargetSegment] = useState<string>('industrial_workers');
 
   const load = useCallback(async () => {
     try { setData(await politicsApi.getMyCampaign()); } catch { setData(null); }
@@ -524,6 +525,20 @@ function CampaignPanel({ partyId, isLeader, onRefresh }: { partyId: string; isLe
       await load(); onRefresh();
     } catch (e: any) {
       setMsg(e?.response?.data?.message || 'Allocation failed.');
+    } finally { setBusy(false); }
+  }
+
+  async function doCampaignAction(type: string, needsSegment: boolean) {
+    setBusy(true);
+    try {
+      const res = await politicsApi.queueCampaignAction({
+        action_type: type,
+        target_segment: needsSegment ? targetSegment : undefined
+      });
+      setMsg((res as any)?.message ?? 'Action queued for next arc.');
+      await load(); onRefresh();
+    } catch (e: any) {
+      setMsg(e?.response?.data?.message || 'Action failed.');
     } finally { setBusy(false); }
   }
 
@@ -656,6 +671,67 @@ function CampaignPanel({ partyId, isLeader, onRefresh }: { partyId: string; isLe
           <div><span style={{ color: T.faint, fontSize: 9, fontFamily: MONO }}>BUDGET MULT </span><span style={{ color: meta.accentColor, fontSize: 11, fontFamily: MONO, fontWeight: 700 }}>{meta.budget}</span></div>
           <div><span style={{ color: T.faint, fontSize: 9, fontFamily: MONO }}>REACH </span><span style={{ color: meta.accentColor, fontSize: 11, fontFamily: MONO, fontWeight: 700 }}>{meta.reach}</span></div>
           <div style={{ marginLeft: 'auto' }}><span style={{ color: T.faint, fontSize: 9, fontFamily: MONO, fontStyle: 'italic' }}>{meta.tagline}</span></div>
+        </div>
+      </div>
+
+      {/* Campaign Actions */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontFamily: MONO, fontSize: 10, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>Direct Actions</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+          <select
+            value={targetSegment}
+            onChange={e => setTargetSegment(e.target.value)}
+            disabled={!isLeader || busy}
+            style={{
+              padding: '6px 10px', background: 'rgba(0,0,0,0.4)',
+              border: `1px solid ${T.border}`, borderRadius: 5,
+              color: T.ivory, fontSize: 11, fontFamily: SANS, outline: 'none',
+              width: 180
+            }}
+          >
+            {Object.entries(BLOC_NAME_BY_KEY).map(([key, name]) => (
+              <option key={key} value={key}>{name}</option>
+            ))}
+          </select>
+          <span style={{ fontSize: 10, color: T.faint, fontFamily: MONO }}>TARGET DEMOGRAPHIC</span>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            disabled={busy || !isLeader}
+            onClick={() => doCampaignAction('canvass', true)}
+            style={{
+              padding: '8px 12px', borderRadius: 5, cursor: (busy || !isLeader) ? 'not-allowed' : 'pointer',
+              background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}`,
+              color: T.ivory, fontSize: 11, fontFamily: SANS, transition: 'all 0.2s ease',
+              opacity: busy ? 0.5 : 1,
+            }}>
+            <div style={{ fontWeight: 600, marginBottom: 2 }}>Canvass Demographic</div>
+            <div style={{ fontSize: 9, color: T.muted, fontFamily: MONO }}>$1,500 · High effort in target</div>
+          </button>
+          <button
+            disabled={busy || !isLeader}
+            onClick={() => doCampaignAction('rally', true)}
+            style={{
+              padding: '8px 12px', borderRadius: 5, cursor: (busy || !isLeader) ? 'not-allowed' : 'pointer',
+              background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}`,
+              color: T.ivory, fontSize: 11, fontFamily: SANS, transition: 'all 0.2s ease',
+              opacity: busy ? 0.5 : 1,
+            }}>
+            <div style={{ fontWeight: 600, marginBottom: 2 }}>Host a Rally</div>
+            <div style={{ fontSize: 9, color: T.muted, fontFamily: MONO }}>$5,000 · Massive effort in target</div>
+          </button>
+          <button
+            disabled={busy || !isLeader}
+            onClick={() => doCampaignAction('media_ad', false)}
+            style={{
+              padding: '8px 12px', borderRadius: 5, cursor: (busy || !isLeader) ? 'not-allowed' : 'pointer',
+              background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}`,
+              color: T.ivory, fontSize: 11, fontFamily: SANS, transition: 'all 0.2s ease',
+              opacity: busy ? 0.5 : 1,
+            }}>
+            <div style={{ fontWeight: 600, marginBottom: 2 }}>National Media Buy</div>
+            <div style={{ fontSize: 9, color: T.muted, fontFamily: MONO }}>$12,000 · Broadcast across all</div>
+          </button>
         </div>
       </div>
 

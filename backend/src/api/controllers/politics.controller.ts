@@ -136,12 +136,28 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
           activeCharacterId = character.id;
           const member = await db('pol_party_members').where({ character_id: character.id }).first();
           if (member) {
+            // Resolve the current cycle ID BEFORE building the query.
+            // Calling await inside db.raw() can throw if activeState has no cycle yet,
+            // passing an empty string '' as a UUID to Postgres which crashes the whole endpoint.
+            let currentCycleId: string | null = null;
+            if (activeState?.id) {
+              try {
+                const cycle = await getOrCreateCurrentCycle(activeState.id);
+                currentCycleId = cycle?.id ?? null;
+              } catch {
+                currentCycleId = null;
+              }
+            }
+
             globalParty = await db('pol_parties')
             .where({ id: member.party_id })
             .select(
               'pol_parties.*',
               db.raw('(SELECT count(*) FROM pol_party_members WHERE pol_party_members.party_id = pol_parties.id) as member_count'),
-              db.raw('(SELECT count(*) FROM pol_council_seats WHERE pol_council_seats.party_id = pol_parties.id AND pol_council_seats.cycle_id = ?) as seat_count', [activeState?.id ? (await getOrCreateCurrentCycle(activeState.id)).id : ''])
+              // Only count seats when we have a valid cycle UUID; otherwise return 0.
+              currentCycleId
+                ? db.raw('(SELECT count(*) FROM pol_council_seats WHERE pol_council_seats.party_id = pol_parties.id AND pol_council_seats.cycle_id = ?) as seat_count', [currentCycleId])
+                : db.raw('0 as seat_count')
             )
             .first();
             if (globalParty) {

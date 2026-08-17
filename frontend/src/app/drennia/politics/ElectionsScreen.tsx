@@ -107,41 +107,42 @@ const PARTY_PALETTE = [
   '#7EC8A4', '#E8A04A', '#A0C4FF', '#CF6679',
 ];
 
-// Drennia silhouette: wider in the middle-east, notch upper-left.
-// Flat-top hex grid. Even rows no offset, odd rows shift right by HW/2.
-// Drennia silhouette — LANDSCAPE orientation (wider than tall).
-// Pointy-top offset grid: odd rows shift right by HW/2.
-// 20 cols × 9 rows, capacity 158 — covers National (151) comfortably.
 function buildDrenniaSlots(count: number): Array<[number, number]> {
   const shape: Array<[number, number]> = [];
-  // [startCol, endCol] per row — wide mid-body, tapered top and bottom
-  const rowDefs: Array<[number, number]> = [
-    [ 4, 14],  // row 0 — 11  (top coast — slight taper)
-    [ 2, 17],  // row 1 — 16
-    [ 0, 19],  // row 2 — 20  (widest)
-    [ 0, 19],  // row 3 — 20
-    [ 0, 19],  // row 4 — 20  (wide mid belly)
-    [ 1, 18],  // row 5 — 18
-    [ 2, 17],  // row 6 — 16
-    [ 4, 15],  // row 7 — 12
-    [ 6, 13],  // row 8 —  8  (southern coast)
-  ];
-  // Capacity: 11+16+20+20+20+18+16+12+8 = 141 base
-  // National (151) overflow appended as extra row below
-  for (let r = 0; r < rowDefs.length; r++) {
-    const [s, e] = rowDefs[r];
-    for (let c = s; c <= e; c++) shape.push([c, r]);
+  const radius = Math.ceil(Math.sqrt(count / Math.PI)) + 2;
+  
+  for (let r = -radius; r <= radius; r++) {
+    for (let q = -radius; q <= radius; q++) {
+      const dist = (Math.abs(q) + Math.abs(q + r) + Math.abs(r)) / 2;
+      if (dist <= radius) shape.push([q, r]);
+    }
   }
-  if (count <= shape.length) return shape.slice(0, count);
-  // Overflow row
-  let er = rowDefs.length;
-  let ec = 7;
-  while (shape.length < count) {
-    shape.push([ec, er]);
-    ec++;
-    if (ec > 12) { ec = 7; er++; }
+  
+  shape.sort((a, b) => {
+    const da = (Math.abs(a[0]) + Math.abs(a[0] + a[1]) + Math.abs(a[1])) / 2;
+    const db = (Math.abs(b[0]) + Math.abs(b[0] + b[1]) + Math.abs(b[1])) / 2;
+    if (da !== db) return da - db;
+    const aa = Math.atan2(a[1] * Math.sqrt(3)/2, a[0] + a[1]/2);
+    const ab = Math.atan2(b[1] * Math.sqrt(3)/2, b[0] + b[1]/2);
+    return aa - ab;
+  });
+  
+  const finalShape = shape.slice(0, count);
+  
+  let minRow = Infinity;
+  for (const [q, r] of finalShape) {
+    if (r < minRow) minRow = r;
   }
-  return shape;
+  
+  let minCol = Infinity;
+  const withCols = finalShape.map(([q, r]) => {
+    const row = r - minRow;
+    const col = q + Math.floor(row / 2);
+    if (col < minCol) minCol = col;
+    return { row, col };
+  });
+  
+  return withCols.map(({ row, col }) => [col - minCol, row]);
 }
 
 // Pointy-top hexagon polygon points

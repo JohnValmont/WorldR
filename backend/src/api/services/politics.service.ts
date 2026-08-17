@@ -530,10 +530,10 @@ export async function ensureCandidates(trx: any, cycleId: string) {
   let parties = await trx('pol_parties').where({ state_id: cycle.state_id });
   if (parties.length === 0) {
     const defaultParties = [
-      { name: 'Workers & Industry Party', short_name: 'WIP', color: '#4F6EF7', description: 'Labor-focused industrial coalition' },
-      { name: 'Drennport Commerce Alliance', short_name: 'DCA', color: '#7B3FD4', description: 'Free trade and commercial enterprise' },
-      { name: 'National Order & Reform', short_name: 'NOR', color: '#D4A843', description: 'Constitutional stability and law & order' },
-      { name: 'Social Heritage Union', short_name: 'SHU', color: '#E05252', description: 'Progressive social welfare and public development' }
+      { name: 'Workers & Industry Party', short_name: 'WIP', color: '#4F6EF7', description: 'Labor-focused industrial coalition', platform: { taxation: 30, labour: 85, investment: 75, trade: 55, stability: 55 } },
+      { name: 'Drennport Commerce Alliance', short_name: 'DCA', color: '#7B3FD4', description: 'Free trade and commercial enterprise', platform: { taxation: 88, labour: 30, investment: 70, trade: 75, stability: 60 } },
+      { name: 'National Order & Reform', short_name: 'NOR', color: '#D4A843', description: 'Constitutional stability and law & order', platform: { taxation: 60, labour: 55, investment: 65, trade: 60, stability: 70 } },
+      { name: 'Social Heritage Union', short_name: 'SHU', color: '#E05252', description: 'Progressive social welfare and public development', platform: { taxation: 55, labour: 55, investment: 55, trade: 55, stability: 75 } }
     ];
     for (const p of defaultParties) {
       const [inserted] = await trx('pol_parties').insert({
@@ -542,7 +542,7 @@ export async function ensureCandidates(trx: any, cycleId: string) {
         abbreviation: p.short_name,
         is_npc: true,
         created_arc: cycle.start_arc ?? 0,
-        platform: JSON.stringify({ taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 })
+        platform: JSON.stringify(p.platform)
       }).returning('*');
 
       if (inserted) {
@@ -669,6 +669,13 @@ export async function buildEngineCandidates(trx: any, cycleId: string, maxArc?: 
         for (const seg of SEGMENTS) {
           effortBySegment[seg.key] += amt;
         }
+      }
+    }
+
+    // Baseline campaign effort for NPCs so they aren't completely devoid of Reach
+    if (c.is_npc) {
+      for (const seg of SEGMENTS) {
+        effortBySegment[seg.key] += 15;
       }
     }
 
