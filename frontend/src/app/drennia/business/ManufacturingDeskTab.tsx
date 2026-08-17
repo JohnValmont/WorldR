@@ -447,7 +447,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
   const [constructFactoryTypeId, setConstructFactoryTypeId] = useState('small-workshop');
   const [constructFactoryName, setConstructFactoryName] = useState('');
 
-
+  const [isProcuring, setIsProcuring] = useState(false);
 
   const showNotif = (msg: string, success: boolean) => {
     setNotification({ msg, success });
@@ -849,13 +849,16 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
   const [procuringComponent, setProcuringComponent] = useState<{ id: string, name: string, units: number, cost: number } | null>(null);
 
   const handleProcureComponent = async (componentId: string, units: number) => {
+    setIsProcuring(true);
     try {
       await manufacturingApi.procureComponents(company.id, { component_id: componentId, units });
       showNotif('Components procured.', true);
       setProcuringComponent(null);
       onRefresh();
     } catch (err: any) {
-      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to procure components.', false);
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to procure components (Server might be busy processing a tick).', false);
+    } finally {
+      setIsProcuring(false);
     }
   };
 
@@ -2690,12 +2693,12 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                   </div>
 
                   <div className="flex items-center justify-end gap-3">
-                    <GhostButton onClick={() => setProcuringComponent(null)}>Cancel</GhostButton>
+                    <GhostButton onClick={() => setProcuringComponent(null)} disabled={isProcuring}>Cancel</GhostButton>
                     <GoldButton
-                      disabled={Number(finances?.available_cash || 0) < (procuringComponent.units * procuringComponent.cost) || procuringComponent.units <= 0}
+                      disabled={isProcuring || Number(finances?.available_cash || 0) < (procuringComponent.units * procuringComponent.cost) || procuringComponent.units <= 0}
                       onClick={() => handleProcureComponent(procuringComponent.id, procuringComponent.units)}
                     >
-                      Submit Order
+                      {isProcuring ? 'PROCURING...' : 'SUBMIT ORDER'}
                     </GoldButton>
                   </div>
                 </div>
