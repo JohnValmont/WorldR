@@ -1478,31 +1478,35 @@ function AllPartiesPanel({
                 )}
 
                 {/* Members roster */}
-                {p.members && p.members.length > 0 && (
-                  <div style={{ marginTop: 16 }}>
-                    <div style={{ color: T.faint, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>Roster</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {p.members.map((m: any) => (
-                        <div key={m.id} style={{
-                          padding: '4px 10px', borderRadius: 6,
-                          background: m.role === 'leader' ? `${color}18` : 'rgba(255,255,255,0.04)',
-                          border: `1px solid ${m.role === 'leader' ? color + '40' : 'rgba(255,255,255,0.07)'}`,
-                          display: 'flex', alignItems: 'center', gap: 6,
-                        }}>
-                          {m.role === 'leader' && <Crown size={10} style={{ color }} />}
-                          <span style={{ color: m.role === 'leader' ? color : T.muted, fontSize: 11, fontFamily: SANS, fontWeight: m.role === 'leader' ? 700 : 400 }}>
-                            {m.name}
-                          </span>
-                          {m.is_npc === false && (
-                            <span style={{ padding: '1px 5px', background: 'rgba(99,179,237,0.15)', border: '1px solid rgba(99,179,237,0.3)', color: '#63b3ed', fontSize: 8, fontFamily: MONO, textTransform: 'uppercase', borderRadius: 3 }}>
-                              Player
+                {(() => {
+                  const memberList = parseJsonArray(p.members);
+                  if (memberList.length === 0) return null;
+                  return (
+                    <div style={{ marginTop: 16 }}>
+                      <div style={{ color: T.faint, fontSize: 9, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>Roster</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {memberList.map((m: any) => (
+                          <div key={m.id} style={{
+                            padding: '4px 10px', borderRadius: 6,
+                            background: m.role === 'leader' ? `${color}18` : 'rgba(255,255,255,0.04)',
+                            border: `1px solid ${m.role === 'leader' ? color + '40' : 'rgba(255,255,255,0.07)'}`,
+                            display: 'flex', alignItems: 'center', gap: 6,
+                          }}>
+                            {m.role === 'leader' && <Crown size={10} style={{ color }} />}
+                            <span style={{ color: m.role === 'leader' ? color : T.muted, fontSize: 11, fontFamily: SANS, fontWeight: m.role === 'leader' ? 700 : 400 }}>
+                              {m.name}
                             </span>
-                          )}
-                        </div>
-                      ))}
+                            {m.is_npc === false && (
+                              <span style={{ padding: '1px 5px', background: 'rgba(99,179,237,0.15)', border: '1px solid rgba(99,179,237,0.3)', color: '#63b3ed', fontSize: 8, fontFamily: MONO, textTransform: 'uppercase', borderRadius: 3 }}>
+                                Player
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             )}
           </div>

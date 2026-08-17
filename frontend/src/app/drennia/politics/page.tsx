@@ -26,6 +26,33 @@ import { PageShell } from '@/components/ui';
 // ─── Sub-tab types ────────────────────────────────────────────────────────────
 type SubTab = 'overview' | 'nation' | 'development' | 'elections' | 'legislature' | 'assembly' | 'policy' | 'party' | 'lobby' | 'legacy';
 
+// ─── Error Boundary — prevents one tab crash from killing the whole page ───────
+class TabErrorBoundary extends React.Component<
+  { children: React.ReactNode; tab: string },
+  { error: Error | null }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error(`[PoliticsDesk] ${this.props.tab} tab crashed:`, error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 32, color: '#ef4444', fontFamily: 'monospace', fontSize: 13, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 12 }}>
+          <div style={{ fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.12em' }}>⚠ Tab Error — {this.props.tab}</div>
+          <div style={{ color: 'rgba(255,255,255,0.5)', marginBottom: 12 }}>{this.state.error.message}</div>
+          <button onClick={() => this.setState({ error: null })} style={{ padding: '6px 14px', borderRadius: 6, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#fca5a5', cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}>Retry</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function PoliticsDesk() {
   const [activeTab, setActiveTab] = useState<SubTab>('overview');
   const [selectedJurisdictionId, setSelectedJurisdictionId] = useState<JurisdictionId>(DEFAULT_JURISDICTION_ID);
@@ -227,7 +254,7 @@ export default function PoliticsDesk() {
                 {activeTab === 'legislature' && <LegislatureScreen {...commonProps} />}
                 {activeTab === 'policy' && <PolicyScreen {...commonProps} />}
                 {activeTab === 'assembly' && <AssemblyScreen {...commonProps} />}
-                {activeTab === 'party' && <PartyScreen {...commonProps} />}
+                {activeTab === 'party' && <TabErrorBoundary tab="Party"><PartyScreen {...commonProps} /></TabErrorBoundary>}
                 {activeTab === 'lobby' && <LobbyScreen {...commonProps} />}
                 {activeTab === 'legacy' && <LegacyScreen character={character} />}
               </>
