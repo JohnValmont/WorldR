@@ -49,6 +49,8 @@ import {
   AP_COST_RECRUIT,
   AP_COST_STATEMENT,
   AP_COST_FUNDRAISE,
+  AP_COST_BILL_MODERATE,
+  PC_COST_NEGOTIATE_STRENGTH,
   AP_COST_ENDORSEMENT_AP,
   AP_COST_SCOUT,
   AP_COST_NEGOTIATE,
@@ -1247,8 +1249,8 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
       const clock = await trx('world_clock').first();
       const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
-      await spendAp(trx, char.id, 2);
-      await spendPc(trx, char.id, 2);
+      await spendAp(trx, char.id, AP_COST_BILL_MODERATE);
+      await spendPc(trx, char.id, PC_COST_NEGOTIATE_STRENGTH);
 
       const [bill] = await trx('pol_bills').insert({
         state_id: activeState.id,
