@@ -1938,7 +1938,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>AP</span>
                     <div style={{ display: 'flex', gap: 3 }}>
-                      {Array.from({ length: myAp?.ap_cap ?? 12 }).map((_, i) => (
+                      {Array.from({ length: Math.max(0, Math.min(50, Number(myAp?.ap_cap) || 12)) }).map((_, i) => (
                         <div key={i} style={{ width: 8, height: 8, borderRadius: 2, background: i < (myAp?.current_ap ?? 0) ? '#fbbf24' : 'rgba(255,255,255,0.08)', transition: 'background 0.2s', boxShadow: i < (myAp?.current_ap ?? 0) ? '0 0 4px rgba(251,191,36,0.5)' : 'none' }} />
                       ))}
                     </div>
@@ -1947,7 +1947,7 @@ export default function PartyScreen({ selectedJurisdictionId, onJurisdictionChan
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.1em' }}>PC</span>
                     <div style={{ display: 'flex', gap: 3 }}>
-                      {Array.from({ length: myPc?.pc_cap ?? 10 }).map((_, i) => (
+                      {Array.from({ length: Math.max(0, Math.min(50, Number(myPc?.pc_cap) || 10)) }).map((_, i) => (
                         <div key={i} style={{ width: 8, height: 8, borderRadius: 2, background: i < (myPc?.current_pc ?? 0) ? '#a78bfa' : 'rgba(255,255,255,0.08)', transition: 'background 0.2s', boxShadow: i < (myPc?.current_pc ?? 0) ? '0 0 4px rgba(167,139,250,0.5)' : 'none' }} />
                       ))}
                     </div>
