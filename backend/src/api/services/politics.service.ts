@@ -86,6 +86,10 @@ import {
   type ScandalType,
   type ScandalPhase,
   type ScandalResolution,
+  POL_BRIBE_COST_BASE,
+  POL_BRIBE_COST_MULTIPLIER,
+  POL_BRIBE_MAX_PER_BILL,
+  POL_COERCION_FACTION_HIT,
 } from '../constants/politics';
 import { EngineCandidate, runElection } from './electionEngine';
 import { fireGoverningEvent, fireConditionCrises } from './governingEvents';
@@ -1614,6 +1618,28 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
       if (pm) votedParties.add(pm.party_id);
     }
 
+    // ── Coercion overrides: applied BEFORE NPC auto-vote and coalition logic ──
+    // coercion_vote_overrides maps character_id → 'yea'|'nay'.
+    // Only applied if that character hasn't already voted naturally in pol_bill_votes.
+    // _coerced flag is in-memory only; audit trail lives in pol_bill_coercion_actions.
+    const coercionOverrides: Record<string, 'yea' | 'nay'> =
+      typeof bill.coercion_vote_overrides === 'string'
+        ? safeParseJSON(bill.coercion_vote_overrides)
+        : (bill.coercion_vote_overrides ?? {});
+
+    const naturallyVotedCharIds = new Set<string>(votes.map((v: any) => v.character_id));
+    for (const [targetCharId, forcedVote] of Object.entries(coercionOverrides)) {
+      if (!naturallyVotedCharIds.has(targetCharId)) {
+        votes.push({
+          bill_id: bill.id,
+          character_id: targetCharId,
+          vote: forcedVote,
+          _coerced: true,
+        });
+        naturallyVotedCharIds.add(targetCharId);
+      }
+    }
+
     const npcParties = await trx('pol_parties').where({ state_id: stateId, is_npc: true });
     
     // Coalition lookup uses targetCycleId (the sitting cycle)
@@ -1738,7 +1764,202 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
   }
 }
 
+// ── Bill Coercion Services ────────────────────────────────────────────────────
+
+/**
+ * Bribe an NPC voting member to cast a specific vote on a proposed bill.
+ * Validates: actor is not governing party, target is NPC party leader with seats,
+ * prior bribe count < POL_BRIBE_MAX_PER_BILL, actor has sufficient PC.
+ * Applies faction loyalty hit immediately if vote contradicts faction demand.
+ * Writes audit record to pol_bill_coercion_actions.
+ */
+export async function bribeVote(
+  trx: any,
+  actorCharId: string,
+  billId: string,
+  targetCharId: string,
+  voteForced: 'yea' | 'nay',
+  currentArc: number
+): Promise<{ pcCost: number; priorBribeCount: number }> {
+  // 1. Load bill — must be 'proposed'
+  const bill = await trx('pol_bills').where({ id: billId, status: 'proposed' }).first();
+  if (!bill) throw new AppError('Bill not found or not in proposed status', 404, 'NOT_FOUND');
+
+  // 2. Actor must exist and NOT be the coalition lead party leader
+  const actorPartyMember = await trx('pol_party_members')
+    .where({ character_id: actorCharId, role: 'leader' }).first();
+  if (!actorPartyMember) throw new AppError('Only party leaders can perform coercion', 403, 'FORBIDDEN');
+
+  const coalition = await trx('pol_coalitions')
+    .where({ cycle_id: (await trx('pol_cycles').where({ state_id: bill.state_id, status: 'open' }).first())?.id })
+    .whereIn('status', ['formed', 'minority']).first();
+  if (coalition?.lead_party_id === actorPartyMember.party_id) {
+    throw new AppError('Governing party cannot bribe — propose legislation directly', 403, 'FORBIDDEN');
+  }
+
+  // 3. Target must be a leader of an NPC party with seats in the sitting cycle
+  const targetPartyMember = await trx('pol_party_members')
+    .where({ character_id: targetCharId, role: 'leader' }).first();
+  if (!targetPartyMember) throw new AppError('Target is not a party leader', 400, 'BAD_REQUEST');
+
+  const targetParty = await trx('pol_parties').where({ id: targetPartyMember.party_id }).first();
+  if (!targetParty?.is_npc) throw new AppError('Can only bribe NPC party leaders in v1', 403, 'FORBIDDEN');
+
+  // 4. Count prior bribes by this actor on this bill → derive scaled cost → check cap
+  const priorBribes = await trx('pol_bill_coercion_actions')
+    .where({ bill_id: billId, actor_char_id: actorCharId, action_type: 'bribe' })
+    .count('id as n').first();
+  const priorBribeCount = Number(priorBribes?.n ?? 0);
+
+  if (priorBribeCount >= POL_BRIBE_MAX_PER_BILL) {
+    throw new AppError(
+      `Bribe cap reached — maximum ${POL_BRIBE_MAX_PER_BILL} bribes per actor per bill`,
+      400, 'BAD_REQUEST'
+    );
+  }
+
+  const pcCost = POL_BRIBE_COST_BASE * Math.pow(POL_BRIBE_COST_MULTIPLIER, priorBribeCount);
+
+  // 5. Check PC balance
+  const apRow = await getOrCreateCharacterAp(trx, actorCharId);
+  if ((apRow.current_pc ?? 0) < pcCost) {
+    throw new AppError(`Insufficient PC — need ${pcCost}, have ${apRow.current_pc ?? 0}`, 400, 'BAD_REQUEST');
+  }
+
+  // 6. Faction loyalty hit if vote contradicts any target-party faction demand
+  const targetFactions = await trx('pol_party_factions').where({ party_id: targetPartyMember.party_id });
+  for (const faction of targetFactions) {
+    const demand = typeof faction.demand_payload === 'string'
+      ? safeParseJSON(faction.demand_payload) : (faction.demand_payload ?? {});
+    // If faction demands a policy axis direction and forced vote is 'nay' on a policy_change bill,
+    // or if faction demands govt support and vote is against their alignment — apply loyalty hit.
+    const conflictsWithFaction =
+      (voteForced === 'yea' && coalition && !([...Object.values(govMembersFromCoalition(coalition))].includes(targetPartyMember.party_id))) ||
+      (voteForced === 'nay' && coalition && Object.values(govMembersFromCoalition(coalition)).includes(targetPartyMember.party_id));
+    if (conflictsWithFaction) {
+      const newLoyalty = Math.max(0, Math.min(100, Number(faction.loyalty) + POL_COERCION_FACTION_HIT));
+      await trx('pol_party_factions').where({ id: faction.id }).update({
+        loyalty: newLoyalty,
+        is_restless: newLoyalty < FACTION_LOYALTY_WARNING,
+        updated_arc: currentArc,
+      });
+    }
+  }
+
+  // 7. Deduct PC
+  await spendPc(trx, actorCharId, pcCost);
+
+  // 8. Update coercion_vote_overrides on the bill
+  const currentOverrides: Record<string, string> =
+    typeof bill.coercion_vote_overrides === 'string'
+      ? safeParseJSON(bill.coercion_vote_overrides)
+      : (bill.coercion_vote_overrides ?? {});
+  currentOverrides[targetCharId] = voteForced;
+  await trx('pol_bills').where({ id: billId })
+    .update({ coercion_vote_overrides: JSON.stringify(currentOverrides) });
+
+  // 9. Write audit record
+  await trx('pol_bill_coercion_actions').insert({
+    bill_id: billId,
+    actor_char_id: actorCharId,
+    target_char_id: targetCharId,
+    action_type: 'bribe',
+    pc_cost: pcCost,
+    arc: currentArc,
+    vote_forced: voteForced,
+  });
+
+  return { pcCost, priorBribeCount };
+}
+
+/** Helper — extract accepted member party IDs from a coalition row. */
+function govMembersFromCoalition(coalition: any): string[] {
+  const parsed = typeof coalition.member_party_ids === 'string'
+    ? safeParseJSON(coalition.member_party_ids)
+    : (coalition.member_party_ids ?? {});
+  const accepted = parsed.accepted || (Array.isArray(parsed) ? parsed : []);
+  if (coalition.lead_party_id) accepted.push(coalition.lead_party_id);
+  return accepted;
+}
+
+/**
+ * Returns all NPC parties with council seats for a bill's state, enriched with:
+ * - current coercion override (if any) by the requesting actor
+ * - prior bribe count by this actor on this bill
+ * - scaled PC cost for the next bribe
+ * - eligible scandals for blackmail (allegation+ phase, blackmail_used_by null)
+ * Used by the frontend Coercion Panel.
+ */
+export async function getBillCoercions(
+  billId: string,
+  actorCharId: string
+): Promise<any[]> {
+  const bill = await db('pol_bills').where({ id: billId }).first();
+  if (!bill) throw new AppError('Bill not found', 404, 'NOT_FOUND');
+
+  const currentOverrides: Record<string, string> =
+    typeof bill.coercion_vote_overrides === 'string'
+      ? safeParseJSON(bill.coercion_vote_overrides)
+      : (bill.coercion_vote_overrides ?? {});
+
+  // Find the sitting cycle for seat counts
+  const openCycle = await db('pol_cycles').where({ state_id: bill.state_id, status: 'open' }).first();
+  const sittingCycleId = openCycle ? await getSittingCycleId(db, bill.state_id, openCycle) : null;
+
+  const seats = sittingCycleId
+    ? await db('pol_council_seats').where({ cycle_id: sittingCycleId })
+    : [];
+  const seatsByParty: Record<string, number> = {};
+  for (const s of seats) {
+    seatsByParty[s.party_id] = (seatsByParty[s.party_id] || 0) + 1;
+  }
+
+  const npcParties = await db('pol_parties').where({ state_id: bill.state_id, is_npc: true });
+  const results = [];
+
+  for (const party of npcParties) {
+    if (!(seatsByParty[party.id] > 0)) continue; // skip parties with no seats
+
+    const leader = party.leader_character_id
+      ? await db('characters').where({ id: party.leader_character_id }).first()
+      : null;
+    if (!leader) continue;
+
+    // Prior bribe count by this actor on this bill for this target
+    const priorRow = await db('pol_bill_coercion_actions')
+      .where({ bill_id: billId, actor_char_id: actorCharId, target_char_id: leader.id, action_type: 'bribe' })
+      .count('id as n').first();
+    const priorBribeCount = Number(priorRow?.n ?? 0);
+    const nextPcCost = POL_BRIBE_COST_BASE * Math.pow(POL_BRIBE_COST_MULTIPLIER, priorBribeCount);
+    const capReached = priorBribeCount >= POL_BRIBE_MAX_PER_BILL;
+
+    // Eligible scandals for blackmail (targeting this character, allegation+, not yet used)
+    const eligibleScandals = await db('pol_scandals')
+      .where({ character_id: leader.id })
+      .whereIn('phase', ['allegation', 'explosion', 'inquiry'])
+      .whereNull('blackmail_used_by')
+      .whereNull('resolved_arc')
+      .select('id', 'scandal_type', 'phase', 'severity');
+
+    results.push({
+      partyId:         party.id,
+      partyName:       party.name,
+      partySeats:      seatsByParty[party.id],
+      leaderCharId:    leader.id,
+      leaderName:      leader.name,
+      coercedVote:     currentOverrides[leader.id] ?? null,
+      priorBribeCount,
+      nextPcCost,
+      capReached,
+      blackmailEligibleScandals: eligibleScandals,
+    });
+  }
+
+  return results;
+}
+
 async function awardTenders(trx: any, stateId: string, currentMonth: number) {
+
   // Find all open tenders whose bid window has closed (posted_arc < currentMonth)
   const openTenders = await trx('pol_tenders')
     .where({ state_id: stateId, status: 'open' })

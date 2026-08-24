@@ -83,6 +83,74 @@ function StatBox({ label, value, accent }: { label: string, value: React.ReactNo
   );
 }
 
+// ── Coercion Panel — fetches NPC voting targets per bill ──────────────────────
+function CoercionPanel({ billId, myPc, onBribe }: {
+  billId: string;
+  myPc: number;
+  onBribe: (targetCharId: string, targetName: string, pcCost: number, voteForced: 'yea' | 'nay') => void;
+}) {
+  const { data: targets = [], isLoading } = useSWR(
+    ['coercions', billId],
+    () => politicsApi.getBillCoercions(billId).catch(() => []),
+    { refreshInterval: 15000 }
+  );
+
+  if (isLoading) return <div style={{ color: T.faint, fontSize: 12, padding: '8px 0', fontStyle: 'italic' }}>Loading targets…</div>;
+  if (!Array.isArray(targets) || targets.length === 0) return (
+    <div style={{ color: T.faint, fontSize: 12, fontStyle: 'italic' }}>No NPC voting members to coerce.</div>
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {targets.map((t: any) => {
+        const canAfford = myPc >= t.nextPcCost;
+        const disabled = t.capReached || !canAfford;
+        const capTip = t.capReached ? 'Maximum bribes reached for this bill' : !canAfford ? `Need ${t.nextPcCost} PC` : '';
+        const coerced = t.coercedVote;
+        const hasBlackmail = Array.isArray(t.blackmailEligibleScandals) && t.blackmailEligibleScandals.length > 0;
+
+        return (
+          <div key={t.leaderCharId} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '8px 12px', borderRadius: 8,
+            background: coerced ? (coerced === 'yea' ? `${T.mint}10` : `${T.red}10`) : 'rgba(0,0,0,0.25)',
+            border: `1px solid ${coerced ? (coerced === 'yea' ? T.mint + '40' : T.red + '40') : 'rgba(255,255,255,0.06)'}`,
+            gap: 8, flexWrap: 'wrap'
+          }}>
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <div style={{ color: T.ivory, fontSize: 13, fontWeight: 600 }}>
+                {t.leaderName}
+                {hasBlackmail && (
+                  <span title={`${t.blackmailEligibleScandals.length} scandal(s) eligible for blackmail`}
+                    style={{ marginLeft: 8, fontSize: 10, color: '#c084fc', fontFamily: MONO,
+                      background: 'rgba(192,132,252,0.1)', border: '1px solid rgba(192,132,252,0.3)',
+                      borderRadius: 4, padding: '1px 5px', cursor: 'default' }}>⚡ LEVERAGE</span>
+                )}
+              </div>
+              <div style={{ color: T.faint, fontSize: 10, fontFamily: MONO }}>
+                {t.partyName} · {t.partySeats} seat{t.partySeats !== 1 ? 's' : ''}
+                {coerced && <span style={{ color: coerced === 'yea' ? T.mint : T.red, marginLeft: 8 }}>→ FORCED {coerced.toUpperCase()}</span>}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <div title={capTip}>
+                <OledBtn label={`Bribe Aye — ${t.nextPcCost} PC`} tone={T.mint}
+                  disabled={disabled}
+                  onClick={() => onBribe(t.leaderCharId, t.leaderName, t.nextPcCost, 'yea')} />
+              </div>
+              <div title={capTip}>
+                <OledBtn label={`Bribe Nay — ${t.nextPcCost} PC`} tone={T.red}
+                  disabled={disabled}
+                  onClick={() => onBribe(t.leaderCharId, t.leaderName, t.nextPcCost, 'nay')} />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function LegislatureScreen({ selectedJurisdictionId, onJurisdictionChange, jurisdictionMeta, character, parties, overview, onRefresh }: Props) {
   const jurisdiction = JURISDICTIONS.find((j) => j.id === selectedJurisdictionId);
   const isLocked = jurisdiction?.isLocked ?? true;
@@ -94,6 +162,26 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
   const bills: any[] = Array.isArray(data?.bills) ? data.bills : [];
   const proposedBills = bills.filter(b => b.status === 'proposed');
   const historyBills = bills.filter(b => b.status === 'passed' || b.status === 'failed' || b.status === 'rejected');
+
+  // Coercion state — confirmation modal
+  const [coercionModal, setCoercionModal] = useState<{
+    billId: string; targetCharId: string; targetName: string;
+    pcCost: number; voteForced: 'yea' | 'nay';
+  } | null>(null);
+  const [coercionBusy, setCoercionBusy] = useState(false);
+  const [coercionErr, setCoercionErr] = useState<string | null>(null);
+
+  async function confirmBribe() {
+    if (!coercionModal) return;
+    try {
+      setCoercionBusy(true); setCoercionErr(null);
+      await politicsApi.bribeBill(coercionModal.billId, coercionModal.targetCharId, coercionModal.voteForced);
+      setCoercionModal(null);
+      await refresh();
+    } catch (e: any) {
+      setCoercionErr(e?.response?.data?.error || e?.response?.data?.message || 'Bribe failed');
+    } finally { setCoercionBusy(false); }
+  }
 
   const monthYear = overview?.cycle?.currentArc != null
     ? formatGameDate(overview.cycle.currentArc) 
@@ -224,7 +312,30 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
                             {b.projectedPass ? 'This bill would pass if voting closed now.' : 'This bill would fail if voting closed now. Flag issues.'}
                           </div>
                         </div>
-                        
+
+                        {/* ── COERCION PANEL — opposition only ── */}
+                        {(() => {
+                          const myParty = Array.isArray(parties) ? parties.find((p: any) =>
+                            p.leader_character_id === character?.id ||
+                            p.members?.some((m: any) => m.character_id === character?.id)
+                          ) : null;
+                          const isGoverning = myParty && councilData?.premier?.partyId === myParty?.id;
+                          const myCurrentPc = (overview as any)?.myPc?.current_pc ?? 0;
+                          if (isGoverning) return null;
+                          return (
+                            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(192,132,252,0.15)' }}>
+                              <div style={{ ...stampStyle, color: '#c084fc', fontSize: 10, borderColor: 'rgba(192,132,252,0.3)', marginBottom: 10 }}>COERCION — OPPOSITION TOOLS</div>
+                              <CoercionPanel
+                                billId={b.id}
+                                myPc={myCurrentPc}
+                                onBribe={(targetCharId, targetName, pcCost, voteForced) =>
+                                  setCoercionModal({ billId: b.id, targetCharId, targetName, pcCost, voteForced })
+                                }
+                              />
+                            </div>
+                          );
+                        })()}
+
                         <div style={{ display: 'flex', gap: 12, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                           <OledBtn label="Vote Aye" tone={T.mint} primary onClick={() => vote(b.id, 'yea')} disabled={!!busy} />
                           <OledBtn label="Vote Nay" tone={T.red} primary onClick={() => vote(b.id, 'nay')} disabled={!!busy} />
@@ -323,6 +434,44 @@ export default function LegislatureScreen({ selectedJurisdictionId, onJurisdicti
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* ── BRIBE CONFIRMATION MODAL ── */}
+      {coercionModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            background: 'linear-gradient(145deg, rgba(18,20,26,0.98) 0%, rgba(10,12,16,1) 100%)',
+            border: '1px solid rgba(192,132,252,0.3)',
+            boxShadow: '0 0 40px rgba(192,132,252,0.15)',
+            borderRadius: 16, padding: '28px 32px', maxWidth: 420, width: '90%',
+            display: 'flex', flexDirection: 'column', gap: 16
+          }}>
+            <div style={{ fontFamily: MONO, fontSize: 10, color: '#c084fc', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Coercion — Bribery</div>
+            <div style={{ color: T.ivory, fontSize: 18, fontWeight: 700, fontFamily: HEADING }}>
+              Bribe {coercionModal.targetName}?
+            </div>
+            <div style={{ color: T.faint, fontSize: 13, lineHeight: 1.6 }}>
+              Force their vote to <strong style={{ color: coercionModal.voteForced === 'yea' ? T.mint : T.red }}>
+                {coercionModal.voteForced.toUpperCase()}
+              </strong> on this bill.<br />
+              Cost: <strong style={{ color: '#c084fc' }}>{coercionModal.pcCost} PC</strong>. This action is irreversible.
+            </div>
+            {coercionErr && (
+              <div style={{ padding: '8px 12px', background: `${T.red}15`, border: `1px solid ${T.red}40`, color: T.red, borderRadius: 8, fontSize: 13 }}>
+                {coercionErr}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <OledBtn label="Cancel" onClick={() => { setCoercionModal(null); setCoercionErr(null); }} disabled={coercionBusy} />
+              <OledBtn label={coercionBusy ? 'Processing…' : `Confirm — ${coercionModal.pcCost} PC`}
+                tone="#c084fc" primary onClick={confirmBribe} disabled={coercionBusy} />
+            </div>
+          </div>
         </div>
       )}
     </div>

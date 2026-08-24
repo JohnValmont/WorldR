@@ -53,7 +53,7 @@ import {
   getNewsFeedHandler,
   getLegacyHandler,
 } from '../controllers/politics.controller';
-import { getOrCreateCurrentCycle } from '../services/politics.service';
+import { getOrCreateCurrentCycle, bribeVote, getBillCoercions } from '../services/politics.service';
 import { db } from '../../config/database';
 
 const router = Router();
@@ -149,6 +149,39 @@ router.get('/ledger', authMiddleware, getLedger);
 router.get('/bills', authMiddleware, getBills);
 router.post('/bills', authMiddleware, blockPhases('polling', 'formation'), proposeBill);
 router.post('/bills/:id/vote', authMiddleware, blockPhases('polling', 'formation'), voteBill);
+
+// ── Bill Coercion (Phase 1: Bribery) ─────────────────────────────────────────
+// Available any time a bill is proposed, blocked during election resolution.
+// v1: opposition-vs-NPC only. Human-vs-human coercion deferred.
+router.get('/bills/:id/coercions', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+    const char = await db('characters').where({ user_id: userId }).first();
+    if (!char) return next(new AppError('No character found', 404, 'NOT_FOUND'));
+    const data = await getBillCoercions(req.params.id, char.id);
+    return res.json(data);
+  } catch (error) { next(error); }
+});
+
+router.post('/bills/:id/bribe', authMiddleware, blockPhases('polling', 'formation'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+    const { targetCharId, voteForced } = req.body;
+    if (!targetCharId || !['yea', 'nay'].includes(voteForced)) {
+      return next(new AppError('targetCharId and voteForced (yea|nay) are required', 400, 'BAD_REQUEST'));
+    }
+    const char = await db('characters').where({ user_id: userId }).first();
+    if (!char) return next(new AppError('No character found', 404, 'NOT_FOUND'));
+    const clock = await db('world_clock').first();
+    const currentArc = clock.pol_current_year * 12 + clock.pol_current_month;
+    const result = await db.transaction(trx =>
+      bribeVote(trx, char.id, req.params.id, targetCharId, voteForced, currentArc)
+    );
+    return res.json(result);
+  } catch (error) { next(error); }
+});
 router.post('/lobby/donate', authMiddleware, donateToParty);
 router.post('/lobby/petition', authMiddleware, petitionParty);
 router.post('/lobby/petitions/:id/respond', authMiddleware, respondToPetition);

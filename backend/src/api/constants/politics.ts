@@ -1134,7 +1134,47 @@ export const SCANDAL_INTERVENTIONS = {
 
 export type ScandalIntervention = keyof typeof SCANDAL_INTERVENTIONS;
 
+// ── Bill Coercion System ──────────────────────────────────────────────────────
+// Bribery and blackmail let opposition players flip NPC votes on bills.
+// TUNABLE STARTING POINTS — these numbers have NOT been playtested.
+// Adjust here only; never hardcode in service or controller.
+
+/** PC cost for the first bribe by an actor on a given bill. */
+export const POL_BRIBE_COST_BASE            = 2;
+
+/** Multiplier applied per additional bribe by the same actor on the same bill (exponential). */
+export const POL_BRIBE_COST_MULTIPLIER      = 2;
+
+/** Hard ceiling on bribes per actor per bill, regardless of PC available. */
+export const POL_BRIBE_MAX_PER_BILL         = 4;
+
+/**
+ * Minimum scandal phase required for blackmail targeting that scandal.
+ * Ordered: rumour < investigation < allegation < explosion < inquiry < resolved.
+ * Must be 'allegation' or later — rumours alone provide insufficient leverage.
+ */
+export const POL_BLACKMAIL_MIN_PHASE        = 'allegation' as const;
+
+/** Flat PC cost for a blackmail action (scandal has additional non-PC costs: phase advance). */
+export const POL_BLACKMAIL_PC_COST          = 3;
+
+/** Base discovery probability per coercion action rolled at bill resolution. */
+export const POL_COERCION_DISCOVERY_BASE    = 0.10;
+
+/** Additional discovery probability stacked per prior coercion action this arc by the same actor. */
+export const POL_COERCION_DISCOVERY_STACK   = 0.08;
+
+/** Maximum discovery probability regardless of stacking. */
+export const POL_COERCION_DISCOVERY_CAP     = 0.60;
+
+/**
+ * Faction loyalty hit applied immediately when a bribed/blackmailed vote contradicts
+ * the target faction's demand_payload direction.
+ */
+export const POL_COERCION_FACTION_HIT       = -12;
+
 // Self-check
+
 const EPSILON = 1e-9;
 const totalSize = SEGMENTS.reduce((sum, s) => sum + s.size, 0);
 if (Math.abs(totalSize - 1.0) > EPSILON) {

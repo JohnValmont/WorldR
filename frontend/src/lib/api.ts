@@ -265,6 +265,9 @@ export const politicsApi = {
   getBills: (stateId?: string) => api.get(`/politics/bills${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
   proposeBill: (type: string, params: any, stateId?: string) => api.post(`/politics/bills${stateId ? `?stateId=${stateId}` : ''}`, { type, params }).then(res => res.data),
   voteBill: (id: string, vote: string) => api.post(`/politics/bills/${id}/vote`, { vote }).then(res => res.data),
+  getBillCoercions: (billId: string) => api.get(`/politics/bills/${billId}/coercions`).then(res => res.data),
+  bribeBill: (billId: string, targetCharId: string, voteForced: 'yea' | 'nay') =>
+    api.post(`/politics/bills/${billId}/bribe`, { targetCharId, voteForced }).then(res => res.data),
   donateToParty: (partyId: string, amount: number) => api.post('/politics/lobby/donate', { partyId, amount }).then(res => res.data),
   petitionParty: (data: { partyId: string, companyId: string, policyCategory: string, desiredOption: string, offeredFunds: number }) => api.post('/politics/lobby/petition', data).then(res => res.data),
   respondToPetition: (id: string, action: 'accept' | 'reject') => api.post(`/politics/lobby/petitions/${id}/respond`, { action }).then(res => res.data),
