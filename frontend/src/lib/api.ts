@@ -80,7 +80,7 @@ api.interceptors.response.use(
       try {
         const { data } = await axios.post(`${API_BASE}/auth/refresh`, { refreshToken });
         setAccessToken(data.accessToken);
-        
+
         if (typeof window !== 'undefined') {
           const zustandStr = localStorage.getItem('worldr-auth');
           if (zustandStr) {
@@ -90,10 +90,10 @@ api.interceptors.response.use(
                 authStore.state.accessToken = data.accessToken;
                 localStorage.setItem('worldr-auth', JSON.stringify(authStore));
               }
-            } catch (e) {}
+            } catch (e) { }
           }
         }
-        
+
         processQueue(null, data.accessToken);
         originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
         return api(originalRequest);
@@ -211,7 +211,7 @@ export const exchangeApi = {
   getMyBids: () => api.get('/exchange/acquisitions/my-bids').then(res => res.data),
   placeBid: (auctionId: string, amount: number, fundingSources?: any, postAcquisitionStatus?: string) =>
     api.post(`/exchange/acquisitions/${auctionId}/bid`, { amount, fundingSources, postAcquisitionStatus }).then(res => res.data),
-  };
+};
 
 // Investments — P2P loans and private equity placements
 export const investmentsApi = {
@@ -230,7 +230,7 @@ export const investmentsApi = {
   cancelPlacement: (id: string) => api.delete(`/investments/placements/${id}`).then(res => res.data),
   acceptPlacement: (id: string, shares?: number) => api.post(`/investments/placements/${id}/accept`, { shares }).then(res => res.data),
   getMyPlacements: () => api.get('/investments/my-placements').then(res => res.data)
-  };
+};
 
 // Registry
 export const registryApi = {
@@ -350,13 +350,13 @@ export const logisticsApi = {
   hireStaff: (companyId: string, role: string) => api.post(`/logistics/company/${companyId}/staff/hire`, { role }),
   fireStaff: (companyId: string, role: string) => api.post(`/logistics/company/${companyId}/staff/fire`, { role }),
   purchaseVehicle: (companyId: string, catalogVehicleId: string) => api.post(`/logistics/company/${companyId}/vehicles/purchase`, { catalogVehicleId }),
-  performMaintenance: (companyId: string, vehicleId: string, level: 'basic'|'full') => api.post(`/logistics/company/${companyId}/vehicles/${vehicleId}/maintenance`, { level }),
+  performMaintenance: (companyId: string, vehicleId: string, level: 'basic' | 'full') => api.post(`/logistics/company/${companyId}/vehicles/${vehicleId}/maintenance`, { level }),
   leaseFacility: (companyId: string, catalogFacilityId: string, stateId?: string) => api.post(`/logistics/company/${companyId}/facilities/lease`, { catalogFacilityId, stateId }),
   assignOperation: (companyId: string, vehicleId: string, poolId: string) => api.post(`/logistics/company/${companyId}/operations/assign`, { vehicleId, poolId }),
   processTest: (companyId: string) => api.post(`/logistics/company/${companyId}/operations/process-test`),
   assignVehicleToContract: (companyId: string, contractId: string, vehicleId: string) => api.post(`/logistics/company/${companyId}/contracts/${contractId}/assign`, { vehicleId }),
   acceptDirectContract: (companyId: string, contractId: string, contract: any, vehicleId: string) => api.post(`/logistics/company/${companyId}/contracts/${contractId}/accept`, { contract, vehicleId }),
-  resolveContract: (companyId: string, contractId: string, result: 'completed'|'failed') => api.post(`/logistics/company/${companyId}/contracts/${contractId}/resolve`, { result })
+  resolveContract: (companyId: string, contractId: string, result: 'completed' | 'failed') => api.post(`/logistics/company/${companyId}/contracts/${contractId}/resolve`, { result })
 };
 
 // Manufacturing
@@ -450,3 +450,47 @@ export const worldApi = {
   setClockSpeed: (secondsPerMonth: number) => api.patch('/world/clock/speed', { seconds_per_month: secondsPerMonth }).then(res => res.data),
 };
 
+// ── Drennia District Map Game ─────────────────────────────────────────────────
+
+export interface DrenniaDistrict {
+  id: string;
+  district_number: number;
+  name: string;
+  state_id: string;
+  state_name: string;
+  state_code: string;
+  support_json: Record<string, number>;        // partyId → pct (sums to 100)
+  prev_support_json: Record<string, number> | null;
+  current_leading_party_id: string | null;
+  leading_party_name: string | null;
+  leading_party_color: string | null;
+  population: number;
+  last_updated_tick: number;
+}
+
+export interface DrenniaTickInfo {
+  next_tick_at: string;              // ISO timestamp
+  current_tick_window: number;
+  pol_current_year: number;
+  pol_current_month: number;
+}
+
+export interface DrenniaActionPayload {
+  action_type: 'rally' | 'fundraiser';
+  target_type: 'district' | 'state';
+  target_id: string;                 // UUID of district or state
+}
+
+export const drenniaApi = {
+  /** Full list of 151 districts for map coloring */
+  getDistricts: (): Promise<{ districts: DrenniaDistrict[]; count: number }> =>
+    api.get('/drennia/districts').then(res => res.data),
+
+  /** Next tick timestamp for the countdown */
+  getNextTick: (): Promise<DrenniaTickInfo> =>
+    api.get('/drennia/tick/next').then(res => res.data),
+
+  /** Queue a player action (rally / fundraiser) */
+  submitAction: (payload: DrenniaActionPayload): Promise<any> =>
+    api.post('/drennia/actions', payload).then(res => res.data),
+};

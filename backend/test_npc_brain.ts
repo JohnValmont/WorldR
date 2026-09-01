@@ -1,5 +1,5 @@
 import { runNpcBrainForCompany } from './src/api/services/npcBrain.service';
-import db from './src/config/db';
+import db from './src/config/database';
 
 async function test() {
     const trx = await db.transaction();

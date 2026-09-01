@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { T, MONO, HEADING, BODY } from '../_lib/theme';
 
 export type PoliticsSection =
-  | 'overview' | 'nation' | 'development' | 'party' | 'elections' | 'legislature' | 'policy' | 'assembly' | 'lobby' | 'legacy';
+  | 'overview' | 'nation' | 'development' | 'party' | 'elections' | 'legislature' | 'policy' | 'assembly' | 'lobby' | 'legacy' | 'map';
 
 function Icon({ name }: { name: PoliticsSection }) {
   const c = {
@@ -12,17 +12,18 @@ function Icon({ name }: { name: PoliticsSection }) {
     strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
   };
   switch (name) {
-    case 'overview':    return (<svg {...c}><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>);
-    case 'nation':      return (<svg {...c}><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>);
-    case 'development': return (<svg {...c}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>);
-    case 'party':       return (<svg {...c}><path d="M4 22V4"/><path d="M4 5h11l-1.6 4L15 13H4"/></svg>);
-    case 'elections':   return (<svg {...c}><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8.5 12 2 2 4.5-4.5"/></svg>);
-    case 'legislature': return (<svg {...c}><path d="M3 21h18"/><path d="M5 21V10M9 21V10M15 21V10M19 21V10"/><path d="M3 10 12 4l9 6"/></svg>);
-    case 'policy':      return (<svg {...c}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>);
-    case 'assembly':    return (<svg {...c}><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.2"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M15 20c0-2 1-3.4 3-3.4s3 1.4 3 3.4"/></svg>);
-    case 'lobby':       return (<svg {...c}><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>);
-    case 'legacy':      return (<svg {...c}><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>);
-    default:            return null;
+    case 'overview': return (<svg {...c}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>);
+    case 'nation': return (<svg {...c}><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>);
+    case 'development': return (<svg {...c}><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></svg>);
+    case 'party': return (<svg {...c}><path d="M4 22V4" /><path d="M4 5h11l-1.6 4L15 13H4" /></svg>);
+    case 'elections': return (<svg {...c}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="m8.5 12 2 2 4.5-4.5" /></svg>);
+    case 'legislature': return (<svg {...c}><path d="M3 21h18" /><path d="M5 21V10M9 21V10M15 21V10M19 21V10" /><path d="M3 10 12 4l9 6" /></svg>);
+    case 'policy': return (<svg {...c}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>);
+    case 'assembly': return (<svg {...c}><circle cx="9" cy="8" r="3" /><circle cx="17" cy="9" r="2.2" /><path d="M3 20c0-3 3-5 6-5s6 2 6 5" /><path d="M15 20c0-2 1-3.4 3-3.4s3 1.4 3 3.4" /></svg>);
+    case 'lobby': return (<svg {...c}><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>);
+    case 'legacy': return (<svg {...c}><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>);
+    case 'map': return (<svg {...c}><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" /><line x1="9" y1="3" x2="9" y2="18" /><line x1="15" y1="6" x2="15" y2="21" /></svg>);
+    default: return null;
   }
 }
 
@@ -30,6 +31,7 @@ const GROUPS: Array<{ label: string; items: Array<{ id: PoliticsSection; label: 
   { label: 'Command', items: [{ id: 'overview', label: 'Overview' }, { id: 'nation', label: 'Nation' }, { id: 'development', label: 'Economy' }] },
   { label: 'Politics', items: [{ id: 'party', label: 'Party' }, { id: 'elections', label: 'Elections' }, { id: 'legislature', label: 'Legislature' }, { id: 'assembly', label: 'Assembly' }] },
   { label: 'Governance', items: [{ id: 'policy', label: 'Policy' }, { id: 'lobby', label: 'Lobby' }] },
+  { label: 'Geography', items: [{ id: 'map', label: 'District Map' }] },
   { label: 'Character', items: [{ id: 'legacy', label: 'Legacy' }] },
 ];
 
@@ -37,7 +39,7 @@ const GROUPS: Array<{ label: string; items: Array<{ id: PoliticsSection; label: 
 function NavItem({ item, isActive, onSelect, partyColor }: { item: { id: PoliticsSection; label: string }, isActive: boolean, onSelect: (id: PoliticsSection) => void, partyColor?: string }) {
   const [hover, setHover] = React.useState(false);
   const accent = partyColor || '#7B9FFF';
-  
+
   return (
     <button
       className="sidebar-nav-item"
@@ -88,7 +90,7 @@ function NavItem({ item, isActive, onSelect, partyColor }: { item: { id: Politic
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
           stroke={accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
           style={{ opacity: 0.5, flexShrink: 0 }}>
-          <path d="M9 18l6-6-6-6"/>
+          <path d="M9 18l6-6-6-6" />
         </svg>
       )}
     </button>
@@ -134,8 +136,8 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
           }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
               stroke={accent} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 21h18"/><path d="M5 21V10M9 21V10M15 21V10M19 21V10"/>
-              <path d="M3 10 12 4l9 6"/>
+              <path d="M3 21h18" /><path d="M5 21V10M9 21V10M15 21V10M19 21V10" />
+              <path d="M3 10 12 4l9 6" />
             </svg>
           </div>
 

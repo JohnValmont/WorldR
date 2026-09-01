@@ -1,0 +1,45 @@
+name: Drennia District Tick
+
+# Fires every 8 real-world hours.
+# Also supports manual dispatch for testing.
+on:
+  schedule:
+    - cron: '0 */8 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual tick'
+        required: false
+        default: 'Manual trigger'
+
+jobs:
+  fire-tick:
+    name: Fire Drennia Tick
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Fire tick endpoint
+        id: tick
+        run: |
+          echo "Firing Drennia tick at $(date -u)"
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST "${{ secrets.RENDER_BACKEND_URL }}/internal/drennia-tick" \
+            -H "X-Tick-Secret: ${{ secrets.TICK_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --max-time 120)
+
+          HTTP_BODY=$(echo "$RESPONSE" | head -n -1)
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n 1)
+
+          echo "Status: $HTTP_STATUS"
+          echo "Body: $HTTP_BODY"
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::Drennia tick FAILED — HTTP $HTTP_STATUS"
+            echo "::error::Response body: $HTTP_BODY"
+            exit 1
+          fi
+
+          echo "Drennia tick completed successfully."
+          echo "Response: $HTTP_BODY"

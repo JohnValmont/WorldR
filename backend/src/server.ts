@@ -5,6 +5,16 @@ import { env } from './config/env';
 import { logger } from './utils/logger';
 import { startWorldTickScheduler } from './api/services/worldTick.service';
 import { ManufacturingController } from './api/controllers/manufacturing.controller';
+import { processDrenniaTick } from './api/controllers/drennia.controller';
+
+// ── Section 4: Internal tick endpoint (protected by X-Tick-Secret) ─────────────
+// This is registered directly on `app` (outside /api/v1) so it is never
+// accidentally exposed via the standard auth middleware chain.
+// Called every 8 hours by GitHub Actions (.github/workflows/drennia-tick.yml).
+import express from 'express';
+app.post('/internal/drennia-tick', express.json(), processDrenniaTick);
+
+
 
 const server = http.createServer(app);
 

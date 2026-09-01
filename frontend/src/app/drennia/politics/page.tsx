@@ -19,12 +19,13 @@ import PartyScreen       from './PartyScreen';
 import LobbyScreen       from './LobbyScreen';
 import LegacyScreen      from './LegacyScreen';
 import DevelopmentScreen from './DevelopmentScreen';
+import MapScreen         from './MapScreen';
 
 import PoliticsSidebar from './_components/PoliticsSidebar';
 import { PageShell } from '@/components/ui';
 
 // ─── Sub-tab types ────────────────────────────────────────────────────────────
-type SubTab = 'overview' | 'nation' | 'development' | 'elections' | 'legislature' | 'assembly' | 'policy' | 'party' | 'lobby' | 'legacy';
+type SubTab = 'overview' | 'nation' | 'development' | 'elections' | 'legislature' | 'assembly' | 'policy' | 'party' | 'lobby' | 'legacy' | 'map';
 
 // ─── Error Boundary — prevents one tab crash from killing the whole page ───────
 class TabErrorBoundary extends React.Component<
@@ -257,6 +258,7 @@ export default function PoliticsDesk() {
                 {activeTab === 'party' && <TabErrorBoundary tab="Party"><PartyScreen {...commonProps} /></TabErrorBoundary>}
                 {activeTab === 'lobby' && <LobbyScreen {...commonProps} />}
                 {activeTab === 'legacy' && <LegacyScreen character={character} />}
+                {activeTab === 'map' && <MapScreen character={character} myAp={myAp} parties={parties} onRefresh={loadData} />}
               </>
             )}
           </PageShell>
