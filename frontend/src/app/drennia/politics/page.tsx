@@ -230,7 +230,7 @@ export default function PoliticsDesk() {
       <div className="flex flex-1 overflow-hidden">
         <PoliticsSidebar
           active={activeTab}
-          onSelect={(id) => setActiveTab(id as SubTab)}
+          onSelectAction={(id) => setActiveTab(id as SubTab)}
           myPartyName={myParty?.name}
           myPartyNation={jMeta?.name}
           partyColor={myParty?.identity?.color || myParty?.colorHex}

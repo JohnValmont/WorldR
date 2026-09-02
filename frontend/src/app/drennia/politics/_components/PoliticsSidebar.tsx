@@ -36,14 +36,14 @@ const GROUPS: Array<{ label: string; items: Array<{ id: PoliticsSection; label: 
 ];
 
 
-function NavItem({ item, isActive, onSelect, partyColor }: { item: { id: PoliticsSection; label: string }, isActive: boolean, onSelect: (id: PoliticsSection) => void, partyColor?: string }) {
+function NavItem({ item, isActive, onSelectAction, partyColor }: { item: { id: PoliticsSection; label: string }, isActive: boolean, onSelectAction: (id: PoliticsSection) => void, partyColor?: string }) {
   const [hover, setHover] = React.useState(false);
   const accent = partyColor || '#7B9FFF';
 
   return (
     <button
       className="sidebar-nav-item"
-      onClick={() => onSelect(item.id)}
+      onClick={() => onSelectAction(item.id)}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -99,13 +99,13 @@ function NavItem({ item, isActive, onSelect, partyColor }: { item: { id: Politic
 
 type Props = {
   active: PoliticsSection;
-  onSelect: (id: PoliticsSection) => void;
+  onSelectAction: (id: PoliticsSection) => void;
   myPartyName?: string;
   myPartyNation?: string;
   partyColor?: string;
 };
 
-export default function PoliticsSidebar({ active, onSelect, myPartyName, myPartyNation, partyColor }: Props) {
+export default function PoliticsSidebar({ active, onSelectAction, myPartyName, myPartyNation, partyColor }: Props) {
   const accent = partyColor || '#7B9FFF';
 
   return (
@@ -189,8 +189,14 @@ export default function PoliticsSidebar({ active, onSelect, myPartyName, myParty
               }}>{group.label}</span>
               <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.04)' }} />
             </div>
-            {group.items.map((it) => (
-              <NavItem key={it.id} item={it} isActive={it.id === active} onSelect={onSelect} partyColor={partyColor} />
+            {group.items.map((item) => (
+              <NavItem
+                key={item.id}
+                item={item}
+                isActive={active === item.id}
+                onSelectAction={onSelectAction}
+                partyColor={partyColor}
+              />
             ))}
           </div>
         ))}
