@@ -87,10 +87,10 @@ const HEXES: Hex[] = (() => {
 // 38–75=IRONVALE rows 3–5, 76–113=GREENMERE rows 5–9, 114–151=WESTMARK rows 9–13)
 // Positions computed for R=22, W=38.1, H_STEP=33, OX=22, OY=24
 const STATE_LABELS = [
-  { code: 'DRENNPORT', name: 'DRENNPORT', cx: 498, cy:  57 },  // row 1 col 12 (odd)
-  { code: 'IRONVALE',  name: 'IRONVALE',  cx: 441, cy: 123 },  // row 3 col 11 (odd)
-  { code: 'GREENMERE', name: 'GREENMERE', cx: 193, cy: 255 },  // row 7 col 4 (odd)
-  { code: 'WESTMARK',  name: 'WESTMARK',  cx: 155, cy: 387 },  // row 11 col 3 (odd)
+  { code: 'DRENNPORT', name: 'DRENNPORT', cx: 498, cy:  57 },  // row 1 col 12
+  { code: 'IRONVALE',  name: 'IRONVALE',  cx: 403, cy: 156 },  // row 4 col 10
+  { code: 'GREENMERE', name: 'GREENMERE', cx: 231, cy: 255 },  // row 7 col 5
+  { code: 'WESTMARK',  name: 'WESTMARK',  cx: 155, cy: 387 },  // row 11 col 3
 ];
 
 const VIEWBOX = '0 0 730 500';

@@ -3,6 +3,6 @@ import { Client } from 'pg';
 dotenv.config({ path: '.env' });
 const c = new Client({ connectionString: process.env.DATABASE_URL });
 c.connect()
-  .then(() => c.query('SELECT ds.name as state, MIN(dd.district_number) as min_d, MAX(dd.district_number) as max_d, COUNT(dd.id) as count FROM drennia_districts dd JOIN drennia_states ds ON dd.state_id = ds.id GROUP BY ds.name ORDER BY min_d'))
+  .then(() => c.query('SELECT name, code FROM drennia_states'))
   .then(r => { console.log(JSON.stringify(r.rows, null, 2)); c.end(); })
   .catch(e => { console.error(e.message); c.end(); });
