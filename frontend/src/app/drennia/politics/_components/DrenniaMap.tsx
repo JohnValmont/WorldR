@@ -78,10 +78,10 @@ const HEXES: Hex[] = (() => {
 
 // State region approximate centroids for labels (eye-balled from grid layout)
 const STATE_LABELS = [
-  { code: 'VALE',  name: 'VALE',  cx: 282, cy:  90 },
-  { code: 'CREST', name: 'CREST', cx: 495, cy: 205 },
-  { code: 'MARCH', name: 'MARCH', cx:  88, cy: 395 },
-  { code: 'THORN', name: 'THORN', cx: 440, cy: 455 },
+  { code: 'DRENNPORT', name: 'DRENNPORT', cx: 282, cy:  90 },
+  { code: 'IRONVALE',  name: 'IRONVALE',  cx: 495, cy: 205 },
+  { code: 'GREENMERE', name: 'GREENMERE', cx:  88, cy: 395 },
+  { code: 'WESTMARK',  name: 'WESTMARK',  cx: 440, cy: 455 },
 ];
 
 const VIEWBOX = '0 0 660 540';
@@ -108,10 +108,10 @@ export interface DrenniaMapProps {
 // ── Component ──────────────────────────────────────────────────────────────
 
 const FALLBACK_COLORS: Record<string, string> = {
-  VALE:  '#3A4E6B',
-  CREST: '#5C4A80',
-  MARCH: '#3A5E47',
-  THORN: '#6B4A32',
+  DRENNPORT: '#3A4E6B',
+  IRONVALE:  '#5C4A80',
+  GREENMERE: '#3A5E47',
+  WESTMARK:  '#6B4A32',
 };
 
 export default function DrenniaMap({

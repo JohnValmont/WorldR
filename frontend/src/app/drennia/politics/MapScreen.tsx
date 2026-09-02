@@ -302,10 +302,10 @@ function InstructionCard() {
 // ── Main ────────────────────────────────────────────────────────────────────
 
 const STATE_DEFAULT_COLORS: Record<string, string> = {
-  VALE:  '#3A4E6B',
-  CREST: '#5C4A80',
-  MARCH: '#3A5E47',
-  THORN: '#6B4A32',
+  DRENNPORT: '#3A4E6B',
+  IRONVALE:  '#5C4A80',
+  GREENMERE: '#3A5E47',
+  WESTMARK:  '#6B4A32',
 };
 
 export default function MapScreen({
@@ -478,7 +478,9 @@ export default function MapScreen({
             {Object.entries(STATE_DEFAULT_COLORS).map(([code, color]) => (
               <div key={code} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <div style={{ width: 9, height: 9, borderRadius: 2, background: color }} />
-                <span style={{ fontFamily: MONO, fontSize: 9, color: T.faint }}>{code}</span>
+                <span style={{ fontFamily: MONO, fontSize: 9, color: T.faint }}>
+                  {code === 'DRENNPORT' ? 'Drennport' : code === 'IRONVALE' ? 'Ironvale' : code === 'GREENMERE' ? 'Greenmere' : 'Westmark'}
+                </span>
               </div>
             ))}
           </div>
