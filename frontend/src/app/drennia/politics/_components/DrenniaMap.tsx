@@ -105,7 +105,7 @@ const FALLBACK_COLORS: Record<string, string> = {
   DRENNPORT: '#3A4E6B',
   IRONVALE:  '#5C4A80',
   GREENMERE: '#3A5E47',
-  WESTMARK:  '#6B4A32',
+  WESTPORT:  '#6B4A32',
 };
 
 export default function DrenniaMap({
