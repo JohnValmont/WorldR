@@ -68,26 +68,26 @@ function Pill({ label, value, color }: { label: string; value: string | number; 
 function SupportBar({ pct, color, name, prev }: { pct: number; color: string; name: string; prev?: number }) {
   const delta = prev !== undefined ? pct - prev : null;
   return (
-    <div style={{ marginBottom: 7 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-        <span style={{ fontFamily: MONO, fontSize: 10, color: T.muted, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+    <div style={{ marginBottom: 9 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+        <span style={{ fontFamily: MONO, fontSize: 10, color: T.text, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {name}
         </span>
-        <span style={{ fontFamily: MONO, fontSize: 10, color: T.text, fontVariantNumeric: 'tabular-nums', display: 'flex', gap: 4 }}>
-          {pct.toFixed(1)}%
+        <span style={{ fontFamily: MONO, fontSize: 10, color: T.text, fontVariantNumeric: 'tabular-nums', display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontWeight: 600 }}>{pct.toFixed(1)}%</span>
           {delta !== null && (
-            <span style={{ color: delta > 0 ? T.mint : delta < 0 ? T.red : T.faint, fontSize: 9 }}>
+            <span style={{ color: delta > 0 ? T.mint : delta < 0 ? T.red : T.faint, fontSize: 9, width: 28, textAlign: 'right' }}>
               {delta > 0 ? '+' : ''}{delta.toFixed(1)}
             </span>
           )}
         </span>
       </div>
-      <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+      <div style={{ height: 6, background: 'rgba(255,255,255,0.04)', borderRadius: 3, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.02)' }}>
         <div style={{
           height: '100%', width: `${Math.min(100, pct)}%`,
           background: color, borderRadius: 3,
-          transition: 'width 0.6s cubic-bezier(0.25,0.8,0.25,1)',
-          boxShadow: `0 0 6px ${color}66`,
+          transition: 'width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1)',
+          boxShadow: `0 0 10px ${color}80, inset 0 0 4px rgba(255,255,255,0.3)`,
         }} />
       </div>
     </div>
@@ -106,21 +106,23 @@ function ActionButton({ label, sublabel, icon, disabled, loading, onClick, color
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-        background: disabled ? 'rgba(255,255,255,0.02)' : hov ? `${color}20` : `${color}0D`,
-        border: `1px solid ${disabled ? T.border : hov ? color + '60' : color + '30'}`,
-        borderRadius: 9, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
-        textAlign: 'left', width: '100%', transition: 'all 0.18s ease',
+        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+        background: disabled ? 'rgba(255,255,255,0.02)' : hov ? `linear-gradient(90deg, ${color}25 0%, ${color}10 100%)` : `linear-gradient(90deg, ${color}10 0%, ${color}05 100%)`,
+        border: `1px solid ${disabled ? 'rgba(255,255,255,0.05)' : hov ? color + '80' : color + '40'}`,
+        borderRadius: 10, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
+        textAlign: 'left', width: '100%', transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
+        boxShadow: hov && !disabled ? `0 4px 12px ${color}20, inset 0 0 8px ${color}10` : 'none',
+        transform: hov && !disabled ? 'translateY(-1px)' : 'none',
       }}
     >
-      <span style={{ color: disabled ? T.faint : color, flexShrink: 0 }}>
-        {loading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : icon}
+      <span style={{ color: disabled ? T.faint : color, flexShrink: 0, padding: 6, background: disabled ? 'transparent' : `${color}15`, borderRadius: 8 }}>
+        {loading ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> : icon}
       </span>
       <div style={{ flex: 1 }}>
-        <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 600, color: disabled ? T.faint : T.text }}>{label}</div>
-        <div style={{ fontFamily: MONO, fontSize: 9, color: T.faint, marginTop: 2 }}>{sublabel}</div>
+        <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: disabled ? T.faint : (hov ? '#fff' : T.text), letterSpacing: '0.03em', transition: 'color 0.2s' }}>{label}</div>
+        <div style={{ fontFamily: MONO, fontSize: 9, color: disabled ? T.faint : T.muted, marginTop: 3, lineHeight: 1.3 }}>{sublabel}</div>
       </div>
-      {!disabled && <ChevronRight size={12} color={color} style={{ flexShrink: 0, opacity: 0.5 }} />}
+      {!disabled && <ChevronRight size={14} color={color} style={{ flexShrink: 0, opacity: hov ? 1 : 0.4, transition: 'opacity 0.2s, transform 0.2s', transform: hov ? 'translateX(2px)' : 'none' }} />}
     </button>
   );
 }
@@ -231,8 +233,10 @@ function ActionPanel({ district, parties, myAp, onClose, onRefresh }: {
           <div style={{
             fontFamily: MONO, fontSize: 10, fontWeight: 700,
             color: myAp.current_ap < 2 ? T.red : T.mint,
+            background: myAp.current_ap < 2 ? T.redDim : T.mintDim,
+            padding: '4px 8px', borderRadius: 6, border: `1px solid ${myAp.current_ap < 2 ? T.redGlow : T.mintGlow}`
           }}>
-            {myAp.current_ap} / {myAp.ap_cap} AP
+            {myAp.current_ap} / {myAp.ap_cap > 99999 ? '∞' : myAp.ap_cap} AP
           </div>
         </div>
 
@@ -451,27 +455,39 @@ export default function MapScreen({
         <div style={{
           ...glassPanelStyle,
           flex: '1 1 500px',
-          padding: '16px 12px',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-          position: 'relative', minWidth: 340,
+          padding: '20px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
+          position: 'relative', minWidth: 340, overflow: 'hidden',
+          background: 'radial-gradient(circle at center, rgba(35, 45, 65, 0.4) 0%, rgba(12, 16, 26, 0.8) 100%)',
+          boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5)',
         }}>
-          {/* Controls */}
-          <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          {/* Controls (Absolute top-left) */}
+          <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10, display: 'flex', gap: 12, alignItems: 'center' }}>
+            <label style={{ 
+              display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+              background: 'rgba(0,0,0,0.4)', padding: '6px 10px', borderRadius: 8,
+              border: `1px solid ${T.border}`, backdropFilter: 'blur(4px)',
+              transition: 'background 0.2s'
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.6)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.4)'}
+            >
               <input type="checkbox" checked={showLabels} onChange={e => setShowLabels(e.target.checked)} style={{ accentColor: T.blue }} />
-              <span style={{ fontFamily: MONO, fontSize: 10, color: T.muted }}>Show numbers</span>
+              <span style={{ fontFamily: MONO, fontSize: 9, color: T.text, fontWeight: 600, letterSpacing: '0.05em' }}>SHOW NUMBERS</span>
             </label>
-            {isLoading && <Loader2 size={14} color={T.blue} style={{ animation: 'spin 1s linear infinite' }} />}
+            {isLoading && <Loader2 size={16} color={T.blue} style={{ animation: 'spin 1s linear infinite' }} />}
           </div>
 
           {/* Map */}
-          <DrenniaMap
-            districtData={hexData}
-            onDistrictClick={handleClick}
-            selectedDistrict={selDn}
-            showLabels={showLabels}
-            width={Math.min(720, typeof window !== 'undefined' ? window.innerWidth - 360 : 680)}
-          />
+          <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center', margin: '20px 0' }}>
+            <DrenniaMap
+              districtData={hexData}
+              onDistrictClick={handleClick}
+              selectedDistrict={selDn}
+              showLabels={showLabels}
+              width={Math.min(740, typeof window !== 'undefined' ? window.innerWidth - 380 : 700)}
+            />
+          </div>
 
           {/* State legend */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -507,7 +523,7 @@ export default function MapScreen({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <span style={{ fontFamily: MONO, fontSize: 8, color: T.faint, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Action Points</span>
               <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: myAp.current_ap < 2 ? T.red : T.mint }}>
-                {myAp.current_ap} / {myAp.ap_cap}
+                {myAp.current_ap} / {myAp.ap_cap > 99999 ? '∞' : myAp.ap_cap}
               </span>
             </div>
             <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
