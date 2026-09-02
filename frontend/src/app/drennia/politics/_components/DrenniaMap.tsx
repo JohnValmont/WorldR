@@ -16,11 +16,11 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { T, MONO } from '../_lib/theme';
 
 // ── Hex geometry (pointy-top) ──────────────────────────────────────────────
-const R       = 24;                        // circumradius
-const W       = Math.sqrt(3) * R;          // ≈ 41.6 flat-to-flat width
-const H_STEP  = R * 1.5;                   // ≈ 36   row step
-const OX      = 24;                        // left padding
-const OY      = 26;                        // top padding
+const R       = 22;                        // circumradius
+const W       = Math.sqrt(3) * R;          // ≈ 38.1 flat-to-flat width
+const H_STEP  = R * 1.5;                   // ≈ 33   row step
+const OX      = 22;                        // left padding
+const OY      = 24;                        // top padding
 
 function hCenter(row: number, col: number): [number, number] {
   const x = col * W + (row % 2 === 1 ? W / 2 : 0) + OX;
@@ -37,22 +37,28 @@ function hPath(cx: number, cy: number, r = R): string {
 }
 
 // ── Grid definition: [row, minCol, maxCol]
-// Oval shape: 5+9+12+13+14+15+15+14+13+12+11+9+6+3 = 151
+//
+// Shape matches Drennia world-map outline:
+//   Rows 0–4 — wide main body (right-leaning)
+//   Rows 5–6 — connecting band (arm meets body)
+//   Rows 7–13 — arm/peninsula narrows leftward
+//
+// 11+12+13+13+15+17+15+11+10+9+8+7+6+4 = 151
 const GRID: [number, number, number][] = [
-  [0,  5,  9],  //  5  — narrow top
-  [1,  3, 11],  //  9
-  [2,  2, 13],  // 12
-  [3,  1, 13],  // 13
-  [4,  0, 13],  // 14
-  [5,  0, 14],  // 15  — widest
-  [6,  0, 14],  // 15  — widest
-  [7,  0, 13],  // 14
-  [8,  1, 13],  // 13
-  [9,  1, 12],  // 12
-  [10, 2, 12],  // 11
-  [11, 3, 11],  //  9
-  [12, 5, 10],  //  6
-  [13, 6,  8],  //  3  — narrow base
+  [0,  7, 17],  // 11  — top of main body, offset right
+  [1,  6, 17],  // 12
+  [2,  5, 17],  // 13
+  [3,  5, 17],  // 13
+  [4,  3, 17],  // 15  — arm junction begins
+  [5,  0, 16],  // 17  — arm fully extends left  ← widest row
+  [6,  0, 14],  // 15  — arm + lower body
+  [7,  0, 10],  // 11  — arm, body ends
+  [8,  0,  9],  // 10
+  [9,  0,  8],  //  9
+  [10, 0,  7],  //  8
+  [11, 0,  6],  //  7
+  [12, 1,  6],  //  6
+  [13, 2,  5],  //  4  — arm tip
 ];
 
 // Pre-compute all hex positions at module level (static, never changes)
@@ -77,17 +83,17 @@ const HEXES: Hex[] = (() => {
   return out;
 })();
 
-// State region approximate centroids (computed for the oval grid layout)
-// Districts 1–37=DRENNPORT (rows 0–3), 38–75=IRONVALE (rows 3–6),
-// 76–113=GREENMERE (rows 6–9), 114–151=WESTMARK (rows 9–13)
+// State region centroids (districts 1–37=DRENNPORT rows 0–3,
+// 38–75=IRONVALE rows 3–5, 76–113=GREENMERE rows 5–9, 114–151=WESTMARK rows 9–13)
+// Positions computed for R=22, W=38.1, H_STEP=33, OX=22, OY=24
 const STATE_LABELS = [
-  { code: 'DRENNPORT', name: 'DRENNPORT', cx: 316, cy:  98 },
-  { code: 'IRONVALE',  name: 'IRONVALE',  cx: 502, cy: 206 },
-  { code: 'GREENMERE', name: 'GREENMERE', cx: 175, cy: 314 },
-  { code: 'WESTMARK',  name: 'WESTMARK',  cx: 338, cy: 422 },
+  { code: 'DRENNPORT', name: 'DRENNPORT', cx: 498, cy:  57 },  // row 1 col 12 (odd)
+  { code: 'IRONVALE',  name: 'IRONVALE',  cx: 441, cy: 123 },  // row 3 col 11 (odd)
+  { code: 'GREENMERE', name: 'GREENMERE', cx: 193, cy: 255 },  // row 7 col 4 (odd)
+  { code: 'WESTMARK',  name: 'WESTMARK',  cx: 155, cy: 387 },  // row 11 col 3 (odd)
 ];
 
-const VIEWBOX = '0 0 670 545';
+const VIEWBOX = '0 0 730 500';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

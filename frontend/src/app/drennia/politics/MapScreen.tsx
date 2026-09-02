@@ -470,7 +470,7 @@ export default function MapScreen({
             onDistrictClick={handleClick}
             selectedDistrict={selDn}
             showLabels={showLabels}
-            width={Math.min(640, typeof window !== 'undefined' ? window.innerWidth - 400 : 580)}
+            width={Math.min(720, typeof window !== 'undefined' ? window.innerWidth - 360 : 680)}
           />
 
           {/* State legend */}
