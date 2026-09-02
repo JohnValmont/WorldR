@@ -16,11 +16,11 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { T, MONO } from '../_lib/theme';
 
 // ── Hex geometry (pointy-top) ──────────────────────────────────────────────
-const R       = 26;                        // circumradius
-const W       = Math.sqrt(3) * R;          // ≈ 45   flat-to-flat width
-const H_STEP  = R * 1.5;                   // ≈ 39   row step
-const OX      = 26;                        // left padding
-const OY      = 28;                        // top padding
+const R       = 24;                        // circumradius
+const W       = Math.sqrt(3) * R;          // ≈ 41.6 flat-to-flat width
+const H_STEP  = R * 1.5;                   // ≈ 36   row step
+const OX      = 24;                        // left padding
+const OY      = 26;                        // top padding
 
 function hCenter(row: number, col: number): [number, number] {
   const x = col * W + (row % 2 === 1 ? W / 2 : 0) + OX;
@@ -36,22 +36,23 @@ function hPath(cx: number, cy: number, r = R): string {
   return `M${pts[0]} L${pts[1]} L${pts[2]} L${pts[3]} L${pts[4]} L${pts[5]}Z`;
 }
 
-// ── Grid definition: [row, minCol, maxCol] → 3+5+7+8+10+11+12+13+14+14+15+14+13+12 = 151
+// ── Grid definition: [row, minCol, maxCol]
+// Oval shape: 5+9+12+13+14+15+15+14+13+12+11+9+6+3 = 151
 const GRID: [number, number, number][] = [
-  [0,  5,  7],  //  3
-  [1,  4,  8],  //  5
-  [2,  3,  9],  //  7
-  [3,  3, 10],  //  8
-  [4,  2, 11],  // 10
-  [5,  2, 12],  // 11
-  [6,  1, 12],  // 12
-  [7,  1, 13],  // 13
-  [8,  0, 13],  // 14
-  [9,  0, 13],  // 14
-  [10, 0, 14],  // 15
-  [11, 0, 13],  // 14
-  [12, 1, 13],  // 13
-  [13, 2, 13],  // 12
+  [0,  5,  9],  //  5  — narrow top
+  [1,  3, 11],  //  9
+  [2,  2, 13],  // 12
+  [3,  1, 13],  // 13
+  [4,  0, 13],  // 14
+  [5,  0, 14],  // 15  — widest
+  [6,  0, 14],  // 15  — widest
+  [7,  0, 13],  // 14
+  [8,  1, 13],  // 13
+  [9,  1, 12],  // 12
+  [10, 2, 12],  // 11
+  [11, 3, 11],  //  9
+  [12, 5, 10],  //  6
+  [13, 6,  8],  //  3  — narrow base
 ];
 
 // Pre-compute all hex positions at module level (static, never changes)
@@ -76,15 +77,17 @@ const HEXES: Hex[] = (() => {
   return out;
 })();
 
-// State region approximate centroids for labels (eye-balled from grid layout)
+// State region approximate centroids (computed for the oval grid layout)
+// Districts 1–37=DRENNPORT (rows 0–3), 38–75=IRONVALE (rows 3–6),
+// 76–113=GREENMERE (rows 6–9), 114–151=WESTMARK (rows 9–13)
 const STATE_LABELS = [
-  { code: 'DRENNPORT', name: 'DRENNPORT', cx: 282, cy:  90 },
-  { code: 'IRONVALE',  name: 'IRONVALE',  cx: 495, cy: 205 },
-  { code: 'GREENMERE', name: 'GREENMERE', cx:  88, cy: 395 },
-  { code: 'WESTMARK',  name: 'WESTMARK',  cx: 440, cy: 455 },
+  { code: 'DRENNPORT', name: 'DRENNPORT', cx: 316, cy:  98 },
+  { code: 'IRONVALE',  name: 'IRONVALE',  cx: 502, cy: 206 },
+  { code: 'GREENMERE', name: 'GREENMERE', cx: 175, cy: 314 },
+  { code: 'WESTMARK',  name: 'WESTMARK',  cx: 338, cy: 422 },
 ];
 
-const VIEWBOX = '0 0 660 540';
+const VIEWBOX = '0 0 670 545';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
