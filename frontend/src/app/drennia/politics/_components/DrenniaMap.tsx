@@ -37,28 +37,15 @@ function hPath(cx: number, cy: number, r = R): string {
 }
 
 // ── Grid definition: [row, minCol, maxCol]
-//
-// Shape matches Drennia world-map outline:
-//   Rows 0–4 — wide main body (right-leaning)
-//   Rows 5–6 — connecting band (arm meets body)
-//   Rows 7–13 — arm/peninsula narrows leftward
-//
-// 11+12+13+13+15+17+15+11+10+9+8+7+6+4 = 151
+// Fully horizontal shape: 17+21+24+27+24+21+17 = 151
 const GRID: [number, number, number][] = [
-  [0,  7, 17],  // 11  — top of main body, offset right
-  [1,  6, 17],  // 12
-  [2,  5, 17],  // 13
-  [3,  5, 17],  // 13
-  [4,  3, 17],  // 15  — arm junction begins
-  [5,  0, 16],  // 17  — arm fully extends left  ← widest row
-  [6,  0, 14],  // 15  — arm + lower body
-  [7,  0, 10],  // 11  — arm, body ends
-  [8,  0,  9],  // 10
-  [9,  0,  8],  //  9
-  [10, 0,  7],  //  8
-  [11, 0,  6],  //  7
-  [12, 1,  6],  //  6
-  [13, 2,  5],  //  4  — arm tip
+  [0,  5, 21],  // 17
+  [1,  3, 23],  // 21
+  [2,  1, 24],  // 24
+  [3,  0, 26],  // 27 (Widest)
+  [4,  1, 24],  // 24
+  [5,  3, 23],  // 21
+  [6,  5, 21],  // 17
 ];
 
 // Pre-compute all hex positions at module level (static, never changes)
@@ -83,17 +70,15 @@ const HEXES: Hex[] = (() => {
   return out;
 })();
 
-// State region centroids (districts 1–37=DRENNPORT rows 0–3,
-// 38–75=IRONVALE rows 3–5, 76–113=GREENMERE rows 5–9, 114–151=WESTMARK rows 9–13)
-// Positions computed for R=22, W=38.1, H_STEP=33, OX=22, OY=24
+// State region centroids for 7-row horizontal layout
 const STATE_LABELS = [
-  { code: 'DRENNPORT', name: 'DRENNPORT', cx: 498, cy:  57 },  // row 1 col 12
-  { code: 'IRONVALE',  name: 'IRONVALE',  cx: 403, cy: 156 },  // row 4 col 10
-  { code: 'GREENMERE', name: 'GREENMERE', cx: 231, cy: 255 },  // row 7 col 5
-  { code: 'WESTMARK',  name: 'WESTMARK',  cx: 155, cy: 387 },  // row 11 col 3
+  { code: 'DRENNPORT', name: 'DRENNPORT', cx: 536, cy:  57 },  // row 1 col 13
+  { code: 'IRONVALE',  name: 'IRONVALE',  cx: 270, cy: 123 },  // row 3 col 6
+  { code: 'GREENMERE', name: 'GREENMERE', cx: 593, cy: 156 },  // row 4 col 15
+  { code: 'WESTPORT',  name: 'WESTPORT',  cx: 536, cy: 189 },  // row 5 col 13
 ];
 
-const VIEWBOX = '0 0 730 500';
+const VIEWBOX = '0 0 1080 300';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
