@@ -26,6 +26,22 @@ export class AuthService {
     );
   }
 
+  /** Guests go through a long onboarding with no mid-session refresh mechanism.
+   *  Give them a 2-hour access token so the Confirm Citizenship call never hits
+   *  a 401 simply because they spent time reading the character/nation steps. */
+  private generateGuestAccessToken(user: User): string {
+    return jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        is_verified: user.is_verified
+      },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '2h' }
+    );
+  }
+
   private generateRefreshToken(user: User): string {
     return jwt.sign(
       { id: user.id },
@@ -322,7 +338,7 @@ export class AuthService {
       return u;
     });
 
-    const accessToken = this.generateAccessToken(user);
+    const accessToken = this.generateGuestAccessToken(user);
     const refreshToken = this.generateRefreshToken(user);
     const tokenHash = this.hashToken(refreshToken);
 

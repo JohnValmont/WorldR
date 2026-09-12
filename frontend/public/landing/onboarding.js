@@ -420,73 +420,133 @@ document.getElementById('confirmBtn').addEventListener('click', async () => {
   const btn = document.getElementById('confirmBtn');
   const seal = document.getElementById('seal'), stage = document.getElementById('sealStage');
   const span = btn.querySelector('span');
-  
+
   btn.disabled = true;
   span.textContent = 'Confirming...';
 
-  try {
-    const token = localStorage.getItem('worldr_access_token');
-    if (!token) throw new Error('Not authenticated. Please start over.');
-    
-    // We assume motherland_country_id maps to 'c_' + lowercase name for seed compatibility
-    const motherland_country_id = selectedNation.name.toLowerCase();
-    
-    const res = await fetch('/api/v1/characters', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ 
-        name: fullName(), 
-        motherland_country_id, 
-        currency_id: 'dollar',
-        attributes: attrVals 
-      })
-    });
-    
-    if (!res.ok) {
-       const errData = await res.json();
-       if (errData.error === 'CHARACTER_EXISTS' || errData.message === 'Character already exists') {
-          console.log('Character already exists, proceeding to world');
-          try {
-             const charRes = await fetch('/api/v1/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
-             if (charRes.ok) {
-                const charData = await charRes.json();
-                if (charData.character) {
-                   localStorage.setItem('worldr_selected_motherland', charData.character.motherland_country_id || motherland_country_id);
-                   localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(charData.character));
-                   localStorage.setItem('worldr_living_world_entry_v1', 'true');
-                   const authStoreStr = localStorage.getItem('worldr-auth');
-                   if (authStoreStr) {
-                       const authStore = JSON.parse(authStoreStr);
-                       if (authStore.state && authStore.state.user) {
-                           authStore.state.user.character = charData.character;
-                           localStorage.setItem('worldr-auth', JSON.stringify(authStore));
-                       }
-                   }
-                }
-             }
-          } catch(e) { console.error('Failed to fetch existing character', e); }
-       } else {
-          throw new Error(errData.error || errData.message || 'Failed to create character');
-       }
-    } else {
-       const charData = await res.json();
-       const character = charData.character || charData;
-       localStorage.setItem('worldr_selected_motherland', motherland_country_id);
-       localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(character));
-       localStorage.setItem('worldr_living_world_entry_v1', 'true');
-       
-       try {
-           const authStoreStr = localStorage.getItem('worldr-auth');
-           if (authStoreStr) {
-               const authStore = JSON.parse(authStoreStr);
-               if (authStore.state && authStore.state.user) {
-                   authStore.state.user.character = character;
-                   localStorage.setItem('worldr-auth', JSON.stringify(authStore));
-               }
-           }
-       } catch(e) {}
+  // Safety net: if anything unhandled happens (GSAP crash, etc.) always re-enable the button
+  const safetyTimer = setTimeout(() => {
+    if (btn.disabled) {
+      btn.disabled = false;
+      span.textContent = 'Confirm Citizenship';
     }
-    
+  }, 35000);
+
+  const showError = (message) => {
+    clearTimeout(safetyTimer);
+    btn.disabled = false;
+    span.textContent = 'Confirm Citizenship';
+    const msg = document.createElement('div');
+    msg.className = 'msg err';
+    msg.style.color = '#ff6060';
+    msg.style.marginTop = '12px';
+    msg.textContent = message;
+    document.getElementById('confirmActions').insertAdjacentElement('beforebegin', msg);
+    setTimeout(() => msg.remove(), 5000);
+  };
+
+  try {
+    let token = localStorage.getItem('worldr_access_token');
+    if (!token) throw new Error('Not authenticated. Please log in again.');
+
+    // --- Auto-refresh the access token before the character call.
+    // Guests get a 2h token from the server so this is mainly a safety net
+    // for users who were already logged in with a 15-min regular token.
+    try {
+      const storedRefresh = localStorage.getItem('worldr_refresh_token');
+      if (storedRefresh) {
+        const rfRes = await fetch('/api/v1/auth/refresh-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: storedRefresh })
+        });
+        if (rfRes.ok) {
+          const rfData = await rfRes.json();
+          if (rfData.accessToken) {
+            token = rfData.accessToken;
+            localStorage.setItem('worldr_access_token', token);
+          }
+        }
+      }
+    } catch (rfErr) {
+      // Non-fatal: proceed with whatever token we have
+      console.warn('[onboarding] Token refresh skipped:', rfErr.message);
+    }
+
+    const motherland_country_id = selectedNation.name.toLowerCase();
+
+    // 30-second timeout so the button never hangs forever if the server
+    // crashes or a proxy times out without sending a response.
+    const controller = new AbortController();
+    const fetchTimeout = setTimeout(() => controller.abort(), 30000);
+
+    let res;
+    try {
+      res = await fetch('/api/v1/characters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          name: fullName(),
+          motherland_country_id,
+          currency_id: 'dollar',
+          attributes: attrVals
+        }),
+        signal: controller.signal
+      });
+    } catch (fetchErr) {
+      clearTimeout(fetchTimeout);
+      if (fetchErr.name === 'AbortError') {
+        throw new Error('The server took too long to respond. Please try again.');
+      }
+      throw new Error('Network error — check your connection and try again.');
+    }
+    clearTimeout(fetchTimeout);
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      if (errData.error === 'CHARACTER_EXISTS' || errData.message === 'Character already exists') {
+        console.log('Character already exists, proceeding to world');
+        try {
+          const charRes = await fetch('/api/v1/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
+          if (charRes.ok) {
+            const charData = await charRes.json();
+            if (charData.character) {
+              localStorage.setItem('worldr_selected_motherland', charData.character.motherland_country_id || motherland_country_id);
+              localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(charData.character));
+              localStorage.setItem('worldr_living_world_entry_v1', 'true');
+              const authStoreStr = localStorage.getItem('worldr-auth');
+              if (authStoreStr) {
+                const authStore = JSON.parse(authStoreStr);
+                if (authStore.state && authStore.state.user) {
+                  authStore.state.user.character = charData.character;
+                  localStorage.setItem('worldr-auth', JSON.stringify(authStore));
+                }
+              }
+            }
+          }
+        } catch (e) { console.error('Failed to fetch existing character', e); }
+      } else {
+        throw new Error(errData.message || errData.error || 'Failed to create character');
+      }
+    } else {
+      const charData = await res.json();
+      const character = charData.character || charData;
+      localStorage.setItem('worldr_selected_motherland', motherland_country_id);
+      localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(character));
+      localStorage.setItem('worldr_living_world_entry_v1', 'true');
+      try {
+        const authStoreStr = localStorage.getItem('worldr-auth');
+        if (authStoreStr) {
+          const authStore = JSON.parse(authStoreStr);
+          if (authStore.state && authStore.state.user) {
+            authStore.state.user.character = character;
+            localStorage.setItem('worldr-auth', JSON.stringify(authStore));
+          }
+        }
+      } catch (e) {}
+    }
+
+    clearTimeout(safetyTimer);
     document.getElementById('confirmActions').style.pointerEvents = 'none';
     gsap.set(seal, { scale: 2.4, rotation: -35, opacity: 0 });
     const tl = gsap.timeline();
@@ -495,20 +555,11 @@ document.getElementById('confirmBtn').addEventListener('click', async () => {
       .to(seal, { scale: 1, duration: 0.5, ease: 'elastic.out(1,0.5)' })
       .add(() => stage.classList.add('granted'))
       .to('.seal-txt', { opacity: 1, duration: 0.6 });
-      
-    // navigation on a wall-clock timer, independent of rAF-throttled tweens
+
     document.getElementById('welcomeName').textContent = fullName();
-    setTimeout(() => goTo(6, 1), 2600);
+    setTimeout(() => { try { goTo(6, 1); } catch(e) { console.error('goTo(6) failed', e); } }, 2600);
   } catch (err) {
-    btn.disabled = false;
-    span.textContent = 'Confirm Citizenship';
-    const msg = document.createElement('div');
-    msg.className = 'msg err';
-    msg.style.color = '#ff6060';
-    msg.style.marginTop = '12px';
-    msg.textContent = err.message;
-    document.getElementById('confirmActions').insertAdjacentElement('beforebegin', msg);
-    setTimeout(() => msg.remove(), 4000);
+    showError(err.message);
   }
 });
 
