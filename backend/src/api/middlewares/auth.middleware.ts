@@ -24,11 +24,10 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       return next(new UnauthorizedError('User account not found'));
     }
 
-    const email = user.email;
-    const dbRole = user.role;
+    // The database role is the single source of truth (see ADMIN_EMAILS in env.ts).
     req.user = {
       ...decoded,
-      role: (email.toLowerCase() === 'kyxplayss@gmail.com' || email.toLowerCase() === 'infoforbiddengaming@gmail.com') ? 'admin' : dbRole
+      role: user.role,
     };
     next();
   } catch (error) {

@@ -6,6 +6,32 @@ import { logger } from './utils/logger';
 import { startWorldTickScheduler } from './api/services/worldTick.service';
 import { ManufacturingController } from './api/controllers/manufacturing.controller';
 import { processDrenniaTick } from './api/controllers/drennia.controller';
+import { initErrorTracking, captureException, flushErrorTracking } from './utils/errorTracking';
+
+initErrorTracking();
+
+/**
+ * Admin rights live in users.role. ADMIN_EMAILS (comma-separated) lets the
+ * owner grant them without editing code: listed accounts are promoted on boot.
+ * Accounts are never demoted here, so removing an email does not revoke access —
+ * do that with an explicit UPDATE.
+ */
+async function promoteConfiguredAdmins(): Promise<void> {
+  const emails = (env.ADMIN_EMAILS || '')
+    .split(',')
+    .map(e => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (emails.length === 0) return;
+  try {
+    const promoted = await db('users')
+      .whereRaw('LOWER(email) = ANY(?)', [emails])
+      .whereNot({ role: 'admin' })
+      .update({ role: 'admin', updated_at: db.fn.now() });
+    if (promoted > 0) logger.info(`[admin] Promoted ${promoted} account(s) listed in ADMIN_EMAILS to admin.`);
+  } catch (err) {
+    logger.error('[admin] Failed to apply ADMIN_EMAILS:', err);
+  }
+}
 
 // ── Section 4: Internal tick endpoint (protected by X-Tick-Secret) ─────────────
 // This is registered directly on `app` (outside /api/v1) so it is never
@@ -37,59 +63,11 @@ async function startServer() {
     try {
       await checkDatabaseConnection();
       logger.info('Database connection established successfully.');
+      // Schema and one-off data fixes live in database/migrations (see 0091).
+      // Never add one-time patches here — they re-run on every restart.
       await runMigrationsAndSeeds();
 
-      // Ensure unique_character_per_user_world is a partial index, fixing production DB
-      try { await db.raw('ALTER TABLE "characters" DROP CONSTRAINT IF EXISTS "unique_character_per_user_world" CASCADE'); } catch(e) {}
-      try { await db.raw('DROP INDEX IF EXISTS "unique_character_per_user_world"'); } catch(e) {}
-      try {
-        await db.raw('CREATE UNIQUE INDEX "unique_character_per_user_world" ON "characters" ("user_id", "world_instance_id") WHERE "status" != \'deleted\''); 
-        logger.info('Manually ensured unique_character_per_user_world is a partial index on boot.');
-      } catch (patchErr) {
-        logger.error('Failed to patch character index on boot:', patchErr);
-      }
-
-      // One-time patch: Add bidding_company_id to ipo_indications
-      try {
-        await db.raw('ALTER TABLE ipo_indications ADD COLUMN bidding_company_id UUID REFERENCES companies(id) ON DELETE SET NULL');
-        logger.info('Patched ipo_indications to include bidding_company_id.');
-      } catch (e: any) {
-        if (e.message && e.message.includes('already exists')) {
-          // Ignore if it already exists
-        } else {
-          logger.error('Failed to patch ipo_indications on boot:', e);
-        }
-      }
-
-      // One-time patch: Add 10M to Aldrich Automobiles
-      try {
-        await db.raw('CREATE TABLE IF NOT EXISTS _aldrich_10m_patch (applied BOOLEAN)');
-        const res = await db.raw('SELECT * FROM _aldrich_10m_patch');
-        if (res.rows.length === 0) {
-          await db.raw(`
-            UPDATE company_finances 
-            SET available_cash = available_cash + 10000000 
-            WHERE company_id = (SELECT id FROM companies WHERE name = 'Aldrich Automobiles' LIMIT 1)
-          `);
-          await db.raw('INSERT INTO _aldrich_10m_patch (applied) VALUES (true)');
-          logger.info('Added $10M to Aldrich Automobiles.');
-        }
-      } catch (e) {
-        logger.error('Failed to add 10M patch:', e);
-      }
-
-      // One-time patch: fix vehicles created with falsy bug (shifted to Year 1)
-      try {
-        await db('manufacturing_vehicle_models').where({ created_at_world_year: 1 }).update({
-          created_at_world_year: 0,
-          development_started_at_year: 0,
-          development_completes_at_year: 0,
-          stage_engineering_completes_year: 0,
-          stage_prototype_completes_year: 0,
-          stage_testing_completes_year: 0
-        });
-        logger.info('Patched falsy Year 1 vehicles back to Year 0.');
-      } catch (patchErr) { }
+      await promoteConfiguredAdmins();
 
       try {
         const clock = await db('world_clock').first();
@@ -144,11 +122,14 @@ process.on('SIGINT', () => handleShutdown('SIGINT'));
 // Catch unhandled promise rejections & exceptions
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Promise Rejection', { promise, reason });
+  captureException(reason, { source: 'unhandledRejection' });
 });
 
 process.on('uncaughtException', (error) => {
   logger.error('Uncaught Exception thrown:', error);
-  process.exit(1);
+  captureException(error, { source: 'uncaughtException' });
+  // Give the error reporter up to 2s to send the crash before exiting.
+  flushErrorTracking(2000).finally(() => process.exit(1));
 });
 
 startServer();

@@ -52,8 +52,7 @@ export default function BackBar() {
   const [showGuide, setShowGuide] = useState(false);
   const [isAdminDynamic, setIsAdminDynamic] = useState(false);
   const { user } = useAuthStore();
-  const isSuperAdmin = user?.email?.toLowerCase() === 'kyxplayss@gmail.com' || user?.email?.toLowerCase() === 'infoforbiddengaming@gmail.com';
-  const isAdmin = user?.role === 'admin' || isSuperAdmin || isAdminDynamic;
+  const isAdmin = user?.role === 'admin' || isAdminDynamic;
 
   useEffect(() => {
     authApi.me().then(res => setIsAdminDynamic(res.data.isAdmin)).catch(() => {});

@@ -18,6 +18,16 @@ const envSchema = z.object({
   BREVO_SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().default('no-reply@worldr.game'),
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
+  // Comma-separated emails promoted to role='admin' in the database on every boot.
+  // Admin rights live in users.role — never hard-code emails in source.
+  ADMIN_EMAILS: z.string().optional(),
+  // Comma-separated list of browser origins allowed to call the API (CORS).
+  // When unset, FRONTEND_URL is the only allowed origin.
+  CORS_ORIGINS: z.string().optional(),
+  // Error tracking (Sentry). Optional — when unset, errors are only logged.
+  SENTRY_DSN: z.string().url().optional(),
+  // A tick counts as "overdue" on /health once it is this many minutes late.
+  TICK_OVERDUE_GRACE_MINUTES: z.coerce.number().default(30),
 });
 
 const parsed = envSchema.safeParse(process.env);

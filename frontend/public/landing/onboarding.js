@@ -329,6 +329,7 @@ document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click'
         const err = await res.json();
         throw new Error(err.error || err.message || 'Registration failed');
       }
+      window.worldrTrack && window.worldrTrack('register_submitted');
     } else if (s === 1) {
       span.textContent = 'Verifying...';
       const email = document.getElementById('otp_email').textContent;
@@ -341,6 +342,7 @@ document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click'
         const err = await res.json();
         throw new Error(err.error || err.message || 'Verification failed');
       }
+      window.worldrTrack && window.worldrTrack('email_verified');
     } else if (s === 2) {
       span.textContent = 'Authenticating...';
       const email = document.getElementById('log_email').value;
@@ -351,6 +353,7 @@ document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click'
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || data.message || 'Login failed');
+      window.worldrTrack && window.worldrTrack('login_succeeded', { has_character: !!(data.user && data.user.character) });
       
       localStorage.setItem('worldr_access_token', data.accessToken);
       if (data.refreshToken) localStorage.setItem('worldr_refresh_token', data.refreshToken);
@@ -531,6 +534,7 @@ document.getElementById('confirmBtn').addEventListener('click', async () => {
     } else {
       const charData = await res.json();
       const character = charData.character || charData;
+      window.worldrTrack && window.worldrTrack('character_created', { nation: motherland_country_id });
       localStorage.setItem('worldr_selected_motherland', motherland_country_id);
       localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(character));
       localStorage.setItem('worldr_living_world_entry_v1', 'true');
@@ -564,6 +568,7 @@ document.getElementById('confirmBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('enterBtn').addEventListener('click', function(){
+  window.worldrTrack && window.worldrTrack('world_entered');
   this.querySelector('span').textContent = 'Loading Aethan…';
   gsap.to(target, { scale: 6, accent: 3, duration: 2.2, ease: 'power3.in' });
   gsap.to('.card', { 

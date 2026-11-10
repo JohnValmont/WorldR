@@ -1,0 +1,42 @@
+name: World Tick Health
+
+# Every 30 minutes: ask the backend whether the world clock is on schedule.
+# If a tick is overdue (or the server/database is down) this job FAILS, and
+# GitHub emails you about the failed scheduled run — that is the alert.
+# The request also wakes a sleeping server, which lets the in-process
+# scheduler catch up on missed ticks.
+#
+# Needs repository secret RENDER_BACKEND_URL (already used by drennia-tick.yml).
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Check world clock
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Query /health/ticks
+        run: |
+          URL="${{ secrets.RENDER_BACKEND_URL }}/health/ticks"
+          # A sleeping free-tier server can take ~1 min to wake; retry a few times.
+          for attempt in 1 2 3 4; do
+            RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 90 "$URL" || true)
+            STATUS=$(echo "$RESPONSE" | tail -n 1)
+            BODY=$(echo "$RESPONSE" | head -n -1)
+            echo "Attempt $attempt → HTTP $STATUS"
+            echo "$BODY"
+            if [ "$STATUS" = "200" ]; then
+              echo "World clock is on schedule."
+              exit 0
+            fi
+            if [ "$STATUS" = "503" ]; then
+              echo "::error::World clock problem: $BODY"
+              exit 1
+            fi
+            sleep 20
+          done
+          echo "::error::Backend unreachable after 4 attempts (last HTTP status: $STATUS)"
+          exit 1

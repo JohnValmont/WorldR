@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { clearTokens, setAccessToken, setRefreshToken } from '../lib/api';
+import { resetAnalytics } from '../lib/analytics';
 
 export interface AuthUser {
   id: number;
@@ -71,6 +72,8 @@ export const useAuthStore = create<AuthState>()(
           }
           toRemove.forEach(k => localStorage.removeItem(k));
         }
+        // Start a fresh anonymous analytics identity for whoever uses this browser next.
+        resetAnalytics();
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
       }
     }),

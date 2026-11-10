@@ -554,12 +554,14 @@ const btnCancelGuest = document.getElementById('btnCancelGuest');
 const btnConfirmGuest = document.getElementById('btnConfirmGuest');
 const btnDiscord = document.getElementById('btnDiscord');
 
-if (btnCreate) btnCreate.addEventListener('click', () => { window.location.href = '/landing/onboarding.html?action=register'; });
-if (btnLogin) btnLogin.addEventListener('click', () => { window.location.href = '/landing/onboarding.html?action=login'; });
+window.worldrTrack && window.worldrTrack('landing_viewed');
+if (btnCreate) btnCreate.addEventListener('click', () => { window.worldrTrack && window.worldrTrack('signup_clicked'); window.location.href = '/landing/onboarding.html?action=register'; });
+if (btnLogin) btnLogin.addEventListener('click', () => { window.worldrTrack && window.worldrTrack('login_clicked'); window.location.href = '/landing/onboarding.html?action=login'; });
 
 if (btnGuest && guestModalOverlay) {
   // Show Modal
   btnGuest.addEventListener('click', () => {
+    window.worldrTrack && window.worldrTrack('guest_play_clicked');
     guestModalOverlay.style.display = 'flex';
     setTimeout(() => { guestModalOverlay.style.opacity = '1'; }, 10);
   });
@@ -600,6 +602,7 @@ if (btnGuest && guestModalOverlay) {
         version: 0
       }));
       
+      window.worldrTrack && window.worldrTrack('guest_account_created');
       window.location.href = '/landing/onboarding.html?action=character';
     } catch (err) {
       console.error(err);
