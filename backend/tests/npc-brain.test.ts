@@ -20,10 +20,13 @@ describe('NPC Brain - decideNpcActions (Pure)', () => {
     reasonCode: null,
     zeroDemandStreak: 0,
     modelAgeMonths: 5,
+    unitsProducedLastArc: 100,
+    inventoryInStock: 0,
   };
 
   it('B1: UNDERCUT/LOSING - drops price if losing share', () => {
-    const input = { ...baseInput, marketShareThisArc: 0.05, marketShareLastArc: 0.10, reasonCode: 'Weak Distribution' };
+    // Losing share AND not selling through (hysteresis: cut only if sold/allocated < 0.9)
+    const input = { ...baseInput, marketShareThisArc: 0.05, marketShareLastArc: 0.10, reasonCode: 'Weak Distribution', unitsSoldLastArc: 80, unitsAllocatedLastArc: 100 };
     const output = decideNpcActions(input);
     assert.ok(output.newSalePrice < input.salePrice);
     assert.ok(output.newSalePrice / input.salePrice < 1);
