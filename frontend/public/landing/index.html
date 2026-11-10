@@ -35,12 +35,12 @@
 
 <!-- persistent state HUD -->
 <aside class="hud" id="hud" aria-hidden="true">
-  <div class="hud-head">DRENNIA · NATIONAL INDEX</div>
-  <div class="hud-row"><span class="hud-lbl">Federal Approval</span><span class="hud-val" data-tick="approval">61.4<i>%</i></span></div>
-  <div class="hud-row"><span class="hud-lbl">Senate Seats Held</span><span class="hud-val" data-tick="seats">148</span></div>
-  <div class="hud-row"><span class="hud-lbl">DRX Market Index</span><span class="hud-val" data-tick="index">12,704.8</span></div>
-  <div class="hud-row"><span class="hud-lbl">National GDP</span><span class="hud-val" data-tick="gdp">$4.812<i>T</i></span></div>
-  <div class="hud-foot"><span class="pulse"></span>SESSION ACTIVE · CYCLE 41</div>
+  <div class="hud-head">DRENNIA · LIVE WORLD</div>
+  <div class="hud-row"><span class="hud-lbl">World Date</span><span class="hud-val" data-live="date">—</span></div>
+  <div class="hud-row"><span class="hud-lbl">Next Month In</span><span class="hud-val" data-live="nextTick">—</span></div>
+  <div class="hud-row"><span class="hud-lbl">Cars Sold Last Month</span><span class="hud-val" data-live="unitsSold">—</span></div>
+  <div class="hud-row"><span class="hud-lbl">Active Companies</span><span class="hud-val" data-live="companies">—</span></div>
+  <div class="hud-foot"><span class="pulse"></span><span data-live="footer">CONNECTING TO DRENNIA…</span></div>
 </aside>
 
 <main>
@@ -72,12 +72,12 @@
         </ul>
       </div>
       <div class="data-panel parallax" data-speed="0.12">
-        <div class="dp-head">TERRITORIAL LEDGER</div>
+        <div class="dp-head">THE WORLD RIGHT NOW</div>
         <div class="dp-grid">
-          <div><span class="dp-k">Continents</span><span class="dp-v">3</span></div>
-          <div><span class="dp-k">Sovereign States</span><span class="dp-v">27</span></div>
-          <div><span class="dp-k">Population</span><span class="dp-v" data-tick="pop">318.6M</span></div>
-          <div><span class="dp-k">World Cycle</span><span class="dp-v">Yr 41 · Q3</span></div>
+          <div><span class="dp-k">Open Nation</span><span class="dp-v">Drennia</span></div>
+          <div><span class="dp-k">World Date</span><span class="dp-v" data-live="date">—</span></div>
+          <div><span class="dp-k">Citizens</span><span class="dp-v" data-live="citizens">—</span></div>
+          <div><span class="dp-k">Next Month In</span><span class="dp-v" data-live="nextTick2">—</span></div>
         </div>
         <div class="dp-spark" data-spark></div>
       </div>
@@ -98,12 +98,12 @@
         </ul>
       </div>
       <div class="data-panel parallax" data-speed="0.16">
-        <div class="dp-head">CHAMBER STATUS</div>
+        <div class="dp-head">POLITICS RIGHT NOW</div>
         <div class="dp-grid">
-          <div><span class="dp-k">Bills In Session</span><span class="dp-v" data-tick="bills">14</span></div>
-          <div><span class="dp-k">Coalition Margin</span><span class="dp-v">+11</span></div>
-          <div><span class="dp-k">Next Election</span><span class="dp-v">Cycle 43</span></div>
-          <div><span class="dp-k">Approval</span><span class="dp-v" data-tick="approval2">61.4%</span></div>
+          <div><span class="dp-k">Parties</span><span class="dp-v" data-live="parties">—</span></div>
+          <div><span class="dp-k">Player-Led Parties</span><span class="dp-v" data-live="playerParties">—</span></div>
+          <div><span class="dp-k">Political Calendar</span><span class="dp-v" data-live="polDate">—</span></div>
+          <div><span class="dp-k">Next Session In</span><span class="dp-v" data-live="polNextTick">—</span></div>
         </div>
         <div class="dp-bars" data-bars></div>
       </div>
@@ -124,12 +124,12 @@
         </ul>
       </div>
       <div class="data-panel parallax" data-speed="0.16">
-        <div class="dp-head">DRX EXCHANGE</div>
+        <div class="dp-head">CAR MARKET · LAST MONTH</div>
         <div class="dp-grid">
-          <div><span class="dp-k">Index</span><span class="dp-v" data-tick="index2">12,704.8</span></div>
-          <div><span class="dp-k">Volume</span><span class="dp-v" data-tick="vol">8.42M</span></div>
-          <div><span class="dp-k">Active Firms</span><span class="dp-v">1,204</span></div>
-          <div><span class="dp-k">GDP</span><span class="dp-v" data-tick="gdp2">$4.812T</span></div>
+          <div><span class="dp-k">Cars Sold</span><span class="dp-v" data-live="unitsSold2">—</span></div>
+          <div><span class="dp-k">Sales Revenue</span><span class="dp-v" data-live="revenue">—</span></div>
+          <div><span class="dp-k">Models On Sale</span><span class="dp-v" data-live="models">—</span></div>
+          <div><span class="dp-k">Active Companies</span><span class="dp-v" data-live="companies2">—</span></div>
         </div>
         <div class="dp-spark" data-spark></div>
       </div>
@@ -150,12 +150,12 @@
         </ul>
       </div>
       <div class="data-panel parallax" data-speed="0.14">
-        <div class="dp-head">INSTITUTIONAL WATCH</div>
+        <div class="dp-head">WHO RUNS DRENNIA</div>
         <div class="dp-grid">
-          <div><span class="dp-k">Active NPCs</span><span class="dp-v" data-tick="npc">9,318</span></div>
-          <div><span class="dp-k">Central Rate</span><span class="dp-v">3.25%</span></div>
-          <div><span class="dp-k">Open Cases</span><span class="dp-v" data-tick="cases">37</span></div>
-          <div><span class="dp-k">Regulators</span><span class="dp-v">12</span></div>
+          <div><span class="dp-k">AI-Run Companies</span><span class="dp-v" data-live="npcCompanies">—</span></div>
+          <div><span class="dp-k">AI-Run Parties</span><span class="dp-v" data-live="npcParties">—</span></div>
+          <div><span class="dp-k">Player-Run Companies</span><span class="dp-v" data-live="playerCompanies">—</span></div>
+          <div><span class="dp-k">Active Players</span><span class="dp-v" data-live="activePlayers">—</span></div>
         </div>
         <div class="dp-bars" data-bars></div>
       </div>

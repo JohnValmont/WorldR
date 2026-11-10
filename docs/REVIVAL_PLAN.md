@@ -112,6 +112,27 @@ Only one clock. Business and politics tick together. The separate GitHub Actions
 
 ---
 
+### Starter nations: small competitive nations of 10 players (owner decision)
+
+Each nation holds **10 human players**, competing for its companies, parties and parliament. Small groups give a stronger competitive feel: you know your rivals by name, and every election and market share matters. New nations open as players arrive.
+
+**How it works** (all numbers in a constants file, tunable):
+
+1. **Nation size: 10 human players.** New players join the open nation with the most free spots. That fills nations one at a time rather than spreading people thin.
+2. **Next nation opens when every open nation is full.** Drennia first, then the next starter nation, and so on.
+3. **Computer-controlled actors fill everything else.** NPC parties, politicians and companies make up the rest of each parliament and market, so a nation of 10 humans still has a full 100-seat parliament and real competition. *This is required:* 10 humans can't run a nation alone.
+4. **Inactive players free up their spot.** A player not seen for **14 days** (`users.last_seen_at`, tracked since Phase 1) stops counting toward the 10. Their character and company stay, but run on autopilot, until they return. Without this, nations fill with absent players and feel dead.
+5. **Seasons rebalance.** At each season start, players are re-sorted into nations of 10 (friends can choose to stay together), so nobody is stuck in an emptied nation. Legacy titles carry over; nation membership doesn't.
+6. **Cross-border play is what makes multiple nations interesting.** Exporting cars to other nations' markets, tariffs and treaties voted by each parliament, foreign investment, and a nation-vs-nation leaderboard. The demand engine already groups sales by market, so foreign markets are an extension, not a rewrite.
+7. **Second-nation design:** one with a contrasting economy or politics to Drennia (for example resource-rich, or more authoritarian), so nations feel different to play.
+
+**Risks to watch:**
+- **Empty-feeling nations:** if many of the 10 go quiet mid-season, rule 4 plus NPC autopilot has to keep things moving. Track it with the "active players per nation" number.
+- **Too many half-empty nations:** never open a new nation while an existing one has free spots.
+- **Server cost:** each nation adds simulation work per tick. Measure tick time (already a Phase 1 task) before opening nation 3+.
+
+**When:** after Phases 1–3. The first concrete step is making the world tick and the snapshot work per nation (today almost everything assumes Drennia).
+
 ## 4. What to keep, freeze and delete
 
 The frozen systems are a **content backlog**: already built, switched back on in later seasons when there are enough players to make them meaningful.

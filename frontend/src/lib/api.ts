@@ -419,6 +419,27 @@ export const chatApi = {
 };
 
 // World — public world feed
+/** Mirrors backend/src/api/services/worldSnapshot.service.ts. null = "not known", never a placeholder. */
+export interface WorldSnapshot {
+  generated_at: string;
+  clock: {
+    status: string;
+    business: { year: number; month: number; next_tick_at: string | null };
+    politics: { year: number | null; month: number | null; next_tick_at: string | null };
+  } | null;
+  market: {
+    period: { year: number; month: number } | null;
+    units_sold: number;
+    revenue: number;
+    previous_units_sold: number | null;
+    previous_revenue: number | null;
+    models_selling: number;
+  };
+  companies: { active: number; player_owned: number; npc: number };
+  players: { citizens: number; active_recently: number | null; active_window_days: number };
+  politics: { parties: number; player_led_parties: number };
+}
+
 export interface WorldClock {
   world_instance_id: string;
   current_year: number;
@@ -442,6 +463,8 @@ export const worldApi = {
   getOperators: () => api.get('/world/operators').then(res => res.data),
   getMarketLeaderboard: () => api.get('/world/market-leaderboard').then(res => res.data),
   getGlobalLeaderboards: () => api.get('/world/global-leaderboards').then(res => res.data),
+  /** Real-data world summary (public). See backend worldSnapshot.service.ts. */
+  getSnapshot: (): Promise<WorldSnapshot> => api.get('/world/snapshot').then(res => res.data),
   // Admin tick controls
   forceTick: () => api.post('/world/tick').then(res => res.data),
   forcePoliticsTick: () => api.post('/world/politics-tick').then(res => res.data),

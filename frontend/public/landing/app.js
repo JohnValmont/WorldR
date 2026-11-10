@@ -462,34 +462,57 @@ ScrollTrigger.create({
 });
 
 /* ====================================================================
-   LIVE DATA — gently ticking numbers (state dept dashboard)
+   LIVE DATA — real numbers from the running world (GET /api/v1/world/snapshot).
+   Nothing here is invented: if the server can't be reached, values stay "—".
    ==================================================================== */
-const tickers = {
-  approval: { base: 61.4, range: 0.6, fmt: v => v.toFixed(1) + '<i>%</i>', el: [] },
-  approval2:{ base: 61.4, range: 0.6, fmt: v => v.toFixed(1) + '%' , el: [] },
-  seats:    { base: 148,  range: 2,   fmt: v => Math.round(v), el: [] },
-  index:    { base: 12704.8, range: 42, fmt: v => v.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1}), el: [] },
-  index2:   { base: 12704.8, range: 42, fmt: v => v.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1}), el: [] },
-  gdp:      { base: 4.812, range: 0.02, fmt: v => '$'+v.toFixed(3)+'<i>T</i>', el: [] },
-  gdp2:     { base: 4.812, range: 0.02, fmt: v => '$'+v.toFixed(3)+'T', el: [] },
-  pop:      { base: 318.6, range: 0.3, fmt: v => v.toFixed(1)+'M', el: [] },
-  bills:    { base: 14, range: 2, fmt: v => Math.round(v), el: [] },
-  vol:      { base: 8.42, range: 0.5, fmt: v => v.toFixed(2)+'M', el: [] },
-  npc:      { base: 9318, range: 40, fmt: v => Math.round(v).toLocaleString('en-US'), el: [] },
-  cases:    { base: 37, range: 4, fmt: v => Math.round(v), el: [] },
-};
-document.querySelectorAll('[data-tick]').forEach(el => {
-  const k = el.dataset.tick; if (tickers[k]) tickers[k].el.push(el);
+const liveEls = {};
+document.querySelectorAll('[data-live]').forEach(el => {
+  (liveEls[el.dataset.live] = liveEls[el.dataset.live] || []).push(el);
 });
-function stepTickers() {
-  Object.values(tickers).forEach(t => {
-    const v = t.base + (Math.random() - 0.5) * t.range;
-    const html = t.fmt(v);
-    t.el.forEach(el => { el.innerHTML = html; });
-  });
+function setLive(key, text) { (liveEls[key] || []).forEach(el => { el.textContent = text; }); }
+const fmtInt = v => Number(v || 0).toLocaleString('en-US');
+const fmtMoney = v => {
+  const n = Number(v || 0), a = Math.abs(n);
+  if (a >= 1e9) return '$' + (n / 1e9).toFixed(1) + 'B';
+  if (a >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
+  if (a >= 1e3) return '$' + (n / 1e3).toFixed(0) + 'K';
+  return '$' + Math.round(n);
+};
+const until = iso => {
+  if (!iso) return '—';
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return 'Processing…';
+  const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+  return h > 0 ? h + 'h ' + m + 'm' : m + 'm';
+};
+let snapshot = null;
+function renderLive() {
+  if (!snapshot) return;
+  const s = snapshot, biz = s.clock && s.clock.business, pol = s.clock && s.clock.politics;
+  const date = biz ? 'Month ' + biz.month + ' · Year ' + biz.year : '—';
+  setLive('date', date);
+  setLive('nextTick', until(biz && biz.next_tick_at));
+  setLive('nextTick2', until(biz && biz.next_tick_at));
+  setLive('polDate', pol && pol.year != null ? 'Month ' + pol.month + ' · Year ' + pol.year : '—');
+  setLive('polNextTick', until(pol && pol.next_tick_at));
+  const sold = s.market.period ? fmtInt(s.market.units_sold) : '—';
+  setLive('unitsSold', sold); setLive('unitsSold2', sold);
+  setLive('revenue', s.market.period ? fmtMoney(s.market.revenue) : '—');
+  setLive('models', s.market.period ? fmtInt(s.market.models_selling) : '—');
+  setLive('companies', fmtInt(s.companies.active)); setLive('companies2', fmtInt(s.companies.active));
+  setLive('npcCompanies', fmtInt(s.companies.npc));
+  setLive('playerCompanies', fmtInt(s.companies.player_owned));
+  setLive('parties', fmtInt(s.politics.parties));
+  setLive('playerParties', fmtInt(s.politics.player_led_parties));
+  setLive('npcParties', fmtInt(s.politics.parties - s.politics.player_led_parties));
+  setLive('citizens', fmtInt(s.players.citizens));
+  setLive('activePlayers', s.players.active_recently == null ? fmtInt(s.players.citizens) : fmtInt(s.players.active_recently));
+  setLive('footer', s.clock && s.clock.status === 'paused' ? 'WORLD PAUSED · ' + date.toUpperCase() : 'LIVE · ' + date.toUpperCase());
 }
-stepTickers();
-if (!reduceMotion) setInterval(stepTickers, 2200);
+fetch('/api/v1/world/snapshot')
+  .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
+  .then(data => { snapshot = data; renderLive(); setInterval(renderLive, 30000); })
+  .catch(() => setLive('footer', 'WORLD DATA UNAVAILABLE'));
 
 /* ---------- sparklines & bar charts in data panels ---------- */
 document.querySelectorAll('[data-spark]').forEach(el => {
