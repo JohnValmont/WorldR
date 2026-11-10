@@ -8,7 +8,7 @@ import { authApi } from '../../lib/api';
 
 // ─── WORLDr Active Navigation ──────────────────────────────────────────────────
 // Active top-level tabs: Chronicle, Business, Market, Records, Network, World.
-// Politics is locked for all players except admins.
+// Politics is open to every player (Phase 2).
 
 const GOLD = '#C9A24A';
 const GOLD_BG = 'rgba(201,162,74,0.10)';
@@ -46,7 +46,8 @@ export default function LivingWorldNav() {
     >
       {TABS.map((tab) => {
         const isPolitics = tab.name === 'Politics';
-        const isLocked = isPolitics && !isAdmin;
+        const isLocked = false; // politics unlocked for everyone (Phase 2)
+        void isPolitics;
         const isActive = pathname === tab.path || pathname?.startsWith(`${tab.path}/`);
 
         return (

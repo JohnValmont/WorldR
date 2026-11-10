@@ -65,3 +65,11 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
   (NEXT_PUBLIC_POSTHOG_KEY); static landing pages use window.worldrTrack → /analytics-event.
   Never send emails or other personal data to analytics.
 - CI (.github/workflows/ci.yml): a test file joins the required list only once it passes.
+
+## Phase 2 (Politics rebuild) — Operational Rules (DO NOT BREAK)
+- Seeds in database/seeds run on EVERY boot. A seed must never DELETE or reset live game rows (0005 used to delete all NPC parties each restart).
+- A nation's identity, constitution, districts, cabinet posts and political tuning live in backend/src/api/constants/nations.ts. Districts are synced into pol_constituencies by syncNationDistricts; don't hand-edit them in SQL.
+- Elections are district proportional (electionEngine.allocateSeatsDHondt). Polls (statecraft.projectElection / pollParties) must use the same inputs as the real election (districts, effort incl. NPC_MACHINE_EFFORT, approval multiplier).
+- The politics month runs in ONE transaction per nation. Never wrap a failing query in a bare try/catch inside it; use a savepoint (trx.transaction(...)) or the whole month is rolled back.
+- pol_parties.popularity is NUMERIC; pol_active_policies has one row per (state, category); write it with an upsert.
+- NPC lawmaking/voting/cabinet rules are pure functions in statecraft.service.ts with tests in tests/statecraft.test.ts.

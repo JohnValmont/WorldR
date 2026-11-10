@@ -148,10 +148,10 @@ export async function enactPolicy(trx: any, stateId: string, categoryId: string,
   const option = category.options.find(o => o.id === optionId);
   if (!option) throw new Error(`Option ${optionId} not found`);
 
-  // Deactivate old policy in this category
-  await trx('pol_active_policies')
-    .where({ state_id: stateId, category: categoryId })
-    .update({ is_active: false });
+  // pol_active_policies holds ONE row per (state, category) (UNIQUE constraint),
+  // so a new law replaces the old row in place (upsert below). The old code
+  // marked the row inactive and inserted a second one, which violated that
+  // constraint the second time any law changed and aborted the whole tick.
 
   const state = await trx('pol_states').where({ id: stateId }).first();
   const currentBur = Number(state.stat_bureaucracy) || 50;
@@ -183,8 +183,9 @@ export async function enactPolicy(trx: any, stateId: string, categoryId: string,
     enacted_month: currentMonth,
     base_rollout_months: rolloutMonths,
     natural_lag_months: maxLag,
-    target_effects: JSON.stringify(effects)
-  });
+    target_effects: JSON.stringify(effects),
+    is_active: true,
+  }).onConflict(['state_id', 'category']).merge();
 }
 
 // ── National Policy → Manufacturing Effects ──────────────────────────────────

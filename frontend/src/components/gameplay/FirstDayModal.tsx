@@ -162,19 +162,19 @@ function Card2({ onGoToBusiness, onGoToPolitics }: { onGoToBusiness: () => void;
           </div>
           <div style={{ fontSize: 14, color: T.ivory, fontWeight: 600, marginBottom: 4 }}>Join the political arena</div>
           <p style={{ fontSize: 11, color: T.muted, margin: '0 0 12px', lineHeight: 1.6 }}>
-            Found or join a party. Campaign across Ironvale's voter segments. Win a Council seat,
+            Found or join a party. Campaign across Drennia's 20 districts. Win seats in Parliament,
             form a government, and pass bills that directly change the business environment.
           </p>
           <button
-            onClick={(e) => { e.preventDefault(); alert('Political desk is Coming soon.'); }}
+            onClick={(e) => { e.preventDefault(); window.location.href = '/drennia/politics'; }}
             style={{
               background: T.amberDim, border: `1px solid rgba(201,162,74,0.3)`,
-              color: T.muted, fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase',
-              letterSpacing: '0.15em', padding: '7px 14px', borderRadius: 3, cursor: 'not-allowed',
+              color: T.amber, fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase',
+              letterSpacing: '0.15em', padding: '7px 14px', borderRadius: 3, cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%'
             }}
           >
-            <Lock size={12} /> Political Desk (Coming Soon)
+            Enter Parliament →
           </button>
         </div>
       </div>

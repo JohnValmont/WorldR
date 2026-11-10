@@ -304,7 +304,7 @@ function DrenniaHexMap({
           Constituency Map
         </div>
         <div style={{ fontFamily: MONO, fontSize: 9, color: T.faint }}>
-          {constituencies.length} seats{canSelectHex ? ' · click to select' : ' · click for detail'}
+          {constituencies.reduce((a: number, k: any) => a + (Number(k.seats) || 1), 0)} seats in {constituencies.length} districts{canSelectHex ? ' · click to select' : ' · click for detail'}
         </div>
       </div>
 

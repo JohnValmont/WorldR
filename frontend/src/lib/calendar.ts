@@ -56,3 +56,15 @@ export function formatWorldDate(year: number, month: number): string {
 export function formatWorldDateShort(year: number, month: number): string {
   return formatGameDateShort(absoluteMonth(year, month));
 }
+
+/**
+ * Format a POLITICS arc (backend worldClockToArc: year*12 + (month-1), 0-based).
+ * formatGameDateShort expects a 1-based month counter, so politics dates passed
+ * to it were one month early (arc 0 showed as "Dec Yr -1").
+ */
+export function formatPolArc(arc?: number | null, short = true): string {
+  if (arc === undefined || arc === null || Number.isNaN(arc)) return short ? 'Unk' : 'Unknown Date';
+  const year = Math.floor(arc / 12);
+  const month = ((arc % 12) + 12) % 12;
+  return short ? `${MONTHS[month].slice(0, 3)} Yr ${year}` : `${MONTHS[month]}, Year ${year}`;
+}

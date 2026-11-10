@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { ArrowLeft, LayoutGrid, Briefcase, Landmark, Globe, Home, BookOpen, Lock } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Briefcase, Landmark, Globe, Home, BookOpen } from 'lucide-react';
 import GuideModal from '../gameplay/GuideModal';
 import { useAuthStore } from '../../store/auth.store';
 import { authApi } from '../../lib/api';
@@ -118,15 +118,9 @@ export default function BackBar() {
         <Link href="/drennia/business" title="Business Desk" className="p-1.5 rounded transition-colors text-zinc-500 hover:text-zinc-300 hover:bg-white/5">
           <Briefcase size={14} />
         </Link>
-        {isAdmin ? (
-          <Link href="/drennia/politics" title="Politics Desk" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
-            <Landmark size={14} />
-          </Link>
-        ) : (
-          <a href="#" onClick={(e) => { e.preventDefault(); alert('Political Desk is currently locked for pre-release testing. Only administrators have access.'); }} title="Politics Desk (Locked for testing)" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5 flex items-center justify-center cursor-not-allowed'}`}>
-            <Lock size={14} className="opacity-70 text-amber-500/70" />
-          </a>
-        )}
+        <Link href="/drennia/politics" title="Politics" className={`p-1.5 rounded transition-colors ${section === 'politics' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+          <Landmark size={14} />
+        </Link>
         <Link href="/drennia/world" title="World Feed" className={`p-1.5 rounded transition-colors ${section === 'world' ? 'text-terminal-amber bg-terminal-amber/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
           <Globe size={14} />
         </Link>

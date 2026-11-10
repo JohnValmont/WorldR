@@ -240,6 +240,11 @@ export const registryApi = {
 
 // Politics
 export const politicsApi = {
+  /** Everything the rebuilt Politics screens show, in one call. See backend capitol.service.ts. */
+  getCapitol: (stateId?: string): Promise<import('@/app/drennia/politics/_capitol/types').Capitol> =>
+    api.get(`/politics/capitol${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
+  appointMinister: (postKey: string, characterId: string | null) =>
+    api.post(`/politics/cabinet/${postKey}/appoint`, { characterId }).then(res => res.data),
   getState: () => api.get(`/politics/state?t=${Date.now()}`).then(res => res.data),
   getCycle: (stateId?: string) => api.get(`/politics/cycle${stateId ? `?stateId=${stateId}&t=${Date.now()}` : `?t=${Date.now()}`}`).then(res => res.data),
   getParties: (stateId?: string) => api.get(`/politics/parties${stateId ? `?stateId=${stateId}&t=${Date.now()}` : `?t=${Date.now()}`}`).then(res => res.data),

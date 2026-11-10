@@ -114,7 +114,11 @@ export function getElectionOffsetMonths(code: string | null | undefined): number
 export const POL_COUNCIL_SEATS = POL_DEFAULT_JURISDICTION.seats;        // was 61
 export const POL_MAJORITY_SEATS = POL_DEFAULT_JURISDICTION.majority;    // was 31
 export const POL_TERM_LENGTH_MONTHS = POL_DEFAULT_JURISDICTION.termMonths; // was 48
-export const POL_COALITION_MAX_DISTANCE = 0.30;
+// Max platform distance (sqrt of summed squared axis gaps /100) for two parties to
+// govern together. 0.30 only allowed near-identical parties, so no coalition ever
+// formed in Drennia; 0.50 allows left and right blocs (e.g. CSU+NPP = 0.48) but
+// never the two poles (NLF+NPP = 0.84). Phase 2.
+export const POL_COALITION_MAX_DISTANCE = 0.50;
 export const POL_NPC_MAX_SPEND_FRAC = 0.25;
 // A projected segment share below this counts as "trailing" for the NPC campaign
 // brain, prompting it to spend on that segment. (Was an inline 0.20 magic number.)

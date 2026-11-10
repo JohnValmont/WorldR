@@ -1,52 +1,58 @@
 'use client';
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+// Politics — "The Capitol" (Phase 2 rebuild, docs/REVIVAL_PLAN.md).
+// Open to every player. One read model (GET /politics/capitol) drives the new
+// Overview / Nation / Parliament / Laws / Elections screens; the older detailed
+// screens (campaign desk, party HQ, lobby, legacy) stay available as tabs.
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { Lock } from 'lucide-react';
 import { politicsApi, characterApi, worldApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
-import { DEFAULT_JURISDICTION_ID, type JurisdictionId } from './_lib/session';
-import { JURISDICTION_MODEL } from './_lib/model';
-import { formatGameDateShort } from '@/lib/calendar';
 import { useWorldClock, formatCountdown } from '@/hooks/useWorldClock';
+import { formatPolArc } from '@/lib/calendar';
+import { DEFAULT_JURISDICTION_ID } from './_lib/session';
 
-import OverviewScreen    from './OverviewScreen';
-import NationScreen      from './NationScreen';
-import ElectionsScreen   from './ElectionsScreen';
-import LegislatureScreen from './LegislatureScreen';
-import PolicyScreen      from './PolicyScreen';
-import AssemblyScreen    from './AssemblyScreen';
-import PartyScreen       from './PartyScreen';
-import LobbyScreen       from './LobbyScreen';
-import LegacyScreen      from './LegacyScreen';
-import DevelopmentScreen from './DevelopmentScreen';
-import MapScreen         from './MapScreen';
+import { C, PHASES } from './_capitol/theme';
+import { CapitolSkyline, NationFlag } from './_capitol/art';
+import OverviewTab from './_capitol/OverviewTab';
+import NationTab from './_capitol/NationTab';
+import ParliamentTab from './_capitol/ParliamentTab';
+import LawsTab from './_capitol/LawsTab';
+import ElectionsTab from './_capitol/ElectionsTab';
 
-import PoliticsSidebar from './_components/PoliticsSidebar';
-import { PageShell } from '@/components/ui';
+import ElectionsScreen from './ElectionsScreen';
+import PartyScreen from './PartyScreen';
+import LobbyScreen from './LobbyScreen';
+import LegacyScreen from './LegacyScreen';
 
-// ─── Sub-tab types ────────────────────────────────────────────────────────────
-type SubTab = 'overview' | 'nation' | 'development' | 'elections' | 'legislature' | 'assembly' | 'policy' | 'party' | 'lobby' | 'legacy' | 'map';
+type Tab = 'overview' | 'nation' | 'parliament' | 'laws' | 'elections' | 'campaign' | 'party' | 'lobby' | 'legacy';
+const TABS: { id: Tab; label: string; legacy?: boolean }[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'nation', label: 'Nation' },
+  { id: 'parliament', label: 'Parliament' },
+  { id: 'laws', label: 'Laws' },
+  { id: 'elections', label: 'Elections' },
+  { id: 'campaign', label: 'Campaign desk', legacy: true },
+  { id: 'party', label: 'Party HQ', legacy: true },
+  { id: 'lobby', label: 'Lobby', legacy: true },
+  { id: 'legacy', label: 'Legacy', legacy: true },
+];
+// Older screens navigate with their own ids; map them onto the new tabs.
+const LEGACY_NAV: Record<string, Tab> = {
+  overview: 'overview', nation: 'nation', development: 'nation', elections: 'campaign', legislature: 'parliament',
+  assembly: 'parliament', policy: 'laws', party: 'party', lobby: 'lobby', legacy: 'legacy', map: 'elections',
+};
 
-// ─── Error Boundary — prevents one tab crash from killing the whole page ───────
-class TabErrorBoundary extends React.Component<
-  { children: React.ReactNode; tab: string },
-  { error: Error | null }
-> {
-  constructor(props: any) {
-    super(props);
-    this.state = { error: null };
-  }
+class TabErrorBoundary extends React.Component<{ children: React.ReactNode; tab: string }, { error: Error | null }> {
+  constructor(props: any) { super(props); this.state = { error: null }; }
   static getDerivedStateFromError(error: Error) { return { error }; }
-  componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error(`[PoliticsDesk] ${this.props.tab} tab crashed:`, error, info);
-  }
+  componentDidCatch(error: Error) { console.error(`[Politics] ${this.props.tab} tab crashed:`, error); }
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: 32, color: '#ef4444', fontFamily: 'monospace', fontSize: 13, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 12 }}>
-          <div style={{ fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.12em' }}>⚠ Tab Error — {this.props.tab}</div>
-          <div style={{ color: 'rgba(255,255,255,0.5)', marginBottom: 12 }}>{this.state.error.message}</div>
-          <button onClick={() => this.setState({ error: null })} style={{ padding: '6px 14px', borderRadius: 6, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#fca5a5', cursor: 'pointer', fontFamily: 'monospace', fontSize: 11 }}>Retry</button>
+        <div className="rounded-xl p-6 text-sm" style={{ background: 'rgba(194,72,63,0.08)', border: '1px solid rgba(194,72,63,0.35)', color: '#E88C84' }}>
+          <div className="font-semibold mb-1">This screen hit an error.</div>
+          <div className="opacity-70 mb-3">{this.state.error.message}</div>
+          <button className="underline" onClick={() => this.setState({ error: null })}>Try again</button>
         </div>
       );
     }
@@ -54,212 +60,146 @@ class TabErrorBoundary extends React.Component<
   }
 }
 
-export default function PoliticsDesk() {
-  const [activeTab, setActiveTab] = useState<SubTab>('overview');
-  const [selectedJurisdictionId, setSelectedJurisdictionId] = useState<JurisdictionId>(DEFAULT_JURISDICTION_ID);
+export default function PoliticsPage() {
+  const [tab, setTab] = useState<Tab>('overview');
   const { clock, polSecondsToTick, isPolTickStalled } = useWorldClock();
-
-  // 'politics-me' avoids a cache collision with the DRX exchange page's 'me' key.
-  const POLL_MS = 30_000;
-
+  const user = useAuthStore(s => s.user);
   const [isAdminDynamic, setIsAdminDynamic] = useState(false);
-  const [isAdvancingPol, setIsAdvancingPol] = useState(false);
-  const user = useAuthStore(state => state.user);
-
+  const [advancing, setAdvancing] = useState(false);
   const isAdmin = user?.role === 'admin' || isAdminDynamic;
+  useEffect(() => { authApi.me().then(res => setIsAdminDynamic(!!res.data?.isAdmin)).catch(() => {}); }, []);
 
-  useEffect(() => {
-    authApi.me().then(res => setIsAdminDynamic(res.data.isAdmin)).catch(() => {});
-  }, []);
+  const { data: cap, error, mutate } = useSWR('politics-capitol', () => politicsApi.getCapitol(), { refreshInterval: 30_000 });
+  const refresh = useCallback(() => { mutate(); }, [mutate]);
 
-  const { data: character, mutate: mutateChar, error: errChar } = useSWR(isAdmin ? 'politics-me' : null, () => characterApi.getMe().then((res: any) => res.data || res), { refreshInterval: POLL_MS });
-  const { data: overview, mutate: mutateOver, error: errOver } = useSWR(isAdmin ? 'politicsState' : null, () => politicsApi.getState(), { refreshInterval: POLL_MS });
-  const { data: parties = [], mutate: mutateParties, error: errParties } = useSWR(isAdmin ? ['parties', selectedJurisdictionId] : null, () => politicsApi.getParties(selectedJurisdictionId), { refreshInterval: POLL_MS });
-  const { data: ledger = [], mutate: mutateLedger } = useSWR(isAdmin ? ['ledger', selectedJurisdictionId] : null, () => politicsApi.getLedger(20, selectedJurisdictionId), { refreshInterval: POLL_MS });
-  const { data: myApData, mutate: mutateAp } = useSWR(isAdmin ? 'myAp' : null, () => politicsApi.getMyAp(), { refreshInterval: POLL_MS });
-  const { data: myPcData, mutate: mutatePc } = useSWR(isAdmin ? 'myPc' : null, () => politicsApi.getMyPc(), { refreshInterval: POLL_MS });
+  // Data for the older screens, fetched only when one of them is open.
+  const legacyOpen = TABS.find(t => t.id === tab)?.legacy;
+  const { data: character, mutate: mChar } = useSWR(legacyOpen ? 'politics-me' : null, () => characterApi.getMe().then((r: any) => r.data || r));
+  const { data: overview, mutate: mOver } = useSWR(legacyOpen ? 'politicsState' : null, () => politicsApi.getState());
+  const { data: parties = [], mutate: mParties } = useSWR(legacyOpen ? ['parties', DEFAULT_JURISDICTION_ID] : null, () => politicsApi.getParties(DEFAULT_JURISDICTION_ID));
+  const { data: apData, mutate: mAp } = useSWR(legacyOpen ? 'myAp' : null, () => politicsApi.getMyAp());
+  const { data: pcData, mutate: mPc } = useSWR(legacyOpen ? 'myPc' : null, () => politicsApi.getMyPc());
+  const legacyRefresh = useCallback(async () => { await Promise.all([mChar(), mOver(), mParties(), mAp(), mPc(), mutate()]); }, [mChar, mOver, mParties, mAp, mPc, mutate]);
+  const legacyProps = useMemo(() => ({
+    selectedJurisdictionId: DEFAULT_JURISDICTION_ID,
+    onJurisdictionChange: () => {},
+    jurisdictionMeta: overview?.activeState ? { [overview.activeState.code]: { id: overview.activeState.code } } : {},
+    overview, character, parties,
+    myAp: (apData as any) || { current_ap: 0, ap_cap: 12 },
+    myPc: (pcData as any) || { current_pc: 0, pc_cap: 10 },
+    onRefresh: legacyRefresh,
+    onNavigate: (id: string) => setTab(LEGACY_NAV[id] ?? 'overview'),
+  }), [overview, character, parties, apData, pcData, legacyRefresh]);
 
-  const myAp = (myApData as { current_ap: number; ap_cap: number }) || { current_ap: 0, ap_cap: 12 };
-  const myPc = (myPcData as { current_pc: number; pc_cap: number }) || { current_pc: 0, pc_cap: 10 };
+  const go = (t: string) => setTab((TABS.find(x => x.id === t)?.id ?? LEGACY_NAV[t] ?? 'overview') as Tab);
 
-  const loadData = useCallback(async () => {
-    await Promise.all([mutateChar(), mutateOver(), mutateParties(), mutateLedger(), mutateAp(), mutatePc()]);
-  }, [mutateChar, mutateOver, mutateParties, mutateLedger, mutateAp, mutatePc]);
-
-  const handleForcePolTick = async () => {
-    if (isAdvancingPol) return;
-    setIsAdvancingPol(true);
-    try {
-      const res = await worldApi.forcePoliticsTick();
-      const result = res?.data ?? res;
-      if (result?.status === 'success' || result?.data?.status === 'ticked') {
-        await loadData();
-        window.location.reload();
-        return;
-      }
-      alert(result?.message || 'Politics tick executed');
-      await loadData();
-    } catch (err: any) {
-      alert(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to advance politics tick');
-    } finally {
-      setIsAdvancingPol(false);
-    }
+  const forceTick = async () => {
+    if (advancing) return;
+    setAdvancing(true);
+    try { await worldApi.forcePoliticsTick(); await mutate(); }
+    catch (e: any) { alert(e?.response?.data?.error || e?.message || 'Failed to advance the politics month'); }
+    finally { setAdvancing(false); }
   };
 
-  const isLoadingMe = !character && !errChar;
-  const isLoadingOverview = !overview && !errOver;
-  const loading = isAdmin && (isLoadingMe || isLoadingOverview);
-  const error = errChar || errOver || errParties;
-
-  const jMeta = JURISDICTION_MODEL[selectedJurisdictionId] || JURISDICTION_MODEL.national;
-
-  const jurisdictionMeta = useMemo(() => {
-    const meta: Record<string, any> = {};
-    if (overview?.activeState) meta[overview.activeState.code] = { id: overview.activeState.code };
-    return meta;
-  }, [overview]);
-
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col h-screen bg-[#090A0F] text-zinc-100 items-center justify-center p-6 select-none font-mono">
-        <div className="max-w-md w-full bg-zinc-950/80 border border-zinc-800/80 p-8 rounded-xl backdrop-blur-xl shadow-2xl flex flex-col items-center text-center">
-          <div className="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-5 shadow-[0_0_20px_rgba(245,158,11,0.15)]">
-            <Lock size={26} />
-          </div>
-          <div className="text-[11px] font-bold text-amber-500/90 tracking-widest uppercase mb-1">Restricted Access</div>
-          <h1 className="text-xl font-bold text-zinc-100 font-sans mb-3">Political Desk Locked</h1>
-          <p className="text-xs text-zinc-400 font-sans leading-relaxed mb-6">
-            The Political Desk is currently restricted to Administrators during closed pre-release testing. Check back in a future update!
-          </p>
-          <a
-            href="/drennia/chronicle"
-            className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg transition-all border border-zinc-700 shadow-md flex items-center gap-2"
-          >
-            ← Return to Chronicle
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  const commonProps = {
-    selectedJurisdictionId,
-    onJurisdictionChange: setSelectedJurisdictionId,
-    jurisdictionMeta,
-    overview,
-    character,
-    parties,
-    myAp,
-    myPc,
-    onRefresh: loadData,
-    onNavigate: setActiveTab,
-  };
-
-  const myParty = overview?.globalParty || (Array.isArray(parties) ? parties.find((p: any) => p.leader_character_id === character?.id || p.members?.some((m: any) => m.character_id === character?.id || m.id === character?.id)) : undefined);
+  const phase = cap ? PHASES.find(p => p.key === cap.calendar.phase) : null;
 
   return (
-    <div className="flex flex-col h-screen bg-[#090A0F] text-zinc-100 overflow-hidden">
-      
-      {/* ─── Compact Header ─── */}
-      <header className="flex-none bg-zinc-950 border-b border-zinc-900/60 sticky top-0 z-20 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-950/80">
-        <div className="flex items-center justify-between px-6 py-2">
-          <div className="flex items-center gap-3">
-            <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-[0_0_10px_rgba(79,110,247,0.3)]">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 21h18"/><path d="M5 21V10M9 21V10M15 21V10M19 21V10"/><path d="M3 10 12 4l9 6"/>
-              </svg>
+    <div className="min-h-screen" style={{ background: C.night, color: C.ivory }}>
+      {/* ── Banner ── */}
+      <header className="relative overflow-hidden" style={{ borderBottom: `1px solid ${C.line}` }}>
+        <CapitolSkyline className="absolute inset-0 w-full h-full" />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(10,14,24,0.92) 0%, rgba(10,14,24,0.55) 55%, rgba(10,14,24,0.85) 100%)' }} />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-5 pb-4">
+          <div className="flex flex-wrap items-center gap-4 justify-between">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              <div className="shrink-0 sm:hidden"><NationFlag spec={cap?.nation.flag} width={52} /></div>
+              <div className="shrink-0 hidden sm:block"><NationFlag spec={cap?.nation.flag} width={84} /></div>
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-[0.25em]" style={{ color: C.brass }}>{cap?.nation.government ?? 'Politics'}</div>
+                <h1 className="font-serif text-xl sm:text-2xl font-bold leading-tight truncate">{cap?.nation.officialName ?? 'The Capitol'}</h1>
+                {cap?.nation.motto && <div className="text-xs italic truncate" style={{ color: C.ink }}>&ldquo;{cap.nation.motto}&rdquo;</div>}
+              </div>
             </div>
-            <div className="text-[13px] font-bold text-[#F4EBD6]">Political Desk</div>
-          </div>
-          
-          <div className="flex items-center gap-6">
-            {character?.political?.credibility != null && (
-              <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">Credibility</span>
-                <span className="text-sm font-bold text-zinc-100 font-mono">{character.political.credibility}</span>
+            <div className="flex items-center gap-4 sm:gap-6 text-right">
+              {cap && (
+                <>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider" style={{ color: C.muted }}>Date</div>
+                    <div className="font-mono text-sm">{formatPolArc(cap.calendar.arc)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider" style={{ color: C.muted }}>Phase</div>
+                    <div className="text-sm font-semibold" style={{ color: C.brass }}>{phase?.label}</div>
+                  </div>
+                </>
+              )}
+              <div>
+                <div className="text-[10px] uppercase tracking-wider" style={{ color: C.muted }}>Next month</div>
+                <div className="font-mono text-sm">
+                  {clock?.status === 'paused' ? 'Paused' : isPolTickStalled ? 'Delayed' : polSecondsToTick != null ? formatCountdown(polSecondsToTick) : '--:--'}
+                </div>
               </div>
-            )}
-            {character?.finances?.cash_in_hand != null && (
-              <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">Liquid Cash</span>
-                <span className="text-sm font-bold text-[#36D399] font-mono">${Number(character.finances.cash_in_hand).toLocaleString()}</span>
-              </div>
-            )}
-            <div className="flex flex-col">
-              <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">AP ({myAp.current_ap}/{myAp.ap_cap})</span>
-              <span className="text-sm font-bold text-terminal-amber font-mono">{myAp.current_ap}</span>
+              {cap?.me && (
+                <div className="hidden sm:block">
+                  <div className="text-[10px] uppercase tracking-wider" style={{ color: C.muted }}>AP</div>
+                  <div className="font-mono text-sm" style={{ color: C.brass }}>{cap.me.ap.current}/{cap.me.ap.cap}</div>
+                </div>
+              )}
+              {isAdmin && (
+                <button onClick={forceTick} disabled={advancing} className="text-[10px] font-mono uppercase tracking-wider px-2 py-1.5 rounded border disabled:opacity-50" style={{ borderColor: 'rgba(147,51,234,0.5)', color: '#D8B4FE' }} title="Admin only: run the next politics month now">
+                  {advancing ? '…' : '⚡ Tick'}
+                </button>
+              )}
             </div>
-            {overview?.cycle?.currentArc != null && (
-              <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">Current Date</span>
-                <span className="text-sm font-bold text-zinc-100 font-mono">{formatGameDateShort(overview.cycle.currentArc)}</span>
-              </div>
-            )}
-            {clock && clock.status !== 'paused' && (
-              <div className="flex flex-col min-w-[90px]">
-                <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">Next Month</span>
-                <span className={`text-sm font-bold font-mono ${polSecondsToTick != null && polSecondsToTick <= 60 ? 'text-terminal-amber animate-pulse' : 'text-zinc-100'}`}>
-                  {isPolTickStalled ? 'DELAYED' : polSecondsToTick != null ? formatCountdown(polSecondsToTick) : '--:--:--'}
-                </span>
-              </div>
-            )}
-            {clock?.status === 'paused' && (
-              <div className="flex flex-col min-w-[90px]">
-                <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono font-bold">Next Month</span>
-                <span className="text-sm font-bold font-mono text-zinc-500">PAUSED</span>
-              </div>
-            )}
-            {isAdmin && (
-              <button
-                onClick={handleForcePolTick}
-                disabled={isAdvancingPol}
-                className="px-2.5 py-1.5 text-[10px] font-mono font-bold uppercase tracking-wider rounded border border-purple-500/50 bg-gradient-to-r from-purple-900/60 to-indigo-900/60 hover:from-purple-800/80 hover:to-indigo-800/80 text-purple-200 shadow-[0_0_12px_rgba(147,51,234,0.25)] transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-              >
-                {isAdvancingPol ? 'PROCESSING...' : '⚡ FORCE POL TICK'}
-              </button>
-            )}
           </div>
         </div>
+        {/* ── Tabs ── */}
+        <nav className="relative max-w-7xl mx-auto px-2 sm:px-4 overflow-x-auto" aria-label="Politics sections">
+          <div className="flex gap-1 min-w-max">
+            {TABS.map((t, i) => (
+              <React.Fragment key={t.id}>
+                {t.legacy && !TABS[i - 1]?.legacy && <span className="w-px my-2 mx-1" style={{ background: C.line }} />}
+                <button
+                  id={`tab-${t.id}`}
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  className="px-3 py-2.5 text-[13px] font-semibold transition-colors relative"
+                  style={{ color: tab === t.id ? C.ivory : C.muted }}
+                >
+                  {t.label}
+                  {tab === t.id && <span className="absolute left-2 right-2 bottom-0 h-0.5 rounded-full" style={{ background: C.brass }} />}
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
+        </nav>
       </header>
 
-      {/* ─── Sidebar + Main Content Row ─── */}
-      <div className="flex flex-1 overflow-hidden">
-        <PoliticsSidebar
-          active={activeTab}
-          onSelectAction={(id) => setActiveTab(id as SubTab)}
-          myPartyName={myParty?.name}
-          myPartyNation={jMeta?.name}
-          partyColor={myParty?.identity?.color || myParty?.colorHex}
-        />
-
-        <div className="flex-1 overflow-y-auto bg-[#090A0F]">
-          <PageShell className="py-6 px-8">
-            {loading ? (
-              <div className="py-12 text-center text-zinc-500 text-xs font-mono uppercase tracking-widest">
-                Convening the Political Desk...
-              </div>
-            ) : error ? (
-              <div className="bg-[#B85555]/10 border border-[#B85555]/40 text-[#B85555] p-4 rounded-xl text-sm">
-                {String((error as any)?.response?.data?.error || (error as any)?.message || error)}
-              </div>
-            ) : (
-              <>
-                {activeTab === 'overview' && <OverviewScreen overview={overview} character={character} parties={parties} myAp={myAp} selectedJurisdictionId={selectedJurisdictionId} onNavigate={setActiveTab} onRefresh={loadData} />}
-                {activeTab === 'nation' && <NationScreen selectedJurisdictionId={selectedJurisdictionId} onJurisdictionChange={setSelectedJurisdictionId} jurisdictionMeta={jurisdictionMeta} overview={overview} ledger={ledger} />}
-                {activeTab === 'development' && <DevelopmentScreen overview={overview} selectedJurisdictionId={selectedJurisdictionId} />}
-                {activeTab === 'elections' && <ElectionsScreen {...commonProps} />}
-                {activeTab === 'legislature' && <LegislatureScreen {...commonProps} />}
-                {activeTab === 'policy' && <PolicyScreen {...commonProps} />}
-                {activeTab === 'assembly' && <AssemblyScreen {...commonProps} />}
-                {activeTab === 'party' && <TabErrorBoundary tab="Party"><PartyScreen {...commonProps} /></TabErrorBoundary>}
-                {activeTab === 'lobby' && <LobbyScreen {...commonProps} />}
-                {activeTab === 'legacy' && <LegacyScreen character={character} />}
-                {activeTab === 'map' && <MapScreen character={character} myAp={myAp} parties={parties} onRefresh={loadData} />}
-              </>
-            )}
-          </PageShell>
-        </div>
-      </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-5">
+        {!cap && !error && (
+          <div className="py-24 text-center text-xs uppercase tracking-[0.3em]" style={{ color: C.muted }}>Convening Parliament…</div>
+        )}
+        {error && !cap && (
+          <div className="rounded-xl p-5 text-sm" style={{ background: 'rgba(194,72,63,0.08)', border: '1px solid rgba(194,72,63,0.35)', color: '#E88C84' }}>
+            Couldn&apos;t load politics: {String((error as any)?.response?.data?.error || (error as any)?.message || error)}
+            <button className="ml-3 underline" onClick={() => mutate()}>Retry</button>
+          </div>
+        )}
+        {cap && (
+          <TabErrorBoundary key={tab} tab={tab}>
+            {tab === 'overview' && <OverviewTab cap={cap} go={go} />}
+            {tab === 'nation' && <NationTab cap={cap} />}
+            {tab === 'parliament' && <ParliamentTab cap={cap} refresh={refresh} />}
+            {tab === 'laws' && <LawsTab cap={cap} refresh={refresh} />}
+            {tab === 'elections' && <ElectionsTab cap={cap} go={go} />}
+            {legacyOpen && !overview && <div className="py-16 text-center text-xs" style={{ color: C.muted }}>Loading…</div>}
+            {tab === 'campaign' && overview && <ElectionsScreen {...(legacyProps as any)} />}
+            {tab === 'party' && overview && <PartyScreen {...(legacyProps as any)} />}
+            {tab === 'lobby' && overview && <LobbyScreen {...(legacyProps as any)} />}
+            {tab === 'legacy' && character && <LegacyScreen character={character} />}
+          </TabErrorBoundary>
+        )}
+      </main>
     </div>
   );
 }
