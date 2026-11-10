@@ -11,7 +11,8 @@ import {
   Mail, Landmark, ChevronRight, RefreshCw, AlertTriangle, Lock,
   Activity, Globe, Newspaper, Book,
 } from 'lucide-react';
-import { getContracts, formatGameDate } from '../../../lib/businessCore';
+import { formatGameDate } from '../../../lib/businessCore';
+import WorldThisMonth from '../../../components/gameplay/WorldThisMonth';
 import { addNotification } from '../../../lib/notifications';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import NotificationBell from '../../../components/gameplay/NotificationBell';
@@ -47,45 +48,6 @@ interface CompanySnapshot {
   finances?: { available_cash?: number };
 }
 
-// ── Static data (will be replaced by live API data in future months) ────────────
-
-const SECTOR_DEMAND = [
-  { sector: 'Shipping & Logistics', demand: 'High',    pct: 82, dir: 'up'   as const },
-  { sector: 'Manufacturing',        demand: 'Rising',  pct: 67, dir: 'up'   as const },
-  { sector: 'Retail & Consumer',    demand: 'Medium',  pct: 48, dir: 'flat' as const },
-  { sector: 'Agriculture & Food',   demand: 'Stable',  pct: 41, dir: 'flat' as const },
-];
-
-const LEDGER_HEADLINES = [
-  { id: 1, text: 'Drennport Commercial Bank reports stable liquidity for Q2.' },
-  { id: 2, text: 'Ironvale suppliers warn of material cost increases.' },
-  { id: 3, text: 'Westport Bourse volume up — Trade activity strengthens.' },
-  { id: 4, text: 'Greenmere harvest season expected ahead of schedule.' },
-  { id: 5, text: 'New registry filings up 12% — Business formation accelerating.' },
-];
-
-/** Mock net-worth series — last 12 months. Replace with real ledger data when available. */
-const MOCK_NET_WORTH_SERIES = [
-  { month: '11m ago', value: 50000 },
-  { month: '10m ago', value: 48200 },
-  { month: '9m ago', value: 52100 },
-  { month: '8m ago', value: 57300 },
-  { month: '7m ago', value: 61800 },
-  { month: '6m ago', value: 59200 },
-  { month: '5m ago', value: 65000 },
-  { month: '4m ago', value: 72400 },
-  { month: '3m ago', value: 81200 },
-  { month: '2m ago', value: 88700 },
-  { month: '1m ago', value: 95100 },
-  { month: 'Last mo', value: 103800 },
-];
-
-const demandColor = {
-  up:   '#30d158',
-  flat: '#ff9f0a',
-  down: '#ff453a',
-} as const;
-
 // ── Custom Tooltip ─────────────────────────────────────────────────────────────
 
 function ChartTooltip({ active, payload, label }: any) {
@@ -94,28 +56,6 @@ function ChartTooltip({ active, payload, label }: any) {
     <div className="bg-[#0c0d13] border border-[#23232b] px-3 py-2 rounded-lg text-[10px] font-mono shadow-card">
       <p className="text-zinc-500 mb-0.5 uppercase tracking-wider">{label}</p>
       <p className="text-terminal-amber font-bold">${Number(payload[0].value).toLocaleString('en-US')}</p>
-    </div>
-  );
-}
-
-// ── Sector Demand Bar ──────────────────────────────────────────────────────────
-
-function DemandBar({ sector, demand, pct, dir }: typeof SECTOR_DEMAND[0]) {
-  const color = demandColor[dir];
-  return (
-    <div className="flex items-center gap-3 py-2 border-b border-[#23232b] last:border-0">
-      <span className="text-[11px] text-zinc-400 flex-1 min-w-0 truncate">{sector}</span>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <div className="w-24 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-          <div
-            className="h-full rounded-full animate-bar-fill"
-            style={{ width: `${pct}%`, background: color }}
-          />
-        </div>
-        <span className="text-[10px] font-mono font-bold w-12 text-right" style={{ color }}>
-          {demand}
-        </span>
-      </div>
     </div>
   );
 }
@@ -132,9 +72,7 @@ export default function ChroniclePage() {
   const [playerCash, setPlayerCash]       = useState(0);
   const [company, setCompany]             = useState<CompanySnapshot | null>(null);
   const [totalCompanyCash, setTotalCompanyCash] = useState(0);
-  const [recentRecords, setRecentRecords] = useState<any[]>([]);
-  const [activeContracts, setActiveContracts] = useState(0);
-  const [netWorthSeries, setNetWorthSeries]   = useState(MOCK_NET_WORTH_SERIES);
+  const [netWorthSeries, setNetWorthSeries]   = useState<{ month: string; value: number }[]>([]);
   const [netWorth, setNetWorth] = useState(0);
   const [ledgerFeed, setLedgerFeed] = useState<any[]>([]);
   const [showFirstDay, setShowFirstDay] = useState(false);
@@ -258,10 +196,6 @@ export default function ChroniclePage() {
               }
               setTotalCompanyCash(totalCash);
 
-              const contracts = getContracts();
-              setActiveContracts(
-                contracts.filter(c => c.status === 'awarded' && c.awardedToCompanyId === myCompany.id).length
-              );
               // We no longer overwrite net worth series here because character API now returns true historical net worth
             }
           }).catch(() => {});
@@ -272,8 +206,7 @@ export default function ChroniclePage() {
               month: ev.month,
               text: `[Month ${ev.month}] ${ev.headline}: ${ev.body}`
             }));
-            const combined = [...polEvents, ...LEDGER_HEADLINES.map(h => ({ ...h, id: `static_${h.id}`, month: null }))];
-            setLedgerFeed(combined);
+            setLedgerFeed(polEvents);
 
             // Mirror world/ledger movements into the notification feed so the
             // header bell surfaces "while you were away" events. Stable ids
@@ -288,25 +221,16 @@ export default function ChroniclePage() {
               });
             });
           }).catch(() => {
-            setLedgerFeed(LEDGER_HEADLINES.map(h => ({ ...h, month: null })));
+            setLedgerFeed([]);
           });
           
         })
         .catch(err => {
-          if (err.response?.status === 404) router.replace('/start/character');
+          if (err.response?.status === 404) window.location.href = '/landing/onboarding.html?action=character';
         })
         .finally(() => setAuthorized(true));
     });
 
-    let recs: any[] = [];
-    try {
-      recs = JSON.parse(localStorage.getItem('worldr_records_v1') || '[]');
-      if (!Array.isArray(recs)) recs = [];
-    } catch (e) {
-      console.warn('Failed to parse records', e);
-      recs = [];
-    }
-    setRecentRecords(recs.slice(0, 6));
   }, [router]);
 
   if (!authorized) return null;
@@ -337,15 +261,8 @@ export default function ChroniclePage() {
 
   const sidebar = (
     <>
-      {/* Market Snapshot */}
-      <Card kicker="Market Snapshot" icon={BarChart2}>
-        {SECTOR_DEMAND.map(s => <DemandBar key={s.sector} {...s} />)}
-        <div className="mt-3 flex justify-end">
-          <Link href="/drennia/market" className="text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-600 hover:text-terminal-amber transition-colors">
-            Full Market →
-          </Link>
-        </div>
-      </Card>
+      {/* Drennia this month — real simulation data only */}
+      <WorldThisMonth />
 
 
 
@@ -631,7 +548,6 @@ export default function ChroniclePage() {
                   ) : (
                     <Button href="/drennia/politics" variant="secondary" size="sm">Politics Desk →</Button>
                   )}
-                  {activeContracts > 0 && <Badge variant="amber">{activeContracts} active contracts</Badge>}
                 </div>
               </div>
             );
@@ -788,9 +704,6 @@ export default function ChroniclePage() {
                 </div>
                 <div className="flex items-center gap-2 mb-4">
                   <StatusDot variant="live" label="Active" />
-                  {activeContracts > 0 && (
-                    <Badge variant="amber">{activeContracts} contracts</Badge>
-                  )}
                 </div>
                 <Button href="/drennia/business" variant="secondary" size="sm">
                   Open Business Desk →
@@ -841,28 +754,6 @@ export default function ChroniclePage() {
             </Card>
           )}
 
-          {/* Recent Records */}
-          <Card kicker="Recent Records" icon={ScrollText} headerSlot={<Link href="/drennia/records" className="text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-500 hover:text-terminal-amber transition-colors">View All →</Link>}>
-            {recentRecords.length === 0 ? (
-              <EmptyState
-                icon={ScrollText}
-                message="No records yet. Your filings, contracts, and actions will appear here."
-                className="py-6"
-              />
-            ) : (
-              <div>
-                {recentRecords.map((r, i) => (
-                  <DataRow
-                    key={r.id ?? i}
-                    label={r.summary ?? r.title ?? '—'}
-                    value={r.type ?? ''}
-                    valueVariant="amber"
-                    border={i < recentRecords.length - 1}
-                  />
-                ))}
-              </div>
-            )}
-          </Card>
 
           {/* Drennian Ledger */}
           <Card kicker="Drennian Ledger" icon={Newspaper}>
@@ -878,7 +769,7 @@ export default function ChroniclePage() {
               </div>
             ))}
             {ledgerFeed.length === 0 && (
-              <div className="py-2 text-[11px] text-zinc-500 italic">No ledger entries found.</div>
+              <div className="py-2 text-[11px] text-zinc-500 italic">No national news yet. Bills, elections and scandals will be reported here as they happen.</div>
             )}
           </Card>
 

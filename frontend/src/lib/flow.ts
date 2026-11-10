@@ -1,16 +1,11 @@
 /**
- * Determines the correct redirect path for the user based on their progress
- * through the pre-alpha flow and citizen file creation.
+ * Where to send someone arriving at a generic entry point.
+ * The game layout (app/drennia/layout.tsx) then confirms with the server
+ * whether they have a character — see lib/session.ts.
  */
+import { getEntryPath } from './session';
+
 export const getFlowRedirectPath = (): string => {
-  if (typeof window === 'undefined') return '/world-entry';
-
-  const hasMotherland = !!localStorage.getItem('worldr_selected_motherland');
-  const hasCitizenFile = !!localStorage.getItem('worldr_citizen_file_v1');
-
-  if (!hasMotherland || !hasCitizenFile) {
-    return '/landing/onboarding.html?action=character';
-  }
-
-  return '/drennia/chronicle';
+  if (typeof window === 'undefined') return '/landing/index.html';
+  return getEntryPath();
 };

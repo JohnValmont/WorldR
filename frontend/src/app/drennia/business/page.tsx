@@ -284,7 +284,7 @@ export default function BusinessPage() {
         })
         .catch(err => {
           if (err.response?.status === 404) {
-             router.replace('/start/character');
+             window.location.href = '/landing/onboarding.html?action=character';
           }
         })
         .finally(() => {

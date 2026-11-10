@@ -12,7 +12,7 @@ export default function MotherlandDossierPanel({ selectedNation }: MotherlandDos
   const handleBeginLife = () => {
     localStorage.setItem('worldr_selected_continent', 'Varelia');
     localStorage.setItem('worldr_selected_motherland', 'Drennia');
-    router.push('/start/citizen-file');
+    window.location.href = '/landing/onboarding.html?action=character';
   };
 
   return (
