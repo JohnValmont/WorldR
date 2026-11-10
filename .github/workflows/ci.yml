@@ -44,6 +44,8 @@ jobs:
           tests/npc-reactivity-scenario.test.ts
           tests/npc-stability.test.ts
           tests/paid-research.test.ts
+          tests/npc-brain.test.ts
+          tests/npc-market-recovery.test.ts
 
   backend-all-tests:
     name: Backend — all tests (informational, allowed to fail)

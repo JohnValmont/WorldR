@@ -15,6 +15,38 @@ export const NPC_EXPAND_SELL_RATIO = 0.85;      // Dropped from 0.92 so NPCs exp
 // Maximum number of region markets an NPC will expand into automatically.
 export const NPC_MAX_MARKETS = 10;
 
+// ── Generational upgrades (replaces the old "new variant every 2 months" loop) ──
+// An NPC model is replaced by its next generation only once it reaches
+// MODEL_AGE_FACELIFT months. Build cost does NOT rise between generations —
+// compounding +5% per variant was the root cause of NPC prices inflating to
+// 30x launch price (with the 2.5x-cost price cap moving up with it).
+export const NPC_GENERATION_COST = 1_000_000;    // one-off cost of launching the next generation
+export const NPC_GENERATION_SCORE_BUMP = 4;      // reliability/performance/appeal gain per generation (capped at 100)
+
+// ── Demand-led production planning ──
+// Each month the NPC also plans from last month's real buyer interest
+// (manufacturing_sales_results.raw_buyer_interest), not only its own past
+// sales. Raw interest ignores competitors, so only this fraction is trusted.
+export const NPC_FORECAST_CONFIDENCE = 0.6;
+// Allocation weight for a market with no sales history yet (as a fraction of
+// the smallest known market's weight), so new markets still get some stock.
+export const NPC_NEW_MARKET_WEIGHT_FRACTION = 0.5;
+// A model counts as "Sold Out" overall when at least this share of its
+// markets sold out (previously only the first market's result was used).
+export const NPC_SOLD_OUT_MARKET_SHARE = 0.5;
+
+// ── Industrial espionage (NPC copies a player's hit car) ──
+// Previously: every month, any player model selling 20+ units was cloned by
+// every cash-rich NPC with +2 on all scores and a 5% lower price — so a
+// player's success was instantly stolen three times over, and all NPCs drifted
+// onto the same car outside their own segment. Now it is rare, in-segment and
+// the copy is a slightly worse knock-off at the NPC's own price.
+export const NPC_ESPIONAGE_COST = 1_000_000;
+export const NPC_ESPIONAGE_COOLDOWN_MONTHS = 24;   // per NPC company
+export const NPC_ESPIONAGE_MIN_PLAYER_SALES = 100; // player model units sold last month
+export const NPC_ESPIONAGE_SCORE_DELTA = -3;       // knock-off quality vs the original
+export const NPC_ESPIONAGE_PRICE_FACTOR = 1.0;     // copy priced at the player's price (no undercut)
+
 
 export const NPC_ROSTER = [
   {
