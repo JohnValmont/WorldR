@@ -506,7 +506,8 @@ function renderLive() {
   setLive('playerParties', fmtInt(s.politics.player_led_parties));
   setLive('npcParties', fmtInt(s.politics.parties - s.politics.player_led_parties));
   setLive('citizens', fmtInt(s.players.citizens));
-  setLive('activePlayers', s.players.active_recently == null ? fmtInt(s.players.citizens) : fmtInt(s.players.active_recently));
+  // Activity tracking (users.last_seen_at) fills in as players log in; never show citizens as "active".
+  setLive('activePlayers', s.players.active_recently == null ? '—' : fmtInt(s.players.active_recently));
   setLive('footer', s.clock && s.clock.status === 'paused' ? 'WORLD PAUSED · ' + date.toUpperCase() : 'LIVE · ' + date.toUpperCase());
 }
 fetch('/api/v1/world/snapshot')

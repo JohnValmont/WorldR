@@ -8,6 +8,7 @@ import { T, MONO, HEADING, SANS, stampStyle, glassPanelStyle } from './_lib/them
 import { BLOC_NAME_BY_KEY, PILLAR_BY_AXIS, JURISDICTION_MODEL } from './_lib/model';
 import JurisdictionSwitcher from './_components/JurisdictionSwitcher';
 import { Shield, Activity, Users, Map, CalendarClock, TrendingUp, CheckCircle, AlertCircle, ChevronDown } from 'lucide-react';
+import { REAL_HOURS_PER_MONTH } from './_lib/model';
 
 interface Props {
   selectedJurisdictionId: JurisdictionId;
@@ -21,7 +22,6 @@ interface Props {
   onRefresh?: () => void;
 }
 
-const REAL_HOURS_PER_MONTH = 8; // GDD $3
 
 // ── Glass Panel Component (Shared visual language with Command Center) ──
 function GlassPanel({ title, children, accent, flex }: { title: React.ReactNode, children: React.ReactNode, accent?: string, flex?: number | string }) {

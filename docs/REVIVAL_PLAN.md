@@ -300,3 +300,24 @@ Cosmetics only sell if others see them, so first build places where players' ide
 - 14 of 19 backend test files fail: some need a real database, some import files that no longer exist, and some are out of date with the current game-code signatures. They should be repaired and added to the required CI list one by one.
 - `backend/database/migrations/` holds 35 SQL files that never run automatically (several were applied to production by hand). They should be reconciled with the live `database/migrations/` folder against the production schema, not blindly moved.
 - Ticks still depend on the server staying awake. A host that doesn't sleep (or an external tick trigger for the main world tick) is still recommended.
+
+---
+
+## Phase 1 status (2026-11-10)
+
+**Done**
+- Real data only: the public `/world/snapshot` endpoint feeds the Chronicle "Drennia This Month" panel and the landing page. The fake headlines, mock charts and fake HUD numbers are gone, and four placeholder screens are retired (PR #42).
+- Server-checked onboarding: the game asks the server whether a player has a character instead of trusting the browser (PR #42).
+- Market collapse fixed: the AI facelift price spiral, production stuck at ~3 cars per region, unfair espionage copies, plus a one-time repair (PR #43).
+- **Car Designer:** a guided 6-step designer with starter templates, a live car illustration (body style, paint, accent, wheels, tagline), and live scores, cost, development time and per-region buyer interest. The numbers come from the server's real engineering and demand engines through `POST /manufacturing/models/preview`, so the preview matches what gets built. The old screen stays available as "Advanced Designer". Each car's look is stored in `design_style` and shown on its card. Styling is visual only, which makes it the home for future cosmetics.
+- **4-hour game month** (migration 0095), for both the business and politics clocks. A new car is ready in about 8–12 real hours.
+- Fresh databases can be built again: fixed a corrupted function terminator in migration 0001, and added the missing auctions tables (0084_5). Verified by building a brand-new database from all migrations and seeds.
+- Repaired the stale marketing and market-segment tests and made them required in CI.
+
+**Deliberately not done, with reasons**
+- **Private practice world.** The engine assumes a single world in hundreds of queries. The designer's instant forecast plus the 4-hour month give "see results the same day" without that refactor.
+
+**Found while testing (next candidates)**
+- New brands start with zero awareness and trust, so the locked demand formula gives a new company's car only about 2–3% of buyers (about 7% of what an established brand gets). Consider a starting reputation or awareness for new companies. That's a data change, not a change to the locked formula.
+- The chat widget polls the server every couple of seconds per player. That's wasteful at scale; it should poll less often or use server push.
+- 8 abandoned player car companies produce nothing. Handle with the inactive-player and season work.

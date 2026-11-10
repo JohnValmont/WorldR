@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
-import { MARKETING, awarenessGain } from '../constants/marketing';
+import { MARKETING, awarenessGain, MARKETING_DEMAND_MULT } from '../constants/marketing';
 import { formatGameDate } from '../utils/calendar';
 import { AppError } from '../../utils/errors';
 import {
@@ -17,6 +17,7 @@ import {
   KNOWLEDGE_DOMAINS,
   KNOWLEDGE_LEVEL_XP,
   DEFAULT_ENGINEERING_PRIORITIES,
+  ENGINEERING_PRIORITIES,
   BUDGET_BUCKETS,
   calcKnowledgeXp,
 } from '../constants/manufacturing';
@@ -35,6 +36,8 @@ import {
   calculateBalanceRating,
 } from '../constants/engineeringEngine';
 import { MARKET_SEGMENTS } from '../constants/marketSegments';
+import { validateDesignInput, computeVehicleDesign, forecastDesignDemand } from '../services/vehicleDesign.service';
+import { normaliseCarStyle, PAINT_COLORS, BODY_STYLES, WHEEL_STYLES, TAGLINE_MAX_LENGTH } from '../constants/carStyle';
 import { runNpcBrainForCompany, spawnNpc } from '../services/npcBrain.service';
 import { BANKRUPTCY_FLOOR } from '../constants/npc';
 import { processPoliticalArc, worldClockToArc } from '../services/politics.service';
@@ -193,6 +196,10 @@ export class ManufacturingController {
         qualityTargets: QUALITY_TARGETS,
         staffRoles: STAFF_ROLES,
         engineeringProgrammes: ENGINEERING_PROGRAMMES_CATALOG,
+        engineeringPriorities: ENGINEERING_PRIORITIES.map(p => ({ id: p.id, label: p.label, desc: p.desc })),
+        defaultEngineeringPriorities: DEFAULT_ENGINEERING_PRIORITIES,
+        carStyle: { paints: PAINT_COLORS, bodyStyles: BODY_STYLES, wheels: WHEEL_STYLES, taglineMaxLength: TAGLINE_MAX_LENGTH },
+        buyerSegments: Object.values(MARKET_SEGMENTS).map(s => ({ id: s.id, name: s.name, populationShare: s.populationShare, priceCeiling: s.priceCeiling })),
       });
     } catch (error) {
       next(error);
@@ -810,121 +817,28 @@ export class ManufacturingController {
     try {
       const userId = req.user?.id;
       const { companyId } = req.params;
-      const {
-        name, vehicleClass, platform, powerUnit, drivetrain, interiorTier, safetyTier, qualityTarget,
-        salePrice, targetSegment: reqSegment, appliedEngineeringPackage,
-        // Phase 3 fields
-        engineeringPriorities: rawPriorities,
-        budgetAllocation: rawBudgetAlloc,
-      } = req.body;
+      const { name } = req.body;
 
       if (!userId || !companyId) return next(new AppError('Missing or invalid fields: userId, companyId', 400, 'BAD_REQUEST'));
-      if (!name || !vehicleClass || !platform || !powerUnit || !drivetrain || !interiorTier || !safetyTier || !qualityTarget) {
-        return next(new AppError('All design choices are required', 400, 'BAD_REQUEST'));
-      }
-      if (!VEHICLE_CLASSES.includes(vehicleClass)) return next(new AppError('Invalid vehicle class', 400, 'BAD_REQUEST'));
-
-      // Validate and normalize engineering priorities
-      const engineeringPriorities: Record<string, number> = rawPriorities ?? DEFAULT_ENGINEERING_PRIORITIES;
-      let prioritySum = 0;
-      for (const val of Object.values(engineeringPriorities)) {
-        if (typeof val !== 'number' || val < 0) {
-          return next(new AppError('Engineering priorities must be positive numbers', 400, 'INVALID_PRIORITIES'));
-        }
-        prioritySum += val;
-      }
-      if (Math.abs(prioritySum - 100) > 2) {
-        return next(new AppError(`Engineering priorities must sum to 100 (got ${prioritySum})`, 400, 'INVALID_PRIORITIES'));
-      }
+      if (!name || typeof name !== 'string' || !name.trim()) return next(new AppError('Give your car a name', 400, 'BAD_REQUEST'));
+      if (name.trim().length > 60) return next(new AppError('Car name must be 60 characters or fewer', 400, 'BAD_REQUEST'));
+      // Shared with the preview endpoint so previews always match what gets built.
+      const designInput = validateDesignInput(req.body);
+      const { vehicleClass, platform, powerUnit, drivetrain, interiorTier, safetyTier, qualityTarget, appliedEngineeringPackage } = designInput;
+      const carStyle = normaliseCarStyle(req.body.style, vehicleClass);
 
       const result = await db.transaction(async (trx) => {
         const { company, autoConfig } = await verifyManufacturingCompany(trx, userId, companyId);
 
         // Check model name uniqueness globally per world instance
         const existingModel = await trx('manufacturing_vehicle_models')
-          .whereRaw('world_instance_id = ? AND LOWER(name) = ?', [company.world_instance_id, name.toLowerCase()])
+          .whereRaw('world_instance_id = ? AND LOWER(name) = ?', [company.world_instance_id, name.trim().toLowerCase()])
           .first();
         if (existingModel) throw new AppError('A vehicle model with this name already exists in Drennia', 400, 'NAME_TAKEN');
 
-        const clock = await trx('world_clock').first();
-        const currentYear = clock?.current_year ?? 1;
-        const currentMonth   = clock?.current_month   || 1;
-        const currentDay  = clock?.current_day  || 1;
-
-        // Engineer context
-        const engineerStaff = await trx('company_staff')
-          .where({ company_id: companyId, role: 'automotive-engineer' }).first();
-        const engineerCount = engineerStaff?.quantity || 0;
-
-        // Load company knowledge
-        const knowledgeRows = await trx('manufacturing_company_knowledge')
-          .where({ company_id: companyId });
-        const companyKnowledge: Record<string, number> = {};
-        for (const row of knowledgeRows) {
-          companyKnowledge[row.domain] = row.xp_points;
-        }
-
-        // Base dev cost from country config
-        const BASE_DEV_COST = Number(autoConfig?.base_vehicle_dev_cost ?? 150000);
-
-        // Build engineering design for engine
-        const budgetAlloc: Record<string, number> = rawBudgetAlloc ?? {};
-        // If no budget alloc supplied, distribute using defaults
-        if (Object.keys(budgetAlloc).length === 0) {
-          for (const bucket of BUDGET_BUCKETS) {
-            budgetAlloc[bucket.id] = Math.round(BASE_DEV_COST * bucket.defaultPct);
-          }
-        } else {
-          for (const val of Object.values(budgetAlloc)) {
-            if (typeof val !== 'number' || val < 0) {
-              throw new AppError('Budget allocations must be positive numbers', 400, 'INVALID_BUDGET');
-            }
-          }
-        }
-
-        const engineDesign: EngineeringDesign = {
-          vehicleClass,
-          platform,
-          powerUnit,
-          drivetrain,
-          interiorTier,
-          safetyTier,
-          qualityTarget,
-          priorities: engineeringPriorities,
-          budgetAlloc,
-          totalBudget: BASE_DEV_COST,
-          appliedEngineeringPackage: appliedEngineeringPackage || undefined,
-        };
-
-        const engContext: EngineerContext = {
-          engineerCount,
-          engineerSkillLevel: Math.min(Math.floor(engineerCount / 2), 5),
-          companyKnowledge,
-          currentMonth,
-          currentYear,
-        };
-
-        // Run the engineering engine
-        const outcome = calculateEngineeringOutcome(engineDesign, engContext);
-
-        const computedSegment = qualityTarget === 'budget' ? 'Economy'
-          : qualityTarget === 'premium' ? 'Premium'
-          : 'Mid-Range';
-        const finalSegment = reqSegment || computedSegment;
-
-        // Compute manufacturing cost from component costs, adjusted by the engine's production cost multiplier
-        const platDef  = PLATFORMS.find(p => p.id === platform);
-        const pwrDef   = POWER_UNITS.find(p => p.id === powerUnit);
-        const drvDef   = DRIVETRAINS.find(p => p.id === drivetrain);
-        const intDef   = INTERIOR_TIERS.find(p => p.id === interiorTier);
-        const safDef   = SAFETY_TIERS.find(p => p.id === safetyTier);
-        const qualDef  = QUALITY_TARGETS.find(p => p.id === qualityTarget);
-        const rawCost  = ((platDef?.baseCost ?? 12000) + (pwrDef?.baseCost ?? 2500) + (drvDef?.baseCost ?? 0) + (intDef?.baseCost ?? 0) + (safDef?.baseCost ?? 0)) * (qualDef?.costMultiplier ?? 1.0);
-        const manufacturingCostPerUnit = Math.round(rawCost * outcome.productionCostMultiplier);
-
-        const finalSalePrice = salePrice && Number(salePrice) > 0
-          ? Number(salePrice)
-          : Math.round(manufacturingCostPerUnit * 1.5);
+        const design = await computeVehicleDesign(trx, companyId, autoConfig, designInput);
+        const { outcome, engineeringPriorities, budgetAlloc, engineerCount, manufacturingCostPerUnit, finalSalePrice, finalSegment } = design;
+        const { currentYear, currentMonth, currentDay } = design.clock;
 
         // Deduct dev cost
         const finances = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
@@ -986,6 +900,7 @@ export class ManufacturingController {
           sale_price: finalSalePrice,
           development_cost_discount: Math.min(engineerCount * 0.05, 0.20),
           applied_engineering_package: appliedEngineeringPackage || null,
+          design_style: JSON.stringify(carStyle),
           status: 'active',
           development_status: 'in_development',
           // Phase 3 engineering fields
@@ -1024,6 +939,52 @@ export class ManufacturingController {
       });
 
       res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // POST /companies/:companyId/manufacturing/models/preview
+  // Free, read-only: what this design would score, cost and attract — using the
+  // real engineering engine and the real (locked) demand engine.
+  public static async previewVehicleDesign(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { companyId } = req.params;
+      if (!userId || !companyId) return next(new AppError('Missing or invalid fields: userId, companyId', 400, 'BAD_REQUEST'));
+      const designInput = validateDesignInput(req.body);
+
+      const { company, autoConfig } = await verifyManufacturingCompany(db, userId, companyId);
+      const design = await computeVehicleDesign(db, companyId, autoConfig, designInput);
+      const { outcome } = design;
+      const scores = outcome.finalScores;
+
+      const forecast = await forecastDesignDemand(db, company, {
+        scores: scores as any,
+        salePrice: design.finalSalePrice,
+        segment: design.finalSegment,
+        marketingTier: typeof req.body.marketingTier === 'string' ? req.body.marketingTier : 'none',
+      });
+      const finances = await db('company_finances').where({ company_id: companyId }).first();
+
+      res.status(200).json({
+        scores,
+        unitCost: design.manufacturingCostPerUnit,
+        salePrice: design.finalSalePrice,
+        marginPerCar: design.finalSalePrice - design.manufacturingCostPerUnit,
+        targetSegment: design.finalSegment,
+        devCost: outcome.effectiveDevCost,
+        devTimeMonths: outcome.devTimeArcs,
+        canAfford: Number(finances?.available_cash ?? 0) >= outcome.effectiveDevCost,
+        availableCash: Number(finances?.available_cash ?? 0),
+        weightKg: outcome.vehicleWeightKg,
+        engineeringRisk: outcome.engineeringRisk,
+        grade: outcome.engineeringReport.overallGrade,
+        assessment: outcome.engineeringReport.overallAssessment,
+        recommendations: outcome.engineeringReport.recommendations,
+        balanceFlags: outcome.balanceFlags,
+        forecast,
+      });
     } catch (error) {
       next(error);
     }
@@ -2867,7 +2828,7 @@ export class ManufacturingController {
            }
         }
 
-        const MARKETING_MULT: Record<string, number> = { none: 1.0, local: 1.15, regional: 1.30, national: 1.50 };
+        const MARKETING_MULT: Record<string, number> = MARKETING_DEMAND_MULT;
         const companySalesManagerBonus = new Map<string, number>();
         for (const pState of participantStates) {
            const salesManagerCount = pState.staff.find((s: any) => s.role === 'sales-manager')?.quantity || 0;
@@ -3292,9 +3253,7 @@ export class ManufacturingController {
       const salesBonusMap = new Map<string, number>();
       salesBonusMap.set(company.id, salesManagerBonus);
 
-      const MARKETING_MULT: Record<string, number> = {
-        none: 1.0, local: 1.15, regional: 1.30, national: 1.50,
-      };
+      const MARKETING_MULT: Record<string, number> = MARKETING_DEMAND_MULT;
 
       const csoForecast = ManufacturingController.simulateSalesDemand(
           joinedAllocations,
@@ -3808,9 +3767,7 @@ export class ManufacturingController {
       const usefulSalesManagers = Math.min(salesManagerCount, activeMarketCount);
       const salesManagerBonus  = Math.min(usefulSalesManagers * 0.04, 0.16);
 
-      const MARKETING_MULT: Record<string, number> = {
-        none: 1.0, local: 1.15, regional: 1.30, national: 1.50,
-      };
+      const MARKETING_MULT: Record<string, number> = MARKETING_DEMAND_MULT;
 
       const joinedAllocations = await db('manufacturing_market_allocations')
         .join('manufacturing_vehicle_models', 'manufacturing_market_allocations.vehicle_model_id', 'manufacturing_vehicle_models.id')

@@ -20,6 +20,7 @@ router.delete('/companies/:companyId/manufacturing/factories/:factoryId', authMi
 router.delete('/companies/:companyId/manufacturing/production/lines/:lineId', authMiddleware, ManufacturingController.scrapProductionLine);
 
 router.post('/companies/:companyId/manufacturing/models', authMiddleware, ManufacturingController.createVehicleModel);
+router.post('/companies/:companyId/manufacturing/models/preview', authMiddleware, ManufacturingController.previewVehicleDesign);
 router.post('/companies/:companyId/manufacturing/models/:modelId/launch', authMiddleware, ManufacturingController.launchVehicleModel);
 router.patch('/companies/:companyId/manufacturing/models/:modelId/price', authMiddleware, ManufacturingController.updateModelPrice);
 router.post('/companies/:companyId/manufacturing/models/:modelId/facelift', authMiddleware, ManufacturingController.createFacelift);

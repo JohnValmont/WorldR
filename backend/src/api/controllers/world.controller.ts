@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import { runWorldTick, runPoliticsTick } from '../services/worldTick.service';
+import { DEFAULT_REAL_SECONDS_PER_MONTH } from '../constants/world';
 
 
 
@@ -81,7 +82,7 @@ export class WorldController {
       const clock = await db('world_clock').where({ world_instance_id: activeInstance.id }).first();
       if (!clock) return next(new AppError('World clock not found', 404, 'CLOCK_NOT_FOUND'));
 
-      const intervalMs = (clock.real_seconds_per_month || 28800) * 1000;
+      const intervalMs = (clock.real_seconds_per_month || DEFAULT_REAL_SECONDS_PER_MONTH) * 1000;
       const nextClose = new Date(Date.now() + intervalMs);
       await db('world_clock')
         .where({ world_instance_id: activeInstance.id })
