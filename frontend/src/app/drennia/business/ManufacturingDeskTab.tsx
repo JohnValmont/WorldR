@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { manufacturingApi, worldApi } from '../../../lib/api';
 import EquityDeskTab from './EquityDeskTab';
+import CarDesigner from '../../../components/car-designer/CarDesigner';
+import CarPreview from '../../../components/car-designer/CarPreview';
 import BoardDeskPanel from './BoardDeskPanel';
 import { BrandMilestoneTracker } from './BrandMilestoneTracker';
 import { formatWorldDate, formatWorldDateShort } from '@/lib/calendar';
@@ -379,6 +381,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
 
   // R&D portfolio state
   const [showDesignModal, setShowDesignModal] = useState(false);
+  const [showCarDesigner, setShowCarDesigner] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [fullEngReport, setFullEngReport] = useState<any>(null);
   const [engReportLoading, setEngReportLoading] = useState(false);
@@ -957,6 +960,14 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
   // ────────────────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col lg:flex-row w-full min-h-[calc(100vh-120px)]">
+      {showCarDesigner && (
+        <CarDesigner
+          companyId={company.id}
+          companyName={company.name}
+          onClose={() => setShowCarDesigner(false)}
+          onCreated={() => onRefresh()}
+        />
+      )}
 
       {/* LEFT SIDEBAR (MAIN TABS) */}
       <nav aria-label="Manufacturing desk sections" className="lg:w-[210px] shrink-0 lg:border-r border-zinc-800 lg:pr-3">
@@ -2347,7 +2358,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
 
                   <div style={{ display: 'flex', gap: '12px' }}>
                     <GhostButton onClick={() => setShowCompareModal(true)}>Compare Models</GhostButton>
-                    <GoldButton onClick={() => setShowDesignModal(true)} style={{ padding: '9px 20px' }}>+ Design a Vehicle</GoldButton>
+                    <GhostButton onClick={() => setShowDesignModal(true)}>Advanced Designer</GhostButton>
+                    <GoldButton onClick={() => setShowCarDesigner(true)} style={{ padding: '9px 20px' }}>+ Design a Car</GoldButton>
                   </div>
                 </div>
 
@@ -2357,7 +2369,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                     icon="🔬"
                     title="No vehicle models yet"
                     subtitle="Start your first R&D project. Design a vehicle to begin development, then launch it when it's ready for production."
-                    action={<GoldButton onClick={() => setShowDesignModal(true)}>Design a Vehicle</GoldButton>}
+                    action={<GoldButton onClick={() => setShowCarDesigner(true)}>Design your first car</GoldButton>}
                   />
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
@@ -2379,6 +2391,14 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                           onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = T.gold + '88'; (e.currentTarget as HTMLDivElement).style.background = 'rgba(212,175,55,0.04)'; }}
                           onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = T.border; (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.02)'; }}
                         >
+                          <div style={{ margin: '-4px -4px 10px', padding: '6px 8px 2px', borderRadius: '2px', background: 'radial-gradient(ellipse at 50% 30%, #1E2230 0%, #0D0F15 80%)' }}>
+                            <CarPreview
+                              vehicleClass={m.vehicle_class}
+                              style={typeof m.design_style === 'string' ? (() => { try { return JSON.parse(m.design_style); } catch { return null; } })() : m.design_style}
+                              paints={bootstrapData?.carStyle?.paints}
+                              size="small"
+                            />
+                          </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                             <div style={{ fontSize: '14px', fontWeight: 700, color: T.gold, lineHeight: 1.3 }}>
                               {m.name}

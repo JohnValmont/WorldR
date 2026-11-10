@@ -39,6 +39,8 @@ jobs:
         # it is repaired — see the "all tests" job below for the full picture.
         run: >
           npx tsx --test
+          tests/marketing.test.ts
+          tests/market-segments.test.ts
           tests/drenniaTick.test.ts
           tests/market-structure.test.ts
           tests/npc-reactivity-scenario.test.ts

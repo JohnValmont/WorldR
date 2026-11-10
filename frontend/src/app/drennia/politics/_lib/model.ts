@@ -101,5 +101,5 @@ export const AP_MODEL = {
   },
 } as const;
 
-/** 1 in-game month = 8 real hours (GDD $3). */
-export const REAL_HOURS_PER_MONTH = 8;
+/** 1 in-game month in real hours (revival plan: 4; was 8 in GDD §3). */
+export { REAL_HOURS_PER_GAME_MONTH as REAL_HOURS_PER_MONTH } from '@/lib/gameTime';

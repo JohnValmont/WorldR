@@ -109,7 +109,9 @@ test('Market Segments Engine validates demographic demands', async (t) => {
     allocations,
     brandMap,
     marketingMult as any,
-    salesManagerBonusMap
+    salesManagerBonusMap,
+    1,
+    1
   );
 
   console.log('\n========================================================================================');
@@ -174,7 +176,9 @@ test('Market Segments Engine validates demographic demands', async (t) => {
       dpAllocations,
       brandMap,
       marketingMult as any,
-      salesManagerBonus
+      salesManagerBonusMap,
+      1,
+      1
     );
     
     const origInterest = stats['car-budget'].rawBuyerInterest;

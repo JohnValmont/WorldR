@@ -372,6 +372,8 @@ export const manufacturingApi = {
   constructProductionLine: (companyId: string, factoryId: string) => api.post(`/companies/${companyId}/manufacturing/factories/${factoryId}/production-lines/construct`),
   scrapProductionLine: (companyId: string, lineId: string) => api.delete(`/companies/${companyId}/manufacturing/production/lines/${lineId}`),
   createModel: (companyId: string, data: any) => api.post(`/companies/${companyId}/manufacturing/models`, data),
+  /** Free live preview: real engineering + demand engines, no money spent. */
+  previewModel: (companyId: string, data: any) => api.post(`/companies/${companyId}/manufacturing/models/preview`, data).then(res => res.data),
   createFacelift: (companyId: string, modelId: string, data: any) => api.post(`/companies/${companyId}/manufacturing/models/${modelId}/facelift`, data),
   discontinueModel: (companyId: string, modelId: string) => api.post(`/companies/${companyId}/manufacturing/models/${modelId}/discontinue`),
   getModelSnapshots: (companyId: string) => api.get(`/companies/${companyId}/manufacturing/models/snapshots?t=${Date.now()}`),
