@@ -11,7 +11,17 @@ import {
   MODEL_AGE_FACELIFT,
   NPC_ROSTER,
   NPC_EXPAND_SELL_RATIO,
-  NPC_MAX_MARKETS
+  NPC_MAX_MARKETS,
+  NPC_GENERATION_COST,
+  NPC_GENERATION_SCORE_BUMP,
+  NPC_FORECAST_CONFIDENCE,
+  NPC_NEW_MARKET_WEIGHT_FRACTION,
+  NPC_SOLD_OUT_MARKET_SHARE,
+  NPC_ESPIONAGE_COST,
+  NPC_ESPIONAGE_COOLDOWN_MONTHS,
+  NPC_ESPIONAGE_MIN_PLAYER_SALES,
+  NPC_ESPIONAGE_SCORE_DELTA,
+  NPC_ESPIONAGE_PRICE_FACTOR,
 } from '../constants/npc';
 
 // Defines the inputs required for an NPC company to make its monthly decisions
@@ -33,6 +43,12 @@ export interface NpcBrainInput {
   modelAgeMonths: number;
   unitsProducedLastArc: number;
   inventoryInStock: number;
+  /**
+   * Last month's real buyer interest for this model, summed over its markets
+   * (manufacturing_sales_results.raw_buyer_interest). Optional: when absent the
+   * brain plans purely from its own past sales, as before.
+   */
+  demandForecast?: number;
 }
 
 // Defines the output actions to be taken by an NPC company
@@ -117,6 +133,15 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
     }
   }
 
+  // B8 Rule: Demand-led floor. Planning only from our own past sales is a
+  // self-fulfilling spiral: allocate 3, sell 3, plan ~3. Last month's real buyer
+  // interest tells us how many people actually wanted the car, so produce at
+  // least a trusted fraction of that (minus stock we already hold).
+  if (reasonCode !== null && typeof input.demandForecast === 'number' && Number.isFinite(input.demandForecast) && input.demandForecast > 0) {
+    const forecastTarget = Math.round(input.demandForecast * NPC_FORECAST_CONFIDENCE) - inventoryInStock;
+    newTargetUnits = Math.max(newTargetUnits, forecastTarget);
+  }
+
   // Ensure production limits are respected (already clamped above, but just in case)
   newTargetUnits = Math.max(MIN_UNITS_FLOOR, Math.min(newTargetUnits, factoryCapacity));
 
@@ -199,8 +224,22 @@ async function ensureUniqueModelName(trx: Knex, worldInstanceId: string, baseNam
 }
 
 async function performIndustrialEspionage(trx: Knex, companyId: string, currentYear: number, currentMonth: number, availableCash: number): Promise<number> {
-  const ESPIONAGE_COST = 1000000; // $1M threshold so NPCs execute espionage frequently
-  if (availableCash < ESPIONAGE_COST) return availableCash;
+  if (availableCash < NPC_ESPIONAGE_COST) return availableCash;
+
+  // Only NPCs with a known personality copy cars, and only inside their own segment.
+  const npcCompanyRow = await trx('companies').where({ id: companyId }).first();
+  const roster = NPC_ROSTER.find(r => r.key === npcCompanyRow?.npc_personality || r.name === npcCompanyRow?.name);
+  if (!roster) return availableCash;
+
+  // Cooldown: at most one copy per NPC every NPC_ESPIONAGE_COOLDOWN_MONTHS.
+  const lastCopy = await trx('manufacturing_vehicle_models')
+    .where({ company_id: companyId })
+    .whereNotNull('npc_cloned_from_model_id')
+    .orderBy([{ column: 'created_at_world_year', order: 'desc' }, { column: 'created_at_world_month', order: 'desc' }])
+    .first();
+  if (lastCopy && modelAgeInMonths(lastCopy.created_at_world_year, lastCopy.created_at_world_month, currentYear, currentMonth) < NPC_ESPIONAGE_COOLDOWN_MONTHS) {
+    return availableCash;
+  }
 
   // Ensure NPC has at least one active model to replace
   const modelsCount = await trx('manufacturing_vehicle_models')
@@ -228,19 +267,20 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
     .where('r.world_year', prevYear)
     .where('r.world_month', prevMonth)
     .where('c.is_npc', false)
+    .whereRaw('LOWER(m.target_segment) = LOWER(?)', [roster.segment])
     .select('m.*', 'c.name as player_company_name')
     .sum('r.units_sold as total_sold')
     .groupBy('m.id', 'c.name', 'c.is_npc')
     .orderByRaw('SUM(r.units_sold) DESC')
     .first();
 
-  if (!topPlayerModel || Number(topPlayerModel.total_sold) < 20) return availableCash;
+  if (!topPlayerModel || Number(topPlayerModel.total_sold) < NPC_ESPIONAGE_MIN_PLAYER_SALES) return availableCash;
 
   // Deduct cash
-  availableCash -= ESPIONAGE_COST;
+  availableCash -= NPC_ESPIONAGE_COST;
   await trx('company_finances').where({ company_id: companyId }).update({ available_cash: availableCash });
 
-  const npcCompany = await trx('companies').where({ id: companyId }).first();
+  const npcCompany = npcCompanyRow;
 
   const PREFIXES = ['Aurora', 'Nebula', 'Zenith', 'Apex', 'Vortex', 'Stratos', 'Nova', 'Pinnacle', 'Quantum', 'Eon'];
   const SUFFIXES = ['GT', 'Rival', 'Prime', 'X', 'Vanguard', 'Strider', 'Pulse', 'Dominator', 'Interceptor'];
@@ -262,14 +302,15 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
     drivetrain_type: topPlayerModel.drivetrain_type,
     interior_tier: topPlayerModel.interior_tier,
     safety_tier: topPlayerModel.safety_tier,
-    reliability_score: Math.min(100, Number(topPlayerModel.reliability_score) + 2),
-    performance_score: Math.min(100, Number(topPlayerModel.performance_score) + 2),
-    fuel_efficiency_score: Math.min(100, Number(topPlayerModel.fuel_efficiency_score) + 2),
-    appeal_score: Math.min(100, Number(topPlayerModel.appeal_score) + 2),
-    safety_score: Math.min(100, Number(topPlayerModel.safety_score) + 2),
-    cargo_score: Math.min(100, Number(topPlayerModel.cargo_score) + 2),
+    reliability_score: Math.max(1, Math.min(100, Number(topPlayerModel.reliability_score) + NPC_ESPIONAGE_SCORE_DELTA)),
+    performance_score: Math.max(1, Math.min(100, Number(topPlayerModel.performance_score) + NPC_ESPIONAGE_SCORE_DELTA)),
+    fuel_efficiency_score: Math.max(1, Math.min(100, Number(topPlayerModel.fuel_efficiency_score) + NPC_ESPIONAGE_SCORE_DELTA)),
+    appeal_score: Math.max(1, Math.min(100, Number(topPlayerModel.appeal_score) + NPC_ESPIONAGE_SCORE_DELTA)),
+    safety_score: Math.max(1, Math.min(100, Number(topPlayerModel.safety_score) + NPC_ESPIONAGE_SCORE_DELTA)),
+    cargo_score: Math.max(1, Math.min(100, Number(topPlayerModel.cargo_score) + NPC_ESPIONAGE_SCORE_DELTA)),
     manufacturing_cost_per_unit: topPlayerModel.manufacturing_cost_per_unit,
-    sale_price: Math.max(1, Math.floor(Number(topPlayerModel.sale_price) * 0.95)),
+    sale_price: Math.max(1, Math.floor(Number(topPlayerModel.sale_price) * NPC_ESPIONAGE_PRICE_FACTOR)),
+    npc_cloned_from_model_id: topPlayerModel.id,
     development_status: 'launched',
     status: 'active',
     launched_year: currentYear,
@@ -284,9 +325,10 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
   await trx('manufacturing_vehicle_models').insert(newModel);
   console.log(`[NPC Espionage] ${npcCompany.name} cloned ${topPlayerModel.name} into ${newModelName}`);
 
-  // Find worst performing model to replace
+  // Find worst performing model to replace (never the copy we just made)
   const worstModel = await trx('manufacturing_vehicle_models')
     .where({ company_id: companyId, development_status: 'launched', status: 'active' })
+    .whereNot({ id: newModelId })
     .orderBy('appeal_score', 'asc')
     .first();
 
@@ -325,86 +367,152 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
   return availableCash;
 }
 
-async function applyNpcFacelifts(trx: Knex, companyId: string, currentYear: number, currentMonth: number, availableCash: number): Promise<number> {
-  const FACELIFT_COST = 1000000; // $1M threshold
-  if (availableCash < FACELIFT_COST) return availableCash;
+// ── Pure helpers (exported for tests) ──────────────────────────────────────
+
+/** Full model age in months, across year boundaries. */
+export function modelAgeInMonths(createdYear: number, createdMonth: number, currentYear: number, currentMonth: number): number {
+  const y = Number(createdYear), m = Number(createdMonth);
+  if (!Number.isFinite(y) || !Number.isFinite(m)) return 0;
+  return Math.max(0, (currentYear - y) * 12 + (currentMonth - m));
+}
+
+/**
+ * One verdict for a model sold in several markets. Previously only the first
+ * market's reason code was used, so one market could hide what the rest did.
+ */
+export function aggregateReasonCode(rows: { main_reason_code: string | null; units_sold: number }[]): string | null {
+  if (!rows || rows.length === 0) return null;
+  const totalSold = rows.reduce((s, r) => s + (Number(r.units_sold) || 0), 0);
+  if (totalSold === 0) return 'Zero Demand';
+  const soldOut = rows.filter(r => r.main_reason_code === 'Sold Out').length;
+  if (soldOut / rows.length >= NPC_SOLD_OUT_MARKET_SHARE) return 'Sold Out';
+  const firstOther = rows.find(r => r.main_reason_code && r.main_reason_code !== 'Sold Out');
+  return firstOther ? firstOther.main_reason_code : rows[0].main_reason_code;
+}
+
+/**
+ * Split `total` whole units across markets in proportion to `weights`
+ * (largest-remainder rounding, so the parts always add up to `total`).
+ * Markets without a weight (no history yet) get a modest share.
+ */
+export function splitUnitsByWeight(total: number, weights: (number | null | undefined)[]): number[] {
+  const n = weights.length;
+  if (n === 0) return [];
+  const units = Math.max(0, Math.floor(total));
+  const known = weights.filter((w): w is number => typeof w === 'number' && Number.isFinite(w) && w > 0);
+  const fallback = known.length > 0 ? Math.min(...known) * NPC_NEW_MARKET_WEIGHT_FRACTION : 1;
+  const w = weights.map(x => (typeof x === 'number' && Number.isFinite(x) && x > 0 ? x : fallback));
+  const sum = w.reduce((a, b) => a + b, 0);
+  const exact = w.map(x => (units * x) / sum);
+  const parts = exact.map(Math.floor);
+  let left = units - parts.reduce((a, b) => a + b, 0);
+  const order = exact.map((x, i) => ({ i, frac: x - Math.floor(x) })).sort((a, b) => b.frac - a.frac);
+  for (let k = 0; k < order.length && left > 0; k++, left--) parts[order[k].i] += 1;
+  return parts;
+}
+
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'];
+
+/**
+ * "Falcon" -> "Falcon II" -> ... -> "Falcon V" -> "Falcon VI".
+ * The old logic turned "IV" into "V" and then appended " II" again, producing
+ * names like "Vortex Vanguard V V V V V V III". Stacked trailing numerals are
+ * collapsed first so already-broken names heal on their next generation.
+ */
+export function nextGenerationName(name: string): string {
+  const tokens = name.trim().split(/\s+/);
+  let generation = 1;
+  while (tokens.length > 1 && ROMAN.includes(tokens[tokens.length - 1])) {
+    generation = Math.max(generation, ROMAN.indexOf(tokens.pop() as string) + 1);
+  }
+  const next = Math.min(generation + 1, ROMAN.length);
+  return `${tokens.join(' ')} ${ROMAN[next - 1]}`;
+}
+
+
+/**
+ * Generational upgrade: once an NPC model reaches MODEL_AGE_FACELIFT months it is
+ * replaced by its next generation (better scores, SAME build cost), and its
+ * production lines, market allocations and unsold stock move to the successor.
+ *
+ * Replaces the old loop that launched a new variant every 2 months with +5%
+ * build cost each time — compounding over decades it pushed NPC prices to
+ * ~30x launch price and emptied the car market.
+ */
+async function applyNpcGenerationalUpgrade(trx: Knex, companyId: string, currentYear: number, currentMonth: number, availableCash: number): Promise<number> {
+  if (availableCash < NPC_GENERATION_COST) return availableCash;
 
   const models = await trx('manufacturing_vehicle_models')
     .where({ company_id: companyId, development_status: 'launched', status: 'active' });
 
   for (const model of models) {
-    const launchedYear = Number(model.launched_year || currentYear);
-    const launchedMonth = Number(model.launched_month || currentMonth);
-    const ageMonths = Math.max(0, (currentYear - launchedYear) * 12 + (currentMonth - launchedMonth));
+    const ageMonths = modelAgeInMonths(
+      model.launched_year ?? model.created_at_world_year,
+      model.launched_month ?? model.created_at_world_month,
+      currentYear,
+      currentMonth,
+    );
+    if (ageMonths < MODEL_AGE_FACELIFT) continue;
 
-    // Release upgraded model variant every 2 months!
-    if (ageMonths >= 2) {
-      const newModelId = crypto.randomUUID();
-      let rawModelName = model.name + ' II';
-      if (model.name.endsWith(' IV')) rawModelName = model.name.replace(' IV', ' V');
-      else if (model.name.endsWith(' III')) rawModelName = model.name.replace(' III', ' IV');
-      else if (model.name.endsWith(' II')) rawModelName = model.name.replace(' II', ' III');
-      
-      const newModelName = await ensureUniqueModelName(trx, model.world_instance_id, rawModelName);
-      
-      const newModel = {
-        ...model,
-        id: newModelId,
-        name: newModelName,
-        reliability_score: Math.min(100, Number(model.reliability_score) + 12),
-        performance_score: Math.min(100, Number(model.performance_score) + 12),
-        appeal_score: Math.min(100, Number(model.appeal_score) + 12),
-        launched_year: currentYear,
-        launched_month: currentMonth,
-        created_at_world_year: currentYear,
-        created_at_world_month: currentMonth,
-        created_at: new Date(),
-        updated_at: new Date(),
-        manufacturing_cost_per_unit: Math.round(Number(model.manufacturing_cost_per_unit) * 1.05),
-        facelift_source_model_id: model.id
-      };
-      
-      await trx('manufacturing_vehicle_models').insert(newModel);
-      
-      // Transfer production lines
-      await trx('manufacturing_production_lines')
-        .where({ company_id: companyId, assigned_vehicle_model_id: model.id })
-        .update({ assigned_vehicle_model_id: newModelId, updated_at: new Date() });
-        
-      // Copy allocations
-      const allocations = await trx('manufacturing_market_allocations')
-        .where({ company_id: companyId, vehicle_model_id: model.id });
-        
-      for (const alloc of allocations) {
-        const { id, ...allocWithoutId } = alloc;
-        const newAlloc = { ...allocWithoutId, id: crypto.randomUUID(), vehicle_model_id: newModelId };
-        await trx('manufacturing_market_allocations').insert(newAlloc);
-      }
-      
-      // Discontinue old model & zero out its market allocations to prevent ghost demand
-      await trx('manufacturing_vehicle_models')
-        .where({ id: model.id })
-        .update({ 
-          status: 'discontinued', 
-          development_status: 'discontinued',
-          discontinued_year: currentYear, 
-          discontinued_month: currentMonth, 
-          updated_at: new Date() 
-        });
+    const newModelId = crypto.randomUUID();
+    const newModelName = await ensureUniqueModelName(trx, model.world_instance_id, nextGenerationName(model.name));
 
-      await trx('manufacturing_market_allocations')
-        .where({ company_id: companyId, vehicle_model_id: model.id })
-        .update({ units_allocated: 0, updated_at: new Date() });
-        
-      // Charge the company
-      availableCash -= FACELIFT_COST;
-      await trx('company_finances')
-        .where({ company_id: companyId })
-        .update({ available_cash: availableCash, updated_at: new Date() });
-        
-      // Only do one facelift per tick
-      break;
+    await trx('manufacturing_vehicle_models').insert({
+      ...model,
+      id: newModelId,
+      name: newModelName,
+      reliability_score: Math.min(100, Number(model.reliability_score) + NPC_GENERATION_SCORE_BUMP),
+      performance_score: Math.min(100, Number(model.performance_score) + NPC_GENERATION_SCORE_BUMP),
+      appeal_score: Math.min(100, Number(model.appeal_score) + NPC_GENERATION_SCORE_BUMP),
+      launched_year: currentYear,
+      launched_month: currentMonth,
+      created_at_world_year: currentYear,
+      created_at_world_month: currentMonth,
+      created_at: new Date(),
+      updated_at: new Date(),
+      // Build cost deliberately unchanged between generations.
+      manufacturing_cost_per_unit: model.manufacturing_cost_per_unit,
+      facelift_source_model_id: model.id,
+      // A new generation is the NPC's own car now; the espionage cooldown is
+      // measured from the original copy (still on record as discontinued).
+      npc_cloned_from_model_id: null,
+    });
+
+    await trx('manufacturing_production_lines')
+      .where({ company_id: companyId, assigned_vehicle_model_id: model.id })
+      .update({ assigned_vehicle_model_id: newModelId, updated_at: new Date() });
+
+    const allocations = await trx('manufacturing_market_allocations')
+      .where({ company_id: companyId, vehicle_model_id: model.id });
+    for (const alloc of allocations) {
+      const { id, ...rest } = alloc;
+      await trx('manufacturing_market_allocations').insert({ ...rest, id: crypto.randomUUID(), vehicle_model_id: newModelId });
     }
+
+    // Unsold cars carry over to the successor instead of being stranded forever.
+    await trx('manufacturing_inventory')
+      .where({ company_id: companyId, vehicle_model_id: model.id })
+      .update({ vehicle_model_id: newModelId, updated_at: new Date() });
+
+    await trx('manufacturing_vehicle_models')
+      .where({ id: model.id })
+      .update({
+        status: 'discontinued',
+        development_status: 'discontinued',
+        discontinued_year: currentYear,
+        discontinued_month: currentMonth,
+        updated_at: new Date(),
+      });
+    await trx('manufacturing_market_allocations')
+      .where({ company_id: companyId, vehicle_model_id: model.id })
+      .update({ units_allocated: 0, updated_at: new Date() });
+
+    availableCash -= NPC_GENERATION_COST;
+    await trx('company_finances')
+      .where({ company_id: companyId })
+      .update({ available_cash: availableCash, updated_at: new Date() });
+
+    break; // at most one new generation per company per month
   }
   return availableCash;
 }
@@ -424,8 +532,8 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
   // NEW: Industrial Espionage (Clone player models if cash rich)
   availableCash = await performIndustrialEspionage(trx, companyId, currentYear, currentMonth, availableCash);
 
-  // NEW: Automatic NPC Facelifts (V2 models)
-  availableCash = await applyNpcFacelifts(trx, companyId, currentYear, currentMonth, availableCash);
+  // Generational upgrade once a model reaches MODEL_AGE_FACELIFT months
+  availableCash = await applyNpcGenerationalUpgrade(trx, companyId, currentYear, currentMonth, availableCash);
 
   // 2. Fetch all launched, active models for the NPC company
   const models = await trx('manufacturing_vehicle_models')
@@ -437,8 +545,9 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
 
     const salePrice = parseFloat(model.sale_price);
     const costPerUnit = parseFloat(model.manufacturing_cost_per_unit);
-    // Age of the model since it was introduced to the market
-    const modelAgeMonths = currentMonth - model.created_at_world_month;
+    // Age of the model since it was introduced to the market (across years —
+    // the old month-only subtraction meant the 36-month rule could never fire)
+    const modelAgeMonths = modelAgeInMonths(model.created_at_world_year, model.created_at_world_month, currentYear, currentMonth);
 
     // Get current active production line and factory constraints
     const prodLine = await trx('manufacturing_production_lines')
@@ -495,8 +604,15 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
       marketShareThisArc = sum / lastSales.length;
       lastRevenue = lastSales.reduce((acc: number, s: any) => acc + parseFloat(s.revenue), 0);
     }
-    const unitsSoldLastArc = lastSales.length > 0 ? lastSales.reduce((acc: number, s: any) => acc + s.units_sold, 0) : 0;
-    const reasonCode = lastSales.length > 0 ? lastSales[0].main_reason_code : null;
+    const unitsSoldLastArc = lastSales.length > 0 ? lastSales.reduce((acc: number, s: any) => acc + Number(s.units_sold || 0), 0) : 0;
+    // One verdict across ALL markets (was: whatever the first market said)
+    const reasonCode = aggregateReasonCode(lastSales);
+    // Real buyer interest per market last month — drives production and where stock goes
+    const interestByMarket = new Map<string, number>();
+    for (const row of lastSales) {
+      interestByMarket.set(row.region_market_id, (interestByMarket.get(row.region_market_id) || 0) + (Number(row.raw_buyer_interest) || 0));
+    }
+    const demandForecast = [...interestByMarket.values()].reduce((a, b) => a + b, 0);
 
     // Fetch the previous month's production results
     (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - Fetching lastSnapshot`;
@@ -566,7 +682,8 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
       zeroDemandStreak,
       modelAgeMonths,
       unitsProducedLastArc,
-      inventoryInStock
+      inventoryInStock,
+      demandForecast,
     };
 
     // Fix NaN factory capacity from legacy column names
@@ -612,17 +729,20 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
 
     if (allocations.length > 0) {
       (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - update allocations`;
-      // Spread units evenly across all markets; any remainder goes to the primary market
-      const perMarket = Math.floor(output.newTargetUnits / allocations.length);
-      const remainder = output.newTargetUnits % allocations.length;
+      // Send new production AND unsold stock where the buyers are, in proportion
+      // to each market's real buyer interest last month. (Previously production
+      // was split evenly regardless of market size and all stock was dumped on
+      // the first market — big markets starved while small ones overflowed.)
+      const split = splitUnitsByWeight(
+        output.newTargetUnits + Number(inventoryInStock || 0),
+        allocations.map((a: any) => interestByMarket.get(a.region_market_id)),
+      );
       for (let i = 0; i < allocations.length; i++) {
-        const extraUnits = i < remainder ? 1 : 0; 
-        const marketInv = i === 0 ? inventoryInStock : 0;
         await trx('manufacturing_market_allocations')
           .where({ id: allocations[i].id })
           .update({
             marketing_tier: output.newMarketingTier,
-            units_allocated: Math.max(0, perMarket + extraUnits + marketInv)
+            units_allocated: Math.max(0, split[i])
           });
       }
 
