@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import WhatsNewModal from '../components/gameplay/WhatsNewModal';
+import AnalyticsProvider from '../components/AnalyticsProvider';
 
 export const metadata: Metadata = {
-  title: 'WORLDr — Secure Auth Gateway',
-  description: 'WORLDr centralized authentication gateway, identity management, and secure authorization node.',
-  keywords: ['authentication', 'security', 'identity', 'verification', 'authorization'],
+  title: 'WORLDr — Multiplayer Politics & Business Simulation',
+  description: 'Build a company, found a political party and write the laws your rivals live under. A free browser-based political-economy simulation.',
+  keywords: ['political simulation', 'economy simulation', 'browser game', 'multiplayer strategy', 'tycoon', 'elections'],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </a>
           </div>
         </div>
+        <AnalyticsProvider />
         <WhatsNewModal />
         {children}
       </body>

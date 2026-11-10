@@ -49,3 +49,19 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 
 ### Architectural Rules (DO NOT BREAK):
 - "Paid Market Research (Phase 4c) relies on a strict DB transaction checking company_finances.available_cash before revealing competitor data. Tier 1 dynamically strips sale_price and engineering specs, while Tier 2 reveals all. Do not bypass this transaction for any UI or data fetching."
+
+## Phase 0 (Revival) — Operational Rules (DO NOT BREAK)
+- Plan of record: docs/REVIVAL_PLAN.md.
+- Migrations that run automatically live in ROOT `database/migrations/` (the server resolves
+  `<cwd>/../database` first). `backend/database/migrations/` is NOT run on boot — do not add files there.
+- Never put one-off data/schema patches in server.ts boot code. Write an idempotent migration.
+- Admin rights come only from users.role. Grant via the ADMIN_EMAILS env var or
+  `npx tsx backend/scripts/set-admin.ts <email>`. Never hard-code emails.
+- Never hard-code connection strings or secrets in any file, including throwaway scripts.
+  Read DATABASE_URL from backend/.env. Ad-hoc scripts at the repo/backend root are git-ignored.
+- Production 500 responses must not include stack traces (app.ts error handler).
+- `/health` = liveness (always 200). `/health/ticks` = world clock on schedule (503 when overdue).
+- Error tracking: backend/src/utils/errorTracking.ts (SENTRY_DSN). Analytics: frontend/src/lib/analytics.ts
+  (NEXT_PUBLIC_POSTHOG_KEY); static landing pages use window.worldrTrack → /analytics-event.
+  Never send emails or other personal data to analytics.
+- CI (.github/workflows/ci.yml): a test file joins the required list only once it passes.

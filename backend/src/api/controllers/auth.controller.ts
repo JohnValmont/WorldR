@@ -3,12 +3,8 @@ import { authService } from '../../services/auth.service';
 import { db } from '../../config/database';
 
 export class AuthController {
-  private static getEffectiveRole(email: string | null | undefined, dbRole: string): string {
-    if (!email) return dbRole;
-    const lowerEmail = email.toLowerCase();
-    if (lowerEmail === 'kyxplayss@gmail.com' || lowerEmail === 'infoforbiddengaming@gmail.com') {
-      return 'admin';
-    }
+  // The database role is the single source of truth (see ADMIN_EMAILS in env.ts).
+  private static getEffectiveRole(_email: string | null | undefined, dbRole: string): string {
     return dbRole;
   }
 

@@ -1,5 +1,6 @@
 import { db } from '../../config/database';
 import { logger } from '../../utils/logger';
+import { captureException } from '../../utils/errorTracking';
 import { ManufacturingController } from '../controllers/manufacturing.controller';
 import { processEconomyMonth } from './economyTick.service';
 import { processExchangeMonth } from './ipoExchange.service';
@@ -177,6 +178,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
         } catch (err) {
           failures.push(`country:${countryId}`);
           logger.error(`[world-tick] Country ${countryId} failed for Y${year} M${month}; skipping so the world can still advance.`, err);
+          captureException(err, { subsystem: 'country', year, month });
         }
       }
 
@@ -191,6 +193,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       } catch (err) {
         failures.push('economy');
         logger.error(`[world-tick] Economy step failed for Y${year} M${month}; skipping.`, err);
+        captureException(err, { subsystem: 'economy', year, month });
       }
 
       // 2c. Capital markets — advance IPO pipeline, clear/list IPOs, write monthly
@@ -206,6 +209,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       } catch (err) {
         failures.push('exchange');
         logger.error(`[world-tick] Exchange step failed for Y${year} M${month}; skipping.`, err);
+        captureException(err, { subsystem: 'exchange', year, month });
       }
 
       // 2d. Acquisition auctions — advance phases (registration→bidding) and settle completed
@@ -219,6 +223,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       } catch (err) {
         failures.push('auctions');
         logger.error(`[world-tick] Auction step failed for Y${year} M${month}; skipping.`, err);
+        captureException(err, { subsystem: 'auctions', year, month });
       }
 
       // 3. Character aging — once per year, at the end of month 12
@@ -235,6 +240,7 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
         } catch (err) {
           failures.push('aging');
           logger.error(`[world-tick] Character aging failed for Y${year} M${month}; skipping.`, err);
+          captureException(err, { subsystem: 'aging', year, month });
         }
       }
 
@@ -378,6 +384,7 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
         } catch (err) {
           failures.push(`state:${state.id}`);
           logger.error(`[world-tick] Politics state ${state.id} failed for Y${year} M${month}; skipping.`, err);
+          captureException(err, { subsystem: 'politics', year, month });
         }
       }
 

@@ -1,0 +1,79 @@
+name: CI
+
+# Runs on every push and pull request. A red build means "don't deploy this".
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PUPPETEER_SKIP_DOWNLOAD: '1'
+  NEXT_TELEMETRY_DISABLED: '1'
+  # Dummy values so modules that validate env on import can load in tests.
+  # No real database is used by the required test set.
+  DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci_unused
+  JWT_ACCESS_SECRET: ci_access_secret_ci_access_secret_0001
+  JWT_REFRESH_SECRET: ci_refresh_secret_ci_refresh_secret_001
+  NODE_ENV: test
+
+jobs:
+  backend:
+    name: Backend — type-check + required tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Type-check
+        run: npx tsc --noEmit -p backend
+      - name: Required tests (must pass)
+        working-directory: backend
+        # These run without a database and currently pass. Add a file here once
+        # it is repaired — see the "all tests" job below for the full picture.
+        run: >
+          npx tsx --test
+          tests/drenniaTick.test.ts
+          tests/market-structure.test.ts
+          tests/npc-reactivity-scenario.test.ts
+          tests/npc-stability.test.ts
+          tests/paid-research.test.ts
+
+  backend-all-tests:
+    name: Backend — all tests (informational, allowed to fail)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: All tests
+        working-directory: backend
+        run: npx tsx --test tests/*.test.ts
+
+  frontend:
+    name: Frontend — type-check + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Type-check
+        run: npx tsc --noEmit -p frontend
+      - name: Production build
+        working-directory: frontend
+        run: npx next build

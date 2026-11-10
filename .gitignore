@@ -26,3 +26,26 @@ postgresql.zip
 # TS Build Info Cache
 *.tsbuildinfo
 .vercel
+
+# Local databases & Postgres data directories — never commit these
+*.sqlite
+*.sqlite3
+*.db
+data_pg/
+
+# Ad-hoc debug scripts and output dumps. Put reusable tools in tools/ or backend/scripts/.
+/*.js
+/*.ts
+/*.py
+/*.txt
+/backend/*.js
+/backend/*.ts
+/backend/*.cjs
+/backend/*.mjs
+/backend/*.py
+/backend/*.txt
+/frontend/*.js
+!/frontend/next.config.js
+!/frontend/postcss.config.js
+scratch/
+*.bak

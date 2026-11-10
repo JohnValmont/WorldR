@@ -66,11 +66,7 @@ export default function PoliticsDesk() {
   const [isAdvancingPol, setIsAdvancingPol] = useState(false);
   const user = useAuthStore(state => state.user);
 
-  const isSuperAdminEmail = user?.email && (
-    user.email.toLowerCase() === 'kyxplayss@gmail.com' ||
-    user.email.toLowerCase() === 'infoforbiddengaming@gmail.com'
-  );
-  const isAdmin = user?.role === 'admin' || isSuperAdminEmail || isAdminDynamic;
+  const isAdmin = user?.role === 'admin' || isAdminDynamic;
 
   useEffect(() => {
     authApi.me().then(res => setIsAdminDynamic(res.data.isAdmin)).catch(() => {});
