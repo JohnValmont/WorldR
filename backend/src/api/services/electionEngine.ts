@@ -25,12 +25,28 @@ export interface EngineCandidate {
   isIncumbent: boolean;
   effortBySegment: Record<string, number>;
   constituencyId: string;
+  /**
+   * Optional final multiplier on this candidate's appeal. Used for government
+   * approval: governing parties gain or lose votes with the state of the economy.
+   */
+  voteMultiplier?: number;
 }
 
 export interface EngineConstituency {
   id: string;
   registeredVoters: number;
   conditions: NationalStats | null;
+  /**
+   * Seats this district elects (district magnitude). Default 1 = first past the
+   * post. >1 = seats shared between parties by their district vote (D'Hondt).
+   */
+  seats?: number;
+  /**
+   * Multipliers on each voter segment's national size for this district, e.g.
+   * { industrial_workers: 1.6 } for a factory town. Normalised internally, so
+   * only relative values matter. Missing keys = 1.
+   */
+  segmentWeights?: Record<string, number>;
 }
 
 export interface ElectionInput {
@@ -44,6 +60,8 @@ export interface ConstituencyResult {
   winnerPartyId: string | null;
   votes: Record<string, number>;
   segmentShares: Record<string, Record<string, number>>;
+  /** Seats won in this district per party (sums to the district's seats). */
+  seatsByParty: Record<string, number>;
 }
 
 export interface ElectionResult {
@@ -95,7 +113,8 @@ export function computeSegmentShares(candidates: EngineCandidate[], segment: Vot
     const jitter = POL_VOTE_JITTER > 0
       ? 1 + POL_VOTE_JITTER * seededNoise(`${c.candidateId}|${segment.key}`)
       : 1;
-    const raw = fit * reach * credMult * incMult * jitter;
+    const voteMult = Number.isFinite(c.voteMultiplier) ? Math.max(0, c.voteMultiplier as number) : 1;
+    const raw = fit * reach * credMult * incMult * jitter * voteMult;
 
     rawScores[c.candidateId] = raw;
     totalRaw += raw;
@@ -144,6 +163,67 @@ export function computeTurnout(
   return base * mult;
 }
 
+/**
+ * Each segment's share of a district's voters: national size x district weight,
+ * normalised to sum to 1. With no weights this is exactly the national mix.
+ */
+export function districtSegmentSizes(weights?: Record<string, number>): Record<string, number> {
+  const raw: Record<string, number> = {};
+  let total = 0;
+  for (const seg of SEGMENTS) {
+    const w = weights && Number.isFinite(weights[seg.key]) ? Math.max(0, weights[seg.key]) : 1;
+    raw[seg.key] = seg.size * w;
+    total += raw[seg.key];
+  }
+  for (const k of Object.keys(raw)) raw[k] = total > 0 ? raw[k] / total : 0;
+  return raw;
+}
+
+/**
+ * D'Hondt: hand out `seats` one at a time to the party with the highest
+ * votes / (seatsAlreadyWon + 1). Ties go to the larger vote, then the lower id,
+ * so results are deterministic.
+ */
+export function allocateSeatsDHondt(votes: Record<string, number>, seats: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  const ids = Object.keys(votes).sort();
+  for (const id of ids) out[id] = 0;
+  if (seats <= 0 || ids.length === 0) return out;
+  for (let s = 0; s < seats; s++) {
+    let best: string | null = null;
+    let bestQ = -1;
+    for (const id of ids) {
+      const v = Math.max(0, votes[id] || 0);
+      if (v <= 0) continue;
+      const q = v / (out[id] + 1);
+      if (q > bestQ || (q === bestQ && best !== null && v > (votes[best] || 0))) {
+        best = id;
+        bestQ = q;
+      }
+    }
+    if (best === null) break; // nobody has any votes
+    out[best]++;
+  }
+  return out;
+}
+
+/**
+ * Split `total` seats across districts in proportion to their voters (largest
+ * remainder / Hamilton), with every district getting at least `minPerDistrict`.
+ */
+export function apportionSeats(voters: number[], total: number, minPerDistrict = 1): number[] {
+  const n = voters.length;
+  if (n === 0) return [];
+  const floorTotal = Math.max(0, total - minPerDistrict * n);
+  const sum = voters.reduce((a, b) => a + Math.max(0, b), 0) || 1;
+  const quotas = voters.map(v => (Math.max(0, v) / sum) * floorTotal);
+  const seats = quotas.map(q => Math.floor(q));
+  let left = floorTotal - seats.reduce((a, b) => a + b, 0);
+  const order = quotas.map((q, i) => ({ i, r: q - Math.floor(q) })).sort((a, b) => b.r - a.r || a.i - b.i);
+  for (let k = 0; k < order.length && left > 0; k++, left--) seats[order[k].i]++;
+  return seats.map(s => s + minPerDistrict);
+}
+
 export function computeVotesForConstituency(
   constituency: EngineConstituency,
   candidates: EngineCandidate[]
@@ -154,13 +234,14 @@ export function computeVotesForConstituency(
   }
 
   const segmentShares: Record<string, Record<string, number>> = {};
+  const sizes = districtSegmentSizes(constituency.segmentWeights);
 
   for (const segment of SEGMENTS) {
     const turnout = computeTurnout(segment, candidates, constituency.conditions);
     const shares = computeSegmentShares(candidates, segment);
     segmentShares[segment.key] = shares;
     
-    const segmentVoters = segment.size * constituency.registeredVoters * turnout;
+    const segmentVoters = sizes[segment.key] * constituency.registeredVoters * turnout;
 
     for (const c of candidates) {
       votes[c.candidateId] += segmentVoters * (shares[c.candidateId] || 0);
@@ -187,20 +268,29 @@ export function runElection(input: ElectionInput): ElectionResult {
     partySeats[c.partyId] = 0;
   }
 
-  // 1. Run First Past the Post (FPTP) in each constituency
+  // 1. In each district: count votes, then share the district's seats between
+  //    parties by D'Hondt. A 1-seat district is plain first-past-the-post.
   for (const constituency of input.constituencies) {
     const candsInConst = input.candidates.filter(c => c.constituencyId === constituency.id);
     const { votes, shares } = computeVotesForConstituency(constituency, candsInConst);
-    
+    const districtSeats = Math.max(1, Math.round(constituency.seats ?? 1));
+
     let winnerId: string | null = null;
     let winnerParty: string | null = null;
     let maxVotes = -1;
+    const partyVotesHere: Record<string, number> = {};
+    const bestCandOfParty: Record<string, string> = {};
 
     for (const c of candsInConst) {
       const v = votes[c.candidateId];
       candidateResults[c.candidateId].votes += v;
       partyVotes[c.partyId] += v;
-      
+      partyVotesHere[c.partyId] = (partyVotesHere[c.partyId] || 0) + v;
+      const prevBest = bestCandOfParty[c.partyId];
+      if (!prevBest || v > votes[prevBest] || (v === votes[prevBest] && c.candidateId < prevBest)) {
+        bestCandOfParty[c.partyId] = c.candidateId;
+      }
+
       if (v > maxVotes) {
         maxVotes = v;
         winnerId = c.candidateId;
@@ -214,10 +304,14 @@ export function runElection(input: ElectionInput): ElectionResult {
       }
     }
 
-    if (winnerId && winnerParty) {
-      candidateResults[winnerId].wonSeat = true;
-      partySeats[winnerParty]++;
-      totalSeatsAllocated++;
+    const seatsByParty = allocateSeatsDHondt(partyVotesHere, districtSeats);
+    for (const [pid, n] of Object.entries(seatsByParty)) {
+      if (n <= 0) continue;
+      partySeats[pid] = (partySeats[pid] || 0) + n;
+      totalSeatsAllocated += n;
+      // The party's lead candidate in this district takes its first seat here.
+      const lead = bestCandOfParty[pid];
+      if (lead) candidateResults[lead].wonSeat = true;
     }
 
     perConstituency.push({
@@ -225,7 +319,8 @@ export function runElection(input: ElectionInput): ElectionResult {
       winnerCandidateId: winnerId,
       winnerPartyId: winnerParty,
       votes,
-      segmentShares: shares
+      segmentShares: shares,
+      seatsByParty,
     });
   }
 

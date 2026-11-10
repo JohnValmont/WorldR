@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
+import { projectPartyVotes, getGovernment, getLawsInForce, findOption, billTitle, computeApproval, approvalVoteMultiplier } from '../services/statecraft.service';
+import { portfolioPostFor, PRIVATE_BILL_AP_EXTRA, MINISTER_PORTFOLIO_AP_DISCOUNT } from '../constants/nations';
 import { AppError } from '../../utils/errors';
 import {
   getOrCreateCurrentCycle,
@@ -145,7 +147,9 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
             if (activeState?.id) {
               try {
                 const cycle = await getOrCreateCurrentCycle(activeState.id);
-                currentCycleId = cycle?.id ?? null;
+                // Seats belong to the sitting parliament (the last cycle with an
+                // election result), not the newly opened cycle, which has none yet.
+                currentCycleId = (await getSittingCycleId(db, activeState.id, cycle)) || cycle?.id || null;
               } catch {
                 currentCycleId = null;
               }
@@ -288,7 +292,7 @@ export async function getConstituencies(req: Request, res: Response, next: NextF
 
     // Use NULLS LAST so constituencies seeded without a name don't throw/sort oddly.
     const constituencies = await db('pol_constituencies')
-      .where({ state_id: activeState.id })
+      .where({ state_id: activeState.id, is_active: true })
       .orderByRaw('name NULLS LAST');
 
     // Enrich with current-cycle candidacy data
@@ -322,6 +326,8 @@ export async function getConstituencies(req: Request, res: Response, next: NextF
         // Use actual value if seeded; otherwise generate deterministic variation
         // so constituents aren't all identical. Range: 40k-120k.
         registeredVoters: c.registered_voters ?? (40000 + ((idx * 7919) % 80001)),
+        seats: Number(c.seats) || 1,
+        region: c.region ?? null,
         candidates: byConstituency[c.id] || [],
       })),
     });
@@ -574,23 +580,32 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
     const actualArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
     
     const conditions = await readNationalStatsFromRow(activeState);
-    const constituenciesRows = await db('pol_constituencies').where({ state_id: activeState.id });
-    const engineConstituencies = constituenciesRows.map((r, idx) => ({
+    // Same districts the real election uses: active ones, with seat counts and voter mix.
+    const constituenciesRows = await db('pol_constituencies').where({ state_id: activeState.id, is_active: true });
+    const engineConstituencies = constituenciesRows.map((r: any, idx: number) => ({
       id: r.id,
       registeredVoters: r.registered_voters ?? (40000 + ((idx * 7919) % 80001)),
-      conditions
+      conditions,
+      seats: Number(r.seats) || 1,
+      segmentWeights: typeof r.segment_weights === 'string' ? safeParseJSON(r.segment_weights) : (r.segment_weights ?? {}),
     }));
+    const govForPoll = await getGovernment(db, activeState.id);
+    const govMultForPoll = approvalVoteMultiplier(computeApproval(conditions));
+    const withApproval = (cands: any[]) => {
+      for (const c of cands) if (govForPoll.memberPartyIds.includes(c.partyId)) c.voteMultiplier = govMultForPoll;
+      return cands;
+    };
 
     // buildEngineCandidates calls ensureCandidates internally which can INSERT
     // new NPC party / constituency rows. Wrap both calls in a transaction so any
     // partial failures are rolled back atomically (Bug 7 fix).
     const { projection, prevProjection } = await db.transaction(async (trx) => {
-      const engineCands = await buildEngineCandidates(trx, cycle.id);
+      const engineCands = withApproval(await buildEngineCandidates(trx, cycle.id));
       const proj = runElection({ candidates: engineCands, constituencies: engineConstituencies });
 
       let prevProj = null;
       try {
-        const prevCands = await buildEngineCandidates(trx, cycle.id, actualArc - 1);
+        const prevCands = withApproval(await buildEngineCandidates(trx, cycle.id, actualArc - 1));
         prevProj = runElection({ candidates: prevCands, constituencies: engineConstituencies });
       } catch {
         prevProj = null;
@@ -1242,24 +1257,54 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
         }
       }
       if (!coalition) throw new AppError('No governing coalition found — bills can only be proposed while a government is in power', 400, 'BAD_REQUEST');
-      if (coalition.lead_party_id !== partyMember.party_id) {
-        throw new AppError('Only the governing party can propose bills', 403, 'FORBIDDEN');
+
+      // Phase 2: any party with seats may table a bill. Government parties pay
+      // the normal cost; others table a "private member's bill" for extra AP.
+      // A minister tabling a bill in their own portfolio gets a discount and
+      // extra support from government parties when it is voted on.
+      const gov = await getGovernment(trx, activeState.id);
+      if (!gov.seatsByParty[partyMember.party_id]) {
+        throw new AppError('Your party needs at least one seat in Parliament to table a bill', 403, 'FORBIDDEN');
+      }
+      if (type === 'policy_change') {
+        const cat = params?.category;
+        const opt = params?.option;
+        if (!findOption(String(cat), String(opt))) throw new AppError('Unknown law or option', 400, 'BAD_REQUEST');
+        const open = await trx('pol_bills').where({ state_id: activeState.id, status: 'proposed' }).whereRaw("params->>'category' = ?", [cat]).first();
+        if (open) throw new AppError('A bill on this law is already before Parliament', 409, 'CONFLICT');
+      }
+      const inGovernment = gov.memberPartyIds.includes(partyMember.party_id);
+      let apCost = AP_COST_BILL_MODERATE + (inGovernment ? 0 : PRIVATE_BILL_AP_EXTRA);
+      const post = type === 'policy_change' ? portfolioPostFor(String(params?.category)) : undefined;
+      if (post) {
+        const holder = await trx('pol_cabinet_posts').where({ state_id: activeState.id, post_key: post.key }).first();
+        if (holder?.holder_character_id === char.id) apCost = Math.max(1, apCost - MINISTER_PORTFOLIO_AP_DISCOUNT);
       }
 
       const clock = await trx('world_clock').first();
       const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
-      await spendAp(trx, char.id, AP_COST_BILL_MODERATE);
+      await spendAp(trx, char.id, apCost);
       await spendPc(trx, char.id, PC_COST_NEGOTIATE_STRENGTH);
 
       const [bill] = await trx('pol_bills').insert({
         state_id: activeState.id,
         proposed_by_party_id: partyMember.party_id,
+        tabled_by_character_id: char.id,
         type,
         params,
         status: 'proposed',
         proposed_arc: currentMonth
       }).returning('*');
+
+      const party = await trx('pol_parties').where({ id: partyMember.party_id }).first();
+      if (type === 'policy_change') {
+        await trx('pol_ledger_events').insert({
+          state_id: activeState.id, arc: currentMonth, kind: 'bill_tabled',
+          headline: `${party?.name ?? 'A party'} tables: ${billTitle(params.category, params.option)}`,
+          body: `${char.name} has put a bill before Parliament${inGovernment ? '' : ' from the opposition benches'}. It goes to a vote next month.`,
+        });
+      }
 
       return bill;
     });
@@ -1698,6 +1743,9 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
     const govMembers = parsedGovMembers.accepted || (Array.isArray(parsedGovMembers) ? parsedGovMembers : []);
 
     const npcParties = await db('pol_parties').where({ state_id: activeState.id, is_npc: true });
+    const allPartiesForVote = await db('pol_parties').where({ state_id: activeState.id });
+    const govInfo = await getGovernment(db, activeState.id);
+    const lawsInForce = await getLawsInForce(db, activeState.id);
 
     const majority = getMajorityForState(activeState.code);
 
@@ -1720,16 +1768,10 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
       const projectedVotes = [...votes];
 
       if (bill.status === 'proposed') {
-        for (const npc of npcParties) {
-          if (!votedParties.has(npc.id)) {
-            const isGov = govMembers.includes(npc.id) || coalition?.lead_party_id === npc.id;
-            projectedVotes.push({
-              bill_id: bill.id,
-              character_id: 'system',
-              vote: isGov ? 'yea' : 'nay',
-              _npc_party_id: npc.id
-            });
-          }
+        // Same rule as the monthly vote (statecraft.projectPartyVotes).
+        const auto = await projectPartyVotes(db, bill, allPartiesForVote, govInfo, lawsInForce, votedParties);
+        for (const [partyId, vote] of Object.entries(auto)) {
+          projectedVotes.push({ bill_id: bill.id, character_id: 'system', vote, _npc_party_id: partyId });
         }
       }
 
@@ -1753,7 +1795,9 @@ export async function getBills(req: Request, res: Response, next: NextFunction) 
       resultBills.push({
         ...bill,
         tally: { yea, nay, abstain },
-        projectedPass: yea >= majority
+        // A bill passes with more yes than no votes (resolveBills).
+        projectedPass: yea > nay,
+        majority,
       });
     }
 

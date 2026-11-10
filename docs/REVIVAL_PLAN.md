@@ -321,3 +321,52 @@ Cosmetics only sell if others see them, so first build places where players' ide
 - New brands start with zero awareness and trust, so the locked demand formula gives a new company's car only about 2–3% of buyers (about 7% of what an established brand gets). Consider a starting reputation or awareness for new companies. That's a data change, not a change to the locked formula.
 - The chat widget polls the server every couple of seconds per player. That's wasteful at scale; it should poll less often or use server push.
 - 8 abandoned player car companies produce nothing. Handle with the inactive-player and season work.
+
+## Phase 2 status: politics rebuild (2026-11-10)
+
+Players said in the poll that they want politics more than business, so Phase 2 focused on politics. It fixed why politics never worked, added depth, and rebuilt the screens. Phase 2's original "alive without players" goal is covered for politics: computer-run parties now table laws, vote by ideology, form coalitions and appoint ministers.
+
+**Why politics was dead (all fixed)**
+1. **The Political Desk was locked to admins** in the page and in three navigation spots. Ordinary players could never open it.
+2. **Every server restart deleted the computer-run parties.** Seeds run on every boot, and `0005_politics_v0.sql` began with `DELETE FROM pol_parties WHERE is_npc`. Cascades wiped their seats, the coalition, the Premier and their bills, and reset national policy. Render's sleep/wake made this frequent. The seed now only adds what's missing.
+3. **The whole politics month crashed and rolled back** whenever a scandal was active, because fractional popularity changes went into an integer column. It also crashed the second time any law changed, because of a duplicate row in `pol_active_policies`. Elections, bill votes and events silently stopped. Fixed: decimal column, upsert, and a savepoint around enactment.
+4. **Fresh databases had no constituencies at all.** The table lived only in `backend/database/migrations`, which never runs. The bribery tables were missing the same way. Migration 0096 adds them; it's a no-op where they exist.
+5. **Elections were landslides.** Missing districts were padded with up to 151 identical filler districts under winner-takes-all, so one party took nearly everything. The UI said 151 seats while the real engine had 20.
+6. **No coalition could ever form**: the compatibility limit (0.30) only allowed near-identical parties.
+7. Politics dates were one month off ("Dec Yr −1"), because of a 0-based vs 1-based month counter.
+
+**New depth**
+- **A proper nation** (`backend/src/api/constants/nations.ts`): the Federal Republic of Drennia, with a flag, constitution, head of state, 4 regions and 20 named districts. Each district has its own voter mix (Ironvale factory towns, Drennport professionals and business, Westport trade, Greenmere rural families). A second starter nation is now a data entry.
+- **Fair, proportional elections**: 151 seats shared across the 20 districts by population, then split between parties by their district vote (D'Hondt). In a modelled election the four computer-run parties won 29–47 seats each, nobody got a majority, and a new player party can win seats. Human members get their party's seats first (party list).
+- **Economy → elections**: government approval comes from national stats and moves the governing parties' vote by up to ±22.5%.
+- **Living legislature**: computer-run parties table the change they most want *that can actually pass*; minority governments must compromise. Every party without a human vote casts a bloc vote by ideology, with government whipping and opposition scepticism. Previously the government always voted yes and the opposition always voted no.
+  - Cooldowns stop spam: 6 months after a failed vote, 24 months after a law passes.
+- **Any party with seats can table bills**; opposition bills cost 2 extra AP.
+- **Cabinet**: 5 ministers, shared between governing parties by seats. Human members get posts first, and empty posts get named computer-run ministers. A player Premier can reshuffle. Ministers are paid, table bills in their portfolio for 1 AP less, and get extra support from government parties.
+- **Monthly polls and seat projections**: they use the same formula as the real election, including campaign effort and party machines, so they predict what will happen.
+- **Coalitions**: limit raised to 0.50, so left and right blocs can form; the two poles (Labour and Progress) can't.
+
+**New screens ("The Capitol")**: one call, `GET /politics/capitol`, drives five new tabs.
+- **Overview**: the 151-seat chamber, government and cabinet portraits, the Gazette, your career ladder (Citizen → Premier) with a next goal, approval, the election calendar and the order paper.
+- **Nation**: flag, coat of arms, constitution, regions map and statistics.
+- **Parliament**: chamber, cabinet, bills with projected votes and vote buttons, parties with platform bars, and vote history.
+- **Laws**: every law with its options, effects, likely supporters and "table this bill", plus a "politics → car industry" panel.
+- **Elections**: poll trend, seat projection and district map.
+
+The older detailed screens (campaign desk, party HQ, lobby, legacy) are kept as tabs. All art is SVG: waving flag, capitol skyline, coat of arms, generated portraits and the hemicycle. Works at phone width.
+
+**Verified**
+- Backend and frontend type-checks, and the production build.
+- Required tests 65/65, including 29 new statecraft tests.
+- The full backend suite has the same 10 pre-existing failing files as `main`, and no new failures.
+- **End to end on a fresh real Postgres**:
+  - found a party → stand → election → coalition (CSU+IND+NPP, 104 seats) → cabinet → laws passing and failing → a second election 4 years later, in which the player's party grew from 11 to 16 seats;
+  - no errors in the politics tick;
+  - computer-run parties survive restarts.
+- In the browser: every tab at phone width, tabling a bill, and voting on it.
+
+**Not verified / follow-ups**
+- Not yet run against production data. After deploy, check the Render logs for `0096`/`0097`. The first politics month will convert old filler districts to the 20 named ones, and the next election uses the new system.
+- Party *popularity* (moved by scandals and media) still doesn't feed into polls or elections. It's the obvious next link.
+- Press-law tags make conservative parties keen on state media; review the `POLICY_CATALOG` tags.
+- The stale politics test files (they need a database) should be repaired and joined to CI.

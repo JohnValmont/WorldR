@@ -54,13 +54,46 @@ import {
   getLegacyHandler,
 } from '../controllers/politics.controller';
 import { getOrCreateCurrentCycle, bribeVote, getBillCoercions } from '../services/politics.service';
+import { getCapitol } from '../services/capitol.service';
+import { appointMinister } from '../services/statecraft.service';
 import { db } from '../../config/database';
 
 const router = Router();
 
-// Lock entire Politics Desk to Admins only
-// Temporary bypass for subagent
+// Politics is open to every signed-in player (Phase 2). Only the world-clock
+// "force tick" stays admin-only (world.routes.ts).
 router.use([authMiddleware]);
+
+// ── Capitol: one read model for the rebuilt Politics screens ───────────────
+router.get('/capitol', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await getCapitol((req as any).user?.id ?? null, (req.query.stateId as string) || undefined);
+    if (!data) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    return res.json(data);
+  } catch (error) { next(error); }
+});
+
+// ── Cabinet: the Premier appoints ministers ────────────────────────────────
+router.post('/cabinet/:postKey/appoint', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).user?.id;
+    const char = await db('characters').where({ user_id: userId, status: 'active' }).first();
+    if (!char) return next(new AppError('No character found', 404, 'NOT_FOUND'));
+    const targetCharId: string | null = req.body?.characterId ?? null;
+    if (targetCharId !== null && !UUID_REGEX.test(String(targetCharId))) {
+      return next(new AppError('characterId must be a character id or null', 400, 'BAD_REQUEST'));
+    }
+    const state = await resolveStateForPhase(req);
+    if (!state) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    const clock = await db('world_clock').first();
+    const arc = clock.pol_current_year * 12 + (clock.pol_current_month - 1);
+    await db.transaction(trx => appointMinister(trx, state.id, char.id, req.params.postKey, targetCharId, arc));
+    return res.json({ success: true });
+  } catch (error: any) {
+    if (error?.status) return next(new AppError(error.message, error.status, error.status === 403 ? 'FORBIDDEN' : 'BAD_REQUEST'));
+    next(error);
+  }
+});
 
 const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 

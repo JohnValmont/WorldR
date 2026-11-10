@@ -95,6 +95,11 @@ import { EngineCandidate, runElection } from './electionEngine';
 import { fireGoverningEvent, fireConditionCrises } from './governingEvents';
 import { NationalStats, readNationalStatsFromRow, calculateNationalEconomy, enactPolicy } from './nationalEconomy.service';
 import { safeParseJSON } from '../../utils/json';
+import {
+  syncNationDistricts, getGovernment, getLawsInForce, projectPartyVotes, formCabinet,
+  runStatecraftMonth, computeApproval, approvalVoteMultiplier, billTitle,
+} from './statecraft.service';
+import { getNationForPolState, NPC_MACHINE_EFFORT } from '../constants/nations';
 
 /**
  * Convert a world_clock row into a MONOTONIC absolute month ("arc").
@@ -550,14 +555,15 @@ export async function ensureCandidates(trx: any, cycleId: string) {
 
       if (inserted) {
         try {
-          await trx('pol_party_identities').insert({
+          // Savepoint so a failed optional insert can't abort the whole tick.
+          await trx.transaction(async (sp: any) => sp('pol_party_identities').insert({
             party_id: inserted.id,
             color: p.color,
             monogram: p.short_name.slice(0, 2),
             leader: 'NPC Leader',
             motto: p.description,
             blurb: p.description
-          });
+          }));
         } catch {
           // pol_party_identities fallback
         }
@@ -566,25 +572,34 @@ export async function ensureCandidates(trx: any, cycleId: string) {
     parties = await trx('pol_parties').where({ state_id: cycle.state_id });
   }
 
-  let constituencies = await trx('pol_constituencies').where({ state_id: cycle.state_id });
-  const targetSeats = getSeatsForState(stateRow?.code);
-  if (constituencies.length < targetSeats) {
-    const cInserts = [];
-    const namePrefix = stateRow?.name || 'Division';
-    const totalPop = stateRow?.population || 2400000;
-    const totalVoters = stateRow?.registered_voters || 1600000;
-    for (let i = constituencies.length + 1; i <= targetSeats; i++) {
-      cInserts.push({
-        state_id: cycle.state_id,
-        name: `${namePrefix} Division ${i}`,
-        population: Math.round(totalPop / targetSeats),
-        registered_voters: Math.round(totalVoters / targetSeats)
-      });
-    }
-    await trx('pol_constituencies').insert(cInserts);
+  // Districts come from the nation's constitution (constants/nations.ts). The
+  // old fallback below padded up to the seat count with identical filler
+  // districts, which made every election a near-total landslide; it now only
+  // runs for jurisdictions with no constitution defined.
+  let constituencies: any[];
+  if (getNationForPolState(stateRow?.code)) {
+    constituencies = await syncNationDistricts(trx, stateRow);
+  } else {
     constituencies = await trx('pol_constituencies').where({ state_id: cycle.state_id });
+    const targetSeats = getSeatsForState(stateRow?.code);
+    if (constituencies.length < targetSeats) {
+      const cInserts = [];
+      const namePrefix = stateRow?.name || 'Division';
+      const totalPop = stateRow?.population || 2400000;
+      const totalVoters = stateRow?.registered_voters || 1600000;
+      for (let i = constituencies.length + 1; i <= targetSeats; i++) {
+        cInserts.push({
+          state_id: cycle.state_id,
+          name: `${namePrefix} Division ${i}`,
+          population: Math.round(totalPop / targetSeats),
+          registered_voters: Math.round(totalVoters / targetSeats)
+        });
+      }
+      await trx('pol_constituencies').insert(cInserts);
+      constituencies = await trx('pol_constituencies').where({ state_id: cycle.state_id });
+    }
   }
-  
+
   for (const party of parties) {
     for (const constituency of constituencies) {
       const existing = await trx('pol_candidates')
@@ -678,7 +693,7 @@ export async function buildEngineCandidates(trx: any, cycleId: string, maxArc?: 
     // Baseline campaign effort for NPCs so they aren't completely devoid of Reach
     if (c.is_npc) {
       for (const seg of SEGMENTS) {
-        effortBySegment[seg.key] += 15;
+        effortBySegment[seg.key] += NPC_MACHINE_EFFORT;
       }
     }
 
@@ -866,17 +881,22 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
   // Tenders operate on month boundaries regardless of phase once active
   await awardTenders(trx, stateId, currentMonth);
   await settleTenders(trx, stateId, currentMonth);
+
+  // Phase 2: computer-run lawmaking, ministers' pay, monthly poll + approval.
+  await runStatecraftMonth(trx, stateId, currentMonth);
 }
 
 async function runNpcCampaignBrain(trx: any, stateId: string, cycleId: string, currentMonth: number) {
   // Read PREVIOUS month's effort to run a projection. Avoid state-bleed.
   const prevEngineCands = await buildEngineCandidates(trx, cycleId, currentMonth - 1);
   const state = await trx('pol_states').where({ id: stateId }).first();
-  const constituenciesRows = await trx('pol_constituencies').where({ state_id: stateId });
+  const constituenciesRows = await trx('pol_constituencies').where({ state_id: stateId, is_active: true });
   const engineConstituencies = constituenciesRows.map((r: any) => ({
     id: r.id,
     registeredVoters: r.registered_voters || 80000,
-    conditions: readNationalStatsFromRow(state)
+    conditions: readNationalStatsFromRow(state),
+    seats: Number(r.seats) || 1,
+    segmentWeights: typeof r.segment_weights === 'string' ? safeParseJSON(r.segment_weights) : (r.segment_weights ?? {}),
   }));
   
   const projection = runElection({
@@ -973,12 +993,23 @@ async function resolveElection(trx: any, cycleId: string) {
   const state = await trx('pol_states').where({ id: cycle.state_id }).first();
   const conditions = readNationalStatsFromRow(state);
   
-  const constituenciesRows = await trx('pol_constituencies').where({ state_id: cycle.state_id });
+  const constituenciesRows = getNationForPolState(state?.code)
+    ? await syncNationDistricts(trx, state)
+    : await trx('pol_constituencies').where({ state_id: cycle.state_id });
   const engineConstituencies = constituenciesRows.map((r: any) => ({
     id: r.id,
     registeredVoters: r.registered_voters || 80000,
-    conditions
+    conditions,
+    seats: Number(r.seats) || 1,
+    segmentWeights: typeof r.segment_weights === 'string' ? safeParseJSON(r.segment_weights) : (r.segment_weights ?? {}),
   }));
+
+  // Economy -> politics: the outgoing government's approval moves its parties' vote.
+  const outgoing = await getGovernment(trx, cycle.state_id);
+  const govMult = approvalVoteMultiplier(computeApproval(conditions));
+  for (const c of engineCands) {
+    if (outgoing.memberPartyIds.includes(c.partyId)) c.voteMultiplier = govMult;
+  }
 
   const result = runElection({ 
     candidates: engineCands, 
@@ -1020,44 +1051,52 @@ async function resolveElection(trx: any, cycleId: string) {
   const seatInserts: any[] = [];
 
   // Prepare pol_council_seats
-  for (const party of result.perParty) {
-    const seatsToAllocate = party.seats;
-    if (seatsToAllocate <= 0) continue;
-
-    // Get the candidates that won seats
-    const wonCands = result.perCandidate.filter(c => c.partyId === party.partyId && c.wonSeat);
-    let seatsAllocated = 0;
-
-    for (const c of wonCands) {
-      const dbCand = candMap.get(c.candidateId);
-      seatInserts.push({
-        state_id: cycle.state_id,
-        cycle_id: cycleId,
-        party_id: party.partyId,
-        constituency_id: c.constituencyId,
-        character_id: dbCand?.character_id || null,
-        is_npc: dbCand ? dbCand.is_npc : c.candidateId.startsWith('npc_')
-      });
-      seatsAllocated++;
-      
+  // Seats are won per district. In each district a party's lead candidate takes
+  // its first seat there; any further seats it won in that district go to
+  // computer-run MPs from its list.
+  for (const district of result.perConstituency) {
+    for (const [partyId, n] of Object.entries(district.seatsByParty)) {
+      if (n <= 0) continue;
+      const lead = result.perCandidate.find(c => c.partyId === partyId && c.constituencyId === district.constituencyId && c.wonSeat);
+      const dbCand = lead ? candMap.get(lead.candidateId) : undefined;
+      for (let k = 0; k < n; k++) {
+        const isLeadSeat = k === 0 && !!dbCand;
+        seatInserts.push({
+          state_id: cycle.state_id,
+          cycle_id: cycleId,
+          party_id: partyId,
+          constituency_id: district.constituencyId,
+          character_id: isLeadSeat ? (dbCand.character_id || null) : null,
+          is_npc: isLeadSeat ? !!dbCand.is_npc : true,
+        });
+      }
       if (dbCand && !dbCand.is_npc && dbCand.character_id) {
         newWinners.add(dbCand.character_id);
         await applyFactorDelta(trx, dbCand.character_id, POL_FACTOR_DELTAS.WIN_SEAT);
       }
     }
+  }
 
-    // Fill remaining seats with generic NPCs for that party if needed
-    while (seatsAllocated < seatsToAllocate) {
-      const wonConstId = result.perCandidate.find(c => c.partyId === party.partyId && c.wonSeat)?.constituencyId || null;
-      seatInserts.push({
-        state_id: cycle.state_id,
-        cycle_id: cycleId,
-        party_id: party.partyId,
-        constituency_id: wonConstId,
-        character_id: null,
-        is_npc: true
-      });
-      seatsAllocated++;
+  // Party list: human candidates who lost their own district still take any
+  // seat their party won elsewhere (best-performing candidates first), the way
+  // a party leader tops the list in proportional systems.
+  const seatedChars = new Set(seatInserts.map(si => si.character_id).filter(Boolean));
+  const humanByParty: Record<string, { charId: string; votes: number }[]> = {};
+  for (const pc of result.perCandidate) {
+    const dbc = candMap.get(pc.candidateId);
+    if (!dbc || dbc.is_npc || !dbc.character_id || seatedChars.has(dbc.character_id)) continue;
+    (humanByParty[pc.partyId] ??= []).push({ charId: dbc.character_id, votes: pc.votes });
+  }
+  for (const [partyId, humans] of Object.entries(humanByParty)) {
+    humans.sort((a, b) => b.votes - a.votes);
+    for (const h of humans) {
+      const open = seatInserts.find(si => si.party_id === partyId && !si.character_id);
+      if (!open) break;
+      open.character_id = h.charId;
+      open.is_npc = false;
+      seatedChars.add(h.charId);
+      newWinners.add(h.charId);
+      await applyFactorDelta(trx, h.charId, POL_FACTOR_DELTAS.WIN_SEAT);
     }
   }
 
@@ -1489,6 +1528,8 @@ async function namePremierAndEmitLedger(trx: any, cycle: any, largestParty: any,
     storyHeadline,
     storyBody
   );
+
+  await formCabinet(trx, cycle.state_id, cycle.formation_end_arc);
 }
 
 async function performCycleRollover(trx: any, oldCycle: any, currentMonth: number, governmentFormedAt?: number) {
@@ -1607,6 +1648,8 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
   for (const s of seats) {
     seatCounts[s.party_id] = (seatCounts[s.party_id] || 0) + 1;
   }
+  const gov = await getGovernment(trx, stateId);
+  const laws = await getLawsInForce(trx, stateId);
 
   for (const bill of proposedBills) {
     const votes = await trx('pol_bill_votes').where({ bill_id: bill.id });
@@ -1640,23 +1683,14 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
       }
     }
 
-    const npcParties = await trx('pol_parties').where({ state_id: stateId, is_npc: true });
-    
-    // Coalition lookup uses targetCycleId (the sitting cycle)
-    const coalition = await trx('pol_coalitions').where({ cycle_id: targetCycleId }).whereIn('status', ['formed', 'minority']).first();
-    const parsedGovMembers = coalition ? (typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : (coalition.member_party_ids ?? {})) : {};
-    const govMembers = parsedGovMembers.accepted || (Array.isArray(parsedGovMembers) ? parsedGovMembers : []);
-
-    for (const npc of npcParties) {
-      if (!votedParties.has(npc.id)) {
-        const isGov = govMembers.includes(npc.id) || coalition?.lead_party_id === npc.id;
-        votes.push({
-          bill_id: bill.id,
-          character_id: 'system',
-          vote: isGov ? 'yea' : 'nay',
-          _npc_party_id: npc.id
-        });
-      }
+    // Every seated party whose leader hasn't voted casts a bloc vote by its
+    // ideology (computer-run parties always; human parties when the leader is
+    // away), with government whipping and opposition scepticism applied.
+    // Previously: government = always yes, opposition = always no.
+    const allParties = await trx('pol_parties').where({ state_id: stateId });
+    const autoVotes = await projectPartyVotes(trx, bill, allParties, gov, laws, votedParties);
+    for (const [partyId, vote] of Object.entries(autoVotes)) {
+      votes.push({ bill_id: bill.id, character_id: 'system', vote, _npc_party_id: partyId });
     }
 
     let yeas = 0;
@@ -1678,11 +1712,14 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
     const proposerParty = await trx('pol_parties').where({ id: bill.proposed_by_party_id }).first();
     const leaderId = proposerParty?.leader_character_id || null;
 
+    const billParams = typeof bill.params === 'string' ? safeParseJSON(bill.params) : (bill.params ?? {});
+    const titled = billParams?.category ? billTitle(billParams.category, billParams.option) : bill.type.replace(/_/g, ' ');
+
     if (yeas > nays) {
       if (leaderId && !proposerParty.is_npc) {
         await applyFactorDelta(trx, leaderId, POL_FACTOR_DELTAS.BILL_PASSES);
       }
-      await trx('pol_bills').where({ id: bill.id }).update({ status: 'passed' });
+      await trx('pol_bills').where({ id: bill.id }).update({ status: 'passed', resolved_arc: currentMonth, yea_seats: yeas, nay_seats: nays });
       
       if (bill.type === 'policy_change') {
         const { category, option } = bill.params;
@@ -1701,16 +1738,19 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
           }
 
           // Trigger the new macroeconomic system
+          // Savepoint: if the macro-economy step fails, only it is rolled back.
+          // (A bare try/catch left the whole transaction aborted, which threw
+          // away the entire politics month.)
           try {
-            await enactPolicy(trx, stateId, category, option, currentMonth);
+            await trx.transaction(async (sp: any) => enactPolicy(sp, stateId, category, option, currentMonth));
           } catch (err) {
             console.error('Failed to enact policy in macroeconomic engine:', err);
           }
 
           await trx('pol_ledger_events').insert({
             state_id: stateId, arc: currentMonth, kind: 'bill_passed',
-            headline: `POLICY REVISED: ${category.toUpperCase()}`,
-            body: `Council passes new ${category} policy: ${option.replace(/_/g, ' ').toUpperCase()}. Stats will adjust over the coming month.`
+            headline: `Law passed ${yeas}-${nays}: ${titled}`,
+            body: `Parliament backs ${proposerParty?.name ?? 'the bill'}'s change. Its effects phase in over the coming months.`
           });
 
           await emitStory(
@@ -1748,11 +1788,11 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
       if (leaderId && !proposerParty.is_npc) {
         await applyFactorDelta(trx, leaderId, POL_FACTOR_DELTAS.BILL_FAILS);
       }
-      await trx('pol_bills').where({ id: bill.id }).update({ status: 'failed' });
+      await trx('pol_bills').where({ id: bill.id }).update({ status: 'failed', resolved_arc: currentMonth, yea_seats: yeas, nay_seats: nays });
       await trx('pol_ledger_events').insert({
         state_id: stateId, arc: currentMonth, kind: 'bill_failed',
-        headline: `BILL FAILED: ${bill.type.replace('_', ' ').toUpperCase()}`,
-        body: `Council rejected the proposed ${bill.type.replace('_', ' ')}.`
+        headline: `Bill defeated ${yeas}-${nays}: ${titled}`,
+        body: `Parliament rejects ${proposerParty?.name ?? 'the'} bill. The current law stays in force.`
       });
 
       await emitStory(
