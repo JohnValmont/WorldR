@@ -1,5 +1,6 @@
 import { db } from '../../config/database';
 import { NationalStat, POLICY_CATALOG, MECHANISM_BASE_ROLLOUT, STAT_LAG_CLASSES } from '../constants/macroEconomy';
+import { SHOCK_TOTAL_CAP } from '../constants/floor';
 
 export interface ActivePolicy {
   id: string;
@@ -112,6 +113,15 @@ export async function calculateNationalEconomy(trx: any, stateId: string, curren
     bureaucracy: bureaucracy + contributions.bureaucracy,
     global_standing: Number(state.base_global_standing) + contributions.global_standing,
   };
+
+  // The Floor: temporary nudges from the Premier's and ministers' decisions
+  // (pol_stat_shocks). Capped in total per stat; they expire on their own.
+  const shocks = await trx('pol_stat_shocks').where({ state_id: stateId }).where('expires_arc', '>', currentMonth).select('stat', 'delta');
+  const shockByStat: Record<string, number> = {};
+  for (const sh of shocks) shockByStat[sh.stat] = (shockByStat[sh.stat] || 0) + Number(sh.delta || 0);
+  for (const [k, v] of Object.entries(shockByStat)) {
+    if (k in stats) (stats as any)[k] += Math.max(-SHOCK_TOTAL_CAP, Math.min(SHOCK_TOTAL_CAP, v));
+  }
 
   // Clamp 0-100
   for (const k of Object.keys(stats)) {

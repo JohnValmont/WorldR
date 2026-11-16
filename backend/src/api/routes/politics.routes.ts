@@ -53,7 +53,13 @@ import {
   getNewsFeedHandler,
   getLegacyHandler,
 } from '../controllers/politics.controller';
-import { getOrCreateCurrentCycle, bribeVote, getBillCoercions } from '../services/politics.service';
+import { getOrCreateCurrentCycle, bribeVote, getBillCoercions, worldClockToArc } from '../services/politics.service';
+import { getDesk } from '../services/desk.service';
+import {
+  callFavour, challengeLeadership, chooseSituation, fundraise, offerPact, playerPolitics, PlayerPolitics, rally, respondPact, runAd,
+} from '../services/floor.service';
+import { getGovernment, getLawsInForce } from '../services/statecraft.service';
+import type { GovernmentInfo } from '../services/statecraft.service';
 import { getCapitol } from '../services/capitol.service';
 import { appointMinister } from '../services/statecraft.service';
 import { db } from '../../config/database';
@@ -72,6 +78,69 @@ router.get('/capitol', async (req: Request, res: Response, next: NextFunction) =
     return res.json(data);
   } catch (error) { next(error); }
 });
+
+// ── The Floor: the redesigned politics game (docs/POLITICS_FLOOR.md) ───────
+// One read model for the screens...
+router.get('/desk', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await getDesk((req as any).user?.id ?? null, (req.query.stateId as string) || undefined);
+    if (!data) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+    return res.json(data);
+  } catch (error) { next(error); }
+});
+
+// ...and a handful of actions. Each runs in one transaction with the player's
+// character, party, seat and the sitting government already looked up.
+interface FloorCtx { trx: any; stateId: string; arc: number; phase: string; gov: GovernmentInfo; laws: Record<string, string>; me: PlayerPolitics }
+function floorAction(handler: (ctx: FloorCtx, req: Request) => Promise<any>, opts: { blockDuringElection?: boolean } = {}) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = (req as any).user?.id;
+      if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+      const state = await resolveStateForPhase(req);
+      if (!state) return next(new AppError('No active state', 404, 'NOT_FOUND'));
+      const result = await db.transaction(async trx => {
+        const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
+        if (!character) throw new AppError('Create a character first.', 404, 'NOT_FOUND');
+        const clock = await trx('world_clock').first();
+        const arc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
+        const cycle = await getOrCreateCurrentCycle(state.id, trx);
+        if (opts.blockDuringElection && ['polling', 'formation'].includes(cycle.phase)) {
+          throw new AppError('Parliament is dissolved while the election is counted and a government forms.', 409, 'CONFLICT');
+        }
+        const gov = await getGovernment(trx, state.id);
+        const laws = await getLawsInForce(trx, state.id);
+        const me = await playerPolitics(trx, state.id, character, gov);
+        return handler({ trx, stateId: state.id, arc, phase: cycle.phase, gov, laws, me }, req);
+      });
+      return res.json(result);
+    } catch (error) { next(error); }
+  };
+}
+const asId = (v: any, what: string): string => {
+  if (!UUID_REGEX.test(String(v ?? ''))) throw new AppError(`${what} is not a valid id`, 400, 'BAD_REQUEST');
+  return String(v);
+};
+const asVote = (v: any): 'yea' | 'nay' => {
+  if (v !== 'yea' && v !== 'nay') throw new AppError('vote must be yea or nay', 400, 'BAD_REQUEST');
+  return v;
+};
+
+router.post('/desk/situations/:id/choose', floorAction((c, req) => {
+  const option = Number(req.body?.option);
+  if (!Number.isInteger(option) || option < 0) throw new AppError('option must be a whole number', 400, 'BAD_REQUEST');
+  return chooseSituation(c.trx, c.stateId, c.me, asId(req.params.id, 'situation'), option, c.arc);
+}));
+router.post('/desk/rally', floorAction((c, req) => rally(c.trx, c.stateId, c.me, String(req.body?.segment ?? ''), c.phase, c.arc)));
+router.post('/desk/ad', floorAction(c => runAd(c.trx, c.stateId, c.me, c.arc)));
+router.post('/desk/fundraise', floorAction(c => fundraise(c.trx, c.stateId, c.me, c.arc)));
+router.post('/pacts', floorAction((c, req) => offerPact(c.trx, c.stateId, c.me, {
+  billId: asId(req.body?.billId, 'billId'), toPartyId: asId(req.body?.toPartyId, 'toPartyId'),
+  askedVote: asVote(req.body?.askedVote), cash: Number(req.body?.cash) || 0,
+}, c.gov, c.laws, c.arc), { blockDuringElection: true }));
+router.post('/pacts/:id/respond', floorAction((c, req) => respondPact(c.trx, c.stateId, c.me, asId(req.params.id, 'pact'), !!req.body?.accept, c.arc), { blockDuringElection: true }));
+router.post('/favours/:id/call', floorAction((c, req) => callFavour(c.trx, c.stateId, c.me, asId(req.params.id, 'favour'), asId(req.body?.billId, 'billId'), asVote(req.body?.vote), c.arc), { blockDuringElection: true }));
+router.post('/party/challenge', floorAction(c => challengeLeadership(c.trx, c.stateId, c.me, c.arc)));
 
 // ── Cabinet: the Premier appoints ministers ────────────────────────────────
 router.post('/cabinet/:postKey/appoint', async (req: Request, res: Response, next: NextFunction) => {

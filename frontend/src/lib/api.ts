@@ -243,6 +243,17 @@ export const politicsApi = {
   /** Everything the rebuilt Politics screens show, in one call. See backend capitol.service.ts. */
   getCapitol: (stateId?: string): Promise<import('@/app/drennia/politics/_capitol/types').Capitol> =>
     api.get(`/politics/capitol${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
+  /** The Floor: one read model for the redesigned politics screens. See backend desk.service.ts. */
+  getDesk: (): Promise<import('@/app/drennia/politics/_floor/types').Desk> => api.get('/politics/desk').then(res => res.data),
+  chooseSituation: (id: string, option: number) => api.post(`/politics/desk/situations/${id}/choose`, { option }).then(res => res.data),
+  rally: (segment: string) => api.post('/politics/desk/rally', { segment }).then(res => res.data),
+  runAd: () => api.post('/politics/desk/ad').then(res => res.data),
+  fundraise: () => api.post('/politics/desk/fundraise').then(res => res.data),
+  offerPact: (billId: string, toPartyId: string, askedVote: 'yea' | 'nay', cash: number) =>
+    api.post('/politics/pacts', { billId, toPartyId, askedVote, cash }).then(res => res.data),
+  respondPact: (id: string, accept: boolean) => api.post(`/politics/pacts/${id}/respond`, { accept }).then(res => res.data),
+  callFavour: (id: string, billId: string, vote: 'yea' | 'nay') => api.post(`/politics/favours/${id}/call`, { billId, vote }).then(res => res.data),
+  challengeLeadership: () => api.post('/politics/party/challenge').then(res => res.data),
   appointMinister: (postKey: string, characterId: string | null) =>
     api.post(`/politics/cabinet/${postKey}/appoint`, { characterId }).then(res => res.data),
   getState: () => api.get(`/politics/state?t=${Date.now()}`).then(res => res.data),

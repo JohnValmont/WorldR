@@ -56,7 +56,10 @@ export const POL_REACH_MAX = 1.0;
 export const POL_REACH_HALF_SAT = 120;
 export const POL_INCUMBENCY_BONUS = 1.15;
 export const POL_BASE_TURNOUT = 0.58;
-export const POL_FIRST_CYCLE_MONTHS = 12;
+// A brand-new world holds its founding election in its first month, so
+// Parliament sits (and there are bills to vote on) from day one instead of
+// after 12 empty months. Only affects a state that has never had a cycle.
+export const POL_FIRST_CYCLE_MONTHS = 1;
 export const POL_FILING_WINDOW_MONTHS = 3;
 export const POL_CAMPAIGN_WINDOW_MONTHS = 6;
 export const POL_FORMATION_WINDOW_MONTHS = 2;

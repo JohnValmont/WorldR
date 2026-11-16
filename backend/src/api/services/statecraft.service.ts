@@ -25,6 +25,7 @@ import {
 import { allocateSeatsDHondt, apportionSeats, runElection, EngineCandidate, EngineConstituency } from './electionEngine';
 import { NationalStats, readNationalStatsFromRow } from './nationalEconomy.service';
 import { safeParseJSON } from '../../utils/json';
+import { supportEffortByParty } from './support.store';
 
 // ═══════════════════════════════ PURE RULES ═══════════════════════════════
 
@@ -155,9 +156,13 @@ export interface VoteContext {
   ownBill?: boolean;
 }
 
-/** A party's bloc vote when no human leader has voted for it. */
-export function decidePartyVote(ctx: VoteContext): 'yea' | 'nay' {
-  if (ctx.ownBill) return 'yea';
+/**
+ * How strongly a party leans toward voting yes (positive) or no (negative):
+ * its liking of the change, plus government whipping / opposition scepticism.
+ * Pacts (floor.rules.ts) use the same number to judge what a vote is worth.
+ */
+export function partyVoteScore(ctx: VoteContext): number {
+  if (ctx.ownBill) return 1;
   let score = ctx.desirability;
   if (ctx.voterInGovernment && ctx.billFromGovernment) {
     score += NPC_GOV_WHIP + (ctx.ministerial ? MINISTER_BACKING_BONUS : 0);
@@ -166,7 +171,12 @@ export function decidePartyVote(ctx: VoteContext): 'yea' | 'nay' {
   } else if (ctx.voterInGovernment && !ctx.billFromGovernment) {
     score -= NPC_GOV_RESIST_PRIVATE_BILL;
   }
-  return score > 0 ? 'yea' : 'nay';
+  return score;
+}
+
+/** A party's bloc vote when no human leader has voted for it. */
+export function decidePartyVote(ctx: VoteContext): 'yea' | 'nay' {
+  return partyVoteScore(ctx) > 0 ? 'yea' : 'nay';
 }
 
 /** Government approval 0..100 from national stats (50 = neutral). */
@@ -580,12 +590,30 @@ export async function payOfficeSalaries(trx: any, stateId: string): Promise<void
  * everyone gets the campaign effort they actually spent this cycle).
  */
 export async function pollParties(trx: any, stateId: string, parties: any[]): Promise<PartyForPoll[]> {
-  const leaderIds = parties.map((p: any) => p.leader_character_id).filter(Boolean);
-  const leaders = leaderIds.length ? await trx('characters').whereIn('id', leaderIds).select('id', 'credibility') : [];
-  const credById = new Map<string, number>(leaders.map((c: any) => [c.id, Number(c.credibility) || 0]));
-
   const cycle = await trx('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
   const districtsCount = Math.max(1, Number((await trx('pol_constituencies').where({ state_id: stateId, is_active: true }).count('* as n').first())?.n) || 1);
+
+  // Credibility as the real election sees it: a player standing in a district
+  // brings their own reputation there; every other district is fought by a
+  // computer-run list candidate at 50. The poll uses the party-wide average.
+  const credSumByParty: Record<string, { sum: number; n: number }> = {};
+  if (cycle) {
+    const humans = await trx('pol_candidates')
+      .join('characters', 'characters.id', 'pol_candidates.character_id')
+      .where('pol_candidates.cycle_id', cycle.id)
+      .select('pol_candidates.party_id', 'characters.credibility');
+    for (const h of humans) {
+      const e = (credSumByParty[h.party_id] ??= { sum: 0, n: 0 });
+      e.sum += Number(h.credibility) || 0;
+      e.n += 1;
+    }
+  }
+  const partyCredibility = (partyId: string) => {
+    const e = credSumByParty[partyId];
+    if (!e) return 50;
+    const n = Math.min(districtsCount, e.n);
+    return (e.sum / e.n * n + 50 * (districtsCount - n)) / districtsCount;
+  };
   const effortByParty: Record<string, Record<string, number>> = {};
   if (cycle) {
     const actions = await trx('pol_campaign_actions')
@@ -600,20 +628,16 @@ export async function pollParties(trx: any, stateId: string, parties: any[]): Pr
       else for (const seg of SEGMENTS) e[seg.key] = (e[seg.key] || 0) + amt / SEGMENTS.length;
     }
   }
-  // A human party's districts without a human candidate are fought by
-  // computer-run list candidates, who get the party machine like any NPC.
-  const memberCounts = parties.length
-    ? await trx('pol_party_members').whereIn('party_id', parties.map((p: any) => p.id)).select('party_id').count('* as n').groupBy('party_id')
-    : [];
-  const membersBy = new Map<string, number>(memberCounts.map((r: any) => [r.party_id, Number(r.n) || 0]));
+  // Every candidate gets the party machine plus their party's support with
+  // each voter group, exactly as buildEngineCandidates does for the real election.
+  const support = await supportEffortByParty(trx, stateId);
   return parties.map((p: any) => {
     const effort: Record<string, number> = { ...(effortByParty[p.id] ?? {}) };
-    const machineShare = p.is_npc ? 1 : Math.max(0, 1 - Math.min(districtsCount, membersBy.get(p.id) ?? 0) / districtsCount);
-    if (machineShare > 0) for (const seg of SEGMENTS) effort[seg.key] = (effort[seg.key] || 0) + NPC_MACHINE_EFFORT * machineShare;
+    for (const seg of SEGMENTS) effort[seg.key] = (effort[seg.key] || 0) + NPC_MACHINE_EFFORT + (support[p.id]?.[seg.key] ?? 0);
     return {
       id: p.id,
       platform: parsePlatform(p.platform),
-      credibility: p.is_npc ? 50 : (credById.get(p.leader_character_id) ?? 0),
+      credibility: partyCredibility(p.id),
       effortBySegment: effort,
     };
   });
