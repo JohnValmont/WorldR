@@ -390,3 +390,10 @@ deals; a deal with a computer-run party was kept and left a favour owed; governm
 - The older subsystems (factions, interest groups, media, scandals, legacy, lobbying, tenders)
   still tick but have no screen. Re-surface them one at a time through support, or remove them.
 - A first-session tutorial, and sound/animation polish.
+
+## Nation size update (2026-11-17, owner decision)
+
+Nations are now **6 players each** (not 10), and there are **three** from day one: Drennia, Westmark
+and Eryndor, built equal. See "Three nations" in `docs/POLITICS_FLOOR.md`. The inactive-player
+rule from the starter-nations section above (14 days) is implemented; the seasonal re-sort and
+cross-border trade are not.

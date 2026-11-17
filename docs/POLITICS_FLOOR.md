@@ -55,6 +55,45 @@ backs your party (0 to 100). Support decides elections. Promises between parties
   one unhappy partner can defeat a bill.
 - **A new world** holds its founding election in month one.
 
+## Three nations (added 2026-11-17)
+
+The world now has three playable nations: **Drennia**, **Westmark** and **Eryndor** (Drennia's two
+similar-sized neighbours on the map). Six players each.
+
+- **Equal on purpose.** Each has 151 seats, 7,000,000 voters in 20 districts of the same sizes,
+  the same starting statistics and the same laws. They differ in character only: where the
+  workers, traders, owners, professionals and families live, and which four parties speak for them.
+  A test fails if the nations ever stop being the same size.
+- **Six players per nation.** Sign-up shows the places left in each. A full nation is refused with
+  the names of the ones that have room. A player not seen for 14 days stops counting. If all three
+  are full, a newcomer still gets in, to the least crowded one (switch `NATION_OVERFLOW_WHEN_ALL_FULL`
+  off to refuse instead).
+- **Your politics happens in your own nation.** Every politics request runs in the nation of the
+  player's character; nothing on the screens needs to choose.
+- **Elections are staggered.** All three hold a founding election in month one; after that their
+  elections fall 16 months apart, so one is always coming somewhere in the world.
+- **Nation power.** Three scores out of 100, shown side by side on the new **Nation** screen:
+  Economy (prosperity and public finances), Military (the defence law in force) and Influence
+  (global standing). All start at 50. There is no war system; military strength is a number
+  Parliament can raise by voting for defence spending, at a cost to the budget.
+- **Powers of office (decrees).** The Premier and each of the five ministers may issue one decree a
+  month without Parliament (4 energy): a nudge to national statistics that lasts 8 months and
+  always helps one thing and hurts another. The Premier also appoints the cabinet from players
+  in the governing parties.
+- **One set of stories, three sets of place names.** Decision cards and news were written with
+  Drennia's towns; for the other nations the same text is shown with their own towns.
+
+Files: nation data and caps in `constants/nations.ts`; decrees in `constants/decrees.ts`;
+`services/nations.service.ts` (cap, comparison); `services/playerNation.ts` (which nation a
+request is about); `database/migrations/0099_starter_nations.sql`; screen `_floor/NationView.tsx`.
+
+**Limits to know about**
+- Business is still Drennia-only. A Westmark or Eryndor player who opens the Business desk is in
+  Drennia's car market. Giving each nation its own economy is a separate, larger job.
+- Nations do not yet act on each other (no treaties, tariffs between them, or war). They are
+  compared, not connected.
+- The game screens still live under the web address `/drennia/...` for every nation.
+
 ## Where the code is
 
 | What | File |

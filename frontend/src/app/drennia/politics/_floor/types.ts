@@ -88,6 +88,17 @@ export interface ElectionReplay {
   previousSeats: Record<string, number>;
 }
 
+export interface NationRow {
+  countryId: string; polStateCode: string; name: string; officialName: string; capital: string; government: string; motto: string;
+  flag: { pattern: string; colors: string[]; emblem: string; emblemColor: string };
+  premier: string | null; premierIsPlayer: boolean; leadParty: { name: string; color: string } | null;
+  governmentSeats: number; seats: number; approval: number;
+  power: { economy: number; military: number; influence: number; overall: number };
+  monthsToElection: number | null; players: number; cap: number; mine: boolean;
+}
+export interface DecreeRow { key: string; office: string; title: string; blurb: string; stat: Record<string, number>; support: Record<string, number> }
+export interface Office { titles: string[]; decreeAp: number; lastsMonths: number; usedThisMonth: string | null; decrees: DecreeRow[] }
+
 export interface FloorMe extends Me {
   charisma: number;
   hasSeat: boolean;
@@ -115,5 +126,7 @@ export interface Desk extends Omit<Capitol, 'bills' | 'me'> {
     deals: Deals | null;
     partyRoom: PartyRoom | null;
     log: { arc: number; kind: string; summary: string }[];
+    world: NationRow[];
+    office: Office | null;
   };
 }

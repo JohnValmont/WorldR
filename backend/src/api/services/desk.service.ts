@@ -14,6 +14,7 @@ import {
   PARTY_SWITCH_COOLDOWN_MONTHS, RALLY_AP, SEGMENT_SHORT, SegmentKey,
 } from '../constants/floor';
 import { SITUATION_BY_KEY } from '../constants/situations';
+import { localisePlaces } from '../constants/nations';
 import { safeParseJSON } from '../../utils/json';
 import { getCapitol } from './capitol.service';
 import {
@@ -115,6 +116,8 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     districts: cap.districts.map((d: any) => ({ id: d.id, name: d.name })),
     parties: cap.parties.map((p: any) => ({ id: p.id, name: p.name, seats: p.seats })),
   }));
+  // Cards are written with Drennia's towns; other nations read their own.
+  const loc = (t: string) => localisePlaces(t, cap.state.code);
   const handRows = await db('pol_situations').where({ character_id: character.id, arc }).orderBy('slot');
   desk.hand = handRows.map((r: any) => {
     const card = SITUATION_BY_KEY[r.card_key];
@@ -123,16 +126,16 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     return {
       id: r.id,
       key: card.key,
-      kicker: card.kicker,
-      title: renderText(card.title, vars),
-      body: renderText(card.body, vars),
+      kicker: loc(card.kicker),
+      title: loc(renderText(card.title, vars)),
+      body: loc(renderText(card.body, vars)),
       status: r.status,
       chosen: r.option_index,
       result: typeof r.outcome === 'string' ? safeParseJSON(r.outcome) : r.outcome,
       options: card.options.map(o => {
         const chances = outcomeChances(o);
         return {
-          label: renderText(o.label, vars),
+          label: loc(renderText(o.label, vars)),
           cost: effectiveCost(me, o.cost),
           outcomes: o.outcomes.map((oc, i) => ({ chance: chances[i], tone: oc.tone, effects: oc.effects })),
         };

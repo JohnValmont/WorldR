@@ -1,6 +1,6 @@
 'use client';
 // Politics — "The Floor" (docs/POLITICS_FLOOR.md).
-// One call (GET /politics/desk) drives four screens: Desk, Chamber, Voters, Party.
+// One call (GET /politics/desk) drives five screens: Desk, Chamber, Voters, Party, Nation.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { politicsApi, worldApi, authApi } from '@/lib/api';
@@ -14,13 +14,15 @@ import ChamberView from './_floor/ChamberView';
 import VotersView from './_floor/VotersView';
 import PartyView from './_floor/PartyView';
 import ElectionNight from './_floor/ElectionNight';
+import NationView from './_floor/NationView';
 
-type Tab = 'desk' | 'chamber' | 'voters' | 'party';
+type Tab = 'desk' | 'chamber' | 'voters' | 'party' | 'nation';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'desk', label: 'Desk' },
   { id: 'chamber', label: 'Chamber' },
   { id: 'voters', label: 'Voters' },
   { id: 'party', label: 'Party' },
+  { id: 'nation', label: 'Nation' },
 ];
 const PHASE_LABEL: Record<string, string> = {
   governing: 'Parliament sitting', filing: 'Candidates filing', campaign: 'Election campaign', polling: 'Election day', formation: 'Forming a government',
@@ -166,7 +168,7 @@ export default function PoliticsPage() {
                 style={{ background: T.accentSoft, border: `1px solid ${T.accent}` }}>
                 <span>
                   <span className="block text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: T.accent }}>The results are in</span>
-                  <span className="font-serif text-lg font-bold" style={{ color: T.text }}>Drennia has voted. Watch election night.</span>
+                  <span className="font-serif text-lg font-bold" style={{ color: T.text }}>{desk.nation.shortName} has voted. Watch election night.</span>
                 </span>
                 <Chip color={T.accent} filled>Watch</Chip>
               </button>
@@ -176,6 +178,7 @@ export default function PoliticsPage() {
               {tab === 'chamber' && <ChamberView />}
               {tab === 'voters' && <VotersView onReplay={openElection} />}
               {tab === 'party' && <PartyView />}
+              {tab === 'nation' && <NationView />}
             </ViewBoundary>
             {electionOpen && el && <ElectionNight onClose={() => setElectionOpen(false)} />}
           </FloorContext.Provider>

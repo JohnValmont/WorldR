@@ -425,3 +425,28 @@ export const DEFAULT_LAWS: Record<string, string> = {
 export const NPC_MACHINE_EFFORT = 15;
 /** How many monthly poll snapshots the Capitol page returns for the trend chart. */
 export const POLL_HISTORY_MONTHS = 24;
+
+// ─── One set of stories, three sets of place names ─────────────────────────
+// Decision cards and news were written with Drennia's towns. For the other
+// nations the same story is told with their own industrial town, port and
+// farm country, so nothing reads as if it happened abroad.
+export const NATION_PLACES: Record<string, { industry: string; port: string; farms: string }> = {
+  drennia: { industry: 'Ironvale', port: 'Westport', farms: 'Greenmere' },
+  westmark: { industry: 'Harrowick', port: 'Tidewater', farms: 'Wetherby' },
+  eryndor: { industry: 'Coalreach', port: 'Southfold', farms: 'Goldmere' },
+};
+
+export function localisePlaces(text: string, polStateCode: string | null | undefined): string {
+  const spec = getNationForPolState(polStateCode);
+  if (!text || !spec || spec.countryId === DRENNIA.countryId) return text;
+  const p = NATION_PLACES[spec.countryId];
+  if (!p) return text;
+  return text
+    .replace(/Drennian dollar/g, 'dollar')
+    .replace(/Drennport/g, spec.capital)
+    .replace(/Ironvale/g, p.industry)
+    .replace(/Westport/g, p.port)
+    .replace(/Greenmere/g, p.farms)
+    .replace(/Drennian/g, spec.demonym)
+    .replace(/Drennia/g, spec.shortName);
+}

@@ -60,6 +60,10 @@ export async function assignNation(conn: any, requested: string | null | undefin
 /** One row per starter nation: who governs, how it is doing, how many players live there. */
 export async function worldNations(conn: any, arc?: number) {
   const roster = await nationRoster(conn);
+  if (arc == null) {
+    const clock = await conn('world_clock').first();
+    if (clock) arc = num(clock.pol_current_year) * 12 + (num(clock.pol_current_month, 1) - 1);
+  }
   const out = [];
   for (const spec of STARTER_NATIONS) {
     const state = await conn('pol_states').where({ code: spec.polStateCode }).first();

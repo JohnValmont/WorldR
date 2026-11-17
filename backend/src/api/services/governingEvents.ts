@@ -9,6 +9,7 @@
  * No locked systems touched. All magnitudes live in politics.ts constants.
  */
 
+import { localisePlaces } from '../constants/nations';
 import {
   GOVERNING_EVENTS_ENABLED,
   GOVERNING_EVENT_TEMPLATES,
@@ -100,6 +101,7 @@ export async function fireGoverningEvent(
   currentMonth: number
 ): Promise<void> {
   if (!GOVERNING_EVENTS_ENABLED) return;
+  const polStateCode: string | null = (await trx('pol_states').where({ id: stateId }).select('code').first())?.code ?? null;
 
   // Idempotency guard: only one governing event per (state, month)
   const alreadyFired = await trx('pol_ledger_events')
@@ -141,8 +143,8 @@ export async function fireGoverningEvent(
     state_id: stateId,
     arc: currentMonth,
     kind: template.kind,
-    headline: template.headline,
-    body: template.body,
+    headline: localisePlaces(template.headline, polStateCode),
+    body: localisePlaces(template.body, polStateCode),
   });
 }
 
@@ -159,6 +161,7 @@ export async function fireConditionCrises(
   currentMonth: number
 ): Promise<void> {
   const state = await trx('pol_states').where({ id: stateId }).first();
+  const polStateCode: string | null = state?.code ?? null;
   if (!state) return;
 
   const conditions = readNationalStatsFromRow(state);
@@ -188,8 +191,8 @@ export async function fireConditionCrises(
       state_id: stateId,
       arc: currentMonth,
       kind,
-      headline: spec.headline,
-      body: spec.body,
+      headline: localisePlaces(spec.headline, polStateCode),
+      body: localisePlaces(spec.body, polStateCode),
     });
   }
 }

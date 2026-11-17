@@ -43,8 +43,11 @@ export class AuthService {
   }
 
   private generateRefreshToken(user: User): string {
+    // jti makes every refresh token unique. Without it, two logins by the same
+    // user in the same second produced the identical token, and storing the
+    // second one failed with a 500 (duplicate key on refresh_tokens).
     return jwt.sign(
-      { id: user.id },
+      { id: user.id, jti: crypto.randomUUID() },
       env.JWT_REFRESH_SECRET,
       { expiresIn: '7d' }
     );

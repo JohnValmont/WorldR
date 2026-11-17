@@ -15,7 +15,7 @@ import {
   REBEL_CLOUT, REBEL_TRUST, SHOCK_MONTHS, WORD_BROKEN_MONTHS, WORD_BROKEN_SUPPORT, WORD_BROKEN_TRUST,
   WORD_KEPT_CLOUT, WORD_KEPT_TRUST,
 } from '../constants/floor';
-import { DEFAULT_LAWS } from '../constants/nations';
+import { DEFAULT_LAWS, getNationForPolState, localisePlaces } from '../constants/nations';
 import { DECREE_AP, DECREE_BY_KEY } from '../constants/decrees';
 import { CardCost, Effects, Role, SITUATION_BY_KEY } from '../constants/situations';
 import {
@@ -493,7 +493,8 @@ export async function chooseSituation(trx: any, stateId: string, me: PlayerPolit
   const idx = pickOutcome(option, `${row.id}|${optionIndex}`);
   const outcome = option.outcomes[idx];
   await applyEffects(trx, stateId, me, outcome.effects, vars, arc, card.title);
-  const result = { index: idx, tone: outcome.tone, text: renderText(outcome.text, vars), effects: outcome.effects };
+  const polStateCode = (await trx('pol_states').where({ id: stateId }).select('code').first())?.code;
+  const result = { index: idx, tone: outcome.tone, text: localisePlaces(renderText(outcome.text, vars), polStateCode), effects: outcome.effects };
   await trx('pol_situations').where({ id: row.id }).update({
     status: 'resolved', option_index: optionIndex, outcome: JSON.stringify(result), resolved_at: trx.fn.now(),
   });
@@ -756,7 +757,8 @@ export async function challengeLeadership(trx: any, stateId: string, me: PlayerP
     body: leader ? `${leader.name} is out after a challenge from inside the party.` : `${me.party.name}'s MPs have chosen a new leader.`,
   });
   await logAction(trx, stateId, me, arc, 'leadership', me.party.id, `Became leader of ${me.party.name}`);
-  return { won: true, message: `You now lead ${me.party.name}${becamePremier ? ' and are Premier of Drennia' : ''}. Its bloc votes the way you vote.` };
+  const nationName = getNationForPolState((await trx('pol_states').where({ id: stateId }).select('code').first())?.code)?.shortName ?? 'the nation';
+  return { won: true, message: `You now lead ${me.party.name}${becamePremier ? ` and are Premier of ${nationName}` : ''}. Its bloc votes the way you vote.` };
 }
 
 // ═══════════════════════════════ DECREES ═══════════════════════════════
