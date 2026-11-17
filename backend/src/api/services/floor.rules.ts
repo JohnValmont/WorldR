@@ -253,3 +253,32 @@ export function outcomeChances(option: CardOption): number[] {
 export function renderText(text: string, vars: Record<string, string>): string {
   return text.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
 }
+
+// ─── Handshakes (personal deals) ────────────────────────────────────────────
+
+/**
+ * How one politician's vote was actually counted on a bill, from the same
+ * vote plan the tally used. A party leader's vote is the party line; an MP
+ * with a seat counts their own vote, or the party line if they did not vote.
+ * null = they could not vote on it (no seat and not leading a seated party).
+ */
+export function countedVoteOf(input: {
+  characterId: string;
+  partyLine: Record<string, 'yea' | 'nay' | undefined>;
+  personal: { characterId: string; partyId: string; vote: 'yea' | 'nay' }[];
+  ledPartyId: string | null;          // party this person leads, if it holds seats
+  seatPartyId: string | null;         // party of the seat this person holds, if any
+}): 'yea' | 'nay' | null {
+  if (input.ledPartyId) return input.partyLine[input.ledPartyId] ?? null;
+  if (input.seatPartyId) {
+    const own = input.personal.find(p => p.characterId === input.characterId);
+    return own?.vote ?? input.partyLine[input.seatPartyId] ?? null;
+  }
+  return null;
+}
+
+/** Was a vote promise kept? 'void' when the promiser had no vote to give. */
+export function judgePromise(promised: 'yea' | 'nay', counted: 'yea' | 'nay' | null): 'kept' | 'broken' | 'void' {
+  if (counted == null) return 'void';
+  return counted === promised ? 'kept' : 'broken';
+}

@@ -424,3 +424,20 @@ describe('Character creation: backgrounds are different but worth the same', asy
     assert.strictEqual(convictionFit(null, PLATFORMS.labour), null);
   });
 });
+
+describe('Handshakes: personal promises are judged from the counted vote', async () => {
+  const { countedVoteOf, judgePromise } = await import('../src/api/services/floor.rules');
+  const partyLine = { A: 'yea' as const, B: 'nay' as const };
+  const personal = [{ characterId: 'rebel', partyId: 'A', vote: 'nay' as const }];
+  it('a leader counts as the party line; an MP counts their own vote or the line', () => {
+    assert.strictEqual(countedVoteOf({ characterId: 'lead', partyLine, personal, ledPartyId: 'B', seatPartyId: null }), 'nay');
+    assert.strictEqual(countedVoteOf({ characterId: 'rebel', partyLine, personal, ledPartyId: null, seatPartyId: 'A' }), 'nay');
+    assert.strictEqual(countedVoteOf({ characterId: 'loyal', partyLine, personal, ledPartyId: null, seatPartyId: 'A' }), 'yea');
+    assert.strictEqual(countedVoteOf({ characterId: 'citizen', partyLine, personal, ledPartyId: null, seatPartyId: null }), null);
+  });
+  it('kept, broken, or void when there was no vote to give', () => {
+    assert.strictEqual(judgePromise('yea', 'yea'), 'kept');
+    assert.strictEqual(judgePromise('yea', 'nay'), 'broken');
+    assert.strictEqual(judgePromise('nay', null), 'void');
+  });
+});

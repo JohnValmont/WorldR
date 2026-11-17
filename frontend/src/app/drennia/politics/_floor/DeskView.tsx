@@ -261,6 +261,16 @@ export default function DeskView() {
           </Card>
         ))}
 
+        {(desk.desk.handshakesIncoming ?? 0) > 0 && (
+          <Card className="p-4" tone="accent">
+            <Label color={T.accent}>In the corridors</Label>
+            <p className="text-sm mt-1" style={{ color: T.text }}>
+              {desk.desk.handshakesIncoming === 1 ? 'A politician has' : `${desk.desk.handshakesIncoming} politicians have`} offered you a deal.
+            </p>
+            <div className="mt-3"><Btn small kind="primary" onClick={() => go('corridors')} id="cta-corridors">See the offer{desk.desk.handshakesIncoming === 1 ? '' : 's'}</Btn></div>
+          </Card>
+        )}
+
         {openCards.map(c => <Situation key={c.id} card={c} />)}
 
         {toVote.length > 0 && <Label>Votes waiting for you</Label>}

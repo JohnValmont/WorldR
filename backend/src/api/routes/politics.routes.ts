@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { getCorridors, getProfile } from '../services/corridors.service';
 import { authMiddleware, requireAdmin } from '../middlewares/auth.middleware';
 import { AppError } from '../../utils/errors';
 import {
@@ -57,7 +58,7 @@ import { getOrCreateCurrentCycle, bribeVote, getBillCoercions, worldClockToArc }
 import { getDesk } from '../services/desk.service';
 import { currentPolStateCode, withPlayerNation } from '../services/playerNation';
 import {
-  callFavour, challengeLeadership, chooseSituation, fundraise, issueDecree, offerPact, playerPolitics, PlayerPolitics, rally, respondPact, runAd,
+  callFavour, challengeLeadership, chooseSituation, fundraise, issueDecree, offerPact, offerHandshake, respondHandshake, withdrawHandshake, playerPolitics, PlayerPolitics, rally, respondPact, runAd,
 } from '../services/floor.service';
 import { getGovernment, getLawsInForce } from '../services/statecraft.service';
 import type { GovernmentInfo } from '../services/statecraft.service';
@@ -143,6 +144,27 @@ router.post('/pacts', floorAction((c, req) => offerPact(c.trx, c.stateId, c.me, 
 }, c.gov, c.laws, c.arc), { blockDuringElection: true }));
 router.post('/pacts/:id/respond', floorAction((c, req) => respondPact(c.trx, c.stateId, c.me, asId(req.params.id, 'pact'), !!req.body?.accept, c.arc), { blockDuringElection: true }));
 router.post('/favours/:id/call', floorAction((c, req) => callFavour(c.trx, c.stateId, c.me, asId(req.params.id, 'favour'), asId(req.body?.billId, 'billId'), asVote(req.body?.vote), c.arc), { blockDuringElection: true }));
+// ── Corridors: who's who, public records, personal deals (handshakes) ──
+router.get('/corridors', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+    res.json(await getCorridors(userId));
+  } catch (error) { next(error); }
+});
+router.get('/people/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try { res.json(await getProfile(asId(req.params.id, 'person'))); } catch (error) { next(error); }
+});
+const dealSide = (v: any) => ({
+  billId: v?.billId ? asId(v.billId, 'billId') : null,
+  vote: v?.vote ? asVote(v.vote) : null,
+  cash: Number(v?.cash) || 0,
+});
+router.post('/handshakes', floorAction((c, req) => offerHandshake(c.trx, c.stateId, c.me, {
+  toCharacterId: asId(req.body?.toCharacterId, 'toCharacterId'), give: dealSide(req.body?.give), ask: dealSide(req.body?.ask), note: String(req.body?.note ?? ''),
+}, c.gov, c.arc), { blockDuringElection: true }));
+router.post('/handshakes/:id/respond', floorAction((c, req) => respondHandshake(c.trx, c.stateId, c.me, asId(req.params.id, 'deal'), !!req.body?.accept, c.gov, c.arc), { blockDuringElection: true }));
+router.post('/handshakes/:id/withdraw', floorAction((c, req) => withdrawHandshake(c.trx, c.me, asId(req.params.id, 'deal'), c.arc)));
 router.post('/party/challenge', floorAction(c => challengeLeadership(c.trx, c.stateId, c.me, c.arc)));
 router.post('/decree', floorAction((c, req) => issueDecree(c.trx, c.stateId, c.me, String(req.body?.key ?? ''), c.arc)));
 

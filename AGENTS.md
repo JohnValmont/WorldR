@@ -99,3 +99,8 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Backgrounds, edge tokens and starting numbers live in constants/characterCreation.ts; the server computes stats with startingProfile (services/character.rules.ts). Never accept stat numbers from the client.
 - Every background must be worth BACKGROUND_POINTS and have a weakness (tests/floor.test.ts enforces it). Only the party fixer starts at or above LEADERSHIP_MIN_CLOUT.
 - Sign-up reads nations, parties and creation options from GET /world/nations. Do not hard-code nation facts in onboarding.js (onboarding_data.js is only the list of locked future nations).
+
+## Corridors (multiplayer) — Operational Rules (DO NOT BREAK)
+- Chat channels are resolved on the server (chat.controller resolveChannel): 'world', 'private', 'nation', 'party'. Never let a client name a raw room like 'party:<id>'.
+- Personal deals are pol_handshakes. Vote promises are judged ONLY in settleHandshakes, from the same BillVotePlan the tally uses. Do not judge them anywhere else.
+- Corridors lists real players only: exclude system accounts (users.password_hash = 'no_login_allowed').

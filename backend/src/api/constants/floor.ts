@@ -138,3 +138,23 @@ export const SHOCK_TOTAL_CAP = 8;
 
 /** Stats where a LOWER number is better for people (used for wording and colours). */
 export const LOWER_IS_BETTER: NationalStat[] = ['cost_of_living'];
+
+// ─── Handshakes: personal deals between any two politicians ─────────────────
+// Party pacts (above) are leader-to-party. A handshake is person-to-person:
+// each side may promise a vote on a bill and/or pay money from their own
+// pocket. The game checks every vote promise when that bill is counted.
+export const HANDSHAKE_AP = 1;
+/** Most money one side can hand over in one handshake. */
+export const HANDSHAKE_MAX_CASH = 250_000;
+/** Open offers one politician may have waiting at once (stops spam). */
+export const HANDSHAKE_MAX_OPEN = 5;
+/** Keeping your word in a handshake. Paid at most once per politician per month (no farming between friends). */
+export const HANDSHAKE_KEPT_TRUST = 1;
+/** Breaking it: same weight as a broken party pact, and it makes the news. */
+export const HANDSHAKE_BROKEN_TRUST = -10;
+export const HANDSHAKE_BROKEN_CLOUT = -3;
+export const HANDSHAKE_NOTE_MAX = 240;
+
+// ─── Corridors: who's who and messages ──────────────────────────────────────
+/** How many recent votes a politician's profile shows. */
+export const PROFILE_RECENT_VOTES = 8;

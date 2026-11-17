@@ -14,7 +14,8 @@ import {
   AD_AP, AD_COST, FUNDRAISE_AP, HAND_REPEAT_COOLDOWN_MONTHS, HAND_SIZE, LAW_FAILED_PROPOSER_SHARE, LAW_OPPONENT_SHARE,
   FAVOUR_CALL_MIN_LEAN, LEADERSHIP_AP, LEADERSHIP_FAIL_CLOUT, LEADERSHIP_MIN_TENURE_MONTHS, PACT_AP, PACT_MAX_CASH, PARTY_SWITCH_COOLDOWN_MONTHS, RALLY_AP,
   REBEL_CLOUT, REBEL_TRUST, SHOCK_MONTHS, WORD_BROKEN_MONTHS, WORD_BROKEN_SUPPORT, WORD_BROKEN_TRUST,
-  WORD_KEPT_CLOUT, WORD_KEPT_TRUST,
+  WORD_KEPT_CLOUT, WORD_KEPT_TRUST, HANDSHAKE_AP, HANDSHAKE_BROKEN_CLOUT, HANDSHAKE_BROKEN_TRUST, HANDSHAKE_KEPT_TRUST,
+  HANDSHAKE_MAX_CASH, HANDSHAKE_MAX_OPEN, HANDSHAKE_NOTE_MAX,
 } from '../constants/floor';
 import { DEFAULT_LAWS, getNationForPolState, headOfGovernmentTitle, localisePlaces, nationRules } from '../constants/nations';
 import { DECREE_AP, DECREE_BY_KEY } from '../constants/decrees';
@@ -22,7 +23,7 @@ import { CardCost, Effects, Role, SITUATION_BY_KEY } from '../constants/situatio
 import {
   adGain, dealHand, DealContext, driftSupport, fundraiseTake, lawSupportDeltas, leadershipDecision,
   pactDecision, PactDecision, pickOutcome, rallyGain, renderText, SEGMENT_KEYS, supportTarget,
-  tallyBill, TallyResult, Vote,
+  tallyBill, TallyResult, Vote, countedVoteOf, judgePromise,
 } from './floor.rules';
 import { addSupport, ensureSupport, getSupportMap } from './support.store';
 import {
@@ -235,7 +236,10 @@ export async function settleBillPolitics(trx: any, bill: any, plan: BillVotePlan
     }
   }
 
-  // 4. Voters react to the law.
+  // 4. Personal handshakes that turned on this bill.
+  await settleHandshakes(trx, bill, plan, shared, title, arc);
+
+  // 5. Voters react to the law.
   if (bill.type === 'policy_change' && params?.category && params?.option) {
     const current = shared.laws[params.category] ?? DEFAULT_LAWS[params.category];
     const deltas = lawSupportDeltas(params.category, current, params.option);
@@ -803,4 +807,141 @@ export async function issueDecree(trx: any, stateId: string, me: PlayerPolitics,
   });
   await logAction(trx, stateId, me, arc, 'decree', decree.key, `Decree: ${decree.title}`);
   return { message: `${decree.title}: the order is given. Its effects are felt from next month and last ${months} months.` };
+}
+
+
+// ═══════════════════════════════ HANDSHAKES ═══════════════════════════════
+// Person-to-person deals. Either side may promise a vote on a bill and/or pay
+// money. Money moves when the deal is accepted; vote promises are judged when
+// the bill is counted, from the same vote plan the tally used.
+
+/** The party a politician leads (if it holds seats) and the party of their seat (if any). */
+async function votingPosition(trx: any, stateId: string, characterId: string, gov: GovernmentInfo): Promise<{ ledPartyId: string | null; seatPartyId: string | null }> {
+  const led = await trx('pol_parties').where({ state_id: stateId, leader_character_id: characterId }).first();
+  const ledPartyId = led && (gov.seatsByParty[led.id] || 0) > 0 ? led.id : null;
+  const seat = gov.sittingCycleId ? await trx('pol_council_seats').where({ cycle_id: gov.sittingCycleId, character_id: characterId }).first() : null;
+  return { ledPartyId, seatPartyId: seat?.party_id ?? null };
+}
+const canVote = (p: { ledPartyId: string | null; seatPartyId: string | null }) => !!(p.ledPartyId || p.seatPartyId);
+
+async function payPerson(trx: any, fromId: string, toId: string, amount: number, who: string): Promise<void> {
+  if (amount <= 0) return;
+  const f = await trx('character_finances').where({ character_id: fromId }).forUpdate().first();
+  if (!f || num(f.cash_in_hand) < amount) throw new AppError(`${who} cannot cover ${'$' + Math.round(amount).toLocaleString()}.`, 400, 'INSUFFICIENT_FUNDS');
+  await trx('character_finances').where({ character_id: fromId }).decrement('cash_in_hand', amount);
+  await trx('character_finances').where({ character_id: toId }).increment('cash_in_hand', amount);
+}
+
+export interface HandshakeInput {
+  toCharacterId: string;
+  give: { billId: string | null; vote: Vote | null; cash: number };
+  ask: { billId: string | null; vote: Vote | null; cash: number };
+  note: string;
+}
+
+export async function offerHandshake(trx: any, stateId: string, me: PlayerPolitics, input: HandshakeInput, gov: GovernmentInfo, arc: number) {
+  const to = await trx('characters').where({ id: input.toCharacterId, status: 'active' }).first();
+  if (!to || to.id === me.character.id) throw new AppError('Choose another politician.', 400, 'BAD_REQUEST');
+  if (to.motherland_country_id !== me.character.motherland_country_id) throw new AppError('You can only deal with politicians of your own nation.', 400, 'BAD_REQUEST');
+  const clampCash = (v: number) => Math.round(Math.max(0, Math.min(HANDSHAKE_MAX_CASH, num(v))));
+  const giveCash = clampCash(input.give.cash), askCash = clampCash(input.ask.cash);
+  const giveVote = input.give.billId && input.give.vote ? input.give.vote : null;
+  const askVote = input.ask.billId && input.ask.vote ? input.ask.vote : null;
+  if (!giveVote && !giveCash) throw new AppError('Offer something: your vote on a bill, money, or both.', 400, 'BAD_REQUEST');
+  if (!askVote && !askCash) throw new AppError('Ask for something: their vote on a bill, money, or both.', 400, 'BAD_REQUEST');
+  for (const [billId, label] of [[giveVote ? input.give.billId : null, 'The bill you offered your vote on'], [askVote ? input.ask.billId : null, 'The bill you asked about']] as const) {
+    if (!billId) continue;
+    const bill = await trx('pol_bills').where({ id: billId, state_id: stateId, status: 'proposed' }).first();
+    if (!bill) throw new AppError(`${label} is no longer before Parliament.`, 404, 'NOT_FOUND');
+  }
+  if (giveVote && !canVote(await votingPosition(trx, stateId, me.character.id, gov))) throw new AppError('You have no vote to promise: you need a seat, or to lead a party with seats.', 403, 'FORBIDDEN');
+  if (askVote && !canVote(await votingPosition(trx, stateId, to.id, gov))) throw new AppError(`${to.name} has no vote to promise: they hold no seat.`, 400, 'BAD_REQUEST');
+  if (giveCash) {
+    const f = await trx('character_finances').where({ character_id: me.character.id }).first();
+    if (!f || num(f.cash_in_hand) < giveCash) throw new AppError('You do not have that much money.', 400, 'INSUFFICIENT_FUNDS');
+  }
+  const open = num((await trx('pol_handshakes').where({ from_character_id: me.character.id, status: 'offered' }).count('* as n').first())?.n);
+  if (open >= HANDSHAKE_MAX_OPEN) throw new AppError(`You already have ${open} offers waiting. Withdraw one first.`, 409, 'CONFLICT');
+  await spendEnergy(trx, me.character.id, HANDSHAKE_AP, arc);
+  const [row] = await trx('pol_handshakes').insert({
+    state_id: stateId, from_character_id: me.character.id, to_character_id: to.id,
+    from_bill_id: giveVote ? input.give.billId : null, from_vote: giveVote, from_cash: giveCash,
+    to_bill_id: askVote ? input.ask.billId : null, to_vote: askVote, to_cash: askCash,
+    note: String(input.note ?? '').replace(/\s+/g, ' ').trim().slice(0, HANDSHAKE_NOTE_MAX) || null,
+    status: 'offered', created_arc: arc,
+  }).returning('*');
+  await logAction(trx, stateId, me, arc, 'handshake', to.id, `Offered ${to.name} a deal`);
+  return { handshake: row, message: `Your offer is with ${to.name}.` };
+}
+
+export async function respondHandshake(trx: any, stateId: string, me: PlayerPolitics, id: string, accept: boolean, gov: GovernmentInfo, arc: number) {
+  const h = await trx('pol_handshakes').where({ id, state_id: stateId, to_character_id: me.character.id, status: 'offered' }).forUpdate().first();
+  if (!h) throw new AppError('That offer is no longer open.', 404, 'NOT_FOUND');
+  const from = await trx('characters').where({ id: h.from_character_id }).first();
+  if (!accept) {
+    await trx('pol_handshakes').where({ id }).update({ status: 'declined', resolved_arc: arc });
+    return { message: `You turned down ${from?.name ?? 'the offer'}.` };
+  }
+  for (const billId of [h.from_bill_id, h.to_bill_id]) {
+    if (billId && !(await trx('pol_bills').where({ id: billId, status: 'proposed' }).first())) {
+      await trx('pol_handshakes').where({ id }).update({ status: 'expired', resolved_arc: arc });
+      throw new AppError('A bill in this deal has already been decided. The offer has lapsed.', 409, 'CONFLICT');
+    }
+  }
+  if (h.to_vote && !canVote(await votingPosition(trx, stateId, me.character.id, gov))) throw new AppError('You have no vote to promise any more.', 403, 'FORBIDDEN');
+  await payPerson(trx, h.from_character_id, me.character.id, num(h.from_cash), from?.name ?? 'They');
+  await payPerson(trx, me.character.id, h.from_character_id, num(h.to_cash), 'You');
+  const judged = !h.from_vote && !h.to_vote;
+  await trx('pol_handshakes').where({ id }).update({ status: judged ? 'settled' : 'accepted', resolved_arc: judged ? arc : null });
+  await logAction(trx, stateId, me, arc, 'handshake', h.from_character_id, `Shook hands with ${from?.name ?? 'a politician'}`);
+  return { message: judged ? `Done. The money has changed hands.` : `You shook hands with ${from?.name ?? 'them'}. Your word is given.` };
+}
+
+export async function withdrawHandshake(trx: any, me: PlayerPolitics, id: string, arc: number) {
+  const n = await trx('pol_handshakes').where({ id, from_character_id: me.character.id, status: 'offered' }).update({ status: 'withdrawn', resolved_arc: arc });
+  if (!n) throw new AppError('That offer is no longer open.', 404, 'NOT_FOUND');
+  return { message: 'Offer withdrawn.' };
+}
+
+/** Judge every handshake promise that turned on this bill. Called from settleBillPolitics. */
+async function settleHandshakes(trx: any, bill: any, plan: BillVotePlan, shared: VoteShared, title: string, arc: number): Promise<void> {
+  await trx('pol_handshakes').where({ status: 'offered' }).andWhere((q: any) => q.where({ from_bill_id: bill.id }).orWhere({ to_bill_id: bill.id }))
+    .update({ status: 'expired', resolved_arc: arc });
+  const rows = await trx('pol_handshakes').where({ status: 'accepted' }).andWhere((q: any) => q.where({ from_bill_id: bill.id }).orWhere({ to_bill_id: bill.id }));
+  if (!rows.length) return;
+  const ledBy = new Map<string, string>();
+  for (const p of shared.parties) if (p.leader_character_id && (shared.gov.seatsByParty[p.id] || 0) > 0) ledBy.set(p.leader_character_id, p.id);
+  const seatOf = new Map<string, string>(shared.humanSeats.map(s => [s.character_id, s.party_id]));
+  const counted = (cid: string) => countedVoteOf({ characterId: cid, partyLine: plan.partyLine, personal: plan.personal, ledPartyId: ledBy.get(cid) ?? null, seatPartyId: seatOf.get(cid) ?? null });
+  const rewarded = new Set<string>();
+  for (const h of rows) {
+    const upd: any = {};
+    const sides: { who: string; other: string; vote: Vote; field: 'from_result' | 'to_result' }[] = [];
+    if (h.from_bill_id === bill.id && h.from_vote) sides.push({ who: h.from_character_id, other: h.to_character_id, vote: h.from_vote, field: 'from_result' });
+    if (h.to_bill_id === bill.id && h.to_vote) sides.push({ who: h.to_character_id, other: h.from_character_id, vote: h.to_vote, field: 'to_result' });
+    for (const side of sides) {
+      const result = judgePromise(side.vote, counted(side.who));
+      upd[side.field] = result;
+      if (result === 'kept' && !rewarded.has(side.who)) {
+        const already = await trx('pol_action_log').where({ character_id: side.who, arc, kind: 'word_kept' }).first();
+        if (!already) {
+          await bumpCharacter(trx, side.who, { trust: HANDSHAKE_KEPT_TRUST });
+          await trx('pol_action_log').insert({ state_id: bill.state_id, character_id: side.who, arc, kind: 'word_kept', target: h.id, summary: `Kept your word on ${title}` });
+        }
+        rewarded.add(side.who);
+      } else if (result === 'broken') {
+        await bumpCharacter(trx, side.who, { trust: HANDSHAKE_BROKEN_TRUST, clout: HANDSHAKE_BROKEN_CLOUT });
+        const [a, b] = await Promise.all([side.who, side.other].map(id => trx('characters').where({ id }).select('name').first()));
+        await trx('pol_ledger_events').insert({
+          state_id: bill.state_id, arc, kind: 'word_broken',
+          headline: `${a?.name ?? 'A politician'} breaks their word to ${b?.name ?? 'a colleague'}`,
+          body: `${a?.name ?? 'They'} promised to vote ${side.vote === 'yea' ? 'for' : 'against'} "${title}" and did not.`,
+        });
+      }
+    }
+    const fromDone = !h.from_vote || h.from_result || upd.from_result;
+    const toDone = !h.to_vote || h.to_result || upd.to_result;
+    if (fromDone && toDone) { upd.status = 'settled'; upd.resolved_arc = arc; }
+    if (Object.keys(upd).length) await trx('pol_handshakes').where({ id: h.id }).update(upd);
+  }
 }

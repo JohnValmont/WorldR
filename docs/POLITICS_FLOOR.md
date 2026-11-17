@@ -124,6 +124,25 @@ automatically), **who you are**, **beliefs**, **nation**, papers. New characters
 - The Desk's **Road to power** card shows the five steps (join a party, hold a seat, lead your party, enter
   government, head of government) and the one thing that gets you to the next.
 
+## Corridors: the multiplayer layer (added 2026-11-17)
+
+The **Corridors** tab (`_floor/CorridorsView.tsx`, `GET /politics/corridors`, `corridors.service.ts`) is where
+players deal with each other.
+
+- **Who's who:** every player in your nation (role, party, seat, trust, clout, when last seen) and their
+  **word record**: deals kept and broken. Computer-run party leaders are listed too. Click a name for their
+  recent votes and broken promises, then **Message** or **Propose a deal**.
+- **Rooms:** Nation (all citizens of your nation), Party room (members only), and private messages. They use
+  the chat API: the server turns `nation` / `party` into the right room from who you are, and refuses any
+  other channel name, so nobody can read a room by guessing its name.
+- **Handshakes** (`pol_handshakes`, migration 0101): a personal deal between any two politicians of the same
+  nation. Each side can promise a vote on a bill and/or pay up to $250k of their own money. Money moves on the
+  handshake; vote promises are judged when the bill is counted (`settleHandshakes` in `floor.service.ts`, using
+  the same vote plan as the tally; rules `countedVoteOf` / `judgePromise` in `floor.rules.ts`). Broken: −10
+  trust, −3 clout and a news story. Kept: +1 trust, at most once a month. Offering costs 1 energy; 5 open
+  offers at most. Numbers in `constants/floor.ts`.
+- The Desk shows a card when someone has offered you a deal, and counts it in the Desk badge.
+
 ## Where the code is
 
 | What | File |
