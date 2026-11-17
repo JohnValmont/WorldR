@@ -10,7 +10,7 @@ import { AppError } from '../../utils/errors';
 import { safeParseJSON } from '../../utils/json';
 import { AP_MONTHLY_GRANT, SEGMENTS } from '../constants/politics';
 import {
-  AD_AP, AD_COST, FUNDRAISE_AP, HAND_REPEAT_COOLDOWN_MONTHS, LAW_FAILED_PROPOSER_SHARE, LAW_OPPONENT_SHARE,
+  AD_AP, AD_COST, FUNDRAISE_AP, HAND_REPEAT_COOLDOWN_MONTHS, HAND_SIZE, LAW_FAILED_PROPOSER_SHARE, LAW_OPPONENT_SHARE,
   FAVOUR_CALL_MIN_LEAN, LEADERSHIP_AP, LEADERSHIP_FAIL_CLOUT, LEADERSHIP_MIN_TENURE_MONTHS, PACT_AP, PACT_MAX_CASH, PARTY_SWITCH_COOLDOWN_MONTHS, RALLY_AP,
   REBEL_CLOUT, REBEL_TRUST, SHOCK_MONTHS, WORD_BROKEN_MONTHS, WORD_BROKEN_SUPPORT, WORD_BROKEN_TRUST,
   WORD_KEPT_CLOUT, WORD_KEPT_TRUST,
@@ -419,8 +419,11 @@ export interface WorldForCards {
 
 /** Deal this month's hand if it has not been dealt yet. Safe to call on every page load. */
 export async function ensureHand(trx: any, me: PlayerPolitics, world: WorldForCards): Promise<void> {
-  const existing = await trx('pol_situations').where({ character_id: me.character.id, arc: world.arc }).first();
-  if (existing) return;
+  // Deal only the slots that are empty: normally all of them at the start of a
+  // month, or the ones cleared when the player's role changed (joined a party).
+  const existing = await trx('pol_situations').where({ character_id: me.character.id, arc: world.arc }).select('slot', 'card_key');
+  if (existing.length >= HAND_SIZE) return;
+  const usedSlots = new Set<number>(existing.map((r: any) => Number(r.slot)));
   const recent = await trx('pol_situations')
     .where({ character_id: me.character.id })
     .where('arc', '>', world.arc - HAND_REPEAT_COOLDOWN_MONTHS)
@@ -430,7 +433,8 @@ export async function ensureHand(trx: any, me: PlayerPolitics, world: WorldForCa
     stats: world.stats, approval: world.approval, hasOpenBill: !!world.openBillTitle, monthsToElection: world.monthsToElection,
   };
   const seed = `${me.character.id}|${world.arc}`;
-  const cards = dealHand(ctx, seed, new Set(recent.map((r: any) => r.card_key)));
+  const freeSlots = Array.from({ length: HAND_SIZE }, (_, i) => i).filter(i => !usedSlots.has(i));
+  const cards = dealHand(ctx, `${seed}|${existing.length}`, new Set(recent.map((r: any) => r.card_key))).slice(0, freeSlots.length);
   if (!cards.length) return;
 
   const others = world.parties.filter(p => p.id !== me.party?.id).sort((a, b) => b.seats - a.seats || a.name.localeCompare(b.name));
@@ -447,7 +451,7 @@ export async function ensureHand(trx: any, me: PlayerPolitics, world: WorldForCa
     district: home?.name ?? 'your district',
   };
   const rows = cards.map((c, i) => ({
-    state_id: world.stateId, character_id: me.character.id, arc: world.arc, slot: i, card_key: c.key, vars: JSON.stringify(vars),
+    state_id: world.stateId, character_id: me.character.id, arc: world.arc, slot: freeSlots[i], card_key: c.key, vars: JSON.stringify(vars),
   }));
   await trx('pol_situations').insert(rows).onConflict(['character_id', 'arc', 'slot']).ignore();
 }
@@ -692,6 +696,9 @@ export async function onJoinParty(trx: any, character: any, party: any, arc: num
   await trx('pol_action_log').insert({
     state_id: party.state_id, character_id: character.id, party_id: party.id, arc, kind: 'join_party', target: party.id, summary: `Joined ${party.name}`,
   });
+  // Their undecided "citizen" decisions no longer fit: clear them so the desk
+  // deals decisions for a party member in their place.
+  await trx('pol_situations').where({ character_id: character.id, arc, status: 'open' }).del();
   if (!gov.sittingCycleId) return { seatedIn: null };
   const already = await trx('pol_council_seats').where({ cycle_id: gov.sittingCycleId, character_id: character.id }).first();
   if (already) return { seatedIn: null };

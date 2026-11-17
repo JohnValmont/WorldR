@@ -86,7 +86,9 @@ them. They are a backlog to re-surface one at a time, each wired into support, o
 - This is a strong core loop, not a finished "AAA" game. Balance numbers are modelled and
   unit-tested but have never met real players. Expect to tune `floor.ts` after the first playtest.
 - Verified on a fresh local database with two scripted players (see the status note in
-  `docs/REVIVAL_PLAN.md`). Not yet run against production data.
+  `docs/REVIVAL_PLAN.md`), and once in a real browser at desktop and phone width (join a party,
+  decide a card, rally, vote, all four screens, election replay: no errors). Not yet run against
+  production data.
 - No sound, no animation beyond the election replay, no tutorial. The first-session guidance is
   the Desk's "what needs you" list.
 - With ten humans per nation most MPs are still computer-run, so player-to-player deals will be

@@ -142,7 +142,7 @@ export default function PoliticsPage() {
               </button>
             ))}
             {isAdmin && (
-              <span className="ml-auto self-center">
+              <span className="ml-auto self-center hidden sm:inline">
                 <Btn small kind="quiet" onClick={forceTick} disabled={busy} title="Admin only: end the politics month now" id="admin-tick">⚡ End month</Btn>
               </span>
             )}
