@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { getPoliticalMap } from '../services/map.service';
 import { getCorridors, getProfile } from '../services/corridors.service';
 import { authMiddleware, requireAdmin } from '../middlewares/auth.middleware';
 import { AppError } from '../../utils/errors';
@@ -151,6 +152,9 @@ router.get('/corridors', async (req: Request, res: Response, next: NextFunction)
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
     res.json(await getCorridors(userId));
   } catch (error) { next(error); }
+});
+router.get('/map', async (_req: Request, res: Response, next: NextFunction) => {
+  try { res.json(await getPoliticalMap()); } catch (error) { next(error); }
 });
 router.get('/people/:id', async (req: Request, res: Response, next: NextFunction) => {
   try { res.json(await getProfile(asId(req.params.id, 'person'))); } catch (error) { next(error); }

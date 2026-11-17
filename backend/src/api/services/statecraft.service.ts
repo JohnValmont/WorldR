@@ -223,7 +223,7 @@ export function projectElection(
   conditions: NationalStats | null,
   governingPartyIds: Set<string>,
   approval: number,
-): { shares: Record<string, number>; seats: Record<string, number> } {
+): { shares: Record<string, number>; seats: Record<string, number>; districts: Record<string, { shares: Record<string, number>; seats: Record<string, number> }> } {
   const candidates: EngineCandidate[] = [];
   for (const d of districts) {
     for (const p of parties) {
@@ -251,7 +251,20 @@ export function projectElection(
   const shares: Record<string, number> = {};
   const seats: Record<string, number> = {};
   for (const p of res.perParty) { shares[p.partyId] = p.votes / total; seats[p.partyId] = p.seats; }
-  return { shares, seats };
+  // The same projection, district by district (the political map reads it).
+  const byDistrict: Record<string, { shares: Record<string, number>; seats: Record<string, number> }> = {};
+  const districtVotes: Record<string, number> = {};
+  for (const c of res.perCandidate) {
+    const d = (byDistrict[c.constituencyId] ??= { shares: {}, seats: {} });
+    d.shares[c.partyId] = (d.shares[c.partyId] ?? 0) + c.votes;
+    districtVotes[c.constituencyId] = (districtVotes[c.constituencyId] ?? 0) + c.votes;
+  }
+  for (const pc of res.perConstituency) if (byDistrict[pc.constituencyId]) byDistrict[pc.constituencyId].seats = { ...(pc.seatsByParty ?? {}) };
+  for (const [id, d] of Object.entries(byDistrict)) {
+    const t = districtVotes[id] || 1;
+    for (const k of Object.keys(d.shares)) d.shares[k] /= t;
+  }
+  return { shares, seats, districts: byDistrict };
 }
 
 // ═══════════════════════════════ DB HELPERS ═══════════════════════════════
