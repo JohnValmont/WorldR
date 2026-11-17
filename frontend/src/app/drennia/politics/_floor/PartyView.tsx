@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { politicsApi } from '@/lib/api';
 import { CREEDS, CREED_ORDER, CreedId } from '../_lib/model';
-import { Btn, Card, Chip, Label, Meter, PartyDot, Sheet, T, leaderTitle, money, useFloor } from './kit';
+import { Btn, Card, Chip, Label, Meter, PartyDot, Sheet, T, leaderTitle, money, useFloor, convictionFit } from './kit';
 
 const COLORS = ['#D9625A', '#E8B84B', '#4FB286', '#4C9BD9', '#9B7FE0', '#E07FB0', '#5FC7C2', '#C9C2B2'];
 
@@ -72,12 +72,16 @@ function PartyList() {
         {desk.parties.map(p => {
           const sup = desk.desk.support[p.id] ?? {};
           const top = [...desk.desk.segments].sort((a, b) => (sup[b.key] ?? 0) - (sup[a.key] ?? 0))[0];
+          const fit = convictionFit(desk.me?.convictions, p.platform as any);
           return (
             <Card key={p.id} className="p-4">
               <div className="flex items-start gap-3">
                 <span className="rounded-lg flex items-center justify-center font-bold text-xs shrink-0" style={{ width: 40, height: 40, background: p.color, color: '#0C0E13' }}>{p.abbreviation.slice(0, 3)}</span>
                 <div className="min-w-0 flex-1">
-                  <div className="font-serif text-lg font-bold leading-tight" style={{ color: T.text }}>{p.name}</div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="font-serif text-lg font-bold leading-tight" style={{ color: T.text }}>{p.name}</div>
+                    {fit != null && <Chip color={fit >= 80 ? T.good : fit >= 65 ? T.accent : T.faint} title="How close this party is to what you said you believe when you signed up">{fit}% your views</Chip>}
+                  </div>
                   <div className="text-xs" style={{ color: T.faint }}>
                     {p.seats} seats · {p.leadsGovernment ? 'leads the government' : p.inGovernment ? 'in government' : 'opposition'} · led by {p.leaderName ?? 'the party machine'}
                   </div>

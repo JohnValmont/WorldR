@@ -7,6 +7,7 @@
  * Read-only: it never writes, except that the current election cycle row is
  * created lazily by getOrCreateCurrentCycle, as every other politics endpoint does.
  */
+import { BACKGROUNDS_BY_KEY } from '../constants/characterCreation';
 import { db } from '../../config/database';
 import { POLICY_CATALOG, MECHANISM_BASE_ROLLOUT } from '../constants/macroEconomy';
 import {
@@ -291,6 +292,10 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
       credibility: num(myChar.credibility),
       influence: num(myChar.influence),
       charisma: num(myChar.charisma),
+      background: BACKGROUNDS_BY_KEY[myChar.background]
+        ? { key: myChar.background, label: BACKGROUNDS_BY_KEY[myChar.background].label, edge: BACKGROUNDS_BY_KEY[myChar.background].edge, homeGroup: BACKGROUNDS_BY_KEY[myChar.background].homeGroup }
+        : null,
+      convictions: myChar.convictions ? (typeof myChar.convictions === 'string' ? JSON.parse(myChar.convictions) : myChar.convictions) : null,
       cash: fin ? num(fin.cash_in_hand) : null,
       ap: apRow ? { current: num(apRow.current_ap), cap: num(apRow.ap_cap) } : { current: AP_MONTHLY_GRANT, cap: AP_MONTHLY_GRANT },
       party: myParty ? { id: myParty.id, name: myParty.name, color: myParty.color, role: membership.role, seats: myParty.seats, inGovernment: inGov } : null,

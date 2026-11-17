@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { politicsApi } from '@/lib/api';
 import { formatPolArc } from '@/lib/calendar';
 import type { HandCard } from './types';
-import { Btn, Card, Chip, EffectChips, Label, Meter, PartyDot, T, money, pct, signed, useFloor } from './kit';
+import { Btn, Card, Chip, EffectChips, Label, Meter, PartyDot, T, money, pct, signed, useFloor, leaderTitle } from './kit';
 import { BillCard } from './bills';
 
 const TONE = { good: T.good, mixed: T.accent, bad: T.bad } as const;
@@ -29,13 +29,13 @@ function Situation({ card }: { card: HandCard }) {
       <Label color={T.accent}>{card.kicker}</Label>
       <h3 className="font-serif text-xl font-bold mt-0.5 leading-snug" style={{ color: T.text }}>{card.title}</h3>
       <p className="text-sm mt-2 leading-relaxed" style={{ color: T.dim }}>{card.body}</p>
-      <div className="mt-4 space-y-2">
+      <div className={`mt-4 grid gap-2 ${card.options.length === 3 ? 'md:grid-cols-3' : card.options.length === 2 ? 'md:grid-cols-2' : ''}`}>
         {card.options.map((o, i) => {
           const cant = o.cost.ap > ap;
           return (
             <button key={i} type="button" disabled={busy || cant} id={`sit-${card.key}-${i}`}
               onClick={() => act(() => politicsApi.chooseSituation(card.id, i))}
-              className="w-full text-left rounded-xl p-3 transition-colors disabled:opacity-45 hover:brightness-125"
+              className="w-full h-full text-left rounded-xl p-3 transition-colors disabled:opacity-45 hover:brightness-125"
               style={{ background: T.raised, border: `1px solid ${T.line}` }}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold text-sm" style={{ color: T.text }}>{o.label}</span>
@@ -78,7 +78,7 @@ function QuickActions() {
         {desk.desk.segments.map(s => (
           <div key={s.key} className="flex items-center gap-3">
             <div className="w-24 shrink-0">
-              <div className="text-sm font-semibold" style={{ color: T.text }}>{s.short}</div>
+              <div className="text-sm font-semibold" style={{ color: T.text }}>{s.short}{a.rally.homeGroup === s.key && <span className="ml-1.5 text-[9px] uppercase tracking-wider" style={{ color: T.accent }} title="Your home voter group: your rallies here go further">home</span>}</div>
               <div className="text-[10px]" style={{ color: T.faint }}>{pct(s.size)} of voters</div>
             </div>
             <div className="flex-1 min-w-0">
@@ -139,6 +139,52 @@ function Standing() {
       <div className="text-[11px] mt-2" style={{ color: T.faint }}>
         Vote share and projected seats of {desk.parliament.seats}. Majority {desk.parliament.majority}. Election in {desk.calendar.monthsToElection} month{desk.calendar.monthsToElection === 1 ? '' : 's'}.
       </div>
+    </Card>
+  );
+}
+
+/** Where you are on the road to power, and the one thing that gets you to the next step. */
+function RoadToPower() {
+  const { desk, go } = useFloor();
+  const me = desk.me!;
+  const title = leaderTitle(desk);
+  const leadClout = desk.desk.rules.leadershipMinClout ?? 45;
+  const steps = [
+    { label: 'Join a party', done: !!me.party, hint: 'Pick the party closest to your views in the Party tab. You get a seat at once.', go: 'party' },
+    { label: 'Hold a seat', done: me.hasSeat || me.rung === 'mp' || me.rung === 'minister' || me.rung === 'premier', hint: 'Join a party that holds seats, or stand in a district at the next election.', go: 'party' },
+    { label: 'Lead your party', done: me.isPartyLeader, hint: me.influence >= leadClout ? 'You have the clout. Challenge for the leadership in the Party tab.' : `Build clout to ${leadClout} (you have ${me.influence}): keep your word, win votes, take the decisions that impress.`, go: 'party' },
+    { label: 'Enter government', done: !!me.party?.inGovernment && (me.isPartyLeader || !!me.office), hint: me.party?.inGovernment ? 'Your party governs. Lead it, or be appointed a minister.' : 'Win seats and make your party the one others must ally with.', go: 'voters' },
+    { label: title, done: me.rung === 'premier', hint: `Lead the largest party in the governing coalition and you become ${title}.`, go: 'chamber' },
+  ];
+  const next = steps.findIndex(s => !s.done);
+  return (
+    <Card className="p-4" tone={next >= 0 ? undefined : 'accent'}>
+      <div className="flex items-baseline justify-between">
+        <Label>Road to power</Label>
+        {me.background && <span className="text-[11px]" style={{ color: T.faint }} title={me.background.edge}>{me.background.label}</span>}
+      </div>
+      <ol className="mt-3 relative">
+        {steps.map((s, i) => {
+          const isNext = i === next;
+          return (
+            <li key={s.label} className="flex gap-3 pb-3 last:pb-0 relative">
+              {i < steps.length - 1 && <span className="absolute left-[9px] top-5 bottom-0 w-px" style={{ background: s.done ? T.accent : T.line }} />}
+              <span className="relative z-10 shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold"
+                style={{ width: 19, height: 19, background: s.done ? T.accent : isNext ? T.accentSoft : T.raised, border: `1px solid ${s.done || isNext ? T.accent : T.line}`, color: s.done ? '#17130A' : T.accent }}>
+                {s.done ? '✓' : i + 1}
+              </span>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold" style={{ color: s.done ? T.dim : isNext ? T.text : T.faint }}>{s.label}</div>
+                {isNext && (
+                  <button type="button" onClick={() => go(s.go)} className="text-left text-xs mt-0.5 leading-snug hover:underline" style={{ color: T.dim }}>{s.hint}</button>
+                )}
+                {isNext && i === 2 && !me.isPartyLeader && <div className="mt-1.5 w-40"><Meter value={Math.min(me.influence, leadClout)} max={leadClout} /></div>}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      {next < 0 && <p className="text-xs mt-2" style={{ color: T.accent }}>You run the country. Keep the coalition together and win the next election.</p>}
     </Card>
   );
 }
@@ -234,6 +280,7 @@ export default function DeskView() {
       </div>
 
       <aside className="space-y-4">
+        <RoadToPower />
         <Standing />
         <News />
       </aside>

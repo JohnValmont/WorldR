@@ -1,4 +1,5 @@
 import { assignNation } from '../services/nations.service';
+import { startingProfile } from '../services/character.rules';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
@@ -123,25 +124,19 @@ export class CharacterController {
         return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
       }
 
-      const { name, motherland_country_id, home_state_id, currency_id, attributes } = req.body;
+      const { name, motherland_country_id, home_state_id, currency_id, background, edge, convictions } = req.body;
 
       if (!name || !motherland_country_id || !currency_id) {
         return next(new AppError('Missing required fields', 400, 'BAD_REQUEST'));
       }
 
-      // Map frontend attributes: [Charisma, Cunning, Capital, Diplomacy, Resolve]
-      // Fallback defaults to 0 (which scales to 0)
-      const attrs = Array.isArray(attributes) ? attributes : [0, 0, 0, 0, 0];
-      const charAttr = attrs[0] || 0;
-      const cunAttr = attrs[1] || 0;
-      const capAttr = attrs[2] || 0;
-      const dipAttr = attrs[3] || 0;
-      const resAttr = attrs[4] || 0;
-
-      const charisma = charAttr * 10;
-      const credibility = resAttr * 10;
-      const influence = (cunAttr + dipAttr) * 5;
-      const starting_cash = 1000000 + (capAttr * 1000000);
+      // Background + edge tokens -> starting stats, computed on the server
+      // (constants/characterCreation.ts). Old slider `attributes` are ignored.
+      const profile = startingProfile(background, edge, convictions);
+      const { charisma, credibility, influence } = profile;
+      const starting_cash = profile.cash;
+      const cleanName = String(name).replace(/\s+/g, ' ').trim().slice(0, 60);
+      if (cleanName.length < 2) return next(new AppError('Choose a name.', 400, 'BAD_REQUEST'));
 
       const activeInstance = await db('world_instances').where({ status: 'active' }).first();
       if (!activeInstance) {
@@ -174,11 +169,13 @@ export class CharacterController {
           user_id: userId,
           motherland_country_id: nationId,
           home_state_id: home_state_id || null,
-          name,
+          name: cleanName,
           age: 18,
           credibility,
           charisma,
           influence,
+          background: profile.background,
+          convictions: profile.convictions ? JSON.stringify(profile.convictions) : null,
           status: 'active',
           created_at_world_year: clock?.current_year ?? 1,
           created_at_world_month: clock?.current_month ?? 1,

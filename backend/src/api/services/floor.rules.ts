@@ -5,6 +5,7 @@
  * returns plain values, so the rules are unit-tested in tests/floor.test.ts
  * and reused unchanged by the monthly tick, the player actions and the screens.
  */
+import { HOME_GROUP_RALLY_MULT } from '../constants/characterCreation';
 import { Platform, SEGMENTS } from '../constants/politics';
 import { NationalStat } from '../constants/macroEconomy';
 import {
@@ -29,9 +30,10 @@ export function charismaMult(charisma: number): number {
 }
 
 /** Support gained by a rally in one voter group. `repeats` = rallies already held there this month. */
-export function rallyGain(charisma: number, repeats: number, phase: string): number {
+export function rallyGain(charisma: number, repeats: number, phase: string, homeGroup = false): number {
   const campaign = phase === 'campaign' ? RALLY_CAMPAIGN_MULT : 1;
-  return RALLY_GAIN * charismaMult(charisma) * Math.pow(RALLY_REPEAT_DECAY, Math.max(0, repeats)) * campaign;
+  const home = homeGroup ? HOME_GROUP_RALLY_MULT : 1;
+  return RALLY_GAIN * charismaMult(charisma) * Math.pow(RALLY_REPEAT_DECAY, Math.max(0, repeats)) * campaign * home;
 }
 
 /** Support gained in every group by an ad campaign. */

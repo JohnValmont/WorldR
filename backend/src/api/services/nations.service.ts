@@ -58,6 +58,18 @@ export async function assignNation(conn: any, requested: string | null | undefin
 }
 
 /** One row per starter nation: who governs, how it is doing, how many players live there. */
+/** The parties of a nation for sign-up: platform (to match convictions), seats, whether governing. */
+async function nationParties(conn: any, stateId: string, seatsByParty: Record<string, number>, govIds: string[]) {
+  const rows = await conn('pol_parties as p').leftJoin('pol_party_identities as i', 'i.party_id', 'p.id')
+    .where('p.state_id', stateId)
+    .select('p.id', 'p.name', 'p.abbreviation', 'p.platform', 'p.is_npc', 'i.color', 'i.blurb', 'i.motto');
+  return rows.map((r: any) => ({
+    id: r.id, name: r.name, abbr: r.abbreviation, color: r.color ?? '#7A8594', blurb: r.blurb ?? r.motto ?? null,
+    platform: typeof r.platform === 'string' ? JSON.parse(r.platform) : (r.platform ?? {}),
+    seats: seatsByParty[r.id] || 0, governing: govIds.includes(r.id), playerLed: !r.is_npc,
+  })).sort((a: any, b: any) => b.seats - a.seats);
+}
+
 export async function worldNations(conn: any, arc?: number) {
   const roster = await nationRoster(conn);
   if (arc == null) {
@@ -101,6 +113,7 @@ export async function worldNations(conn: any, arc?: number) {
       monthsToElection: cycle && arc != null ? Math.max(0, num(cycle.polling_arc) - arc) : null,
       players: roster[spec.countryId] || 0,
       cap: NATION_PLAYER_CAP,
+      parties: await nationParties(conn, state.id, gov.seatsByParty, gov.memberPartyIds),
     });
   }
   return out;

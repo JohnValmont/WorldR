@@ -165,6 +165,14 @@ export function Sheet({ title, onClose, children, wide }: { title: string; onClo
 
 /** Yes/no bar with the winning line in the middle. A bill passes with more yes than no. */
 /** What the head of government is called in this player's nation. */
+/** How well your sign-up convictions fit a party platform, 0..100 (same rule as character.rules.ts). */
+export function convictionFit(conv: Record<string, number> | null | undefined, platform: Record<string, number> | undefined): number | null {
+  if (!conv || !platform) return null;
+  const axes = Object.keys(conv);
+  if (!axes.length) return null;
+  return Math.round(100 - axes.reduce((s, a) => s + Math.abs(conv[a] - Number((platform as any)[a] ?? 50)), 0) / axes.length);
+}
+
 export const leaderTitle = (desk: Desk) => desk.nation.headOfGovernment?.title ?? 'Premier';
 
 export function WhipBar({ yea, nay, total, margin = 1 }: { yea: number; nay: number; total: number; margin?: number }) {

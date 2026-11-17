@@ -1,8 +1,4 @@
 import * as THREE from 'three';
-import { NATIONS, CULTURES } from './onboarding_data.js';
-import { AETHAN_MAP } from './assets/maps.js';
-const _mapImg = document.getElementById('aethanMap');
-if (_mapImg) _mapImg.src = AETHAN_MAP;
 
 /* ======================================================================
    WORLDr — Access & Citizenship flow  (Aethan · Drennia)
@@ -128,13 +124,31 @@ function drawPortrait(ctx, seed, size){
   ctx.fillStyle = hi; ctx.beginPath(); ctx.arc(0, size*0.16, size*0.014, 0, 6.28); ctx.fill();
   ctx.restore();
 }
-const picks = document.getElementById('picks');
-const mainC = document.getElementById('portrait').getContext('2d');
+
+/* ======================================================================
+   Data: nations + character options come from the server (GET /world/nations).
+   The server recomputes every number on create; this page only previews.
+   ====================================================================== */
+import { NATIONS as STATIC_NATIONS } from './onboarding_data.js';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = n => n >= 1e6 ? '$' + (n / 1e6).toFixed(n % 1e6 ? 2 : 0).replace(/\.?0+$/, '') + 'M' : '$' + Math.round(n / 1000) + 'k';
+
+let WORLD = null;          // { nations, creation }
+const worldReady = fetch('/api/v1/world/nations').then(r => r.ok ? r.json() : null).then(d => {
+  if (d && Array.isArray(d.nations)) WORLD = d;
+  renderAll();
+}).catch(() => renderAll());
+
+/* ============ portrait picks ============ */
+const picks = $('picks');
+const mainC = $('portrait').getContext('2d');
 let portraitSeed = 0;
 function renderPicks(){
   picks.innerHTML = '';
   for (let i = 0; i < 6; i++){
-    const b = document.createElement('button'); if (i === portraitSeed) b.classList.add('on');
+    const b = document.createElement('button'); b.type = 'button'; if (i === portraitSeed) b.classList.add('on');
+    b.setAttribute('aria-label', 'Likeness ' + (i + 1));
     const cv = document.createElement('canvas'); cv.width = cv.height = 88; b.appendChild(cv);
     drawPortrait(cv.getContext('2d'), i, 88);
     b.onclick = () => { portraitSeed = i; renderPicks(); drawPortrait(mainC, portraitSeed, 380); };
@@ -143,102 +157,152 @@ function renderPicks(){
 }
 renderPicks(); drawPortrait(mainC, portraitSeed, 380);
 
-/* culture dropdown */
-const culSel = document.getElementById('ch_culture');
-CULTURES.forEach(c => { const o = document.createElement('option'); o.textContent = c; culSel.appendChild(o); });
-
-/* gender segmented */
-let gender = 'Statesman';
+/* ============ pronoun ============ */
+let pronoun = 'he';
 document.querySelectorAll('#ch_gender button').forEach(b => b.onclick = () => {
   document.querySelectorAll('#ch_gender button').forEach(x => x.classList.remove('on'));
-  b.classList.add('on'); gender = b.dataset.v;
+  b.classList.add('on'); pronoun = b.dataset.v;
 });
 
-/* ============ attributes ============ */
-const ATTRS = [
-  { k: 'Charisma', d: 'Sway crowds and voters' },
-  { k: 'Cunning', d: 'Backroom leverage' },
-  { k: 'Capital', d: 'Starting economic weight' },
-  { k: 'Diplomacy', d: 'Coalitions & treaties' },
-  { k: 'Resolve', d: 'Withstand scandal & pressure' },
-];
-const BASE = 0, MAX = 10, POOL = 10;
-let attrVals = ATTRS.map(() => BASE);
-const attrList = document.getElementById('attrList'), poolEl = document.getElementById('pool');
-function usedPts(){ return attrVals.reduce((s, v) => s + (v - BASE), 0); }
-function renderAttrs(){
-  const remain = POOL - usedPts(); poolEl.textContent = remain;
-  attrList.innerHTML = '';
-  ATTRS.forEach((a, i) => {
-    const row = document.createElement('div'); row.className = 'attr';
-    row.innerHTML = `<div class="an">${a.k}</div>
-      <div class="track"><i style="width:${(attrVals[i]/MAX)*100}%"></i></div>
-      <div class="ctrl"><button data-m="-1" ${attrVals[i] <= BASE ? 'disabled' : ''}>−</button>
-      <span class="val">${attrVals[i]}</span>
-      <button data-m="1" ${(attrVals[i] >= MAX || remain <= 0) ? 'disabled' : ''}>+</button></div>`;
-    row.querySelectorAll('button').forEach(btn => btn.onclick = () => {
-      const m = +btn.dataset.m;
-      if (m > 0 && remain > 0 && attrVals[i] < MAX) attrVals[i]++;
-      if (m < 0 && attrVals[i] > BASE) attrVals[i]--;
-      renderAttrs();
-    });
-    attrList.appendChild(row);
-  });
-}
-renderAttrs();
-
-/* ============ nation selection ============ */
-const nationList = document.getElementById('nationList');
-let selectedNation = NATIONS.find(n => n.playable);
-function renderNations(){
-  nationList.innerHTML = '';
-  NATIONS.forEach(n => {
-    const el = document.createElement('div');
-    el.className = 'nat' + (n.playable ? '' : ' locked') + (selectedNation && n.id === selectedNation.id ? ' sel' : '');
-    el.innerHTML = `<span class="dot" style="background:${n.color};box-shadow:0 0 10px ${n.color}"></span>
-      <div class="nm"><b>${n.name}</b><span>${n.gov} · ${n.capital}</span></div>
-      <span class="badge ${n.playable && !n.full ? 'open' : 'soon'}">${!n.playable ? 'Soon' : n.full ? 'Full' : (n.places != null ? n.places + ' places left' : 'Open')}</span>`;
-    if (n.playable && !n.full) el.onclick = () => { selectedNation = n; renderNations(); showDossier(n); refreshNationBtn(); };
-    nationList.appendChild(el);
-  });
-}
-function showDossier(n){
-  document.getElementById('d_name').textContent = n.name;
-  document.getElementById('d_tag').textContent = `${n.gov} · Capital ${n.capital}`;
-  document.getElementById('d_gov').textContent = n.gov;
-  document.getElementById('d_pop').textContent = n.pop;
-  document.getElementById('d_area').textContent = n.area;
-  document.getElementById('d_culture').textContent = n.culture;
-}
-renderNations(); showDossier(selectedNation);
-// Three starter nations of six citizens each: ask the server which have room.
-fetch('/api/v1/world/nations').then(r => r.ok ? r.json() : null).then(data => {
-  if (!data || !Array.isArray(data.nations)) return;
-  const anyRoom = data.nations.some(x => x.players < x.cap);
-  for (const row of data.nations) {
-    const n = NATIONS.find(x => x.name.toLowerCase() === row.countryId);
-    if (!n) continue;
-    n.places = Math.max(0, row.cap - row.players);
-    n.full = anyRoom && n.places === 0; // if every nation is full the server still finds the newcomer a place
-  }
-  if (!selectedNation || selectedNation.full) selectedNation = NATIONS.find(x => x.playable && !x.full) || selectedNation;
-  renderNations(); showDossier(selectedNation); refreshNationBtn();
-}).catch(() => { /* offline: all three stay selectable, the server decides */ });
-// map marker click
-document.getElementById('drenniaMarker').onclick = () => {
-  const dr = NATIONS.find(x => x.playable); selectedNation = dr; renderNations(); showDossier(dr);
+/* ============ background + edge ============ */
+let bgKey = null;
+const edge = { charisma: 0, credibility: 0, influence: 0, cash: 0 };
+const STAT_INFO = {
+  charisma:    { label: 'Charisma', mean: v => `Rallies and fundraisers ×${(0.7 + 0.6 * v / 100).toFixed(2)}` },
+  credibility: { label: 'Trust',    mean: v => v >= 55 ? 'Voters and parties take your word' : v >= 40 ? 'People give you a fair hearing' : 'Your promises are doubted in deals' },
+  influence:   { label: 'Clout',    mean: v => v >= 45 ? 'Enough to lead a party' : `${45 - v} short of leading a party` },
+  cash:        { label: 'Money',    mean: v => v >= 2e6 ? 'Fund deals and campaigns freely' : 'Enough to get started' },
 };
-// position marker on Drennia (map is 3069x1536; Drennia ~ x 300 y 620 of that space)
-(function placeMarker(){
-  const m = document.getElementById('drenniaMarker');
-  m.style.left = '15%'; m.style.top = '52%';
-})();
+const C = () => WORLD?.creation;
+function profile(){
+  const c = C(); if (!c) return null;
+  const b = c.backgrounds.find(x => x.key === bgKey) || { charisma: 0, credibility: 0, influence: 0, cash: 0 };
+  const cap = v => Math.max(0, Math.min(c.statCap, v));
+  return {
+    charisma: cap(c.base.charisma + b.charisma + edge.charisma * c.edge.stat),
+    credibility: cap(c.base.credibility + b.credibility + edge.credibility * c.edge.stat),
+    influence: cap(c.base.influence + b.influence + edge.influence * c.edge.stat),
+    cash: c.base.cash + b.cash + edge.cash * c.edge.cash,
+  };
+}
+const tokensLeft = () => (C()?.edge.tokens ?? 4) - Object.values(edge).reduce((a, b) => a + b, 0);
+function renderBackgrounds(){
+  const c = C(); const grid = $('bgGrid');
+  if (!c) { grid.innerHTML = '<div class="hint">Reaching the world… <button type="button" class="link" id="retryWorld">Retry</button></div>'; const r = $('retryWorld'); if (r) r.onclick = () => location.reload(); return; }
+  grid.innerHTML = c.backgrounds.map(b => `<button type="button" class="bg${b.key === bgKey ? ' on' : ''}" data-k="${b.key}">
+      <span class="home">${b.homeGroup ? 'Home: ' + esc(c.groups[b.homeGroup]) : 'No home group'}</span>
+      <b>${esc(b.label)}</b><span class="bl">${esc(b.blurb)}</span><span class="ed">${esc(b.edge)}</span></button>`).join('');
+  grid.querySelectorAll('.bg').forEach(el => el.onclick = () => { bgKey = el.dataset.k; $('bgMsg').closest('.field').classList.remove('err'); renderBackgrounds(); renderSheet(); });
+}
+function renderEdge(){
+  const c = C(); const list = $('edgeList'); if (!c) { list.innerHTML = ''; return; }
+  const left = tokensLeft();
+  $('edgeLeft').textContent = `${left} of ${c.edge.tokens} left · each adds +${c.edge.stat} or ${money(c.edge.cash)}`;
+  list.innerHTML = Object.keys(edge).map(k => `<div class="edge"><div class="en">${STAT_INFO[k].label}<small>${k === 'cash' ? '+' + money(c.edge.cash) : '+' + c.edge.stat} each</small></div>
+      <div class="pips">${Array.from({ length: c.edge.tokens }, (_, i) => `<i class="${i < edge[k] ? 'on' : ''}"></i>`).join('')}</div>
+      <button type="button" data-k="${k}" data-m="-1" ${edge[k] <= 0 ? 'disabled' : ''} aria-label="Less ${STAT_INFO[k].label}">−</button>
+      <button type="button" data-k="${k}" data-m="1" ${left <= 0 ? 'disabled' : ''} aria-label="More ${STAT_INFO[k].label}">+</button></div>`).join('');
+  list.querySelectorAll('button').forEach(b => b.onclick = () => {
+    const k = b.dataset.k, m = +b.dataset.m;
+    if (m > 0 && tokensLeft() > 0) edge[k]++; if (m < 0 && edge[k] > 0) edge[k]--;
+    renderEdge(); renderSheet();
+  });
+}
+function renderSheet(){
+  const p = profile(); const c = C(); const el = $('sheet');
+  const b = c?.backgrounds.find(x => x.key === bgKey);
+  const name = fullName() || 'Your name';
+  if (!p) { el.innerHTML = `<div class="sh-name">${esc(name)}</div>`; return; }
+  const bar = (k, v, max) => `<div class="stat"><div class="row"><span>${STAT_INFO[k].label}</span><b>${k === 'cash' ? money(v) : v}</b></div>
+      <div class="tr"><i style="width:${Math.min(100, v / max * 100)}%"></i></div><div class="mean">${esc(STAT_INFO[k].mean(v))}</div></div>`;
+  el.innerHTML = `<div class="sh-name">${esc(name)}</div><div class="sh-bg">${b ? esc(b.label) : 'Choose a background'}${b?.homeGroup ? ' · ' + esc(c.groups[b.homeGroup]) + ' rally ×' + c.homeRallyMult : ''}</div>
+    ${bar('charisma', p.charisma, c.statCap)}${bar('credibility', p.credibility, c.statCap)}${bar('influence', p.influence, c.statCap)}${bar('cash', p.cash, 3e6)}`;
+}
+['ch_first', 'ch_last'].forEach(id => $(id).addEventListener('input', renderSheet));
+
+/* ============ convictions ============ */
+const QUESTIONS = [
+  { axis: 'taxation', q: 'Taxes', a: [['Tax the rich to fund schools and hospitals', 20], ['Keep them roughly where they are', 50], ['Cut them: people know best how to spend their money', 85]] },
+  { axis: 'labour', q: 'Work', a: [['Workers first: strong unions, higher wages', 90], ['A fair balance between bosses and workers', 52], ['Free business to hire, fire and grow', 25]] },
+  { axis: 'trade', q: 'Trade', a: [['Protect our industries with tariffs', 30], ['Some of both', 55], ['Open the ports: free trade makes us rich', 90]] },
+  { axis: 'stability', q: 'Order', a: [['Liberty first: a free press, light policing', 30], ['Order, with fairness', 55], ['Law and order above all', 85]] },
+];
+const convictions = {};
+function renderQuestions(){
+  $('questions').innerHTML = QUESTIONS.map((q, i) => `<div class="q"><div class="qt">${esc(q.q)}</div><div class="qa">${q.a.map(([t, v], j) =>
+    `<button type="button" data-q="${i}" data-j="${j}" class="${convictions[q.axis] === v ? 'on' : ''}">${esc(t)}</button>`).join('')}</div></div>`).join('');
+  $('questions').querySelectorAll('button').forEach(b => b.onclick = () => {
+    const q = QUESTIONS[+b.dataset.q]; convictions[q.axis] = q.a[+b.dataset.j][1];
+    renderQuestions(); renderFit(); renderNations();
+  });
+}
+function fitOf(platform){
+  const axes = Object.keys(convictions); if (!axes.length) return null;
+  return Math.round(100 - axes.reduce((s, a) => s + Math.abs(convictions[a] - (platform?.[a] ?? 50)), 0) / axes.length);
+}
+function bestParty(n){
+  if (!n?.parties?.length || !Object.keys(convictions).length) return null;
+  return n.parties.map(p => ({ ...p, fit: fitOf(p.platform) })).sort((a, b) => b.fit - a.fit)[0];
+}
+function renderFit(){
+  const el = $('fitList');
+  if (!WORLD) { el.innerHTML = '<div class="hint">Reaching the world…</div>'; return; }
+  if (!Object.keys(convictions).length) { el.innerHTML = '<div class="hint">Answer a question to see where you fit.</div>'; return; }
+  el.innerHTML = WORLD.nations.map(n => { const p = bestParty(n); return p ? `<div class="fit-row"><div class="fn">${esc(n.name)}</div>
+    <div class="fp"><span class="pdot" style="background:${esc(p.color)}"></span>${esc(p.name)}<span class="pct">${p.fit}%</span></div></div>` : ''; }).join('');
+}
+
+/* ============ nations ============ */
+let selected = null; // countryId
+function flagSvg(f){
+  const c = f?.colors || ['#333', '#555', '#777'];
+  if (f?.pattern === 'tricolor-horizontal') return `<svg viewBox="0 0 30 20" class="flag"><rect width="30" height="20" fill="${c[0]}"/><rect y="6.67" width="30" height="6.67" fill="${c[1]}"/><rect y="13.33" width="30" height="6.67" fill="${c[2]}"/></svg>`;
+  if (f?.pattern === 'hoist-triangle-band') return `<svg viewBox="0 0 30 20" class="flag"><rect width="30" height="20" fill="${c[0]}"/><rect y="8" width="30" height="4" fill="${c[1]}"/><path d="M0 0 L12 10 L0 20 Z" fill="${c[2]}"/></svg>`;
+  return `<svg viewBox="0 0 30 20" class="flag"><rect width="30" height="20" fill="${c[0]}"/><rect x="10" width="10" height="20" fill="${c[1] || c[0]}"/><rect x="20" width="10" height="20" fill="${c[2] || c[0]}"/></svg>`;
+}
+const nationsList = () => WORLD?.nations || [];
+const anyRoom = () => nationsList().some(n => n.players < n.cap);
+const isFull = n => anyRoom() && n.players >= n.cap; // if all are full the server still finds a place
+function renderNations(){
+  const cards = $('nationCards');
+  const ns = nationsList();
+  if (!ns.length) { cards.innerHTML = '<div class="hint">Reaching the world… the three nations will appear here.</div>'; return; }
+  if (!selected || isFull(ns.find(n => n.countryId === selected) || {})) {
+    const best = ns.filter(n => !isFull(n)).map(n => ({ n, f: bestParty(n)?.fit ?? 0 })).sort((a, b) => b.f - a.f)[0];
+    selected = best?.n.countryId || ns[0].countryId;
+  }
+  cards.innerHTML = ns.map(n => { const left = Math.max(0, n.cap - n.players); const p = bestParty(n); const full = isFull(n);
+    return `<button type="button" class="ncard${n.countryId === selected ? ' on' : ''}${full ? ' full' : ''}" data-c="${n.countryId}" ${full ? 'disabled' : ''}>
+      <span class="places${full ? ' full' : ''}">${full ? 'FULL' : left + ' OF ' + n.cap + ' LEFT'}</span>
+      <div class="nh">${flagSvg(n.flag)}<div><div class="nn">${esc(n.name)}</div><div class="ng">${esc(n.government)}</div></div></div>
+      <dl><dt>Led by</dt><dd>${esc(n.leaderTitle)}${n.premier ? ' ' + esc(n.premier) : ''}</dd>
+        <dt>Parliament</dt><dd>${n.seats} seats · every ${n.termYears} yrs</dd>
+        <dt>Government</dt><dd>${n.leadParty ? esc(n.leadParty.name) : 'Forming'}</dd>
+        <dt>Approval</dt><dd>${Math.round(n.approval)}%</dd>
+        <dt>Next election</dt><dd>${n.monthsToElection != null ? n.monthsToElection + (n.monthsToElection === 1 ? ' month' : ' months') : 'soon'}</dd></dl>
+      ${['economy', 'military', 'influence'].map(k => `<div class="pw"><span>${k[0].toUpperCase() + k.slice(1)}</span><div class="tr"><i style="width:${n.power?.[k] ?? 50}%"></i></div><b>${Math.round(n.power?.[k] ?? 50)}</b></div>`).join('')}
+      ${p ? `<div class="mine"><span class="pdot" style="background:${esc(p.color)}"></span>Your fit: <b>${esc(p.name)}</b> ${p.fit}%</div>` : ''}
+    </button>`; }).join('');
+  cards.querySelectorAll('.ncard:not(.full)').forEach(el => el.onclick = () => { selected = el.dataset.c; renderNations(); });
+  const n = ns.find(x => x.countryId === selected);
+  $('nationDetail').innerHTML = n ? `<div><h4>${esc(n.officialName)}</h4><div class="hint">Capital ${esc(n.capital)} · ${esc(n.headOfState?.title)} ${esc(n.headOfState?.name)}</div>
+      <p class="cult">${esc(n.culture)}</p>
+      <div class="parties">${(n.parties || []).map(p => `<div class="pr"><span class="pdot" style="background:${esc(p.color)}"></span><b>${esc(p.name)}</b>${p.governing ? ' · governing' : ''}${p.playerLed ? ' · player-led' : ''}<span class="s">${p.seats} seats${Object.keys(convictions).length ? ' · fit ' + fitOf(p.platform) + '%' : ''}</span></div>`).join('')}</div></div>
+    <div><div class="fit-h">HOW ${esc(n.name.toUpperCase())} WORKS</div><ul>${(n.traits || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>` : '';
+  const others = STATIC_NATIONS.filter(x => !x.playable);
+  $('otherNations').textContent = others.length ? `${others.length} more nations of Aethan open after the alpha: ${others.slice(0, 6).map(x => x.name).join(', ')} and others.` : '';
+  $('nationNext').querySelector('span').textContent = n ? 'Pledge to ' + n.name : 'Pledge';
+}
+
+function renderAll(){ renderBackgrounds(); renderEdge(); renderSheet(); renderQuestions(); renderFit(); renderNations(); }
 
 /* ============ OTP ============ */
 const otpInputs = [...document.querySelectorAll('#otp input')];
 otpInputs.forEach((inp, i) => {
   inp.addEventListener('input', () => {
-    inp.value = inp.value.replace(/\D/g, '').slice(0, 1);
+    const digits = inp.value.replace(/\D/g, '');
+    if (digits.length > 1) { digits.slice(0, 6).split('').forEach((d, k) => { if (otpInputs[i + k]) { otpInputs[i + k].value = d; otpInputs[i + k].classList.add('filled'); } }); otpInputs[Math.min(5, i + digits.length - 1)].focus(); return; }
+    inp.value = digits.slice(0, 1);
     inp.classList.toggle('filled', !!inp.value);
     if (inp.value && i < otpInputs.length - 1) otpInputs[i + 1].focus();
   });
@@ -246,358 +310,209 @@ otpInputs.forEach((inp, i) => {
 });
 let otpTimer;
 function startOtpTimer(){
-  let s = 45; const el = document.getElementById('otp_timer');
+  let s = 45; const el = $('otp_timer');
   clearInterval(otpTimer);
-  otpTimer = setInterval(() => { s--; el.textContent = '00:' + String(Math.max(0, s)).padStart(2, '0');
-    if (s <= 0) clearInterval(otpTimer); }, 1000);
+  otpTimer = setInterval(() => { s--; el.textContent = '00:' + String(Math.max(0, s)).padStart(2, '0'); if (s <= 0) clearInterval(otpTimer); }, 1000);
 }
-document.getElementById('resend').onclick = () => { otpInputs.forEach(i => { i.value = ''; i.classList.remove('filled'); }); otpInputs[0].focus(); startOtpTimer(); };
+$('resend').onclick = () => { otpInputs.forEach(i => { i.value = ''; i.classList.remove('filled'); }); otpInputs[0].focus(); startOtpTimer(); };
 
-/* ============ validation helpers ============ */
-function err(id, on){ document.getElementById(id).closest('.field').classList.toggle('err', on); }
+/* ============ validation ============ */
+function err(id, on){ $(id).closest('.field').classList.toggle('err', on); }
+function fullName(){ return `${$('ch_first').value.trim()} ${$('ch_last').value.trim()}`.replace(/\s+/g, ' ').trim(); }
 function validate(step){
   if (step === 0){
-    const e = document.getElementById('acc_email').value,
-          p = document.getElementById('acc_pass').value, p2 = document.getElementById('acc_pass2').value;
-    let ok = true;
-    err('acc_email', !/^[^@]+@[^@]+\.[^@]+$/.test(e)); if (!/^[^@]+@[^@]+\.[^@]+$/.test(e)) ok = false;
-    err('acc_pass', p.length < 8); if (p.length < 8) ok = false;
-    err('acc_pass2', p !== p2 || !p2); if (p !== p2 || !p2) ok = false;
-    if (ok){ document.getElementById('otp_email').textContent = e; document.getElementById('log_email').value = e; }
-    return ok;
+    const e = $('acc_email').value, p = $('acc_pass').value, p2 = $('acc_pass2').value;
+    const okE = /^[^@]+@[^@]+\.[^@]+$/.test(e), okP = p.length >= 8, okP2 = p === p2 && !!p2;
+    err('acc_email', !okE); err('acc_pass', !okP); err('acc_pass2', !okP2);
+    if (okE && okP && okP2){ $('otp_email').textContent = e; $('log_email').value = e; }
+    return okE && okP && okP2;
   }
-  if (step === 1){ return otpInputs.every(i => i.value); }
+  if (step === 1) return otpInputs.every(i => i.value);
   if (step === 2){
-    const e = document.getElementById('log_email').value, p = document.getElementById('log_pass').value;
-    let ok = true; err('log_email', !e.trim()); if (!e.trim()) ok = false;
-    err('log_pass', !p.trim()); if (!p.trim()) ok = false; return ok;
+    const e = $('log_email').value, p = $('log_pass').value;
+    err('log_email', !e.trim()); err('log_pass', !p.trim()); return !!(e.trim() && p.trim());
   }
   if (step === 3){
-    const f = document.getElementById('ch_first').value.trim(), l = document.getElementById('ch_last').value.trim();
-    let ok = true; err('ch_first', !f); err('ch_last', !l); if (!f || !l) ok = false; return ok;
+    const f = $('ch_first').value.trim(), l = $('ch_last').value.trim();
+    err('ch_first', !f); err('ch_last', !l); $('bgMsg').closest('.field').classList.toggle('err', !bgKey);
+    return !!(f && l && bgKey);
   }
-  if (step === 4){ return !!(selectedNation && selectedNation.playable); }
+  if (step === 4) return true; // convictions are optional
+  if (step === 5) return !!selected;
   return true;
 }
 
 /* ============ step machine ============ */
 const steps = [...document.querySelectorAll('.step')];
 const stepperNodes = [...document.querySelectorAll('.stp')];
+const NODE_OF = [0, 1, 1, 2, 3, 4, 5, 5];
 const globeStops = [
-  { x: 1.05, y: 0, scale: 1.0, accent: 1.0 },   // account
-  { x: -1.05, y: 0, scale: 1.0, accent: 1.1 },  // verify
-  { x: 1.05, y: 0, scale: 1.0, accent: 1.0 },   // login
-  { x: 1.3, y: -0.1, scale: 0.95, accent: 0.8 },// character (off to the right)
-  { x: -1.25, y: 0, scale: 1.15, accent: 1.0 }, // nation (peek left behind map)
-  { x: 1.2, y: 0, scale: 1.1, accent: 1.0 },    // citizenship (card over dark)
-  { x: 0, y: 0, scale: 1.7, accent: 1.7 },      // enter (rise up)
+  { x: 1.05, y: 0, scale: 1.0, accent: 1.0 }, { x: -1.05, y: 0, scale: 1.0, accent: 1.1 }, { x: 1.05, y: 0, scale: 1.0, accent: 1.0 },
+  { x: 1.3, y: -0.1, scale: 0.95, accent: 0.8 }, { x: -1.3, y: 0, scale: 1.0, accent: 0.9 }, { x: -1.25, y: 0, scale: 1.15, accent: 1.0 },
+  { x: 1.2, y: 0, scale: 1.1, accent: 1.0 }, { x: 0, y: 0, scale: 1.7, accent: 1.7 },
 ];
 let cur = 0;
-function setGlobe(i){ const s = globeStops[Math.min(i, globeStops.length - 1)]; Object.assign(target, s); }
-function updateStepper(i){
-  stepperNodes.forEach((n, idx) => {
-    n.classList.toggle('active', idx === i);
-    n.classList.toggle('done', idx < i);
-  });
-}
+function updateStepper(i){ const n = NODE_OF[i]; stepperNodes.forEach((el, idx) => { el.classList.toggle('active', idx === n); el.classList.toggle('done', idx < n); }); }
 function goTo(i, dir = 1){
   if (i === cur) return;
-  const outEl = steps[cur], inEl = steps[i];
-  // synchronous swap — never depends on a (rAF-throttled) tween completing
-  outEl.classList.remove('active');
-  gsap.set(outEl, { clearProps: 'opacity,transform' });
-  inEl.classList.add('active');
+  steps[cur].classList.remove('active'); gsap.set(steps[cur], { clearProps: 'opacity,transform' });
+  steps[i].classList.add('active');
   try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); }
-  gsap.fromTo(inEl, { opacity: 0, x: 46 * dir, y: 12, filter: 'blur(6px)' },
-    { opacity: 1, x: 0, y: 0, filter: 'blur(0px)', duration: 0.95, ease: 'power4.out' });
-  if (i === 5) fillSummary();
+  gsap.fromTo(steps[i], { opacity: 0, x: 46 * dir, y: 12, filter: 'blur(6px)' }, { opacity: 1, x: 0, y: 0, filter: 'blur(0px)', duration: 0.8, ease: 'power4.out' });
+  if (i === 6) fillSummary();
   if (i === 1) startOtpTimer();
-  cur = i; updateStepper(Math.min(i, 5)); setGlobe(i);
+  if (i === 5) renderNations();
+  cur = i; updateStepper(i); Object.assign(target, globeStops[i]);
 }
-// init
-const urlParams = new URLSearchParams(window.location.search);
-const actionParam = urlParams.get('action');
+const actionParam = new URLSearchParams(location.search).get('action');
 cur = actionParam === 'character' ? 3 : (actionParam === 'login' ? 2 : 0);
-steps[cur].classList.add('active'); gsap.set(steps[cur], { opacity: 1 });
-updateStepper(cur); setGlobe(cur);
+steps[cur].classList.add('active'); gsap.set(steps[cur], { opacity: 1 }); updateStepper(cur); Object.assign(target, globeStops[cur]);
+
+async function postJson(url, body){
+  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || data.message || 'Something went wrong');
+  return data;
+}
+function storeSession(data, email){
+  localStorage.setItem('worldr_access_token', data.accessToken);
+  if (data.refreshToken) localStorage.setItem('worldr_refresh_token', data.refreshToken);
+  localStorage.setItem('worldr-auth', JSON.stringify({ state: { user: data.user || { email }, accessToken: data.accessToken, refreshToken: data.refreshToken, isAuthenticated: true }, version: 0 }));
+}
+/** Logged in: straight into the world if a character exists, else on to character creation. */
+function afterLogin(data){
+  window.worldrTrack && window.worldrTrack('login_succeeded', { has_character: !!(data.user && data.user.character) });
+  if (data.user && data.user.character){
+    localStorage.setItem('worldr_selected_motherland', data.user.character.motherland_country_id || 'drennia');
+    localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(data.user.character));
+    localStorage.setItem('worldr_living_world_entry_v1', 'true');
+    location.href = '/drennia/politics';
+    return true;
+  }
+  return false;
+}
+function flashError(anchor, message){
+  const msg = document.createElement('div'); msg.className = 'msg err'; msg.style.cssText = 'color:#ff6060;margin-top:12px;display:block';
+  msg.textContent = message; anchor.insertAdjacentElement('beforebegin', msg); setTimeout(() => msg.remove(), 5000);
+}
 
 document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click', async () => {
   const s = +b.dataset.next;
   if (!validate(s)) { gsap.fromTo(b.closest('.card'), { x: -6 }, { x: 0, duration: 0.5, ease: 'elastic.out(1,0.4)' }); return; }
-  
-  const span = b.querySelector('span');
-  const origText = span.textContent;
+  const span = b.querySelector('span'), orig = span.textContent;
   b.disabled = true;
-
   try {
-    if (s === 0) {
-      span.textContent = 'Requesting...';
-      const email = document.getElementById('acc_email').value;
-      const password = document.getElementById('acc_pass').value;
-      const res = await fetch('/api/v1/auth/register', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ email, password })
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || err.message || 'Registration failed');
-      }
+    let next = s + 1;
+    if (s === 0){
+      span.textContent = 'Requesting…';
+      await postJson('/api/v1/auth/register', { email: $('acc_email').value, password: $('acc_pass').value });
       window.worldrTrack && window.worldrTrack('register_submitted');
-    } else if (s === 1) {
-      span.textContent = 'Verifying...';
-      const email = document.getElementById('otp_email').textContent;
-      const otp = otpInputs.map(i => i.value).join('');
-      const res = await fetch('/api/v1/auth/verify-email', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ email, otp })
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || err.message || 'Verification failed');
-      }
+    } else if (s === 1){
+      span.textContent = 'Verifying…';
+      const email = $('otp_email').textContent;
+      await postJson('/api/v1/auth/verify-email', { email, otp: otpInputs.map(i => i.value).join('') });
       window.worldrTrack && window.worldrTrack('email_verified');
-    } else if (s === 2) {
-      span.textContent = 'Authenticating...';
-      const email = document.getElementById('log_email').value;
-      const password = document.getElementById('log_pass').value;
-      const res = await fetch('/api/v1/auth/login', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || data.message || 'Login failed');
-      window.worldrTrack && window.worldrTrack('login_succeeded', { has_character: !!(data.user && data.user.character) });
-      
-      localStorage.setItem('worldr_access_token', data.accessToken);
-      if (data.refreshToken) localStorage.setItem('worldr_refresh_token', data.refreshToken);
-      
-      // Seed Zustand store so Next.js apps see the user as authenticated
-      localStorage.setItem('worldr-auth', JSON.stringify({
-        state: {
-          user: data.user || { email },
-          accessToken: data.accessToken,
-          refreshToken: data.refreshToken,
-          isAuthenticated: true
-        },
-        version: 0
-      }));
-
-      // Check if they already have a character
-      if (data.user && data.user.character) {
-        localStorage.setItem('worldr_selected_motherland', data.user.character.motherland_country_id || 'drennia');
-        localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(data.user.character));
-        localStorage.setItem('worldr_living_world_entry_v1', 'true');
-        span.textContent = 'Entering World...';
-        window.location.href = '/drennia/chronicle';
-        return; // Bypass the rest of the onboarding flow
+      // Log straight in with the password from step 1: no second form to fill.
+      const pass = $('acc_pass').value;
+      if (pass){
+        try { const data = await postJson('/api/v1/auth/login', { email, password: pass }); storeSession(data, email); if (afterLogin(data)) return; next = 3; }
+        catch { next = 2; }
       }
+    } else if (s === 2){
+      span.textContent = 'Logging in…';
+      const email = $('log_email').value;
+      const data = await postJson('/api/v1/auth/login', { email, password: $('log_pass').value });
+      storeSession(data, email);
+      if (afterLogin(data)) { span.textContent = 'Entering…'; return; }
     }
-    
-    span.textContent = origText;
-    b.disabled = false;
-    goTo(s + 1, 1);
-  } catch (err) {
-    span.textContent = origText;
-    b.disabled = false;
-    // Show error message
-    const msg = document.createElement('div');
-    msg.className = 'msg err';
-    msg.style.color = '#ff6060';
-    msg.style.marginTop = '12px';
-    msg.textContent = err.message;
-    b.closest('.actions').insertAdjacentElement('beforebegin', msg);
-    setTimeout(() => msg.remove(), 4000);
+    span.textContent = orig; b.disabled = false;
+    goTo(next, 1);
+  } catch (e) {
+    span.textContent = orig; b.disabled = false;
+    flashError(b.closest('.actions'), e.message);
   }
 }));
 document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => goTo(+b.dataset.back - 1, -1)));
 
-/* nation next label reflects selection */
-const nationNext = document.getElementById('nationNext');
-function refreshNationBtn(){ nationNext.querySelector('span').textContent = 'Pledge to ' + (selectedNation ? selectedNation.name : 'Drennia'); }
-const _origRenderNations = renderNations;
-nationList.addEventListener('click', () => setTimeout(refreshNationBtn, 0));
-
-/* ============ citizenship summary + seal ============ */
-function fullName(){
-  const t = document.getElementById('ch_title').value, f = document.getElementById('ch_first').value.trim() || 'Aldric',
-        l = document.getElementById('ch_last').value.trim() || 'Varn';
-  return `${t === 'Citizen' ? '' : t + ' '}${f} ${l}`.trim();
-}
+/* ============ citizenship summary + create ============ */
+function chosenNation(){ return nationsList().find(n => n.countryId === selected) || null; }
 function fillSummary(){
-  document.getElementById('sm_name').textContent = fullName();
-  document.getElementById('sm_gender').textContent = gender;
-  document.getElementById('sm_culture').textContent = document.getElementById('ch_culture').value;
-  const n = selectedNation;
-  document.getElementById('sm_nation').textContent = n.name;
-  document.getElementById('sm_capital').textContent = n.capital;
-  document.getElementById('sm_gov').textContent = n.gov;
+  const n = chosenNation(), b = C()?.backgrounds.find(x => x.key === bgKey), p = profile(), bp = bestParty(n);
+  const line = (k, v, sub) => `<div class="summary-line"><span class="sk">${k}</span><span class="sv">${v}${sub ? `<small>${sub}</small>` : ''}</span></div>`;
+  $('summary').innerHTML = [
+    line('Citizen', esc(fullName())),
+    line('Background', esc(b?.label || '—'), b ? esc(b.edge) : ''),
+    p ? line('Starts with', `Charisma ${p.charisma} · Trust ${p.credibility} · Clout ${p.influence}`, money(p.cash) + ' of your own') : '',
+    line('Nation', esc(n?.name || selected), n ? esc(n.government) + ' · capital ' + esc(n.capital) : ''),
+    bp ? line('Closest party', esc(bp.name), bp.fit + '% fit · ' + bp.seats + ' seats') : '',
+  ].join('');
 }
-document.getElementById('confirmBtn').addEventListener('click', async () => {
-  const btn = document.getElementById('confirmBtn');
-  const seal = document.getElementById('seal'), stage = document.getElementById('sealStage');
-  const span = btn.querySelector('span');
-
-  btn.disabled = true;
-  span.textContent = 'Confirming...';
-
-  // Safety net: if anything unhandled happens (GSAP crash, etc.) always re-enable the button
-  const safetyTimer = setTimeout(() => {
-    if (btn.disabled) {
-      btn.disabled = false;
-      span.textContent = 'Confirm Citizenship';
-    }
-  }, 35000);
-
-  const showError = (message) => {
-    clearTimeout(safetyTimer);
-    btn.disabled = false;
-    span.textContent = 'Confirm Citizenship';
-    const msg = document.createElement('div');
-    msg.className = 'msg err';
-    msg.style.color = '#ff6060';
-    msg.style.marginTop = '12px';
-    msg.textContent = message;
-    document.getElementById('confirmActions').insertAdjacentElement('beforebegin', msg);
-    setTimeout(() => msg.remove(), 5000);
-  };
-
+$('confirmBtn').addEventListener('click', async () => {
+  const btn = $('confirmBtn'), span = btn.querySelector('span');
+  btn.disabled = true; span.textContent = 'Recording…';
   try {
     let token = localStorage.getItem('worldr_access_token');
-    if (!token) throw new Error('Not authenticated. Please log in again.');
-
-    // --- Auto-refresh the access token before the character call.
-    // Guests get a 2h token from the server so this is mainly a safety net
-    // for users who were already logged in with a 15-min regular token.
+    if (!token) throw new Error('Your session ended. Please log in again.');
     try {
-      const storedRefresh = localStorage.getItem('worldr_refresh_token');
-      if (storedRefresh) {
-        const rfRes = await fetch('/api/v1/auth/refresh-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken: storedRefresh })
-        });
-        if (rfRes.ok) {
-          const rfData = await rfRes.json();
-          if (rfData.accessToken) {
-            token = rfData.accessToken;
-            localStorage.setItem('worldr_access_token', token);
-          }
-        }
-      }
-    } catch (rfErr) {
-      // Non-fatal: proceed with whatever token we have
-      console.warn('[onboarding] Token refresh skipped:', rfErr.message);
-    }
-
-    const motherland_country_id = selectedNation.name.toLowerCase();
-
-    // 30-second timeout so the button never hangs forever if the server
-    // crashes or a proxy times out without sending a response.
-    const controller = new AbortController();
-    const fetchTimeout = setTimeout(() => controller.abort(), 30000);
-
+      const rt = localStorage.getItem('worldr_refresh_token');
+      if (rt){ const d = await postJson('/api/v1/auth/refresh-token', { refreshToken: rt }); if (d.accessToken){ token = d.accessToken; localStorage.setItem('worldr_access_token', token); } }
+    } catch { /* keep the token we have */ }
+    const controller = new AbortController(); const to = setTimeout(() => controller.abort(), 30000);
     let res;
     try {
       res = await fetch('/api/v1/characters', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          name: fullName(),
-          motherland_country_id,
-          currency_id: 'dollar',
-          attributes: attrVals
-        }),
-        signal: controller.signal
+        method: 'POST', signal: controller.signal,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: fullName(), motherland_country_id: selected, currency_id: 'dollar', background: bgKey, edge, convictions }),
       });
-    } catch (fetchErr) {
-      clearTimeout(fetchTimeout);
-      if (fetchErr.name === 'AbortError') {
-        throw new Error('The server took too long to respond. Please try again.');
-      }
-      throw new Error('Network error — check your connection and try again.');
-    }
-    clearTimeout(fetchTimeout);
+    } catch (fe) { throw new Error(fe.name === 'AbortError' ? 'The server took too long. Please try again.' : 'Network error. Check your connection and try again.'); }
+    finally { clearTimeout(to); }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok && data.error !== 'CHARACTER_EXISTS') throw new Error(data.message || data.error || 'Could not create your character');
+    let character = res.ok ? (data.character || data) : null;
+    if (!character){ const me = await fetch('/api/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.ok ? r.json() : {}); character = me.character || null; }
+    const nationId = character?.motherland_country_id || selected;
+    window.worldrTrack && window.worldrTrack('character_created', { nation: nationId, background: bgKey || 'none' });
+    localStorage.setItem('worldr_selected_motherland', nationId);
+    if (character) localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(character));
+    localStorage.setItem('worldr_living_world_entry_v1', 'true');
+    try { const st = JSON.parse(localStorage.getItem('worldr-auth') || 'null'); if (st?.state?.user && character){ st.state.user.character = character; localStorage.setItem('worldr-auth', JSON.stringify(st)); } } catch {}
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      if (errData.error === 'CHARACTER_EXISTS' || errData.message === 'Character already exists') {
-        console.log('Character already exists, proceeding to world');
-        try {
-          const charRes = await fetch('/api/v1/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
-          if (charRes.ok) {
-            const charData = await charRes.json();
-            if (charData.character) {
-              localStorage.setItem('worldr_selected_motherland', charData.character.motherland_country_id || motherland_country_id);
-              localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(charData.character));
-              localStorage.setItem('worldr_living_world_entry_v1', 'true');
-              const authStoreStr = localStorage.getItem('worldr-auth');
-              if (authStoreStr) {
-                const authStore = JSON.parse(authStoreStr);
-                if (authStore.state && authStore.state.user) {
-                  authStore.state.user.character = charData.character;
-                  localStorage.setItem('worldr-auth', JSON.stringify(authStore));
-                }
-              }
-            }
-          }
-        } catch (e) { console.error('Failed to fetch existing character', e); }
-      } else {
-        throw new Error(errData.message || errData.error || 'Failed to create character');
-      }
-    } else {
-      const charData = await res.json();
-      const character = charData.character || charData;
-      window.worldrTrack && window.worldrTrack('character_created', { nation: motherland_country_id });
-      localStorage.setItem('worldr_selected_motherland', motherland_country_id);
-      localStorage.setItem('worldr_citizen_file_v1', JSON.stringify(character));
-      localStorage.setItem('worldr_living_world_entry_v1', 'true');
-      try {
-        const authStoreStr = localStorage.getItem('worldr-auth');
-        if (authStoreStr) {
-          const authStore = JSON.parse(authStoreStr);
-          if (authStore.state && authStore.state.user) {
-            authStore.state.user.character = character;
-            localStorage.setItem('worldr-auth', JSON.stringify(authStore));
-          }
-        }
-      } catch (e) {}
-    }
-
-    clearTimeout(safetyTimer);
-    document.getElementById('confirmActions').style.pointerEvents = 'none';
+    $('confirmActions').style.pointerEvents = 'none';
+    const seal = $('seal');
     gsap.set(seal, { scale: 2.4, rotation: -35, opacity: 0 });
-    const tl = gsap.timeline();
-    tl.to(seal, { scale: 1, rotation: 0, opacity: 1, duration: 0.9, ease: 'power4.out' })
-      .to(seal, { scale: 0.94, duration: 0.12, ease: 'power2.in' }, '>-0.02')
-      .to(seal, { scale: 1, duration: 0.5, ease: 'elastic.out(1,0.5)' })
-      .add(() => stage.classList.add('granted'))
-      .to('.seal-txt', { opacity: 1, duration: 0.6 });
+    gsap.timeline().to(seal, { scale: 1, rotation: 0, opacity: 1, duration: 0.9, ease: 'power4.out' })
+      .to(seal, { scale: 0.94, duration: 0.12 }, '>-0.02').to(seal, { scale: 1, duration: 0.5, ease: 'elastic.out(1,0.5)' })
+      .add(() => $('sealStage').classList.add('granted')).to('.seal-txt', { opacity: 1, duration: 0.6 });
 
-    document.getElementById('welcomeName').textContent = fullName();
-    setTimeout(() => { try { goTo(6, 1); } catch(e) { console.error('goTo(6) failed', e); } }, 2600);
-  } catch (err) {
-    showError(err.message);
+    const n = nationsList().find(x => x.countryId === nationId) || chosenNation();
+    const placedElsewhere = nationId !== selected;
+    const bp = bestParty(n);
+    $('welcomeName').textContent = fullName();
+    $('welcomeText').innerHTML = `You are now a citizen of <b style="color:var(--amber-2)">${esc(n?.name || nationId)}</b>.` + (placedElsewhere ? ' Your first choice filled up while you were signing, so you were given the nation with the most room.' : '');
+    $('firstSteps').innerHTML = [
+      bp ? `<li><b>Join a party.</b> ${esc(bp.name)} fits you best, and joining gives you one of its seats in Parliament today.</li>` : '<li><b>Join a party</b>, or found your own, to get a seat and a vote.</li>',
+      '<li><b>Make your three decisions</b> on the Desk each month. Every choice moves your trust, clout or the voters.</li>',
+      `<li><b>Aim for the top.</b> Lead your party, win the election, and become ${esc(n?.leaderTitle || 'head of government')}.</li>`,
+    ].join('');
+    setTimeout(() => goTo(7, 1), 2400);
+  } catch (e) {
+    btn.disabled = false; span.textContent = 'Confirm citizenship';
+    flashError($('confirmActions'), e.message);
   }
 });
 
-document.getElementById('enterBtn').addEventListener('click', function(){
+$('enterBtn').addEventListener('click', function(){
   window.worldrTrack && window.worldrTrack('world_entered');
-  this.querySelector('span').textContent = 'Loading Aethan…';
-  gsap.to(target, { scale: 6, accent: 3, duration: 2.2, ease: 'power3.in' });
-  gsap.to('.card', { 
-    opacity: 0, scale: 1.05, duration: 1.2, ease: 'power2.in', delay: 0.3, 
-    onComplete: () => { window.location.href = '/drennia/chronicle'; } // one set of game screens serves every nation
-  });
+  this.querySelector('span').textContent = 'Opening Parliament…';
+  gsap.to(target, { scale: 6, accent: 3, duration: 2.0, ease: 'power3.in' });
+  gsap.to('.card', { opacity: 0, scale: 1.05, duration: 1.1, ease: 'power2.in', delay: 0.3, onComplete: () => { location.href = '/drennia/politics'; } });
 });
 
-document.getElementById('quit').addEventListener('click', e => { e.preventDefault();
-  gsap.fromTo('.flow-brand', { x: -6 }, { x: 0, duration: 0.5, ease: 'elastic.out(1,.4)' }); });
-
-/* tactile button glow tracking */
+$('quit').addEventListener('click', e => { e.preventDefault(); location.href = 'index.html'; });
 document.querySelectorAll('.btn').forEach(btn => btn.addEventListener('pointermove', e => {
   const r = btn.getBoundingClientRect();
   btn.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
   btn.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
 }));
-
-refreshNationBtn();
+renderAll();

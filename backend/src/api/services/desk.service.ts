@@ -7,10 +7,11 @@
  * It deals the month's hand on first load (idempotent, like the lazily created
  * election cycle); it changes nothing else.
  */
+import { homeGroupOf } from './character.rules';
 import { db } from '../../config/database';
 import { PARTY_FOUNDING_COST, SEGMENTS } from '../constants/politics';
 import {
-  AD_AP, AD_COST, FUNDRAISE_AP, LEADERSHIP_AP, LEADERSHIP_MIN_TENURE_MONTHS, PACT_AP, PACT_CASH_PER_POINT, PACT_MAX_CASH,
+  AD_AP, AD_COST, FUNDRAISE_AP, LEADERSHIP_AP, LEADERSHIP_MIN_CLOUT, LEADERSHIP_MIN_TENURE_MONTHS, PACT_AP, PACT_CASH_PER_POINT, PACT_MAX_CASH,
   PARTY_SWITCH_COOLDOWN_MONTHS, RALLY_AP, SEGMENT_SHORT, SegmentKey,
 } from '../constants/floor';
 import { SITUATION_BY_KEY } from '../constants/situations';
@@ -82,7 +83,7 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     partyFoundingCost: PARTY_FOUNDING_COST,
     rallyAp: RALLY_AP, adAp: AD_AP, adCost: AD_COST, fundraiseAp: FUNDRAISE_AP,
     pactAp: PACT_AP, pactMaxCash: PACT_MAX_CASH, pactCashPerPoint: PACT_CASH_PER_POINT / nation.donationMult,
-    leadershipAp: LEADERSHIP_AP, switchCooldownMonths: PARTY_SWITCH_COOLDOWN_MONTHS,
+    leadershipAp: LEADERSHIP_AP, leadershipMinClout: LEADERSHIP_MIN_CLOUT, switchCooldownMonths: PARTY_SWITCH_COOLDOWN_MONTHS,
   };
 
   const desk: any = {
@@ -157,7 +158,8 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     desk.actions = {
       rally: {
         ap: RALLY_AP,
-        gain: Object.fromEntries(SEGMENT_KEYS.map(k => [k, Number(rallyGain(charisma, countOf('rally', k), cap.calendar.phase).toFixed(1))])),
+        gain: Object.fromEntries(SEGMENT_KEYS.map(k => [k, Number(rallyGain(charisma, countOf('rally', k), cap.calendar.phase, homeGroupOf(character.background) === k).toFixed(1))])),
+        homeGroup: homeGroupOf(character.background),
       },
       ad: { ap: AD_AP, cost: AD_COST, paidBy: me.isLeader ? 'party' : 'you', gain: Number(adGain(countOf('ad')).toFixed(1)) },
       fundraise: { ap: FUNDRAISE_AP, low: Math.round(fundraiseTake(avg, charisma, fr, 0) * nation.fundraiseMult / 100) * 100, high: Math.round(fundraiseTake(avg, charisma, fr, 1) * nation.fundraiseMult / 100) * 100 },

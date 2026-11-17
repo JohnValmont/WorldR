@@ -103,6 +103,8 @@ export interface Office { titles: string[]; decreeAp: number; lastsMonths: numbe
 
 export interface FloorMe extends Me {
   charisma: number;
+  background: { key: string; label: string; edge: string; homeGroup: string | null } | null;
+  convictions: Record<string, number> | null;
   hasSeat: boolean;
   voteMode: 'line' | 'seat' | null;
 }
@@ -118,11 +120,11 @@ export interface Desk extends Omit<Capitol, 'bills' | 'me'> {
     rules: {
       passMargin: number;
       partyFoundingCost: number; rallyAp: number; adAp: number; adCost: number; fundraiseAp: number;
-      pactAp: number; pactMaxCash: number; pactCashPerPoint: number; leadershipAp: number; switchCooldownMonths: number;
+      pactAp: number; pactMaxCash: number; pactCashPerPoint: number; leadershipAp: number; leadershipMinClout?: number; switchCooldownMonths: number;
     };
     hand: HandCard[];
     actions: {
-      rally: { ap: number; gain: Record<string, number> };
+      rally: { ap: number; gain: Record<string, number>; homeGroup?: string | null };
       ad: { ap: number; cost: number; paidBy: 'party' | 'you'; gain: number };
       fundraise: { ap: number; low: number; high: number };
     } | null;
