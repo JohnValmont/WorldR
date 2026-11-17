@@ -15,6 +15,7 @@ async function resetDb() {
     console.log('✅ Database successfully reset and seeded!');
   } catch (err) {
     console.error('❌ Error resetting database:', err);
+    process.exitCode = 1;
   } finally {
     await db.destroy();
   }
