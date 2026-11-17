@@ -2,7 +2,7 @@
 // Election night: the last election replayed district by district.
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatPolArc } from '@/lib/calendar';
-import { Btn, PartyDot, T, useFloor } from './kit';
+import { Btn, PartyDot, T, leaderTitle, useFloor } from './kit';
 
 const STEP_MS = 900;
 
@@ -69,7 +69,7 @@ export default function ElectionNight({ onClose }: { onClose: () => void }) {
           {done ? (
             <div className="text-sm" style={{ color: T.text }}>
               {gov
-                ? <>The government: <strong>{gov.memberPartyIds.map(id => desk.parties.find(p => p.id === id)?.name).join(' + ')}</strong> with {gov.seats} seats{desk.premier ? `, under Premier ${desk.premier.name}` : ''}.</>
+                ? <>The government: <strong>{gov.memberPartyIds.map(id => desk.parties.find(p => p.id === id)?.name).join(' + ')}</strong> with {gov.seats} seats{desk.premier ? `, under ${leaderTitle(desk)} ${desk.premier.name}` : ''}.</>
                 : 'Parties are now negotiating to form a government.'}
             </div>
           ) : current ? (

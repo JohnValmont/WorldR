@@ -55,35 +55,46 @@ backs your party (0 to 100). Support decides elections. Promises between parties
   one unhappy partner can defeat a bill.
 - **A new world** holds its founding election in month one.
 
-## Three nations (added 2026-11-17)
+## Three nations (added 2026-11-17, revised the same day)
 
-The world now has three playable nations: **Drennia**, **Westmark** and **Eryndor** (Drennia's two
-similar-sized neighbours on the map). Six players each.
+The world has three playable nations, six players each: **Drennia**, **Westmark** and **Eryndor**
+(Drennia's neighbours on the map). They are **different countries that start on level terms**:
+each is ahead somewhere and behind somewhere else, so nobody starts with the better country.
 
-- **Equal on purpose.** Each has 151 seats, 7,000,000 voters in 20 districts of the same sizes,
-  the same starting statistics and the same laws. They differ in character only: where the
-  workers, traders, owners, professionals and families live, and which four parties speak for them.
-  A test fails if the nations ever stop being the same size.
+| | Drennia | Westmark | Eryndor |
+|---|---|---|---|
+| Government | Federal parliamentary republic | Merchant republic | Constitutional monarchy |
+| Head of government | Premier | Chancellor | Prime Minister |
+| Head of state | President (ceremonial) | Lord Warden, chosen by the guilds | King Aldric IV |
+| Parliament | 151 seats, every 4 years | 101 seats, every 3 years | 131 seats, every 5 years |
+| Voters | 7.0 million | 4.9 million | 8.8 million |
+| Special rule | none: the baseline | Money talks: fundraisers +50%, donations count 1.5× in deals; parties ally easily | The King returns bills passed by fewer than 5 votes; parties rarely ally (minority governments are common); decrees last 12 months |
+| Founding laws | the defaults | free trade, minimal welfare, deregulated press, minimal defence, open borders | high tariffs, tough policing, high defence, closed borders, licensed press, moderate minimum wage |
+| Strong at | balanced | wealth, foreign influence, freedoms | order, fairness, public finances, defence |
+| Weak at | balanced | cost of living, inequality, defence | wealth, foreign influence, freedoms |
+| Power (economy / military / influence) | 50 / 50 / 50 | 52 / 40 / 58 | 50 / 60 / 42 |
+| Starting approval | 50% | 49% | 51% |
+
+Tests fail if overall power drifts more than 3 points apart, if any nation's starting approval is
+more than 3 from 50, or if a nation stops having both a strength and a weakness.
+
+Other rules:
 - **Six players per nation.** Sign-up shows the places left in each. A full nation is refused with
   the names of the ones that have room. A player not seen for 14 days stops counting. If all three
   are full, a newcomer still gets in, to the least crowded one (switch `NATION_OVERFLOW_WHEN_ALL_FULL`
   off to refuse instead).
 - **Your politics happens in your own nation.** Every politics request runs in the nation of the
   player's character; nothing on the screens needs to choose.
-- **Elections are staggered.** All three hold a founding election in month one; after that their
-  elections fall 16 months apart, so one is always coming somewhere in the world.
-- **Nation power.** Three scores out of 100, shown side by side on the new **Nation** screen:
-  Economy (prosperity and public finances), Military (the defence law in force) and Influence
-  (global standing). All start at 50. There is no war system; military strength is a number
-  Parliament can raise by voting for defence spending, at a cost to the budget.
-- **Powers of office (decrees).** The Premier and each of the five ministers may issue one decree a
-  month without Parliament (4 energy): a nudge to national statistics that lasts 8 months and
-  always helps one thing and hurts another. The Premier also appoints the cabinet from players
-  in the governing parties.
-- **One set of stories, three sets of place names.** Decision cards and news were written with
-  Drennia's towns; for the other nations the same text is shown with their own towns.
+- **Elections are staggered.** All three hold a founding election in month one; their first full
+  terms are 48, 24 and 30 months, then 4, 3 and 5 years, so an election is always coming somewhere.
+- **Nation power.** Economy (prosperity and public finances), Military (the defence law in force)
+  and Influence (global standing), on the **Nation** screen. There is no war system.
+- **Powers of office (decrees).** The head of government and each of the five ministers may issue
+  one decree a month without Parliament (4 energy). Each is a trade-off.
+- **One set of stories, three sets of names.** Decision cards and news are written with Drennia's
+  towns and its "Premier"; other nations see their own towns and their own title.
 
-Files: nation data and caps in `constants/nations.ts`; decrees in `constants/decrees.ts`;
+Files: nation data, rules (`NationRules`) and caps in `constants/nations.ts`; decrees in `constants/decrees.ts`;
 `services/nations.service.ts` (cap, comparison); `services/playerNation.ts` (which nation a
 request is about); `database/migrations/0099_starter_nations.sql`; screen `_floor/NationView.tsx`.
 

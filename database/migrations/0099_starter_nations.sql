@@ -1,8 +1,9 @@
 -- 0099_starter_nations.sql
--- Starter nations two and three: Westmark and Eryndor (docs/POLITICS_FLOOR.md).
--- Each is the same size as Drennia: 151 seats, 7,000,000 voters, the same
--- starting statistics (column defaults) and laws. Districts are synced from
--- backend/src/api/constants/nations.ts by the first politics month.
+-- Starter nations two and three: Westmark (merchant republic) and Eryndor
+-- (constitutional monarchy). docs/POLITICS_FLOOR.md, "Three nations".
+-- Their seats, districts, laws and rules live in backend/src/api/constants/nations.ts;
+-- districts are synced by the first politics month. This file adds the rows and
+-- each nation's starting condition (which differs, but balances out).
 -- Idempotent: every statement only adds what is missing.
 
 INSERT INTO countries (id, world_instance_id, name, currency_id, status)
@@ -54,3 +55,23 @@ INSERT INTO pol_state_policy (state_id, active_policies, updated_arc)
 SELECT id, '{"taxation": "standard", "labor": "regulated", "environment": "standard", "welfare": "standard"}'::jsonb, 0
 FROM pol_states WHERE code IN ('westmark', 'eryndor')
 ON CONFLICT (state_id) DO NOTHING;
+
+-- Starting condition (0-100, 50 = average). Must match baseStats in
+-- constants/nations.ts. Applied only while the nation is untouched (no law
+-- has ever been enacted there), so re-running never resets a live nation.
+UPDATE pol_states s SET
+  base_prosperity = v.p, stat_prosperity = v.p,
+  base_cost_of_living = v.col, stat_cost_of_living = v.col,
+  base_fiscal_health = v.fh, stat_fiscal_health = v.fh,
+  base_equity = v.eq, stat_equity = v.eq,
+  base_human_development = v.hd, stat_human_development = v.hd,
+  base_order_safety = v.os, stat_order_safety = v.os,
+  base_freedom_rights = v.fr, stat_freedom_rights = v.fr,
+  base_bureaucracy = v.bu, stat_bureaucracy = v.bu,
+  base_global_standing = v.gs, stat_global_standing = v.gs
+FROM (VALUES
+  ('westmark', 54, 57, 48, 45, 50, 47, 56, 51, 58),
+  ('eryndor',  46, 44, 57, 53, 48, 53, 44, 48, 42)
+) AS v(code, p, col, fh, eq, hd, os, fr, bu, gs)
+WHERE s.code = v.code
+  AND NOT EXISTS (SELECT 1 FROM pol_active_policies a WHERE a.state_id = s.id);

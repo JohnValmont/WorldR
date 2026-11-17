@@ -86,9 +86,11 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Computer-led governments form the SMALLEST winning coalition. Do not go back to inviting every compatible party.
 
 ## Three starter nations — Operational Rules (DO NOT BREAK)
-- Drennia, Westmark and Eryndor are EQUAL: same seats, same 20 district sizes, same starting stats and laws (tests/floor.test.ts enforces it). Never give one nation a bigger number; differences are character only (voter mix, parties, names).
+- Drennia, Westmark and Eryndor are DIFFERENT BUT BALANCED: own government type, parliament size, term, founding laws, starting stats and NationRules, but overall power within 3 points and starting approval within 3 of 50 (tests/floor.test.ts enforces it). Any change to a nation's baseStats, foundingLaws or rules must keep those tests green; give a strength only with a matching weakness.
+- Nation-specific rules (pass margin, coalition distance, fundraise/donation multipliers, decree length) are read with nationRules(code). Never hard-code a nation check like `code === 'eryndor'` in services.
+- The head of government's title differs per nation (headOfGovernmentTitle). Do not write "Premier" in new player-facing text; use the title, or rely on localisePlaces for card/news text.
 - NATION_PLAYER_CAP (6) and the other nation numbers live in constants/nations.ts. Nation choice at sign-up goes through assignNation (nations.service.ts); never insert a character with a motherland directly.
 - A politics request runs in the player's own nation via withPlayerNation (services/playerNation.ts). Never default a politics query to 'national' (Drennia); use currentPolStateCode().
-- A new nation = a NationSpec in STARTER_NATIONS + a JURISDICTIONS entry (politics.ts) + NATION_PLACES + a migration with its countries / pol_states / parties rows. Nothing else.
+- A new nation = a NationSpec in STARTER_NATIONS (with rules, foundingLaws, baseStats, traits) + a JURISDICTIONS entry (politics.ts) whose seats/majority/term match + NATION_PLACES + a migration with its countries / pol_states / parties rows and starting stats. Nothing else.
 - Decrees are data in constants/decrees.ts: each must be a trade-off (a test enforces it), one per office-holder per month.
 - Card and news text is written with Drennia's place names and passed through localisePlaces for other nations. Do not hard-code another nation's towns in situations.ts.

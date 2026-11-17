@@ -27,7 +27,7 @@ const TABS: { id: Tab; label: string }[] = [
 const PHASE_LABEL: Record<string, string> = {
   governing: 'Parliament sitting', filing: 'Candidates filing', campaign: 'Election campaign', polling: 'Election day', formation: 'Forming a government',
 };
-const RUNG_LABEL: Record<string, string> = { citizen: 'Citizen', member: 'Party member', candidate: 'Candidate', mp: 'Member of Parliament', minister: 'Minister', premier: 'Premier' };
+const RUNG_LABEL: Record<string, string> = { citizen: 'Citizen', member: 'Party member', candidate: 'Candidate', mp: 'Member of Parliament', minister: 'Minister', premier: 'Head of government' };
 const SEEN_ELECTION_KEY = 'worldr_pol_election_seen';
 
 class ViewBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {

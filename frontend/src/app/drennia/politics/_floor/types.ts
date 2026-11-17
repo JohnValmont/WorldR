@@ -91,6 +91,8 @@ export interface ElectionReplay {
 export interface NationRow {
   countryId: string; polStateCode: string; name: string; officialName: string; capital: string; government: string; motto: string;
   flag: { pattern: string; colors: string[]; emblem: string; emblemColor: string };
+  leaderTitle: string; headOfState: { title: string; name: string; role: string }; legislatureName: string; termYears: number;
+  culture: string | null; traits: string[];
   premier: string | null; premierIsPlayer: boolean; leadParty: { name: string; color: string } | null;
   governmentSeats: number; seats: number; approval: number;
   power: { economy: number; military: number; influence: number; overall: number };
@@ -114,6 +116,7 @@ export interface Desk extends Omit<Capitol, 'bills' | 'me'> {
     supportTargets: Record<string, Record<string, number>>;
     election: ElectionReplay | null;
     rules: {
+      passMargin: number;
       partyFoundingCost: number; rallyAp: number; adAp: number; adCost: number; fundraiseAp: number;
       pactAp: number; pactMaxCash: number; pactCashPerPoint: number; leadershipAp: number; switchCooldownMonths: number;
     };

@@ -14,7 +14,7 @@ import {
   PARTY_SWITCH_COOLDOWN_MONTHS, RALLY_AP, SEGMENT_SHORT, SegmentKey,
 } from '../constants/floor';
 import { SITUATION_BY_KEY } from '../constants/situations';
-import { localisePlaces } from '../constants/nations';
+import { localisePlaces, nationRules } from '../constants/nations';
 import { safeParseJSON } from '../../utils/json';
 import { getCapitol } from './capitol.service';
 import {
@@ -76,10 +76,12 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     };
   }
 
+  const nation = nationRules(cap.state.code);
   const rules = {
+    passMargin: nation.passMargin,
     partyFoundingCost: PARTY_FOUNDING_COST,
     rallyAp: RALLY_AP, adAp: AD_AP, adCost: AD_COST, fundraiseAp: FUNDRAISE_AP,
-    pactAp: PACT_AP, pactMaxCash: PACT_MAX_CASH, pactCashPerPoint: PACT_CASH_PER_POINT,
+    pactAp: PACT_AP, pactMaxCash: PACT_MAX_CASH, pactCashPerPoint: PACT_CASH_PER_POINT / nation.donationMult,
     leadershipAp: LEADERSHIP_AP, switchCooldownMonths: PARTY_SWITCH_COOLDOWN_MONTHS,
   };
 
@@ -158,7 +160,7 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
         gain: Object.fromEntries(SEGMENT_KEYS.map(k => [k, Number(rallyGain(charisma, countOf('rally', k), cap.calendar.phase).toFixed(1))])),
       },
       ad: { ap: AD_AP, cost: AD_COST, paidBy: me.isLeader ? 'party' : 'you', gain: Number(adGain(countOf('ad')).toFixed(1)) },
-      fundraise: { ap: FUNDRAISE_AP, low: fundraiseTake(avg, charisma, fr, 0), high: fundraiseTake(avg, charisma, fr, 1) },
+      fundraise: { ap: FUNDRAISE_AP, low: Math.round(fundraiseTake(avg, charisma, fr, 0) * nation.fundraiseMult / 100) * 100, high: Math.round(fundraiseTake(avg, charisma, fr, 1) * nation.fundraiseMult / 100) * 100 },
     };
   }
 
@@ -266,7 +268,7 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     desk.office = {
       titles: offices,
       decreeAp: DECREE_AP,
-      lastsMonths: SHOCK_MONTHS,
+      lastsMonths: nation.decreeMonths,
       usedThisMonth: used ? used.summary : null,
       decrees: DECREES.filter(d => offices.includes(d.office)).map(d => ({ key: d.key, office: d.office, title: d.title, blurb: d.blurb, stat: d.stat, support: d.support ?? {} })),
     };

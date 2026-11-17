@@ -3,7 +3,7 @@
 import React from 'react';
 import { politicsApi } from '@/lib/api';
 import type { NationRow } from './types';
-import { Btn, Card, Chip, EffectChips, Label, Meter, PartyDot, T, statLowerIsBetter, statName, useFloor } from './kit';
+import { Btn, Card, Chip, EffectChips, Label, Meter, PartyDot, T, leaderTitle, statLowerIsBetter, statName, useFloor } from './kit';
 
 /** A small flag drawn from the nation's recipe (pattern + colours). */
 export function Flag({ flag, width = 44 }: { flag: NationRow['flag']; width?: number }) {
@@ -42,7 +42,7 @@ function World() {
             <Flag flag={n.flag} />
             <div className="min-w-0 flex-1">
               <div className="font-serif text-lg font-bold leading-tight truncate" style={{ color: T.text }}>{n.name}</div>
-              <div className="text-[11px] truncate" style={{ color: T.faint }}>{n.officialName}</div>
+              <div className="text-[11px] truncate" style={{ color: T.faint }}>{n.government} · {n.legislatureName}</div>
             </div>
             <div className="text-right shrink-0">
               <div className="font-serif text-2xl font-bold leading-none" style={{ color: i === 0 ? T.accent : T.text }}>{n.power.overall}</div>
@@ -57,7 +57,7 @@ function World() {
           <div className="mt-3 pt-3 text-xs space-y-1" style={{ borderTop: `1px solid ${T.line}`, color: T.dim }}>
             <div className="flex items-center gap-1.5">
               {n.leadParty && <PartyDot color={n.leadParty.color} />}
-              <span className="truncate">{n.premier ? <>Premier <strong style={{ color: T.text }}>{n.premier}</strong></> : 'No government yet'}</span>
+              <span className="truncate">{n.premier ? <>{n.leaderTitle} <strong style={{ color: T.text }}>{n.premier}</strong></> : 'No government yet'}</span>
               {n.premierIsPlayer && <Chip color={T.accent}>player</Chip>}
             </div>
             <div>{n.leadParty ? `${n.leadParty.name} government, ${n.governmentSeats} of ${n.seats} seats` : 'Parliament not yet elected'}</div>
@@ -110,6 +110,27 @@ function StateOfNation() {
   );
 }
 
+/** What makes this nation different to play. */
+function HowItWorks() {
+  const { desk } = useFloor();
+  const mine = desk.desk.world.find(n => n.mine);
+  if (!mine) return null;
+  return (
+    <Card className="p-4">
+      <Label>How {mine.name} works</Label>
+      {mine.culture && <p className="text-sm mt-2 italic" style={{ color: T.dim }}>{mine.culture}</p>}
+      <ul className="mt-3 space-y-1.5">
+        {mine.traits.map((t, i) => (
+          <li key={i} className="flex gap-2 text-sm" style={{ color: T.text }}><span style={{ color: T.accent }}>•</span><span>{t}</span></li>
+        ))}
+      </ul>
+      <div className="mt-3 pt-3 text-xs" style={{ borderTop: `1px solid ${T.line}`, color: T.dim }}>
+        <strong style={{ color: T.text }}>{mine.headOfState.title} {mine.headOfState.name}.</strong> {mine.headOfState.role}
+      </div>
+    </Card>
+  );
+}
+
 /** What your office lets you do without asking Parliament. */
 function Powers() {
   const { desk, act, busy } = useFloor();
@@ -121,8 +142,8 @@ function Powers() {
       <Card className="p-4">
         <Label>Powers of office</Label>
         <p className="text-sm mt-1" style={{ color: T.dim }}>
-          The Premier and the five ministers can act without Parliament: one decree a month each, felt across the whole nation.
-          {me.party ? ' Lead the governing party to become Premier, or be named to the cabinet by one.' : ' Join a party to start the climb.'}
+          The {leaderTitle(desk)} and the five ministers can act without Parliament: one decree a month each, felt across the whole nation.
+          {me.party ? ` Lead the governing party to become ${leaderTitle(desk)}, or be named to the cabinet by one.` : ' Join a party to start the climb.'}
         </p>
       </Card>
     );
@@ -132,7 +153,7 @@ function Powers() {
   return (
     <Card className="p-4" tone="accent">
       <div className="flex items-baseline justify-between gap-2">
-        <Label color={T.accent}>{isPremier ? 'Premier’s office' : 'Your ministry'}</Label>
+        <Label color={T.accent}>{isPremier ? `${leaderTitle(desk)}’s office` : 'Your ministry'}</Label>
         <span className="text-[11px]" style={{ color: T.faint }}>One decree a month · {office.decreeAp} energy · lasts {office.lastsMonths} months</span>
       </div>
       {office.usedThisMonth
@@ -170,6 +191,7 @@ function Cabinet() {
       <div className="flex items-baseline justify-between gap-2">
         <Label>The cabinet</Label>
         {isPremier && <span className="text-[11px]" style={{ color: T.faint }}>You appoint. Players in governing parties can be named.</span>}
+        {!isPremier && <span className="text-[11px]" style={{ color: T.faint }}>Appointed by the {leaderTitle(desk)}</span>}
       </div>
       <div className="mt-2 space-y-2">
         {desk.cabinet.filter(c => c.holderName).map(c => (
@@ -210,7 +232,7 @@ export default function NationView() {
       <div>
         <Label>The three nations</Label>
         <p className="text-xs mt-1 mb-3" style={{ color: T.faint }}>
-          All three began equal: the same people, wealth and laws. What they become is decided by those who govern them. Military strength follows the defence law.
+          Three very different countries that start on level terms: each is ahead somewhere and behind somewhere else. What they become is decided by those who govern them. Military strength follows the defence law.
         </p>
         <World />
       </div>
@@ -219,7 +241,7 @@ export default function NationView() {
           <Powers />
           <Cabinet />
         </div>
-        <aside className="space-y-4"><StateOfNation /></aside>
+        <aside className="space-y-4"><HowItWorks /><StateOfNation /></aside>
       </div>
     </div>
   );

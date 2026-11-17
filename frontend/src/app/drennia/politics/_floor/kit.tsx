@@ -164,7 +164,10 @@ export function Sheet({ title, onClose, children, wide }: { title: string; onClo
 }
 
 /** Yes/no bar with the winning line in the middle. A bill passes with more yes than no. */
-export function WhipBar({ yea, nay, total }: { yea: number; nay: number; total: number }) {
+/** What the head of government is called in this player's nation. */
+export const leaderTitle = (desk: Desk) => desk.nation.headOfGovernment?.title ?? 'Premier';
+
+export function WhipBar({ yea, nay, total, margin = 1 }: { yea: number; nay: number; total: number; margin?: number }) {
   const y = (yea / total) * 100, n = (nay / total) * 100;
   return (
     <div>
@@ -175,7 +178,11 @@ export function WhipBar({ yea, nay, total }: { yea: number; nay: number; total: 
       </div>
       <div className="flex justify-between mt-1 text-xs font-mono">
         <span style={{ color: T.good }}>{yea} for</span>
-        <span style={{ color: T.faint }}>{yea > nay ? `passing by ${yea - nay}` : yea === nay ? 'tied: fails' : `failing by ${nay - yea}`}</span>
+        <span style={{ color: yea > nay && yea - nay < margin ? T.accent : T.faint }}>
+          {yea - nay >= margin ? `passing by ${yea - nay}`
+            : yea > nay ? `${yea - nay} ahead, needs ${margin}`
+            : yea === nay ? 'tied: fails' : `failing by ${nay - yea}`}
+        </span>
         <span style={{ color: T.bad }}>{nay} against</span>
       </div>
     </div>
