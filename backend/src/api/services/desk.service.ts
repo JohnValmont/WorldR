@@ -14,16 +14,20 @@ import {
   PARTY_SWITCH_COOLDOWN_MONTHS, RALLY_AP, SEGMENT_SHORT, SegmentKey,
 } from '../constants/floor';
 import { SITUATION_BY_KEY } from '../constants/situations';
+import { localisePlaces, nationRules } from '../constants/nations';
 import { safeParseJSON } from '../../utils/json';
 import { getCapitol } from './capitol.service';
 import {
-  effectiveCost, ensureHand, forecastPact, getEnergy, playerPolitics, switchCooldownLeft,
+  decreeOffices, effectiveCost, ensureHand, forecastPact, getEnergy, playerPolitics, switchCooldownLeft,
 } from './floor.service';
 import {
   adGain, fundraiseTake, leadershipDecision, outcomeChances, rallyGain, renderText, SEGMENT_KEYS, supportTarget,
 } from './floor.rules';
 import { getSupportMap } from './support.store';
 import { getGovernment, getLawsInForce, parsePlatform } from './statecraft.service';
+import { worldNations } from './nations.service';
+import { DECREE_AP, DECREES } from '../constants/decrees';
+import { SHOCK_MONTHS } from '../constants/floor';
 
 const num = (v: any, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 
@@ -72,10 +76,12 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     };
   }
 
+  const nation = nationRules(cap.state.code);
   const rules = {
+    passMargin: nation.passMargin,
     partyFoundingCost: PARTY_FOUNDING_COST,
     rallyAp: RALLY_AP, adAp: AD_AP, adCost: AD_COST, fundraiseAp: FUNDRAISE_AP,
-    pactAp: PACT_AP, pactMaxCash: PACT_MAX_CASH, pactCashPerPoint: PACT_CASH_PER_POINT,
+    pactAp: PACT_AP, pactMaxCash: PACT_MAX_CASH, pactCashPerPoint: PACT_CASH_PER_POINT / nation.donationMult,
     leadershipAp: LEADERSHIP_AP, switchCooldownMonths: PARTY_SWITCH_COOLDOWN_MONTHS,
   };
 
@@ -90,6 +96,10 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     deals: null,
     partyRoom: null,
     log: [],
+    // The starter nations side by side; `mine` marks the one this desk is about.
+    world: (await worldNations(db, arc)).map(n => ({ ...n, mine: n.polStateCode === cap.state.code })),
+    // What the player's office lets them do without Parliament (null = holds no office).
+    office: null,
   };
 
   const character = userId ? await db('characters').where({ user_id: userId, status: 'active' }).first() : null;
@@ -108,6 +118,8 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     districts: cap.districts.map((d: any) => ({ id: d.id, name: d.name })),
     parties: cap.parties.map((p: any) => ({ id: p.id, name: p.name, seats: p.seats })),
   }));
+  // Cards are written with Drennia's towns; other nations read their own.
+  const loc = (t: string) => localisePlaces(t, cap.state.code);
   const handRows = await db('pol_situations').where({ character_id: character.id, arc }).orderBy('slot');
   desk.hand = handRows.map((r: any) => {
     const card = SITUATION_BY_KEY[r.card_key];
@@ -116,16 +128,16 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     return {
       id: r.id,
       key: card.key,
-      kicker: card.kicker,
-      title: renderText(card.title, vars),
-      body: renderText(card.body, vars),
+      kicker: loc(card.kicker),
+      title: loc(renderText(card.title, vars)),
+      body: loc(renderText(card.body, vars)),
       status: r.status,
       chosen: r.option_index,
       result: typeof r.outcome === 'string' ? safeParseJSON(r.outcome) : r.outcome,
       options: card.options.map(o => {
         const chances = outcomeChances(o);
         return {
-          label: renderText(o.label, vars),
+          label: loc(renderText(o.label, vars)),
           cost: effectiveCost(me, o.cost),
           outcomes: o.outcomes.map((oc, i) => ({ chance: chances[i], tone: oc.tone, effects: oc.effects })),
         };
@@ -148,7 +160,7 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
         gain: Object.fromEntries(SEGMENT_KEYS.map(k => [k, Number(rallyGain(charisma, countOf('rally', k), cap.calendar.phase).toFixed(1))])),
       },
       ad: { ap: AD_AP, cost: AD_COST, paidBy: me.isLeader ? 'party' : 'you', gain: Number(adGain(countOf('ad')).toFixed(1)) },
-      fundraise: { ap: FUNDRAISE_AP, low: fundraiseTake(avg, charisma, fr, 0), high: fundraiseTake(avg, charisma, fr, 1) },
+      fundraise: { ap: FUNDRAISE_AP, low: Math.round(fundraiseTake(avg, charisma, fr, 0) * nation.fundraiseMult / 100) * 100, high: Math.round(fundraiseTake(avg, charisma, fr, 1) * nation.fundraiseMult / 100) * 100 },
     };
   }
 
@@ -247,6 +259,19 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     };
   } else {
     desk.partyRoom = { cooldownLeft };
+  }
+
+  // ── Powers of office: decrees (Premier and ministers) ──
+  const offices = decreeOffices(me);
+  if (offices.length) {
+    const used = await db('pol_action_log').where({ character_id: character.id, arc, kind: 'decree' }).first();
+    desk.office = {
+      titles: offices,
+      decreeAp: DECREE_AP,
+      lastsMonths: nation.decreeMonths,
+      usedThisMonth: used ? used.summary : null,
+      decrees: DECREES.filter(d => offices.includes(d.office)).map(d => ({ key: d.key, office: d.office, title: d.title, blurb: d.blurb, stat: d.stat, support: d.support ?? {} })),
+    };
   }
 
   desk.log = await db('pol_action_log').where({ character_id: character.id }).orderBy('created_at', 'desc').limit(12).select('arc', 'kind', 'summary');

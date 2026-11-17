@@ -55,8 +55,9 @@ import {
 } from '../controllers/politics.controller';
 import { getOrCreateCurrentCycle, bribeVote, getBillCoercions, worldClockToArc } from '../services/politics.service';
 import { getDesk } from '../services/desk.service';
+import { currentPolStateCode, withPlayerNation } from '../services/playerNation';
 import {
-  callFavour, challengeLeadership, chooseSituation, fundraise, offerPact, playerPolitics, PlayerPolitics, rally, respondPact, runAd,
+  callFavour, challengeLeadership, chooseSituation, fundraise, issueDecree, offerPact, playerPolitics, PlayerPolitics, rally, respondPact, runAd,
 } from '../services/floor.service';
 import { getGovernment, getLawsInForce } from '../services/statecraft.service';
 import type { GovernmentInfo } from '../services/statecraft.service';
@@ -69,6 +70,8 @@ const router = Router();
 // Politics is open to every signed-in player (Phase 2). Only the world-clock
 // "force tick" stays admin-only (world.routes.ts).
 router.use([authMiddleware]);
+// Every politics request runs in the player's own nation unless it names another.
+router.use(withPlayerNation());
 
 // ── Capitol: one read model for the rebuilt Politics screens ───────────────
 router.get('/capitol', async (req: Request, res: Response, next: NextFunction) => {
@@ -141,6 +144,7 @@ router.post('/pacts', floorAction((c, req) => offerPact(c.trx, c.stateId, c.me, 
 router.post('/pacts/:id/respond', floorAction((c, req) => respondPact(c.trx, c.stateId, c.me, asId(req.params.id, 'pact'), !!req.body?.accept, c.arc), { blockDuringElection: true }));
 router.post('/favours/:id/call', floorAction((c, req) => callFavour(c.trx, c.stateId, c.me, asId(req.params.id, 'favour'), asId(req.body?.billId, 'billId'), asVote(req.body?.vote), c.arc), { blockDuringElection: true }));
 router.post('/party/challenge', floorAction(c => challengeLeadership(c.trx, c.stateId, c.me, c.arc)));
+router.post('/decree', floorAction((c, req) => issueDecree(c.trx, c.stateId, c.me, String(req.body?.key ?? ''), c.arc)));
 
 // ── Cabinet: the Premier appoints ministers ────────────────────────────────
 router.post('/cabinet/:postKey/appoint', async (req: Request, res: Response, next: NextFunction) => {
@@ -168,7 +172,7 @@ const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}
 
 // Helper to resolve state for phase middleware
 async function resolveStateForPhase(req: Request) {
-  const code = (req.query.stateId || req.body.stateId || req.body.jurisdictionId || 'national') as string;
+  const code = (req.query.stateId || req.body.stateId || req.body.jurisdictionId || currentPolStateCode()) as string;
   let state = await db('pol_states').where({ code }).first();
   if (!state && UUID_REGEX.test(code)) {
     state = await db('pol_states').where({ id: code }).first();

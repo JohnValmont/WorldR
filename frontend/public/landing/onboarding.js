@@ -197,8 +197,8 @@ function renderNations(){
     el.className = 'nat' + (n.playable ? '' : ' locked') + (selectedNation && n.id === selectedNation.id ? ' sel' : '');
     el.innerHTML = `<span class="dot" style="background:${n.color};box-shadow:0 0 10px ${n.color}"></span>
       <div class="nm"><b>${n.name}</b><span>${n.gov} · ${n.capital}</span></div>
-      <span class="badge ${n.playable ? 'open' : 'soon'}">${n.playable ? 'Open' : 'Soon'}</span>`;
-    if (n.playable) el.onclick = () => { selectedNation = n; renderNations(); showDossier(n); };
+      <span class="badge ${n.playable && !n.full ? 'open' : 'soon'}">${!n.playable ? 'Soon' : n.full ? 'Full' : (n.places != null ? n.places + ' places left' : 'Open')}</span>`;
+    if (n.playable && !n.full) el.onclick = () => { selectedNation = n; renderNations(); showDossier(n); refreshNationBtn(); };
     nationList.appendChild(el);
   });
 }
@@ -211,6 +211,19 @@ function showDossier(n){
   document.getElementById('d_culture').textContent = n.culture;
 }
 renderNations(); showDossier(selectedNation);
+// Three starter nations of six citizens each: ask the server which have room.
+fetch('/api/v1/world/nations').then(r => r.ok ? r.json() : null).then(data => {
+  if (!data || !Array.isArray(data.nations)) return;
+  const anyRoom = data.nations.some(x => x.players < x.cap);
+  for (const row of data.nations) {
+    const n = NATIONS.find(x => x.name.toLowerCase() === row.countryId);
+    if (!n) continue;
+    n.places = Math.max(0, row.cap - row.players);
+    n.full = anyRoom && n.places === 0; // if every nation is full the server still finds the newcomer a place
+  }
+  if (!selectedNation || selectedNation.full) selectedNation = NATIONS.find(x => x.playable && !x.full) || selectedNation;
+  renderNations(); showDossier(selectedNation); refreshNationBtn();
+}).catch(() => { /* offline: all three stay selectable, the server decides */ });
 // map marker click
 document.getElementById('drenniaMarker').onclick = () => {
   const dr = NATIONS.find(x => x.playable); selectedNation = dr; renderNations(); showDossier(dr);
@@ -573,7 +586,7 @@ document.getElementById('enterBtn').addEventListener('click', function(){
   gsap.to(target, { scale: 6, accent: 3, duration: 2.2, ease: 'power3.in' });
   gsap.to('.card', { 
     opacity: 0, scale: 1.05, duration: 1.2, ease: 'power2.in', delay: 0.3, 
-    onComplete: () => { window.location.href = '/' + selectedNation.name.toLowerCase() + '/chronicle'; }
+    onComplete: () => { window.location.href = '/drennia/chronicle'; } // one set of game screens serves every nation
   });
 });
 

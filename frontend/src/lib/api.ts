@@ -254,6 +254,7 @@ export const politicsApi = {
   respondPact: (id: string, accept: boolean) => api.post(`/politics/pacts/${id}/respond`, { accept }).then(res => res.data),
   callFavour: (id: string, billId: string, vote: 'yea' | 'nay') => api.post(`/politics/favours/${id}/call`, { billId, vote }).then(res => res.data),
   challengeLeadership: () => api.post('/politics/party/challenge').then(res => res.data),
+  issueDecree: (key: string) => api.post('/politics/decree', { key }).then(res => res.data),
   appointMinister: (postKey: string, characterId: string | null) =>
     api.post(`/politics/cabinet/${postKey}/appoint`, { characterId }).then(res => res.data),
   getState: () => api.get(`/politics/state?t=${Date.now()}`).then(res => res.data),

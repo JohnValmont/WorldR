@@ -85,6 +85,11 @@ export const JURISDICTIONS: Record<string, JurisdictionSpec> = {
   westport:  { seats: 72,  majority: 37,  termMonths: 24, electionOffsetMonths: 12, tier: 'state' },
   greenmere: { seats: 50,  majority: 26,  termMonths: 24, electionOffsetMonths: 18, tier: 'state' },
   national:  { seats: 151, majority: 76, termMonths: 48, electionOffsetMonths: 0,  tier: 'national' },
+  // Starter nations two and three (constants/nations.ts). Each has its own
+  // parliament size and term. The offset shortens only the FIRST term, so the
+  // three nations' elections do not all fall together.
+  westmark:  { seats: 101, majority: 51, termMonths: 36, electionOffsetMonths: 12, tier: 'national' },
+  eryndor:   { seats: 131, majority: 66, termMonths: 60, electionOffsetMonths: 30, tier: 'national' },
 };
 
 // Safe fallback for any unknown/unseeded jurisdiction code (mirrors a typical

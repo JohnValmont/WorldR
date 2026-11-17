@@ -280,3 +280,111 @@ describe('Leadership and shocks', () => {
     assert.strictEqual(s.equity, -2);
   });
 });
+
+// ─────────────────────────── Three equal nations ───────────────────────────
+import { STARTER_NATIONS, NATION_PLAYER_CAP, NATIONS_BY_POL_STATE, WESTMARK, ERYNDOR, nationRules } from '../src/api/constants/nations';
+import { computeApproval, findOption } from '../src/api/services/statecraft.service';
+import { JURISDICTIONS } from '../src/api/constants/politics';
+import { chooseNation, nationPower } from '../src/api/services/nations.service';
+import { DECREES } from '../src/api/constants/decrees';
+import { CABINET_POSTS } from '../src/api/constants/nations';
+
+describe('Starter nations are different but balanced', () => {
+  const approvalOf = (n: typeof DRENNIA) => computeApproval({ ...BASE, ...(n.baseStats ?? {}) } as any);
+  const powerOf = (n: typeof DRENNIA) => nationPower({ ...BASE, ...(n.baseStats ?? {}) }, { ...DEFAULT_LAWS, ...(n.foundingLaws ?? {}) }.defense);
+  const BASE = { prosperity: 50, cost_of_living: 50, fiscal_health: 50, equity: 50, human_development: 50, order_safety: 50, freedom_rights: 50, bureaucracy: 50, global_standing: 50 };
+
+  it('there are three, each with its own parliament code, and the data agrees with the jurisdiction table', () => {
+    assert.strictEqual(STARTER_NATIONS.length, 3);
+    assert.strictEqual(new Set(STARTER_NATIONS.map(n => n.polStateCode)).size, 3);
+    for (const n of STARTER_NATIONS) {
+      const j = JURISDICTIONS[n.polStateCode];
+      assert.ok(NATIONS_BY_POL_STATE[n.polStateCode] && j, `${n.shortName} needs a jurisdiction entry`);
+      assert.strictEqual(j.seats, n.legislature.seats);
+      assert.strictEqual(j.majority, n.legislature.majority);
+      assert.strictEqual(j.majority, Math.floor(n.legislature.seats / 2) + 1, `${n.shortName}: majority must be half the seats plus one`);
+      assert.strictEqual(j.termMonths, n.legislature.termMonths);
+      assert.strictEqual(new Set(n.districts.map(d => d.name)).size, n.districts.length, `${n.shortName}: district names must be unique`);
+      for (const d of n.districts) assert.ok(n.regions.some(r => r.code === d.region), `${n.shortName}: ${d.name} has an unknown region`);
+      for (const [cat, opt] of Object.entries(n.foundingLaws ?? {})) assert.ok(findOption(cat, opt), `${n.shortName}: unknown founding law ${cat}=${opt}`);
+    }
+  });
+  it('they really are different: form of government, parliament size, term and rules', () => {
+    assert.strictEqual(new Set(STARTER_NATIONS.map(n => n.government)).size, 3);
+    assert.strictEqual(new Set(STARTER_NATIONS.map(n => n.legislature.seats)).size, 3);
+    assert.strictEqual(new Set(STARTER_NATIONS.map(n => n.legislature.termMonths)).size, 3);
+    assert.strictEqual(new Set(STARTER_NATIONS.map(n => n.headOfGovernment.title)).size, 3);
+    assert.strictEqual(new Set(STARTER_NATIONS.map(n => JSON.stringify(nationRules(n.polStateCode)))).size, 3);
+  });
+  it('nobody starts with the better country: overall power within 3 points, approval within 3 of normal', () => {
+    const powers = STARTER_NATIONS.map(n => powerOf(n).overall);
+    assert.ok(Math.max(...powers) - Math.min(...powers) <= 3, `power ${powers}`);
+    for (const n of STARTER_NATIONS) assert.ok(Math.abs(approvalOf(n) - 50) <= 3, `${n.shortName} approval ${approvalOf(n)}`);
+  });
+  it('the differences are trade-offs: each nation leads on one measure and trails on another', () => {
+    const p = STARTER_NATIONS.map(n => ({ n: n.shortName, ...powerOf(n) }));
+    const w = p.find(x => x.n === 'Westmark')!, e = p.find(x => x.n === 'Eryndor')!, d = p.find(x => x.n === 'Drennia')!;
+    assert.ok(w.influence > d.influence && w.military < d.military, 'Westmark: connected but lightly armed');
+    assert.ok(e.military > d.military && e.influence < d.influence, 'Eryndor: armed but inward');
+    const ws = { ...BASE, ...WESTMARK.baseStats }, es = { ...BASE, ...ERYNDOR.baseStats };
+    assert.ok(ws.prosperity > es.prosperity && ws.equity < es.equity, 'Westmark richer, Eryndor fairer');
+    assert.ok(ws.cost_of_living > es.cost_of_living, 'living in Westmark costs more');
+  });
+  it('a stricter constitution is harder to pass bills under, but nobody is locked out', () => {
+    const margin = nationRules(ERYNDOR.polStateCode).passMargin;
+    assert.ok(margin > nationRules(DRENNIA.polStateCode).passMargin);
+    assert.ok(margin < ERYNDOR.legislature.seats * 0.1, 'the extra margin must stay small next to the chamber');
+  });
+  it('in money-friendly nations a donation buys more, and a fundraiser raises more', () => {
+    const w = nationRules(WESTMARK.polStateCode), e = nationRules(ERYNDOR.polStateCode), d = nationRules(DRENNIA.polStateCode);
+    assert.ok(w.donationMult > d.donationMult && d.donationMult > e.donationMult);
+    assert.ok(w.fundraiseMult > d.fundraiseMult);
+    const ask = { desirability: -0.4, askedVote: 'yea' as const, targetProposedBill: false, targetInGovernment: false, billFromGovernment: false, askerTrust: 50, alreadyOwed: 0, askerWordBroken: false };
+    assert.ok(pactDecision({ ...ask, cash: 50_000 * w.donationMult }).score > pactDecision({ ...ask, cash: 50_000 * e.donationMult }).score);
+  });
+  it('their first elections after founding fall at different times', () => {
+    const firsts = STARTER_NATIONS.map(n => JURISDICTIONS[n.polStateCode].termMonths - JURISDICTIONS[n.polStateCode].electionOffsetMonths);
+    assert.strictEqual(new Set(firsts).size, 3, `first terms ${firsts}`);
+    for (const f of firsts) assert.ok(f >= 18, 'a first term shorter than 18 months is too rushed');
+  });
+});
+
+describe('Six players per nation', () => {
+  const cap = NATION_PLAYER_CAP;
+  it('a player gets the nation they ask for while it has room', () => {
+    assert.deepStrictEqual(chooseNation('westmark', { drennia: cap, westmark: cap - 1, eryndor: 0 }, cap, true), { countryId: 'westmark' });
+  });
+  it('a full nation is refused, naming the ones with room', () => {
+    const r = chooseNation('drennia', { drennia: cap, westmark: 2, eryndor: 0 }, cap, true) as any;
+    assert.ok(r.error && r.error.includes('Westmark') && r.error.includes('Eryndor'));
+  });
+  it('with no preference, nations fill one at a time', () => {
+    assert.deepStrictEqual(chooseNation(null, { drennia: 4, westmark: 1, eryndor: 0 }, cap, true), { countryId: 'drennia' });
+    assert.deepStrictEqual(chooseNation(null, { drennia: cap, westmark: 1, eryndor: 0 }, cap, true), { countryId: 'westmark' });
+  });
+  it('when every nation is full the least crowded takes the overflow, unless overflow is off', () => {
+    assert.deepStrictEqual(chooseNation('drennia', { drennia: cap + 2, westmark: cap, eryndor: cap + 1 }, cap, true), { countryId: 'westmark' });
+    assert.ok('error' in chooseNation('drennia', { drennia: cap, westmark: cap, eryndor: cap }, cap, false));
+  });
+  it('nations that are not open cannot be chosen', () => {
+    assert.ok('error' in chooseNation('novara', { drennia: 0, westmark: 0, eryndor: 0 }, cap, true));
+  });
+});
+
+describe('Decrees', () => {
+  it('every decree belongs to the Premier or a real cabinet post, and costs something', () => {
+    const posts = new Set(['premier', ...CABINET_POSTS.map(p => p.key)]);
+    const keys = new Set<string>();
+    for (const d of DECREES) {
+      assert.ok(posts.has(d.office), `${d.key}: unknown office ${d.office}`);
+      assert.ok(!keys.has(d.key)); keys.add(d.key);
+      const moves = Object.values(d.stat).filter(Boolean) as number[];
+      assert.ok(moves.length >= 2, `${d.key} must move at least two statistics`);
+      const better = Object.entries(d.stat).some(([k, v]) => (k === 'cost_of_living' ? (v as number) < 0 : (v as number) > 0));
+      const worse = Object.entries(d.stat).some(([k, v]) => (k === 'cost_of_living' ? (v as number) > 0 : (v as number) < 0));
+      assert.ok(better && worse, `${d.key} must be a trade-off, not a free gain`);
+      for (const v of moves) assert.ok(Math.abs(v) <= 3, `${d.key}: a single decree may move a statistic by at most 3`);
+    }
+    for (const p of CABINET_POSTS) assert.ok(DECREES.some(d => d.office === p.key), `the ${p.short} minister has no decree`);
+  });
+});

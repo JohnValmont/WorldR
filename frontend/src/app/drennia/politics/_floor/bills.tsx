@@ -45,7 +45,7 @@ export function BillCard({ bill, compact = false }: { bill: FloorBill; compact?:
         {!open && <Chip color={bill.status === 'passed' ? T.good : T.bad} filled>{bill.status === 'passed' ? 'Passed' : 'Defeated'}</Chip>}
       </div>
 
-      <div className="mt-3"><WhipBar yea={bill.tally.yea} nay={bill.tally.nay} total={total} /></div>
+      <div className="mt-3"><WhipBar yea={bill.tally.yea} nay={bill.tally.nay} total={total} margin={desk.desk.rules.passMargin} /></div>
 
       {!compact && (
         <div className="flex flex-wrap gap-1.5 mt-3">

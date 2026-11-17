@@ -8,7 +8,7 @@ import {
   getSeatsForState,
   getMajorityForState,
   getTermMonthsForState,
-  getElectionOffsetMonths,
+  getElectionOffsetMonths, getJurisdiction,
   CAMPAIGN_ACTIONS,
   POL_FUNDRAISER_BASE,
   POL_FUNDRAISER_CHARISMA_MULT,
@@ -99,7 +99,7 @@ import {
   syncNationDistricts, getGovernment, getLawsInForce, projectPartyVotes, formCabinet,
   runStatecraftMonth, computeApproval, approvalVoteMultiplier, billTitle,
 } from './statecraft.service';
-import { getNationForPolState, NPC_MACHINE_EFFORT } from '../constants/nations';
+import { getNationForPolState, NPC_MACHINE_EFFORT, nationRules } from '../constants/nations';
 import { supportEffortByParty } from './support.store';
 import { billVotePlan, loadVoteShared, npcCallFavours, runFloorMonth, settleBillPolitics } from './floor.service';
 
@@ -504,7 +504,10 @@ export async function getOrCreateCurrentCycle(stateId: string, trx?: any) {
     // Stagger each jurisdiction's first election by its offset so state elections
     // land ~every 6 months across the nation (GDD $3). Ironvale offset = 0.
     const stateRow = await conn('pol_states').where({ id: stateId }).first();
-    const pollingArc = currentMonth + POL_FIRST_CYCLE_MONTHS + getElectionOffsetMonths(stateRow?.code);
+    // National parliaments hold their founding election in the first month
+    // (their offset staggers the first TERM instead, see performCycleRollover).
+    const isNational = getJurisdiction(stateRow?.code).tier === 'national';
+    const pollingArc = currentMonth + POL_FIRST_CYCLE_MONTHS + (isNational ? 0 : getElectionOffsetMonths(stateRow?.code));
     const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;
 
     const phase = derivePhase({ polling_arc: pollingArc, formation_end_arc: formationEndArc }, currentMonth);
@@ -735,7 +738,10 @@ export async function applyConditionDrift(trx: any, stateId: string, currentMont
 }
 
 export async function processPoliticalArc(trx: any, stateId: string, currentMonth: number) {
-  const cycle = await trx('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
+  // A nation nobody has opened yet still needs its first election cycle, or it
+  // would never hold a founding election and its Parliament would stay empty.
+  const cycle = await trx('pol_cycles').where({ state_id: stateId, status: 'open' }).first()
+    ?? await getOrCreateCurrentCycle(stateId, trx);
   if (!cycle) return;
 
   const newPhase = derivePhase(cycle, currentMonth);
@@ -1188,6 +1194,8 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
   // Majority threshold for THIS jurisdiction (GDD $3 federal model).
   const stateRow = await trx('pol_states').where({ id: cycle.state_id }).first();
   const majoritySeats = getMajorityForState(stateRow?.code);
+  // How far apart allies may be depends on the nation's political culture.
+  const coalitionMaxDistance = nationRules(stateRow?.code).coalitionMaxDistance;
 
   // Check if government already formed or finalized as minority
   const existingCoalition = await trx('pol_coalitions').where({ cycle_id: cycle.id }).whereIn('status', ['formed', 'minority']).first();
@@ -1266,13 +1274,13 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
 
       const dist = getPlatformDistance(largestParty.platform, other.platform);
       if (other.is_npc) {
-        if (dist <= POL_COALITION_MAX_DISTANCE) {
+        if (dist <= coalitionMaxDistance) {
           accepted.add(other.id);
           currentSeats += other.seats;
         }
       } else {
         // Invite player party if distance is reasonable
-        if (dist <= POL_COALITION_MAX_DISTANCE) {
+        if (dist <= coalitionMaxDistance) {
           invited.add(other.id);
         }
       }
@@ -1298,7 +1306,7 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
       const invParty = partyList.find((p: any) => p.id === invId);
       if (invParty && invParty.is_npc) {
         const dist = getPlatformDistance(largestParty.platform, invParty.platform);
-        if (dist <= POL_COALITION_MAX_DISTANCE) {
+        if (dist <= coalitionMaxDistance) {
           accepted.add(invId);
           invited.delete(invId);
         }
@@ -1612,7 +1620,11 @@ async function performCycleRollover(trx: any, oldCycle: any, currentMonth: numbe
   const startMonth = governmentFormedAt ?? currentMonth;
   // Term length is per-jurisdiction (24mo state, 48mo national — GDD $3).
   const oldStateRow = await trx('pol_states').where({ id: oldCycle.state_id }).first();
-  const pollingArc = startMonth + getTermMonthsForState(oldStateRow?.code);
+  // The first term after a nation's founding election is shortened by its
+  // offset, so nations vote at different times. Later terms are full length.
+  const firstTermCut = oldCycle.cycle_number === 1 && getJurisdiction(oldStateRow?.code).tier === 'national'
+    ? getElectionOffsetMonths(oldStateRow?.code) : 0;
+  const pollingArc = startMonth + getTermMonthsForState(oldStateRow?.code) - firstTermCut;
   const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;
 
   // A new cycle always begins in the governing phase: the election just concluded
@@ -1680,6 +1692,11 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
   const laws = await getLawsInForce(trx, stateId);
 
   const voteShared = await loadVoteShared(trx, stateId, gov, laws);
+  // Some constitutions demand more than a bare majority (Eryndor: the King
+  // returns any bill passed by fewer than 5 votes).
+  const stateForRules = await trx('pol_states').where({ id: stateId }).select('code').first();
+  const passMargin = nationRules(stateForRules?.code).passMargin;
+  const headOfState = getNationForPolState(stateForRules?.code)?.headOfState.title ?? 'President';
 
   for (const bill of proposedBills) {
     // The Floor: one shared rule decides how Parliament votes (leaders set the
@@ -1695,7 +1712,9 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
     const billParams = typeof bill.params === 'string' ? safeParseJSON(bill.params) : (bill.params ?? {});
     const titled = billParams?.category ? billTitle(billParams.category, billParams.option) : bill.type.replace(/_/g, ' ');
 
-    if (yeas > nays) {
+    const passed = yeas - nays >= passMargin;
+    const returnedByCrown = !passed && yeas > nays;
+    if (passed) {
       if (leaderId && !proposerParty.is_npc) {
         await applyFactorDelta(trx, leaderId, POL_FACTOR_DELTAS.BILL_PASSES);
       }
@@ -1771,8 +1790,12 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
       await trx('pol_bills').where({ id: bill.id }).update({ status: 'failed', resolved_arc: currentMonth, yea_seats: yeas, nay_seats: nays });
       await trx('pol_ledger_events').insert({
         state_id: stateId, arc: currentMonth, kind: 'bill_failed',
-        headline: `Bill defeated ${yeas}-${nays}: ${titled}`,
-        body: `Parliament rejects ${proposerParty?.name ?? 'the'} bill. The current law stays in force.`
+        headline: returnedByCrown
+          ? `The ${headOfState} returns ${titled} unsigned (${yeas}-${nays})`
+          : `Bill defeated ${yeas}-${nays}: ${titled}`,
+        body: returnedByCrown
+          ? `It won a majority, but not the margin of ${passMargin} the constitution demands. The current law stays in force.`
+          : `Parliament rejects ${proposerParty?.name ?? 'the'} bill. The current law stays in force.`
       });
 
       await emitStory(
@@ -1783,7 +1806,7 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
     }
 
     // Rebels, promises kept or broken, and how voters react to the result.
-    await settleBillPolitics(trx, bill, plan, yeas > nays, currentMonth, voteShared);
+    await settleBillPolitics(trx, bill, plan, passed, currentMonth, voteShared);
   }
 }
 

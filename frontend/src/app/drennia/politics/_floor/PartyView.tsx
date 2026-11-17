@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { politicsApi } from '@/lib/api';
 import { CREEDS, CREED_ORDER, CreedId } from '../_lib/model';
-import { Btn, Card, Chip, Label, Meter, PartyDot, Sheet, T, money, useFloor } from './kit';
+import { Btn, Card, Chip, Label, Meter, PartyDot, Sheet, T, leaderTitle, money, useFloor } from './kit';
 
 const COLORS = ['#D9625A', '#E8B84B', '#4FB286', '#4C9BD9', '#9B7FE0', '#E07FB0', '#5FC7C2', '#C9C2B2'];
 
@@ -179,7 +179,7 @@ function MyParty() {
             <p className="text-sm mt-1" style={{ color: T.dim }}>
               {room.leaderIsHuman ? `${room.leaderName} leads the party.` : 'Nobody leads the party: the machine runs it by its ideology.'}
               {' '}To take over you need {room.challengeNeed} clout{room.leaderIsHuman ? ' (10 more than the leader)' : ''} and six months in the party. You have {me.influence}.
-              {party.leadsGovernment && ' Whoever leads this party is Premier.'}
+              {party.leadsGovernment && ` Whoever leads this party is ${leaderTitle(desk)}.`}
             </p>
             <div className="mt-2"><Meter value={me.influence} max={Math.max(room.challengeNeed ?? 1, me.influence)} color={room.challengeWouldWin ? T.good : T.accent} /></div>
             <div className="mt-3 flex items-center gap-3">

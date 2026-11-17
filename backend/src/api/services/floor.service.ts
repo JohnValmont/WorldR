@@ -15,7 +15,8 @@ import {
   REBEL_CLOUT, REBEL_TRUST, SHOCK_MONTHS, WORD_BROKEN_MONTHS, WORD_BROKEN_SUPPORT, WORD_BROKEN_TRUST,
   WORD_KEPT_CLOUT, WORD_KEPT_TRUST,
 } from '../constants/floor';
-import { DEFAULT_LAWS } from '../constants/nations';
+import { DEFAULT_LAWS, getNationForPolState, headOfGovernmentTitle, localisePlaces, nationRules } from '../constants/nations';
+import { DECREE_AP, DECREE_BY_KEY } from '../constants/decrees';
 import { CardCost, Effects, Role, SITUATION_BY_KEY } from '../constants/situations';
 import {
   adGain, dealHand, DealContext, driftSupport, fundraiseTake, lawSupportDeltas, leadershipDecision,
@@ -26,6 +27,11 @@ import { addSupport, ensureSupport, getSupportMap } from './support.store';
 import {
   billTitle, changeDesirability, GovernmentInfo, parsePlatform, partyVoteScore, projectPartyVotes, seededUnit,
 } from './statecraft.service';
+
+/** The pol_states.code for a state id (to look up that nation's rules). */
+async function codeOf(trx: any, stateId: string): Promise<string | null> {
+  return (await trx('pol_states').where({ id: stateId }).select('code').first())?.code ?? null;
+}
 
 const num = (v: any, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 const parseParams = (b: any) => (typeof b?.params === 'string' ? safeParseJSON(b.params) : (b?.params ?? {})) || {};
@@ -492,7 +498,8 @@ export async function chooseSituation(trx: any, stateId: string, me: PlayerPolit
   const idx = pickOutcome(option, `${row.id}|${optionIndex}`);
   const outcome = option.outcomes[idx];
   await applyEffects(trx, stateId, me, outcome.effects, vars, arc, card.title);
-  const result = { index: idx, tone: outcome.tone, text: renderText(outcome.text, vars), effects: outcome.effects };
+  const polStateCode = (await trx('pol_states').where({ id: stateId }).select('code').first())?.code;
+  const result = { index: idx, tone: outcome.tone, text: localisePlaces(renderText(outcome.text, vars), polStateCode), effects: outcome.effects };
   await trx('pol_situations').where({ id: row.id }).update({
     status: 'resolved', option_index: optionIndex, outcome: JSON.stringify(result), resolved_at: trx.fn.now(),
   });
@@ -536,7 +543,7 @@ export async function fundraise(trx: any, stateId: string, me: PlayerPolitics, a
   const support = (await getSupportMap(trx, [me.party]))[me.party.id];
   const avg = SEGMENT_KEYS.reduce((a, k) => a + support[k], 0) / SEGMENT_KEYS.length;
   const roll = seededUnit(`${me.character.id}|${arc}|fundraise|${repeats}`);
-  const take = fundraiseTake(avg, num(me.character.charisma), repeats, roll);
+  const take = Math.round(fundraiseTake(avg, num(me.character.charisma), repeats, roll) * nationRules(await codeOf(trx, stateId)).fundraiseMult / 100) * 100;
   await trx('pol_parties').where({ id: me.party.id }).increment('treasury', take);
   await logAction(trx, stateId, me, arc, 'fundraise', null, `Fundraiser: $${take.toLocaleString()}`);
   return { take, mood: roll > 0.75 ? 'great' : roll < 0.25 ? 'poor' : 'fair' };
@@ -575,7 +582,8 @@ export async function forecastPact(
     targetProposedBill: bill.proposed_by_party_id === toParty.id,
     targetInGovernment: gov.memberPartyIds.includes(toParty.id),
     billFromGovernment: gov.memberPartyIds.includes(bill.proposed_by_party_id),
-    cash,
+    // A donation counts for more where money talks (Westmark), less where it is frowned on (Eryndor).
+    cash: cash * nationRules(await codeOf(trx, bill.state_id)).donationMult,
     askerTrust,
     alreadyOwed: owed,
     askerWordBroken: num(fromParty.word_broken_until_arc) > arc,
@@ -755,5 +763,43 @@ export async function challengeLeadership(trx: any, stateId: string, me: PlayerP
     body: leader ? `${leader.name} is out after a challenge from inside the party.` : `${me.party.name}'s MPs have chosen a new leader.`,
   });
   await logAction(trx, stateId, me, arc, 'leadership', me.party.id, `Became leader of ${me.party.name}`);
-  return { won: true, message: `You now lead ${me.party.name}${becamePremier ? ' and are Premier of Drennia' : ''}. Its bloc votes the way you vote.` };
+  const nationCode = await codeOf(trx, stateId);
+  const nationName = getNationForPolState(nationCode)?.shortName ?? 'the nation';
+  return { won: true, message: `You now lead ${me.party.name}${becamePremier ? ` and are ${headOfGovernmentTitle(nationCode)} of ${nationName}` : ''}. Its bloc votes the way you vote.` };
+}
+
+// ═══════════════════════════════ DECREES ═══════════════════════════════
+
+/** Which decrees this player's offices allow. */
+export function decreeOffices(me: PlayerPolitics): string[] {
+  const out: string[] = [];
+  if (me.isPremier) out.push('premier');
+  if (me.post?.post_key) out.push(me.post.post_key);
+  return out;
+}
+
+/**
+ * The Premier and ministers act without Parliament: a temporary nudge to the
+ * nation's statistics, and a reaction from voters. One per month each.
+ */
+export async function issueDecree(trx: any, stateId: string, me: PlayerPolitics, key: string, arc: number) {
+  const decree = DECREE_BY_KEY[key];
+  if (!decree) throw new AppError('Unknown decree.', 400, 'BAD_REQUEST');
+  if (!decreeOffices(me).includes(decree.office)) throw new AppError('Your office does not have that power.', 403, 'FORBIDDEN');
+  if (await countActions(trx, me.character.id, arc, 'decree') > 0) throw new AppError('You have already issued a decree this month.', 409, 'CONFLICT');
+  await spendEnergy(trx, me.character.id, DECREE_AP, arc);
+  const code = await codeOf(trx, stateId);
+  const months = nationRules(code).decreeMonths;
+  for (const [stat, delta] of Object.entries(decree.stat)) {
+    if (!delta) continue;
+    await trx('pol_stat_shocks').insert({ state_id: stateId, stat, delta, reason: decree.title, created_arc: arc, expires_arc: arc + months });
+  }
+  if (decree.support && me.party) await addSupport(trx, me.party.id, decree.support as Record<string, number>, arc);
+  await trx('pol_ledger_events').insert({
+    state_id: stateId, arc, kind: 'decree',
+    headline: `${me.isPremier && decree.office === 'premier' ? headOfGovernmentTitle(code) : 'Minister'} ${me.character.name} orders: ${decree.title}`,
+    body: decree.blurb,
+  });
+  await logAction(trx, stateId, me, arc, 'decree', decree.key, `Decree: ${decree.title}`);
+  return { message: `${decree.title}: the order is given. Its effects are felt from next month and last ${months} months.` };
 }

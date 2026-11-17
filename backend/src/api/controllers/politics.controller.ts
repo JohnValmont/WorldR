@@ -1,3 +1,4 @@
+import { currentPolStateCode } from '../services/playerNation';
 import { castVote, onJoinParty, onLeaveParty, playerPolitics, switchCooldownLeft } from '../services/floor.service';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
@@ -96,7 +97,7 @@ const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}
 
 /** Resolve a pol_state row by optional stateId (code or UUID), falling back to the active state. */
 async function resolveState(stateId?: string) {
-  const codeOrId = stateId || 'national';
+  const codeOrId = stateId || currentPolStateCode();
   const isUuid = UUID_REGEX.test(codeOrId);
   
   let s;

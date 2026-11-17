@@ -20,7 +20,7 @@ import {
   NPC_BILL_CHANCE_LEAD, NPC_BILL_CHANCE_PARTNER, NPC_BILL_CHANCE_OPPOSITION, NPC_BILL_MIN_GAIN,
   NPC_EFFECT_WEIGHT, NPC_GOV_RESIST_PRIVATE_BILL, NPC_GOV_WHIP, NPC_OPPOSITION_BIAS,
   TAG_AXIS, getNationForPolState, npcName, statPreferences, NationSpec, NPC_MACHINE_EFFORT,
-  NPC_BILL_COOLDOWN_MONTHS, NPC_PASSED_LAW_COOLDOWN_MONTHS, NPC_OPPOSITION_SIGNAL_SHARE,
+  NPC_BILL_COOLDOWN_MONTHS, NPC_PASSED_LAW_COOLDOWN_MONTHS, NPC_OPPOSITION_SIGNAL_SHARE, nationRules,
 } from '../constants/nations';
 import { allocateSeatsDHondt, apportionSeats, runElection, EngineCandidate, EngineConstituency } from './electionEngine';
 import { NationalStats, readNationalStatsFromRow } from './nationalEconomy.service';
@@ -127,6 +127,7 @@ export function pickPassableBill(
   voters: Voter[],
   laws: Record<string, string>,
   exclude: Set<string> = new Set(),
+  passMargin = 1,
 ): { passable: { category: string; option: string; gain: number } | null; favourite: { category: string; option: string; gain: number } | null } {
   let passable: { category: string; option: string; gain: number } | null = null;
   let favourite: { category: string; option: string; gain: number } | null = null;
@@ -139,7 +140,7 @@ export function pickPassableBill(
       if (gain < NPC_BILL_MIN_GAIN) continue;
       if (!favourite || gain > favourite.gain) favourite = { category: cat.id, option: opt.id, gain };
       const t = projectTally(voters, self.id, self.inGovernment, cat.id, current, opt.id);
-      if (t.yea > t.nay && (!passable || gain > passable.gain)) passable = { category: cat.id, option: opt.id, gain };
+      if (t.yea - t.nay >= passMargin && (!passable || gain > passable.gain)) passable = { category: cat.id, option: opt.id, gain };
     }
   }
   return { passable, favourite };
@@ -299,7 +300,11 @@ export async function syncNationDistricts(trx: any, stateRow: any): Promise<any[
 
 /** Laws in force: category -> option id (active macro-economy policies over defaults). */
 export async function getLawsInForce(trx: any, stateId: string): Promise<Record<string, string>> {
-  const laws: Record<string, string> = { ...DEFAULT_LAWS };
+  // Each nation starts from its own founding laws (constants/nations.ts), then
+  // whatever its Parliament has passed since.
+  const stateRow = await trx('pol_states').where({ id: stateId }).select('code').first();
+  const founding = getNationForPolState(stateRow?.code)?.foundingLaws ?? {};
+  const laws: Record<string, string> = { ...DEFAULT_LAWS, ...founding };
   const rows = await trx('pol_active_policies').where({ state_id: stateId, is_active: true }).select('category', 'option_id');
   for (const r of rows) laws[r.category] = r.option_id;
   return laws;
@@ -357,6 +362,7 @@ export function billTitle(category: string, option: string): string {
  * At most one open bill per party; chances depend on the party's role.
  */
 export async function runNpcLegislature(trx: any, stateId: string, arc: number): Promise<number> {
+  const passMargin = nationRules((await trx('pol_states').where({ id: stateId }).select('code').first())?.code).passMargin;
   const gov = await getGovernment(trx, stateId);
   if (!gov.sittingCycleId) return 0;
   const parties = await trx('pol_parties').where({ state_id: stateId, is_npc: true });
@@ -395,7 +401,7 @@ export async function runNpcLegislature(trx: any, stateId: string, arc: number):
     if (seededUnit(`npcbill|${party.id}|${arc}`) >= chance) continue;
 
     const self = voters.find(v => v.id === party.id)!;
-    const { passable, favourite } = pickPassableBill(self, voters, laws, openCategories);
+    const { passable, favourite } = pickPassableBill(self, voters, laws, openCategories, passMargin);
     // Government parties table what they can pass. The opposition sometimes
     // tables its favourite anyway, knowing it will probably lose.
     const signal = !self.inGovernment && seededUnit(`npcsignal|${party.id}|${arc}`) < NPC_OPPOSITION_SIGNAL_SHARE;

@@ -2,8 +2,21 @@ import { Router } from 'express';
 import { WorldController } from '../controllers/world.controller';
 import { authMiddleware, requireAdmin } from '../middlewares/auth.middleware';
 import { getWorldSnapshot } from '../services/worldSnapshot.service';
+import { worldNations } from '../services/nations.service';
+import { db } from '../../config/database';
 
 const worldRoutes = Router();
+
+// Public: the starter nations, who governs each and how many places are free
+// (used by sign-up to offer only nations with room).
+worldRoutes.get('/nations', async (_req, res, next) => {
+  try {
+    res.set('Cache-Control', 'public, max-age=30');
+    res.json({ nations: await worldNations(db) });
+  } catch (err) {
+    next(err);
+  }
+});
 
 worldRoutes.get('/clock', WorldController.getClock);
 worldRoutes.get('/bootstrap', WorldController.getBootstrap);

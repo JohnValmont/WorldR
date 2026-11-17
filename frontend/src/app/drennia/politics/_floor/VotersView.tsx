@@ -2,7 +2,7 @@
 // Voters: who backs whom, how the country is doing, and the last election.
 import React from 'react';
 import { PollChart } from '../_capitol/charts';
-import { Btn, Card, Label, Meter, PartyDot, T, pct, statLowerIsBetter, statName, useFloor } from './kit';
+import { Btn, Card, Label, PartyDot, T, pct, useFloor } from './kit';
 
 function SupportTable() {
   const { desk } = useFloor();
@@ -51,44 +51,12 @@ function SupportTable() {
   );
 }
 
-function Nation() {
-  const { desk } = useFloor();
-  const approval = desk.approval.live;
-  return (
-    <Card className="p-4">
-      <div className="flex items-baseline justify-between">
-        <Label>State of the nation</Label>
-        <span className="text-xs" style={{ color: T.faint }}>50 is normal</span>
-      </div>
-      <div className="mt-3 flex items-center gap-3">
-        <div className="font-serif text-4xl font-bold" style={{ color: approval >= 50 ? T.good : T.bad }}>{Math.round(approval)}%</div>
-        <div className="text-xs" style={{ color: T.dim }}>
-          approve of the government.<br />
-          {approval >= 50 ? 'Governing parties gain votes at the election.' : 'Governing parties lose votes at the election.'}
-        </div>
-      </div>
-      <div className="mt-4 space-y-2">
-        {Object.entries(desk.stats).map(([k, v]) => {
-          const good = statLowerIsBetter(k) ? v <= 50 : v >= 50;
-          return (
-            <div key={k} className="flex items-center gap-3">
-              <div className="w-32 shrink-0 text-xs" style={{ color: T.dim }}>{statName(k)}</div>
-              <div className="flex-1"><Meter value={v} color={good ? T.good : T.bad} marker={50} height={5} /></div>
-              <div className="w-7 text-right font-mono text-xs" style={{ color: T.text }}>{Math.round(v)}</div>
-            </div>
-          );
-        })}
-      </div>
-    </Card>
-  );
-}
-
 function Districts() {
   const { desk } = useFloor();
   const party = (id: string) => desk.parties.find(p => p.id === id);
   return (
     <Card className="p-4">
-      <Label>The 20 districts</Label>
+      <Label>The {desk.districts.length} districts</Label>
       <p className="text-xs mt-1" style={{ color: T.faint }}>Seats in each district are shared between parties by their vote there.</p>
       <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-2">
         {desk.districts.map(d => (
@@ -110,7 +78,7 @@ function Districts() {
 }
 
 export default function VotersView({ onReplay }: { onReplay: () => void }) {
-  const { desk } = useFloor();
+  const { desk, go } = useFloor();
   const el = desk.desk.election;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5">
@@ -136,7 +104,16 @@ export default function VotersView({ onReplay }: { onReplay: () => void }) {
         <Districts />
       </div>
       <aside className="space-y-4">
-        <Nation />
+        <Card className="p-4">
+          <Label>Government approval</Label>
+          <div className="mt-2 flex items-center gap-3">
+            <div className="font-serif text-4xl font-bold" style={{ color: desk.approval.live >= 50 ? T.good : T.bad }}>{Math.round(desk.approval.live)}%</div>
+            <div className="text-xs" style={{ color: T.dim }}>
+              {desk.approval.live >= 50 ? 'Governing parties gain votes at the election.' : 'Governing parties lose votes at the election.'}
+              <br /><button type="button" className="underline" onClick={() => go('nation')}>State of the nation</button>
+            </div>
+          </div>
+        </Card>
       </aside>
     </div>
   );

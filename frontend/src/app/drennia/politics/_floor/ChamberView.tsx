@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
 import { Hemicycle } from '../_capitol/charts';
-import { Btn, Card, Chip, Label, PartyDot, T, useFloor } from './kit';
+import { Btn, Card, Chip, Label, PartyDot, T, leaderTitle, useFloor } from './kit';
 import { BillCard, FavourLedger, TableBillSheet } from './bills';
 
 function Government() {
@@ -29,7 +29,7 @@ function Government() {
         <Chip color={margin >= 0 ? T.good : T.bad}>{margin >= 0 ? `majority of ${margin + 1}` : `${-margin} short of a majority`}</Chip>
       </div>
       <div className="mt-2 text-sm" style={{ color: T.text }}>
-        <span className="font-serif text-lg font-bold">Premier {desk.premier?.name ?? '—'}</span>
+        <span className="font-serif text-lg font-bold">{leaderTitle(desk)} {desk.premier?.name ?? '—'}</span>
         {desk.premier?.isPlayer && <span className="ml-2"><Chip color={T.accent}>player</Chip></span>}
       </div>
       <div className="flex flex-wrap gap-1.5 mt-2">
@@ -109,7 +109,11 @@ export default function ChamberView() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="font-serif text-2xl sm:text-3xl font-bold" style={{ color: T.text }}>Before Parliament</h2>
-            <p className="text-sm mt-1" style={{ color: T.dim }}>A bill passes with more votes for than against. Parties vote as blocs unless an MP breaks ranks.</p>
+            <p className="text-sm mt-1" style={{ color: T.dim }}>
+              {desk.desk.rules.passMargin > 1
+                ? `A bill needs ${desk.desk.rules.passMargin} more votes for than against, or the ${desk.nation.headOfState?.title ?? 'head of state'} returns it unsigned.`
+                : 'A bill passes with more votes for than against.'} Parties vote as blocs unless an MP breaks ranks.
+            </p>
           </div>
           {me?.canTableBill && <Btn kind="primary" onClick={() => setTabling(true)} id="table-bill">Table a bill · {me.tableBillApCost} energy</Btn>}
         </div>

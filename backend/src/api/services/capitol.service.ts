@@ -12,7 +12,7 @@ import { POLICY_CATALOG, MECHANISM_BASE_ROLLOUT } from '../constants/macroEconom
 import {
   POL_CAMPAIGN_WINDOW_MONTHS, POL_FILING_WINDOW_MONTHS, getMajorityForState, getSeatsForState, AP_MONTHLY_GRANT,
 } from '../constants/politics';
-import { CABINET_POSTS, POLL_HISTORY_MONTHS, portfolioPostFor, PRIVATE_BILL_AP_EXTRA } from '../constants/nations';
+import { CABINET_POSTS, POLL_HISTORY_MONTHS, portfolioPostFor, PRIVATE_BILL_AP_EXTRA, headOfGovernmentTitle, nationRules } from '../constants/nations';
 import { AP_COST_BILL_MODERATE } from '../constants/politics';
 import { getCurrentWorldArc, getOrCreateCurrentCycle } from './politics.service';
 import {
@@ -22,6 +22,7 @@ import {
 import { getNationalPolicyMultipliers, readNationalStatsFromRow } from './nationalEconomy.service';
 import { safeParseJSON } from '../../utils/json';
 import { billVotePlan, loadVoteShared } from './floor.service';
+import { currentPolStateCode } from './playerNation';
 
 const LADDER = ['citizen', 'member', 'candidate', 'mp', 'minister', 'premier'] as const;
 type Rung = typeof LADDER[number];
@@ -31,7 +32,7 @@ function num(v: any, d = 0) { const n = Number(v); return Number.isFinite(n) ? n
 export async function getCapitol(userId: string | null, stateCodeOrId?: string) {
   const state = stateCodeOrId
     ? await db('pol_states').where({ code: stateCodeOrId }).orWhereRaw('id::text = ?', [stateCodeOrId]).first()
-    : await db('pol_states').where({ code: 'national' }).first() ?? await db('pol_states').where({ is_active: true }).first();
+    : await db('pol_states').where({ code: currentPolStateCode() }).first() ?? await db('pol_states').where({ is_active: true }).first();
   if (!state) return null;
 
   const nation = nationFor(state);
@@ -187,6 +188,7 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
   let myChar: any = null;
   if (userId) myChar = await db('characters').where({ user_id: userId, status: 'active' }).first();
 
+  const rules = nationRules(state.code);
   const voteShared = await loadVoteShared(db, state.id, gov, laws, partyRows);
   const bills = [];
   for (const b of billRows) {
@@ -231,7 +233,7 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
       byParty,
       rebels,
       tally,
-      projectedPass: tally.yea > tally.nay,
+      projectedPass: tally.yea - tally.nay >= rules.passMargin,
       myVote: myChar ? votes.find((v: any) => v.character_id === myChar.id)?.vote ?? null : null,
     });
   }
@@ -294,7 +296,7 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
       party: myParty ? { id: myParty.id, name: myParty.name, color: myParty.color, role: membership.role, seats: myParty.seats, inGovernment: inGov } : null,
       seatDistrict: mySeat?.constituency_id ? districts.find((d: any) => d.id === mySeat.constituency_id)?.name ?? null : null,
       candidacyDistrict: myCandidacy?.constituency_id ? districts.find((d: any) => d.id === myCandidacy.constituency_id)?.name ?? null : null,
-      office: isPremier ? 'Premier' : myPost?.title ?? null,
+      office: isPremier ? headOfGovernmentTitle(state.code) : myPost?.title ?? null,
       rung,
       ladder: LADDER,
       canTableBill: partySeated && !!gov.leadPartyId,
@@ -324,6 +326,7 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
       government: nation.government, capital: nation.capital, motto: nation.motto, currency: nation.currency,
       flag: nation.flag, headOfState: nation.headOfState, headOfGovernment: nation.headOfGovernment,
       legislature: nation.legislature, constitution: nation.constitution, regions: nation.regions,
+      culture: nation.culture ?? null, traits: nation.traits ?? [], rules: nationRules(state.code),
     } : { officialName: state.name, shortName: state.name, legislature: { name: state.name, seats: seatsTotal, majority } },
     state: {
       id: state.id, code: state.code,
