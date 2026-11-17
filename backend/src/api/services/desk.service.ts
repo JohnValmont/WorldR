@@ -95,6 +95,7 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     hand: [],
     actions: null,
     deals: null,
+    handshakesIncoming: 0,
     partyRoom: null,
     log: [],
     // The starter nations side by side; `mine` marks the one this desk is about.
@@ -104,6 +105,8 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
   };
 
   const character = userId ? await db('characters').where({ user_id: userId, status: 'active' }).first() : null;
+  // Personal deals other politicians have offered you (answered in Corridors).
+  if (character) desk.handshakesIncoming = num((await db('pol_handshakes').where({ state_id: stateId, to_character_id: character.id, status: 'offered' }).count('* as n').first())?.n);
   if (!character) return { ...cap, desk };
 
   const me = await playerPolitics(db, stateId, character, gov);

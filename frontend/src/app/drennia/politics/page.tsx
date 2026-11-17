@@ -15,11 +15,13 @@ import VotersView from './_floor/VotersView';
 import PartyView from './_floor/PartyView';
 import ElectionNight from './_floor/ElectionNight';
 import NationView from './_floor/NationView';
+import CorridorsView from './_floor/CorridorsView';
 
-type Tab = 'desk' | 'chamber' | 'voters' | 'party' | 'nation';
+type Tab = 'desk' | 'chamber' | 'corridors' | 'voters' | 'party' | 'nation';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'desk', label: 'Desk' },
   { id: 'chamber', label: 'Chamber' },
+  { id: 'corridors', label: 'Corridors' },
   { id: 'voters', label: 'Voters' },
   { id: 'party', label: 'Party' },
   { id: 'nation', label: 'Nation' },
@@ -102,6 +104,7 @@ export default function PoliticsPage() {
     ? desk.desk.hand.filter(h => h.status === 'open').length
       + (me.voteMode ? desk.bills.filter(b => b.status === 'proposed' && !b.myVote).length : 0)
       + (desk.desk.deals?.incoming.length ?? 0)
+      + (desk.desk.handshakesIncoming ?? 0)
     : 0;
   const el = desk?.desk.election;
   const freshElection = !!el?.hasResults && seenElection !== el.cycleId;
@@ -176,6 +179,7 @@ export default function PoliticsPage() {
             <ViewBoundary key={tab}>
               {tab === 'desk' && <DeskView />}
               {tab === 'chamber' && <ChamberView />}
+              {tab === 'corridors' && <CorridorsView />}
               {tab === 'voters' && <VotersView onReplay={openElection} />}
               {tab === 'party' && <PartyView />}
               {tab === 'nation' && <NationView />}

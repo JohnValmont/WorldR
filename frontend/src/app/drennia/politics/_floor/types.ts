@@ -129,9 +129,35 @@ export interface Desk extends Omit<Capitol, 'bills' | 'me'> {
       fundraise: { ap: number; low: number; high: number };
     } | null;
     deals: Deals | null;
+    handshakesIncoming?: number;
     partyRoom: PartyRoom | null;
     log: { arc: number; kind: string; summary: string }[];
     world: NationRow[];
     office: Office | null;
   };
+}
+
+// ─── Corridors (GET /politics/corridors) ─────────────────────────────────────
+export interface Person {
+  id: string; name: string; isPlayer: boolean; isMe: boolean; role: string;
+  party: { id: string; name: string; color: string } | null; isLeader: boolean; district: string | null; canVote: boolean;
+  trust: number; clout: number; background: string | null; record: { kept: number; broken: number }; lastSeen: string | null;
+}
+export interface DealSide { billId: string | null; billTitle: string | null; vote: Vote | null; cash: number; result: 'kept' | 'broken' | 'void' | null }
+export interface Deal {
+  id: string; status: 'offered' | 'accepted' | 'declined' | 'withdrawn' | 'expired' | 'settled'; mine: boolean; note: string | null; createdArc: number;
+  otherId: string; otherName: string; iGive: DealSide; iGet: DealSide;
+}
+export interface Corridors {
+  me: { id: string; partyId: string | null };
+  nation: { code: string; name: string };
+  people: Person[];
+  bills: { id: string; title: string; partyName: string | null }[];
+  deals: Deal[];
+  rules: { handshakeAp: number; maxCash: number };
+}
+export interface PersonProfile {
+  id: string; name: string; background: { label: string; blurb: string } | null; record: { kept: number; broken: number };
+  votes: { billId: string; title: string; vote: Vote; status: string }[];
+  brokenWord: { headline: string; body: string; arc: number }[];
 }

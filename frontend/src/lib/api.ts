@@ -252,6 +252,12 @@ export const politicsApi = {
   offerPact: (billId: string, toPartyId: string, askedVote: 'yea' | 'nay', cash: number) =>
     api.post('/politics/pacts', { billId, toPartyId, askedVote, cash }).then(res => res.data),
   respondPact: (id: string, accept: boolean) => api.post(`/politics/pacts/${id}/respond`, { accept }).then(res => res.data),
+  getCorridors: (): Promise<import('@/app/drennia/politics/_floor/types').Corridors> => api.get('/politics/corridors').then(res => res.data),
+  getPerson: (id: string): Promise<import('@/app/drennia/politics/_floor/types').PersonProfile> => api.get(`/politics/people/${id}`).then(res => res.data),
+  offerHandshake: (body: { toCharacterId: string; give: { billId: string | null; vote: 'yea' | 'nay' | null; cash: number }; ask: { billId: string | null; vote: 'yea' | 'nay' | null; cash: number }; note: string }) =>
+    api.post('/politics/handshakes', body).then(res => res.data),
+  respondHandshake: (id: string, accept: boolean) => api.post(`/politics/handshakes/${id}/respond`, { accept }).then(res => res.data),
+  withdrawHandshake: (id: string) => api.post(`/politics/handshakes/${id}/withdraw`, {}).then(res => res.data),
   callFavour: (id: string, billId: string, vote: 'yea' | 'nay') => api.post(`/politics/favours/${id}/call`, { billId, vote }).then(res => res.data),
   challengeLeadership: () => api.post('/politics/party/challenge').then(res => res.data),
   issueDecree: (key: string) => api.post('/politics/decree', { key }).then(res => res.data),
@@ -431,8 +437,8 @@ export interface ChatMessage {
 }
 
 export const chatApi = {
-  getMessages: (channel: string = 'world', after?: number): Promise<{ messages: ChatMessage[] }> =>
-    api.get(`/chat/messages?channel=${channel}${after ? `&after=${after}` : ''}`).then(res => res.data),
+  getMessages: (channel: string = 'world', after?: number, withId?: string): Promise<{ messages: ChatMessage[] }> =>
+    api.get(`/chat/messages?channel=${channel}${after ? `&after=${after}` : ''}${withId ? `&with=${withId}` : ''}`).then(res => res.data),
   sendMessage: (body: string, channel: string = 'world', target_character_id?: string): Promise<{ message: ChatMessage }> =>
     api.post('/chat/messages', { body, channel, target_character_id }).then(res => res.data)
 };

@@ -1,6 +1,29 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
+import { NATIONS_BY_COUNTRY } from '../constants/nations';
+
+/**
+ * Channels: 'world' (everyone), 'private' (direct messages), and two politics
+ * rooms the server resolves from who you are: 'nation' (citizens of your
+ * nation only) and 'party' (members of your party only). Any other channel
+ * name is refused, so nobody can read a room by guessing its name.
+ */
+async function resolveChannel(character: any, requested: unknown): Promise<string> {
+  const ch = typeof requested === 'string' ? requested : 'world';
+  if (ch === 'world' || ch === 'private') return ch;
+  if (ch === 'nation') {
+    const code = NATIONS_BY_COUNTRY[character.motherland_country_id]?.polStateCode;
+    if (!code) throw new AppError('Your nation has no chamber yet.', 404, 'NOT_FOUND');
+    return `nation:${code}`;
+  }
+  if (ch === 'party') {
+    const m = await db('pol_party_members').where({ character_id: character.id }).first();
+    if (!m) throw new AppError('Join a party to use its room.', 403, 'FORBIDDEN');
+    return `party:${m.party_id}`;
+  }
+  throw new AppError('Unknown channel.', 400, 'BAD_REQUEST');
+}
 
 const MAX_MESSAGE_LENGTH = 500;
 const DEFAULT_LIMIT = 50;
@@ -32,7 +55,8 @@ export class ChatController {
       if (!Number.isFinite(limit) || limit < 1) limit = DEFAULT_LIMIT;
       if (limit > MAX_LIMIT) limit = MAX_LIMIT;
 
-      const channel = typeof req.query.channel === 'string' ? req.query.channel : 'world';
+      const channel = await resolveChannel(character, req.query.channel);
+      const withId = typeof req.query.with === 'string' && /^[0-9a-f-]{36}$/i.test(req.query.with) ? req.query.with : null;
 
       const base = db('chat_messages as m')
         .join('characters as c', 'c.id', 'm.character_id')
@@ -51,8 +75,13 @@ export class ChatController {
       if (channel === 'private') {
         base.where('m.channel', 'private')
             .andWhere(function() {
-              this.where('m.character_id', character.id)
-                  .orWhere('m.target_character_id', character.id);
+              if (withId) {
+                this.where(q => q.where('m.character_id', character.id).andWhere('m.target_character_id', withId))
+                    .orWhere(q => q.where('m.character_id', withId).andWhere('m.target_character_id', character.id));
+              } else {
+                this.where('m.character_id', character.id)
+                    .orWhere('m.target_character_id', character.id);
+              }
             });
       } else {
         base.where('m.channel', channel);
@@ -84,7 +113,7 @@ export class ChatController {
 
       const rawBody = typeof req.body?.body === 'string' ? req.body.body : '';
       const body = rawBody.trim();
-      const channel = typeof req.body?.channel === 'string' ? req.body.channel : 'world';
+      const requestedChannel = req.body?.channel;
       const targetCharacterId = req.body?.target_character_id || null;
 
       if (!body) {
@@ -101,6 +130,7 @@ export class ChatController {
         return next(new AppError('No active character found', 404, 'NOT_FOUND'));
       }
 
+      const channel = await resolveChannel(character, requestedChannel);
       if (channel === 'private') {
         if (!targetCharacterId) {
           return next(new AppError('Target character required for private message', 400, 'BAD_REQUEST'));
