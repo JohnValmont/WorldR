@@ -7,10 +7,11 @@ import useSWR from 'swr';
 import { politicsApi } from '@/lib/api';
 import type { MapDistrict, MapNation, MapParty } from './types';
 import { Card, Chip, Label, Meter, PartyDot, T, useFloor } from './kit';
-import { LAKES, MAP_H, MAP_W, buildCells, buildCoast, borders, ideologyOf, pathOf, placeSites, viewBoxFor, type Site } from './mapGeo';
+import { LAKES, MAP_H, MAP_W, NATION_COLOR, buildCells, buildCoast, borders, ideologyOf, nationOutlines, nationShapes, pathOf, placeSites, viewBoxFor, type Site } from './mapGeo';
 
-type Layer = 'strong' | 'poll' | 'voters' | 'party';
+type Layer = 'nations' | 'strong' | 'poll' | 'voters' | 'party';
 const LAYERS: { id: Layer; label: string; hint: string }[] = [
+  { id: 'nations', label: 'Countries', hint: 'The three nations, their regions and borders.' },
   { id: 'strong', label: 'Strongholds', hint: 'Who won the most seats in each district at the last election. Deeper colour = a tighter grip.' },
   { id: 'poll', label: 'Poll today', hint: 'Who would win each district if the election were held today. Campaigning moves this.' },
   { id: 'voters', label: 'Voters', hint: 'The largest voter group in each district: who you need to win there.' },
@@ -45,7 +46,7 @@ const star = (x: number, y: number, r: number) => {
 export default function MapView() {
   const { desk } = useFloor();
   const { data, error } = useSWR('political-map', () => politicsApi.getMap(), { refreshInterval: 60_000 });
-  const [layer, setLayer] = useState<Layer>('strong');
+  const [layer, setLayer] = useState<Layer>('nations');
   const [partyId, setPartyId] = useState<string | null>(null);
   const [focus, setFocus] = useState<string | null>(null); // nation code, or null for the whole continent
   const [selected, setSelected] = useState<string | null>(null);
@@ -69,7 +70,7 @@ export default function MapView() {
     const all = nations.flatMap(n => n.districts.map(d => ({ id: d.id, region: d.region, voters: d.voters, name: d.name })));
     const sites = placeSites(all);
     const cells = buildCells(sites, coast);
-    return { sites, cells, lines: borders(cells) };
+    return { sites, cells, lines: borders(cells), outlines: nationOutlines(cells), shapes: nationShapes(cells) };
   }, [nations]);
 
   const districtById = useMemo(() => {
@@ -111,7 +112,17 @@ export default function MapView() {
     return Math.max(0.05, ...(n?.districts.map(d => d.poll.shares[party.id] ?? 0) ?? [0]));
   }, [party, nations]);
 
+  const regionIndex = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const n of nations) n.regions.forEach((r, i) => m.set(r.code, i));
+    return m;
+  }, [nations]);
+
   function fill(d: MapDistrict): { color: string; opacity: number } {
+    if (layer === 'nations') {
+      const nation = siteById.get(d.id)?.nation ?? '';
+      return { color: NATION_COLOR[nation] ?? LAND, opacity: [0.62, 0.48, 0.55, 0.42][regionIndex.get(d.region) ?? 0] };
+    }
     if (layer === 'voters') {
       const entries = Object.entries(d.groups ?? {});
       const total = entries.reduce((a, [, v]) => a + Number(v), 0) || 1;
@@ -180,6 +191,7 @@ export default function MapView() {
                 <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.35  0 0 0 0 0.28  0 0 0 0 0.18  0 0 0 0.55 -0.12" />
               </filter>
               <clipPath id="land"><path d={coastPath} /></clipPath>
+              {Object.entries(geo.shapes).map(([code, d]) => <clipPath key={code} id={`nat-${code}`}><path d={d} /></clipPath>)}
               <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6" /></filter>
             </defs>
             <rect x={-200} y={-200} width={MAP_W + 400} height={MAP_H + 400} fill="url(#sea)" />
@@ -187,6 +199,7 @@ export default function MapView() {
             {/* Shallow water and the land itself. */}
             <path d={coastPath} fill="none" stroke="#6FB2B5" strokeOpacity="0.28" strokeWidth={16} filter="url(#soft)" />
             <path d={coastPath} fill={LAND} />
+            {Object.entries(geo.shapes).map(([code, d]) => <path key={code} d={d} fill={NATION_COLOR[code] ?? LAND} fillOpacity={0.14} style={{ pointerEvents: 'none' }} />)}
             {/* Districts. */}
             <g clipPath="url(#land)">
               {geo.cells.map(c => {
@@ -205,12 +218,21 @@ export default function MapView() {
               <rect x={0} y={0} width={MAP_W} height={MAP_H} filter="url(#paper)" style={{ pointerEvents: 'none', mixBlendMode: 'multiply' }} opacity={0.55} />
               {LAKES.map((l, i) => <ellipse key={i} cx={l.x} cy={l.y} rx={l.rx} ry={l.ry} transform={`rotate(${l.rot} ${l.x} ${l.y})`} fill="#3E7E86" fillOpacity={0.85} stroke={INK} strokeOpacity={0.4} strokeWidth={0.6} style={{ pointerEvents: 'none' }} />)}
             </g>
+            {/* Each country's edge in its own colour (inside its border only), and the others dimmed when one is in focus. */}
+            <g style={{ pointerEvents: 'none' }}>
+              {Object.entries(geo.outlines).map(([code, d]) => (
+                <path key={code} d={d} fill="none" stroke={NATION_COLOR[code] ?? INK} strokeOpacity={0.9} strokeWidth={9 * scale} clipPath={`url(#nat-${code})`} strokeLinejoin="round" />
+              ))}
+              {focus && Object.entries(geo.shapes).filter(([code]) => code !== focus).map(([code, d]) => (
+                <path key={code} d={d} fill="#0A1418" fillOpacity={0.38} />
+              ))}
+            </g>
             {/* Borders: districts faint, regions dashed, nations bold. */}
             <g style={{ pointerEvents: 'none' }} fill="none" strokeLinecap="round" strokeLinejoin="round">
               <path d={geo.lines.district} stroke={INK} strokeOpacity={0.22} strokeWidth={0.6 * scale} />
               <path d={geo.lines.region} stroke={INK} strokeOpacity={0.55} strokeWidth={1.1 * scale} strokeDasharray={`${5 * scale} ${3.5 * scale}`} />
-              <path d={geo.lines.nation} stroke="#F6EEDB" strokeOpacity={0.7} strokeWidth={5 * scale} />
-              <path d={geo.lines.nation} stroke={INK} strokeWidth={2 * scale} />
+              <path d={geo.lines.nation} stroke="#F6EEDB" strokeOpacity={0.85} strokeWidth={3.5 * scale} />
+              <path d={geo.lines.nation} stroke={INK} strokeWidth={1.6 * scale} strokeDasharray={`${7 * scale} ${3 * scale}`} />
               <path d={coastPath} stroke={INK} strokeOpacity={0.85} strokeWidth={1.1 * scale} />
             </g>
             {/* Labels, capitals and players. */}
@@ -286,7 +308,9 @@ export default function MapView() {
           )}
 
           <div className="absolute left-2 bottom-2 rounded-lg px-2.5 py-1.5 text-[10px] max-w-[85%] sm:max-w-[70%]" style={{ background: 'rgba(12,14,19,0.82)', color: T.dim }}>
-            {layer === 'voters'
+            {layer === 'nations'
+              ? <span className="flex flex-wrap gap-x-3 gap-y-0.5">{nations.map(n => <span key={n.code} className="inline-flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: NATION_COLOR[n.code] }} />{n.name}</span>)}<span style={{ color: T.faint }}>★ capital · ● players</span></span>
+              : layer === 'voters'
               ? <span className="flex flex-wrap gap-x-2.5 gap-y-0.5">{Object.entries(GROUP_COLOR).map(([k, c]) => <span key={k} className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{ background: c }} />{groupName(k)}</span>)}</span>
               : layer === 'party' && party ? <span>{party.name}: pale = weak, deep = strong</span>
               : <span><span className="hidden sm:inline">{LAYERS.find(l => l.id === layer)?.hint} </span><span style={{ color: T.faint }}>★ capital · ● players</span></span>}

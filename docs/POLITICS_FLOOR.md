@@ -148,7 +148,7 @@ players deal with each other.
 The **Map** tab (`_floor/MapView.tsx`, `GET /politics/map`, `map.service.ts`) draws the three nations on one
 continent with all 60 districts.
 
-- **Layers:** Strongholds (who won the most seats at the last election; deeper colour = tighter grip), Poll
+- **Layers:** Countries (each nation in its own colour with region shading; the default), Strongholds (who won the most seats at the last election; deeper colour = tighter grip), Poll
   today (who would win each district now, from `projectElection`'s new per-district output, the same inputs as
   the real election), Voters (largest voter group), and One party (that party's strength everywhere).
 - **Click a district:** last vote and poll now per party, seats, who lives there, and which players sit there.
@@ -157,7 +157,9 @@ continent with all 60 districts.
 - **Geography is generated** (`_floor/mapGeo.ts`), identical for everyone: hand-placed region centres
   (`REGION_LAYOUT`), a seeded natural coastline, and each district as the land closest to its point (Voronoi).
   Borders between nations and regions come from which neighbour each cell edge faces. A new region needs an
-  entry in `REGION_LAYOUT`.
+  entry in `REGION_LAYOUT`. Sea inlets in `COAST_CONTROL` separate the nations so each has its own shape;
+  every country has a coloured edge band (`nationOutlines`) and a dashed international border, and when one
+  nation is in focus the others are dimmed.
 - The map data is cached for 30 seconds on the server.
 
 ## Where the code is

@@ -9,6 +9,8 @@
 // Pure functions; no React.
 
 export const MAP_W = 1200;
+/** Each nation's map colour (keyed by politics state code), matching the sign-up page. */
+export const NATION_COLOR: Record<string, string> = { national: '#6153C6', westmark: '#1F8A8A', eryndor: '#3E7A52' };
 export const MAP_H = 760;
 
 export type Pt = [number, number];
@@ -52,10 +54,16 @@ function rng(seed: number) {
   };
 }
 
+// The coastline. Two sea inlets and a bay cut in where nations meet, so each
+// country has its own recognisable shape: the Gulf of Brannow between Westmark
+// and Drennia, the Narrows between Drennia and Eryndor in the north, and
+// Oak Bay below them in the south.
 const COAST_CONTROL: Pt[] = [
-  [58, 268], [92, 150], [190, 118], [300, 138], [400, 112], [520, 130], [640, 150], [760, 168], [820, 112],
+  [58, 268], [92, 150], [190, 118], [300, 138], [372, 116], [420, 122], [520, 130], [640, 150], [742, 166],
+  [770, 172], [784, 228], [796, 236], [806, 160], [830, 112],
   [940, 104], [1060, 150], [1150, 228], [1168, 360], [1140, 470], [1092, 548], [1060, 660], [960, 702],
-  [860, 682], [770, 640], [690, 650], [600, 668], [500, 672], [410, 640], [330, 668], [230, 650],
+  [880, 690], [846, 664], [832, 604], [818, 602], [806, 652], [770, 640], [690, 650], [600, 668], [500, 672],
+  [448, 662], [420, 598], [404, 560], [390, 562], [378, 640], [330, 668], [230, 650],
   [140, 610], [92, 520], [62, 450], [40, 360],
 ];
 
@@ -210,4 +218,26 @@ export function ideologyOf(p: Record<string, number> | undefined): string {
   if ((p.trade ?? 50) >= 78) parts.push('free trade');
   else if ((p.trade ?? 50) <= 40) parts.push('protectionist');
   return parts.join(' · ');
+}
+
+/** Each nation's perimeter (its coast plus its land borders), for the coloured edge band. */
+export function nationOutlines(cells: Cell[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  cells.forEach(c => {
+    const n = c.pts.length;
+    for (let k = 0; k < n; k++) {
+      const j = c.labels[k];
+      if (j >= 0 && cells[j]?.site.nation === c.site.nation) continue;
+      const a = c.pts[k], b = c.pts[(k + 1) % n];
+      out[c.site.nation] = (out[c.site.nation] ?? '') + `M${a[0].toFixed(1)},${a[1].toFixed(1)}L${b[0].toFixed(1)},${b[1].toFixed(1)}`;
+    }
+  });
+  return out;
+}
+
+/** Each nation's land as one compound path (for clipping and tinting). */
+export function nationShapes(cells: Cell[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const c of cells) out[c.site.nation] = (out[c.site.nation] ?? '') + pathOf(c.pts);
+  return out;
 }
