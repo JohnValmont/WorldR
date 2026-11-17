@@ -161,3 +161,21 @@ export interface PersonProfile {
   votes: { billId: string; title: string; vote: Vote; status: string }[];
   brokenWord: { headline: string; body: string; arc: number }[];
 }
+
+// ─── Political map (GET /politics/map) ───────────────────────────────────────
+export interface MapParty {
+  id: string; name: string; abbr: string; color: string; motto: string | null; platform: Record<string, number>;
+  seats: number; pollSeats: number; pollShare: number; governing: boolean; leadsGovernment: boolean; leader: string | null; leaderIsPlayer: boolean;
+}
+export interface MapDistrict {
+  id: string; name: string; region: string; seats: number; voters: number; groups: Record<string, number>;
+  last: { shares: Record<string, number>; seats: Record<string, number> };
+  poll: { shares: Record<string, number>; seats: Record<string, number> };
+  players: { id: string; name: string; partyId: string }[];
+}
+export interface MapNation {
+  code: string; countryId: string; name: string; officialName: string; capital: string; government: string; leaderTitle: string;
+  regions: { code: string; name: string; capital: string; character: string }[];
+  parties: MapParty[]; districts: MapDistrict[];
+}
+export interface PoliticalMap { nations: MapNation[] }

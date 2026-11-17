@@ -104,3 +104,7 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Chat channels are resolved on the server (chat.controller resolveChannel): 'world', 'private', 'nation', 'party'. Never let a client name a raw room like 'party:<id>'.
 - Personal deals are pol_handshakes. Vote promises are judged ONLY in settleHandshakes, from the same BillVotePlan the tally uses. Do not judge them anywhere else.
 - Corridors lists real players only: exclude system accounts (users.password_hash = 'no_login_allowed').
+
+## Political map — Operational Rules (DO NOT BREAK)
+- Map geography is generated in frontend/src/app/drennia/politics/_floor/mapGeo.ts. A new nation or region needs a REGION_LAYOUT entry; do not hand-draw district shapes.
+- The map's "Poll today" uses projectElection's per-district output: the same inputs as the real election. Do not compute a separate map poll.

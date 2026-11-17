@@ -16,12 +16,14 @@ import PartyView from './_floor/PartyView';
 import ElectionNight from './_floor/ElectionNight';
 import NationView from './_floor/NationView';
 import CorridorsView from './_floor/CorridorsView';
+import MapView from './_floor/MapView';
 
-type Tab = 'desk' | 'chamber' | 'corridors' | 'voters' | 'party' | 'nation';
+type Tab = 'desk' | 'chamber' | 'corridors' | 'map' | 'voters' | 'party' | 'nation';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'desk', label: 'Desk' },
   { id: 'chamber', label: 'Chamber' },
   { id: 'corridors', label: 'Corridors' },
+  { id: 'map', label: 'Map' },
   { id: 'voters', label: 'Voters' },
   { id: 'party', label: 'Party' },
   { id: 'nation', label: 'Nation' },
@@ -180,6 +182,7 @@ export default function PoliticsPage() {
               {tab === 'desk' && <DeskView />}
               {tab === 'chamber' && <ChamberView />}
               {tab === 'corridors' && <CorridorsView />}
+              {tab === 'map' && <MapView />}
               {tab === 'voters' && <VotersView onReplay={openElection} />}
               {tab === 'party' && <PartyView />}
               {tab === 'nation' && <NationView />}
