@@ -105,6 +105,25 @@ request is about); `database/migrations/0099_starter_nations.sql`; screen `_floo
   compared, not connected.
 - The game screens still live under the web address `/drennia/...` for every nation.
 
+## Character creation (added 2026-11-17)
+
+Sign-up (`frontend/public/landing/onboarding.html` + `onboarding.js`) is: account, verify (then logged in
+automatically), **who you are**, **beliefs**, **nation**, papers. New characters land on the politics Desk.
+
+- **Background** (`constants/characterCreation.ts`): six pasts (union organiser, harbour trader, factory heir,
+  senior civil servant, community leader, party fixer). Each sets the four numbers The Floor uses (charisma,
+  trust, clout, money) and a **home voter group** whose rallies go 25% further. Every background is worth the
+  same 35 points and has a weakness (a test enforces it). Only the party fixer starts able to lead a party.
+- **Edge**: 4 tokens on top, each +5 to a stat or +$250k.
+- **Beliefs**: four questions on the same axes as party platforms. The page shows the closest party in each
+  nation; the Party tab shows "N% your views" on every party.
+- **Nation**: the three nations side by side with live data from `GET /world/nations` (leader, parliament,
+  approval, power, places left, parties, how it works).
+- The server recomputes every number from the ids sent (`character.rules.ts` `startingProfile`). The old
+  slider `attributes` field is ignored: it let a client ask for unlimited money.
+- The Desk's **Road to power** card shows the five steps (join a party, hold a seat, lead your party, enter
+  government, head of government) and the one thing that gets you to the next.
+
 ## Where the code is
 
 | What | File |

@@ -125,7 +125,7 @@ export default function PoliticsPage() {
                 <span className="inline-flex items-center gap-1.5">
                   {me.party && <PartyDot color={me.party.color} />}
                   <span className="font-semibold" style={{ color: T.text }}>{me.name}</span>
-                  <span>{me.office ?? RUNG_LABEL[me.rung] ?? me.rung}{me.isPartyLeader && !me.office ? ', party leader' : ''}</span>
+                  <span>{me.office ?? RUNG_LABEL[me.rung] ?? me.rung}{me.isPartyLeader && !me.office ? ', party leader' : ''}{me.background ? ` · ${me.background.label}` : ''}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5" title="Energy: what you can do this month. Refills when the month turns."><Energy current={me.ap.current} cap={me.ap.cap} /></span>
                 <span title="Trust: how far voters believe you. Counts in the district you stand in, and in every deal you offer.">Trust <strong style={{ color: T.text }}>{me.credibility}</strong></span>

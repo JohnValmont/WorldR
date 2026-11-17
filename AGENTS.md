@@ -94,3 +94,8 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - A new nation = a NationSpec in STARTER_NATIONS (with rules, foundingLaws, baseStats, traits) + a JURISDICTIONS entry (politics.ts) whose seats/majority/term match + NATION_PLACES + a migration with its countries / pol_states / parties rows and starting stats. Nothing else.
 - Decrees are data in constants/decrees.ts: each must be a trade-off (a test enforces it), one per office-holder per month.
 - Card and news text is written with Drennia's place names and passed through localisePlaces for other nations. Do not hard-code another nation's towns in situations.ts.
+
+## Character creation — Operational Rules (DO NOT BREAK)
+- Backgrounds, edge tokens and starting numbers live in constants/characterCreation.ts; the server computes stats with startingProfile (services/character.rules.ts). Never accept stat numbers from the client.
+- Every background must be worth BACKGROUND_POINTS and have a weakness (tests/floor.test.ts enforces it). Only the party fixer starts at or above LEADERSHIP_MIN_CLOUT.
+- Sign-up reads nations, parties and creation options from GET /world/nations. Do not hard-code nation facts in onboarding.js (onboarding_data.js is only the list of locked future nations).

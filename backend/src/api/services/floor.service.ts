@@ -6,6 +6,7 @@
  * the global connection, so it is safe inside the monthly politics tick.
  * It must NOT import politics.service.ts (which imports this file).
  */
+import { homeGroupOf } from './character.rules';
 import { AppError } from '../../utils/errors';
 import { safeParseJSON } from '../../utils/json';
 import { AP_MONTHLY_GRANT, SEGMENTS } from '../constants/politics';
@@ -518,7 +519,7 @@ export async function rally(trx: any, stateId: string, me: PlayerPolitics, segme
   if (!SEGMENT_KEYS.includes(segment as any)) throw new AppError('Unknown voter group.', 400, 'BAD_REQUEST');
   await spendEnergy(trx, me.character.id, RALLY_AP, arc);
   const repeats = await countActions(trx, me.character.id, arc, 'rally', segment);
-  const gain = Number(rallyGain(num(me.character.charisma), repeats, phase).toFixed(2));
+  const gain = Number(rallyGain(num(me.character.charisma), repeats, phase, homeGroupOf(me.character.background) === segment).toFixed(2));
   await addSupport(trx, me.party.id, { [segment]: gain }, arc);
   const label = SEGMENTS.find(s => s.key === segment)?.label ?? segment;
   await logAction(trx, stateId, me, arc, 'rally', segment, `Rally: ${label} +${gain.toFixed(1)}`);

@@ -388,3 +388,39 @@ describe('Decrees', () => {
     for (const p of CABINET_POSTS) assert.ok(DECREES.some(d => d.office === p.key), `the ${p.short} minister has no decree`);
   });
 });
+
+describe('Character creation: backgrounds are different but worth the same', async () => {
+  const { BACKGROUNDS, BACKGROUND_POINTS, BASE_PROFILE, EDGE_TOKENS, EDGE_CASH, HOME_GROUP_RALLY_MULT } = await import('../src/api/constants/characterCreation');
+  const { backgroundPoints, startingProfile, convictionFit } = await import('../src/api/services/character.rules');
+
+  it('every background is worth the same points and has a weakness', () => {
+    for (const b of BACKGROUNDS) {
+      assert.strictEqual(backgroundPoints(b), BACKGROUND_POINTS, `${b.key} is worth ${backgroundPoints(b)} points`);
+      const bonuses = [b.charisma, b.credibility, b.influence, b.cash];
+      assert.ok(bonuses.some(v => v <= 0), `${b.key} has no weakness`);
+    }
+    assert.ok(new Set(BACKGROUNDS.map(b => b.homeGroup).filter(Boolean)).size >= 5, 'each voter group has a background');
+  });
+
+  it('the server ignores tampering: unknown stats, too many tokens, negative tokens', () => {
+    const p = startingProfile('harbour_trader', { cash: 999, charisma: -5, gold: 50 }, null);
+    assert.strictEqual(p.cash, BASE_PROFILE.cash + 1_000_000 + EDGE_TOKENS * EDGE_CASH);
+    const legacy = startingProfile(undefined, undefined, undefined);
+    assert.deepStrictEqual([legacy.charisma, legacy.credibility, legacy.influence, legacy.cash],
+      [BASE_PROFILE.charisma, BASE_PROFILE.credibility, BASE_PROFILE.influence, BASE_PROFILE.cash]);
+  });
+
+  it('a party fixer can lead a party; nobody else starts able to', () => {
+    for (const b of BACKGROUNDS) {
+      const p = startingProfile(b.key, {}, null);
+      assert.strictEqual(p.influence >= LEADERSHIP_MIN_CLOUT, b.key === 'party_fixer', b.key);
+    }
+  });
+
+  it('rallies in your home group go further, and convictions find the closest party', () => {
+    assert.ok(Math.abs(rallyGain(50, 0, 'governing', true) / rallyGain(50, 0, 'governing') - HOME_GROUP_RALLY_MULT) < 1e-9);
+    const left = { taxation: 25, labour: 90, investment: 70, trade: 45, stability: 50 };
+    assert.ok(convictionFit(left, PLATFORMS.labour)! > convictionFit(left, PLATFORMS.progress)!);
+    assert.strictEqual(convictionFit(null, PLATFORMS.labour), null);
+  });
+});
