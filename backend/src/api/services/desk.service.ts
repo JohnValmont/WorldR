@@ -17,13 +17,16 @@ import { SITUATION_BY_KEY } from '../constants/situations';
 import { safeParseJSON } from '../../utils/json';
 import { getCapitol } from './capitol.service';
 import {
-  effectiveCost, ensureHand, forecastPact, getEnergy, playerPolitics, switchCooldownLeft,
+  decreeOffices, effectiveCost, ensureHand, forecastPact, getEnergy, playerPolitics, switchCooldownLeft,
 } from './floor.service';
 import {
   adGain, fundraiseTake, leadershipDecision, outcomeChances, rallyGain, renderText, SEGMENT_KEYS, supportTarget,
 } from './floor.rules';
 import { getSupportMap } from './support.store';
 import { getGovernment, getLawsInForce, parsePlatform } from './statecraft.service';
+import { worldNations } from './nations.service';
+import { DECREE_AP, DECREES } from '../constants/decrees';
+import { SHOCK_MONTHS } from '../constants/floor';
 
 const num = (v: any, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 
@@ -90,6 +93,10 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     deals: null,
     partyRoom: null,
     log: [],
+    // The starter nations side by side; `mine` marks the one this desk is about.
+    world: (await worldNations(db, arc)).map(n => ({ ...n, mine: n.polStateCode === cap.state.code })),
+    // What the player's office lets them do without Parliament (null = holds no office).
+    office: null,
   };
 
   const character = userId ? await db('characters').where({ user_id: userId, status: 'active' }).first() : null;
@@ -247,6 +254,19 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     };
   } else {
     desk.partyRoom = { cooldownLeft };
+  }
+
+  // ── Powers of office: decrees (Premier and ministers) ──
+  const offices = decreeOffices(me);
+  if (offices.length) {
+    const used = await db('pol_action_log').where({ character_id: character.id, arc, kind: 'decree' }).first();
+    desk.office = {
+      titles: offices,
+      decreeAp: DECREE_AP,
+      lastsMonths: SHOCK_MONTHS,
+      usedThisMonth: used ? used.summary : null,
+      decrees: DECREES.filter(d => offices.includes(d.office)).map(d => ({ key: d.key, office: d.office, title: d.title, blurb: d.blurb, stat: d.stat, support: d.support ?? {} })),
+    };
   }
 
   desk.log = await db('pol_action_log').where({ character_id: character.id }).orderBy('created_at', 'desc').limit(12).select('arc', 'kind', 'summary');

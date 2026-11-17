@@ -152,10 +152,127 @@ export const DRENNIA: NationSpec = {
   ],
 };
 
-/** Nations by pol_states.code of their national parliament. */
-export const NATIONS_BY_POL_STATE: Record<string, NationSpec> = {
-  [DRENNIA.polStateCode]: DRENNIA,
+// ─── Starter nations two and three ─────────────────────────────────────────
+// Every starter nation is EQUAL in size: the same 151 seats, the same 20
+// district sizes (so the same 7,000,000 voters and the same seat shares) and
+// the same starting laws and national statistics. They differ only in
+// character: who lives where, and which parties speak for them.
+const DISTRICT_SIZES = DRENNIA.districts.map(d => d.registeredVoters);
+
+function sharedConstitution(seats: number, majority: number): string[] {
+  return [
+    `Parliament has ${seats} seats. A government needs the support of ${majority}.`,
+    'Elections are held every 4 years. Parties file candidates 9 months before polling day and campaign for the last 6.',
+    'After an election the largest party has 2 months to build a majority, alone or in coalition. Otherwise it governs as a minority.',
+    'The Premier names a cabinet of ministers from the governing parties. Ministers steer laws in their portfolio.',
+    'Any party with seats may table a bill. Government bills are cheaper to table; bills pass with more yes than no votes.',
+    'Laws take effect gradually: tax changes in months, healthcare and education over years.',
+  ];
+}
+
+/** Twenty districts, five per region, on Drennia's exact district sizes. */
+function equalDistricts(regions: { code: string; names: string[]; mix: Record<string, number>; tweaks: Record<string, number>[] }[]): DistrictSpec[] {
+  const out: DistrictSpec[] = [];
+  regions.forEach((r, ri) => r.names.forEach((name, di) => {
+    out.push({ name, region: r.code, registeredVoters: DISTRICT_SIZES[ri * 5 + di], segmentWeights: tweak(r.mix, r.tweaks[di] ?? {}) });
+  }));
+  return out;
+}
+const LEGISLATURE = (name: string) => ({
+  name, seats: DRENNIA.legislature.seats, majority: DRENNIA.legislature.majority, termMonths: DRENNIA.legislature.termMonths,
+  electoralSystem: DRENNIA.legislature.electoralSystem,
+});
+
+export const WESTMARK: NationSpec = {
+  countryId: 'westmark',
+  polStateCode: 'westmark',
+  officialName: 'Free Ports of Westmark',
+  shortName: 'Westmark',
+  demonym: 'Westmarker',
+  government: 'Maritime parliamentary republic',
+  capital: 'Saltgate',
+  motto: 'By Tide and Trade',
+  currency: 'Drennian dollar',
+  flag: { pattern: 'tricolor-horizontal', colors: ['#14364F', '#F2EFE6', '#1F8A8A'], emblem: 'anchor', emblemColor: '#14364F' },
+  headOfState: { title: 'Lord Warden', name: 'Corin Halewood', role: 'Ceremonial head of state. Opens the Assembly and invites the largest party to form a government.' },
+  headOfGovernment: { title: 'Premier', role: 'Leader of the party that commands the Assembly. Chairs the cabinet and appoints ministers.' },
+  legislature: LEGISLATURE('Assembly of the Ports'),
+  constitution: sharedConstitution(DRENNIA.legislature.seats, DRENNIA.legislature.majority),
+  regions: [
+    { code: 'saltgate',  name: 'Saltgate',  capital: 'Saltgate',     character: 'Capital and great harbour: shipping houses, banks and customs.', economy: 'Shipping, finance, customs' },
+    { code: 'tidewater', name: 'Tidewater', capital: 'Port Brannow', character: 'A coast of docks, shipyards and canneries.',                    economy: 'Shipbuilding, fishing, freight' },
+    { code: 'marches',   name: 'The Marches', capital: 'Harrowick',  character: 'Mill towns along the rivers running down to the sea.',          economy: 'Textiles, light industry' },
+    { code: 'downs',     name: 'The Downs', capital: 'Wetherby',     character: 'Rolling sheep country and market towns.',                       economy: 'Wool, farming, small trades' },
+  ],
+  districts: equalDistricts([
+    { code: 'saltgate', names: ['Saltgate Quays', 'Saltgate Exchange', 'Saltgate Hill', 'Saltgate East', 'Saltgate Shore'], mix: MIX.westport,
+      tweaks: [{ logistics_trade_workers: 2.2 }, { factory_business_owners: 1.8, civic_professionals: 1.5 }, { civic_professionals: 1.8 }, { industrial_workers: 1.3 }, { suburban_families: 1.5 }] },
+    { code: 'tidewater', names: ['Port Brannow', 'Tidewater Yards', 'Tidewater North', 'Cannery Row', 'Tidewater Sands'], mix: MIX.westport,
+      tweaks: [{ logistics_trade_workers: 2.0 }, { industrial_workers: 1.6 }, {}, { industrial_workers: 1.4 }, { suburban_families: 1.4 }] },
+    { code: 'marches', names: ['Harrowick', 'Marches Mills', 'Marches Vale', 'Lower Marches', 'Upper Marches'], mix: MIX.ironvale,
+      tweaks: [{ civic_professionals: 1.0 }, { industrial_workers: 2.0 }, { suburban_families: 1.2 }, { logistics_trade_workers: 1.2 }, {}] },
+    { code: 'downs', names: ['Wetherby', 'Downs East', 'Downs West', 'Sheepwash', 'Downs Coast'], mix: MIX.greenmere,
+      tweaks: [{ civic_professionals: 1.1 }, {}, { factory_business_owners: 1.3 }, { suburban_families: 2.2 }, { logistics_trade_workers: 1.3 }] },
+  ]),
 };
+
+export const ERYNDOR: NationSpec = {
+  countryId: 'eryndor',
+  polStateCode: 'eryndor',
+  officialName: 'Commonwealth of Eryndor',
+  shortName: 'Eryndor',
+  demonym: 'Eryndoran',
+  government: 'Federal parliamentary commonwealth',
+  capital: 'Highmoor',
+  motto: 'From the Hills, Plenty',
+  currency: 'Drennian dollar',
+  flag: { pattern: 'cross', colors: ['#2E5E3A', '#E9C46A'], emblem: 'wheat', emblemColor: '#E9C46A' },
+  headOfState: { title: 'High Steward', name: 'Maren Aldous', role: 'Ceremonial head of state. Opens the Diet and invites the largest party to form a government.' },
+  headOfGovernment: { title: 'Premier', role: 'Leader of the party that commands the Diet. Chairs the cabinet and appoints ministers.' },
+  legislature: LEGISLATURE('Diet of Eryndor'),
+  constitution: sharedConstitution(DRENNIA.legislature.seats, DRENNIA.legislature.majority),
+  regions: [
+    { code: 'highmoor',  name: 'Highmoor',  capital: 'Highmoor',    character: 'Capital on the plateau: courts, colleges and the Diet.',   economy: 'Government, education, services' },
+    { code: 'coalreach', name: 'Coalreach', capital: 'Blackfold',   character: 'Pit villages and smelters in the northern hills.',          economy: 'Mining, steel, heavy industry' },
+    { code: 'goldmere',  name: 'Goldmere',  capital: 'Fenwick Cross', character: 'The grain plain: big farms and bigger landowners.',      economy: 'Grain, cattle, milling' },
+    { code: 'southfold', name: 'Southfold', capital: 'Oakhaven',    character: 'Orchards, river ports and the road to the sea.',            economy: 'Fruit, river trade, timber' },
+  ],
+  districts: equalDistricts([
+    { code: 'highmoor', names: ['Highmoor Old Town', 'Highmoor Colleges', 'Highmoor Gate', 'Highmoor Fields', 'Highmoor Commons'], mix: MIX.drennport,
+      tweaks: [{ civic_professionals: 1.9 }, { civic_professionals: 2.1 }, { factory_business_owners: 1.8 }, { suburban_families: 1.6 }, { industrial_workers: 1.1 }] },
+    { code: 'coalreach', names: ['Blackfold', 'Coalreach Pits', 'Coalreach Works', 'Coalreach Dale', 'Coalreach Edge'], mix: MIX.ironvale,
+      tweaks: [{}, { industrial_workers: 2.1 }, { industrial_workers: 1.9, factory_business_owners: 1.3 }, { suburban_families: 1.2 }, { logistics_trade_workers: 1.1 }] },
+    { code: 'goldmere', names: ['Fenwick Cross', 'Goldmere Plain', 'Goldmere Mills', 'Goldmere Marsh', 'Goldmere Wolds'], mix: MIX.greenmere,
+      tweaks: [{ civic_professionals: 1.1 }, { factory_business_owners: 1.5 }, { industrial_workers: 1.2 }, {}, { suburban_families: 2.1 }] },
+    { code: 'southfold', names: ['Oakhaven', 'Southfold Orchards', 'Southfold River', 'Southfold Weald', 'Southfold Ford'], mix: MIX.greenmere,
+      tweaks: [{ logistics_trade_workers: 1.5 }, {}, { logistics_trade_workers: 1.7 }, { suburban_families: 2.0 }, { factory_business_owners: 1.2 }] },
+  ]),
+};
+
+/** Every playable starter nation, in the order they are listed to players. */
+export const STARTER_NATIONS: NationSpec[] = [DRENNIA, WESTMARK, ERYNDOR];
+
+/** Nations by pol_states.code of their national parliament. */
+export const NATIONS_BY_POL_STATE: Record<string, NationSpec> = Object.fromEntries(STARTER_NATIONS.map(n => [n.polStateCode, n]));
+export const NATIONS_BY_COUNTRY: Record<string, NationSpec> = Object.fromEntries(STARTER_NATIONS.map(n => [n.countryId, n]));
+
+// ─── Nation size (owner decision, 2026-11-17) ──────────────────────────────
+/** Human players per nation. Small on purpose: you know every rival by name. */
+export const NATION_PLAYER_CAP = 6;
+/** A player not seen for this many days stops counting toward the cap (their character stays). */
+export const NATION_ACTIVE_DAYS = 14;
+/**
+ * If every nation is full, a new player still gets in, to the least crowded
+ * nation. Turning this off means "the world is full" and sign-ups are refused.
+ */
+export const NATION_OVERFLOW_WHEN_ALL_FULL = true;
+
+// ─── Nation power (shown on the Nation screen) ─────────────────────────────
+// Three scores out of 100 that let nations be compared. All three start equal
+// because every nation starts with the same statistics and the same laws.
+export const POWER_ECONOMY_WEIGHTS = { prosperity: 0.6, fiscal_health: 0.4 } as const;
+/** Military strength comes from the defence law in force. There is no war system yet. */
+export const DEFENCE_STRENGTH: Record<string, number> = { minimal: 35, moderate: 50, high: 65, very_high: 80 };
 
 export function getNationForPolState(code: string | null | undefined): NationSpec | null {
   return (code && NATIONS_BY_POL_STATE[code]) || null;

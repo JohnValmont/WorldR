@@ -8,7 +8,7 @@ import {
   getSeatsForState,
   getMajorityForState,
   getTermMonthsForState,
-  getElectionOffsetMonths,
+  getElectionOffsetMonths, getJurisdiction,
   CAMPAIGN_ACTIONS,
   POL_FUNDRAISER_BASE,
   POL_FUNDRAISER_CHARISMA_MULT,
@@ -504,7 +504,10 @@ export async function getOrCreateCurrentCycle(stateId: string, trx?: any) {
     // Stagger each jurisdiction's first election by its offset so state elections
     // land ~every 6 months across the nation (GDD $3). Ironvale offset = 0.
     const stateRow = await conn('pol_states').where({ id: stateId }).first();
-    const pollingArc = currentMonth + POL_FIRST_CYCLE_MONTHS + getElectionOffsetMonths(stateRow?.code);
+    // National parliaments hold their founding election in the first month
+    // (their offset staggers the first TERM instead, see performCycleRollover).
+    const isNational = getJurisdiction(stateRow?.code).tier === 'national';
+    const pollingArc = currentMonth + POL_FIRST_CYCLE_MONTHS + (isNational ? 0 : getElectionOffsetMonths(stateRow?.code));
     const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;
 
     const phase = derivePhase({ polling_arc: pollingArc, formation_end_arc: formationEndArc }, currentMonth);
@@ -735,7 +738,10 @@ export async function applyConditionDrift(trx: any, stateId: string, currentMont
 }
 
 export async function processPoliticalArc(trx: any, stateId: string, currentMonth: number) {
-  const cycle = await trx('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
+  // A nation nobody has opened yet still needs its first election cycle, or it
+  // would never hold a founding election and its Parliament would stay empty.
+  const cycle = await trx('pol_cycles').where({ state_id: stateId, status: 'open' }).first()
+    ?? await getOrCreateCurrentCycle(stateId, trx);
   if (!cycle) return;
 
   const newPhase = derivePhase(cycle, currentMonth);
@@ -1612,7 +1618,11 @@ async function performCycleRollover(trx: any, oldCycle: any, currentMonth: numbe
   const startMonth = governmentFormedAt ?? currentMonth;
   // Term length is per-jurisdiction (24mo state, 48mo national — GDD $3).
   const oldStateRow = await trx('pol_states').where({ id: oldCycle.state_id }).first();
-  const pollingArc = startMonth + getTermMonthsForState(oldStateRow?.code);
+  // The first term after a nation's founding election is shortened by its
+  // offset, so nations vote at different times. Later terms are full length.
+  const firstTermCut = oldCycle.cycle_number === 1 && getJurisdiction(oldStateRow?.code).tier === 'national'
+    ? getElectionOffsetMonths(oldStateRow?.code) : 0;
+  const pollingArc = startMonth + getTermMonthsForState(oldStateRow?.code) - firstTermCut;
   const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;
 
   // A new cycle always begins in the governing phase: the election just concluded

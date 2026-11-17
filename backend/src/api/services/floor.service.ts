@@ -16,6 +16,7 @@ import {
   WORD_KEPT_CLOUT, WORD_KEPT_TRUST,
 } from '../constants/floor';
 import { DEFAULT_LAWS } from '../constants/nations';
+import { DECREE_AP, DECREE_BY_KEY } from '../constants/decrees';
 import { CardCost, Effects, Role, SITUATION_BY_KEY } from '../constants/situations';
 import {
   adGain, dealHand, DealContext, driftSupport, fundraiseTake, lawSupportDeltas, leadershipDecision,
@@ -756,4 +757,38 @@ export async function challengeLeadership(trx: any, stateId: string, me: PlayerP
   });
   await logAction(trx, stateId, me, arc, 'leadership', me.party.id, `Became leader of ${me.party.name}`);
   return { won: true, message: `You now lead ${me.party.name}${becamePremier ? ' and are Premier of Drennia' : ''}. Its bloc votes the way you vote.` };
+}
+
+// ═══════════════════════════════ DECREES ═══════════════════════════════
+
+/** Which decrees this player's offices allow. */
+export function decreeOffices(me: PlayerPolitics): string[] {
+  const out: string[] = [];
+  if (me.isPremier) out.push('premier');
+  if (me.post?.post_key) out.push(me.post.post_key);
+  return out;
+}
+
+/**
+ * The Premier and ministers act without Parliament: a temporary nudge to the
+ * nation's statistics, and a reaction from voters. One per month each.
+ */
+export async function issueDecree(trx: any, stateId: string, me: PlayerPolitics, key: string, arc: number) {
+  const decree = DECREE_BY_KEY[key];
+  if (!decree) throw new AppError('Unknown decree.', 400, 'BAD_REQUEST');
+  if (!decreeOffices(me).includes(decree.office)) throw new AppError('Your office does not have that power.', 403, 'FORBIDDEN');
+  if (await countActions(trx, me.character.id, arc, 'decree') > 0) throw new AppError('You have already issued a decree this month.', 409, 'CONFLICT');
+  await spendEnergy(trx, me.character.id, DECREE_AP, arc);
+  for (const [stat, delta] of Object.entries(decree.stat)) {
+    if (!delta) continue;
+    await trx('pol_stat_shocks').insert({ state_id: stateId, stat, delta, reason: decree.title, created_arc: arc, expires_arc: arc + SHOCK_MONTHS });
+  }
+  if (decree.support && me.party) await addSupport(trx, me.party.id, decree.support as Record<string, number>, arc);
+  await trx('pol_ledger_events').insert({
+    state_id: stateId, arc, kind: 'decree',
+    headline: `${me.isPremier && decree.office === 'premier' ? 'Premier' : 'Minister'} ${me.character.name} orders: ${decree.title}`,
+    body: decree.blurb,
+  });
+  await logAction(trx, stateId, me, arc, 'decree', decree.key, `Decree: ${decree.title}`);
+  return { message: `${decree.title}: the order is given. Its effects are felt from next month and last ${SHOCK_MONTHS} months.` };
 }

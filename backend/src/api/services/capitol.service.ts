@@ -22,6 +22,7 @@ import {
 import { getNationalPolicyMultipliers, readNationalStatsFromRow } from './nationalEconomy.service';
 import { safeParseJSON } from '../../utils/json';
 import { billVotePlan, loadVoteShared } from './floor.service';
+import { currentPolStateCode } from './playerNation';
 
 const LADDER = ['citizen', 'member', 'candidate', 'mp', 'minister', 'premier'] as const;
 type Rung = typeof LADDER[number];
@@ -31,7 +32,7 @@ function num(v: any, d = 0) { const n = Number(v); return Number.isFinite(n) ? n
 export async function getCapitol(userId: string | null, stateCodeOrId?: string) {
   const state = stateCodeOrId
     ? await db('pol_states').where({ code: stateCodeOrId }).orWhereRaw('id::text = ?', [stateCodeOrId]).first()
-    : await db('pol_states').where({ code: 'national' }).first() ?? await db('pol_states').where({ is_active: true }).first();
+    : await db('pol_states').where({ code: currentPolStateCode() }).first() ?? await db('pol_states').where({ is_active: true }).first();
   if (!state) return null;
 
   const nation = nationFor(state);

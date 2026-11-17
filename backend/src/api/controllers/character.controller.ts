@@ -1,3 +1,4 @@
+import { assignNation } from '../services/nations.service';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
@@ -157,6 +158,10 @@ export class CharacterController {
         return next(new AppError('Character already exists', 400, 'CHARACTER_EXISTS'));
       }
 
+      // Three starter nations of NATION_PLAYER_CAP players each: the player's
+      // choice is honoured while that nation has room (nations.service.ts).
+      const nationId = await assignNation(db, motherland_country_id);
+
       // Get world clock for created_at_world_*
       const clock = await db('world_clock').where({ status: 'active', world_instance_id: activeInstance.id }).first();
       if (!clock) {
@@ -167,7 +172,7 @@ export class CharacterController {
         const [character] = await trx('characters').insert({
           world_instance_id: activeInstance.id,
           user_id: userId,
-          motherland_country_id,
+          motherland_country_id: nationId,
           home_state_id: home_state_id || null,
           name,
           age: 18,

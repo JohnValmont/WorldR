@@ -280,3 +280,81 @@ describe('Leadership and shocks', () => {
     assert.strictEqual(s.equity, -2);
   });
 });
+
+// ─────────────────────────── Three equal nations ───────────────────────────
+import { STARTER_NATIONS, NATION_PLAYER_CAP, NATIONS_BY_POL_STATE } from '../src/api/constants/nations';
+import { JURISDICTIONS } from '../src/api/constants/politics';
+import { chooseNation, nationPower } from '../src/api/services/nations.service';
+import { DECREES } from '../src/api/constants/decrees';
+import { CABINET_POSTS } from '../src/api/constants/nations';
+
+describe('Starter nations are equal', () => {
+  it('there are three, each with its own parliament code', () => {
+    assert.strictEqual(STARTER_NATIONS.length, 3);
+    assert.strictEqual(new Set(STARTER_NATIONS.map(n => n.polStateCode)).size, 3);
+    for (const n of STARTER_NATIONS) assert.ok(NATIONS_BY_POL_STATE[n.polStateCode] && JURISDICTIONS[n.polStateCode], `${n.shortName} needs a jurisdiction entry`);
+  });
+  it('same seats, same majority, same term, same number of voters', () => {
+    const voters = (n: typeof DRENNIA) => n.districts.reduce((a, d) => a + d.registeredVoters, 0);
+    for (const n of STARTER_NATIONS) {
+      assert.strictEqual(n.legislature.seats, DRENNIA.legislature.seats);
+      assert.strictEqual(JURISDICTIONS[n.polStateCode].seats, DRENNIA.legislature.seats);
+      assert.strictEqual(JURISDICTIONS[n.polStateCode].majority, DRENNIA.legislature.majority);
+      assert.strictEqual(JURISDICTIONS[n.polStateCode].termMonths, JURISDICTIONS.national.termMonths);
+      assert.strictEqual(n.districts.length, DRENNIA.districts.length);
+      assert.strictEqual(voters(n), voters(DRENNIA));
+      assert.strictEqual(new Set(n.districts.map(d => d.name)).size, n.districts.length, `${n.shortName}: district names must be unique`);
+      for (const d of n.districts) assert.ok(n.regions.some(r => r.code === d.region), `${n.shortName}: ${d.name} has an unknown region`);
+    }
+  });
+  it('equal statistics and laws give equal power scores', () => {
+    const a = nationPower({ prosperity: 50, fiscal_health: 50, global_standing: 50 }, 'moderate');
+    assert.deepStrictEqual([a.economy, a.military, a.influence], [50, 50, 50]);
+    assert.ok(nationPower({ prosperity: 50, fiscal_health: 50, global_standing: 50 }, 'high').military > a.military, 'defence spending is the lever for military strength');
+  });
+  it('their first elections after founding fall at different times', () => {
+    const cuts = STARTER_NATIONS.map(n => JURISDICTIONS[n.polStateCode].electionOffsetMonths);
+    assert.strictEqual(new Set(cuts).size, 3);
+    for (const c of cuts) assert.ok(c < JURISDICTIONS.national.termMonths);
+  });
+});
+
+describe('Six players per nation', () => {
+  const cap = NATION_PLAYER_CAP;
+  it('a player gets the nation they ask for while it has room', () => {
+    assert.deepStrictEqual(chooseNation('westmark', { drennia: cap, westmark: cap - 1, eryndor: 0 }, cap, true), { countryId: 'westmark' });
+  });
+  it('a full nation is refused, naming the ones with room', () => {
+    const r = chooseNation('drennia', { drennia: cap, westmark: 2, eryndor: 0 }, cap, true) as any;
+    assert.ok(r.error && r.error.includes('Westmark') && r.error.includes('Eryndor'));
+  });
+  it('with no preference, nations fill one at a time', () => {
+    assert.deepStrictEqual(chooseNation(null, { drennia: 4, westmark: 1, eryndor: 0 }, cap, true), { countryId: 'drennia' });
+    assert.deepStrictEqual(chooseNation(null, { drennia: cap, westmark: 1, eryndor: 0 }, cap, true), { countryId: 'westmark' });
+  });
+  it('when every nation is full the least crowded takes the overflow, unless overflow is off', () => {
+    assert.deepStrictEqual(chooseNation('drennia', { drennia: cap + 2, westmark: cap, eryndor: cap + 1 }, cap, true), { countryId: 'westmark' });
+    assert.ok('error' in chooseNation('drennia', { drennia: cap, westmark: cap, eryndor: cap }, cap, false));
+  });
+  it('nations that are not open cannot be chosen', () => {
+    assert.ok('error' in chooseNation('novara', { drennia: 0, westmark: 0, eryndor: 0 }, cap, true));
+  });
+});
+
+describe('Decrees', () => {
+  it('every decree belongs to the Premier or a real cabinet post, and costs something', () => {
+    const posts = new Set(['premier', ...CABINET_POSTS.map(p => p.key)]);
+    const keys = new Set<string>();
+    for (const d of DECREES) {
+      assert.ok(posts.has(d.office), `${d.key}: unknown office ${d.office}`);
+      assert.ok(!keys.has(d.key)); keys.add(d.key);
+      const moves = Object.values(d.stat).filter(Boolean) as number[];
+      assert.ok(moves.length >= 2, `${d.key} must move at least two statistics`);
+      const better = Object.entries(d.stat).some(([k, v]) => (k === 'cost_of_living' ? (v as number) < 0 : (v as number) > 0));
+      const worse = Object.entries(d.stat).some(([k, v]) => (k === 'cost_of_living' ? (v as number) > 0 : (v as number) < 0));
+      assert.ok(better && worse, `${d.key} must be a trade-off, not a free gain`);
+      for (const v of moves) assert.ok(Math.abs(v) <= 3, `${d.key}: a single decree may move a statistic by at most 3`);
+    }
+    for (const p of CABINET_POSTS) assert.ok(DECREES.some(d => d.office === p.key), `the ${p.short} minister has no decree`);
+  });
+});
