@@ -17,10 +17,11 @@ import { AP_COST_BILL_MODERATE } from '../constants/politics';
 import { getCurrentWorldArc, getOrCreateCurrentCycle } from './politics.service';
 import {
   billTitle, computeApproval, getGovernment, getLawsInForce, nationFor, parsePlatform,
-  projectElection, projectPartyVotes, optionAlignment, pollParties,
+  projectElection, optionAlignment, pollParties,
 } from './statecraft.service';
 import { getNationalPolicyMultipliers, readNationalStatsFromRow } from './nationalEconomy.service';
 import { safeParseJSON } from '../../utils/json';
+import { billVotePlan, loadVoteShared } from './floor.service';
 
 const LADDER = ['citizen', 'member', 'candidate', 'mp', 'minister', 'premier'] as const;
 type Rung = typeof LADDER[number];
@@ -186,31 +187,32 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
   let myChar: any = null;
   if (userId) myChar = await db('characters').where({ user_id: userId, status: 'active' }).first();
 
+  const voteShared = await loadVoteShared(db, state.id, gov, laws, partyRows);
   const bills = [];
   for (const b of billRows) {
     const params = typeof b.params === 'string' ? safeParseJSON(b.params) : (b.params ?? {});
     const votes = await db('pol_bill_votes').where({ bill_id: b.id });
-    const voted = new Set<string>();
     const tally = { yea: 0, nay: 0 };
-    const partyVotes: Record<string, string> = {};
-    for (const v of votes) {
-      const pid = leaderParty.get(v.character_id);
-      if (!pid) continue;
-      voted.add(pid);
-      partyVotes[pid] = v.vote;
-    }
+    let partyVotes: Record<string, string | undefined> = {};
+    let lineSource: Record<string, string> = {};
+    let byParty: Record<string, { yea: number; nay: number; rebels: number }> = {};
+    let rebels = num(b.rebel_count);
     if (b.status === 'proposed') {
-      const auto = await projectPartyVotes(db, b, partyRows, gov, laws, voted);
-      Object.assign(partyVotes, auto);
-    }
-    if (b.status !== 'proposed' && b.yea_seats != null) {
+      // The same rule the monthly tick uses to count the real vote.
+      const plan = await billVotePlan(db, b, voteShared);
+      partyVotes = plan.partyLine;
+      lineSource = plan.lineSource;
+      byParty = plan.tally.byParty;
+      tally.yea = plan.tally.yea;
+      tally.nay = plan.tally.nay;
+      rebels = plan.tally.rebels;
+    } else {
+      for (const v of votes) {
+        const pid = leaderParty.get(v.character_id);
+        if (pid) partyVotes[pid] = v.vote;
+      }
       tally.yea = num(b.yea_seats);
       tally.nay = num(b.nay_seats);
-    } else {
-      for (const [pid, v] of Object.entries(partyVotes)) {
-        const n = gov.seatsByParty[pid] || 0;
-        if (v === 'yea') tally.yea += n; else if (v === 'nay') tally.nay += n;
-      }
     }
     const proposer = partyById.get(b.proposed_by_party_id);
     bills.push({
@@ -225,6 +227,9 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
       proposer: proposer ? { id: proposer.id, name: proposer.name, color: proposer.color, abbreviation: proposer.abbreviation } : null,
       fromGovernment: govSet.has(b.proposed_by_party_id),
       partyVotes,
+      lineSource,
+      byParty,
+      rebels,
       tally,
       projectedPass: tally.yea > tally.nay,
       myVote: myChar ? votes.find((v: any) => v.character_id === myChar.id)?.vote ?? null : null,
@@ -283,6 +288,7 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
       name: myChar.name,
       credibility: num(myChar.credibility),
       influence: num(myChar.influence),
+      charisma: num(myChar.charisma),
       cash: fin ? num(fin.cash_in_hand) : null,
       ap: apRow ? { current: num(apRow.current_ap), cap: num(apRow.ap_cap) } : { current: AP_MONTHLY_GRANT, cap: AP_MONTHLY_GRANT },
       party: myParty ? { id: myParty.id, name: myParty.name, color: myParty.color, role: membership.role, seats: myParty.seats, inGovernment: inGov } : null,
@@ -292,6 +298,8 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
       rung,
       ladder: LADDER,
       canTableBill: partySeated && !!gov.leadPartyId,
+      hasSeat: !!mySeat,
+      voteMode: (membership?.role === 'leader' && partySeated) ? 'line' : (mySeat ? 'seat' : null),
       tableBillApCost: AP_COST_BILL_MODERATE + (inGov ? 0 : PRIVATE_BILL_AP_EXTRA),
       isPartyLeader: membership?.role === 'leader',
       // Human members of governing parties the Premier can appoint (only sent to the Premier).

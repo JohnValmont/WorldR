@@ -1,3 +1,4 @@
+import { castVote, onJoinParty, onLeaveParty, playerPolitics, switchCooldownLeft } from '../services/floor.service';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { projectPartyVotes, getGovernment, getLawsInForce, findOption, billTitle, computeApproval, approvalVoteMultiplier } from '../services/statecraft.service';
@@ -661,7 +662,7 @@ export async function joinParty(req: Request, res: Response, next: NextFunction)
     const { id: partyId } = req.params;
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
 
-    await db.transaction(async (trx) => {
+    const joined = await db.transaction(async (trx) => {
       const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
       if (!character) throw new AppError('No active character', 400, 'NO_CHARACTER');
 
@@ -671,17 +672,14 @@ export async function joinParty(req: Request, res: Response, next: NextFunction)
       const party = await trx('pol_parties').where({ id: partyId }).first();
       if (!party) throw new AppError('Party not found', 404, 'NOT_FOUND');
 
-      // OWNERSHIP RULE: Players cannot join another player's party.
-      // is_npc === false AND has a real leader_character_id means it's a player-owned party.
-      if (!party.is_npc && party.leader_character_id && party.leader_character_id !== character.id) {
-        throw new AppError(
-          'Players cannot join another player\'s party. Found your own party, or run as an Independent.',
-          409, 'CONFLICT'
-        );
-      }
-
+      // The Floor: parties are open. Any player may join any party, whether a
+      // computer runs it or another player leads it. A cooldown stops hopping.
       const clock = await trx('world_clock').first();
       const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
+      const wait = await switchCooldownLeft(trx, character.id, currentMonth);
+      if (wait > 0) {
+        throw new AppError(`You changed party recently. You can join another in ${wait} month${wait === 1 ? '' : 's'}.`, 409, 'CONFLICT');
+      }
 
       await trx('pol_party_members').insert({
         party_id: party.id,
@@ -689,9 +687,11 @@ export async function joinParty(req: Request, res: Response, next: NextFunction)
         role: 'member',
         joined_arc: currentMonth
       });
+      // Human members take the party's seats before its computer-run MPs.
+      return onJoinParty(trx, character, party, currentMonth, await getGovernment(trx, party.state_id));
     });
 
-    return res.json({ success: true });
+    return res.json({ success: true, ...joined });
   } catch (error) {
     next(error);
   }
@@ -718,6 +718,8 @@ export async function leaveParty(req: Request, res: Response, next: NextFunction
       }
 
       await trx('pol_party_members').where({ party_id: partyId, character_id: character.id }).delete();
+      // Their seat, cabinet post and candidacy belong to the party and stay with it.
+      await onLeaveParty(trx, character, partyId);
     });
 
     return res.json({ success: true });
@@ -888,7 +890,7 @@ export async function declareCandidacy(req: Request, res: Response, next: NextFu
       if (!member) throw new AppError('Must be in a party to run', 403, 'FORBIDDEN');
 
       const party = await trx('pol_parties').where({ id: member.party_id }).forUpdate().first();
-      if (party.is_npc) throw new AppError('Cannot run for an NPC party', 403, 'FORBIDDEN');
+      // The Floor: players may stand for any party they belong to, computer-run or not.
 
       const existingCandidacy = await trx('pol_candidates')
         .where({ cycle_id: cycle.id, character_id: character.id })
@@ -1285,8 +1287,6 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
       const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
       await spendAp(trx, char.id, apCost);
-      await spendPc(trx, char.id, PC_COST_NEGOTIATE_STRENGTH);
-
       const [bill] = await trx('pol_bills').insert({
         state_id: activeState.id,
         proposed_by_party_id: partyMember.party_id,
@@ -1330,30 +1330,11 @@ export async function voteBill(req: Request, res: Response, next: NextFunction) 
       const bill = await trx('pol_bills').where({ id: billId, status: 'proposed' }).first();
       if (!bill) throw new AppError('Bill not found or not in proposed status', 404, 'NOT_FOUND');
 
-      // Only the leader of a party that actually holds council seats in the
-      // current governing cycle may cast a bloc vote. This prevents characters
-      // who lost the election (or never ran) from influencing legislation.
-      const partyMember = await trx('pol_party_members').where({ character_id: char.id, role: 'leader' }).first();
-      if (!partyMember) throw new AppError('Only party leaders can cast bloc votes', 403, 'FORBIDDEN');
-
-      const cycle = await getOrCreateCurrentCycle(bill.state_id, trx);
-      const sittingCycleId = await getSittingCycleId(trx, bill.state_id, cycle);
-      const hasSeat = await trx('pol_council_seats')
-        .where({ party_id: partyMember.party_id, cycle_id: sittingCycleId })
-        .first();
-      if (!hasSeat) {
-        throw new AppError(
-          'Your party does not hold a council seat in the current session and cannot vote on legislation.',
-          403, 'FORBIDDEN'
-        );
-      }
-
-      await trx('pol_bill_votes')
-        .insert({ bill_id: billId, character_id: char.id, vote })
-        .onConflict(['bill_id', 'character_id'])
-        .merge();
-
-      return { success: true, vote };
+      // The Floor: a party leader's vote sets the party line for all its seats;
+      // any other MP with a seat casts that one seat, and may rebel.
+      const gov = await getGovernment(trx, bill.state_id);
+      const me = await playerPolitics(trx, bill.state_id, char, gov);
+      return castVote(trx, me, billId, vote, gov);
     });
 
     return res.json(result);

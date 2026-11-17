@@ -216,7 +216,9 @@ export const POLICY_CATALOG: PolicyCategoryDef[] = [
     options: [
       { id: 'state', name: 'State-controlled', effects: { freedom_rights: -20, bureaucracy: -5, global_standing: -8 }, tags: [], specialLagOverride: { freedom_rights: 60 } },
       { id: 'licensed', name: 'Regulated/licensed', effects: { freedom_rights: -8, bureaucracy: -2, global_standing: -2 }, tags: [], specialLagOverride: { freedom_rights: 60 } },
-      { id: 'free', name: 'Free press', effects: { freedom_rights: 10, bureaucracy: 3, global_standing: 3 }, tags: ['BOLD REFORM'], specialLagOverride: { freedom_rights: 60 } },
+      // A free press is Drennia's status quo, not a reform: tagging it BOLD REFORM made every
+      // order-minded party want state media as its first act in government.
+      { id: 'free', name: 'Free press', effects: { freedom_rights: 10, bureaucracy: 3, global_standing: 3 }, tags: [], specialLagOverride: { freedom_rights: 60 } },
       { id: 'deregulated', name: 'Fully deregulated', effects: { freedom_rights: 15, bureaucracy: 2, global_standing: 2, order_safety: -1 }, tags: ['BOLD REFORM'], specialLagOverride: { freedom_rights: 60 } }
     ]
   },

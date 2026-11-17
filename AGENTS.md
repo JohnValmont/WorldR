@@ -73,3 +73,14 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - The politics month runs in ONE transaction per nation. Never wrap a failing query in a bare try/catch inside it; use a savepoint (trx.transaction(...)) or the whole month is rolled back.
 - pol_parties.popularity is NUMERIC; pol_active_policies has one row per (state, category); write it with an upsert.
 - NPC lawmaking/voting/cabinet rules are pure functions in statecraft.service.ts with tests in tests/statecraft.test.ts.
+
+## The Floor (politics redesign) — Operational Rules (DO NOT BREAK)
+- Design and file map: docs/POLITICS_FLOOR.md. The politics screens read ONE endpoint, GET /politics/desk (desk.service.ts).
+- SUPPORT (pol_support: party x voter group, 0-100) is the one number campaigning, laws, promises and decisions move, and the election reads. Do not add a parallel "popularity"-style number; wire new features into support.
+- Polls and the real election must use the same inputs: buildEngineCandidates (politics.service.ts) and pollParties (statecraft.service.ts) both add NPC_MACHINE_EFFORT + support effort for every candidate. Change one, change the other.
+- There is ONE vote-counting rule: billVotePlan (floor.service.ts) + tallyBill (floor.rules.ts). The monthly tick and the on-screen whip count both use it. Never count votes anywhere else.
+- A party's line is: its human leader's vote, else a promise it made on that bill (pact or called favour), else ideology. MPs who hold a seat and are not the leader cast one seat each.
+- Rules are pure functions in floor.rules.ts / support.rules.ts with tests in tests/floor.test.ts. floor.service.ts must NOT import politics.service.ts (circular import).
+- All Floor numbers live in constants/floor.ts; situations are data in constants/situations.ts. Only ministers and the Premier may get a card with a `stat` effect (a test enforces it).
+- A member who is not the leader never spends party funds: party costs come out of their own cash (payMoney).
+- Computer-led governments form the SMALLEST winning coalition. Do not go back to inviting every compatible party.

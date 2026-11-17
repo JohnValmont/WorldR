@@ -1,55 +1,41 @@
 'use client';
-// Politics — "The Capitol" (Phase 2 rebuild, docs/REVIVAL_PLAN.md).
-// Open to every player. One read model (GET /politics/capitol) drives the new
-// Overview / Nation / Parliament / Laws / Elections screens; the older detailed
-// screens (campaign desk, party HQ, lobby, legacy) stay available as tabs.
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+// Politics — "The Floor" (docs/POLITICS_FLOOR.md).
+// One call (GET /politics/desk) drives four screens: Desk, Chamber, Voters, Party.
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
-import { politicsApi, characterApi, worldApi, authApi } from '@/lib/api';
+import { politicsApi, worldApi, authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorldClock, formatCountdown } from '@/hooks/useWorldClock';
 import { formatPolArc } from '@/lib/calendar';
-import { DEFAULT_JURISDICTION_ID } from './_lib/session';
 
-import { C, PHASES } from './_capitol/theme';
-import { CapitolSkyline, NationFlag } from './_capitol/art';
-import OverviewTab from './_capitol/OverviewTab';
-import NationTab from './_capitol/NationTab';
-import ParliamentTab from './_capitol/ParliamentTab';
-import LawsTab from './_capitol/LawsTab';
-import ElectionsTab from './_capitol/ElectionsTab';
+import { Btn, Chip, Energy, FloorApi, FloorContext, PartyDot, T, money } from './_floor/kit';
+import DeskView from './_floor/DeskView';
+import ChamberView from './_floor/ChamberView';
+import VotersView from './_floor/VotersView';
+import PartyView from './_floor/PartyView';
+import ElectionNight from './_floor/ElectionNight';
 
-import ElectionsScreen from './ElectionsScreen';
-import PartyScreen from './PartyScreen';
-import LobbyScreen from './LobbyScreen';
-import LegacyScreen from './LegacyScreen';
-
-type Tab = 'overview' | 'nation' | 'parliament' | 'laws' | 'elections' | 'campaign' | 'party' | 'lobby' | 'legacy';
-const TABS: { id: Tab; label: string; legacy?: boolean }[] = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'nation', label: 'Nation' },
-  { id: 'parliament', label: 'Parliament' },
-  { id: 'laws', label: 'Laws' },
-  { id: 'elections', label: 'Elections' },
-  { id: 'campaign', label: 'Campaign desk', legacy: true },
-  { id: 'party', label: 'Party HQ', legacy: true },
-  { id: 'lobby', label: 'Lobby', legacy: true },
-  { id: 'legacy', label: 'Legacy', legacy: true },
+type Tab = 'desk' | 'chamber' | 'voters' | 'party';
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'desk', label: 'Desk' },
+  { id: 'chamber', label: 'Chamber' },
+  { id: 'voters', label: 'Voters' },
+  { id: 'party', label: 'Party' },
 ];
-// Older screens navigate with their own ids; map them onto the new tabs.
-const LEGACY_NAV: Record<string, Tab> = {
-  overview: 'overview', nation: 'nation', development: 'nation', elections: 'campaign', legislature: 'parliament',
-  assembly: 'parliament', policy: 'laws', party: 'party', lobby: 'lobby', legacy: 'legacy', map: 'elections',
+const PHASE_LABEL: Record<string, string> = {
+  governing: 'Parliament sitting', filing: 'Candidates filing', campaign: 'Election campaign', polling: 'Election day', formation: 'Forming a government',
 };
+const RUNG_LABEL: Record<string, string> = { citizen: 'Citizen', member: 'Party member', candidate: 'Candidate', mp: 'Member of Parliament', minister: 'Minister', premier: 'Premier' };
+const SEEN_ELECTION_KEY = 'worldr_pol_election_seen';
 
-class TabErrorBoundary extends React.Component<{ children: React.ReactNode; tab: string }, { error: Error | null }> {
+class ViewBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
   constructor(props: any) { super(props); this.state = { error: null }; }
   static getDerivedStateFromError(error: Error) { return { error }; }
-  componentDidCatch(error: Error) { console.error(`[Politics] ${this.props.tab} tab crashed:`, error); }
+  componentDidCatch(error: Error) { console.error('[Politics] screen crashed:', error); }
   render() {
     if (this.state.error) {
       return (
-        <div className="rounded-xl p-6 text-sm" style={{ background: 'rgba(194,72,63,0.08)', border: '1px solid rgba(194,72,63,0.35)', color: '#E88C84' }}>
+        <div className="rounded-2xl p-5 text-sm" style={{ background: T.badSoft, border: `1px solid ${T.bad}`, color: T.text }}>
           <div className="font-semibold mb-1">This screen hit an error.</div>
           <div className="opacity-70 mb-3">{this.state.error.message}</div>
           <button className="underline" onClick={() => this.setState({ error: null })}>Try again</button>
@@ -61,145 +47,147 @@ class TabErrorBoundary extends React.Component<{ children: React.ReactNode; tab:
 }
 
 export default function PoliticsPage() {
-  const [tab, setTab] = useState<Tab>('overview');
+  const [tab, setTab] = useState<Tab>('desk');
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
+  const [electionOpen, setElectionOpen] = useState(false);
+  const [seenElection, setSeenElection] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const { clock, polSecondsToTick, isPolTickStalled } = useWorldClock();
   const user = useAuthStore(s => s.user);
   const [isAdminDynamic, setIsAdminDynamic] = useState(false);
-  const [advancing, setAdvancing] = useState(false);
   const isAdmin = user?.role === 'admin' || isAdminDynamic;
   useEffect(() => { authApi.me().then(res => setIsAdminDynamic(!!res.data?.isAdmin)).catch(() => {}); }, []);
+  useEffect(() => { try { setSeenElection(localStorage.getItem(SEEN_ELECTION_KEY)); } catch { /* private mode */ } }, []);
 
-  const { data: cap, error, mutate } = useSWR('politics-capitol', () => politicsApi.getCapitol(), { refreshInterval: 30_000 });
-  const refresh = useCallback(() => { mutate(); }, [mutate]);
+  const { data: desk, error, mutate } = useSWR('politics-desk', () => politicsApi.getDesk(), { refreshInterval: 30_000 });
 
-  // Data for the older screens, fetched only when one of them is open.
-  const legacyOpen = TABS.find(t => t.id === tab)?.legacy;
-  const { data: character, mutate: mChar } = useSWR(legacyOpen ? 'politics-me' : null, () => characterApi.getMe().then((r: any) => r.data || r));
-  const { data: overview, mutate: mOver } = useSWR(legacyOpen ? 'politicsState' : null, () => politicsApi.getState());
-  const { data: parties = [], mutate: mParties } = useSWR(legacyOpen ? ['parties', DEFAULT_JURISDICTION_ID] : null, () => politicsApi.getParties(DEFAULT_JURISDICTION_ID));
-  const { data: apData, mutate: mAp } = useSWR(legacyOpen ? 'myAp' : null, () => politicsApi.getMyAp());
-  const { data: pcData, mutate: mPc } = useSWR(legacyOpen ? 'myPc' : null, () => politicsApi.getMyPc());
-  const legacyRefresh = useCallback(async () => { await Promise.all([mChar(), mOver(), mParties(), mAp(), mPc(), mutate()]); }, [mChar, mOver, mParties, mAp, mPc, mutate]);
-  const legacyProps = useMemo(() => ({
-    selectedJurisdictionId: DEFAULT_JURISDICTION_ID,
-    onJurisdictionChange: () => {},
-    jurisdictionMeta: overview?.activeState ? { [overview.activeState.code]: { id: overview.activeState.code } } : {},
-    overview, character, parties,
-    myAp: (apData as any) || { current_ap: 0, ap_cap: 12 },
-    myPc: (pcData as any) || { current_pc: 0, pc_cap: 10 },
-    onRefresh: legacyRefresh,
-    onNavigate: (id: string) => setTab(LEGACY_NAV[id] ?? 'overview'),
-  }), [overview, character, parties, apData, pcData, legacyRefresh]);
+  const notify = useCallback((ok: boolean, text: string) => {
+    setToast({ ok, text });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), ok ? 4500 : 7000);
+  }, []);
 
-  const go = (t: string) => setTab((TABS.find(x => x.id === t)?.id ?? LEGACY_NAV[t] ?? 'overview') as Tab);
+  const act = useCallback<FloorApi['act']>(async (fn, okText) => {
+    setBusy(true);
+    try {
+      const res = await fn();
+      await mutate();
+      const text = typeof okText === 'function' ? okText(res) : okText ?? res?.text ?? res?.message;
+      if (text) notify(res?.tone ? res.tone !== 'bad' : true, text);
+      return res ?? true;
+    } catch (e: any) {
+      notify(false, e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Something went wrong');
+      return false;
+    } finally { setBusy(false); }
+  }, [mutate, notify]);
 
-  const forceTick = async () => {
-    if (advancing) return;
-    setAdvancing(true);
-    try { await worldApi.forcePoliticsTick(); await mutate(); }
-    catch (e: any) { alert(e?.response?.data?.error || e?.message || 'Failed to advance the politics month'); }
-    finally { setAdvancing(false); }
+  const api = useMemo<FloorApi | null>(() => desk ? ({
+    desk, refresh: () => mutate(), act, busy, go: (t: string) => setTab((TABS.find(x => x.id === t)?.id ?? 'desk') as Tab),
+  }) : null, [desk, mutate, act, busy]);
+
+  const openElection = () => {
+    setElectionOpen(true);
+    const id = desk?.desk.election?.cycleId;
+    if (id) { try { localStorage.setItem(SEEN_ELECTION_KEY, id); } catch { /* private mode */ } setSeenElection(id); }
   };
 
-  const phase = cap ? PHASES.find(p => p.key === cap.calendar.phase) : null;
+  const forceTick = () => act(() => worldApi.forcePoliticsTick(), 'The month has turned.');
+
+  const me = desk?.me ?? null;
+  const pending = desk && me
+    ? desk.desk.hand.filter(h => h.status === 'open').length
+      + (me.voteMode ? desk.bills.filter(b => b.status === 'proposed' && !b.myVote).length : 0)
+      + (desk.desk.deals?.incoming.length ?? 0)
+    : 0;
+  const el = desk?.desk.election;
+  const freshElection = !!el?.hasResults && seenElection !== el.cycleId;
+  const countdown = clock?.status === 'paused' ? 'Paused' : isPolTickStalled ? 'Delayed' : polSecondsToTick != null ? formatCountdown(polSecondsToTick) : '--:--';
 
   return (
-    <div className="min-h-screen" style={{ background: C.night, color: C.ivory }}>
-      {/* ── Banner ── */}
-      <header className="relative overflow-hidden" style={{ borderBottom: `1px solid ${C.line}` }}>
-        <CapitolSkyline className="absolute inset-0 w-full h-full" />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(10,14,24,0.92) 0%, rgba(10,14,24,0.55) 55%, rgba(10,14,24,0.85) 100%)' }} />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-5 pb-4">
-          <div className="flex flex-wrap items-center gap-4 justify-between">
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-              <div className="shrink-0 sm:hidden"><NationFlag spec={cap?.nation.flag} width={52} /></div>
-              <div className="shrink-0 hidden sm:block"><NationFlag spec={cap?.nation.flag} width={84} /></div>
-              <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-[0.25em]" style={{ color: C.brass }}>{cap?.nation.government ?? 'Politics'}</div>
-                <h1 className="font-serif text-xl sm:text-2xl font-bold leading-tight truncate">{cap?.nation.officialName ?? 'The Capitol'}</h1>
-                {cap?.nation.motto && <div className="text-xs italic truncate" style={{ color: C.ink }}>&ldquo;{cap.nation.motto}&rdquo;</div>}
+    <div className="min-h-screen" style={{ background: T.bg, color: T.text }}>
+      <header style={{ borderBottom: `1px solid ${T.line}` }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: T.accent }}>{desk?.nation.officialName ?? 'Politics'}</div>
+              <div className="flex flex-wrap items-baseline gap-x-3 text-sm" style={{ color: T.dim }}>
+                {desk && <span className="font-serif text-lg font-bold" style={{ color: T.text }}>{formatPolArc(desk.calendar.arc, false)}</span>}
+                {desk && <span>{PHASE_LABEL[desk.calendar.phase] ?? desk.calendar.phase}</span>}
+                <span title="Time until the month turns: votes are counted, polls update, new decisions arrive">next month in <span className="font-mono" style={{ color: T.text }}>{countdown}</span></span>
               </div>
             </div>
-            <div className="flex items-center gap-4 sm:gap-6 text-right">
-              {cap && (
-                <>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider" style={{ color: C.muted }}>Date</div>
-                    <div className="font-mono text-sm">{formatPolArc(cap.calendar.arc)}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider" style={{ color: C.muted }}>Phase</div>
-                    <div className="text-sm font-semibold" style={{ color: C.brass }}>{phase?.label}</div>
-                  </div>
-                </>
-              )}
-              <div>
-                <div className="text-[10px] uppercase tracking-wider" style={{ color: C.muted }}>Next month</div>
-                <div className="font-mono text-sm">
-                  {clock?.status === 'paused' ? 'Paused' : isPolTickStalled ? 'Delayed' : polSecondsToTick != null ? formatCountdown(polSecondsToTick) : '--:--'}
-                </div>
+            {me && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs" style={{ color: T.dim }} id="me-bar">
+                <span className="inline-flex items-center gap-1.5">
+                  {me.party && <PartyDot color={me.party.color} />}
+                  <span className="font-semibold" style={{ color: T.text }}>{me.name}</span>
+                  <span>{me.office ?? RUNG_LABEL[me.rung] ?? me.rung}{me.isPartyLeader && !me.office ? ', party leader' : ''}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5" title="Energy: what you can do this month. Refills when the month turns."><Energy current={me.ap.current} cap={me.ap.cap} /></span>
+                <span title="Trust: how far voters believe you. Counts in the district you stand in, and in every deal you offer.">Trust <strong style={{ color: T.text }}>{me.credibility}</strong></span>
+                <span title="Clout: your weight among politicians. Needed to lead a party.">Clout <strong style={{ color: T.text }}>{me.influence}</strong></span>
+                {me.cash != null && <span title="Your own money">{money(me.cash)}</span>}
               </div>
-              {cap?.me && (
-                <div className="hidden sm:block">
-                  <div className="text-[10px] uppercase tracking-wider" style={{ color: C.muted }}>AP</div>
-                  <div className="font-mono text-sm" style={{ color: C.brass }}>{cap.me.ap.current}/{cap.me.ap.cap}</div>
-                </div>
-              )}
-              {isAdmin && (
-                <button onClick={forceTick} disabled={advancing} className="text-[10px] font-mono uppercase tracking-wider px-2 py-1.5 rounded border disabled:opacity-50" style={{ borderColor: 'rgba(147,51,234,0.5)', color: '#D8B4FE' }} title="Admin only: run the next politics month now">
-                  {advancing ? '…' : '⚡ Tick'}
-                </button>
-              )}
-            </div>
+            )}
           </div>
-        </div>
-        {/* ── Tabs ── */}
-        <nav className="relative max-w-7xl mx-auto px-2 sm:px-4 overflow-x-auto" aria-label="Politics sections">
-          <div className="flex gap-1 min-w-max">
-            {TABS.map((t, i) => (
-              <React.Fragment key={t.id}>
-                {t.legacy && !TABS[i - 1]?.legacy && <span className="w-px my-2 mx-1" style={{ background: C.line }} />}
-                <button
-                  id={`tab-${t.id}`}
-                  type="button"
-                  onClick={() => setTab(t.id)}
-                  className="px-3 py-2.5 text-[13px] font-semibold transition-colors relative"
-                  style={{ color: tab === t.id ? C.ivory : C.muted }}
-                >
-                  {t.label}
-                  {tab === t.id && <span className="absolute left-2 right-2 bottom-0 h-0.5 rounded-full" style={{ background: C.brass }} />}
-                </button>
-              </React.Fragment>
+          <nav className="flex gap-1 mt-3 -mb-px overflow-x-auto" aria-label="Politics sections">
+            {TABS.map(t => (
+              <button key={t.id} id={`tab-${t.id}`} type="button" onClick={() => setTab(t.id)}
+                className="px-4 py-2.5 text-sm font-semibold whitespace-nowrap"
+                style={{ color: tab === t.id ? T.text : T.faint, borderBottom: `2px solid ${tab === t.id ? T.accent : 'transparent'}` }}>
+                {t.label}
+                {t.id === 'desk' && pending > 0 && <span className="ml-1.5 inline-flex items-center justify-center rounded-full text-[10px] font-bold px-1.5 min-w-[18px] h-[18px]" style={{ background: T.accent, color: '#17130A' }}>{pending}</span>}
+              </button>
             ))}
-          </div>
-        </nav>
+            {isAdmin && (
+              <span className="ml-auto self-center hidden sm:inline">
+                <Btn small kind="quiet" onClick={forceTick} disabled={busy} title="Admin only: end the politics month now" id="admin-tick">⚡ End month</Btn>
+              </span>
+            )}
+          </nav>
+        </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-5">
-        {!cap && !error && (
-          <div className="py-24 text-center text-xs uppercase tracking-[0.3em]" style={{ color: C.muted }}>Convening Parliament…</div>
-        )}
-        {error && !cap && (
-          <div className="rounded-xl p-5 text-sm" style={{ background: 'rgba(194,72,63,0.08)', border: '1px solid rgba(194,72,63,0.35)', color: '#E88C84' }}>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-5">
+        {!desk && !error && <div className="py-24 text-center text-xs uppercase tracking-[0.3em]" style={{ color: T.faint }}>Opening the session…</div>}
+        {error && !desk && (
+          <div className="rounded-2xl p-5 text-sm" style={{ background: T.badSoft, border: `1px solid ${T.bad}` }}>
             Couldn&apos;t load politics: {String((error as any)?.response?.data?.error || (error as any)?.message || error)}
             <button className="ml-3 underline" onClick={() => mutate()}>Retry</button>
           </div>
         )}
-        {cap && (
-          <TabErrorBoundary key={tab} tab={tab}>
-            {tab === 'overview' && <OverviewTab cap={cap} go={go} />}
-            {tab === 'nation' && <NationTab cap={cap} />}
-            {tab === 'parliament' && <ParliamentTab cap={cap} refresh={refresh} />}
-            {tab === 'laws' && <LawsTab cap={cap} refresh={refresh} />}
-            {tab === 'elections' && <ElectionsTab cap={cap} go={go} />}
-            {legacyOpen && !overview && <div className="py-16 text-center text-xs" style={{ color: C.muted }}>Loading…</div>}
-            {tab === 'campaign' && overview && <ElectionsScreen {...(legacyProps as any)} />}
-            {tab === 'party' && overview && <PartyScreen {...(legacyProps as any)} />}
-            {tab === 'lobby' && overview && <LobbyScreen {...(legacyProps as any)} />}
-            {tab === 'legacy' && character && <LegacyScreen character={character} />}
-          </TabErrorBoundary>
+        {desk && api && (
+          <FloorContext.Provider value={api}>
+            {freshElection && (
+              <button type="button" onClick={openElection} id="election-banner"
+                className="w-full text-left rounded-2xl p-4 mb-4 flex items-center justify-between gap-3"
+                style={{ background: T.accentSoft, border: `1px solid ${T.accent}` }}>
+                <span>
+                  <span className="block text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: T.accent }}>The results are in</span>
+                  <span className="font-serif text-lg font-bold" style={{ color: T.text }}>Drennia has voted. Watch election night.</span>
+                </span>
+                <Chip color={T.accent} filled>Watch</Chip>
+              </button>
+            )}
+            <ViewBoundary key={tab}>
+              {tab === 'desk' && <DeskView />}
+              {tab === 'chamber' && <ChamberView />}
+              {tab === 'voters' && <VotersView onReplay={openElection} />}
+              {tab === 'party' && <PartyView />}
+            </ViewBoundary>
+            {electionOpen && el && <ElectionNight onClose={() => setElectionOpen(false)} />}
+          </FloorContext.Provider>
         )}
       </main>
+
+      {toast && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-5 z-[60] max-w-[92vw] sm:max-w-lg rounded-xl px-4 py-3 text-sm shadow-2xl" role="status" id="toast"
+          style={{ background: T.raised, border: `1px solid ${toast.ok ? T.good : T.bad}`, color: T.text }}>
+          {toast.text}
+        </div>
+      )}
     </div>
   );
 }

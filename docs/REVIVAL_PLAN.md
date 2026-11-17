@@ -370,3 +370,23 @@ The older detailed screens (campaign desk, party HQ, lobby, legacy) are kept as 
 - Party *popularity* (moved by scandals and media) still doesn't feed into polls or elections. It's the obvious next link.
 - Press-law tags make conservative parties keen on state media; review the `POLICY_CATALOG` tags.
 - The stale politics test files (they need a database) should be repaired and joined to CI.
+
+## Politics redesign status: "The Floor" (2026-11-17)
+
+Full write-up: `docs/POLITICS_FLOOR.md`. Short version: the nine-tab Political Desk is replaced by
+four screens (Desk, Chamber, Voters, Party) around one loop: a monthly hand of decisions, your own
+vote on every bill, deals that create favours, and one number (support with each voter group) that
+everything moves and elections read.
+
+**Checked on a fresh local database with two scripted players:** decisions resolve and cannot be
+re-rolled; joining a party seats you at once; rallies show diminishing returns; a backbencher's
+rebel vote changed a 108-43 count to 109-42 and made the news; a passed law moved every party's
+support; a player-to-player deal was accepted, then broken, costing 10 trust and a 12-month ban on
+deals; a deal with a computer-run party was kept and left a favour owed; governments now form with
+79 of 151 seats instead of 108. Backend and frontend type-checks pass; 99 required tests pass.
+
+**Not done / next:**
+- Tune the numbers in `constants/floor.ts` after a real playtest.
+- The older subsystems (factions, interest groups, media, scandals, legacy, lobbying, tenders)
+  still tick but have no screen. Re-surface them one at a time through support, or remove them.
+- A first-session tutorial, and sound/animation polish.

@@ -100,6 +100,8 @@ import {
   runStatecraftMonth, computeApproval, approvalVoteMultiplier, billTitle,
 } from './statecraft.service';
 import { getNationForPolState, NPC_MACHINE_EFFORT } from '../constants/nations';
+import { supportEffortByParty } from './support.store';
+import { billVotePlan, loadVoteShared, npcCallFavours, runFloorMonth, settleBillPolitics } from './floor.service';
 
 /**
  * Convert a world_clock row into a MONOTONIC absolute month ("arc").
@@ -661,6 +663,11 @@ export async function buildEngineCandidates(trx: any, cycleId: string, maxArc?: 
   }
   const actions = await actionsQuery;
 
+  // The Floor: every party's support with each voter group counts as campaign
+  // effort for all of its candidates (docs/POLITICS_FLOOR.md).
+  const cycleRow = await trx('pol_cycles').where({ id: cycleId }).select('state_id').first();
+  const supportEffort = cycleRow ? await supportEffortByParty(trx, cycleRow.state_id) : {};
+
   const engineCandidates: EngineCandidate[] = [];
 
   for (const c of cands) {
@@ -690,11 +697,11 @@ export async function buildEngineCandidates(trx: any, cycleId: string, maxArc?: 
       }
     }
 
-    // Baseline campaign effort for NPCs so they aren't completely devoid of Reach
-    if (c.is_npc) {
-      for (const seg of SEGMENTS) {
-        effortBySegment[seg.key] += NPC_MACHINE_EFFORT;
-      }
+    // Every candidate gets the party machine's baseline effort (a player who
+    // stands in person must never do worse than the computer-run candidate
+    // they replaced), plus their party's support with each voter group.
+    for (const seg of SEGMENTS) {
+      effortBySegment[seg.key] += NPC_MACHINE_EFFORT + (supportEffort[c.party_id]?.[seg.key] ?? 0);
     }
 
     engineCandidates.push({
@@ -882,8 +889,15 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
   await awardTenders(trx, stateId, currentMonth);
   await settleTenders(trx, stateId, currentMonth);
 
+  // The Floor: support fades toward its natural level, old decisions expire.
+  // Runs before the monthly poll so the poll reflects this month's politics.
+  await runFloorMonth(trx, stateId, currentMonth);
+
   // Phase 2: computer-run lawmaking, ministers' pay, monthly poll + approval.
   await runStatecraftMonth(trx, stateId, currentMonth);
+
+  // Computer-run parties call in the favours they are owed on their open bills.
+  await npcCallFavours(trx, stateId, currentMonth, await getGovernment(trx, stateId), await getLawsInForce(trx, stateId));
 }
 
 async function runNpcCampaignBrain(trx: any, stateId: string, cycleId: string, currentMonth: number) {
@@ -1260,6 +1274,20 @@ export async function processGovernmentFormation(trx: any, cycle: any, currentMo
         // Invite player party if distance is reasonable
         if (dist <= POL_COALITION_MAX_DISTANCE) {
           invited.add(other.id);
+        }
+      }
+    }
+
+    // Minimal winning coalition: once a majority is reached, drop any partner
+    // the government does not need (farthest in ideology first). Nearest-first
+    // invitations used to produce 108-seat grand coalitions that could pass
+    // anything, which left the opposition, rebels and deals with no purpose.
+    if (currentSeats >= majoritySeats) {
+      const partners = others.filter((o: any) => accepted.has(o.id)).reverse();
+      for (const partner of partners) {
+        if (currentSeats - partner.seats >= majoritySeats) {
+          accepted.delete(partner.id);
+          currentSeats -= partner.seats;
         }
       }
     }
@@ -1651,63 +1679,15 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
   const gov = await getGovernment(trx, stateId);
   const laws = await getLawsInForce(trx, stateId);
 
+  const voteShared = await loadVoteShared(trx, stateId, gov, laws);
+
   for (const bill of proposedBills) {
-    const votes = await trx('pol_bill_votes').where({ bill_id: bill.id });
-    
-    // Auto-vote for NPCs if they haven't voted
-    const votedParties = new Set<string>();
-    for (const v of votes) {
-      const pm = await trx('pol_party_members').where({ character_id: v.character_id, role: 'leader' }).first();
-      if (pm) votedParties.add(pm.party_id);
-    }
-
-    // ── Coercion overrides: applied BEFORE NPC auto-vote and coalition logic ──
-    // coercion_vote_overrides maps character_id → 'yea'|'nay'.
-    // Only applied if that character hasn't already voted naturally in pol_bill_votes.
-    // _coerced flag is in-memory only; audit trail lives in pol_bill_coercion_actions.
-    const coercionOverrides: Record<string, 'yea' | 'nay'> =
-      typeof bill.coercion_vote_overrides === 'string'
-        ? safeParseJSON(bill.coercion_vote_overrides)
-        : (bill.coercion_vote_overrides ?? {});
-
-    const naturallyVotedCharIds = new Set<string>(votes.map((v: any) => v.character_id));
-    for (const [targetCharId, forcedVote] of Object.entries(coercionOverrides)) {
-      if (!naturallyVotedCharIds.has(targetCharId)) {
-        votes.push({
-          bill_id: bill.id,
-          character_id: targetCharId,
-          vote: forcedVote,
-          _coerced: true,
-        });
-        naturallyVotedCharIds.add(targetCharId);
-      }
-    }
-
-    // Every seated party whose leader hasn't voted casts a bloc vote by its
-    // ideology (computer-run parties always; human parties when the leader is
-    // away), with government whipping and opposition scepticism applied.
-    // Previously: government = always yes, opposition = always no.
-    const allParties = await trx('pol_parties').where({ state_id: stateId });
-    const autoVotes = await projectPartyVotes(trx, bill, allParties, gov, laws, votedParties);
-    for (const [partyId, vote] of Object.entries(autoVotes)) {
-      votes.push({ bill_id: bill.id, character_id: 'system', vote, _npc_party_id: partyId });
-    }
-
-    let yeas = 0;
-    let nays = 0;
-
-    for (const v of votes) {
-      let pId = (v as any)._npc_party_id;
-      if (!pId && v.character_id !== 'system') {
-        const pm = await trx('pol_party_members').where({ character_id: v.character_id, role: 'leader' }).first();
-        if (pm) pId = pm.party_id;
-      }
-      if (pId) {
-        const pSeats = seatCounts[pId] || 0;
-        if (v.vote === 'yea') yeas += pSeats;
-        if (v.vote === 'nay') nays += pSeats;
-      }
-    }
+    // The Floor: one shared rule decides how Parliament votes (leaders set the
+    // party line, promises bind, MPs with their own seat may rebel), so the
+    // whip count players see beforehand is exactly what is counted here.
+    const plan = await billVotePlan(trx, bill, voteShared);
+    const yeas = plan.tally.yea;
+    const nays = plan.tally.nay;
 
     const proposerParty = await trx('pol_parties').where({ id: bill.proposed_by_party_id }).first();
     const leaderId = proposerParty?.leader_character_id || null;
@@ -1801,6 +1781,9 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
         `Failing to secure a majority, the ${bill.type.replace('_', ' ')} bill proposed by ${proposerParty.name} was blocked by the opposition.`
       );
     }
+
+    // Rebels, promises kept or broken, and how voters react to the result.
+    await settleBillPolitics(trx, bill, plan, yeas > nays, currentMonth, voteShared);
   }
 }
 
