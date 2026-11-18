@@ -128,3 +128,19 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Tiers are absolute score thresholds (RATING_TIERS), not rank positions.
 - The three nations' starting ratings must stay within RATING_BALANCE_TOLERANCE and in the same tier (tests enforce it), measured on base stats: founding laws have no pol_active_policies rows and do not move stats.
 - A nation's sector shares are NATION_ECONOMIES (keyed by pol_states.code). A new nation needs an entry there too.
+- The world steps together (stepNationSims): trade needs every nation at once. Each nation is still written in its own savepoint.
+- Tariffs move jobs ONLY through the trade model (computeTrade). Never add tariff effects to LAW_JOB_EFFECTS (that would count them twice). Trade and tariff effects are measured against each nation's founding tariffs.
+- Only the head of government or the finance minister (BUDGET_MINISTER_POST) sets the budget split, once a month (setBudget). A stored split applies only while its author holds one of those offices; otherwise npcSplit from the lead party's platform. Computer splits stay within NPC_BUDGET_MAX_SHIFT of even.
+- Budget programmes must stay a trade-off: a test keeps an all-in split within 1 rating point of the even split.
+
+## Diplomacy (relations, treaties) — Operational Rules (DO NOT BREAK)
+- Design and status: docs/NATIONS_SIMULATION.md (layer 5). Numbers in constants/diplomacy.ts; pure rules in services/diplomacy.rules.ts with tests in tests/diplomacy.test.ts.
+- A treaty is ratified ONLY through an ordinary pol_bills row (type 'treaty', params.category TREATY_CATEGORY, option '<kind>:<partner code>'), counted by billVotePlan + tallyBill. Never count treaty votes anywhere else. politics.service calls resolveTreatyVote (in a savepoint) when the bill is decided.
+- billTitle and changeDesirability (statecraft.service.ts) understand treaty bills; route any new bill-like thing through them the same way instead of special-casing call sites.
+- Only the head of government proposes or ends treaties. diplomacy.service must not import politics.service.
+- Relations are written only by diplomacy.service (stepDiplomacy once per month, and treaty events). stepDiplomacy runs before stepNationSims so trade sees this month's treaties.
+- Treaty effects on trade go through TradeEntry.links in computeTrade; on the rating through DiplomacyInput. Do not add a second path.
+
+## Nation tab layout — Operational Rules (DO NOT BREAK)
+- The Nation tab is sections (Standing, Economy, Budget, Foreign affairs, Government), not one long page. New nation features go in the section they belong to; if one section grows past about one desktop screen, split it rather than stacking more panels.
+- Decisions that need a player (budget, treaties offered) get a Desk reminder that jumps to the section with go('nation:<section>'); the decision itself stays in its section.

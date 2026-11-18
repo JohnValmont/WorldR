@@ -1,13 +1,15 @@
 /**
- * Nations simulation (docs/NATIONS_SIMULATION.md, layers 1 and 2): people, jobs,
- * sectors, buildings and the world rating. Pure rules only, ratio-based.
+ * Nations simulation (docs/NATIONS_SIMULATION.md): people, jobs, sectors,
+ * buildings (layers 1-2), the national budget (layer 3), trade between nations
+ * (layer 4) and the world rating. Pure rules only, ratio-based.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import * as R from '../src/api/services/nationSim.rules';
 import {
-  GDP_REFERENCE_YEARLY, GDP_SIZE_PER_DOUBLING, LAW_JOB_EFFECTS, MAX_POPULATION_CHANGE, NATION_ECONOMIES, PILLAR_WEIGHTS,
-  RATING_BALANCE_TOLERANCE, RATING_TIERS, SECTORS, UNEMPLOYMENT_MAX, UNEMPLOYMENT_MIN,
+  BASE_SPLIT, DEBT_CEILING_RATIO, DEBT_SAFE_RATIO, DISCRETIONARY_SHARE, GDP_REFERENCE_YEARLY, GDP_SIZE_PER_DOUBLING,
+  LAW_JOB_EFFECTS, LAW_SPENDING, MAX_POPULATION_CHANGE, NATION_ECONOMIES, PILLAR_WEIGHTS, PROGRAMMES, RATING_BALANCE_TOLERANCE,
+  RATING_TIERS, SECTORS, TARIFF_RATES, TRADABLE_SECTORS, TRADE_MULT_MAX, UNEMPLOYMENT_MAX, UNEMPLOYMENT_MIN,
 } from '../src/api/constants/nationSim';
 import { DEFAULT_LAWS, STARTER_NATIONS } from '../src/api/constants/nations';
 import { NATIONAL_STATS, POLICY_CATALOG } from '../src/api/constants/macroEconomy';
@@ -111,11 +113,6 @@ describe('Jobs react to the economy and the law', () => {
     assert.ok(w.jobs.retail / normal.jobs.retail < 0.95);
     assert.ok(w.unemployment > normal.unemployment);
   });
-  it('protection trades shop jobs for factory jobs', () => {
-    const p = after(24, { laws: { tariffs: 'high' } });
-    assert.ok(p.jobs.manufacturing > normal.jobs.manufacturing);
-    assert.ok(p.jobs.retail < normal.jobs.retail);
-  });
   it('tight money slows building', () => {
     const t = after(24, { laws: { interest_rate: 'tight' } });
     assert.ok(t.jobs.construction / normal.jobs.construction < 0.95);
@@ -188,5 +185,162 @@ describe('World rating', () => {
   it('buildings follow the workforce', () => {
     const m = after(0);
     for (const s of SECTORS) assert.ok(m.buildings[s] > 0, `${s} has no buildings`);
+  });
+});
+
+// ─── Three nations together (trade needs partners) ──────────────────────────
+
+type Change = { laws?: Record<string, string>; split?: R.Split };
+/** Run the whole world for `months`, each nation from its normal start, with optional changes per nation (by pol_states.code). */
+function worldAfter(months: number, changes: Record<string, Change> = {}) {
+  const ctxOf = (n: (typeof STARTER_NATIONS)[number]): R.NationSimContext => {
+    const f = founding(n);
+    const c = changes[n.polStateCode] ?? {};
+    return { ...f, laws: { ...f.laws, ...(c.laws ?? {}) }, split: c.split };
+  };
+  let states = STARTER_NATIONS.map(n => R.initialState(founding(n)) as R.NationSimState);
+  let months_: R.NationSimMonth[] = [];
+  for (let m = 0; m < months; m++) {
+    const ctxs = STARTER_NATIONS.map(ctxOf);
+    const trade = R.computeTrade(STARTER_NATIONS.map((n, i) => ({
+      code: n.polStateCode, structural: R.structuralOutput(ctxs[i], states[i].population),
+      tariffs: R.tariffRates(ctxs[i].laws), foundingTariffs: R.tariffRates(R.foundingLaws(n.polStateCode)),
+    })));
+    months_ = STARTER_NATIONS.map((n, i) => R.stepMonth(states[i], { ...ctxs[i], trade: trade[n.polStateCode] }));
+    states = months_;
+  }
+  return Object.fromEntries(STARTER_NATIONS.map((n, i) => [n.polStateCode, months_[i]])) as Record<string, R.NationSimMonth>;
+}
+
+describe('Layer 4: trade between nations', () => {
+  const normal = worldAfter(24);
+
+  it('every tariff option sets a rate for every traded sector', () => {
+    for (const [opt, rates] of Object.entries(TARIFF_RATES)) {
+      for (const s of TRADABLE_SECTORS) assert.ok(typeof rates[s] === 'number', `${opt}.${s}`);
+    }
+  });
+  it('trade adds up: what the world exports, the world imports', () => {
+    const total = Object.values(normal).reduce((a, m) => a + m.trade.balance, 0);
+    const volume = Object.values(normal).reduce((a, m) => a + Math.abs(m.trade.balance), 0);
+    assert.ok(Math.abs(total) <= volume * 0.001 + 2, `net world balance ${total}`);
+  });
+  it('the nations really trade: Westmark imports goods, Eryndor exports them', () => {
+    assert.ok(normal.westmark.trade.balance < 0);
+    assert.ok(normal.eryndor.trade.balance > 0);
+  });
+  it('at the founding tariffs trade changes nothing at home', () => {
+    for (const m of Object.values(normal)) {
+      for (const s of TRADABLE_SECTORS) assert.strictEqual(m.trade.mult[s], 1);
+      assert.strictEqual(m.trade.efficiency, 1);
+      for (const v of Object.values(m.trade.consumerMult)) assert.strictEqual(v, 1);
+    }
+  });
+  it('an importer that raises tariffs gains factory jobs and revenue; its supplier loses factory jobs', () => {
+    const w = worldAfter(24, { westmark: { laws: { tariffs: 'high' } } });
+    assert.ok(w.westmark.jobs.manufacturing / normal.westmark.jobs.manufacturing > 1.05);
+    assert.ok(w.westmark.trade.tariffRevenue > normal.westmark.trade.tariffRevenue);
+    assert.ok(w.eryndor.jobs.manufacturing / normal.eryndor.jobs.manufacturing < 0.97);
+    assert.ok(w.eryndor.unemployment > normal.eryndor.unemployment);
+  });
+  it('protection costs at home: dearer goods cut shop jobs and protected work is less efficient', () => {
+    const w = worldAfter(24, { westmark: { laws: { tariffs: 'high' } } });
+    assert.ok(w.westmark.jobs.retail < normal.westmark.jobs.retail);
+    assert.ok(w.westmark.trade.efficiency < 1);
+  });
+  it('a tariff on goods a nation does not import does nothing (Eryndor exports everything it trades)', () => {
+    const w = worldAfter(24, { eryndor: { laws: { tariffs: 'free_trade' } } });
+    assert.ok(Math.abs(w.eryndor.gdpYearly / normal.eryndor.gdpYearly - 1) < 0.001);
+    assert.strictEqual(w.eryndor.jobs.retail, normal.eryndor.jobs.retail);
+  });
+  it('opening up helps an importer\'s shoppers', () => {
+    const w = worldAfter(24, { national: { laws: { tariffs: 'free_trade' } } });
+    assert.ok(w.national.jobs.retail >= normal.national.jobs.retail);
+    assert.ok(w.national.trade.efficiency >= 1);
+  });
+  it('trade effects are capped', () => {
+    const w = worldAfter(12, { westmark: { laws: { tariffs: 'high' } }, national: { laws: { tariffs: 'high' } } });
+    for (const m of Object.values(w)) for (const s of TRADABLE_SECTORS) assert.ok((m.trade.mult[s] ?? 1) <= TRADE_MULT_MAX);
+  });
+});
+
+describe('Layer 3: the national budget', () => {
+  const laws = R.foundingLaws('national');
+
+  it('every spending law option has a cost', () => {
+    for (const [cat, opts] of Object.entries(LAW_SPENDING)) {
+      const def = POLICY_CATALOG.find(c => c.id === cat);
+      assert.ok(def, `unknown law ${cat}`);
+      for (const o of def!.options) assert.ok(typeof opts[o.id] === 'number', `no cost for ${cat}.${o.id}`);
+    }
+  });
+  it('a split must be shares between 0 and 1 that add up to at most the whole', () => {
+    assert.ok('error' in R.validateSplit({ industry: 0.6, welfare: 0.6, interior: 0, defence: 0 }));
+    assert.ok('error' in R.validateSplit({ industry: -0.1, welfare: 0, interior: 0, defence: 0 }));
+    assert.ok('error' in R.validateSplit(null));
+    const ok = R.validateSplit({ industry: 0.5, welfare: 0.2, interior: 0.1, defence: 0.1 });
+    assert.ok('split' in ok);
+  });
+  it('the base split changes nothing', () => {
+    assert.deepStrictEqual(Object.values(R.programmeJobMult(BASE_SPLIT)).filter(v => v !== 1), []);
+    assert.deepStrictEqual(Object.values(R.programmePillarBonus(BASE_SPLIT)).filter(v => Math.abs(v) > 1e-9), []);
+  });
+  it('a computer government spends the whole budget and never goes to extremes', () => {
+    for (const platform of [{ labour: 100, investment: 0, stability: 0 }, { labour: 0, investment: 100, stability: 100 }, undefined]) {
+      const s = R.npcSplit(platform as any);
+      const sum = PROGRAMMES.reduce((a, p) => a + s[p], 0);
+      assert.ok(Math.abs(sum - 1) < 0.01, `sums to ${sum}`);
+      for (const p of PROGRAMMES) assert.ok(Math.abs(s[p] - BASE_SPLIT[p]) <= 0.16, `${p} ${s[p]}`);
+    }
+  });
+  it('moving money is a trade-off: more for defence means less for the other programmes', () => {
+    const b = R.programmePillarBonus({ industry: 0.1, welfare: 0.1, interior: 0.1, defence: 0.7 });
+    assert.ok((b.military ?? 0) > 0);
+    assert.ok((b.people ?? 0) < 0 && (b.stability ?? 0) < 0 && (b.industry ?? 0) < 0);
+  });
+  it('saving the whole programme budget cuts the deficit by exactly that budget', () => {
+    const gdp = 300e9, debt = 150e9;
+    const spend = R.budgetMonth({ gdpYearly: gdp, laws, debt, split: BASE_SPLIT, tariffRevenueMonthly: 0 });
+    const save = R.budgetMonth({ gdpYearly: gdp, laws, debt, split: { industry: 0, welfare: 0, interior: 0, defence: 0 }, tariffRevenueMonthly: 0 });
+    assert.ok(Math.abs((spend.deficit - save.deficit) / (DISCRETIONARY_SHARE * gdp) - 1) < 0.001);
+  });
+  it('a month adds one twelfth of the yearly deficit to the debt', () => {
+    const b = R.budgetMonth({ gdpYearly: 300e9, laws, debt: 150e9, split: BASE_SPLIT, tariffRevenueMonthly: 0 });
+    assert.ok(Math.abs((b.debt - 150e9) / (b.deficit / 12) - 1) < 0.001);
+  });
+  it('higher taxes raise more', () => {
+    assert.ok(R.taxShare({ ...laws, income_tax: 'flat_high' }) > R.taxShare(laws));
+  });
+  it('tariff revenue goes into the budget', () => {
+    const a = R.budgetMonth({ gdpYearly: 300e9, laws, debt: 0, split: BASE_SPLIT, tariffRevenueMonthly: 0 });
+    const b = R.budgetMonth({ gdpYearly: 300e9, laws, debt: 0, split: BASE_SPLIT, tariffRevenueMonthly: 1e9 });
+    assert.strictEqual(b.revenue - a.revenue, 12e9);
+  });
+  it('over the debt ceiling nobody lends: programmes are cut to what taxes leave', () => {
+    const b = R.budgetMonth({ gdpYearly: 100e9, laws: { ...laws, welfare: 'ubi_full', income_tax: 'none' }, debt: (DEBT_CEILING_RATIO + 0.1) * 100e9, split: BASE_SPLIT, tariffRevenueMonthly: 0 });
+    assert.ok(b.funded < 1);
+  });
+  it('debt only hurts the Economy score above the safe line', () => {
+    assert.strictEqual(R.debtPenalty(DEBT_SAFE_RATIO), 0);
+    assert.ok(R.debtPenalty(DEBT_SAFE_RATIO + 0.5) > 0);
+  });
+  it('putting everything into one programme is not a free win (rating within 1 point after two years)', () => {
+    const normal = worldAfter(24);
+    const allIn = worldAfter(24, { national: { split: { industry: 1, welfare: 0, interior: 0, defence: 0 } } });
+    assert.ok(Math.abs(allIn.national.rating.score - normal.national.rating.score) <= 1, `${normal.national.rating.score} -> ${allIn.national.rating.score}`);
+    assert.ok(allIn.national.unemployment < normal.national.unemployment, 'but it does create jobs');
+  });
+  it('spending far beyond your means ends in collapse (UBI with no income tax, ten years)', () => {
+    const w = worldAfter(120, { national: { laws: { welfare: 'ubi_full', income_tax: 'none' } } });
+    assert.ok(w.national.budget.debtRatio > DEBT_CEILING_RATIO);
+    assert.ok(w.national.rating.score < 40, `${w.national.rating.score}`);
+  });
+  it('the three nations start with different books but none is in crisis', () => {
+    const w = worldAfter(1);
+    for (const m of Object.values(w)) {
+      assert.ok(m.budget.deficit / m.gdpYearly < 0.05, `deficit ${m.budget.deficit / m.gdpYearly}`);
+      assert.ok(m.budget.debtRatio < DEBT_SAFE_RATIO);
+    }
+    assert.ok(new Set(Object.values(w).map(m => Math.sign(m.budget.deficit))).size > 1, 'some run surpluses, some deficits');
   });
 });

@@ -1,7 +1,8 @@
 # Nations Simulation
 
-Status (2026-11-18): **layers 1 and 2 and the world rating are built** (see "Built: layers 1-2"
-below). Layers 3-6 are still design only. Every number lives in a constants file (AGENTS.md).
+Status (2026-11-18): **layers 1-5 and the world rating are built** (see the "Built" sections
+below). Layer 6 (exchange rates) is still design only. Every number lives in a constants file
+(AGENTS.md).
 
 ## Goal
 
@@ -193,3 +194,146 @@ and elections.
 `database/migrations/0103_nation_sim.sql` (`nation_sim_months`); tests `tests/nationSim.test.ts`
 (26, in the required CI list); API `GET /world/rankings` and `sim` on `GET /world/nations`;
 screen `_floor/NationView.tsx` (World ranking cards and "The economy of ...").
+
+## Built: layers 3-4 (2026-11-18)
+
+### Layer 3: the national budget
+
+Every month each nation keeps books (yearly rates, in dollars):
+
+- **Money in** = GDP x tax take (set by the income tax and company tax laws, plus 6% other taxes)
+  + tariff money from layer 4.
+- **Money out** = what the spending laws commit (welfare, healthcare, schools, defence, as a share
+  of GDP) + running the state (3%) + interest on debt (rate set by the interest-rate law)
+  + the **programmes**: 3% of GDP that the government splits four ways.
+- **Debt** grows by one twelfth of the yearly deficit each month. Above 90% of GDP it drags the
+  Economy score (2 points per 10% above). Above 200% nobody lends: programmes get only what taxes
+  leave over.
+
+**The programmes** (Industry & building, Health & welfare, Police & courts, Armed forces). A quarter
+each is neutral. More for one means less for the others, and money left unallocated is saved (it
+cuts the deficit). Industry adds construction and factory jobs; the other three lift the People,
+Stability and Military scores.
+
+**Who decides.** The head of government or the finance minister (a player) sets the split on the
+Nation screen: one change a month, effective when the month closes, written to the news. It stays
+in force while its author holds one of those offices. Otherwise the lead party of the government
+decides by its platform (workers' parties lean to welfare, parties of order to police and defence,
+pro-investment parties to industry), held within 0.15 of an even split (`npcSplit`).
+
+**Starting books** (fresh database): Drennia runs a 1.7% deficit with 50% debt; Westmark a 1.4%
+surplus with 58% debt (low welfare and defence); Eryndor a 3.6% deficit with 42% debt (its high
+defence law costs money). Left alone for ten years, Eryndor's debt reaches about 83% (still under
+the 90% line), Drennia's 69%, and Westmark's falls to 40%.
+
+**Modelled:** putting the whole programme budget into industry cuts Drennia's unemployment from
+6.1% to 5.1% but costs People, Stability and Military, for a rating change near zero (a test keeps
+it within 1 point, so no split is a free win). Saving everything turns the deficit into a surplus
+but costs about 3.6 rating points. Universal basic income with no income tax runs a 27% deficit,
+passes 200% debt within ten years and drops Drennia to Minor state (37.7).
+
+### Layer 4: trade between nations
+
+Farm goods, factory goods and energy are traded. Each nation uses its share of the world's output
+(by GDP); what it lacks it buys from nations with spare, shared out by how much spare each has.
+
+- **Tariffs** (the Trade Tariffs law: free trade 0%, moderate 10%, targeted 20% on factory goods,
+  high 25%) mean fewer imports bought (1.5 x tariff fewer, never below 20% of the shortfall). The
+  rest is made at home (more jobs there), suppliers lose those sales (fewer jobs there), and the
+  importer collects tariff money.
+- **Costs at home** come only from goods the nation actually lacks: shoppers pay the tariff on the
+  whole shortfall (shop and service jobs fall), and protected work is less efficient (output per
+  worker falls). A tariff on goods a nation does not import does nothing.
+- Every effect is measured against the nation's **founding** tariffs, so the starting numbers are
+  unchanged and only later changes move jobs.
+
+**At the start:** Westmark imports about $36B a year (factory goods, food, energy), Eryndor exports
+about $34B, and Drennia is roughly balanced. The world's trade adds up to zero.
+
+**Modelled (24 months):** Westmark going to high tariffs adds 18% factory jobs there (unemployment
+6.6% to 4.9%) and $5.6B a year in tariff money, and costs Eryndor 6% of its factory jobs
+(unemployment 6.1% to 8.7%). That is a real beggar-thy-neighbour weapon. Passing the law also
+costs Westmark prosperity and global standing through the law's existing stat effects. Eryndor
+going to free trade changes nothing, because it imports none of these goods.
+
+**Seen on a fresh database:** the computer-run parliaments changed tariffs on their own (Drennia
+passed Free Trade 79-72 in month 3) and trade responded: Drennia's tariff money fell to zero, its
+farm and energy jobs fell about 2% from extra imports, and Eryndor's exports rose.
+
+### Not done, and why
+
+- **Car companies do not export yet.** Car sales still use Drennia's markets only; Westmark and
+  Eryndor have no car markets. Trade here is national (aggregate), not company by company.
+  Company exports need per-nation car markets first and must go through the locked demand engine
+  without rewriting it.
+- **Treaties and relations (layer 5).** There is no way yet to agree lower tariffs with one nation
+  only, or to retaliate except by changing your own tariff law. Tariffs apply to everyone equally.
+- **Still read-only.** Budget, debt and trade feed the rating, not approval or elections.
+- **Numbers are modelled, not played.**
+
+### Files (layers 3-4)
+
+Constants: `constants/nationSim.ts` (layer 3 and layer 4 sections). Rules: `services/nationSim.rules.ts`
+(`budgetMonth`, `npcSplit`, `validateSplit`, `computeTrade`). Monthly step for all nations together
+and the budget decision: `services/nationSim.service.ts` (`stepNationSims`, `setBudget`). Endpoint
+`POST /politics/budget`. Table changes: `database/migrations/0104_nation_budget_trade.sql`
+(`nation_budgets`, and `debt`, `budget`, `trade` on `nation_sim_months`). Tests:
+`tests/nationSim.test.ts` (48). Screen: Budget and Trade panels in `_floor/NationView.tsx`.
+
+## Built: layer 5, diplomacy (2026-11-18)
+
+### Relations
+Every pair of nations has relations from 0 to 100 (50 neutral). Each month they drift 3% of the way
+back to neutral; treaties in force warm them (trade pact +0.6 a month, defence pact +0.8), an
+embargo freezes them (-1.5 a month), and a nation with high tariffs (average above 15%) sours them
+with everyone. Events move them at once: a treaty signed (+8 / +10), an embargo (-20), a treaty
+rejected (-3), walking out of a pact (-10), lifting an embargo (+5).
+
+The Diplomacy score is now 70% global standing and 30% average relations, plus treaty bonuses
+(trade pact +3, defence pact +4, embargo -4). A defence pact also adds 6 to Military.
+
+### Treaties
+| Treaty | What it does | Who must ratify |
+|---|---|---|
+| Trade pact | No tariffs between the two on farm goods, factory goods and energy | The other nation's parliament |
+| Defence pact | Military and Diplomacy bonuses for both | The other nation's parliament |
+| Embargo | No trade at all, either way; ends any pact between them | Your own parliament |
+
+- Only the head of government proposes (3 energy) or ends a treaty (walk out of a pact, lift an
+  embargo you imposed). Pacts need relations of at least 25 and none under an embargo. After a
+  rejection, wait 6 months to try the same treaty again.
+- **Ratification is an ordinary bill**: category `treaty`, option `<kind>:<partner>`. The same vote
+  rule (billVotePlan + tallyBill) counts it, players vote on it in the Chamber, and pacts and
+  favours work on it. Parties judge it by their platform (`treatyLiking`): free traders like trade
+  pacts, parties of order like defence pacts, nobody likes embargoes much.
+- **Computer-led governments** (no player holds the top office) propose their lead party's
+  favourite allowed treaty with a 10% chance a month: pacts only with nations at 45+ relations,
+  embargoes only below 20.
+- In trade, a pact sets the tariff between the two to zero; an embargo blocks the flow both ways,
+  and goods that cannot be bought count as if under a 50% tariff for shoppers and efficiency.
+  Trade diversion (buying more from someone else) is not modelled.
+
+### Seen on a fresh database (16 months, three computer governments and one player head of government)
+The computer governments offered three pacts and a fourth was pending: Westmark-Drennia trade pact
+(passed 79-72), Drennia-Eryndor trade pact (passed), Eryndor-Westmark defence pact (passed); Eryndor
+rejected a Drennia defence pact. The player embargoed Drennia through Westmark's parliament: it
+ended the existing pact, cut Westmark's imports by $6.6B a year, put Drennia's trade into deficit,
+dropped relations from 50 to 38 and cost both nations about a rating point. Lifting it worked. A
+proposal to a nation without a government yet was refused, costing no energy.
+
+### Where things are on screen
+The Nation tab is split into five short sections instead of one long page (each fits in about one
+desktop screen): **Standing** (world ranking, state of the nation, how it works), **Economy**
+(people, jobs, sectors), **Budget** (books and programmes), **Foreign affairs** (relations,
+treaties, trade) and **Government** (decrees, cabinet). A dot marks a section that wants something
+from you. The Desk shows reminders that jump to the right section: set this month's budget, or a
+treaty offered to your nation (whip the vote in the Chamber, where treaty bills sit with the
+others). The last section you opened is remembered on your device.
+
+### Files (layer 5)
+Constants `constants/diplomacy.ts`; rules `services/diplomacy.rules.ts`; service
+`services/diplomacy.service.ts` (`proposeTreaty`, `withdrawTreaty`, `resolveTreatyVote`,
+`stepDiplomacy`, `diplomacyInputs`, `foreignViews`); hooks in `politics.service.ts` (treaty bill
+passed or failed) and `statecraft.service.ts` (`billTitle`, `changeDesirability`); endpoints
+`POST /politics/treaties`, `POST /politics/treaties/:id/withdraw`; table changes
+`database/migrations/0105_diplomacy.sql`; tests `tests/diplomacy.test.ts` (26, required in CI).

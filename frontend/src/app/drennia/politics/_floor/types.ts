@@ -118,7 +118,38 @@ export interface NationSim {
   sectors: { id: string; name: string; jobs: number; jobShare: number; outputYearly: number; outputShare: number; buildings: number; buildingName: string }[];
   rating: number; ratingTrend: number | null; tier: string; tierBlurb: string; rank: number;
   pillars: { id: string; name: string; value: number }[];
-  history: { arc: number; rating: number; unemployment: number; gdpYearly: number; population: number }[];
+  budget: NationBudget;
+  trade: NationTrade;
+  foreign: NationForeign;
+  history: { arc: number; rating: number; unemployment: number; gdpYearly: number; population: number; debtRatio: number | null }[];
+}
+
+/** The state's books (yearly dollars). Read-only except the split, which the head of government or finance minister sets. */
+export interface NationBudget {
+  revenue: number; taxes: number; tariffs: number;
+  spending: number; interest: number; deficit: number; debt: number; debtRatio: number; funded: number;
+  lines: { id: string; name: string; amount: number; kind: 'law' | 'programme' | 'interest' | 'running' }[];
+  saved: number;
+  split: Record<string, number>;
+  splitSource: 'player' | 'computer';
+  splitBy: string | null;
+  setThisMonth: boolean;
+  discretionary: number;
+  programmes: { id: string; name: string; blurb: string; share: number }[];
+}
+
+/** Relations and treaties with the other nations. */
+export interface NationForeign {
+  relations: { code: string; name: string; score: number }[];
+  treaties: { id: string; kind: 'trade_pact' | 'defence_pact' | 'embargo'; name: string; with: string; withName: string; status: 'active' | 'proposed'; since: number | null; imposedByUs: boolean; awaitingVoteIn: string | null }[];
+}
+
+/** Trade with the other nations (yearly dollars). */
+export interface NationTrade {
+  balanceYearly: number;
+  tariffRevenueYearly: number;
+  efficiency: number;
+  sectors: { id: string; name: string; exportsYearly: number; importsYearly: number; tariff: number; jobsEffect: number }[];
 }
 
 export interface NationRow {

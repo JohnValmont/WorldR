@@ -12,6 +12,8 @@
  * the global connection, so they are safe inside the politics tick.
  */
 import { AXES, Platform, SEGMENTS } from '../constants/politics';
+import { TREATY_CATEGORY, TREATY_SPECS } from '../constants/diplomacy';
+import { parseTreatyOption, treatyLiking } from './diplomacy.rules';
 import { getMajorityForState } from '../constants/politics';
 import { POLICY_CATALOG, PolicyOptionDef, NationalStat } from '../constants/macroEconomy';
 import {
@@ -67,6 +69,11 @@ export function findOption(category: string, optionId: string): PolicyOptionDef 
 
 /** How much better (positive) or worse a party finds `proposed` than the law in force. */
 export function changeDesirability(platform: Platform, category: string, currentId: string, proposedId: string): number {
+  // Treaty bills (constants/diplomacy.ts): parties judge the treaty by their platform.
+  if (category === TREATY_CATEGORY) {
+    const t = parseTreatyOption(proposedId);
+    return t ? treatyLiking(platform as any, t.kind) : -1;
+  }
   const cur = findOption(category, currentId);
   const next = findOption(category, proposedId);
   if (!next) return -1;
@@ -365,6 +372,10 @@ export async function getGovernment(trx: any, stateId: string): Promise<Governme
 
 /** Category -> human-friendly bill title. */
 export function billTitle(category: string, option: string): string {
+  if (category === TREATY_CATEGORY) {
+    const t = parseTreatyOption(option);
+    if (t) return `${TREATY_SPECS[t.kind].name} with ${getNationForPolState(t.partner)?.shortName ?? t.partner}`;
+  }
   const cat = POLICY_CATALOG.find(c => c.id === category);
   const opt = cat?.options.find(o => o.id === option);
   return cat && opt ? `${cat.name}: ${opt.name}` : `${category}: ${option}`;

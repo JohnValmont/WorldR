@@ -14,7 +14,7 @@ import ChamberView from './_floor/ChamberView';
 import VotersView from './_floor/VotersView';
 import PartyView from './_floor/PartyView';
 import ElectionNight from './_floor/ElectionNight';
-import NationView from './_floor/NationView';
+import NationView, { NATION_SECTION_KEY } from './_floor/NationView';
 import CorridorsView from './_floor/CorridorsView';
 import MapView from './_floor/MapView';
 import WireView from './_floor/WireView';
@@ -129,7 +129,13 @@ export default function PoliticsPage() {
   }, [mutate, notify]);
 
   const api = useMemo<FloorApi | null>(() => desk ? ({
-    desk, refresh: () => mutate(), act, busy, go: (t: string) => setTab((TABS.find(x => x.id === t)?.id ?? 'desk') as Tab),
+    desk, refresh: () => mutate(), act, busy,
+    // go('nation:budget') opens a tab at one of its sections (the tab reads NATION_SECTION_KEY on mount).
+    go: (target: string) => {
+      const [t, section] = target.split(':');
+      if (section) { try { sessionStorage.setItem(NATION_SECTION_KEY, section); } catch { /* private mode */ } }
+      setTab((TABS.find(x => x.id === t)?.id ?? 'desk') as Tab);
+    },
   }) : null, [desk, mutate, act, busy]);
 
   const openElection = () => {
