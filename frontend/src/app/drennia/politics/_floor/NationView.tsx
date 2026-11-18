@@ -2,8 +2,8 @@
 // Nation: your country among the others, how it is doing, and the powers of office.
 import React from 'react';
 import { politicsApi } from '@/lib/api';
-import type { NationRow } from './types';
-import { Btn, Card, Chip, EffectChips, Label, Meter, PartyDot, T, leaderTitle, statLowerIsBetter, statName, useFloor } from './kit';
+import type { NationRow, NationSim } from './types';
+import { Btn, Card, Chip, EffectChips, Label, Meter, PartyDot, T, leaderTitle, pct, signed, statLowerIsBetter, statName, useFloor } from './kit';
 
 /** A small flag drawn from the nation's recipe (pattern + colours). */
 export function Flag({ flag, width = 44 }: { flag: NationRow['flag']; width?: number }) {
@@ -30,10 +30,34 @@ function PowerBar({ label, value, best }: { label: string; value: number; best: 
   );
 }
 
+/** Big numbers, short: 10.4M, $346B, 1,240. */
+function compact(n: number): string {
+  const a = Math.abs(n);
+  if (a >= 1e12) return `${(n / 1e12).toFixed(2)}T`;
+  if (a >= 1e9) return `${(n / 1e9).toFixed(a >= 1e11 ? 0 : 1)}B`;
+  if (a >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
+  if (a >= 1e4) return `${(n / 1e3).toFixed(0)}k`;
+  return Math.round(n).toLocaleString();
+}
+
+const TIER_COLOR: Record<string, string> = {
+  'Superpower': '#E8B84B', 'Great power': '#C9A2F0', 'Regional power': '#6FB7E8', 'Middle power': '#A3A4AC', 'Minor state': '#6E707A',
+};
+const tierColor = (t: string) => TIER_COLOR[t] ?? T.dim;
+
+function Trend({ value, digits = 1, suffix = '', lowerIsBetter = false }: { value: number | null; digits?: number; suffix?: string; lowerIsBetter?: boolean }) {
+  // Hide changes that would print as zero at this precision.
+  if (value == null || Math.abs(value) < 0.5 * 10 ** -digits) return null;
+  const good = lowerIsBetter ? value < 0 : value > 0;
+  return <span className="text-[11px] font-mono" style={{ color: good ? T.good : T.bad }}>{value > 0 ? '▲' : '▼'} {signed(value, digits)}{suffix}</span>;
+}
+
 function World() {
   const { desk } = useFloor();
-  const nations = [...desk.desk.world].sort((a, b) => b.power.overall - a.power.overall || a.name.localeCompare(b.name));
-  const best = (k: 'economy' | 'military' | 'influence') => Math.max(...nations.map(n => n.power[k]));
+  const score = (n: NationRow) => n.sim?.rating ?? n.power.overall;
+  const nations = [...desk.desk.world].sort((a, b) => score(b) - score(a) || a.name.localeCompare(b.name));
+  const best = (id: string) => Math.max(...nations.map(n => n.sim?.pillars.find(p => p.id === id)?.value ?? 0));
+  const bestPower = (k: 'economy' | 'military' | 'influence') => Math.max(...nations.map(n => n.power[k]));
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
       {nations.map((n, i) => (
@@ -45,15 +69,32 @@ function World() {
               <div className="text-[11px] truncate" style={{ color: T.faint }}>{n.government} · {n.legislatureName}</div>
             </div>
             <div className="text-right shrink-0">
-              <div className="font-serif text-2xl font-bold leading-none" style={{ color: i === 0 ? T.accent : T.text }}>{n.power.overall}</div>
-              <div className="text-[10px] uppercase tracking-wider" style={{ color: T.faint }}>power</div>
+              <div className="font-serif text-2xl font-bold leading-none" style={{ color: i === 0 ? T.accent : T.text }}>{n.sim ? n.sim.rating.toFixed(1) : n.power.overall}</div>
+              <div className="text-[10px] uppercase tracking-wider" style={{ color: T.faint }}>{n.sim ? `#${n.sim.rank} · of 100` : 'power'}</div>
             </div>
           </div>
-          <div className="mt-3 space-y-1.5">
-            <PowerBar label="Economy" value={n.power.economy} best={n.power.economy === best('economy')} />
-            <PowerBar label="Military" value={n.power.military} best={n.power.military === best('military')} />
-            <PowerBar label="Influence" value={n.power.influence} best={n.power.influence === best('influence')} />
-          </div>
+          {n.sim ? (
+            <>
+              <div className="mt-2 flex items-center gap-2">
+                <Chip color={tierColor(n.sim.tier)} filled>{n.sim.tier}</Chip>
+                <Trend value={n.sim.ratingTrend} />
+              </div>
+              <div className="mt-3 space-y-1.5">
+                {n.sim.pillars.map(p => <PowerBar key={p.id} label={p.name} value={Math.round(p.value)} best={p.value === best(p.id)} />)}
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <Stat label="People" value={compact(n.sim.population)} />
+                <Stat label="Jobless" value={pct(n.sim.unemployment, 1)} bad={n.sim.unemployment > 0.08} />
+                <Stat label="GDP / yr" value={`$${compact(n.sim.gdpYearly)}`} />
+              </div>
+            </>
+          ) : (
+            <div className="mt-3 space-y-1.5">
+              <PowerBar label="Economy" value={n.power.economy} best={n.power.economy === bestPower('economy')} />
+              <PowerBar label="Military" value={n.power.military} best={n.power.military === bestPower('military')} />
+              <PowerBar label="Influence" value={n.power.influence} best={n.power.influence === bestPower('influence')} />
+            </div>
+          )}
           <div className="mt-3 pt-3 text-xs space-y-1" style={{ borderTop: `1px solid ${T.line}`, color: T.dim }}>
             <div className="flex items-center gap-1.5">
               {n.leadParty && <PartyDot color={n.leadParty.color} />}
@@ -75,6 +116,76 @@ function World() {
         </Card>
       ))}
     </div>
+  );
+}
+
+function Stat({ label, value, bad }: { label: string; value: string; bad?: boolean }) {
+  return (
+    <div className="rounded-lg py-1.5" style={{ background: T.raised }}>
+      <div className="font-mono text-sm" style={{ color: bad ? T.bad : T.text }}>{value}</div>
+      <div className="text-[10px] uppercase tracking-wider" style={{ color: T.faint }}>{label}</div>
+    </div>
+  );
+}
+
+/** Your nation's people, jobs, sectors and buildings. */
+function Economy({ sim, name }: { sim: NationSim; name: string }) {
+  const pc = sim.populationChange;
+  const net = pc.births - pc.deaths + pc.migration;
+  return (
+    <Card className="p-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <Label>The economy of {name}</Label>
+        <span className="text-[11px]" style={{ color: T.faint }}>{sim.projected ? 'Starting point: the first month has not closed yet' : 'Updated each month'}</span>
+      </div>
+      <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="rounded-xl p-3" style={{ background: T.raised }}>
+          <div className="text-[10px] uppercase tracking-wider" style={{ color: T.faint }}>Population</div>
+          <div className="font-serif text-xl font-bold" style={{ color: T.text }}>{compact(sim.population)}</div>
+          <div className="text-[11px]" style={{ color: net >= 0 ? T.good : T.bad }}>{net >= 0 ? '+' : '−'}{compact(Math.abs(net))} last month</div>
+        </div>
+        <div className="rounded-xl p-3" style={{ background: T.raised }}>
+          <div className="text-[10px] uppercase tracking-wider" style={{ color: T.faint }}>Unemployment</div>
+          <div className="font-serif text-xl font-bold" style={{ color: sim.unemployment > 0.08 ? T.bad : T.text }}>{pct(sim.unemployment, 1)}</div>
+          <Trend value={sim.unemploymentTrend == null ? null : sim.unemploymentTrend * 100} suffix=" pts" lowerIsBetter />
+        </div>
+        <div className="rounded-xl p-3" style={{ background: T.raised }}>
+          <div className="text-[10px] uppercase tracking-wider" style={{ color: T.faint }}>Output a year</div>
+          <div className="font-serif text-xl font-bold" style={{ color: T.text }}>${compact(sim.gdpYearly)}</div>
+          <Trend value={sim.gdpTrend == null ? null : sim.gdpTrend * 100} suffix="%" />
+        </div>
+        <div className="rounded-xl p-3" style={{ background: T.raised }}>
+          <div className="text-[10px] uppercase tracking-wider" style={{ color: T.faint }}>Per person</div>
+          <div className="font-serif text-xl font-bold" style={{ color: T.text }}>${compact(sim.gdpPerPerson)}</div>
+          <div className="text-[11px]" style={{ color: T.faint }}>{compact(sim.labourForce)} in work or looking</div>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_90px_90px_110px] gap-2 text-[10px] uppercase tracking-wider pb-1" style={{ color: T.faint }}>
+          <span>Sector</span><span className="text-right">Jobs</span><span className="text-right">Output</span><span className="text-right">Buildings</span>
+        </div>
+        <div className="space-y-2">
+          {sim.sectors.map(sec => (
+            <div key={sec.id}>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_90px_90px_110px] gap-x-2 items-baseline text-sm">
+                <span style={{ color: T.text }}>{sec.name}</span>
+                <span className="text-right font-mono text-xs" style={{ color: T.dim }}>{compact(sec.jobs)}<span className="sm:hidden"> jobs · ${compact(sec.outputYearly)}</span></span>
+                <span className="hidden sm:block text-right font-mono text-xs" style={{ color: T.dim }}>${compact(sec.outputYearly)}</span>
+                <span className="hidden sm:block text-right font-mono text-xs" style={{ color: T.dim }}>{compact(sec.buildings)} {sec.buildingName}</span>
+              </div>
+              <div className="mt-1"><Meter value={sec.outputShare * 100} max={60} color="rgba(232,184,75,0.55)" height={4} /></div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <p className="mt-4 text-[11px]" style={{ color: T.faint }}>
+        Last month: {compact(pc.births)} born, {compact(pc.deaths)} died, {pc.migration >= 0 ? `${compact(pc.migration)} arrived` : `${compact(-pc.migration)} left`}.
+        Jobs follow prosperity and the laws on tariffs, wages, company tax and interest rates; hiring takes months.
+        Factories run by car companies add jobs here. The rating is for comparison only: it never moves votes.
+      </p>
+    </Card>
   );
 }
 
@@ -230,14 +341,15 @@ export default function NationView() {
         </div>
       </div>
       <div>
-        <Label>The three nations</Label>
+        <Label>World ranking</Label>
         <p className="text-xs mt-1 mb-3" style={{ color: T.faint }}>
-          Three very different countries that start on level terms: each is ahead somewhere and behind somewhere else. What they become is decided by those who govern them. Military strength follows the defence law.
+          The world ranking, out of 100. Three very different countries that start on level terms: each is ahead somewhere and behind somewhere else. What they become, from Minor state to Superpower, is decided by those who govern them. Military strength follows the defence law.
         </p>
         <World />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5">
         <div className="space-y-4 min-w-0">
+          {mine?.sim && <Economy sim={mine.sim} name={mine.name} />}
           <Powers />
           <Cabinet />
         </div>

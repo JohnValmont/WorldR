@@ -109,6 +109,18 @@ export interface ElectionReplay {
   previousSeats: Record<string, number>;
 }
 
+/** Nations simulation (docs/NATIONS_SIMULATION.md): people, jobs, sectors and the world rating. Read-only. */
+export interface NationSim {
+  polStateCode: string; arc: number | null; projected: boolean;
+  population: number; populationChange: { births: number; deaths: number; migration: number };
+  labourForce: number; unemployment: number; unemploymentTrend: number | null;
+  gdpYearly: number; gdpPerPerson: number; gdpTrend: number | null;
+  sectors: { id: string; name: string; jobs: number; jobShare: number; outputYearly: number; outputShare: number; buildings: number; buildingName: string }[];
+  rating: number; ratingTrend: number | null; tier: string; tierBlurb: string; rank: number;
+  pillars: { id: string; name: string; value: number }[];
+  history: { arc: number; rating: number; unemployment: number; gdpYearly: number; population: number }[];
+}
+
 export interface NationRow {
   countryId: string; polStateCode: string; name: string; officialName: string; capital: string; government: string; motto: string;
   flag: { pattern: string; colors: string[]; emblem: string; emblemColor: string };
@@ -117,6 +129,7 @@ export interface NationRow {
   premier: string | null; premierIsPlayer: boolean; leadParty: { name: string; color: string } | null;
   governmentSeats: number; seats: number; approval: number;
   power: { economy: number; military: number; influence: number; overall: number };
+  sim: NationSim | null;
   monthsToElection: number | null; players: number; cap: number; mine: boolean;
 }
 export interface DecreeRow { key: string; office: string; title: string; blurb: string; stat: Record<string, number>; support: Record<string, number> }

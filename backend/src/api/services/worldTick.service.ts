@@ -6,6 +6,7 @@ import { processEconomyMonth } from './economyTick.service';
 import { processExchangeMonth } from './ipoExchange.service';
 import { processPoliticalArc } from './politics.service';
 import { announceEdition, publishEdition, PublishedEdition } from './agency.service';
+import { stepNationSim } from './nationSim.service';
 import { processMacroEconomy } from './economy.service';
 import { processAuctions } from './acquisitionAuction.service';
 import { DEFAULT_REAL_SECONDS_PER_MONTH } from '../constants/world';
@@ -388,6 +389,20 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
           failures.push(`state:${state.id}`);
           logger.error(`[world-tick] Politics state ${state.id} failed for Y${year} M${month}; skipping.`, err);
           captureException(err, { subsystem: 'politics', year, month });
+        }
+      }
+
+      // Nations simulation (people, jobs, sectors, world rating). Runs after the
+      // month's national stats are updated, one savepoint per nation, so a
+      // failure here never rolls back that nation's politics.
+      for (const state of states) {
+        (global as any).tickProgress = `Nation economy: ${state.id}`;
+        try {
+          await trx.transaction(async (sp) => { await stepNationSim(sp, state.id, arc); });
+        } catch (err) {
+          failures.push(`nation-sim:${state.id}`);
+          logger.error(`[world-tick] Nation simulation ${state.id} failed for Y${year} M${month}; skipping.`, err);
+          captureException(err, { subsystem: 'nation-sim', year, month });
         }
       }
 

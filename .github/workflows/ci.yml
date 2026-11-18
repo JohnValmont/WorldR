@@ -51,6 +51,7 @@ jobs:
           tests/statecraft.test.ts
           tests/floor.test.ts
           tests/worldStage.test.ts
+          tests/nationSim.test.ts
 
   backend-all-tests:
     name: Backend — all tests (informational, allowed to fail)

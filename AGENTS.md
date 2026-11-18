@@ -120,3 +120,11 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 ## Political map — Operational Rules (DO NOT BREAK)
 - Map geography is generated in frontend/src/app/drennia/politics/_floor/mapGeo.ts. A new nation or region needs a REGION_LAYOUT entry; do not hand-draw district shapes.
 - The map's "Poll today" uses projectElection's per-district output: the same inputs as the real election. Do not compute a separate map poll.
+
+## Nations simulation (people, jobs, sectors, world rating) — Operational Rules (DO NOT BREAK)
+- Design and status: docs/NATIONS_SIMULATION.md. All numbers in constants/nationSim.ts; rules are pure functions in services/nationSim.rules.ts with tests in tests/nationSim.test.ts.
+- The world rating (0-100), tier, unemployment and GDP are READ-ONLY: elections, approval, votes, deals and support must never read them unless the owner decides otherwise.
+- One row per nation per month in nation_sim_months, written only by stepNationSim from runPoliticsTick, in its own savepoint after the nation's politics. Never write it from a request.
+- Tiers are absolute score thresholds (RATING_TIERS), not rank positions.
+- The three nations' starting ratings must stay within RATING_BALANCE_TOLERANCE and in the same tier (tests enforce it), measured on base stats: founding laws have no pol_active_policies rows and do not move stats.
+- A nation's sector shares are NATION_ECONOMIES (keyed by pol_states.code). A new nation needs an entry there too.

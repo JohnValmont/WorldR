@@ -3,6 +3,7 @@ import { WorldController } from '../controllers/world.controller';
 import { authMiddleware, requireAdmin } from '../middlewares/auth.middleware';
 import { getWorldSnapshot } from '../services/worldSnapshot.service';
 import { worldNations } from '../services/nations.service';
+import { nationSimViews } from '../services/nationSim.service';
 import { BACKGROUNDS, BASE_PROFILE, EDGE_CASH, EDGE_STAT, EDGE_TOKENS, HOME_GROUP_RALLY_MULT, STAT_CAP } from '../constants/characterCreation';
 import { SEGMENT_SHORT } from '../constants/floor';
 import { db } from '../../config/database';
@@ -19,6 +20,16 @@ worldRoutes.get('/nations', async (_req, res, next) => {
       // Character creation options (sign-up computes previews; the server recomputes on create).
       creation: { backgrounds: BACKGROUNDS, base: BASE_PROFILE, edge: { tokens: EDGE_TOKENS, stat: EDGE_STAT, cash: EDGE_CASH }, statCap: STAT_CAP, homeRallyMult: HOME_GROUP_RALLY_MULT, groups: SEGMENT_SHORT },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Public: the world ranking of nations (rating out of 100, tier, economy).
+worldRoutes.get('/rankings', async (_req, res, next) => {
+  try {
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json({ nations: await nationSimViews(db) });
   } catch (err) {
     next(err);
   }
