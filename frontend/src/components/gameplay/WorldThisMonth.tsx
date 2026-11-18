@@ -1,6 +1,6 @@
 'use client';
 /**
- * "Drennia this month" — a Chronicle panel built ONLY from real simulation data
+ * "World this month" — a Chronicle panel built ONLY from real simulation data
  * (GET /world/snapshot). Replaces the old hard-coded "Market Snapshot".
  * If something isn't known it is simply not shown.
  */
@@ -40,7 +40,7 @@ export default function WorldThisMonth() {
 
   if (error) {
     return (
-      <Card kicker="Drennia This Month" icon={BarChart2}>
+      <Card kicker="World This Month" icon={BarChart2}>
         <p className="text-[11px] text-zinc-500 italic py-2">World data is unavailable right now.</p>
       </Card>
     );
@@ -48,7 +48,7 @@ export default function WorldThisMonth() {
 
   if (!data) {
     return (
-      <Card kicker="Drennia This Month" icon={BarChart2}>
+      <Card kicker="World This Month" icon={BarChart2}>
         <div className="space-y-2 py-1">
           {[0, 1, 2, 3].map(i => <div key={i} className="h-4 rounded bg-zinc-800/60 animate-pulse" />)}
         </div>
@@ -94,7 +94,7 @@ export default function WorldThisMonth() {
   if (nextTick) rows.push({ label: 'Next month in', value: nextTick, variant: 'amber' });
 
   return (
-    <Card kicker="Drennia This Month" icon={BarChart2}>
+    <Card kicker="World This Month" icon={BarChart2}>
       {market.period ? (
         <p className="text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-600 mb-2">
           Sales results · Month {market.period.month}, Year {market.period.year}
