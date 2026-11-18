@@ -7,6 +7,7 @@ import useSWR from 'swr';
 import { chatApi, politicsApi, type ChatMessage } from '@/lib/api';
 import type { Corridors, Deal, DealSide, Person, Vote } from './types';
 import { Btn, Card, Chip, Label, PartyDot, Sheet, T, money, useFloor } from './kit';
+import { errorText } from './worldKit';
 
 type Room = { kind: 'nation' } | { kind: 'party' } | { kind: 'dm'; id: string; name: string };
 
@@ -265,7 +266,12 @@ export default function CorridorsView() {
   const computers = useMemo(() => (c?.people ?? []).filter(p => !p.isPlayer), [c]);
   const refresh = () => { mutate(); };
 
-  if (error) return <Card className="p-5 text-sm"><span style={{ color: T.bad }}>Couldn&apos;t open the corridors.</span></Card>;
+  if (error && !c) return (
+    <Card className="p-5 text-sm">
+      <span style={{ color: T.bad }}>{errorText(error, 'Couldn’t open the corridors.')}</span>
+      <button type="button" className="ml-3 underline" style={{ color: T.text }} onClick={() => mutate()}>Try again</button>
+    </Card>
+  );
   if (!c) return <div className="py-16 text-center text-xs uppercase tracking-[0.3em]" style={{ color: T.faint }}>Walking the corridors…</div>;
 
   const PersonRow = ({ p }: { p: Person }) => (

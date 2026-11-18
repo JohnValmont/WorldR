@@ -8,6 +8,7 @@ import { processPoliticalArc } from './politics.service';
 import { announceEdition, publishEdition, PublishedEdition } from './agency.service';
 import { stepNationSims } from './nationSim.service';
 import { stepDiplomacy } from './diplomacy.service';
+import { syncAdministrations } from './administration.service';
 import { processMacroEconomy } from './economy.service';
 import { processAuctions } from './acquisitionAuction.service';
 import { DEFAULT_REAL_SECONDS_PER_MONTH } from '../constants/world';
@@ -420,6 +421,18 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
         failures.push('nation-sim');
         logger.error(`[world-tick] Nation simulation failed for Y${year} M${month}; skipping.`, err);
         captureException(err, { subsystem: 'nation-sim', year, month });
+      }
+
+      // Administrations: record who governs each nation and how the nation has
+      // changed under them (caretaker when no government commands Parliament).
+      // After the economies so the record holds this month's numbers. Own savepoint.
+      (global as any).tickProgress = 'Administrations...';
+      try {
+        await trx.transaction(async (sp) => { await syncAdministrations(sp, arc); });
+      } catch (err) {
+        failures.push('administrations');
+        logger.error(`[world-tick] Administrations failed for Y${year} M${month}; skipping.`, err);
+        captureException(err, { subsystem: 'administrations', year, month });
       }
 
       // The Meridian Wire prints the month's edition once every nation has been

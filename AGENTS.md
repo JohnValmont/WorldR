@@ -144,7 +144,7 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Treaty effects on trade go through TradeEntry.links in computeTrade; on the rating through DiplomacyInput. Do not add a second path.
 
 ## Nation tab layout — Operational Rules (DO NOT BREAK)
-- The Nation tab is sections (Standing, Economy, Budget, Foreign affairs, Government), not one long page. New nation features go in the section they belong to; if one section grows past about one desktop screen, split it rather than stacking more panels.
+- The Nation tab is sections (Overview, Economy, Budget, Foreign affairs, Government, Coalition, History), not one long page. New nation features go in the section they belong to; if one section grows past about one desktop screen, split it rather than stacking more panels.
 - Decisions that need a player (budget, treaties offered) get a Desk reminder that jumps to the section with go('nation:<section>'); the decision itself stays in its section.
 
 ## Coalitions (talks, deals, unity) — Operational Rules (DO NOT BREAK)
@@ -154,3 +154,14 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Unity is pol_coalition_agreements.health (base_unity = starting level). It changes only through coalition.rules unityAfterMonth (stepCoalitionMonth, coalitionAfterVote). It reaches votes ONLY as whipScale inside partyVoteScore. Never add a second whip or vote path. Unity is not voter support: elections must never read it.
 - The cabinet honours the deal's portfolio_allocation (statecraft.formCabinet); posts not promised go to the formateur's party. A head-of-government concession makes the partner coalition.lead_party_id.
 - One coalition deal is active per nation; recordDeal dissolves older ones.
+
+## Administrations, caretaker governments, Nation/World tabs — Operational Rules (DO NOT BREAK)
+- Design: docs/NATIONS_SIMULATION.md ("Administrations"). Numbers/words in constants/administrations.ts; pure rules in services/administration.rules.ts with tests in tests/administration.test.ts.
+- A nation is always governed by someone. A lead party in a formed/minority coalition = elected government, named after its head ("Dumb Administration"). Otherwise the head of state (NationSpec.headOfState) leads a caretaker government ("Ostrin Caretaker Government") until one forms. Never write "No government" in player-facing text; show the caretaker.
+- pol_administrations is written ONLY by syncAdministrations, once a month from runPoliticsTick in its own savepoint after stepNationSims. Never write it from a request. Screens before the first sync use the live identity (currentIdentity), without writing.
+- Administrations are READ-ONLY history: elections, votes, deals, support and approval must never read them.
+- Election timing for screens comes from electionOutlook (administration.rules.ts). During formation it is the next term's election, flagged as an estimate; never show "Election in 0 months".
+- GET /politics/chronicle is the one source for Nation/World charts (nation_sim_months + approval from pol_poll_snapshots + administrations). Do not add per-chart endpoints.
+- Nation tab = the player's own nation (Overview, Economy, Budget, Foreign affairs, Government, Coalition, History). World tab = all nations side by side. Comparison of nations goes in World, not Nation.
+- Nation chart colours are fixed per nation (NATION_COLOR in _floor/worldKit.tsx, validated for colour-blind separation). A new nation needs a colour there; colour follows the nation, never its rank.
+- Admin accounts (users.role='admin') see the one-line reason of a 500 error (app.ts). Players never do, and no one sees stack traces in production.

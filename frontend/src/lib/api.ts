@@ -264,6 +264,7 @@ export const politicsApi = {
   respondPact: (id: string, accept: boolean) => api.post(`/politics/pacts/${id}/respond`, { accept }).then(res => res.data),
   getMap: (): Promise<import('@/app/drennia/politics/_floor/types').PoliticalMap> => api.get('/politics/map').then(res => res.data),
   getCorridors: (): Promise<import('@/app/drennia/politics/_floor/types').Corridors> => api.get('/politics/corridors').then(res => res.data),
+  getChronicle: (): Promise<import('@/app/drennia/politics/_floor/types').Chronicle> => api.get('/politics/chronicle').then(res => res.data),
   getPerson: (id: string): Promise<import('@/app/drennia/politics/_floor/types').PersonProfile> => api.get(`/politics/people/${id}`).then(res => res.data),
   offerHandshake: (body: { toCharacterId: string; give: { billId: string | null; vote: 'yea' | 'nay' | null; cash: number }; ask: { billId: string | null; vote: 'yea' | 'nay' | null; cash: number }; note: string }) =>
     api.post('/politics/handshakes', body).then(res => res.data),

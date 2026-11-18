@@ -10,6 +10,7 @@ import {
 import { readNationalStatsFromRow } from './nationalEconomy.service';
 import { getGovernment, getLawsInForce, liveApproval } from './statecraft.service';
 import { nationSimViews } from './nationSim.service';
+import { nationGovernmentSummary } from './administration.service';
 
 const num = (v: any, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 
@@ -114,6 +115,8 @@ export async function worldNations(conn: any, arc?: number) {
       power: nationPower(stats, laws.defense),
       sim: sims.find(v => v.polStateCode === spec.polStateCode) ?? null,
       monthsToElection: cycle && arc != null ? Math.max(0, num(cycle.polling_arc) - arc) : null,
+      // Who governs (or the caretaker) and when the next election is: display only.
+      ...(arc != null ? await nationGovernmentSummary(conn, state, spec, arc) : { administration: null, election: null }),
       players: roster[spec.countryId] || 0,
       cap: NATION_PLAYER_CAP,
       parties: await nationParties(conn, state.id, gov.seatsByParty, gov.memberPartyIds),

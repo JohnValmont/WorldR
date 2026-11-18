@@ -7,6 +7,7 @@ import useSWR from 'swr';
 import { agencyApi } from '@/lib/api';
 import { formatPolArc } from '@/lib/calendar';
 import { Btn, Card, Chip, Label, PartyDot, T, useFloor } from './kit';
+import { errorText } from './worldKit';
 import type { Dispatch, Edition, IndexRow, WireFront } from './types';
 
 function Move({ move }: { move: number | null }) {
@@ -144,7 +145,12 @@ export default function WireView() {
   const [mode, setMode] = useState<'edition' | 'live'>('edition');
   const { data: archived } = useSWR(arc != null ? ['wire-edition', arc] : null, () => agencyApi.getEdition(arc!));
 
-  if (error) return <Card className="p-5"><span className="text-sm" style={{ color: T.bad }}>The wire is down: {String(error?.message ?? error)}</span></Card>;
+  if (error && !front) return (
+    <Card className="p-5 text-sm">
+      <span style={{ color: T.bad }}>{errorText(error, 'The wire is down.')}</span>
+      <button type="button" className="ml-3 underline" style={{ color: T.text }} onClick={() => mutate()}>Try again</button>
+    </Card>
+  );
   if (!front) return <Card className="p-5"><span className="text-sm" style={{ color: T.dim }}>Fetching the wire…</span></Card>;
 
   const edition = arc != null ? archived ?? null : front.edition;

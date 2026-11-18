@@ -18,9 +18,11 @@ import NationView, { NATION_SECTION_KEY } from './_floor/NationView';
 import CorridorsView from './_floor/CorridorsView';
 import MapView from './_floor/MapView';
 import WireView from './_floor/WireView';
+import WorldView from './_floor/WorldView';
+import { electionLine } from './_floor/worldKit';
 import type { Notice } from './_floor/types';
 
-type Tab = 'desk' | 'chamber' | 'corridors' | 'map' | 'voters' | 'party' | 'nation' | 'wire';
+type Tab = 'desk' | 'chamber' | 'corridors' | 'map' | 'voters' | 'party' | 'nation' | 'world' | 'wire';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'desk', label: 'Desk' },
   { id: 'chamber', label: 'Chamber' },
@@ -29,6 +31,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'voters', label: 'Voters' },
   { id: 'party', label: 'Party' },
   { id: 'nation', label: 'Nation' },
+  { id: 'world', label: 'World' },
   { id: 'wire', label: 'World Press' },
 ];
 const PHASE_LABEL: Record<string, string> = {
@@ -164,6 +167,7 @@ export default function PoliticsPage() {
       + (desk.desk.handshakesIncoming ?? 0)
     : 0;
   const el = desk?.desk.election;
+  const myNation = desk?.desk.world.find(n => n.mine) ?? null;
   const freshElection = !!el?.hasResults && seenElection !== el.cycleId;
   const countdown = clock?.status === 'paused' ? 'Paused' : isPolTickStalled ? 'Delayed' : polSecondsToTick != null ? formatCountdown(polSecondsToTick) : '--:--';
 
@@ -176,8 +180,16 @@ export default function PoliticsPage() {
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: T.accent }}>{desk?.nation.officialName ?? 'Politics'}</div>
               <div className="flex flex-wrap items-baseline gap-x-3 text-sm" style={{ color: T.dim }}>
                 {desk && <span className="font-serif text-lg font-bold" style={{ color: T.text }}>{formatPolArc(desk.calendar.arc, false)}</span>}
-                {desk && <span>{PHASE_LABEL[desk.calendar.phase] ?? desk.calendar.phase}</span>}
+                {desk && !myNation?.election && <span>{PHASE_LABEL[desk.calendar.phase] ?? desk.calendar.phase}</span>}
                 <span title="Time until the month turns: votes are counted, polls update, new decisions arrive">next month in <span className="font-mono" style={{ color: T.text }}>{countdown}</span></span>
+                {myNation?.election && (
+                  <button type="button" id="election-chip" onClick={() => { try { sessionStorage.setItem(NATION_SECTION_KEY, 'overview'); } catch { /* private mode */ } setTab('nation'); }}
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                    title="When your nation votes next"
+                    style={{ background: myNation.election.phase === 'governing' ? 'transparent' : T.accentSoft, border: `1px solid ${myNation.election.phase === 'governing' ? T.line : T.accent}`, color: myNation.election.phase === 'governing' ? T.dim : T.accent }}>
+                    <span aria-hidden>🗳</span>{electionLine(myNation.election)}
+                  </button>
+                )}
               </div>
             </div>
             {me && (
@@ -242,6 +254,7 @@ export default function PoliticsPage() {
               {tab === 'voters' && <VotersView onReplay={openElection} />}
               {tab === 'party' && <PartyView />}
               {tab === 'nation' && <NationView />}
+              {tab === 'world' && <WorldView />}
               {tab === 'wire' && <WireView />}
             </ViewBoundary>
             {electionOpen && el && <ElectionNight onClose={() => setElectionOpen(false)} />}

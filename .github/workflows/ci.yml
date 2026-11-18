@@ -53,6 +53,7 @@ jobs:
           tests/worldStage.test.ts
           tests/nationSim.test.ts
           tests/diplomacy.test.ts
+          tests/administration.test.ts
           tests/coalition.test.ts
 
   backend-all-tests:
