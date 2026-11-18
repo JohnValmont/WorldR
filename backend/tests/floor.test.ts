@@ -349,7 +349,7 @@ describe('Starter nations are different but balanced', () => {
   });
 });
 
-describe('Six players per nation', () => {
+describe('Eight players per nation', () => {
   const cap = NATION_PLAYER_CAP;
   it('a player gets the nation they ask for while it has room', () => {
     assert.deepStrictEqual(chooseNation('westmark', { drennia: cap, westmark: cap - 1, eryndor: 0 }, cap, true), { countryId: 'westmark' });

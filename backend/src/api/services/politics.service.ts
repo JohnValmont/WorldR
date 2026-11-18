@@ -22,6 +22,7 @@ import {
   POL_COALITION_MAX_DISTANCE,
   POL_FACTOR_DELTAS,
   AP_MONTHLY_GRANT,
+  AP_BANK_CAP,
   ROSTER_CAP_BANDS,
   RECRUIT_COST_CASH,
   RECRUIT_PLATFORM_DRIFT,
@@ -102,6 +103,8 @@ import {
 import { getNationForPolState, NPC_MACHINE_EFFORT, nationRules } from '../constants/nations';
 import { supportEffortByParty } from './support.store';
 import { billVotePlan, loadVoteShared, npcCallFavours, runFloorMonth, settleBillPolitics } from './floor.service';
+import { bankedAp } from './floor.rules';
+import { notify } from './notices.service';
 
 /**
  * Convert a world_clock row into a MONOTONIC absolute month ("arc").
@@ -143,7 +146,7 @@ export function getRosterCap(popularity: number): number {
  * existing callers.
  */
 export async function computeApCap(_trx: any, _characterId: string): Promise<number> {
-  return AP_MONTHLY_GRANT;
+  return AP_BANK_CAP;
 }
 
 /** Fetch (or lazily create) the pol_character_ap row for a character. */
@@ -181,10 +184,9 @@ export async function spendAp(trx: any, characterId: string, cost: number): Prom
 }
 
 /**
- * Refresh monthly AP: RESET current_ap to AP_MONTHLY_GRANT each in-game month.
- * AP does NOT accumulate — leftover AP is discarded and replaced with a fresh
- * full grant (e.g. 6 left → 12 next month, not 18). Called once per month tick
- * inside processPoliticalArc; the last_regen_arc guard enforces one refresh/arc.
+ * Monthly AP: add AP_MONTHLY_GRANT, keeping what was left, up to AP_BANK_CAP
+ * (e.g. 6 left -> 18, 20 left -> 24). Called once per month tick inside
+ * processPoliticalArc; the last_regen_arc guard enforces one refresh/arc.
  */
 export async function regenApForCharacter(trx: any, characterId: string, currentArc: number): Promise<void> {
   const row = await trx('pol_character_ap').where({ character_id: characterId }).first();
@@ -193,7 +195,7 @@ export async function regenApForCharacter(trx: any, characterId: string, current
 
   await trx('pol_character_ap')
     .where({ character_id: characterId })
-    .update({ current_ap: AP_MONTHLY_GRANT, last_regen_arc: currentArc }); // reset, do not add
+    .update({ current_ap: bankedAp(Number(row.current_ap) || 0), ap_cap: AP_BANK_CAP, last_regen_arc: currentArc });
 }
 
 /**
@@ -1719,7 +1721,8 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
         await applyFactorDelta(trx, leaderId, POL_FACTOR_DELTAS.BILL_PASSES);
       }
       await trx('pol_bills').where({ id: bill.id }).update({ status: 'passed', resolved_arc: currentMonth, yea_seats: yeas, nay_seats: nays });
-      
+      await notify(trx, bill.tabled_by_character_id, currentMonth, 'bill_passed', `Your bill passed ${yeas}-${nays}: ${titled}. It is now law.`, 'chamber');
+
       if (bill.type === 'policy_change') {
         const { category, option } = bill.params;
         if (category && option) {
@@ -1788,6 +1791,7 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
         await applyFactorDelta(trx, leaderId, POL_FACTOR_DELTAS.BILL_FAILS);
       }
       await trx('pol_bills').where({ id: bill.id }).update({ status: 'failed', resolved_arc: currentMonth, yea_seats: yeas, nay_seats: nays });
+      await notify(trx, bill.tabled_by_character_id, currentMonth, 'bill_failed', `Your bill was defeated ${yeas}-${nays}: ${titled}.`, 'chamber');
       await trx('pol_ledger_events').insert({
         state_id: stateId, arc: currentMonth, kind: 'bill_failed',
         headline: returnedByCrown

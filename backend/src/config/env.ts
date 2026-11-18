@@ -7,6 +7,9 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config({ path: path.join(__dirname, '../../../../.env') });
 dotenv.config({ path: path.join(__dirname, '../../../../../.env') });
 
+/** An optional URL; an empty value in .env ("KEY=") counts as not set. */
+const optionalUrl = z.preprocess(v => (v === '' ? undefined : v), z.string().url().optional());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(4000),
@@ -25,7 +28,10 @@ const envSchema = z.object({
   // When unset, FRONTEND_URL is the only allowed origin.
   CORS_ORIGINS: z.string().optional(),
   // Error tracking (Sentry). Optional — when unset, errors are only logged.
-  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_DSN: optionalUrl,
+  // Optional Discord webhook: each monthly Meridian Wire edition (public game
+  // news only: headline and the top of the World Influence Index) is posted there.
+  AGENCY_DISCORD_WEBHOOK_URL: optionalUrl,
   // A tick counts as "overdue" on /health once it is this many minutes late.
   TICK_OVERDUE_GRACE_MINUTES: z.coerce.number().default(30),
 });

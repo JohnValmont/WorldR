@@ -6,13 +6,16 @@ VALUES ('pre-alpha-world-1', 'WORLDr Pre-Alpha World', 'active')
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status;
 
 -- 2. WORLD CLOCK
+-- A new world starts at one game month = 8 real hours on both clocks (owner
+-- decision 2026-11-18; migration 0102 moves existing worlds). A live clock is
+-- never touched: ON CONFLICT DO NOTHING.
 INSERT INTO world_clock (
     world_instance_id, current_year, current_month, current_day, 
-    real_seconds_per_month, month_started_at, next_arc_close_at, status
+    real_seconds_per_month, pol_real_seconds_per_month, month_started_at, next_arc_close_at, status
 )
 VALUES (
     'pre-alpha-world-1', 842, 1, 1, 
-    86400, NOW(), NOW() + INTERVAL '1 day', 'active'
+    28800, 28800, NOW(), NOW() + INTERVAL '8 hours', 'active'
 )
 ON CONFLICT (world_instance_id) DO NOTHING;
 

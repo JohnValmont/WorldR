@@ -5,6 +5,7 @@ import { ManufacturingController } from '../controllers/manufacturing.controller
 import { processEconomyMonth } from './economyTick.service';
 import { processExchangeMonth } from './ipoExchange.service';
 import { processPoliticalArc } from './politics.service';
+import { announceEdition, publishEdition, PublishedEdition } from './agency.service';
 import { processMacroEconomy } from './economy.service';
 import { processAuctions } from './acquisitionAuction.service';
 import { DEFAULT_REAL_SECONDS_PER_MONTH } from '../constants/world';
@@ -340,8 +341,9 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
   }
   polTickInFlight = Date.now();
   (global as any).tickProgress = 'Starting politics transaction...';
+  let edition: PublishedEdition | null = null;
   try {
-    return await db.transaction(async (trx) => {
+    const tickResult = await db.transaction(async (trx) => {
       await trx.raw(`SET LOCAL statement_timeout = ${TICK_STATEMENT_TIMEOUT_MS}`);
       await trx.raw(`SET LOCAL lock_timeout = ${TICK_LOCK_TIMEOUT_QUERY_MS}`);
 
@@ -389,6 +391,18 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
         }
       }
 
+      // The Meridian Wire prints the month's edition once every nation has been
+      // processed (world rankings need all three). Its own savepoint: a failure
+      // here never rolls back the nations' politics.
+      (global as any).tickProgress = 'Publishing the Meridian Wire...';
+      try {
+        await trx.transaction(async (sp) => { edition = await publishEdition(sp, arc); });
+      } catch (err) {
+        failures.push('agency');
+        logger.error(`[world-tick] Meridian Wire edition failed for Y${year} M${month}; skipping.`, err);
+        captureException(err, { subsystem: 'agency', year, month });
+      }
+
       const newMonth = month === 12 ? 1 : month + 1;
       const newYear = month === 12 ? year + 1 : year;
       const intervalMs = (clock.pol_real_seconds_per_month || DEFAULT_REAL_SECONDS_PER_MONTH) * 1000;
@@ -425,6 +439,9 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
         failures: failures.length > 0 ? failures : undefined,
       } as WorldTickResult;
     });
+    // After commit: optional Discord post of the public edition. Never blocks or fails the tick.
+    if (edition) void announceEdition(edition);
+    return tickResult;
   } finally {
     polTickInFlight = null;
   }

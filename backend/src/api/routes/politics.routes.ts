@@ -59,13 +59,14 @@ import { getOrCreateCurrentCycle, bribeVote, getBillCoercions, worldClockToArc }
 import { getDesk } from '../services/desk.service';
 import { currentPolStateCode, withPlayerNation } from '../services/playerNation';
 import {
-  callFavour, challengeLeadership, chooseSituation, fundraise, issueDecree, offerPact, offerHandshake, respondHandshake, withdrawHandshake, playerPolitics, PlayerPolitics, rally, respondPact, runAd,
+  callFavour, challengeLeadership, voteInContest, chooseSituation, fundraise, issueDecree, offerPact, offerHandshake, respondHandshake, withdrawHandshake, playerPolitics, PlayerPolitics, rally, respondPact, runAd,
 } from '../services/floor.service';
 import { getGovernment, getLawsInForce } from '../services/statecraft.service';
 import type { GovernmentInfo } from '../services/statecraft.service';
 import { getCapitol } from '../services/capitol.service';
 import { appointMinister } from '../services/statecraft.service';
 import { db } from '../../config/database';
+import { markNoticesRead } from '../services/notices.service';
 
 const router = Router();
 
@@ -170,6 +171,19 @@ router.post('/handshakes', floorAction((c, req) => offerHandshake(c.trx, c.state
 router.post('/handshakes/:id/respond', floorAction((c, req) => respondHandshake(c.trx, c.stateId, c.me, asId(req.params.id, 'deal'), !!req.body?.accept, c.gov, c.arc), { blockDuringElection: true }));
 router.post('/handshakes/:id/withdraw', floorAction((c, req) => withdrawHandshake(c.trx, c.me, asId(req.params.id, 'deal'), c.arc)));
 router.post('/party/challenge', floorAction(c => challengeLeadership(c.trx, c.stateId, c.me, c.arc)));
+router.post('/party/contest/vote', floorAction((c, req) => {
+  const side = req.body?.side;
+  if (side !== 'challenger' && side !== 'leader') throw new AppError('side must be challenger or leader', 400, 'BAD_REQUEST');
+  return voteInContest(c.trx, c.me, side, c.arc);
+}));
+// Inbox: mark everything read.
+router.post('/notices/read', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const character = await db('characters').where({ user_id: (req as any).user?.id, status: 'active' }).first();
+    if (!character) return next(new AppError('Create a character first.', 404, 'NOT_FOUND'));
+    return res.json({ marked: await markNoticesRead(db, character.id) });
+  } catch (error) { next(error); }
+});
 router.post('/decree', floorAction((c, req) => issueDecree(c.trx, c.stateId, c.me, String(req.body?.key ?? ''), c.arc)));
 
 // ── Cabinet: the Premier appoints ministers ────────────────────────────────

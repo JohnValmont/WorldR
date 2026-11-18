@@ -12,6 +12,7 @@ import { HANDSHAKE_AP, HANDSHAKE_MAX_CASH, PROFILE_RECENT_VOTES } from '../const
 import { CABINET_POSTS, headOfGovernmentTitle } from '../constants/nations';
 import { currentPolStateCode } from './playerNation';
 import { billTitle, getGovernment } from './statecraft.service';
+import { careerOf, latestWorldRank } from './agency.service';
 
 /** users.password_hash of system accounts that cannot log in (npcBrain.service.ts). */
 const SYSTEM_NO_LOGIN = 'no_login_allowed';
@@ -158,5 +159,7 @@ export async function getProfile(characterId: string) {
     record: rec,
     votes: votes.map((v: any) => ({ billId: v.id, title: titleOf(v), vote: v.vote, status: v.status })),
     brokenWord: broken,
+    career: await careerOf(db, c.id),
+    worldRank: await latestWorldRank(db, c.id),
   };
 }

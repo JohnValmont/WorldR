@@ -89,7 +89,7 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Drennia, Westmark and Eryndor are DIFFERENT BUT BALANCED: own government type, parliament size, term, founding laws, starting stats and NationRules, but overall power within 3 points and starting approval within 3 of 50 (tests/floor.test.ts enforces it). Any change to a nation's baseStats, foundingLaws or rules must keep those tests green; give a strength only with a matching weakness.
 - Nation-specific rules (pass margin, coalition distance, fundraise/donation multipliers, decree length) are read with nationRules(code). Never hard-code a nation check like `code === 'eryndor'` in services.
 - The head of government's title differs per nation (headOfGovernmentTitle). Do not write "Premier" in new player-facing text; use the title, or rely on localisePlaces for card/news text.
-- NATION_PLAYER_CAP (6) and the other nation numbers live in constants/nations.ts. Nation choice at sign-up goes through assignNation (nations.service.ts); never insert a character with a motherland directly.
+- NATION_PLAYER_CAP (8) and the other nation numbers live in constants/nations.ts. Nation choice at sign-up goes through assignNation (nations.service.ts); never insert a character with a motherland directly.
 - A politics request runs in the player's own nation via withPlayerNation (services/playerNation.ts). Never default a politics query to 'national' (Drennia); use currentPolStateCode().
 - A new nation = a NationSpec in STARTER_NATIONS (with rules, foundingLaws, baseStats, traits) + a JURISDICTIONS entry (politics.ts) whose seats/majority/term match + NATION_PLACES + a migration with its countries / pol_states / parties rows and starting stats. Nothing else.
 - Decrees are data in constants/decrees.ts: each must be a trade-off (a test enforces it), one per office-holder per month.
@@ -104,6 +104,18 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Chat channels are resolved on the server (chat.controller resolveChannel): 'world', 'private', 'nation', 'party'. Never let a client name a raw room like 'party:<id>'.
 - Personal deals are pol_handshakes. Vote promises are judged ONLY in settleHandshakes, from the same BillVotePlan the tally uses. Do not judge them anywhere else.
 - Corridors lists real players only: exclude system accounts (users.password_hash = 'no_login_allowed').
+
+## World stage (ladder, Meridian Wire, inbox, contests) — Operational Rules (DO NOT BREAK)
+- Design and file map: docs/WORLD_STAGE.md. One game month = 8 real hours (both clocks; migration 0102, seed 0001). Energy carries over: +AP_MONTHLY_GRANT a month up to AP_BANK_CAP (bankedAp in floor.rules.ts).
+- All ladder, Index and Wire numbers live in constants/worldStage.ts; rules are pure functions in services/worldStage.rules.ts with tests in tests/worldStage.test.ts.
+- The World Influence Index is READ-ONLY: elections, votes, deals and support must never read it. It summarises existing numbers; do not turn it into a second "popularity".
+- The career rung comes from careerRung only. World statesman needs a top-STATESMAN_RANK world rank AND real power (head, minister, or leader of a seated party).
+- The Meridian Wire edition is published once per politics month by publishEdition, in its own savepoint at the end of runPoliticsTick (after every nation). It is idempotent per arc. Never publish it from a request.
+- Dispatches are plain text, rendered as text (never as HTML). Limits, energy cost and moderation thresholds are constants; admins moderate via POST /agency/dispatches/:id/moderate.
+- Write a player_notices row (notify / notifyMany in notices.service.ts) inside the same transaction as the event it reports. Never include another player's private data in a notice.
+- Challenging a HUMAN party leader opens a contest (pol_leadership_contests) decided by contestResult in resolveContests (monthly tick). Only a computer-run leader can be replaced instantly. Leader changes go through installLeader.
+- A handshake must include at least one vote promise (no money-for-money).
+- AGENCY_DISCORD_WEBHOOK_URL is optional and gets public edition news only, posted after the tick commits.
 
 ## Political map — Operational Rules (DO NOT BREAK)
 - Map geography is generated in frontend/src/app/drennia/politics/_floor/mapGeo.ts. A new nation or region needs a REGION_LAYOUT entry; do not hand-draw district shapes.

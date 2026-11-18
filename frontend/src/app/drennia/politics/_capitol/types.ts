@@ -94,7 +94,7 @@ export interface District {
   sitting: Record<string, number>;
 }
 
-export type Rung = 'citizen' | 'member' | 'candidate' | 'mp' | 'minister' | 'premier';
+export type Rung = 'citizen' | 'member' | 'candidate' | 'mp' | 'leader' | 'minister' | 'premier' | 'statesman';
 
 export interface Me {
   characterId: string;
@@ -109,6 +109,8 @@ export interface Me {
   office: string | null;
   rung: Rung;
   ladder: Rung[];
+  /** Rank in the latest Meridian Wire edition (null before the first edition or if unranked). */
+  worldRank?: { rank: number; share: number; arc: number; of: number } | null;
   canTableBill: boolean;
   tableBillApCost: number;
   isPartyLeader: boolean;

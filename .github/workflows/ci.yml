@@ -50,6 +50,7 @@ jobs:
           tests/npc-market-recovery.test.ts
           tests/statecraft.test.ts
           tests/floor.test.ts
+          tests/worldStage.test.ts
 
   backend-all-tests:
     name: Backend — all tests (informational, allowed to fail)

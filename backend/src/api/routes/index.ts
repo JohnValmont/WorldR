@@ -13,6 +13,7 @@ import bankRoutes from './bank.routes';
 import investmentsRoutes from './investments.routes';
 import chatRoutes from './chat.routes';
 import drenniaRoutes from './drennia.routes';
+import agencyRoutes from './agency.routes';
 
 const apiRouter = Router();
 
@@ -28,6 +29,7 @@ apiRouter.use('/banks', bankRoutes);
 apiRouter.use('/investments', investmentsRoutes);
 apiRouter.use('/chat', chatRoutes);
 apiRouter.use('/drennia', drenniaRoutes);
+apiRouter.use('/agency', agencyRoutes);
 // Manufacturing: mounts bootstrap + company routes + admin month-process endpoint
 apiRouter.use('/', manufacturingRoutes);
 

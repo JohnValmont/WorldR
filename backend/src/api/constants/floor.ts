@@ -124,6 +124,21 @@ export const LEADERSHIP_MIN_TENURE_MONTHS = 6;
 /** To unseat a human leader you need this much more clout than they have. */
 export const LEADERSHIP_MARGIN = 10;
 export const LEADERSHIP_FAIL_CLOUT = -5;
+// A challenge to a HUMAN leader is a contest, not a click (docs/WORLD_STAGE.md):
+// it stays open until the month after next turns (at least 8 real hours), the
+// leader is told, and the party's human members vote. Each side starts with its
+// clout (the leader also gets LEADERSHIP_MARGIN for holding the job, the
+// "party machine"); every ballot adds CONTEST_BALLOT_WEIGHT, doubled for an MP.
+// Ties go to the leader.
+// Modelled: challenger clout 55 vs leader 50 -> 55 vs 60, the leader holds;
+// one member backing the challenger -> 65 vs 60, the challenger wins;
+// two MPs backing the leader (+40) outweigh any clout gap. Members decide
+// when they turn out; the machine decides when they do not.
+export const CONTEST_MONTHS = 1;
+export const CONTEST_BALLOT_WEIGHT = 10;
+export const CONTEST_MP_BALLOT_MULT = 2;
+/** The deposed leader loses this much clout; a beaten challenger loses LEADERSHIP_FAIL_CLOUT. */
+export const CONTEST_DEPOSED_CLOUT = -5;
 
 // ─── Monthly hand of situations ─────────────────────────────────────────────
 export const HAND_SIZE = 3;

@@ -9,13 +9,14 @@
 import { homeGroupOf } from './character.rules';
 import { AppError } from '../../utils/errors';
 import { safeParseJSON } from '../../utils/json';
-import { AP_MONTHLY_GRANT, SEGMENTS } from '../constants/politics';
+import { AP_BANK_CAP, AP_MONTHLY_GRANT, SEGMENTS } from '../constants/politics';
 import {
   AD_AP, AD_COST, FUNDRAISE_AP, HAND_REPEAT_COOLDOWN_MONTHS, HAND_SIZE, LAW_FAILED_PROPOSER_SHARE, LAW_OPPONENT_SHARE,
   FAVOUR_CALL_MIN_LEAN, LEADERSHIP_AP, LEADERSHIP_FAIL_CLOUT, LEADERSHIP_MIN_TENURE_MONTHS, PACT_AP, PACT_MAX_CASH, PARTY_SWITCH_COOLDOWN_MONTHS, RALLY_AP,
   REBEL_CLOUT, REBEL_TRUST, SHOCK_MONTHS, WORD_BROKEN_MONTHS, WORD_BROKEN_SUPPORT, WORD_BROKEN_TRUST,
   WORD_KEPT_CLOUT, WORD_KEPT_TRUST, HANDSHAKE_AP, HANDSHAKE_BROKEN_CLOUT, HANDSHAKE_BROKEN_TRUST, HANDSHAKE_KEPT_TRUST,
-  HANDSHAKE_MAX_CASH, HANDSHAKE_MAX_OPEN, HANDSHAKE_NOTE_MAX,
+  HANDSHAKE_MAX_CASH, HANDSHAKE_MAX_OPEN, HANDSHAKE_NOTE_MAX, LEADERSHIP_MIN_CLOUT, LEADERSHIP_MARGIN,
+  CONTEST_MONTHS, CONTEST_BALLOT_WEIGHT, CONTEST_MP_BALLOT_MULT, CONTEST_DEPOSED_CLOUT,
 } from '../constants/floor';
 import { DEFAULT_LAWS, getNationForPolState, headOfGovernmentTitle, localisePlaces, nationRules } from '../constants/nations';
 import { DECREE_AP, DECREE_BY_KEY } from '../constants/decrees';
@@ -26,6 +27,8 @@ import {
   tallyBill, TallyResult, Vote, countedVoteOf, judgePromise,
 } from './floor.rules';
 import { addSupport, ensureSupport, getSupportMap } from './support.store';
+import { notify, notifyMany } from './notices.service';
+import { contestResult } from './worldStage.rules';
 import {
   billTitle, changeDesirability, GovernmentInfo, parsePlatform, partyVoteScore, projectPartyVotes, seededUnit,
 } from './statecraft.service';
@@ -45,18 +48,18 @@ export async function getEnergy(trx: any, characterId: string, arc: number): Pro
   let row = await trx('pol_character_ap').where({ character_id: characterId }).first();
   if (!row) {
     [row] = await trx('pol_character_ap')
-      .insert({ character_id: characterId, current_ap: AP_MONTHLY_GRANT, ap_cap: AP_MONTHLY_GRANT, last_regen_arc: arc })
+      .insert({ character_id: characterId, current_ap: AP_MONTHLY_GRANT, ap_cap: AP_BANK_CAP, last_regen_arc: arc })
       .onConflict('character_id').ignore()
       .returning('*');
     if (!row) row = await trx('pol_character_ap').where({ character_id: characterId }).first();
   }
-  return { current: num(row.current_ap), cap: num(row.ap_cap, AP_MONTHLY_GRANT) };
+  return { current: num(row.current_ap), cap: Math.max(num(row.ap_cap), AP_BANK_CAP) };
 }
 
 export async function spendEnergy(trx: any, characterId: string, cost: number, arc: number): Promise<void> {
   if (cost <= 0) return;
   const e = await getEnergy(trx, characterId, arc);
-  if (e.current < cost) throw new AppError(`Not enough energy: this needs ${cost}, you have ${e.current}. Energy refills next month.`, 400, 'INSUFFICIENT_AP');
+  if (e.current < cost) throw new AppError(`Not enough energy: this needs ${cost}, you have ${e.current}. Each month adds 12 more.`, 400, 'INSUFFICIENT_AP');
   await trx('pol_character_ap').where({ character_id: characterId }).decrement('current_ap', cost);
 }
 
@@ -328,6 +331,7 @@ export async function runFloorMonth(trx: any, stateId: string, arc: number): Pro
   await driftSupportForState(trx, stateId, arc);
   await trx('pol_situations').where({ state_id: stateId, status: 'open' }).where('arc', '<', arc).update({ status: 'expired' });
   await trx('pol_stat_shocks').where({ state_id: stateId }).where('expires_arc', '<=', arc).del();
+  await resolveContests(trx, stateId, arc);
 }
 
 // ═══════════════════════════════ WHO IS THE PLAYER ═══════════════════════════════
@@ -624,6 +628,7 @@ export async function offerPact(
     await spendEnergy(trx, me.character.id, PACT_AP, arc);
     const [pact] = await trx('pol_pacts').insert({ ...base, status: 'offered' }).returning('*');
     await logAction(trx, stateId, me, arc, 'pact', toParty.id, `Offered ${toParty.name} a deal on ${title}`);
+    await notify(trx, toParty.leader_character_id, arc, 'pact_offered', `${me.party.name} asks your party to vote ${input.askedVote === 'yea' ? 'for' : 'against'} "${title}" in return for a favour${cash ? ` and $${cash.toLocaleString()}` : ''}. Answer it on your Desk.`, 'desk');
     return { status: 'offered', pact, message: `Your offer is on ${toParty.name}'s desk.` };
   }
   const decision = await forecastPact(trx, bill, me.party, toParty, input.askedVote, cash, num(me.character.credibility), gov, laws, arc);
@@ -660,6 +665,7 @@ export async function respondPact(trx: any, stateId: string, me: PlayerPolitics,
   if (!me.isLeader) throw new AppError('Only the party leader can answer for the party.', 403, 'FORBIDDEN');
   if (!accept) {
     await trx('pol_pacts').where({ id: pact.id }).update({ status: 'declined', resolved_arc: arc, decline_reason: 'Declined by the leader.' });
+    await notify(trx, pact.created_by_character_id, arc, 'pact_declined', `${me.party.name} turned down your deal.`, 'chamber');
     return { status: 'declined' };
   }
   const bill = await trx('pol_bills').where({ id: pact.bill_id, status: 'proposed' }).first();
@@ -668,6 +674,7 @@ export async function respondPact(trx: any, stateId: string, me: PlayerPolitics,
   const fromParty = await trx('pol_parties').where({ id: pact.from_party_id }).first();
   await trx('pol_pacts').where({ id: pact.id }).update({ status: 'accepted' });
   await sealPact(trx, stateId, pact, fromParty, me.party, billTitle(parseParams(bill).category, parseParams(bill).option), arc);
+  await notify(trx, pact.created_by_character_id, arc, 'pact_accepted', `${me.party.name} accepted your deal. You owe them a favour.`, 'chamber');
   return { status: 'accepted' };
 }
 
@@ -689,6 +696,7 @@ export async function callFavour(trx: any, stateId: string, me: PlayerPolitics, 
     body: `${me.party.name} expects ${debtor?.name ?? 'them'} to vote ${vote === 'yea' ? 'for' : 'against'} "${title}".`,
   });
   await logAction(trx, stateId, me, arc, 'favour', fav.debtor_party_id, `Called in a favour from ${debtor?.name} on ${title}`);
+  await notify(trx, debtor?.leader_character_id, arc, 'favour_called', `${me.party.name} calls in its favour: vote ${vote === 'yea' ? 'for' : 'against'} "${title}", or break your word.`, 'chamber');
   return { status: 'called' };
 }
 
@@ -740,6 +748,28 @@ export async function onLeaveParty(trx: any, character: any, partyId: string): P
   }
 }
 
+/** Put a new leader at the head of a party (and in the head of government's chair if the party leads the government). */
+async function installLeader(trx: any, stateId: string, party: any, newLeader: any, oldLeader: any | null, arc: number, how: string): Promise<boolean> {
+  await trx('pol_party_members').where({ party_id: party.id, role: 'leader' }).update({ role: 'member' });
+  await trx('pol_party_members').where({ party_id: party.id, character_id: newLeader.id }).update({ role: 'leader' });
+  await trx('pol_parties').where({ id: party.id }).update({ leader_character_id: newLeader.id });
+  // The leader of the party that heads the government is the head of government.
+  const becameHead = await trx('pol_offices').where({ state_id: stateId, office: 'premier', party_id: party.id })
+    .update({ holder_character_id: newLeader.id });
+  await trx('pol_ledger_events').insert({
+    state_id: stateId, arc, kind: 'new_leader',
+    headline: `${newLeader.name} takes the leadership of ${party.name}`,
+    body: oldLeader ? `${oldLeader.name} is out after ${how}.` : `${party.name}'s MPs have chosen a new leader.`,
+  });
+  return becameHead > 0;
+}
+
+/**
+ * Challenge for the party leadership.
+ * - A computer-run leader: decided at once by clout (leadershipDecision).
+ * - A human leader: a CONTEST opens. The leader is told, the party's human
+ *   members vote, and it is decided when the month after next turns (contestResult).
+ */
 export async function challengeLeadership(trx: any, stateId: string, me: PlayerPolitics, arc: number) {
   needParty(me);
   if (me.isLeader) throw new AppError('You already lead this party.', 409, 'CONFLICT');
@@ -749,28 +779,137 @@ export async function challengeLeadership(trx: any, stateId: string, me: PlayerP
     throw new AppError(`You are too new to the party. You can challenge in ${wait} month${wait === 1 ? '' : 's'}.`, 409, 'CONFLICT');
   }
   const leader = me.party.leader_character_id ? await trx('characters').where({ id: me.party.leader_character_id }).first() : null;
-  const decision = leadershipDecision(num(me.character.influence), !!leader, num(leader?.influence));
+  const nationCode = await codeOf(trx, stateId);
+  const nationName = getNationForPolState(nationCode)?.shortName ?? 'the nation';
+
+  if (leader) {
+    if (num(me.character.influence) < LEADERSHIP_MIN_CLOUT) {
+      throw new AppError(`You need ${LEADERSHIP_MIN_CLOUT} clout to force a contest. You have ${num(me.character.influence)}.`, 409, 'CONFLICT');
+    }
+    const open = await trx('pol_leadership_contests').where({ party_id: me.party.id, status: 'open' }).first();
+    if (open) throw new AppError('A leadership contest is already under way in your party.', 409, 'CONFLICT');
+    await spendEnergy(trx, me.character.id, LEADERSHIP_AP, arc);
+    const [contest] = await trx('pol_leadership_contests').insert({
+      state_id: stateId, party_id: me.party.id, challenger_id: me.character.id, leader_id: leader.id,
+      opened_arc: arc, closes_arc: arc + CONTEST_MONTHS, status: 'open',
+    }).returning('*');
+    await trx('pol_ledger_events').insert({
+      state_id: stateId, arc, kind: 'leadership_contest',
+      headline: `${me.character.name} challenges ${leader.name} for the leadership of ${me.party.name}`,
+      body: `The party's members will decide. The result is declared when next month ends.`,
+    });
+    await notify(trx, leader.id, arc, 'contest_opened', `${me.character.name} has challenged you for the leadership of ${me.party.name}. Rally your members in the Party tab: the vote closes when next month ends.`, 'party');
+    const members = await trx('pol_party_members').where({ party_id: me.party.id }).whereNotIn('character_id', [me.character.id, leader.id]).pluck('character_id');
+    await notifyMany(trx, members, arc, 'contest_vote', `Leadership contest in ${me.party.name}: ${me.character.name} against ${leader.name}. Cast your ballot in the Party tab.`, 'party');
+    await logAction(trx, stateId, me, arc, 'leadership', me.party.id, `Challenged ${leader.name} for the leadership`);
+    return { won: null, contestId: contest.id, message: `The contest is on. ${leader.name} has been told. Win your party's members over before next month ends.` };
+  }
+
+  const decision = leadershipDecision(num(me.character.influence), false, 0);
   await spendEnergy(trx, me.character.id, LEADERSHIP_AP, arc);
   if (!decision.win) {
     await bumpCharacter(trx, me.character.id, { clout: LEADERSHIP_FAIL_CLOUT });
     await logAction(trx, stateId, me, arc, 'leadership', me.party.id, 'Leadership challenge failed');
     return { won: false, message: `The party was not ready to follow you. You needed ${decision.need} clout.` };
   }
-  await trx('pol_party_members').where({ party_id: me.party.id, role: 'leader' }).update({ role: 'member' });
-  await trx('pol_party_members').where({ party_id: me.party.id, character_id: me.character.id }).update({ role: 'leader' });
-  await trx('pol_parties').where({ id: me.party.id }).update({ leader_character_id: me.character.id });
-  // The leader of the party that heads the government is the Premier.
-  const becamePremier = await trx('pol_offices').where({ state_id: stateId, office: 'premier', party_id: me.party.id })
-    .update({ holder_character_id: me.character.id });
-  await trx('pol_ledger_events').insert({
-    state_id: stateId, arc, kind: 'new_leader',
-    headline: `${me.character.name} takes the leadership of ${me.party.name}`,
-    body: leader ? `${leader.name} is out after a challenge from inside the party.` : `${me.party.name}'s MPs have chosen a new leader.`,
-  });
+  const becameHead = await installLeader(trx, stateId, me.party, me.character, null, arc, 'a challenge');
   await logAction(trx, stateId, me, arc, 'leadership', me.party.id, `Became leader of ${me.party.name}`);
-  const nationCode = await codeOf(trx, stateId);
-  const nationName = getNationForPolState(nationCode)?.shortName ?? 'the nation';
-  return { won: true, message: `You now lead ${me.party.name}${becamePremier ? ` and are ${headOfGovernmentTitle(nationCode)} of ${nationName}` : ''}. Its bloc votes the way you vote.` };
+  return { won: true, message: `You now lead ${me.party.name}${becameHead ? ` and are ${headOfGovernmentTitle(nationCode)} of ${nationName}` : ''}. Its bloc votes the way you vote.` };
+}
+
+/** A party member casts (or changes) their ballot in their party's open contest. */
+export async function voteInContest(trx: any, me: PlayerPolitics, side: 'challenger' | 'leader', arc: number) {
+  needParty(me);
+  const contest = await trx('pol_leadership_contests').where({ party_id: me.party.id, status: 'open' }).forUpdate().first();
+  if (!contest) throw new AppError('There is no leadership contest in your party.', 404, 'NOT_FOUND');
+  if ([contest.challenger_id, contest.leader_id].includes(me.character.id)) throw new AppError('You are standing in this contest: your clout is your vote.', 409, 'CONFLICT');
+  if (num(me.membership?.joined_arc, arc) > num(contest.opened_arc)) throw new AppError('Only members who belonged to the party when the contest opened may vote.', 403, 'FORBIDDEN');
+  await trx('pol_leadership_ballots').insert({ contest_id: contest.id, character_id: me.character.id, side })
+    .onConflict(['contest_id', 'character_id']).merge();
+  return { message: side === 'challenger' ? 'You back the challenger.' : 'You back the leader.' };
+}
+
+/** The standing of a party's open contest, for the Party screen. */
+export async function contestView(conn: any, partyId: string, myId: string | null) {
+  const c = await conn('pol_leadership_contests').where({ party_id: partyId, status: 'open' }).first()
+    ?? await conn('pol_leadership_contests').where({ party_id: partyId }).whereNot('status', 'open').orderBy('created_at', 'desc').first();
+  if (!c) return null;
+  const people = await conn('characters').whereIn('id', [c.challenger_id, c.leader_id]).select('id', 'name', 'influence');
+  const by = new Map<string, any>(people.map((p: any) => [p.id, p]));
+  const ballots = await conn('pol_leadership_ballots as b').join('characters as ch', 'ch.id', 'b.character_id')
+    .where('b.contest_id', c.id).select('b.character_id', 'b.side', 'ch.name');
+  const seated = await seatedIds(conn, c.state_id, ballots.map((b: any) => b.character_id));
+  const standing = contestResult({
+    challengerClout: num(by.get(c.challenger_id)?.influence), leaderClout: num(by.get(c.leader_id)?.influence),
+    ballots: ballots.map((b: any) => ({ side: b.side, hasSeat: seated.has(b.character_id) })),
+  });
+  return {
+    id: c.id, status: c.status, openedArc: c.opened_arc, closesArc: c.closes_arc,
+    challenger: { id: c.challenger_id, name: by.get(c.challenger_id)?.name ?? '?', clout: num(by.get(c.challenger_id)?.influence) },
+    leader: { id: c.leader_id, name: by.get(c.leader_id)?.name ?? '?', clout: num(by.get(c.leader_id)?.influence) },
+    ballots: ballots.map((b: any) => ({ id: b.character_id, name: b.name, side: b.side, mp: seated.has(b.character_id) })),
+    myBallot: myId ? ballots.find((b: any) => b.character_id === myId)?.side ?? null : null,
+    standing: c.status === 'open' ? standing : (typeof c.result === 'string' ? JSON.parse(c.result) : c.result),
+    rules: { ballotWeight: CONTEST_BALLOT_WEIGHT, mpMult: CONTEST_MP_BALLOT_MULT, incumbency: LEADERSHIP_MARGIN },
+  };
+}
+
+async function seatedIds(conn: any, stateId: string, ids: string[]): Promise<Set<string>> {
+  if (!ids.length) return new Set();
+  const gov = await getGovernmentLite(conn, stateId);
+  if (!gov) return new Set();
+  const rows = await conn('pol_council_seats').where({ cycle_id: gov }).whereIn('character_id', ids).pluck('character_id');
+  return new Set(rows);
+}
+/** The sitting parliament's cycle id (the latest cycle that has seats). */
+async function getGovernmentLite(conn: any, stateId: string): Promise<string | null> {
+  const row = await conn('pol_council_seats as s').join('pol_cycles as c', 'c.id', 's.cycle_id')
+    .where('c.state_id', stateId).orderBy('c.cycle_number', 'desc').select('c.id').first();
+  return row?.id ?? null;
+}
+
+/** Monthly tick: decide every contest that has closed. */
+export async function resolveContests(trx: any, stateId: string, arc: number): Promise<void> {
+  const due = await trx('pol_leadership_contests').where({ state_id: stateId, status: 'open' }).where('closes_arc', '<=', arc);
+  for (const c of due) {
+    const party = await trx('pol_parties').where({ id: c.party_id }).first();
+    const [challenger, leader] = await Promise.all([c.challenger_id, c.leader_id].map(id => trx('characters').where({ id }).first()));
+    const stillIn = async (id: string) => !!(await trx('pol_party_members').where({ party_id: c.party_id, character_id: id }).first());
+    // Void if the leader has already changed or either side has left.
+    if (!party || !challenger || !leader || party.leader_character_id !== leader.id || !(await stillIn(challenger.id))) {
+      await trx('pol_leadership_contests').where({ id: c.id }).update({ status: 'void', result: JSON.stringify({ reason: 'overtaken by events' }) });
+      continue;
+    }
+    const ballots = await trx('pol_leadership_ballots').where({ contest_id: c.id });
+    // Only ballots of people still in the party count.
+    const members = new Set<string>(await trx('pol_party_members').where({ party_id: c.party_id }).pluck('character_id'));
+    const valid = ballots.filter((b: any) => members.has(b.character_id));
+    const seated = await seatedIds(trx, stateId, valid.map((b: any) => b.character_id));
+    const r = contestResult({
+      challengerClout: num(challenger.influence), leaderClout: num(leader.influence),
+      ballots: valid.map((b: any) => ({ side: b.side, hasSeat: seated.has(b.character_id) })),
+    });
+    const won = r.winner === 'challenger';
+    await trx('pol_leadership_contests').where({ id: c.id }).update({ status: won ? 'won' : 'lost', result: JSON.stringify({ ...r, ballots: valid.length }) });
+    const score = `${Math.round(r.challenger)} to ${Math.round(r.leader)}`;
+    if (won) {
+      await installLeader(trx, stateId, party, challenger, leader, arc, `losing a leadership contest ${score}`);
+      await bumpCharacter(trx, leader.id, { clout: CONTEST_DEPOSED_CLOUT });
+      await notify(trx, challenger.id, arc, 'contest_won', `You won the leadership of ${party.name}, ${score}. Its bloc now votes the way you vote.`, 'party');
+      await notify(trx, leader.id, arc, 'contest_lost', `You lost the leadership of ${party.name} to ${challenger.name}, ${score}.`, 'party');
+    } else {
+      await bumpCharacter(trx, challenger.id, { clout: LEADERSHIP_FAIL_CLOUT });
+      await trx('pol_ledger_events').insert({
+        state_id: stateId, arc, kind: 'leadership_contest',
+        headline: `${leader.name} sees off ${challenger.name} and keeps the ${party.name} leadership`,
+        body: `The party backed its leader, ${score}.`,
+      });
+      await notify(trx, challenger.id, arc, 'contest_lost', `Your challenge in ${party.name} failed, ${score}. You lose ${-LEADERSHIP_FAIL_CLOUT} clout.`, 'party');
+      await notify(trx, leader.id, arc, 'contest_won', `You saw off ${challenger.name}'s challenge, ${score}.`, 'party');
+    }
+    const voters = valid.map((b: any) => b.character_id);
+    await notifyMany(trx, voters, arc, 'contest_result', `${party.name} leadership: ${won ? challenger.name : leader.name} wins, ${score}.`, 'party');
+  }
 }
 
 // ═══════════════════════════════ DECREES ═══════════════════════════════
@@ -849,6 +988,9 @@ export async function offerHandshake(trx: any, stateId: string, me: PlayerPoliti
   const askVote = input.ask.billId && input.ask.vote ? input.ask.vote : null;
   if (!giveVote && !giveCash) throw new AppError('Offer something: your vote on a bill, money, or both.', 400, 'BAD_REQUEST');
   if (!askVote && !askCash) throw new AppError('Ask for something: their vote on a bill, money, or both.', 400, 'BAD_REQUEST');
+  // A handshake is a deal about votes. Money for money is not politics, and it
+  // would let one account feed another (see docs/WORLD_STAGE.md).
+  if (!giveVote && !askVote) throw new AppError('A handshake must include a vote on a bill, from you or from them.', 400, 'BAD_REQUEST');
   for (const [billId, label] of [[giveVote ? input.give.billId : null, 'The bill you offered your vote on'], [askVote ? input.ask.billId : null, 'The bill you asked about']] as const) {
     if (!billId) continue;
     const bill = await trx('pol_bills').where({ id: billId, state_id: stateId, status: 'proposed' }).first();
@@ -871,6 +1013,7 @@ export async function offerHandshake(trx: any, stateId: string, me: PlayerPoliti
     status: 'offered', created_arc: arc,
   }).returning('*');
   await logAction(trx, stateId, me, arc, 'handshake', to.id, `Offered ${to.name} a deal`);
+  await notify(trx, to.id, arc, 'deal_offered', `${me.character.name} has offered you a deal. Answer it in Corridors.`, 'corridors');
   return { handshake: row, message: `Your offer is with ${to.name}.` };
 }
 
@@ -880,6 +1023,7 @@ export async function respondHandshake(trx: any, stateId: string, me: PlayerPoli
   const from = await trx('characters').where({ id: h.from_character_id }).first();
   if (!accept) {
     await trx('pol_handshakes').where({ id }).update({ status: 'declined', resolved_arc: arc });
+    await notify(trx, h.from_character_id, arc, 'deal_declined', `${me.character.name} turned down your deal.`, 'corridors');
     return { message: `You turned down ${from?.name ?? 'the offer'}.` };
   }
   for (const billId of [h.from_bill_id, h.to_bill_id]) {
@@ -894,6 +1038,7 @@ export async function respondHandshake(trx: any, stateId: string, me: PlayerPoli
   const judged = !h.from_vote && !h.to_vote;
   await trx('pol_handshakes').where({ id }).update({ status: judged ? 'settled' : 'accepted', resolved_arc: judged ? arc : null });
   await logAction(trx, stateId, me, arc, 'handshake', h.from_character_id, `Shook hands with ${from?.name ?? 'a politician'}`);
+  await notify(trx, h.from_character_id, arc, 'deal_accepted', `${me.character.name} accepted your deal.${judged ? ' The money has changed hands.' : ' Their word is given.'}`, 'corridors');
   return { message: judged ? `Done. The money has changed hands.` : `You shook hands with ${from?.name ?? 'them'}. Your word is given.` };
 }
 
@@ -922,6 +1067,11 @@ async function settleHandshakes(trx: any, bill: any, plan: BillVotePlan, shared:
     for (const side of sides) {
       const result = judgePromise(side.vote, counted(side.who));
       upd[side.field] = result;
+      if (result === 'kept' || result === 'broken') {
+        const who = await trx('characters').where({ id: side.who }).select('name').first();
+        await notify(trx, side.other, arc, result === 'kept' ? 'word_kept' : 'word_broken',
+          result === 'kept' ? `${who?.name ?? 'Your partner'} kept their word on "${title}".` : `${who?.name ?? 'Your partner'} broke their word on "${title}". It is on their record.`, 'corridors');
+      }
       if (result === 'kept' && !rewarded.has(side.who)) {
         const already = await trx('pol_action_log').where({ character_id: side.who, arc, kind: 'word_kept' }).first();
         if (!already) {

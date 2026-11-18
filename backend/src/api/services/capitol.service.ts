@@ -7,11 +7,14 @@
  * Read-only: it never writes, except that the current election cycle row is
  * created lazily by getOrCreateCurrentCycle, as every other politics endpoint does.
  */
+import { LADDER as WORLD_LADDER, CareerRung } from '../constants/worldStage';
+import { careerRung } from './worldStage.rules';
+import { latestWorldRank } from './agency.service';
 import { BACKGROUNDS_BY_KEY } from '../constants/characterCreation';
 import { db } from '../../config/database';
 import { POLICY_CATALOG, MECHANISM_BASE_ROLLOUT } from '../constants/macroEconomy';
 import {
-  POL_CAMPAIGN_WINDOW_MONTHS, POL_FILING_WINDOW_MONTHS, getMajorityForState, getSeatsForState, AP_MONTHLY_GRANT,
+  POL_CAMPAIGN_WINDOW_MONTHS, POL_FILING_WINDOW_MONTHS, getMajorityForState, getSeatsForState, AP_MONTHLY_GRANT, AP_BANK_CAP,
 } from '../constants/politics';
 import { CABINET_POSTS, POLL_HISTORY_MONTHS, portfolioPostFor, PRIVATE_BILL_AP_EXTRA, headOfGovernmentTitle, nationRules } from '../constants/nations';
 import { AP_COST_BILL_MODERATE } from '../constants/politics';
@@ -25,8 +28,8 @@ import { safeParseJSON } from '../../utils/json';
 import { billVotePlan, loadVoteShared } from './floor.service';
 import { currentPolStateCode } from './playerNation';
 
-const LADDER = ['citizen', 'member', 'candidate', 'mp', 'minister', 'premier'] as const;
-type Rung = typeof LADDER[number];
+const LADDER = WORLD_LADDER.map(r => r.key);
+type Rung = CareerRung;
 
 function num(v: any, d = 0) { const n = Number(v); return Number.isFinite(n) ? n : d; }
 
@@ -277,15 +280,14 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
     const apRow = await db('pol_character_ap').where({ character_id: myChar.id }).first();
     const fin = await db('character_finances').where({ character_id: myChar.id }).first();
 
-    let rung: Rung = 'citizen';
-    if (membership) rung = 'member';
-    if (myCandidacy) rung = 'candidate';
-    if (mySeat) rung = 'mp';
-    if (myPost) rung = 'minister';
-    if (isPremier) rung = 'premier';
-
     const inGov = !!myParty && govSet.has(myParty.id);
     const partySeated = !!myParty && (gov.seatsByParty[myParty.id] || 0) > 0;
+    const worldRank = await latestWorldRank(db, myChar.id);
+    const rung: Rung = careerRung({
+      hasParty: !!membership, isCandidate: !!myCandidacy, hasSeat: !!mySeat,
+      leadsSeatedParty: membership?.role === 'leader' && partySeated, isMinister: !!myPost, isHead: isPremier,
+      worldRank: worldRank?.rank ?? null,
+    });
     me = {
       characterId: myChar.id,
       name: myChar.name,
@@ -297,13 +299,14 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
         : null,
       convictions: myChar.convictions ? (typeof myChar.convictions === 'string' ? JSON.parse(myChar.convictions) : myChar.convictions) : null,
       cash: fin ? num(fin.cash_in_hand) : null,
-      ap: apRow ? { current: num(apRow.current_ap), cap: num(apRow.ap_cap) } : { current: AP_MONTHLY_GRANT, cap: AP_MONTHLY_GRANT },
+      ap: apRow ? { current: num(apRow.current_ap), cap: num(apRow.ap_cap) } : { current: AP_MONTHLY_GRANT, cap: AP_BANK_CAP },
       party: myParty ? { id: myParty.id, name: myParty.name, color: myParty.color, role: membership.role, seats: myParty.seats, inGovernment: inGov } : null,
       seatDistrict: mySeat?.constituency_id ? districts.find((d: any) => d.id === mySeat.constituency_id)?.name ?? null : null,
       candidacyDistrict: myCandidacy?.constituency_id ? districts.find((d: any) => d.id === myCandidacy.constituency_id)?.name ?? null : null,
       office: isPremier ? headOfGovernmentTitle(state.code) : myPost?.title ?? null,
       rung,
       ladder: LADDER,
+      worldRank,
       canTableBill: partySeated && !!gov.leadPartyId,
       hasSeat: !!mySeat,
       voteMode: (membership?.role === 'leader' && partySeated) ? 'line' : (mySeat ? 'seat' : null),
@@ -390,7 +393,11 @@ function nextGoal(rung: Rung, phase: string, monthsToElection: number, inGov: bo
     case 'mp': return inGov
       ? 'You sit on the government benches. Vote with your party and build credibility to be named a minister.'
       : 'Table bills from the opposition benches and win over voters before the next election.';
+    case 'leader': return inGov
+      ? 'Your party governs: your vote sets its line. Keep your partners happy and your word good.'
+      : 'Your vote sets your party\'s line. Make deals, win seats, and make your party the one a government needs.';
     case 'minister': return 'Steer laws in your portfolio: you table them cheaper and government parties back them more readily.';
     case 'premier': return 'Lead the government: appoint your cabinet, pass your programme and keep approval up before polling day.';
+    case 'statesman': return 'You are among the three most influential politicians in the world. Hold your place in the Meridian Wire\'s Index.';
   }
 }

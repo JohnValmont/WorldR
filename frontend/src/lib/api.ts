@@ -238,6 +238,16 @@ export const registryApi = {
   getCompany: (id: string) => api.get(`/registry/companies/${id}?t=${Date.now()}`)
 };
 
+// The Meridian Wire: the world's neutral news agency (backend agency.routes.ts)
+export const agencyApi = {
+  getFront: (): Promise<import('@/app/drennia/politics/_floor/types').WireFront> => api.get('/agency/front').then(res => res.data),
+  getEdition: (arc: number): Promise<import('@/app/drennia/politics/_floor/types').Edition> => api.get(`/agency/editions/${arc}`).then(res => res.data),
+  fileDispatch: (headline: string, body: string) => api.post('/agency/dispatches', { headline, body }).then(res => res.data),
+  react: (id: string, kind: 'endorse' | 'report') => api.post(`/agency/dispatches/${id}/react`, { kind }).then(res => res.data),
+  withdraw: (id: string) => api.post(`/agency/dispatches/${id}/withdraw`, {}).then(res => res.data),
+  moderate: (id: string, status: 'published' | 'hidden' | 'removed') => api.post(`/agency/dispatches/${id}/moderate`, { status }).then(res => res.data),
+};
+
 // Politics
 export const politicsApi = {
   /** Everything the rebuilt Politics screens show, in one call. See backend capitol.service.ts. */
@@ -261,6 +271,8 @@ export const politicsApi = {
   withdrawHandshake: (id: string) => api.post(`/politics/handshakes/${id}/withdraw`, {}).then(res => res.data),
   callFavour: (id: string, billId: string, vote: 'yea' | 'nay') => api.post(`/politics/favours/${id}/call`, { billId, vote }).then(res => res.data),
   challengeLeadership: () => api.post('/politics/party/challenge').then(res => res.data),
+  voteInContest: (side: 'challenger' | 'leader') => api.post('/politics/party/contest/vote', { side }).then(res => res.data),
+  markNoticesRead: () => api.post('/politics/notices/read').then(res => res.data),
   issueDecree: (key: string) => api.post('/politics/decree', { key }).then(res => res.data),
   appointMinister: (postKey: string, characterId: string | null) =>
     api.post(`/politics/cabinet/${postKey}/appoint`, { characterId }).then(res => res.data),
