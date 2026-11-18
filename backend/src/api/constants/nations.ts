@@ -412,6 +412,36 @@ export const APPROVAL_MAX = 95;
  */
 export const APPROVAL_ELECTION_SWING = 0.25;
 
+// ─── The economy people feel -> approval ───────────────────────────────────
+// On top of the national stats, voters judge the government on outcomes from
+// the nations simulation (docs/NATIONS_SIMULATION.md): jobs, growth and debt.
+// Approval = stat approval + economy adjustment (each part capped, then the total).
+// Both the real election and every poll read the same number (liveApproval).
+export const ECONOMY_APPROVAL = {
+  /** Unemployment voters accept without complaint (share of the labour force). */
+  unemploymentNorm: 0.06,
+  /** Approval points per percentage point of unemployment above the norm (negative)... */
+  perPointUnemploymentAbove: -1.5,
+  /** ...and per point below it (smaller: people notice bad news more than good). */
+  perPointUnemploymentBelow: -0.75,
+  unemploymentCap: 10,
+  /** Yearly growth in output (GDP) voters take as normal: what a steady economy does here (mostly population growth, about 0.3%). */
+  growthNorm: 0.003,
+  /** Approval points per percentage point of yearly growth above (or below) the norm. */
+  perPointGrowth: 1.0,
+  growthCap: 6,
+  /** Growth is measured against this many months ago (needs that much history; otherwise no growth term). */
+  growthLookbackMonths: 12,
+  /** Debt above this share of GDP costs approval, this many points per percentage point. */
+  debtSafeRatio: 0.9,
+  perPointDebt: -0.1,
+  /** Extra when lenders refuse (debt past the ceiling, programmes cut). */
+  debtCeilingPenalty: -6,
+  debtCap: 10,
+  /** The whole economy adjustment never moves approval more than this either way. */
+  totalCap: 15,
+} as const;
+
 // ─── Computer-run lawmaking (NPC parties) ──────────────────────────────────
 // Chance per month that a computer-run party tables a bill (if it has a change
 // it wants badly enough and no bill of its own is still open).

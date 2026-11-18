@@ -98,7 +98,7 @@ import { NationalStats, readNationalStatsFromRow, calculateNationalEconomy, enac
 import { safeParseJSON } from '../../utils/json';
 import {
   syncNationDistricts, getGovernment, getLawsInForce, projectPartyVotes, formCabinet,
-  runStatecraftMonth, computeApproval, approvalVoteMultiplier, billTitle,
+  runStatecraftMonth, computeApproval, approvalVoteMultiplier, billTitle, liveApproval,
 } from './statecraft.service';
 import { getNationForPolState, NPC_MACHINE_EFFORT, nationRules } from '../constants/nations';
 import { supportEffortByParty } from './support.store';
@@ -1029,7 +1029,8 @@ async function resolveElection(trx: any, cycleId: string) {
 
   // Economy -> politics: the outgoing government's approval moves its parties' vote.
   const outgoing = await getGovernment(trx, cycle.state_id);
-  const govMult = approvalVoteMultiplier(computeApproval(conditions));
+  // Same approval the polls use (stats + the economy people feel): liveApproval.
+  const govMult = approvalVoteMultiplier((await liveApproval(trx, state)).approval);
   for (const c of engineCands) {
     if (outgoing.memberPartyIds.includes(c.partyId)) c.voteMultiplier = govMult;
   }

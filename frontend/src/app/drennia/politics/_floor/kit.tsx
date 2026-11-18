@@ -21,6 +21,23 @@ export const T = {
   badSoft: 'rgba(217,98,90,0.12)',
 } as const;
 
+/** Why approval is what it is: the nation's condition, then jobs, growth and debt. Same number the election uses. */
+export function ApprovalWhy({ approval }: { approval: { live: number; fromStats?: number; economy?: { jobs: number; growth: number; debt: number; total: number } } }) {
+  const e = approval.economy;
+  if (approval.fromStats == null || !e) return null;
+  const parts: [string, number][] = [['jobs', e.jobs], ['growth', e.growth], ['debt', e.debt]];
+  const shown = parts.filter(([, v]) => Math.abs(v) >= 0.5);
+  const sign = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(0)}`;
+  return (
+    <div className="mt-2 text-[11px] leading-relaxed" style={{ color: T.faint }}>
+      {Math.round(approval.fromStats)} from the state of the nation
+      {shown.length === 0
+        ? ' · the economy is neither helping nor hurting.'
+        : <>{shown.map(([k, v]) => <span key={k}> · <span style={{ color: v > 0 ? T.good : T.bad }}>{k} {sign(v)}</span></span>)}{Math.abs(e.total) < Math.abs(e.jobs + e.growth + e.debt) - 0.05 ? ` (capped at ${sign(e.total)})` : ''}</>}
+    </div>
+  );
+}
+
 export const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
 export const signed = (n: number, d = 0) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(d).replace(/\.0$/, '')}`;
 export const pct = (x: number, d = 0) => `${(x * 100).toFixed(d)}%`;

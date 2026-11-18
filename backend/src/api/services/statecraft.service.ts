@@ -17,7 +17,7 @@ import { parseTreatyOption, treatyLiking } from './diplomacy.rules';
 import { getMajorityForState } from '../constants/politics';
 import { POLICY_CATALOG, PolicyOptionDef, NationalStat } from '../constants/macroEconomy';
 import {
-  APPROVAL_WEIGHTS, APPROVAL_MIN, APPROVAL_MAX, APPROVAL_ELECTION_SWING,
+  APPROVAL_WEIGHTS, APPROVAL_MIN, APPROVAL_MAX, APPROVAL_ELECTION_SWING, ECONOMY_APPROVAL,
   CABINET_POSTS, DEFAULT_LAWS, MINISTER_BACKING_BONUS, MINISTER_SALARY, PREMIER_SALARY,
   NPC_BILL_CHANCE_LEAD, NPC_BILL_CHANCE_PARTNER, NPC_BILL_CHANCE_OPPOSITION, NPC_BILL_MIN_GAIN,
   NPC_EFFECT_WEIGHT, NPC_GOV_RESIST_PRIVATE_BILL, NPC_GOV_WHIP, NPC_OPPOSITION_BIAS,
@@ -187,14 +187,70 @@ export function decidePartyVote(ctx: VoteContext): 'yea' | 'nay' {
   return partyVoteScore(ctx) > 0 ? 'yea' : 'nay';
 }
 
-/** Government approval 0..100 from national stats (50 = neutral). */
-export function computeApproval(stats: Partial<NationalStats>): number {
+/** What voters feel of the economy (from the nations simulation). Missing = no economy adjustment. */
+export interface ApprovalEconomy {
+  unemployment: number;
+  /** Yearly growth in output, or null when there is not yet a year of history. */
+  growth: number | null;
+  debtRatio: number;
+  /** Below 1 when debt is past the ceiling and programmes were cut. */
+  funded: number;
+}
+
+export interface EconomyApprovalParts { jobs: number; growth: number; debt: number; total: number }
+
+/** Pure: approval points from jobs, growth and debt. Each part capped, then the total (ECONOMY_APPROVAL). */
+export function economyApprovalAdjustment(e: ApprovalEconomy | null | undefined): EconomyApprovalParts {
+  if (!e) return { jobs: 0, growth: 0, debt: 0, total: 0 };
+  const E = ECONOMY_APPROVAL;
+  const cap = (x: number, c: number) => Math.max(-c, Math.min(c, x));
+  const gap = (e.unemployment - E.unemploymentNorm) * 100;
+  const jobs = cap(gap * (gap > 0 ? E.perPointUnemploymentAbove : E.perPointUnemploymentBelow), E.unemploymentCap);
+  const growth = e.growth == null ? 0 : cap((e.growth - E.growthNorm) * 100 * E.perPointGrowth, E.growthCap);
+  const debt = cap(Math.max(0, e.debtRatio - E.debtSafeRatio) * 100 * E.perPointDebt + (e.funded < 1 ? E.debtCeilingPenalty : 0), E.debtCap);
+  const r1 = (x: number) => Math.round(x * 10) / 10;
+  return { jobs: r1(jobs), growth: r1(growth), debt: r1(debt), total: r1(cap(jobs + growth + debt, E.totalCap)) };
+}
+
+/**
+ * Government approval 0..100 (50 = neutral): national stats, plus how the
+ * economy feels when it is known. Pure. Callers with a database should use
+ * liveApproval so the election and every poll read the same economy.
+ */
+export function computeApproval(stats: Partial<NationalStats>, economy?: ApprovalEconomy | null): number {
   let a = 50;
   for (const [stat, w] of Object.entries(APPROVAL_WEIGHTS)) {
     const v = Number((stats as any)[stat] ?? 50);
     a += (w as number) * (v - 50);
   }
+  a += economyApprovalAdjustment(economy).total;
   return Math.max(APPROVAL_MIN, Math.min(APPROVAL_MAX, Math.round(a * 10) / 10));
+}
+
+/** The economy voters feel right now, from the latest nations-simulation month (null before the first one). */
+export async function approvalEconomy(conn: any, stateId: string): Promise<ApprovalEconomy | null> {
+  const latest = await conn('nation_sim_months').where({ state_id: stateId }).orderBy('arc', 'desc').first();
+  if (!latest) return null;
+  const back = await conn('nation_sim_months').where({ state_id: stateId }).where('arc', '<=', Number(latest.arc) - ECONOMY_APPROVAL.growthLookbackMonths).orderBy('arc', 'desc').first();
+  const budget = typeof latest.budget === 'string' ? safeParseJSON(latest.budget) : latest.budget;
+  const gdp = Number(latest.gdp_yearly) || 0;
+  const gdpBack = back ? Number(back.gdp_yearly) || 0 : 0;
+  return {
+    unemployment: Number(latest.unemployment) || 0,
+    growth: back && gdpBack > 0 ? gdp / gdpBack - 1 : null,
+    debtRatio: budget?.debtRatio != null ? Number(budget.debtRatio) : (gdp > 0 && latest.debt != null ? Number(latest.debt) / gdp : 0),
+    funded: budget?.funded != null ? Number(budget.funded) : 1,
+  };
+}
+
+/**
+ * THE approval number: what the real election, every poll, the map and every
+ * screen use. Same inputs everywhere (AGENTS.md: polls and elections agree).
+ */
+export async function liveApproval(conn: any, stateRow: any): Promise<{ approval: number; fromStats: number; economy: EconomyApprovalParts }> {
+  const stats = readNationalStatsFromRow(stateRow);
+  const econ = await approvalEconomy(conn, stateRow.id);
+  return { approval: computeApproval(stats, econ), fromStats: computeApproval(stats), economy: economyApprovalAdjustment(econ) };
 }
 
 /** Vote multiplier for governing parties' candidates at an election. */
@@ -681,7 +737,7 @@ export async function recordPollSnapshot(trx: any, stateRow: any, arc: number): 
   if (!parties.length) return;
   const gov = await getGovernment(trx, stateRow.id);
   const conditions = readNationalStatsFromRow(stateRow);
-  const approval = computeApproval(conditions);
+  const approval = (await liveApproval(trx, stateRow)).approval;
   const proj = projectElection(
     await pollParties(trx, stateRow.id, parties),
     districts,

@@ -268,7 +268,7 @@ farm and energy jobs fell about 2% from extra imports, and Eryndor's exports ros
   without rewriting it.
 - **Treaties and relations (layer 5).** There is no way yet to agree lower tariffs with one nation
   only, or to retaliate except by changing your own tariff law. Tariffs apply to everyone equally.
-- **Still read-only.** Budget, debt and trade feed the rating, not approval or elections.
+- ~~Still read-only.~~ Superseded: the economy now moves approval (see "Built: the economy moves votes").
 - **Numbers are modelled, not played.**
 
 ### Files (layers 3-4)
@@ -337,3 +337,34 @@ Constants `constants/diplomacy.ts`; rules `services/diplomacy.rules.ts`; service
 passed or failed) and `statecraft.service.ts` (`billTitle`, `changeDesirability`); endpoints
 `POST /politics/treaties`, `POST /politics/treaties/:id/withdraw`; table changes
 `database/migrations/0105_diplomacy.sql`; tests `tests/diplomacy.test.ts` (26, required in CI).
+
+## Built: the economy moves votes (2026-11-18, owner decision)
+
+Government approval (which moves the governing parties' vote at the election by up to 22.5% either
+way) was built from the national stats only. It now adds what voters feel of the economy, from the
+nations simulation:
+
+| Part | Rule | Cap |
+|---|---|---|
+| Jobs | -1.5 points per point of unemployment above 6%; +0.75 per point below (bad news counts more) | ±10 |
+| Growth | +1 point per point of yearly GDP growth above 0.3% (what a steady economy does here), and the same below; needs 12 months of history | ±6 |
+| Debt | -0.1 per point of debt above 90% of GDP; -6 more when lenders refuse | ±10 |
+| Total | | ±15 |
+
+`liveApproval` is the one source: the election, the monthly poll, the map's "poll today", every
+screen and the legacy poll endpoint all read it, so polls and the election agree.
+
+**Modelled (two years):** a steady economy is neutral (within 1 point, even after ten years); a
+Drennia recession takes approval from 44 (stats alone) to about 32 and the governing parties' vote
+down about 9%; a boom adds about 3.5 points; Westmark raising tariffs costs Eryndor's government
+about 5 points at home; a debt collapse costs up to 10. **Seen on a fresh database** (Drennia
+forced into recession for 14 months): Drennia's approval 27.5 (42.5 from stats, -15 economy:
+jobs -10, growth -6, capped), and the poll snapshot, the nation list and the Desk all showed 27.5.
+
+**Known overlap:** prosperity already moves approval through the stats, and prosperity also drives
+unemployment, so a pure prosperity slump is felt twice. Unemployment also comes from laws (wages,
+tariffs, the budget, trade, embargoes) that the stats do not see, which is why it is counted. The
+caps keep the overlap bounded; revisit after playtesting.
+
+**On screen:** under government approval (Nation > Standing, and the Voters tab) a line shows why:
+"42 from the state of the nation · jobs -10 · growth -6 (capped at -15)".

@@ -344,3 +344,86 @@ describe('Layer 3: the national budget', () => {
     assert.ok(new Set(Object.values(w).map(m => Math.sign(m.budget.deficit))).size > 1, 'some run surpluses, some deficits');
   });
 });
+
+// ─── The economy moves approval (and so votes) ──────────────────────────────
+
+import { approvalVoteMultiplier, computeApproval, economyApprovalAdjustment, type ApprovalEconomy } from '../src/api/services/statecraft.service';
+import { ECONOMY_APPROVAL } from '../src/api/constants/nations';
+
+/** Run the world for `months` and return what voters in one nation feel, plus their stats. */
+function feltEconomy(code: string, months: number, changes: Record<string, Change & { stats?: Record<string, number> }> = {}) {
+  const ctxOf = (n: (typeof STARTER_NATIONS)[number]): R.NationSimContext => {
+    const f = founding(n);
+    const c = changes[n.polStateCode] ?? {};
+    return { ...f, stats: { ...f.stats, ...(c.stats ?? {}) }, laws: { ...f.laws, ...(c.laws ?? {}) }, split: c.split };
+  };
+  let states = STARTER_NATIONS.map(n => R.initialState(founding(n)) as R.NationSimState);
+  const gdp: number[][] = STARTER_NATIONS.map(() => []);
+  let last: R.NationSimMonth[] = STARTER_NATIONS.map((n, i) => R.describe(states[i], founding(n)));
+  for (let m = 0; m < months; m++) {
+    const ctxs = STARTER_NATIONS.map(ctxOf);
+    const trade = R.computeTrade(STARTER_NATIONS.map((n, i) => ({
+      code: n.polStateCode, structural: R.structuralOutput(ctxs[i], states[i].population),
+      tariffs: R.tariffRates(ctxs[i].laws), foundingTariffs: R.tariffRates(R.foundingLaws(n.polStateCode)),
+    })));
+    last = STARTER_NATIONS.map((n, i) => R.stepMonth(states[i], { ...ctxs[i], trade: trade[n.polStateCode] }));
+    last.forEach((x, i) => gdp[i].push(x.gdpYearly));
+    states = last;
+  }
+  const i = STARTER_NATIONS.findIndex(n => n.polStateCode === code);
+  const g = gdp[i];
+  const back = g.length > ECONOMY_APPROVAL.growthLookbackMonths ? g[g.length - 1 - ECONOMY_APPROVAL.growthLookbackMonths] : null;
+  const econ: ApprovalEconomy = { unemployment: last[i].unemployment, growth: back ? last[i].gdpYearly / back - 1 : null, debtRatio: last[i].budget.debtRatio, funded: last[i].budget.funded };
+  return { econ, stats: ctxOf(STARTER_NATIONS[i]).stats };
+}
+
+describe('The economy moves approval, and so the election', () => {
+  it('a brand-new world changes nobody\'s approval by more than a point, and every nation stays within 3 of 50', () => {
+    for (const n of STARTER_NATIONS) {
+      const { econ, stats } = feltEconomy(n.polStateCode, 0);
+      assert.ok(Math.abs(economyApprovalAdjustment(econ).total) <= 1, `${n.shortName} ${economyApprovalAdjustment(econ).total}`);
+      assert.ok(Math.abs(computeApproval(stats, econ) - 50) <= 3, `${n.shortName} ${computeApproval(stats, econ)}`);
+    }
+  });
+  it('a steady economy is neutral: no government is punished for doing nothing wrong (ten years)', () => {
+    for (const n of STARTER_NATIONS) {
+      const { econ } = feltEconomy(n.polStateCode, 120);
+      assert.ok(Math.abs(economyApprovalAdjustment(econ).total) <= 1, `${n.shortName} ${JSON.stringify(economyApprovalAdjustment(econ))}`);
+    }
+  });
+  it('a recession costs the government far more than the stats alone, and votes at the election', () => {
+    const { econ, stats } = feltEconomy('national', 24, { national: { stats: { prosperity: 30 } } });
+    const withEconomy = computeApproval(stats, econ);
+    const statsOnly = computeApproval(stats);
+    assert.ok(statsOnly - withEconomy >= 8, `${statsOnly} -> ${withEconomy}`);
+    assert.ok(approvalVoteMultiplier(withEconomy) < approvalVoteMultiplier(statsOnly) - 0.04);
+  });
+  it('a boom helps the government', () => {
+    const { econ, stats } = feltEconomy('national', 24, { national: { stats: { prosperity: 70 } } });
+    assert.ok(computeApproval(stats, econ) > computeApproval(stats));
+  });
+  it('one nation\'s tariffs can cost another nation\'s government at home', () => {
+    const before = feltEconomy('eryndor', 24);
+    const after = feltEconomy('eryndor', 24, { westmark: { laws: { tariffs: 'high' } } });
+    assert.ok(computeApproval(after.stats, after.econ) < computeApproval(before.stats, before.econ) - 2);
+  });
+  it('spending far beyond your means costs approval once lenders refuse', () => {
+    const { econ } = feltEconomy('national', 120, { national: { laws: { welfare: 'ubi_full', income_tax: 'none' } } });
+    assert.ok(economyApprovalAdjustment(econ).debt <= ECONOMY_APPROVAL.debtCeilingPenalty);
+  });
+  it('bad news counts more than good news of the same size', () => {
+    const n = ECONOMY_APPROVAL.unemploymentNorm;
+    const bad = economyApprovalAdjustment({ unemployment: n + 0.02, growth: null, debtRatio: 0.5, funded: 1 }).jobs;
+    const good = economyApprovalAdjustment({ unemployment: n - 0.02, growth: null, debtRatio: 0.5, funded: 1 }).jobs;
+    assert.ok(-bad > good && good > 0);
+  });
+  it('every part and the total are capped', () => {
+    const worst = economyApprovalAdjustment({ unemployment: 0.35, growth: -0.5, debtRatio: 5, funded: 0 });
+    assert.ok(worst.jobs >= -ECONOMY_APPROVAL.unemploymentCap && worst.growth >= -ECONOMY_APPROVAL.growthCap && worst.debt >= -ECONOMY_APPROVAL.debtCap);
+    assert.strictEqual(worst.total, -ECONOMY_APPROVAL.totalCap);
+  });
+  it('without a year of history there is no growth term, and with no economy at all nothing changes', () => {
+    assert.strictEqual(economyApprovalAdjustment({ unemployment: 0.06, growth: null, debtRatio: 0.5, funded: 1 }).growth, 0);
+    assert.strictEqual(computeApproval({}, null), computeApproval({}));
+  });
+});

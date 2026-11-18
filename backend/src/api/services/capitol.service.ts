@@ -20,7 +20,7 @@ import { CABINET_POSTS, POLL_HISTORY_MONTHS, portfolioPostFor, PRIVATE_BILL_AP_E
 import { AP_COST_BILL_MODERATE } from '../constants/politics';
 import { getCurrentWorldArc, getOrCreateCurrentCycle } from './politics.service';
 import {
-  billTitle, computeApproval, getGovernment, getLawsInForce, nationFor, parsePlatform,
+  billTitle, liveApproval, getGovernment, getLawsInForce, nationFor, parsePlatform,
   projectElection, optionAlignment, pollParties,
 } from './statecraft.service';
 import { getNationalPolicyMultipliers, readNationalStatsFromRow } from './nationalEconomy.service';
@@ -127,7 +127,8 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
   });
 
   // ── Polls & approval ──
-  const approvalNow = computeApproval(stats);
+  const live = await liveApproval(db, state);
+  const approvalNow = live.approval;
   const historyRows = await db('pol_poll_snapshots')
     .where({ state_id: state.id })
     .where('arc', '>', arc - POLL_HISTORY_MONTHS)
@@ -343,7 +344,7 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
       registeredVoters: districtRows.length ? districtRows.reduce((a: number, d: any) => a + num(d.registered_voters), 0) : num(state.registered_voters),
     },
     stats,
-    approval: { current: latest?.approval ?? approvalNow, live: approvalNow },
+    approval: { current: latest?.approval ?? approvalNow, live: approvalNow, fromStats: live.fromStats, economy: live.economy },
     calendar: {
       arc,
       phase: cycle.phase,
