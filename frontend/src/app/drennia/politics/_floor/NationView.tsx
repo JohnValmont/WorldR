@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { politicsApi } from '@/lib/api';
 import type { NationBudget, NationForeign, NationRow, NationSim, NationTrade } from './types';
+import CoalitionView, { coalitionNeedsMe } from './CoalitionView';
 import { ApprovalWhy, Btn, Card, Chip, EffectChips, Label, Meter, PartyDot, T, leaderTitle, pct, signed, statLowerIsBetter, statName, useFloor } from './kit';
 
 /** A small flag drawn from the nation's recipe (pattern + colours). */
@@ -561,13 +562,14 @@ function Foreign({ foreign, name }: { foreign: NationForeign; name: string }) {
 /** Set by go('nation:<section>') to open the tab at a section (read once on mount). */
 export const NATION_SECTION_KEY = 'worldr_nation_section';
 const LAST_SECTION_KEY = 'worldr_nation_last_section';
-type Section = 'standing' | 'economy' | 'budget' | 'foreign' | 'government';
+type Section = 'standing' | 'economy' | 'budget' | 'foreign' | 'government' | 'coalition';
 const SECTIONS: { id: Section; label: string }[] = [
   { id: 'standing', label: 'Standing' },
   { id: 'economy', label: 'Economy' },
   { id: 'budget', label: 'Budget' },
   { id: 'foreign', label: 'Foreign affairs' },
   { id: 'government', label: 'Government' },
+  { id: 'coalition', label: 'Coalition' },
 ];
 const isSection = (v: string | null): v is Section => !!v && SECTIONS.some(s => s.id === v);
 
@@ -599,6 +601,7 @@ export default function NationView() {
     budget: !!sim && (isHead || isFinance) && !sim.budget.setThisMonth && sim.budget.splitSource === 'computer',
     foreign: !!sim && isHead && sim.foreign.treaties.some(t => t.status === 'proposed' && t.awaitingVoteIn === mine?.name),
     government: !!desk.desk.office && !desk.desk.office.usedThisMonth,
+    coalition: coalitionNeedsMe(desk),
   };
 
   return (
@@ -656,7 +659,9 @@ export default function NationView() {
         </div>
       )}
 
-      {!sim && section !== 'standing' && section !== 'government' && (
+      {section === 'coalition' && <CoalitionView />}
+
+      {!sim && section !== 'standing' && section !== 'government' && section !== 'coalition' && (
         <Card className="p-4 text-sm"><span style={{ color: T.dim }}>The nation’s figures appear after the first month closes.</span></Card>
       )}
     </div>

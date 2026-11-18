@@ -28,6 +28,7 @@ import { allocateSeatsDHondt, apportionSeats, runElection, EngineCandidate, Engi
 import { NationalStats, readNationalStatsFromRow } from './nationalEconomy.service';
 import { safeParseJSON } from '../../utils/json';
 import { supportEffortByParty } from './support.store';
+import { whipScale } from './coalition.rules';
 
 // ═══════════════════════════════ PURE RULES ═══════════════════════════════
 
@@ -108,7 +109,7 @@ export interface Voter { id: string; platform: Platform; seats: number; inGovern
  */
 export function projectTally(
   voters: Voter[], proposerId: string, billFromGovernment: boolean,
-  category: string, currentId: string, optionId: string,
+  category: string, currentId: string, optionId: string, whip = 1,
 ): { yea: number; nay: number } {
   let yea = 0, nay = 0;
   for (const v of voters) {
@@ -118,6 +119,7 @@ export function projectTally(
       voterInGovernment: v.inGovernment,
       billFromGovernment,
       ownBill: v.id === proposerId,
+      whipScale: whip,
     });
     if (vote === 'yea') yea += v.seats; else nay += v.seats;
   }
@@ -135,6 +137,7 @@ export function pickPassableBill(
   laws: Record<string, string>,
   exclude: Set<string> = new Set(),
   passMargin = 1,
+  whip = 1,
 ): { passable: { category: string; option: string; gain: number } | null; favourite: { category: string; option: string; gain: number } | null } {
   let passable: { category: string; option: string; gain: number } | null = null;
   let favourite: { category: string; option: string; gain: number } | null = null;
@@ -146,7 +149,7 @@ export function pickPassableBill(
       const gain = changeDesirability(self.platform, cat.id, current, opt.id);
       if (gain < NPC_BILL_MIN_GAIN) continue;
       if (!favourite || gain > favourite.gain) favourite = { category: cat.id, option: opt.id, gain };
-      const t = projectTally(voters, self.id, self.inGovernment, cat.id, current, opt.id);
+      const t = projectTally(voters, self.id, self.inGovernment, cat.id, current, opt.id, whip);
       if (t.yea - t.nay >= passMargin && (!passable || gain > passable.gain)) passable = { category: cat.id, option: opt.id, gain };
     }
   }
@@ -162,6 +165,8 @@ export interface VoteContext {
   ministerial?: boolean;
   /** The voting party tabled the bill itself. */
   ownBill?: boolean;
+  /** Coalition unity scales the government whip (coalition.rules whipScale). Missing = 1. */
+  whipScale?: number;
 }
 
 /**
@@ -173,7 +178,7 @@ export function partyVoteScore(ctx: VoteContext): number {
   if (ctx.ownBill) return 1;
   let score = ctx.desirability;
   if (ctx.voterInGovernment && ctx.billFromGovernment) {
-    score += NPC_GOV_WHIP + (ctx.ministerial ? MINISTER_BACKING_BONUS : 0);
+    score += NPC_GOV_WHIP * (ctx.whipScale ?? 1) + (ctx.ministerial ? MINISTER_BACKING_BONUS : 0);
   } else if (!ctx.voterInGovernment && ctx.billFromGovernment) {
     score -= NPC_OPPOSITION_BIAS;
   } else if (ctx.voterInGovernment && !ctx.billFromGovernment) {
@@ -392,6 +397,10 @@ export interface GovernmentInfo {
   leadPartyId: string | null;
   memberPartyIds: string[];
   seatsByParty: Record<string, number>;
+  /** Coalition unity 0..100 (docs/COALITIONS.md); null for a one-party government or none. */
+  unity: number | null;
+  /** The coalition deal row, when the government has one. */
+  agreementId: string | null;
 }
 
 /** The sitting parliament and its government (latest cycle that has seats). */
@@ -417,12 +426,17 @@ export async function getGovernment(trx: any, stateId: string): Promise<Governme
     members = parsed?.accepted || (Array.isArray(parsed) ? parsed : []);
     if (!members.includes(coalition.lead_party_id)) members = [coalition.lead_party_id, ...members];
   }
+  const agreement = coalition && members.length > 1
+    ? await trx('pol_coalition_agreements').where({ coalition_id: coalition.id }).whereIn('status', ['active', 'under_review']).first()
+    : null;
   return {
     sittingCycleId,
     coalitionStatus: coalition?.status ?? null,
     leadPartyId: coalition?.lead_party_id ?? null,
     memberPartyIds: members,
     seatsByParty,
+    unity: agreement ? Number(agreement.health) : null,
+    agreementId: agreement?.id ?? null,
   };
 }
 
@@ -473,6 +487,40 @@ export async function runNpcLegislature(trx: any, stateId: string, arc: number):
   }));
 
   let tabled = 0;
+  // Coalition promises come first (docs/COALITIONS.md): a computer-run leading party
+  // tables an undelivered promised law, ignoring its usual waiting period.
+  const lead = parties.find((p: any) => p.id === gov.leadPartyId);
+  if (lead && gov.agreementId && !openByParty.has(lead.id)) {
+    const deal = await trx('pol_coalition_agreements').where({ id: gov.agreementId }).first();
+    const promised = ((typeof deal?.mandatory_legislation === 'string' ? safeParseJSON(deal.mandatory_legislation) : deal?.mandatory_legislation) ?? [])
+      .filter((p: any) => p.status === 'pending' && (laws[p.category] ?? DEFAULT_LAWS[p.category]) !== p.option)
+      .filter((p: any) => !openBills.some((b: any) => {
+        const bp = typeof b.params === 'string' ? safeParseJSON(b.params) : b.params;
+        return bp?.category === p.category;
+      }))
+      // Tried once and lost: only bring it back if the count now says it would pass.
+      .filter((p: any) => {
+        if (!p.tried) return true;
+        const t = projectTally(voters, lead.id, true, p.category, laws[p.category] ?? DEFAULT_LAWS[p.category], p.option, whipScale(gov.unity));
+        return t.yea - t.nay >= passMargin;
+      })
+      .sort((a: any, b: any) => a.by_arc - b.by_arc);
+    const due = promised[0];
+    if (due) {
+      await trx('pol_bills').insert({
+        state_id: stateId, proposed_by_party_id: lead.id, type: 'policy_change',
+        params: JSON.stringify({ category: due.category, option: due.option }), status: 'proposed', proposed_arc: arc,
+      });
+      openByParty.add(lead.id);
+      openCategories.add(due.category);
+      await trx('pol_ledger_events').insert({
+        state_id: stateId, arc, kind: 'bill_tabled',
+        headline: `${lead.name} tables: ${billTitle(due.category, due.option)}`,
+        body: `${lead.name} brings a law it promised its coalition partners before Parliament. It goes to a vote next month.`,
+      });
+      tabled++;
+    }
+  }
   for (const party of parties) {
     if (!gov.seatsByParty[party.id] || openByParty.has(party.id)) continue;
     const isLead = gov.leadPartyId === party.id;
@@ -481,7 +529,7 @@ export async function runNpcLegislature(trx: any, stateId: string, arc: number):
     if (seededUnit(`npcbill|${party.id}|${arc}`) >= chance) continue;
 
     const self = voters.find(v => v.id === party.id)!;
-    const { passable, favourite } = pickPassableBill(self, voters, laws, openCategories, passMargin);
+    const { passable, favourite } = pickPassableBill(self, voters, laws, openCategories, passMargin, whipScale(gov.unity));
     // Government parties table what they can pass. The opposition sometimes
     // tables its favourite anyway, knowing it will probably lose.
     const signal = !self.inGovernment && seededUnit(`npcsignal|${party.id}|${arc}`) < NPC_OPPOSITION_SIGNAL_SHARE;
@@ -543,6 +591,7 @@ export async function projectPartyVotes(
       billFromGovernment,
       ministerial,
       ownBill: p.id === bill.proposed_by_party_id,
+      whipScale: whipScale(gov.unity),
     });
   }
   return out;
@@ -559,11 +608,24 @@ export async function formCabinet(trx: any, stateId: string, arc: number): Promi
   if (!gov.leadPartyId) return;
   const memberSeats: Record<string, number> = {};
   for (const id of gov.memberPartyIds) memberSeats[id] = gov.seatsByParty[id] || 0;
-  const postsPerParty = allocateSeatsDHondt(memberSeats, CABINET_POSTS.length);
 
-  // Lead party picks first, then partners by size.
-  const order = Object.keys(postsPerParty).filter(id => postsPerParty[id] > 0)
-    .sort((a, b) => (a === gov.leadPartyId ? -1 : b === gov.leadPartyId ? 1 : (memberSeats[b] - memberSeats[a])));
+  // Which party gets which post. A coalition deal (docs/COALITIONS.md) names the posts
+  // promised to partners; every other post goes to the party that built the government.
+  // Without a deal (one-party government), posts are shared by seats in cabinet order.
+  const postParty: Record<string, string> = {};
+  const deal = gov.agreementId ? await trx('pol_coalition_agreements').where({ id: gov.agreementId }).first() : null;
+  if (deal) {
+    const alloc = (typeof deal.portfolio_allocation === 'string' ? safeParseJSON(deal.portfolio_allocation) : deal.portfolio_allocation) ?? [];
+    for (const a of alloc) if (gov.memberPartyIds.includes(a.party_id)) postParty[a.post] = a.party_id;
+    const keeper = deal.formateur_party_id && gov.memberPartyIds.includes(deal.formateur_party_id) ? deal.formateur_party_id : gov.leadPartyId;
+    for (const p of CABINET_POSTS) if (!postParty[p.key]) postParty[p.key] = keeper;
+  } else {
+    const postsPerParty = allocateSeatsDHondt(memberSeats, CABINET_POSTS.length);
+    const order = Object.keys(postsPerParty).filter(id => postsPerParty[id] > 0)
+      .sort((a, b) => (a === gov.leadPartyId ? -1 : b === gov.leadPartyId ? 1 : (memberSeats[b] - memberSeats[a])));
+    let idx = 0;
+    for (const partyId of order) for (let k = 0; k < postsPerParty[partyId] && idx < CABINET_POSTS.length; k++) postParty[CABINET_POSTS[idx++].key] = partyId;
+  }
 
   const premier = await trx('pol_offices').where({ state_id: stateId, office: 'premier' }).orderBy('since_arc', 'desc').first();
   const used = new Set<string>(premier?.holder_character_id ? [premier.holder_character_id] : []);
@@ -573,9 +635,9 @@ export async function formCabinet(trx: any, stateId: string, arc: number): Promi
       : [],
   );
 
-  let postIdx = 0;
   const assignments: { post: string; partyId: string; charId: string | null }[] = [];
-  for (const partyId of order) {
+  const parties = [...new Set(Object.values(postParty))];
+  for (const partyId of parties) {
     const members = await trx('pol_party_members')
       .join('characters', 'characters.id', 'pol_party_members.character_id')
       .where('pol_party_members.party_id', partyId)
@@ -583,12 +645,15 @@ export async function formCabinet(trx: any, stateId: string, arc: number): Promi
     const ranked = members
       .filter((m: any) => !used.has(m.id))
       .sort((a: any, b: any) => (Number(seatHolders.has(b.id)) - Number(seatHolders.has(a.id))) || (Number(b.credibility || 0) - Number(a.credibility || 0)));
-    for (let k = 0; k < postsPerParty[partyId] && postIdx < CABINET_POSTS.length; k++, postIdx++) {
-      const pick = ranked[k];
+    let k = 0;
+    for (const p of CABINET_POSTS) {
+      if (postParty[p.key] !== partyId) continue;
+      const pick = ranked[k++];
       if (pick) used.add(pick.id);
-      assignments.push({ post: CABINET_POSTS[postIdx].key, partyId, charId: pick?.id ?? null });
+      assignments.push({ post: p.key, partyId, charId: pick?.id ?? null });
     }
   }
+  const order = parties;
 
   const usedNames = new Set<string>();
   for (const a of assignments) {
