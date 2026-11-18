@@ -1,8 +1,8 @@
 # Nations Simulation
 
-Status (2026-11-18): **layers 1-4 and the world rating are built** (see "Built: layers 1-2" and
-"Built: layers 3-4" below). Layers 5 (treaties, diplomacy) and 6 (exchange rates) are still design
-only. Every number lives in a constants file (AGENTS.md).
+Status (2026-11-18): **layers 1-5 and the world rating are built** (see the "Built" sections
+below). Layer 6 (exchange rates) is still design only. Every number lives in a constants file
+(AGENTS.md).
 
 ## Goal
 
@@ -279,3 +279,61 @@ and the budget decision: `services/nationSim.service.ts` (`stepNationSims`, `set
 `POST /politics/budget`. Table changes: `database/migrations/0104_nation_budget_trade.sql`
 (`nation_budgets`, and `debt`, `budget`, `trade` on `nation_sim_months`). Tests:
 `tests/nationSim.test.ts` (48). Screen: Budget and Trade panels in `_floor/NationView.tsx`.
+
+## Built: layer 5, diplomacy (2026-11-18)
+
+### Relations
+Every pair of nations has relations from 0 to 100 (50 neutral). Each month they drift 3% of the way
+back to neutral; treaties in force warm them (trade pact +0.6 a month, defence pact +0.8), an
+embargo freezes them (-1.5 a month), and a nation with high tariffs (average above 15%) sours them
+with everyone. Events move them at once: a treaty signed (+8 / +10), an embargo (-20), a treaty
+rejected (-3), walking out of a pact (-10), lifting an embargo (+5).
+
+The Diplomacy score is now 70% global standing and 30% average relations, plus treaty bonuses
+(trade pact +3, defence pact +4, embargo -4). A defence pact also adds 6 to Military.
+
+### Treaties
+| Treaty | What it does | Who must ratify |
+|---|---|---|
+| Trade pact | No tariffs between the two on farm goods, factory goods and energy | The other nation's parliament |
+| Defence pact | Military and Diplomacy bonuses for both | The other nation's parliament |
+| Embargo | No trade at all, either way; ends any pact between them | Your own parliament |
+
+- Only the head of government proposes (3 energy) or ends a treaty (walk out of a pact, lift an
+  embargo you imposed). Pacts need relations of at least 25 and none under an embargo. After a
+  rejection, wait 6 months to try the same treaty again.
+- **Ratification is an ordinary bill**: category `treaty`, option `<kind>:<partner>`. The same vote
+  rule (billVotePlan + tallyBill) counts it, players vote on it in the Chamber, and pacts and
+  favours work on it. Parties judge it by their platform (`treatyLiking`): free traders like trade
+  pacts, parties of order like defence pacts, nobody likes embargoes much.
+- **Computer-led governments** (no player holds the top office) propose their lead party's
+  favourite allowed treaty with a 10% chance a month: pacts only with nations at 45+ relations,
+  embargoes only below 20.
+- In trade, a pact sets the tariff between the two to zero; an embargo blocks the flow both ways,
+  and goods that cannot be bought count as if under a 50% tariff for shoppers and efficiency.
+  Trade diversion (buying more from someone else) is not modelled.
+
+### Seen on a fresh database (16 months, three computer governments and one player head of government)
+The computer governments offered three pacts and a fourth was pending: Westmark-Drennia trade pact
+(passed 79-72), Drennia-Eryndor trade pact (passed), Eryndor-Westmark defence pact (passed); Eryndor
+rejected a Drennia defence pact. The player embargoed Drennia through Westmark's parliament: it
+ended the existing pact, cut Westmark's imports by $6.6B a year, put Drennia's trade into deficit,
+dropped relations from 50 to 38 and cost both nations about a rating point. Lifting it worked. A
+proposal to a nation without a government yet was refused, costing no energy.
+
+### Where things are on screen
+The Nation tab is split into five short sections instead of one long page (each fits in about one
+desktop screen): **Standing** (world ranking, state of the nation, how it works), **Economy**
+(people, jobs, sectors), **Budget** (books and programmes), **Foreign affairs** (relations,
+treaties, trade) and **Government** (decrees, cabinet). A dot marks a section that wants something
+from you. The Desk shows reminders that jump to the right section: set this month's budget, or a
+treaty offered to your nation (whip the vote in the Chamber, where treaty bills sit with the
+others). The last section you opened is remembered on your device.
+
+### Files (layer 5)
+Constants `constants/diplomacy.ts`; rules `services/diplomacy.rules.ts`; service
+`services/diplomacy.service.ts` (`proposeTreaty`, `withdrawTreaty`, `resolveTreatyVote`,
+`stepDiplomacy`, `diplomacyInputs`, `foreignViews`); hooks in `politics.service.ts` (treaty bill
+passed or failed) and `statecraft.service.ts` (`billTitle`, `changeDesirability`); endpoints
+`POST /politics/treaties`, `POST /politics/treaties/:id/withdraw`; table changes
+`database/migrations/0105_diplomacy.sql`; tests `tests/diplomacy.test.ts` (26, required in CI).

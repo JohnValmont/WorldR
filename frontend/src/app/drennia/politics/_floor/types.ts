@@ -120,6 +120,7 @@ export interface NationSim {
   pillars: { id: string; name: string; value: number }[];
   budget: NationBudget;
   trade: NationTrade;
+  foreign: NationForeign;
   history: { arc: number; rating: number; unemployment: number; gdpYearly: number; population: number; debtRatio: number | null }[];
 }
 
@@ -135,6 +136,12 @@ export interface NationBudget {
   setThisMonth: boolean;
   discretionary: number;
   programmes: { id: string; name: string; blurb: string; share: number }[];
+}
+
+/** Relations and treaties with the other nations. */
+export interface NationForeign {
+  relations: { code: string; name: string; score: number }[];
+  treaties: { id: string; kind: 'trade_pact' | 'defence_pact' | 'embargo'; name: string; with: string; withName: string; status: 'active' | 'proposed'; since: number | null; imposedByUs: boolean; awaitingVoteIn: string | null }[];
 }
 
 /** Trade with the other nations (yearly dollars). */

@@ -103,6 +103,7 @@ import {
 import { getNationForPolState, NPC_MACHINE_EFFORT, nationRules } from '../constants/nations';
 import { supportEffortByParty } from './support.store';
 import { billVotePlan, loadVoteShared, npcCallFavours, runFloorMonth, settleBillPolitics } from './floor.service';
+import { resolveTreatyVote } from './diplomacy.service';
 import { bankedAp } from './floor.rules';
 import { notify } from './notices.service';
 
@@ -1723,7 +1724,15 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
       await trx('pol_bills').where({ id: bill.id }).update({ status: 'passed', resolved_arc: currentMonth, yea_seats: yeas, nay_seats: nays });
       await notify(trx, bill.tabled_by_character_id, currentMonth, 'bill_passed', `Your bill passed ${yeas}-${nays}: ${titled}. It is now law.`, 'chamber');
 
-      if (bill.type === 'policy_change') {
+      if (bill.type === 'treaty') {
+        // Ratified: diplomacy.service puts the treaty in force. Savepoint, like enactment:
+        // a failure rolls back only the treaty step, never the politics month.
+        try {
+          await trx.transaction(async (sp: any) => resolveTreatyVote(sp, bill, true, currentMonth));
+        } catch (err) {
+          console.error('Failed to put treaty in force:', err);
+        }
+      } else if (bill.type === 'policy_change') {
         const { category, option } = bill.params;
         if (category && option) {
           const existing = await trx('pol_state_policy').where({ state_id: stateId }).first();
@@ -1792,14 +1801,21 @@ export async function resolveBills(trx: any, stateId: string, cycleId: string, c
       }
       await trx('pol_bills').where({ id: bill.id }).update({ status: 'failed', resolved_arc: currentMonth, yea_seats: yeas, nay_seats: nays });
       await notify(trx, bill.tabled_by_character_id, currentMonth, 'bill_failed', `Your bill was defeated ${yeas}-${nays}: ${titled}.`, 'chamber');
+      if (bill.type === 'treaty') {
+        try {
+          await trx.transaction(async (sp: any) => resolveTreatyVote(sp, bill, false, currentMonth));
+        } catch (err) {
+          console.error('Failed to record treaty rejection:', err);
+        }
+      }
       await trx('pol_ledger_events').insert({
         state_id: stateId, arc: currentMonth, kind: 'bill_failed',
         headline: returnedByCrown
           ? `The ${headOfState} returns ${titled} unsigned (${yeas}-${nays})`
           : `Bill defeated ${yeas}-${nays}: ${titled}`,
         body: returnedByCrown
-          ? `It won a majority, but not the margin of ${passMargin} the constitution demands. The current law stays in force.`
-          : `Parliament rejects ${proposerParty?.name ?? 'the'} bill. The current law stays in force.`
+          ? `It won a majority, but not the margin of ${passMargin} the constitution demands. ${bill.type === 'treaty' ? 'The treaty is not ratified.' : 'The current law stays in force.'}`
+          : `Parliament rejects ${proposerParty?.name ?? 'the'} bill. ${bill.type === 'treaty' ? 'The treaty is not ratified.' : 'The current law stays in force.'}`
       });
 
       await emitStory(

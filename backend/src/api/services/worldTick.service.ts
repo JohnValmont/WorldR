@@ -7,6 +7,7 @@ import { processExchangeMonth } from './ipoExchange.service';
 import { processPoliticalArc } from './politics.service';
 import { announceEdition, publishEdition, PublishedEdition } from './agency.service';
 import { stepNationSims } from './nationSim.service';
+import { stepDiplomacy } from './diplomacy.service';
 import { processMacroEconomy } from './economy.service';
 import { processAuctions } from './acquisitionAuction.service';
 import { DEFAULT_REAL_SECONDS_PER_MONTH } from '../constants/world';
@@ -395,6 +396,17 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
       // Nations simulation (people, jobs, sectors, world rating). Runs after the
       // month's national stats are updated, one savepoint per nation, so a
       // failure here never rolls back that nation's politics.
+      // Diplomacy: relations drift and react; computer-led governments may
+      // propose treaties. Before the economies, so trade sees this month's treaties.
+      (global as any).tickProgress = 'Diplomacy...';
+      try {
+        await trx.transaction(async (sp) => { await stepDiplomacy(sp, arc); });
+      } catch (err) {
+        failures.push('diplomacy');
+        logger.error(`[world-tick] Diplomacy failed for Y${year} M${month}; skipping.`, err);
+        captureException(err, { subsystem: 'diplomacy', year, month });
+      }
+
       // Trade needs every nation at once, so the world steps together; each
       // nation is still written in its own savepoint inside stepNationSims.
       (global as any).tickProgress = 'Nation economies and trade...';

@@ -2,7 +2,7 @@
 // Nation: your country among the others, how it is doing, and the powers of office.
 import React, { useEffect, useState } from 'react';
 import { politicsApi } from '@/lib/api';
-import type { NationBudget, NationRow, NationSim, NationTrade } from './types';
+import type { NationBudget, NationForeign, NationRow, NationSim, NationTrade } from './types';
 import { Btn, Card, Chip, EffectChips, Label, Meter, PartyDot, T, leaderTitle, pct, signed, statLowerIsBetter, statName, useFloor } from './kit';
 
 /** A small flag drawn from the nation's recipe (pattern + colours). */
@@ -473,35 +473,191 @@ function Cabinet() {
   );
 }
 
+// ─── Foreign affairs ────────────────────────────────────────────────────────
+
+const TREATY_INFO: Record<string, { name: string; blurb: string }> = {
+  trade_pact: { name: 'Trade pact', blurb: 'No tariffs between you on farm goods, factory goods and energy. Their parliament must ratify it.' },
+  defence_pact: { name: 'Defence pact', blurb: 'Both gain military strength and standing. Their parliament must ratify it.' },
+  embargo: { name: 'Embargo', blurb: 'No trade at all, either way. Your own parliament must vote for it. Ends any pact.' },
+};
+const relationsWord = (s: number) => (s >= 75 ? 'Close allies' : s >= 60 ? 'Friendly' : s >= 40 ? 'Neutral' : s >= 25 ? 'Cool' : 'Hostile');
+
+/** Relations with each nation, treaties in force or awaiting a vote, and (for the head of government) the levers. */
+function Foreign({ foreign, name }: { foreign: NationForeign; name: string }) {
+  const { desk, act, busy } = useFloor();
+  const me = desk.me;
+  const isHead = !!me && desk.premier?.characterId === me.characterId;
+  const flagOf = (code: string) => desk.desk.world.find(n => n.polStateCode === code)?.flag;
+  return (
+    <Card className="p-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <Label>Relations</Label>
+        <span className="text-[11px]" style={{ color: T.faint }}>50 is neutral · drifts back over time</span>
+      </div>
+      <div className="mt-3 space-y-4">
+        {foreign.relations.map(r => {
+          const treaties = foreign.treaties.filter(t => t.with === r.code);
+          const has = (k: string) => treaties.some(t => t.kind === k);
+          const flag = flagOf(r.code);
+          return (
+            <div key={r.code} className="rounded-xl p-3" style={{ background: T.raised }}>
+              <div className="flex items-center gap-3">
+                {flag && <Flag flag={flag} width={34} />}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-semibold text-sm" style={{ color: T.text }}>{r.name}</span>
+                    <span className="text-xs" style={{ color: r.score >= 50 ? T.good : T.bad }}>{relationsWord(r.score)} · <span className="font-mono">{Math.round(r.score)}</span></span>
+                  </div>
+                  <div className="mt-1"><Meter value={r.score} color={r.score >= 50 ? T.good : T.bad} marker={50} height={5} /></div>
+                </div>
+              </div>
+              {treaties.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {treaties.map(t => (
+                    <span key={t.id} className="inline-flex items-center gap-2">
+                      <Chip color={t.kind === 'embargo' ? T.bad : t.status === 'active' ? T.good : T.accent} filled={t.status === 'active'}>
+                        {t.name}{t.status === 'proposed' ? ` · vote in ${t.awaitingVoteIn}` : t.kind === 'embargo' ? (t.imposedByUs ? ' · by us' : ' · on us') : ''}
+                      </Chip>
+                      {isHead && t.status === 'active' && (t.kind !== 'embargo' || t.imposedByUs) && (
+                        <Btn small disabled={busy} id={`end-${t.id}`} onClick={() => act(() => politicsApi.withdrawTreaty(t.id), r2 => r2.message)}>
+                          {t.kind === 'embargo' ? 'Lift' : 'Walk out'}
+                        </Btn>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {isHead && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(['trade_pact', 'defence_pact', 'embargo'] as const).filter(k => !has(k) && (k === 'embargo' || !has('embargo'))).map(k => (
+                    <Btn key={k} small kind={k === 'embargo' ? undefined : 'primary'} disabled={busy} id={`propose-${k}-${r.code}`}
+                      onClick={() => act(() => politicsApi.proposeTreaty(k, r.code), r2 => r2.message)}>
+                      {k === 'embargo' ? 'Embargo' : `Offer ${TREATY_INFO[k].name.toLowerCase()}`}
+                    </Btn>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-3 space-y-1">
+        {Object.entries(TREATY_INFO).map(([k, v]) => (
+          <p key={k} className="text-[11px]" style={{ color: T.faint }}><strong style={{ color: T.dim }}>{v.name}:</strong> {v.blurb}</p>
+        ))}
+        <p className="text-[11px]" style={{ color: T.faint }}>
+          {isHead
+            ? 'Proposing costs energy. Treaty votes appear in the Chamber like any bill. Walking out of a pact hurts relations badly.'
+            : `Only ${name}’s head of government can offer or end treaties. Treaty votes appear in the Chamber like any bill.`}
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+// ─── Layout: one tab, short sections ────────────────────────────────────────
+
+/** Set by go('nation:<section>') to open the tab at a section (read once on mount). */
+export const NATION_SECTION_KEY = 'worldr_nation_section';
+const LAST_SECTION_KEY = 'worldr_nation_last_section';
+type Section = 'standing' | 'economy' | 'budget' | 'foreign' | 'government';
+const SECTIONS: { id: Section; label: string }[] = [
+  { id: 'standing', label: 'Standing' },
+  { id: 'economy', label: 'Economy' },
+  { id: 'budget', label: 'Budget' },
+  { id: 'foreign', label: 'Foreign affairs' },
+  { id: 'government', label: 'Government' },
+];
+const isSection = (v: string | null): v is Section => !!v && SECTIONS.some(s => s.id === v);
+
+/** Pure read (safe to run twice, as React does in development); the request is cleared after mount. */
+function initialSection(): Section {
+  try {
+    const asked = sessionStorage.getItem(NATION_SECTION_KEY);
+    if (isSection(asked)) return asked;
+    const last = localStorage.getItem(LAST_SECTION_KEY);
+    if (isSection(last)) return last;
+  } catch { /* private mode */ }
+  return 'standing';
+}
+
 export default function NationView() {
   const { desk } = useFloor();
   const mine = desk.desk.world.find(n => n.mine);
+  const sim = mine?.sim ?? null;
+  // The tab only renders in the browser (after the desk loads), so reading storage up front is safe.
+  const [section, setSection] = useState<Section>(initialSection);
+  useEffect(() => { try { sessionStorage.removeItem(NATION_SECTION_KEY); } catch { /* private mode */ } }, []);
+  const choose = (s: Section) => { setSection(s); try { localStorage.setItem(LAST_SECTION_KEY, s); } catch { /* private mode */ } };
+
+  // A dot on a section that wants something from you.
+  const me = desk.me;
+  const isHead = !!me && desk.premier?.characterId === me.characterId;
+  const isFinance = !!me && desk.cabinet.find(c => c.key === 'finance')?.characterId === me.characterId;
+  const attention: Partial<Record<Section, boolean>> = {
+    budget: !!sim && (isHead || isFinance) && !sim.budget.setThisMonth && sim.budget.splitSource === 'computer',
+    foreign: !!sim && isHead && sim.foreign.treaties.some(t => t.status === 'proposed' && t.awaitingVoteIn === mine?.name),
+    government: !!desk.desk.office && !desk.desk.office.usedThisMonth,
+  };
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="flex items-center gap-4">
-        {mine && <Flag flag={mine.flag} width={72} />}
-        <div className="min-w-0">
+        {mine && <Flag flag={mine.flag} width={60} />}
+        <div className="min-w-0 flex-1">
           <h2 className="font-serif text-2xl sm:text-3xl font-bold leading-tight" style={{ color: T.text }}>{desk.nation.officialName}</h2>
           <p className="text-sm" style={{ color: T.dim }}>{desk.nation.government} · capital {desk.nation.capital}{desk.nation.motto ? ` · “${desk.nation.motto}”` : ''}</p>
         </div>
+        {sim && (
+          <div className="text-right shrink-0 hidden sm:block">
+            <div className="font-serif text-3xl font-bold leading-none" style={{ color: T.accent }}>{sim.rating.toFixed(1)}</div>
+            <div className="text-[11px]" style={{ color: tierColor(sim.tier) }}>{sim.tier} · #{sim.rank}</div>
+          </div>
+        )}
       </div>
-      <div>
-        <Label>World ranking</Label>
-        <p className="text-xs mt-1 mb-3" style={{ color: T.faint }}>
-          The world ranking, out of 100. Three very different countries that start on level terms: each is ahead somewhere and behind somewhere else. What they become, from Minor state to Superpower, is decided by those who govern them. Military strength follows the defence law.
-        </p>
-        <World />
+
+      <div role="tablist" aria-label="Nation sections" className="flex gap-1 overflow-x-auto -mx-1 px-1 pb-1" style={{ borderBottom: `1px solid ${T.line}` }}>
+        {SECTIONS.map(s => (
+          <button key={s.id} role="tab" aria-selected={section === s.id} id={`nation-${s.id}`} type="button" onClick={() => choose(s.id)}
+            className="relative shrink-0 px-3 py-2 text-sm font-semibold rounded-t-lg"
+            style={{ color: section === s.id ? T.text : T.faint, background: section === s.id ? T.raised : 'transparent', borderBottom: section === s.id ? `2px solid ${T.accent}` : '2px solid transparent' }}>
+            {s.label}
+            {attention[s.id] && <span aria-label="needs you" className="absolute top-1.5 right-1 inline-block rounded-full" style={{ width: 6, height: 6, background: T.accent }} />}
+          </button>
+        ))}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5">
-        <div className="space-y-4 min-w-0">
-          {mine?.sim && <Economy sim={mine.sim} name={mine.name} />}
-          {mine?.sim?.budget && <Budget budget={mine.sim.budget} gdp={mine.sim.gdpYearly} name={mine.name} />}
-          {mine?.sim?.trade && <Trade trade={mine.sim.trade} name={mine.name} />}
+
+      {section === 'standing' && (
+        <div className="space-y-4">
+          <p className="text-xs" style={{ color: T.faint }}>
+            The world ranking, out of 100. Three very different countries that start on level terms. What they become, from Minor state to Superpower, is decided by those who govern them.
+          </p>
+          <World />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4"><StateOfNation /><HowItWorks /></div>
+        </div>
+      )}
+
+      {section === 'economy' && sim && <Economy sim={sim} name={mine!.name} />}
+
+      {section === 'budget' && sim && <Budget budget={sim.budget} gdp={sim.gdpYearly} name={mine!.name} />}
+
+      {section === 'foreign' && sim && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <Foreign foreign={sim.foreign} name={mine!.name} />
+          <Trade trade={sim.trade} name={mine!.name} />
+        </div>
+      )}
+
+      {section === 'government' && (
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
           <Powers />
           <Cabinet />
         </div>
-        <aside className="space-y-4"><HowItWorks /><StateOfNation /></aside>
-      </div>
+      )}
+
+      {!sim && section !== 'standing' && section !== 'government' && (
+        <Card className="p-4 text-sm"><span style={{ color: T.dim }}>The nation’s figures appear after the first month closes.</span></Card>
+      )}
     </div>
   );
 }

@@ -59,7 +59,7 @@ export const NATION_ECONOMIES: Record<string, NationEconomySpec> = {
   // Westmark: ports, trade and money. Fewer factories, many shops and offices. Borrowed more.
   westmark: {
     population: 9_000_000,
-    jobShare: { agriculture: 0.04, manufacturing: 0.12, construction: 0.06, retail: 0.19, services: 0.49, energy: 0.02 },
+    jobShare: { agriculture: 0.045, manufacturing: 0.12, construction: 0.06, retail: 0.19, services: 0.495, energy: 0.02 },
     debtRatio: 0.58,
   },
   // Eryndor: farms, mines and smelters. Bigger, poorer, more industrial. Thrifty crown.
@@ -174,8 +174,8 @@ export const EMPLOYMENT_SCORE_SLOPE = 600;
 
 export const PEOPLE_MIX: Partial<Record<NationalStat | 'employment', number>> = { human_development: 0.4, equity: 0.3, employment: 0.3 };
 export const STABILITY_MIX: Partial<Record<NationalStat, number>> = { order_safety: 0.5, bureaucracy: 0.3, freedom_rights: 0.2 };
-/** Diplomacy is global standing until treaties exist (layer 5). */
-export const DIPLOMACY_MIX: Partial<Record<NationalStat, number>> = { global_standing: 1.0 };
+/* Diplomacy = global standing and relations with other nations, plus treaty
+   bonuses: see DIPLOMACY_STANDING_SHARE and TREATY_SPECS in constants/diplomacy.ts. */
 
 /**
  * Tiers are ABSOLUTE thresholds, not rank positions: with three nations,

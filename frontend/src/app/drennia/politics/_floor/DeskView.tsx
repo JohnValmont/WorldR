@@ -236,19 +236,26 @@ export default function DeskView() {
   const toVote = me?.voteMode ? openBills.filter(b => !b.myVote) : [];
   const voted = me?.voteMode ? openBills.filter(b => b.myVote) : [];
   const incoming = desk.desk.deals?.incoming ?? [];
+  // Decisions of office that live on the Nation tab: shown here as reminders, decided there.
+  const sim = desk.desk.world.find(n => n.mine)?.sim ?? null;
+  const isHead = !!me && desk.premier?.characterId === me.characterId;
+  const isFinance = !!me && desk.cabinet.find(c => c.key === 'finance')?.characterId === me.characterId;
+  const budgetDue = !!sim && (isHead || isFinance) && !sim.budget.setThisMonth && sim.budget.splitSource === 'computer';
+  const offersToUs = sim && isHead ? sim.foreign.treaties.filter(t => t.status === 'proposed' && t.awaitingVoteIn === desk.desk.world.find(n => n.mine)?.name) : [];
+  const officeTasks = (budgetDue ? 1 : 0) + (offersToUs.length > 0 ? 1 : 0);
 
   if (!me) {
     return <Card className="p-6 text-sm" ><span style={{ color: T.dim }}>Create your character to enter politics.</span></Card>;
   }
-  const nothingLeft = openCards.length === 0 && toVote.length === 0 && incoming.length === 0;
+  const nothingLeft = openCards.length === 0 && toVote.length === 0 && incoming.length === 0 && officeTasks === 0;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-5">
       <div className="space-y-4 min-w-0">
         <div>
           <h2 className="font-serif text-2xl sm:text-3xl font-bold leading-tight" style={{ color: T.text }}>
-            {openCards.length + toVote.length + incoming.length > 0
-              ? `${openCards.length + toVote.length + incoming.length} thing${openCards.length + toVote.length + incoming.length === 1 ? '' : 's'} need you`
+            {openCards.length + toVote.length + incoming.length + officeTasks > 0
+              ? `${openCards.length + toVote.length + incoming.length + officeTasks} thing${openCards.length + toVote.length + incoming.length + officeTasks === 1 ? '' : 's'} need you`
               : 'Your desk is clear'}
           </h2>
           <p className="text-sm mt-1" style={{ color: T.dim }}>{me.nextGoal}</p>
@@ -302,6 +309,29 @@ export default function DeskView() {
                     {desk.desk.partyRoom.contest.myBallot ? ` You back the ${desk.desk.partyRoom.contest.myBallot}.` : ' Cast your ballot.'}</>}
             </p>
             <div className="mt-3"><Btn small kind="primary" onClick={() => go('party')} id="cta-contest">See the contest</Btn></div>
+          </Card>
+        )}
+
+        {budgetDue && sim && (
+          <Card className="p-4" tone="accent">
+            <Label color={T.accent}>The budget</Label>
+            <p className="text-sm mt-1" style={{ color: T.text }}>
+              ${(sim.budget.discretionary / 1e9).toFixed(1)}B a year of programmes is being split by the governing party’s platform. As {isHead ? leaderTitle(desk) : 'finance minister'}, you can set it yourself this month.
+            </p>
+            <div className="mt-3"><Btn small kind="primary" onClick={() => go('nation:budget')} id="cta-budget">Set the budget</Btn></div>
+          </Card>
+        )}
+
+        {offersToUs.length > 0 && (
+          <Card className="p-4" tone="accent">
+            <Label color={T.accent}>Foreign affairs</Label>
+            <p className="text-sm mt-1" style={{ color: T.text }}>
+              {offersToUs.map(t => `${t.withName} offers a ${t.name.toLowerCase()}`).join('; ')}. Parliament votes on {offersToUs.length === 1 ? 'it' : 'them'} when the month closes.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <Btn small kind="primary" onClick={() => go('chamber')} id="cta-treaty-vote">Whip the vote</Btn>
+              <Btn small onClick={() => go('nation:foreign')} id="cta-foreign">Relations</Btn>
+            </div>
           </Card>
         )}
 

@@ -6,7 +6,7 @@
  */
 import {
   BASE_SPLIT, BIRTH_HD_SLOPE, BIRTH_RATE, CORP_TAX_TAKE, DEATH_HD_SLOPE, DEATH_RATE, DEBT_CEILING_RATIO, DEBT_INTEREST,
-  DEBT_PENALTY_PER_10PCT, DEBT_SAFE_RATIO, DEFAULT_ECONOMY, DIPLOMACY_MIX, DISCRETIONARY_SHARE, ECONOMY_MIX,
+  DEBT_PENALTY_PER_10PCT, DEBT_SAFE_RATIO, DEFAULT_ECONOMY, DISCRETIONARY_SHARE, ECONOMY_MIX,
   EMIGRATION_FLOOR, EMPLOYMENT_SCORE_SLOPE, GDP_REFERENCE_YEARLY, GDP_SIZE_PER_DOUBLING, IMMIGRATION_OPENNESS,
   IMPORT_ELASTICITY, IMPORT_SHARE_MIN, INCOME_TAX_TAKE, INDUSTRY_MIX, INDUSTRY_SHARE_REFERENCE, INDUSTRY_SHARE_SCALE,
   JOB_ADJUST_SPEED, JOB_PROSPERITY_SLOPE, JOBS_PER_FACTORY_CAPACITY_UNIT, LABOUR_FORCE_SHARE, LAW_JOB_EFFECTS,
@@ -18,6 +18,7 @@ import {
   UNEMPLOYMENT_MIN,
 } from '../constants/nationSim';
 import { DEFAULT_LAWS, DEFENCE_STRENGTH, getNationForPolState } from '../constants/nations';
+import { DIPLOMACY_STANDING_SHARE, EMBARGO_EQUIVALENT_TARIFF, RELATIONS_START } from '../constants/diplomacy';
 
 export type Stats = Record<string, number>;
 export type Laws = Record<string, string | undefined>;
@@ -150,7 +151,11 @@ export interface TradeEntry {
   structural: SectorJobs;
   tariffs: Partial<Record<SectorId, number>>;
   foundingTariffs: Partial<Record<SectorId, number>>;
+  /** Treaties with particular partners (by code): a pact means no tariff between them, an embargo means no trade either way. */
+  links?: Record<string, 'pact' | 'embargo'>;
 }
+
+export type TradeLink = 'pact' | 'embargo';
 
 export interface TradeResult {
   /** Jobs multiplier on each traded sector (1 at the founding tariffs). */
@@ -167,8 +172,14 @@ export interface TradeResult {
   efficiency: number;
 }
 
-/** Who buys what from whom, given everyone's tariffs. Pure: world flows from structural outputs. */
-function flows(entries: TradeEntry[], tariffsOf: (e: TradeEntry) => Partial<Record<SectorId, number>>) {
+/**
+ * Who buys what from whom. Each nation short of a good asks every nation with
+ * spare for a share of it (by how much spare each has); what it actually buys
+ * from each depends on the tariff between them (none under a pact, nothing at
+ * all under an embargo). Pure: world flows from structural outputs.
+ * `withLinks` = false gives the founding world (no treaties).
+ */
+function flows(entries: TradeEntry[], tariffsOf: (e: TradeEntry) => Partial<Record<SectorId, number>>, withLinks: boolean) {
   const gdp = entries.map(e => totalJobs(e.structural));
   const worldGdp = gdp.reduce((a, b) => a + b, 0) || 1;
   const out = entries.map(() => ({
@@ -179,28 +190,37 @@ function flows(entries: TradeEntry[], tariffsOf: (e: TradeEntry) => Partial<Reco
     const world = entries.reduce((a, e) => a + e.structural[s], 0);
     const demand = entries.map((_, i) => world * gdp[i] / worldGdp);
     const surplus = entries.map((e, i) => e.structural[s] - demand[i]);
-    const bought = entries.map((e, i) => (surplus[i] < 0 ? -surplus[i] * importShare(tariffsOf(e)[s] ?? 0) : 0));
-    const totalBought = bought.reduce((a, b) => a + b, 0);
     const totalSurplus = surplus.reduce((a, b) => a + Math.max(0, b), 0);
-    entries.forEach((e, i) => {
-      const t = tariffsOf(e)[s] ?? 0;
-      const shortfall = Math.max(0, -surplus[i]);
-      const exp = surplus[i] > 0 && totalSurplus > 0 ? totalBought * surplus[i] / totalSurplus : 0;
-      out[i].imports[s] = bought[i];
-      out[i].exports[s] = exp;
-      out[i].production[s] = surplus[i] < 0 ? demand[i] - bought[i] : demand[i] + exp;
-      out[i].revenue += bought[i] * t;
-      out[i].consumerCost += shortfall * t;
-      out[i].deadweight += (shortfall - bought[i]) * t;
+    entries.forEach((_, i) => { out[i].imports[s] = 0; out[i].exports[s] = 0; });
+    entries.forEach((buyer, j) => {
+      const shortfall = Math.max(0, -surplus[j]);
+      if (shortfall <= 0 || totalSurplus <= 0) return;
+      const t = tariffsOf(buyer)[s] ?? 0;
+      entries.forEach((seller, i) => {
+        if (surplus[i] <= 0) return;
+        const asked = shortfall * surplus[i] / totalSurplus;
+        const link = withLinks ? buyer.links?.[seller.code] : undefined;
+        const tariff = link === 'pact' ? 0 : t;
+        const bought = link === 'embargo' ? 0 : asked * importShare(tariff);
+        const pain = link === 'embargo' ? EMBARGO_EQUIVALENT_TARIFF : tariff;
+        out[j].imports[s]! += bought;
+        out[i].exports[s]! += bought;
+        out[j].revenue += bought * tariff;
+        out[j].consumerCost += asked * pain;
+        out[j].deadweight += (asked - bought) * pain;
+      });
+    });
+    entries.forEach((_, i) => {
+      out[i].production[s] = surplus[i] < 0 ? demand[i] - (out[i].imports[s] ?? 0) : demand[i] + (out[i].exports[s] ?? 0);
     });
   }
   return { out, gdp };
 }
 
-/** Trade between all nations this month, measured against everyone's founding tariffs. */
+/** Trade between all nations this month, measured against the founding world (founding tariffs, no treaties). */
 export function computeTrade(entries: TradeEntry[]): Record<string, TradeResult> {
-  const { out: now, gdp } = flows(entries, e => e.tariffs);
-  const { out: ref } = flows(entries, e => e.foundingTariffs);
+  const { out: now, gdp } = flows(entries, e => e.tariffs, true);
+  const { out: ref } = flows(entries, e => e.foundingTariffs, false);
   const result: Record<string, TradeResult> = {};
   entries.forEach((e, i) => {
     const mult: Partial<Record<SectorId, number>> = {};
@@ -395,6 +415,16 @@ export interface RatingInput {
   /** Points added to pillars by budget programmes. */
   pillarBonus?: Partial<Record<PillarId, number>>;
   debtRatio?: number;
+  /** Relations and treaties (layer 5). Absent = neutral relations, no treaties. */
+  diplomacy?: DiplomacyInput;
+}
+
+export interface DiplomacyInput {
+  /** Average relations with the other nations (0-100, 50 neutral). */
+  avgRelations: number;
+  /** Diplomacy and Military points from treaties in force. */
+  diplomacyBonus: number;
+  militaryBonus: number;
 }
 
 export interface Rating {
@@ -439,8 +469,10 @@ export function nationRating(input: RatingInput): Rating {
       + INDUSTRY_MIX.employment * employment,
     people: mix(input.stats, PEOPLE_MIX, { employment }),
     stability: mix(input.stats, STABILITY_MIX),
-    military: DEFENCE_STRENGTH[input.defenceLaw ?? 'moderate'] ?? DEFENCE_STRENGTH.moderate,
-    diplomacy: mix(input.stats, DIPLOMACY_MIX),
+    military: (DEFENCE_STRENGTH[input.defenceLaw ?? 'moderate'] ?? DEFENCE_STRENGTH.moderate) + (input.diplomacy?.militaryBonus ?? 0),
+    diplomacy: DIPLOMACY_STANDING_SHARE * stat(input.stats, 'global_standing')
+      + (1 - DIPLOMACY_STANDING_SHARE) * (input.diplomacy?.avgRelations ?? RELATIONS_START)
+      + (input.diplomacy?.diplomacyBonus ?? 0),
   };
   for (const k of Object.keys(pillars) as PillarId[]) pillars[k] = Math.round(clamp(pillars[k] + (bonus[k] ?? 0), 0, 100) * 10) / 10;
   const raw = (Object.keys(PILLAR_WEIGHTS) as PillarId[]).reduce((a, k) => a + PILLAR_WEIGHTS[k] * pillars[k], 0);
@@ -472,6 +504,8 @@ export interface NationSimContext {
   trade?: TradeResult;
   /** Budget split in force. Defaults to the base split. */
   split?: Split;
+  /** Relations and treaties this month. Defaults to neutral, no treaties. */
+  diplomacy?: DiplomacyInput;
 }
 
 export interface NationSimMonth extends NationSimState {
@@ -532,6 +566,7 @@ export function describe(
     rating: nationRating({
       stats: ctx.stats, gdpYearly: gdp, unemployment, jobs: state.jobs, population: state.population, defenceLaw: ctx.laws.defense,
       pillarBonus: programmePillarBonus(effectiveSplit(split, books.funded)), debtRatio: books.debtRatio,
+      diplomacy: ctx.diplomacy,
     }),
     budget: books, trade, efficiency,
   };

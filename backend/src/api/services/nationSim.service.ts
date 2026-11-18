@@ -18,6 +18,7 @@ import { readNationalStatsFromRow } from './nationalEconomy.service';
 import { getGovernment, getLawsInForce } from './statecraft.service';
 import type { PlayerPolitics } from './floor.service';
 import * as R from './nationSim.rules';
+import { diplomacyInputs, foreignViews, type ForeignView } from './diplomacy.service';
 
 const num = (v: any, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 const json = (v: any) => (typeof v === 'string' ? JSON.parse(v) : v);
@@ -94,8 +95,10 @@ async function loadNation(conn: any, state: any, arc: number | null): Promise<Lo
   return { state, ctx, prev: prevRow ? rowToState(prevRow, ctx) : null, done };
 }
 
-/** Trade between the loaded nations, from each one's state this month (or its starting state). */
-function tradeFor(nations: Loaded[]): Record<string, R.TradeResult> {
+type Diplo = Awaited<ReturnType<typeof diplomacyInputs>>;
+
+/** Trade between the loaded nations, from each one's state this month (or its starting state), with treaties in force. */
+function tradeFor(nations: Loaded[], diplo: Diplo): Record<string, R.TradeResult> {
   return R.computeTrade(nations.map(n => {
     const pop = n.prev?.population ?? n.ctx.spec.population;
     return {
@@ -103,6 +106,7 @@ function tradeFor(nations: Loaded[]): Record<string, R.TradeResult> {
       structural: R.structuralOutput(n.ctx, pop),
       tariffs: R.tariffRates(n.ctx.laws),
       foundingTariffs: R.tariffRates(R.foundingLaws(n.state.code)),
+      links: diplo[n.state.code]?.links,
     };
   }));
 }
@@ -145,13 +149,14 @@ export async function stepNationSims(trx: any, arc: number): Promise<{ stateId: 
   const nations: Loaded[] = [];
   for (const state of states) if (getNationForPolState(state.code)) nations.push(await loadNation(trx, state, arc));
   if (nations.length === 0) return [];
-  const trade = tradeFor(nations);
+  const diplo = await diplomacyInputs(trx);
+  const trade = tradeFor(nations, diplo);
   const failures: { stateId: string; error: unknown }[] = [];
   for (const n of nations) {
     if (n.done) continue;
     try {
       await trx.transaction(async (sp: any) => {
-        const ctx = { ...n.ctx, trade: trade[n.state.code] ?? R.NO_TRADE };
+        const ctx = { ...n.ctx, trade: trade[n.state.code] ?? R.NO_TRADE, diplomacy: diplo[n.state.code]?.rating };
         const month = n.prev ? R.stepMonth(n.prev, ctx) : R.describe(R.initialState(ctx), ctx);
         await insertMonth(sp, n.state.id, arc, month);
       });
@@ -241,6 +246,7 @@ export interface NationSimView {
   rank: number;
   budget: BudgetView;
   trade: TradeView;
+  foreign: ForeignView;
   history: { arc: number; rating: number; unemployment: number; gdpYearly: number; population: number; debtRatio: number | null }[];
 }
 
@@ -294,7 +300,7 @@ function rowToMonth(row: any, ctx: R.NationSimContext): R.NationSimMonth {
   };
 }
 
-function buildView(code: string, m: R.NationSimMonth, arc: number | null, projected: boolean, prior: any | null, history: any[], src: SplitSource, laws: R.Laws, currentArc: number | null): Omit<NationSimView, 'rank'> {
+function buildView(code: string, m: R.NationSimMonth, arc: number | null, projected: boolean, prior: any | null, history: any[], src: SplitSource, laws: R.Laws, currentArc: number | null): Omit<NationSimView, 'rank' | 'foreign'> {
   const totalOut = SECTORS.reduce((a, s) => a + m.output[s], 0) || 1;
   const totalJobs = SECTORS.reduce((a, s) => a + m.jobs[s], 0) || 1;
   return {
@@ -339,18 +345,20 @@ export async function nationSimViews(conn: any): Promise<NationSimView[]> {
     const state = await conn('pol_states').where({ code: spec.polStateCode }).first();
     if (state) loaded.push(await loadNation(conn, state, null));
   }
+  const diplo = await diplomacyInputs(conn);
+  const foreign = await foreignViews(conn);
   // Projected trade for nations with no stored month yet (so a fresh world still shows its trade).
-  const projectedTrade = loaded.some(n => !n.prev) ? tradeFor(loaded) : {};
+  const projectedTrade = loaded.some(n => !n.prev) ? tradeFor(loaded, diplo) : {};
   const out: Omit<NationSimView, 'rank'>[] = [];
   for (const n of loaded) {
     const src = await resolveSplit(conn, n.state.id);
     const rows = await conn('nation_sim_months').where({ state_id: n.state.id }).orderBy('arc', 'desc').limit(HISTORY_MONTHS);
     if (rows.length > 0) {
-      out.push(buildView(n.state.code, rowToMonth(rows[0], n.ctx), rows[0].arc, false, rows[1] ?? null, rows, src, n.ctx.laws, currentArc));
+      out.push({ ...buildView(n.state.code, rowToMonth(rows[0], n.ctx), rows[0].arc, false, rows[1] ?? null, rows, src, n.ctx.laws, currentArc), foreign: foreign[n.state.code] });
     } else {
       // Before the first monthly step: show where the nation starts, without writing anything.
-      const ctx = { ...n.ctx, trade: projectedTrade[n.state.code] ?? R.NO_TRADE };
-      out.push(buildView(n.state.code, R.describe(R.initialState(ctx), ctx), null, true, null, [], src, n.ctx.laws, currentArc));
+      const ctx = { ...n.ctx, trade: projectedTrade[n.state.code] ?? R.NO_TRADE, diplomacy: diplo[n.state.code]?.rating };
+      out.push({ ...buildView(n.state.code, R.describe(R.initialState(ctx), ctx), null, true, null, [], src, n.ctx.laws, currentArc), foreign: foreign[n.state.code] });
     }
   }
   const ranked = R.rankNations(out.map(v => ({ ...v, score: v.rating })));
