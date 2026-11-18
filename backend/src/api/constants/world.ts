@@ -6,9 +6,9 @@
 /**
  * Fallback real seconds per game month, used only if world_clock has no value.
  * The live value is world_clock.real_seconds_per_month / pol_real_seconds_per_month
- * (set by migration 0095 to 4 hours; adjustable via PATCH /world/clock/speed).
+ * (set by migration 0102 to 8 hours; adjustable via PATCH /world/clock/speed).
  */
-export const DEFAULT_REAL_SECONDS_PER_MONTH = 4 * 60 * 60; // 4 hours
+export const DEFAULT_REAL_SECONDS_PER_MONTH = 8 * 60 * 60; // 8 hours
 
 /** How often (at most) a signed-in player's users.last_seen_at is refreshed. */
 export const LAST_SEEN_UPDATE_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes

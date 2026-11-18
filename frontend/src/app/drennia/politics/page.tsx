@@ -1,6 +1,6 @@
 'use client';
 // Politics — "The Floor" (docs/POLITICS_FLOOR.md).
-// One call (GET /politics/desk) drives five screens: Desk, Chamber, Voters, Party, Nation.
+// One call (GET /politics/desk) drives the nation's screens; World Press reads GET /agency/front.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { politicsApi, worldApi, authApi } from '@/lib/api';
@@ -17,8 +17,10 @@ import ElectionNight from './_floor/ElectionNight';
 import NationView from './_floor/NationView';
 import CorridorsView from './_floor/CorridorsView';
 import MapView from './_floor/MapView';
+import WireView from './_floor/WireView';
+import type { Notice } from './_floor/types';
 
-type Tab = 'desk' | 'chamber' | 'corridors' | 'map' | 'voters' | 'party' | 'nation';
+type Tab = 'desk' | 'chamber' | 'corridors' | 'map' | 'voters' | 'party' | 'nation' | 'wire';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'desk', label: 'Desk' },
   { id: 'chamber', label: 'Chamber' },
@@ -27,11 +29,12 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'voters', label: 'Voters' },
   { id: 'party', label: 'Party' },
   { id: 'nation', label: 'Nation' },
+  { id: 'wire', label: 'World Press' },
 ];
 const PHASE_LABEL: Record<string, string> = {
   governing: 'Parliament sitting', filing: 'Candidates filing', campaign: 'Election campaign', polling: 'Election day', formation: 'Forming a government',
 };
-const RUNG_LABEL: Record<string, string> = { citizen: 'Citizen', member: 'Party member', candidate: 'Candidate', mp: 'Member of Parliament', minister: 'Minister', premier: 'Head of government' };
+const RUNG_LABEL: Record<string, string> = { citizen: 'Citizen', member: 'Party member', candidate: 'Candidate', mp: 'Member of Parliament', leader: 'Party leader', minister: 'Minister', premier: 'Head of government', statesman: 'World statesman' };
 const SEEN_ELECTION_KEY = 'worldr_pol_election_seen';
 
 class ViewBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
@@ -50,6 +53,42 @@ class ViewBoundary extends React.Component<{ children: React.ReactNode }, { erro
     }
     return this.props.children;
   }
+}
+
+/** The inbox: what happened while you were away. Opening it marks everything read. */
+function Inbox({ notices, onOpen, onRead }: { notices: { unread: number; items: Notice[] } | undefined; onOpen: (tab: string | null) => void; onRead: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+  const unread = notices?.unread ?? 0;
+  const items = notices?.items ?? [];
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" id="inbox" aria-label={`Inbox, ${unread} unread`} title="What happened while you were away"
+        onClick={() => { const next = !open; setOpen(next); if (next && unread > 0) onRead(); }}
+        className="relative inline-flex items-center gap-1 rounded-lg px-2 py-1" style={{ border: `1px solid ${T.line}`, color: T.text }}>
+        <span aria-hidden>✉</span><span>Inbox</span>
+        {unread > 0 && <span className="inline-flex items-center justify-center rounded-full text-[10px] font-bold px-1.5 min-w-[18px] h-[18px]" style={{ background: T.accent, color: '#17130A' }}>{unread}</span>}
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 z-50 w-[min(92vw,380px)] max-h-[70vh] overflow-y-auto rounded-xl p-2 shadow-2xl" style={{ background: T.raised, border: `1px solid ${T.lineStrong}` }}>
+          {items.length === 0 ? <div className="p-3 text-xs" style={{ color: T.dim }}>Nothing yet. Offers, challenges, votes on your bills and your world rank will show up here.</div> :
+            items.map(n => (
+              <button key={n.id} type="button" onClick={() => { setOpen(false); onOpen(n.tab); }}
+                className="w-full text-left rounded-lg px-3 py-2 hover:opacity-90" style={{ background: n.read ? 'transparent' : T.accentSoft }}>
+                <div className="text-xs leading-snug" style={{ color: T.text }}>{n.text}</div>
+                <div className="text-[10px] mt-0.5" style={{ color: T.faint }}>{formatPolArc(n.arc, false)}</div>
+              </button>
+            ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function PoliticsPage() {
@@ -132,10 +171,11 @@ export default function PoliticsPage() {
                   <span className="font-semibold" style={{ color: T.text }}>{me.name}</span>
                   <span>{me.office ?? RUNG_LABEL[me.rung] ?? me.rung}{me.isPartyLeader && !me.office ? ', party leader' : ''}{me.background ? ` · ${me.background.label}` : ''}</span>
                 </span>
-                <span className="inline-flex items-center gap-1.5" title="Energy: what you can do this month. Refills when the month turns."><Energy current={me.ap.current} cap={me.ap.cap} /></span>
+                <span className="inline-flex items-center gap-1.5" title="Energy: what you can do. Each month adds 12; unused energy carries over, up to 24."><Energy current={me.ap.current} cap={me.ap.cap} /></span>
                 <span title="Trust: how far voters believe you. Counts in the district you stand in, and in every deal you offer.">Trust <strong style={{ color: T.text }}>{me.credibility}</strong></span>
                 <span title="Clout: your weight among politicians. Needed to lead a party.">Clout <strong style={{ color: T.text }}>{me.influence}</strong></span>
                 {me.cash != null && <span title="Your own money">{money(me.cash)}</span>}
+                <Inbox notices={desk!.desk.notices} onOpen={(t) => t && setTab((TABS.find(x => x.id === t)?.id ?? 'desk') as Tab)} onRead={() => politicsApi.markNoticesRead().then(() => mutate()).catch(() => {})} />
               </div>
             )}
           </div>
@@ -186,6 +226,7 @@ export default function PoliticsPage() {
               {tab === 'voters' && <VotersView onReplay={openElection} />}
               {tab === 'party' && <PartyView />}
               {tab === 'nation' && <NationView />}
+              {tab === 'wire' && <WireView />}
             </ViewBoundary>
             {electionOpen && el && <ElectionNight onClose={() => setElectionOpen(false)} />}
           </FloorContext.Provider>

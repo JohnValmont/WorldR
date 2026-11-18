@@ -150,6 +150,20 @@ function ProfileSheet({ p, onClose, onMessage, onDeal }: { p: Person; onClose: (
               </div>
             ))}
           </div>
+          {(data?.career || data?.worldRank) && (
+            <div className="mt-3 text-xs" style={{ color: T.dim }} id="profile-career">
+              {data?.worldRank && <div>World Influence Index: #{data.worldRank.rank} of {data.worldRank.of} ({data.worldRank.share}%)</div>}
+              {data?.career && (
+                <div style={{ color: T.faint }}>
+                  {[data.career.monthsHead ? `${data.career.monthsHead} months heading the government` : null,
+                    data.career.monthsMinister ? `${data.career.monthsMinister} as minister` : null,
+                    data.career.monthsLeader ? `${data.career.monthsLeader} as party leader` : null,
+                    data.career.monthsMp ? `${data.career.monthsMp} as MP` : null,
+                    data.career.bestWorldRank ? `best world rank #${data.career.bestWorldRank}` : null].filter(Boolean).join(' · ') || 'No offices held yet.'}
+                </div>
+              )}
+            </div>
+          )}
           <Label>How they voted</Label>
           <div className="mt-1 space-y-1">
             {!data && <div className="text-xs" style={{ color: T.faint }}>Loading…</div>}

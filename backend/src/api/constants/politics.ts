@@ -424,11 +424,14 @@ export const CAMPAIGN_ACTIONS: CampaignAction[] = [
 // All values are TUNABLE DEFAULTS — change here, never inline.
 
 // ── AP grant model (GDD v0.5 $7, refined) ───────────────────────────────────
-// AP REFRESHES to a flat monthly grant — it does NOT accumulate. Each in-game
-// month current_ap is RESET to AP_MONTHLY_GRANT regardless of what was left over.
-// Example: hold 6 leftover AP at month end → next month you have 12 (NOT 18).
+// Each in-game month (8 real hours) a player gains AP_MONTHLY_GRANT, and unused
+// energy carries over up to AP_BANK_CAP (owner decision 2026-11-18).
+// Modelled: 3 months a day. A player who checks in once a day can use 24 a day,
+// one who checks in every month 36: a 1.5x edge for being online, not the 3x a
+// pure reset gave. Example: 6 left at month end -> 18 next month; 20 -> 24.
 // Voting is always free.
 export const AP_MONTHLY_GRANT            = 12;
+export const AP_BANK_CAP                 = 24;
 
 // ── Legacy AP-cap tunables (pre-v0.5) ───────────────────────────────────────
 // Retained for reference / potential future office-Mandate wiring. The old

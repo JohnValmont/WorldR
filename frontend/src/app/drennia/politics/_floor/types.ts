@@ -75,10 +75,31 @@ export interface PartyRoom {
   challengeNeed?: number;
   challengeWouldWin?: boolean;
   funds?: number;
-  members?: { id: string; name: string; role: string; trust: number; clout: number; hasSeat: boolean; isMe: boolean }[];
+  members?: { id: string; name: string; role: string; trust: number; clout: number; hasSeat: boolean; isMe: boolean; thisMonth?: MemberWork }[];
+  contest?: Contest | null;
   districtsTaken?: string[];
   canStand?: boolean;
 }
+
+export interface MemberWork { rallies: number; ads: number; fundraisers: number; raised: number; deals: number }
+export interface Contest {
+  id: string; status: 'open' | 'won' | 'lost' | 'void'; openedArc: number; closesArc: number;
+  challenger: { id: string; name: string; clout: number };
+  leader: { id: string; name: string; clout: number };
+  ballots: { id: string; name: string; side: 'challenger' | 'leader'; mp: boolean }[];
+  myBallot: 'challenger' | 'leader' | null;
+  standing: { challenger: number; leader: number; winner: 'challenger' | 'leader' } | null;
+  rules: { ballotWeight: number; mpMult: number; incumbency: number };
+}
+
+// ─── Career ladder, inbox ────────────────────────────────────────────────────
+export interface LadderRung { key: string; title: string; unlocks: string; next: string | null; reached: boolean; current: boolean; peak: boolean }
+export interface Career {
+  peakRung: string; peakRungArc: number | null;
+  monthsMp: number; monthsLeader: number; monthsMinister: number; monthsHead: number;
+  bestWorldRank: number | null; bestWorldRankArc: number | null; monthsWorldTop: number;
+}
+export interface Notice { id: string; arc: number; kind: string; text: string; tab: string | null; read: boolean; at: string }
 
 export interface ElectionReplay {
   cycleId: string;
@@ -134,6 +155,9 @@ export interface Desk extends Omit<Capitol, 'bills' | 'me'> {
     log: { arc: number; kind: string; summary: string }[];
     world: NationRow[];
     office: Office | null;
+    notices: { unread: number; items: Notice[] };
+    ladder: LadderRung[] | null;
+    career: Career | null;
   };
 }
 
@@ -160,6 +184,37 @@ export interface PersonProfile {
   id: string; name: string; background: { label: string; blurb: string } | null; record: { kept: number; broken: number };
   votes: { billId: string; title: string; vote: Vote; status: string }[];
   brokenWord: { headline: string; body: string; arc: number }[];
+  career?: Career | null;
+  worldRank?: { rank: number; share: number; arc: number; of: number } | null;
+}
+
+// ─── The Meridian Wire (GET /agency/front) ──────────────────────────────────
+export interface IndexRow {
+  key: string; rank: number; prevRank: number | null; move: number | null; share: number; score: number;
+  name: string; isPlayer: boolean; characterId: string | null; nationCode: string; nationName: string;
+  partyName: string | null; partyColor: string | null; officeLabel: string;
+}
+export interface WireStory { nationCode: string; nationName: string; kind: string; headline: string; body: string }
+export interface Dispatch {
+  id: string; arc: number; headline: string; body: string; status: 'published' | 'hidden' | 'removed';
+  endorsements: number; reports: number; at: string;
+  author: { id: string; name: string; nationName: string | null };
+  mine?: boolean; myReaction?: 'endorse' | 'report' | null;
+}
+export interface Edition {
+  arc: number; headline: string; publishedAt: string; rankings: IndexRow[]; total: number; mine: IndexRow | null;
+  stories: WireStory[]; dispatches: Dispatch[];
+}
+export interface WireFront {
+  agency: { name: string; tagline: string };
+  arc: number;
+  edition: Edition | null;
+  archive: { arc: number; headline: string }[];
+  live: { top: IndexRow[]; mine: IndexRow | null; total: number };
+  dispatches: Dispatch[];
+  allowance: { filed: number; perMonth: number; ap: number; energy: number } | null;
+  career: Career | null;
+  rules: { perMonth: number; ap: number; headlineMax: number; bodyMax: number; endorsementsPerClout: number; maxCloutPerMonth: number; hideAtReports: number; publishSize: number; statesmanRank: number };
 }
 
 // ─── Political map (GET /politics/map) ───────────────────────────────────────

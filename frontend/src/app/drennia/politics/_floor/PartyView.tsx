@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { politicsApi } from '@/lib/api';
 import { CREEDS, CREED_ORDER, CreedId } from '../_lib/model';
 import { Btn, Card, Chip, Label, Meter, PartyDot, Sheet, T, leaderTitle, money, useFloor, convictionFit } from './kit';
+import type { MemberWork } from './types';
 
 const COLORS = ['#D9625A', '#E8B84B', '#4FB286', '#4C9BD9', '#9B7FE0', '#E07FB0', '#5FC7C2', '#C9C2B2'];
 
@@ -136,6 +137,86 @@ function StandSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** One member's work for the party this month, in a line. */
+function WorkLine({ w }: { w: MemberWork }) {
+  const bits = [
+    w.rallies ? `${w.rallies} rall${w.rallies === 1 ? 'y' : 'ies'}` : null,
+    w.ads ? `${w.ads} ad${w.ads === 1 ? '' : 's'}` : null,
+    w.fundraisers ? `raised ${money(w.raised)}` : null,
+    w.deals ? `${w.deals} deal${w.deals === 1 ? '' : 's'}` : null,
+  ].filter(Boolean);
+  return <div className="text-[11px] mt-0.5" style={{ color: bits.length ? T.dim : T.faint }}>{bits.length ? bits.join(' · ') : 'nothing yet this month'}</div>;
+}
+
+/** A leadership contest: who stands, who has voted, the running score and your ballot. */
+function ContestCard() {
+  const { desk, act, busy } = useFloor();
+  const me = desk.me!;
+  const c = desk.desk.partyRoom!.contest!;
+  const open = c.status === 'open';
+  const standing = c.standing;
+  const total = standing ? Math.max(1, standing.challenger + standing.leader) : 1;
+  const iStand = me.characterId === c.challenger.id || me.characterId === c.leader.id;
+  const monthsLeft = Math.max(0, c.closesArc - desk.calendar.arc);
+  const Side = ({ who, side }: { who: { name: string; clout: number }; side: 'challenger' | 'leader' }) => {
+    const votes = c.ballots.filter(b => b.side === side);
+    return (
+      <div className="min-w-0">
+        <div className="text-[11px] uppercase tracking-wider" style={{ color: T.faint }}>{side === 'leader' ? 'Leader' : 'Challenger'}</div>
+        <div className="font-serif text-lg font-bold truncate" style={{ color: T.text }}>{who.name}</div>
+        <div className="text-xs" style={{ color: T.dim }}>clout {who.clout}{side === 'leader' ? ` + ${c.rules.incumbency} for holding the job` : ''}</div>
+        <div className="text-xs mt-1" style={{ color: T.dim }}>
+          {votes.length ? votes.map(v => `${v.name}${v.mp ? ' (MP)' : ''}`).join(', ') : 'no ballots yet'}
+        </div>
+      </div>
+    );
+  };
+  return (
+    <Card className="p-4" tone={open ? 'accent' : undefined}>
+      <div className="flex items-baseline justify-between gap-2">
+        <Label color={open ? T.accent : T.faint}>{open ? 'Leadership contest' : 'Last leadership contest'}</Label>
+        {open
+          ? <Chip color={T.accent}>{monthsLeft <= 0 ? 'decided when this month ends' : `decided when next month ends`}</Chip>
+          : <Chip color={c.status === 'won' ? T.good : T.dim}>{c.status === 'won' ? `${c.challenger.name} won` : c.status === 'lost' ? `${c.leader.name} held on` : 'called off'}</Chip>}
+      </div>
+      <div className="grid grid-cols-2 gap-4 mt-3">
+        <Side who={c.challenger} side="challenger" />
+        <Side who={c.leader} side="leader" />
+      </div>
+      {standing && (
+        <div className="mt-3">
+          <div className="flex h-2.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+            <div style={{ width: `${(standing.challenger / total) * 100}%`, background: T.bad }} />
+            <div style={{ width: `${(standing.leader / total) * 100}%`, background: T.good }} />
+          </div>
+          <div className="flex justify-between text-xs mt-1 font-mono" style={{ color: T.dim }}>
+            <span>{Math.round(standing.challenger)}</span>
+            <span>{open ? (standing.winner === 'leader' ? 'the leader would hold on today' : 'the challenger would win today') : 'final'}</span>
+            <span>{Math.round(standing.leader)}</span>
+          </div>
+        </div>
+      )}
+      {open && (
+        <>
+          <p className="text-[11px] mt-3" style={{ color: T.faint }}>
+            Each member's ballot counts {c.rules.ballotWeight}, an MP's {c.rules.ballotWeight * c.rules.mpMult}. Ties go to the leader. You can change your ballot until the count.
+          </p>
+          {!iStand ? (
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Btn small kind={c.myBallot === 'challenger' ? 'primary' : 'ghost'} disabled={busy} id="ballot-challenger"
+                onClick={() => act(() => politicsApi.voteInContest('challenger'), r => r.message)}>Back {c.challenger.name}</Btn>
+              <Btn small kind={c.myBallot === 'leader' ? 'primary' : 'ghost'} disabled={busy} id="ballot-leader"
+                onClick={() => act(() => politicsApi.voteInContest('leader'), r => r.message)}>Back {c.leader.name}</Btn>
+            </div>
+          ) : (
+            <p className="text-xs mt-2" style={{ color: T.dim }}>You are standing: win members over in the party room and in Corridors.</p>
+          )}
+        </>
+      )}
+    </Card>
+  );
+}
+
 function MyParty() {
   const { desk, act, busy } = useFloor();
   const [standing, setStanding] = useState(false);
@@ -177,36 +258,48 @@ function MyParty() {
           </div>
         </Card>
 
+        {room.contest && (room.contest.status === 'open' || room.contest.closesArc >= desk.calendar.arc - 1) && <ContestCard />}
+
         {room.canChallenge && (
           <Card className="p-4">
             <Label>Leadership</Label>
             <p className="text-sm mt-1" style={{ color: T.dim }}>
-              {room.leaderIsHuman ? `${room.leaderName} leads the party.` : 'Nobody leads the party: the machine runs it by its ideology.'}
-              {' '}To take over you need {room.challengeNeed} clout{room.leaderIsHuman ? ' (10 more than the leader)' : ''} and six months in the party. You have {me.influence}.
+              {room.leaderIsHuman
+                ? `${room.leaderName} leads the party. With ${room.challengeNeed} clout and six months in the party you can force a leadership contest: ${room.leaderName} is told, and the party's members vote before next month ends. You have ${me.influence}.`
+                : `Nobody leads the party: the machine runs it by its ideology. To take over you need ${room.challengeNeed} clout and six months in the party. You have ${me.influence}.`}
               {party.leadsGovernment && ` Whoever leads this party is ${leaderTitle(desk)}.`}
             </p>
             <div className="mt-2"><Meter value={me.influence} max={Math.max(room.challengeNeed ?? 1, me.influence)} color={room.challengeWouldWin ? T.good : T.accent} /></div>
             <div className="mt-3 flex items-center gap-3">
-              <Btn small kind={room.challengeWouldWin && !waiting ? 'primary' : 'ghost'} disabled={busy || waiting || me.ap.current < rules.leadershipAp} id="challenge"
+              <Btn small kind={room.challengeWouldWin && !waiting ? 'primary' : 'ghost'} disabled={busy || waiting || me.ap.current < rules.leadershipAp || room.contest?.status === 'open'} id="challenge"
                 onClick={() => act(() => politicsApi.challengeLeadership(), r => r.message)}>
-                Challenge for the leadership · {rules.leadershipAp} energy
+                {room.leaderIsHuman ? 'Force a leadership contest' : 'Challenge for the leadership'} · {rules.leadershipAp} energy
               </Btn>
               <span className="text-xs" style={{ color: T.faint }}>
-                {waiting ? `You can challenge in ${room.challengeWaitMonths} month${room.challengeWaitMonths === 1 ? '' : 's'}.` : room.challengeWouldWin ? 'You would win.' : 'You would lose, and lose clout with it.'}
+                {room.contest?.status === 'open' ? 'A contest is already under way.'
+                  : waiting ? `You can challenge in ${room.challengeWaitMonths} month${room.challengeWaitMonths === 1 ? '' : 's'}.`
+                  : room.leaderIsHuman ? (room.challengeWouldWin ? 'You can force a contest. Line up your members first.' : 'Not enough clout to force a contest yet.')
+                  : room.challengeWouldWin ? 'You would win.' : 'You would lose, and lose clout with it.'}
               </span>
             </div>
           </Card>
         )}
 
         <Card className="p-4">
-          <Label>Players in the party</Label>
-          <div className="mt-2 space-y-1.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <Label>Players in the party</Label>
+            <span className="text-[11px]" style={{ color: T.faint }}>this month's work for the party</span>
+          </div>
+          <div className="mt-2 space-y-2">
             {(room.members ?? []).map(m => (
-              <div key={m.id} className="flex items-center gap-2 text-sm">
-                <span className="flex-1 truncate" style={{ color: m.isMe ? T.text : T.dim, fontWeight: m.isMe ? 700 : 400 }}>{m.name}{m.isMe ? ' (you)' : ''}</span>
-                {m.role === 'leader' && <Chip color={T.accent}>leader</Chip>}
-                {m.hasSeat && <Chip>MP</Chip>}
-                <span className="font-mono text-xs w-20 text-right" style={{ color: T.faint }}>clout {m.clout}</span>
+              <div key={m.id} className="text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="flex-1 truncate" style={{ color: m.isMe ? T.text : T.dim, fontWeight: m.isMe ? 700 : 400 }}>{m.name}{m.isMe ? ' (you)' : ''}</span>
+                  {m.role === 'leader' && <Chip color={T.accent}>leader</Chip>}
+                  {m.hasSeat && <Chip>MP</Chip>}
+                  <span className="font-mono text-xs w-20 text-right" style={{ color: T.faint }}>clout {m.clout}</span>
+                </div>
+                {m.thisMonth && <WorkLine w={m.thisMonth} />}
               </div>
             ))}
             <div className="text-[11px]" style={{ color: T.faint }}>The party's other {Math.max(0, party.seats - (room.members ?? []).filter(m => m.hasSeat).length)} seats are held by computer-run MPs who follow the party line.</div>

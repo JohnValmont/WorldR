@@ -19,8 +19,13 @@ import { localisePlaces, nationRules } from '../constants/nations';
 import { safeParseJSON } from '../../utils/json';
 import { getCapitol } from './capitol.service';
 import {
-  decreeOffices, effectiveCost, ensureHand, forecastPact, getEnergy, playerPolitics, switchCooldownLeft,
+  contestView, decreeOffices, effectiveCost, ensureHand, forecastPact, getEnergy, playerPolitics, switchCooldownLeft,
 } from './floor.service';
+import { noticesFor } from './notices.service';
+import { careerOf } from './agency.service';
+import { ladderFor } from './worldStage.rules';
+import { CareerRung } from '../constants/worldStage';
+import { headOfGovernmentTitle } from '../constants/nations';
 import {
   adGain, fundraiseTake, leadershipDecision, outcomeChances, rallyGain, renderText, SEGMENT_KEYS, supportTarget,
 } from './floor.rules';
@@ -102,6 +107,9 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     world: (await worldNations(db, arc)).map(n => ({ ...n, mine: n.polStateCode === cap.state.code })),
     // What the player's office lets them do without Parliament (null = holds no office).
     office: null,
+    notices: { unread: 0, items: [] },
+    ladder: null,
+    career: null,
   };
 
   const character = userId ? await db('characters').where({ user_id: userId, status: 'active' }).first() : null;
@@ -110,6 +118,12 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
   if (!character) return { ...cap, desk };
 
   const me = await playerPolitics(db, stateId, character, gov);
+  desk.notices = await noticesFor(db, character.id);
+  // ── The career ladder: where you stand now and the highest you have climbed ──
+  const career = await careerOf(db, character.id);
+  const rungNow = (cap.me?.rung ?? 'citizen') as CareerRung;
+  desk.career = career;
+  desk.ladder = ladderFor(rungNow, (career?.peakRung ?? rungNow) as CareerRung, headOfGovernmentTitle(cap.state.code));
   const energy = await getEnergy(db, character.id, arc);
   cap.me.ap = energy;
 
@@ -242,7 +256,26 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
       ? (await db('pol_council_seats').where({ cycle_id: gov.sittingCycleId, party_id: me.party.id }).whereNotNull('character_id').select('character_id')).map((r: any) => r.character_id)
       : []);
     const leader = members.find((m: any) => m.id === me.party.leader_character_id) ?? null;
-    const challenge = leadershipDecision(num(character.influence), !!leader, num(leader?.influence));
+    // This month's work for the party, member by member (rallies, ads, money raised).
+    const work = await db('pol_action_log').where({ party_id: me.party.id, arc }).whereIn('kind', ['rally', 'ad', 'fundraise', 'handshake', 'pact'])
+      .select('character_id', 'kind', 'summary');
+    const workOf = (id: string) => {
+      const mine = work.filter((w: any) => w.character_id === id);
+      const raised = mine.filter((w: any) => w.kind === 'fundraise')
+        .reduce((a: number, w: any) => a + num(String(w.summary).replace(/[^0-9]/g, '')), 0);
+      return {
+        rallies: mine.filter((w: any) => w.kind === 'rally').length,
+        ads: mine.filter((w: any) => w.kind === 'ad').length,
+        fundraisers: mine.filter((w: any) => w.kind === 'fundraise').length,
+        raised,
+        deals: mine.filter((w: any) => w.kind === 'handshake' || w.kind === 'pact').length,
+      };
+    };
+    // A computer-run leader falls at once to enough clout; a human leader faces a
+    // contest the members decide, which needs LEADERSHIP_MIN_CLOUT to start.
+    const challenge = leader
+      ? { need: LEADERSHIP_MIN_CLOUT, win: num(character.influence) >= LEADERSHIP_MIN_CLOUT }
+      : leadershipDecision(num(character.influence), false, 0);
     const openCycle = await db('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
     const taken = openCycle
       ? (await db('pol_candidates').where({ cycle_id: openCycle.id, party_id: me.party.id }).whereNotNull('character_id').select('constituency_id')).map((r: any) => r.constituency_id)
@@ -258,7 +291,9 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
       funds: num(me.party.treasury),
       members: members.map((m: any) => ({
         id: m.id, name: m.name, role: m.role, trust: num(m.credibility), clout: num(m.influence), hasSeat: seatIds.has(m.id), isMe: m.id === character.id,
+        thisMonth: workOf(m.id),
       })),
+      contest: await contestView(db, me.party.id, character.id),
       districtsTaken: taken,
       canStand: !cap.me.candidacyDistrict && !['polling', 'formation'].includes(cap.calendar.phase),
     };

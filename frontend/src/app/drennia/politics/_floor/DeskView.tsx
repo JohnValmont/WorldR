@@ -143,48 +143,67 @@ function Standing() {
   );
 }
 
-/** Where you are on the road to power, and the one thing that gets you to the next step. */
-function RoadToPower() {
+/**
+ * The career ladder: eight rungs from citizen to world statesman. Shows where you
+ * stand, the highest you have climbed, what the next rung needs, and your record.
+ */
+function CareerLadder() {
   const { desk, go } = useFloor();
   const me = desk.me!;
-  const title = leaderTitle(desk);
+  const ladder = desk.desk.ladder ?? [];
+  const career = desk.desk.career;
   const leadClout = desk.desk.rules.leadershipMinClout ?? 45;
-  const steps = [
-    { label: 'Join a party', done: !!me.party, hint: 'Pick the party closest to your views in the Party tab. You get a seat at once.', go: 'party' },
-    { label: 'Hold a seat', done: me.hasSeat || me.rung === 'mp' || me.rung === 'minister' || me.rung === 'premier', hint: 'Join a party that holds seats, or stand in a district at the next election.', go: 'party' },
-    { label: 'Lead your party', done: me.isPartyLeader, hint: me.influence >= leadClout ? 'You have the clout. Challenge for the leadership in the Party tab.' : `Build clout to ${leadClout} (you have ${me.influence}): keep your word, win votes, take the decisions that impress.`, go: 'party' },
-    { label: 'Enter government', done: !!me.party?.inGovernment && (me.isPartyLeader || !!me.office), hint: me.party?.inGovernment ? 'Your party governs. Lead it, or be appointed a minister.' : 'Win seats and make your party the one others must ally with.', go: 'voters' },
-    { label: title, done: me.rung === 'premier', hint: `Lead the largest party in the governing coalition and you become ${title}.`, go: 'chamber' },
-  ];
-  const next = steps.findIndex(s => !s.done);
+  const currentIdx = ladder.findIndex(r => r.current);
+  const next = ladder[currentIdx + 1];
+  const goTo: Record<string, string> = { member: 'party', candidate: 'party', mp: 'party', leader: 'party', minister: 'chamber', premier: 'chamber', statesman: 'wire' };
+  const months = career ? [
+    career.monthsHead ? `${career.monthsHead} mo ${leaderTitle(desk)}` : null,
+    career.monthsMinister ? `${career.monthsMinister} mo minister` : null,
+    career.monthsLeader ? `${career.monthsLeader} mo party leader` : null,
+    career.monthsMp ? `${career.monthsMp} mo MP` : null,
+  ].filter(Boolean) : [];
   return (
-    <Card className="p-4" tone={next >= 0 ? undefined : 'accent'}>
+    <Card className="p-4" tone={next ? undefined : 'accent'}>
       <div className="flex items-baseline justify-between">
-        <Label>Road to power</Label>
+        <Label>Career ladder</Label>
         {me.background && <span className="text-[11px]" style={{ color: T.faint }} title={me.background.edge}>{me.background.label}</span>}
       </div>
       <ol className="mt-3 relative">
-        {steps.map((s, i) => {
-          const isNext = i === next;
+        {[...ladder].reverse().map((r, ri) => {
+          const i = ladder.length - 1 - ri;
+          const isNext = i === currentIdx + 1;
           return (
-            <li key={s.label} className="flex gap-3 pb-3 last:pb-0 relative">
-              {i < steps.length - 1 && <span className="absolute left-[9px] top-5 bottom-0 w-px" style={{ background: s.done ? T.accent : T.line }} />}
+            <li key={r.key} className="flex gap-3 pb-2.5 last:pb-0 relative">
+              {ri < ladder.length - 1 && <span className="absolute left-[9px] top-5 bottom-0 w-px" style={{ background: ladder[i - 1]?.reached && r.reached ? T.accent : T.line }} />}
               <span className="relative z-10 shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold"
-                style={{ width: 19, height: 19, background: s.done ? T.accent : isNext ? T.accentSoft : T.raised, border: `1px solid ${s.done || isNext ? T.accent : T.line}`, color: s.done ? '#17130A' : T.accent }}>
-                {s.done ? '✓' : i + 1}
+                style={{ width: 19, height: 19, background: r.current ? T.accent : r.reached ? T.accentSoft : T.raised, border: `1px solid ${r.reached || isNext ? T.accent : T.line}`, color: r.current ? '#17130A' : T.accent }}>
+                {r.reached && !r.current ? '✓' : i + 1}
               </span>
-              <div className="min-w-0">
-                <div className="text-sm font-semibold" style={{ color: s.done ? T.dim : isNext ? T.text : T.faint }}>{s.label}</div>
-                {isNext && (
-                  <button type="button" onClick={() => go(s.go)} className="text-left text-xs mt-0.5 leading-snug hover:underline" style={{ color: T.dim }}>{s.hint}</button>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold" style={{ color: r.current ? T.text : r.reached ? T.dim : isNext ? T.text : T.faint }}>{r.title}</span>
+                  {r.current && <Chip color={T.accent}>you</Chip>}
+                  {r.peak && !r.current && <Chip color={T.dim} title="The highest rung you have reached">peak</Chip>}
+                </div>
+                {r.current && <div className="text-[11px] mt-0.5 leading-snug" style={{ color: T.faint }}>{r.unlocks}</div>}
+                {isNext && ladder[currentIdx]?.next && (
+                  <button type="button" onClick={() => go(goTo[r.key] ?? 'party')} className="text-left text-xs mt-0.5 leading-snug hover:underline" style={{ color: T.dim }}>
+                    {ladder[currentIdx].next}
+                  </button>
                 )}
-                {isNext && i === 2 && !me.isPartyLeader && <div className="mt-1.5 w-40"><Meter value={Math.min(me.influence, leadClout)} max={leadClout} /></div>}
+                {isNext && r.key === 'leader' && !me.isPartyLeader && <div className="mt-1.5 w-40"><Meter value={Math.min(me.influence, leadClout)} max={leadClout} /></div>}
               </div>
             </li>
           );
         })}
       </ol>
-      {next < 0 && <p className="text-xs mt-2" style={{ color: T.accent }}>You run the country. Keep the coalition together and win the next election.</p>}
+      <div className="mt-3 pt-3 text-[11px] space-y-0.5" style={{ borderTop: `1px solid ${T.line}`, color: T.faint }}>
+        <button type="button" onClick={() => go('wire')} className="hover:underline text-left" style={{ color: T.dim }}>
+          {me.worldRank ? `World Influence Index: #${me.worldRank.rank} of ${me.worldRank.of} (${me.worldRank.share}%)` : 'Not yet ranked in the World Influence Index'}
+        </button>
+        {career?.bestWorldRank && <div>Best world rank: #{career.bestWorldRank}{career.monthsWorldTop ? ` · ${career.monthsWorldTop} month${career.monthsWorldTop === 1 ? '' : 's'} at #1` : ''}</div>}
+        {months.length > 0 && <div>{months.join(' · ')}</div>}
+      </div>
     </Card>
   );
 }
@@ -271,6 +290,21 @@ export default function DeskView() {
           </Card>
         )}
 
+        {desk.desk.partyRoom?.contest?.status === 'open' && (
+          <Card className="p-4" tone="accent">
+            <Label color={T.accent}>Leadership contest</Label>
+            <p className="text-sm mt-1" style={{ color: T.text }}>
+              {me.characterId === desk.desk.partyRoom.contest.leader.id
+                ? <><strong>{desk.desk.partyRoom.contest.challenger.name}</strong> is challenging you for the leadership of your party. Win your members over before the count.</>
+                : me.characterId === desk.desk.partyRoom.contest.challenger.id
+                  ? <>Your challenge to <strong>{desk.desk.partyRoom.contest.leader.name}</strong> is under way. Win your members over before the count.</>
+                  : <><strong>{desk.desk.partyRoom.contest.challenger.name}</strong> is challenging <strong>{desk.desk.partyRoom.contest.leader.name}</strong> for the leadership of your party.
+                    {desk.desk.partyRoom.contest.myBallot ? ` You back the ${desk.desk.partyRoom.contest.myBallot}.` : ' Cast your ballot.'}</>}
+            </p>
+            <div className="mt-3"><Btn small kind="primary" onClick={() => go('party')} id="cta-contest">See the contest</Btn></div>
+          </Card>
+        )}
+
         {openCards.map(c => <Situation key={c.id} card={c} />)}
 
         {toVote.length > 0 && <Label>Votes waiting for you</Label>}
@@ -290,7 +324,7 @@ export default function DeskView() {
       </div>
 
       <aside className="space-y-4">
-        <RoadToPower />
+        <CareerLadder />
         <Standing />
         <News />
       </aside>

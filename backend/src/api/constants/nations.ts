@@ -342,9 +342,9 @@ export function headOfGovernmentTitle(polStateCode: string | null | undefined): 
   return NATIONS_BY_POL_STATE[polStateCode ?? '']?.headOfGovernment.title ?? 'Premier';
 }
 
-// ─── Nation size (owner decision, 2026-11-17) ──────────────────────────────
+// ─── Nation size (owner decision, 2026-11-18: 8, was 6) ───────────────────
 /** Human players per nation. Small on purpose: you know every rival by name. */
-export const NATION_PLAYER_CAP = 6;
+export const NATION_PLAYER_CAP = 8;
 /** A player not seen for this many days stops counting toward the cap (their character stays). */
 export const NATION_ACTIVE_DAYS = 14;
 /**

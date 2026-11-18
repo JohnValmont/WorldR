@@ -98,13 +98,15 @@ export function Meter({ value, max = 100, color = T.accent, marker, height = 6 }
   );
 }
 
-/** Energy as pips: the one budget every action draws on. */
+/** Energy as pips: the one budget every action draws on. Unused energy carries over, up to the cap. */
 export function Energy({ current, cap }: { current: number; cap: number }) {
+  const dense = cap > 12;
   return (
-    <span className="inline-flex items-center gap-[3px]" title={`${current} of ${cap} energy left this month`} aria-label={`${current} of ${cap} energy`}>
+    <span className="inline-flex items-center gap-[2px]" title={`${current} of ${cap} energy. Each month adds 12; what you do not use carries over, up to ${cap}.`} aria-label={`${current} of ${cap} energy`}>
       {Array.from({ length: cap }, (_, i) => (
-        <span key={i} className="inline-block rounded-sm" style={{ width: 5, height: 12, background: i < current ? T.accent : 'rgba(255,255,255,0.12)' }} />
+        <span key={i} className="inline-block rounded-sm" style={{ width: dense ? 3 : 5, height: 12, marginLeft: dense && i === 12 ? 3 : 0, background: i < current ? T.accent : 'rgba(255,255,255,0.12)' }} />
       ))}
+      <span className="ml-1.5 font-mono" style={{ color: T.text }}>{current}</span>
     </span>
   );
 }

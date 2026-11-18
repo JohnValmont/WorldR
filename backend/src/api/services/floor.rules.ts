@@ -6,7 +6,7 @@
  * and reused unchanged by the monthly tick, the player actions and the screens.
  */
 import { HOME_GROUP_RALLY_MULT } from '../constants/characterCreation';
-import { Platform, SEGMENTS } from '../constants/politics';
+import { AP_BANK_CAP, AP_MONTHLY_GRANT, Platform, SEGMENTS } from '../constants/politics';
 import { NationalStat } from '../constants/macroEconomy';
 import {
   AD_GAIN, AD_REPEAT_DECAY, CHARISMA_MULT_MAX, CHARISMA_MULT_MIN, FUNDRAISE_BASE, FUNDRAISE_REPEAT_DECAY,
@@ -22,6 +22,13 @@ import { changeDesirability, partyVoteScore, seededUnit } from './statecraft.ser
 export { supportEffort, supportTarget, driftSupport, clampSupport };
 export const SEGMENT_KEYS = SEGMENTS.map(s => s.key) as SegmentKey[];
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+// ═══════════════════════════════ ENERGY ═══════════════════════════════
+
+/** Energy after a month's grant: what was left plus the grant, up to the bank cap. */
+export function bankedAp(left: number): number {
+  return Math.min(AP_BANK_CAP, Math.max(0, Number(left) || 0) + AP_MONTHLY_GRANT);
+}
 
 // ═══════════════════════════════ SUPPORT ═══════════════════════════════
 

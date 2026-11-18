@@ -4,8 +4,8 @@ Written 2026-11-17. Plain English. This replaces the nine-tab Political Desk.
 
 ## The idea in one paragraph
 
-You are one politician. Every game month (4 real hours) you get a **hand of three decisions**, the
-bills before Parliament need your **vote**, and you have **12 energy** to spend winning voters or
+You are one politician. Every game month (8 real hours since 2026-11-18) you get a **hand of three decisions**, the
+bills before Parliament need your **vote**, and you gain **12 energy** a month (unused energy carries over, up to 24) to spend winning voters or
 making deals. Everything you do moves one number, **support**: how much each of the five voter groups
 backs your party (0 to 100). Support decides elections. Promises between parties are a real mechanic:
 "vote my way and I owe you a favour" is recorded, can be called in later, and breaking it has a price.
@@ -57,7 +57,7 @@ backs your party (0 to 100). Support decides elections. Promises between parties
 
 ## Three nations (added 2026-11-17, revised the same day)
 
-The world has three playable nations, six players each: **Drennia**, **Westmark** and **Eryndor**
+The world has three playable nations, eight players each (six until 2026-11-18): **Drennia**, **Westmark** and **Eryndor**
 (Drennia's neighbours on the map). They are **different countries that start on level terms**:
 each is ahead somewhere and behind somewhere else, so nobody starts with the better country.
 
@@ -79,7 +79,7 @@ Tests fail if overall power drifts more than 3 points apart, if any nation's sta
 more than 3 from 50, or if a nation stops having both a strength and a weakness.
 
 Other rules:
-- **Six players per nation.** Sign-up shows the places left in each. A full nation is refused with
+- **Eight players per nation.** Sign-up shows the places left in each. A full nation is refused with
   the names of the ones that have room. A player not seen for 14 days stops counting. If all three
   are full, a newcomer still gets in, to the least crowded one (switch `NATION_OVERFLOW_WHEN_ALL_FULL`
   off to refuse instead).
@@ -161,6 +161,12 @@ continent with all 60 districts.
   every country has a coloured edge band (`nationOutlines`) and a dashed international border, and when one
   nation is in focus the others are dimmed.
 - The map data is cached for 30 seconds on the server.
+
+## The world stage (added 2026-11-18)
+
+The career ladder (8 rungs, citizen to world statesman), the Meridian Wire (a neutral international news
+agency: monthly World Influence Index with %, stories from every capital, dispatches written by players),
+the inbox, and contested leadership challenges are described in `docs/WORLD_STAGE.md`.
 
 ## Where the code is
 
