@@ -9,6 +9,7 @@ import {
   AdministrationBadge, AdministrationHistory, CARETAKER_COLOR, ElectionTimeline, Flag, MetricTabs, MetricTile, Stat, Trend, TrendChart,
   administrationBands, bn, compact, electionLine, heroBackground, metricById, months, tierColor, useChronicle,
 } from './worldKit';
+import CoalitionView, { coalitionNeedsMe } from './CoalitionView';
 
 export { Flag } from './worldKit';
 
@@ -506,13 +507,14 @@ function GovernmentOfTheDay({ history }: { history: ChronicleNation | undefined 
 /** Set by go('nation:<section>') to open the tab at a section (read once on mount). */
 export const NATION_SECTION_KEY = 'worldr_nation_section';
 const LAST_SECTION_KEY = 'worldr_nation_last_section';
-type Section = 'overview' | 'economy' | 'budget' | 'foreign' | 'government' | 'history';
+type Section = 'overview' | 'economy' | 'budget' | 'foreign' | 'government' | 'coalition' | 'history';
 const SECTIONS: { id: Section; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'economy', label: 'Economy' },
   { id: 'budget', label: 'Budget' },
   { id: 'foreign', label: 'Foreign affairs' },
   { id: 'government', label: 'Government' },
+  { id: 'coalition', label: 'Coalition' },
   { id: 'history', label: 'History' },
 ];
 const isSection = (v: string | null): v is Section => !!v && SECTIONS.some(s => s.id === v);
@@ -549,6 +551,7 @@ export default function NationView() {
     budget: !!sim && (isHead || isFinance) && !sim.budget.setThisMonth && sim.budget.splitSource === 'computer',
     foreign: !!sim && isHead && sim.foreign.treaties.some(t => t.status === 'proposed' && t.awaitingVoteIn === mine?.name),
     government: !!desk.desk.office && !desk.desk.office.usedThisMonth,
+    coalition: coalitionNeedsMe(desk),
   };
   const cal = desk.calendar;
   const points = history?.series ?? [];
@@ -651,6 +654,8 @@ export default function NationView() {
           <NationChart history={history} nowArc={nowArc} title="The record" initial="rating" ids={['rating', 'gdp', 'jobless', 'approval', 'debt']} />
         </div>
       )}
+
+      {section === 'coalition' && <CoalitionView />}
 
       {!sim && (section === 'economy' || section === 'budget' || section === 'foreign') && (
         <Card className="p-4 text-sm"><span style={{ color: T.dim }}>The nation’s figures appear after the first month closes.</span></Card>

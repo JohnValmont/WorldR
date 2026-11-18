@@ -108,6 +108,16 @@ export default function PoliticsPage() {
   const isAdmin = user?.role === 'admin' || isAdminDynamic;
   useEffect(() => { authApi.me().then(res => setIsAdminDynamic(!!res.data?.isAdmin)).catch(() => {}); }, []);
   useEffect(() => { try { setSeenElection(localStorage.getItem(SEEN_ELECTION_KEY)); } catch { /* private mode */ } }, []);
+  // Deep links from other screens (e.g. the Chronicle): /drennia/politics?tab=nation&section=budget
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const section = q.get('section');
+      if (section) sessionStorage.setItem(NATION_SECTION_KEY, section);
+      const t = TABS.find(x => x.id === q.get('tab'));
+      if (t) setTab(t.id);
+    } catch { /* private mode */ }
+  }, []);
 
   const { data: desk, error, mutate } = useSWR('politics-desk', () => politicsApi.getDesk(), { refreshInterval: 30_000 });
 

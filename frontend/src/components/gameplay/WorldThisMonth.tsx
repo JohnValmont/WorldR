@@ -1,6 +1,6 @@
 'use client';
 /**
- * "Drennia this month" — a Chronicle panel built ONLY from real simulation data
+ * "World this month" — a Chronicle panel built ONLY from real simulation data
  * (GET /world/snapshot). Replaces the old hard-coded "Market Snapshot".
  * If something isn't known it is simply not shown.
  */
@@ -33,26 +33,29 @@ function timeUntil(iso: string | null): string | null {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-export default function WorldThisMonth() {
+/** `bare` drops the card frame so the panel can sit inside another card (e.g. a tab on the Chronicle). */
+export default function WorldThisMonth({ bare = false }: { bare?: boolean } = {}) {
+  const Wrap = ({ children }: { children: React.ReactNode }) =>
+    bare ? <>{children}</> : <Card kicker="World This Month" icon={BarChart2}>{children}</Card>;
   const { data, error } = useSWR<WorldSnapshot>('world-snapshot', worldApi.getSnapshot, {
     refreshInterval: 120_000,
   });
 
   if (error) {
     return (
-      <Card kicker="Drennia This Month" icon={BarChart2}>
+      <Wrap>
         <p className="text-[11px] text-zinc-500 italic py-2">World data is unavailable right now.</p>
-      </Card>
+      </Wrap>
     );
   }
 
   if (!data) {
     return (
-      <Card kicker="Drennia This Month" icon={BarChart2}>
+      <Wrap>
         <div className="space-y-2 py-1">
           {[0, 1, 2, 3].map(i => <div key={i} className="h-4 rounded bg-zinc-800/60 animate-pulse" />)}
         </div>
-      </Card>
+      </Wrap>
     );
   }
 
@@ -94,7 +97,7 @@ export default function WorldThisMonth() {
   if (nextTick) rows.push({ label: 'Next month in', value: nextTick, variant: 'amber' });
 
   return (
-    <Card kicker="Drennia This Month" icon={BarChart2}>
+    <Wrap>
       {market.period ? (
         <p className="text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-600 mb-2">
           Sales results · Month {market.period.month}, Year {market.period.year}
@@ -105,6 +108,6 @@ export default function WorldThisMonth() {
       {rows.map((r, i) => (
         <DataRow key={r.label} label={r.label} value={r.value} valueVariant={r.variant ?? 'default'} border={i < rows.length - 1} />
       ))}
-    </Card>
+    </Wrap>
   );
 }

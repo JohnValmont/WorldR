@@ -136,6 +136,8 @@ export interface PactInput {
   alreadyOwed: number;
   /** The asker's party broke its word recently. */
   askerWordBroken: boolean;
+  /** Coalition unity's pull on the government whip (coalition.rules whipScale). Missing = 1. */
+  whipScale?: number;
 }
 export interface PactDecision { accept: boolean; score: number; reason: string }
 
@@ -155,6 +157,7 @@ export function pactDecision(p: PactInput): PactDecision {
     voterInGovernment: p.targetInGovernment,
     billFromGovernment: p.billFromGovernment,
     ownBill: p.targetProposedBill,
+    whipScale: p.whipScale,
   });
   let score = p.askedVote === 'yea' ? lean : -lean;
   if (p.targetInGovernment && p.billFromGovernment && p.askedVote === 'nay') score -= PACT_GOV_LOYALTY;

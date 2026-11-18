@@ -377,7 +377,7 @@ A nation is always governed by someone.
 - **Caretaker government**: while no government commands Parliament (before the first election, after a coalition breaks, or while a new one forms), the head of state leads it: "Ostrin Caretaker Government" (Drennia), "Halewood Caretaker Government" (Westmark), "Aldric IV Caretaker Government" (Eryndor, regnal numeral kept). It hands over the moment a government forms. It has no new powers; bills already tabled are still voted on.
 
 ### The record
-`pol_administrations` (migration 0106): one row per government with its head, party, coalition, start and end month, and the nation's numbers at the start and the latest/end (rating, tier, GDP, unemployment, population, debt, approval). `syncAdministrations` runs once a month in the politics tick, after the nation economies, in its own savepoint. The History section shows each government: from when to when, months served, laws passed (from `pol_bills`), and what changed. Display only: nothing that decides votes reads it.
+`pol_administrations` (migration 0107): one row per government with its head, party, coalition, start and end month, and the nation's numbers at the start and the latest/end (rating, tier, GDP, unemployment, population, debt, approval). `syncAdministrations` runs once a month in the politics tick, after the nation economies, in its own savepoint. The History section shows each government: from when to when, months served, laws passed (from `pol_bills`), and what changed. Display only: nothing that decides votes reads it.
 
 ### Elections on screen
 `electionOutlook` gives each nation's next election. During formation it is the next term's election (an estimate), with the formation deadline. The header shows it on every tab; the Nation overview has a timeline (governing → filing → campaign → election day → forming a government) with dates.
@@ -386,6 +386,6 @@ A nation is always governed by someone.
 `GET /politics/chronicle` returns, per nation, up to 120 months of rating, GDP, unemployment, population, debt and approval, plus the administrations. Nation charts shade each administration's period (party colour, grey for caretakers). The World tab compares all nations on one chart, one fixed colour per nation.
 
 ### Files
-- `database/migrations/0106_administrations.sql`
+- `database/migrations/0107_administrations.sql`
 - `backend/src/api/constants/administrations.ts`, `services/administration.rules.ts`, `services/administration.service.ts`, `tests/administration.test.ts`
 - `frontend/src/app/drennia/politics/_floor/worldKit.tsx` (charts, timeline, administration cards), `WorldView.tsx`, `NationView.tsx`

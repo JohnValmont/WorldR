@@ -235,8 +235,42 @@ export interface Desk extends Omit<Capitol, 'bills' | 'me'> {
     notices: { unread: number; items: Notice[] };
     ladder: LadderRung[] | null;
     career: Career | null;
+    coalition: CoalitionView | null;
   };
 }
+
+// ─── Coalitions (docs/COALITIONS.md; part of GET /politics/desk) ─────────────
+export interface CoalitionPromise { category: string; option: string; months?: number; title: string }
+export interface CoalitionOffer {
+  id: string; kind: 'form' | 'join'; status: 'pending' | 'accepted' | 'declined' | 'withdrawn' | 'void';
+  fromPartyId: string; toPartyId: string; fromName: string; toName: string;
+  posts: string[]; promises: CoalitionPromise[]; hog: boolean; score: number | null; reason: string | null;
+  offeredArc: number; resolvedArc: number | null;
+}
+export interface CoalitionDealPromise {
+  category: string; option: string; title: string; to_party_id: string; toName: string; by_arc: number; monthsLeft: number;
+  status: 'pending' | 'kept' | 'broken' | 'void'; tried?: boolean;
+}
+export interface CoalitionView {
+  phase: 'talks' | 'governing' | 'none';
+  talksEndArc: number | null;
+  majority: number;
+  headOfGovernmentTitle: string;
+  parties: { id: string; name: string; abbreviation: string | null; color: string | null; seats: number; human: boolean; inGovernment: boolean; distanceFromMe: number | null }[];
+  blocs: { leadPartyId: string; leadName: string; seats: number; partners: { partyId: string; name: string }[]; pending: { partyId: string; name: string }[]; hogPartyId: string | null }[];
+  government: {
+    status: 'formed' | 'minority' | null; seats: number; formateurPartyId: string; hogConceded: boolean;
+    members: { partyId: string; name: string; seats: number; color: string | null; role: 'lead' | 'partner'; posts: string[]; human: boolean }[];
+    unity: number | null; baseUnity: number | null; unityLabel: string | null; whipPercent: number; walkoutAt: number;
+    promises: CoalitionDealPromise[]; formedArc: number | null;
+  } | null;
+  offers: CoalitionOffer[];
+  me: { partyId: string | null; canOffer: boolean; offerKind: 'form' | 'join' | null; whyNot: string; canLeave: boolean; postsPromised: string[]; hogPromised: boolean; offerablePosts: string[] };
+  posts: { key: string; title: string; short: string; blurb: string; value: number }[];
+  laws: { category: string; name: string; current: string; options: { id: string; name: string }[] }[];
+  limits: { maxPromises: number; minMonths: number; maxMonths: number; rivalMinUnity: number };
+}
+export interface CoalitionForecast { human: boolean; accept?: boolean; score?: number; reason: string; parts?: Record<string, number> }
 
 // ─── Corridors (GET /politics/corridors) ─────────────────────────────────────
 export interface Person {

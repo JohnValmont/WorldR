@@ -32,6 +32,7 @@ import {
 import { getSupportMap } from './support.store';
 import { getGovernment, getLawsInForce, parsePlatform } from './statecraft.service';
 import { worldNations } from './nations.service';
+import { coalitionView } from './coalition.service';
 import { DECREE_AP, DECREES } from '../constants/decrees';
 import { SHOCK_MONTHS } from '../constants/floor';
 
@@ -110,14 +111,20 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     notices: { unread: 0, items: [] },
     ladder: null,
     career: null,
+    // Coalition talks, the government's deal and its unity (docs/COALITIONS.md).
+    coalition: null,
   };
 
   const character = userId ? await db('characters').where({ user_id: userId, status: 'active' }).first() : null;
   // Personal deals other politicians have offered you (answered in Corridors).
   if (character) desk.handshakesIncoming = num((await db('pol_handshakes').where({ state_id: stateId, to_character_id: character.id, status: 'offered' }).count('* as n').first())?.n);
-  if (!character) return { ...cap, desk };
+  if (!character) {
+    desk.coalition = await coalitionView(db, stateId, null, arc);
+    return { ...cap, desk };
+  }
 
   const me = await playerPolitics(db, stateId, character, gov);
+  desk.coalition = await coalitionView(db, stateId, me, arc);
   desk.notices = await noticesFor(db, character.id);
   // ── The career ladder: where you stand now and the highest you have climbed ──
   const career = await careerOf(db, character.id);

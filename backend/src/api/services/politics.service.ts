@@ -106,6 +106,8 @@ import { billVotePlan, loadVoteShared, npcCallFavours, runFloorMonth, settleBill
 import { resolveTreatyVote } from './diplomacy.service';
 import { bankedAp } from './floor.rules';
 import { notify } from './notices.service';
+import { Bloc, closeTalks, npcDecide, npcMakeOffers, recordDeal, stepCoalitionMonth, talkBlocs } from './coalition.service';
+import { logger } from '../../utils/logger';
 
 /**
  * Convert a world_clock row into a MONOTONIC absolute month ("arc").
@@ -768,9 +770,6 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
     await updateFactionLoyalties(trx, p.id, currentMonth);
   }
 
-  // Coalition agreement health: degrades when member party factions are restless
-  await updateCoalitionAgreementHealth(trx, stateId, currentMonth);
-
   // Scandal system: generate new scandals, escalate existing, apply popularity damage
   await processScandalsForState(trx, stateId, currentMonth);
 
@@ -888,6 +887,20 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
   // are caught up on the first governing tick rather than waiting a full cycle.
   // It is idempotent: bills with status !== 'proposed' are ignored.
   await resolveBills(trx, stateId, cycle.id, currentMonth);
+
+  // Coalitions (docs/COALITIONS.md): promises judged, unity moves, walkouts, minority
+  // governments court partners. Its own savepoint, after this month's votes.
+  try {
+    const { walkouts } = await trx.transaction(async (sp: any) => stepCoalitionMonth(sp, stateId, currentMonth));
+    for (const w of walkouts) {
+      for (const pid of w.partyIds) {
+        const party = await trx('pol_parties').where({ id: pid }).first();
+        if (party?.leader_character_id) await recordLegacyEvent(trx, party.leader_character_id, stateId, currentMonth, 'coalition_collapsed');
+      }
+    }
+  } catch (err) {
+    logger.error(`[politics] coalition month failed for state ${stateId} at arc ${currentMonth}; skipped.`, err);
+  }
 
   if (activePhase === 'governing') {
     // Fire one deterministic world event per governing month
@@ -1186,327 +1199,95 @@ async function resolveElection(trx: any, cycleId: string) {
   }
 }
 
-function getPlatformDistance(p1: Platform, p2: Platform): number {
-  let distSq = 0;
-  for (const axis of AXES) {
-    distSq += Math.pow(((p1[axis] || 0) - (p2[axis] || 0)) / 100, 2);
-  }
-  return Math.sqrt(distSq);
-}
-
-export async function processGovernmentFormation(trx: any, cycle: any, currentMonth: number) {
-  // Majority threshold for THIS jurisdiction (GDD $3 federal model).
+/**
+ * After an election: coalition talks (docs/COALITIONS.md, coalition.service.ts).
+ * - A party with a majority of its own governs at once.
+ * - Otherwise talks run for POL_FORMATION_WINDOW_MONTHS rounds. Round 1 opens at the count;
+ *   at each month end computer-run parties answer their offers; the first bloc with a
+ *   majority governs. When the window closes, the biggest bloc governs as a minority.
+ * mode 'check' (after a player accepts an offer) only looks for a new majority.
+ */
+export async function processGovernmentFormation(trx: any, cycle: any, currentMonth: number, mode: 'tick' | 'check' = 'tick') {
   const stateRow = await trx('pol_states').where({ id: cycle.state_id }).first();
   const majoritySeats = getMajorityForState(stateRow?.code);
-  // How far apart allies may be depends on the nation's political culture.
-  const coalitionMaxDistance = nationRules(stateRow?.code).coalitionMaxDistance;
 
-  // Check if government already formed or finalized as minority
   const existingCoalition = await trx('pol_coalitions').where({ cycle_id: cycle.id }).whereIn('status', ['formed', 'minority']).first();
   if (existingCoalition) {
-    if (currentMonth >= cycle.formation_end_arc) {
-      // make sure cycle isn't already closed
-      if (cycle.status === 'open') {
-        // Government was already formed — pass the time it was formed as governmentFormedAt
-        // so the new cycle's start_arc reflects the actual formation date, not the window expiry.
-        const formedAt = existingCoalition.formed_at ?? currentMonth;
-        await performCycleRollover(trx, cycle, currentMonth, formedAt);
-      }
+    if (currentMonth >= cycle.formation_end_arc && cycle.status === 'open') {
+      await performCycleRollover(trx, cycle, currentMonth, existingCoalition.formed_at ?? currentMonth);
     }
     return;
   }
 
-  // Get seat counts
   const seats = await trx('pol_council_seats').where({ cycle_id: cycle.id }).select('party_id');
+  if (!seats.length) return;
   const seatCounts: Record<string, number> = {};
-  for (const s of seats) {
-    seatCounts[s.party_id] = (seatCounts[s.party_id] || 0) + 1;
-  }
-
+  for (const s of seats) seatCounts[s.party_id] = (seatCounts[s.party_id] || 0) + 1;
   const parties = await trx('pol_parties').where({ state_id: cycle.state_id });
   const partyList = parties.map((p: any) => ({ ...p, seats: seatCounts[p.id] || 0 })).sort((a: any, b: any) => b.seats - a.seats);
   const largestParty = partyList[0];
-
   if (!largestParty) return;
 
-  // Single party majority check
-  if (largestParty.seats >= majoritySeats) {
-    await trx('pol_coalitions').insert({
-      cycle_id: cycle.id,
-      lead_party_id: largestParty.id,
-      member_party_ids: JSON.stringify({ accepted: [largestParty.id], invited: [] }),
-      total_seats: largestParty.seats,
-      status: 'formed'
-    });
-    await namePremierAndEmitLedger(trx, cycle, largestParty, 'majority', largestParty.seats);
-    // Rollover immediately: majority formed, no need to wait for formation_end_arc.
-    // Pass currentMonth as governmentFormedAt so the new term starts from now, not from
-    // the end of the formation window (gap-11 fix).
+  const takeOffice = async (bloc: Bloc, type: 'majority' | 'coalition' | 'minority') => {
+    const headPartyId = bloc.hogPartyId ?? bloc.leadId;
+    const members = [bloc.leadId, ...bloc.partnerIds];
+    let forming = await trx('pol_coalitions').where({ cycle_id: cycle.id, status: 'forming' }).first();
+    const row = {
+      lead_party_id: headPartyId, member_party_ids: JSON.stringify({ accepted: members, invited: [] }),
+      total_seats: bloc.seats, status: type === 'minority' ? 'minority' : 'formed',
+    };
+    if (forming) await trx('pol_coalitions').where({ id: forming.id }).update(row);
+    else forming = (await trx('pol_coalitions').insert({ cycle_id: cycle.id, ...row }).returning('*'))[0];
+    await recordDeal(trx, cycle.state_id, forming.id, bloc, currentMonth);
+    await closeTalks(trx, cycle.id, bloc, currentMonth);
+    for (const pId of members) {
+      const party = partyList.find((p: any) => p.id === pId);
+      if (party?.leader_character_id && members.length > 1) await recordLegacyEvent(trx, party.leader_character_id, cycle.state_id, currentMonth, 'coalition_formed');
+    }
+    const head = partyList.find((p: any) => p.id === headPartyId) ?? largestParty;
+    await namePremierAndEmitLedger(trx, cycle, head, type, bloc.seats, currentMonth);
     await performCycleRollover(trx, cycle, currentMonth, currentMonth);
-    return;
-  }
-
-  // Check forming coalition
-  let forming = await trx('pol_coalitions').where({ cycle_id: cycle.id, status: 'forming' }).first();
-  if (!forming) {
-    forming = await trx('pol_coalitions').insert({
-      cycle_id: cycle.id,
-      lead_party_id: largestParty.id,
-      member_party_ids: JSON.stringify({ accepted: [largestParty.id], invited: [] }),
-      total_seats: largestParty.seats,
-      status: 'forming'
-    }).returning('*').then((r: any) => r[0]);
-  }
-
-  const parsedMembers = typeof forming.member_party_ids === 'string' ? safeParseJSON(forming.member_party_ids) : (forming.member_party_ids ?? {});
-  let accepted = new Set<string>(parsedMembers.accepted || (Array.isArray(parsedMembers) ? parsedMembers : []));
-  let invited = new Set<string>(parsedMembers.invited || []);
-  
-  // If largest party is NPC, it auto-invites nearest parties
-  if (largestParty.is_npc) {
-    const others = partyList.filter((p: any) => p.id !== largestParty.id);
-    others.sort((a: any, b: any) => getPlatformDistance(largestParty.platform, a.platform) - getPlatformDistance(largestParty.platform, b.platform));
-    
-    let currentSeats = 0;
-    for (const aId of accepted) {
-      currentSeats += (seatCounts[aId] || 0);
-    }
-
-    for (const other of others) {
-      if (currentSeats >= majoritySeats) break;
-      if (accepted.has(other.id)) continue;
-
-      const dist = getPlatformDistance(largestParty.platform, other.platform);
-      if (other.is_npc) {
-        if (dist <= coalitionMaxDistance) {
-          accepted.add(other.id);
-          currentSeats += other.seats;
-        }
-      } else {
-        // Invite player party if distance is reasonable
-        if (dist <= coalitionMaxDistance) {
-          invited.add(other.id);
-        }
-      }
-    }
-
-    // Minimal winning coalition: once a majority is reached, drop any partner
-    // the government does not need (farthest in ideology first). Nearest-first
-    // invitations used to produce 108-seat grand coalitions that could pass
-    // anything, which left the opposition, rebels and deals with no purpose.
-    if (currentSeats >= majoritySeats) {
-      const partners = others.filter((o: any) => accepted.has(o.id)).reverse();
-      for (const partner of partners) {
-        if (currentSeats - partner.seats >= majoritySeats) {
-          accepted.delete(partner.id);
-          currentSeats -= partner.seats;
-        }
-      }
-    }
-  } else {
-    // If player formateur, check if any invited NPCs should auto-accept
-    for (const invId of invited) {
-      if (accepted.has(invId)) continue;
-      const invParty = partyList.find((p: any) => p.id === invId);
-      if (invParty && invParty.is_npc) {
-        const dist = getPlatformDistance(largestParty.platform, invParty.platform);
-        if (dist <= coalitionMaxDistance) {
-          accepted.add(invId);
-          invited.delete(invId);
-        }
-      }
-    }
-  }
-
-  let totalAcceptedSeats = 0;
-  for (const aId of accepted) {
-    totalAcceptedSeats += (seatCounts[aId] || 0);
-  }
-
-  const membersToSave = {
-    accepted: Array.from(accepted),
-    invited: Array.from(invited)
   };
 
-  let hasCoalitionArchitect = false;
-  if (largestParty.leader_character_id) {
-    const scores = await getOrCreateLegacyScores(trx, largestParty.leader_character_id);
-    const benefits: string[] = typeof scores.unlocked_benefits === 'string'
-      ? safeParseJSON(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
-    if (benefits.includes('coalition_architect')) hasCoalitionArchitect = true;
-  }
-  
-  // 3% of 61 seats is roughly 2 seats
-  const effectiveMajorityNeeded = hasCoalitionArchitect ? Math.max(1, majoritySeats - 2) : majoritySeats;
-
-  if (totalAcceptedSeats >= effectiveMajorityNeeded) {
-
-    await trx('pol_coalitions').where({ id: forming.id }).update({
-      member_party_ids: JSON.stringify(membersToSave),
-      total_seats: totalAcceptedSeats,
-      status: 'formed'
-    });
-    // Create the structured coalition agreement object
-    await createCoalitionAgreement(trx, forming.id, largestParty.id, Array.from(accepted), currentMonth);
-    await namePremierAndEmitLedger(trx, cycle, largestParty, 'coalition', totalAcceptedSeats);
-    // Rollover immediately once a coalition secures majority, passing the actual
-    // formation moment so the new cycle's start_arc isn't pushed to formation_end_arc.
-    await performCycleRollover(trx, cycle, currentMonth, currentMonth);
+  if (largestParty.seats >= majoritySeats) {
+    await takeOffice({ leadId: largestParty.id, partnerIds: [], seats: largestParty.seats, offers: [], hogPartyId: null }, 'majority');
     return;
   }
 
-  await trx('pol_coalitions').where({ id: forming.id }).update({
-    member_party_ids: JSON.stringify(membersToSave),
-    total_seats: totalAcceptedSeats
-  });
+  const forming = await trx('pol_coalitions').where({ cycle_id: cycle.id, status: 'forming' }).first();
+  if (!forming) {
+    if (mode === 'check') return;
+    await trx('pol_coalitions').insert({
+      cycle_id: cycle.id, lead_party_id: largestParty.id,
+      member_party_ids: JSON.stringify({ accepted: [largestParty.id], invited: [] }), total_seats: largestParty.seats, status: 'forming',
+    });
+    await npcMakeOffers(trx, cycle.state_id, cycle, currentMonth);
+    return;
+  }
 
-  // End of formation window - finalize as minority if not formed
+  if (mode === 'tick') await npcDecide(trx, cycle.state_id, cycle.id, currentMonth, 'form');
+  const blocs = await talkBlocs(trx, cycle.state_id, cycle.id);
+  const needed = async (b: Bloc) => {
+    // Legacy perk: a 'coalition_architect' leader governs 2 seats short of a majority.
+    const lead = partyList.find((p: any) => p.id === b.leadId);
+    if (!lead?.leader_character_id) return majoritySeats;
+    const scores = await getOrCreateLegacyScores(trx, lead.leader_character_id);
+    const perks: string[] = typeof scores.unlocked_benefits === 'string' ? safeParseJSON(scores.unlocked_benefits) : (scores.unlocked_benefits ?? []);
+    return perks.includes('coalition_architect') ? Math.max(1, majoritySeats - 2) : majoritySeats;
+  };
+  for (const b of blocs) {
+    if (b.partnerIds.length && b.seats >= await needed(b)) { await takeOffice(b, 'coalition'); return; }
+  }
+  if (mode === 'check') return;
   if (currentMonth >= cycle.formation_end_arc) {
-    await trx('pol_coalitions').where({ id: forming.id }).update({
-      status: 'minority'
-    });
-    await namePremierAndEmitLedger(trx, cycle, largestParty, 'minority', totalAcceptedSeats);
-    await performCycleRollover(trx, cycle, currentMonth);
+    await takeOffice(blocs[0] ?? { leadId: largestParty.id, partnerIds: [], seats: largestParty.seats, offers: [], hogPartyId: null }, 'minority');
+    return;
   }
+  await npcMakeOffers(trx, cycle.state_id, cycle, currentMonth);
 }
 
-// ── Coalition Agreement Helpers ───────────────────────────────────────────────
-
-/**
- * Create a structured coalition agreement record when a coalition is formed.
- * partner_terms captures which parties joined and how many seats they hold.
- * Health starts at 100 and degrades each arc based on faction loyalty and
- * whether mandatory legislation is being passed.
- */
-export async function createCoalitionAgreement(
-  trx: any,
-  coalitionId: string,
-  leadPartyId: string,
-  partnerPartyIds: string[],
-  currentArc: number
-): Promise<void> {
-  // Don't duplicate if agreement already exists for this coalition
-  const existing = await trx('pol_coalition_agreements').where({ coalition_id: coalitionId }).first();
-  if (existing) return;
-
-  // Build partner terms: each partner gets seats + their party name.
-  // Must filter by cycle_id — otherwise we'd sum seats across ALL past elections.
-  const coalitionRow = await trx('pol_coalitions').where({ id: coalitionId }).first();
-  const cycleIdForSeats = coalitionRow?.cycle_id || null;
-
-  const partnerTerms = await Promise.all(
-    partnerPartyIds.filter(id => id !== leadPartyId).map(async (partyId: string) => {
-      const party = await trx('pol_parties').where({ id: partyId }).first();
-      const seatsQuery = trx('pol_council_seats').where({ party_id: partyId });
-      if (cycleIdForSeats) seatsQuery.andWhere({ cycle_id: cycleIdForSeats });
-      const seats = await seatsQuery.count('* as c').first();
-      return {
-        party_id: partyId,
-        name: party?.name ?? 'Unknown',
-        seats: Number(seats?.c ?? 0),
-        agreed_axes: [],
-      };
-    })
-  );
-
-  await trx('pol_coalition_agreements').insert({
-    coalition_id: coalitionId,
-    lead_party_id: leadPartyId,
-    partner_terms: JSON.stringify(partnerTerms),
-    mandatory_legislation: JSON.stringify([]),
-    portfolio_allocation: JSON.stringify([]),
-    review_interval_arcs: 12,
-    next_review_arc: currentArc + 12,
-    status: 'active',
-    health: 100,
-    formed_arc: currentArc,
-  });
-
-  // Legacy hooks: record 'coalition_formed' for lead and partner party leaders
-  const coalition = await trx('pol_coalitions').where({ id: coalitionId }).first();
-  if (coalition) {
-    const cycle = await trx('pol_cycles').where({ id: coalition.cycle_id }).first();
-    if (cycle) {
-      for (const pId of [leadPartyId, ...partnerPartyIds]) {
-        const party = await trx('pol_parties').where({ id: pId }).first();
-        if (party?.leader_character_id) {
-          await recordLegacyEvent(trx, party.leader_character_id, cycle.state_id, currentArc, 'coalition_formed');
-        }
-      }
-    }
-  }
-}
-
-/**
- * Per-arc coalition health update:
- * - Low cohesion across member parties → health drops
- * - Healthy member parties → health recovers slightly
- * - Below 30 health → agreement enters 'under_review'
- * - Below 10 health → agreement 'broken'
- * Called in processPoliticalArc.
- */
-export async function updateCoalitionAgreementHealth(
-  trx: any, stateId: string, currentArc: number
-): Promise<void> {
-  // Find active agreements for this state's coalition
-  const agreements = await trx('pol_coalition_agreements')
-    .join('pol_coalitions', 'pol_coalition_agreements.coalition_id', 'pol_coalitions.id')
-    .join('pol_cycles', 'pol_coalitions.cycle_id', 'pol_cycles.id')
-    .where('pol_cycles.state_id', stateId)
-    .whereIn('pol_coalition_agreements.status', ['active', 'under_review'])
-    .select('pol_coalition_agreements.*');
-
-  for (const agreement of agreements) {
-    const parsedTerms = typeof agreement.partner_terms === 'string'
-      ? safeParseJSON(agreement.partner_terms) : agreement.partner_terms;
-    const partnerTerms = Array.isArray(parsedTerms) ? parsedTerms : [];
-    const allPartyIds = [agreement.lead_party_id, ...partnerTerms.map((t: any) => t.party_id)];
-
-    // Average cohesion across all coalition member parties
-    let totalCohesion = 0;
-    let count = 0;
-    for (const partyId of allPartyIds) {
-      const factions = await trx('pol_party_factions').where({ party_id: partyId });
-      if (factions.length > 0) {
-        // Inline cohesion calculation (avoids circular import)
-        const total = factions.reduce((s: number, f: any) => s + Number(f.membership_share), 0);
-        const weighted = factions.reduce((s: number, f: any) => s + Number(f.loyalty) * Number(f.membership_share), 0);
-        totalCohesion += total > 0 ? weighted / total : 100;
-        count++;
-      }
-    }
-    const avgCohesion = count > 0 ? totalCohesion / count : 100;
-
-    // Health delta based on avg cohesion
-    let healthDelta = 0;
-    if (avgCohesion < 35) healthDelta = -3;
-    else if (avgCohesion < 55) healthDelta = -1;
-    else healthDelta = 1;
-
-    const newHealth = Math.max(0, Math.min(100, Number(agreement.health) + healthDelta));
-    const newStatus = newHealth <= 10 ? 'broken'
-      : newHealth <= 30 ? 'under_review'
-      : 'active';
-
-    await trx('pol_coalition_agreements').where({ id: agreement.id }).update({
-      health: newHealth,
-      status: newStatus,
-      dissolved_arc: newStatus === 'broken' ? currentArc : null,
-    });
-
-    // Legacy: coalition collapsed
-    if (newStatus === 'broken' && agreement.status !== 'broken') {
-      for (const pId of allPartyIds) {
-        const party = await trx('pol_parties').where({ id: pId }).first();
-        if (party?.leader_character_id) {
-          await recordLegacyEvent(trx, party.leader_character_id, stateId, currentArc, 'coalition_collapsed');
-        }
-      }
-    }
-  }
-}
-
-async function namePremierAndEmitLedger(trx: any, cycle: any, largestParty: any, type: string, seats: number) {
+/** The head of government takes office (formation month = arc). */
+async function namePremierAndEmitLedger(trx: any, cycle: any, largestParty: any, type: string, seats: number, arc: number) {
   const holderCharId = largestParty.leader_character_id || null;
 
   await trx('pol_offices').insert({
@@ -1514,7 +1295,7 @@ async function namePremierAndEmitLedger(trx: any, cycle: any, largestParty: any,
     office: 'premier',
     holder_character_id: holderCharId,
     party_id: largestParty.id,
-    since_arc: cycle.formation_end_arc
+    since_arc: arc
   });
 
   if (holderCharId && !largestParty.is_npc) {
@@ -1528,7 +1309,7 @@ async function namePremierAndEmitLedger(trx: any, cycle: any, largestParty: any,
     }
     
     // Legacy hook: Government Formed (only for the premier / lead party)
-    await recordLegacyEvent(trx, holderCharId, cycle.state_id, cycle.formation_end_arc, 'government_formed');
+    await recordLegacyEvent(trx, holderCharId, cycle.state_id, arc, 'government_formed');
   }
 
   let headline = '';
@@ -1557,19 +1338,19 @@ async function namePremierAndEmitLedger(trx: any, cycle: any, largestParty: any,
 
   await trx('pol_ledger_events').insert({
     state_id: cycle.state_id,
-    arc: cycle.formation_end_arc,
+    arc: arc,
     kind: 'government_formed',
     headline,
     body
   });
 
   await emitStory(
-    trx, cycle.state_id, largestParty.id, cycle.formation_end_arc, storyType,
+    trx, cycle.state_id, largestParty.id, arc, storyType,
     storyHeadline,
     storyBody
   );
 
-  await formCabinet(trx, cycle.state_id, cycle.formation_end_arc);
+  await formCabinet(trx, cycle.state_id, arc);
 }
 
 async function performCycleRollover(trx: any, oldCycle: any, currentMonth: number, governmentFormedAt?: number) {

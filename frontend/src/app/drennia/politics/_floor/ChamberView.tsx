@@ -1,8 +1,6 @@
 'use client';
 // The Chamber: who holds Parliament, what is before it, and who owes whom.
 import React, { useState } from 'react';
-import useSWR from 'swr';
-import { politicsApi } from '@/lib/api';
 import { Hemicycle } from '../_capitol/charts';
 import { Btn, Card, Chip, Label, PartyDot, T, leaderTitle, useFloor } from './kit';
 import { BillCard, FavourLedger, TableBillSheet } from './bills';
@@ -53,45 +51,19 @@ function Government() {
   );
 }
 
-/** After an election the largest party builds a government. Player leaders do it by hand. */
+/** After an election, coalition talks run on Nation → Coalition (docs/COALITIONS.md). */
 function Formation() {
-  const { desk, act, busy } = useFloor();
-  const { data, mutate } = useSWR(desk.calendar.phase === 'formation' ? 'forming-coalition' : null, () => politicsApi.getFormingCoalition());
-  const me = desk.me;
-  if (desk.calendar.phase !== 'formation') return null;
-  const co = data?.coalition;
-  const myParty = me?.party?.id;
-  const isFormateur = !!co && co.formateur?.id === myParty && me?.isPartyLeader;
-  const invitedMe = !!co && (co.invited ?? []).some((p: any) => p.id === myParty) && me?.isPartyLeader;
-  const inIds = new Set<string>([co?.formateur?.id, ...(co?.accepted ?? []).map((p: any) => p.id), ...(co?.invited ?? []).map((p: any) => p.id)].filter(Boolean));
-  const run = (action: string, id: string, text: string) => act(() => politicsApi.manageCoalition(action, id), text).then(() => mutate());
+  const { desk, go } = useFloor();
+  const c = desk.desk.coalition;
+  if (!c || c.phase !== 'talks') return null;
+  const lead = c.blocs[0];
   return (
     <Card className="p-4" tone="accent">
       <Label color={T.accent}>Forming a government</Label>
-      {!co ? <p className="text-sm mt-1" style={{ color: T.dim }}>The votes are counted. Talks begin when the month turns.</p> : (
-        <>
-          <p className="text-sm mt-1" style={{ color: T.text }}>
-            <strong>{co.formateur?.name}</strong> is trying to build a majority: {co.confirmedSeats} of the {desk.parliament.majority} seats needed so far.
-          </p>
-          {invitedMe && (
-            <div className="flex gap-2 mt-3">
-              <Btn small kind="primary" disabled={busy} onClick={() => run('accept', co.formateur.id, 'You have joined the government.')}>Join the government</Btn>
-              <Btn small disabled={busy} onClick={() => run('decline', co.formateur.id, 'You stay in opposition.')}>Stay in opposition</Btn>
-            </div>
-          )}
-          {isFormateur && (
-            <div className="mt-3 space-y-1.5">
-              {desk.parties.filter(p => p.seats > 0 && !inIds.has(p.id)).map(p => (
-                <div key={p.id} className="flex items-center gap-2 text-sm">
-                  <PartyDot color={p.color} /><span className="flex-1" style={{ color: T.text }}>{p.name} <span className="font-mono text-xs" style={{ color: T.faint }}>{p.seats}</span></span>
-                  <Btn small disabled={busy} onClick={() => run('invite', p.id, `${p.name} invited.`)}>Invite</Btn>
-                </div>
-              ))}
-              <p className="text-[11px]" style={{ color: T.faint }}>Computer-run parties accept if their platform is close enough to yours. If no majority forms in time, you govern as a minority.</p>
-            </div>
-          )}
-        </>
-      )}
+      <p className="text-sm mt-1" style={{ color: T.text }}>
+        No party has a majority ({c.majority} seats).{lead ? ` Biggest bloc so far: ${lead.leadName}${lead.partners.length ? ` + ${lead.partners.map(p => p.name).join(' + ')}` : ''}, ${lead.seats} seats.` : ''}
+      </p>
+      <div className="mt-3"><Btn small kind="primary" onClick={() => go('nation:coalition')} id="cta-coalition-chamber">Coalition talks</Btn></div>
     </Card>
   );
 }

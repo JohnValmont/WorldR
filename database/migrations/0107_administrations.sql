@@ -1,4 +1,4 @@
--- 0106_administrations.sql
+-- 0107_administrations.sql
 -- Administrations: who governed each nation, from when to when, and how the
 -- nation changed under them (docs/NATIONS_SIMULATION.md, "Administrations").
 --

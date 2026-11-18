@@ -6,6 +6,7 @@ import { formatPolArc } from '@/lib/calendar';
 import type { HandCard } from './types';
 import { Btn, Card, Chip, EffectChips, Label, Meter, PartyDot, T, money, pct, signed, useFloor, leaderTitle } from './kit';
 import { BillCard } from './bills';
+import { coalitionNeedsMe } from './CoalitionView';
 
 const TONE = { good: T.good, mixed: T.accent, bad: T.bad } as const;
 
@@ -311,6 +312,22 @@ export default function DeskView() {
             <div className="mt-3"><Btn small kind="primary" onClick={() => go('party')} id="cta-contest">See the contest</Btn></div>
           </Card>
         )}
+
+        {coalitionNeedsMe(desk) && desk.desk.coalition && (() => {
+          const c = desk.desk.coalition!;
+          const incoming = c.offers.filter(o => o.status === 'pending' && o.toPartyId === c.me.partyId);
+          return (
+            <Card className="p-4" tone="accent">
+              <Label color={T.accent}>{c.phase === 'talks' ? 'Coalition talks' : 'Coalition'}</Label>
+              <p className="text-sm mt-1" style={{ color: T.text }}>
+                {incoming.length
+                  ? `${incoming.map(o => o.fromName).join(' and ')} ${incoming.length === 1 ? 'offers' : 'offer'} your party a place in government.`
+                  : `No party has a majority. As a party leader you can make offers to build a government of ${c.majority} seats.`}
+              </p>
+              <div className="mt-3"><Btn small kind="primary" onClick={() => go('nation:coalition')} id="cta-coalition">{incoming.length ? 'See the offer' : 'Open talks'}</Btn></div>
+            </Card>
+          );
+        })()}
 
         {budgetDue && sim && (
           <Card className="p-4" tone="accent">
