@@ -9,6 +9,7 @@ import {
 } from '../constants/nations';
 import { readNationalStatsFromRow } from './nationalEconomy.service';
 import { computeApproval, getGovernment, getLawsInForce } from './statecraft.service';
+import { nationSimViews } from './nationSim.service';
 
 const num = (v: any, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 
@@ -77,6 +78,7 @@ export async function worldNations(conn: any, arc?: number) {
     if (clock) arc = num(clock.pol_current_year) * 12 + (num(clock.pol_current_month, 1) - 1);
   }
   const out = [];
+  const sims = await nationSimViews(conn);
   for (const spec of STARTER_NATIONS) {
     const state = await conn('pol_states').where({ code: spec.polStateCode }).first();
     if (!state) continue;
@@ -110,6 +112,7 @@ export async function worldNations(conn: any, arc?: number) {
       seats: spec.legislature.seats,
       approval: computeApproval(stats),
       power: nationPower(stats, laws.defense),
+      sim: sims.find(v => v.polStateCode === spec.polStateCode) ?? null,
       monthsToElection: cycle && arc != null ? Math.max(0, num(cycle.polling_arc) - arc) : null,
       players: roster[spec.countryId] || 0,
       cap: NATION_PLAYER_CAP,
