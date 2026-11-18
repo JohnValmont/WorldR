@@ -2,7 +2,7 @@ import { currentPolStateCode } from '../services/playerNation';
 import { castVote, onJoinParty, onLeaveParty, playerPolitics, switchCooldownLeft } from '../services/floor.service';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
-import { projectPartyVotes, getGovernment, getLawsInForce, findOption, billTitle, computeApproval, approvalVoteMultiplier } from '../services/statecraft.service';
+import { projectPartyVotes, getGovernment, getLawsInForce, findOption, billTitle, liveApproval, approvalVoteMultiplier } from '../services/statecraft.service';
 import { portfolioPostFor, PRIVATE_BILL_AP_EXTRA, MINISTER_PORTFOLIO_AP_DISCOUNT } from '../constants/nations';
 import { AppError } from '../../utils/errors';
 import {
@@ -592,7 +592,7 @@ export async function getPolls(req: Request, res: Response, next: NextFunction) 
       segmentWeights: typeof r.segment_weights === 'string' ? safeParseJSON(r.segment_weights) : (r.segment_weights ?? {}),
     }));
     const govForPoll = await getGovernment(db, activeState.id);
-    const govMultForPoll = approvalVoteMultiplier(computeApproval(conditions));
+    const govMultForPoll = approvalVoteMultiplier((await liveApproval(db, activeState)).approval);
     const withApproval = (cands: any[]) => {
       for (const c of cands) if (govForPoll.memberPartyIds.includes(c.partyId)) c.voteMultiplier = govMultForPoll;
       return cands;

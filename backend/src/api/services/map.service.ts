@@ -7,7 +7,7 @@
 import { db } from '../../config/database';
 import { STARTER_NATIONS } from '../constants/nations';
 import { readNationalStatsFromRow } from './nationalEconomy.service';
-import { computeApproval, getGovernment, pollParties, projectElection, parsePlatform } from './statecraft.service';
+import { liveApproval, getGovernment, pollParties, projectElection, parsePlatform } from './statecraft.service';
 import { safeParseJSON } from '../../utils/json';
 
 const num = (v: any, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
@@ -50,7 +50,7 @@ async function nationMap(spec: (typeof STARTER_NATIONS)[number]) {
   // Today's poll, district by district (same inputs as the real election).
   const stats = readNationalStatsFromRow(state);
   const poll = districts.length && partyRows.length
-    ? projectElection(await pollParties(db, state.id, partyRows), districts, stats, govSet, computeApproval(stats))
+    ? projectElection(await pollParties(db, state.id, partyRows), districts, stats, govSet, (await liveApproval(db, state)).approval)
     : { shares: {}, seats: {}, districts: {} as Record<string, any> };
 
   const share = (m: Record<string, number> | undefined) => {

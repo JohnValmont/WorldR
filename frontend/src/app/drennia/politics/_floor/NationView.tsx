@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { politicsApi } from '@/lib/api';
 import type { NationBudget, NationForeign, NationRow, NationSim, NationTrade } from './types';
-import { Btn, Card, Chip, EffectChips, Label, Meter, PartyDot, T, leaderTitle, pct, signed, statLowerIsBetter, statName, useFloor } from './kit';
+import { ApprovalWhy, Btn, Card, Chip, EffectChips, Label, Meter, PartyDot, T, leaderTitle, pct, signed, statLowerIsBetter, statName, useFloor } from './kit';
 
 /** A small flag drawn from the nation's recipe (pattern + colours). */
 export function Flag({ flag, width = 44 }: { flag: NationRow['flag']; width?: number }) {
@@ -350,6 +350,7 @@ function StateOfNation() {
           {approval >= 50 ? 'Governing parties gain votes at the election.' : 'Governing parties lose votes at the election.'}
         </div>
       </div>
+      <ApprovalWhy approval={desk.approval} />
       <div className="mt-4 space-y-2">
         {Object.entries(desk.stats).map(([k, v]) => {
           const good = statLowerIsBetter(k) ? v <= 50 : v >= 50;

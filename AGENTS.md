@@ -123,7 +123,9 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 
 ## Nations simulation (people, jobs, sectors, world rating) — Operational Rules (DO NOT BREAK)
 - Design and status: docs/NATIONS_SIMULATION.md. All numbers in constants/nationSim.ts; rules are pure functions in services/nationSim.rules.ts with tests in tests/nationSim.test.ts.
-- The world rating (0-100), tier, unemployment and GDP are READ-ONLY: elections, approval, votes, deals and support must never read them unless the owner decides otherwise.
+- The world rating (0-100) and tier are READ-ONLY: elections, approval, votes, deals and support must never read them.
+- Owner decision (2026-11-18): the economy people feel moves approval. Unemployment, yearly GDP growth and debt (from nation_sim_months) feed approval ONLY through economyApprovalAdjustment, inside computeApproval(stats, economy). Numbers in ECONOMY_APPROVAL (constants/nations.ts).
+- liveApproval(conn, stateRow) (statecraft.service.ts) is THE approval: the real election, the monthly poll snapshot, the map's poll, every screen and the legacy poll endpoint all use it. Never call computeApproval(stats) alone where approval reaches voters or a poll.
 - One row per nation per month in nation_sim_months, written only by stepNationSim from runPoliticsTick, in its own savepoint after the nation's politics. Never write it from a request.
 - Tiers are absolute score thresholds (RATING_TIERS), not rank positions.
 - The three nations' starting ratings must stay within RATING_BALANCE_TOLERANCE and in the same tier (tests enforce it), measured on base stats: founding laws have no pol_active_policies rows and do not move stats.

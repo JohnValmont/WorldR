@@ -136,7 +136,12 @@ export interface Capitol {
   };
   state: { id: string; code: string; population: number; registeredVoters: number };
   stats: Record<string, number>;
-  approval: { current: number; live: number };
+  approval: {
+    current: number; live: number;
+    /** Approval from the national stats alone, and what the economy people feel adds (jobs, growth, debt). */
+    fromStats?: number;
+    economy?: { jobs: number; growth: number; debt: number; total: number };
+  };
   calendar: {
     arc: number;
     phase: 'governing' | 'filing' | 'campaign' | 'polling' | 'formation';

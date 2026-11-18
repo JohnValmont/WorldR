@@ -2,7 +2,7 @@
 // Voters: who backs whom, how the country is doing, and the last election.
 import React from 'react';
 import { PollChart } from '../_capitol/charts';
-import { Btn, Card, Label, PartyDot, T, pct, useFloor } from './kit';
+import { ApprovalWhy, Btn, Card, Label, PartyDot, T, pct, useFloor } from './kit';
 
 function SupportTable() {
   const { desk } = useFloor();
@@ -110,9 +110,10 @@ export default function VotersView({ onReplay }: { onReplay: () => void }) {
             <div className="font-serif text-4xl font-bold" style={{ color: desk.approval.live >= 50 ? T.good : T.bad }}>{Math.round(desk.approval.live)}%</div>
             <div className="text-xs" style={{ color: T.dim }}>
               {desk.approval.live >= 50 ? 'Governing parties gain votes at the election.' : 'Governing parties lose votes at the election.'}
-              <br /><button type="button" className="underline" onClick={() => go('nation')}>State of the nation</button>
+              <br /><button type="button" className="underline" onClick={() => go('nation:standing')}>State of the nation</button>
             </div>
           </div>
+          <ApprovalWhy approval={desk.approval} />
         </Card>
       </aside>
     </div>

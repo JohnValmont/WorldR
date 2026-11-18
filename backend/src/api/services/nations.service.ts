@@ -8,7 +8,7 @@ import {
   POWER_ECONOMY_WEIGHTS, STARTER_NATIONS,
 } from '../constants/nations';
 import { readNationalStatsFromRow } from './nationalEconomy.service';
-import { computeApproval, getGovernment, getLawsInForce } from './statecraft.service';
+import { getGovernment, getLawsInForce, liveApproval } from './statecraft.service';
 import { nationSimViews } from './nationSim.service';
 
 const num = (v: any, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
@@ -110,7 +110,7 @@ export async function worldNations(conn: any, arc?: number) {
       leadParty: lead ? { name: lead.name, color: ident?.color ?? lead.color_hex ?? '#7A8594' } : null,
       governmentSeats: gov.memberPartyIds.reduce((a, id) => a + (gov.seatsByParty[id] || 0), 0),
       seats: spec.legislature.seats,
-      approval: computeApproval(stats),
+      approval: (await liveApproval(conn, state)).approval,
       power: nationPower(stats, laws.defense),
       sim: sims.find(v => v.polStateCode === spec.polStateCode) ?? null,
       monthsToElection: cycle && arc != null ? Math.max(0, num(cycle.polling_arc) - arc) : null,
