@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import WhatsNewModal from '../components/gameplay/WhatsNewModal';
 import AnalyticsProvider from '../components/AnalyticsProvider';
 
 export const metadata: Metadata = {
@@ -38,7 +37,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </div>
         <AnalyticsProvider />
-        <WhatsNewModal />
         {children}
       </body>
     </html>
