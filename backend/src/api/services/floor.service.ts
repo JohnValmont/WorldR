@@ -28,6 +28,8 @@ import {
 } from './floor.rules';
 import { addSupport, ensureSupport, getSupportMap } from './support.store';
 import { notify, notifyMany } from './notices.service';
+import { coalitionAfterVote } from './coalition.service';
+import { whipScale } from './coalition.rules';
 import { contestResult } from './worldStage.rules';
 import {
   billTitle, changeDesirability, GovernmentInfo, parsePlatform, partyVoteScore, projectPartyVotes, seededUnit,
@@ -241,6 +243,9 @@ export async function settleBillPolitics(trx: any, bill: any, plan: BillVotePlan
 
   // 4. Personal handshakes that turned on this bill.
   await settleHandshakes(trx, bill, plan, shared, title, arc);
+
+  // 4b. Coalition unity: partners outvoted, government defeated, promised laws tried (docs/COALITIONS.md).
+  await coalitionAfterVote(trx, bill.state_id, bill, plan.partyLine, passed, arc);
 
   // 5. Voters react to the law.
   if (bill.type === 'policy_change' && params?.category && params?.option) {
@@ -596,6 +601,7 @@ export async function forecastPact(
     askerTrust,
     alreadyOwed: owed,
     askerWordBroken: num(fromParty.word_broken_until_arc) > arc,
+    whipScale: whipScale(gov.unity),
   });
 }
 

@@ -297,8 +297,14 @@ export const politicsApi = {
   getPolls: (stateId?: string) => api.get(`/politics/polls${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
   getCouncil: (stateId?: string) => api.get(`/politics/council${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
   getLedger: (limit: number = 10, stateId?: string, global?: boolean) => api.get(`/politics/ledger?limit=${limit}${stateId ? `&stateId=${stateId}` : ''}${global ? '&global=true' : ''}`).then(res => res.data),
-  getFormingCoalition: (stateId?: string) => api.get(`/politics/formation/coalition${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),
-  manageCoalition: (action: string, targetPartyId: string, stateId?: string) => api.post(`/politics/formation/coalition${stateId ? `?stateId=${stateId}` : ''}`, { action, targetPartyId }).then(res => res.data),
+  // Coalitions (docs/COALITIONS.md)
+  coalitionForecast: (offer: { toPartyId: string; posts: string[]; promises: { category: string; option: string; months: number }[]; hog: boolean }) =>
+    api.post('/politics/coalition/forecast', offer).then(res => res.data),
+  coalitionOffer: (offer: { toPartyId: string; posts: string[]; promises: { category: string; option: string; months: number }[]; hog: boolean }) =>
+    api.post('/politics/coalition/offers', offer).then(res => res.data),
+  coalitionRespond: (offerId: string, accept: boolean) => api.post(`/politics/coalition/offers/${offerId}/respond`, { accept }).then(res => res.data),
+  coalitionWithdraw: (offerId: string) => api.post(`/politics/coalition/offers/${offerId}/withdraw`, {}).then(res => res.data),
+  coalitionLeave: () => api.post('/politics/coalition/leave', {}).then(res => res.data),
 
   // Phase 5A: Bills & Lobby
   getBills: (stateId?: string) => api.get(`/politics/bills${stateId ? `?stateId=${stateId}` : ''}`).then(res => res.data),

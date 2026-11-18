@@ -19,8 +19,6 @@ import {
   declareCandidacy,
   queueCampaignAction,
   getPolls,
-  manageCoalition,
-  getFormingCoalition,
   getCouncil,
   getLedger,
   proposeBill,
@@ -57,7 +55,8 @@ import {
   getNewsFeedHandler,
   getLegacyHandler,
 } from '../controllers/politics.controller';
-import { getOrCreateCurrentCycle, bribeVote, getBillCoercions, worldClockToArc } from '../services/politics.service';
+import { getOrCreateCurrentCycle, bribeVote, getBillCoercions, worldClockToArc, processGovernmentFormation } from '../services/politics.service';
+import { forecastOffer, leaveGovernmentByChoice, makeOffer, respondOffer, withdrawOffer } from '../services/coalition.service';
 import { getDesk } from '../services/desk.service';
 import { currentPolStateCode, withPlayerNation } from '../services/playerNation';
 import {
@@ -193,6 +192,21 @@ router.post('/budget', floorAction((c, req) => setBudget(c.trx, c.stateId, c.me,
 router.post('/treaties', floorAction((c, req) => proposeTreaty(c.trx, c.stateId, c.me, req.body?.kind, req.body?.partner, c.arc), { blockDuringElection: true }));
 router.post('/treaties/:id/withdraw', floorAction((c, req) => withdrawTreaty(c.trx, c.stateId, c.me, asId(req.params.id, 'treaty'), c.arc)));
 
+// ── Coalitions (docs/COALITIONS.md): offers, answers, walking out ─────────
+router.post('/coalition/forecast', floorAction((c, req) => forecastOffer(c.trx, c.stateId, c.me, req.body, c.arc)));
+router.post('/coalition/offers', floorAction((c, req) => makeOffer(c.trx, c.stateId, c.me, req.body, c.arc)));
+router.post('/coalition/offers/:id/respond', floorAction(async (c, req) => {
+  const out = await respondOffer(c.trx, c.stateId, c.me, asId(req.params.id, 'offer'), !!req.body?.accept, c.arc);
+  if (out.status === 'accepted' && out.kind === 'form') {
+    // A yes can complete a majority: the government takes office at once.
+    const cycle = await c.trx('pol_cycles').where({ id: out.cycleId }).first();
+    if (cycle) await processGovernmentFormation(c.trx, cycle, c.arc, 'check');
+  }
+  return out;
+}));
+router.post('/coalition/offers/:id/withdraw', floorAction((c, req) => withdrawOffer(c.trx, c.me, asId(req.params.id, 'offer'), c.arc)));
+router.post('/coalition/leave', floorAction(c => leaveGovernmentByChoice(c.trx, c.stateId, c.me, c.arc)));
+
 // ── Cabinet: the Premier appoints ministers ────────────────────────────────
 router.post('/cabinet/:postKey/appoint', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -292,8 +306,6 @@ router.post('/campaign/actions', authMiddleware, blockPhases('polling', 'formati
 router.get('/polls', authMiddleware, getPolls);
 
 // Phase 4
-router.get('/formation/coalition', authMiddleware, requirePhase('formation'), getFormingCoalition);
-router.post('/formation/coalition', authMiddleware, requirePhase('formation'), manageCoalition);
 router.get('/council', authMiddleware, getCouncil);
 router.get('/ledger', authMiddleware, getLedger);
 

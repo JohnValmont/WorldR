@@ -146,3 +146,11 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 ## Nation tab layout — Operational Rules (DO NOT BREAK)
 - The Nation tab is sections (Standing, Economy, Budget, Foreign affairs, Government), not one long page. New nation features go in the section they belong to; if one section grows past about one desktop screen, split it rather than stacking more panels.
 - Decisions that need a player (budget, treaties offered) get a Desk reminder that jumps to the section with go('nation:<section>'); the decision itself stays in its section.
+
+## Coalitions (talks, deals, unity) — Operational Rules (DO NOT BREAK)
+- Design, numbers and the first live results: docs/COALITIONS.md. Numbers in constants/coalition.ts; pure rules in services/coalition.rules.ts with tests in tests/coalition.test.ts; database work in services/coalition.service.ts (it must NOT import politics.service or floor.service).
+- After an election, any party leader with seats may offer (pol_coalition_offers kind 'form'); between elections only the head of government's party may ('join'). Computer-run parties answer ONLY at month end (npcDecide), taking their best offer by offerScore. The forecast a player sees must use the same scoreOffer.
+- politics.service.processGovernmentFormation owns the moment a government takes office (takeOffice: recordDeal, closeTalks, namePremierAndEmitLedger, rollover). A player's acceptance calls it in 'check' mode. Do not form governments anywhere else.
+- Unity is pol_coalition_agreements.health (base_unity = starting level). It changes only through coalition.rules unityAfterMonth (stepCoalitionMonth, coalitionAfterVote). It reaches votes ONLY as whipScale inside partyVoteScore. Never add a second whip or vote path. Unity is not voter support: elections must never read it.
+- The cabinet honours the deal's portfolio_allocation (statecraft.formCabinet); posts not promised go to the formateur's party. A head-of-government concession makes the partner coalition.lead_party_id.
+- One coalition deal is active per nation; recordDeal dissolves older ones.
