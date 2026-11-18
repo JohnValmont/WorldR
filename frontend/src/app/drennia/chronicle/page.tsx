@@ -1,23 +1,18 @@
 'use client';
-// The Chronicle: the player's home screen.
-// Order of the page is "you first, then your country, then the world, then the markets":
-//   1. Who you are (rung, party, nation) and your net worth
-//   2. What needs you now (decisions, votes, deals, energy) + your inbox
-//   3. Your nation at a glance + its news + the Meridian Wire
-//   4. Your two careers side by side (politics ladder, business)
-//   Sidebar: the three nations, the World Influence Index, the rich list, the car market.
+// The Chronicle: the player's home screen. Built to fit about one screen, no long scroll.
+//   Desktop: you (identity, career ladder, net worth) -> Today + Inbox -> News (nation / world).
+//            Sidebar: one tabbed card (Nations, Influence, Rich list, Market).
+//   Mobile:  you -> Today -> one tabbed card holding everything else.
+// Each panel shows a few rows and links to the full screen for the rest (limits below).
 // Politics data comes from GET /politics/desk (same SWR key as the Politics screen, so the
 // cache is shared) and GET /agency/front. Nothing here computes game numbers itself.
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
+import { AreaChart, Area, Tooltip, ResponsiveContainer } from 'recharts';
 import {
-  AreaChart, Area, Tooltip, ResponsiveContainer, XAxis, YAxis,
-} from 'recharts';
-import {
-  Briefcase, TrendingUp, User, Star, Landmark, ChevronRight, RefreshCw,
-  Globe, Newspaper, Book, Inbox as InboxIcon, Zap, CheckCircle2, Circle,
-  Flag as FlagIcon, Award, LogOut,
+  Briefcase, User, ChevronRight, RefreshCw, Newspaper, Book,
+  Inbox as InboxIcon, Zap, CheckCircle2, Circle, Award, LogOut,
 } from 'lucide-react';
 import { formatGameDate } from '../../../lib/businessCore';
 import { formatPolArc } from '../../../lib/calendar';
@@ -56,6 +51,15 @@ interface CompanySnapshot {
   finances?: { available_cash?: number };
 }
 
+type WorldTab = 'nations' | 'influence' | 'rich' | 'market';
+type MobileTab = 'inbox' | 'news' | WorldTab;
+
+// How many rows each panel shows before linking to the full screen (keeps the page short).
+const TODO_LIMIT = 4;
+const INBOX_LIMIT = 4;
+const NEWS_LIMIT = 3;
+const RANK_LIMIT = 5;
+
 interface TodoItem { id: string; text: string; href: string; done?: boolean; urgent?: boolean }
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
@@ -85,16 +89,6 @@ function formatMoney(value: unknown): string {
 
 const pct1 = (x: number) => `${(x * 100).toFixed(1)}%`;
 
-function Trend({ value, suffix = '' }: { value: number | null | undefined; suffix?: string }) {
-  if (value == null || Math.abs(value) < 0.05) return null;
-  const up = value > 0;
-  return (
-    <span className={`ml-1.5 text-[10px] font-mono ${up ? 'text-terminal-green' : 'text-terminal-red'}`}>
-      {up ? '▲' : '▼'} {Math.abs(value).toFixed(1)}{suffix}
-    </span>
-  );
-}
-
 function Tabs2<T extends string>({ value, options, onChange }: { value: T; options: { id: T; label: string }[]; onChange: (v: T) => void }) {
   return (
     <div className="flex gap-3 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
@@ -108,6 +102,16 @@ function Tabs2<T extends string>({ value, options, onChange }: { value: T; optio
           {o.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+function MiniStat({ label, value, tone }: { label: string; value: string; tone?: 'good' | 'bad' | 'amber' }) {
+  const color = tone === 'good' ? 'text-terminal-green' : tone === 'bad' ? 'text-terminal-red' : tone === 'amber' ? 'text-terminal-amber' : 'text-zinc-100';
+  return (
+    <div>
+      <div className={`text-[14px] font-mono font-bold ${color}`}>{value}</div>
+      <div className="text-[8px] font-mono uppercase tracking-[0.12em] text-zinc-600">{label}</div>
     </div>
   );
 }
@@ -150,6 +154,9 @@ export default function ChroniclePage() {
   const [leaderboardTab, setLeaderboardTab] = useState<'wealth' | 'marketCap'>('wealth');
   const [bestSellersTab, setBestSellersTab] = useState<'monthly' | 'allTime'>('monthly');
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [newsTab, setNewsTab] = useState<'ledger' | 'wire'>('ledger');
+  const [worldTab, setWorldTab] = useState<WorldTab>('nations');
+  const [mobileTab, setMobileTab] = useState<MobileTab>('inbox');
 
   // Politics + world press. Same keys as the Politics screen so the cache is shared.
   const { data: desk, mutate: mutateDesk } = useSWR<Desk>('politics-desk', () => politicsApi.getDesk(), { refreshInterval: 60_000 });
@@ -284,15 +291,7 @@ export default function ChroniclePage() {
 
   const sectorLabel = company?.industry_id === 'manufacturing' ? 'Manufacturing'
     : company?.industry_id === 'services' || company?.industry_id === 'shipping-logistics' ? 'Shipping & Logistics'
-    : company?.industry_id ?? '—';
-
-  const legalStructureLabel = (() => {
-    const id = company?.legal_structure_id;
-    if (id === 'sole-trader') return 'Sole Trader';
-    if (id === 'private-company') return 'Private Company';
-    if (id === 'public-corporation') return 'Corporation';
-    return id ?? '—';
-  })();
+    : company?.industry_id ?? '';
 
   // Net worth change since last month.
   const prev = netWorthSeries.length > 1 ? Number(netWorthSeries[netWorthSeries.length - 2].value) : netWorth;
@@ -309,135 +308,266 @@ export default function ChroniclePage() {
   const rungIdx = ladder.findIndex(r => r.current);
   const nextRung = rungIdx >= 0 ? ladder[rungIdx + 1] : undefined;
   const urgentCount = todos.filter(t => t.urgent).length;
+  const shownTodos = todos.slice(0, TODO_LIMIT);
+  const unread = notices?.unread ?? 0;
 
-  // ── Sidebar: the world, rankings, then markets ─────────────────────────────
+  // ── Panels (each used on desktop and inside the mobile tabs) ───────────────
 
-  const sidebar = (
+  const todayPanel = (
     <>
-      {/* The three nations */}
-      <Card kicker="The World" icon={Globe}>
-        {!desk ? <SkeletonRows n={3} /> : (
-          <div className="flex flex-col gap-2">
-            {desk.desk.world.map(n => (
-              <Link
-                key={n.polStateCode}
-                href={pol('nation')}
-                className={`flex items-center gap-3 rounded-lg px-2.5 py-2 border transition-colors ${n.mine ? 'border-terminal-amber/40 bg-terminal-amber/5' : 'border-[#23232b] hover:border-zinc-700'}`}
-              >
-                <Flag flag={n.flag} width={28} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[12px] font-semibold text-zinc-100 truncate">{n.name}</span>
-                    {n.mine && <span className="text-[8px] font-mono uppercase tracking-widest text-terminal-amber">Home</span>}
-                  </div>
-                  <div className="text-[10px] text-zinc-500 truncate">
-                    {n.leaderTitle}: {n.premier ?? 'vacant'}{n.premierIsPlayer ? ' (player)' : ''}
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-[12px] font-mono text-zinc-200" title="Government approval">{Math.round(n.approval)}%</div>
-                  {n.sim && <div className="text-[9px] text-zinc-500 capitalize" title="World rating tier">{n.sim.tier}</div>}
-                </div>
-              </Link>
-            ))}
-          </div>
+      {!desk && <SkeletonRows n={3} />}
+      <div className="flex flex-col gap-1.5">
+        {shownTodos.map(t => (
+          <Link
+            key={t.id}
+            href={t.href}
+            className={`flex items-start gap-2.5 rounded-lg px-3 py-2 text-[12px] leading-snug border transition-colors ${t.urgent ? 'border-terminal-amber/30 bg-terminal-amber/5 text-zinc-100 hover:border-terminal-amber/60' : 'border-[#23232b] text-zinc-400 hover:border-zinc-700'}`}
+          >
+            {t.done
+              ? <CheckCircle2 size={13} className="text-terminal-green mt-0.5 shrink-0" />
+              : t.urgent ? <Zap size={13} className="text-terminal-amber mt-0.5 shrink-0" /> : <Circle size={13} className="text-zinc-600 mt-0.5 shrink-0" />}
+            <span className="flex-1">{t.text}</span>
+            <ChevronRight size={13} className="text-zinc-600 mt-0.5 shrink-0" />
+          </Link>
+        ))}
+        {todos.length > TODO_LIMIT && (
+          <Link href={pol('desk')} className="text-[11px] text-zinc-500 hover:text-terminal-amber px-1">
+            +{todos.length - TODO_LIMIT} more on your desk →
+          </Link>
         )}
-      </Card>
-
-      {/* World Influence Index (Meridian Wire) */}
-      <Card
-        kicker="World Influence Index"
-        icon={Award}
-        headerSlot={<Link href={pol('wire')} className="text-[10px] text-zinc-500 hover:text-terminal-amber">Full list →</Link>}
-      >
-        {!wire ? <SkeletonRows n={5} /> : wire.live.top.length === 0 ? (
-          <EmptyState icon={Award} message="No one ranked yet." className="py-2" />
-        ) : (
-          <div className="flex flex-col">
-            {wire.live.top.slice(0, 5).map(r => (
-              <div key={r.key} className={`flex items-center gap-3 py-2 border-b border-zinc-900/60 last:border-0 ${r.key === wire.live.mine?.key ? 'bg-terminal-green/5' : ''}`}>
-                <span className="w-5 text-right text-[11px] font-mono text-zinc-500">{r.rank}</span>
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: r.partyColor ?? '#52525b' }} />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-semibold text-zinc-100 truncate">{r.name}</div>
-                  <div className="text-[10px] text-zinc-500 truncate">{r.officeLabel} · {r.nationName}</div>
-                </div>
-                <span className="text-[12px] font-mono text-terminal-amber">{(r.share * 100).toFixed(1)}%</span>
-              </div>
-            ))}
-            <div className="pt-2 text-[11px] text-zinc-400">
-              {wire.live.mine
-                ? <>You are <strong className="text-zinc-100">#{wire.live.mine.rank}</strong> of {wire.live.total} ({(wire.live.mine.share * 100).toFixed(1)}%).</>
-                : 'You are not ranked yet. Join a party or win a seat to get on the list.'}
-            </div>
-          </div>
-        )}
-      </Card>
-
-      {/* Rich list */}
-      <Card kicker="Rich List" icon={TrendingUp}>
-        <div className="mb-3">
-          <Tabs2
-            value={leaderboardTab}
-            onChange={setLeaderboardTab}
-            options={[{ id: 'wealth', label: 'Richest people' }, { id: 'marketCap', label: 'Biggest companies' }]}
-          />
-        </div>
-        {(() => {
-          const rows: any[] | undefined = leaderboardTab === 'wealth' ? leaderboards?.richestPlayers : leaderboards?.topCompanies;
-          if (!rows) return <SkeletonRows n={5} />;
-          if (rows.length === 0) return <EmptyState icon={leaderboardTab === 'wealth' ? User : Briefcase} message="Nothing to rank yet." className="py-2" />;
-          return rows.slice(0, 5).map((r: any, idx: number) => {
-            const isMe = leaderboardTab === 'wealth' ? r.name === characterName : r.name === company?.name;
-            const value = leaderboardTab === 'wealth' ? r.net_worth : r.company_value;
-            const trend = Number(leaderboardTab === 'wealth' ? r.trend : r.last_arc_profit);
-            return (
-              <div key={idx} className={`flex items-center gap-3 py-2 border-b border-zinc-900/60 last:border-0 ${isMe ? 'bg-terminal-green/5' : ''}`}>
-                <span className="w-5 text-right text-[11px] font-mono text-zinc-500">{idx + 1}</span>
-                <div className="min-w-0 flex-1">
-                  <div className={`text-[12px] font-semibold truncate ${isMe ? 'text-terminal-green' : 'text-zinc-100'}`}>{r.name}</div>
-                  {leaderboardTab === 'marketCap' && <div className="text-[10px] text-zinc-500 capitalize">{r.industry_id?.replace(/[_-]/g, ' ')}</div>}
-                </div>
-                <span className="text-[12px] font-mono text-terminal-amber">{formatMoney(value)}</span>
-                <span className={`w-3 text-[9px] ${trend > 0 ? 'text-green-500' : trend < 0 ? 'text-red-500' : 'text-zinc-600'}`}>
-                  {trend > 0 ? '▲' : trend < 0 ? '▼' : '–'}
-                </span>
-              </div>
-            );
-          });
-        })()}
-      </Card>
-
-      {/* Markets */}
-      <WorldThisMonth />
-
-      <Card kicker="Best-Selling Cars" icon={Star}>
-        <div className="flex justify-between items-end mb-3">
-          <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">
-            {bestSellersTab === 'monthly' && leaderboards?.popularCarsArc
-              ? `Month ${leaderboards.popularCarsArc.month}, Year ${leaderboards.popularCarsArc.year}`
-              : 'All time'}
-          </span>
-          <Tabs2 value={bestSellersTab} onChange={setBestSellersTab} options={[{ id: 'monthly', label: 'Month' }, { id: 'allTime', label: 'All time' }]} />
-        </div>
-        {(() => {
-          const list: any[] | undefined = bestSellersTab === 'monthly' ? leaderboards?.popularCars : leaderboards?.popularCarsAllTime;
-          if (!list) return <SkeletonRows n={5} />;
-          if (list.length === 0) return <EmptyState icon={Star} message={`No cars sold ${bestSellersTab === 'monthly' ? 'this month' : 'yet'}.`} className="py-2" />;
-          return list.slice(0, 5).map((car: any, idx: number) => (
-            <div key={idx} className="flex items-center gap-3 py-2 border-b border-zinc-900/60 last:border-0">
-              <span className="w-5 text-right text-[11px] font-mono text-zinc-500">{idx + 1}</span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[12px] font-semibold text-zinc-100 truncate">{car.model_name}</div>
-                <div className="text-[10px] text-zinc-500 truncate">{car.company_name}</div>
-              </div>
-              <span className="text-[11px] font-mono text-terminal-amber">{Number(car.total_sold).toLocaleString('en-US')}</span>
-            </div>
-          ));
-        })()}
-      </Card>
+      </div>
+      {me?.nextGoal && (
+        <p className="mt-2.5 text-[11px] text-zinc-500 leading-snug line-clamp-2">
+          <span className="text-zinc-400 font-medium">Next goal:</span> {me.nextGoal}
+        </p>
+      )}
     </>
   );
+
+  const inboxPanel = !notices ? <SkeletonRows n={4} /> : notices.items.length === 0 ? (
+    <p className="text-[11px] text-zinc-500 leading-relaxed">
+      Nothing yet. Deal offers, challenges, votes on your bills and your world rank will show up here.
+    </p>
+  ) : (
+    <div className="flex flex-col">
+      {notices.items.slice(0, INBOX_LIMIT).map((n: Notice) => (
+        <Link
+          key={n.id}
+          href={n.tab ? pol(n.tab) : pol('desk')}
+          className={`py-2 px-2 -mx-2 rounded border-b border-[#23232b] last:border-0 hover:bg-zinc-900/40 ${n.read ? '' : 'bg-terminal-amber/5'}`}
+        >
+          <div className="flex items-start gap-2">
+            {!n.read && <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-terminal-amber shrink-0" />}
+            <div className="min-w-0">
+              <div className={`text-[12px] leading-snug line-clamp-2 ${n.read ? 'text-zinc-400' : 'text-zinc-100'}`}>{n.text}</div>
+              <div className="text-[10px] text-zinc-600 mt-0.5">{formatPolArc(n.arc, false)}</div>
+            </div>
+          </div>
+        </Link>
+      ))}
+      {notices.items.length > INBOX_LIMIT && (
+        <Link href="/drennia/politics" className="pt-2 text-[11px] text-zinc-500 hover:text-terminal-amber">
+          All {notices.items.length} notices →
+        </Link>
+      )}
+    </div>
+  );
+
+  const markReadButton = unread > 0 ? (
+    <button
+      type="button"
+      onClick={() => politicsApi.markNoticesRead().then(() => mutateDesk()).catch(() => {})}
+      className="text-[10px] text-zinc-500 hover:text-terminal-amber"
+    >
+      Mark all read
+    </button>
+  ) : undefined;
+
+  const ledgerPanel = !desk ? <SkeletonRows n={3} /> : desk.news.length === 0 ? (
+    <p className="text-[11px] text-zinc-500 italic">No national news yet. Bills, elections and scandals will be reported here.</p>
+  ) : (
+    <div className="flex flex-col">
+      {desk.news.slice(0, NEWS_LIMIT).map(ev => (
+        <div key={ev.id} className="py-2 border-b border-[#23232b] last:border-0">
+          <div className="flex items-baseline justify-between gap-3">
+            <div className="text-[12px] font-semibold text-zinc-200 leading-snug">{ev.headline}</div>
+            <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-wider shrink-0">{formatPolArc(ev.arc)}</div>
+          </div>
+          <div className="text-[11px] text-zinc-500 leading-snug mt-0.5 line-clamp-1">{ev.body}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const wirePanel = !wire ? <SkeletonRows n={3} /> : !wire.edition ? (
+    <p className="text-[11px] text-zinc-500 italic">The first edition prints when the politics month turns.</p>
+  ) : (
+    <>
+      <h3 className="text-[14px] font-bold text-zinc-100 leading-snug" style={{ fontFamily: 'Georgia, serif' }}>
+        {wire.edition.headline}
+      </h3>
+      <div className="flex flex-col mt-1">
+        {wire.edition.stories.slice(0, NEWS_LIMIT).map((s, i) => (
+          <div key={i} className="py-1.5 border-b border-[#23232b] last:border-0 flex items-baseline gap-2">
+            <span className="text-[9px] font-mono uppercase tracking-widest text-terminal-amber/80 w-16 shrink-0 truncate">{s.nationName}</span>
+            <span className="text-[12px] text-zinc-200 leading-snug">{s.headline}</span>
+          </div>
+        ))}
+      </div>
+      <Link href={pol('wire')} className="inline-block pt-2 text-[11px] text-zinc-500 hover:text-terminal-amber">Read the edition →</Link>
+    </>
+  );
+
+  const newsToggle = (
+    <Tabs2
+      value={newsTab}
+      onChange={setNewsTab}
+      options={[{ id: 'ledger', label: nationName ? `${nationName}` : 'Nation' }, { id: 'wire', label: 'World' }]}
+    />
+  );
+  const newsPanel = newsTab === 'ledger' ? ledgerPanel : wirePanel;
+
+  const myNationStats = myNation && desk ? (
+    <div className="rounded-lg border border-terminal-amber/30 bg-terminal-amber/5 p-3">
+      <div className="flex items-center gap-2.5 mb-2.5">
+        <Flag flag={myNation.flag} width={26} />
+        <div className="min-w-0 flex-1">
+          <div className="text-[12px] font-semibold text-zinc-100 truncate">{myNation.name} <span className="text-[8px] font-mono uppercase tracking-widest text-terminal-amber ml-1">Home</span></div>
+          <div className="text-[10px] text-zinc-500 truncate">
+            {PHASE_LABEL[desk.calendar.phase] ?? desk.calendar.phase}
+            {myNation.monthsToElection != null && desk.calendar.phase === 'governing' && ` · election in ${myNation.monthsToElection} mo`}
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-4 gap-2 text-center">
+        <MiniStat label="Approval" value={`${Math.round(myNation.approval)}%`} tone={myNation.approval >= 50 ? 'good' : 'bad'} />
+        <MiniStat label="Jobless" value={myNation.sim ? pct1(myNation.sim.unemployment) : '—'} tone={myNation.sim && myNation.sim.unemployment > 0.08 ? 'bad' : undefined} />
+        <MiniStat label="Rating" value={myNation.sim ? String(Math.round(myNation.sim.rating)) : '—'} tone="amber" />
+        <MiniStat label="Rank" value={myNation.sim ? `#${myNation.sim.rank}` : '—'} />
+      </div>
+      <div className="mt-2 text-[10px] text-zinc-500 truncate">
+        {myNation.leaderTitle}: <span className="text-zinc-300">{myNation.premier ?? 'vacant'}</span>
+        {myNation.leadParty && ` · ${myNation.leadParty.name}`}
+      </div>
+    </div>
+  ) : null;
+
+  const nationsPanel = !desk ? <SkeletonRows n={4} /> : (
+    <div className="flex flex-col gap-2">
+      {myNationStats}
+      {desk.desk.world.filter(n => !n.mine).map(n => (
+        <Link
+          key={n.polStateCode}
+          href={pol('nation')}
+          className="flex items-center gap-3 rounded-lg px-2.5 py-2 border border-[#23232b] hover:border-zinc-700 transition-colors"
+        >
+          <Flag flag={n.flag} width={26} />
+          <div className="min-w-0 flex-1">
+            <div className="text-[12px] font-semibold text-zinc-100 truncate">{n.name}</div>
+            <div className="text-[10px] text-zinc-500 truncate">{n.leaderTitle}: {n.premier ?? 'vacant'}</div>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-[12px] font-mono text-zinc-200" title="Government approval">{Math.round(n.approval)}%</div>
+            {n.sim && <div className="text-[9px] text-zinc-500 capitalize">{n.sim.tier}</div>}
+          </div>
+        </Link>
+      ))}
+      <Link href={pol('nation')} className="text-[11px] text-zinc-500 hover:text-terminal-amber px-1">Open nation →</Link>
+    </div>
+  );
+
+  const influencePanel = !wire ? <SkeletonRows n={5} /> : wire.live.top.length === 0 ? (
+    <EmptyState icon={Award} message="No one ranked yet." className="py-2" />
+  ) : (
+    <div className="flex flex-col">
+      {wire.live.top.slice(0, RANK_LIMIT).map(r => (
+        <div key={r.key} className="flex items-center gap-3 py-1.5 border-b border-zinc-900/60 last:border-0">
+          <span className="w-5 text-right text-[11px] font-mono text-zinc-500">{r.rank}</span>
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: r.partyColor ?? '#52525b' }} />
+          <div className="min-w-0 flex-1">
+            <div className="text-[12px] font-semibold text-zinc-100 truncate">{r.name}</div>
+            <div className="text-[10px] text-zinc-500 truncate">{r.officeLabel} · {r.nationName}</div>
+          </div>
+          <span className="text-[12px] font-mono text-terminal-amber">{(r.share * 100).toFixed(1)}%</span>
+        </div>
+      ))}
+      <div className="pt-2 text-[11px] text-zinc-400">
+        {wire.live.mine
+          ? <>You: <strong className="text-zinc-100">#{wire.live.mine.rank}</strong> of {wire.live.total} ({(wire.live.mine.share * 100).toFixed(1)}%)</>
+          : 'Not ranked yet. Join a party or win a seat to get on the list.'}
+      </div>
+    </div>
+  );
+
+  const richPanel = (
+    <>
+      <div className="mb-2">
+        <Tabs2 value={leaderboardTab} onChange={setLeaderboardTab}
+          options={[{ id: 'wealth', label: 'People' }, { id: 'marketCap', label: 'Companies' }]} />
+      </div>
+      {(() => {
+        const rows: any[] | undefined = leaderboardTab === 'wealth' ? leaderboards?.richestPlayers : leaderboards?.topCompanies;
+        if (!rows) return <SkeletonRows n={5} />;
+        if (rows.length === 0) return <EmptyState icon={leaderboardTab === 'wealth' ? User : Briefcase} message="Nothing to rank yet." className="py-2" />;
+        return rows.slice(0, RANK_LIMIT).map((r: any, idx: number) => {
+          const isMe = leaderboardTab === 'wealth' ? r.name === characterName : r.name === company?.name;
+          const value = leaderboardTab === 'wealth' ? r.net_worth : r.company_value;
+          const trend = Number(leaderboardTab === 'wealth' ? r.trend : r.last_arc_profit);
+          return (
+            <div key={idx} className={`flex items-center gap-3 py-1.5 border-b border-zinc-900/60 last:border-0 ${isMe ? 'bg-terminal-green/5' : ''}`}>
+              <span className="w-5 text-right text-[11px] font-mono text-zinc-500">{idx + 1}</span>
+              <div className="min-w-0 flex-1">
+                <div className={`text-[12px] font-semibold truncate ${isMe ? 'text-terminal-green' : 'text-zinc-100'}`}>{r.name}</div>
+                {leaderboardTab === 'marketCap' && <div className="text-[10px] text-zinc-500 capitalize">{r.industry_id?.replace(/[_-]/g, ' ')}</div>}
+              </div>
+              <span className="text-[12px] font-mono text-terminal-amber">{formatMoney(value)}</span>
+              <span className={`w-3 text-[9px] ${trend > 0 ? 'text-green-500' : trend < 0 ? 'text-red-500' : 'text-zinc-600'}`}>
+                {trend > 0 ? '▲' : trend < 0 ? '▼' : '–'}
+              </span>
+            </div>
+          );
+        });
+      })()}
+    </>
+  );
+
+  const marketPanel = (
+    <>
+      <WorldThisMonth bare />
+      <div className="flex justify-between items-end mt-4 mb-1">
+        <span className="text-[9px] font-mono text-terminal-amber uppercase tracking-[0.2em]">Best-selling cars</span>
+        <Tabs2 value={bestSellersTab} onChange={setBestSellersTab} options={[{ id: 'monthly', label: 'Month' }, { id: 'allTime', label: 'All time' }]} />
+      </div>
+      {(() => {
+        const list: any[] | undefined = bestSellersTab === 'monthly' ? leaderboards?.popularCars : leaderboards?.popularCarsAllTime;
+        if (!list) return <SkeletonRows n={3} />;
+        if (list.length === 0) return <p className="text-[11px] text-zinc-500 py-2">No cars sold {bestSellersTab === 'monthly' ? 'this month' : 'yet'}.</p>;
+        return list.slice(0, 3).map((car: any, idx: number) => (
+          <div key={idx} className="flex items-center gap-3 py-1.5 border-b border-zinc-900/60 last:border-0">
+            <span className="w-5 text-right text-[11px] font-mono text-zinc-500">{idx + 1}</span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[12px] font-semibold text-zinc-100 truncate">{car.model_name}</div>
+              <div className="text-[10px] text-zinc-500 truncate">{car.company_name}</div>
+            </div>
+            <span className="text-[11px] font-mono text-terminal-amber">{Number(car.total_sold).toLocaleString('en-US')}</span>
+          </div>
+        ));
+      })()}
+    </>
+  );
+
+  const worldTabs: { id: WorldTab; label: string }[] = [
+    { id: 'nations', label: 'Nations' }, { id: 'influence', label: 'Influence' },
+    { id: 'rich', label: 'Rich list' }, { id: 'market', label: 'Market' },
+  ];
+  const worldPanel = (t: WorldTab) =>
+    t === 'nations' ? nationsPanel : t === 'influence' ? influencePanel : t === 'rich' ? richPanel : marketPanel;
+
+  const mobileTabs: { id: MobileTab; label: string }[] = [
+    { id: 'inbox', label: unread > 0 ? `Inbox (${unread})` : 'Inbox' },
+    { id: 'news', label: 'News' },
+    ...worldTabs,
+  ];
 
   return (
     <div className="flex flex-col h-full w-full bg-[#090A0F] text-zinc-100 overflow-hidden scanlines relative">
@@ -448,7 +578,7 @@ export default function ChroniclePage() {
       {showGuideModal && <GuideModal onDismiss={() => setShowGuideModal(false)} />}
 
       {/* ── Top bar: who, your numbers, the clock ─────────────────────────── */}
-      <header className="flex items-center justify-between px-4 md:px-6 py-2 border-b border-[#23232b] bg-[#0c0d13] shrink-0 gap-4 flex-wrap">
+      <header className="flex items-center justify-between px-4 md:px-6 py-2 border-b border-[#23232b] bg-[#0c0d13] shrink-0 gap-x-4 gap-y-2 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <span className="text-[10px] font-mono font-black tracking-[0.25em] text-terminal-amber amber-glow">WORLDr</span>
           <span className="w-px h-4 bg-[#23232b]" />
@@ -456,7 +586,7 @@ export default function ChroniclePage() {
           <span className="text-[13px] font-semibold text-zinc-100 truncate">{characterName}</span>
         </div>
 
-        <div className="flex items-center gap-2 flex-nowrap overflow-x-auto scrollbar-hide max-w-full sm:flex-wrap sm:overflow-visible">
+        <div className="order-last sm:order-none w-full sm:w-auto flex items-center gap-2 flex-nowrap overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible">
           <StatChip label="Cash $" value={playerCash} prefix="$" valueColor="green" countUp />
           <StatChip label="Credibility" value={citizenFile?.credibility ?? 50} />
           <StatChip label="Charisma" value={citizenFile?.charisma ?? 50} />
@@ -473,334 +603,148 @@ export default function ChroniclePage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto py-6">
-        <PageShell sidebar={sidebar}>
-
-          {/* ── 1. You ─────────────────────────────────────────────────────── */}
-          <div className="relative overflow-hidden rounded-xl border border-[#2a2630] bg-gradient-to-br from-[#0d0e15] via-[#111320] to-[#0c0d13] p-5 md:p-6" style={{ boxShadow: '0 0 40px rgba(201,162,74,0.04) inset, 0 1px 0 rgba(201,162,74,0.08)' }}>
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-              <div className="min-w-0 flex items-start gap-4">
-                {myNation && <div className="pt-1.5 hidden sm:block"><Flag flag={myNation.flag} width={48} /></div>}
-                <div className="min-w-0">
-                  <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-zinc-600">Welcome back</p>
-                  <h1 className="text-2xl md:text-3xl font-semibold text-zinc-100 truncate">{characterName || 'Citizen'}</h1>
-                  <p className="text-[12px] text-zinc-300 mt-1 flex items-center flex-wrap gap-x-1.5">
-                    {me?.party && <span className="inline-block w-2 h-2 rounded-full" style={{ background: me.party.color }} />}
-                    <span>{titleLine}</span>
-                    {me?.party && <span className="text-zinc-500">· {me.party.name}</span>}
-                    {nationName && <span className="text-zinc-500">· {nationName}</span>}
-                  </p>
-                  <p className="text-[10px] text-zinc-600 mt-1 font-mono">
-                    Age {characterAge} · {formatGameDate()} · Citizen since {citizenFile?.gameDateStr ?? '—'}
-                  </p>
-                </div>
+      <div className="flex-1 overflow-y-auto py-4 md:py-5">
+        <PageShell sidebar={
+          <div className="hidden lg:block">
+            <Card pad="sm">
+              <div className="mb-3 overflow-x-auto scrollbar-hide">
+                <Tabs2 value={worldTab} onChange={setWorldTab} options={worldTabs} />
               </div>
-              <div className="flex items-center gap-6">
-                <div>
-                  <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Net Worth</p>
-                  <p className="text-2xl md:text-3xl font-mono font-bold text-terminal-amber amber-glow leading-tight">{formatMoney(netWorth)}</p>
-                  <p className={`text-[11px] font-mono font-bold ${up ? 'text-terminal-green' : 'text-terminal-red'}`}>
-                    {up ? '▲' : '▼'} {up ? '+' : '−'}{formatMoney(Math.abs(delta))} ({deltaPct.toFixed(1)}%) this month
-                  </p>
-                </div>
-                <div className="hidden sm:block w-32 h-14">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={netWorthSeries} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="heroGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={accent} stopOpacity={0.3} />
-                          <stop offset="95%" stopColor={accent} stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <Area type="monotone" dataKey="value" stroke={accent} strokeWidth={2} fill="url(#heroGrad)" dot={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Button href="/drennia/politics" variant="primary" icon={ChevronRight} size="sm">
-                {urgentCount > 0 ? `Politics desk (${urgentCount} waiting)` : 'Politics desk'}
-              </Button>
-              <Button href="/drennia/business" variant="secondary" size="sm">
-                {company ? 'Business desk →' : 'Start a company →'}
-              </Button>
-              <Button href={pol('wire')} variant="ghost" size="sm">World press →</Button>
-            </div>
+              {worldPanel(worldTab)}
+            </Card>
           </div>
+        }>
+          <div className="flex flex-col gap-4">
 
-          {/* ── 2. What needs you + inbox ──────────────────────────────────── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card kicker="Today" icon={Zap} title={urgentCount > 0 ? `${urgentCount} thing${urgentCount > 1 ? 's' : ''} need you` : 'Nothing urgent'}>
-              {!desk && <SkeletonRows n={3} />}
-              <div className="flex flex-col gap-1.5">
-                {todos.map(t => (
-                  <Link
-                    key={t.id}
-                    href={t.href}
-                    className={`flex items-start gap-2.5 rounded-lg px-3 py-2 text-[12px] leading-snug border transition-colors ${t.urgent ? 'border-terminal-amber/30 bg-terminal-amber/5 text-zinc-100 hover:border-terminal-amber/60' : 'border-[#23232b] text-zinc-400 hover:border-zinc-700'}`}
-                  >
-                    {t.done
-                      ? <CheckCircle2 size={13} className="text-terminal-green mt-0.5 shrink-0" />
-                      : t.urgent ? <Zap size={13} className="text-terminal-amber mt-0.5 shrink-0" /> : <Circle size={13} className="text-zinc-600 mt-0.5 shrink-0" />}
-                    <span className="flex-1">{t.text}</span>
-                    <ChevronRight size={13} className="text-zinc-600 mt-0.5 shrink-0" />
+            {/* ── You: identity, career ladder, net worth, main buttons ────── */}
+            <div className="rounded-xl border border-[#2a2630] bg-gradient-to-br from-[#0d0e15] via-[#111320] to-[#0c0d13] p-4 md:p-5" style={{ boxShadow: '0 0 40px rgba(201,162,74,0.04) inset, 0 1px 0 rgba(201,162,74,0.08)' }}>
+              <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
+                {/* Identity */}
+                <div className="min-w-0 flex-1 flex items-start gap-3">
+                  {myNation && <div className="pt-1 hidden sm:block"><Flag flag={myNation.flag} width={40} /></div>}
+                  <div className="min-w-0">
+                    <h1 className="text-xl md:text-2xl font-semibold text-zinc-100 truncate">{characterName || 'Citizen'}</h1>
+                    <p className="text-[12px] text-zinc-300 mt-0.5 flex items-center flex-wrap gap-x-1.5">
+                      {me?.party && <span className="inline-block w-2 h-2 rounded-full" style={{ background: me.party.color }} />}
+                      <span>{titleLine}</span>
+                      {me?.party && <span className="text-zinc-500">· {me.party.name}</span>}
+                      {nationName && <span className="text-zinc-500">· {nationName}</span>}
+                    </p>
+                    <p className="text-[10px] text-zinc-600 mt-0.5 font-mono">Age {characterAge} · {formatGameDate()}</p>
+                  </div>
+                </div>
+
+                {/* Career ladder + net worth: side by side on phones too */}
+                <div className="grid grid-cols-2 gap-4 items-center md:flex md:gap-6 shrink-0">
+                {ladder.length > 0 && (
+                  <Link href={pol('desk')} className="md:w-52 min-w-0 group" title="Your political career: eight rungs from citizen to world statesman">
+                    <div className="flex items-baseline justify-between mb-1.5">
+                      <span className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Career</span>
+                      <span className="text-[10px] text-zinc-500">{rungIdx + 1}/{ladder.length}</span>
+                    </div>
+                    <div className="flex gap-1">
+                      {ladder.map(r => <span key={r.key} title={r.title} className={`h-1.5 flex-1 rounded-full ${r.reached ? 'bg-terminal-amber' : 'bg-zinc-800'}`} />)}
+                    </div>
+                    {nextRung && <p className="text-[10px] text-zinc-500 mt-1.5 group-hover:text-zinc-300">Next: <span className="text-zinc-300">{nextRung.title}</span></p>}
                   </Link>
-                ))}
+                )}
+
+                {/* Net worth */}
+                <div className="flex items-center gap-4 shrink-0">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Net worth</span>
+                      <button
+                        type="button"
+                        onClick={handleRecalculateHistory}
+                        disabled={isRecalculating}
+                        title="Rebuild your net worth history if the chart looks wrong"
+                        aria-label="Fix net worth history"
+                        className="text-zinc-600 hover:text-terminal-amber disabled:opacity-50"
+                      >
+                        <RefreshCw size={10} className={isRecalculating ? 'animate-spin' : ''} />
+                      </button>
+                    </div>
+                    <p className="text-xl md:text-2xl font-mono font-bold text-terminal-amber amber-glow leading-tight">{formatMoney(netWorth)}</p>
+                    <p className={`text-[10px] font-mono font-bold whitespace-nowrap ${up ? 'text-terminal-green' : 'text-terminal-red'}`}>
+                      {up ? '▲' : '▼'} {formatMoney(Math.abs(delta))} ({deltaPct.toFixed(1)}%) this month
+                    </p>
+                  </div>
+                  <div className="hidden sm:block w-24 h-12 md:w-28">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={netWorthSeries} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="heroGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={accent} stopOpacity={0.3} />
+                            <stop offset="95%" stopColor={accent} stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <Tooltip content={<ChartTooltip />} />
+                        <Area type="monotone" dataKey="value" stroke={accent} strokeWidth={2} fill="url(#heroGrad)" dot={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                </div>
               </div>
-              {me?.nextGoal && (
-                <p className="mt-3 text-[11px] text-zinc-500 leading-relaxed">
-                  <span className="text-zinc-400 font-medium">Next goal:</span> {me.nextGoal}
-                </p>
-              )}
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <Button href="/drennia/politics" variant="primary" icon={ChevronRight} size="sm">
+                  {urgentCount > 0 ? `Politics (${urgentCount} waiting)` : 'Politics'}
+                </Button>
+                <Button href="/drennia/business" variant="secondary" size="sm">
+                  {company ? `${company.name} →` : 'Start a company →'}
+                </Button>
+                {company && (
+                  <span className="text-[10px] font-mono text-zinc-500">
+                    {sectorLabel}{companyCount > 1 ? ` · +${companyCount - 1} more` : ''} · cash <span className="text-terminal-green">{formatMoney(totalCompanyCash)}</span>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* ── Today + Inbox side by side on desktop (Inbox is a tab below lg) ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card pad="sm" kicker="Today" icon={Zap} title={urgentCount > 0 ? `${urgentCount} thing${urgentCount > 1 ? 's' : ''} need you` : 'Nothing urgent'}>
+                {todayPanel}
+              </Card>
+              <Card pad="sm" className="hidden lg:block" kicker="Inbox" icon={InboxIcon} title={unread > 0 ? `${unread} unread` : 'While you were away'} headerSlot={markReadButton}>
+                {inboxPanel}
+              </Card>
+            </div>
+
+            {/* ── Desktop: news. The world panels live in the sidebar. ───────── */}
+            <Card pad="sm" className="hidden lg:block" kicker="News" icon={Newspaper} headerSlot={newsToggle}>
+              {newsPanel}
             </Card>
 
-            <Card
-              kicker="Inbox"
-              icon={InboxIcon}
-              title={notices ? (notices.unread > 0 ? `${notices.unread} unread` : 'While you were away') : 'While you were away'}
-              headerSlot={notices && notices.unread > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => politicsApi.markNoticesRead().then(() => mutateDesk()).catch(() => {})}
-                  className="text-[10px] text-zinc-500 hover:text-terminal-amber"
-                >
-                  Mark all read
-                </button>
-              ) : undefined}
-            >
-              {!notices ? <SkeletonRows n={4} /> : notices.items.length === 0 ? (
-                <p className="text-[11px] text-zinc-500 leading-relaxed">
-                  Nothing yet. Deal offers, challenges, votes on your bills and your world rank will show up here.
-                </p>
-              ) : (
-                <div className="flex flex-col">
-                  {notices.items.slice(0, 6).map((n: Notice) => (
-                    <Link
-                      key={n.id}
-                      href={n.tab ? pol(n.tab) : pol('desk')}
-                      className={`py-2 px-2 -mx-2 rounded border-b border-[#23232b] last:border-0 hover:bg-zinc-900/40 ${n.read ? '' : 'bg-terminal-amber/5'}`}
-                    >
-                      <div className="flex items-start gap-2">
-                        {!n.read && <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-terminal-amber shrink-0" />}
-                        <div className="min-w-0">
-                          <div className={`text-[12px] leading-snug ${n.read ? 'text-zinc-400' : 'text-zinc-100'}`}>{n.text}</div>
-                          <div className="text-[10px] text-zinc-600 mt-0.5">{formatPolArc(n.arc, false)}</div>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
+            {/* ── Mobile / tablet: everything else in one tabbed card ─────── */}
+            <Card pad="sm" className="lg:hidden">
+              <div className="mb-3 -mx-1 px-1 overflow-x-auto scrollbar-hide">
+                <div className="min-w-max">
+                  <Tabs2 value={mobileTab} onChange={setMobileTab} options={mobileTabs} />
                 </div>
-              )}
-            </Card>
-          </div>
-
-          {/* ── 3. Your nation ─────────────────────────────────────────────── */}
-          <Card
-            kicker={nationName ? `Your Nation · ${nationName}` : 'Your Nation'}
-            icon={FlagIcon}
-            headerSlot={<Link href={pol('nation')} className="text-[10px] text-zinc-500 hover:text-terminal-amber">Open nation →</Link>}
-          >
-            {!desk || !myNation ? <SkeletonRows n={3} /> : (
-              <>
-                <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
-                  <div className="text-[12px] text-zinc-400">
-                    {myNation.government} · capital {myNation.capital}
-                  </div>
-                  <div className="text-[11px] text-zinc-500">
-                    {PHASE_LABEL[desk.calendar.phase] ?? desk.calendar.phase}
-                    {myNation.monthsToElection != null && desk.calendar.phase === 'governing' && ` · election in ${myNation.monthsToElection} month${myNation.monthsToElection === 1 ? '' : 's'}`}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-[8px] font-mono uppercase tracking-[0.15em] text-zinc-600 mb-1">{myNation.leaderTitle}</p>
-                    <p className="text-[13px] font-medium text-zinc-200 truncate">{myNation.premier ?? 'Vacant'}</p>
-                    {myNation.leadParty && (
-                      <p className="text-[10px] text-zinc-500 truncate flex items-center gap-1">
-                        <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: myNation.leadParty.color }} />
-                        {myNation.leadParty.name}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-[8px] font-mono uppercase tracking-[0.15em] text-zinc-600 mb-1">Approval</p>
-                    <p className={`text-[18px] font-mono font-bold ${myNation.approval >= 50 ? 'text-terminal-green' : 'text-terminal-red'}`}>{Math.round(myNation.approval)}%</p>
-                    <p className="text-[10px] text-zinc-500">{myNation.governmentSeats}/{myNation.seats} seats in government</p>
-                  </div>
-                  <div>
-                    <p className="text-[8px] font-mono uppercase tracking-[0.15em] text-zinc-600 mb-1">Jobless</p>
-                    <p className={`text-[18px] font-mono font-bold ${myNation.sim && myNation.sim.unemployment > 0.08 ? 'text-terminal-red' : 'text-zinc-100'}`}>
-                      {myNation.sim ? pct1(myNation.sim.unemployment) : '—'}
-                    </p>
-                    {myNation.sim?.gdpTrend != null && (
-                      <p className="text-[10px] text-zinc-500">GDP <Trend value={myNation.sim.gdpTrend * 100} suffix="%" /></p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-[8px] font-mono uppercase tracking-[0.15em] text-zinc-600 mb-1">World rating</p>
-                    <p className="text-[18px] font-mono font-bold text-terminal-amber">
-                      {myNation.sim ? Math.round(myNation.sim.rating) : '—'}
-                      {myNation.sim && <Trend value={myNation.sim.ratingTrend} />}
-                    </p>
-                    {myNation.sim && <p className="text-[10px] text-zinc-500"><span className="capitalize">{myNation.sim.tier}</span> · #{myNation.sim.rank} of {desk.desk.world.length}</p>}
-                  </div>
-                </div>
-              </>
-            )}
-          </Card>
-
-          {/* ── 4. News: your nation + the world ───────────────────────────── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card kicker={nationName ? `${nationName} Ledger` : 'National Ledger'} icon={Newspaper}>
-              {!desk ? <SkeletonRows n={4} /> : desk.news.length === 0 ? (
-                <p className="text-[11px] text-zinc-500 italic">No national news yet. Bills, elections and scandals will be reported here.</p>
-              ) : (
-                <div className="flex flex-col">
-                  {desk.news.slice(0, 5).map(ev => (
-                    <div key={ev.id} className="py-2.5 border-b border-[#23232b] last:border-0">
-                      <div className="text-[12px] font-semibold text-zinc-200 leading-snug">{ev.headline}</div>
-                      <div className="text-[11px] text-zinc-500 leading-relaxed mt-0.5 line-clamp-2">{ev.body}</div>
-                      <div className="text-[9px] font-mono text-zinc-600 mt-1 uppercase tracking-wider">{formatPolArc(ev.arc, false)}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-
-            <Card
-              kicker={wire?.agency.name ?? 'The Meridian Wire'}
-              icon={Globe}
-              headerSlot={<Link href={pol('wire')} className="text-[10px] text-zinc-500 hover:text-terminal-amber">Read →</Link>}
-            >
-              {!wire ? <SkeletonRows n={4} /> : !wire.edition ? (
-                <p className="text-[11px] text-zinc-500 italic">The first edition prints when the politics month turns.</p>
-              ) : (
+              </div>
+              {mobileTab === 'inbox' && (
                 <>
-                  <h3 className="text-[15px] font-serif font-bold text-zinc-100 leading-snug" style={{ fontFamily: 'Georgia, serif' }}>
-                    {wire.edition.headline}
-                  </h3>
-                  <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-wider mt-1 mb-2">Edition · {formatPolArc(wire.edition.arc, false)}</p>
-                  <div className="flex flex-col">
-                    {wire.edition.stories.slice(0, 3).map((s, i) => (
-                      <div key={i} className="py-2 border-b border-[#23232b] last:border-0">
-                        <div className="text-[9px] font-mono uppercase tracking-widest text-terminal-amber/80">{s.nationName}</div>
-                        <div className="text-[12px] text-zinc-200 leading-snug">{s.headline}</div>
-                      </div>
-                    ))}
-                  </div>
+                  {markReadButton && <div className="flex justify-end mb-1">{markReadButton}</div>}
+                  {inboxPanel}
                 </>
               )}
-            </Card>
-          </div>
-
-          {/* ── 5. Your careers: politics and business side by side ─────────── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card kicker="Political Career" icon={Landmark}>
-              {!desk || !me ? <SkeletonRows n={3} /> : (
-                <>
-                  <p className="text-[14px] font-semibold text-zinc-100">{RUNG_LABEL[me.rung] ?? me.rung}</p>
-                  <p className="text-[11px] text-zinc-500 mt-0.5">
-                    {me.party ? `${me.party.name}${me.party.inGovernment ? ' (in government)' : ''}` : 'No party'}
-                    {me.seatDistrict ? ` · seat: ${me.seatDistrict}` : me.candidacyDistrict ? ` · standing in ${me.candidacyDistrict}` : ''}
-                  </p>
-                  {ladder.length > 0 && (
-                    <div className="mt-3">
-                      <div className="flex gap-1" aria-label={`Rung ${rungIdx + 1} of ${ladder.length}`}>
-                        {ladder.map(r => (
-                          <span key={r.key} title={r.title} className={`h-1.5 flex-1 rounded-full ${r.reached ? 'bg-terminal-amber' : 'bg-zinc-800'}`} />
-                        ))}
-                      </div>
-                      {nextRung && (
-                        <p className="text-[11px] text-zinc-500 mt-2 leading-relaxed">
-                          <span className="text-zinc-400">Next: {nextRung.title}.</span> {ladder[rungIdx]?.next}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  <div className="mt-4">
-                    <Button href={pol('desk')} variant="secondary" size="sm">Open politics desk →</Button>
-                  </div>
-                </>
-              )}
+              {mobileTab === 'news' && (<><div className="mb-2">{newsToggle}</div>{newsPanel}</>)}
+              {mobileTab !== 'inbox' && mobileTab !== 'news' && worldPanel(mobileTab)}
             </Card>
 
-            <Card kicker="Business" icon={Briefcase}>
-              {!company ? (
-                <>
-                  <p className="text-[12px] text-zinc-400 leading-relaxed mb-4">
-                    You do not own a company yet. Register one to build cars, sell into every nation&apos;s market and grow your net worth.
-                  </p>
-                  <Button href="/drennia/business" variant="primary" icon={ChevronRight} size="sm">Start a company</Button>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[14px] font-semibold text-zinc-100 truncate">{company.name}</p>
-                      <p className="text-[11px] text-zinc-500 mt-0.5">
-                        {legalStructureLabel} · {sectorLabel}{companyCount > 1 ? ` · +${companyCount - 1} more` : ''}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-[9px] font-mono text-zinc-600">Company cash</p>
-                      <p className="text-[14px] font-mono font-bold text-terminal-green">{formatMoney(totalCompanyCash)}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex gap-2 flex-wrap">
-                    <Button href="/drennia/business" variant="secondary" size="sm">Open business desk →</Button>
-                    <Button href="/drennia/career" variant="ghost" size="sm">Career record</Button>
-                  </div>
-                </>
-              )}
-            </Card>
-          </div>
-
-          {/* ── 6. Wealth over time ─────────────────────────────────────────── */}
-          <Card
-            kicker="Net Worth · Last 12 Months"
-            icon={TrendingUp}
-            headerSlot={
+            <div className="flex justify-end">
               <button
                 type="button"
-                onClick={handleRecalculateHistory}
-                disabled={isRecalculating}
-                title="Rebuild the chart from your records if it looks wrong"
-                className="flex items-center gap-1.5 px-2 py-1 text-[9px] font-mono uppercase tracking-wider text-zinc-500 border border-zinc-800 hover:text-terminal-amber hover:border-terminal-amber/50 transition-colors rounded disabled:opacity-50"
+                onClick={handleRestartLife}
+                className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.12em] text-zinc-600 hover:text-terminal-red transition-colors"
               >
-                <RefreshCw size={10} className={isRecalculating ? 'animate-spin' : ''} />
-                <span>{isRecalculating ? 'Fixing…' : 'Fix history'}</span>
+                <LogOut size={11} /> Restart life
               </button>
-            }
-          >
-            <ResponsiveContainer width="100%" height={140}>
-              <AreaChart data={netWorthSeries} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="nwGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ff9f0a" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#ff9f0a" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="month" tick={{ fill: '#52525b', fontSize: 9, fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
-                <YAxis hide domain={['dataMin', 'auto']} />
-                <Tooltip content={<ChartTooltip />} />
-                <Area type="monotone" dataKey="value" stroke="#ff9f0a" strokeWidth={2} fill="url(#nwGrad)" dot={false}
-                  activeDot={{ r: 4, fill: '#ff9f0a', stroke: '#090A0F', strokeWidth: 2 }} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </Card>
-
-          {/* ── Account (kept out of the header so it can't be hit by accident) ── */}
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={handleRestartLife}
-              className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.12em] text-zinc-600 hover:text-terminal-red transition-colors"
-            >
-              <LogOut size={11} /> Restart life
-            </button>
+            </div>
           </div>
-
         </PageShell>
       </div>
     </div>
