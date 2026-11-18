@@ -115,8 +115,11 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   // Never send stack traces or raw internal messages to players in production —
   // they leak table names, file paths and SQL. Full details stay in the server log.
   const isProduction = env.NODE_ENV === 'production';
+  // Admins (users.role) see the one-line reason so a broken screen can be diagnosed
+  // from the browser. Never the stack, and never for players.
+  const isAdmin = (req as any).user?.role === 'admin';
   res.status(500).json({
-    error: isProduction ? 'Internal Server Error' : (err.message || 'Internal Server Error'),
+    error: isProduction && !isAdmin ? 'Internal Server Error' : (err.message || 'Internal Server Error'),
     ...(isProduction ? {} : { stack: err.stack }),
     code: 'INTERNAL_SERVER_ERROR',
   });

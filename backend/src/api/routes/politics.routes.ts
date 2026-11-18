@@ -60,6 +60,7 @@ import {
 import { getOrCreateCurrentCycle, bribeVote, getBillCoercions, worldClockToArc } from '../services/politics.service';
 import { getDesk } from '../services/desk.service';
 import { currentPolStateCode, withPlayerNation } from '../services/playerNation';
+import { chronicle } from '../services/administration.service';
 import {
   callFavour, challengeLeadership, voteInContest, chooseSituation, fundraise, issueDecree, offerPact, offerHandshake, respondHandshake, withdrawHandshake, playerPolitics, PlayerPolitics, rally, respondPact, runAd,
 } from '../services/floor.service';
@@ -155,6 +156,10 @@ router.get('/corridors', async (req: Request, res: Response, next: NextFunction)
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
     res.json(await getCorridors(userId));
   } catch (error) { next(error); }
+});
+// World-wide history behind the Nation and World charts, and every nation's administrations.
+router.get('/chronicle', async (_req: Request, res: Response, next: NextFunction) => {
+  try { res.json(await chronicle(db)); } catch (error) { next(error); }
 });
 router.get('/map', async (_req: Request, res: Response, next: NextFunction) => {
   try { res.json(await getPoliticalMap()); } catch (error) { next(error); }

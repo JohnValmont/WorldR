@@ -162,7 +162,40 @@ export interface NationRow {
   power: { economy: number; military: number; influence: number; overall: number };
   sim: NationSim | null;
   monthsToElection: number | null; players: number; cap: number; mine: boolean;
+  /** Who governs now: the elected government, or the head of state's caretaker government. */
+  administration: AdministrationNow | null;
+  election: ElectionOutlook | null;
 }
+export interface AdministrationNow {
+  kind: 'elected' | 'caretaker'; name: string; headName: string; headTitle: string; isPlayer: boolean;
+  partyName: string | null; partyColor: string | null; coalition: string[]; sinceArc: number | null;
+}
+/** When the next election is. During formation it is the next term's, an estimate. */
+export interface ElectionOutlook {
+  phase: string; electionArc: number; monthsToElection: number; estimated: boolean; formationEndArc: number | null;
+  cycleNumber: number; lastElectionArc: number | null;
+}
+export interface AdminSnapshot {
+  arc: number; rating: number | null; tier: string | null; gdpYearly: number | null; unemployment: number | null;
+  population: number | null; debt: number | null; approval: number | null;
+}
+export interface ChronicleAdministration {
+  id: string | null; kind: 'elected' | 'caretaker'; name: string; headName: string; headTitle: string; isPlayer: boolean;
+  partyName: string | null; partyColor: string | null; coalition: string[]; termNumber: number;
+  startArc: number | null; endArc: number | null; months: number; current: boolean;
+  start: AdminSnapshot | null; end: AdminSnapshot | null;
+  change: { rating: number | null; gdpGrowth: number | null; unemployment: number | null; population: number | null; debt: number | null; approval: number | null } | null;
+  laws: { count: number; titles: string[] };
+}
+export interface ChroniclePoint {
+  arc: number; rating: number | null; tier: string | null; gdpYearly: number | null; unemployment: number | null;
+  population: number | null; debt: number | null; approval: number | null;
+}
+export interface ChronicleNation {
+  code: string; countryId: string; name: string; headOfState: { title: string; name: string }; leaderTitle: string; termMonths: number;
+  series: ChroniclePoint[]; current: ChronicleAdministration; administrations: ChronicleAdministration[]; election: ElectionOutlook | null;
+}
+export interface Chronicle { arc: number; nations: ChronicleNation[] }
 export interface DecreeRow { key: string; office: string; title: string; blurb: string; stat: Record<string, number>; support: Record<string, number> }
 export interface Office { titles: string[]; decreeAp: number; lastsMonths: number; usedThisMonth: string | null; decrees: DecreeRow[] }
 
