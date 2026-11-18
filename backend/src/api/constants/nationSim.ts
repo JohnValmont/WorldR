@@ -45,6 +45,8 @@ export const SECTOR_SPECS: Record<SectorId, SectorSpec> = {
 export interface NationEconomySpec {
   population: number;
   jobShare: Record<SectorId, number>;
+  /** Government debt at the start, as a share of a year's output. */
+  debtRatio: number;
 }
 
 export const NATION_ECONOMIES: Record<string, NationEconomySpec> = {
@@ -52,16 +54,19 @@ export const NATION_ECONOMIES: Record<string, NationEconomySpec> = {
   national: {
     population: 10_000_000,
     jobShare: { agriculture: 0.06, manufacturing: 0.20, construction: 0.07, retail: 0.16, services: 0.42, energy: 0.03 },
+    debtRatio: 0.50,
   },
-  // Westmark: ports, trade and money. Fewer factories, many shops and offices.
+  // Westmark: ports, trade and money. Fewer factories, many shops and offices. Borrowed more.
   westmark: {
     population: 9_000_000,
     jobShare: { agriculture: 0.04, manufacturing: 0.12, construction: 0.06, retail: 0.19, services: 0.49, energy: 0.02 },
+    debtRatio: 0.58,
   },
-  // Eryndor: farms, mines and smelters. Bigger, poorer, more industrial.
+  // Eryndor: farms, mines and smelters. Bigger, poorer, more industrial. Thrifty crown.
   eryndor: {
     population: 11_000_000,
     jobShare: { agriculture: 0.11, manufacturing: 0.23, construction: 0.08, retail: 0.13, services: 0.36, energy: 0.05 },
+    debtRatio: 0.42,
   },
 };
 
@@ -111,12 +116,8 @@ export const UNEMPLOYMENT_MAX = 0.35;
  * through its existing stat effects.
  */
 export const LAW_JOB_EFFECTS: Record<string, Record<string, Partial<Record<SectorId, number>>>> = {
-  tariffs: {
-    free_trade: { manufacturing: 0.94, agriculture: 0.95, retail: 1.04, services: 1.02 },
-    moderate:   {},
-    high:       { manufacturing: 1.06, agriculture: 1.04, retail: 0.95, services: 0.98 },
-    targeted:   { manufacturing: 1.03, retail: 0.98 },
-  },
+  // Tariffs are NOT here: what they do to jobs and output depends on what a
+  // nation actually imports, so it comes from the trade model (layer 4 below).
   min_wage: {
     none:      { retail: 1.03, agriculture: 1.03 },
     low:       {},
@@ -190,3 +191,117 @@ export const RATING_TIERS: { min: number; name: string; blurb: string }[] = [
 
 /** Starting ratings must stay within this many points of each other (tests enforce it). */
 export const RATING_BALANCE_TOLERANCE = 3;
+
+// ═══════════════════════ Layer 3: the national budget ═══════════════════════
+// Money in: taxes (set by the tax laws) plus tariff revenue (layer 4).
+// Money out: what the spending laws commit (welfare, health, schools, defence),
+// running costs, interest on debt, and a discretionary budget that the head of
+// government or the finance minister splits between four programmes.
+// All shares are of a year's output (GDP).
+
+/** Tax take by law option, as a share of GDP. */
+export const INCOME_TAX_TAKE: Record<string, number> = { none: 0, flat_low: 0.06, flat_med: 0.12, flat_high: 0.19, prog_mod: 0.13, prog_steep: 0.16 };
+export const CORP_TAX_TAKE: Record<string, number> = { holiday: 0.01, low: 0.026, med: 0.044, high: 0.055, high_loophole: 0.065 };
+/** Sales and other taxes every nation collects. */
+export const OTHER_TAX_TAKE = 0.06;
+
+/** What each spending law commits the state to, as a share of GDP. */
+export const LAW_SPENDING: Record<string, Record<string, number>> = {
+  welfare:    { minimal: 0.02, standard: 0.04, expanded: 0.07, ubi_pilot: 0.06, ubi_full: 0.12 },
+  healthcare: { market: 0.02, hybrid: 0.05, universal: 0.09 },
+  education:  { low: 0.03, med: 0.05, high: 0.075, voucher: 0.045 },
+  defense:    { minimal: 0.01, moderate: 0.025, high: 0.045, very_high: 0.06 },
+};
+/** Courts, roads, offices: the running costs every state pays. */
+export const OTHER_SPENDING = 0.03;
+
+/** Interest the state pays on its debt, by the interest-rate law. Yearly. */
+export const DEBT_INTEREST: Record<string, number> = { loose: 0.02, neutral: 0.035, tight: 0.06 };
+
+/** The discretionary budget the government splits each month: this share of GDP. */
+export const DISCRETIONARY_SHARE = 0.03;
+
+export type ProgrammeId = 'industry' | 'welfare' | 'interior' | 'defence';
+export const PROGRAMMES: ProgrammeId[] = ['industry', 'welfare', 'interior', 'defence'];
+export const PROGRAMME_SPECS: Record<ProgrammeId, { name: string; ministry: string; blurb: string }> = {
+  industry: { name: 'Industry & building', ministry: 'industry', blurb: 'Factory grants and public works: more construction and factory jobs.' },
+  welfare:  { name: 'Health & welfare',    ministry: 'welfare',  blurb: 'Clinics, schools and benefits: lifts the People score and public-service jobs.' },
+  interior: { name: 'Police & courts',     ministry: 'interior', blurb: 'Order and a working state: lifts the Stability score.' },
+  defence:  { name: 'Armed forces',        ministry: 'defence',  blurb: 'Equipment and readiness: lifts the Military score.' },
+};
+/**
+ * The split everyone is measured against: a quarter each, nothing saved.
+ * Effects below are per share above or below this (0.25 -> 0.50 = +0.25).
+ */
+export const BASE_SPLIT: Record<ProgrammeId, number> = { industry: 0.25, welfare: 0.25, interior: 0.25, defence: 0.25 };
+
+/** Job effects: target multiplier = 1 + effect x (share - base). */
+export const PROGRAMME_JOB_EFFECTS: Record<ProgrammeId, Partial<Record<SectorId, number>>> = {
+  industry: { construction: 0.16, manufacturing: 0.05 },
+  welfare:  { services: 0.04 },
+  interior: {},
+  defence:  { manufacturing: 0.03 },
+};
+/** Rating pillar points per share above base: +0.25 share -> +5 points. */
+export const PROGRAMME_PILLAR_EFFECTS: Record<ProgrammeId, Partial<Record<PillarId, number>>> = {
+  industry: { industry: 12 },
+  welfare:  { people: 20 },
+  interior: { stability: 20 },
+  defence:  { military: 20 },
+};
+
+/** Who may set the split: the head of government, or the minister holding this post. */
+export const BUDGET_MINISTER_POST = 'finance';
+
+/**
+ * Computer-run governments split by their lead party's platform, then lean this
+ * far back toward the base split (1 = always base, 0 = pure platform), so a
+ * computer government never goes to extremes.
+ */
+export const NPC_BUDGET_BLEND = 0.6;
+/** And never more than this far from the base split on any programme, whatever the platform. */
+export const NPC_BUDGET_MAX_SHIFT = 0.15;
+
+/** Debt above this share of GDP drags the Economy score; this many points per 10% above. */
+export const DEBT_SAFE_RATIO = 0.9;
+export const DEBT_PENALTY_PER_10PCT = 2;
+/** A state with more debt than this cannot borrow further: the discretionary budget is cut to what taxes cover. */
+export const DEBT_CEILING_RATIO = 2.0;
+
+// ═══════════════════════ Layer 4: trade between nations ══════════════════════
+// Farm goods, factory goods and energy are traded between the nations. Each
+// nation consumes its share of world output (by GDP); what it lacks it imports
+// from nations with a surplus. Tariffs make imports dearer: fewer are bought,
+// more is made at home (jobs) at a cost in efficiency, and exporters lose sales.
+// Effects are measured against each nation's FOUNDING tariff, so starting
+// numbers are unchanged and only later changes move jobs.
+
+export const TRADABLE_SECTORS: SectorId[] = ['agriculture', 'manufacturing', 'energy'];
+
+/** Tariff rate by law option and sector. */
+export const TARIFF_RATES: Record<string, Partial<Record<SectorId, number>>> = {
+  free_trade: { agriculture: 0,    manufacturing: 0,    energy: 0 },
+  moderate:   { agriculture: 0.10, manufacturing: 0.10, energy: 0.10 },
+  high:       { agriculture: 0.25, manufacturing: 0.25, energy: 0.25 },
+  targeted:   { agriculture: 0.05, manufacturing: 0.20, energy: 0.05 },
+};
+
+/** Share of a shortfall bought from abroad = 1 - elasticity x tariff, never below the floor. */
+export const IMPORT_ELASTICITY = 1.5;
+export const IMPORT_SHARE_MIN = 0.2;
+
+/**
+ * What tariffs cost at home, measured on goods a nation actually lacks (a
+ * tariff on goods it does not import does nothing). Both are against the
+ * nation's founding tariffs.
+ * - Shoppers pay the tariff on every unit of the shortfall (imported or made
+ *   at home instead), so they spend less elsewhere: shop and service jobs
+ *   fall by this much per share of GDP that cost takes.
+ * - Making at home what was cheaper abroad wastes effort: output per worker
+ *   falls by this much per share of GDP of protected (substituted) value.
+ */
+export const TARIFF_CONSUMER_JOB_EFFECTS: Partial<Record<SectorId, number>> = { retail: 1.5, services: 0.6 };
+export const TARIFF_DEADWEIGHT = 2;
+/** Trade can never move a sector's jobs more than this far either way in a month's target. */
+export const TRADE_MULT_MIN = 0.6;
+export const TRADE_MULT_MAX = 1.6;

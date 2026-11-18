@@ -128,3 +128,7 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Tiers are absolute score thresholds (RATING_TIERS), not rank positions.
 - The three nations' starting ratings must stay within RATING_BALANCE_TOLERANCE and in the same tier (tests enforce it), measured on base stats: founding laws have no pol_active_policies rows and do not move stats.
 - A nation's sector shares are NATION_ECONOMIES (keyed by pol_states.code). A new nation needs an entry there too.
+- The world steps together (stepNationSims): trade needs every nation at once. Each nation is still written in its own savepoint.
+- Tariffs move jobs ONLY through the trade model (computeTrade). Never add tariff effects to LAW_JOB_EFFECTS (that would count them twice). Trade and tariff effects are measured against each nation's founding tariffs.
+- Only the head of government or the finance minister (BUDGET_MINISTER_POST) sets the budget split, once a month (setBudget). A stored split applies only while its author holds one of those offices; otherwise npcSplit from the lead party's platform. Computer splits stay within NPC_BUDGET_MAX_SHIFT of even.
+- Budget programmes must stay a trade-off: a test keeps an all-in split within 1 rating point of the even split.

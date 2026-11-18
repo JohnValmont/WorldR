@@ -1,8 +1,8 @@
 'use client';
 // Nation: your country among the others, how it is doing, and the powers of office.
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { politicsApi } from '@/lib/api';
-import type { NationRow, NationSim } from './types';
+import type { NationBudget, NationRow, NationSim, NationTrade } from './types';
 import { Btn, Card, Chip, EffectChips, Label, Meter, PartyDot, T, leaderTitle, pct, signed, statLowerIsBetter, statName, useFloor } from './kit';
 
 /** A small flag drawn from the nation's recipe (pattern + colours). */
@@ -189,6 +189,151 @@ function Economy({ sim, name }: { sim: NationSim; name: string }) {
   );
 }
 
+/** Yearly money, short: $12.4B, $820M. */
+const bn = (n: number) => `${n < 0 ? '−' : ''}$${compact(Math.abs(n))}`;
+
+/** The state's books, and (for the head of government or finance minister) the budget split. */
+function Budget({ budget, gdp, name }: { budget: NationBudget; gdp: number; name: string }) {
+  const { desk, act, busy } = useFloor();
+  const me = desk.me;
+  const finance = desk.cabinet.find(c => c.key === 'finance');
+  const canEdit = !!me && (desk.premier?.characterId === me.characterId || finance?.characterId === me.characterId);
+  const [draft, setDraft] = useState<Record<string, number>>(budget.split);
+  useEffect(() => { setDraft(budget.split); }, [budget.split]);
+  const used = Object.values(draft).reduce((a, b) => a + b, 0);
+  const share = (x: number) => (gdp > 0 ? `${(x / gdp * 100).toFixed(1)}% of GDP` : '');
+  const deficit = budget.deficit > 0;
+  const setShare = (id: string, v: number) => {
+    const others = Object.entries(draft).filter(([k]) => k !== id).reduce((a, [, x]) => a + x, 0);
+    setDraft({ ...draft, [id]: Math.max(0, Math.min(v, 1 - others)) });
+  };
+  const maxLine = Math.max(...budget.lines.map(l => l.amount), 1);
+  return (
+    <Card className="p-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <Label>The budget of {name}</Label>
+        <span className="text-[11px]" style={{ color: T.faint }}>Yearly, at this month’s rate</span>
+      </div>
+      <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="rounded-xl p-3" style={{ background: T.raised }}>
+          <div className="text-[10px] uppercase tracking-wider" style={{ color: T.faint }}>Money in</div>
+          <div className="font-serif text-xl font-bold" style={{ color: T.text }}>{bn(budget.revenue)}</div>
+          <div className="text-[11px]" style={{ color: T.faint }}>{budget.tariffs > 0 ? `incl. ${bn(budget.tariffs)} tariffs` : share(budget.revenue)}</div>
+        </div>
+        <div className="rounded-xl p-3" style={{ background: T.raised }}>
+          <div className="text-[10px] uppercase tracking-wider" style={{ color: T.faint }}>Money out</div>
+          <div className="font-serif text-xl font-bold" style={{ color: T.text }}>{bn(budget.spending)}</div>
+          <div className="text-[11px]" style={{ color: T.faint }}>{share(budget.spending)}</div>
+        </div>
+        <div className="rounded-xl p-3" style={{ background: T.raised }}>
+          <div className="text-[10px] uppercase tracking-wider" style={{ color: T.faint }}>{deficit ? 'Deficit' : 'Surplus'}</div>
+          <div className="font-serif text-xl font-bold" style={{ color: deficit ? T.bad : T.good }}>{bn(Math.abs(budget.deficit))}</div>
+          <div className="text-[11px]" style={{ color: T.faint }}>{share(Math.abs(budget.deficit))}</div>
+        </div>
+        <div className="rounded-xl p-3" style={{ background: T.raised }}>
+          <div className="text-[10px] uppercase tracking-wider" style={{ color: T.faint }}>Debt</div>
+          <div className="font-serif text-xl font-bold" style={{ color: budget.debtRatio > 0.9 ? T.bad : T.text }}>{bn(budget.debt)}</div>
+          <div className="text-[11px]" style={{ color: budget.debtRatio > 0.9 ? T.bad : T.faint }}>{pct(budget.debtRatio, 0)} of GDP{budget.debtRatio > 0.9 ? ' · hurting the economy' : ''}</div>
+        </div>
+      </div>
+      {budget.funded < 1 && (
+        <p className="mt-2 text-xs" style={{ color: T.bad }}>Debt is past the ceiling: lenders refuse, so programmes get only {pct(budget.funded, 0)} of their money.</p>
+      )}
+
+      <div className="mt-4 space-y-1.5">
+        {budget.lines.filter(l => l.amount > 0).map(l => (
+          <div key={`${l.kind}-${l.id}`} className="grid grid-cols-[minmax(0,1fr)_70px] sm:grid-cols-[180px_minmax(0,1fr)_70px] gap-2 items-center text-xs">
+            <span style={{ color: l.kind === 'programme' ? T.text : T.dim }}>{l.name}</span>
+            <div className="hidden sm:block"><Meter value={l.amount} max={maxLine} color={l.kind === 'programme' ? T.accent : l.kind === 'interest' ? T.bad : 'rgba(255,255,255,0.35)'} height={4} /></div>
+            <span className="text-right font-mono" style={{ color: T.dim }}>{bn(l.amount)}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 pt-3" style={{ borderTop: `1px solid ${T.line}` }}>
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="text-sm font-semibold" style={{ color: T.text }}>Programmes · {bn(budget.discretionary)} a year to split</div>
+          <span className="text-[11px]" style={{ color: T.faint }}>
+            {budget.splitSource === 'player' ? `Set by ${budget.splitBy}` : `Decided by the ${budget.splitBy ?? 'government'}’s platform`}
+          </span>
+        </div>
+        <div className="mt-2 space-y-3">
+          {budget.programmes.map(p => (
+            <div key={p.id}>
+              <div className="flex items-baseline justify-between gap-2 text-sm">
+                <span style={{ color: T.text }}>{p.name}</span>
+                <span className="font-mono text-xs" style={{ color: T.dim }}>{Math.round((canEdit ? draft[p.id] ?? 0 : p.share) * 100)}%</span>
+              </div>
+              <div className="text-[11px]" style={{ color: T.faint }}>{p.blurb}</div>
+              {canEdit
+                ? <input type="range" min={0} max={100} step={1} aria-label={p.name} disabled={busy || budget.setThisMonth}
+                    value={Math.round((draft[p.id] ?? 0) * 100)} onChange={e => setShare(p.id, Number(e.target.value) / 100)}
+                    className="w-full mt-1" style={{ accentColor: T.accent }} />
+                : <div className="mt-1"><Meter value={p.share * 100} color={T.accent} marker={25} height={5} /></div>}
+            </div>
+          ))}
+        </div>
+        {canEdit && (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <Btn small kind="primary" id="set-budget" disabled={busy || budget.setThisMonth}
+              onClick={() => act(() => politicsApi.setBudget(draft), r => r.message)}>
+              {budget.setThisMonth ? 'Set this month' : 'Set the budget'}
+            </Btn>
+            <span className="text-xs" style={{ color: T.dim }}>{used < 0.995 ? `${Math.round((1 - used) * 100)}% saved: cuts the deficit` : 'All spent'}</span>
+          </div>
+        )}
+        <p className="mt-3 text-[11px]" style={{ color: T.faint }}>
+          A quarter each is neutral. More for one programme means less for the others; saving cuts the deficit but weakens what goes unfunded.
+          Laws decide the rest: tax laws set money in, welfare, health, schools and defence laws set what is committed.
+          {canEdit ? ' One change a month; it takes effect when the month closes.' : ' The head of government or the finance minister sets the split.'}
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+/** Trade with the other nations. */
+function Trade({ trade, name }: { trade: NationTrade; name: string }) {
+  const surplus = trade.balanceYearly >= 0;
+  return (
+    <Card className="p-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <Label>{name} and the world</Label>
+        <span className="text-[11px]" style={{ color: T.faint }}>Farm goods, factory goods and energy, yearly</span>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <Stat label={surplus ? 'Trade surplus' : 'Trade deficit'} value={bn(Math.abs(trade.balanceYearly))} bad={!surplus} />
+        <Stat label="Tariff money" value={bn(trade.tariffRevenueYearly)} />
+        <Stat label="Efficiency" value={`${trade.efficiency >= 1 ? '+' : '−'}${Math.abs((trade.efficiency - 1) * 100).toFixed(1)}%`} bad={trade.efficiency < 1} />
+      </div>
+      <div className="mt-4">
+        <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_80px_80px_60px_80px] gap-2 text-[10px] uppercase tracking-wider pb-1" style={{ color: T.faint }}>
+          <span>Goods</span><span className="text-right">Exports</span><span className="text-right">Imports</span><span className="text-right">Tariff</span><span className="text-right">Jobs</span>
+        </div>
+        {trade.sectors.map(s => (
+          <div key={s.id} className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_80px_80px_60px_80px] gap-x-2 gap-y-0.5 items-baseline text-sm py-1" style={{ borderTop: `1px solid ${T.line}` }}>
+            <span style={{ color: T.text }}>{s.name}</span>
+            <span className="sm:hidden text-right font-mono text-xs" style={{ color: T.dim }}>
+              {s.exportsYearly > 0 ? `sells ${bn(s.exportsYearly)}` : s.importsYearly > 0 ? `buys ${bn(s.importsYearly)}` : 'self-sufficient'} · {pct(s.tariff, 0)} tariff
+            </span>
+            <span className="hidden sm:block text-right font-mono text-xs" style={{ color: s.exportsYearly > 0 ? T.good : T.faint }}>{s.exportsYearly > 0 ? bn(s.exportsYearly) : '—'}</span>
+            <span className="hidden sm:block text-right font-mono text-xs" style={{ color: s.importsYearly > 0 ? T.text : T.faint }}>{s.importsYearly > 0 ? bn(s.importsYearly) : '—'}</span>
+            <span className="hidden sm:block text-right font-mono text-xs" style={{ color: T.dim }}>{pct(s.tariff, 0)}</span>
+            <span className="hidden sm:block text-right font-mono text-xs" style={{ color: Math.abs(s.jobsEffect) < 0.0005 ? T.faint : s.jobsEffect > 0 ? T.good : T.bad }}>
+              {Math.abs(s.jobsEffect) < 0.0005 ? '—' : `${s.jobsEffect > 0 ? '+' : '−'}${Math.abs(s.jobsEffect * 100).toFixed(1)}%`}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[11px]" style={{ color: T.faint }}>
+        Each nation uses its share of the world’s goods; what it lacks it buys from nations with spare. A higher tariff (the Trade Tariffs law)
+        means fewer imports, more made at home and more tariff money, but dearer shopping, less efficient work, and lost sales for your suppliers.
+        A tariff on goods you do not import does nothing. Jobs are measured against your founding tariffs.
+      </p>
+    </Card>
+  );
+}
+
 function StateOfNation() {
   const { desk } = useFloor();
   const approval = desk.approval.live;
@@ -350,6 +495,8 @@ export default function NationView() {
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5">
         <div className="space-y-4 min-w-0">
           {mine?.sim && <Economy sim={mine.sim} name={mine.name} />}
+          {mine?.sim?.budget && <Budget budget={mine.sim.budget} gdp={mine.sim.gdpYearly} name={mine.name} />}
+          {mine?.sim?.trade && <Trade trade={mine.sim.trade} name={mine.name} />}
           <Powers />
           <Cabinet />
         </div>

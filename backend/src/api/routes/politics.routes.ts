@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { setBudget } from '../services/nationSim.service';
 import { getPoliticalMap } from '../services/map.service';
 import { getCorridors, getProfile } from '../services/corridors.service';
 import { authMiddleware, requireAdmin } from '../middlewares/auth.middleware';
@@ -185,6 +186,8 @@ router.post('/notices/read', async (req: Request, res: Response, next: NextFunct
   } catch (error) { next(error); }
 });
 router.post('/decree', floorAction((c, req) => issueDecree(c.trx, c.stateId, c.me, String(req.body?.key ?? ''), c.arc)));
+// The head of government or finance minister splits the discretionary budget (docs/NATIONS_SIMULATION.md, layer 3).
+router.post('/budget', floorAction((c, req) => setBudget(c.trx, c.stateId, c.me, req.body?.split, c.arc)));
 
 // ── Cabinet: the Premier appoints ministers ────────────────────────────────
 router.post('/cabinet/:postKey/appoint', async (req: Request, res: Response, next: NextFunction) => {

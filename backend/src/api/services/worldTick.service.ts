@@ -6,7 +6,7 @@ import { processEconomyMonth } from './economyTick.service';
 import { processExchangeMonth } from './ipoExchange.service';
 import { processPoliticalArc } from './politics.service';
 import { announceEdition, publishEdition, PublishedEdition } from './agency.service';
-import { stepNationSim } from './nationSim.service';
+import { stepNationSims } from './nationSim.service';
 import { processMacroEconomy } from './economy.service';
 import { processAuctions } from './acquisitionAuction.service';
 import { DEFAULT_REAL_SECONDS_PER_MONTH } from '../constants/world';
@@ -395,15 +395,19 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
       // Nations simulation (people, jobs, sectors, world rating). Runs after the
       // month's national stats are updated, one savepoint per nation, so a
       // failure here never rolls back that nation's politics.
-      for (const state of states) {
-        (global as any).tickProgress = `Nation economy: ${state.id}`;
-        try {
-          await trx.transaction(async (sp) => { await stepNationSim(sp, state.id, arc); });
-        } catch (err) {
-          failures.push(`nation-sim:${state.id}`);
-          logger.error(`[world-tick] Nation simulation ${state.id} failed for Y${year} M${month}; skipping.`, err);
-          captureException(err, { subsystem: 'nation-sim', year, month });
+      // Trade needs every nation at once, so the world steps together; each
+      // nation is still written in its own savepoint inside stepNationSims.
+      (global as any).tickProgress = 'Nation economies and trade...';
+      try {
+        for (const f of await trx.transaction(async (sp) => stepNationSims(sp, arc))) {
+          failures.push(`nation-sim:${f.stateId}`);
+          logger.error(`[world-tick] Nation simulation ${f.stateId} failed for Y${year} M${month}; skipping.`, f.error);
+          captureException(f.error, { subsystem: 'nation-sim', year, month });
         }
+      } catch (err) {
+        failures.push('nation-sim');
+        logger.error(`[world-tick] Nation simulation failed for Y${year} M${month}; skipping.`, err);
+        captureException(err, { subsystem: 'nation-sim', year, month });
       }
 
       // The Meridian Wire prints the month's edition once every nation has been

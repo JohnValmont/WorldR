@@ -274,6 +274,7 @@ export const politicsApi = {
   voteInContest: (side: 'challenger' | 'leader') => api.post('/politics/party/contest/vote', { side }).then(res => res.data),
   markNoticesRead: () => api.post('/politics/notices/read').then(res => res.data),
   issueDecree: (key: string) => api.post('/politics/decree', { key }).then(res => res.data),
+  setBudget: (split: Record<string, number>) => api.post('/politics/budget', { split }).then(res => res.data),
   appointMinister: (postKey: string, characterId: string | null) =>
     api.post(`/politics/cabinet/${postKey}/appoint`, { characterId }).then(res => res.data),
   getState: () => api.get(`/politics/state?t=${Date.now()}`).then(res => res.data),
