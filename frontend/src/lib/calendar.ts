@@ -15,8 +15,9 @@ export function absoluteMonth(year: number, month: number): number {
   return year * 12 + month;
 }
 
-function labelFromAbsolute(absMonth: number | undefined, short: boolean): string {
-  if (absMonth === undefined || absMonth === null || Number.isNaN(absMonth)) {
+function labelFromAbsolute(rawMonth: number | undefined, short: boolean): string {
+  const absMonth = Math.round(Number(rawMonth));
+  if (rawMonth === undefined || rawMonth === null || !Number.isFinite(absMonth)) {
     return short ? 'Unk' : 'Unknown Date';
   }
   
@@ -63,8 +64,10 @@ export function formatWorldDateShort(year: number, month: number): string {
  * to it were one month early (arc 0 showed as "Dec Yr -1").
  */
 export function formatPolArc(arc?: number | null, short = true): string {
-  if (arc === undefined || arc === null || Number.isNaN(arc)) return short ? 'Unk' : 'Unknown Date';
-  const year = Math.floor(arc / 12);
-  const month = ((arc % 12) + 12) % 12;
+  const n = Math.round(Number(arc));
+  if (arc === undefined || arc === null || !Number.isFinite(n)) return short ? 'Unk' : 'Unknown Date';
+  // Arcs are whole months. Round so a fractional value (e.g. a chart tick) can never index past MONTHS.
+  const year = Math.floor(n / 12);
+  const month = ((n % 12) + 12) % 12;
   return short ? `${MONTHS[month].slice(0, 3)} Yr ${year}` : `${MONTHS[month]}, Year ${year}`;
 }

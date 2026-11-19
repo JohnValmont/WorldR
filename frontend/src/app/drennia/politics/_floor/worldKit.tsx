@@ -199,7 +199,7 @@ export function TrendChart({ series, metric, height = 260, bands, empty }: {
             <ReferenceArea key={i} x1={Math.max(b.from, first)} x2={Math.min(b.to, last)} fill={b.color} fillOpacity={0.09} stroke="none"
               label={b.to - b.from >= labelMin ? { value: b.label, position: 'insideTopLeft', fill: T.faint, fontSize: 10 } : undefined} />
           ))}
-          <XAxis dataKey="arc" type="number" domain={[first, last]} tick={AXIS} tickLine={false} axisLine={{ stroke: GRID }}
+          <XAxis dataKey="arc" type="number" domain={[first, last]} allowDecimals={false} tick={AXIS} tickLine={false} axisLine={{ stroke: GRID }}
             tickFormatter={(a: number) => formatPolArc(a, true)} minTickGap={36} />
           <YAxis tick={AXIS} tickLine={false} axisLine={false} width={56} domain={yDomain} ticks={yTicks} interval={0} tickFormatter={(v: number) => metric.format(v)} />
           <Tooltip content={<ChartTooltip metric={metric} series={series} />} cursor={{ stroke: T.lineStrong, strokeWidth: 1 }} />

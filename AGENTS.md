@@ -55,6 +55,7 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Migrations that run automatically live in ROOT `database/migrations/` (the server resolves
   `<cwd>/../database` first). `backend/database/migrations/` is NOT run on boot — do not add files there.
 - Never put one-off data/schema patches in server.ts boot code. Write an idempotent migration.
+- `CREATE TABLE IF NOT EXISTS` does NOT reshape a table that already exists with other columns (0097 kept an old pol_cabinet_posts without post_key; fixed by 0108). When a table may already exist, check its columns and repair it in the migration.
 - Admin rights come only from users.role. Grant via the ADMIN_EMAILS env var or
   `npx tsx backend/scripts/set-admin.ts <email>`. Never hard-code emails.
 - Never hard-code connection strings or secrets in any file, including throwaway scripts.
