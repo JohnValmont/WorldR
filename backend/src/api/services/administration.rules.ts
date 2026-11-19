@@ -144,8 +144,14 @@ export function electionOutlook(input: {
   firstTermCut: number;
 }): { phase: string; electionArc: number; monthsToElection: number; estimated: boolean; formationEndArc: number | null } {
   if (input.phase === 'formation' || input.arc > input.pollingArc) {
-    const next = input.pollingArc + input.termMonths - input.firstTermCut;
-    return { phase: 'formation', electionArc: next, monthsToElection: Math.max(0, next - input.arc), estimated: true, formationEndArc: input.formationEndArc };
+    // The next term starts when a government forms (performCycleRollover), never before
+    // this month: an overdue count (a missed month) must not date the next election, or
+    // the talks deadline, in the past.
+    const next = Math.max(input.pollingArc, input.arc) + input.termMonths - input.firstTermCut;
+    return {
+      phase: 'formation', electionArc: next, monthsToElection: Math.max(0, next - input.arc), estimated: true,
+      formationEndArc: Math.max(input.formationEndArc, input.arc),
+    };
   }
   return { phase: input.phase, electionArc: input.pollingArc, monthsToElection: Math.max(0, input.pollingArc - input.arc), estimated: false, formationEndArc: null };
 }

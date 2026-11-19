@@ -92,7 +92,7 @@ import {
   POL_BRIBE_MAX_PER_BILL,
   POL_COERCION_FACTION_HIT,
 } from '../constants/politics';
-import { EngineCandidate, electionStep, runElection } from './electionEngine';
+import { EngineCandidate, electionStep, lateCountCalendar, runElection } from './electionEngine';
 import { fireGoverningEvent, fireConditionCrises } from './governingEvents';
 import { NationalStats, readNationalStatsFromRow, calculateNationalEconomy, enactPolicy } from './nationalEconomy.service';
 import { safeParseJSON } from '../../utils/json';
@@ -869,7 +869,12 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
   if (currentMonth >= cycle.polling_arc && !hasResults) {
     await resolveElection(trx, cycle.id);
     activePhase = 'polling';
-    await trx('pol_cycles').where({ id: cycle.id }).update({ phase: 'polling' });
+    // A late count is dated the month it happens, so talks get their full window.
+    const moved = lateCountCalendar(cycle, currentMonth, POL_FORMATION_WINDOW_MONTHS);
+    if (moved) {
+      logger.warn(`[politics] Election for state ${stateId} counted late (due arc ${cycle.polling_arc}, counted ${currentMonth}); talks now end at arc ${moved.formation_end_arc}.`);
+    }
+    await trx('pol_cycles').where({ id: cycle.id }).update({ phase: 'polling', ...(moved ?? {}) });
   }
 
   if (activePhase === 'polling' || activePhase === 'formation' || currentMonth >= cycle.polling_arc) {

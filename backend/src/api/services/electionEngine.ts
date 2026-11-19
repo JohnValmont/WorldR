@@ -265,6 +265,21 @@ export function electionStep(state: { hasSeats: boolean; hasResults: boolean }):
   return state.hasResults ? 'recount' : 'count';
 }
 
+/**
+ * An election counted after its polling month (a missed or failed month) is dated
+ * the month it is actually counted, and coalition talks get their full window from
+ * then. Otherwise talks would show a deadline already in the past and close at the
+ * very next month end. Returns null when the count is on time (nothing to move).
+ */
+export function lateCountCalendar(
+  cycle: { polling_arc: number; formation_end_arc: number },
+  countedAt: number,
+  windowMonths: number,
+): { polling_arc: number; formation_end_arc: number } | null {
+  if (countedAt <= cycle.polling_arc) return null;
+  return { polling_arc: countedAt, formation_end_arc: countedAt + windowMonths };
+}
+
 export function runElection(input: ElectionInput): ElectionResult {
   const perConstituency: ConstituencyResult[] = [];
   const candidateResults: Record<string, { partyId: string; votes: number; wonSeat: boolean; constituencyId: string }> = {};
