@@ -144,20 +144,24 @@ export interface ChronicleAdministration {
 export async function chronicle(conn: any) {
   const arc = await currentArcOf(conn);
   const since = arc - CHRONICLE_MONTHS;
-  const nations = [];
-  for (const spec of STARTER_NATIONS) {
+  // The nations are independent: build them side by side (order kept).
+  const nations = (await Promise.all(STARTER_NATIONS.map(async spec => {
     const state = await conn('pol_states').where({ code: spec.polStateCode }).first();
-    if (!state) continue;
-    const months = await conn('nation_sim_months').where({ state_id: state.id }).where('arc', '>=', since).orderBy('arc', 'asc')
-      .select('arc', 'rating', 'tier', 'gdp_yearly', 'unemployment', 'population', 'debt');
-    const polls = await conn('pol_poll_snapshots').where({ state_id: state.id }).whereNull('party_id').where('arc', '>=', since).select('arc', 'approval');
+    if (!state) return null;
+    const [months, polls, rows, who, election] = await Promise.all([
+      conn('nation_sim_months').where({ state_id: state.id }).where('arc', '>=', since).orderBy('arc', 'asc')
+        .select('arc', 'rating', 'tier', 'gdp_yearly', 'unemployment', 'population', 'debt'),
+      conn('pol_poll_snapshots').where({ state_id: state.id }).whereNull('party_id').where('arc', '>=', since).select('arc', 'approval'),
+      conn('pol_administrations').where({ state_id: state.id }).orderBy('start_arc', 'desc').limit(CHRONICLE_ADMINISTRATIONS),
+      currentIdentity(conn, state, spec),
+      electionFor(conn, state, arc),
+    ]);
     const approvalAt = new Map<number, number>(polls.map((p: any) => [Number(p.arc), Number(p.approval)]));
     const series = months.map((m: any) => ({
       arc: Number(m.arc), rating: num(m.rating), tier: m.tier, gdpYearly: num(m.gdp_yearly), unemployment: num(m.unemployment),
       population: num(m.population), debt: num(m.debt), approval: approvalAt.get(Number(m.arc)) ?? null,
     }));
 
-    const rows = await conn('pol_administrations').where({ state_id: state.id }).orderBy('start_arc', 'desc').limit(CHRONICLE_ADMINISTRATIONS);
     const passed = rows.length
       ? await conn('pol_bills').where({ state_id: state.id, status: 'passed' }).where('resolved_arc', '>=', Math.min(...rows.map((r: any) => Number(r.start_arc))))
         .orderBy('resolved_arc', 'asc').select('type', 'params', 'resolved_arc')
@@ -178,7 +182,6 @@ export async function chronicle(conn: any) {
 
     // Before the first month closes after this feature ships, nothing is stored yet:
     // show who governs now, without writing anything.
-    const who = await currentIdentity(conn, state, spec);
     const open = administrations.find(a => a.current);
     const current: ChronicleAdministration = open && sameAdministration({ ...who }, {
       kind: open.kind, headName: open.headName, headCharacterId: rows.find((r: any) => r.id === open.id)?.head_character_id ?? null,
@@ -189,19 +192,22 @@ export async function chronicle(conn: any) {
       startArc: null, endArc: null, months: 0, current: true, start: null, end: null, change: null, laws: { count: 0, titles: [] },
     };
 
-    nations.push({
+    return {
       code: state.code, countryId: spec.countryId, name: spec.shortName, headOfState: { title: spec.headOfState.title, name: spec.headOfState.name },
       leaderTitle: spec.headOfGovernment.title, termMonths: getTermMonthsForState(state.code),
-      series, current, administrations, election: await electionFor(conn, state, arc),
-    });
-  }
+      series, current, administrations, election,
+    };
+  }))).filter(<T>(n: T | null): n is T => n !== null);
   return { arc, nations };
 }
 
 /** Current administration and election outlook for one nation (used by the world rows). */
 export async function nationGovernmentSummary(conn: any, state: any, spec: NationSpec, arc: number) {
-  const who = await currentIdentity(conn, state, spec);
-  const open = await conn('pol_administrations').where({ state_id: state.id }).whereNull('end_arc').first();
+  const [who, open, election] = await Promise.all([
+    currentIdentity(conn, state, spec),
+    conn('pol_administrations').where({ state_id: state.id }).whereNull('end_arc').first(),
+    electionFor(conn, state, arc),
+  ]);
   const stored = open && sameAdministration(rowIdentity(open), who) ? open : null;
   return {
     administration: {
@@ -209,6 +215,6 @@ export async function nationGovernmentSummary(conn: any, state: any, spec: Natio
       isPlayer: !!who.headCharacterId, partyName: who.partyName, partyColor: who.partyColor, coalition: who.coalition,
       sinceArc: stored ? Number(stored.start_arc) : null,
     },
-    election: await electionFor(conn, state, arc),
+    election,
   };
 }

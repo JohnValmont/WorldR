@@ -68,58 +68,60 @@ export interface WorldPolitician {
  * parties with seats. Scored with influenceScore.
  */
 export async function loadWorldPoliticians(conn: any, arc: number): Promise<WorldPolitician[]> {
-  const out: WorldPolitician[] = [];
   const since = arc - INDEX_RECORD_MONTHS;
-  for (const spec of STARTER_NATIONS) {
+  // The nations are independent: score them side by side, then list them in STARTER_NATIONS order.
+  const perNation = await Promise.all(STARTER_NATIONS.map(async spec => {
+    const out: WorldPolitician[] = [];
     const state = await conn('pol_states').where({ code: spec.polStateCode }).first();
-    if (!state) continue;
-    const gov = await getGovernment(conn, state.id);
-    const laws = await getLawsInForce(conn, state.id);
+    if (!state) return out;
+    const [gov, laws, parties, premier, posts, openCycle, players] = await Promise.all([
+      getGovernment(conn, state.id),
+      getLawsInForce(conn, state.id),
+      conn('pol_parties as p').leftJoin('pol_party_identities as i', 'i.party_id', 'p.id')
+        .where('p.state_id', state.id).select('p.id', 'p.name', 'p.leader_character_id', 'i.color', 'i.leader as npc_leader'),
+      conn('pol_offices').where({ state_id: state.id, office: 'premier' }).orderBy('since_arc', 'desc').first(),
+      conn('pol_cabinet_posts').where({ state_id: state.id }).whereNotNull('holder_character_id').select('holder_character_id', 'post_key'),
+      conn('pol_cycles').where({ state_id: state.id, status: 'open' }).first(),
+      conn('characters as c').join('users as u', 'u.id', 'c.user_id')
+        .where({ 'c.motherland_country_id': spec.countryId, 'c.status': 'active' })
+        .whereNot('u.password_hash', SYSTEM_NO_LOGIN)
+        .select('c.id', 'c.name', 'c.credibility', 'c.influence', 'u.last_seen_at'),
+    ]);
     const power = nationPower(readNationalStatsFromRow(state) as any, laws.defense).overall;
     const totalSeats = Object.values(gov.seatsByParty).reduce((a, b) => a + num(b), 0);
     const share = (pid: string | null | undefined) => (pid && totalSeats > 0 ? num(gov.seatsByParty[pid]) / totalSeats : 0);
     const govShare = totalSeats > 0 ? gov.memberPartyIds.reduce((a, id) => a + num(gov.seatsByParty[id]), 0) / totalSeats : 0;
     const headTitle = headOfGovernmentTitle(state.code);
 
-    const parties = await conn('pol_parties as p').leftJoin('pol_party_identities as i', 'i.party_id', 'p.id')
-      .where('p.state_id', state.id).select('p.id', 'p.name', 'p.leader_character_id', 'i.color', 'i.leader as npc_leader');
     const partyById = new Map<string, any>(parties.map((p: any) => [p.id, p]));
-    const premier = await conn('pol_offices').where({ state_id: state.id, office: 'premier' }).orderBy('since_arc', 'desc').first();
-    const posts = await conn('pol_cabinet_posts').where({ state_id: state.id }).whereNotNull('holder_character_id').select('holder_character_id', 'post_key');
     const postOf = new Map<string, string>(posts.map((p: any) => [p.holder_character_id, CABINET_POSTS.find(x => x.key === p.post_key)?.title ?? 'Minister']));
-    const seated = new Set<string>(gov.sittingCycleId
-      ? await conn('pol_council_seats').where({ cycle_id: gov.sittingCycleId }).whereNotNull('character_id').pluck('character_id')
-      : []);
-    const openCycle = await conn('pol_cycles').where({ state_id: state.id, status: 'open' }).first();
-    const candidates = new Set<string>(openCycle
-      ? await conn('pol_candidates').where({ cycle_id: openCycle.id }).whereNotNull('character_id').pluck('character_id')
-      : []);
-
-    const players = await conn('characters as c').join('users as u', 'u.id', 'c.user_id')
-      .where({ 'c.motherland_country_id': spec.countryId, 'c.status': 'active' })
-      .whereNot('u.password_hash', SYSTEM_NO_LOGIN)
-      .select('c.id', 'c.name', 'c.credibility', 'c.influence', 'u.last_seen_at');
     const ids = players.map((p: any) => p.id);
-    const members = ids.length ? await conn('pol_party_members').whereIn('character_id', ids).select('character_id', 'party_id') : [];
-    const partyOf = new Map<string, string>(members.filter((m: any) => partyById.has(m.party_id)).map((m: any) => [m.character_id, m.party_id]));
+    const [seatedIds, candidateIds, members, lawRows, hs, pacts, endorseRows] = await Promise.all([
+      gov.sittingCycleId ? conn('pol_council_seats').where({ cycle_id: gov.sittingCycleId }).whereNotNull('character_id').pluck('character_id') : Promise.resolve([]),
+      openCycle ? conn('pol_candidates').where({ cycle_id: openCycle.id }).whereNotNull('character_id').pluck('character_id') : Promise.resolve([]),
+      ids.length ? conn('pol_party_members').whereIn('character_id', ids).select('character_id', 'party_id') : Promise.resolve([]),
+      // Record over the last year: laws tabled that passed; promises kept and broken.
+      ids.length ? conn('pol_bills').where({ state_id: state.id, status: 'passed' }).whereIn('tabled_by_character_id', ids)
+        .where('resolved_arc', '>=', since).select('tabled_by_character_id').count('* as n').groupBy('tabled_by_character_id') : Promise.resolve([]),
+      conn('pol_handshakes').where({ state_id: state.id }).where('resolved_arc', '>=', since)
+        .select('from_character_id', 'to_character_id', 'from_result', 'to_result'),
+      conn('pol_pacts').where({ state_id: state.id }).whereIn('status', ['kept', 'broken']).where('resolved_arc', '>=', since).select('to_party_id', 'status'),
+      ids.length ? conn('agency_dispatches').where({ arc, status: 'published' }).whereIn('author_character_id', ids)
+        .select('author_character_id').sum({ n: 'endorse_count' }).groupBy('author_character_id') : Promise.resolve([]),
+    ]);
+    const seated = new Set<string>(seatedIds);
+    const candidates = new Set<string>(candidateIds);
+    const partyOf = new Map<string, string>((members as any[]).filter((m: any) => partyById.has(m.party_id)).map((m: any) => [m.character_id, m.party_id]));
 
-    // Record over the last year: laws tabled that passed; promises kept and broken.
-    const lawRows = ids.length ? await conn('pol_bills').where({ state_id: state.id, status: 'passed' }).whereIn('tabled_by_character_id', ids)
-      .where('resolved_arc', '>=', since).select('tabled_by_character_id').count('* as n').groupBy('tabled_by_character_id') : [];
-    const lawsOf = new Map<string, number>(lawRows.map((r: any) => [r.tabled_by_character_id, num(r.n)]));
+    const lawsOf = new Map<string, number>((lawRows as any[]).map((r: any) => [r.tabled_by_character_id, num(r.n)]));
     const word = new Map<string, { kept: number; broken: number }>();
     const addWord = (id: string | null, r: string | null) => {
       if (!id || (r !== 'kept' && r !== 'broken')) return;
       const w = word.get(id) ?? { kept: 0, broken: 0 }; w[r]++; word.set(id, w);
     };
-    const hs = await conn('pol_handshakes').where({ state_id: state.id }).where('resolved_arc', '>=', since)
-      .select('from_character_id', 'to_character_id', 'from_result', 'to_result');
     for (const h of hs) { addWord(h.from_character_id, h.from_result); addWord(h.to_character_id, h.to_result); }
-    const pacts = await conn('pol_pacts').where({ state_id: state.id }).whereIn('status', ['kept', 'broken']).where('resolved_arc', '>=', since).select('to_party_id', 'status');
     for (const p of pacts) addWord(partyById.get(p.to_party_id)?.leader_character_id ?? `npc:${p.to_party_id}`, p.status);
-    const endorseRows = ids.length ? await conn('agency_dispatches').where({ arc, status: 'published' }).whereIn('author_character_id', ids)
-      .select('author_character_id').sum({ n: 'endorse_count' }).groupBy('author_character_id') : [];
-    const endorseOf = new Map<string, number>(endorseRows.map((r: any) => [r.author_character_id, num(r.n)]));
+    const endorseOf = new Map<string, number>((endorseRows as any[]).map((r: any) => [r.author_character_id, num(r.n)]));
     const activeSince = Date.now() - NATION_ACTIVE_DAYS * 86_400_000;
 
     for (const c of players) {
@@ -164,8 +166,9 @@ export async function loadWorldPoliticians(conn: any, arc: number): Promise<Worl
         }),
       });
     }
-  }
-  return out;
+    return out;
+  }));
+  return perNation.flat();
 }
 
 /** What an edition stores for one ranked politician. */
@@ -432,10 +435,14 @@ function editionView(e: any, myId: string | null) {
 
 /** GET /agency/front: the latest edition, this month's dispatches, the live Index and my standing. */
 export async function getFront(userId: string | null) {
-  const me = userId ? await db('characters').where({ user_id: userId, status: 'active' }).first() : null;
-  const arc = await currentArc(db);
-  const latest = await db('agency_editions').orderBy('arc', 'desc').first();
-  const archive = await db('agency_editions').orderBy('arc', 'desc').limit(24).select('arc', 'headline');
+  // Independent lookups load side by side (each is a round trip to the database).
+  const [me, arc, latest, archive, live] = await Promise.all([
+    userId ? db('characters').where({ user_id: userId, status: 'active' }).first() : Promise.resolve(null),
+    currentArc(db),
+    db('agency_editions').orderBy('arc', 'desc').first(),
+    db('agency_editions').orderBy('arc', 'desc').limit(24).select('arc', 'headline'),
+    liveIndex(),
+  ]);
 
   const feedRows = await dispatchQuery(db).where('d.arc', arc)
     .andWhere((q: any) => { q.where('d.status', 'published'); if (me) q.orWhere((qq: any) => qq.where('d.author_character_id', me.id).whereNot('d.status', 'removed')); })
@@ -445,12 +452,16 @@ export async function getFront(userId: string | null) {
     : [];
   const myReaction = new Map<string, string>(reacted.map((r: any) => [r.dispatch_id, r.kind]));
 
-  const live = await liveIndex();
   let allowance = null;
+  let career = null;
   if (me) {
-    const filed = num((await db('agency_dispatches').where({ author_character_id: me.id, arc }).count('* as n').first())?.n);
-    const energy = await getEnergy(db, me.id, arc);
-    allowance = { filed, perMonth: DISPATCH_PER_MONTH, ap: DISPATCH_AP, energy: energy.current };
+    const [filedRow, energy, myCareer] = await Promise.all([
+      db('agency_dispatches').where({ author_character_id: me.id, arc }).count('* as n').first(),
+      getEnergy(db, me.id, arc),
+      careerOf(db, me.id),
+    ]);
+    allowance = { filed: num((filedRow as any)?.n), perMonth: DISPATCH_PER_MONTH, ap: DISPATCH_AP, energy: energy.current };
+    career = myCareer;
   }
 
   return {
@@ -465,7 +476,7 @@ export async function getFront(userId: string | null) {
     },
     dispatches: feedRows.map((d: any) => ({ ...dispatchRow(d), mine: !!me && d.author_character_id === me.id, myReaction: myReaction.get(d.id) ?? null })),
     allowance,
-    career: me ? await careerOf(db, me.id) : null,
+    career,
     rules: {
       perMonth: DISPATCH_PER_MONTH, ap: DISPATCH_AP, headlineMax: DISPATCH_HEADLINE_MAX, bodyMax: DISPATCH_BODY_MAX,
       endorsementsPerClout: DISPATCH_ENDORSEMENTS_PER_CLOUT, maxCloutPerMonth: DISPATCH_MAX_CLOUT_PER_MONTH,

@@ -104,3 +104,29 @@ export function rankDistricts(options: DistrictOption[]): RankedDistrict[] {
 export function draftDistrict(options: DistrictOption[]): DistrictOption | null {
   return rankDistricts(options).find(d => !d.takenBy) ?? null;
 }
+
+/**
+ * Owner decision (2026-11-19): nobody waits without a district. While there is
+ * an election ahead to stand in, an unplaced party member is put up in their
+ * party's best open district. During polling and formation the next election
+ * has no cycle yet; they are placed the month the new term opens.
+ */
+export function placesUnfiledMembers(phase: ElectionPhase): boolean {
+  return phase === 'governing' || phase === 'filing' || phase === 'campaign';
+}
+
+/** What the member is told when their party puts them up in a district. */
+export function draftNotice(input: {
+  phase: ElectionPhase; partyName: string; districtName: string; partyShare: number;
+  filingArc: number; campaignArc: number; pollingArc: number;
+}): string {
+  const poll = `${Math.round(input.partyShare * 100)}% in today's poll`;
+  const where = `${input.partyName} put you up in ${input.districtName}, its best open district for you (${poll}).`;
+  if (input.phase === 'campaign') {
+    return `Filing has closed and you had not picked a district, so ${where} Campaign there: votes are counted in ${polArcLabel(input.pollingArc)}.`;
+  }
+  const change = input.phase === 'filing'
+    ? `You can change district until ${polArcLabel(input.campaignArc)}.`
+    : `You can change district during filing, ${polArcLabel(input.filingArc)} to ${polArcLabel(input.campaignArc - 1)}.`;
+  return `You had no district for the next election, so ${where} ${change}`;
+}

@@ -8,6 +8,7 @@ import { Btn, Card, Chip, EffectChips, Label, Meter, PartyDot, T, money, pct, si
 import { BillCard } from './bills';
 import { coalitionNeedsMe } from './CoalitionView';
 import { RaceHero } from './race';
+import { electionLine } from './worldKit';
 
 const TONE = { good: T.good, mixed: T.accent, bad: T.bad } as const;
 
@@ -139,7 +140,7 @@ function Standing() {
         ))}
       </div>
       <div className="text-[11px] mt-2" style={{ color: T.faint }}>
-        Vote share and projected seats of {desk.parliament.seats}. Majority {desk.parliament.majority}. Election in {desk.calendar.monthsToElection} month{desk.calendar.monthsToElection === 1 ? '' : 's'}.
+        Vote share and projected seats of {desk.parliament.seats}. Majority {desk.parliament.majority}. {electionLine(desk.desk.world.find(n => n.mine)?.election)}.
       </div>
     </Card>
   );
@@ -261,7 +262,7 @@ export default function DeskView() {
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: T.faint }}>This month</div>
             <h2 className="font-serif text-2xl sm:text-3xl font-bold leading-tight flex items-center gap-3" style={{ color: T.text }}>
               {pendingCount > 0 && <span className="inline-flex items-center justify-center rounded-xl font-sans text-lg" style={{ minWidth: 38, height: 38, background: T.accent, color: '#17130A', boxShadow: '0 0 24px rgba(232,184,75,0.45)' }}>{pendingCount}</span>}
-              {pendingCount > 0 ? `thing${pendingCount === 1 ? '' : 's'} need you` : 'Your desk is clear'}
+              {pendingCount > 0 ? (pendingCount === 1 ? 'thing needs you' : 'things need you') : 'Your desk is clear'}
             </h2>
             <p className="text-sm mt-1" style={{ color: T.dim }}>{me.nextGoal}</p>
           </div>

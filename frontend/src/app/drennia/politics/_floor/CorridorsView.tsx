@@ -8,6 +8,7 @@ import { chatApi, politicsApi, type ChatMessage } from '@/lib/api';
 import type { Corridors, Deal, DealSide, Person, Vote } from './types';
 import { Btn, Card, Chip, Label, PartyDot, Sheet, T, money, useFloor } from './kit';
 import { errorText } from './worldKit';
+import { TAB_DATA } from './tabData';
 
 type Room = { kind: 'nation' } | { kind: 'party' } | { kind: 'dm'; id: string; name: string };
 
@@ -254,7 +255,7 @@ function Rooms({ room, setRoom, hasParty }: { room: Room; setRoom: (r: Room) => 
 
 export default function CorridorsView() {
   const { desk } = useFloor();
-  const { data: c, mutate, error } = useSWR('corridors', () => politicsApi.getCorridors(), { refreshInterval: 20_000 });
+  const { data: c, mutate, error } = useSWR(TAB_DATA.corridors.key, TAB_DATA.corridors.fetch, { refreshInterval: 20_000 });
   const [room, setRoom] = useState<Room>({ kind: 'nation' });
   const [profile, setProfile] = useState<Person | null>(null);
   const [dealWith, setDealWith] = useState<Person | null>(null);

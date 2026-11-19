@@ -1,5 +1,6 @@
 import { currentPolStateCode } from '../services/playerNation';
 import { castVote, onJoinParty, onLeaveParty, playerPolitics, switchCooldownLeft } from '../services/floor.service';
+import { placeNewMember } from '../services/candidacy.service';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { projectPartyVotes, getGovernment, getLawsInForce, findOption, billTitle, liveApproval, approvalVoteMultiplier } from '../services/statecraft.service';
@@ -476,6 +477,8 @@ export async function foundParty(req: Request, res: Response, next: NextFunction
         role: 'leader',
         joined_arc: currentMonth
       });
+      // The founder stands for the coming election in the new party's best district (changeable in filing).
+      await placeNewMember(trx, activeState.id, character.id, currentMonth);
 
       // Generate the party's internal factions based on its doctrine.
       // Wrapped individually: these are enrichment steps. If a supporting table
@@ -688,7 +691,10 @@ export async function joinParty(req: Request, res: Response, next: NextFunction)
         joined_arc: currentMonth
       });
       // Human members take the party's seats before its computer-run MPs.
-      return onJoinParty(trx, character, party, currentMonth, await getGovernment(trx, party.state_id));
+      const seated = await onJoinParty(trx, character, party, currentMonth, await getGovernment(trx, party.state_id));
+      // ...and stand for the coming election in the party's best open district (changeable in filing).
+      await placeNewMember(trx, party.state_id, character.id, currentMonth);
+      return seated;
     });
 
     return res.json({ success: true, ...joined });

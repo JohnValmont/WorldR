@@ -788,9 +788,7 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
   }
 
   if (newPhase === 'campaign') {
-    // Filing has closed: members who never chose a district stand in their best open one.
     await ensureCandidates(trx, cycle.id);
-    await draftUnfiledMembers(trx, await trx('pol_states').where({ id: stateId }).first(), cycle, currentMonth);
     const pendingActions = await trx('pol_campaign_actions')
       .join('pol_candidates', 'pol_campaign_actions.candidate_id', 'pol_candidates.id')
       .where('pol_campaign_actions.cycle_id', cycle.id)
@@ -882,6 +880,19 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
     // phase / status that resolveElection or prior ticks may have written.
     const freshCycle = await trx('pol_cycles').where({ id: cycle.id }).first();
     await processGovernmentFormation(trx, freshCycle ?? cycle, currentMonth);
+  }
+
+  // Nobody waits without a district (candidacy.service draftUnfiledMembers):
+  // members who have not chosen are put up in their best open district for the
+  // coming election. After formation this is the new term's cycle, so players
+  // are placed the month a government forms. Its own savepoint.
+  try {
+    await trx.transaction(async (sp: any) => {
+      const openCycle = await sp('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
+      if (openCycle) await draftUnfiledMembers(sp, await sp('pol_states').where({ id: stateId }).first(), openCycle, currentMonth);
+    });
+  } catch (err) {
+    logger.error(`[politics] placing members in districts failed for state ${stateId} at arc ${currentMonth}; skipped.`, err);
   }
 
   // resolveBills runs in every phase so bills proposed during filing/campaign

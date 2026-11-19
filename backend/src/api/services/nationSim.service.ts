@@ -9,6 +9,7 @@
  * support never read the rating, unemployment, GDP, budget or trade.
  */
 import { AppError } from '../../utils/errors';
+import { cachedRead } from './readCache';
 import {
   BUDGET_MINISTER_POST, DISCRETIONARY_SHARE, NATION_SIM_ENABLED, PILLAR_NAMES, PillarId, PROGRAMME_SPECS, PROGRAMMES,
   SECTOR_SPECS, SECTORS, SectorId, TRADABLE_SECTORS,
@@ -53,7 +54,10 @@ async function budgetHolders(conn: any, stateId: string): Promise<string[]> {
   return out;
 }
 
-export async function resolveSplit(conn: any, stateId: string): Promise<SplitSource> {
+export function resolveSplit(conn: any, stateId: string): Promise<SplitSource> {
+  return cachedRead(conn, `budgetSplit:${stateId}`, () => loadSplit(conn, stateId));
+}
+async function loadSplit(conn: any, stateId: string): Promise<SplitSource> {
   const row = await conn('nation_budgets').where({ state_id: stateId }).first();
   if (row?.set_by_character_id && (await budgetHolders(conn, stateId)).includes(row.set_by_character_id)) {
     const who = await conn('characters').where({ id: row.set_by_character_id }).select('name').first();
@@ -81,12 +85,13 @@ function rowToState(row: any, ctx: R.NationSimContext): R.NationSimState {
 }
 
 async function loadNation(conn: any, state: any, arc: number | null): Promise<Loaded> {
+  const [laws, playerFactoryCapacity, split] = await Promise.all([
+    getLawsInForce(conn, state.id), factoryCapacity(conn, state.country_id), resolveSplit(conn, state.id),
+  ]);
   const ctx: R.NationSimContext = {
     spec: R.economySpecFor(state.code),
     stats: readNationalStatsFromRow(state) as any,
-    laws: await getLawsInForce(conn, state.id),
-    playerFactoryCapacity: await factoryCapacity(conn, state.country_id),
-    split: (await resolveSplit(conn, state.id)).split,
+    laws, playerFactoryCapacity, split: split.split,
   };
   const prevQ = conn('nation_sim_months').where({ state_id: state.id }).orderBy('arc', 'desc');
   if (arc != null) prevQ.where('arc', '<', arc);
@@ -340,27 +345,30 @@ export async function nationSimViews(conn: any): Promise<NationSimView[]> {
   if (!NATION_SIM_ENABLED) return [];
   const clock = await conn('world_clock').first();
   const currentArc = clock ? num(clock.pol_current_year) * 12 + (num(clock.pol_current_month, 1) - 1) : null;
-  const loaded: Loaded[] = [];
-  for (const spec of STARTER_NATIONS) {
-    const state = await conn('pol_states').where({ code: spec.polStateCode }).first();
-    if (state) loaded.push(await loadNation(conn, state, null));
-  }
-  const diplo = await diplomacyInputs(conn);
-  const foreign = await foreignViews(conn);
+  // Nations load side by side (read-only; order follows STARTER_NATIONS).
+  const [loadedOrNull, diplo, foreign] = await Promise.all([
+    Promise.all(STARTER_NATIONS.map(async spec => {
+      const state = await conn('pol_states').where({ code: spec.polStateCode }).first();
+      return state ? loadNation(conn, state, null) : null;
+    })),
+    diplomacyInputs(conn),
+    foreignViews(conn),
+  ]);
+  const loaded: Loaded[] = loadedOrNull.filter((n): n is Loaded => n !== null);
   // Projected trade for nations with no stored month yet (so a fresh world still shows its trade).
   const projectedTrade = loaded.some(n => !n.prev) ? tradeFor(loaded, diplo) : {};
-  const out: Omit<NationSimView, 'rank'>[] = [];
-  for (const n of loaded) {
-    const src = await resolveSplit(conn, n.state.id);
-    const rows = await conn('nation_sim_months').where({ state_id: n.state.id }).orderBy('arc', 'desc').limit(HISTORY_MONTHS);
+  const out: Omit<NationSimView, 'rank'>[] = await Promise.all(loaded.map(async n => {
+    const [src, rows] = await Promise.all([
+      resolveSplit(conn, n.state.id),
+      conn('nation_sim_months').where({ state_id: n.state.id }).orderBy('arc', 'desc').limit(HISTORY_MONTHS),
+    ]);
     if (rows.length > 0) {
-      out.push({ ...buildView(n.state.code, rowToMonth(rows[0], n.ctx), rows[0].arc, false, rows[1] ?? null, rows, src, n.ctx.laws, currentArc), foreign: foreign[n.state.code] });
-    } else {
-      // Before the first monthly step: show where the nation starts, without writing anything.
-      const ctx = { ...n.ctx, trade: projectedTrade[n.state.code] ?? R.NO_TRADE, diplomacy: diplo[n.state.code]?.rating };
-      out.push({ ...buildView(n.state.code, R.describe(R.initialState(ctx), ctx), null, true, null, [], src, n.ctx.laws, currentArc), foreign: foreign[n.state.code] });
+      return { ...buildView(n.state.code, rowToMonth(rows[0], n.ctx), rows[0].arc, false, rows[1] ?? null, rows, src, n.ctx.laws, currentArc), foreign: foreign[n.state.code] };
     }
-  }
+    // Before the first monthly step: show where the nation starts, without writing anything.
+    const ctx = { ...n.ctx, trade: projectedTrade[n.state.code] ?? R.NO_TRADE, diplomacy: diplo[n.state.code]?.rating };
+    return { ...buildView(n.state.code, R.describe(R.initialState(ctx), ctx), null, true, null, [], src, n.ctx.laws, currentArc), foreign: foreign[n.state.code] };
+  }));
   const ranked = R.rankNations(out.map(v => ({ ...v, score: v.rating })));
   return ranked.map(({ score: _s, ...v }) => v);
 }

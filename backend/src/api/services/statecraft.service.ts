@@ -11,6 +11,7 @@
  * tests/statecraft.test.ts). DB functions take a knex transaction and never use
  * the global connection, so they are safe inside the politics tick.
  */
+import { cachedRead } from './readCache';
 import { AXES, Platform, SEGMENTS } from '../constants/politics';
 import { TREATY_CATEGORY, TREATY_SPECS } from '../constants/diplomacy';
 import { parseTreatyOption, treatyLiking } from './diplomacy.rules';
@@ -233,7 +234,10 @@ export function computeApproval(stats: Partial<NationalStats>, economy?: Approva
 }
 
 /** The economy voters feel right now, from the latest nations-simulation month (null before the first one). */
-export async function approvalEconomy(conn: any, stateId: string): Promise<ApprovalEconomy | null> {
+export function approvalEconomy(conn: any, stateId: string): Promise<ApprovalEconomy | null> {
+  return cachedRead(conn, `approvalEconomy:${stateId}`, () => loadApprovalEconomy(conn, stateId));
+}
+async function loadApprovalEconomy(conn: any, stateId: string): Promise<ApprovalEconomy | null> {
   const latest = await conn('nation_sim_months').where({ state_id: stateId }).orderBy('arc', 'desc').first();
   if (!latest) return null;
   const back = await conn('nation_sim_months').where({ state_id: stateId }).where('arc', '<=', Number(latest.arc) - ECONOMY_APPROVAL.growthLookbackMonths).orderBy('arc', 'desc').first();
@@ -380,7 +384,10 @@ export async function syncNationDistricts(trx: any, stateRow: any): Promise<any[
 }
 
 /** Laws in force: category -> option id (active macro-economy policies over defaults). */
-export async function getLawsInForce(trx: any, stateId: string): Promise<Record<string, string>> {
+export function getLawsInForce(trx: any, stateId: string): Promise<Record<string, string>> {
+  return cachedRead(trx, `laws:${stateId}`, () => loadLawsInForce(trx, stateId));
+}
+async function loadLawsInForce(trx: any, stateId: string): Promise<Record<string, string>> {
   // Each nation starts from its own founding laws (constants/nations.ts), then
   // whatever its Parliament has passed since.
   const stateRow = await trx('pol_states').where({ id: stateId }).select('code').first();
@@ -404,7 +411,10 @@ export interface GovernmentInfo {
 }
 
 /** The sitting parliament and its government (latest cycle that has seats). */
-export async function getGovernment(trx: any, stateId: string): Promise<GovernmentInfo> {
+export function getGovernment(trx: any, stateId: string): Promise<GovernmentInfo> {
+  return cachedRead(trx, `gov:${stateId}`, () => loadGovernment(trx, stateId));
+}
+async function loadGovernment(trx: any, stateId: string): Promise<GovernmentInfo> {
   const sitting = await trx('pol_council_seats')
     .join('pol_cycles', 'pol_council_seats.cycle_id', 'pol_cycles.id')
     .where('pol_cycles.state_id', stateId)
@@ -413,13 +423,11 @@ export async function getGovernment(trx: any, stateId: string): Promise<Governme
     .first();
   const sittingCycleId = sitting?.id ?? null;
   const seatsByParty: Record<string, number> = {};
-  if (sittingCycleId) {
-    const rows = await trx('pol_council_seats').where({ cycle_id: sittingCycleId }).select('party_id').count('* as n').groupBy('party_id');
-    for (const r of rows) seatsByParty[r.party_id] = Number(r.n);
-  }
-  const coalition = sittingCycleId
-    ? await trx('pol_coalitions').where({ cycle_id: sittingCycleId }).whereIn('status', ['formed', 'minority']).first()
-    : null;
+  const [seatRows, coalition] = sittingCycleId ? await Promise.all([
+    trx('pol_council_seats').where({ cycle_id: sittingCycleId }).select('party_id').count('* as n').groupBy('party_id'),
+    trx('pol_coalitions').where({ cycle_id: sittingCycleId }).whereIn('status', ['formed', 'minority']).first(),
+  ]) : [[], null];
+  for (const r of seatRows as any[]) seatsByParty[r.party_id] = Number(r.n);
   let members: string[] = [];
   if (coalition) {
     const parsed = typeof coalition.member_party_ids === 'string' ? safeParseJSON(coalition.member_party_ids) : (coalition.member_party_ids ?? {});
@@ -741,23 +749,34 @@ export async function payOfficeSalaries(trx: any, stateId: string): Promise<void
  * everyone gets the campaign effort they actually spent this cycle).
  */
 export async function pollParties(trx: any, stateId: string, parties: any[]): Promise<PartyForPoll[]> {
-  const cycle = await trx('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
-  const districtsCount = Math.max(1, Number((await trx('pol_constituencies').where({ state_id: stateId, is_active: true }).count('* as n').first())?.n) || 1);
+  const [cycle, districtRow, support] = await Promise.all([
+    trx('pol_cycles').where({ state_id: stateId, status: 'open' }).first(),
+    trx('pol_constituencies').where({ state_id: stateId, is_active: true }).count('* as n').first(),
+    // Every candidate gets the party machine plus their party's support with
+    // each voter group, exactly as buildEngineCandidates does for the real election.
+    supportEffortByParty(trx, stateId),
+  ]);
+  const districtsCount = Math.max(1, Number(districtRow?.n) || 1);
+  const [humans, actions] = cycle ? await Promise.all([
+    trx('pol_candidates')
+      .join('characters', 'characters.id', 'pol_candidates.character_id')
+      .where('pol_candidates.cycle_id', cycle.id)
+      .select('pol_candidates.party_id', 'characters.credibility'),
+    trx('pol_campaign_actions')
+      .join('pol_candidates', 'pol_candidates.id', 'pol_campaign_actions.candidate_id')
+      .where('pol_campaign_actions.cycle_id', cycle.id)
+      .where('pol_campaign_actions.effort', '>', 0)
+      .select('pol_candidates.party_id', 'pol_campaign_actions.target_segment', 'pol_campaign_actions.effort'),
+  ]) : [[], []];
 
   // Credibility as the real election sees it: a player standing in a district
   // brings their own reputation there; every other district is fought by a
   // computer-run list candidate at 50. The poll uses the party-wide average.
   const credSumByParty: Record<string, { sum: number; n: number }> = {};
-  if (cycle) {
-    const humans = await trx('pol_candidates')
-      .join('characters', 'characters.id', 'pol_candidates.character_id')
-      .where('pol_candidates.cycle_id', cycle.id)
-      .select('pol_candidates.party_id', 'characters.credibility');
-    for (const h of humans) {
-      const e = (credSumByParty[h.party_id] ??= { sum: 0, n: 0 });
-      e.sum += Number(h.credibility) || 0;
-      e.n += 1;
-    }
+  for (const h of humans as any[]) {
+    const e = (credSumByParty[h.party_id] ??= { sum: 0, n: 0 });
+    e.sum += Number(h.credibility) || 0;
+    e.n += 1;
   }
   const partyCredibility = (partyId: string) => {
     const e = credSumByParty[partyId];
@@ -766,22 +785,12 @@ export async function pollParties(trx: any, stateId: string, parties: any[]): Pr
     return (e.sum / e.n * n + 50 * (districtsCount - n)) / districtsCount;
   };
   const effortByParty: Record<string, Record<string, number>> = {};
-  if (cycle) {
-    const actions = await trx('pol_campaign_actions')
-      .join('pol_candidates', 'pol_candidates.id', 'pol_campaign_actions.candidate_id')
-      .where('pol_campaign_actions.cycle_id', cycle.id)
-      .where('pol_campaign_actions.effort', '>', 0)
-      .select('pol_candidates.party_id', 'pol_campaign_actions.target_segment', 'pol_campaign_actions.effort');
-    for (const a of actions) {
-      const e = (effortByParty[a.party_id] ??= {});
-      const amt = Number(a.effort) / districtsCount;
-      if (a.target_segment) e[a.target_segment] = (e[a.target_segment] || 0) + amt;
-      else for (const seg of SEGMENTS) e[seg.key] = (e[seg.key] || 0) + amt / SEGMENTS.length;
-    }
+  for (const a of actions as any[]) {
+    const e = (effortByParty[a.party_id] ??= {});
+    const amt = Number(a.effort) / districtsCount;
+    if (a.target_segment) e[a.target_segment] = (e[a.target_segment] || 0) + amt;
+    else for (const seg of SEGMENTS) e[seg.key] = (e[seg.key] || 0) + amt / SEGMENTS.length;
   }
-  // Every candidate gets the party machine plus their party's support with
-  // each voter group, exactly as buildEngineCandidates does for the real election.
-  const support = await supportEffortByParty(trx, stateId);
   return parties.map((p: any) => {
     const effort: Record<string, number> = { ...(effortByParty[p.id] ?? {}) };
     for (const seg of SEGMENTS) effort[seg.key] = (effort[seg.key] || 0) + NPC_MACHINE_EFFORT + (support[p.id]?.[seg.key] ?? 0);

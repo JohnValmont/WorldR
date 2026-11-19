@@ -40,16 +40,25 @@ import { SHOCK_MONTHS } from '../constants/floor';
 const num = (v: any, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 
 export async function getDesk(userId: string | null, stateCodeOrId?: string) {
-  const cap: any = await getCapitol(userId, stateCodeOrId);
+  // Independent parts load side by side: every query is a round trip to the
+  // database, and in production those add up to seconds when run one by one.
+  const [cap, worldRows, character] = await Promise.all([
+    getCapitol(userId, stateCodeOrId) as Promise<any>,
+    worldNations(db),
+    userId ? db('characters').where({ user_id: userId, status: 'active' }).first() : Promise.resolve(null),
+  ]);
   if (!cap) return null;
   const stateId: string = cap.state.id;
   const arc: number = cap.calendar.arc;
-  const partyRows = await db('pol_parties').where({ state_id: stateId });
-  const gov = await getGovernment(db, stateId);
-  const laws = await getLawsInForce(db, stateId);
+  const [partyRows, gov, laws, stateRow] = await Promise.all([
+    db('pol_parties').where({ state_id: stateId }),
+    getGovernment(db, stateId),
+    getLawsInForce(db, stateId),
+    db('pol_states').where({ id: stateId }).first(),
+  ]);
 
   // ── Support with every voter group, for every party ──
-  const supportMap = await getSupportMap(db, partyRows);
+  const supportMapP = getSupportMap(db, partyRows);
   const segments = SEGMENTS.map(s => ({ key: s.key, label: s.label, short: SEGMENT_SHORT[s.key as SegmentKey] ?? s.label, size: s.size }));
   const targets: Record<string, Record<string, number>> = {};
   for (const p of partyRows) {
@@ -58,8 +67,8 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
   }
 
   // ── Last election: district results for the replay ──
-  let election: any = null;
-  if (gov.sittingCycleId) {
+  const lastElection = async (): Promise<any> => {
+    if (!gov.sittingCycleId) return null;
     const cycle = await db('pol_cycles').where({ id: gov.sittingCycleId }).first();
     const rows = await db('pol_results')
       .join('pol_candidates', 'pol_candidates.id', 'pol_results.candidate_id')
@@ -75,14 +84,20 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
       const ps = await db('pol_council_seats').where({ cycle_id: prev.id }).select('party_id').count('* as n').groupBy('party_id');
       for (const r of ps as any[]) prevSeats[r.party_id] = num(r.n);
     }
-    election = {
+    return {
       cycleId: cycle.id,
       arc: cycle.polling_arc,
       hasResults: rows.length > 0,
       districts: cap.districts.map((d: any) => ({ id: d.id, name: d.name, region: d.region, seats: d.seats, votes: votesBy[d.id] ?? {}, won: d.sitting })),
       previousSeats: prevSeats,
     };
-  }
+  };
+  const [supportMap, election, handshakesIncoming] = await Promise.all([
+    supportMapP,
+    lastElection(),
+    // Personal deals other politicians have offered you (answered in Corridors).
+    character ? db('pol_handshakes').where({ state_id: stateId, to_character_id: character.id, status: 'offered' }).count('* as n').first().then((r: any) => num(r?.n)) : Promise.resolve(0),
+  ]);
 
   const nation = nationRules(cap.state.code);
   const rules = {
@@ -102,11 +117,11 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     hand: [],
     actions: null,
     deals: null,
-    handshakesIncoming: 0,
+    handshakesIncoming,
     partyRoom: null,
     log: [],
     // The starter nations side by side; `mine` marks the one this desk is about.
-    world: (await worldNations(db, arc)).map(n => ({ ...n, mine: n.polStateCode === cap.state.code })),
+    world: worldRows.map(n => ({ ...n, mine: n.polStateCode === cap.state.code })),
     // What the player's office lets them do without Parliament (null = holds no office).
     office: null,
     notices: { unread: 0, items: [] },
@@ -118,64 +133,69 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     race: null,
   };
 
-  const character = userId ? await db('characters').where({ user_id: userId, status: 'active' }).first() : null;
-  // Personal deals other politicians have offered you (answered in Corridors).
-  if (character) desk.handshakesIncoming = num((await db('pol_handshakes').where({ state_id: stateId, to_character_id: character.id, status: 'offered' }).count('* as n').first())?.n);
   if (!character) {
     desk.coalition = await coalitionView(db, stateId, null, arc);
     return { ...cap, desk };
   }
 
   const me = await playerPolitics(db, stateId, character, gov);
-  desk.coalition = await coalitionView(db, stateId, me, arc);
-  desk.notices = await noticesFor(db, character.id);
-  desk.race = await raceFor(db, await db('pol_states').where({ id: stateId }).first(), { id: character.id, partyId: me.party?.id ?? null }, arc);
+  // Everything below reads only what is already loaded, so it runs side by side.
+  const sections: Promise<unknown>[] = [];
+  const section = (fn: () => Promise<void>) => { sections.push(fn()); };
+
+  section(async () => { desk.coalition = await coalitionView(db, stateId, me, arc); });
+  section(async () => { desk.notices = await noticesFor(db, character.id); });
+  section(async () => { desk.race = await raceFor(db, stateRow, { id: character.id, partyId: me.party?.id ?? null }, arc); });
   // ── The career ladder: where you stand now and the highest you have climbed ──
-  const career = await careerOf(db, character.id);
-  const rungNow = (cap.me?.rung ?? 'citizen') as CareerRung;
-  desk.career = career;
-  desk.ladder = ladderFor(rungNow, (career?.peakRung ?? rungNow) as CareerRung, headOfGovernmentTitle(cap.state.code));
-  const energy = await getEnergy(db, character.id, arc);
-  cap.me.ap = energy;
+  section(async () => {
+    const career = await careerOf(db, character.id);
+    const rungNow = (cap.me?.rung ?? 'citizen') as CareerRung;
+    desk.career = career;
+    desk.ladder = ladderFor(rungNow, (career?.peakRung ?? rungNow) as CareerRung, headOfGovernmentTitle(cap.state.code));
+  });
+  section(async () => { cap.me.ap = await getEnergy(db, character.id, arc); });
+  section(async () => { desk.log = await db('pol_action_log').where({ character_id: character.id }).orderBy('created_at', 'desc').limit(12).select('arc', 'kind', 'summary'); });
 
   // ── This month's hand ──
-  const openBill = cap.bills.find((b: any) => b.status === 'proposed');
-  await db.transaction(trx => ensureHand(trx, me, {
-    stateId, arc, phase: cap.calendar.phase, stats: cap.stats, approval: num(cap.approval.live, 50),
-    monthsToElection: cap.calendar.monthsToElection, openBillTitle: openBill?.title ?? null,
-    premierName: cap.premier?.name ?? null,
-    districts: cap.districts.map((d: any) => ({ id: d.id, name: d.name })),
-    parties: cap.parties.map((p: any) => ({ id: p.id, name: p.name, seats: p.seats })),
-  }));
-  // Cards are written with Drennia's towns; other nations read their own.
-  const loc = (t: string) => localisePlaces(t, cap.state.code);
-  const handRows = await db('pol_situations').where({ character_id: character.id, arc }).orderBy('slot');
-  desk.hand = handRows.map((r: any) => {
-    const card = SITUATION_BY_KEY[r.card_key];
-    if (!card) return null;
-    const vars = typeof r.vars === 'string' ? safeParseJSON(r.vars) : (r.vars ?? {});
-    return {
-      id: r.id,
-      key: card.key,
-      kicker: loc(card.kicker),
-      title: loc(renderText(card.title, vars)),
-      body: loc(renderText(card.body, vars)),
-      status: r.status,
-      chosen: r.option_index,
-      result: typeof r.outcome === 'string' ? safeParseJSON(r.outcome) : r.outcome,
-      options: card.options.map(o => {
-        const chances = outcomeChances(o);
-        return {
-          label: loc(renderText(o.label, vars)),
-          cost: effectiveCost(me, o.cost),
-          outcomes: o.outcomes.map((oc, i) => ({ chance: chances[i], tone: oc.tone, effects: oc.effects })),
-        };
-      }),
-    };
-  }).filter(Boolean);
+  section(async () => {
+    const openBill = cap.bills.find((b: any) => b.status === 'proposed');
+    await db.transaction(trx => ensureHand(trx, me, {
+      stateId, arc, phase: cap.calendar.phase, stats: cap.stats, approval: num(cap.approval.live, 50),
+      monthsToElection: cap.calendar.monthsToElection, openBillTitle: openBill?.title ?? null,
+      premierName: cap.premier?.name ?? null,
+      districts: cap.districts.map((d: any) => ({ id: d.id, name: d.name })),
+      parties: cap.parties.map((p: any) => ({ id: p.id, name: p.name, seats: p.seats })),
+    }));
+    // Cards are written with Drennia's towns; other nations read their own.
+    const loc = (t: string) => localisePlaces(t, cap.state.code);
+    const handRows = await db('pol_situations').where({ character_id: character.id, arc }).orderBy('slot');
+    desk.hand = handRows.map((r: any) => {
+      const card = SITUATION_BY_KEY[r.card_key];
+      if (!card) return null;
+      const vars = typeof r.vars === 'string' ? safeParseJSON(r.vars) : (r.vars ?? {});
+      return {
+        id: r.id,
+        key: card.key,
+        kicker: loc(card.kicker),
+        title: loc(renderText(card.title, vars)),
+        body: loc(renderText(card.body, vars)),
+        status: r.status,
+        chosen: r.option_index,
+        result: typeof r.outcome === 'string' ? safeParseJSON(r.outcome) : r.outcome,
+        options: card.options.map(o => {
+          const chances = outcomeChances(o);
+          return {
+            label: loc(renderText(o.label, vars)),
+            cost: effectiveCost(me, o.cost),
+            outcomes: o.outcomes.map((oc, i) => ({ chance: chances[i], tone: oc.tone, effects: oc.effects })),
+          };
+        }),
+      };
+    }).filter(Boolean);
+  });
 
   // ── Desk actions: what each would do right now ──
-  if (me.party) {
+  if (me.party) section(async () => {
     const counts = await db('pol_action_log').where({ character_id: character.id, arc }).select('kind', 'target').count('* as n').groupBy('kind', 'target');
     const countOf = (kind: string, target?: string) => (counts as any[])
       .filter(c => c.kind === kind && (target === undefined || c.target === target)).reduce((a, c) => a + num(c.n), 0);
@@ -192,19 +212,21 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
       ad: { ap: AD_AP, cost: AD_COST, paidBy: me.isLeader ? 'party' : 'you', gain: Number(adGain(countOf('ad')).toFixed(1)) },
       fundraise: { ap: FUNDRAISE_AP, low: Math.round(fundraiseTake(avg, charisma, fr, 0) * nation.fundraiseMult / 100) * 100, high: Math.round(fundraiseTake(avg, charisma, fr, 1) * nation.fundraiseMult / 100) * 100 },
     };
-  }
+  });
 
   // ── Deals: promises on bills and the favours they create ──
-  if (me.party) {
+  if (me.party) section(async () => {
     const partyName = new Map<string, string>(partyRows.map((p: any) => [p.id, p.name]));
     const billTitleBy = new Map<string, string>(cap.bills.map((b: any) => [b.id, b.title]));
-    const pacts = await db('pol_pacts').where({ state_id: stateId })
-      .where(function (this: any) { this.where({ from_party_id: me.party.id }).orWhere({ to_party_id: me.party.id }); })
-      .orderBy('created_at', 'desc').limit(20);
-    const favours = await db('pol_favours').where({ state_id: stateId })
-      .where(function (this: any) { this.where({ holder_party_id: me.party.id }).orWhere({ debtor_party_id: me.party.id }); })
-      .whereIn('status', ['pending', 'open', 'called', 'kept', 'broken'])
-      .orderBy('created_arc', 'desc').limit(30);
+    const [pacts, favours] = await Promise.all([
+      db('pol_pacts').where({ state_id: stateId })
+        .where(function (this: any) { this.where({ from_party_id: me.party.id }).orWhere({ to_party_id: me.party.id }); })
+        .orderBy('created_at', 'desc').limit(20),
+      db('pol_favours').where({ state_id: stateId })
+        .where(function (this: any) { this.where({ holder_party_id: me.party.id }).orWhere({ debtor_party_id: me.party.id }); })
+        .whereIn('status', ['pending', 'open', 'called', 'kept', 'broken'])
+        .orderBy('created_arc', 'desc').limit(30),
+    ]);
     const seated = (gov.seatsByParty[me.party.id] || 0) > 0;
     const canDeal = me.isLeader && seated;
     const wordBrokenLeft = Math.max(0, num(me.party.word_broken_until_arc) - arc);
@@ -213,23 +235,21 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     const forecasts: Record<string, Record<string, any>> = {};
     if (canDeal) {
       const openBills = await db('pol_bills').where({ state_id: stateId, status: 'proposed' });
-      for (const bill of openBills) {
-        forecasts[bill.id] = {};
-        for (const p of partyRows) {
-          if (p.id === me.party.id || !gov.seatsByParty[p.id]) continue;
+      for (const bill of openBills) forecasts[bill.id] = {};
+      await Promise.all(openBills.flatMap((bill: any) => partyRows.map(async (p: any) => {
+          if (p.id === me.party.id || !gov.seatsByParty[p.id]) return;
           const live = pacts.find((x: any) => x.bill_id === bill.id && x.to_party_id === p.id && ['offered', 'accepted'].includes(x.status));
           const committed = await db('pol_pacts').where({ bill_id: bill.id, to_party_id: p.id, status: 'accepted' }).first()
             ?? await db('pol_favours').where({ called_bill_id: bill.id, debtor_party_id: p.id, status: 'called' }).first();
           const row: any = { human: !!p.leader_character_id, live: live?.status ?? null, committed: !!committed };
           if (!p.leader_character_id) {
-            for (const v of ['yea', 'nay'] as const) {
+            await Promise.all((['yea', 'nay'] as const).map(async v => {
               const d = await forecastPact(db, bill, me.party, p, v, 0, num(character.credibility), gov, laws, arc);
               row[v] = { accept: d.accept, score: Number(d.score.toFixed(3)), reason: d.reason };
-            }
+            }));
           }
           forecasts[bill.id][p.id] = row;
-        }
-      }
+      })));
     }
 
     desk.deals = {
@@ -254,67 +274,71 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
         vote: f.called_vote, arc: f.created_arc,
       })),
     };
-  }
+  });
 
   // ── Party room ──
-  const cooldownLeft = await switchCooldownLeft(db, character.id, arc);
-  if (me.party) {
-    const members = await db('pol_party_members')
-      .join('characters', 'characters.id', 'pol_party_members.character_id')
-      .where('pol_party_members.party_id', me.party.id)
-      .select('characters.id', 'characters.name', 'characters.credibility', 'characters.influence', 'pol_party_members.role');
-    const seatIds = new Set<string>(gov.sittingCycleId
-      ? (await db('pol_council_seats').where({ cycle_id: gov.sittingCycleId, party_id: me.party.id }).whereNotNull('character_id').select('character_id')).map((r: any) => r.character_id)
-      : []);
-    const leader = members.find((m: any) => m.id === me.party.leader_character_id) ?? null;
-    // This month's work for the party, member by member (rallies, ads, money raised).
-    const work = await db('pol_action_log').where({ party_id: me.party.id, arc }).whereIn('kind', ['rally', 'ad', 'fundraise', 'handshake', 'pact'])
-      .select('character_id', 'kind', 'summary');
-    const workOf = (id: string) => {
-      const mine = work.filter((w: any) => w.character_id === id);
-      const raised = mine.filter((w: any) => w.kind === 'fundraise')
-        .reduce((a: number, w: any) => a + num(String(w.summary).replace(/[^0-9]/g, '')), 0);
-      return {
-        rallies: mine.filter((w: any) => w.kind === 'rally').length,
-        ads: mine.filter((w: any) => w.kind === 'ad').length,
-        fundraisers: mine.filter((w: any) => w.kind === 'fundraise').length,
-        raised,
-        deals: mine.filter((w: any) => w.kind === 'handshake' || w.kind === 'pact').length,
+  section(async () => {
+    if (!me.party) { desk.partyRoom = { cooldownLeft: await switchCooldownLeft(db, character.id, arc) }; return; }
+    {
+      const [cooldownLeft, members, seatRows, work, taken, contest] = await Promise.all([
+        switchCooldownLeft(db, character.id, arc),
+        db('pol_party_members')
+          .join('characters', 'characters.id', 'pol_party_members.character_id')
+          .where('pol_party_members.party_id', me.party.id)
+          .select('characters.id', 'characters.name', 'characters.credibility', 'characters.influence', 'pol_party_members.role'),
+        gov.sittingCycleId
+          ? db('pol_council_seats').where({ cycle_id: gov.sittingCycleId, party_id: me.party.id }).whereNotNull('character_id').select('character_id')
+          : Promise.resolve([]),
+        // This month's work for the party, member by member (rallies, ads, money raised).
+        db('pol_action_log').where({ party_id: me.party.id, arc }).whereIn('kind', ['rally', 'ad', 'fundraise', 'handshake', 'pact'])
+          .select('character_id', 'kind', 'summary'),
+        db('pol_cycles').where({ state_id: stateId, status: 'open' }).first().then(async (openCycle: any) => openCycle
+          ? (await db('pol_candidates').where({ cycle_id: openCycle.id, party_id: me.party.id }).whereNotNull('character_id').select('constituency_id')).map((r: any) => r.constituency_id)
+          : []),
+        contestView(db, me.party.id, character.id),
+      ]);
+      const seatIds = new Set<string>((seatRows as any[]).map((r: any) => r.character_id));
+      const leader = members.find((m: any) => m.id === me.party.leader_character_id) ?? null;
+      const workOf = (id: string) => {
+        const mine = work.filter((w: any) => w.character_id === id);
+        const raised = mine.filter((w: any) => w.kind === 'fundraise')
+          .reduce((a: number, w: any) => a + num(String(w.summary).replace(/[^0-9]/g, '')), 0);
+        return {
+          rallies: mine.filter((w: any) => w.kind === 'rally').length,
+          ads: mine.filter((w: any) => w.kind === 'ad').length,
+          fundraisers: mine.filter((w: any) => w.kind === 'fundraise').length,
+          raised,
+          deals: mine.filter((w: any) => w.kind === 'handshake' || w.kind === 'pact').length,
+        };
       };
-    };
-    // A computer-run leader falls at once to enough clout; a human leader faces a
-    // contest the members decide, which needs LEADERSHIP_MIN_CLOUT to start.
-    const challenge = leader
-      ? { need: LEADERSHIP_MIN_CLOUT, win: num(character.influence) >= LEADERSHIP_MIN_CLOUT }
-      : leadershipDecision(num(character.influence), false, 0);
-    const openCycle = await db('pol_cycles').where({ state_id: stateId, status: 'open' }).first();
-    const taken = openCycle
-      ? (await db('pol_candidates').where({ cycle_id: openCycle.id, party_id: me.party.id }).whereNotNull('character_id').select('constituency_id')).map((r: any) => r.constituency_id)
-      : [];
-    desk.partyRoom = {
-      cooldownLeft,
-      leaderIsHuman: !!leader,
-      leaderName: leader?.name ?? null,
-      canChallenge: !me.isLeader,
-      challengeWaitMonths: Math.max(0, LEADERSHIP_MIN_TENURE_MONTHS - (arc - num(me.membership?.joined_arc, arc))),
-      challengeNeed: challenge.need,
-      challengeWouldWin: challenge.win,
-      funds: num(me.party.treasury),
-      members: members.map((m: any) => ({
-        id: m.id, name: m.name, role: m.role, trust: num(m.credibility), clout: num(m.influence), hasSeat: seatIds.has(m.id), isMe: m.id === character.id,
-        thisMonth: workOf(m.id),
-      })),
-      contest: await contestView(db, me.party.id, character.id),
-      districtsTaken: taken,
-      canStand: !!desk.race?.window.open,
-    };
-  } else {
-    desk.partyRoom = { cooldownLeft };
-  }
+      // A computer-run leader falls at once to enough clout; a human leader faces a
+      // contest the members decide, which needs LEADERSHIP_MIN_CLOUT to start.
+      const challenge = leader
+        ? { need: LEADERSHIP_MIN_CLOUT, win: num(character.influence) >= LEADERSHIP_MIN_CLOUT }
+        : leadershipDecision(num(character.influence), false, 0);
+      desk.partyRoom = {
+        cooldownLeft,
+        leaderIsHuman: !!leader,
+        leaderName: leader?.name ?? null,
+        canChallenge: !me.isLeader,
+        challengeWaitMonths: Math.max(0, LEADERSHIP_MIN_TENURE_MONTHS - (arc - num(me.membership?.joined_arc, arc))),
+        challengeNeed: challenge.need,
+        challengeWouldWin: challenge.win,
+        funds: num(me.party.treasury),
+        members: members.map((m: any) => ({
+          id: m.id, name: m.name, role: m.role, trust: num(m.credibility), clout: num(m.influence), hasSeat: seatIds.has(m.id), isMe: m.id === character.id,
+          thisMonth: workOf(m.id),
+        })),
+        contest,
+        districtsTaken: taken,
+        canStand: false, // set from the race below, once every section has loaded
+      };
+    }
+  });
 
   // ── Powers of office: decrees (Premier and ministers) ──
   const offices = decreeOffices(me);
-  if (offices.length) {
+  if (offices.length) section(async () => {
     const used = await db('pol_action_log').where({ character_id: character.id, arc, kind: 'decree' }).first();
     desk.office = {
       titles: offices,
@@ -323,8 +347,9 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
       usedThisMonth: used ? used.summary : null,
       decrees: DECREES.filter(d => offices.includes(d.office)).map(d => ({ key: d.key, office: d.office, title: d.title, blurb: d.blurb, stat: d.stat, support: d.support ?? {} })),
     };
-  }
+  });
 
-  desk.log = await db('pol_action_log').where({ character_id: character.id }).orderBy('created_at', 'desc').limit(12).select('arc', 'kind', 'summary');
+  await Promise.all(sections);
+  if (me.party) desk.partyRoom.canStand = !!desk.race?.window.open;
   return { ...cap, desk };
 }

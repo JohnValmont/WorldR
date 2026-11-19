@@ -8,6 +8,7 @@ import { politicsApi } from '@/lib/api';
 import type { MapDistrict, MapNation, MapParty } from './types';
 import { Card, Chip, Label, Meter, PartyDot, T, useFloor } from './kit';
 import { LAKES, MAP_H, MAP_W, NATION_COLOR, buildCells, buildCoast, borders, ideologyOf, nationOutlines, nationShapes, pathOf, placeSites, viewBoxFor, type Site } from './mapGeo';
+import { TAB_DATA } from './tabData';
 
 type Layer = 'nations' | 'strong' | 'poll' | 'voters' | 'party';
 const LAYERS: { id: Layer; label: string; hint: string }[] = [
@@ -45,7 +46,7 @@ const star = (x: number, y: number, r: number) => {
 
 export default function MapView() {
   const { desk } = useFloor();
-  const { data, error } = useSWR('political-map', () => politicsApi.getMap(), { refreshInterval: 60_000 });
+  const { data, error } = useSWR(TAB_DATA.map.key, TAB_DATA.map.fetch, { refreshInterval: 60_000 });
   const [layer, setLayer] = useState<Layer>('nations');
   const [partyId, setPartyId] = useState<string | null>(null);
   const [focus, setFocus] = useState<string | null>(null); // nation code, or null for the whole continent

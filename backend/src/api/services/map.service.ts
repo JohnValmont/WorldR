@@ -86,11 +86,8 @@ async function nationMap(spec: (typeof STARTER_NATIONS)[number]) {
 
 export async function getPoliticalMap() {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.data;
-  const nations = [];
-  for (const spec of STARTER_NATIONS) {
-    const n = await nationMap(spec);
-    if (n) nations.push(n);
-  }
+  // The nations are independent: build them side by side (order kept).
+  const nations = (await Promise.all(STARTER_NATIONS.map(spec => nationMap(spec)))).filter(Boolean);
   const data = { nations };
   cache = { at: Date.now(), data };
   return data;

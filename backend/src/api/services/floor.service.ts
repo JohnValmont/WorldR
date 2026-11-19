@@ -355,18 +355,23 @@ export interface PlayerPolitics {
 }
 
 export async function playerPolitics(trx: any, stateId: string, character: any, gov: GovernmentInfo): Promise<PlayerPolitics> {
-  const membership = await trx('pol_party_members')
-    .join('pol_parties', 'pol_parties.id', 'pol_party_members.party_id')
-    .where({ 'pol_party_members.character_id': character.id, 'pol_parties.state_id': stateId })
-    .select('pol_party_members.*')
-    .first() ?? null;
-  const party = membership ? await trx('pol_parties').where({ id: membership.party_id }).first() : null;
+  // Independent lookups go together (this runs before every Floor action and every desk load).
+  const [[membership, party], seatRow, postRow, premierRow] = await Promise.all([
+    (async () => {
+      const m = await trx('pol_party_members')
+        .join('pol_parties', 'pol_parties.id', 'pol_party_members.party_id')
+        .where({ 'pol_party_members.character_id': character.id, 'pol_parties.state_id': stateId })
+        .select('pol_party_members.*')
+        .first() ?? null;
+      return [m, m ? await trx('pol_parties').where({ id: m.party_id }).first() : null] as const;
+    })(),
+    gov.sittingCycleId ? trx('pol_council_seats').where({ cycle_id: gov.sittingCycleId, character_id: character.id }).first() : Promise.resolve(null),
+    trx('pol_cabinet_posts').where({ state_id: stateId, holder_character_id: character.id }).first(),
+    trx('pol_offices').where({ state_id: stateId, office: 'premier' }).orderBy('since_arc', 'desc').first(),
+  ]);
   const isLeader = !!party && party.leader_character_id === character.id;
-  const seat = gov.sittingCycleId
-    ? (await trx('pol_council_seats').where({ cycle_id: gov.sittingCycleId, character_id: character.id }).first()) ?? null
-    : null;
-  const post = (await trx('pol_cabinet_posts').where({ state_id: stateId, holder_character_id: character.id }).first()) ?? null;
-  const premierRow = await trx('pol_offices').where({ state_id: stateId, office: 'premier' }).orderBy('since_arc', 'desc').first();
+  const seat = seatRow ?? null;
+  const post = postRow ?? null;
   const isPremier = !!premierRow && premierRow.holder_character_id === character.id;
   const inGovernment = !!party && gov.memberPartyIds.includes(party.id);
   const inOpposition = !!party && !!gov.leadPartyId && !inGovernment;

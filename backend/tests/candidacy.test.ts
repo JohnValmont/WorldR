@@ -71,3 +71,23 @@ describe('Undecided members', () => {
     assert.strictEqual(C.polArcLabel(36 * 12 + 4), 'May, Year 36');
   });
 });
+
+describe('Nobody waits without a district (owner decision 2026-11-19)', () => {
+  it('places unplaced members whenever an election lies ahead, not only once the campaign starts', () => {
+    for (const phase of ['governing', 'filing', 'campaign'] as const) assert.strictEqual(C.placesUnfiledMembers(phase), true, phase);
+  });
+  it('waits for the new term during election day and coalition talks (no cycle for the next election yet)', () => {
+    for (const phase of ['polling', 'formation'] as const) assert.strictEqual(C.placesUnfiledMembers(phase), false, phase);
+  });
+  const N = { partyName: 'Labour', districtName: 'Ironvale', partyShare: 0.234, filingArc: 36 * 12 + 4, campaignArc: 36 * 12 + 7, pollingArc: 37 * 12 + 1 };
+  it('tells a member placed early where they stand and when they can still change it', () => {
+    const g = C.draftNotice({ ...N, phase: 'governing' });
+    assert.ok(g.includes('Ironvale') && g.includes('23%') && g.includes('May, Year 36') && g.includes('July, Year 36'), g);
+    const f = C.draftNotice({ ...N, phase: 'filing' });
+    assert.ok(f.includes('until August, Year 36'), f);
+  });
+  it('tells a member placed at the campaign that filing has closed and when votes are counted', () => {
+    const c = C.draftNotice({ ...N, phase: 'campaign' });
+    assert.ok(c.startsWith('Filing has closed') && c.includes('February, Year 37'), c);
+  });
+});
