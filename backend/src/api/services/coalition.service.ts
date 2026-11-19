@@ -31,10 +31,13 @@ interface Ctx {
 }
 
 async function loadCtx(trx: any, stateId: string): Promise<Ctx> {
-  const stateRow = await trx('pol_states').where({ id: stateId }).first();
-  const gov = await getGovernment(trx, stateId);
-  const laws = await getLawsInForce(trx, stateId);
-  const parties = (await trx('pol_parties').where({ state_id: stateId }))
+  const [stateRow, gov, laws, partyRows] = await Promise.all([
+    trx('pol_states').where({ id: stateId }).first(),
+    getGovernment(trx, stateId),
+    getLawsInForce(trx, stateId),
+    trx('pol_parties').where({ state_id: stateId }),
+  ]);
+  const parties = partyRows
     .map((p: any) => ({ ...p, seats: gov.seatsByParty[p.id] || 0, plat: parsePlatform(p.platform) }));
   return { stateRow, majority: getMajorityForState(stateRow?.code), maxDistance: nationRules(stateRow?.code).coalitionMaxDistance, gov, laws, parties };
 }
@@ -661,9 +664,8 @@ export async function stepCoalitionMonth(trx: any, stateId: string, arc: number)
 
 /** Everything the Coalition section shows (part of GET /politics/desk). */
 export async function coalitionView(conn: any, stateId: string, me: Me | null, arc: number) {
-  const ctx = await loadCtx(conn, stateId);
+  const [ctx, talks] = await Promise.all([loadCtx(conn, stateId), talksCycle(conn, stateId)]);
   const partyName = (id: string) => ctx.parties.find(p => p.id === id)?.name ?? 'Unknown';
-  const talks = await talksCycle(conn, stateId);
   const standing = me ? await offerStanding(conn, ctx, stateId, me) : { kind: null, cycleId: null, why: 'Create a character first.' };
   const cycleId = talks?.id ?? ctx.gov.sittingCycleId;
   const offers = cycleId

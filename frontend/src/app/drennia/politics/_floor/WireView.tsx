@@ -9,6 +9,7 @@ import { formatPolArc } from '@/lib/calendar';
 import { Btn, Card, Chip, Label, PartyDot, T, useFloor } from './kit';
 import { errorText } from './worldKit';
 import type { Dispatch, Edition, IndexRow, WireFront } from './types';
+import { TAB_DATA } from './tabData';
 
 function Move({ move }: { move: number | null }) {
   if (move == null) return <span className="text-[10px] font-semibold" style={{ color: T.accent }}>NEW</span>;
@@ -140,7 +141,7 @@ function Compose({ front, onDone }: { front: WireFront; onDone: () => void }) {
 
 export default function WireView() {
   const { desk } = useFloor();
-  const { data: front, error, mutate } = useSWR('wire-front', () => agencyApi.getFront(), { refreshInterval: 30_000 });
+  const { data: front, error, mutate } = useSWR(TAB_DATA.wire.key, TAB_DATA.wire.fetch, { refreshInterval: 30_000 });
   const [arc, setArc] = useState<number | null>(null);
   const [mode, setMode] = useState<'edition' | 'live'>('edition');
   const { data: archived } = useSWR(arc != null ? ['wire-edition', arc] : null, () => agencyApi.getEdition(arc!));

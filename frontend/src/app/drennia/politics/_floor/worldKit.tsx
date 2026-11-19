@@ -10,6 +10,7 @@ import { politicsApi } from '@/lib/api';
 import { formatPolArc } from '@/lib/calendar';
 import type { AdministrationNow, Chronicle, ChronicleAdministration, ChroniclePoint, ElectionOutlook, NationRow } from './types';
 import { Chip, T, pct, signed } from './kit';
+import { TAB_DATA } from './tabData';
 
 // ─── Look ───────────────────────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ export function Stat({ label, value, bad, sub }: { label: string; value: string;
 
 /** The world's history (all nations), shared by the Nation and World tabs. */
 export function useChronicle() {
-  return useSWR<Chronicle>('politics-chronicle', () => politicsApi.getChronicle(), { refreshInterval: 60_000 });
+  return useSWR<Chronicle>(TAB_DATA.chronicle.key, TAB_DATA.chronicle.fetch, { refreshInterval: 60_000 });
 }
 
 export interface MetricSpec {

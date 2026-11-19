@@ -73,25 +73,33 @@ async function nationParties(conn: any, stateId: string, seatsByParty: Record<st
 }
 
 export async function worldNations(conn: any, arc?: number) {
-  const roster = await nationRoster(conn);
   if (arc == null) {
     const clock = await conn('world_clock').first();
     if (clock) arc = num(clock.pol_current_year) * 12 + (num(clock.pol_current_month, 1) - 1);
   }
-  const out = [];
-  const sims = await nationSimViews(conn);
-  for (const spec of STARTER_NATIONS) {
+  // The nations are independent of each other: load them side by side (each
+  // query still waits on the database, but the three nations no longer wait on
+  // each other). Order follows STARTER_NATIONS.
+  const [roster, sims] = await Promise.all([nationRoster(conn), nationSimViews(conn)]);
+  const rows = await Promise.all(STARTER_NATIONS.map(async spec => {
     const state = await conn('pol_states').where({ code: spec.polStateCode }).first();
-    if (!state) continue;
+    if (!state) return null;
     const stats = readNationalStatsFromRow(state) as any;
-    const gov = await getGovernment(conn, state.id);
-    const laws = await getLawsInForce(conn, state.id);
-    const office = await conn('pol_offices').where({ state_id: state.id, office: 'premier' }).orderBy('since_arc', 'desc').first();
-    const holder = office?.holder_character_id ? await conn('characters').where({ id: office.holder_character_id }).select('name').first() : null;
-    const lead = gov.leadPartyId ? await conn('pol_parties').where({ id: gov.leadPartyId }).first() : null;
+    const [gov, laws, office, cycle, approval, summary] = await Promise.all([
+      getGovernment(conn, state.id),
+      getLawsInForce(conn, state.id),
+      conn('pol_offices').where({ state_id: state.id, office: 'premier' }).orderBy('since_arc', 'desc').first(),
+      conn('pol_cycles').where({ state_id: state.id, status: 'open' }).first(),
+      liveApproval(conn, state),
+      arc != null ? nationGovernmentSummary(conn, state, spec, arc) : Promise.resolve({ administration: null, election: null }),
+    ]);
+    const [holder, lead, parties] = await Promise.all([
+      office?.holder_character_id ? conn('characters').where({ id: office.holder_character_id }).select('name').first() : null,
+      gov.leadPartyId ? conn('pol_parties').where({ id: gov.leadPartyId }).first() : null,
+      nationParties(conn, state.id, gov.seatsByParty, gov.memberPartyIds),
+    ]);
     const ident = lead ? await conn('pol_party_identities').where({ party_id: lead.id }).first() : null;
-    const cycle = await conn('pol_cycles').where({ state_id: state.id, status: 'open' }).first();
-    out.push({
+    return {
       countryId: spec.countryId,
       polStateCode: spec.polStateCode,
       name: spec.shortName,
@@ -111,16 +119,16 @@ export async function worldNations(conn: any, arc?: number) {
       leadParty: lead ? { name: lead.name, color: ident?.color ?? lead.color_hex ?? '#7A8594' } : null,
       governmentSeats: gov.memberPartyIds.reduce((a, id) => a + (gov.seatsByParty[id] || 0), 0),
       seats: spec.legislature.seats,
-      approval: (await liveApproval(conn, state)).approval,
+      approval: approval.approval,
       power: nationPower(stats, laws.defense),
       sim: sims.find(v => v.polStateCode === spec.polStateCode) ?? null,
       monthsToElection: cycle && arc != null ? Math.max(0, num(cycle.polling_arc) - arc) : null,
       // Who governs (or the caretaker) and when the next election is: display only.
-      ...(arc != null ? await nationGovernmentSummary(conn, state, spec, arc) : { administration: null, election: null }),
+      ...summary,
       players: roster[spec.countryId] || 0,
       cap: NATION_PLAYER_CAP,
-      parties: await nationParties(conn, state.id, gov.seatsByParty, gov.memberPartyIds),
-    });
-  }
-  return out;
+      parties,
+    };
+  }));
+  return rows.filter(<T>(r: T | null): r is T => r !== null);
 }

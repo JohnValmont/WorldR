@@ -22,9 +22,10 @@ import WorldView from './_floor/WorldView';
 import { Flag, electionLine } from './_floor/worldKit';
 import {
   Building2, Clock, Crown, Flag as FlagIcon, Globe2, Landmark, LayoutDashboard, Map as MapIcon, MessagesSquare, Newspaper, ShieldCheck, Users,
-  Vote as VoteIcon, Wallet, Zap, Lock, CheckCircle2, AlertTriangle,
+  Vote as VoteIcon, Wallet, Zap, Lock, CheckCircle2, AlertTriangle, Loader2,
 } from 'lucide-react';
 import type { Notice } from './_floor/types';
+import { preloadTabs } from './_floor/tabData';
 
 type Tab = 'desk' | 'chamber' | 'corridors' | 'map' | 'voters' | 'party' | 'nation' | 'world' | 'wire';
 const TABS: { id: Tab; label: string }[] = [
@@ -134,19 +135,32 @@ export default function PoliticsPage() {
     toastTimer.current = setTimeout(() => setToast(null), ok === true ? 4500 : 7000);
   }, []);
 
+  // An action shows its result as soon as the server answers; the desk reloads
+  // in the background (it used to wait for the whole desk first, doubling the wait).
+  const [refreshing, setRefreshing] = useState(0);
   const act = useCallback<FloorApi['act']>(async (fn, okText) => {
     setBusy(true);
     try {
       const res = await fn();
-      await mutate();
       const text = typeof okText === 'function' ? okText(res) : okText ?? res?.text ?? res?.message;
       if (text) notify(res?.tone ? res.tone !== 'bad' : true, text);
+      setRefreshing(n => n + 1);
+      mutate().catch(() => {}).finally(() => setRefreshing(n => n - 1));
       return res ?? true;
     } catch (e: any) {
       notify(false, e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Something went wrong');
       return false;
     } finally { setBusy(false); }
   }, [mutate, notify]);
+
+  // Once the desk is on screen, warm the other tabs' data so switching is instant.
+  const hasDesk = !!desk;
+  useEffect(() => {
+    if (!hasDesk) return;
+    const w = window as any;
+    const id = w.requestIdleCallback ? w.requestIdleCallback(preloadTabs, { timeout: 1500 }) : setTimeout(preloadTabs, 300);
+    return () => { if (w.cancelIdleCallback && w.requestIdleCallback) w.cancelIdleCallback(id); else clearTimeout(id); };
+  }, [hasDesk]);
 
   const api = useMemo<FloorApi | null>(() => desk ? ({
     desk, refresh: () => mutate(), act, busy, notify,
@@ -207,6 +221,11 @@ export default function PoliticsPage() {
                   title="Time until the month turns: votes are counted, polls update, new decisions arrive">
                   <Clock size={12} aria-hidden />next month <span className="font-mono" style={{ color: T.text }}>{countdown}</span>
                 </span>
+                {refreshing > 0 && (
+                  <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: T.faint }} role="status" aria-live="polite">
+                    <Loader2 size={12} className="animate-spin" aria-hidden />Updating
+                  </span>
+                )}
                 {myNation?.election && (
                   <button type="button" id="election-chip" onClick={openElection2} title={["polling", "formation"].includes(myNation.election.phase) ? "Coalition talks" : "When your nation votes next"}
                     className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold"
@@ -244,9 +263,11 @@ export default function PoliticsPage() {
             const Icon = TAB_ICON[t.id];
             const n = navBadge(t.id);
             return (
-              <button key={t.id} id={`tab-${t.id}`} type="button" onClick={() => setTab(t.id)}
-                className="inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-semibold whitespace-nowrap"
-                style={{ color: tab === t.id ? T.text : T.faint, borderBottom: `2px solid ${tab === t.id ? T.accent : 'transparent'}` }}>
+              <button key={t.id} id={`tab-${t.id}`} type="button" onClick={() => setTab(t.id)} aria-current={tab === t.id ? 'page' : undefined}
+                className={`my-2 inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold whitespace-nowrap border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70 ${tab === t.id ? '' : 'text-[#A3A4AC] bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.07] hover:border-white/20 hover:text-[#ECEAE4]'}`}
+                style={tab === t.id
+                  ? { color: T.text, background: 'linear-gradient(180deg, rgba(232,184,75,0.22), rgba(232,184,75,0.08))', borderColor: 'rgba(232,184,75,0.6)' }
+                  : undefined}>
                 <Icon size={15} aria-hidden />{t.label}
                 {n > 0 && <span className="inline-flex items-center justify-center rounded-full text-[10px] font-bold px-1.5 min-w-[18px] h-[18px]" style={{ background: T.accent, color: '#17130A' }}>{n}</span>}
               </button>
@@ -254,7 +275,7 @@ export default function PoliticsPage() {
           })}
           {isAdmin && (
             <span className="ml-auto self-center hidden sm:inline">
-              <Btn small kind="quiet" onClick={forceTick} disabled={busy} title="Admin only: end the politics month now" id="admin-tick-top">⚡ End month</Btn>
+              <Btn small kind="ghost" onClick={forceTick} disabled={busy} title="Admin only: end the politics month now" id="admin-tick-top">⚡ End month</Btn>
             </span>
           )}
         </nav>
@@ -263,28 +284,33 @@ export default function PoliticsPage() {
       <div className="mx-auto max-w-[1720px] px-4 sm:px-6 xl:px-8 py-5 xl:py-6 xl:grid xl:grid-cols-[232px_minmax(0,1fr)] xl:gap-8">
         {/* Wide screens: a navigation rail on the left. */}
         <aside className="hidden xl:block">
-          <nav className="sticky top-5 space-y-1" aria-label="Politics sections">
+          <nav className="sticky top-5 rounded-2xl p-2 space-y-1.5" aria-label="Politics sections"
+            style={{ background: `linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0) 40%), ${T.surface}`, border: `1px solid ${T.line}`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 40px -28px rgba(0,0,0,0.9)' }}>
             {TABS.map(t => {
               const Icon = TAB_ICON[t.id];
               const on = tab === t.id;
               const n = navBadge(t.id);
               return (
-                <button key={t.id} id={`rail-${t.id}`} type="button" onClick={() => setTab(t.id)}
-                  className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-left transition-colors"
-                  style={{
-                    color: on ? T.text : T.dim,
-                    background: on ? 'linear-gradient(90deg, rgba(232,184,75,0.16), rgba(232,184,75,0.02))' : 'transparent',
-                    boxShadow: on ? `inset 2px 0 0 ${T.accent}` : undefined,
-                  }}>
-                  <Icon size={18} style={{ color: on ? T.accent : T.faint }} aria-hidden />
+                <button key={t.id} id={`rail-${t.id}`} type="button" onClick={() => setTab(t.id)} aria-current={on ? 'page' : undefined}
+                  className={`group w-full flex items-center gap-3 rounded-xl border px-2 py-2 text-sm font-semibold text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70 ${on ? '' : 'text-[#A3A4AC] bg-white/[0.025] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:text-[#ECEAE4] active:scale-[0.99]'}`}
+                  style={on ? {
+                    color: T.text,
+                    background: 'linear-gradient(90deg, rgba(232,184,75,0.22), rgba(232,184,75,0.06))',
+                    borderColor: 'rgba(232,184,75,0.6)',
+                    boxShadow: '0 10px 24px -16px rgba(232,184,75,0.7), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  } : undefined}>
+                  <span className={`inline-flex items-center justify-center rounded-lg shrink-0 transition-colors ${on ? '' : 'group-hover:bg-white/[0.08]'}`}
+                    style={{ width: 32, height: 32, background: on ? T.accent : 'rgba(255,255,255,0.05)', color: on ? '#17130A' : T.dim }}>
+                    <Icon size={17} aria-hidden />
+                  </span>
                   <span className="flex-1">{t.label}</span>
-                  {n > 0 && <span className="inline-flex items-center justify-center rounded-full text-[10px] font-bold px-1.5 min-w-[20px] h-[20px]" style={{ background: T.accent, color: '#17130A' }}>{n}</span>}
+                  {n > 0 && <span className="inline-flex items-center justify-center rounded-full text-[10px] font-bold px-1.5 min-w-[20px] h-[20px]" style={{ background: on ? '#17130A' : T.accent, color: on ? T.accent : '#17130A' }}>{n}</span>}
                 </button>
               );
             })}
             {isAdmin && (
-              <div className="pt-4 mt-4" style={{ borderTop: `1px solid ${T.line}` }}>
-                <Btn small kind="quiet" onClick={forceTick} disabled={busy} title="Admin only: end the politics month now" id="admin-tick">⚡ End month</Btn>
+              <div className="pt-2 mt-1" style={{ borderTop: `1px solid ${T.line}` }}>
+                <Btn small full kind="ghost" onClick={forceTick} disabled={busy} title="Admin only: end the politics month now" id="admin-tick">⚡ End month</Btn>
               </div>
             )}
           </nav>

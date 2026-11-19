@@ -68,6 +68,7 @@ import type { GovernmentInfo } from '../services/statecraft.service';
 import { getCapitol } from '../services/capitol.service';
 import { appointMinister } from '../services/statecraft.service';
 import { db } from '../../config/database';
+import { readCacheForGets } from '../services/readCache';
 import { markNoticesRead } from '../services/notices.service';
 
 const router = Router();
@@ -77,6 +78,8 @@ const router = Router();
 router.use([authMiddleware]);
 // Every politics request runs in the player's own nation unless it names another.
 router.use(withPlayerNation());
+// Each read builds its screen from shared facts fetched once (services/readCache.ts).
+router.use(readCacheForGets());
 
 // ── Capitol: one read model for the rebuilt Politics screens ───────────────
 router.get('/capitol', async (req: Request, res: Response, next: NextFunction) => {

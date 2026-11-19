@@ -355,7 +355,8 @@ export interface RaceDistrict {
 }
 export interface Race {
   phase: 'governing' | 'filing' | 'campaign' | 'polling' | 'formation';
-  arcs: { filing: number; campaign: number; polling: number; formationEnd: number; nextFiling: number | null };
+  /** stale: the cycle's own filing/campaign/polling dates are long past (an overdue count); screens hide them. */
+  arcs: { filing: number; campaign: number; polling: number; formationEnd: number; nextFiling: number | null; stale?: boolean };
   window: { open: boolean; lockReason: string | null; action: 'stand' | 'change' | 'locked' };
   drafted: boolean;
   myDistrictId: string | null;

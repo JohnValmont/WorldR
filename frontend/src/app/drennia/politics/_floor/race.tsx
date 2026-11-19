@@ -43,9 +43,11 @@ export function SeatGauge({ share, seats, color, height = 10, labels = true }: {
 
 function Stepper({ race }: { race: Race }) {
   const idx = STEPS.findIndex(s => s.id === race.phase);
+  // After an overdue count the cycle's own dates are years old: show the stages without them.
+  const old = !!race.arcs.stale;
   const when: Record<string, string> = {
-    governing: '', filing: formatPolArc(race.arcs.filing, true), campaign: formatPolArc(race.arcs.campaign, true),
-    polling: formatPolArc(race.arcs.polling, true), formation: `to ${formatPolArc(race.arcs.formationEnd, true)}`,
+    governing: '', filing: old ? 'done' : formatPolArc(race.arcs.filing, true), campaign: old ? 'done' : formatPolArc(race.arcs.campaign, true),
+    polling: old ? 'done' : formatPolArc(race.arcs.polling, true), formation: `to ${formatPolArc(race.arcs.formationEnd, true)}`,
   };
   return (
     <ol className="grid grid-cols-5 gap-1.5" aria-label="Election cycle">
@@ -82,7 +84,9 @@ function nextStep(race: Race, hasParty: boolean, my: RaceDistrict | null, rec: R
   if (!hasParty) return 'Join or found a party: every candidate stands for one. Then pick the district you will fight.';
   switch (race.phase) {
     case 'governing':
-      return `Filing opens in ${formatPolArc(race.arcs.filing, false)}. Until then, build Trust and your party's support: colleagues can take the best districts first.`;
+      return my
+        ? `You stand in ${my.name}${race.drafted ? ', the best open district your party had for you' : ''}. You can change district during filing, from ${formatPolArc(race.arcs.filing, false)}. Until then, build Trust and your party's support.`
+        : `Filing opens in ${formatPolArc(race.arcs.filing, false)}. If you have not picked a district when the month turns, your party puts you up in your best open one (you can still change it during filing).`;
     case 'filing':
       return my
         ? `You stand in ${my.name}. You can switch until the campaign starts in ${formatPolArc(race.arcs.campaign, false)}.`
@@ -94,9 +98,7 @@ function nextStep(race: Race, hasParty: boolean, my: RaceDistrict | null, rec: R
     case 'polling':
       return 'Election day. The votes are counted when this month turns.';
     default:
-      return race.arcs.nextFiling != null
-        ? `The votes are in and a government is forming. Filing for the next election opens about ${formatPolArc(race.arcs.nextFiling, false)}.`
-        : 'The votes are in and a government is forming.';
+      return `The votes are in and a government is forming.${hasParty && !my ? ' Once it takes office, your party puts you up in your best open district for the next election automatically; you can change it during filing.' : ''}${race.arcs.nextFiling != null ? ` Filing for the next election opens about ${formatPolArc(race.arcs.nextFiling, false)}.` : ''}`;
   }
 }
 
@@ -156,7 +158,7 @@ export function RaceHero() {
           <div className="grid grid-cols-3 gap-2">
             <MiniStat icon={<Trophy size={14} />} label="Rank" value={`#${show.rank}`} sub={`of ${race.districts.length}`} />
             <MiniStat icon={<Users size={14} />} label="Your Trust" value={String(me.credibility)} sub="counts here" />
-            <MiniStat icon={<Vote size={14} />} label="Votes in" value={formatPolArc(race.arcs.polling, true)} sub={race.phase === 'formation' ? 'counted' : `${Math.max(0, race.arcs.polling - desk.calendar.arc)} mo`} />
+            <MiniStat icon={<Vote size={14} />} label="Votes in" value={race.arcs.stale ? 'Counted' : formatPolArc(race.arcs.polling, true)} sub={race.phase === 'formation' ? 'counted' : `${Math.max(0, race.arcs.polling - desk.calendar.arc)} mo`} />
           </div>
         </div>
       )}

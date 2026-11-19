@@ -40,28 +40,47 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
   if (!state) return null;
 
   const nation = nationFor(state);
-  const arc = await getCurrentWorldArc();
-  const cycle = await getOrCreateCurrentCycle(state.id);
   const stats = readNationalStatsFromRow(state);
   const seatsTotal = nation?.legislature.seats ?? getSeatsForState(state.code);
   const majority = nation?.legislature.majority ?? getMajorityForState(state.code);
 
-  // ── Parties ──
-  const partyRows = await db('pol_parties').where({ state_id: state.id });
-  const identities = partyRows.length
-    ? await db('pol_party_identities').whereIn('party_id', partyRows.map((p: any) => p.id))
-    : [];
-  const idBy = new Map<string, any>(identities.map((i: any) => [i.party_id, i]));
-  const memberCounts = partyRows.length
-    ? await db('pol_party_members').whereIn('party_id', partyRows.map((p: any) => p.id)).select('party_id').count('* as n').groupBy('party_id')
-    : [];
-  const membersBy = new Map<string, number>(memberCounts.map((r: any) => [r.party_id, num(r.n)]));
-  const leaderIds = partyRows.map((p: any) => p.leader_character_id).filter(Boolean);
-  const leaders = leaderIds.length ? await db('characters').whereIn('id', leaderIds).select('id', 'name', 'credibility') : [];
-  const leaderBy = new Map<string, any>(leaders.map((c: any) => [c.id, c]));
-
-  const gov = await getGovernment(db, state.id);
+  // Independent lookups load side by side (each is a round trip to the database).
+  const [arc, cycle, partyRows, gov, laws, premierRow, postRows, live, activeRows, billRows, myChar, districtRows, news] = await Promise.all([
+    getCurrentWorldArc(),
+    getOrCreateCurrentCycle(state.id),
+    db('pol_parties').where({ state_id: state.id }),
+    getGovernment(db, state.id),
+    getLawsInForce(db, state.id),
+    db('pol_offices').where({ state_id: state.id, office: 'premier' }).orderBy('since_arc', 'desc').first(),
+    db('pol_cabinet_posts').where({ state_id: state.id }),
+    liveApproval(db, state),
+    db('pol_active_policies').where({ state_id: state.id, is_active: true }),
+    db('pol_bills').where({ state_id: state.id }).orderBy('proposed_arc', 'desc').orderBy('id').limit(30),
+    userId ? db('characters').where({ user_id: userId, status: 'active' }).first() : Promise.resolve(null),
+    db('pol_constituencies').where({ state_id: state.id, is_active: true }).orderBy('name'),
+    db('pol_ledger_events').where({ state_id: state.id }).orderBy('arc', 'desc').limit(15).select('id', 'arc', 'kind', 'headline', 'body'),
+  ]);
   const govSet = new Set(gov.memberPartyIds);
+
+  // ── Parties ──
+  const partyIds = partyRows.map((p: any) => p.id);
+  const leaderIds = partyRows.map((p: any) => p.leader_character_id).filter(Boolean);
+  const ministerIds = postRows.map((r: any) => r.holder_character_id).filter(Boolean);
+  const [identities, memberCounts, leaders, holder, ministerChars, historyRows, seatRows, voteShared] = await Promise.all([
+    partyIds.length ? db('pol_party_identities').whereIn('party_id', partyIds) : Promise.resolve([]),
+    partyIds.length ? db('pol_party_members').whereIn('party_id', partyIds).select('party_id').count('* as n').groupBy('party_id') : Promise.resolve([]),
+    leaderIds.length ? db('characters').whereIn('id', leaderIds).select('id', 'name', 'credibility') : Promise.resolve([]),
+    premierRow?.holder_character_id ? db('characters').where({ id: premierRow.holder_character_id }).first() : Promise.resolve(null),
+    ministerIds.length ? db('characters').whereIn('id', ministerIds).select('id', 'name') : Promise.resolve([]),
+    db('pol_poll_snapshots').where({ state_id: state.id }).where('arc', '>', arc - POLL_HISTORY_MONTHS).orderBy('arc', 'asc'),
+    gov.sittingCycleId
+      ? db('pol_council_seats').where({ cycle_id: gov.sittingCycleId }).select('constituency_id', 'party_id').count('* as n').groupBy('constituency_id', 'party_id')
+      : Promise.resolve([]),
+    loadVoteShared(db, state.id, gov, laws, partyRows),
+  ]);
+  const idBy = new Map<string, any>(identities.map((i: any) => [i.party_id, i]));
+  const membersBy = new Map<string, number>((memberCounts as any[]).map((r: any) => [r.party_id, num(r.n)]));
+  const leaderBy = new Map<string, any>(leaders.map((c: any) => [c.id, c]));
 
   const parties = partyRows.map((p: any) => {
     const ident = idBy.get(p.id);
@@ -90,10 +109,8 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
   const partyById = new Map<string, any>(parties.map((p: any) => [p.id, p]));
 
   // ── Executive ──
-  const premierRow = await db('pol_offices').where({ state_id: state.id, office: 'premier' }).orderBy('since_arc', 'desc').first();
   let premier: any = null;
   if (premierRow) {
-    const holder = premierRow.holder_character_id ? await db('characters').where({ id: premierRow.holder_character_id }).first() : null;
     const party = partyById.get(premierRow.party_id);
     premier = {
       name: holder?.name || party?.leaderName || 'Acting Premier',
@@ -104,10 +121,7 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
     };
   }
 
-  const postRows = await db('pol_cabinet_posts').where({ state_id: state.id });
   const postBy = new Map<string, any>(postRows.map((r: any) => [r.post_key, r]));
-  const ministerIds = postRows.map((r: any) => r.holder_character_id).filter(Boolean);
-  const ministerChars = ministerIds.length ? await db('characters').whereIn('id', ministerIds).select('id', 'name') : [];
   const ministerBy = new Map<string, any>(ministerChars.map((c: any) => [c.id, c]));
   const cabinet = CABINET_POSTS.map(post => {
     const row = postBy.get(post.key);
@@ -127,12 +141,7 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
   });
 
   // ── Polls & approval ──
-  const live = await liveApproval(db, state);
   const approvalNow = live.approval;
-  const historyRows = await db('pol_poll_snapshots')
-    .where({ state_id: state.id })
-    .where('arc', '>', arc - POLL_HISTORY_MONTHS)
-    .orderBy('arc', 'asc');
   type PollPoint = { arc: number; shares: Record<string, number>; seats: Record<string, number>; approval: number | null };
   const historyByArc = new Map<number, PollPoint>();
   for (const r of historyRows as any[]) {
@@ -155,8 +164,6 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
   }
 
   // ── Laws ──
-  const laws = await getLawsInForce(db, state.id);
-  const activeRows = await db('pol_active_policies').where({ state_id: state.id, is_active: true });
   const activeBy = new Map<string, any>(activeRows.map((r: any) => [r.category, r]));
   const lawBook = POLICY_CATALOG.map(cat => {
     const currentId = laws[cat.id];
@@ -187,16 +194,12 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
   try { businessEffects = await getNationalPolicyMultipliers(db, state.country_id); } catch { /* optional */ }
 
   // ── Bills ──
-  const billRows = await db('pol_bills').where({ state_id: state.id }).orderBy('proposed_arc', 'desc').orderBy('id').limit(30);
   const leaderParty = new Map<string, string>(partyRows.filter((p: any) => p.leader_character_id).map((p: any) => [p.leader_character_id, p.id]));
   let me: any = null;
-  let myChar: any = null;
-  if (userId) myChar = await db('characters').where({ user_id: userId, status: 'active' }).first();
 
   const rules = nationRules(state.code);
-  const voteShared = await loadVoteShared(db, state.id, gov, laws, partyRows);
-  const bills = [];
-  for (const b of billRows) {
+  // Bills are independent of each other: build them side by side (order kept).
+  const bills = await Promise.all(billRows.map(async (b: any) => {
     const params = typeof b.params === 'string' ? safeParseJSON(b.params) : (b.params ?? {});
     const votes = await db('pol_bill_votes').where({ bill_id: b.id });
     const tally = { yea: 0, nay: 0 };
@@ -222,7 +225,7 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
       tally.nay = num(b.nay_seats);
     }
     const proposer = partyById.get(b.proposed_by_party_id);
-    bills.push({
+    return {
       id: b.id,
       title: params?.category ? billTitle(params.category, params.option) : String(b.type).replace(/_/g, ' '),
       category: params?.category ?? null,
@@ -240,14 +243,10 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
       tally,
       projectedPass: tally.yea - tally.nay >= rules.passMargin,
       myVote: myChar ? votes.find((v: any) => v.character_id === myChar.id)?.vote ?? null : null,
-    });
-  }
+    };
+  }));
 
   // ── Districts ──
-  const districtRows = await db('pol_constituencies').where({ state_id: state.id, is_active: true }).orderBy('name');
-  const seatRows = gov.sittingCycleId
-    ? await db('pol_council_seats').where({ cycle_id: gov.sittingCycleId }).select('constituency_id', 'party_id').count('* as n').groupBy('constituency_id', 'party_id')
-    : [];
   const seatsByDistrict = new Map<string, Record<string, number>>();
   for (const r of seatRows as any[]) {
     const key = String(r.constituency_id);
@@ -264,26 +263,22 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
     sitting: seatsByDistrict.get(d.id) ?? {},
   }));
 
-  // ── News ──
-  const news = await db('pol_ledger_events').where({ state_id: state.id }).orderBy('arc', 'desc').limit(15)
-    .select('id', 'arc', 'kind', 'headline', 'body');
-
   // ── Me ──
   if (myChar) {
-    const membership = await db('pol_party_members').where({ character_id: myChar.id }).first();
+    const [membership, mySeat, myCandidacy, apRow, fin, worldRank] = await Promise.all([
+      db('pol_party_members').where({ character_id: myChar.id }).first(),
+      gov.sittingCycleId ? db('pol_council_seats').where({ cycle_id: gov.sittingCycleId, character_id: myChar.id }).first() : Promise.resolve(null),
+      db('pol_candidates').where({ cycle_id: cycle.id, character_id: myChar.id }).first(),
+      db('pol_character_ap').where({ character_id: myChar.id }).first(),
+      db('character_finances').where({ character_id: myChar.id }).first(),
+      latestWorldRank(db, myChar.id),
+    ]);
     const myParty = membership ? partyById.get(membership.party_id) : null;
-    const mySeat = gov.sittingCycleId
-      ? await db('pol_council_seats').where({ cycle_id: gov.sittingCycleId, character_id: myChar.id }).first()
-      : null;
-    const myCandidacy = await db('pol_candidates').where({ cycle_id: cycle.id, character_id: myChar.id }).first();
     const myPost = cabinet.find(c => c.characterId === myChar.id) ?? null;
     const isPremier = premier?.characterId === myChar.id;
-    const apRow = await db('pol_character_ap').where({ character_id: myChar.id }).first();
-    const fin = await db('character_finances').where({ character_id: myChar.id }).first();
 
     const inGov = !!myParty && govSet.has(myParty.id);
     const partySeated = !!myParty && (gov.seatsByParty[myParty.id] || 0) > 0;
-    const worldRank = await latestWorldRank(db, myChar.id);
     const rung: Rung = careerRung({
       hasParty: !!membership, isCandidate: !!myCandidacy, hasSeat: !!mySeat,
       leadsSeatedParty: membership?.role === 'leader' && partySeated, isMinister: !!myPost, isHead: isPremier,

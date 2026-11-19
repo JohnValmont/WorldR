@@ -4,9 +4,12 @@
  * - Filing is the only time to stand or change district (standWindow).
  * - Each district is ranked for your party with the SAME projection the polls
  *   and the political map use (projectElection + pollParties).
- * - When the campaign starts, members who never chose are put up in their best
- *   open district and told where (draftUnfiledMembers). Nobody is placed in an
- *   arbitrary district any more.
+ * - Owner decision (2026-11-19): nobody waits without a district. Whenever there
+ *   is an election to stand in (governing, filing or campaign), a party member
+ *   who has not chosen is put up in their party's best open district and told
+ *   where (draftUnfiledMembers): on joining or founding a party, and at every
+ *   month end. They can change district during filing. Nobody is placed in an
+ *   arbitrary district.
  *
  * Must NOT import politics.service (it calls draftUnfiledMembers).
  */
@@ -16,24 +19,32 @@ import { getNationForPolState } from '../constants/nations';
 import { readNationalStatsFromRow } from './nationalEconomy.service';
 import { getGovernment, liveApproval, pollParties, projectElection } from './statecraft.service';
 import { notify } from './notices.service';
-import { draftDistrict, polArcLabel, rankDistricts, standWindow, type DistrictOption, type ElectionPhase } from './candidacy.rules';
+import { logger } from '../../utils/logger';
+import { draftDistrict, draftNotice, placesUnfiledMembers, polArcLabel, rankDistricts, standWindow, type DistrictOption, type ElectionPhase } from './candidacy.rules';
+import { electionOutlook } from './administration.rules';
 
 const num = (v: any) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 
 /** Every district, scored for one party (colleagues' districts marked, `meId`'s own district marked as mine). */
 export async function districtOptions(conn: any, state: any, cycleId: string, partyId: string, meId: string | null): Promise<DistrictOption[]> {
-  const districts = await conn('pol_constituencies').where({ state_id: state.id, is_active: true }).orderBy('name');
+  // Independent lookups load side by side.
+  const [districts, parties, gov, approval, named] = await Promise.all([
+    conn('pol_constituencies').where({ state_id: state.id, is_active: true }).orderBy('name'),
+    conn('pol_parties').where({ state_id: state.id }),
+    getGovernment(conn, state.id),
+    liveApproval(conn, state),
+    conn('pol_candidates as pc').leftJoin('characters as c', 'c.id', 'pc.character_id')
+      .where({ 'pc.cycle_id': cycleId, 'pc.party_id': partyId, 'pc.is_npc': false }).whereNotNull('pc.character_id')
+      .select('pc.constituency_id', 'pc.character_id', 'c.name'),
+  ]);
   if (!districts.length) return [];
-  const parties = await conn('pol_parties').where({ state_id: state.id });
-  const gov = await getGovernment(conn, state.id);
-  const proj = projectElection(await pollParties(conn, state.id, parties), districts, readNationalStatsFromRow(state),
-    new Set(gov.memberPartyIds), (await liveApproval(conn, state)).approval);
-  const named = await conn('pol_candidates as pc').leftJoin('characters as c', 'c.id', 'pc.character_id')
-    .where({ 'pc.cycle_id': cycleId, 'pc.party_id': partyId, 'pc.is_npc': false }).whereNotNull('pc.character_id')
-    .select('pc.constituency_id', 'pc.character_id', 'c.name');
-  const sittingRows = gov.sittingCycleId
-    ? await conn('pol_council_seats').where({ cycle_id: gov.sittingCycleId, party_id: partyId }).select('constituency_id').count('* as n').groupBy('constituency_id')
-    : [];
+  const [polled, sittingRows] = await Promise.all([
+    pollParties(conn, state.id, parties),
+    gov.sittingCycleId
+      ? conn('pol_council_seats').where({ cycle_id: gov.sittingCycleId, party_id: partyId }).select('constituency_id').count('* as n').groupBy('constituency_id')
+      : Promise.resolve([]),
+  ]);
+  const proj = projectElection(polled, districts, readNationalStatsFromRow(state), new Set(gov.memberPartyIds), approval.approval);
   const sitting = new Map<string, number>(sittingRows.map((r: any) => [r.constituency_id, num(r.n)]));
   const regionName = new Map<string, string>((getNationForPolState(state.code)?.regions ?? []).map(r => [r.code, r.name]));
   return districts.map((d: any) => {
@@ -64,12 +75,24 @@ function windowFor(state: any, cycle: any, arc: number, hasParty: boolean, stand
   const campaign = polling - POL_CAMPAIGN_WINDOW_MONTHS;
   const filing = campaign - POL_FILING_WINDOW_MONTHS;
   const firstCut = num(cycle.cycle_number) === 1 && getJurisdiction(state.code).tier === 'national' ? getElectionOffsetMonths(state.code) : 0;
-  const nextPolling = polling + getTermMonthsForState(state.code) - firstCut;
   const phase = phaseOf(cycle, arc);
+  // Screens take election timing from electionOutlook (never a date in the past,
+  // even after an overdue count).
+  const outlook = electionOutlook({
+    arc, phase, pollingArc: polling, formationEndArc: num(cycle.formation_end_arc),
+    termMonths: getTermMonthsForState(state.code), firstTermCut: firstCut,
+  });
+  const nextPolling = outlook.electionArc;
   const months = (n: number) => `${n} month${n === 1 ? '' : 's'}`;
   return {
     phase,
-    arcs: { filing, campaign, polling, formationEnd: num(cycle.formation_end_arc), nextFiling: phase === 'formation' ? nextPolling - POL_CAMPAIGN_WINDOW_MONTHS - POL_FILING_WINDOW_MONTHS : null },
+    arcs: {
+      filing, campaign, polling,
+      formationEnd: outlook.formationEndArc ?? num(cycle.formation_end_arc),
+      nextFiling: phase === 'formation' ? nextPolling - POL_CAMPAIGN_WINDOW_MONTHS - POL_FILING_WINDOW_MONTHS : null,
+      // The cycle's own filing/campaign/polling dates are long past (an overdue count): screens hide them.
+      stale: phase === 'formation' && arc > num(cycle.formation_end_arc),
+    },
     window: standWindow({
       phase, hasParty, standing,
       filingOpens: `${polArcLabel(filing)} (${months(Math.max(0, filing - arc))} from now)`,
@@ -83,9 +106,12 @@ function windowFor(state: any, cycle: any, arc: number, hasParty: boolean, stand
 export async function raceFor(conn: any, state: any, me: { id: string; partyId: string | null }, arc: number) {
   const cycle = await conn('pol_cycles').where({ state_id: state.id, status: 'open' }).first();
   if (!cycle) return null;
-  const mine = await conn('pol_candidates').where({ cycle_id: cycle.id, character_id: me.id }).first();
+  const [mine, options] = await Promise.all([
+    conn('pol_candidates').where({ cycle_id: cycle.id, character_id: me.id }).first(),
+    me.partyId ? districtOptions(conn, state, cycle.id, me.partyId, me.id) : Promise.resolve([] as DistrictOption[]),
+  ]);
   const w = windowFor(state, cycle, arc, !!me.partyId, !!mine);
-  const ranked = me.partyId ? rankDistricts(await districtOptions(conn, state, cycle.id, me.partyId, me.id)) : [];
+  const ranked = rankDistricts(options);
   return {
     ...w,
     drafted: !!mine?.drafted,
@@ -126,14 +152,26 @@ export async function standInDistrict(trx: any, state: any, cycle: any, characte
 }
 
 /**
- * When the campaign is under way: every party member who never chose a district
- * is put up in their best open one, and told. Idempotent.
+ * Every party member with no district for the coming election is put up in
+ * their party's best open district, and told (owner decision 2026-11-19: on
+ * joining or founding a party, and at every month end; before 2026-11-19 this
+ * waited for the campaign). During polling and formation the coming election
+ * has no cycle yet, so nothing happens until the new term opens. Idempotent.
+ * `onlyCharacterId` limits it to one member (the one who just joined).
  */
-export async function draftUnfiledMembers(trx: any, state: any, cycle: any, arc: number): Promise<number> {
-  const members = await trx('pol_party_members as m').join('pol_parties as p', 'p.id', 'm.party_id')
+export async function draftUnfiledMembers(trx: any, state: any, cycle: any, arc: number, onlyCharacterId?: string): Promise<number> {
+  const phase = phaseOf(cycle, arc);
+  if (!placesUnfiledMembers(phase)) return 0;
+  const q = trx('pol_party_members as m').join('pol_parties as p', 'p.id', 'm.party_id')
     .join('characters as c', 'c.id', 'm.character_id').join('users as u', 'u.id', 'c.user_id')
     .where('p.state_id', state.id).where('c.status', 'active').whereNot('u.password_hash', 'no_login_allowed')
     .select('m.character_id', 'm.party_id', 'p.name as party_name', 'p.platform');
+  if (onlyCharacterId) q.where('m.character_id', onlyCharacterId);
+  const members = await q;
+  if (!members.length) return 0;
+  const gov = await getGovernment(trx, state.id);
+  const filingArc = num(cycle.polling_arc) - POL_CAMPAIGN_WINDOW_MONTHS - POL_FILING_WINDOW_MONTHS;
+  const campaignArc = num(cycle.polling_arc) - POL_CAMPAIGN_WINDOW_MONTHS;
   let drafted = 0;
   const optionsByParty = new Map<string, DistrictOption[]>();
   for (const m of members) {
@@ -144,16 +182,38 @@ export async function draftUnfiledMembers(trx: any, state: any, cycle: any, arc:
     if (!pick) continue;
     // Only the party's computer placeholder makes way, never a person.
     await trx('pol_candidates').where({ cycle_id: cycle.id, party_id: m.party_id, constituency_id: pick.id }).whereNull('character_id').del();
+    const seat = gov.sittingCycleId ? await trx('pol_council_seats').where({ cycle_id: gov.sittingCycleId, character_id: m.character_id }).first() : null;
     await trx('pol_candidates').insert({
       cycle_id: cycle.id, party_id: m.party_id, constituency_id: pick.id, character_id: m.character_id, is_npc: false,
-      platform: typeof m.platform === 'string' ? m.platform : JSON.stringify(m.platform ?? {}), is_incumbent: false, drafted: true,
+      platform: typeof m.platform === 'string' ? m.platform : JSON.stringify(m.platform ?? {}), is_incumbent: !!seat, drafted: true,
     });
     // Mark the district taken in the party's list (draftDistrict returns a copy) so the next member gets another.
     const taken = options.find(o => o.id === pick.id);
     if (taken) taken.takenBy = 'drafted';
     drafted++;
-    await notify(trx, m.character_id, arc, 'candidacy',
-      `Filing has closed and you had not picked a district, so ${m.party_name} put you up in ${pick.name}, its best open district for you (${Math.round(pick.partyShare * 100)}% in today's poll). Campaign there: votes are counted in ${polArcLabel(num(cycle.polling_arc))}.`, 'desk');
+    await notify(trx, m.character_id, arc, 'candidacy', draftNotice({
+      phase, partyName: m.party_name, districtName: pick.name, partyShare: pick.partyShare,
+      filingArc, campaignArc, pollingArc: num(cycle.polling_arc),
+    }), 'desk');
   }
   return drafted;
+}
+
+/**
+ * A player who just joined or founded a party is put up in its best open
+ * district for the coming election (draftUnfiledMembers). Its own savepoint:
+ * a failure here never undoes the join.
+ */
+export async function placeNewMember(trx: any, stateId: string, characterId: string, arc: number): Promise<void> {
+  try {
+    await trx.transaction(async (sp: any) => {
+      const [state, cycle] = await Promise.all([
+        sp('pol_states').where({ id: stateId }).first(),
+        sp('pol_cycles').where({ state_id: stateId, status: 'open' }).first(),
+      ]);
+      if (state && cycle) await draftUnfiledMembers(sp, state, cycle, arc, characterId);
+    });
+  } catch (err) {
+    logger.error(`[candidacy] could not place character ${characterId} in a district; they can choose one in filing.`, err);
+  }
 }
