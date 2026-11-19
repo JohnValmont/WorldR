@@ -181,7 +181,12 @@ export default function PoliticsPage() {
   const rung = me ? `${me.office ?? RUNG_LABEL[me.rung] ?? me.rung}${me.isPartyLeader && !me.office && me.rung !== 'leader' ? ', party leader' : ''}` : '';
   const initials = me ? me.name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() : '';
   const navBadge = (id: Tab) => (id === 'desk' && pending > 0 ? pending : 0);
-  const openElection2 = () => { try { sessionStorage.setItem(NATION_SECTION_KEY, 'overview'); } catch { /* private mode */ } setTab('nation'); };
+  // The election chip: during the count and coalition talks it opens the talks (Nation → Coalition), otherwise the overview.
+  const openElection2 = () => {
+    const talking = ['polling', 'formation'].includes(myNation?.election?.phase ?? '');
+    try { sessionStorage.setItem(NATION_SECTION_KEY, talking ? 'coalition' : 'overview'); } catch { /* private mode */ }
+    setTab('nation');
+  };
 
   return (
     <div className="min-h-screen" style={{
@@ -203,7 +208,7 @@ export default function PoliticsPage() {
                   <Clock size={12} aria-hidden />next month <span className="font-mono" style={{ color: T.text }}>{countdown}</span>
                 </span>
                 {myNation?.election && (
-                  <button type="button" id="election-chip" onClick={openElection2} title="When your nation votes next"
+                  <button type="button" id="election-chip" onClick={openElection2} title={["polling", "formation"].includes(myNation.election.phase) ? "Coalition talks" : "When your nation votes next"}
                     className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold"
                     style={{ background: myNation.election.phase === 'governing' ? 'rgba(255,255,255,0.04)' : T.accentSoft, border: `1px solid ${myNation.election.phase === 'governing' ? T.line : T.accent}`, color: myNation.election.phase === 'governing' ? T.dim : T.accent }}>
                     <VoteIcon size={12} aria-hidden />{electionLine(myNation.election)}

@@ -99,9 +99,16 @@ describe('Election outlook', () => {
   it('while a government forms, the next election is a term away, never "0 months"', () => {
     const o = A.electionOutlook({ arc: 400, phase: 'formation', pollingArc: 399, formationEndArc: 401, termMonths: 48, firstTermCut: 6 });
     assert.strictEqual(o.phase, 'formation');
-    assert.strictEqual(o.electionArc, 399 + 48 - 6);
+    // The next term starts when the government forms: this month at the earliest.
+    assert.strictEqual(o.electionArc, 400 + 48 - 6);
     assert.ok(o.monthsToElection > 0);
     assert.strictEqual(o.estimated, true);
     assert.strictEqual(o.formationEndArc, 401);
+  });
+  it('an overdue election (missed months) never shows a deadline or next election in the past', () => {
+    // Live 2026-11-19: due May Yr 10 (arc 124), still forming in June Yr 33 (arc 401).
+    const o = A.electionOutlook({ arc: 401, phase: 'formation', pollingArc: 122, formationEndArc: 124, termMonths: 48, firstTermCut: 0 });
+    assert.ok(o.formationEndArc! >= 401, `deadline ${o.formationEndArc} is in the past`);
+    assert.ok(o.electionArc > 401 && o.monthsToElection === 48, 'next election a full term from now');
   });
 });

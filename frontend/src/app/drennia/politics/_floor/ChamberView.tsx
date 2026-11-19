@@ -6,7 +6,7 @@ import { Btn, Card, Chip, Label, PartyDot, T, leaderTitle, useFloor } from './ki
 import { BillCard, FavourLedger, TableBillSheet } from './bills';
 
 function Government() {
-  const { desk } = useFloor();
+  const { desk, go } = useFloor();
   const gov = desk.parliament.government;
   const party = (id: string | null) => desk.parties.find(p => p.id === id);
   if (!gov) {
@@ -16,6 +16,7 @@ function Government() {
         <p className="text-sm mt-1" style={{ color: T.dim }}>
           {desk.parliament.filled > 0 ? 'Parties are negotiating. No government has formed yet.' : 'Parliament has not been elected yet. The founding election is this month.'}
         </p>
+        {desk.parliament.filled > 0 && <div className="mt-3"><Btn small onClick={() => go('nation:coalition')} id="cta-coalition-government">See the coalition talks</Btn></div>}
       </Card>
     );
   }
@@ -55,13 +56,16 @@ function Government() {
 function Formation() {
   const { desk, go } = useFloor();
   const c = desk.desk.coalition;
-  if (!c || c.phase !== 'talks') return null;
+  const between = ['polling', 'formation'].includes(desk.calendar.phase);
+  if (!c || (c.phase !== 'talks' && !between)) return null;
   const lead = c.blocs[0];
   return (
     <Card className="p-4" tone="accent">
       <Label color={T.accent}>Forming a government</Label>
       <p className="text-sm mt-1" style={{ color: T.text }}>
-        No party has a majority ({c.majority} seats).{lead ? ` Biggest bloc so far: ${lead.leadName}${lead.partners.length ? ` + ${lead.partners.map(p => p.name).join(' + ')}` : ''}, ${lead.seats} seats.` : ''}
+        {c.phase === 'talks'
+          ? <>No party has a majority ({c.majority} seats).{lead ? ` Biggest bloc so far: ${lead.leadName}${lead.partners.length ? ` + ${lead.partners.map(p => p.name).join(' + ')}` : ''}, ${lead.seats} seats.` : ''}</>
+          : <>The votes are counted when this month ends. A party with {c.majority} seats governs at once; otherwise coalition talks open, and every party leader with seats can make offers.</>}
       </p>
       <div className="mt-3"><Btn small kind="primary" onClick={() => go('nation:coalition')} id="cta-coalition-chamber">Coalition talks</Btn></div>
     </Card>
