@@ -166,3 +166,12 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Nation tab = the player's own nation (Overview, Economy, Budget, Foreign affairs, Government, Coalition, History). World tab = all nations side by side. Comparison of nations goes in World, not Nation.
 - Nation chart colours are fixed per nation (NATION_COLOR in _floor/worldKit.tsx, validated for colour-blind separation). A new nation needs a colour there; colour follows the nation, never its rank.
 - Admin accounts (users.role='admin') see the one-line reason of a 500 error (app.ts). Players never do, and no one sees stack traces in production.
+
+## Your race (candidacy) and the politics shell — Operational Rules (DO NOT BREAK)
+- Design: docs/POLITICS_FLOOR.md ("Your race"). Pure rules in services/candidacy.rules.ts with tests in tests/candidacy.test.ts; database work in services/candidacy.service.ts (it must NOT import politics.service).
+- Owner decision: features that exist but are not available yet stay VISIBLE and locked (LockedBtn in _floor/kit.tsx). Clicking says why and when they open. Do not hide such controls.
+- Standing or changing district happens ONLY in filing, through standInDistrict (POST /politics/candidacy). The reason text comes from standWindow; screens show it, never their own.
+- District chances use the same projection as polls and the map (projectElection + pollParties). Do not compute a separate district poll.
+- ensureCandidates creates computer placeholders only (character_id null). Players are never drafted into an arbitrary district: draftUnfiledMembers puts undecided members in their best open district when the campaign runs, with a notice. Only placeholders are ever deleted to make room.
+- An election is done only once pol_council_seats exist (electionEngine.electionStep). Never key election idempotency on pol_results.
+- The politics pages are full width (max 1720px) with a left navigation rail on xl screens and top tabs below that. Do not go back to a narrow centred column.

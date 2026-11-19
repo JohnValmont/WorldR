@@ -22,6 +22,7 @@ import {
   contestView, decreeOffices, effectiveCost, ensureHand, forecastPact, getEnergy, playerPolitics, switchCooldownLeft,
 } from './floor.service';
 import { noticesFor } from './notices.service';
+import { raceFor } from './candidacy.service';
 import { careerOf } from './agency.service';
 import { ladderFor } from './worldStage.rules';
 import { CareerRung } from '../constants/worldStage';
@@ -113,6 +114,8 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     career: null,
     // Coalition talks, the government's deal and its unity (docs/COALITIONS.md).
     coalition: null,
+    // Your race: filing dates, where you stand and every district ranked for your party.
+    race: null,
   };
 
   const character = userId ? await db('characters').where({ user_id: userId, status: 'active' }).first() : null;
@@ -126,6 +129,7 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
   const me = await playerPolitics(db, stateId, character, gov);
   desk.coalition = await coalitionView(db, stateId, me, arc);
   desk.notices = await noticesFor(db, character.id);
+  desk.race = await raceFor(db, await db('pol_states').where({ id: stateId }).first(), { id: character.id, partyId: me.party?.id ?? null }, arc);
   // ── The career ladder: where you stand now and the highest you have climbed ──
   const career = await careerOf(db, character.id);
   const rungNow = (cap.me?.rung ?? 'citizen') as CareerRung;
@@ -302,7 +306,7 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
       })),
       contest: await contestView(db, me.party.id, character.id),
       districtsTaken: taken,
-      canStand: !cap.me.candidacyDistrict && !['polling', 'formation'].includes(cap.calendar.phase),
+      canStand: !!desk.race?.window.open,
     };
   } else {
     desk.partyRoom = { cooldownLeft };

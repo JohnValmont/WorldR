@@ -231,6 +231,8 @@ export interface Desk extends Omit<Capitol, 'bills' | 'me'> {
     partyRoom: PartyRoom | null;
     log: { arc: number; kind: string; summary: string }[];
     world: NationRow[];
+    /** Your race: filing dates, where you stand and every district ranked for your party. */
+    race?: Race | null;
     office: Office | null;
     notices: { unread: number; items: Notice[] };
     ladder: LadderRung[] | null;
@@ -345,3 +347,17 @@ export interface MapNation {
   parties: MapParty[]; districts: MapDistrict[];
 }
 export interface PoliticalMap { nations: MapNation[] }
+
+export interface RaceDistrict {
+  id: string; name: string; region: string | null; seats: number;
+  partyShare: number; projectedSeats: number; sitting: number; takenBy: string | null; mine: boolean;
+  ratio: number; chance: string; tone: 'good' | 'ok' | 'warn' | 'bad'; recommended: boolean; rank: number;
+}
+export interface Race {
+  phase: 'governing' | 'filing' | 'campaign' | 'polling' | 'formation';
+  arcs: { filing: number; campaign: number; polling: number; formationEnd: number; nextFiling: number | null };
+  window: { open: boolean; lockReason: string | null; action: 'stand' | 'change' | 'locked' };
+  drafted: boolean;
+  myDistrictId: string | null;
+  districts: RaceDistrict[];
+}

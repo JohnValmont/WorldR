@@ -7,6 +7,7 @@ import type { HandCard } from './types';
 import { Btn, Card, Chip, EffectChips, Label, Meter, PartyDot, T, money, pct, signed, useFloor, leaderTitle } from './kit';
 import { BillCard } from './bills';
 import { coalitionNeedsMe } from './CoalitionView';
+import { RaceHero } from './race';
 
 const TONE = { good: T.good, mixed: T.accent, bad: T.bad } as const;
 
@@ -248,18 +249,22 @@ export default function DeskView() {
   if (!me) {
     return <Card className="p-6 text-sm" ><span style={{ color: T.dim }}>Create your character to enter politics.</span></Card>;
   }
+  const pendingCount = openCards.length + toVote.length + incoming.length + officeTasks;
   const nothingLeft = openCards.length === 0 && toVote.length === 0 && incoming.length === 0 && officeTasks === 0;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-5">
       <div className="space-y-4 min-w-0">
-        <div>
-          <h2 className="font-serif text-2xl sm:text-3xl font-bold leading-tight" style={{ color: T.text }}>
-            {openCards.length + toVote.length + incoming.length + officeTasks > 0
-              ? `${openCards.length + toVote.length + incoming.length + officeTasks} thing${openCards.length + toVote.length + incoming.length + officeTasks === 1 ? '' : 's'} need you`
-              : 'Your desk is clear'}
-          </h2>
-          <p className="text-sm mt-1" style={{ color: T.dim }}>{me.nextGoal}</p>
+        <RaceHero />
+        <div className="flex items-end justify-between gap-3 pt-2">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: T.faint }}>This month</div>
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold leading-tight flex items-center gap-3" style={{ color: T.text }}>
+              {pendingCount > 0 && <span className="inline-flex items-center justify-center rounded-xl font-sans text-lg" style={{ minWidth: 38, height: 38, background: T.accent, color: '#17130A', boxShadow: '0 0 24px rgba(232,184,75,0.45)' }}>{pendingCount}</span>}
+              {pendingCount > 0 ? `thing${pendingCount === 1 ? '' : 's'} need you` : 'Your desk is clear'}
+            </h2>
+            <p className="text-sm mt-1" style={{ color: T.dim }}>{me.nextGoal}</p>
+          </div>
         </div>
 
         {!me.party && (

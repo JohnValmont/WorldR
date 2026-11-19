@@ -49,6 +49,8 @@ export interface FloorApi {
   act: (fn: () => Promise<any>, okText?: string | ((res: any) => string)) => Promise<any>;
   busy: boolean;
   go: (tab: string) => void;
+  /** Show a short message (ok = good news, otherwise a warning). */
+  notify: (ok: boolean | 'info', text: string) => void;
 }
 export const FloorContext = createContext<FloorApi | null>(null);
 export function useFloor(): FloorApi {
@@ -58,16 +60,39 @@ export function useFloor(): FloorApi {
 }
 
 export function Card({ children, className = '', tone, style }: { children: React.ReactNode; className?: string; tone?: 'accent' | 'bad' | 'good'; style?: React.CSSProperties }) {
-  const border = tone === 'accent' ? T.accent : tone === 'bad' ? T.bad : tone === 'good' ? T.good : T.line;
+  const ring = tone === 'accent' ? T.accent : tone === 'bad' ? T.bad : tone === 'good' ? T.good : null;
   return (
-    <section className={`rounded-2xl ${className}`} style={{ background: T.surface, border: `1px solid ${border}`, ...style }}>
+    <section className={`rounded-2xl ${className}`} style={{
+      background: `linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0) 38%), ${T.surface}`,
+      border: `1px solid ${ring ? `${ring}88` : T.line}`,
+      boxShadow: ring
+        ? `inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px ${ring}14, 0 22px 48px -30px ${ring}66`
+        : 'inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 40px -28px rgba(0,0,0,0.9)',
+      ...style,
+    }}>
       {children}
     </section>
   );
 }
 
 export function Label({ children, color = T.faint }: { children: React.ReactNode; color?: string }) {
-  return <div className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color }}>{children}</div>;
+  return <div className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color }}>{children}</div>;
+}
+
+/**
+ * A control that exists but is not available yet. It stays visible so players
+ * know the feature is there; clicking it says why it is locked and when it opens.
+ */
+export function LockedBtn({ children, reason, small, full, id, kind = 'ghost' }: { children: React.ReactNode; reason: string; small?: boolean; full?: boolean; id?: string; kind?: 'primary' | 'ghost' }) {
+  const { notify } = useFloor();
+  return (
+    <button id={id} type="button" aria-disabled="true" title={reason} onClick={() => notify('info', reason)}
+      className={`${small ? 'px-3 py-1.5 text-xs' : 'px-4 py-2.5 text-sm'} ${full ? 'w-full justify-center' : ''} inline-flex items-center gap-2 rounded-xl font-semibold cursor-help`}
+      style={{ background: kind === 'primary' ? 'rgba(232,184,75,0.10)' : 'rgba(255,255,255,0.03)', color: kind === 'primary' ? 'rgba(232,184,75,0.75)' : T.faint, border: `1px dashed ${kind === 'primary' ? 'rgba(232,184,75,0.45)' : T.lineStrong}` }}>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+      {children}
+    </button>
+  );
 }
 
 type BtnKind = 'primary' | 'ghost' | 'yea' | 'nay' | 'quiet';
@@ -75,7 +100,7 @@ export function Btn({ children, onClick, kind = 'ghost', disabled, small, full, 
   children: React.ReactNode; onClick?: () => void; kind?: BtnKind; disabled?: boolean; small?: boolean; full?: boolean; title?: string; id?: string;
 }) {
   const styles: Record<BtnKind, React.CSSProperties> = {
-    primary: { background: T.accent, color: '#17130A', border: `1px solid ${T.accent}` },
+    primary: { background: `linear-gradient(180deg, #F2C964 0%, ${T.accent} 100%)`, color: '#17130A', border: `1px solid ${T.accent}`, boxShadow: '0 8px 22px -12px rgba(232,184,75,0.8), inset 0 1px 0 rgba(255,255,255,0.35)' },
     ghost: { background: 'transparent', color: T.text, border: `1px solid ${T.lineStrong}` },
     yea: { background: T.goodSoft, color: T.good, border: `1px solid ${T.good}` },
     nay: { background: T.badSoft, color: T.bad, border: `1px solid ${T.bad}` },
@@ -162,7 +187,7 @@ export function EffectChips({ effects, segments, rivalName }: { effects: Effects
 }
 
 /** A dialog that slides up from the bottom on phones and sits centred on larger screens. */
-export function Sheet({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
+export function Sheet({ title, onClose, children, wide, full, kicker }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean; full?: boolean; kicker?: string }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -170,10 +195,14 @@ export function Sheet({ title, onClose, children, wide }: { title: string; onClo
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.65)' }} onClick={onClose} />
-      <div className={`relative w-full ${wide ? 'sm:max-w-2xl' : 'sm:max-w-lg'} max-h-[88vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl p-5`} style={{ background: T.raised, border: `1px solid ${T.lineStrong}` }}>
+      <div className="absolute inset-0" style={{ background: 'rgba(4,5,8,0.72)', backdropFilter: 'blur(6px)' }} onClick={onClose} />
+      <div className={`relative w-full ${full ? 'sm:max-w-6xl max-h-[94vh]' : wide ? 'sm:max-w-2xl max-h-[88vh]' : 'sm:max-w-lg max-h-[88vh]'} overflow-y-auto rounded-t-2xl sm:rounded-2xl p-5 sm:p-6`}
+        style={{ background: `linear-gradient(180deg, #232836 0%, ${T.raised} 30%)`, border: `1px solid ${T.lineStrong}`, boxShadow: '0 40px 120px -30px rgba(0,0,0,0.9)' }}>
         <div className="flex items-start justify-between gap-4 mb-4">
-          <h2 className="font-serif text-xl font-bold leading-tight" style={{ color: T.text }}>{title}</h2>
+          <div>
+            {kicker && <div className="text-[11px] font-semibold uppercase tracking-[0.16em] mb-1" style={{ color: T.accent }}>{kicker}</div>}
+            <h2 className={`font-serif ${full ? 'text-2xl sm:text-3xl' : 'text-xl'} font-bold leading-tight`} style={{ color: T.text }}>{title}</h2>
+          </div>
           <button type="button" onClick={onClose} aria-label="Close" className="text-xl leading-none px-2 -mr-2" style={{ color: T.dim }}>×</button>
         </div>
         {children}

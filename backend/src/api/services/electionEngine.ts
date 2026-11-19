@@ -255,6 +255,16 @@ export function computeVotesForConstituency(
   return { votes, shares: segmentShares };
 }
 
+/**
+ * What to do with a cycle's election. An election is done only once its seats
+ * exist: results without seats (left by older code or a failed month) would
+ * otherwise block the count forever and leave the nation with no parliament.
+ */
+export function electionStep(state: { hasSeats: boolean; hasResults: boolean }): 'done' | 'count' | 'recount' {
+  if (state.hasSeats) return 'done';
+  return state.hasResults ? 'recount' : 'count';
+}
+
 export function runElection(input: ElectionInput): ElectionResult {
   const perConstituency: ConstituencyResult[] = [];
   const candidateResults: Record<string, { partyId: string; votes: number; wonSeat: boolean; constituencyId: string }> = {};

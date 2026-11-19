@@ -5,6 +5,7 @@ import { db } from '../../config/database';
 import { projectPartyVotes, getGovernment, getLawsInForce, findOption, billTitle, liveApproval, approvalVoteMultiplier } from '../services/statecraft.service';
 import { portfolioPostFor, PRIVATE_BILL_AP_EXTRA, MINISTER_PORTFOLIO_AP_DISCOUNT } from '../constants/nations';
 import { AppError } from '../../utils/errors';
+import { standInDistrict } from '../services/candidacy.service';
 import {
   getOrCreateCurrentCycle,
   buildEngineCandidates,
@@ -890,48 +891,10 @@ export async function declareCandidacy(req: Request, res: Response, next: NextFu
 
       const party = await trx('pol_parties').where({ id: member.party_id }).forUpdate().first();
       // The Floor: players may stand for any party they belong to, computer-run or not.
-
-      const existingCandidacy = await trx('pol_candidates')
-        .where({ cycle_id: cycle.id, character_id: character.id })
-        .first();
-      if (existingCandidacy) throw new AppError('Already declared candidacy in this cycle', 409, 'CONFLICT');
-
-      // Check if there is already a candidate for this constituency in the same party
-      const existingConstituencyCand = await trx('pol_candidates')
-        .where({ cycle_id: cycle.id, party_id: party.id, constituency_id: constituencyId })
-        .first();
-
-      if (existingConstituencyCand) {
-        if (existingConstituencyCand.character_id !== null) {
-          throw new AppError('Party already has a named candidate in this constituency', 409, 'CONFLICT');
-        } else {
-          // Replace the generic NPC candidate
-          await trx('pol_candidates').where({ id: existingConstituencyCand.id }).del();
-        }
-      }
-
-      // Check incumbent status
-      const targetCycleId = await getSittingCycleId(trx, activeState.id, cycle);
-      
-      const existingSeat = await trx('pol_council_seats')
-        .where({ cycle_id: targetCycleId, character_id: character.id })
-        .first();
-      const isIncumbent = !!existingSeat;
-
-      const [candidate] = await trx('pol_candidates').insert({
-        cycle_id: cycle.id,
-        party_id: party.id,
-        constituency_id: constituencyId,
-        character_id: character.id,
-        is_npc: false,
-        platform: party.platform,
-        is_incumbent: isIncumbent
-      }).returning('*');
-
-      // Spawn campaign object for this party if it doesn't exist yet
+      // Filing only; moving district allowed until the campaign starts (candidacy.service).
+      const out = await standInDistrict(trx, activeState, cycle, character, party, String(constituencyId), currentMonth);
       await getOrCreateCampaign(trx, cycle.id, party.id, currentMonth);
-
-      return candidate;
+      return out;
     });
 
     return res.json(result);
