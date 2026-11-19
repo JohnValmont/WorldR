@@ -67,7 +67,7 @@ export class AuthService {
   private async storeOTP(userId: number): Promise<string> {
     const otp = this.generateOTP();
     logger.info(`[AuthService] OTP generated for user ID: ${userId}`);
-    const otpHash = await bcrypt.hash(otp, 10);
+    const otpHash = await bcrypt.hash(otp, 4); // Cost 4: fast enough for a short-lived 6-digit OTP
 
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + OTP_EXPIRY_MINUTES);
@@ -101,6 +101,23 @@ export class AuthService {
 
     const password_hash = await bcrypt.hash(password, 10);
 
+    // Generate OTP and hash it BEFORE the transaction.
+    // - Cost 4 is plenty for a short-lived, single-use 6-digit OTP (vs 10 for passwords).
+    //   This drops OTP hashing from ~200 ms to ~5 ms.
+    // - Doing it outside the transaction means the DB connection isn't held
+    //   open during CPU-bound work.
+    const otp = this.generateOTP();
+    if (env.NODE_ENV !== 'production') {
+      logger.info(`[AuthService] DEV — OTP for ${email}: ${otp}`);
+    }
+    const otpHash = await bcrypt.hash(otp, 4);
+
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + OTP_EXPIRY_MINUTES);
+
+    const cooldownUntil = new Date();
+    cooldownUntil.setSeconds(cooldownUntil.getSeconds() + RESEND_COOLDOWN_SECONDS);
+
     const result = await db.transaction(async (trx) => {
       const user = await userRepository.create({
         email,
@@ -111,23 +128,12 @@ export class AuthService {
         reset_token: null,
         reset_token_expires: null
       }, trx);
-      
+
       // Update display_name to use the new custom user id
       await trx('users').where({ id: user.id }).update({
         display_name: `Player #${user.id}`
       });
       user.display_name = `Player #${user.id}`;
-
-      // Generate OTP and store it in the database
-      const otp = this.generateOTP();
-      logger.info(`[AuthService] OTP generated for user ID: ${user.id} during registration`);
-      const otpHash = await bcrypt.hash(otp, 10);
-
-      const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + OTP_EXPIRY_MINUTES);
-
-      const cooldownUntil = new Date();
-      cooldownUntil.setSeconds(cooldownUntil.getSeconds() + RESEND_COOLDOWN_SECONDS);
 
       await trx('email_verification_tokens').insert({
         user_id: user.id,
@@ -137,18 +143,20 @@ export class AuthService {
         is_used: false
       });
 
-      if (env.NODE_ENV !== 'production') {
-        logger.info(`[AuthService] DEV — OTP for ${email}: ${otp}`);
-      }
-
-      await emailService.sendVerificationEmail(email, user.display_name || `Player #${user.id}`, otp);
-
       return user;
     });
+
+    // Fire-and-forget the email AFTER the transaction commits.
+    // The OTP is already safely in the DB, so the user can always use Resend
+    // if delivery is delayed. This makes the API response ~1-3 s faster.
+    emailService
+      .sendVerificationEmail(email, result.display_name || `Player #${result.id}`, otp)
+      .catch(err => logger.error(`[AuthService] Failed to send verification email to ${email}: ${err?.message}`));
 
     const { password_hash: _, ...userWithoutPassword } = result;
     return { user: userWithoutPassword };
   }
+
 
   public async verifyEmail(email: string, otp: string): Promise<void> {
     // Dev bypass
