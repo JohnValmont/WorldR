@@ -11,6 +11,7 @@ import { formatPolArc } from '@/lib/calendar';
 import { Btn, Chip, Energy, FloorApi, FloorContext, PartyDot, T, money } from './_floor/kit';
 import DeskView from './_floor/DeskView';
 import ChamberView from './_floor/ChamberView';
+import CabinetView from './_floor/CabinetView';
 import VotersView from './_floor/VotersView';
 import PartyView from './_floor/PartyView';
 import ElectionNight from './_floor/ElectionNight';
@@ -21,16 +22,17 @@ import WireView from './_floor/WireView';
 import WorldView from './_floor/WorldView';
 import { Flag, electionLine } from './_floor/worldKit';
 import {
-  Building2, Clock, Crown, Flag as FlagIcon, Globe2, Landmark, LayoutDashboard, Map as MapIcon, MessagesSquare, Newspaper, ShieldCheck, Users,
+  Briefcase, Building2, Clock, Crown, Flag as FlagIcon, Globe2, Landmark, LayoutDashboard, Map as MapIcon, MessagesSquare, Newspaper, ShieldCheck, Users,
   Vote as VoteIcon, Wallet, Zap, Lock, CheckCircle2, AlertTriangle, Loader2,
 } from 'lucide-react';
 import type { Notice } from './_floor/types';
 import { preloadTabs } from './_floor/tabData';
 
-type Tab = 'desk' | 'chamber' | 'corridors' | 'map' | 'voters' | 'party' | 'nation' | 'world' | 'wire';
+type Tab = 'desk' | 'chamber' | 'cabinet' | 'corridors' | 'map' | 'voters' | 'party' | 'nation' | 'world' | 'wire';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'desk', label: 'Desk' },
   { id: 'chamber', label: 'Chamber' },
+  { id: 'cabinet', label: 'Cabinet' },
   { id: 'corridors', label: 'Corridors' },
   { id: 'map', label: 'Map' },
   { id: 'voters', label: 'Voters' },
@@ -40,7 +42,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'wire', label: 'World Press' },
 ];
 const TAB_ICON: Record<Tab, React.ComponentType<{ size?: number; style?: React.CSSProperties; 'aria-hidden'?: boolean }>> = {
-  desk: LayoutDashboard, chamber: Landmark, corridors: MessagesSquare, map: MapIcon, voters: Users, party: FlagIcon, nation: Building2, world: Globe2, wire: Newspaper,
+  desk: LayoutDashboard, chamber: Landmark, cabinet: Briefcase, corridors: MessagesSquare, map: MapIcon, voters: Users, party: FlagIcon, nation: Building2, world: Globe2, wire: Newspaper,
 };
 const PHASE_LABEL: Record<string, string> = {
   governing: 'Parliament sitting', filing: 'Candidates filing', campaign: 'Election campaign', polling: 'Election day', formation: 'Forming a government',
@@ -340,6 +342,7 @@ export default function PoliticsPage() {
             <ViewBoundary key={tab}>
               {tab === 'desk' && <DeskView />}
               {tab === 'chamber' && <ChamberView />}
+              {tab === 'cabinet' && <CabinetView />}
               {tab === 'corridors' && <CorridorsView />}
               {tab === 'map' && <MapView />}
               {tab === 'voters' && <VotersView onReplay={openElection} />}

@@ -1,4 +1,5 @@
 import { assignNation } from '../services/nations.service';
+import { releaseCharacterPolitics } from '../services/floor.service';
 import { startingProfile } from '../services/character.rules';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
@@ -228,6 +229,8 @@ export class CharacterController {
               status: 'deleted',
               name: `${character.name.substring(0, 50)}${deletedSuffix}`
             });
+          // A deleted character must not keep a party, seat, office or cabinet post.
+          await releaseCharacterPolitics(trx, character);
 
           const companies = await trx('companies').where({ owner_character_id: character.id });
           for (const company of companies) {

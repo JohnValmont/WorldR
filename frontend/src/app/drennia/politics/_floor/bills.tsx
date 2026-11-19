@@ -187,9 +187,9 @@ function DealSheet({ bill, onClose }: { bill: FloorBill; onClose: () => void }) 
 }
 
 /** Pick a law and the change you want to make to it. */
-export function TableBillSheet({ onClose }: { onClose: () => void }) {
+export function TableBillSheet({ onClose, initialLawId = null }: { onClose: () => void; initialLawId?: string | null }) {
   const { desk, act, busy } = useFloor();
-  const [lawId, setLawId] = useState<string | null>(null);
+  const [lawId, setLawId] = useState<string | null>(initialLawId);
   const law = desk.laws.find(l => l.id === lawId) ?? null;
   const openCats = new Set(desk.bills.filter(b => b.status === 'proposed').map(b => b.category));
   const seatsOf = (ids: string[]) => desk.parties.filter(p => ids.includes(p.id)).reduce((a, p) => a + p.seats, 0);
