@@ -9,13 +9,18 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status;
 -- A new world starts at one game month = 8 real hours on both clocks (owner
 -- decision 2026-11-18; migration 0102 moves existing worlds). A live clock is
 -- never touched: ON CONFLICT DO NOTHING.
+-- Business starts at Year 1, politics at Year 0 (arc 0), both months starting now.
+-- The politics timing columns are set here too: seeds run after migrations, so on a
+-- fresh database 0073's backfill finds no row and would leave a 1-day first month.
 INSERT INTO world_clock (
-    world_instance_id, current_year, current_month, current_day, 
-    real_seconds_per_month, pol_real_seconds_per_month, month_started_at, next_arc_close_at, status
+    world_instance_id, current_year, current_month, current_day,
+    real_seconds_per_month, pol_real_seconds_per_month, month_started_at, next_arc_close_at, status,
+    pol_current_year, pol_current_month, pol_month_started_at, pol_next_arc_close_at
 )
 VALUES (
-    'pre-alpha-world-1', 842, 1, 1, 
-    28800, 28800, NOW(), NOW() + INTERVAL '8 hours', 'active'
+    'pre-alpha-world-1', 1, 1, 1,
+    28800, 28800, NOW(), NOW() + INTERVAL '8 hours', 'active',
+    0, 1, NOW(), NOW() + INTERVAL '8 hours'
 )
 ON CONFLICT (world_instance_id) DO NOTHING;
 
