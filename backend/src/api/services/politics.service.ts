@@ -92,7 +92,7 @@ import {
   POL_BRIBE_MAX_PER_BILL,
   POL_COERCION_FACTION_HIT,
 } from '../constants/politics';
-import { EngineCandidate, runElection } from './electionEngine';
+import { EngineCandidate, electionStep, runElection } from './electionEngine';
 import { fireGoverningEvent, fireConditionCrises } from './governingEvents';
 import { NationalStats, readNationalStatsFromRow, calculateNationalEconomy, enactPolicy } from './nationalEconomy.service';
 import { safeParseJSON } from '../../utils/json';
@@ -1021,8 +1021,17 @@ async function runNpcCampaignBrain(trx: any, stateId: string, cycleId: string, c
 }
 
 async function resolveElection(trx: any, cycleId: string) {
-  const existingResult = await trx('pol_results').where({ cycle_id: cycleId }).first();
-  if (existingResult) return; // Idempotent check
+  // Idempotent on SEATS, not results (electionStep): stale results without seats
+  // are cleared and the vote is counted again.
+  const step = electionStep({
+    hasSeats: !!(await trx('pol_council_seats').where({ cycle_id: cycleId }).first()),
+    hasResults: !!(await trx('pol_results').where({ cycle_id: cycleId }).first()),
+  });
+  if (step === 'done') return;
+  if (step === 'recount') {
+    logger.warn(`[politics] Cycle ${cycleId} had results but no seats; counting the election again.`);
+    await trx('pol_results').where({ cycle_id: cycleId }).del();
+  }
 
   const cycle = await trx('pol_cycles').where({ id: cycleId }).first();
   const engineCands = await buildEngineCandidates(trx, cycleId);
