@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { politicsApi } from '@/lib/api';
 import { CREEDS, CREED_ORDER, CreedId } from '../_lib/model';
+import { DistrictPicker, StandControl } from './race';
 import { Btn, Card, Chip, Label, Meter, PartyDot, Sheet, T, leaderTitle, money, useFloor, convictionFit } from './kit';
 import type { MemberWork } from './types';
 
@@ -108,32 +109,6 @@ function PartyList() {
       </div>
       {founding && <FoundSheet onClose={() => setFounding(false)} />}
     </div>
-  );
-}
-
-function StandSheet({ onClose }: { onClose: () => void }) {
-  const { desk, act, busy } = useFloor();
-  const taken = new Set(desk.desk.partyRoom?.districtsTaken ?? []);
-  const mine = desk.me!.party!.id;
-  return (
-    <Sheet title="Stand for election" onClose={onClose} wide>
-      <p className="text-sm mb-3" style={{ color: T.dim }}>
-        Pick the district you will fight in person. Your own trust with voters ({desk.me?.credibility}) counts there instead of the party's average of 50,
-        so stand where your party is already strong. If you lose it, you can still be seated from the party list.
-      </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {desk.districts.map(d => (
-          <button key={d.id} type="button" disabled={busy || taken.has(d.id)} id={`stand-${d.name.replace(/\s+/g, '-')}`}
-            onClick={() => act(() => politicsApi.declareCandidacy(d.id), `You are standing in ${d.name}.`).then(ok => ok && onClose())}
-            className="text-left rounded-xl p-3 disabled:opacity-40" style={{ background: T.surface, border: `1px solid ${T.line}` }}>
-            <div className="text-sm font-semibold" style={{ color: T.text }}>{d.name}</div>
-            <div className="text-[11px]" style={{ color: T.faint }}>
-              {taken.has(d.id) ? 'A colleague is standing here' : `${d.seats} seats · your party holds ${d.sitting[mine] ?? 0}`}
-            </div>
-          </button>
-        ))}
-      </div>
-    </Sheet>
   );
 }
 
@@ -247,7 +222,7 @@ function MyParty() {
               me.hasSeat ? `You sit for ${me.seatDistrict ?? 'the party'}. Your vote is your own.` : 'You are a member without a seat. Win one at the next election.'}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            {room.canStand && <Btn small kind="primary" onClick={() => setStanding(true)} id="stand-open">Stand for election</Btn>}
+            <StandControl small race={desk.desk.race} onOpen={() => setStanding(true)} />
             {me.candidacyDistrict && <Chip color={T.accent}>Standing in {me.candidacyDistrict}</Chip>}
             {!me.isPartyLeader && (
               <Btn small disabled={busy} id="leave-party"
@@ -328,7 +303,7 @@ function MyParty() {
           </Card>
         )}
       </aside>
-      {standing && <StandSheet onClose={() => setStanding(false)} />}
+      {standing && desk.desk.race && <DistrictPicker race={desk.desk.race} onClose={() => setStanding(false)} />}
     </div>
   );
 }

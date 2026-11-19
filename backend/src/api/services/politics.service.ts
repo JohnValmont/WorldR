@@ -108,6 +108,7 @@ import { bankedAp } from './floor.rules';
 import { notify } from './notices.service';
 import { Bloc, closeTalks, npcDecide, npcMakeOffers, recordDeal, stepCoalitionMonth, talkBlocs } from './coalition.service';
 import { logger } from '../../utils/logger';
+import { draftUnfiledMembers } from './candidacy.service';
 
 /**
  * Convert a world_clock row into a MONOTONIC absolute month ("arc").
@@ -629,23 +630,15 @@ export async function ensureCandidates(trx: any, cycleId: string) {
               .first()
           : null;
 
-        const members = await trx('pol_party_members')
-          .where({ party_id: party.id })
-          .select('character_id');
-        
-        const currentCands = await trx('pol_candidates').where({ cycle_id: cycleId, party_id: party.id });
-        const usedCharIds = new Set(currentCands.map((c: any) => c.character_id).filter(Boolean));
-        const availableMember = members.find((m: any) => !usedCharIds.has(m.character_id));
-
-        const charId = availableMember ? availableMember.character_id : null;
-        const isNpcChar = party.is_npc || charId === null;
-
+        // A computer placeholder only. Players choose their own district during
+        // filing; anyone who has not chosen when the campaign starts is put up in
+        // their best open district (candidacy.service draftUnfiledMembers).
         await trx('pol_candidates').insert({
           cycle_id: cycleId,
           party_id: party.id,
           constituency_id: constituency.id,
-          character_id: charId,
-          is_npc: isNpcChar,
+          character_id: null,
+          is_npc: true,
           platform: party.platform,
           is_incumbent: !!seat
         });
@@ -795,6 +788,9 @@ export async function processPoliticalArc(trx: any, stateId: string, currentMont
   }
 
   if (newPhase === 'campaign') {
+    // Filing has closed: members who never chose a district stand in their best open one.
+    await ensureCandidates(trx, cycle.id);
+    await draftUnfiledMembers(trx, await trx('pol_states').where({ id: stateId }).first(), cycle, currentMonth);
     const pendingActions = await trx('pol_campaign_actions')
       .join('pol_candidates', 'pol_campaign_actions.candidate_id', 'pol_candidates.id')
       .where('pol_campaign_actions.cycle_id', cycle.id)

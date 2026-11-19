@@ -19,7 +19,11 @@ import CorridorsView from './_floor/CorridorsView';
 import MapView from './_floor/MapView';
 import WireView from './_floor/WireView';
 import WorldView from './_floor/WorldView';
-import { electionLine } from './_floor/worldKit';
+import { Flag, electionLine } from './_floor/worldKit';
+import {
+  Building2, Clock, Crown, Flag as FlagIcon, Globe2, Landmark, LayoutDashboard, Map as MapIcon, MessagesSquare, Newspaper, ShieldCheck, Users,
+  Vote as VoteIcon, Wallet, Zap, Lock, CheckCircle2, AlertTriangle,
+} from 'lucide-react';
 import type { Notice } from './_floor/types';
 
 type Tab = 'desk' | 'chamber' | 'corridors' | 'map' | 'voters' | 'party' | 'nation' | 'world' | 'wire';
@@ -34,6 +38,9 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'world', label: 'World' },
   { id: 'wire', label: 'World Press' },
 ];
+const TAB_ICON: Record<Tab, React.ComponentType<{ size?: number; style?: React.CSSProperties; 'aria-hidden'?: boolean }>> = {
+  desk: LayoutDashboard, chamber: Landmark, corridors: MessagesSquare, map: MapIcon, voters: Users, party: FlagIcon, nation: Building2, world: Globe2, wire: Newspaper,
+};
 const PHASE_LABEL: Record<string, string> = {
   governing: 'Parliament sitting', filing: 'Candidates filing', campaign: 'Election campaign', polling: 'Election day', formation: 'Forming a government',
 };
@@ -97,7 +104,7 @@ function Inbox({ notices, onOpen, onRead }: { notices: { unread: number; items: 
 export default function PoliticsPage() {
   const [tab, setTab] = useState<Tab>('desk');
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
+  const [toast, setToast] = useState<{ ok: boolean | 'info'; text: string } | null>(null);
   const [electionOpen, setElectionOpen] = useState(false);
   const [seenElection, setSeenElection] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -121,10 +128,10 @@ export default function PoliticsPage() {
 
   const { data: desk, error, mutate } = useSWR('politics-desk', () => politicsApi.getDesk(), { refreshInterval: 30_000 });
 
-  const notify = useCallback((ok: boolean, text: string) => {
+  const notify = useCallback((ok: boolean | 'info', text: string) => {
     setToast({ ok, text });
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), ok ? 4500 : 7000);
+    toastTimer.current = setTimeout(() => setToast(null), ok === true ? 4500 : 7000);
   }, []);
 
   const act = useCallback<FloorApi['act']>(async (fn, okText) => {
@@ -142,14 +149,14 @@ export default function PoliticsPage() {
   }, [mutate, notify]);
 
   const api = useMemo<FloorApi | null>(() => desk ? ({
-    desk, refresh: () => mutate(), act, busy,
+    desk, refresh: () => mutate(), act, busy, notify,
     // go('nation:budget') opens a tab at one of its sections (the tab reads NATION_SECTION_KEY on mount).
     go: (target: string) => {
       const [t, section] = target.split(':');
       if (section) { try { sessionStorage.setItem(NATION_SECTION_KEY, section); } catch { /* private mode */ } }
       setTab((TABS.find(x => x.id === t)?.id ?? 'desk') as Tab);
     },
-  }) : null, [desk, mutate, act, busy]);
+  }) : null, [desk, mutate, act, busy, notify]);
 
   const openElection = () => {
     setElectionOpen(true);
@@ -171,61 +178,114 @@ export default function PoliticsPage() {
   const freshElection = !!el?.hasResults && seenElection !== el.cycleId;
   const countdown = clock?.status === 'paused' ? 'Paused' : isPolTickStalled ? 'Delayed' : polSecondsToTick != null ? formatCountdown(polSecondsToTick) : '--:--';
 
+  const rung = me ? `${me.office ?? RUNG_LABEL[me.rung] ?? me.rung}${me.isPartyLeader && !me.office && me.rung !== 'leader' ? ', party leader' : ''}` : '';
+  const initials = me ? me.name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() : '';
+  const navBadge = (id: Tab) => (id === 'desk' && pending > 0 ? pending : 0);
+  const openElection2 = () => { try { sessionStorage.setItem(NATION_SECTION_KEY, 'overview'); } catch { /* private mode */ } setTab('nation'); };
+
   return (
-    <div className="min-h-screen" style={{ background: T.bg, color: T.text }}>
-      <header style={{ borderBottom: `1px solid ${T.line}` }}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
-          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+    <div className="min-h-screen" style={{
+      color: T.text,
+      background: `radial-gradient(1100px 520px at 0% -10%, rgba(232,184,75,0.07), transparent 60%), radial-gradient(900px 480px at 100% -5%, ${(myNation?.flag.colors[0] ?? '#3987e5')}22, transparent 60%), ${T.bg}`,
+    }}>
+      {/* Command bar: the nation and the clock on the left, you on the right. */}
+      <header style={{ borderBottom: `1px solid ${T.line}`, background: 'linear-gradient(180deg, rgba(20,23,31,0.92), rgba(12,14,19,0.6))', backdropFilter: 'blur(8px)' }}>
+        <div className="mx-auto max-w-[1720px] px-4 sm:px-6 xl:px-8 py-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {myNation && <Flag flag={myNation.flag} width={46} />}
             <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: T.accent }}>{desk?.nation.officialName ?? 'Politics'}</div>
-              <div className="flex flex-wrap items-baseline gap-x-3 text-sm" style={{ color: T.dim }}>
-                {desk && <span className="font-serif text-lg font-bold" style={{ color: T.text }}>{formatPolArc(desk.calendar.arc, false)}</span>}
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] truncate" style={{ color: T.accent }}>{desk?.nation.officialName ?? 'Politics'}</div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" style={{ color: T.dim }}>
+                {desk && <span className="font-serif text-xl font-bold leading-none" style={{ color: T.text }}>{formatPolArc(desk.calendar.arc, false)}</span>}
                 {desk && !myNation?.election && <span>{PHASE_LABEL[desk.calendar.phase] ?? desk.calendar.phase}</span>}
-                <span title="Time until the month turns: votes are counted, polls update, new decisions arrive">next month in <span className="font-mono" style={{ color: T.text }}>{countdown}</span></span>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs" style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.line}` }}
+                  title="Time until the month turns: votes are counted, polls update, new decisions arrive">
+                  <Clock size={12} aria-hidden />next month <span className="font-mono" style={{ color: T.text }}>{countdown}</span>
+                </span>
                 {myNation?.election && (
-                  <button type="button" id="election-chip" onClick={() => { try { sessionStorage.setItem(NATION_SECTION_KEY, 'overview'); } catch { /* private mode */ } setTab('nation'); }}
+                  <button type="button" id="election-chip" onClick={openElection2} title="When your nation votes next"
                     className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                    title="When your nation votes next"
-                    style={{ background: myNation.election.phase === 'governing' ? 'transparent' : T.accentSoft, border: `1px solid ${myNation.election.phase === 'governing' ? T.line : T.accent}`, color: myNation.election.phase === 'governing' ? T.dim : T.accent }}>
-                    <span aria-hidden>🗳</span>{electionLine(myNation.election)}
+                    style={{ background: myNation.election.phase === 'governing' ? 'rgba(255,255,255,0.04)' : T.accentSoft, border: `1px solid ${myNation.election.phase === 'governing' ? T.line : T.accent}`, color: myNation.election.phase === 'governing' ? T.dim : T.accent }}>
+                    <VoteIcon size={12} aria-hidden />{electionLine(myNation.election)}
                   </button>
                 )}
               </div>
             </div>
-            {me && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs" style={{ color: T.dim }} id="me-bar">
-                <span className="inline-flex items-center gap-1.5">
-                  {me.party && <PartyDot color={me.party.color} />}
-                  <span className="font-semibold" style={{ color: T.text }}>{me.name}</span>
-                  <span>{me.office ?? RUNG_LABEL[me.rung] ?? me.rung}{me.isPartyLeader && !me.office ? ', party leader' : ''}{me.background ? ` · ${me.background.label}` : ''}</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5" title="Energy: what you can do. Each month adds 12; unused energy carries over, up to 24."><Energy current={me.ap.current} cap={me.ap.cap} /></span>
-                <span title="Trust: how far voters believe you. Counts in the district you stand in, and in every deal you offer.">Trust <strong style={{ color: T.text }}>{me.credibility}</strong></span>
-                <span title="Clout: your weight among politicians. Needed to lead a party.">Clout <strong style={{ color: T.text }}>{me.influence}</strong></span>
-                {me.cash != null && <span title="Your own money">{money(me.cash)}</span>}
-                <Inbox notices={desk!.desk.notices} onOpen={(t) => t && setTab((TABS.find(x => x.id === t)?.id ?? 'desk') as Tab)} onRead={() => politicsApi.markNoticesRead().then(() => mutate()).catch(() => {})} />
-              </div>
-            )}
           </div>
-          <nav className="flex gap-1 mt-3 -mb-px overflow-x-auto" aria-label="Politics sections">
-            {TABS.map(t => (
-              <button key={t.id} id={`tab-${t.id}`} type="button" onClick={() => setTab(t.id)}
-                className="px-4 py-2.5 text-sm font-semibold whitespace-nowrap"
-                style={{ color: tab === t.id ? T.text : T.faint, borderBottom: `2px solid ${tab === t.id ? T.accent : 'transparent'}` }}>
-                {t.label}
-                {t.id === 'desk' && pending > 0 && <span className="ml-1.5 inline-flex items-center justify-center rounded-full text-[10px] font-bold px-1.5 min-w-[18px] h-[18px]" style={{ background: T.accent, color: '#17130A' }}>{pending}</span>}
-              </button>
-            ))}
-            {isAdmin && (
-              <span className="ml-auto self-center hidden sm:inline">
-                <Btn small kind="quiet" onClick={forceTick} disabled={busy} title="Admin only: end the politics month now" id="admin-tick">⚡ End month</Btn>
-              </span>
-            )}
-          </nav>
+          {me && (
+            <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: T.dim }} id="me-bar">
+              <div className="flex items-center gap-2.5 rounded-2xl pl-1.5 pr-3 py-1.5" style={{ background: 'rgba(255,255,255,0.035)', border: `1px solid ${T.line}` }}>
+                <span className="inline-flex items-center justify-center rounded-xl font-bold text-sm shrink-0"
+                  style={{ width: 34, height: 34, background: `linear-gradient(135deg, ${me.party?.color ?? '#3A4050'}, #1C202B)`, color: '#fff', boxShadow: `0 0 0 2px ${me.party?.color ?? T.line}55` }}>{initials}</span>
+                <div className="leading-tight min-w-0">
+                  <div className="font-semibold text-sm truncate" style={{ color: T.text }}>{me.name}</div>
+                  <div className="text-[11px] truncate" style={{ color: T.faint }}>{rung}{me.background ? ` · ${me.background.label}` : ''}</div>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl px-3 py-2 max-w-full" style={{ background: 'rgba(255,255,255,0.035)', border: `1px solid ${T.line}` }}>
+                <span className="inline-flex items-center gap-1.5" title="Energy: what you can do. Each month adds 12; unused energy carries over, up to 24."><Zap size={13} style={{ color: T.accent }} aria-hidden /><Energy current={me.ap.current} cap={me.ap.cap} /></span>
+                <span className="hidden sm:inline-block w-px h-4" style={{ background: T.line }} />
+                <span title="Trust: how far voters believe you. Counts in the district you stand in, and in every deal you offer." className="inline-flex items-center gap-1"><ShieldCheck size={13} aria-hidden />Trust <strong style={{ color: T.text }}>{me.credibility}</strong></span>
+                <span title="Clout: your weight among politicians. Needed to lead a party." className="inline-flex items-center gap-1"><Crown size={13} aria-hidden />Clout <strong style={{ color: T.text }}>{me.influence}</strong></span>
+                {me.cash != null && <span title="Your own money" className="inline-flex items-center gap-1"><Wallet size={13} aria-hidden /><strong style={{ color: T.text }}>{money(me.cash)}</strong></span>}
+              </div>
+              <Inbox notices={desk!.desk.notices} onOpen={(t) => t && setTab((TABS.find(x => x.id === t)?.id ?? 'desk') as Tab)} onRead={() => politicsApi.markNoticesRead().then(() => mutate()).catch(() => {})} />
+            </div>
+          )}
         </div>
+        {/* Below wide screens: tabs across the top. */}
+        <nav className="xl:hidden mx-auto max-w-[1720px] px-2 sm:px-4 flex gap-1 overflow-x-auto" aria-label="Politics sections">
+          {TABS.map(t => {
+            const Icon = TAB_ICON[t.id];
+            const n = navBadge(t.id);
+            return (
+              <button key={t.id} id={`tab-${t.id}`} type="button" onClick={() => setTab(t.id)}
+                className="inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-semibold whitespace-nowrap"
+                style={{ color: tab === t.id ? T.text : T.faint, borderBottom: `2px solid ${tab === t.id ? T.accent : 'transparent'}` }}>
+                <Icon size={15} aria-hidden />{t.label}
+                {n > 0 && <span className="inline-flex items-center justify-center rounded-full text-[10px] font-bold px-1.5 min-w-[18px] h-[18px]" style={{ background: T.accent, color: '#17130A' }}>{n}</span>}
+              </button>
+            );
+          })}
+          {isAdmin && (
+            <span className="ml-auto self-center hidden sm:inline">
+              <Btn small kind="quiet" onClick={forceTick} disabled={busy} title="Admin only: end the politics month now" id="admin-tick-top">⚡ End month</Btn>
+            </span>
+          )}
+        </nav>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-5">
+      <div className="mx-auto max-w-[1720px] px-4 sm:px-6 xl:px-8 py-5 xl:py-6 xl:grid xl:grid-cols-[232px_minmax(0,1fr)] xl:gap-8">
+        {/* Wide screens: a navigation rail on the left. */}
+        <aside className="hidden xl:block">
+          <nav className="sticky top-5 space-y-1" aria-label="Politics sections">
+            {TABS.map(t => {
+              const Icon = TAB_ICON[t.id];
+              const on = tab === t.id;
+              const n = navBadge(t.id);
+              return (
+                <button key={t.id} id={`rail-${t.id}`} type="button" onClick={() => setTab(t.id)}
+                  className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-left transition-colors"
+                  style={{
+                    color: on ? T.text : T.dim,
+                    background: on ? 'linear-gradient(90deg, rgba(232,184,75,0.16), rgba(232,184,75,0.02))' : 'transparent',
+                    boxShadow: on ? `inset 2px 0 0 ${T.accent}` : undefined,
+                  }}>
+                  <Icon size={18} style={{ color: on ? T.accent : T.faint }} aria-hidden />
+                  <span className="flex-1">{t.label}</span>
+                  {n > 0 && <span className="inline-flex items-center justify-center rounded-full text-[10px] font-bold px-1.5 min-w-[20px] h-[20px]" style={{ background: T.accent, color: '#17130A' }}>{n}</span>}
+                </button>
+              );
+            })}
+            {isAdmin && (
+              <div className="pt-4 mt-4" style={{ borderTop: `1px solid ${T.line}` }}>
+                <Btn small kind="quiet" onClick={forceTick} disabled={busy} title="Admin only: end the politics month now" id="admin-tick">⚡ End month</Btn>
+              </div>
+            )}
+          </nav>
+        </aside>
+
+      <main className="min-w-0">
         {!desk && !error && <div className="py-24 text-center text-xs uppercase tracking-[0.3em]" style={{ color: T.faint }}>Opening the session…</div>}
         {error && !desk && (
           <div className="rounded-2xl p-5 text-sm" style={{ background: T.badSoft, border: `1px solid ${T.bad}` }}>
@@ -261,13 +321,20 @@ export default function PoliticsPage() {
           </FloorContext.Provider>
         )}
       </main>
+      </div>
 
-      {toast && (
-        <div className="fixed left-1/2 -translate-x-1/2 bottom-5 z-[60] max-w-[92vw] sm:max-w-lg rounded-xl px-4 py-3 text-sm shadow-2xl" role="status" id="toast"
-          style={{ background: T.raised, border: `1px solid ${toast.ok ? T.good : T.bad}`, color: T.text }}>
-          {toast.text}
-        </div>
-      )}
+      {toast && (() => {
+        const tone = toast.ok === 'info' ? T.accent : toast.ok ? T.good : T.bad;
+        const Icon = toast.ok === 'info' ? Lock : toast.ok ? CheckCircle2 : AlertTriangle;
+        return (
+          <div className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[60] w-[min(92vw,520px)] rounded-2xl pl-4 pr-3 py-3 text-sm flex items-start gap-3" role="status" id="toast"
+            style={{ background: 'linear-gradient(180deg, rgba(35,40,54,0.96), rgba(28,32,43,0.96))', backdropFilter: 'blur(10px)', border: `1px solid ${tone}66`, boxShadow: `0 24px 60px -20px rgba(0,0,0,0.9), 0 0 0 1px ${tone}1f, inset 3px 0 0 ${tone}`, color: T.text }}>
+            <Icon size={18} style={{ color: tone, flexShrink: 0, marginTop: 1 }} aria-hidden />
+            <span className="flex-1 leading-snug">{toast.text}</span>
+            <button type="button" aria-label="Dismiss" onClick={() => setToast(null)} className="px-1 -mr-1 leading-none text-lg" style={{ color: T.faint }}>×</button>
+          </div>
+        );
+      })()}
     </div>
   );
 }

@@ -55,6 +55,7 @@ jobs:
           tests/diplomacy.test.ts
           tests/administration.test.ts
           tests/electionRecovery.test.ts
+          tests/candidacy.test.ts
           tests/coalition.test.ts
 
   backend-all-tests:

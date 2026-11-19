@@ -168,6 +168,16 @@ The career ladder (8 rungs, citizen to world statesman), the Meridian Wire (a ne
 agency: monthly World Influence Index with %, stories from every capital, dispatches written by players),
 the inbox, and contested leadership challenges are described in `docs/WORLD_STAGE.md`.
 
+## Your race: standing for election (added 2026-11-19)
+
+**Owner decision:** filing and everything related to it is always visible. Outside its window it is locked, and clicking it says why and when it opens.
+
+- **When.** Players stand, or change district, only during **filing** (the 3 months before the campaign). Before filing the Stand button is locked with the date it opens; during the campaign districts are fixed; on election day and while a government forms it is locked with the reason.
+- **Where.** The Desk's "Your race" panel and the Party tab open **Choose your district**: every district ranked for your party by its projected share against the **seat line** (the share that wins one seat, about 1 / (seats + 1)). The projection is the same one the polls and the map use (projectElection + pollParties). The best district no colleague holds is marked "Best for you".
+- **No silent drafting.** Computer placeholders hold the party's districts until players choose. When the campaign starts, a member who never chose is put up in their best open district (draftUnfiledMembers) and gets an inbox notice saying where. Colleagues never share a district; a person is never replaced, only a placeholder.
+- **Elections are done only once seats exist** (electionEngine.electionStep). A cycle with results but no seats is counted again; this unstuck nations that sat in "forming a government" forever.
+- Files: services/candidacy.rules.ts (pure: standWindow, seatLine, rankDistricts, draftDistrict), services/candidacy.service.ts (raceFor, standInDistrict, draftUnfiledMembers), constants/candidacy.ts, migration 0109 (pol_candidates.drafted), tests/candidacy.test.ts and tests/electionRecovery.test.ts; frontend _floor/race.tsx (RaceHero, DistrictPicker, StandControl) and LockedBtn in _floor/kit.tsx.
+
 ## Where the code is
 
 | What | File |

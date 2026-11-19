@@ -303,7 +303,8 @@ router.put('/parties/:id/platform', authMiddleware, updatePlatform);
 
 // Candidacy is open in every phase EXCEPT while an election is actively resolving
 // (polling/formation) — this matches PartyTab's `canRunForOffice` guard.
-router.post('/candidacy', authMiddleware, blockPhases('polling', 'formation'), declareCandidacy);
+// Filing rules (when to stand, moving district) live in candidacy.service with player-facing reasons.
+router.post('/candidacy', authMiddleware, declareCandidacy);
 
 // Campaigning is ALWAYS open (GDD $3), except while an election is actively
 // resolving (polling/formation) — matching the candidacy guard above.
