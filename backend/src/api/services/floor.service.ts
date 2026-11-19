@@ -759,6 +759,27 @@ export async function onLeaveParty(trx: any, character: any, partyId: string): P
   }
 }
 
+/**
+ * A character leaves the game (account/character deleted): they hold nothing any more.
+ * Seats, cabinet posts and candidacies stay with their party (onLeaveParty). A party they
+ * led becomes computer-run, so it keeps voting by ideology and a member can take it over
+ * (a computer-run leader is replaced at once, see challengeLeadership). If they were head
+ * of government, the chair passes to the party's computer leadership.
+ * Migration 0110 applied the same rule to characters deleted before this existed.
+ */
+export async function releaseCharacterPolitics(trx: any, character: { id: string }): Promise<void> {
+  const memberships = await trx('pol_party_members').where({ character_id: character.id });
+  for (const m of memberships) {
+    await trx('pol_party_members').where({ party_id: m.party_id, character_id: character.id }).delete();
+    await onLeaveParty(trx, character, m.party_id);
+  }
+  await trx('pol_parties').where({ leader_character_id: character.id }).update({ leader_character_id: null });
+  await trx('pol_offices').where({ holder_character_id: character.id }).update({ holder_character_id: null });
+  // Anything left over from a party they had already left.
+  await trx('pol_council_seats').where({ character_id: character.id }).update({ character_id: null, is_npc: true });
+  await trx('pol_cabinet_posts').where({ holder_character_id: character.id }).update({ holder_character_id: null, npc_name: 'Acting minister' });
+}
+
 /** Put a new leader at the head of a party (and in the head of government's chair if the party leads the government). */
 async function installLeader(trx: any, stateId: string, party: any, newLeader: any, oldLeader: any | null, arc: number, how: string): Promise<boolean> {
   await trx('pol_party_members').where({ party_id: party.id, role: 'leader' }).update({ role: 'member' });

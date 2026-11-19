@@ -112,6 +112,8 @@ export interface Me {
   /** Rank in the latest Meridian Wire edition (null before the first edition or if unranked). */
   worldRank?: { rank: number; share: number; arc: number; of: number } | null;
   canTableBill: boolean;
+  /** Why "Table a bill" is locked, or null when it is open. */
+  tableBillLock?: string | null;
   tableBillApCost: number;
   isPartyLeader: boolean;
   eligibleMinisters: { id: string; name: string; credibility: number; partyId: string }[];

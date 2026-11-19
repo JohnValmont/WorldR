@@ -10,6 +10,7 @@ import {
   administrationBands, bn, compact, electionLine, heroBackground, metricById, months, tierColor, useChronicle,
 } from './worldKit';
 import CoalitionView, { coalitionNeedsMe } from './CoalitionView';
+import { CabinetList, Powers } from './CabinetView';
 
 export { Flag } from './worldKit';
 
@@ -271,92 +272,6 @@ function HowItWorks() {
   );
 }
 
-/** What your office lets you do without asking Parliament. */
-function Powers() {
-  const { desk, act, busy } = useFloor();
-  const office = desk.desk.office;
-  const me = desk.me;
-  if (!me) return null;
-  if (!office) {
-    return (
-      <Card className="p-4">
-        <Label>Powers of office</Label>
-        <p className="text-sm mt-1" style={{ color: T.dim }}>
-          The {leaderTitle(desk)} and the five ministers can act without Parliament: one decree a month each, felt across the whole nation.
-          {me.party ? ` Lead the governing party to become ${leaderTitle(desk)}, or be named to the cabinet by one.` : ' Join a party to start the climb.'}
-        </p>
-      </Card>
-    );
-  }
-  const isPremier = office.titles.includes('premier');
-  const ap = me.ap.current;
-  return (
-    <Card className="p-4" tone="accent">
-      <div className="flex items-baseline justify-between gap-2">
-        <Label color={T.accent}>{isPremier ? `${leaderTitle(desk)}’s office` : 'Your ministry'}</Label>
-        <span className="text-[11px]" style={{ color: T.faint }}>One decree a month · {office.decreeAp} energy · lasts {office.lastsMonths} months</span>
-      </div>
-      {office.usedThisMonth
-        ? <p className="text-sm mt-2" style={{ color: T.text }}>This month’s order is given. <span style={{ color: T.dim }}>{office.usedThisMonth}</span></p>
-        : <p className="text-sm mt-2" style={{ color: T.dim }}>Act without Parliament. Every decree helps one thing and hurts another; laws are still the lasting lever.</p>}
-      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {office.decrees.map(d => (
-          <div key={d.key} className="rounded-xl p-3" style={{ background: T.raised, border: `1px solid ${T.line}` }}>
-            <div className="font-semibold text-sm" style={{ color: T.text }}>{d.title}</div>
-            <div className="text-xs mt-0.5" style={{ color: T.dim }}>{d.blurb}</div>
-            <div className="mt-2"><EffectChips effects={{ stat: d.stat, support: d.support }} segments={desk.desk.segments} /></div>
-            <div className="mt-2.5">
-              <Btn small kind="primary" id={`decree-${d.key}`} disabled={busy || !!office.usedThisMonth || ap < office.decreeAp}
-                onClick={() => act(() => politicsApi.issueDecree(d.key), r => r.message)}>
-                Issue decree
-              </Btn>
-            </div>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-/** The Premier names ministers from the players in the governing parties. */
-function Cabinet() {
-  const { desk, act, busy } = useFloor();
-  const me = desk.me;
-  const isPremier = !!me && desk.premier?.characterId === me.characterId;
-  const eligible = me?.eligibleMinisters ?? [];
-  const party = (id: string | null) => desk.parties.find(p => p.id === id);
-  if (!desk.parliament.government) return null;
-  return (
-    <Card className="p-4">
-      <div className="flex items-baseline justify-between gap-2">
-        <Label>The cabinet</Label>
-        {isPremier && <span className="text-[11px]" style={{ color: T.faint }}>You appoint. Players in governing parties can be named.</span>}
-        {!isPremier && <span className="text-[11px]" style={{ color: T.faint }}>Appointed by the {leaderTitle(desk)}</span>}
-      </div>
-      <div className="mt-2 space-y-2">
-        {desk.cabinet.filter(c => c.holderName).map(c => (
-          <div key={c.key} className="flex flex-wrap items-center gap-2 text-sm">
-            <PartyDot color={party(c.partyId)?.color ?? T.faint} />
-            <span className="w-20 text-xs" style={{ color: T.faint }}>{c.short}</span>
-            <span className="flex-1 min-w-0 truncate" style={{ color: T.text }}>{c.holderName}</span>
-            {c.isPlayer && <Chip color={T.accent}>player</Chip>}
-            {isPremier && eligible.length > 0 && (
-              <select aria-label={`Appoint ${c.title}`} disabled={busy} value="" className="rounded-lg text-xs px-2 py-1"
-                style={{ background: T.raised, color: T.text, border: `1px solid ${T.lineStrong}` }}
-                onChange={e => { const v = e.target.value; if (v) act(() => politicsApi.appointMinister(c.key, v === 'npc' ? null : v), `${c.title} appointed.`); }}>
-                <option value="">Appoint…</option>
-                {eligible.map(m => <option key={m.id} value={m.id}>{m.name} (trust {m.credibility})</option>)}
-                <option value="npc">A career official</option>
-              </select>
-            )}
-          </div>
-        ))}
-      </div>
-      {isPremier && eligible.length === 0 && <p className="text-[11px] mt-2" style={{ color: T.faint }}>No other players sit in the governing parties yet, so officials hold the posts.</p>}
-    </Card>
-  );
-}
-
 // ─── Foreign affairs ────────────────────────────────────────────────────────
 
 const TREATY_INFO: Record<string, { name: string; blurb: string }> = {
@@ -367,7 +282,7 @@ const TREATY_INFO: Record<string, { name: string; blurb: string }> = {
 const relationsWord = (s: number) => (s >= 75 ? 'Close allies' : s >= 60 ? 'Friendly' : s >= 40 ? 'Neutral' : s >= 25 ? 'Cool' : 'Hostile');
 
 /** Relations with each nation, treaties in force or awaiting a vote, and (for the head of government) the levers. */
-function Foreign({ foreign, name }: { foreign: NationForeign; name: string }) {
+export function Foreign({ foreign, name }: { foreign: NationForeign; name: string }) {
   const { desk, act, busy } = useFloor();
   const me = desk.me;
   const isHead = !!me && desk.premier?.characterId === me.characterId;
@@ -635,7 +550,7 @@ export default function NationView() {
       {section === 'government' && (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
           <div className="space-y-4"><GovernmentOfTheDay history={history} /><Powers /></div>
-          <Cabinet />
+          <CabinetList compact />
         </div>
       )}
 

@@ -113,7 +113,7 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
   if (premierRow) {
     const party = partyById.get(premierRow.party_id);
     premier = {
-      name: holder?.name || party?.leaderName || 'Acting Premier',
+      name: holder?.name || party?.leaderName || `Acting ${headOfGovernmentTitle(state.code)}`,
       characterId: holder?.id || null,
       isPlayer: !!holder,
       partyId: premierRow.party_id,
@@ -303,7 +303,17 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
       rung,
       ladder: LADDER,
       worldRank,
-      canTableBill: partySeated && !!gov.leadPartyId,
+      canTableBill: partySeated && !!gov.leadPartyId && !['polling', 'formation'].includes(cycle.phase),
+      // Why "Table a bill" is locked (owner rule: locked controls stay visible and say why).
+      tableBillLock: !membership
+        ? 'Join or found a party first: only parties with seats in Parliament can table bills.'
+        : !partySeated
+          ? `Your party holds no seats in ${nation?.legislature.name ?? 'Parliament'}. Win seats at the next election (in ${Math.max(0, cycle.polling_arc - arc)} months) to table bills.`
+          : !gov.leadPartyId
+            ? 'No government has formed yet. Bills can be tabled once one takes office.'
+            : ['polling', 'formation'].includes(cycle.phase)
+              ? 'Parliament does not sit while the votes are counted and a government forms.'
+              : null,
       hasSeat: !!mySeat,
       voteMode: (membership?.role === 'leader' && partySeated) ? 'line' : (mySeat ? 'seat' : null),
       tableBillApCost: AP_COST_BILL_MODERATE + (inGov ? 0 : PRIVATE_BILL_AP_EXTRA),
