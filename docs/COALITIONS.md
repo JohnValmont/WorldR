@@ -121,6 +121,12 @@ waiting period. A human leader sees a reminder on the Desk. Each promise is chec
 | Westmark | Three parties bid for Guildhall Union; the winning offer cost Harbour Workers Finance, Industry, Interior and an interest-rate law | Harbour Workers + Guildhall, 59, unity 65. The promise was kept: 68 |
 | Eryndor | Homestead bought Enterprise with Finance and an income-tax law | Homestead + Enterprise, 67, unity 59. The tax law could not clear the King's 5-vote margin, the promise was broken, unity fell to 23. At the next election Enterprise refused Homestead ("you broke your word") and Homestead governed with the Miners instead |
 
+## Governments formed before this change
+
+Their deals carried the old faction-based "health" (usually 100), which would have read as unity 100 and a whip
+25% stronger than before. Migration 0108 resets those deals to unity 70, the level where the whip is exactly as
+strong as it used to be. From then on they follow the rules above. Their ministries are not touched.
+
 ## Not built yet (step 2)
 
 - **MPs switching party** for money or after a scandal, which would change seat counts between elections. This needs its own rules for who owns a seat, and it touches every vote count, so it is a separate job.
