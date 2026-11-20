@@ -6,6 +6,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import * as C from '../src/api/services/candidacy.rules';
+import { POL_CAMPAIGN_WINDOW_MONTHS, POL_FILING_WINDOW_MONTHS } from '../src/api/constants/politics';
 
 const DATES = { filingOpens: 'May, Year 36', campaignStarts: 'August, Year 36', electionDay: 'February, Year 37', nextFiling: null };
 const opt = (id: string, seats: number, partyShare: number, extra: Partial<C.DistrictOption> = {}): C.DistrictOption =>
@@ -89,5 +90,40 @@ describe('Nobody waits without a district (owner decision 2026-11-19)', () => {
   it('tells a member placed at the campaign that filing has closed and when votes are counted', () => {
     const c = C.draftNotice({ ...N, phase: 'campaign' });
     assert.ok(c.startsWith('Filing has closed') && c.includes('February, Year 37'), c);
+  });
+});
+
+describe('The election calendar (electionCalendar)', () => {
+  const { electionCalendar, electionPhase } = C;
+  const FULL = POL_FILING_WINDOW_MONTHS + POL_CAMPAIGN_WINDOW_MONTHS;
+
+  it('a normal cycle: filing, then the campaign, then election day', () => {
+    const cal = electionCalendar({ polling_arc: 40, start_arc: 10 });
+    assert.deepStrictEqual(cal, { filing: 40 - FULL, campaign: 40 - POL_CAMPAIGN_WINDOW_MONTHS, polling: 40 });
+    assert.strictEqual(electionPhase(cal, 10), 'governing');
+    assert.strictEqual(electionPhase(cal, 40 - FULL), 'filing');
+    assert.strictEqual(electionPhase(cal, 40 - POL_CAMPAIGN_WINDOW_MONTHS), 'campaign');
+    assert.strictEqual(electionPhase(cal, 40), 'polling');
+    assert.strictEqual(electionPhase(cal, 41), 'formation');
+  });
+
+  it('a founding election one month away opens with filing, never mid-campaign or in the past', () => {
+    const cal = electionCalendar({ polling_arc: 1, start_arc: 0 });
+    assert.strictEqual(cal.filing, 0, 'filing opens the month the world starts');
+    assert.strictEqual(electionPhase(cal, 0), 'filing');
+    assert.strictEqual(electionPhase(cal, 1), 'polling');
+  });
+
+  it('a compressed calendar keeps the usual filing-to-campaign proportion', () => {
+    const cal = electionCalendar({ polling_arc: 6, start_arc: 0 });
+    assert.strictEqual(cal.filing, 0);
+    assert.ok(cal.campaign > cal.filing && cal.campaign < cal.polling);
+    const filingShare = (cal.campaign - cal.filing) / (cal.polling - cal.filing);
+    const usual = POL_FILING_WINDOW_MONTHS / FULL;
+    assert.ok(Math.abs(filingShare - usual) < 0.2, `filing share ${filingShare} vs usual ${usual}`);
+  });
+
+  it('without a start month, the usual windows apply', () => {
+    assert.deepStrictEqual(electionCalendar({ polling_arc: 40 }), { filing: 40 - FULL, campaign: 40 - POL_CAMPAIGN_WINDOW_MONTHS, polling: 40 });
   });
 });

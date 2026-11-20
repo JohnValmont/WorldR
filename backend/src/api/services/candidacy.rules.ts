@@ -5,6 +5,7 @@
  */
 import { CHANCE_BANDS } from '../constants/candidacy';
 import { MONTHS } from '../utils/calendar';
+import { POL_CAMPAIGN_WINDOW_MONTHS, POL_FILING_WINDOW_MONTHS } from '../constants/politics';
 
 /** A politics month as players read it: "May, Year 36". */
 export function polArcLabel(arc: number): string {
@@ -12,6 +13,43 @@ export function polArcLabel(arc: number): string {
 }
 
 export type ElectionPhase = 'governing' | 'filing' | 'campaign' | 'polling' | 'formation';
+
+/** The months an election cycle opens filing, starts the campaign and votes. */
+export interface ElectionCalendar { filing: number; campaign: number; polling: number }
+
+/**
+ * THE election calendar: every screen, rule and tick reads filing and campaign
+ * dates from here. Normally filing opens POL_FILING_WINDOW_MONTHS before the
+ * campaign, which starts POL_CAMPAIGN_WINDOW_MONTHS before election day.
+ *
+ * A cycle that opened closer to its election than that (a nation's founding
+ * election, one month after the world starts) would otherwise begin mid-campaign
+ * with filing dated before the world existed, and nobody could ever stand in it.
+ * Its calendar is compressed instead: filing opens when the cycle opens (at
+ * least one month of it), and the rest of the time, if any, is the campaign.
+ */
+export function electionCalendar(cycle: { polling_arc: unknown; start_arc?: unknown }): ElectionCalendar {
+  const polling = Number(cycle.polling_arc) || 0;
+  let campaign = polling - POL_CAMPAIGN_WINDOW_MONTHS;
+  let filing = campaign - POL_FILING_WINDOW_MONTHS;
+  const start = cycle.start_arc == null ? NaN : Number(cycle.start_arc);
+  if (Number.isFinite(start) && filing < start && start < polling) {
+    const lead = polling - start;
+    const share = POL_FILING_WINDOW_MONTHS / (POL_FILING_WINDOW_MONTHS + POL_CAMPAIGN_WINDOW_MONTHS);
+    filing = start;
+    campaign = start + Math.min(lead, Math.max(1, Math.round(lead * share)));
+  }
+  return { filing, campaign, polling };
+}
+
+/** The phase of an election cycle in month `arc`. */
+export function electionPhase(cal: ElectionCalendar, arc: number): ElectionPhase {
+  if (arc < cal.filing) return 'governing';
+  if (arc < cal.campaign) return 'filing';
+  if (arc < cal.polling) return 'campaign';
+  if (arc === cal.polling) return 'polling';
+  return 'formation';
+}
 
 export interface StandWindow {
   /** The Stand / Change district control is usable right now. */

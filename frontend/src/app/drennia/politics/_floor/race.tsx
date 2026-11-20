@@ -42,7 +42,10 @@ export function SeatGauge({ share, seats, color, height = 10, labels = true }: {
 }
 
 function Stepper({ race }: { race: Race }) {
-  const idx = STEPS.findIndex(s => s.id === race.phase);
+  // A founding election one month after the world starts has no campaign month
+  // (the server's electionCalendar compresses it): leave that step out.
+  const steps = STEPS.filter(s => s.id !== 'campaign' || race.arcs.campaign < race.arcs.polling);
+  const idx = steps.findIndex(s => s.id === race.phase);
   // After an overdue count the cycle's own dates are years old: show the stages without them.
   const old = !!race.arcs.stale;
   const when: Record<string, string> = {
@@ -50,8 +53,8 @@ function Stepper({ race }: { race: Race }) {
     polling: old ? 'done' : formatPolArc(race.arcs.polling, true), formation: `to ${formatPolArc(race.arcs.formationEnd, true)}`,
   };
   return (
-    <ol className="grid grid-cols-5 gap-1.5" aria-label="Election cycle">
-      {STEPS.map((s, i) => {
+    <ol className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }} aria-label="Election cycle">
+      {steps.map((s, i) => {
         const now = i === idx, done = i < idx;
         const Icon = s.icon;
         return (

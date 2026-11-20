@@ -60,9 +60,15 @@ const INBOX_LIMIT = 4;
 const NEWS_LIMIT = 3;
 const RANK_LIMIT = 5;
 
-interface TodoItem { id: string; text: string; href: string; done?: boolean; urgent?: boolean }
+interface TodoItem { id: string; text: string; href: string; done?: boolean; urgent?: boolean; /** How many things this line stands for (3 decisions = 3). */ count?: number }
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
+
+/** A nation is always governed by someone: with no head of government, the head of state's caretaker government. */
+function governedBy(n: NationRow): string {
+  if (n.administration) return n.administration.name;
+  return `${n.headOfState.title} ${n.headOfState.name} (caretaker)`;
+}
 
 const RUNG_LABEL: Record<string, string> = {
   citizen: 'Citizen', member: 'Party member', candidate: 'Candidate', mp: 'Member of Parliament',
@@ -269,11 +275,11 @@ export default function ChroniclePage() {
     const list: TodoItem[] = [];
     if (desk && me) {
       const cards = desk.desk.hand.filter(h => h.status === 'open').length;
-      if (cards > 0) list.push({ id: 'cards', urgent: true, href: pol('desk'), text: `${cards} decision${cards > 1 ? 's' : ''} waiting on your desk` });
+      if (cards > 0) list.push({ id: 'cards', urgent: true, count: cards, href: pol('desk'), text: `${cards} decision${cards > 1 ? 's' : ''} waiting on your desk` });
       const votes = me.voteMode ? desk.bills.filter(b => b.status === 'proposed' && !b.myVote).length : 0;
-      if (votes > 0) list.push({ id: 'votes', urgent: true, href: pol('chamber'), text: `Cast your vote on ${votes} bill${votes > 1 ? 's' : ''}` });
+      if (votes > 0) list.push({ id: 'votes', urgent: true, count: votes, href: pol('chamber'), text: `Cast your vote on ${votes} bill${votes > 1 ? 's' : ''}` });
       const deals = (desk.desk.deals?.incoming.length ?? 0) + (desk.desk.handshakesIncoming ?? 0);
-      if (deals > 0) list.push({ id: 'deals', urgent: true, href: pol('corridors'), text: `${deals} deal offer${deals > 1 ? 's' : ''} to answer` });
+      if (deals > 0) list.push({ id: 'deals', urgent: true, count: deals, href: pol('corridors'), text: `${deals} deal offer${deals > 1 ? 's' : ''} to answer` });
       const contest = desk.desk.partyRoom?.contest;
       if (contest?.status === 'open' && !contest.myBallot) list.push({ id: 'contest', urgent: true, href: pol('party'), text: `Leadership contest in your party: ${contest.challenger.name} vs ${contest.leader.name}` });
       if (me.ap.current >= me.ap.cap) {
@@ -307,7 +313,10 @@ export default function ChroniclePage() {
   const ladder = desk?.desk.ladder ?? [];
   const rungIdx = ladder.findIndex(r => r.current);
   const nextRung = rungIdx >= 0 ? ladder[rungIdx + 1] : undefined;
-  const urgentCount = todos.filter(t => t.urgent).length;
+  // Count things, not lines: "3 decisions waiting" is 3, as on the politics Desk.
+  const urgentCount = todos.filter(t => t.urgent).reduce((a, t) => a + (t.count ?? 1), 0);
+  // The Politics button shows the same number as the Desk badge: decisions, votes and deals.
+  const politicsWaiting = todos.filter(t => t.urgent && ['cards', 'votes', 'deals'].includes(t.id)).reduce((a, t) => a + (t.count ?? 1), 0);
   const shownTodos = todos.slice(0, TODO_LIMIT);
   const unread = notices?.unread ?? 0;
 
@@ -446,8 +455,9 @@ export default function ChroniclePage() {
         <MiniStat label="Rank" value={myNation.sim ? `#${myNation.sim.rank}` : '—'} />
       </div>
       <div className="mt-2 text-[10px] text-zinc-500 truncate">
-        {myNation.leaderTitle}: <span className="text-zinc-300">{myNation.premier ?? 'vacant'}</span>
-        {myNation.leadParty && ` · ${myNation.leadParty.name}`}
+        {myNation.premier
+          ? <>{myNation.leaderTitle}: <span className="text-zinc-300">{myNation.premier}</span>{myNation.leadParty && ` · ${myNation.leadParty.name}`}</>
+          : <span className="text-zinc-300">{governedBy(myNation)}</span>}
       </div>
     </div>
   ) : null;
@@ -464,7 +474,7 @@ export default function ChroniclePage() {
           <Flag flag={n.flag} width={26} />
           <div className="min-w-0 flex-1">
             <div className="text-[12px] font-semibold text-zinc-100 truncate">{n.name}</div>
-            <div className="text-[10px] text-zinc-500 truncate">{n.leaderTitle}: {n.premier ?? 'vacant'}</div>
+            <div className="text-[10px] text-zinc-500 truncate">{n.premier ? `${n.leaderTitle}: ${n.premier}` : governedBy(n)}</div>
           </div>
           <div className="text-right shrink-0">
             <div className="text-[12px] font-mono text-zinc-200" title="Government approval">{Math.round(n.approval)}%</div>
@@ -690,7 +700,7 @@ export default function ChroniclePage() {
 
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <Button href="/drennia/politics" variant="primary" icon={ChevronRight} size="sm">
-                  {urgentCount > 0 ? `Politics (${urgentCount} waiting)` : 'Politics'}
+                  {politicsWaiting > 0 ? `Politics (${politicsWaiting} waiting)` : 'Politics'}
                 </Button>
                 <Button href="/drennia/business" variant="secondary" size="sm">
                   {company ? `${company.name} →` : 'Start a company →'}
@@ -705,7 +715,7 @@ export default function ChroniclePage() {
 
             {/* ── Today + Inbox side by side on desktop (Inbox is a tab below lg) ── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Card pad="sm" kicker="Today" icon={Zap} title={urgentCount > 0 ? `${urgentCount} thing${urgentCount > 1 ? 's' : ''} need you` : 'Nothing urgent'}>
+              <Card pad="sm" kicker="Today" icon={Zap} title={urgentCount > 0 ? `${urgentCount} thing${urgentCount > 1 ? 's need' : ' needs'} you` : 'Nothing urgent'}>
                 {todayPanel}
               </Card>
               <Card pad="sm" className="hidden lg:block" kicker="Inbox" icon={InboxIcon} title={unread > 0 ? `${unread} unread` : 'While you were away'} headerSlot={markReadButton}>

@@ -20,7 +20,7 @@ import { readNationalStatsFromRow } from './nationalEconomy.service';
 import { getGovernment, liveApproval, pollParties, projectElection } from './statecraft.service';
 import { notify } from './notices.service';
 import { logger } from '../../utils/logger';
-import { draftDistrict, draftNotice, placesUnfiledMembers, polArcLabel, rankDistricts, standWindow, type DistrictOption, type ElectionPhase } from './candidacy.rules';
+import { draftDistrict, draftNotice, electionCalendar, electionPhase, placesUnfiledMembers, polArcLabel, rankDistricts, standWindow, type DistrictOption, type ElectionPhase } from './candidacy.rules';
 import { electionOutlook } from './administration.rules';
 
 const num = (v: any) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
@@ -60,20 +60,11 @@ export async function districtOptions(conn: any, state: any, cycleId: string, pa
 }
 
 function phaseOf(cycle: any, arc: number): ElectionPhase {
-  const polling = num(cycle.polling_arc);
-  const campaign = polling - POL_CAMPAIGN_WINDOW_MONTHS;
-  const filing = campaign - POL_FILING_WINDOW_MONTHS;
-  if (arc < filing) return 'governing';
-  if (arc < campaign) return 'filing';
-  if (arc < polling) return 'campaign';
-  if (arc === polling) return 'polling';
-  return 'formation';
+  return electionPhase(electionCalendar(cycle), arc);
 }
 
 function windowFor(state: any, cycle: any, arc: number, hasParty: boolean, standing: boolean) {
-  const polling = num(cycle.polling_arc);
-  const campaign = polling - POL_CAMPAIGN_WINDOW_MONTHS;
-  const filing = campaign - POL_FILING_WINDOW_MONTHS;
+  const { filing, campaign, polling } = electionCalendar(cycle);
   const firstCut = num(cycle.cycle_number) === 1 && getJurisdiction(state.code).tier === 'national' ? getElectionOffsetMonths(state.code) : 0;
   const phase = phaseOf(cycle, arc);
   // Screens take election timing from electionOutlook (never a date in the past,
@@ -170,8 +161,7 @@ export async function draftUnfiledMembers(trx: any, state: any, cycle: any, arc:
   const members = await q;
   if (!members.length) return 0;
   const gov = await getGovernment(trx, state.id);
-  const filingArc = num(cycle.polling_arc) - POL_CAMPAIGN_WINDOW_MONTHS - POL_FILING_WINDOW_MONTHS;
-  const campaignArc = num(cycle.polling_arc) - POL_CAMPAIGN_WINDOW_MONTHS;
+  const { filing: filingArc, campaign: campaignArc } = electionCalendar(cycle);
   let drafted = 0;
   const optionsByParty = new Map<string, DistrictOption[]>();
   for (const m of members) {
