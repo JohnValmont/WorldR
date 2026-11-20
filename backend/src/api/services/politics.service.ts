@@ -109,6 +109,7 @@ import { notify } from './notices.service';
 import { Bloc, closeTalks, npcDecide, npcMakeOffers, recordDeal, stepCoalitionMonth, talkBlocs } from './coalition.service';
 import { logger } from '../../utils/logger';
 import { draftUnfiledMembers } from './candidacy.service';
+import { electionCalendar, electionPhase } from './candidacy.rules';
 
 /**
  * Convert a world_clock row into a MONOTONIC absolute month ("arc").
@@ -472,23 +473,14 @@ async function applyFactorDelta(trx: any, characterId: string | null, factors: R
 }
 
 export function derivePhase(
-  cycle: { polling_arc: number; formation_end_arc: number },
+  cycle: { polling_arc: number; formation_end_arc: number; start_arc?: number | null },
   currentMonth: number
 ): 'governing' | 'filing' | 'campaign' | 'polling' | 'formation' {
-  const startCampaign = cycle.polling_arc - POL_CAMPAIGN_WINDOW_MONTHS;
-  const startFiling = startCampaign - POL_FILING_WINDOW_MONTHS;
-
-  if (currentMonth < startFiling) return 'governing';
-  if (currentMonth >= startFiling && currentMonth < startCampaign) return 'filing';
-  if (currentMonth >= startCampaign && currentMonth < cycle.polling_arc) return 'campaign';
-  // polling_arc is election day. Arcs strictly after it until formation_end_arc are
-  // the formation window. The processPoliticalArc catch-all (>= polling_arc + !hasResults)
-  // handles the case where the tick skips the exact polling_arc month, so we keep
-  // derivePhase as a clean two-way split: polling = day-of, formation = after.
-  if (currentMonth === cycle.polling_arc) return 'polling';
-  if (currentMonth > cycle.polling_arc) return 'formation';
-
-  return 'governing';
+  // One calendar for every screen and tick (candidacy.rules electionCalendar).
+  // polling_arc is election day; months after it are the formation window. The
+  // processPoliticalArc catch-all (>= polling_arc + no seats) handles a tick that
+  // skips the exact polling month.
+  return electionPhase(electionCalendar(cycle), currentMonth);
 }
 
 /**
@@ -516,7 +508,7 @@ export async function getOrCreateCurrentCycle(stateId: string, trx?: any) {
     const pollingArc = currentMonth + POL_FIRST_CYCLE_MONTHS + (isNational ? 0 : getElectionOffsetMonths(stateRow?.code));
     const formationEndArc = pollingArc + POL_FORMATION_WINDOW_MONTHS;
 
-    const phase = derivePhase({ polling_arc: pollingArc, formation_end_arc: formationEndArc }, currentMonth);
+    const phase = derivePhase({ polling_arc: pollingArc, formation_end_arc: formationEndArc, start_arc: currentMonth }, currentMonth);
 
     const [inserted] = await conn('pol_cycles').insert({
       state_id: stateId,

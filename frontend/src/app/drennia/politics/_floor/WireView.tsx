@@ -54,7 +54,7 @@ function IndexTable({ rows, mine, total, maxShare }: { rows: IndexRow[]; mine: I
         </>
       )}
       <p className="text-[11px] mt-2" style={{ color: T.faint }}>
-        {total} politicians ranked across the three nations. The % is each one's share of all the influence in the world.
+        {total} politician{total === 1 ? '' : 's'} ranked across the three nations. The % is each one's share of all the influence in the world.
       </p>
     </>
   );

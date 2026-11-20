@@ -92,6 +92,7 @@ import { runElection } from '../services/electionEngine';
 import { buildPulse } from '../services/politics.pulse';
 import { readNationalStatsFromRow } from '../services/nationalEconomy.service';
 import { safeParseJSON } from '../../utils/json';
+import { electionCalendar } from '../services/candidacy.rules';
 
 const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
@@ -215,8 +216,7 @@ export async function getStateOverview(req: Request, res: Response, next: NextFu
         const clock = await db('world_clock').first();
         const actualArc = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
         
-        const startCampaign = cycle.polling_arc - POL_CAMPAIGN_WINDOW_MONTHS;
-        const startFiling = startCampaign - POL_FILING_WINDOW_MONTHS;
+        const { filing: startFiling, campaign: startCampaign } = electionCalendar(cycle);
         
         if (cycle.phase === 'governing') {
           countdown = startFiling - actualArc;

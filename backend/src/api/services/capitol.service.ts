@@ -19,6 +19,7 @@ import {
 import { CABINET_POSTS, POLL_HISTORY_MONTHS, portfolioPostFor, PRIVATE_BILL_AP_EXTRA, headOfGovernmentTitle, nationRules } from '../constants/nations';
 import { AP_COST_BILL_MODERATE } from '../constants/politics';
 import { getCurrentWorldArc, getOrCreateCurrentCycle } from './politics.service';
+import { electionCalendar } from './candidacy.rules';
 import {
   billTitle, liveApproval, getGovernment, getLawsInForce, nationFor, parsePlatform,
   projectElection, optionAlignment, pollParties,
@@ -331,8 +332,7 @@ export async function getCapitol(userId: string | null, stateCodeOrId?: string) 
     };
   }
 
-  const filingArc = cycle.polling_arc - POL_CAMPAIGN_WINDOW_MONTHS - POL_FILING_WINDOW_MONTHS;
-  const campaignArc = cycle.polling_arc - POL_CAMPAIGN_WINDOW_MONTHS;
+  const { filing: filingArc, campaign: campaignArc } = electionCalendar(cycle);
 
   return {
     nation: nation ? {
@@ -393,7 +393,10 @@ function nextGoal(rung: Rung, phase: string, monthsToElection: number, inGov: bo
   switch (rung) {
     case 'citizen': return 'Join a party, or found your own, to enter politics.';
     case 'member':
-      if (phase === 'filing' || phase === 'campaign') return 'Candidates are being filed: stand for a district to win a seat.';
+      if (phase === 'filing') return 'Filing is open: stand for a district to win a seat. If you do not pick one, your party picks for you when the month turns.';
+      if (phase === 'campaign') return 'Filing has closed: your party puts you up in your best open district when the month turns. Then campaign there.';
+      if (phase === 'polling') return 'It is election day: the votes are counted when this month turns.';
+      if (phase === 'formation') return 'The votes are counted and a government is forming. Once it takes office your party puts you up for the next election; you can change district during filing.';
       return `The next election is in ${monthsToElection} month${monthsToElection === 1 ? '' : 's'}. Build credibility and funds, then stand for a district when filing opens.`;
     case 'candidate': return 'Campaign in your district. Seats are shared by vote share, so even 10-15% there can win one.';
     case 'mp': return inGov
