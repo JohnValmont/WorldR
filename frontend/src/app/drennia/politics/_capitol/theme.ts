@@ -39,5 +39,5 @@ export const PHASES: { key: string; label: string; blurb: string }[] = [
 ];
 
 export const fmtPct = (x: number, d = 1) => `${(x * 100).toFixed(d)}%`;
-export const fmtMoney = (n: number) => `$${Math.round(n).toLocaleString()}`;
+export const fmtMoney = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
 export const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();

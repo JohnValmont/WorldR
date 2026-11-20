@@ -104,10 +104,10 @@ export default function WorldTimeControl() {
                     </span>
                   </span>
                 ) : (
-                  <span style={{ color: '#E5A93D', fontWeight: 'bold' }}>PROCESSING BIZ TICK...</span>
+                  <span style={{ color: '#E5A93D', fontWeight: 'bold' }}>MONTH TURNING...</span>
                 )
               ) : (
-                <span>BIZ TICK IN <span style={{ textTransform: 'none' }}>{formatCountdown(secondsToTick)}</span></span>
+                <span>NEXT MONTH IN <span style={{ textTransform: 'none' }}>{formatCountdown(secondsToTick)}</span></span>
               )
             )}
           </div>

@@ -57,6 +57,7 @@ jobs:
           tests/electionRecovery.test.ts
           tests/candidacy.test.ts
           tests/coalition.test.ts
+          tests/worldClock.test.ts
 
   backend-all-tests:
     name: Backend — all tests (informational, allowed to fail)

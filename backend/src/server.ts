@@ -6,6 +6,7 @@ import { logger } from './utils/logger';
 import { startWorldTickScheduler } from './api/services/worldTick.service';
 import { ManufacturingController } from './api/controllers/manufacturing.controller';
 import { processDrenniaTick } from './api/controllers/drennia.controller';
+import { syncAllNationDistricts } from './api/services/statecraft.service';
 import { initErrorTracking, captureException, flushErrorTracking } from './utils/errorTracking';
 
 initErrorTracking();
@@ -68,6 +69,18 @@ async function startServer() {
       await runMigrationsAndSeeds();
 
       await promoteConfiguredAdmins();
+
+      // Districts come from each nation's constitution (constants/nations.ts).
+      // Sync them now so the map, seat counts and district placement work
+      // before the first month turns (not a one-off patch: it re-checks the
+      // constants every start and writes only what changed).
+      try {
+        const { synced, failed } = await syncAllNationDistricts(db);
+        logger.info(`Nation districts synced for ${synced} nation(s).`);
+        if (failed.length) logger.error(`Could not sync districts for: ${failed.join(', ')}`);
+      } catch (e) {
+        logger.error('Failed to sync nation districts:', e);
+      }
 
       try {
         const clock = await db('world_clock').first();
