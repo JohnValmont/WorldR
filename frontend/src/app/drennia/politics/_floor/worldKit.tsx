@@ -31,7 +31,7 @@ export function compact(n: number): string {
   if (a >= 1e9) return `${(n / 1e9).toFixed(a >= 1e11 ? 0 : 1)}B`;
   if (a >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
   if (a >= 1e4) return `${(n / 1e3).toFixed(0)}k`;
-  return Math.round(n).toLocaleString();
+  return Math.round(n).toLocaleString('en-US');
 }
 export const bn = (n: number) => `${n < 0 ? '−' : ''}$${compact(Math.abs(n))}`;
 export const months = (n: number) => `${n} month${n === 1 ? '' : 's'}`;

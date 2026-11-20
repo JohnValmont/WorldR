@@ -38,7 +38,7 @@ export function ApprovalWhy({ approval }: { approval: { live: number; fromStats?
   );
 }
 
-export const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
+export const money = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
 export const signed = (n: number, d = 0) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(d).replace(/\.0$/, '')}`;
 export const pct = (x: number, d = 0) => `${(x * 100).toFixed(d)}%`;
 

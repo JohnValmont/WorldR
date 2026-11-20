@@ -12,6 +12,7 @@
  * the global connection, so they are safe inside the politics tick.
  */
 import { cachedRead } from './readCache';
+import { logger } from '../../utils/logger';
 import { AXES, Platform, SEGMENTS } from '../constants/politics';
 import { TREATY_CATEGORY, TREATY_SPECS } from '../constants/diplomacy';
 import { parseTreatyOption, treatyLiking } from './diplomacy.rules';
@@ -381,6 +382,30 @@ export async function syncNationDistricts(trx: any, stateRow: any): Promise<any[
   if (stale.length) await trx('pol_constituencies').whereIn('id', stale).update({ is_active: false });
 
   return trx('pol_constituencies').where({ state_id: stateRow.id, is_active: true }).orderBy('name');
+}
+
+/**
+ * Every active nation's districts, synced from its constitution. Runs once at
+ * server start (after migrations and seeds), so a new or restarted world has
+ * its districts, map and seat counts before the first month turns, and a party
+ * member can be placed in a district the moment they join. Idempotent: when
+ * nothing changed it only reads. Each nation in its own transaction.
+ */
+export async function syncAllNationDistricts(conn: any): Promise<{ synced: number; failed: string[] }> {
+  const states = await conn('pol_states').where({ is_active: true });
+  let synced = 0;
+  const failed: string[] = [];
+  for (const st of states) {
+    if (!getNationForPolState(st.code)) continue;
+    try {
+      await conn.transaction((trx: any) => syncNationDistricts(trx, st));
+      synced++;
+    } catch (err) {
+      failed.push(st.code);
+      logger.error(`[statecraft] syncing districts for ${st.code} failed`, err);
+    }
+  }
+  return { synced, failed };
 }
 
 /** Laws in force: category -> option id (active macro-economy policies over defaults). */

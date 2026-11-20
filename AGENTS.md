@@ -187,3 +187,8 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Cabinet is a top-level tab (CabinetView.tsx): head of government, every ministry with holder, party and the laws it steers, appoint controls for the head, and Powers (decrees). Nation → Government shows the compact CabinetList and links there. Powers/CabinetList live in CabinetView.tsx only.
 - A party that holds seats in a nation's parliament MUST have that nation's pol_parties.state_id. The desk and billVotePlan list parties by state; a party filed elsewhere is drawn as empty seats AND casts no vote (migration 0110 fixed Drennia's PDP).
 - A deleted character holds nothing: deleteMe calls releaseCharacterPolitics (floor.service.ts). Seats, posts and candidacies stay with the party; a party they led becomes computer-run.
+
+## World clock and districts — Operational Rules (DO NOT BREAK)
+- Players see ONE month: the business and politics ticks must turn at the same moment. Both ticks pick their next close with alignedNextClose (services/worldClock.rules.ts, tests/worldClock.test.ts); admin resume/speed reschedule BOTH clocks. Never schedule one clock without the other.
+- The hub countdown says "Next month in", not "biz tick".
+- Districts are synced from constants/nations.ts at server start (syncAllNationDistricts, after migrations and seeds) and every politics month. A fresh or reset world must show its districts and seats before the first month turns.

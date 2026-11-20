@@ -88,8 +88,11 @@ export class WorldController {
         .where({ world_instance_id: activeInstance.id })
         .update({
           status: 'active',
+          // Both months restart together: players see one month.
           month_started_at: new Date().toISOString(),
           next_arc_close_at: nextClose.toISOString(),
+          pol_month_started_at: new Date().toISOString(),
+          pol_next_arc_close_at: nextClose.toISOString(),
           updated_at: db.fn.now(),
         });
       res.status(200).json({ status: 'success', data: { clockStatus: 'active', next_arc_close_at: nextClose.toISOString() } });
@@ -117,9 +120,13 @@ export class WorldController {
       const updated = await db('world_clock')
         .where({ world_instance_id: activeInstance.id })
         .update({
+          // One speed for both clocks, both rescheduled from now: players see one month.
           real_seconds_per_month: Math.round(seconds),
+          pol_real_seconds_per_month: Math.round(seconds),
           month_started_at: new Date().toISOString(),
           next_arc_close_at: nextClose.toISOString(),
+          pol_month_started_at: new Date().toISOString(),
+          pol_next_arc_close_at: nextClose.toISOString(),
           updated_at: db.fn.now(),
         });
       if (!updated) return next(new AppError('World clock not found', 404, 'CLOCK_NOT_FOUND'));

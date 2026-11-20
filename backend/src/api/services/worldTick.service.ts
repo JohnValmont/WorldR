@@ -12,6 +12,7 @@ import { syncAdministrations } from './administration.service';
 import { processMacroEconomy } from './economy.service';
 import { processAuctions } from './acquisitionAuction.service';
 import { DEFAULT_REAL_SECONDS_PER_MONTH } from '../constants/world';
+import { alignedNextClose, clockMs } from './worldClock.rules';
 
 
 
@@ -257,7 +258,10 @@ export async function runWorldTick(opts: { force?: boolean } = {}): Promise<Worl
       const maxCatchupMs = MAX_CATCHUP_TICKS * intervalMs;
       const anchor = !opts.force && nextClose > 0 && now - nextClose < maxCatchupMs ? nextClose : now;
       const monthStartedAt = new Date(anchor);
-      const nextArcCloseAt = new Date(anchor + intervalMs);
+      // Players see one month: end it when the politics month ends (worldClock.rules).
+      const nextArcCloseAt = new Date(alignedNextClose({
+        ownNext: anchor + intervalMs, otherNext: clockMs(clock.pol_next_arc_close_at), now, intervalMs,
+      }));
 
       // Always advance the clock, even if some subsystems failed above. Freezing
       // the entire world because one country has a data bug is far worse than
@@ -453,7 +457,10 @@ export async function runPoliticsTick(opts: { force?: boolean } = {}): Promise<W
       const maxCatchupMs = MAX_CATCHUP_TICKS * intervalMs;
       const anchor = !opts.force && nextClose > 0 && now - nextClose < maxCatchupMs ? nextClose : now;
       const monthStartedAt = new Date(anchor);
-      const nextArcCloseAt = new Date(anchor + intervalMs);
+      // Players see one month: end it when the business month ends (worldClock.rules).
+      const nextArcCloseAt = new Date(alignedNextClose({
+        ownNext: anchor + intervalMs, otherNext: clockMs(clock.next_arc_close_at), now, intervalMs,
+      }));
 
       if (failures.length > 0) {
         logger.warn(`[world-tick] Advancing Politics Y${year} M${month} with ${failures.length} isolated failure(s)`);
