@@ -1,136 +1,93 @@
-import assert from 'assert';
+/**
+ * The real election engine (services/electionEngine.ts): district votes, then
+ * each district's seats shared by D'Hondt. Pure and deterministic, no database.
+ * Rewritten for the district engine; the old version targeted a national pool
+ * that no longer exists.
+ */
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import {
-  computeFit,
-  computeReach,
-  computeSegmentShares,
-  computeTurnout,
-  computeVotes,
-  allocateSeatsDHondt,
-  runElection,
-  EngineCandidate,
-  ElectionInput
+  allocateSeatsDHondt, apportionSeats, computeFit, computeReach, computeSegmentShares, runElection,
+  EngineCandidate, EngineConstituency,
 } from '../src/api/services/electionEngine';
-import {
-  SEGMENTS,
-  AXES,
-  Platform,
-  POL_REACH_HALF_SAT
-} from '../src/api/constants/politics';
+import { SEGMENTS, Platform, POL_REACH_HALF_SAT } from '../src/api/constants/politics';
 
-function runTests() {
-  const seg = SEGMENTS[0]; // Industrial Workers
+const seg = SEGMENTS[0];
+const far: Platform = { taxation: 100, labour: 0, investment: 0, trade: 100, stability: 0 };
+const allEffort = (e: number) => Object.fromEntries(SEGMENTS.map(s => [s.key, e]));
+const cand = (id: string, party: string, district: string, platform: Platform, effort = POL_REACH_HALF_SAT, cred = 50): EngineCandidate => ({
+  candidateId: id, partyId: party, platform, credibility: cred, isIncumbent: false, effortBySegment: allEffort(effort), constituencyId: district,
+});
+const district = (id: string, seats: number, voters = 100_000): EngineConstituency => ({ id, registeredVoters: voters, conditions: null, seats });
 
-  function createCandidate(id: string, platform: Platform, cred: number, effort: number, isIncumbent = false): EngineCandidate {
-    return {
-      candidateId: id,
-      partyId: 'party_' + id,
-      platform,
-      credibility: cred,
-      isIncumbent,
-      effortBySegment: { [seg.key]: effort }
-    };
-  }
+describe('Voter appeal', () => {
+  it('a platform at the group\'s ideal fits better than a far one', () => {
+    assert.ok(computeFit({ ...seg.ideal }, seg) > computeFit(far, seg));
+    const shares = computeSegmentShares([cand('a', 'A', 'd', { ...seg.ideal }), cand('b', 'B', 'd', far)], seg);
+    assert.ok(shares.a > shares.b);
+    assert.ok(Math.abs(shares.a + shares.b - 1) < 1e-9, 'shares sum to 1');
+  });
+  it('campaign effort has diminishing returns', () => {
+    const r1 = computeReach(POL_REACH_HALF_SAT), r2 = computeReach(POL_REACH_HALF_SAT * 2), r0 = computeReach(0);
+    assert.ok(r2 > r1 && r1 > r0);
+    assert.ok((r2 - r1) < (r1 - r0), 'the second dose of effort adds less than the first');
+    assert.equal(computeReach(-5), computeReach(0), 'negative effort counts as none');
+  });
+  it('more credibility wins more of a group, all else equal', () => {
+    const shares = computeSegmentShares([cand('a', 'A', 'd', { ...seg.ideal }, 10, 80), cand('b', 'B', 'd', { ...seg.ideal }, 10, 40)], seg);
+    assert.ok(shares.a > shares.b);
+  });
+});
 
-  console.log('Running test 1...');
-  {
-    const idealCandidate = createCandidate('c1', { ...seg.ideal }, 50, 10);
-    const farPlatform: Platform = { taxation: 100, labour: 0, investment: 0, trade: 100, stability: 0 };
-    const farCandidate = createCandidate('c2', farPlatform, 50, 10);
-    
-    const shares = computeSegmentShares([idealCandidate, farCandidate], seg);
-    assert(shares['c1'] > shares['c2'], 'Ideal platform should beat far platform');
-  }
+describe('D\'Hondt seat sharing', () => {
+  it('hands out exactly the seats available, roughly in proportion to votes', () => {
+    const seats = allocateSeatsDHondt({ A: 60_000, B: 30_000, C: 10_000 }, 10);
+    assert.equal(seats.A + seats.B + seats.C, 10);
+    assert.ok(seats.A / seats.B >= 1.5 && seats.A / seats.B <= 3, `A:B ratio ${seats.A}:${seats.B}`);
+  });
+  it('a single-seat district is first past the post', () => {
+    const seats = allocateSeatsDHondt({ A: 501, B: 499 }, 1);
+    assert.deepEqual(seats, { A: 1, B: 0 });
+  });
+  it('nobody with no votes gets a seat', () => {
+    assert.equal(allocateSeatsDHondt({ A: 0, B: 0 }, 5).A, 0);
+  });
+  it('apportioning seats to districts follows voters and gives every district one', () => {
+    const out = apportionSeats([100, 300, 600], 20);
+    assert.equal(out.reduce((a, b) => a + b, 0), 20);
+    assert.ok(out[2] > out[1] && out[1] > out[0] && out[0] >= 1);
+  });
+});
 
-  console.log('Running test 2...');
-  {
-    const baseCandidate = createCandidate('c1', { ...seg.ideal }, 50, POL_REACH_HALF_SAT);
-    const competitor = createCandidate('c2', { ...seg.ideal }, 50, POL_REACH_HALF_SAT);
-
-    const input1: ElectionInput = { candidates: [baseCandidate, competitor], registeredVoters: 1000000 };
-    const res1 = runElection(input1);
-    const share1 = res1.segmentShares[seg.key]['c1'];
-
-    const doubleEffortCandidate = createCandidate('c1', { ...seg.ideal }, 50, POL_REACH_HALF_SAT * 2);
-    const input2: ElectionInput = { candidates: [doubleEffortCandidate, competitor], registeredVoters: 1000000 };
-    const res2 = runElection(input2);
-    const share2 = res2.segmentShares[seg.key]['c1'];
-
-    assert(share2 > share1, 'Double effort should increase share');
-    const ratio = share2 / share1;
-    assert(ratio > 1.0 && ratio < 2.0, `Diminishing returns broken: ratio is ${ratio}`);
-  }
-
-  console.log('Running test 3...');
-  {
-    const baseCandidate = createCandidate('c1', { ...seg.ideal }, 50, 10);
-    const competitor = createCandidate('c2', { ...seg.ideal }, 50, 10);
-    
-    const shares1 = computeSegmentShares([baseCandidate, competitor], seg);
-    const share1 = shares1['c1'];
-
-    const highCredCandidate = createCandidate('c1', { ...seg.ideal }, 100, 10);
-    const shares2 = computeSegmentShares([highCredCandidate, competitor], seg);
-    const share2 = shares2['c1'];
-
-    const ratio = share2 / share1;
-    assert(ratio > 1.1 && ratio < 1.6, `Credibility ratio out of bounds: ${ratio}`);
-  }
-
-  console.log('Running test 4...');
-  {
-    const c1 = createCandidate('c1', { ...seg.ideal }, 50, 10);
-    const c2 = createCandidate('c2', { ...seg.ideal }, 80, 20);
-    const c3 = createCandidate('c3', { ...seg.ideal }, 20, 5);
-
-    const shares = computeSegmentShares([c1, c2, c3], seg);
-    const sum = Object.values(shares).reduce((a, b) => a + b, 0);
-    assert(Math.abs(sum - 1.0) < 1e-9, 'Shares do not sum to 1.0');
-  }
-
-  console.log('Running test 5...');
-  {
-    const seats = allocateSeatsDHondt({
-      p1: 20000,
-      p2: 10000,
-      p3: 5000
-    }, 61);
-
-    const totalSeats = Object.values(seats).reduce((a, b) => a + b, 0);
-    assert(totalSeats === 61, 'Should allocate exactly 61 seats');
-    assert(seats['p1'] >= seats['p2'], 'Party with 2x votes should get >= seats');
-    assert(seats['p1'] > seats['p2'], 'Party with 2x votes should strictly get more seats');
-  }
-
-  console.log('Running test 6...');
-  {
-    const input: ElectionInput = {
-      registeredVoters: 1600000,
-      candidates: [
-        createCandidate('c1', { taxation: 50, labour: 50, investment: 50, trade: 50, stability: 50 }, 60, 20),
-        createCandidate('c2', { taxation: 60, labour: 40, investment: 40, trade: 60, stability: 60 }, 50, 15)
-      ]
-    };
-
-    const res1 = runElection(input);
-    const res2 = runElection(JSON.parse(JSON.stringify(input)));
-
-    assert(JSON.stringify(res1) === JSON.stringify(res2), 'Results are not identical');
-  }
-
-  console.log('Running test 8...');
-  {
-    const c1 = createCandidate('c1', { ...seg.ideal }, 50, 10);
-    const c2 = createCandidate('c2', { ...seg.ideal }, 50, 10);
-
-    const turnout1 = computeTurnout(seg, [c1, c2]);
-
-    const c1High = createCandidate('c1', { ...seg.ideal }, 50, 1000);
-    const turnout2 = computeTurnout(seg, [c1High, c2]);
-
-    assert(turnout2 >= turnout1, 'Turnout should not decrease with higher reach');
-  }
-
-  console.log('All tests passed!');
-}
-
-runTests();
+describe('A whole election', () => {
+  const input = () => ({
+    constituencies: [district('north', 5), district('south', 3), district('east', 1)],
+    candidates: [
+      cand('a1', 'A', 'north', { ...seg.ideal }), cand('b1', 'B', 'north', far),
+      cand('a2', 'A', 'south', { ...seg.ideal }), cand('b2', 'B', 'south', far),
+      cand('a3', 'A', 'east', far), cand('b3', 'B', 'east', { ...seg.ideal }, POL_REACH_HALF_SAT * 3, 90),
+    ],
+  });
+  it('fills every district\'s seats and no more', () => {
+    const res = runElection(input());
+    assert.equal(res.totalSeatsAllocated, 9);
+    for (const d of res.perConstituency) {
+      const want = input().constituencies.find(c => c.id === d.constituencyId)!.seats!;
+      assert.equal(Object.values(d.seatsByParty).reduce((a, b) => a + b, 0), want, d.constituencyId);
+    }
+    assert.equal(res.perParty.reduce((a, p) => a + p.seats, 0), 9);
+  });
+  it('is deterministic: the same input gives the same result', () => {
+    assert.deepEqual(runElection(input()), runElection(input()));
+  });
+  it('the party that fits voters better wins more seats overall', () => {
+    const res = runElection(input());
+    const seats = Object.fromEntries(res.perParty.map(p => [p.partyId, p.seats]));
+    assert.ok(seats.A > seats.B, JSON.stringify(seats));
+  });
+  it('a candidate only competes in their own district', () => {
+    const res = runElection(input());
+    const east = res.perConstituency.find(d => d.constituencyId === 'east')!;
+    assert.deepEqual(Object.keys(east.votes).sort(), ['a3', 'b3']);
+  });
+});

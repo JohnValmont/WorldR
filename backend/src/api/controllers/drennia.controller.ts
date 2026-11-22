@@ -31,7 +31,7 @@ const FUNDRAISER_TREASURY_REWARD = 200;
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 async function getCharacterForUser(userId: string) {
-  const char = await db('characters').where({ user_id: userId }).first();
+  const char = await db('characters').where({ user_id: userId, status: 'active' }).first();
   if (!char) throw new AppError('No character found for this user', 404, 'NOT_FOUND');
   return char;
 }

@@ -127,9 +127,14 @@ export class CharacterController {
 
       const { name, motherland_country_id, home_state_id, currency_id, background, edge, convictions } = req.body;
 
-      if (!name || !motherland_country_id || !currency_id) {
+      if (!name || !motherland_country_id) {
         return next(new AppError('Missing required fields', 400, 'BAD_REQUEST'));
       }
+      // One world currency (migration 0033): use the requested one only if it exists.
+      // An unknown id used to fail the insert with a 500 after all other checks passed.
+      const currency = (currency_id && await db('currencies').where({ id: String(currency_id) }).first())
+        || await db('currencies').orderBy('id').first();
+      if (!currency) return next(new AppError('No currency is set up for this world.', 500, 'INTERNAL_ERROR'));
 
       // Background + edge tokens -> starting stats, computed on the server
       // (constants/characterCreation.ts). Old slider `attributes` are ignored.
@@ -157,6 +162,10 @@ export class CharacterController {
       // Three starter nations of NATION_PLAYER_CAP players each: the player's
       // choice is honoured while that nation has room (nations.service.ts).
       const nationId = await assignNation(db, motherland_country_id);
+      // A home state must be in the nation the character actually joined.
+      const homeState = home_state_id
+        ? await db('states').where({ id: String(home_state_id), country_id: nationId }).first()
+        : null;
 
       // Get world clock for created_at_world_*
       const clock = await db('world_clock').where({ status: 'active', world_instance_id: activeInstance.id }).first();
@@ -169,7 +178,7 @@ export class CharacterController {
           world_instance_id: activeInstance.id,
           user_id: userId,
           motherland_country_id: nationId,
-          home_state_id: home_state_id || null,
+          home_state_id: homeState?.id ?? null,
           name: cleanName,
           age: 18,
           credibility,
@@ -185,7 +194,7 @@ export class CharacterController {
 
         const [finances] = await trx('character_finances').insert({
           character_id: character.id,
-          currency_id,
+          currency_id: currency.id,
           cash_in_hand: starting_cash,
           net_worth: starting_cash
         }).returning('*');

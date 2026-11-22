@@ -2,10 +2,12 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { z } from 'zod';
 
-// Load environment variables from .env file with highly robust path resolution
+// Load backend/.env wherever the process starts: the current folder first, then
+// backend/.env relative to this file (src/config when run with tsx,
+// dist/src/config when built). dotenv never overwrites a variable already set.
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-dotenv.config({ path: path.join(__dirname, '../../../../.env') });
-dotenv.config({ path: path.join(__dirname, '../../../../../.env') });
+dotenv.config({ path: path.join(__dirname, '../../.env') });
+dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
 /** An optional URL; an empty value in .env ("KEY=") counts as not set. */
 const optionalUrl = z.preprocess(v => (v === '' ? undefined : v), z.string().url().optional());

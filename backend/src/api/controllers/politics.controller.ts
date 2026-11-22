@@ -1,4 +1,4 @@
-import { currentPolStateCode } from '../services/playerNation';
+import { currentPolStateCode, requestedPolState } from '../services/playerNation';
 import { castVote, onJoinParty, onLeaveParty, playerPolitics, switchCooldownLeft } from '../services/floor.service';
 import { placeNewMember } from '../services/candidacy.service';
 import { Request, Response, NextFunction } from 'express';
@@ -98,7 +98,8 @@ const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}
 
 /** Resolve a pol_state row by optional stateId (code or UUID), falling back to the active state. */
 async function resolveState(stateId?: string) {
-  const codeOrId = stateId || currentPolStateCode();
+  // Writes always resolve to the player's own nation (playerNation.ts).
+  const codeOrId = requestedPolState(stateId);
   const isUuid = UUID_REGEX.test(codeOrId);
   
   let s;
@@ -121,12 +122,11 @@ async function resolveState(stateId?: string) {
 export async function getStateOverview(req: Request, res: Response, next: NextFunction) {
   try {
     const states = await db('pol_states');
-    const targetCodeOrId = req.query.stateId as string | undefined;
-    let activeState = targetCodeOrId 
-      ? states.find((s: any) => s.code === targetCodeOrId || s.id === targetCodeOrId)
-      : undefined;
+    // The player's own nation unless the request names another (never Drennia by default).
+    const targetCodeOrId = requestedPolState(req.query.stateId);
+    let activeState = states.find((s: any) => s.code === targetCodeOrId || s.id === targetCodeOrId);
     if (!activeState) {
-      activeState = states.find((s: any) => s.code === 'national') || states.find((s: any) => s.is_active) || states[0];
+      activeState = states.find((s: any) => s.code === currentPolStateCode()) || states.find((s: any) => s.is_active) || states[0];
     }
     const inactiveStates = states.filter((s: any) => !s.is_active);
 
@@ -542,7 +542,7 @@ export async function queueCampaignAction(req: Request, res: Response, next: Nex
       const clock = await trx('world_clock').first();
       const currentMonth = worldClockToArc({ current_year: clock.pol_current_year, current_month: clock.pol_current_month });
 
-      const char = await trx('characters').where({ user_id: userId }).first(); // Don't filter by state_id here unless character has it
+      const char = await trx('characters').where({ user_id: userId, status: 'active' }).first(); // Don't filter by state_id here unless character has it
       if (!char) throw new AppError('No character', 404, 'NOT_FOUND');
 
       const partyMember = await trx('pol_party_members').where({ character_id: char.id }).first();
@@ -674,6 +674,12 @@ export async function joinParty(req: Request, res: Response, next: NextFunction)
 
       const party = await trx('pol_parties').where({ id: partyId }).first();
       if (!party) throw new AppError('Party not found', 404, 'NOT_FOUND');
+      // A player's politics happens in their own nation: no joining (and taking
+      // the seats of) a party in another nation's parliament.
+      const ownState = await resolveState();
+      if (party.state_id !== ownState.id) {
+        throw new AppError('You can only join a party in your own nation.', 403, 'FORBIDDEN');
+      }
 
       // The Floor: parties are open. Any player may join any party, whether a
       // computer runs it or another player leads it. A cooldown stops hopping.
@@ -1053,7 +1059,7 @@ export async function proposeBill(req: Request, res: Response, next: NextFunctio
       // Route-level blockPhases('polling', 'formation') already gates this endpoint.
       const cycle = await getOrCreateCurrentCycle(activeState.id, trx);
 
-      const char = await trx('characters').where({ user_id: userId }).first();
+      const char = await trx('characters').where({ user_id: userId, status: 'active' }).first();
       if (!char) throw new AppError('No character found', 404, 'NOT_FOUND');
 
       const partyMember = await trx('pol_party_members').where({ character_id: char.id }).first();
@@ -1137,7 +1143,7 @@ export async function voteBill(req: Request, res: Response, next: NextFunction) 
     if (!['yea', 'nay'].includes(vote)) return next(new AppError('Vote must be yea or nay', 400, 'BAD_REQUEST'));
 
     const result = await db.transaction(async (trx) => {
-      const char = await trx('characters').where({ user_id: userId }).first();
+      const char = await trx('characters').where({ user_id: userId, status: 'active' }).first();
       if (!char) throw new AppError('No character found', 404, 'NOT_FOUND');
 
       const bill = await trx('pol_bills').where({ id: billId, status: 'proposed' }).first();
@@ -1164,7 +1170,7 @@ export async function donateToParty(req: Request, res: Response, next: NextFunct
     if (!partyId || !amount || !Number.isFinite(amount) || amount <= 0) return next(new AppError('Valid partyId and amount required', 400, 'BAD_REQUEST'));
 
     const result = await db.transaction(async (trx) => {
-      const char = await trx('characters').where({ user_id: userId }).first();
+      const char = await trx('characters').where({ user_id: userId, status: 'active' }).first();
       if (!char) throw new AppError('No character found', 404, 'NOT_FOUND');
 
       const party = await trx('pol_parties').where({ id: partyId }).first();
@@ -1227,7 +1233,7 @@ export async function petitionParty(req: Request, res: Response, next: NextFunct
     if (funds < 0) return next(new AppError('Invalid funds amount', 400, 'BAD_REQUEST'));
 
     const result = await db.transaction(async (trx) => {
-      const char = await trx('characters').where({ user_id: userId }).first();
+      const char = await trx('characters').where({ user_id: userId, status: 'active' }).first();
       if (!char) throw new AppError('No character found', 404, 'NOT_FOUND');
 
       const company = await trx('companies').where({ id: companyId, owner_character_id: char.id }).first();
@@ -1290,7 +1296,7 @@ export async function respondToPetition(req: Request, res: Response, next: NextF
     }
 
     const result = await db.transaction(async (trx) => {
-      const char = await trx('characters').where({ user_id: userId }).first();
+      const char = await trx('characters').where({ user_id: userId, status: 'active' }).first();
       if (!char) throw new AppError('No character found', 404, 'NOT_FOUND');
 
       const petition = await trx('pol_petitions').where({ id: petitionId }).first();
@@ -1350,7 +1356,7 @@ export async function getMyPetitions(req: Request, res: Response, next: NextFunc
     const userId = req.user?.id;
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
     
-    const char = await db('characters').where({ user_id: userId }).first();
+    const char = await db('characters').where({ user_id: userId, status: 'active' }).first();
     if (!char) throw new AppError('No character found', 404, 'NOT_FOUND');
 
     const companies = await db('companies').where({ owner_character_id: char.id });
@@ -1387,7 +1393,7 @@ export async function postTender(req: Request, res: Response, next: NextFunction
     // The governing-party ownership check (coalition membership) is the real gate here.
 
     const result = await db.transaction(async (trx) => {
-      const char = await trx('characters').where({ user_id: userId }).first();
+      const char = await trx('characters').where({ user_id: userId, status: 'active' }).first();
       if (!char) throw new AppError('No character found', 404, 'NOT_FOUND');
 
       const partyMember = await trx('pol_party_members').where({ character_id: char.id }).first();
@@ -1448,7 +1454,7 @@ export async function bidTender(req: Request, res: Response, next: NextFunction)
     }
 
     const result = await db.transaction(async (trx) => {
-      const char = await trx('characters').where({ user_id: userId }).first();
+      const char = await trx('characters').where({ user_id: userId, status: 'active' }).first();
       if (!char) throw new AppError('No character found', 404, 'NOT_FOUND');
 
       const company = await trx('companies').where({ id: companyId, owner_character_id: char.id, industry_id: 'manufacturing' }).first();
