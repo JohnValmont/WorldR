@@ -526,10 +526,11 @@ export class ManufacturingController {
     try {
       const userId = req.user?.id;
       const { companyId } = req.params;
-      const { stateId, acres, name } = req.body;
+      const { stateId, name } = req.body;
+      const acres = Number(req.body?.acres);
 
-      if (!stateId || !acres || !name) return next(new AppError('Missing fields', 400));
-      if (acres < 1) return next(new AppError('Must purchase at least 1 acre', 400));
+      if (!stateId || !req.body?.acres || !name) return next(new AppError('Missing fields', 400));
+      if (!Number.isInteger(acres) || acres < 1) return next(new AppError('Buy land in whole acres (at least 1).', 400, 'BAD_REQUEST'));
 
       const result = await db.transaction(async (trx) => {
         const company = await trx('companies').where({ id: companyId }).first();
@@ -1158,6 +1159,7 @@ export class ManufacturingController {
       const quantity = Math.max(1, Math.floor(Number(rawQty ?? 1)));
 
       if (!userId || !companyId || !role) return next(new AppError('Missing or invalid fields: userId, companyId, role', 400, 'BAD_REQUEST'));
+      if (!Number.isFinite(quantity)) return next(new AppError('Quantity must be a whole number.', 400, 'BAD_REQUEST'));
 
       const validRole = STAFF_ROLES.find(r => r.id === role);
       if (!validRole) return next(new AppError('Invalid staff role', 400, 'BAD_REQUEST'));
@@ -1211,6 +1213,7 @@ export class ManufacturingController {
       const quantity = Math.max(1, Math.floor(Number(rawQty ?? 1)));
 
       if (!userId || !companyId || !role) return next(new AppError('Missing or invalid fields: userId, companyId, role', 400, 'BAD_REQUEST'));
+      if (!Number.isFinite(quantity)) return next(new AppError('Quantity must be a whole number.', 400, 'BAD_REQUEST'));
 
       const validRole = STAFF_ROLES.find(r => r.id === role);
       if (!validRole) return next(new AppError('Invalid staff role', 400, 'BAD_REQUEST'));
@@ -1654,12 +1657,14 @@ export class ManufacturingController {
           updated_at: trx.fn.now() 
         });
         await trx.raw(
-          `INSERT INTO manufacturing_engineering_reputation (company_id, engineering_culture_score, last_updated)
-           VALUES (?, ?, now())
+          // world_instance_id is NOT NULL: without it a company's first prototype
+          // failed the whole country's month, every month, for every company.
+          `INSERT INTO manufacturing_engineering_reputation (world_instance_id, company_id, engineering_culture_score, last_updated)
+           VALUES (?, ?, ?, now())
            ON CONFLICT (company_id) DO UPDATE
              SET engineering_culture_score = EXCLUDED.engineering_culture_score,
                  last_updated = EXCLUDED.last_updated`,
-          [companyId, newCultureScore]
+          [company.world_instance_id, companyId, newCultureScore]
         );
 
         const validationSummary = validation.passed ? `Prototype validation ${validation.resultClass} (confidence: ${validation.confidenceScore}%).` : `Prototype validation ${validation.resultClass}: ${validation.issues[0]}.${extraArcMessage} Extra cost: ${extraCostCharged.toLocaleString()}.`;

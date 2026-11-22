@@ -1,9 +1,27 @@
+/**
+ * Self-analytics aggregation against a real database.
+ *
+ * SAFETY: this writes rows, so it runs only against a LOCAL database
+ * (DATABASE_URL on localhost/127.0.0.1) that is reachable; otherwise it is
+ * skipped. It removes only the rows it created and puts the world clock back.
+ * Never point it at production.
+ */
 import * as assert from 'node:assert';
+import { test } from 'node:test';
 import { db } from '../src/config/database';
 import { AnalyticsService } from '../src/api/services/analytics.service';
 import { randomUUID } from 'crypto';
 
+const LOCAL_DB = /@(localhost|127\.0\.0\.1)(:\d+)?\//.test(process.env.DATABASE_URL || '');
+
+test('Self-analytics groups sales by market and reads the trend', async (t) => {
+  if (!LOCAL_DB) { t.skip('needs a local test database (DATABASE_URL on localhost)'); await db.destroy(); return; }
+  try { await db.raw('select 1'); } catch { t.skip('no local test database is running'); await db.destroy(); return; }
+  await runTest();
+});
+
 async function runTest() {
+  const savedClock = await db('world_clock').first();
   const country = await db('countries').where('name', 'Drennia').first();
   if (!country) throw new Error('Drennia not found');
   const worldId = country.world_instance_id;
@@ -167,13 +185,13 @@ async function runTest() {
     console.log('✅ Self-Analytics aggregation and mapping tests passed.');
   } finally {
     // Cleanup
-    await db('manufacturing_sales_results').where({ company_id: companyId }).delete();
-    await db('manufacturing_vehicle_models').where({ company_id: companyId }).delete();
+    // Only the rows this test created; and the clock goes back to where it was.
+    await db('manufacturing_sales_results').whereIn('vehicle_model_id', [modelId, modelId2]).delete();
+    await db('manufacturing_vehicle_models').whereIn('id', [modelId, modelId2]).delete();
+    if (savedClock) {
+      await db('world_clock').where({ world_instance_id: savedClock.world_instance_id })
+        .update({ current_year: savedClock.current_year, current_month: savedClock.current_month });
+    }
     await db.destroy();
   }
 }
-
-runTest().catch(err => {
-  console.error('❌ Test failed:', err);
-  process.exit(1);
-});

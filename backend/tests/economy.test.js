@@ -10,7 +10,10 @@ const jwt = require('jsonwebtoken');
  * Covers: legal structures, P2P loans (offer -> accept -> tick payment),
  * private placements, IPO conversion, order-book share trading, dividends.
  */
-test('Player Economy E2E', async (t) => {
+// SAFETY: writes users and money, so it runs only against a LOCAL database and server.
+const LOCAL_DB = /@(localhost|127\.0\.0\.1)(:\d+)?\//.test(process.env.DATABASE_URL || '');
+
+test('Player Economy E2E', { skip: !LOCAL_DB && 'needs a local test database (DATABASE_URL on localhost)' }, async (t) => {
   const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
 

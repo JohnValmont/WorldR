@@ -11,11 +11,24 @@ import { AsyncLocalStorage } from 'async_hooks';
 import { db } from '../../config/database';
 import { DRENNIA, NATIONS_BY_COUNTRY } from '../constants/nations';
 
-const context = new AsyncLocalStorage<{ polStateCode: string }>();
+const context = new AsyncLocalStorage<{ polStateCode: string; pinned: boolean }>();
 
 /** The pol_states.code to use when a request does not name one. */
 export function currentPolStateCode(): string {
   return context.getStore()?.polStateCode ?? DRENNIA.polStateCode;
+}
+
+/**
+ * The nation (pol_states code or id) a request is about. A read may look at
+ * another nation (?stateId=...); a write (POST/PUT/PATCH/DELETE) always happens
+ * in the player's own nation, whatever the request names. Without this a player
+ * could found a party, rally or table bills in a parliament they don't belong to.
+ */
+export function requestedPolState(requested?: unknown): string {
+  const store = context.getStore();
+  const own = store?.polStateCode ?? DRENNIA.polStateCode;
+  if (store?.pinned) return own;
+  return typeof requested === 'string' && requested ? requested : own;
 }
 
 export async function polStateCodeForUser(userId: string | number | null | undefined): Promise<string> {
@@ -29,7 +42,8 @@ export function withPlayerNation() {
   return async (req: any, _res: any, next: (err?: any) => void) => {
     try {
       const polStateCode = await polStateCodeForUser(req.user?.id);
-      context.run({ polStateCode }, () => next());
+      const pinned = !['GET', 'HEAD', 'OPTIONS'].includes(String(req.method).toUpperCase());
+      context.run({ polStateCode, pinned }, () => next());
     } catch (err) { next(err); }
   };
 }

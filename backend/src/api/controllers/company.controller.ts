@@ -197,6 +197,13 @@ export class CompanyController {
         return next(new AppError(`A ${structure.name} requires at least $${Number(structure.min_company_value).toLocaleString()} in starting capital`, 400, 'MIN_VALUE'));
       }
 
+      // The headquarters must be a state of the chosen country, and the currency must exist
+      // (an unknown id used to fail the insert with a 500).
+      const hq = await db('states').where({ id: String(headquarters_state_id), country_id: String(country_id) }).first();
+      if (!hq) return next(new AppError('Choose a headquarters state in that country.', 400, 'BAD_REQUEST'));
+      const currency = await db('currencies').where({ id: String(currency_id) }).first();
+      if (!currency) return next(new AppError('Unknown currency.', 400, 'BAD_REQUEST'));
+
       const clock = await db('world_clock').where({ status: 'active' }).first();
 
       const result = await db.transaction(async (trx) => {

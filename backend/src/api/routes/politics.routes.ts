@@ -58,7 +58,7 @@ import {
 import { getOrCreateCurrentCycle, bribeVote, getBillCoercions, worldClockToArc, processGovernmentFormation } from '../services/politics.service';
 import { forecastOffer, leaveGovernmentByChoice, makeOffer, respondOffer, withdrawOffer } from '../services/coalition.service';
 import { getDesk } from '../services/desk.service';
-import { currentPolStateCode, withPlayerNation } from '../services/playerNation';
+import { currentPolStateCode, requestedPolState, withPlayerNation } from '../services/playerNation';
 import { chronicle } from '../services/administration.service';
 import {
   callFavour, challengeLeadership, voteInContest, chooseSituation, fundraise, issueDecree, offerPact, offerHandshake, respondHandshake, withdrawHandshake, playerPolitics, PlayerPolitics, rally, respondPact, runAd,
@@ -241,7 +241,8 @@ const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}
 
 // Helper to resolve state for phase middleware
 async function resolveStateForPhase(req: Request) {
-  const code = (req.query.stateId || req.body.stateId || req.body.jurisdictionId || currentPolStateCode()) as string;
+  // Writes always resolve to the player's own nation (playerNation.ts).
+  const code = requestedPolState(req.query.stateId || req.body?.stateId || req.body?.jurisdictionId);
   let state = await db('pol_states').where({ code }).first();
   if (!state && UUID_REGEX.test(code)) {
     state = await db('pol_states').where({ id: code }).first();
@@ -331,7 +332,7 @@ router.get('/bills/:id/coercions', authMiddleware, async (req: Request, res: Res
   try {
     const userId = (req as any).user?.id;
     if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
-    const char = await db('characters').where({ user_id: userId }).first();
+    const char = await db('characters').where({ user_id: userId, status: 'active' }).first();
     if (!char) return next(new AppError('No character found', 404, 'NOT_FOUND'));
     const data = await getBillCoercions(req.params.id, char.id);
     return res.json(data);
@@ -346,7 +347,7 @@ router.post('/bills/:id/bribe', authMiddleware, blockPhases('polling', 'formatio
     if (!targetCharId || !['yea', 'nay'].includes(voteForced)) {
       return next(new AppError('targetCharId and voteForced (yea|nay) are required', 400, 'BAD_REQUEST'));
     }
-    const char = await db('characters').where({ user_id: userId }).first();
+    const char = await db('characters').where({ user_id: userId, status: 'active' }).first();
     if (!char) return next(new AppError('No character found', 404, 'NOT_FOUND'));
     const clock = await db('world_clock').first();
     const currentArc = clock.pol_current_year * 12 + clock.pol_current_month;
