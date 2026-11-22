@@ -210,7 +210,10 @@ export default function PoliticsPage() {
       background: `radial-gradient(1100px 520px at 0% -10%, rgba(232,184,75,0.07), transparent 60%), radial-gradient(900px 480px at 100% -5%, ${(myNation?.flag.colors[0] ?? '#3987e5')}22, transparent 60%), ${T.bg}`,
     }}>
       {/* Command bar: the nation and the clock on the left, you on the right. */}
-      <header style={{ borderBottom: `1px solid ${T.line}`, background: 'linear-gradient(180deg, rgba(20,23,31,0.92), rgba(12,14,19,0.6))', backdropFilter: 'blur(8px)' }}>
+      {/* relative z-40: the blur makes the header its own layer; without a z-index, page content
+          painted later (e.g. the career ladder's z-10 rungs) shows over the Inbox dropdown. Kept
+          below modals (z-50) and the toast (z-[60]). */}
+      <header className="relative z-40" style={{ borderBottom: `1px solid ${T.line}`, background: 'linear-gradient(180deg, rgba(20,23,31,0.92), rgba(12,14,19,0.6))', backdropFilter: 'blur(8px)' }}>
         <div className="mx-auto max-w-[1720px] px-4 sm:px-6 xl:px-8 py-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
           <div className="flex items-center gap-3 min-w-0">
             {myNation && <Flag flag={myNation.flag} width={46} />}
