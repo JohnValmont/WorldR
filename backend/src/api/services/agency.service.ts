@@ -33,9 +33,8 @@ import { notify } from './notices.service';
 import {
   careerRung, editionHeadline, IndexOffice, influenceScore, pressClout, RankedEntry, rankInfluence, RungInput, validateDispatch,
 } from './worldStage.rules';
+import { whereRealUser } from './realPlayers';
 
-/** users.password_hash of system accounts that cannot log in (npcBrain.service.ts). */
-const SYSTEM_NO_LOGIN = 'no_login_allowed';
 const num = (v: any, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 const parseJ = (v: any, d: any) => (typeof v === 'string' ? (safeParseJSON(v) ?? d) : (v ?? d));
 
@@ -84,7 +83,7 @@ export async function loadWorldPoliticians(conn: any, arc: number): Promise<Worl
       conn('pol_cycles').where({ state_id: state.id, status: 'open' }).first(),
       conn('characters as c').join('users as u', 'u.id', 'c.user_id')
         .where({ 'c.motherland_country_id': spec.countryId, 'c.status': 'active' })
-        .whereNot('u.password_hash', SYSTEM_NO_LOGIN)
+        .modify(whereRealUser)
         .select('c.id', 'c.name', 'c.credibility', 'c.influence', 'u.last_seen_at'),
     ]);
     const power = nationPower(readNationalStatsFromRow(state) as any, laws.defense).overall;

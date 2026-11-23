@@ -22,6 +22,7 @@ import { notify } from './notices.service';
 import { logger } from '../../utils/logger';
 import { draftDistrict, draftNotice, electionCalendar, electionPhase, placesUnfiledMembers, polArcLabel, rankDistricts, standWindow, type DistrictOption, type ElectionPhase } from './candidacy.rules';
 import { electionOutlook } from './administration.rules';
+import { whereRealUser } from './realPlayers';
 
 const num = (v: any) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 
@@ -155,7 +156,7 @@ export async function draftUnfiledMembers(trx: any, state: any, cycle: any, arc:
   if (!placesUnfiledMembers(phase)) return 0;
   const q = trx('pol_party_members as m').join('pol_parties as p', 'p.id', 'm.party_id')
     .join('characters as c', 'c.id', 'm.character_id').join('users as u', 'u.id', 'c.user_id')
-    .where('p.state_id', state.id).where('c.status', 'active').whereNot('u.password_hash', 'no_login_allowed')
+    .where('p.state_id', state.id).where('c.status', 'active').modify(whereRealUser)
     .select('m.character_id', 'm.party_id', 'p.name as party_name', 'p.platform');
   if (onlyCharacterId) q.where('m.character_id', onlyCharacterId);
   const members = await q;

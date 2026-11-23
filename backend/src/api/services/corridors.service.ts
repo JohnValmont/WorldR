@@ -13,9 +13,8 @@ import { CABINET_POSTS, headOfGovernmentTitle } from '../constants/nations';
 import { currentPolStateCode } from './playerNation';
 import { billTitle, getGovernment } from './statecraft.service';
 import { careerOf, latestWorldRank } from './agency.service';
+import { whereRealUser } from './realPlayers';
 
-/** users.password_hash of system accounts that cannot log in (npcBrain.service.ts). */
-const SYSTEM_NO_LOGIN = 'no_login_allowed';
 const num = (v: any, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 
 function titleOf(bill: any): string {
@@ -58,7 +57,7 @@ export async function getCorridors(userId: string) {
   // Real players only: the business system account (npcBrain) cannot log in and is not a politician.
   const players = await db('characters as c').join('users as u', 'u.id', 'c.user_id')
     .where({ 'c.motherland_country_id': state.country_id, 'c.status': 'active' })
-    .whereNot('u.password_hash', SYSTEM_NO_LOGIN)
+    .modify(whereRealUser)
     .select('c.id', 'c.name', 'c.credibility', 'c.influence', 'c.charisma', 'c.background', 'u.last_seen_at');
   const ids = players.map((p: any) => p.id);
   const members = ids.length ? await db('pol_party_members').whereIn('character_id', ids).select('character_id', 'party_id', 'role') : [];
