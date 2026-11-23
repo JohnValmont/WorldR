@@ -5,20 +5,20 @@ import Link from 'next/link';
 import { characterApi, companyApi } from '@/lib/api';
 
 const T = {
-  bg: '#090A0F',
-  panel: '#11131A',
-  paper: '#1E1A15',
-  border: '#2A2630',
-  borderGold: 'rgba(201,162,74,0.22)',
-  gold: '#C9A24A',
-  ivory: '#F4EBD6',
-  muted: '#A79D8C',
-  faint: '#6B6358',
-  mint: '#36D399',
+  bg: '#0B0D12',
+  panel: '#13161E',
+  paper: '#1E1B14',
+  border: '#262B36',
+  borderGold: 'rgba(232,184,75,0.22)',
+  gold: '#E8B84B',
+  ivory: '#ECEAE4',
+  muted: '#A3A4AC',
+  faint: '#868994',
+  mint: '#4FB286',
 };
 
 const SectionHeader = ({ children }: { children: React.ReactNode }) => (
-  <div style={{ fontSize: '11px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.gold, fontWeight: 700, marginBottom: '16px' }}>
+  <div style={{ fontSize: '11px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.15em', color: T.gold, fontWeight: 700, marginBottom: '16px' }}>
     {children}
   </div>
 );
@@ -26,7 +26,7 @@ const SectionHeader = ({ children }: { children: React.ReactNode }) => (
 const FieldRow = ({ label, value }: { label: string; value: string | number }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '7px 0', borderBottom: `1px solid ${T.border}` }}>
     <span style={{ fontSize: '11px', color: T.muted }}>{label}</span>
-    <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 600, color: T.ivory }}>{value}</span>
+    <span style={{ fontSize: '12px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", fontWeight: 600, color: T.ivory }}>{value}</span>
   </div>
 );
 
@@ -89,7 +89,7 @@ export default function CareerPage() {
               <div>
                 <p style={{ fontSize: '13px', color: T.muted, marginBottom: '16px' }}>No formal career path has been opened yet.</p>
                 <p style={{ fontSize: '11px', color: T.faint, marginBottom: '16px' }}>Recommended action: Start a business from the Business Desk.</p>
-                <Link href="/drennia/business" style={{ display: 'inline-block', padding: '10px 16px', background: `linear-gradient(135deg, ${T.gold}, #8A6E2A)`, color: '#0a0709', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700, textDecoration: 'none' }}>
+                <Link href="/drennia/business" style={{ display: 'inline-block', padding: '10px 16px', background: `linear-gradient(135deg, ${T.gold}, #8A6E2A)`, color: '#0a0709', fontSize: '10px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700, textDecoration: 'none' }}>
                   Open Business Desk
                 </Link>
               </div>
@@ -112,7 +112,7 @@ export default function CareerPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {timelineEntries.map((e: any) => (
                   <div key={e.id} style={{ display: 'flex', gap: '16px' }}>
-                    <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.gold, flexShrink: 0, marginTop: '2px' }}>
+                    <div style={{ fontSize: '10px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: T.gold, flexShrink: 0, marginTop: '2px' }}>
                       Year {e.year}
                     </div>
                     <div style={{ fontSize: '13px', color: T.muted, lineHeight: 1.5 }}>
@@ -151,18 +151,18 @@ export default function CareerPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               
               {/* Business */}
-              <div style={{ padding: '16px', background: 'rgba(201,162,74,0.05)', border: `1px solid ${T.borderGold}` }}>
+              <div style={{ padding: '16px', background: 'rgba(232,184,75,0.05)', border: `1px solid ${T.borderGold}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <span style={{ fontSize: '13px', fontWeight: 700, color: T.ivory }}>Business</span>
-                  <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.mint }}>{careerData?.activePath === 'Business' ? 'ACTIVE' : 'AVAILABLE'}</span>
+                  <span style={{ fontSize: '10px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: T.mint }}>{careerData?.activePath === 'Business' ? 'ACTIVE' : 'AVAILABLE'}</span>
                 </div>
               </div>
 
               {/* Politics */}
-              <div style={{ padding: '16px', background: 'rgba(201,162,74,0.05)', border: `1px solid ${T.borderGold}` }}>
+              <div style={{ padding: '16px', background: 'rgba(232,184,75,0.05)', border: `1px solid ${T.borderGold}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', fontWeight: 700, color: T.ivory }}>Politics</span>
-                  <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.mint }}>AVAILABLE</span>
+                  <span style={{ fontSize: '10px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: T.mint }}>AVAILABLE</span>
                 </div>
               </div>
 
@@ -171,7 +171,7 @@ export default function CareerPage() {
                 <div key={path} style={{ padding: '16px', background: T.panel, border: `1px solid ${T.border}`, opacity: 0.5 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '13px', fontWeight: 700, color: T.faint }}>{path}</span>
-                    <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>LOCKED</span>
+                    <span style={{ fontSize: '10px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: T.faint }}>LOCKED</span>
                   </div>
                 </div>
               ))}

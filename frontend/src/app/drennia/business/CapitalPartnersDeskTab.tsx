@@ -14,7 +14,7 @@ const fm = (n: number) => {
 
 const pct = (n: number) => `${n.toFixed(2)}%`;
 
-const COLORS = ['#d4af37', '#36d399', '#6ea8fe', '#a78bfa', '#fb923c', '#f472b6'];
+const COLORS = ['#d4af37', '#4FB286', '#6ea8fe', '#a78bfa', '#fb923c', '#f472b6'];
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-zinc-100 mb-4">{children}</h2>;
@@ -127,7 +127,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-zinc-500 text-sm font-mono tracking-widest uppercase">LOADING DESK...</div>
+        <div className="text-zinc-500 text-sm tracking-widest uppercase">LOADING DESK...</div>
       </div>
     );
   }
@@ -140,7 +140,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
   ];
 
   return (
-    <div className="flex flex-col w-full min-h-[calc(100vh-120px)] animate-fade-in bg-[#090A0F]">
+    <div className="flex flex-col w-full min-h-[calc(100vh-120px)] animate-fade-in bg-[#0B0D12]">
       
       {/* ── TOP NAV / HERO ── */}
       <div className="border-b border-zinc-800 bg-zinc-950/50 pt-6 px-4 md:px-8 mb-6 relative overflow-hidden">
@@ -155,7 +155,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-mono tracking-widest text-zinc-500 uppercase">Capital Partners Firm</span>
+                  <span className="text-xs tracking-widest text-zinc-500 uppercase">Capital Partners Firm</span>
                   <Badge variant="amber">Active</Badge>
                 </div>
                 <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight m-0 leading-none">{firmName}</h1>
@@ -163,7 +163,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
             </div>
             
             <div className="flex flex-col items-end">
-              <div className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-1">Treasury Balance</div>
+              <div className="text-xs text-zinc-500 uppercase tracking-widest mb-1">Treasury Balance</div>
               <div className="text-2xl font-mono text-mint font-bold flex items-baseline gap-2">
                 {fm(firm?.available_cash ?? 0)}
                 {firm?.escrow_cash > 0 && (
@@ -220,17 +220,13 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
               label="Company Value"
               value={firm?.company_value ? fm(firm.company_value) : 'Not Available'}
               valueColor="white"
-              trend="up"
               countUp
-              sparkline={[{value:1},{value:2},{value:4},{value:8},{value:15}]}
             />
             <StatCard
               label="Available Cash"
               value={fm(firm?.available_cash || 0)}
               valueColor="green"
-              trend={firm?.available_cash > 0 ? 'up' : 'flat'}
               countUp
-              sparkline={[{value:20},{value:18},{value:22},{value:15},{value:25}]}
             />
             {firm?.escrow_cash > 0 && (
               <StatCard
@@ -244,9 +240,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
               label="Portfolio Value"
               value={fm(firm?.portfolio_value || 0)}
               valueColor="amber"
-              trend="up"
               countUp
-              sparkline={[{value:40},{value:42},{value:45},{value:48},{value:55}]}
             />
             <StatCard
               label="Unrealized P&L"
@@ -261,19 +255,19 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
               <SectionHeading>Financial Trajectory</SectionHeading>
               <div className="flex-1 flex gap-4 mt-4">
                 <div className="flex-1 h-[250px]">
-                  <h4 className="text-[10px] uppercase text-zinc-500 mb-2 font-mono">Monthly Dividend Income (Last 12 Months)</h4>
+                  <h4 className="text-[10px] uppercase text-zinc-500 mb-2">Monthly Dividend Income (Last 12 Months)</h4>
                   {dividendTrajectory.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={dividendTrajectory}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#23232b" vertical={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#262B36" vertical={false} />
                         <XAxis dataKey="label" stroke="#888888" fontSize={10} tickMargin={10} />
                         <YAxis stroke="#888888" fontSize={10} tickFormatter={(val) => fm(val)} />
                         <RechartsTooltip
-                          contentStyle={{ backgroundColor: '#0c0d13', borderColor: '#23232b', fontSize: '12px', fontFamily: 'monospace' }}
+                          contentStyle={{ backgroundColor: '#13161E', borderColor: '#262B36', fontSize: '12px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }}
                           itemStyle={{ color: '#fffff0' }}
                           formatter={(val: any) => fm(Number(val) || 0)}
                         />
-                        <Bar dataKey="total" fill="#30d158" radius={[2,2,0,0]} name="Dividends" />
+                        <Bar dataKey="total" fill="#4FB286" radius={[2,2,0,0]} name="Dividends" />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
@@ -294,11 +288,11 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
                     { subject: 'Yield', A: totalDividendsReceived > 0 ? 70 : 10, fullMark: 100 },
                     { subject: 'Reputation', A: 50, fullMark: 100 },
                   ]}>
-                    <PolarGrid stroke="#23232b" />
+                    <PolarGrid stroke="#262B36" />
                     <PolarAngleAxis dataKey="subject" tick={{ fill: '#888888', fontSize: 10 }} />
                     <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                     <Radar name="Company" dataKey="A" stroke="#d4af37" fill="#d4af37" fillOpacity={0.2} />
-                    <RechartsTooltip contentStyle={{ backgroundColor: '#0c0d13', borderColor: '#23232b', fontSize: '10px' }} />
+                    <RechartsTooltip contentStyle={{ backgroundColor: '#13161E', borderColor: '#262B36', fontSize: '10px' }} />
                   </RadarChart>
                 </ResponsiveContainer>
               </div>
@@ -327,7 +321,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
                   }
                 />
               </div>
-              <div className="p-6 bg-[#0a0a0a]/50 border-t border-[#23232b]">
+              <div className="p-6 bg-[#0a0a0a]/50 border-t border-[#262B36]">
                 <div className="flex justify-between text-[10px] text-zinc-500 font-mono mb-2">
                   <span>Setup Progress</span>
                   <span>{holdings.length > 0 ? '100' : firm?.available_cash > 0 ? '50' : '0'}%</span>
@@ -438,8 +432,8 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
                           <Pie data={holdings} dataKey="market_value" nameKey="company_name" cx="50%" cy="50%" innerRadius="50%" outerRadius="80%" paddingAngle={2}>
                             {holdings.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                           </Pie>
-                          <RechartsTooltip formatter={(value: any) => fm(value as number)} contentStyle={{ backgroundColor: '#090A0F', borderColor: '#27272a', color: '#fff', fontSize: '12px', fontFamily: 'monospace' }} itemStyle={{ color: '#d4af37' }} />
-                          <Legend verticalAlign="bottom" height={60} wrapperStyle={{ fontSize: '12px', fontFamily: 'monospace', color: '#a1a1aa' }} />
+                          <RechartsTooltip formatter={(value: any) => fm(value as number)} contentStyle={{ backgroundColor: '#0B0D12', borderColor: '#27272a', color: '#fff', fontSize: '12px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }} itemStyle={{ color: '#d4af37' }} />
+                          <Legend verticalAlign="bottom" height={60} wrapperStyle={{ fontSize: '12px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: '#a1a1aa' }} />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
@@ -493,21 +487,21 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
             <Card kicker="Liquidity Status">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div>
-                  <div className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase mb-2">Firm Cash</div>
+                  <div className="text-[10px] tracking-widest text-zinc-500 uppercase mb-2">Firm Cash</div>
                   <div className="text-2xl font-bold font-mono text-mint">{fm(firm?.available_cash ?? 0)}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase mb-2">Portfolio Value</div>
+                  <div className="text-[10px] tracking-widest text-zinc-500 uppercase mb-2">Portfolio Value</div>
                   <div className="text-2xl font-bold font-mono text-gold">{fm(firm?.portfolio_value ?? 0)}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase mb-2">Total Assets</div>
+                  <div className="text-[10px] tracking-widest text-zinc-500 uppercase mb-2">Total Assets</div>
                   <div className="text-2xl font-bold font-mono text-zinc-100">{fm(firm?.company_value ?? 0)}</div>
                 </div>
               </div>
               <div className="mt-8 border-t border-zinc-800/50 pt-6">
                 <div className="flex justify-between items-center mb-2">
-                  <div className="text-[10px] font-mono tracking-widest text-zinc-400 uppercase">Cash Deployed</div>
+                  <div className="text-[10px] tracking-widest text-zinc-400 uppercase">Cash Deployed</div>
                   <div className="text-xs font-mono font-medium text-zinc-300">
                     {firm && firm.company_value > 0 ? pct((firm.portfolio_value / firm.company_value) * 100) : '0%'}
                   </div>
@@ -519,7 +513,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card kicker="Transfer In">
                 <div className="text-xs text-zinc-400 font-mono mb-4">Transfer personal cash to the firm's treasury.</div>
-                <div className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase mb-4">Personal Cash: <span className="text-zinc-200">{fm(playerCash)}</span></div>
+                <div className="text-[10px] tracking-widest text-zinc-500 uppercase mb-4">Personal Cash: <span className="text-zinc-200">{fm(playerCash)}</span></div>
                 <div className="flex gap-2 mb-2">
                   <input type="text" inputMode="decimal" min="1" value={injectAmount} onChange={e => setInjectAmount(e.target.value.replace(/,/g, ''))} placeholder="Amount" className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-200 font-mono text-sm px-3 py-2 rounded focus:outline-none focus:border-gold/50" />
                   <Button variant="primary" onClick={handleInject} disabled={busy}>Transfer In</Button>
@@ -529,7 +523,7 @@ export default function CapitalPartnersDeskTab({ firmId, firmName, playerCash, o
 
               <Card kicker="Withdraw Capital">
                 <div className="text-xs text-zinc-400 font-mono mb-4">Withdraw idle firm cash back to your personal wallet.</div>
-                <div className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase mb-4">Firm Cash: <span className="text-zinc-200">{fm(firm?.available_cash ?? 0)}</span></div>
+                <div className="text-[10px] tracking-widest text-zinc-500 uppercase mb-4">Firm Cash: <span className="text-zinc-200">{fm(firm?.available_cash ?? 0)}</span></div>
                 <div className="flex gap-2 mb-2">
                   <input type="text" inputMode="decimal" min="1" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value.replace(/,/g, ''))} placeholder="Amount" className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-200 font-mono text-sm px-3 py-2 rounded focus:outline-none focus:border-gold/50" />
                   <Button variant="secondary" onClick={handleWithdraw} disabled={busy}>Withdraw</Button>

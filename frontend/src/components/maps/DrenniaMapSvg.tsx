@@ -89,7 +89,7 @@ export function DrenniaMapSvg({
         <path d="M 40 120 C 190 170 295 115 455 118 C 630 122 740 160 960 98" fill="none" stroke="#8BA49B" strokeWidth="1.5" strokeDasharray="6 16" />
       </g>
 
-      <path d={countryPath} fill="rgba(244,235,214,0.05)" stroke="rgba(244,235,214,0.50)" strokeWidth="4" />
+      <path d={countryPath} fill="rgba(236,234,228,0.05)" stroke="rgba(236,234,228,0.50)" strokeWidth="4" />
 
       <g clipPath="url(#drenniaCountryClip)">
         {stateRegions.map((region) => {
@@ -110,7 +110,7 @@ export function DrenniaMapSvg({
                 x={meta.labelX}
                 y={meta.labelY}
                 textAnchor="middle"
-                fill={selected ? "#F4EBD6" : "#D9CFB8"}
+                fill={selected ? "#ECEAE4" : "#D9CFB8"}
                 fontSize="23"
                 fontWeight="800"
                 style={{ pointerEvents: "none", letterSpacing: "0.02em" }}
@@ -122,12 +122,12 @@ export function DrenniaMapSvg({
         })}
       </g>
 
-      <path d={countryPath} fill="none" stroke="rgba(244,235,214,0.70)" strokeWidth="3" />
+      <path d={countryPath} fill="none" stroke="rgba(236,234,228,0.70)" strokeWidth="3" />
 
       <g aria-label="Capital marker Drennport">
         <circle cx="831.6" cy="323.3" r="8" fill="#D6B35F" stroke="#08120F" strokeWidth="3" />
         <circle cx="831.6" cy="323.3" r="16" fill="none" stroke="#D6B35F" strokeOpacity="0.32" strokeWidth="2" />
-        <text x="848" y="316" fill="#F4EBD6" fontSize="16" fontWeight="800">Drennport</text>
+        <text x="848" y="316" fill="#ECEAE4" fontSize="16" fontWeight="800">Drennport</text>
         <text x="848" y="333" fill="#D6B35F" fontSize="10" fontWeight="700" letterSpacing="0.12em">CAPITAL</text>
       </g>
 

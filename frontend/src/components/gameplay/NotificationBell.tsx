@@ -14,11 +14,11 @@ import {
 
 // ── Per-category presentation ──────────────────────────────────────────────
 const CATEGORY_META: Record<NotificationCategory, { label: string; icon: LucideIcon; color: string }> = {
-  business: { label: 'BUSINESS',  icon: Briefcase,  color: '#ff9f0a' },
-  contract: { label: 'CONTRACT',  icon: FileText,   color: '#0a84ff' },
-  market:   { label: 'MARKET',    icon: TrendingUp, color: '#30d158' },
+  business: { label: 'BUSINESS',  icon: Briefcase,  color: '#E8B84B' },
+  contract: { label: 'CONTRACT',  icon: FileText,   color: '#6AA6E8' },
+  market:   { label: 'MARKET',    icon: TrendingUp, color: '#4FB286' },
   record:   { label: 'RECORD',    icon: ScrollText, color: '#a1a1aa' },
-  world:    { label: 'WORLD',     icon: Globe,      color: '#c9a24a' },
+  world:    { label: 'WORLD',     icon: Globe,      color: '#E8B84B' },
   system:   { label: 'SYSTEM',    icon: Settings,   color: '#71717a' },
 };
 
@@ -89,7 +89,7 @@ export default function NotificationBell() {
       >
         <Bell size={16} />
         {mounted && unread > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 flex items-center justify-center rounded-full bg-terminal-red text-white text-[9px] font-mono font-bold leading-none shadow-red-glow">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 flex items-center justify-center rounded-full bg-terminal-red text-white text-[10px] font-mono font-bold leading-none shadow-red-glow">
             {unread > 9 ? '9+' : unread}
           </span>
         )}
@@ -106,19 +106,19 @@ export default function NotificationBell() {
 
           {/* Panel: full-width sheet on mobile, anchored dropdown on sm+ */}
           <div
-            className="animate-slide-in z-50 flex flex-col border border-[#23232b] bg-[#0c0d13] shadow-card
+            className="animate-slide-in z-50 flex flex-col border border-[#262B36] bg-[#13161E] shadow-card
                        fixed inset-x-2 top-14 max-h-[75vh] rounded-xl
                        sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2 sm:w-[380px] sm:max-h-[70vh]"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#23232b] shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#262B36] shrink-0">
               <div className="flex items-center gap-2">
                 <Bell size={12} className="text-terminal-amber opacity-80" />
-                <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-terminal-amber">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-terminal-amber">
                   Notifications
                 </span>
                 {unread > 0 && (
-                  <span className="text-[9px] font-mono text-zinc-500">{unread} new</span>
+                  <span className="text-[10px] font-mono text-zinc-500">{unread} new</span>
                 )}
               </div>
               <div className="flex items-center gap-1">
@@ -128,7 +128,7 @@ export default function NotificationBell() {
                       type="button"
                       onClick={() => markAllRead()}
                       title="Day all read"
-                      className="flex items-center gap-1 px-1.5 py-1 rounded text-[9px] font-mono uppercase tracking-wider text-zinc-500 hover:text-terminal-green transition-colors"
+                      className="flex items-center gap-1 px-1.5 py-1 rounded text-[10px] uppercase tracking-wider text-zinc-500 hover:text-terminal-green transition-colors"
                     >
                       <Check size={11} /> Read
                     </button>
@@ -136,7 +136,7 @@ export default function NotificationBell() {
                       type="button"
                       onClick={() => clearNotifications()}
                       title="Clear all"
-                      className="flex items-center gap-1 px-1.5 py-1 rounded text-[9px] font-mono uppercase tracking-wider text-zinc-500 hover:text-terminal-red transition-colors"
+                      className="flex items-center gap-1 px-1.5 py-1 rounded text-[10px] uppercase tracking-wider text-zinc-500 hover:text-terminal-red transition-colors"
                     >
                       <Trash2 size={11} /> Clear
                     </button>
@@ -157,7 +157,7 @@ export default function NotificationBell() {
             <div className="overflow-y-auto scrollbar-hide divide-y divide-[#1c1c24]">
               {items.length === 0 && (
                 <div className="px-4 py-10 text-center">
-                  <Bell size={20} className="mx-auto mb-2 text-zinc-700" />
+                  <Bell size={20} className="mx-auto mb-2 text-zinc-600" />
                   <div className="text-[12px] text-zinc-500">You're all caught up.</div>
                   <div className="text-[10px] text-zinc-600 mt-1">
                     New movements in Drennia will appear here.
@@ -187,7 +187,7 @@ export default function NotificationBell() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span
-                          className="text-[8px] font-mono uppercase tracking-[0.15em]"
+                          className="text-[10px] uppercase tracking-[0.15em]"
                           style={{ color: meta.color }}
                         >
                           {meta.label}
@@ -204,11 +204,11 @@ export default function NotificationBell() {
                           {n.body}
                         </div>
                       )}
-                      <div className="flex items-center gap-2 mt-1 text-[9px] font-mono text-zinc-600">
+                      <div className="flex items-center gap-2 mt-1 text-[10px] font-mono text-zinc-600">
                         <span>{relativeTime(n.createdAt)}</span>
                         {n.gameDate && (
                           <>
-                            <span className="text-zinc-700">·</span>
+                            <span className="text-zinc-600">·</span>
                             <span className="uppercase tracking-wider">{n.gameDate}</span>
                           </>
                         )}

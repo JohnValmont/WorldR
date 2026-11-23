@@ -70,7 +70,7 @@ export default function OpportunityModal({ opportunity, onClose, onResolve }: Pr
         </div>
 
         <div style={{ fontSize: '12px', color: theme.colors.text.textMuted, fontStyle: 'italic', marginBottom: '24px' }}>
-          Note: In pre-alpha v1, this opportunity resolves immediately. Later, opportunities may include deadlines, NPC competitors, and real player competition.
+          Note: in the closed alpha, this opportunity resolves immediately. Later, opportunities may include deadlines, NPC competitors, and real player competition.
         </div>
 
         <div className="flex gap-4 justify-end mt-auto">

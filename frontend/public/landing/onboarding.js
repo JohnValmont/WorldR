@@ -7,9 +7,16 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').match
 
 /* ============ THREE.JS globe background (Aethan) ============ */
 const canvas = document.getElementById('scene');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
+// The globe is decoration: if WebGL is unavailable, sign-up must still work (static background).
+let renderer = null;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+} catch (e) {
+  console.warn('WebGL unavailable; continuing without the globe.', e);
+  document.documentElement.classList.add('no-scene');
+}
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 100);
 camera.position.set(0, 0, 3.4);
@@ -82,10 +89,11 @@ function tick(){
   globeGroup.scale.y = globeGroup.scale.z = globeGroup.scale.x;
   globeGroup.rotation.y = ptr.x * .4; globeGroup.rotation.x = -ptr.y * .3 + .05;
   camera.position.x += (ptr.x * .2 - camera.position.x) * .05; camera.lookAt(0, 0, 0);
+  if (!renderer) return;
   renderer.render(scene, camera); requestAnimationFrame(tick);
 }
 tick();
-addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); if (renderer) renderer.setSize(innerWidth, innerHeight); });
 
 /* ============ portrait generator ============ */
 function drawPortrait(ctx, seed, size){
@@ -158,10 +166,10 @@ function renderPicks(){
 renderPicks(); drawPortrait(mainC, portraitSeed, 380);
 
 /* ============ pronoun ============ */
-let pronoun = 'he';
+let pronoun = 'they'; // neutral default; the player picks
 document.querySelectorAll('#ch_gender button').forEach(b => b.onclick = () => {
-  document.querySelectorAll('#ch_gender button').forEach(x => x.classList.remove('on'));
-  b.classList.add('on'); pronoun = b.dataset.v;
+  document.querySelectorAll('#ch_gender button').forEach(x => { x.classList.remove('on'); x.setAttribute('aria-pressed', 'false'); });
+  b.classList.add('on'); b.setAttribute('aria-pressed', 'true'); pronoun = b.dataset.v;
 });
 
 /* ============ background + edge ============ */
@@ -366,6 +374,7 @@ function goTo(i, dir = 1){
 }
 const actionParam = new URLSearchParams(location.search).get('action');
 cur = actionParam === 'character' ? 3 : (actionParam === 'login' ? 2 : 0);
+window.__worldrReady = true; // failsafe.js: the flow started
 steps[cur].classList.add('active'); gsap.set(steps[cur], { opacity: 1 }); updateStepper(cur); Object.assign(target, globeStops[cur]);
 
 async function postJson(url, body){

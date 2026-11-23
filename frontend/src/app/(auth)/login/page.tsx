@@ -124,11 +124,11 @@ export default function LoginPage() {
           className="flex items-center gap-2.5 mb-4"
         >
           <motion.div
-            className="w-2 h-2 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"
+            className="w-2 h-2 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 shadow-[0_0_8px_rgba(232,184,75,0.6)]"
             animate={{ scale: [1, 1.1, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
           />
-          <span className="text-[9px] text-zinc-500 font-mono uppercase tracking-[0.35em]">Return to the world</span>
+          <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.35em]">Return to the world</span>
         </motion.div>
 
         <motion.h1
@@ -165,7 +165,7 @@ export default function LoginPage() {
             <svg className="w-4 h-4 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
             </svg>
-            <span className="font-mono text-xs">{error}</span>
+            <span className="text-[13px]">{error}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -184,7 +184,7 @@ export default function LoginPage() {
           <motion.div
             className={`relative rounded-lg border transition-all duration-200 ${
               focusedField === 'email'
-                ? 'border-amber-500/60 bg-amber-500/5 shadow-[0_0_16px_rgba(245,158,11,0.12)]'
+                ? 'border-amber-500/60 bg-amber-500/5 shadow-[0_0_16px_rgba(232,184,75,0.12)]'
                 : 'border-zinc-700/50 bg-zinc-900/30 hover:border-zinc-600/50'
             }`}
             animate={focusedField === 'email' ? { scale: 1.01 } : { scale: 1 }}
@@ -202,7 +202,7 @@ export default function LoginPage() {
             <input
               id="login-email"
               type="email"
-              className="w-full bg-transparent pl-10 pr-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none font-mono"
+              className="w-full bg-transparent pl-10 pr-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none"
               placeholder="you@example.com"
               value={form.email}
               onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
@@ -224,14 +224,14 @@ export default function LoginPage() {
             <label htmlFor="login-password" className="block text-xs font-semibold text-zinc-300 tracking-wide">
               Password
             </label>
-            <Link href="/forgot-password" className="text-[10px] text-zinc-500 hover:text-amber-400 transition-colors font-mono tracking-wide">
+            <Link href="/forgot-password" className="text-[12px] text-zinc-500 hover:text-amber-400 transition-colors">
               Forgot?
             </Link>
           </div>
           <motion.div
             className={`relative rounded-lg border transition-all duration-200 ${
               focusedField === 'password'
-                ? 'border-amber-500/60 bg-amber-500/5 shadow-[0_0_16px_rgba(245,158,11,0.12)]'
+                ? 'border-amber-500/60 bg-amber-500/5 shadow-[0_0_16px_rgba(232,184,75,0.12)]'
                 : 'border-zinc-700/50 bg-zinc-900/30 hover:border-zinc-600/50'
             }`}
             animate={focusedField === 'password' ? { scale: 1.01 } : { scale: 1 }}
@@ -249,7 +249,7 @@ export default function LoginPage() {
             <input
               id="login-password"
               type={showPassword ? 'text' : 'password'}
-              className="w-full bg-transparent pl-10 pr-12 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none font-mono"
+              className="w-full bg-transparent pl-10 pr-12 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none"
               placeholder="••••••••••••"
               value={form.password}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
@@ -264,7 +264,8 @@ export default function LoginPage() {
               className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-amber-400 transition-colors p-1"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
-              tabIndex={-1}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showPassword}
             >
               {showPassword ? (
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -285,7 +286,7 @@ export default function LoginPage() {
           id="login-submit"
           type="submit"
           disabled={loading || !form.email.trim() || !form.password}
-          className="w-full mt-7 py-3 px-4 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold text-sm tracking-wide shadow-lg hover:shadow-[0_0_24px_rgba(245,158,11,0.3)] flex items-center justify-center gap-2"
+          className="w-full mt-7 py-3 px-4 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold text-sm tracking-wide shadow-lg hover:shadow-[0_0_24px_rgba(232,184,75,0.3)] flex items-center justify-center gap-2"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.35 }}
@@ -366,7 +367,7 @@ export default function LoginPage() {
         className="flex items-center gap-3 my-7"
       >
         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-zinc-700/50 to-transparent" />
-        <span className="text-[9px] text-zinc-600 font-mono uppercase tracking-widest">or</span>
+        <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">or</span>
         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-zinc-700/50 to-transparent" />
       </motion.div>
 
@@ -376,7 +377,7 @@ export default function LoginPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.45 }}
         className="rounded-lg border border-amber-500/20 bg-gradient-to-r from-amber-500/5 to-transparent p-4"
-        whileHover={{ borderColor: 'rgba(245, 158, 11, 0.4)' }}
+        whileHover={{ borderColor: 'rgba(232,184,75, 0.4)' }}
       >
         <p className="text-center text-zinc-400 text-xs leading-relaxed">
           New to WORLDr?{' '}

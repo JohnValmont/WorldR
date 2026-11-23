@@ -7,10 +7,10 @@ import { useAuthStore } from '../../store/auth.store';
 import { authApi, worldApi } from '../../lib/api';
 
 const T = {
-  gold: '#C9A24A',
-  ivory: '#F4EBD6',
-  muted: '#A79D8C',
-  border: '#2A2630'
+  gold: '#E8B84B',
+  ivory: '#ECEAE4',
+  muted: '#A3A4AC',
+  border: '#262B36'
 };
 
 export default function WorldTimeControl() {
@@ -85,12 +85,12 @@ export default function WorldTimeControl() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '0 8px' }}>
-      <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'right' }}>
+      <div style={{ fontSize: '11px', color: T.gold, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'right' }}>
         <div style={{ color: T.ivory }}>{dateStr}</div>
         {clock.status === 'paused' ? (
-          <div style={{ color: T.muted, fontSize: '9px' }}>WORLD PAUSED</div>
+          <div style={{ color: T.muted, fontSize: '10px' }}>WORLD PAUSED</div>
         ) : (
-          <div style={{ color: T.muted, fontSize: '9px' }} aria-live="polite">
+          <div style={{ color: T.muted, fontSize: '10px' }} aria-live="polite">
             {secondsToTick !== null && (
               secondsToTick === 0 ? (
                 isBizTickStalled ? (
@@ -123,15 +123,11 @@ export default function WorldTimeControl() {
               color: isAdvancing ? T.muted : '#0a0709',
               border: `1px solid ${isAdvancing ? T.border : T.gold}`,
               padding: '6px 12px',
-              fontSize: '10px',
-              fontFamily: 'monospace',
-              textTransform: 'uppercase',
-              letterSpacing: '0.15em',
+              fontSize: '13px',
               fontWeight: 700,
               cursor: isAdvancing ? 'not-allowed' : 'pointer',
               opacity: isAdvancing ? 0.7 : 1,
-              whiteSpace: 'nowrap'
-            }}
+              whiteSpace: 'nowrap', borderRadius: 10 }}
           >
             {isAdvancing ? 'PROCESSING...' : 'FORCE BIZ TICK'}
           </button>
@@ -143,15 +139,11 @@ export default function WorldTimeControl() {
               color: isAdvancingPol ? T.muted : '#FFFFFF',
               border: `1px solid ${isAdvancingPol ? T.border : '#7B3FD4'}`,
               padding: '6px 12px',
-              fontSize: '10px',
-              fontFamily: 'monospace',
-              textTransform: 'uppercase',
-              letterSpacing: '0.15em',
+              fontSize: '13px',
               fontWeight: 700,
               cursor: isAdvancingPol ? 'not-allowed' : 'pointer',
               opacity: isAdvancingPol ? 0.7 : 1,
-              whiteSpace: 'nowrap'
-            }}
+              whiteSpace: 'nowrap', borderRadius: 10 }}
           >
             {isAdvancingPol ? 'PROCESSING...' : 'FORCE POL TICK'}
           </button>

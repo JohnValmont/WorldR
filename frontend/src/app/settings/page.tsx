@@ -33,7 +33,7 @@ export default function SettingsPage() {
   if (!isAuthenticated || !user) return null;
 
   return (
-    <div className="h-screen w-full bg-[#050508] text-zinc-300 overflow-y-auto overflow-x-hidden font-sans relative selection:bg-amber-500/20 selection:text-amber-400">
+    <div className="h-screen w-full bg-[#0B0D12] text-zinc-300 overflow-y-auto overflow-x-hidden font-sans relative selection:bg-amber-500/20 selection:text-amber-400">
       
       {/* Background Gradients */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
@@ -50,12 +50,12 @@ export default function SettingsPage() {
       <header className="relative z-50 border-b border-zinc-900 bg-zinc-950/60 backdrop-blur-md">
         <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.2)] rounded-sm">
+            <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-[0_0_15px_rgba(232,184,75,0.2)] rounded-sm">
               <span className="text-black font-black text-base">W</span>
             </div>
             <div>
               <span className="text-zinc-100 font-extrabold text-sm tracking-[0.2em] uppercase">WORLDr</span>
-              <span className="text-amber-500/70 font-mono text-[8px] tracking-[0.25em] block uppercase">System Gateway</span>
+              <span className="text-amber-500/70 font-mono text-[10px] tracking-[0.25em] block uppercase">System Gateway</span>
             </div>
           </div>
 

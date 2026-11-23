@@ -3,13 +3,14 @@ import { z } from 'zod';
 import { authController } from '../controllers/auth.controller';
 import { validate } from '../middlewares/validation.middleware';
 import { authMiddleware } from '../middlewares/auth.middleware';
+import { PASSWORD_MIN_LENGTH } from '../constants/auth';
 
 const router = Router();
 
 const registerSchema = z.object({
   body: z.object({
     email: z.string().email(),
-    password: z.string().min(6)
+    password: z.string().min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters`)
   })
 });
 
@@ -49,7 +50,7 @@ const resetPasswordSchema = z.object({
   body: z.object({
     email: z.string().email(),
     token: z.string().min(1),
-    password: z.string().min(6)
+    password: z.string().min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters`)
   })
 });
 

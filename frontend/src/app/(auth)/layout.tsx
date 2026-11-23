@@ -4,6 +4,9 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../../store/auth.store';
 import { getFlowRedirectPath } from '../../lib/flow';
+import { Landmark, Factory, Handshake, Globe2 } from 'lucide-react';
+import { buildLabel } from '../../lib/design/tokens';
+import { REAL_HOURS_PER_GAME_MONTH } from '../../lib/gameTime';
 
 // ── WorldMapGlobe — real map image scrolling inside a sphere ──────────────────
 //
@@ -33,7 +36,7 @@ function WorldMapGlobe() {
         style={{
           width: 'clamp(240px, 62%, 370px)',
           aspectRatio: '1 / 1',
-          background: 'radial-gradient(circle, rgba(18,65,210,0.14) 0%, transparent 68%)',
+          background: 'radial-gradient(circle, rgba(232,184,75,0.10) 0%, transparent 68%)',
           transform: 'scale(1.5)',
         }}
       />
@@ -95,7 +98,7 @@ function WorldMapGlobe() {
               style={{
                 top: `${pct}%`,
                 height: '1px',
-                background: 'rgba(55, 130, 250, 1)',
+                background: 'rgba(232, 184, 75, 1)',
               }}
             />
           ))}
@@ -119,8 +122,8 @@ function WorldMapGlobe() {
         style={{
           width:  'clamp(240px, 62%, 370px)',
           aspectRatio: '1 / 1',
-          border: '1.5px solid rgba(55,125,245,0.40)',
-          boxShadow: '0 0 32px rgba(20,80,230,0.20), inset 0 0 32px rgba(8,40,180,0.06)',
+          border: '1px solid rgba(232,184,75,0.38)',
+          boxShadow: '0 0 40px rgba(232,184,75,0.12), inset 0 0 32px rgba(232,184,75,0.05)',
         }}
       />
     </div>
@@ -129,11 +132,12 @@ function WorldMapGlobe() {
 
 // ── Game pillars ────────────────────────────────────────────────────────────────
 
+// Only what a player can actually do in this build.
 const PILLARS = [
-  { icon: '🏛️', text: 'Politics & Government' },
-  { icon: '📈', text: 'Business & Economy' },
-  { icon: '⚔️', text: 'Military & Defense' },
-  { icon: '🌍', text: 'Society & Culture' },
+  { icon: Landmark, text: 'Win a seat in Parliament' },
+  { icon: Factory, text: 'Build a car company' },
+  { icon: Handshake, text: 'Form coalitions, pass laws' },
+  { icon: Globe2, text: 'Three rival nations' },
 ];
 
 // ── Auth layout ────────────────────────────────────────────────────────────────
@@ -150,104 +154,90 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   }, [isAuthenticated, router]);
 
   return (
-    <div className="h-screen w-full flex overflow-hidden bg-[#050508]">
+    <div className="h-screen w-full flex overflow-hidden bg-[#0B0D12]">
 
       {/* ── Left hero panel ─── */}
-      <div className="hidden lg:flex flex-col flex-1 relative overflow-hidden">
+      <aside aria-label="About WORLDr" className="hidden lg:flex flex-col flex-1 relative overflow-hidden">
         {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/40 via-[#050508] to-[#050508]" />
+        <div className="absolute inset-0 bg-[radial-gradient(90%_70%_at_30%_20%,rgba(232,184,75,0.07),transparent_60%)]" />
 
         {/* Subtle gold grid */}
         <div
           className="absolute inset-0 opacity-[0.016]"
           style={{
             backgroundImage:
-              'linear-gradient(rgba(245,158,11,1) 1px, transparent 1px),' +
-              'linear-gradient(90deg, rgba(245,158,11,1) 1px, transparent 1px)',
+              'linear-gradient(rgba(232,184,75,1) 1px, transparent 1px),' +
+              'linear-gradient(90deg, rgba(232,184,75,1) 1px, transparent 1px)',
             backgroundSize: '80px 80px',
           }}
         />
 
         {/* Globe — centred in the panel with enhanced glow */}
-        <div className="absolute inset-0 flex items-center justify-center">
+        {/* Globe sits in the upper part of the panel so it never runs under the copy below. */}
+        <div className="absolute inset-x-0 top-[6%] h-[50%] flex items-center justify-center">
           {/* Background glow halo */}
-          <div className="absolute w-96 h-96 rounded-full bg-gradient-to-b from-amber-500/8 via-indigo-500/8 to-transparent blur-3xl -z-10" />
+          <div className="absolute w-96 h-96 rounded-full bg-amber-500/[0.06] blur-3xl -z-10" />
           <WorldMapGlobe />
         </div>
 
         {/* Top brand */}
         <div className="relative z-10 p-8">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.28)] rounded-sm shrink-0">
-              <span className="text-black font-black text-lg leading-none">W</span>
-            </div>
-            <div>
-              <div className="text-zinc-100 font-extrabold text-xl tracking-[0.2em] leading-none">WORLDr</div>
-              <div className="text-amber-500/60 font-mono text-[9px] tracking-[0.25em] uppercase leading-none mt-1">
-                Life Simulator
-              </div>
-            </div>
-          </div>
+          <a href="/landing/index.html" className="inline-flex items-center gap-3" aria-label="WORLDr home">
+            <span className="text-accent text-xl drop-shadow-[0_0_10px_rgba(232,184,75,0.5)]" aria-hidden>✦</span>
+            <span>
+              <span className="block font-display text-xl font-bold text-ink leading-none"><span className="tracking-[0.2em]">WORLD</span><span className="-ml-[0.1em] text-accent text-[0.8em]">r</span></span>
+              <span className="block text-[11px] tracking-[0.14em] uppercase text-ink-faint leading-none mt-1.5">Politics &amp; business simulation</span>
+            </span>
+          </a>
         </div>
 
         {/* Bottom copy */}
         <div className="relative z-10 mt-auto p-8 pb-10">
           <div className="max-w-xs">
-            <div className="text-[10px] text-amber-500/45 font-mono uppercase tracking-[0.25em] mb-3">
-              Return to Your Life
+            <div className="text-[11px] text-accent font-semibold uppercase tracking-[0.18em] mb-3">
+              The world of Aethan
             </div>
-            <h2 className="text-2xl font-bold text-zinc-100 leading-tight mb-3">
-              Welcome Back to<br />
-              <span className="text-amber-400">WORLDr</span>
+            <h2 className="font-display text-[26px] font-semibold text-ink leading-tight mb-3">
+              Build a company. Fund a party. Write the laws.
             </h2>
-            <p className="text-zinc-500 text-xs leading-relaxed mb-6">
-              Continue your political, economic, and social journey in a living world
-              where your decisions shape your legacy.
+            <p className="text-ink-dim text-sm leading-relaxed mb-6">
+              A persistent multiplayer world where your rivals live under the laws you pass.
+              The month turns every {REAL_HOURS_PER_GAME_MONTH} hours, whether you are online or not.
             </p>
 
             {/* Game pillars */}
             <div className="grid grid-cols-2 gap-2">
               {PILLARS.map((p) => (
-                <div
-                  key={p.text}
-                  className="flex items-center gap-2 px-3 py-2 rounded-sm text-[10px] text-zinc-400"
-                  style={{
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.05)',
-                  }}
-                >
-                  <span>{p.icon}</span>
-                  <span className="font-mono tracking-wide">{p.text}</span>
+                <div key={p.text} className="flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] border border-line bg-white/[0.02] text-[13px] text-ink-dim">
+                  <p.icon size={15} className="text-accent shrink-0" />
+                  <span>{p.text}</span>
                 </div>
               ))}
             </div>
 
-            <p className="text-zinc-600 font-mono text-[9px] uppercase tracking-widest mt-6">
-              One life. One origin. Many paths.
-            </p>
           </div>
         </div>
 
         {/* Version badge */}
         <div className="absolute top-8 right-8 z-10">
-          <span className="text-[9px] font-mono text-zinc-700 uppercase tracking-widest border border-zinc-800 px-2 py-1 rounded-sm">
-            v0.1 Alpha
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/[0.06] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent" />{buildLabel}
           </span>
         </div>
-      </div>
+      </aside>
 
       {/* ── Right form panel ─── */}
       <div className="flex flex-col w-full lg:w-[440px] xl:w-[480px] relative overflow-y-auto overflow-x-hidden">
         {/* Panel background with gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a10] via-[#080810] to-[#050508] border-l border-amber-500/10" />
+        <div className="absolute inset-0 bg-surface/40 border-l border-line" />
 
         {/* Subtle animated background pattern */}
         <div
           className="absolute inset-0 opacity-[0.008]"
           style={{
             backgroundImage:
-              'radial-gradient(circle at 20% 50%, rgba(245,158,11,1) 0px, transparent 50px),' +
-              'radial-gradient(circle at 80% 80%, rgba(99,102,241,1) 0px, transparent 50px)',
+              'radial-gradient(circle at 20% 50%, rgba(232,184,75,1) 0px, transparent 50px),' +
+              'radial-gradient(circle at 80% 80%, rgba(232,184,75,1) 0px, transparent 50px)',
             pointerEvents: 'none',
           }}
         />
@@ -256,23 +246,22 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
 
         {/* Mobile logo */}
-        <div className="relative z-10 flex lg:hidden items-center gap-3 p-6 pb-0">
-          <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center rounded-sm shrink-0">
-            <span className="text-black font-black text-base leading-none">W</span>
-          </div>
-          <div className="text-zinc-100 font-extrabold text-base tracking-[0.2em]">WORLDr</div>
-        </div>
+        <header className="relative z-10 flex lg:hidden items-center gap-3 p-6 pb-0">
+          <span className="text-accent text-lg" aria-hidden>✦</span>
+          <span className="font-display text-base font-bold text-ink"><span className="tracking-[0.2em]">WORLD</span><span className="-ml-[0.1em] text-accent text-[0.8em]">r</span></span>
+          <span className="ml-auto rounded-full border border-accent/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">{buildLabel}</span>
+        </header>
 
-        <div className="relative z-10 flex flex-col flex-1 justify-center p-6 lg:p-8 xl:p-10">
+        <main id="main" className="relative z-10 flex flex-col flex-1 justify-center p-6 lg:p-8 xl:p-10">
           {children}
-        </div>
+        </main>
 
         {/* Bottom footer */}
-        <div className="relative z-10 px-6 lg:px-8 pb-4 pt-2">
-          <p className="text-zinc-700 text-[10px] font-mono text-center">
-            © {new Date().getFullYear()} WORLDr · Political Life Simulator
+        <footer className="relative z-10 px-6 lg:px-8 pb-4 pt-2">
+          <p className="text-ink-faint text-[11px] text-center">
+            {`© ${new Date().getFullYear()} WORLDr · Politics & business simulation`}
           </p>
-        </div>
+        </footer>
       </div>
     </div>
   );

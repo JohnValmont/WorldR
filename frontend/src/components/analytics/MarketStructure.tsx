@@ -57,7 +57,7 @@ export default function MarketStructure({ countryId }: MarketStructureProps) {
 
   if (error || !data) {
     return (
-      <div className="w-full p-6 text-red-500 border border-red-900 rounded-md bg-[#0c0d13]">
+      <div className="w-full p-6 text-red-500 border border-red-900 rounded-md bg-[#13161E]">
         <p className="font-outfit">Error: {error}</p>
       </div>
     );
@@ -65,7 +65,7 @@ export default function MarketStructure({ countryId }: MarketStructureProps) {
 
   if (data.segments.length === 0) {
     return (
-      <div className="w-full p-8 text-zinc-300 font-outfit border border-[#23232b] rounded-lg bg-[#0c0d13]">
+      <div className="w-full p-8 text-zinc-300 font-outfit border border-[#262B36] rounded-lg bg-[#13161E]">
         <h2 className="text-xl font-cinzel text-zinc-100 mb-2">Market Overview</h2>
         <p>No market data available yet. Complete a month to see analytics.</p>
       </div>
@@ -79,22 +79,22 @@ export default function MarketStructure({ countryId }: MarketStructureProps) {
   }));
 
   const getSignalColor = (signal: string) => {
-    if (signal === 'Underserved') return 'text-[#30d158]';
-    if (signal === 'Saturated') return 'text-[#ff453a]'; // Red
-    return 'text-[#0a84ff]'; // Blue
+    if (signal === 'Underserved') return 'text-[#4FB286]';
+    if (signal === 'Saturated') return 'text-[#D9625A]'; // Red
+    return 'text-[#6AA6E8]'; // Blue
   };
 
   const getSignalIcon = (signal: string) => {
-    if (signal === 'Underserved') return <Activity className="w-4 h-4 text-[#30d158]" />;
-    if (signal === 'Saturated') return <AlertTriangle className="w-4 h-4 text-[#ff453a]" />;
-    return <CheckCircle className="w-4 h-4 text-[#0a84ff]" />;
+    if (signal === 'Underserved') return <Activity className="w-4 h-4 text-[#4FB286]" />;
+    if (signal === 'Saturated') return <AlertTriangle className="w-4 h-4 text-[#D9625A]" />;
+    return <CheckCircle className="w-4 h-4 text-[#6AA6E8]" />;
   };
 
   return (
     <div className="w-full space-y-8 animate-in fade-in duration-500">
       
       {/* Chart Section */}
-      <div className="bg-[#0c0d13] border border-[#27272a] rounded-lg p-6 shadow-md">
+      <div className="bg-[#13161E] border border-[#27272a] rounded-lg p-6 shadow-md">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-cinzel text-zinc-200">Total Market Volume by Segment</h3>
           <span className="text-xs font-mono text-zinc-500 px-2 py-1 border border-[#27272a] rounded">
@@ -104,7 +104,7 @@ export default function MarketStructure({ countryId }: MarketStructureProps) {
         <div className="h-72 w-full font-mono text-sm">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#23232b" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#262B36" vertical={false} />
               <XAxis dataKey="name" stroke="#52525b" tick={{ fill: '#a1a1aa' }} />
               <YAxis stroke="#52525b" tick={{ fill: '#a1a1aa' }} />
               <Tooltip 
@@ -124,9 +124,9 @@ export default function MarketStructure({ countryId }: MarketStructureProps) {
       {/* Segments Analysis */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {data.segments.map(segment => (
-          <div key={segment.segmentId} className="bg-[#0c0d13] border border-[#27272a] rounded-lg p-5 flex flex-col shadow-sm">
+          <div key={segment.segmentId} className="bg-[#13161E] border border-[#27272a] rounded-lg p-5 flex flex-col shadow-sm">
             
-            <div className="flex justify-between items-start mb-4 border-b border-[#23232b] pb-3">
+            <div className="flex justify-between items-start mb-4 border-b border-[#262B36] pb-3">
               <h4 className="text-lg font-cinzel font-semibold text-zinc-100">
                 {segment.marketName}
               </h4>

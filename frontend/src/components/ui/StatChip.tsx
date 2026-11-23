@@ -58,7 +58,7 @@ function MiniSparkline({ data }: { data: SparklinePoint[] }) {
     <svg width={w} height={h} className="opacity-60">
       <polyline
         fill="none"
-        stroke="#ff9f0a"
+        stroke="#E8B84B"
         strokeWidth="1.2"
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -101,15 +101,15 @@ export default function StatChip({
 
   return (
     <div className={cn(
-      'flex flex-col gap-0.5 px-3 py-2 rounded-lg border border-[#23232b] bg-[#0c0d13]',
+      'flex shrink-0 flex-col gap-1 px-3 py-2 rounded-[10px] border border-line bg-surface whitespace-nowrap',
       'min-w-[80px]',
       className,
     )}>
-      <span className="text-[8px] font-mono uppercase tracking-[0.18em] text-zinc-500">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
         {label}
       </span>
       <div className="flex items-center gap-1.5">
-        <span className={cn('text-sm font-mono font-bold leading-none', valueColorMap[valueColor])}>
+        <span className={cn('text-[15px] font-mono font-semibold leading-none', valueColorMap[valueColor])}>
           {prefix}{displayed}{suffix}
         </span>
         {trend && TIcon && (

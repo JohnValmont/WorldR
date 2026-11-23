@@ -9,7 +9,7 @@ export default function RoomsPage() {
   }, [router]);
   return (
     <div className="flex items-center justify-center py-24">
-      <div className="text-[10px] font-mono uppercase tracking-widest animate-pulse" style={{ color: '#D6B35F' }}>
+      <div className="text-[10px] uppercase tracking-widest animate-pulse" style={{ color: '#D6B35F' }}>
         Opening Live Map…
       </div>
     </div>

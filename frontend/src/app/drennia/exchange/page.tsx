@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { PageHeader, Tabs } from '../../../components/ui';
+import { BookOpen } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
@@ -7,24 +9,24 @@ import { exchangeApi, characterApi, companyApi } from '../../../lib/api';
 import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Line, LineChart, Area, PieChart, Pie, Cell } from 'recharts';
 
 const T = {
-  bg: '#090A0F',
-  panel: '#11131A',
-  panelSoft: '#17151B',
-  paper: '#1E1A15',
-  border: '#2A2630',
-  borderGold: 'rgba(201,162,74,0.22)',
-  gold: '#C9A24A',
-  ivory: '#F4EBD6',
-  muted: '#A79D8C',
-  faint: '#6B6358',
-  mint: '#36D399',
+  bg: '#0B0D12',
+  panel: '#13161E',
+  panelSoft: '#1B1F29',
+  paper: '#1E1B14',
+  border: '#262B36',
+  borderGold: 'rgba(232,184,75,0.22)',
+  gold: '#E8B84B',
+  ivory: '#ECEAE4',
+  muted: '#A3A4AC',
+  faint: '#868994',
+  mint: '#4FB286',
   steel: '#4B6382',
   burgundy: '#8F3D3D',
-  red: '#B85555',
+  red: '#D9625A',
 };
 
-const mono: React.CSSProperties = { fontFamily: 'monospace' };
-const label: React.CSSProperties = { ...mono, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.gold, fontWeight: 700 };
+const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", fontVariantNumeric: 'tabular-nums' };
+const label: React.CSSProperties = { fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.14em', color: T.gold, fontWeight: 600 }; // design system: section label
 
 function fmt(n: number | null | undefined, dec = 2): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
@@ -54,7 +56,7 @@ function DrxIndexBar() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
       <div>
-        <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.18em' }}>DRX Composite</div>
+        <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.18em' }}>DRX Composite</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
           <span style={{ ...mono, fontSize: '20px', fontWeight: 700, color: T.gold }}>{value != null ? fmt(value) : '—'}</span>
           {change != null && (
@@ -73,11 +75,11 @@ function DrxIndexBar() {
       )}
       <div style={{ display: 'flex', gap: '18px' }}>
         <div>
-          <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Listed</div>
+          <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Listed</div>
           <div style={{ ...mono, fontSize: '13px', fontWeight: 700, color: T.ivory }}>{fmtInt(data?.total_listed ?? 0)}</div>
         </div>
         <div>
-          <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Mo. Volume</div>
+          <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Mo. Volume</div>
           <div style={{ ...mono, fontSize: '13px', fontWeight: 700, color: T.ivory }}>{fmtBig(data?.total_volume ?? 0)}</div>
         </div>
       </div>
@@ -111,7 +113,7 @@ function Listings({ listings, selectedId, onSelect }: { listings: any[]; selecte
           >
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: '12px', fontWeight: 700, color: T.ivory, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.name}</div>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase' }}>{l.industry_id}</div>
+              <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase' }}>{l.industry_id}</div>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
               <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>{l.last_price != null ? `$${fmt(l.last_price)}` : 'unpriced'}</div>
@@ -177,7 +179,7 @@ function PriceChart({ companyId }: { companyId: string }) {
     <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
         <div style={label}>Price · Monthly History</div>
-        <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>CLOSE PRICE</div>
+        <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>CLOSE PRICE</div>
       </div>
       {rows.length === 0 ? (
         <div style={{ fontSize: '11px', color: T.faint }}>No price history yet. A data point is drawn every game month once the company is listed.</div>
@@ -192,10 +194,10 @@ function PriceChart({ companyId }: { companyId: string }) {
                 </linearGradient>
               </defs>
               <CartesianGrid stroke={T.border} strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" tick={{ fill: T.faint, fontSize: 9, fontFamily: 'monospace' }} axisLine={{ stroke: T.border }} tickLine={false} />
+              <XAxis dataKey="label" tick={{ fill: T.faint, fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }} axisLine={{ stroke: T.border }} tickLine={false} />
               <YAxis
                 yAxisId="price"
-                tick={{ fill: T.faint, fontSize: 9, fontFamily: 'monospace' }}
+                tick={{ fill: T.faint, fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }}
                 axisLine={{ stroke: T.border }}
                 tickLine={false}
                 width={52}
@@ -205,7 +207,7 @@ function PriceChart({ companyId }: { companyId: string }) {
               <YAxis yAxisId="vol" orientation="right" hide domain={[0, (dataMax: number) => dataMax * 4 || 10]} />
               <Tooltip
                 cursor={{ stroke: T.faint, strokeWidth: 1, strokeDasharray: '4 4', fill: 'transparent' }}
-                contentStyle={{ background: T.panelSoft, border: `1px solid ${T.borderGold}`, fontSize: '11px', fontFamily: 'monospace' }}
+                contentStyle={{ background: T.panelSoft, border: `1px solid ${T.borderGold}`, fontSize: '11px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }}
                 labelStyle={{ color: T.ivory }}
                 formatter={(value: any, name: any, item: any) => {
                   if (name === 'volume') return [fmtInt(Number(value)), 'Volume'];
@@ -244,7 +246,7 @@ function EarningsPanel({ companyId }: { companyId: string }) {
       {rows.length === 0 && <div style={{ fontSize: '11px', color: T.faint }}>No earnings reported yet.</div>}
       {rows.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxHeight: '220px', overflowY: 'auto' }}>
-          <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '6px', padding: '0 0 4px' }}>
+          <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '6px', padding: '0 0 4px' }}>
             <span>Month</span><span style={{ textAlign: 'right' }}>EPS</span><span style={{ textAlign: 'right' }}>Est.</span><span style={{ textAlign: 'right' }}>Surprise</span>
           </div>
           {rows.map((r: any, i: number) => {
@@ -278,7 +280,7 @@ function OrderBook({ companyId }: { companyId: string }) {
       <div style={{
         position: 'absolute', top: 0, bottom: 0, right: side === 'bid' ? 0 : 'auto', left: side === 'ask' ? 0 : 'auto',
         width: `${Math.min(100, (Number(quantity) / maxQty) * 100)}%`,
-        background: side === 'bid' ? 'rgba(54,211,153,0.08)' : 'rgba(184,85,85,0.08)',
+        background: side === 'bid' ? 'rgba(79,178,134,0.08)' : 'rgba(217,98,90,0.08)',
       }} />
       <span style={{ color: side === 'bid' ? T.mint : T.red, zIndex: 1 }}>${fmt(Number(price))}</span>
       <span style={{ color: T.muted, zIndex: 1 }}>{fmtInt(Number(quantity))}</span>
@@ -289,18 +291,18 @@ function OrderBook({ companyId }: { companyId: string }) {
     <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
         <div style={label}>Order Book</div>
-        <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>DRX specialist quotes both sides</div>
+        <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>DRX specialist quotes both sides</div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         <div>
-          <div style={{ ...mono, fontSize: '9px', color: T.mint, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px', padding: '0 8px', display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: '10px', color: T.mint, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px', padding: '0 8px', display: 'flex', justifyContent: 'space-between' }}>
             <span>Bid</span><span>Qty</span>
           </div>
           {bids.length === 0 && <div style={{ fontSize: '10px', color: T.faint, padding: '4px 8px' }}>No bids</div>}
           {bids.map((b: any, i: number) => <Row key={i} price={b.price} quantity={b.quantity} side="bid" />)}
         </div>
         <div>
-          <div style={{ ...mono, fontSize: '9px', color: T.red, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px', padding: '0 8px', display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: '10px', color: T.red, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px', padding: '0 8px', display: 'flex', justifyContent: 'space-between' }}>
             <span>Ask</span><span>Qty</span>
           </div>
           {asks.length === 0 && <div style={{ fontSize: '10px', color: T.faint, padding: '4px 8px' }}>No asks</div>}
@@ -358,7 +360,7 @@ function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: stri
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div>
-          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price ($ per share)</div>
+          <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price ($ per share)</div>
           <input
             aria-label="IPO price per share"
             value={price}
@@ -369,7 +371,7 @@ function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: stri
           />
         </div>
         <div>
-          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares (max {totalShares.toLocaleString('en-US')})</div>
+          <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares (max {totalShares.toLocaleString('en-US')})</div>
           <input
             aria-label="Shares to offer"
             value={quantity}
@@ -392,9 +394,8 @@ function QuickIpoPanel({ companyId, totalShares, onLaunched }: { companyId: stri
           disabled={busy}
           style={{
             marginTop: '4px', padding: '10px 0', cursor: busy ? 'wait' : 'pointer',
-            ...mono, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em',
-            background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1,
-          }}
+            fontSize: '13px', fontWeight: 700,
+            background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1, borderRadius: 10 }}
         >
           {busy ? 'Listing…' : 'Post Order'}
         </button>
@@ -463,11 +464,10 @@ function OrderTicket({ companyId, lastClose, onPlaced, myFinanceFirms = [] }: { 
             key={s}
             onClick={() => setSide(s)}
             style={{
-              flex: 1, padding: '8px 0', cursor: 'pointer', ...mono, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em',
-              background: side === s ? (s === 'buy' ? 'rgba(54,211,153,0.15)' : 'rgba(184,85,85,0.15)') : 'transparent',
+              flex: 1, padding: '8px 0', cursor: 'pointer', fontSize: '13px', fontWeight: 700,
+              background: side === s ? (s === 'buy' ? 'rgba(79,178,134,0.15)' : 'rgba(217,98,90,0.15)') : 'transparent',
               border: `1px solid ${side === s ? (s === 'buy' ? T.mint : T.red) : T.border}`,
-              color: side === s ? (s === 'buy' ? T.mint : T.red) : T.faint,
-            }}
+              color: side === s ? (s === 'buy' ? T.mint : T.red) : T.faint, borderRadius: 10 }}
           >
             {s}
           </button>
@@ -475,16 +475,16 @@ function OrderTicket({ companyId, lastClose, onPlaced, myFinanceFirms = [] }: { 
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div>
-          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Limit price ($ per share)</div>
+          <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Limit price ($ per share)</div>
           <input aria-label="Limit price per share" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={lastClose != null ? fmt(lastClose) : '0.00'} inputMode="decimal" style={inputStyle} />
         </div>
         <div>
-          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Quantity (shares)</div>
+          <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Quantity (shares)</div>
           <input aria-label="Quantity of shares" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="0" inputMode="numeric" style={inputStyle} />
         </div>
         {myFinanceFirms.length > 0 && (
           <div>
-            <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Trade As</div>
+            <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Trade As</div>
             <select
               value={purchaserCompanyId}
               onChange={(e) => setPurchaserCompanyId(e.target.value)}
@@ -498,7 +498,7 @@ function OrderTicket({ companyId, lastClose, onPlaced, myFinanceFirms = [] }: { 
           </div>
         )}
         {band && (
-          <div style={{ ...mono, fontSize: '9px', color: T.faint }}>
+          <div style={{ ...mono, fontSize: '10px', color: T.faint }}>
             Circuit breaker: ${fmt(band.lo)} – ${fmt(band.hi)} (±20% of last close)
           </div>
         )}
@@ -512,10 +512,8 @@ function OrderTicket({ companyId, lastClose, onPlaced, myFinanceFirms = [] }: { 
           onClick={submit}
           disabled={busy}
           style={{
-            marginTop: '4px', padding: '10px 0', cursor: busy ? 'wait' : 'pointer', ...mono, fontSize: '11px', fontWeight: 700,
-            textTransform: 'uppercase', letterSpacing: '0.15em',
-            background: side === 'buy' ? T.mint : T.red, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1,
-          }}
+            marginTop: '4px', padding: '10px 0', cursor: busy ? 'wait' : 'pointer', fontSize: '13px', fontWeight: 700,
+            background: side === 'buy' ? T.mint : T.red, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1, borderRadius: 10 }}
         >
           {busy ? 'Working…' : `${side === 'buy' ? 'Buy' : 'Sell'} shares`}
         </button>
@@ -595,7 +593,7 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
                 outerRadius={60}
                 innerRadius={30}
                 dataKey="value"
-                stroke="#111827"
+                stroke="#13161E"
                 strokeWidth={1.5}
                 isAnimationActive={false}
               >
@@ -605,7 +603,7 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
                 })}
               </Pie>
               <Tooltip 
-                contentStyle={{ background: T.panelSoft, border: `1px solid ${T.borderGold}`, fontSize: '11px', fontFamily: 'monospace', borderRadius: '4px' }}
+                contentStyle={{ background: T.panelSoft, border: `1px solid ${T.borderGold}`, fontSize: '11px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", borderRadius: '4px' }}
                 itemStyle={{ color: T.ivory }}
                 formatter={(value: any, name: any, item: any) => {
                   const val = Number(value);
@@ -625,7 +623,7 @@ function ShareholdersChart({ companyId }: { companyId: string }) {
                   <div style={{ ...mono, fontSize: '10px', color: '#f3f4f6', lineHeight: '1.3', wordBreak: 'break-word' }}>
                     <span style={{ fontWeight: 600 }}>{entry.name}</span>{' '}
                     <span style={{ color: color, fontWeight: 700 }}>({pct.toFixed(1)}%)</span>
-                    <div style={{ fontSize: '9px', color: T.faint }}>{fmtInt(entry.value)} shares</div>
+                    <div style={{ fontSize: '10px', color: T.faint }}>{fmtInt(entry.value)} shares</div>
                   </div>
                 </div>
               );
@@ -695,7 +693,7 @@ function MyDesk({ refreshKey }: { refreshKey: number }) {
                   <span style={{ color: T.faint, fontSize: '10px', marginLeft: '6px', fontWeight: 400 }}>[Personal]</span>
                 )}
               </div>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint }}>{fmt(h.ownership_percent, 2)}% ownership · basis ${fmt(Number(h.avg_cost_basis))}</div>
+              <div style={{ ...mono, fontSize: '10px', color: T.faint }}>{fmt(h.ownership_percent, 2)}% ownership · basis ${fmt(Number(h.avg_cost_basis))}</div>
             </div>
             <div style={{ textAlign: 'right', ...mono }}>
               <div style={{ fontSize: '12px', color: T.ivory }}>{fmtInt(Number(h.shares))} sh</div>
@@ -714,12 +712,12 @@ function MyDesk({ refreshKey }: { refreshKey: number }) {
           <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
             <div>
               <div style={{ fontSize: '11px', color: T.ivory }}>
-                <span style={{ ...mono, fontWeight: 700, color: o.side === 'buy' ? T.mint : T.red, textTransform: 'uppercase' }}>{o.side}</span>
+                <span style={{ fontWeight: 700, color: o.side === 'buy' ? T.mint : T.red, textTransform: 'uppercase' }}>{o.side}</span>
                 {' '}{o.company_name}
                 {o.purchaser_company_name ? (
-                  <span style={{ color: T.gold, fontSize: '9px', marginLeft: '6px', fontFamily: 'sans-serif' }}>[{o.purchaser_company_name}]</span>
+                  <span style={{ color: T.gold, fontSize: '10px', marginLeft: '6px', fontFamily: 'sans-serif' }}>[{o.purchaser_company_name}]</span>
                 ) : (
-                  <span style={{ color: T.faint, fontSize: '9px', marginLeft: '6px', fontFamily: 'sans-serif' }}>[Personal]</span>
+                  <span style={{ color: T.faint, fontSize: '10px', marginLeft: '6px', fontFamily: 'sans-serif' }}>[Personal]</span>
                 )}
               </div>
               <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
@@ -728,7 +726,7 @@ function MyDesk({ refreshKey }: { refreshKey: number }) {
             </div>
             <button
               onClick={() => cancel(o.id)}
-              style={{ ...mono, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', background: 'transparent', border: `1px solid ${T.border}`, color: T.faint, padding: '4px 10px', cursor: 'pointer' }}
+              style={{ fontSize: '13px', background: 'transparent', border: `1px solid ${T.border}`, color: T.faint, padding: '4px 10px', cursor: 'pointer', borderRadius: 10 }}
             >
               Cancel
             </button>
@@ -808,7 +806,7 @@ function IoiForm({ ipo, myFinanceFirms = [], onDone }: { ipo: any; myFinanceFirm
         <button
           onClick={cancelMine}
           disabled={busy}
-          style={{ marginTop: '8px', ...mono, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', background: 'transparent', border: `1px solid ${T.red}`, color: T.red, padding: '5px 12px', cursor: busy ? 'wait' : 'pointer' }}
+          style={{ marginTop: '8px', fontSize: '13px', background: 'transparent', border: `1px solid ${T.red}`, color: T.red, padding: '5px 12px', cursor: busy ? 'wait' : 'pointer', borderRadius: 10 }}
         >
           Cancel Indication
         </button>
@@ -820,17 +818,17 @@ function IoiForm({ ipo, myFinanceFirms = [], onDone }: { ipo: any; myFinanceFirm
     <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
         <div>
-          <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', marginBottom: '3px' }}>Bid price ($)</div>
+          <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '3px' }}>Bid price ($)</div>
           <input aria-label="IOI price" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={fmt(Number(ipo.ipo_price_max))} inputMode="decimal" style={inputStyle} />
         </div>
         <div>
-          <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', marginBottom: '3px' }}>Shares</div>
+          <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '3px' }}>Shares</div>
           <input aria-label="IOI quantity" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="0" inputMode="numeric" style={inputStyle} />
         </div>
       </div>
       {myFinanceFirms && myFinanceFirms.length > 0 && (
         <div>
-          <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', marginBottom: '3px' }}>Bidding Entity</div>
+          <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '3px' }}>Bidding Entity</div>
           <select value={biddingCompanyId || (ipo.is_founder && myFinanceFirms.length > 0 ? myFinanceFirms[0].id : '')} onChange={(e) => setBiddingCompanyId(e.target.value)} style={inputStyle}>
             {!ipo.is_founder && <option value="">Personal Account</option>}
             {myFinanceFirms.map(f => (
@@ -842,7 +840,7 @@ function IoiForm({ ipo, myFinanceFirms = [], onDone }: { ipo: any; myFinanceFirm
       <button
         onClick={submit}
         disabled={busy}
-        style={{ padding: '8px 0', cursor: busy ? 'wait' : 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1 }}
+        style={{ padding: '8px 0', cursor: busy ? 'wait' : 'pointer', fontSize: '13px', fontWeight: 700, background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1, borderRadius: 10 }}
       >
         Submit Indication of Interest
       </button>
@@ -869,37 +867,37 @@ function Pipeline({ myFinanceFirms = [] }: { myFinanceFirms?: any[] }) {
           <div key={ipo.id} style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
               <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory }}>{ipo.company_name}</div>
-              <div style={{ ...mono, fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.12em', color: isReview ? T.steel : T.gold }}>
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.12em', color: isReview ? T.steel : T.gold }}>
                 {isReview ? 'In Review' : 'Book Open'}
               </div>
             </div>
-            <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '12px' }}>{ipo.industry_id}</div>
+            <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '12px' }}>{ipo.industry_id}</div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', marginBottom: '10px' }}>
               <div>
-                <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Range</div>
+                <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Range</div>
                 <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>${fmt(Number(ipo.ipo_price_min))}–${fmt(Number(ipo.ipo_price_max))}</div>
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Float</div>
+                <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Float</div>
                 <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>{fmt(Number(ipo.float_percent) * 100, 0)}%</div>
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Book Value</div>
+                <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Book Value</div>
                 <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>${fmtBig(Number(ipo.company_value))}</div>
               </div>
             </div>
 
             {!isReview && (
               <div style={{ marginBottom: '4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', ...mono, fontSize: '9px', color: T.faint, marginBottom: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', ...mono, fontSize: '10px', color: T.faint, marginBottom: '4px' }}>
                   <span>Subscription</span>
                   <span style={{ color: subColor }}>{fmt(sub * 100, 0)}%</span>
                 </div>
                 <div style={{ height: 6, background: T.bg, border: `1px solid ${T.border}`, position: 'relative', overflow: 'hidden' }}>
                   <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(100, sub * 100)}%`, background: subColor }} />
                 </div>
-                <div style={{ ...mono, fontSize: '8px', color: T.faint, marginTop: '4px' }}>
+                <div style={{ ...mono, fontSize: '10px', color: T.faint, marginTop: '4px' }}>
                   Closes Y{ipo.bookbuild_ends_year} M{ipo.bookbuild_ends_month} · under 50% and the offering fails
                 </div>
               </div>
@@ -953,10 +951,9 @@ function SyndicateBidForm({ auction: a, myBid, me, myCompanies, isPlacing, onSub
               <button
                  onClick={() => setExpanded(true)}
                  style={{
-                   padding: '10px 14px', background: 'linear-gradient(135deg, #C9A24A, #8F6A2A)',
-                   border: '1px solid rgba(201,162,74,0.4)', color: T.ivory, cursor: 'pointer',
-                   fontSize: '11px', fontWeight: 700, ...mono, textTransform: 'uppercase', letterSpacing: '0.1em'
-                 }}
+                   padding: '10px 14px', background: 'linear-gradient(135deg, #E8B84B, #8F6A2A)',
+                   border: '1px solid rgba(232,184,75,0.4)', color: T.ivory, cursor: 'pointer',
+                   fontSize: '13px', fontWeight: 700, borderRadius: 10 }}
               >
                  {myBid ? 'Raise Bid (Syndicate)' : 'Open Syndicate Bid'}
               </button>
@@ -971,20 +968,20 @@ function SyndicateBidForm({ auction: a, myBid, me, myCompanies, isPlacing, onSub
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
              <span style={{ fontSize: '11px', color: T.muted }}>Total Bid Amount:</span>
              <input type="number" placeholder={`Min $${fmtBig(minBid)}`} value={totalBid} onChange={e => setTotalBid(e.target.value)}
-                style={{ flex: 1, padding: '6px 8px', background: 'rgba(0,0,0,0.2)', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px', fontFamily: 'monospace' }} />
+                style={{ flex: 1, padding: '6px 8px', background: 'rgba(0,0,0,0.2)', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '12px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }} />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: T.gold, ...mono }}>
                 <span>Personal Cash (${fmtBig(me?.finances?.cash_in_hand)})</span>
                 <input type="number" value={funding.personal || ''} onChange={e => setFunding((f: any) => ({ ...f, personal: Number(e.target.value) }))}
-                  style={{ width: '100px', padding: '4px', background: 'rgba(0,0,0,0.2)', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '10px', fontFamily: 'monospace', textAlign: 'right' }} />
+                  style={{ width: '100px', padding: '4px', background: 'rgba(0,0,0,0.2)', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '10px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textAlign: 'right' }} />
              </div>
              {myCompanies.map((c: any) => (
                <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: T.ivory, ...mono }}>
                   <span>{c.name} (${fmtBig(c.finances?.available_cash)})</span>
                   <input type="number" value={funding.companies[c.id] || ''} onChange={e => handleCompanyFunding(c.id, e.target.value)}
-                    style={{ width: '100px', padding: '4px', background: 'rgba(0,0,0,0.2)', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '10px', fontFamily: 'monospace', textAlign: 'right' }} />
+                    style={{ width: '100px', padding: '4px', background: 'rgba(0,0,0,0.2)', border: `1px solid ${T.border}`, color: T.ivory, fontSize: '10px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textAlign: 'right' }} />
                </div>
              ))}
           </div>
@@ -1001,11 +998,11 @@ function SyndicateBidForm({ auction: a, myBid, me, myCompanies, isPlacing, onSub
           </label>
 
           <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => setExpanded(false)} style={{ flex: 1, padding: '8px', background: 'transparent', border: `1px solid ${T.border}`, color: T.muted, fontSize: '10px', cursor: 'pointer', ...mono }}>CANCEL</button>
+              <button onClick={() => setExpanded(false)} style={{ flex: 1, padding: '8px', background: 'transparent', border: `1px solid ${T.border}`, color: T.muted, fontSize: '13px', cursor: 'pointer', ...mono, borderRadius: 10 }}>CANCEL</button>
               <button 
                  disabled={!canSubmit || isPlacing}
                  onClick={() => onSubmit(bidNum, funding, takePrivate ? 'private' : 'public')}
-                 style={{ flex: 2, padding: '8px', background: canSubmit ? T.mint : T.border, border: 'none', color: T.bg, fontSize: '10px', fontWeight: 700, cursor: canSubmit ? 'pointer' : 'not-allowed', ...mono, opacity: isPlacing ? 0.5 : 1 }}
+                 style={{ flex: 2, padding: '8px', background: canSubmit ? T.mint : T.border, border: 'none', color: T.bg, fontSize: '13px', fontWeight: 700, cursor: canSubmit ? 'pointer' : 'not-allowed', opacity: isPlacing ? 0.5 : 1, borderRadius: 10 }}
               >
                  {isPlacing ? 'PLACING BID...' : 'PLACE SYNDICATE BID'}
               </button>
@@ -1064,7 +1061,7 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
       {/* Toast notifications */}
       <div style={{ position: 'fixed', top: '16px', right: '16px', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '8px', pointerEvents: 'none' }}>
         {toasts.map((t) => (
-          <div key={t.id} style={{ background: t.type === 'ok' ? 'rgba(54,211,153,0.15)' : 'rgba(184,85,85,0.15)', border: `1px solid ${t.type === 'ok' ? 'rgba(54,211,153,0.4)' : 'rgba(184,85,85,0.4)'}`, padding: '10px 16px', fontSize: '12px', color: t.type === 'ok' ? T.mint : T.red, maxWidth: '340px', backdropFilter: 'blur(8px)' }}>
+          <div key={t.id} style={{ background: t.type === 'ok' ? 'rgba(79,178,134,0.15)' : 'rgba(217,98,90,0.15)', border: `1px solid ${t.type === 'ok' ? 'rgba(79,178,134,0.4)' : 'rgba(217,98,90,0.4)'}`, padding: '10px 16px', fontSize: '12px', color: t.type === 'ok' ? T.mint : T.red, maxWidth: '340px', backdropFilter: 'blur(8px)' }}>
             {t.msg}
           </div>
         ))}
@@ -1082,7 +1079,7 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
       {/* Timeline explainer */}
       <div style={{ display: 'flex', gap: '0', marginBottom: '32px', overflow: 'hidden', border: `1px solid ${T.border}` }}>
         {[
-          { phase: '1', label: 'Company Distressed', sub: 'Debt > 5× book value', color: '#B85555' },
+          { phase: '1', label: 'Company Distressed', sub: 'Debt > 5× book value', color: '#D9625A' },
           { phase: '2', label: 'Notice Period', sub: '6 game months', color: '#8F6A2A' },
           { phase: '3', label: 'Bidding', sub: '3 game months', color: T.gold },
           { phase: '4', label: 'Settlement', sub: 'Company transfers', color: T.mint },
@@ -1090,7 +1087,7 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
           <div key={i} style={{ flex: 1, padding: '10px 12px', background: T.panel, borderRight: i < 3 ? `1px solid ${T.border}` : undefined, textAlign: 'center' }}>
             <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: s.color, color: T.bg, fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px', ...mono }}>{s.phase}</div>
             <div style={{ fontSize: '11px', fontWeight: 700, color: T.ivory }}>{s.label}</div>
-            <div style={{ fontSize: '9px', color: T.faint, marginTop: '2px' }}>{s.sub}</div>
+            <div style={{ fontSize: '10px', color: T.faint, marginTop: '2px' }}>{s.sub}</div>
           </div>
         ))}
       </div>
@@ -1116,14 +1113,14 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {registrationAuctions.map((a) => (
               <div key={a.id} style={{ background: T.panel, border: `1px solid rgba(143,106,42,0.3)`, padding: '18px 22px', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, #8F6A2A, #C9A24A)' }} />
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, #8F6A2A, #E8B84B)' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap' }}>
                   <div style={{ flex: '1 1 260px' }}>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                      <span style={{ ...mono, fontSize: '8px', color: '#C9A24A', textTransform: 'uppercase', letterSpacing: '0.15em', background: 'rgba(201,162,74,0.1)', padding: '2px 7px', border: '1px solid rgba(201,162,74,0.2)' }}>Notice Period</span>
+                      <span style={{ fontSize: '10px', color: '#E8B84B', textTransform: 'uppercase', letterSpacing: '0.15em', background: 'rgba(232,184,75,0.1)', padding: '2px 7px', border: '1px solid rgba(232,184,75,0.2)' }}>Notice Period</span>
                     </div>
                     <div style={{ fontSize: '17px', fontWeight: 700, color: T.ivory, marginBottom: '3px' }}>{a.name}</div>
-                    <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '12px' }}>{a.industry_id} · {a.country_id}</div>
+                    <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '12px' }}>{a.industry_id} · {a.country_id}</div>
                     {a.active_models?.length > 0 && (
                       <div style={{ marginBottom: '10px' }}>
                         {a.active_models.map((m: any, i: number) => (
@@ -1132,24 +1129,24 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
                       </div>
                     )}
                     <div style={{ fontSize: '11px', color: T.faint }}>
-                      Debt / Book: <span style={{ color: a.debt_ratio >= 5 ? '#B85555' : '#E8A234', fontWeight: 700 }}>{a.debt_ratio?.toFixed(1)}×</span>
+                      Debt / Book: <span style={{ color: a.debt_ratio >= 5 ? '#D9625A' : '#E8A234', fontWeight: 700 }}>{a.debt_ratio?.toFixed(1)}×</span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end', minWidth: '160px' }}>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Reserve Price</div>
+                      <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Reserve Price</div>
                       <div style={{ ...mono, fontSize: '18px', fontWeight: 700, color: T.gold }}>${fmtBig(a.reserve_price)}</div>
                     </div>
-                      <div style={{ background: 'rgba(143,106,42,0.1)', border: '1px solid rgba(201,162,74,0.2)', padding: '8px 14px', textAlign: 'center' }}>
-                        <div style={{ ...mono, fontSize: '8px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Bidding Opens In</div>
+                      <div style={{ background: 'rgba(143,106,42,0.1)', border: '1px solid rgba(232,184,75,0.2)', padding: '8px 14px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '10px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Bidding Opens In</div>
                         <div style={{ ...mono, fontSize: '20px', fontWeight: 700, color: T.ivory }}>
                           {a.months_to_bidding_start == null ? '—' : a.months_to_bidding_start === 0 ? 'Now' : a.months_to_bidding_start}
                         </div>
-                        <div style={{ fontSize: '9px', color: T.faint }}>
+                        <div style={{ fontSize: '10px', color: T.faint }}>
                           {a.months_to_bidding_start == null ? '' : a.months_to_bidding_start === 0 ? 'opening this tick' : 'game months'}
                         </div>
                       </div>
-                    <div style={{ ...mono, fontSize: '9px', color: T.faint, textAlign: 'right' }}>
+                    <div style={{ ...mono, fontSize: '10px', color: T.faint, textAlign: 'right' }}>
                       Bids open: Y{a.bidding_start_year}M{a.bidding_start_month}<br />
                       Closes: Y{a.bidding_end_year}M{a.bidding_end_month}
                     </div>
@@ -1179,18 +1176,18 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
               const isPlacing = placing === a.id;
 
               return (
-                <div key={a.id} style={{ background: T.panel, border: `1px solid rgba(201,162,74,0.35)`, padding: '20px 24px', position: 'relative', overflow: 'hidden' }}>
-                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, #C9A24A, #36D399)' }} />
+                <div key={a.id} style={{ background: T.panel, border: `1px solid rgba(232,184,75,0.35)`, padding: '20px 24px', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, #E8B84B, #4FB286)' }} />
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px', flexWrap: 'wrap' }}>
                     {/* Left */}
                     <div style={{ flex: '1 1 280px' }}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                        <span style={{ ...mono, fontSize: '8px', color: T.mint, textTransform: 'uppercase', letterSpacing: '0.15em', background: 'rgba(54,211,153,0.1)', padding: '2px 7px', border: '1px solid rgba(54,211,153,0.25)' }}>⚡ Bidding Open</span>
-                        {isTopBidder && <span style={{ ...mono, fontSize: '8px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.12em', background: 'rgba(201,162,74,0.12)', padding: '2px 7px', border: '1px solid rgba(201,162,74,0.25)' }}>🏆 Your Lead</span>}
+                        <span style={{ fontSize: '10px', color: T.mint, textTransform: 'uppercase', letterSpacing: '0.15em', background: 'rgba(79,178,134,0.1)', padding: '2px 7px', border: '1px solid rgba(79,178,134,0.25)' }}>⚡ Bidding Open</span>
+                        {isTopBidder && <span style={{ fontSize: '10px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.12em', background: 'rgba(232,184,75,0.12)', padding: '2px 7px', border: '1px solid rgba(232,184,75,0.25)' }}>🏆 Your Lead</span>}
                       </div>
                       <div style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, marginBottom: '3px' }}>{a.name}</div>
-                      <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '12px' }}>{a.industry_id} · {a.country_id}</div>
+                      <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '12px' }}>{a.industry_id} · {a.country_id}</div>
 
                       {a.active_models?.length > 0 && (
                         <div style={{ marginBottom: '12px' }}>
@@ -1211,7 +1208,7 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
                           ['Debt Ratio', `${a.debt_ratio?.toFixed(1)}×`],
                         ].map(([k, v]) => (
                           <div key={k as string}>
-                            <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{k}</div>
+                            <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{k}</div>
                             <div style={{ ...mono, fontSize: '12px', color: T.ivory, fontWeight: 600 }}>{v}</div>
                           </div>
                         ))}
@@ -1221,14 +1218,14 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
                     {/* Right */}
                     <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '200px' }}>
                       {/* Current top bid */}
-                      <div style={{ background: 'rgba(201,162,74,0.08)', border: '1px solid rgba(201,162,74,0.2)', padding: '10px 16px', textAlign: 'center' }}>
-                        <div style={{ ...mono, fontSize: '8px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '2px' }}>
+                      <div style={{ background: 'rgba(232,184,75,0.08)', border: '1px solid rgba(232,184,75,0.2)', padding: '10px 16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '10px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '2px' }}>
                           {a.current_top_bid ? 'Current Top Bid' : 'Reserve Price'}
                         </div>
                         <div style={{ ...mono, fontSize: '22px', fontWeight: 700, color: T.gold }}>
                           ${fmtBig(a.current_top_bid ?? a.reserve_price)}
                         </div>
-                        <div style={{ fontSize: '9px', color: T.faint, marginTop: '2px' }}>
+                        <div style={{ fontSize: '10px', color: T.faint, marginTop: '2px' }}>
                           {a.bid_count} bid{a.bid_count !== 1 ? 's' : ''} · min next: ${fmtBig(a.min_next_bid)}
                         </div>
                       </div>
@@ -1239,11 +1236,11 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
                         const urgent = mEnd != null && mEnd <= 1;
                         return (
                           <div style={{ textAlign: 'center', padding: '6px' }}>
-                            <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Closes In</div>
-                            <div style={{ ...mono, fontSize: '24px', fontWeight: 700, color: urgent ? '#B85555' : T.ivory }}>
+                            <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Closes In</div>
+                            <div style={{ ...mono, fontSize: '24px', fontWeight: 700, color: urgent ? '#D9625A' : T.ivory }}>
                               {mEnd == null ? '—' : mEnd === 0 ? 'This Tick' : mEnd}
                             </div>
-                            <div style={{ fontSize: '9px', color: T.faint }}>
+                            <div style={{ fontSize: '10px', color: T.faint }}>
                               {mEnd == null ? '' : mEnd === 0 ? 'closing now!' : `game month${mEnd !== 1 ? 's' : ''}`}
                             </div>
                           </div>
@@ -1252,7 +1249,7 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
 
                       {/* My current bid */}
                       {myBid && (
-                        <div style={{ background: isTopBidder ? 'rgba(54,211,153,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isTopBidder ? 'rgba(54,211,153,0.25)' : T.border}`, padding: '7px 12px', textAlign: 'center', fontSize: '11px' }}>
+                        <div style={{ background: isTopBidder ? 'rgba(79,178,134,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isTopBidder ? 'rgba(79,178,134,0.25)' : T.border}`, padding: '7px 12px', textAlign: 'center', fontSize: '11px' }}>
                           <span style={{ color: T.faint }}>Your bid: </span>
                           <span style={{ color: isTopBidder ? T.mint : T.ivory, fontWeight: 700, ...mono }}>${Number(myBid.bid_amount).toLocaleString()}</span>
                           {isTopBidder && <span style={{ color: T.mint }}> · Leading</span>}
@@ -1269,7 +1266,7 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
                          isPlacing={isPlacing}
                          onSubmit={(amount: number, fundingSources: any, status: 'public' | 'private') => handleSyndicateBid(a.id, amount, fundingSources, status)}
                       />
-                      <div style={{ fontSize: '9px', color: T.faint, textAlign: 'center' }}>
+                      <div style={{ fontSize: '10px', color: T.faint, textAlign: 'center' }}>
                         Paid at settlement only · Debt cleared on transfer<br />
                         <span style={{ color: T.gold }}>Winner issued 90% controlling equity</span>
                       </div>
@@ -1292,7 +1289,7 @@ function AuctionTab({ onBidPlaced }: { onBidPlaced: () => void }) {
                 <div style={{ color: T.ivory, fontWeight: 600 }}>{b.company_name}</div>
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                   <span style={{ ...mono, color: T.gold }}>${Number(b.bid_amount).toLocaleString()}</span>
-                  <span style={{ ...mono, fontSize: '9px', textTransform: 'uppercase', color: b.auction_status === 'bidding' ? T.mint : T.faint }}>{b.auction_status}</span>
+                  <span style={{ fontSize: '10px', textTransform: 'uppercase', color: b.auction_status === 'bidding' ? T.mint : T.faint }}>{b.auction_status}</span>
                 </div>
               </div>
             ))}
@@ -1368,40 +1365,14 @@ export default function ExchangePage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: T.bg, color: T.ivory, overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{ padding: '16px 24px 0', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span
-          style={{ cursor: 'pointer', color: T.muted, fontSize: '11px', ...mono, textTransform: 'uppercase', letterSpacing: '0.1em' }}
-          onClick={() => router.push('/drennia/business')}
-        >
-          ← Back to Business
-        </span>
-        <WorldTimeControl />
-      </div>
-
-      <div style={{ padding: '8px 24px 12px', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '24px', flexWrap: 'wrap', borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '16px' }}>
-          <div>
-            <div style={{ ...label, marginBottom: '4px', letterSpacing: '0.2em' }}>Drennport Exchange</div>
-            <h1 style={{ fontSize: '22px', fontWeight: 700, color: T.ivory, margin: '0 0 4px' }}>DRX Bourse</h1>
-            <p style={{ fontSize: '12px', color: T.muted, margin: 0 }}>
-              Take companies public, build the book, and trade shares with price-time priority.
-            </p>
-          </div>
-          <button
-            onClick={() => setShowGuide(true)}
-            style={{
-              ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em',
-              padding: '6px 14px', cursor: 'pointer', marginBottom: '4px',
-              background: 'transparent', border: `1px solid ${T.borderGold}`,
-              color: T.gold, display: 'flex', alignItems: 'center', gap: '6px',
-            }}
-          >
-            📖 DRX Guide
-          </button>
-        </div>
-        <DrxIndexBar />
-      </div>
+      <PageHeader
+        kicker="Drennport Exchange"
+        title="DRX Bourse"
+        description="Take companies public, build the book, and trade shares with price-time priority."
+        aside={<><button type="button" onClick={() => setShowGuide(true)} className="btn-secondary !py-1.5 !text-[13px]"><BookOpen size={14} aria-hidden />Exchange guide</button><WorldTimeControl /></>}
+      >
+        <div className="px-1 pb-3"><DrxIndexBar /></div>
+      </PageHeader>
 
       {/* Guide Drawer Overlay */}
       {showGuide && (
@@ -1429,7 +1400,7 @@ export default function ExchangePage() {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', paddingBottom: '8px', borderBottom: `1px solid ${T.border}` }}>
                   <span style={{ fontSize: '16px' }}>📈</span>
-                  <span style={{ ...mono, fontSize: '11px', fontWeight: 700, color: T.mint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>What is the DRX Bourse?</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: T.mint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>What is the DRX Bourse?</span>
                 </div>
                 <p style={{ fontSize: '12px', color: T.muted, margin: '0 0 8px', lineHeight: 1.7 }}>The Drennport Exchange (DRX) is the only regulated marketplace in the world for publicly-listed company shares. Every trade is matched using <strong style={{ color: T.ivory }}>price-time priority</strong> — the best price wins, and ties go to whoever placed the order first.</p>
                 <p style={{ fontSize: '12px', color: T.muted, margin: 0, lineHeight: 1.7 }}>The <strong style={{ color: T.ivory }}>DRX Composite Index</strong> tracks the combined market cap of all listed companies. Watch it to gauge the health of the whole economy.</p>
@@ -1439,7 +1410,7 @@ export default function ExchangePage() {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', paddingBottom: '8px', borderBottom: `1px solid ${T.border}` }}>
                   <span style={{ fontSize: '16px' }}>🏛️</span>
-                  <span style={{ ...mono, fontSize: '11px', fontWeight: 700, color: T.gold, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Taking Your Company Public (IPO)</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: T.gold, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Taking Your Company Public (IPO)</span>
                 </div>
                 {[
                   ['1. Eligibility', 'Company must be a Public Corporation with positive book value and at least $50,000 in company assets.'],
@@ -1460,7 +1431,7 @@ export default function ExchangePage() {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', paddingBottom: '8px', borderBottom: `1px solid ${T.border}` }}>
                   <span style={{ fontSize: '16px' }}>📊</span>
-                  <span style={{ ...mono, fontSize: '11px', fontWeight: 700, color: '#7EB9E0', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Trading Shares (Secondary Market)</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#7EB9E0', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Trading Shares (Secondary Market)</span>
                 </div>
                 {[
                   ['Limit Orders', 'You set a price. Buy orders wait in the book until a seller matches. Sell orders wait until a buyer matches. Orders may partially fill.'],
@@ -1480,7 +1451,7 @@ export default function ExchangePage() {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', paddingBottom: '8px', borderBottom: `1px solid ${T.border}` }}>
                   <span style={{ fontSize: '16px' }}>👥</span>
-                  <span style={{ ...mono, fontSize: '11px', fontWeight: 700, color: '#B094D4', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Shareholders & Ownership</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#B094D4', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Shareholders & Ownership</span>
                 </div>
                 {[
                   ['General Population', 'Retail NPC investors. They trade the public float among themselves. You only compete against real players and institutions in the live order book.'],
@@ -1499,7 +1470,7 @@ export default function ExchangePage() {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', paddingBottom: '8px', borderBottom: `1px solid ${T.border}` }}>
                   <span style={{ fontSize: '16px' }}>🏢</span>
-                  <span style={{ ...mono, fontSize: '11px', fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Acquisitions</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Acquisitions</span>
                 </div>
                 {[
                   ['Distressed Market', 'Companies that run out of cash enter distress. Acquire them outright at a discounted fee from your personal finances.'],
@@ -1517,7 +1488,7 @@ export default function ExchangePage() {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', paddingBottom: '8px', borderBottom: `1px solid ${T.border}` }}>
                   <span style={{ fontSize: '16px' }}>💡</span>
-                  <span style={{ ...mono, fontSize: '11px', fontWeight: 700, color: T.gold, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Strategy Tips</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: T.gold, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Strategy Tips</span>
                 </div>
                 {[
                   'Set your IPO price range conservatively. An underpriced IPO raises less money but creates a healthy opening pop and goodwill.',
@@ -1531,7 +1502,7 @@ export default function ExchangePage() {
               </div>
 
               {/* Disclaimer */}
-              <div style={{ padding: '14px 16px', background: 'rgba(201,162,74,0.05)', border: `1px solid ${T.borderGold}`, fontSize: '11px', color: T.faint, lineHeight: 1.6 }}>
+              <div style={{ padding: '14px 16px', background: 'rgba(232,184,75,0.05)', border: `1px solid ${T.borderGold}`, fontSize: '11px', color: T.faint, lineHeight: 1.6 }}>
                 <span style={{ color: T.gold, fontWeight: 700 }}>DRX OFFICIAL NOTICE: </span>
                 All trades are final. The Drennport Exchange is not liable for losses due to market conditions, lockup restrictions, or circuit breaker interventions. Trade responsibly.
               </div>
@@ -1541,32 +1512,15 @@ export default function ExchangePage() {
         </div>
       )}
 
-      {/* Tabs — horizontally scrollable on mobile */}
-      <div style={{ padding: '10px 16px 0', flexShrink: 0, display: 'flex', gap: '4px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any }}>
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            style={{
-              ...mono, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em',
-              padding: '8px 14px', cursor: 'pointer', flexShrink: 0,
-              background: tab === t.id ? T.panelSoft : 'transparent',
-              border: `1px solid ${tab === t.id ? T.borderGold : T.border}`,
-              borderBottom: tab === t.id ? `1px solid ${T.panelSoft}` : `1px solid ${T.border}`,
-              color: tab === t.id ? T.gold : (t.warn ? '#E8A234' : T.faint),
-              display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap',
-            }}
-          >
-            {t.name}
-            {t.badge != null && t.badge > 0 ? (
-              <span style={{ background: t.warn ? '#E8A234' : T.gold, color: T.bg, borderRadius: '8px', padding: '1px 6px', fontSize: '9px' }}>{t.badge}</span>
-            ) : null}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Exchange sections"
+        tabs={tabs.map(t => ({ id: t.id, label: t.name, badge: t.badge, tone: t.warn ? 'warn' as const : undefined }))}
+        activeId={tab}
+        onChange={(id) => setTab(id as Tab)}
+      />
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+      <div className="flex-1 overflow-y-auto px-4 py-5 md:px-6">
         {tab === 'bourse' && (
           <>
             {active && (
@@ -1576,13 +1530,13 @@ export default function ExchangePage() {
                   {active.market_cap != null && (
                     <button 
                       onClick={handleRetroactiveFix} 
-                      style={{ background: '#442222', border: '1px solid #ff4444', color: '#ffaaaa', fontSize: '9px', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer' }}
+                      style={{ background: '#442222', border: '1px solid #ff4444', color: '#ffaaaa', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer' }}
                       title="Secret Admin Fix"
                     >
                       FIX IPO
                     </button>
                   )}
-                  <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase' }}>{active.industry_id} · {active.country_id}</div>
+                  <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase' }}>{active.industry_id} · {active.country_id}</div>
                 </div>
                 <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', rowGap: '8px' }}>
                   {[
@@ -1595,7 +1549,7 @@ export default function ExchangePage() {
                     ['Book Value', `$${fmtBig(Number(active.company_value))}`],
                   ].map(([k, v]) => (
                     <div key={k as string} style={{ minWidth: '60px' }}>
-                      <div style={{ ...mono, fontSize: '8px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{k}</div>
+                      <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{k}</div>
                       <div style={{ ...mono, fontSize: '12px', fontWeight: 700, color: T.ivory }}>{v}</div>
                     </div>
                   ))}

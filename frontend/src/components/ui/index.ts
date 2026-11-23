@@ -14,5 +14,6 @@ export { default as BackBar }        from './BackBar';
 export { default as TerminalPanel } from './TerminalPanel';
 export { default as ProgressBar }   from './ProgressBar';
 export { default as Tabs }          from './Tabs';
+export { default as PageHeader, HeaderStat } from './PageHeader';
 export { default as Tooltip }       from './Tooltip';
 export { cn }                       from './utils';

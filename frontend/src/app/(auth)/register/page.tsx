@@ -1,4 +1,6 @@
 'use client';
+// Same minimum as the server (backend/src/api/constants/auth.ts).
+const PASSWORD_MIN_LENGTH = 8;
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -17,7 +19,7 @@ export default function RegisterPage() {
     const p = form.password;
     if (!p) return 0;
     let score = 0;
-    if (p.length >= 6) score++;
+    if (p.length >= PASSWORD_MIN_LENGTH) score++;
     if (p.length >= 10) score++;
     if (/[A-Z]/.test(p)) score++;
     if (/[0-9]/.test(p)) score++;
@@ -36,8 +38,8 @@ export default function RegisterPage() {
       setError('Passwords do not match.');
       return;
     }
-    if (form.password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (form.password.length < PASSWORD_MIN_LENGTH) {
+      setError(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
       return;
     }
 
@@ -61,14 +63,14 @@ export default function RegisterPage() {
       <div className="w-full animate-auth-enter">
         <div className="flex flex-col items-center text-center py-4">
           {/* Success icon */}
-          <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-5 shadow-[0_0_30px_rgba(16,185,129,0.12)]">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-5 shadow-[0_0_30px_rgba(79,178,134,0.12)]">
             <svg className="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
 
           <div className="flex items-center gap-2 mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(79,178,134,0.8)]" />
             <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.3em]">Account Registered</span>
           </div>
 
@@ -162,13 +164,14 @@ export default function RegisterPage() {
                 onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                 autoComplete="new-password"
                 required
-                minLength={6}
+                minLength={PASSWORD_MIN_LENGTH}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(v => !v)}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
-                tabIndex={-1}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showPassword}
               >
                 {showPassword ? (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,7 +232,8 @@ export default function RegisterPage() {
                 type="button"
                 onClick={() => setShowConfirm(v => !v)}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
-                tabIndex={-1}
+                aria-label={showConfirm ? 'Hide password confirmation' : 'Show password confirmation'}
+              aria-pressed={showConfirm}
               >
                 {showConfirm ? (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -287,7 +291,7 @@ export default function RegisterPage() {
       {/* Divider */}
       <div className="flex items-center gap-3 my-5">
         <div className="flex-1 h-px bg-white/5" />
-        <span className="text-[10px] text-zinc-700 font-mono uppercase tracking-widest">or</span>
+        <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">or</span>
         <div className="flex-1 h-px bg-white/5" />
       </div>
 

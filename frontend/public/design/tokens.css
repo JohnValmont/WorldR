@@ -1,0 +1,116 @@
+/* =====================================================================
+   WORLDr design tokens — THE single source of colour, type, space,
+   radius, elevation and motion for every screen.
+
+   Used by:
+   - the Next.js app (linked in src/app/layout.tsx; Tailwind reads the
+     *-rgb channels in tailwind.config.ts, so `bg-surface/60` works)
+   - the static landing + sign-up pages (public/landing/*.html)
+   - inline-style code via src/lib/design/tokens.ts (hex mirror; kept in
+     sync by `npm run check:tokens`, which CI runs)
+
+   Rules (docs/DESIGN_SYSTEM.md):
+   - One dark material, one gold accent. Party and nation colours are the
+     only other hues, and they come from data, never from here.
+   - Text colours on any surface token pass WCAG AA (4.5:1) — text-faint is
+     the lowest; never put body text below it.
+   - Good/bad are for outcomes (profit/loss, yea/nay), not decoration.
+   ===================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* ── Surfaces: a 4-step ladder, darkest first ───────────────────── */
+  --bg-rgb: 11 13 18;          /* #0B0D12  page */
+  --surface-rgb: 19 22 30;     /* #13161E  cards, panels */
+  --raised-rgb: 27 31 41;      /* #1B1F29  inputs, nested cards, hover */
+  --overlay-rgb: 35 40 53;     /* #232835  menus, popovers, tooltips */
+  --bg: rgb(var(--bg-rgb));
+  --surface: rgb(var(--surface-rgb));
+  --raised: rgb(var(--raised-rgb));
+  --overlay: rgb(var(--overlay-rgb));
+
+  /* ── Lines ──────────────────────────────────────────────────────── */
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --line-solid: #262B36;       /* when a line must be opaque (tables) */
+
+  /* ── Text (contrast on --surface) ───────────────────────────────── */
+  --text-rgb: 236 234 228;     /* #ECEAE4  15.0:1 */
+  --text-dim-rgb: 163 164 172; /* #A3A4AC   7.3:1 secondary */
+  --text-faint-rgb: 134 137 148; /* #868994 4.9:1 meta, labels */
+  --text: rgb(var(--text-rgb));
+  --text-dim: rgb(var(--text-dim-rgb));
+  --text-faint: rgb(var(--text-faint-rgb));
+
+  /* ── Brand accent: Drennian gold ────────────────────────────────── */
+  --accent-rgb: 232 184 75;    /* #E8B84B  9.8:1 */
+  --accent-hi: #F4D58A;
+  --accent-lo: #B8892A;
+  --accent: rgb(var(--accent-rgb));
+  --accent-soft: rgba(232, 184, 75, 0.12);
+  --accent-line: rgba(232, 184, 75, 0.38);
+  --on-accent: #17130A;        /* text on gold, 10:1 */
+
+  /* ── Semantic ───────────────────────────────────────────────────── */
+  --good-rgb: 79 178 134;      /* #4FB286  gain, yea, success */
+  --bad-rgb: 217 98 90;        /* #D9625A  loss, nay, error */
+  --warn-rgb: 232 145 58;      /* #E8913A  needs attention */
+  --info-rgb: 106 166 232;     /* #6AA6E8  neutral information, links in data */
+  --good: rgb(var(--good-rgb));
+  --bad: rgb(var(--bad-rgb));
+  --warn: rgb(var(--warn-rgb));
+  --info: rgb(var(--info-rgb));
+
+  /* ── Type ───────────────────────────────────────────────────────── */
+  --font-display: 'Cinzel', 'Cormorant Garamond', Georgia, serif; /* brand, page titles */
+  --font-serif: 'Cormorant Garamond', Georgia, serif;             /* marketing prose */
+  --font-sans: 'Outfit', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; /* all UI */
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;  /* numbers, codes */
+  /* Scale (px): 10 label · 12 meta · 14 body · 16 lead · 20 h3 · 26 h2 · 34 h1 · 48+ display.
+     10px is the floor, and only for UPPERCASE tracked labels. */
+  --text-label: 10px;
+  --text-meta: 12px;
+  --text-body: 14px;
+  --text-lead: 16px;
+  --text-h3: 20px;
+  --text-h2: 26px;
+  --text-h1: 34px;
+
+  /* ── Space (4px grid) ───────────────────────────────────────────── */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px;
+  --gutter: clamp(16px, 3vw, 32px);
+  --page-max: 1720px;
+
+  /* ── Radius ─────────────────────────────────────────────────────── */
+  --radius-sm: 6px;   /* chips, small buttons */
+  --radius-md: 10px;  /* buttons, inputs */
+  --radius-lg: 16px;  /* cards */
+  --radius-xl: 20px;  /* hero cards, modals */
+  --radius-pill: 999px;
+
+  /* ── Elevation ──────────────────────────────────────────────────── */
+  --shadow-card: inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 40px -28px rgba(0,0,0,0.9);
+  --shadow-pop: 0 1px 0 rgba(255,255,255,0.05) inset, 0 24px 60px -20px rgba(0,0,0,0.85);
+  --shadow-accent: 0 8px 22px -12px rgba(232,184,75,0.8);
+  --sheen: linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0) 38%);
+
+  /* ── Focus ──────────────────────────────────────────────────────── */
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px rgba(232, 184, 75, 0.85);
+
+  /* ── Motion ─────────────────────────────────────────────────────── */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 120ms;   /* hover, press */
+  --dur-base: 200ms;   /* panels, tabs */
+  --dur-slow: 400ms;   /* page entry, modals */
+
+  /* ── Layers ─────────────────────────────────────────────────────── */
+  --z-nav: 40; --z-dropdown: 60; --z-chat: 70; --z-modal: 100; --z-toast: 120;
+}
+
+/* Reduced motion: keep state changes, drop travel and loops. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-base: 0ms; --dur-slow: 0ms; }
+}

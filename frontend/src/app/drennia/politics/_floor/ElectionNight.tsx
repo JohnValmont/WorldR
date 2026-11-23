@@ -93,7 +93,7 @@ export default function ElectionNight({ onClose }: { onClose: () => void }) {
             const on = i < shown;
             return (
               <div key={d.id} className="rounded-lg px-2 py-1.5 text-[11px] truncate transition-colors duration-500"
-                style={{ background: on ? (p?.color ?? T.raised) : T.surface, color: on ? '#0C0E13' : T.faint, fontWeight: on ? 700 : 400 }}>
+                style={{ background: on ? (p?.color ?? T.raised) : T.surface, color: on ? '#0B0D12' : T.faint, fontWeight: on ? 700 : 400 }}>
                 {d.name}
               </div>
             );

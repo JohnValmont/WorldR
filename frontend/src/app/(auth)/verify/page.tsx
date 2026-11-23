@@ -159,7 +159,7 @@ function VerifyForm() {
     return (
       <div className="w-full animate-auth-enter">
         <div className="flex flex-col items-center text-center py-6">
-          <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-5 shadow-[0_0_30px_rgba(16,185,129,0.15)]">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-5 shadow-[0_0_30px_rgba(79,178,134,0.15)]">
             <svg className="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -252,10 +252,10 @@ function VerifyForm() {
                   bg-zinc-900/80 text-zinc-100 outline-none transition-all duration-150
                   disabled:opacity-50 disabled:cursor-not-allowed
                   ${digit
-                    ? 'border-amber-500/60 shadow-[0_0_12px_rgba(245,158,11,0.15)]'
+                    ? 'border-amber-500/60 shadow-[0_0_12px_rgba(232,184,75,0.15)]'
                     : 'border-zinc-700/60 hover:border-zinc-600/60'
                   }
-                  focus:border-amber-500/80 focus:shadow-[0_0_16px_rgba(245,158,11,0.2)]
+                  focus:border-amber-500/80 focus:shadow-[0_0_16px_rgba(232,184,75,0.2)]
                   caret-transparent
                 `}
                 autoComplete="one-time-code"
@@ -263,7 +263,7 @@ function VerifyForm() {
             ))}
           </div>
           {/* Divider between digits 3 and 4 for readability */}
-          <p className="text-center text-[10px] text-zinc-700 font-mono mt-3 tracking-widest">
+          <p className="text-center text-[10px] text-zinc-600 font-mono mt-3 tracking-widest">
             {otp.length}/{OTP_LENGTH} digits entered
           </p>
         </div>

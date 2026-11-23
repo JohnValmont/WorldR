@@ -29,13 +29,13 @@ export default function EmptyState({
       'flex flex-col items-center justify-center text-center py-12 px-6 gap-3',
       className,
     )}>
-      <div className="w-10 h-10 rounded-full border border-[#23232b] bg-[#0c0d13] flex items-center justify-center mb-1">
+      <div className="w-10 h-10 rounded-full border border-[#262B36] bg-[#13161E] flex items-center justify-center mb-1">
         <Icon size={18} className="text-zinc-600" />
       </div>
       {heading && (
-        <p className="text-[12px] font-semibold text-zinc-400">{heading}</p>
+        <p className="text-[14px] font-semibold text-ink-dim">{heading}</p>
       )}
-      <p className="text-[11px] text-zinc-600 max-w-[280px] leading-relaxed font-mono italic">
+      <p className="text-[13px] text-ink-faint max-w-[300px] leading-relaxed">
         {message}
       </p>
       {action && (

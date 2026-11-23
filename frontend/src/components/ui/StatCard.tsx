@@ -36,8 +36,8 @@ const TrendIcon: Record<Trend, React.ElementType> = {
 const valueColorMap: Record<string, string> = {
   amber: 'text-terminal-amber amber-glow',
   green: 'text-terminal-green terminal-glow',
-  red:   'text-terminal-red shadow-[0_0_8px_#ff453a]',
-  blue:  'text-terminal-blue shadow-[0_0_8px_#0a84ff]',
+  red:   'text-terminal-red shadow-[0_0_8px_#D9625A]',
+  blue:  'text-terminal-blue shadow-[0_0_8px_#6AA6E8]',
   white: 'text-zinc-100',
 };
 
@@ -54,7 +54,7 @@ function MiniSparkline({ data, trend }: { data: SparklinePoint[], trend?: Trend 
     return `${x},${y}`;
   }).join(' ');
 
-  const strokeColor = trend === 'up' ? '#30d158' : trend === 'down' ? '#ff453a' : '#ff9f0a';
+  const strokeColor = trend === 'up' ? '#4FB286' : trend === 'down' ? '#D9625A' : '#E8B84B';
 
   return (
     <svg width={w} height={h} className="opacity-70">
@@ -104,11 +104,11 @@ export default function StatCard({
 
   return (
     <div className={cn(
-      'flex flex-col justify-between p-4 rounded-xl border border-[#23232b] bg-[#0c0d13] shadow-card',
+      'flex flex-col justify-between p-4 rounded-xl border border-[#262B36] bg-[#13161E] shadow-card',
       className
     )}>
       <div className="flex items-start justify-between gap-4 mb-2">
-        <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-zinc-500">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
           {label}
         </span>
         {trend && TIcon && (

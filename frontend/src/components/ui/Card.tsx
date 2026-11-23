@@ -46,10 +46,12 @@ export default function Card({
       onClick={onClick}
       style={style}
       className={cn(
-        'rounded-xl border border-[#23232b] bg-[#0c0d13]',
+        // Same material as the politics Card (_floor/kit.tsx): sheen, hairline, soft depth.
+        'rounded-2xl border border-line bg-surface shadow-card',
+        'bg-[linear-gradient(180deg,rgba(255,255,255,0.035)_0%,rgba(255,255,255,0)_38%)]',
         'transition-all duration-150',
-        hover && 'hover:border-zinc-700 hover:bg-[#0e0f17] cursor-pointer',
-        accent && 'border-l-2 border-l-terminal-amber',
+        hover && 'hover:border-line-strong hover:bg-raised cursor-pointer',
+        accent && 'border-accent/50',
         onClick && 'cursor-pointer',
         padMap[pad],
         className,
@@ -60,16 +62,16 @@ export default function Card({
           <div className="flex flex-col gap-0.5">
             {(kicker || Icon) && (
               <div className="flex items-center gap-1.5">
-                {Icon && <Icon size={11} className="text-terminal-amber opacity-80" />}
+                {Icon && <Icon size={13} className="text-accent" />}
                 {kicker && (
-                  <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-terminal-amber">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
                     {kicker}
                   </span>
                 )}
               </div>
             )}
             {title && (
-              <h2 className="text-sm font-semibold text-zinc-100 font-sans leading-tight">
+              <h2 className="text-[17px] font-semibold text-ink font-sans leading-tight">
                 {title}
               </h2>
             )}

@@ -101,7 +101,7 @@ export function BrandMilestoneTracker({ company, finances, models }: any) {
 
   return (
     <div className="mt-4 pt-4 border-t border-zinc-800/50">
-      <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.12em] mb-2 flex items-center justify-between">
+      <div className="text-[10px] text-zinc-500 uppercase tracking-[0.12em] mb-2 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
            <span>Current Cap</span>
            <button onClick={() => setShowAll(!showAll)} className="text-zinc-500 hover:text-terminal-amber transition-colors">

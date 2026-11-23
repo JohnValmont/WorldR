@@ -38,7 +38,7 @@ export default function ChatContextMenu({
           flexDirection: 'column'
         }}
       >
-        <div style={{ padding: '8px 12px', borderBottom: '1px solid #23273A', background: '#090A0F' }}>
+        <div style={{ padding: '8px 12px', borderBottom: '1px solid #23273A', background: '#0B0D12' }}>
           <span style={{ color: '#E8EAF2', fontSize: 12, fontWeight: 700, display: 'block', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
             {targetCharacterName}
           </span>

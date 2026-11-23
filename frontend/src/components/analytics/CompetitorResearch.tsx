@@ -79,7 +79,7 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
     <div className="w-full space-y-6 animate-in fade-in duration-500 text-zinc-300">
       
       {/* Purchase Controls */}
-      <div className="bg-[#0c0d13] border border-[#27272a] rounded-lg p-6 shadow-md">
+      <div className="bg-[#13161E] border border-[#27272a] rounded-lg p-6 shadow-md">
         <h3 className="text-xl font-cinzel text-zinc-200 mb-4 flex items-center gap-2">
           <Shield className="w-5 h-5 text-zinc-400" /> Commission Market Research
         </h3>
@@ -89,7 +89,7 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
 
         <div className="flex flex-col md:flex-row gap-6 items-end">
           <div className="flex-1 w-full">
-            <label className="block text-xs font-mono text-zinc-500 mb-2 uppercase tracking-wide">Target Segment</label>
+            <label className="block text-xs text-zinc-500 mb-2 uppercase tracking-wide">Target Segment</label>
             <select 
               value={selectedSegment}
               onChange={(e) => setSelectedSegment(e.target.value)}
@@ -103,7 +103,7 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
           </div>
 
           <div className="flex-1 w-full">
-            <label className="block text-xs font-mono text-zinc-500 mb-2 uppercase tracking-wide">Intelligence Tier</label>
+            <label className="block text-xs text-zinc-500 mb-2 uppercase tracking-wide">Intelligence Tier</label>
             <select 
               value={selectedTier}
               onChange={(e) => setSelectedTier(Number(e.target.value))}
@@ -124,7 +124,7 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
             ) : (
               <>
                 <ShoppingCart className="w-4 h-4" />
-                <span className="text-[#ff453a] font-bold mr-1">- ${selectedTier === 1 ? '25,000' : '100,000'}</span>
+                <span className="text-[#D9625A] font-bold mr-1">- ${selectedTier === 1 ? '25,000' : '100,000'}</span>
                 Buy
               </>
             )}
@@ -132,7 +132,7 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-[#1e0a0a] border border-[#ff453a] text-[#ff453a] rounded-md font-outfit text-sm flex items-center gap-2">
+          <div className="mt-4 p-3 bg-[#1e0a0a] border border-[#D9625A] text-[#D9625A] rounded-md font-outfit text-sm flex items-center gap-2">
             <AlertCircle className="w-4 h-4" /> {error}
           </div>
         )}
@@ -140,8 +140,8 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
 
       {/* Results Table */}
       {results && (
-        <div className="bg-[#0c0d13] border border-[#27272a] rounded-lg shadow-md overflow-hidden">
-          <div className="p-4 border-b border-[#23232b] bg-[#18181b] flex justify-between items-center">
+        <div className="bg-[#13161E] border border-[#27272a] rounded-lg shadow-md overflow-hidden">
+          <div className="p-4 border-b border-[#262B36] bg-[#18181b] flex justify-between items-center">
             <h4 className="font-cinzel text-zinc-200">Intelligence Report</h4>
             <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
               {purchasedTier === 2 ? <Unlock className="w-3 h-3 text-emerald-400" /> : <Lock className="w-3 h-3 text-amber-500" />}
@@ -151,7 +151,7 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
           
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm font-outfit">
-              <thead className="bg-[#121217] border-b border-[#23232b] text-zinc-400 font-mono text-xs uppercase tracking-wider">
+              <thead className="bg-[#121217] border-b border-[#262B36] text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3">Competitor</th>
                   <th className="px-4 py-3">Model</th>
@@ -164,7 +164,7 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
                   <th className="px-4 py-3 text-center" title="Cargo">CGO</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#23232b]">
+              <tbody className="divide-y divide-[#262B36]">
                 {results.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-8 text-center text-zinc-500 italic">No competitors found in this segment for the last month.</td>

@@ -7,13 +7,16 @@
 <meta name="description" content="Create your account and claim citizenship in the world of Aethan. Choose one of three nations: Drennia, Westmark or Eryndor." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/design/tokens.css" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<meta name="theme-color" content="#0B0D12" />
 <link rel="stylesheet" href="styles.css" />
 <link rel="stylesheet" href="onboarding.css" />
 </head>
 <body>
 
-<canvas id="scene"></canvas>
+<canvas id="scene" aria-hidden="true"></canvas>
 <div class="vignette" aria-hidden="true"></div>
 <div class="stage-scrim" aria-hidden="true"></div>
 <div class="grain" aria-hidden="true"></div>
@@ -24,14 +27,14 @@
 </header>
 
 <!-- stepper -->
-<div class="stepper"><div class="stepper-inner" id="stepper">
+<nav class="stepper" aria-label="Sign-up steps"><div class="stepper-inner" id="stepper">
   <div class="stp" data-node="0"><div class="node"><div class="ring">1</div><div class="lbl">Account</div></div><div class="bar"><i></i></div></div>
   <div class="stp" data-node="1"><div class="node"><div class="ring">2</div><div class="lbl">Verify</div></div><div class="bar"><i></i></div></div>
   <div class="stp" data-node="2"><div class="node"><div class="ring">3</div><div class="lbl">Who you are</div></div><div class="bar"><i></i></div></div>
   <div class="stp" data-node="3"><div class="node"><div class="ring">4</div><div class="lbl">Beliefs</div></div><div class="bar"><i></i></div></div>
   <div class="stp" data-node="4"><div class="node"><div class="ring">5</div><div class="lbl">Nation</div></div><div class="bar"><i></i></div></div>
   <div class="stp" data-node="5"><div class="node"><div class="ring">6</div><div class="lbl">Citizenship</div></div></div>
-</div></div>
+</div></nav>
 
 <main class="stage" id="stage">
 
@@ -49,7 +52,7 @@
       <div class="actions">
         <button class="btn btn-primary" data-next="0"><span>Request Access Code</span></button>
       </div>
-      <div class="status-line"><span class="pulse"></span><span>PRE-ALPHA ACCESS — limited to testers</span></div>
+      <div class="status-line"><span class="pulse"></span><span><span data-build>Closed alpha</span> — expect rebalancing and resets</span></div>
     </div>
   </section>
 
@@ -104,7 +107,7 @@
             <div class="field"><label>Family name</label><input type="text" id="ch_last" maxlength="28" placeholder="e.g. Varn" autocomplete="off" /><div class="msg">Needed.</div></div>
           </div>
           <div class="field"><label>How the papers refer to you</label>
-            <div class="seg" id="ch_gender"><button type="button" data-v="he" class="on">He</button><button type="button" data-v="she">She</button><button type="button" data-v="they">They</button></div>
+            <div class="seg" id="ch_gender" role="group" aria-label="Pronouns"><button type="button" data-v="they" class="on" aria-pressed="true">They</button><button type="button" data-v="she" aria-pressed="false">She</button><button type="button" data-v="he" aria-pressed="false">He</button></div>
           </div>
           <div class="field"><label>Your background</label>
             <div class="bg-grid" id="bgGrid"></div>
@@ -146,7 +149,7 @@
     <div class="card">
       <div class="card-eyebrow">✦ STEP 05 · ALLEGIANCE</div>
       <h2 class="card-title">Choose your nation</h2>
-      <p class="card-sub">Three nations are open in the alpha, six citizens each. None is stronger than the others overall, but each runs differently. Where you play changes how you win.</p>
+      <p class="card-sub">Three nations are open in the alpha, each with a limited number of places. None is stronger than the others overall, but each runs differently. Where you play changes how you win.</p>
       <div class="nation-cards" id="nationCards"></div>
       <div class="nation-detail" id="nationDetail"></div>
       <div class="others" id="otherNations"></div>
@@ -200,8 +203,9 @@
 </main>
 
 <script src="analytics.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }</script>
+<script src="failsafe.js"></script>
+<script src="vendor/gsap.min.js"></script>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
 <script type="module" src="onboarding.js"></script>
 </body>
 </html>

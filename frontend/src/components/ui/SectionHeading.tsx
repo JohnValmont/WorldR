@@ -30,7 +30,7 @@ export default function SectionHeading({
   const right = action ?? (viewAllHref ? (
     <Link
       href={viewAllHref}
-      className="text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-500 hover:text-terminal-amber transition-colors duration-150"
+      className="text-[13px] font-medium text-ink-dim hover:text-accent transition-colors duration-150"
     >
       {viewAllLabel}
     </Link>
@@ -40,11 +40,11 @@ export default function SectionHeading({
     <div className={cn('flex items-center justify-between mb-4', className)}>
       <div className="flex items-center gap-2">
         {Icon && <Icon size={13} className="text-terminal-amber" />}
-        <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-terminal-amber font-bold">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
           {children}
         </span>
         {stamp && (
-          <span className="text-[8px] font-mono text-zinc-600 border border-[#23232b] px-1.5 py-0.5 tracking-[0.1em] uppercase">
+          <span className="text-[10px] text-zinc-600 border border-[#262B36] px-1.5 py-0.5 tracking-[0.1em] uppercase">
             {stamp}
           </span>
         )}

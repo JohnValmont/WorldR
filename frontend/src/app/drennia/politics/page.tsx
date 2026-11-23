@@ -220,6 +220,7 @@ export default function PoliticsPage() {
             <div className="min-w-0">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] truncate" style={{ color: T.accent }}>{desk?.nation.officialName ?? 'Politics'}</div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" style={{ color: T.dim }}>
+                <h1 className="sr-only">Politics{desk ? ` · ${desk.nation.shortName}` : ''}</h1>
                 {desk && <span className="font-serif text-xl font-bold leading-none" style={{ color: T.text }}>{formatPolArc(desk.calendar.arc, false)}</span>}
                 {desk && !myNation?.election && <span>{PHASE_LABEL[desk.calendar.phase] ?? desk.calendar.phase}</span>}
                 <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs" style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.line}` }}
@@ -243,22 +244,22 @@ export default function PoliticsPage() {
           </div>
           {me && (
             <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: T.dim }} id="me-bar">
-              <div className="flex items-center gap-2.5 rounded-2xl pl-1.5 pr-3 py-1.5" style={{ background: 'rgba(255,255,255,0.035)', border: `1px solid ${T.line}` }}>
+              <div className="order-1 sm:order-none flex items-center gap-2.5 rounded-2xl pl-1.5 pr-3 py-1.5 min-w-0" style={{ background: 'rgba(255,255,255,0.035)', border: `1px solid ${T.line}` }}>
                 <span className="inline-flex items-center justify-center rounded-xl font-bold text-sm shrink-0"
-                  style={{ width: 34, height: 34, background: `linear-gradient(135deg, ${me.party?.color ?? '#3A4050'}, #1C202B)`, color: '#fff', boxShadow: `0 0 0 2px ${me.party?.color ?? T.line}55` }}>{initials}</span>
+                  style={{ width: 34, height: 34, background: `linear-gradient(135deg, ${me.party?.color ?? '#3A4050'}, #1B1F29)`, color: '#fff', boxShadow: `0 0 0 2px ${me.party?.color ?? T.line}55` }}>{initials}</span>
                 <div className="leading-tight min-w-0">
                   <div className="font-semibold text-sm truncate" style={{ color: T.text }}>{me.name}</div>
                   <div className="text-[11px] truncate" style={{ color: T.faint }}>{rung}{me.background ? ` · ${me.background.label}` : ''}</div>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl px-3 py-2 max-w-full" style={{ background: 'rgba(255,255,255,0.035)', border: `1px solid ${T.line}` }}>
+              <div className="order-3 sm:order-none w-full sm:w-auto flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl px-3 py-2 max-w-full" style={{ background: 'rgba(255,255,255,0.035)', border: `1px solid ${T.line}` }}>
                 <span className="inline-flex items-center gap-1.5" title="Energy: what you can do. Each month adds 12; unused energy carries over, up to 24."><Zap size={13} style={{ color: T.accent }} aria-hidden /><Energy current={me.ap.current} cap={me.ap.cap} /></span>
                 <span className="hidden sm:inline-block w-px h-4" style={{ background: T.line }} />
                 <span title="Trust: how far voters believe you. Counts in the district you stand in, and in every deal you offer." className="inline-flex items-center gap-1"><ShieldCheck size={13} aria-hidden />Trust <strong style={{ color: T.text }}>{me.credibility}</strong></span>
                 <span title="Clout: your weight among politicians. Needed to lead a party." className="inline-flex items-center gap-1"><Crown size={13} aria-hidden />Clout <strong style={{ color: T.text }}>{me.influence}</strong></span>
                 {me.cash != null && <span title="Your own money" className="inline-flex items-center gap-1"><Wallet size={13} aria-hidden /><strong style={{ color: T.text }}>{money(me.cash)}</strong></span>}
               </div>
-              <Inbox notices={desk!.desk.notices} onOpen={(t) => t && setTab((TABS.find(x => x.id === t)?.id ?? 'desk') as Tab)} onRead={() => politicsApi.markNoticesRead().then(() => mutate()).catch(() => {})} />
+              <div className="order-2 sm:order-none ml-auto sm:ml-0"><Inbox notices={desk!.desk.notices} onOpen={(t) => t && setTab((TABS.find(x => x.id === t)?.id ?? 'desk') as Tab)} onRead={() => politicsApi.markNoticesRead().then(() => mutate()).catch(() => {})} /></div>
             </div>
           )}
         </div>
@@ -288,8 +289,8 @@ export default function PoliticsPage() {
 
       <div className="mx-auto max-w-[1720px] px-4 sm:px-6 xl:px-8 py-5 xl:py-6 xl:grid xl:grid-cols-[232px_minmax(0,1fr)] xl:gap-8">
         {/* Wide screens: a navigation rail on the left. */}
-        <aside className="hidden xl:block">
-          <nav className="sticky top-5 rounded-2xl p-2 space-y-1.5" aria-label="Politics sections"
+        <aside className="hidden xl:block" aria-label="Politics navigation">
+          <nav className="sticky top-5 rounded-2xl p-2 space-y-1.5" aria-label="Politics sections (sidebar)"
             style={{ background: `linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0) 40%), ${T.surface}`, border: `1px solid ${T.line}`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 40px -28px rgba(0,0,0,0.9)' }}>
             {TABS.map(t => {
               const Icon = TAB_ICON[t.id];
@@ -321,7 +322,7 @@ export default function PoliticsPage() {
           </nav>
         </aside>
 
-      <main className="min-w-0">
+      <div className="min-w-0">
         {!desk && !error && <div className="py-24 text-center text-xs uppercase tracking-[0.3em]" style={{ color: T.faint }}>Opening the session…</div>}
         {error && !desk && (
           <div className="rounded-2xl p-5 text-sm" style={{ background: T.badSoft, border: `1px solid ${T.bad}` }}>
@@ -357,7 +358,7 @@ export default function PoliticsPage() {
             {electionOpen && el && <ElectionNight onClose={() => setElectionOpen(false)} />}
           </FloorContext.Provider>
         )}
-      </main>
+      </div>
       </div>
 
       {toast && (() => {

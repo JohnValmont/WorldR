@@ -5,20 +5,20 @@ import { Landmark, ShieldCheck, TrendingUp, ArrowRight, Wallet, Activity, Target
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 
 const T = {
-  bg: '#090A0F',
-  panel: '#11131A',
-  panelSoft: '#17151B',
-  paper: '#1E1A15',
-  border: '#2A2630',
-  borderGold: 'rgba(201,162,74,0.22)',
-  gold: '#C9A24A',
-  ivory: '#F4EBD6',
-  muted: '#A79D8C',
-  faint: '#6B6358',
-  mint: '#36D399',
+  bg: '#0B0D12',
+  panel: '#13161E',
+  panelSoft: '#1B1F29',
+  paper: '#1E1B14',
+  border: '#262B36',
+  borderGold: 'rgba(232,184,75,0.22)',
+  gold: '#E8B84B',
+  ivory: '#ECEAE4',
+  muted: '#A3A4AC',
+  faint: '#868994',
+  mint: '#4FB286',
   steel: '#4B6382',
   burgundy: '#8F3D3D',
-  red: '#B85555',
+  red: '#D9625A',
 };
 
 const BANKS = [
@@ -148,10 +148,10 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center w-full min-h-[500px] bg-[#090A0F]">
+      <div className="flex h-full items-center justify-center w-full min-h-[500px] bg-[#0B0D12]">
         <div className="flex flex-col items-center gap-4 animate-pulse">
           <Landmark size={32} className="text-terminal-amber opacity-50" />
-          <div className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest">Accessing Financial District...</div>
+          <div className="text-[11px] text-zinc-500 uppercase tracking-widest">Accessing Financial District...</div>
         </div>
       </div>
     );
@@ -206,7 +206,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
       return (
         <div className="p-6 md:p-8 max-w-5xl space-y-6 animate-slide-in">
           <h3 className="font-serif text-2xl font-bold text-zinc-100">Active Debt Schedule</h3>
-          <div className="bg-[#11131A] border border-zinc-800 rounded-lg p-8 flex flex-col items-center justify-center min-h-[300px]">
+          <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-8 flex flex-col items-center justify-center min-h-[300px]">
             <Activity size={32} className="text-zinc-800 mb-4" />
             <div className="text-zinc-500 text-sm">No active debt facilities.</div>
           </div>
@@ -218,7 +218,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
       return (
         <div className="p-6 md:p-8 max-w-5xl space-y-6 animate-slide-in">
           <h3 className="font-serif text-2xl font-bold text-zinc-100">Treasury & Wealth</h3>
-          <div className="bg-[#11131A] border border-zinc-800 rounded-lg p-8 flex flex-col items-center justify-center min-h-[300px]">
+          <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-8 flex flex-col items-center justify-center min-h-[300px]">
             <Wallet size={32} className="text-zinc-800 mb-4" />
             <div className="text-zinc-500 text-sm">Wealth management systems are currently offline.</div>
           </div>
@@ -230,12 +230,12 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#090A0F]">
+    <div className="flex flex-col h-full bg-[#0B0D12]">
       {/* Optional Top Bar if needed, but since it's full screen, it's covered by sidebar layout */}
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
         
         {/* ── MASTER SIDEBAR ── */}
-        <div className="flex md:flex-col gap-1.5 md:min-w-[220px] md:max-w-[220px] md:border-r border-zinc-800 pr-5 pt-5 overflow-x-auto bg-[#090A0F] shrink-0">
+        <div className="flex md:flex-col gap-1.5 md:min-w-[220px] md:max-w-[220px] md:border-r border-zinc-800 pr-5 pt-5 overflow-x-auto bg-[#0B0D12] shrink-0">
           <div className="px-4 mb-6 flex flex-col gap-4">
             <div className="flex items-center gap-2">
               <Landmark size={18} className="text-terminal-amber" />
@@ -244,9 +244,9 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
             
             {myCompanies.length > 0 && (
               <div className="flex flex-col gap-1.5 mt-2">
-                <span className="text-[9px] uppercase font-mono text-zinc-500 tracking-widest">Active Corporation</span>
+                <span className="text-[10px] uppercase text-zinc-500 tracking-widest">Active Corporation</span>
                 <select 
-                  className="bg-[#11131A] text-zinc-300 text-[11px] font-mono border border-zinc-800 rounded px-2 py-1.5 focus:outline-none focus:border-terminal-amber truncate max-w-[170px]"
+                  className="bg-[#13161E] text-zinc-300 text-[11px] font-mono border border-zinc-800 rounded px-2 py-1.5 focus:outline-none focus:border-terminal-amber truncate max-w-[170px]"
                   value={activeCompany?.id || ''}
                   onChange={(e) => {
                     const found = myCompanies.find(c => c.id === e.target.value);
@@ -288,7 +288,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
         </div>
 
         {/* ── MAIN CONTENT AREA ── */}
-        <div className="flex-1 overflow-y-auto bg-[#090A0F]">
+        <div className="flex-1 overflow-y-auto bg-[#0B0D12]">
           {renderContent()}
         </div>
 
@@ -313,14 +313,14 @@ function FinancialDistrict({ banks, onSelectBank }: any) {
         {banks.map((bank: any) => (
           <div 
             key={bank.id} 
-            className="bg-[#11131A] border border-zinc-800 rounded-lg p-6 hover:border-zinc-600 transition-colors cursor-pointer group relative overflow-hidden flex flex-col"
+            className="bg-[#13161E] border border-zinc-800 rounded-lg p-6 hover:border-zinc-600 transition-colors cursor-pointer group relative overflow-hidden flex flex-col"
             onClick={() => onSelectBank(bank.id)}
           >
             {/* Hover flare */}
             <div className="absolute -inset-10 opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none" style={{ background: `radial-gradient(circle, ${bank.color} 0%, transparent 70%)` }} />
             
             <div className="flex items-center gap-3 mb-4 relative z-10">
-              <div className="w-10 h-10 rounded bg-[#1E1A15] border border-zinc-800 flex items-center justify-center shadow-inner" style={{ color: bank.color }}>
+              <div className="w-10 h-10 rounded bg-[#1E1B14] border border-zinc-800 flex items-center justify-center shadow-inner" style={{ color: bank.color }}>
                 <Landmark size={20} />
               </div>
               <div className="font-serif font-bold text-zinc-100 text-lg leading-tight">{bank.name}</div>
@@ -331,7 +331,7 @@ function FinancialDistrict({ banks, onSelectBank }: any) {
             </div>
             
             <div className="pt-4 border-t border-zinc-800/50 flex justify-between items-center relative z-10">
-              <span className="text-[10px] font-mono uppercase text-zinc-500">Enter Portal</span>
+              <span className="text-[10px] uppercase text-zinc-500">Enter Portal</span>
               <ArrowRight size={14} className="text-zinc-600 group-hover:text-zinc-300 transition-colors transform group-hover:translate-x-1" />
             </div>
           </div>
@@ -372,8 +372,8 @@ function FinancialProfile({ company, personalDossier, corporateDossier, getRatin
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Scores */}
         <div className="col-span-1 flex flex-col gap-4">
-          <div className="bg-[#11131A] border border-zinc-800 rounded-lg p-6 flex-1 flex flex-col justify-center">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2">Personal Rating</div>
+          <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-6 flex-1 flex flex-col justify-center">
+            <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Personal Rating</div>
             <div className="flex items-baseline gap-3">
               <div className="text-4xl font-serif font-bold" style={{ color: getRatingColor(personalDossier?.ratingTier || 'D') }}>
                 {personalDossier?.ratingTier || 'N/A'}
@@ -381,8 +381,8 @@ function FinancialProfile({ company, personalDossier, corporateDossier, getRatin
               <div className="text-xs text-zinc-400">Score: {personalDossier?.riskScore || 0}/100</div>
             </div>
           </div>
-          <div className={`bg-[#11131A] border border-zinc-800 rounded-lg p-6 flex-1 flex flex-col justify-center ${!company ? 'opacity-50 grayscale' : ''}`}>
-            <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2">Corporate Rating</div>
+          <div className={`bg-[#13161E] border border-zinc-800 rounded-lg p-6 flex-1 flex flex-col justify-center ${!company ? 'opacity-50 grayscale' : ''}`}>
+            <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Corporate Rating</div>
             {company ? (
               <div className="flex items-baseline gap-3">
                 <div className="text-4xl font-serif font-bold" style={{ color: getRatingColor(corporateDossier?.ratingTier || 'D') }}>
@@ -397,13 +397,13 @@ function FinancialProfile({ company, personalDossier, corporateDossier, getRatin
         </div>
 
         {/* Radar Chart */}
-        <div className="col-span-1 bg-[#11131A] border border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[250px]">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">The 5 C's (Consolidated)</div>
+        <div className="col-span-1 bg-[#13161E] border border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[250px]">
+          <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">The 5 C's (Consolidated)</div>
           <div className="w-full flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                <PolarGrid stroke="#2A2630" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: '#A79D8C', fontSize: 9 }} />
+                <PolarGrid stroke="#262B36" />
+                <PolarAngleAxis dataKey="subject" tick={{ fill: '#A3A4AC', fontSize: 10 }} />
                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                 <Radar name="Credit" dataKey="value" stroke={T.gold} fill={T.gold} fillOpacity={0.2} />
               </RadarChart>
@@ -412,8 +412,8 @@ function FinancialProfile({ company, personalDossier, corporateDossier, getRatin
         </div>
 
         {/* Pie Chart */}
-        <div className="col-span-1 bg-[#11131A] border border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[250px]">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">Debt to Asset Ratio</div>
+        <div className="col-span-1 bg-[#13161E] border border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[250px]">
+          <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">Debt to Asset Ratio</div>
           <div className="w-full flex-1 relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -431,7 +431,7 @@ function FinancialProfile({ company, personalDossier, corporateDossier, getRatin
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#1E1A15', border: '1px solid #2A2630', fontSize: '11px', color: '#F4EBD6' }} />
+                <Tooltip contentStyle={{ backgroundColor: '#1E1B14', border: '1px solid #262B36', fontSize: '11px', color: '#ECEAE4' }} />
               </PieChart>
             </ResponsiveContainer>
             {/* Center text manually */}
@@ -456,9 +456,9 @@ function MetricRow({ label, value, desc, alert = false }: { label: string, value
     <div className="flex items-center justify-between py-2 border-b border-zinc-800/50 last:border-0">
       <div>
         <div className="text-[11px] text-zinc-300 font-medium">{label}</div>
-        <div className="text-[9px] text-zinc-500">{desc}</div>
+        <div className="text-[10px] text-zinc-500">{desc}</div>
       </div>
-      <div className={`text-[12px] font-mono font-bold ${alert ? 'text-[#B85555]' : 'text-[#F4EBD6]'}`}>
+      <div className={`text-[12px] font-mono font-bold ${alert ? 'text-[#D9625A]' : 'text-[#ECEAE4]'}`}>
         {value}
       </div>
     </div>
@@ -479,22 +479,22 @@ function FacilityCard({
   else if (isDistressedOnly && (dossier.metrics.capacity >= 0 && dossier.ratingTier !== 'D' && dossier.ratingTier !== 'CCC')) disabledReason = "Not Distressed";
 
   return (
-    <div className={`bg-[#1E1A15] border ${isDistressedOnly ? 'border-[#8F3D3D]' : 'border-[#2A2630]'} p-5 rounded-lg flex flex-col hover:border-zinc-700 transition-colors`}>
+    <div className={`bg-[#1E1B14] border ${isDistressedOnly ? 'border-[#8F3D3D]' : 'border-[#262B36]'} p-5 rounded-lg flex flex-col hover:border-zinc-700 transition-colors`}>
       <div className="flex justify-between items-start mb-2">
-        <div className={`text-sm font-bold ${isDistressedOnly ? 'text-[#ff8888]' : 'text-[#F4EBD6]'}`}>{title}</div>
+        <div className={`text-sm font-bold ${isDistressedOnly ? 'text-[#ff8888]' : 'text-[#ECEAE4]'}`}>{title}</div>
         <div className={`text-xs font-mono font-bold ${isDistressedOnly ? 'text-[#ff8888]' : ''}`} style={{ color: !isDistressedOnly ? accentColor : undefined }}>{rate}</div>
       </div>
-      <div className="text-[11px] text-[#A79D8C] mb-6 flex-1 leading-relaxed">{desc}</div>
+      <div className="text-[11px] text-[#A3A4AC] mb-6 flex-1 leading-relaxed">{desc}</div>
       
       {disabledReason ? (
-        <button disabled className="w-full bg-[#11131A] border border-zinc-800 text-zinc-600 py-2.5 text-[10px] font-mono uppercase tracking-widest rounded cursor-not-allowed">
+        <button disabled className="w-full bg-[#13161E] border border-zinc-800 text-zinc-600 py-2.5 text-[10px] uppercase tracking-widest rounded cursor-not-allowed">
           {disabledReason}
         </button>
       ) : (
         <button 
           onClick={() => onApply(type, amount)}
           disabled={isSubmitting}
-          className={`w-full py-2.5 text-[10px] font-mono uppercase tracking-widest rounded transition-all shadow-sm
+          className={`w-full py-2.5 text-[10px] uppercase tracking-widest rounded transition-all shadow-sm
             ${isDistressedOnly 
               ? 'bg-[#8F3D3D]/10 border border-[#8F3D3D] text-[#ff8888] hover:bg-[#8F3D3D]/30'
               : 'border hover:opacity-80'

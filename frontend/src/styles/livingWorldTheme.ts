@@ -5,35 +5,35 @@
 export const livingWorldTheme = {
   colors: {
     background: {
-      pageBg: '#090A0F',
+      pageBg: '#0B0D12',
       pageBgAlt: '#0D0E14',
-      panelBg: '#11131A',
-      panelBgSoft: '#17151B',
+      panelBg: '#13161E',
+      panelBgSoft: '#1B1F29',
       panelBgDeep: '#15110E',
-      darkPaper: '#1E1A15',
+      darkPaper: '#1E1B14',
     },
     borders: {
-      borderMuted: 'rgba(201,162,74,0.12)',
-      borderStrong: 'rgba(201,162,74,0.32)',
+      borderMuted: 'rgba(232,184,75,0.12)',
+      borderStrong: 'rgba(232,184,75,0.32)',
       borderCool: 'rgba(42,38,48,0.8)',
-      borderSubtle: '#2A2630',
+      borderSubtle: '#262B36',
     },
     text: {
-      textPrimary: '#F4EBD6',
+      textPrimary: '#ECEAE4',
       textSecondary: '#C5B99A',
-      textMuted: '#A79D8C',
-      textFaint: '#6B6358',
+      textMuted: '#A3A4AC',
+      textFaint: '#868994',
     },
     accents: {
-      gold: '#C9A24A',
+      gold: '#E8B84B',
       goldBright: '#E0B85A',
       goldSoft: '#8A6E2A',
-      cashMint: '#36D399',
-      emerald: '#36D399',    // alias kept for backward-compat
+      cashMint: '#4FB286',
+      emerald: '#4FB286',    // alias kept for backward-compat
       steelBlue: '#4B6382',
-      dangerRed: '#B85555',  // alias kept for backward-compat
+      dangerRed: '#D9625A',  // alias kept for backward-compat
       burgundy: '#8F3D3D',
-      burgundyLight: '#B85555',
+      burgundyLight: '#D9625A',
       warningAmber: '#C08B3D',
     },
   },
@@ -48,16 +48,16 @@ export const livingWorldTheme = {
 
 // ─── Design tokens as CSS variables (for use in globals.css if needed) ──────────
 export const CSS_VARS = {
-  '--bg': '#090A0F',
-  '--panel': '#11131A',
-  '--panel-soft': '#17151B',
-  '--paper': '#1E1A15',
-  '--border': '#2A2630',
-  '--gold': '#C9A24A',
+  '--bg': '#0B0D12',
+  '--panel': '#13161E',
+  '--panel-soft': '#1B1F29',
+  '--paper': '#1E1B14',
+  '--border': '#262B36',
+  '--gold': '#E8B84B',
   '--gold-bright': '#E0B85A',
-  '--ivory': '#F4EBD6',
-  '--muted': '#A79D8C',
-  '--mint': '#36D399',
+  '--ivory': '#ECEAE4',
+  '--muted': '#A3A4AC',
+  '--mint': '#4FB286',
   '--steel': '#4B6382',
   '--burgundy': '#8F3D3D',
 };

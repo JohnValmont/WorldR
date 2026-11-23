@@ -97,13 +97,13 @@ const pct1 = (x: number) => `${(x * 100).toFixed(1)}%`;
 
 function Tabs2<T extends string>({ value, options, onChange }: { value: T; options: { id: T; label: string }[]; onChange: (v: T) => void }) {
   return (
-    <div className="flex gap-3 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+    <div className="flex gap-4 text-[12px] font-medium text-ink-dim">
       {options.map(o => (
         <button
           key={o.id}
           type="button"
           onClick={() => onChange(o.id)}
-          className={value === o.id ? 'text-terminal-amber border-b border-terminal-amber pb-0.5' : 'hover:text-zinc-300 pb-0.5'}
+          className={value === o.id ? 'text-accent border-b-2 border-accent pb-1' : 'hover:text-ink pb-1 border-b-2 border-transparent'}
         >
           {o.label}
         </button>
@@ -117,7 +117,7 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
   return (
     <div>
       <div className={`text-[14px] font-mono font-bold ${color}`}>{value}</div>
-      <div className="text-[8px] font-mono uppercase tracking-[0.12em] text-zinc-600">{label}</div>
+      <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">{label}</div>
     </div>
   );
 }
@@ -125,7 +125,7 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#0c0d13] border border-[#23232b] px-3 py-2 rounded-lg text-[10px] font-mono shadow-card">
+    <div className="bg-[#13161E] border border-[#262B36] px-3 py-2 rounded-lg text-[10px] font-mono shadow-card">
       <p className="text-zinc-500 mb-0.5 uppercase tracking-wider">{label}</p>
       <p className="text-terminal-amber font-bold">${Number(payload[0].value).toLocaleString('en-US')}</p>
     </div>
@@ -304,7 +304,7 @@ export default function ChroniclePage() {
   const delta = netWorth - prev;
   const deltaPct = prev ? (delta / Math.abs(prev)) * 100 : 0;
   const up = delta >= 0;
-  const accent = up ? '#30d158' : '#ff453a';
+  const accent = up ? '#4FB286' : '#D9625A';
 
   const titleLine = me
     ? [me.office ?? RUNG_LABEL[me.rung] ?? me.rung, me.isPartyLeader && !me.office ? 'party leader' : null].filter(Boolean).join(', ')
@@ -330,7 +330,7 @@ export default function ChroniclePage() {
           <Link
             key={t.id}
             href={t.href}
-            className={`flex items-start gap-2.5 rounded-lg px-3 py-2 text-[12px] leading-snug border transition-colors ${t.urgent ? 'border-terminal-amber/30 bg-terminal-amber/5 text-zinc-100 hover:border-terminal-amber/60' : 'border-[#23232b] text-zinc-400 hover:border-zinc-700'}`}
+            className={`flex items-start gap-2.5 rounded-lg px-3 py-2 text-[12px] leading-snug border transition-colors ${t.urgent ? 'border-terminal-amber/30 bg-terminal-amber/5 text-zinc-100 hover:border-terminal-amber/60' : 'border-[#262B36] text-zinc-400 hover:border-zinc-700'}`}
           >
             {t.done
               ? <CheckCircle2 size={13} className="text-terminal-green mt-0.5 shrink-0" />
@@ -354,16 +354,19 @@ export default function ChroniclePage() {
   );
 
   const inboxPanel = !notices ? <SkeletonRows n={4} /> : notices.items.length === 0 ? (
-    <p className="text-[11px] text-zinc-500 leading-relaxed">
-      Nothing yet. Deal offers, challenges, votes on your bills and your world rank will show up here.
-    </p>
+    <div className="flex flex-col items-start gap-2">
+      <p className="text-[13px] text-ink-dim leading-relaxed">
+        Nothing yet. Deal offers, challenges, votes on your bills and your world rank land here.
+      </p>
+      <Link href={pol('corridors')} className="text-[13px] font-medium text-accent hover:underline underline-offset-2">Meet the other players in Corridors →</Link>
+    </div>
   ) : (
     <div className="flex flex-col">
       {notices.items.slice(0, INBOX_LIMIT).map((n: Notice) => (
         <Link
           key={n.id}
           href={n.tab ? pol(n.tab) : pol('desk')}
-          className={`py-2 px-2 -mx-2 rounded border-b border-[#23232b] last:border-0 hover:bg-zinc-900/40 ${n.read ? '' : 'bg-terminal-amber/5'}`}
+          className={`py-2 px-2 -mx-2 rounded border-b border-[#262B36] last:border-0 hover:bg-zinc-900/40 ${n.read ? '' : 'bg-terminal-amber/5'}`}
         >
           <div className="flex items-start gap-2">
             {!n.read && <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-terminal-amber shrink-0" />}
@@ -393,14 +396,17 @@ export default function ChroniclePage() {
   ) : undefined;
 
   const ledgerPanel = !desk ? <SkeletonRows n={3} /> : desk.news.length === 0 ? (
-    <p className="text-[11px] text-zinc-500 italic">No national news yet. Bills, elections and scandals will be reported here.</p>
+    <div className="flex flex-col items-start gap-2">
+      <p className="text-[13px] text-ink-dim leading-relaxed">No news yet. The Meridian Wire reports bills, votes and elections when the month turns.</p>
+      <Link href={pol('wire')} className="text-[13px] font-medium text-accent hover:underline underline-offset-2">Write the first dispatch for the Wire →</Link>
+    </div>
   ) : (
     <div className="flex flex-col">
       {desk.news.slice(0, NEWS_LIMIT).map(ev => (
-        <div key={ev.id} className="py-2 border-b border-[#23232b] last:border-0">
+        <div key={ev.id} className="py-2 border-b border-[#262B36] last:border-0">
           <div className="flex items-baseline justify-between gap-3">
             <div className="text-[12px] font-semibold text-zinc-200 leading-snug">{ev.headline}</div>
-            <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-wider shrink-0">{formatPolArc(ev.arc)}</div>
+            <div className="text-[10px] text-zinc-600 uppercase tracking-wider shrink-0">{formatPolArc(ev.arc)}</div>
           </div>
           <div className="text-[11px] text-zinc-500 leading-snug mt-0.5 line-clamp-1">{ev.body}</div>
         </div>
@@ -412,13 +418,13 @@ export default function ChroniclePage() {
     <p className="text-[11px] text-zinc-500 italic">The first edition prints when the politics month turns.</p>
   ) : (
     <>
-      <h3 className="text-[14px] font-bold text-zinc-100 leading-snug" style={{ fontFamily: 'Georgia, serif' }}>
+      <h3 className="text-[14px] font-bold text-zinc-100 leading-snug" style={{ fontFamily: "'Cinzel', Georgia, serif" }}>
         {wire.edition.headline}
       </h3>
       <div className="flex flex-col mt-1">
         {wire.edition.stories.slice(0, NEWS_LIMIT).map((s, i) => (
-          <div key={i} className="py-1.5 border-b border-[#23232b] last:border-0 flex items-baseline gap-2">
-            <span className="text-[9px] font-mono uppercase tracking-widest text-terminal-amber/80 w-16 shrink-0 truncate">{s.nationName}</span>
+          <div key={i} className="py-1.5 border-b border-[#262B36] last:border-0 flex items-baseline gap-2">
+            <span className="text-[10px] uppercase tracking-widest text-terminal-amber/80 w-16 shrink-0 truncate">{s.nationName}</span>
             <span className="text-[12px] text-zinc-200 leading-snug">{s.headline}</span>
           </div>
         ))}
@@ -441,7 +447,7 @@ export default function ChroniclePage() {
       <div className="flex items-center gap-2.5 mb-2.5">
         <Flag flag={myNation.flag} width={26} />
         <div className="min-w-0 flex-1">
-          <div className="text-[12px] font-semibold text-zinc-100 truncate">{myNation.name} <span className="text-[8px] font-mono uppercase tracking-widest text-terminal-amber ml-1">Home</span></div>
+          <div className="text-[12px] font-semibold text-zinc-100 truncate">{myNation.name} <span className="text-[10px] uppercase tracking-widest text-terminal-amber ml-1">Home</span></div>
           <div className="text-[10px] text-zinc-500 truncate">
             {PHASE_LABEL[desk.calendar.phase] ?? desk.calendar.phase}
             {myNation.monthsToElection != null && desk.calendar.phase === 'governing' && ` · election in ${myNation.monthsToElection} mo`}
@@ -469,7 +475,7 @@ export default function ChroniclePage() {
         <Link
           key={n.polStateCode}
           href={pol('nation')}
-          className="flex items-center gap-3 rounded-lg px-2.5 py-2 border border-[#23232b] hover:border-zinc-700 transition-colors"
+          className="flex items-center gap-3 rounded-lg px-2.5 py-2 border border-[#262B36] hover:border-zinc-700 transition-colors"
         >
           <Flag flag={n.flag} width={26} />
           <div className="min-w-0 flex-1">
@@ -478,7 +484,7 @@ export default function ChroniclePage() {
           </div>
           <div className="text-right shrink-0">
             <div className="text-[12px] font-mono text-zinc-200" title="Government approval">{Math.round(n.approval)}%</div>
-            {n.sim && <div className="text-[9px] text-zinc-500 capitalize">{n.sim.tier}</div>}
+            {n.sim && <div className="text-[10px] text-zinc-500 capitalize">{n.sim.tier}</div>}
           </div>
         </Link>
       ))}
@@ -531,7 +537,7 @@ export default function ChroniclePage() {
                 {leaderboardTab === 'marketCap' && <div className="text-[10px] text-zinc-500 capitalize">{r.industry_id?.replace(/[_-]/g, ' ')}</div>}
               </div>
               <span className="text-[12px] font-mono text-terminal-amber">{formatMoney(value)}</span>
-              <span className={`w-3 text-[9px] ${trend > 0 ? 'text-green-500' : trend < 0 ? 'text-red-500' : 'text-zinc-600'}`}>
+              <span className={`w-3 text-[10px] ${trend > 0 ? 'text-green-500' : trend < 0 ? 'text-red-500' : 'text-zinc-600'}`}>
                 {trend > 0 ? '▲' : trend < 0 ? '▼' : '–'}
               </span>
             </div>
@@ -545,7 +551,7 @@ export default function ChroniclePage() {
     <>
       <WorldThisMonth bare />
       <div className="flex justify-between items-end mt-4 mb-1">
-        <span className="text-[9px] font-mono text-terminal-amber uppercase tracking-[0.2em]">Best-selling cars</span>
+        <span className="text-[10px] text-terminal-amber uppercase tracking-[0.2em]">Best-selling cars</span>
         <Tabs2 value={bestSellersTab} onChange={setBestSellersTab} options={[{ id: 'monthly', label: 'Month' }, { id: 'allTime', label: 'All time' }]} />
       </div>
       {(() => {
@@ -580,7 +586,7 @@ export default function ChroniclePage() {
   ];
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#090A0F] text-zinc-100 overflow-hidden scanlines relative">
+    <div className="flex flex-col h-full w-full bg-[#0B0D12] text-zinc-100 overflow-hidden scanlines relative">
       {showFirstDay && (
         <FirstDayModal characterName={characterName} citizenFile={citizenFile} onDismiss={() => setShowFirstDay(false)} />
       )}
@@ -588,15 +594,13 @@ export default function ChroniclePage() {
       {showGuideModal && <GuideModal onDismiss={() => setShowGuideModal(false)} />}
 
       {/* ── Top bar: who, your numbers, the clock ─────────────────────────── */}
-      <header className="flex items-center justify-between px-4 md:px-6 py-2 border-b border-[#23232b] bg-[#0c0d13] shrink-0 gap-x-4 gap-y-2 flex-wrap">
+      <header className="flex items-center justify-between px-4 md:px-6 py-2.5 border-b border-line bg-surface/60 shrink-0 gap-x-4 gap-y-2 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-[10px] font-mono font-black tracking-[0.25em] text-terminal-amber amber-glow">WORLDr</span>
-          <span className="w-px h-4 bg-[#23232b]" />
           <StatusDot variant="live" />
           <span className="text-[13px] font-semibold text-zinc-100 truncate">{characterName}</span>
         </div>
 
-        <div className="order-last sm:order-none w-full sm:w-auto flex items-center gap-2 flex-nowrap overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible">
+        <div tabIndex={0} role="group" aria-label="Your numbers" className="order-last sm:order-none w-full sm:w-auto flex items-center gap-2 flex-nowrap overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible rounded-lg">
           <StatChip label="Cash $" value={playerCash} prefix="$" valueColor="green" countUp />
           <StatChip label="Credibility" value={citizenFile?.credibility ?? 50} />
           <StatChip label="Charisma" value={citizenFile?.charisma ?? 50} />
@@ -607,9 +611,6 @@ export default function ChroniclePage() {
         <div className="flex items-center gap-3">
           <WorldTimeControl />
           <NotificationBell />
-          <button type="button" onClick={() => setShowGuideModal(true)} className="flex items-center gap-1 text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-500 hover:text-terminal-amber transition-colors">
-            <Book size={11} /> Guide
-          </button>
         </div>
       </header>
 
@@ -627,7 +628,7 @@ export default function ChroniclePage() {
           <div className="flex flex-col gap-4">
 
             {/* ── You: identity, career ladder, net worth, main buttons ────── */}
-            <div className="rounded-xl border border-[#2a2630] bg-gradient-to-br from-[#0d0e15] via-[#111320] to-[#0c0d13] p-4 md:p-5" style={{ boxShadow: '0 0 40px rgba(201,162,74,0.04) inset, 0 1px 0 rgba(201,162,74,0.08)' }}>
+            <div className="rounded-xl border border-[#262B36] bg-gradient-to-br from-[#0d0e15] via-[#111320] to-[#13161E] p-4 md:p-5" style={{ boxShadow: '0 0 40px rgba(232,184,75,0.04) inset, 0 1px 0 rgba(232,184,75,0.08)' }}>
               <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
                 {/* Identity */}
                 <div className="min-w-0 flex-1 flex items-start gap-3">
@@ -649,7 +650,7 @@ export default function ChroniclePage() {
                 {ladder.length > 0 && (
                   <Link href={pol('desk')} className="md:w-52 min-w-0 group" title="Your political career: eight rungs from citizen to world statesman">
                     <div className="flex items-baseline justify-between mb-1.5">
-                      <span className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Career</span>
+                      <span className="text-[10px] uppercase tracking-[0.15em] text-zinc-600">Career</span>
                       <span className="text-[10px] text-zinc-500">{rungIdx + 1}/{ladder.length}</span>
                     </div>
                     <div className="flex gap-1">
@@ -663,7 +664,7 @@ export default function ChroniclePage() {
                 <div className="flex items-center gap-4 shrink-0">
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-600">Net worth</span>
+                      <span className="text-[10px] uppercase tracking-[0.15em] text-zinc-600">Net worth</span>
                       <button
                         type="button"
                         onClick={handleRecalculateHistory}
@@ -749,7 +750,7 @@ export default function ChroniclePage() {
               <button
                 type="button"
                 onClick={handleRestartLife}
-                className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.12em] text-zinc-600 hover:text-terminal-red transition-colors"
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] text-ink-faint hover:text-bad transition-colors"
               >
                 <LogOut size={11} /> Restart life
               </button>

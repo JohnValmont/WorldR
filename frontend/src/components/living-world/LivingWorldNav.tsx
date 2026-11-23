@@ -10,10 +10,10 @@ import { authApi } from '../../lib/api';
 // Active top-level tabs: Chronicle, Business, Market, Records, Network, World.
 // Politics is open to every player (Phase 2).
 
-const GOLD = '#C9A24A';
-const GOLD_BG = 'rgba(201,162,74,0.10)';
-const GOLD_BORDER = 'rgba(201,162,74,0.30)';
-const MUTED = '#A79D8C';
+const GOLD = '#E8B84B';
+const GOLD_BG = 'rgba(232,184,75,0.10)';
+const GOLD_BORDER = 'rgba(232,184,75,0.30)';
+const MUTED = '#A3A4AC';
 
 const TABS = [
   { name: 'Chronicle', path: '/drennia/chronicle' },
@@ -42,7 +42,7 @@ export default function LivingWorldNav() {
   return (
     <nav
       className="w-full flex items-center overflow-x-auto scrollbar-hide"
-      style={{ height: '48px', marginBottom: '20px', gap: '2px', borderBottom: '1px solid rgba(201,162,74,0.08)' }}
+      style={{ height: '48px', marginBottom: '20px', gap: '2px', borderBottom: '1px solid rgba(232,184,75,0.08)' }}
     >
       {TABS.map((tab) => {
         const isPolitics = tab.name === 'Politics';
@@ -74,7 +74,7 @@ export default function LivingWorldNav() {
             }}
             onMouseEnter={(e) => {
               if (!isActive && !isLocked) {
-                e.currentTarget.style.color = '#F4EBD6';
+                e.currentTarget.style.color = '#ECEAE4';
                 e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
               }
             }}
