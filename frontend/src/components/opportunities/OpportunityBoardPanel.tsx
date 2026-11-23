@@ -159,8 +159,6 @@ export default function OpportunityBoardPanel({
               color: unmetRequirements ? theme.colors.text.textMuted : '#09130F',
               fontWeight: 800,
               fontSize: '15px',
-              letterSpacing: '0.02em',
-              textTransform: 'uppercase',
               boxShadow: unmetRequirements ? 'none' : '0 4px 20px rgba(214,179,95,0.3)',
               cursor: unmetRequirements ? 'not-allowed' : 'pointer'
             }}
@@ -232,10 +230,8 @@ export default function OpportunityBoardPanel({
               borderRadius: '8px',
               background: 'rgba(255,255,255,0.05)',
               color: theme.colors.text.textSecondary,
-              fontSize: '11px',
+              fontSize: '13px',
               fontWeight: 'bold',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
             }}
           >
             Refresh

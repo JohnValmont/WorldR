@@ -30,7 +30,7 @@ const dotMap: Record<BadgeVariant, string> = {
 export default function StatusBadge({ label, variant = 'neutral', dot = false, size = 'xs' }: StatusBadgeProps) {
   const textSize = size === 'xs' ? 'text-[10px]' : 'text-[10px]';
   return (
-    <span className={`inline-flex items-center gap-1 border px-1.5 py-0.5 font-mono uppercase tracking-widest ${textSize} ${variantMap[variant]}`}>
+    <span className={`inline-flex items-center gap-1 border px-1.5 py-0.5 uppercase tracking-widest ${textSize} ${variantMap[variant]}`}>
       {dot && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotMap[variant]}`} />}
       {label}
     </span>

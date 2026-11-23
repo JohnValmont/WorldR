@@ -89,7 +89,7 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
 
         <div className="flex flex-col md:flex-row gap-6 items-end">
           <div className="flex-1 w-full">
-            <label className="block text-xs font-mono text-zinc-500 mb-2 uppercase tracking-wide">Target Segment</label>
+            <label className="block text-xs text-zinc-500 mb-2 uppercase tracking-wide">Target Segment</label>
             <select 
               value={selectedSegment}
               onChange={(e) => setSelectedSegment(e.target.value)}
@@ -103,7 +103,7 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
           </div>
 
           <div className="flex-1 w-full">
-            <label className="block text-xs font-mono text-zinc-500 mb-2 uppercase tracking-wide">Intelligence Tier</label>
+            <label className="block text-xs text-zinc-500 mb-2 uppercase tracking-wide">Intelligence Tier</label>
             <select 
               value={selectedTier}
               onChange={(e) => setSelectedTier(Number(e.target.value))}
@@ -151,7 +151,7 @@ export default function CompetitorResearch({ companyId, countryId }: CompetitorR
           
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm font-outfit">
-              <thead className="bg-[#121217] border-b border-[#262B36] text-zinc-400 font-mono text-xs uppercase tracking-wider">
+              <thead className="bg-[#121217] border-b border-[#262B36] text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3">Competitor</th>
                   <th className="px-4 py-3">Model</th>

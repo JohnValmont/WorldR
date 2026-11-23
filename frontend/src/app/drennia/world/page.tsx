@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Users, BarChart3, Landmark } from 'lucide-react';
 import { worldApi, politicsApi, characterApi } from '@/lib/api';
+import { PageHeader, Tabs } from '@/components/ui';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -25,8 +26,8 @@ function StatBar({ label, value, color = T.amber }: { label: string; value: numb
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-        <span style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint }}>{label}</span>
-        <span style={{ fontSize: 10, fontFamily: 'monospace', color: T.muted }}>{value}</span>
+        <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint }}>{label}</span>
+        <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: T.muted }}>{value}</span>
       </div>
       <div style={{ height: 3, background: T.border, borderRadius: 2 }}>
         <div style={{ height: 3, width: `${Math.min(100, value)}%`, background: color, borderRadius: 2, transition: 'width 0.4s ease' }} />
@@ -49,7 +50,7 @@ function OperatorCard({ op, isMe }: { op: any; isMe: boolean }) {
       {isMe && (
         <span style={{
           position: 'absolute', top: 8, right: 10,
-          fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase',
+          fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase',
           letterSpacing: '0.2em', color: T.amber, background: 'rgba(232,184,75,0.12)',
           padding: '2px 6px', borderRadius: 2
         }}>You</span>
@@ -70,7 +71,7 @@ function OperatorCard({ op, isMe }: { op: any; isMe: boolean }) {
       <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 8, marginBottom: op.party ? 8 : 0 }}>
         {op.company ? (
           <div>
-            <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint, marginBottom: 2 }}>Company</div>
+            <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint, marginBottom: 2 }}>Company</div>
             <div style={{ fontSize: 12, color: T.ivory }}>{op.company.name}</div>
             {op.company.reputation != null && (
               <div style={{ fontSize: 10, color: T.muted }}>Rep {op.company.reputation} · Reliability {op.company.reliability}</div>
@@ -84,7 +85,7 @@ function OperatorCard({ op, isMe }: { op: any; isMe: boolean }) {
       {/* Party */}
       {op.party && (
         <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 8, marginTop: 0 }}>
-          <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint, marginBottom: 2 }}>Party</div>
+          <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint, marginBottom: 2 }}>Party</div>
           <div style={{ fontSize: 12, color: T.ivory }}>{op.party.party_name}</div>
           <div style={{ fontSize: 10, color: T.muted, textTransform: 'capitalize' }}>{op.party.role}</div>
         </div>
@@ -99,11 +100,11 @@ function ShareBar({ name, share, rank }: { name: string; share: number; rank: nu
   const barColor = colors[Math.min(rank, 2)];
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0' }}>
-      <div style={{ fontSize: 10, fontFamily: 'monospace', color: T.faint, width: 16, textAlign: 'right' }}>#{rank + 1}</div>
+      <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: T.faint, width: 16, textAlign: 'right' }}>#{rank + 1}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
           <span style={{ fontSize: 11, color: rank === 0 ? T.ivory : T.muted, fontWeight: rank === 0 ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-          <span style={{ fontSize: 10, fontFamily: 'monospace', color: barColor, flexShrink: 0, marginLeft: 8 }}>{share.toFixed(1)}%</span>
+          <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: barColor, flexShrink: 0, marginLeft: 8 }}>{share.toFixed(1)}%</span>
         </div>
         <div style={{ height: 3, background: T.border, borderRadius: 2 }}>
           <div style={{ height: 3, width: `${Math.min(100, share)}%`, background: barColor, borderRadius: 2 }} />
@@ -121,11 +122,10 @@ function TabBtn({ id, active, label, onClick }: { id: string; active: boolean; l
       style={{
         background: 'none', border: 'none', cursor: 'pointer',
         padding: '10px 0', marginRight: 24,
-        fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em',
+        fontSize: 13,
         color: active ? T.amber : T.faint,
         borderBottom: active ? `2px solid ${T.amber}` : '2px solid transparent',
-        transition: 'color 0.15s',
-      }}
+        transition: 'color 0.15s', borderRadius: 10 }}
     >
       {label}
     </button>
@@ -176,27 +176,25 @@ export default function WorldPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: T.bg, color: T.ivory }}>
 
-      {/* Header */}
-      <div style={{ padding: '20px 24px 0', borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ display: 'flex', alignItems: 'end', justifyContent: 'space-between', marginBottom: 12 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 700, fontFamily: "'Cinzel', Georgia, serif", color: T.ivory, margin: 0 }}>World</h1>
-          {!loading && (
-            <div style={{ fontSize: 10, color: T.faint, fontFamily: 'monospace' }}>
-              {operators.length} operator{operators.length !== 1 ? 's' : ''} active
-            </div>
-          )}
-        </div>
-        <div style={{ display: 'flex' }}>
-          <TabBtn id="operators" active={tab === 'operators'} label="Operators" onClick={() => setTab('operators')} />
-          <TabBtn id="market" active={tab === 'market'} label="Market Standings" onClick={() => setTab('market')} />
-          <TabBtn id="politics" active={tab === 'politics'} label="Political Scene" onClick={() => setTab('politics')} />
-        </div>
-      </div>
+      <PageHeader
+        kicker="Drennia"
+        title="World"
+        description="Who is playing, how the car market stands, and who holds power."
+        aside={!loading ? <span className="text-[13px] text-ink-faint">{operators.length} {operators.length === 1 ? 'player' : 'players'}</span> : undefined}
+      >
+        <Tabs
+          inset="none"
+          label="World sections"
+          tabs={[{ id: 'operators', label: 'Players' }, { id: 'market', label: 'Market standings' }, { id: 'politics', label: 'Political scene' }]}
+          activeId={tab}
+          onChange={(id) => setTab(id as 'operators' | 'market' | 'politics')}
+        />
+      </PageHeader>
 
       {/* Body */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+      <div className="flex-1 overflow-y-auto px-4 py-5 md:px-6">
         {loading ? (
-          <div style={{ color: T.muted, fontFamily: 'monospace', fontSize: 12 }}>Loading world data…</div>
+          <div className="text-[14px] text-ink-dim" role="status">Loading the world…</div>
         ) : (
           <>
             {/* ── OPERATORS TAB ── */}
@@ -222,7 +220,7 @@ export default function WorldPage() {
             {tab === 'market' && (
               <div>
                 {market.month && (
-                  <div style={{ fontSize: 10, fontFamily: 'monospace', color: T.faint, marginBottom: 16 }}>
+                  <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: T.faint, marginBottom: 16 }}>
                     Last completed month · Year {market.month.year} / Month {market.month.month}
                   </div>
                 )}
@@ -231,7 +229,7 @@ export default function WorldPage() {
                     <BarChart3 size={32} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
                     <div style={{ fontSize: 13, color: T.muted, marginBottom: 4 }}>No market data recorded</div>
                     <div style={{ fontSize: 11, marginBottom: 16 }}>Month 1 results will appear after the first month completes.</div>
-                    <Link href="/drennia/business" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#0B0D12', background: T.amber, padding: '8px 16px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
+                    <Link href="/drennia/business" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.15em', color: '#0B0D12', background: T.amber, padding: '8px 16px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
                       Enter the Market
                     </Link>
                   </div>
@@ -239,7 +237,7 @@ export default function WorldPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {market.segments.map((seg: any) => (
                       <div key={seg.segmentId} style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 4, padding: '14px 16px' }}>
-                        <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.amber, marginBottom: 10 }}>
+                        <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.2em', color: T.amber, marginBottom: 10 }}>
                           {seg.marketName}
                         </div>
                         {seg.companies.length === 0 ? (
@@ -269,10 +267,10 @@ export default function WorldPage() {
                 {/* Phase banner */}
                 {polData.state && (
                   <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 4, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.amber }}>
+                    <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.2em', color: T.amber }}>
                       {polData.state.activeState?.name || 'Ironvale'} · Council
                     </span>
-                    <span style={{ fontSize: 10, fontFamily: 'monospace', color: T.muted, textTransform: 'uppercase' }}>
+                    <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: T.muted, textTransform: 'uppercase' }}>
                       Phase: {polData.state.cyclePhase || '—'}
                     </span>
                     {polData.state.countdownToNextPhase > 0 && (
@@ -286,7 +284,7 @@ export default function WorldPage() {
                 {/* Governing info */}
                 {polData.council?.premier && (
                   <div style={{ background: '#14181F', border: `1px solid ${T.border}`, borderRadius: 4, padding: '12px 16px' }}>
-                    <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.amber, marginBottom: 6 }}>State Premier</div>
+                    <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.2em', color: T.amber, marginBottom: 6 }}>State Premier</div>
                     <div style={{ fontSize: 14, color: T.ivory, fontWeight: 600 }}>{polData.council.premier.party_name || '—'}</div>
                     {polData.council.coalition && (
                       <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>
@@ -298,7 +296,7 @@ export default function WorldPage() {
 
                 {/* Parties */}
                 <div>
-                  <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: 10 }}>Active Parties</div>
+                  <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: 10 }}>Active Parties</div>
                   {polData.parties.length === 0 ? (
                     <div style={{ color: T.faint, fontSize: 12, textAlign: 'center', padding: 32 }}>No parties registered yet.</div>
                   ) : (
@@ -316,12 +314,12 @@ export default function WorldPage() {
                             </div>
                             {seats && (
                               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                <div style={{ fontSize: 18, fontWeight: 700, color: T.amber, fontFamily: 'monospace', lineHeight: 1 }}>{seats.seat_count}</div>
+                                <div style={{ fontSize: 18, fontWeight: 700, color: T.amber, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", lineHeight: 1 }}>{seats.seat_count}</div>
                                 <div style={{ fontSize: 10, color: T.faint }}>seats</div>
                               </div>
                             )}
                             <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                              <div style={{ fontSize: 11, color: T.muted, fontFamily: 'monospace' }}>₮{Number(p.treasury || 0).toLocaleString('en-US')}</div>
+                              <div style={{ fontSize: 11, color: T.muted, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }}>₮{Number(p.treasury || 0).toLocaleString('en-US')}</div>
                               <div style={{ fontSize: 10, color: T.faint }}>treasury</div>
                             </div>
                           </div>

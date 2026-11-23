@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
+import { PageHeader, Tabs } from '../../../components/ui';
 import { investmentsApi, companyApi } from '../../../lib/api';
 
 const T = {
@@ -21,8 +22,8 @@ const T = {
   red: '#D9625A',
 };
 
-const mono: React.CSSProperties = { fontFamily: 'monospace' };
-const label: React.CSSProperties = { ...mono, fontSize: '10px', textTransform: 'uppercase' as const, letterSpacing: '0.15em', color: T.gold, fontWeight: 700 };
+const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", fontVariantNumeric: 'tabular-nums' };
+const label: React.CSSProperties = { fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.14em', color: T.gold, fontWeight: 600 }; // design system: section label
 
 function fmt(n: number | null | undefined, dec = 2): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
@@ -121,7 +122,7 @@ function PlacementsTab() {
           </div>
           <button
             onClick={() => { setShowForm(f => !f); setMsg(null); }}
-            style={{ ...mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '6px 14px', background: showForm ? T.bg : T.gold, color: showForm ? T.muted : T.bg, border: `1px solid ${showForm ? T.border : T.gold}`, cursor: 'pointer' }}
+            style={{ fontSize: '13px', padding: '6px 14px', background: showForm ? T.bg : T.gold, color: showForm ? T.muted : T.bg, border: `1px solid ${showForm ? T.border : T.gold}`, cursor: 'pointer', borderRadius: 10 }}
           >
             {showForm ? 'Cancel' : '+ New Offering'}
           </button>
@@ -130,7 +131,7 @@ function PlacementsTab() {
         {showForm && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div>
-              <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Company</div>
+              <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Company</div>
               <select
                 value={formCompany}
                 onChange={(e) => setFormCompany(e.target.value)}
@@ -145,20 +146,20 @@ function PlacementsTab() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
               <div>
-                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares to offer</div>
+                <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares to offer</div>
                 <input aria-label="Shares to offer" value={formShares} onChange={(e) => setFormShares(e.target.value)} placeholder="e.g. 50000" inputMode="numeric" style={inputStyle} />
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Min Purchase</div>
+                <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Min Purchase</div>
                 <input aria-label="Min Purchase" value={formMinPurchase} onChange={(e) => setFormMinPurchase(e.target.value)} placeholder="Default: 1" inputMode="numeric" style={inputStyle} />
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price per share ($)</div>
+                <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price per share ($)</div>
                 <input aria-label="Price per share" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} placeholder="e.g. 2.50" inputMode="decimal" style={inputStyle} />
               </div>
             </div>
             <div>
-              <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Target character ID (optional — leave blank for open)</div>
+              <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Target character ID (optional — leave blank for open)</div>
               <input aria-label="Target character ID" value={formTarget} onChange={(e) => setFormTarget(e.target.value)} placeholder="Character UUID for private offer" style={inputStyle} />
             </div>
             {formShares && formPrice && Number(formShares) > 0 && Number(formPrice) > 0 && (
@@ -170,7 +171,7 @@ function PlacementsTab() {
             <button
               onClick={postPlacement}
               disabled={busy}
-              style={{ padding: '10px 0', cursor: busy ? 'wait' : 'pointer', ...mono, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1 }}
+              style={{ padding: '10px 0', cursor: busy ? 'wait' : 'pointer', fontSize: '13px', fontWeight: 700, background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1, borderRadius: 10 }}
             >
               {busy ? 'Posting…' : 'Post Placement'}
             </button>
@@ -209,7 +210,7 @@ function PlacementsTab() {
                 {p.status === 'open' && (
                   <button
                     onClick={() => cancelPlacement(p.id)}
-                    style={{ ...mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', background: 'transparent', border: `1px solid ${T.border}`, color: T.red, padding: '4px 10px', cursor: 'pointer' }}
+                    style={{ fontSize: '13px', background: 'transparent', border: `1px solid ${T.border}`, color: T.red, padding: '4px 10px', cursor: 'pointer', borderRadius: 10 }}
                   >
                     Cancel
                   </button>
@@ -268,7 +269,7 @@ function PlacementsTab() {
                   <button
                     onClick={() => acceptPlacement(p.id, qty)}
                     disabled={!valid}
-                    style={{ ...mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', background: valid ? T.mint : T.border, color: T.bg, border: 'none', padding: '6px 14px', cursor: valid ? 'pointer' : 'not-allowed' }}
+                    style={{ fontSize: '13px', background: valid ? T.mint : T.border, color: T.bg, border: 'none', padding: '6px 14px', cursor: valid ? 'pointer' : 'not-allowed', borderRadius: 10 }}
                   >
                     Buy
                   </button>
@@ -391,7 +392,7 @@ function LoansTab() {
           </div>
           <button
             onClick={() => { setShowForm(f => !f); setMsg(null); }}
-            style={{ ...mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '6px 14px', background: showForm ? T.bg : T.gold, color: showForm ? T.muted : T.bg, border: `1px solid ${showForm ? T.border : T.gold}`, cursor: 'pointer' }}
+            style={{ fontSize: '13px', padding: '6px 14px', background: showForm ? T.bg : T.gold, color: showForm ? T.muted : T.bg, border: `1px solid ${showForm ? T.border : T.gold}`, cursor: 'pointer', borderRadius: 10 }}
           >
             {showForm ? 'Cancel' : '+ Offer Capital'}
           </button>
@@ -401,20 +402,20 @@ function LoansTab() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
               <div>
-                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Max Amount ($)</div>
+                <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Max Amount ($)</div>
                 <input aria-label="Max loan amount" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 5000" inputMode="decimal" style={inputStyle} />
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Monthly Interest (%)</div>
+                <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Monthly Interest (%)</div>
                 <input aria-label="Monthly interest rate percent" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="e.g. 2" inputMode="decimal" style={inputStyle} />
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Term (months, 1–60)</div>
+                <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Term (months, 1–60)</div>
                 <input aria-label="Loan term in months" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="e.g. 12" inputMode="numeric" style={inputStyle} />
               </div>
             </div>
             <div>
-              <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Purpose / Notes (optional)</div>
+              <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Purpose / Notes (optional)</div>
               <input aria-label="Loan purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="e.g. Business expansion, working capital…" style={inputStyle} />
             </div>
             {previewPayment != null && (
@@ -426,7 +427,7 @@ function LoansTab() {
             <button
               onClick={postOffer}
               disabled={busy}
-              style={{ padding: '10px 0', cursor: busy ? 'wait' : 'pointer', ...mono, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1 }}
+              style={{ padding: '10px 0', cursor: busy ? 'wait' : 'pointer', fontSize: '13px', fontWeight: 700, background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1, borderRadius: 10 }}
             >
               {busy ? 'Posting…' : 'Post Loan Offer'}
             </button>
@@ -445,7 +446,7 @@ function LoansTab() {
                   ${fmt(Number(o.max_amount), 0)} · {Number(o.monthly_interest_rate) * 100}%/mo · {o.term_months} months
                   {o.purpose && <span style={{ color: T.faint }}> — {o.purpose}</span>}
                 </div>
-                <button onClick={() => cancelOffer(o.id)} style={{ ...mono, fontSize: '10px', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${T.border}`, color: T.red, padding: '4px 10px', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={() => cancelOffer(o.id)} style={{ fontSize: '13px', background: 'transparent', border: `1px solid ${T.border}`, color: T.red, padding: '4px 10px', cursor: 'pointer', borderRadius: 10 }}>Cancel</button>
               </div>
             ))}
           </div>
@@ -477,7 +478,7 @@ function LoansTab() {
                   </div>
                   <button
                     onClick={() => { setAcceptId(isExpanded ? null : o.id); setAcceptAmount(''); }}
-                    style={{ ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '7px 14px', background: isExpanded ? T.bg : T.steel, color: T.ivory, border: `1px solid ${isExpanded ? T.border : T.steel}`, cursor: 'pointer', flexShrink: 0 }}
+                    style={{ fontSize: '13px', fontWeight: 700, padding: '7px 14px', background: isExpanded ? T.bg : T.steel, color: T.ivory, border: `1px solid ${isExpanded ? T.border : T.steel}`, cursor: 'pointer', flexShrink: 0, borderRadius: 10 }}
                   >
                     {isExpanded ? 'Close' : 'Borrow'}
                   </button>
@@ -485,13 +486,13 @@ function LoansTab() {
                 {isExpanded && (
                   <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${T.border}`, display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Amount to borrow ($ 1 – {fmtInt(Number(o.max_amount))})</div>
+                      <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Amount to borrow ($ 1 – {fmtInt(Number(o.max_amount))})</div>
                       <input aria-label="Amount to borrow" value={acceptAmount} onChange={(e) => setAcceptAmount(e.target.value)} placeholder={`max $${fmtInt(Number(o.max_amount))}`} inputMode="decimal" style={inputStyle} />
                     </div>
                     <button
                       onClick={() => acceptOffer(o.id, Number(acceptAmount))}
                       disabled={acceptBusy || !acceptAmount}
-                      style={{ ...mono, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', padding: '9px 18px', background: T.mint, color: T.bg, border: 'none', cursor: 'pointer', opacity: acceptBusy ? 0.6 : 1, flexShrink: 0 }}
+                      style={{ fontSize: '13px', fontWeight: 700, padding: '9px 18px', background: T.mint, color: T.bg, border: 'none', cursor: 'pointer', opacity: acceptBusy ? 0.6 : 1, flexShrink: 0, borderRadius: 10 }}
                     >
                       {acceptBusy ? 'Processing…' : 'Confirm'}
                     </button>
@@ -523,7 +524,7 @@ function LoansTab() {
                   {l.status === 'active' && (
                     <button
                       onClick={() => repayEarly(l.id)}
-                      style={{ ...mono, fontSize: '10px', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${T.border}`, color: T.mint, padding: '4px 10px', cursor: 'pointer' }}
+                      style={{ fontSize: '13px', background: 'transparent', border: `1px solid ${T.border}`, color: T.mint, padding: '4px 10px', cursor: 'pointer', borderRadius: 10 }}
                     >
                       Repay Early (${fmt(Number(l.monthly_payment) * Number(l.months_remaining))})
                     </button>
@@ -569,50 +570,23 @@ export default function InvestmentsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: T.bg, color: T.ivory, overflow: 'hidden' }}>
 
-      {/* Header */}
-      <div style={{ padding: '16px 24px 0', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span
-          style={{ cursor: 'pointer', color: T.muted, fontSize: '11px', ...mono, textTransform: 'uppercase', letterSpacing: '0.1em' }}
-          onClick={() => router.push('/drennia/business')}
-        >
-          ← Back to Business
-        </span>
-        <WorldTimeControl />
-      </div>
-      <div style={{ padding: '8px 24px 12px', flexShrink: 0 }}>
-        <div style={{ ...label, marginBottom: '4px', letterSpacing: '0.2em' }}>Drennia Commerce Division</div>
-        <h1 style={{ fontSize: '22px', fontWeight: 700, color: T.ivory, margin: '0 0 4px' }}>Private Capital Market</h1>
-        <p style={{ fontSize: '12px', color: T.muted, margin: 0 }}>
-          Private equity placements for unlisted companies, and player-to-player loans.
-        </p>
-      </div>
-
-      {/* Tabs */}
-      <div style={{ padding: '0 24px', flexShrink: 0, display: 'flex', gap: '0', borderBottom: `1px solid ${T.border}` }}>
-        {([
-          { key: 'placements', label: 'Private Placements' },
-          { key: 'loans', label: 'P2P Loans' },
-        ] as const).map(({ key, label: tabLabel }) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            style={{
-              ...mono, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em',
-              padding: '10px 20px', background: 'transparent', cursor: 'pointer',
-              border: 'none',
-              borderBottom: tab === key ? `2px solid ${T.gold}` : '2px solid transparent',
-              color: tab === key ? T.gold : T.faint,
-              fontWeight: tab === key ? 700 : 400,
-              marginBottom: '-1px',
-            }}
-          >
-            {tabLabel}
-          </button>
-        ))}
-      </div>
+      <PageHeader
+        kicker="Private capital"
+        title="Private Capital Market"
+        description="Private equity placements for unlisted companies, and player-to-player loans."
+        aside={<WorldTimeControl />}
+      >
+        <Tabs
+          inset="none"
+          label="Private capital sections"
+          tabs={[{ id: 'placements', label: 'Private placements' }, { id: 'loans', label: 'Player loans' }]}
+          activeId={tab}
+          onChange={(id) => setTab(id as 'placements' | 'loans')}
+        />
+      </PageHeader>
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+      <div className="flex-1 overflow-y-auto px-4 py-5 md:px-6">
         {tab === 'placements' ? <PlacementsTab /> : <LoansTab />}
       </div>
     </div>

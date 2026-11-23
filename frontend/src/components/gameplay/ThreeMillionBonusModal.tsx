@@ -65,12 +65,12 @@ export default function ThreeMillionBonusModal({ onDismiss }: ThreeMillionBonusM
           padding: '12px 18px',
           borderBottom: `1px solid ${T.border}`,
         }}>
-          <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.25em', color: T.faint }}>
+          <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.25em', color: T.faint }}>
             System Notice
           </div>
           <button
             onClick={dismiss}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.faint, fontSize: 11, fontFamily: 'monospace' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.faint, fontSize: 13, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", borderRadius: 10 }}
           >
             Close
           </button>
@@ -102,8 +102,7 @@ export default function ThreeMillionBonusModal({ onDismiss }: ThreeMillionBonusM
             style={{
               background: `linear-gradient(135deg, ${T.amber}, #E0B85A)`,
               border: 'none', color: '#fff',
-              fontSize: 12, fontFamily: 'monospace',
-              textTransform: 'uppercase', letterSpacing: '0.15em',
+              fontSize: 13,
               padding: '10px 24px', borderRadius: 3, cursor: 'pointer',
               boxShadow: `0 2px 12px ${T.amberGlow}`,
             }}

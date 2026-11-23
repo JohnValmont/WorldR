@@ -19,8 +19,8 @@ const T = {
   red: '#D9625A',
 };
 
-const mono: React.CSSProperties = { fontFamily: 'monospace' };
-const label: React.CSSProperties = { ...mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.gold, fontWeight: 700 };
+const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", fontVariantNumeric: 'tabular-nums' };
+const label: React.CSSProperties = { fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.14em', color: T.gold, fontWeight: 600 }; // design system: section label
 
 function fmt(n: number | null | undefined, dec = 0): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
@@ -118,7 +118,7 @@ export default function IpoDeskPanel({ companyId, companyName }: { companyId: st
     <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '20px', gridColumn: '1 / -1' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
         <div style={label}>Initial Public Offering — DRX Bourse</div>
-        {listed && <div style={{ ...mono, fontSize: '10px', color: T.mint, textTransform: 'uppercase', letterSpacing: '0.14em' }}>● Public Company</div>}
+        {listed && <div style={{ fontSize: '10px', color: T.mint, textTransform: 'uppercase', letterSpacing: '0.14em' }}>● Public Company</div>}
       </div>
 
       {/* ── LISTED ── */}
@@ -157,7 +157,7 @@ export default function IpoDeskPanel({ companyId, companyName }: { companyId: st
           <button
             onClick={withdraw}
             disabled={busy}
-            style={{ marginTop: '14px', padding: '8px 18px', cursor: busy ? 'wait' : 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', background: 'transparent', color: T.red, border: `1px solid ${T.red}`, opacity: busy ? 0.6 : 1 }}
+            style={{ marginTop: '14px', padding: '8px 18px', cursor: busy ? 'wait' : 'pointer', fontSize: '13px', fontWeight: 700, background: 'transparent', color: T.red, border: `1px solid ${T.red}`, opacity: busy ? 0.6 : 1, borderRadius: 10 }}
           >
             Withdraw IPO
           </button>
@@ -216,7 +216,7 @@ export default function IpoDeskPanel({ companyId, companyName }: { companyId: st
               <button
                 onClick={file}
                 disabled={busy}
-                style={{ marginTop: '14px', padding: '10px 22px', cursor: busy ? 'wait' : 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1 }}
+                style={{ marginTop: '14px', padding: '10px 22px', cursor: busy ? 'wait' : 'pointer', fontSize: '13px', fontWeight: 700, background: T.gold, color: T.bg, border: 'none', opacity: busy ? 0.6 : 1, borderRadius: 10 }}
               >
                 File Prospectus — ${fmt(elig?.filing_fee)}
               </button>
@@ -237,7 +237,7 @@ export default function IpoDeskPanel({ companyId, companyName }: { companyId: st
 function Stat({ k, v, accent }: { k: string; v: string; accent?: string }) {
   return (
     <div>
-      <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: '3px' }}>{k}</div>
+      <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: '3px' }}>{k}</div>
       <div style={{ ...mono, fontSize: '13px', fontWeight: 700, color: accent ?? T.ivory }}>{v}</div>
     </div>
   );
@@ -246,7 +246,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: string }) {
 function Field({ label: l, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ display: 'block' }}>
-      <div style={{ ...mono, fontSize: '10px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '5px' }}>{l}</div>
+      <div style={{ fontSize: '10px', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '5px' }}>{l}</div>
       {children}
     </label>
   );

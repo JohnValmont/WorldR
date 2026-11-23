@@ -136,7 +136,7 @@ export default function NationSelectionBoard({ selectedNation, onSelectNation }:
 
       <div className="w-full flex items-center gap-4 my-6">
         <div className="flex-1 h-px bg-[rgba(255,255,255,0.06)]" />
-        <span className="text-[11px] text-zinc-600 font-mono uppercase tracking-widest">Future Nations</span>
+        <span className="text-[11px] text-zinc-600 uppercase tracking-widest">Future Nations</span>
         <div className="flex-1 h-px bg-[rgba(255,255,255,0.06)]" />
       </div>
 

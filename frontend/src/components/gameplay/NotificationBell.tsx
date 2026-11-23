@@ -114,7 +114,7 @@ export default function NotificationBell() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#262B36] shrink-0">
               <div className="flex items-center gap-2">
                 <Bell size={12} className="text-terminal-amber opacity-80" />
-                <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-terminal-amber">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-terminal-amber">
                   Notifications
                 </span>
                 {unread > 0 && (
@@ -128,7 +128,7 @@ export default function NotificationBell() {
                       type="button"
                       onClick={() => markAllRead()}
                       title="Day all read"
-                      className="flex items-center gap-1 px-1.5 py-1 rounded text-[10px] font-mono uppercase tracking-wider text-zinc-500 hover:text-terminal-green transition-colors"
+                      className="flex items-center gap-1 px-1.5 py-1 rounded text-[10px] uppercase tracking-wider text-zinc-500 hover:text-terminal-green transition-colors"
                     >
                       <Check size={11} /> Read
                     </button>
@@ -136,7 +136,7 @@ export default function NotificationBell() {
                       type="button"
                       onClick={() => clearNotifications()}
                       title="Clear all"
-                      className="flex items-center gap-1 px-1.5 py-1 rounded text-[10px] font-mono uppercase tracking-wider text-zinc-500 hover:text-terminal-red transition-colors"
+                      className="flex items-center gap-1 px-1.5 py-1 rounded text-[10px] uppercase tracking-wider text-zinc-500 hover:text-terminal-red transition-colors"
                     >
                       <Trash2 size={11} /> Clear
                     </button>
@@ -187,7 +187,7 @@ export default function NotificationBell() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span
-                          className="text-[10px] font-mono uppercase tracking-[0.15em]"
+                          className="text-[10px] uppercase tracking-[0.15em]"
                           style={{ color: meta.color }}
                         >
                           {meta.label}

@@ -309,7 +309,7 @@ export default function GuideModal({ onDismiss }: GuideModalProps) {
     background: isActive ? 'rgba(232,184,75,0.1)' : 'transparent',
     border: `1px solid ${isActive ? 'rgba(232,184,75,0.3)' : 'transparent'}`,
     color: isActive ? T.amber : T.muted,
-    fontFamily: 'monospace',
+    fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace",
     fontSize: '11px',
     textTransform: 'uppercase',
     letterSpacing: '0.15em',
@@ -353,7 +353,7 @@ export default function GuideModal({ onDismiss }: GuideModalProps) {
           background: '#13161E',
           zIndex: 10
         }}>
-          <div style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.25em', color: T.faint }}>
+          <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.25em', color: T.faint }}>
             WORLDr <span style={{ color: T.amber }}>//</span> Guide Library
           </div>
           <button
@@ -381,7 +381,7 @@ export default function GuideModal({ onDismiss }: GuideModalProps) {
           
           {/* Sidebar */}
           <div style={sidebarStyle}>
-            <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: '8px', paddingLeft: '16px' }}>
+            <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: '8px', paddingLeft: '16px' }}>
               Topics
             </div>
             

@@ -117,7 +117,7 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
   return (
     <div>
       <div className={`text-[14px] font-mono font-bold ${color}`}>{value}</div>
-      <div className="text-[10px] font-mono uppercase tracking-[0.12em] text-zinc-600">{label}</div>
+      <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">{label}</div>
     </div>
   );
 }
@@ -400,7 +400,7 @@ export default function ChroniclePage() {
         <div key={ev.id} className="py-2 border-b border-[#262B36] last:border-0">
           <div className="flex items-baseline justify-between gap-3">
             <div className="text-[12px] font-semibold text-zinc-200 leading-snug">{ev.headline}</div>
-            <div className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider shrink-0">{formatPolArc(ev.arc)}</div>
+            <div className="text-[10px] text-zinc-600 uppercase tracking-wider shrink-0">{formatPolArc(ev.arc)}</div>
           </div>
           <div className="text-[11px] text-zinc-500 leading-snug mt-0.5 line-clamp-1">{ev.body}</div>
         </div>
@@ -418,7 +418,7 @@ export default function ChroniclePage() {
       <div className="flex flex-col mt-1">
         {wire.edition.stories.slice(0, NEWS_LIMIT).map((s, i) => (
           <div key={i} className="py-1.5 border-b border-[#262B36] last:border-0 flex items-baseline gap-2">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-terminal-amber/80 w-16 shrink-0 truncate">{s.nationName}</span>
+            <span className="text-[10px] uppercase tracking-widest text-terminal-amber/80 w-16 shrink-0 truncate">{s.nationName}</span>
             <span className="text-[12px] text-zinc-200 leading-snug">{s.headline}</span>
           </div>
         ))}
@@ -441,7 +441,7 @@ export default function ChroniclePage() {
       <div className="flex items-center gap-2.5 mb-2.5">
         <Flag flag={myNation.flag} width={26} />
         <div className="min-w-0 flex-1">
-          <div className="text-[12px] font-semibold text-zinc-100 truncate">{myNation.name} <span className="text-[10px] font-mono uppercase tracking-widest text-terminal-amber ml-1">Home</span></div>
+          <div className="text-[12px] font-semibold text-zinc-100 truncate">{myNation.name} <span className="text-[10px] uppercase tracking-widest text-terminal-amber ml-1">Home</span></div>
           <div className="text-[10px] text-zinc-500 truncate">
             {PHASE_LABEL[desk.calendar.phase] ?? desk.calendar.phase}
             {myNation.monthsToElection != null && desk.calendar.phase === 'governing' && ` · election in ${myNation.monthsToElection} mo`}
@@ -545,7 +545,7 @@ export default function ChroniclePage() {
     <>
       <WorldThisMonth bare />
       <div className="flex justify-between items-end mt-4 mb-1">
-        <span className="text-[10px] font-mono text-terminal-amber uppercase tracking-[0.2em]">Best-selling cars</span>
+        <span className="text-[10px] text-terminal-amber uppercase tracking-[0.2em]">Best-selling cars</span>
         <Tabs2 value={bestSellersTab} onChange={setBestSellersTab} options={[{ id: 'monthly', label: 'Month' }, { id: 'allTime', label: 'All time' }]} />
       </div>
       {(() => {
@@ -644,7 +644,7 @@ export default function ChroniclePage() {
                 {ladder.length > 0 && (
                   <Link href={pol('desk')} className="md:w-52 min-w-0 group" title="Your political career: eight rungs from citizen to world statesman">
                     <div className="flex items-baseline justify-between mb-1.5">
-                      <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-zinc-600">Career</span>
+                      <span className="text-[10px] uppercase tracking-[0.15em] text-zinc-600">Career</span>
                       <span className="text-[10px] text-zinc-500">{rungIdx + 1}/{ladder.length}</span>
                     </div>
                     <div className="flex gap-1">
@@ -658,7 +658,7 @@ export default function ChroniclePage() {
                 <div className="flex items-center gap-4 shrink-0">
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-zinc-600">Net worth</span>
+                      <span className="text-[10px] uppercase tracking-[0.15em] text-zinc-600">Net worth</span>
                       <button
                         type="button"
                         onClick={handleRecalculateHistory}

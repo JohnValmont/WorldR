@@ -108,7 +108,7 @@ function OptionCard({ opt, selected, onSelect, extra }: { opt: Option; selected:
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="mb-6">
-      <h3 className="text-[11px] font-mono uppercase tracking-[0.14em] mb-1" style={{ color: C.gold }}>{title}</h3>
+      <h3 className="text-[11px] uppercase tracking-[0.14em] mb-1" style={{ color: C.gold }}>{title}</h3>
       {hint && <p className="text-[12px] mb-3" style={{ color: C.muted }}>{hint}</p>}
       {children}
     </div>
@@ -244,7 +244,7 @@ export default function CarDesigner({ companyId, companyName, onClose, onCreated
       {/* Header */}
       <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b" style={{ borderColor: C.border, background: C.panel }}>
         <div className="min-w-0">
-          <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: C.gold }}>{companyName ?? 'Your company'} · Car Designer</div>
+          <div className="text-[10px] uppercase tracking-[0.16em]" style={{ color: C.gold }}>{companyName ?? 'Your company'} · Car Designer</div>
           <div className="text-[15px] font-semibold truncate" style={{ color: C.ivory }}>{name.trim() || 'Untitled car'}</div>
         </div>
         <button onClick={onClose} aria-label="Close designer" className="p-2 rounded hover:bg-white/5"><X size={18} color={C.muted} /></button>
@@ -515,7 +515,7 @@ export default function CarDesigner({ companyId, companyName, onClose, onCreated
                 </div>
 
                 <div className="mt-4">
-                  <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.12em]" style={{ color: C.gold }}><Users size={12} /> Buyer interest per month</div>
+                  <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em]" style={{ color: C.gold }}><Users size={12} /> Buyer interest per month</div>
                   <p className="text-[11px] mt-1" style={{ color: C.muted }}>
                     <b style={{ color: C.ivory }}>{preview.forecast.totalInterested.toLocaleString('en-US')}</b> of {preview.forecast.totalMarketBuyers.toLocaleString('en-US')} monthly car buyers would consider it at {money(shownPrice)}.
                     Rivals will take a share of them; a stronger brand and marketing raise this.

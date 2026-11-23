@@ -472,3 +472,10 @@ td {
 
 /* -- Loading bar (game shell) -------------------------------------- */
 @keyframes loadbar { 0% { transform: translateX(-110%); } 100% { transform: translateX(310%); } }
+
+/* Inline-styled controls that set `outline: 'none'` would hide keyboard focus.
+   Give them the standard ring back (only for keyboard focus). */
+[style*="outline: none"]:focus-visible {
+  outline: 2px solid rgba(232, 184, 75, 0.9) !important;
+  outline-offset: 1px;
+}

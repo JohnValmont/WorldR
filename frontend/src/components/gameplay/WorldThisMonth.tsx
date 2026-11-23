@@ -99,7 +99,7 @@ export default function WorldThisMonth({ bare = false }: { bare?: boolean } = {}
   return (
     <Wrap>
       {market.period ? (
-        <p className="text-[10px] font-mono uppercase tracking-[0.12em] text-zinc-600 mb-2">
+        <p className="text-[10px] uppercase tracking-[0.12em] text-zinc-600 mb-2">
           Sales results · Month {market.period.month}, Year {market.period.year}
         </p>
       ) : (

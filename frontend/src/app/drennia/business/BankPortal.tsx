@@ -114,7 +114,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
       <div className="w-full animate-slide-in space-y-6">
         <div className="bg-[#13161E] border border-zinc-800 rounded-lg overflow-hidden">
           <div className="border-b border-zinc-800 p-4 bg-[#1B1F29] flex items-center justify-between">
-            <h3 className="font-mono text-xs uppercase tracking-widest text-[#E8B84B]">Your Corporate Relationship</h3>
+            <h3 className=" text-xs uppercase tracking-widest text-[#E8B84B]">Your Corporate Relationship</h3>
             <span className="text-[10px] text-zinc-500">Since: Y4 | Manager: Elena Voss</span>
           </div>
           <div className="p-6 grid grid-cols-4 gap-6">
@@ -139,7 +139,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-6">
-            <h4 className="font-mono text-xs uppercase tracking-widest text-zinc-400 mb-4 border-b border-zinc-800 pb-2">Asset Diversification</h4>
+            <h4 className=" text-xs uppercase tracking-widest text-zinc-400 mb-4 border-b border-zinc-800 pb-2">Asset Diversification</h4>
             <div className="flex items-center h-40">
               <div className="w-1/2 h-full relative">
                 <ResponsiveContainer width="100%" height="100%">
@@ -170,7 +170,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
           </div>
           
           <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-6">
-            <h4 className="font-mono text-xs uppercase tracking-widest text-zinc-400 mb-4 border-b border-zinc-800 pb-2">Revenue Trend (Underwriting View)</h4>
+            <h4 className=" text-xs uppercase tracking-widest text-zinc-400 mb-4 border-b border-zinc-800 pb-2">Revenue Trend (Underwriting View)</h4>
             <div className="h-40 flex flex-col items-center justify-center text-center">
               <TrendingUp size={32} className="text-zinc-600 mb-2" />
               <div className="text-xs text-zinc-500">12m Trend: Stable / Positive</div>
@@ -199,7 +199,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
         {/* STEP 1 */}
         {wizardStep === 1 && (
           <div className="animate-fade-in space-y-6">
-            <div className="text-xs font-mono uppercase tracking-widest text-zinc-400 mb-4">Select Capital Type</div>
+            <div className="text-xs uppercase tracking-widest text-zinc-400 mb-4">Select Capital Type</div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
               <div className="bg-[#1B1F29] border border-zinc-800 p-6 rounded hover:border-[#4B6382] transition-colors cursor-pointer" onClick={() => handleFacilitySelect('revolver', 2000000)}>
@@ -246,7 +246,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
         {wizardStep === 2 && (
           <div className="animate-fade-in space-y-8">
             <div className="bg-[#1B1F29] border border-zinc-800 rounded p-6">
-              <h4 className="font-mono text-xs uppercase tracking-widest text-zinc-400 mb-6 border-b border-zinc-800 pb-2">Desired Terms</h4>
+              <h4 className=" text-xs uppercase tracking-widest text-zinc-400 mb-6 border-b border-zinc-800 pb-2">Desired Terms</h4>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div>
@@ -324,7 +324,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
               <div className="space-y-6">
                 <div className="bg-[#1B1F29] border border-zinc-800 rounded overflow-hidden">
                   <div className="border-b border-zinc-800 p-3 bg-[#1E1B14]">
-                    <h4 className="font-mono text-xs uppercase tracking-widest text-[#E8B84B]">AI Underwriter Decision Matrix</h4>
+                    <h4 className=" text-xs uppercase tracking-widest text-[#E8B84B]">AI Underwriter Decision Matrix</h4>
                   </div>
                   <table className="w-full text-left text-sm font-mono">
                     <thead className="bg-[#0B0D12] text-zinc-500 text-[10px]">
@@ -426,7 +426,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-serif text-xl text-zinc-100">Active Debt Maturity Ladder</h3>
             <div className="text-right">
-              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Est. 12m Debt Service</div>
+              <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Est. 12m Debt Service</div>
               <div className="text-lg font-bold font-mono text-[#D9625A]">${annualDebtService.toLocaleString('en-US')}</div>
             </div>
           </div>
@@ -507,10 +507,10 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
             </div>
             
             <div className="flex items-center gap-6 mt-2">
-              <div className="text-[11px] font-mono uppercase tracking-[0.1em] text-zinc-500">
+              <div className="text-[11px] uppercase tracking-[0.1em] text-zinc-500">
                 Base Rate: <span className="text-zinc-200">{(baseRate * 100).toFixed(1)}%</span>
               </div>
-              <div className="text-[11px] font-mono uppercase tracking-[0.1em] text-zinc-500">
+              <div className="text-[11px] uppercase tracking-[0.1em] text-zinc-500">
                 Liquidity Pool: <span className="text-zinc-200">${((institutionData?.availableLiquidity || 0)/1000000000).toFixed(2)}B</span>
               </div>
             </div>
@@ -518,9 +518,9 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
         </div>
         
           <div className="flex bg-[#13161E] p-1 rounded-md border border-zinc-800 mt-4 lg:mt-0">
-            <button onClick={() => setActiveTab('portfolio')} className={`px-4 py-1.5 text-[11px] font-mono tracking-widest uppercase rounded transition-colors ${activeTab === 'portfolio' ? 'bg-[#262B36] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}>PORTFOLIO</button>
-            <button onClick={() => setActiveTab('apply')} className={`px-4 py-1.5 text-[11px] font-mono tracking-widest uppercase rounded transition-colors ${activeTab === 'apply' ? 'bg-[#262B36] text-[#E8B84B] shadow' : 'text-zinc-500 hover:text-zinc-300'}`}>APPLY FOR CREDIT</button>
-            <button onClick={() => setActiveTab('debt')} className={`px-4 py-1.5 text-[11px] font-mono tracking-widest uppercase rounded transition-colors ${activeTab === 'debt' ? 'bg-[#262B36] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}>ACTIVE DEBT</button>
+            <button onClick={() => setActiveTab('portfolio')} className={`px-4 py-1.5 text-[11px] tracking-widest uppercase rounded transition-colors ${activeTab === 'portfolio' ? 'bg-[#262B36] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}>PORTFOLIO</button>
+            <button onClick={() => setActiveTab('apply')} className={`px-4 py-1.5 text-[11px] tracking-widest uppercase rounded transition-colors ${activeTab === 'apply' ? 'bg-[#262B36] text-[#E8B84B] shadow' : 'text-zinc-500 hover:text-zinc-300'}`}>APPLY FOR CREDIT</button>
+            <button onClick={() => setActiveTab('debt')} className={`px-4 py-1.5 text-[11px] tracking-widest uppercase rounded transition-colors ${activeTab === 'debt' ? 'bg-[#262B36] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}>ACTIVE DEBT</button>
           </div>
         </div>
 
@@ -543,7 +543,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
 
       {/* Audit Trail Footer */}
       <div className="text-center mt-auto pt-6 border-t border-zinc-800/50">
-        <div className="text-[10px] font-mono text-zinc-600 tracking-widest uppercase flex items-center justify-center gap-2">
+        <div className="text-[10px] text-zinc-600 tracking-widest uppercase flex items-center justify-center gap-2">
           <ShieldCheck size={10} />
           <span>Last reviewed by Drennia Financial Authority • LIVE SYSTEM</span>
         </div>

@@ -43,8 +43,8 @@ function FactorBar({ label, value, color }: { label: string; value: number; colo
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint }}>{label}</span>
-        <span style={{ fontSize: 10, fontFamily: 'monospace', color: T.muted }}>{value}</span>
+        <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint }}>{label}</span>
+        <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: T.muted }}>{value}</span>
       </div>
       <div style={{ height: 3, background: T.border, borderRadius: 2 }}>
         <div style={{ height: 3, width: `${Math.min(100, value)}%`, background: color, borderRadius: 2, transition: 'width 0.5s ease' }} />
@@ -64,7 +64,7 @@ function Card1({ name, polState, polCouncil }: { name: string; polState: any; po
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Title */}
       <div>
-        <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.28em', color: T.amber, marginBottom: 6 }}>
+        <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.28em', color: T.amber, marginBottom: 6 }}>
           Drennia · January, Year 0
         </div>
         <h2 style={{ fontSize: 24, fontWeight: 700, fontFamily: "'Cinzel', Georgia, serif", color: T.ivory, margin: 0, lineHeight: 1.2 }}>
@@ -82,7 +82,7 @@ function Card1({ name, polState, polCouncil }: { name: string; polState: any; po
         <div style={{ display: 'flex', gap: 8 }}>
           {/* Political phase */}
           <div style={{ flex: 1, background: T.amberDim, border: `1px solid ${T.border}`, borderRadius: 4, padding: '10px 12px' }}>
-            <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: 4 }}>
+            <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: 4 }}>
               {stateName} State Council
             </div>
             <div style={{ fontSize: 13, color: T.ivory, fontWeight: 600 }}>
@@ -95,7 +95,7 @@ function Card1({ name, polState, polCouncil }: { name: string; polState: any; po
 
           {/* Economic phase */}
           <div style={{ flex: 1, background: T.greenDim, border: `1px solid ${T.border}`, borderRadius: 4, padding: '10px 12px' }}>
-            <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: 4 }}>
+            <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: 4 }}>
               Economy
             </div>
             <div style={{ fontSize: 13, color: T.ivory, fontWeight: 600 }}>Open Market</div>
@@ -121,7 +121,7 @@ function Card2({ onGoToBusiness, onGoToPolitics }: { onGoToBusiness: () => void;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.28em', color: T.amber, marginBottom: 6 }}>
+        <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.28em', color: T.amber, marginBottom: 6 }}>
           Your first moves
         </div>
         <h2 style={{ fontSize: 24, fontWeight: 700, fontFamily: "'Cinzel', Georgia, serif", color: T.ivory, margin: 0, lineHeight: 1.2 }}>
@@ -136,7 +136,7 @@ function Card2({ onGoToBusiness, onGoToPolitics }: { onGoToBusiness: () => void;
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {/* Business path */}
         <div style={{ background: T.greenDim, border: `1px solid rgba(77,140,106,0.35)`, borderRadius: 4, padding: '14px 16px' }}>
-          <div style={{ fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#4D8C6A', marginBottom: 6 }}>
+          <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.2em', color: '#4D8C6A', marginBottom: 6 }}>
             📈 Business Path
           </div>
           <div style={{ fontSize: 14, color: T.ivory, fontWeight: 600, marginBottom: 4 }}>Build a company</div>
@@ -148,8 +148,7 @@ function Card2({ onGoToBusiness, onGoToPolitics }: { onGoToBusiness: () => void;
             onClick={onGoToBusiness}
             style={{
               background: 'rgba(77,140,106,0.2)', border: '1px solid rgba(77,140,106,0.5)',
-              color: '#7EC8A0', fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase',
-              letterSpacing: '0.15em', padding: '7px 14px', borderRadius: 3, cursor: 'pointer',
+              color: '#7EC8A0', fontSize: 13, padding: '7px 14px', borderRadius: 3, cursor: 'pointer',
             }}
           >
             Open Business Desk →
@@ -158,7 +157,7 @@ function Card2({ onGoToBusiness, onGoToPolitics }: { onGoToBusiness: () => void;
 
         {/* Politics path */}
         <div style={{ background: T.amberDim, border: `1px solid rgba(232,184,75,0.35)`, borderRadius: 4, padding: '14px 16px' }}>
-          <div style={{ fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.amber, marginBottom: 6 }}>
+          <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.2em', color: T.amber, marginBottom: 6 }}>
             🏛️ Politics Path
           </div>
           <div style={{ fontSize: 14, color: T.ivory, fontWeight: 600, marginBottom: 4 }}>Join the political arena</div>
@@ -170,8 +169,7 @@ function Card2({ onGoToBusiness, onGoToPolitics }: { onGoToBusiness: () => void;
             onClick={(e) => { e.preventDefault(); window.location.href = '/drennia/politics'; }}
             style={{
               background: T.amberDim, border: `1px solid rgba(232,184,75,0.3)`,
-              color: T.amber, fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase',
-              letterSpacing: '0.15em', padding: '7px 14px', borderRadius: 3, cursor: 'pointer',
+              color: T.amber, fontSize: 13, padding: '7px 14px', borderRadius: 3, cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%'
             }}
           >
@@ -194,7 +192,7 @@ function Card3({ citizenFile }: { citizenFile: any }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.28em', color: T.amber, marginBottom: 6 }}>
+        <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.28em', color: T.amber, marginBottom: 6 }}>
           What you manage
         </div>
         <h2 style={{ fontSize: 24, fontWeight: 700, fontFamily: "'Cinzel', Georgia, serif", color: T.ivory, margin: 0, lineHeight: 1.2 }}>
@@ -211,7 +209,7 @@ function Card3({ citizenFile }: { citizenFile: any }) {
         <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 4, padding: '12px 14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: T.ivory }}>Personal Cash</span>
-            <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: T.amber }}>
+            <span style={{ fontSize: 16, fontWeight: 700, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: T.amber }}>
               ${Number(cash).toLocaleString('en-US')}
             </span>
           </div>
@@ -238,7 +236,7 @@ function Card3({ citizenFile }: { citizenFile: any }) {
         <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 4, padding: '12px 14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: T.ivory }}>The Month Clock</span>
-            <span style={{ fontSize: 11, fontFamily: 'monospace', color: T.muted }}>1 month = {REAL_HOURS_PER_GAME_MONTH} real hours</span>
+            <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: T.muted }}>1 month = {REAL_HOURS_PER_GAME_MONTH} real hours</span>
           </div>
           <p style={{ fontSize: 10, color: T.faint, margin: 0, lineHeight: 1.5 }}>
             Everything resolves when the month turns: sales, salaries, elections, bills, campaigns.
@@ -333,12 +331,12 @@ export default function FirstDayModal({ characterName, citizenFile, onDismiss }:
           padding: '12px 18px',
           borderBottom: `1px solid ${T.border}`,
         }}>
-          <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.25em', color: T.faint }}>
+          <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.25em', color: T.faint }}>
             Citizen File · Drennia
           </div>
           <button
             onClick={dismiss}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.faint, fontSize: 11, fontFamily: 'monospace' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.faint, fontSize: 13, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", borderRadius: 10 }}
           >
             Skip
           </button>
@@ -371,8 +369,7 @@ export default function FirstDayModal({ characterName, citizenFile, onDismiss }:
                 onClick={() => setCard(c => c - 1)}
                 style={{
                   background: 'none', border: `1px solid ${T.border}`,
-                  color: T.muted, fontSize: 11, fontFamily: 'monospace',
-                  textTransform: 'uppercase', letterSpacing: '0.15em',
+                  color: T.muted, fontSize: 13,
                   padding: '8px 16px', borderRadius: 3, cursor: 'pointer',
                 }}
               >
@@ -385,8 +382,7 @@ export default function FirstDayModal({ characterName, citizenFile, onDismiss }:
                 style={{
                   background: `linear-gradient(135deg, ${T.amber}, #E0B85A)`,
                   border: 'none', color: '#fff',
-                  fontSize: 11, fontFamily: 'monospace',
-                  textTransform: 'uppercase', letterSpacing: '0.15em',
+                  fontSize: 13,
                   padding: '8px 20px', borderRadius: 3, cursor: 'pointer',
                   boxShadow: `0 2px 12px ${T.amberGlow}`,
                 }}
@@ -399,8 +395,7 @@ export default function FirstDayModal({ characterName, citizenFile, onDismiss }:
                 style={{
                   background: `linear-gradient(135deg, ${T.amber}, #E0B85A)`,
                   border: 'none', color: '#fff',
-                  fontSize: 11, fontFamily: 'monospace',
-                  textTransform: 'uppercase', letterSpacing: '0.15em',
+                  fontSize: 13,
                   padding: '8px 20px', borderRadius: 3, cursor: 'pointer',
                   boxShadow: `0 2px 12px ${T.amberGlow}`,
                 }}

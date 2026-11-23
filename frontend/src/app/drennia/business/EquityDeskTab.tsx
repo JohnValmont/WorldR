@@ -213,7 +213,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
               <div key={s.id} className={`rounded border p-4 ${isCurrent ? 'bg-[#1E1B14] border-terminal-amber/30' : 'bg-[#0B0D12] border-zinc-800'}`}>
                 <div className="flex justify-between items-baseline mb-2">
                   <div className={`text-sm font-bold ${isCurrent ? 'text-terminal-amber' : 'text-zinc-100'}`}>{s.name}</div>
-                  {isCurrent && <div className="font-mono text-[10px] text-terminal-amber uppercase tracking-widest">Current</div>}
+                  {isCurrent && <div className=" text-[10px] text-terminal-amber uppercase tracking-widest">Current</div>}
                 </div>
                 <p className="text-[11px] text-zinc-400 leading-relaxed mb-3 min-h-[44px]">{s.description}</p>
                 <div className="font-mono text-[10px] text-zinc-500 flex flex-col gap-1">
@@ -253,7 +253,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
             </div>
           </div>
         ))}
-        <div className="font-mono text-[10px] text-zinc-600 mt-3 uppercase tracking-wider">
+        <div className=" text-[10px] text-zinc-600 mt-3 uppercase tracking-wider">
           {fmt(Number(capTable?.total_shares || 0))} total shares issued
         </div>
       </Card>

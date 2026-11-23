@@ -44,7 +44,7 @@ export default function SectionHeading({
           {children}
         </span>
         {stamp && (
-          <span className="text-[10px] font-mono text-zinc-600 border border-[#262B36] px-1.5 py-0.5 tracking-[0.1em] uppercase">
+          <span className="text-[10px] text-zinc-600 border border-[#262B36] px-1.5 py-0.5 tracking-[0.1em] uppercase">
             {stamp}
           </span>
         )}

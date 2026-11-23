@@ -10,6 +10,10 @@ export interface TabItem {
   icon?: LucideIcon;
   disabled?: boolean;
   locked?: boolean;
+  /** Small count after the label (hidden when 0). */
+  badge?: number;
+  /** 'warn' tints the badge for something that needs attention. */
+  tone?: 'warn';
 }
 
 interface TabsProps {
@@ -19,6 +23,12 @@ interface TabsProps {
   className?: string;
   sticky?: boolean;
   top?: number;
+  /** Accessible name for the tab group, e.g. "Business sections". */
+  label?: string;
+  /** Right-aligned content in the tab row (e.g. a link to a related screen). */
+  trailing?: React.ReactNode;
+  /** Horizontal padding of the tab row; pages with their own gutter pass 'none'. */
+  inset?: 'page' | 'none';
 }
 
 export default function Tabs({
@@ -28,7 +38,19 @@ export default function Tabs({
   className,
   sticky = false,
   top = 0,
+  label = 'Sections',
+  trailing,
+  inset = 'page',
 }: TabsProps) {
+  // Arrow keys move between tabs (WAI-ARIA tabs pattern).
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    const enabled = tabs.filter(t => !t.disabled && !t.locked);
+    const i = enabled.findIndex(t => t.id === activeId);
+    const next = e.key === 'Home' ? enabled[0] : e.key === 'End' ? enabled[enabled.length - 1]
+      : enabled[(i + (e.key === 'ArrowRight' ? 1 : -1) + enabled.length) % enabled.length];
+    if (next) { e.preventDefault(); onChange(next.id); containerRef.current?.querySelector<HTMLElement>(`[data-tab="${next.id}"]`)?.focus(); }
+  };
   // A small trick for animated underline
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -47,13 +69,13 @@ export default function Tabs({
   return (
     <div
       className={cn(
-        'w-full border-b border-[#262B36] bg-[#0B0D12]/90 backdrop-blur-md z-20 overflow-x-auto no-scrollbar',
+        'w-full border-b border-line bg-bg/90 backdrop-blur-md z-20 overflow-x-auto scrollbar-hide',
         sticky && 'sticky',
         className
       )}
       style={sticky ? { top: `${top}px` } : undefined}
     >
-      <div ref={containerRef} className="flex relative px-4 md:px-6">
+      <div ref={containerRef} role="tablist" aria-label={label} onKeyDown={onKeyDown} className={cn('flex relative items-center', inset === 'page' && 'px-4 md:px-6')}>
         {tabs.map((tab) => {
           const isActive = activeId === tab.id;
           const isDisabled = tab.disabled || tab.locked;
@@ -62,6 +84,12 @@ export default function Tabs({
           return (
             <button
               key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-disabled={isDisabled || undefined}
+              tabIndex={isActive ? 0 : -1}
+              data-tab={tab.id}
               data-state={isActive ? 'active' : 'inactive'}
               onClick={() => {
                 if (!isDisabled) onChange(tab.id);
@@ -80,9 +108,13 @@ export default function Tabs({
               {Icon && <Icon size={14} className={isActive ? 'text-accent' : 'text-ink-faint'} />}
               <span>{tab.label}</span>
               {tab.locked && <Lock size={12} className="ml-0.5 text-ink-faint" aria-label="locked" />}
+              {tab.badge != null && tab.badge > 0 && (
+                <span className={cn('rounded-full px-1.5 text-[11px] font-semibold leading-[18px]', tab.tone === 'warn' ? 'bg-warn/20 text-warn' : 'bg-accent/15 text-accent')}>{tab.badge}</span>
+              )}
             </button>
           );
         })}
+        {trailing && <div className="ml-auto flex shrink-0 items-center pl-4">{trailing}</div>}
         {/* Animated Underline */}
         <div
           className="absolute bottom-0 h-[2px] rounded-full bg-accent transition-all duration-300 ease-out"

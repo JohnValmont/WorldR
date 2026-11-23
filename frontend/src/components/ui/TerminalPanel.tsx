@@ -40,7 +40,7 @@ export default function TerminalPanel({
           {subtitle && (
             <>
               <span className="text-zinc-600 font-mono text-[10px]">•</span>
-              <span className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider">{subtitle}</span>
+              <span className="text-zinc-500 text-[10px] uppercase tracking-wider">{subtitle}</span>
             </>
           )}
         </div>

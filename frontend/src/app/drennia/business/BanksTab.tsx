@@ -151,7 +151,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
       <div className="flex h-full items-center justify-center w-full min-h-[500px] bg-[#0B0D12]">
         <div className="flex flex-col items-center gap-4 animate-pulse">
           <Landmark size={32} className="text-terminal-amber opacity-50" />
-          <div className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest">Accessing Financial District...</div>
+          <div className="text-[11px] text-zinc-500 uppercase tracking-widest">Accessing Financial District...</div>
         </div>
       </div>
     );
@@ -244,7 +244,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
             
             {myCompanies.length > 0 && (
               <div className="flex flex-col gap-1.5 mt-2">
-                <span className="text-[10px] uppercase font-mono text-zinc-500 tracking-widest">Active Corporation</span>
+                <span className="text-[10px] uppercase text-zinc-500 tracking-widest">Active Corporation</span>
                 <select 
                   className="bg-[#13161E] text-zinc-300 text-[11px] font-mono border border-zinc-800 rounded px-2 py-1.5 focus:outline-none focus:border-terminal-amber truncate max-w-[170px]"
                   value={activeCompany?.id || ''}
@@ -331,7 +331,7 @@ function FinancialDistrict({ banks, onSelectBank }: any) {
             </div>
             
             <div className="pt-4 border-t border-zinc-800/50 flex justify-between items-center relative z-10">
-              <span className="text-[10px] font-mono uppercase text-zinc-500">Enter Portal</span>
+              <span className="text-[10px] uppercase text-zinc-500">Enter Portal</span>
               <ArrowRight size={14} className="text-zinc-600 group-hover:text-zinc-300 transition-colors transform group-hover:translate-x-1" />
             </div>
           </div>
@@ -373,7 +373,7 @@ function FinancialProfile({ company, personalDossier, corporateDossier, getRatin
         {/* Scores */}
         <div className="col-span-1 flex flex-col gap-4">
           <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-6 flex-1 flex flex-col justify-center">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2">Personal Rating</div>
+            <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Personal Rating</div>
             <div className="flex items-baseline gap-3">
               <div className="text-4xl font-serif font-bold" style={{ color: getRatingColor(personalDossier?.ratingTier || 'D') }}>
                 {personalDossier?.ratingTier || 'N/A'}
@@ -382,7 +382,7 @@ function FinancialProfile({ company, personalDossier, corporateDossier, getRatin
             </div>
           </div>
           <div className={`bg-[#13161E] border border-zinc-800 rounded-lg p-6 flex-1 flex flex-col justify-center ${!company ? 'opacity-50 grayscale' : ''}`}>
-            <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2">Corporate Rating</div>
+            <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Corporate Rating</div>
             {company ? (
               <div className="flex items-baseline gap-3">
                 <div className="text-4xl font-serif font-bold" style={{ color: getRatingColor(corporateDossier?.ratingTier || 'D') }}>
@@ -398,7 +398,7 @@ function FinancialProfile({ company, personalDossier, corporateDossier, getRatin
 
         {/* Radar Chart */}
         <div className="col-span-1 bg-[#13161E] border border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[250px]">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">The 5 C's (Consolidated)</div>
+          <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">The 5 C's (Consolidated)</div>
           <div className="w-full flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
@@ -413,7 +413,7 @@ function FinancialProfile({ company, personalDossier, corporateDossier, getRatin
 
         {/* Pie Chart */}
         <div className="col-span-1 bg-[#13161E] border border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[250px]">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">Debt to Asset Ratio</div>
+          <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">Debt to Asset Ratio</div>
           <div className="w-full flex-1 relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -487,14 +487,14 @@ function FacilityCard({
       <div className="text-[11px] text-[#A3A4AC] mb-6 flex-1 leading-relaxed">{desc}</div>
       
       {disabledReason ? (
-        <button disabled className="w-full bg-[#13161E] border border-zinc-800 text-zinc-600 py-2.5 text-[10px] font-mono uppercase tracking-widest rounded cursor-not-allowed">
+        <button disabled className="w-full bg-[#13161E] border border-zinc-800 text-zinc-600 py-2.5 text-[10px] uppercase tracking-widest rounded cursor-not-allowed">
           {disabledReason}
         </button>
       ) : (
         <button 
           onClick={() => onApply(type, amount)}
           disabled={isSubmitting}
-          className={`w-full py-2.5 text-[10px] font-mono uppercase tracking-widest rounded transition-all shadow-sm
+          className={`w-full py-2.5 text-[10px] uppercase tracking-widest rounded transition-all shadow-sm
             ${isDistressedOnly 
               ? 'bg-[#8F3D3D]/10 border border-[#8F3D3D] text-[#ff8888] hover:bg-[#8F3D3D]/30'
               : 'border hover:opacity-80'
