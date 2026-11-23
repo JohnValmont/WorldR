@@ -216,7 +216,7 @@ export function PhaseTrack({ phase, arc, filingArc, campaignArc, electionArc, fo
         const done = i < idx, current = i === idx;
         return (
           <li key={p.key} className="min-w-0">
-            <div className="h-1.5 rounded-full" style={{ background: current ? C.brass : done ? 'rgba(201,162,39,0.45)' : '#222B3D' }} />
+            <div className="h-1.5 rounded-full" style={{ background: current ? C.brass : done ? 'rgba(232,184,75,0.45)' : '#222B3D' }} />
             <div className="mt-1.5 text-[11px] font-semibold truncate" style={{ color: current ? C.ivory : C.muted }}>{p.label}</div>
             <div className="text-[10px] font-mono truncate" style={{ color: C.faint }}>
               {p.key === 'governing' ? (current ? 'now' : '') : formatPolArc(p.key === 'formation' ? formationEndArc : at[p.key])}

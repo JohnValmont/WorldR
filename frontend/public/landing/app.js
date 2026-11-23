@@ -21,9 +21,17 @@ if (!reduceMotion) {
    THREE.JS SCENE — the globe of Drennia (Dark Tactical Globe)
    ==================================================================== */
 const canvas = document.getElementById('scene');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
+// The globe is decoration: without WebGL the page still works (static background, all copy and links).
+let renderer = null;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+} catch (e) {
+  console.warn('WebGL unavailable; continuing without the globe.', e);
+  document.documentElement.classList.add('no-scene');
+}
+window.__worldrReady = true; // failsafe.js: the page script started
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 100);
@@ -99,7 +107,7 @@ const globeFrag = /* glsl */`
     float equator  = 1.0 - smoothstep(0.0, 0.009, abs(lat));                   /* 0 deg */
     float tropic1  = 1.0 - smoothstep(0.0, 0.007, abs(abs(lat) - 0.1306));    /* 23.5 N/S */
     float arcCirc  = 1.0 - smoothstep(0.0, 0.007, abs(abs(lat) - 0.1944));    /* 35 N/S  */
-    float specials = max(equator * 0.7, max(tropic1 * 0.55, arcCirc * 0.35));
+    float specials = max(equator * 0.38, max(tropic1 * 0.28, arcCirc * 0.22));
 
     /* ---- scan sweep (top to bottom, slow) ---- */
     float scanSpeed = 0.07;
@@ -159,8 +167,8 @@ const mkAtmo = (radius, power, alpha, hex) => new THREE.Mesh(
         gl_FragColor=vec4(uColor,f*${alpha.toFixed(2)}); }`,
   })
 );
-globeGroup.add(mkAtmo(1.04, 4.0, 0.95, 0xf0c870));  /* tight bright rim */
-globeGroup.add(mkAtmo(1.14, 2.8, 0.35, 0xcd8c1e));  /* mid amber glow  */
+globeGroup.add(mkAtmo(1.04, 4.0, 0.55, 0xf0c870));  /* tight rim (toned down so hero copy reads) */
+globeGroup.add(mkAtmo(1.14, 2.8, 0.16, 0xcd8c1e));  /* mid amber glow  */
 globeGroup.add(mkAtmo(1.30, 1.8, 0.10, 0x6b4410));  /* faint outer haze */
 
 /* ---------- Capital hotspot pulses (6 glowing nodes on surface) ---------- */
@@ -240,7 +248,7 @@ const orbiters = [];
 icons.forEach((tex, i) => {
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.92,
     blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false }));
-  const sc = 0.34; spr.scale.set(sc, sc, sc);
+  const sc = 0.22; spr.scale.set(sc, sc, sc); // ambient, never louder than the copy
   const o = { spr, radius: 1.62 + (i % 2) * 0.16, speed: 0.14 + i * 0.018,
     phase: (i / icons.length) * Math.PI * 2, tilt: -0.5 + (i * 0.42) };
   orbiters.push(o); globeGroup.add(spr);
@@ -315,7 +323,7 @@ function tick() {
       Math.sin(a) * o.radius
     );
     const dz = o.spr.position.z;
-    o.spr.material.opacity = 0.45 + 0.5 * ((dz + o.radius) / (2 * o.radius));
+    o.spr.material.opacity = 0.12 + 0.3 * ((dz + o.radius) / (2 * o.radius));
   });
 
   // particle drift
@@ -343,6 +351,7 @@ function tick() {
   camera.position.x += (pointer.x * 0.25 - camera.position.x) * 0.05;
   camera.lookAt(0, 0, 0);
 
+  if (!renderer) return;
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
@@ -351,7 +360,7 @@ tick();
 window.addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  if (renderer) renderer.setSize(innerWidth, innerHeight);
 });
 
 /* ====================================================================
@@ -579,60 +588,50 @@ const btnConfirmGuest = document.getElementById('btnConfirmGuest');
 const btnDiscord = document.getElementById('btnDiscord');
 
 window.worldrTrack && window.worldrTrack('landing_viewed');
-if (btnCreate) btnCreate.addEventListener('click', () => { window.worldrTrack && window.worldrTrack('signup_clicked'); window.location.href = '/landing/onboarding.html?action=register'; });
-if (btnLogin) btnLogin.addEventListener('click', () => { window.worldrTrack && window.worldrTrack('login_clicked'); window.location.href = '/landing/onboarding.html?action=login'; });
+// Create / Sign in are plain links (they work even if this script does not); we only track clicks.
+if (btnCreate) btnCreate.addEventListener('click', () => { window.worldrTrack && window.worldrTrack('signup_clicked'); });
+if (btnLogin) btnLogin.addEventListener('click', () => { window.worldrTrack && window.worldrTrack('login_clicked'); });
+document.querySelectorAll('[data-track]').forEach(el => el.addEventListener('click', () => { window.worldrTrack && window.worldrTrack(el.dataset.track, { from: 'hero' }); }));
 
 if (btnGuest && guestModalOverlay) {
-  // Show Modal
-  btnGuest.addEventListener('click', () => {
+  let lastFocus = null;
+  const openGuest = () => {
     window.worldrTrack && window.worldrTrack('guest_play_clicked');
-    guestModalOverlay.style.display = 'flex';
-    setTimeout(() => { guestModalOverlay.style.opacity = '1'; }, 10);
-  });
-
-  // Hide Modal
-  btnCancelGuest.addEventListener('click', () => {
-    guestModalOverlay.style.opacity = '0';
-    setTimeout(() => { guestModalOverlay.style.display = 'none'; }, 300);
-  });
+    lastFocus = document.activeElement;
+    guestModalOverlay.classList.add('open');
+    btnConfirmGuest.focus();
+  };
+  const closeGuest = () => {
+    guestModalOverlay.classList.remove('open');
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  };
+  btnGuest.addEventListener('click', openGuest);
+  btnCancelGuest.addEventListener('click', closeGuest);
+  guestModalOverlay.addEventListener('click', e => { if (e.target === guestModalOverlay) closeGuest(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && guestModalOverlay.classList.contains('open')) closeGuest(); });
 
   // Confirm and Login
   btnConfirmGuest.addEventListener('click', async () => {
+    const btnSpan = btnConfirmGuest.querySelector('span');
     try {
-      const btnSpan = btnConfirmGuest.querySelector('span');
-      if (btnSpan) btnSpan.innerText = 'Creating Account...';
-      
-      const res = await fetch('/api/v1/auth/guest-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      if (!res.ok) {
-        throw new Error('Failed to create guest account');
-      }
-      
+      btnConfirmGuest.disabled = true;
+      if (btnSpan) btnSpan.innerText = 'Creating your guest…';
+      const res = await fetch('/api/v1/auth/guest-login', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      if (!res.ok) throw new Error('Failed to create guest account');
       const data = await res.json();
       localStorage.setItem('worldr_access_token', data.accessToken);
       if (data.refreshToken) localStorage.setItem('worldr_refresh_token', data.refreshToken);
-      
       // Seed Zustand store so Next.js apps see the user as authenticated
       localStorage.setItem('worldr-auth', JSON.stringify({
-        state: {
-          user: data.user,
-          accessToken: data.accessToken,
-          refreshToken: data.refreshToken || null,
-          isAuthenticated: true
-        },
+        state: { user: data.user, accessToken: data.accessToken, refreshToken: data.refreshToken || null, isAuthenticated: true },
         version: 0
       }));
-      
       window.worldrTrack && window.worldrTrack('guest_account_created');
       window.location.href = '/landing/onboarding.html?action=character';
     } catch (err) {
       console.error(err);
-      alert('Error creating guest account.');
-      const btnSpan = btnConfirmGuest.querySelector('span');
-      if (btnSpan) btnSpan.innerText = 'Continue as Guest';
+      btnConfirmGuest.disabled = false;
+      if (btnSpan) btnSpan.innerText = 'Could not start: try again';
     }
   });
 }

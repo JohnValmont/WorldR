@@ -25,22 +25,22 @@ export default function TerminalPanel({
 }: TerminalPanelProps) {
   return (
     <div className={cn(
-      'border border-[#23232b] bg-[#0c0d13] flex flex-col rounded-xl shadow-card',
+      'border border-[#262B36] bg-[#13161E] flex flex-col rounded-xl shadow-card',
       fullHeight && 'h-full',
       className,
     )}>
       {/* Header */}
-      <div className="bg-[#0a0b11] border-b border-[#23232b] px-4 py-2.5 flex items-center justify-between shrink-0 rounded-t-xl">
+      <div className="bg-raised/60 border-b border-line px-4 py-2.5 flex items-center justify-between shrink-0 rounded-t-xl">
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-terminal-amber shadow-amber-glow animate-pulse-glow shrink-0" />
           {Icon && <Icon size={11} className="text-terminal-amber opacity-70" />}
-          <h3 className="text-zinc-300 font-bold text-[10px] uppercase tracking-[0.15em] font-mono leading-none">
+          <h3 className="text-ink font-semibold text-[11px] uppercase tracking-[0.14em] leading-none">
             {title}
           </h3>
           {subtitle && (
             <>
-              <span className="text-zinc-700 font-mono text-[9px]">•</span>
-              <span className="text-zinc-500 font-mono text-[9px] uppercase tracking-wider">{subtitle}</span>
+              <span className="text-zinc-600 font-mono text-[10px]">•</span>
+              <span className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider">{subtitle}</span>
             </>
           )}
         </div>

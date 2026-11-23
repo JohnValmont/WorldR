@@ -61,14 +61,14 @@ export default function RegisterPage() {
       <div className="w-full animate-auth-enter">
         <div className="flex flex-col items-center text-center py-4">
           {/* Success icon */}
-          <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-5 shadow-[0_0_30px_rgba(16,185,129,0.12)]">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-5 shadow-[0_0_30px_rgba(79,178,134,0.12)]">
             <svg className="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
 
           <div className="flex items-center gap-2 mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(79,178,134,0.8)]" />
             <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.3em]">Account Registered</span>
           </div>
 
@@ -287,7 +287,7 @@ export default function RegisterPage() {
       {/* Divider */}
       <div className="flex items-center gap-3 my-5">
         <div className="flex-1 h-px bg-white/5" />
-        <span className="text-[10px] text-zinc-700 font-mono uppercase tracking-widest">or</span>
+        <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">or</span>
         <div className="flex-1 h-px bg-white/5" />
       </div>
 

@@ -7,10 +7,10 @@ import { useAuthStore } from '../../store/auth.store';
 import { authApi, worldApi } from '../../lib/api';
 
 const T = {
-  gold: '#C9A24A',
-  ivory: '#F4EBD6',
-  muted: '#A79D8C',
-  border: '#2A2630'
+  gold: '#E8B84B',
+  ivory: '#ECEAE4',
+  muted: '#A3A4AC',
+  border: '#262B36'
 };
 
 export default function WorldTimeControl() {
@@ -88,9 +88,9 @@ export default function WorldTimeControl() {
       <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'right' }}>
         <div style={{ color: T.ivory }}>{dateStr}</div>
         {clock.status === 'paused' ? (
-          <div style={{ color: T.muted, fontSize: '9px' }}>WORLD PAUSED</div>
+          <div style={{ color: T.muted, fontSize: '10px' }}>WORLD PAUSED</div>
         ) : (
-          <div style={{ color: T.muted, fontSize: '9px' }} aria-live="polite">
+          <div style={{ color: T.muted, fontSize: '10px' }} aria-live="polite">
             {secondsToTick !== null && (
               secondsToTick === 0 ? (
                 isBizTickStalled ? (

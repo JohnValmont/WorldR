@@ -26,10 +26,10 @@ const T = {
   ivory: '#fffff0',
   paper: '#0a0a0a',
   border: '#2a2a2a',
-  mint: '#36d399',
-  red: '#b85555',
+  mint: '#4FB286',
+  red: '#D9625A',
   blue: '#6ea8fe',
-  bg: '#090A0F',
+  bg: '#0B0D12',
 };
 
 // ─── Currency formatter is defined inside the component from mfgData.currencySymbol
@@ -193,7 +193,7 @@ function SectionHeader({ children, stamp, action }: { children: React.ReactNode;
         {action && <div>{action}</div>}
       </h2>
       {stamp && (
-        <span className="text-[9px] font-mono text-terminal-amber uppercase tracking-[0.2em] pb-0.5 shrink-0">
+        <span className="text-[10px] font-mono text-terminal-amber uppercase tracking-[0.2em] pb-0.5 shrink-0">
           {stamp}
         </span>
       )}
@@ -994,7 +994,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
       </nav>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 min-w-0 lg:pl-6 pb-16 pt-4">
+      <div className="flex-1 min-w-0 lg:pl-6 pb-16 pt-4">
 
         {/* Notification */}
         {notification && (
@@ -1061,16 +1061,16 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                     revenue: Number(r.gross_revenue),
                     expenses: Number(r.gross_revenue) - Number(r.net_profit)
                   }))}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#23232b" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#262B36" vertical={false} />
                     <XAxis dataKey="month" stroke="#888888" fontSize={10} tickMargin={10} />
                     <YAxis stroke="#888888" fontSize={10} tickFormatter={(val) => fm(val)} />
                     <RechartsTooltip
-                      contentStyle={{ backgroundColor: '#0c0d13', borderColor: '#23232b', fontSize: '12px', fontFamily: 'monospace' }}
+                      contentStyle={{ backgroundColor: '#13161E', borderColor: '#262B36', fontSize: '12px', fontFamily: 'monospace' }}
                       itemStyle={{ color: '#fffff0' }}
                       formatter={(val: any) => fm(Number(val) || 0)}
                     />
-                    <Bar dataKey="revenue" fill="#30d158" radius={[2,2,0,0]} name="Revenue" />
-                    <Bar dataKey="expenses" fill="#ff453a" radius={[2,2,0,0]} name="Expenses" />
+                    <Bar dataKey="revenue" fill="#4FB286" radius={[2,2,0,0]} name="Revenue" />
+                    <Bar dataKey="expenses" fill="#D9625A" radius={[2,2,0,0]} name="Expenses" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1088,11 +1088,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                   { subject: 'Growth', A: 75, fullMark: 100 },
                   { subject: 'Efficiency', A: activeLinesCount > 0 ? 80 : 20, fullMark: 100 },
                 ]}>
-                  <PolarGrid stroke="#23232b" />
+                  <PolarGrid stroke="#262B36" />
                   <PolarAngleAxis dataKey="subject" tick={{ fill: '#888888', fontSize: 10 }} />
                   <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                  <Radar name="Company" dataKey="A" stroke="#0a84ff" fill="#0a84ff" fillOpacity={0.2} />
-                  <RechartsTooltip contentStyle={{ backgroundColor: '#0c0d13', borderColor: '#23232b', fontSize: '10px' }} />
+                  <Radar name="Company" dataKey="A" stroke="#6AA6E8" fill="#6AA6E8" fillOpacity={0.2} />
+                  <RechartsTooltip contentStyle={{ backgroundColor: '#13161E', borderColor: '#262B36', fontSize: '10px' }} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
@@ -1145,7 +1145,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                 }
               />
             </div>
-            <div className="p-6 bg-[#0a0a0a]/50 border-t border-[#23232b]">
+            <div className="p-6 bg-[#0a0a0a]/50 border-t border-[#262B36]">
               <div className="flex justify-between text-[10px] text-zinc-500 font-mono mb-2">
                 <span>Setup Progress</span>
                 <span>{hasActivePlan ? '100' : hasModel ? '66' : hasFactory ? '33' : '0'}%</span>
@@ -1245,7 +1245,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                     <div className="text-[11px] text-zinc-400 mb-3">{resolveState(plot.state_id)} · {plot.total_acres} Acres</div>
                     <div className="flex gap-2">
                       <GoldButton onClick={() => { setConstructFactoryPlotId(plot.id); setShowConstructFactoryModal(true); }}>Build Factory Here</GoldButton>
-                      <GhostButton color="#b85555" onClick={async () => {
+                      <GhostButton color="#D9625A" onClick={async () => {
                         if (confirm(`Are you sure you want to sell ${plot.name}? This will recover 80% of the land cost.`)) {
                           try {
                             await manufacturingApi.sellLand(company.id, plot.id);
@@ -1308,16 +1308,16 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                     <>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
                         <FieldRow label="Capacity / Month" value={`${factory.capacity_per_month} units`} />
-                        <FieldRow label="Lease Cost / Month" value={fm(factory.lease_cost_per_month)} valueColor="#ff453a" />
+                        <FieldRow label="Lease Cost / Month" value={fm(factory.lease_cost_per_month)} valueColor="#D9625A" />
                         <FieldRow label="Production Lines" value={factory.max_production_lines || 1} />
-                        <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_month)} valueColor="#ff453a" />
+                        <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_month)} valueColor="#D9625A" />
                         <FieldRow label="Machine Level" value={factory.machine_level} valueColor="#d4af37" />
-                        <FieldRow label="Condition" value={`${factory.condition}%`} valueColor={Number(factory.condition) < 60 ? '#ff453a' : '#30d158'} />
+                        <FieldRow label="Condition" value={`${factory.condition}%`} valueColor={Number(factory.condition) < 60 ? '#D9625A' : '#4FB286'} />
                       </div>
 
                       <div className="mt-4 flex gap-2">
                         <GhostButton onClick={() => setDeskTab('production')}>Open Production →</GhostButton>
-                        <GhostButton color="#b85555" onClick={async () => {
+                        <GhostButton color="#D9625A" onClick={async () => {
                           if (confirm(`Are you sure you want to scrap ${factory.name}? You will recover 30% of the construction cost, but this cannot be undone. All production lines must be scrapped first.`)) {
                             try {
                               await manufacturingApi.scrapFactory(company.id, factory.id);
@@ -1342,11 +1342,11 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
                             <FieldRow label="Facility" value="Expanded Workshop" valueColor="#d4af37" />
-                            <FieldRow label="Capacity" value={`${EXP_CAPACITY} units / Month`} valueColor="#30d158" />
-                            <FieldRow label="Production Lines" value={String(EXP_MAX_LINES)} valueColor="#30d158" />
+                            <FieldRow label="Capacity" value={`${EXP_CAPACITY} units / Month`} valueColor="#4FB286" />
+                            <FieldRow label="Production Lines" value={String(EXP_MAX_LINES)} valueColor="#4FB286" />
                             <FieldRow label="Worker Capacity" value={String(EXP_WORKERS)} />
-                            <FieldRow label="Lease / Month" value={fm(EXP_LEASE)} valueColor="#ff453a" />
-                            <FieldRow label="Maintenance / Month" value={fm(EXP_MAINT)} valueColor="#ff453a" />
+                            <FieldRow label="Lease / Month" value={fm(EXP_LEASE)} valueColor="#D9625A" />
+                            <FieldRow label="Maintenance / Month" value={fm(EXP_MAINT)} valueColor="#D9625A" />
                           </div>
                         </div>
                       );
@@ -1369,9 +1369,9 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
                               <FieldRow label="Started" value={formatWorldDate(startedYear, startedArc)} />
                               <FieldRow label="Completes" value={formatWorldDate(compYear, compMonth)} />
-                              <FieldRow label="Investment Paid" value={fm(factory.expansion_cost || 500000)} valueColor="#ff453a" />
+                              <FieldRow label="Investment Paid" value={fm(factory.expansion_cost || 500000)} valueColor="#D9625A" />
                               <FieldRow label="Current Capacity" value="100 units / Month" />
-                              <FieldRow label="Production Line 1" value="Operational" valueColor="#30d158" />
+                              <FieldRow label="Production Line 1" value="Operational" valueColor="#4FB286" />
                               <FieldRow label="Production Line 2" value="Unavailable until complete" valueColor="#71717a" />
                             </div>
                           </div>
@@ -1417,17 +1417,17 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                             <FieldRow label="Capacity" value={`${factory.capacity_per_month ?? 100} units / Month`} />
                             <FieldRow label="Production Lines" value="1" />
                             <FieldRow label="Max Workers" value={String(factory.worker_capacity ?? 40)} />
-                            <FieldRow label="Lease / Month" value={fm(factory.lease_cost_per_month)} valueColor="#ff453a" />
-                            <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_month)} valueColor="#ff453a" />
+                            <FieldRow label="Lease / Month" value={fm(factory.lease_cost_per_month)} valueColor="#D9625A" />
+                            <FieldRow label="Maintenance / Month" value={fm(factory.maintenance_cost_per_month)} valueColor="#D9625A" />
                           </div>
                           <div className="rounded-md border border-terminal-amber/40 bg-terminal-amber/5 p-3.5">
                             <div className="text-[11px] font-bold text-terminal-amber mb-0.5">Expanded Workshop</div>
                             <div className="text-[10px] text-zinc-500 mb-1.5">After expansion completes</div>
-                            <FieldRow label="Capacity" value={`${EXP_CAPACITY} units / Month`} valueColor="#30d158" />
-                            <FieldRow label="Production Lines" value={String(EXP_MAX_LINES)} valueColor="#30d158" />
-                            <FieldRow label="Max Workers" value={String(EXP_WORKERS)} valueColor="#30d158" />
-                            <FieldRow label="Lease / Month" value={fm(EXP_LEASE)} valueColor="#ff453a" />
-                            <FieldRow label="Maintenance / Month" value={fm(EXP_MAINT)} valueColor="#ff453a" />
+                            <FieldRow label="Capacity" value={`${EXP_CAPACITY} units / Month`} valueColor="#4FB286" />
+                            <FieldRow label="Production Lines" value={String(EXP_MAX_LINES)} valueColor="#4FB286" />
+                            <FieldRow label="Max Workers" value={String(EXP_WORKERS)} valueColor="#4FB286" />
+                            <FieldRow label="Lease / Month" value={fm(EXP_LEASE)} valueColor="#D9625A" />
+                            <FieldRow label="Maintenance / Month" value={fm(EXP_MAINT)} valueColor="#D9625A" />
                             <FieldRow label="Construction Time" value={`${EXPANSION_DURATION} Month${EXPANSION_DURATION > 1 ? 's' : ''}`} />
                             <FieldRow label="Upfront Investment" value={fm(EXPANSION_COST)} valueColor="#d4af37" />
                           </div>
@@ -1639,7 +1639,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                                 return (
                                   <div
                                     key={stage}
-                                    className={`flex-1 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.08em] rounded-sm border
+                                    className={`flex-1 py-1.5 text-center text-[10px] font-mono uppercase tracking-[0.08em] rounded-sm border
                                       ${active
                                         ? 'bg-terminal-amber/15 border-terminal-amber text-terminal-amber'
                                         : 'bg-zinc-900/40 border-zinc-800 text-zinc-600'}`}
@@ -1648,7 +1648,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                                   </div>
                                 );
                               })}
-                              <div className="flex-1 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.08em] rounded-sm border bg-zinc-900/40 border-zinc-800 text-zinc-600">
+                              <div className="flex-1 py-1.5 text-center text-[10px] font-mono uppercase tracking-[0.08em] rounded-sm border bg-zinc-900/40 border-zinc-800 text-zinc-600">
                                 Launch
                               </div>
                             </div>
@@ -1823,7 +1823,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                       {balanceRating && (
                         <div style={{ marginBottom: '20px' }}>
                           <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Balance Rating</div>
-                          <div style={{ padding: '8px 12px', background: 'rgba(54,211,153,0.06)', border: `1px solid rgba(54,211,153,0.25)`, borderRadius: '2px', fontSize: '12px', color: T.mint, fontWeight: 700, lineHeight: 1.5 }}>
+                          <div style={{ padding: '8px 12px', background: 'rgba(79,178,134,0.06)', border: `1px solid rgba(79,178,134,0.25)`, borderRadius: '2px', fontSize: '12px', color: T.mint, fontWeight: 700, lineHeight: 1.5 }}>
                             {balanceRating}
                           </div>
                         </div>
@@ -1957,7 +1957,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
 
                         {/* Discontinue Confirm Box */}
                         {showDiscontinueConfirm && discontinuingModelId === selectedModel.id && (
-                          <div style={{ background: 'rgba(184,85,85,0.08)', border: `1px solid ${T.red}55`, padding: '16px', marginBottom: '24px', borderRadius: '2px' }}>
+                          <div style={{ background: 'rgba(217,98,90,0.08)', border: `1px solid ${T.red}55`, padding: '16px', marginBottom: '24px', borderRadius: '2px' }}>
                             <div style={{ fontSize: '13px', fontWeight: 700, color: T.red, marginBottom: '8px' }}>Confirm Discontinuation</div>
                             <div style={{ fontSize: '12px', color: T.ivory, lineHeight: 1.6, marginBottom: '16px' }}>
                               Discontinuing a model is permanent. It will no longer be available for production, and its performance history will be finalized. Any remaining inventory will still be sold.
@@ -2241,7 +2241,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
 
                             {/* Balance Flags */}
                             {liveScore.balanceFlags.length > 0 && (
-                              <PanelBox style={{ border: `1px solid rgba(245,158,11,0.3)` }}>
+                              <PanelBox style={{ border: `1px solid rgba(232,184,75,0.3)` }}>
                                 <div style={{ fontSize: '11px', color: '#f59e0b', fontFamily: 'monospace', textTransform: 'uppercase', marginBottom: '8px' }}>⚠ Engineering Flags</div>
                                 {liveScore.balanceFlags.map((flag, i) => (
                                   <div key={i} style={{ fontSize: '11px', color: T.ivory, lineHeight: 1.5, marginBottom: '6px', paddingLeft: '8px', borderLeft: `2px solid #f59e0b55` }}>{flag}</div>
@@ -2444,8 +2444,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                     const canAfford = Number(finances?.available_cash || 0) >= (prog.budget || 0);
                     const hasEngineers = engineerCount >= (prog.minEng || 1);
 
-                    const borderColor = isCompleted ? 'rgba(48,209,88,0.35)' : inProgress ? 'rgba(245,158,11,0.35)' : isLocked ? T.border : T.border;
-                    const bgColor = isCompleted ? 'rgba(48,209,88,0.04)' : inProgress ? 'rgba(245,158,11,0.04)' : 'rgba(255,255,255,0.02)';
+                    const borderColor = isCompleted ? 'rgba(79,178,134,0.35)' : inProgress ? 'rgba(232,184,75,0.35)' : isLocked ? T.border : T.border;
+                    const bgColor = isCompleted ? 'rgba(79,178,134,0.04)' : inProgress ? 'rgba(232,184,75,0.04)' : 'rgba(255,255,255,0.02)';
 
                     return (
                       <div key={id} style={{ background: bgColor, border: `1px solid ${borderColor}`, padding: '18px', borderRadius: '2px', opacity: isLocked ? 0.65 : 1 }}>
@@ -2456,7 +2456,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                               <div style={{ fontSize: '14px', fontWeight: 700, color: isCompleted ? T.mint : T.gold }}>{prog.name}</div>
                               {prog.category && (
-                                <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.blue, background: 'rgba(110,168,254,0.1)', border: '1px solid rgba(110,168,254,0.2)', padding: '2px 6px', borderRadius: '2px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.blue, background: 'rgba(110,168,254,0.1)', border: '1px solid rgba(110,168,254,0.2)', padding: '2px 6px', borderRadius: '2px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                                   {prog.category}
                                 </div>
                               )}
@@ -2483,7 +2483,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                         {/* Effects */}
                         {prog.effects && prog.effects.length > 0 && (
                           <div style={{ marginBottom: '14px', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`, borderRadius: '2px' }}>
-                            <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Effects on Approval</div>
+                            <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.gold, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Effects on Approval</div>
                             {prog.effects.map((eff: any, i: number) => (
                               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', padding: '4px 0', borderBottom: i < prog.effects.length - 1 ? `1px dotted ${T.border}` : 'none' }}>
                                 <span style={{ fontSize: '11px', color: T.faint, flex: 1 }}>{eff.label}</span>
@@ -2508,7 +2508,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
 
                         {/* In-progress timeline */}
                         {inProgress && (
-                          <div style={{ fontSize: '11px', color: T.faint, textAlign: 'center', padding: '8px', background: 'rgba(245,158,11,0.06)', borderRadius: '2px', marginBottom: '10px' }}>
+                          <div style={{ fontSize: '11px', color: T.faint, textAlign: 'center', padding: '8px', background: 'rgba(232,184,75,0.06)', borderRadius: '2px', marginBottom: '10px' }}>
                             Started M{activeProg.started_month} Y{activeProg.started_arc_year}
                             <span style={{ margin: '0 8px', color: T.border }}>→</span>
                             <span style={{ color: activeProg.status === 'validation' ? T.mint : T.faint }}>Validation M{activeProg.validation_month} Y{activeProg.validation_arc_year}</span>
@@ -2585,8 +2585,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                                 <div style={{ width: `${Math.min(pct, 100)}%`, height: '100%', background: level >= 4 ? T.gold : level >= 2 ? T.mint : T.blue, borderRadius: '3px', transition: 'width 0.3s' }} />
                               </div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-                                <span style={{ fontSize: '9px', color: T.faint }}>{xp - curLvlXp} / {nextLvlXp - curLvlXp} to next level</span>
-                                {level >= LEVEL_LABELS.length - 1 && <span style={{ fontSize: '9px', color: T.gold }}>MAX</span>}
+                                <span style={{ fontSize: '10px', color: T.faint }}>{xp - curLvlXp} / {nextLvlXp - curLvlXp} to next level</span>
+                                {level >= LEVEL_LABELS.length - 1 && <span style={{ fontSize: '10px', color: T.gold }}>MAX</span>}
                               </div>
                               {level >= 1 && (
                                 <div style={{ fontSize: '10px', color: T.faint, marginTop: '6px', borderTop: `1px dashed ${T.border}`, paddingTop: '6px' }}>
@@ -2708,8 +2708,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                   </div>
 
                   <div className="mb-6">
-                    <FieldRow label="Total Cost" value={fm(procuringComponent.units * procuringComponent.cost)} valueColor="#ff453a" />
-                    <FieldRow label="Current Balance" value={fm(Number(finances?.available_cash || 0))} valueColor="#30d158" />
+                    <FieldRow label="Total Cost" value={fm(procuringComponent.units * procuringComponent.cost)} valueColor="#D9625A" />
+                    <FieldRow label="Current Balance" value={fm(Number(finances?.available_cash || 0))} valueColor="#4FB286" />
                   </div>
 
                   <div className="flex items-center justify-end gap-3">
@@ -2962,17 +2962,17 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                                 <div>
                                   <div className="text-zinc-500 mb-0.5">Efficiency</div>
                                   <strong className={efficiency < 1 ? 'text-terminal-red' : 'text-terminal-green'}>{Math.round(efficiency * 100)}%</strong>
-                                  {hasAssemblyTime && <span className="text-terminal-amber text-[9px] ml-1">+Assembly Std</span>}
+                                  {hasAssemblyTime && <span className="text-terminal-amber text-[10px] ml-1">+Assembly Std</span>}
                                 </div>
                                 <div>
                                   <div className="text-zinc-500 mb-0.5">Est. Units Produced</div>
                                   <strong className={isComponentBottleneck ? 'text-terminal-red' : 'text-zinc-200'}>{estUnitsProd}</strong>
-                                  {isComponentBottleneck && <div className="text-[9px] text-terminal-red mt-0.5">Short on components</div>}
+                                  {isComponentBottleneck && <div className="text-[10px] text-terminal-red mt-0.5">Short on components</div>}
                                 </div>
                                 <div>
                                   <div className="text-zinc-500 mb-0.5">Defect Rate</div>
                                   <strong className={defectRate > 0.03 ? 'text-terminal-red' : 'text-terminal-green'}>{defectRate * 100}% (-{estDefects} units)</strong>
-                                  {hasSpc && <span className="text-terminal-amber text-[9px] ml-1">-SPC Std</span>}
+                                  {hasSpc && <span className="text-terminal-amber text-[10px] ml-1">-SPC Std</span>}
                                 </div>
                                 <div className="col-span-2 mt-2">
                                   <div className="text-zinc-500 mb-0.5">Net Inventory Added</div>
@@ -3047,12 +3047,12 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                             }}>Edit Plan</GhostButton>
 
                             {assignedModel && line.status === 'active' && (
-                              <GhostButton color="#ff453a" onClick={() => handlePauseProductionLine(line.id)}>Pause Production</GhostButton>
+                              <GhostButton color="#D9625A" onClick={() => handlePauseProductionLine(line.id)}>Pause Production</GhostButton>
                             )}
                             {assignedModel && line.status === 'paused' && (
-                              <GhostButton color="#30d158" onClick={() => handleResumeProductionLine(line.id)}>Resume Production</GhostButton>
+                              <GhostButton color="#4FB286" onClick={() => handleResumeProductionLine(line.id)}>Resume Production</GhostButton>
                             )}
-                            <GhostButton color="#b85555" onClick={() => handleScrapProductionLine(line.id, line.status, line.target_units_per_month || 0)}>Scrap Line</GhostButton>
+                            <GhostButton color="#D9625A" onClick={() => handleScrapProductionLine(line.id, line.status, line.target_units_per_month || 0)}>Scrap Line</GhostButton>
                           </div>
                         </div>
                       )}
@@ -3171,7 +3171,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                                 onChange={e => setPriceEdits(prev => ({ ...prev, [m.id]: e.target.value ? Number(e.target.value) : 0 }))}
                                 className="w-[100px] rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs font-mono text-terminal-amber focus:outline-none focus:border-terminal-amber/60 transition-colors"
                               />
-                              <GhostButton color="#30d158" disabled={savingPrice === m.id} onClick={() => handleSavePrice(m.id)}>
+                              <GhostButton color="#4FB286" disabled={savingPrice === m.id} onClick={() => handleSavePrice(m.id)}>
                                 {savingPrice === m.id ? 'Saving...' : 'Save Price'}
                               </GhostButton>
                             </div>
@@ -3613,15 +3613,15 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                       return (
                         <>
                           <div>
-                            <div className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono mb-1">Total Allocated</div>
+                            <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-mono mb-1">Total Allocated</div>
                             <div className="text-sm font-mono text-zinc-200">{totalAlloc.toLocaleString('en-US')}</div>
                           </div>
                           <div>
-                            <div className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono mb-1">Total Interest</div>
+                            <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-mono mb-1">Total Interest</div>
                             <div className="text-sm font-mono text-zinc-200">{totalInt.toLocaleString('en-US')}</div>
                           </div>
                           <div>
-                            <div className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono mb-1">Est. Total Sold</div>
+                            <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-mono mb-1">Est. Total Sold</div>
                             <div className="text-sm font-mono text-terminal-green font-bold">{totalSold.toLocaleString('en-US')}</div>
                           </div>
                         </>
@@ -3914,8 +3914,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                         className="bg-zinc-900 border border-zinc-700 rounded text-center text-xs py-1 text-zinc-300 w-full"
                         placeholder="Qty"
                       />
-                      <GhostButton color="#30d158" onClick={() => handleHireFire(roleDef.id, 'hire')} className="w-full justify-center">+ Hire</GhostButton>
-                      <GhostButton color="#ff453a" disabled={employed === 0} onClick={() => handleHireFire(roleDef.id, 'fire')} className="w-full justify-center">- Dismiss</GhostButton>
+                      <GhostButton color="#4FB286" onClick={() => handleHireFire(roleDef.id, 'hire')} className="w-full justify-center">+ Hire</GhostButton>
+                      <GhostButton color="#D9625A" disabled={employed === 0} onClick={() => handleHireFire(roleDef.id, 'fire')} className="w-full justify-center">- Dismiss</GhostButton>
                     </div>
                   </div>
                 </PanelBox>
@@ -3981,7 +3981,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                   }, 0) || 0) +
                   inventory.reduce((acc: number, inv: any) => acc + (Number(inv.units_in_stock) * STORAGE_COST_PER_UNIT), 0) +
                   productionLines.reduce((acc: number, line: any) => acc + (Number(line.target_units_per_month) * Number(line.model_cost_per_unit || 0)), 0)
-                )} valueColor="#ff453a" />
+                )} valueColor="#D9625A" />
               </div>
               <div className="mt-2 text-[10px] text-zinc-600 italic">
                 * Final costs and revenue are calculated at Month Close.
@@ -4001,27 +4001,27 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
 
                 <div>
                   <div className="text-xs font-semibold text-terminal-amber border-b border-zinc-800 pb-1 mb-2">Cost of Goods Sold</div>
-                  <FieldRow label="Vehicle Production Cost" value={fm(latestReport.production_costs)} valueColor="#ff453a" />
-                  <FieldRow label="Defective Unit Losses" value={fm(0)} valueColor={Number(latestReport.defective_units) > 0 ? '#ff453a' : 'rgb(113, 113, 122)'} />
+                  <FieldRow label="Vehicle Production Cost" value={fm(latestReport.production_costs)} valueColor="#D9625A" />
+                  <FieldRow label="Defective Unit Losses" value={fm(0)} valueColor={Number(latestReport.defective_units) > 0 ? '#D9625A' : 'rgb(113, 113, 122)'} />
                 </div>
 
                 <div>
                   <div className="text-xs font-semibold text-terminal-amber border-b border-zinc-800 pb-1 mb-2">Operating Expenses</div>
-                  <FieldRow label="Factory Lease" value={fm(latestReport.factory_lease_costs)} valueColor="#ff453a" />
-                  <FieldRow label="Factory Maintenance" value={fm(latestReport.factory_maintenance_costs)} valueColor="#ff453a" />
-                  <FieldRow label="Manufacturing Wages" value={fm(latestReport.staff_wages)} valueColor="#ff453a" />
-                  <FieldRow label="Marketing Expense" value={fm(latestReport.marketing_costs)} valueColor="#ff453a" />
-                  <FieldRow label="Inventory Storage Cost" value={fm(latestReport.inventory_storage_costs)} valueColor="#ff453a" />
-                  <FieldRow label="Warranty Reserve" value={fm(latestReport.warranty_reserve_cost || 0)} valueColor="#ff453a" />
+                  <FieldRow label="Factory Lease" value={fm(latestReport.factory_lease_costs)} valueColor="#D9625A" />
+                  <FieldRow label="Factory Maintenance" value={fm(latestReport.factory_maintenance_costs)} valueColor="#D9625A" />
+                  <FieldRow label="Manufacturing Wages" value={fm(latestReport.staff_wages)} valueColor="#D9625A" />
+                  <FieldRow label="Marketing Expense" value={fm(latestReport.marketing_costs)} valueColor="#D9625A" />
+                  <FieldRow label="Inventory Storage Cost" value={fm(latestReport.inventory_storage_costs)} valueColor="#D9625A" />
+                  <FieldRow label="Warranty Reserve" value={fm(latestReport.warranty_reserve_cost || 0)} valueColor="#D9625A" />
                   <FieldRow label="Vehicle Development Expense" value={fm(0)} valueColor="rgb(113, 113, 122)" />
                   <FieldRow label="Research Expense" value={fm(0)} valueColor="rgb(113, 113, 122)" />
                 </div>
 
                 <div>
                   <div className="text-xs font-semibold text-terminal-amber border-b border-zinc-800 pb-1 mb-2">Result</div>
-                  <FieldRow label="Operating Profit" value={fm(Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0))} valueColor={Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0) >= 0 ? '#30d158' : '#ff453a'} />
-                  <FieldRow label="Net Profit / Loss" value={fm(latestReport.net_profit)} valueColor={Number(latestReport.net_profit) >= 0 ? '#30d158' : '#ff453a'} />
-                  <FieldRow label="Ending Cash" value={fm(latestReport.ending_cash)} valueColor="#30d158" />
+                  <FieldRow label="Operating Profit" value={fm(Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0))} valueColor={Number(latestReport.gross_revenue) - Number(latestReport.production_costs) - Number(latestReport.factory_lease_costs) - Number(latestReport.factory_maintenance_costs) - Number(latestReport.staff_wages) - Number(latestReport.inventory_storage_costs) - Number(latestReport.marketing_costs) - Number(latestReport.warranty_reserve_cost || 0) >= 0 ? '#4FB286' : '#D9625A'} />
+                  <FieldRow label="Net Profit / Loss" value={fm(latestReport.net_profit)} valueColor={Number(latestReport.net_profit) >= 0 ? '#4FB286' : '#D9625A'} />
+                  <FieldRow label="Ending Cash" value={fm(latestReport.ending_cash)} valueColor="#4FB286" />
                 </div>
               </div>
             ) : (
@@ -4079,17 +4079,17 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                 <div className="flex flex-col h-full w-full">
                   <div className="flex gap-6 items-center justify-center mb-2 shrink-0">
                     <div className="text-center bg-zinc-900/50 px-3 py-1.5 rounded border border-zinc-800/50">
-                      <div className="text-[9px] text-zinc-500 uppercase font-mono tracking-wider mb-0.5">Revenue</div>
-                      <div className="text-xs font-mono text-[#36d399] font-bold">{fm(Number(latestReport.gross_revenue || 0))}</div>
+                      <div className="text-[10px] text-zinc-500 uppercase font-mono tracking-wider mb-0.5">Revenue</div>
+                      <div className="text-xs font-mono text-[#4FB286] font-bold">{fm(Number(latestReport.gross_revenue || 0))}</div>
                     </div>
                     <div className="text-center bg-zinc-900/50 px-3 py-1.5 rounded border border-zinc-800/50">
-                      <div className="text-[9px] text-zinc-500 uppercase font-mono tracking-wider mb-0.5">Total Expenses</div>
-                      <div className="text-xs font-mono text-[#b85555] font-bold">
+                      <div className="text-[10px] text-zinc-500 uppercase font-mono tracking-wider mb-0.5">Total Expenses</div>
+                      <div className="text-xs font-mono text-[#D9625A] font-bold">
                         {fm(Number(latestReport.production_costs || 0) + Number(latestReport.factory_lease_costs || 0) + Number(latestReport.factory_maintenance_costs || 0) + Number(latestReport.staff_wages || 0) + Number(latestReport.marketing_costs || 0) + Number(latestReport.inventory_storage_costs || 0))}
                       </div>
                     </div>
                     <div className="text-center bg-zinc-900/50 px-3 py-1.5 rounded border border-zinc-800/50">
-                      <div className="text-[9px] text-zinc-500 uppercase font-mono tracking-wider mb-0.5">Net Profit</div>
+                      <div className="text-[10px] text-zinc-500 uppercase font-mono tracking-wider mb-0.5">Net Profit</div>
                       <div className={`text-xs font-mono font-bold ${Number(latestReport.net_profit) >= 0 ? 'text-[#d4af37]' : 'text-red-500'}`}>{fm(Number(latestReport.net_profit || 0))}</div>
                     </div>
                   </div>
@@ -4114,13 +4114,13 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                         { name: 'Marketing', value: Number(latestReport.marketing_costs || 0) },
                         { name: 'Storage', value: Number(latestReport.inventory_storage_costs || 0) }
                       ].filter(d => d.value > 0).map((entry, index) => {
-                        const colors = ['#b85555', '#d4af37', '#6ea8fe', '#36d399', '#ab7dd6', '#e67e22'];
+                        const colors = ['#D9625A', '#d4af37', '#6ea8fe', '#4FB286', '#ab7dd6', '#e67e22'];
                         return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
                       })}
                     </Pie>
                     <RechartsTooltip
                       formatter={(value: any) => fm(Number(value))}
-                      contentStyle={{ backgroundColor: '#11131A', borderColor: '#2A2630', fontSize: '12px', fontFamily: 'monospace' }}
+                      contentStyle={{ backgroundColor: '#13161E', borderColor: '#262B36', fontSize: '12px', fontFamily: 'monospace' }}
                       itemStyle={{ color: '#fff' }}
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', color: '#888' }} />
@@ -4139,13 +4139,13 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                       label: `Y${r.world_year} M${r.world_month}`,
                       total_expenses: Number(r.production_costs || 0) + Number(r.factory_lease_costs || 0) + Number(r.factory_maintenance_costs || 0) + Number(r.staff_wages || 0) + Number(r.marketing_costs || 0) + Number(r.inventory_storage_costs || 0)
                   }))} margin={{ top: 10, right: 10, left: 20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2A2630" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#262B36" vertical={false} />
                     <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#888', fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
                     <YAxis tickFormatter={(val) => fm(val).replace(currencySymbol, '')} tick={{ fontSize: 10, fill: '#888', fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
                     <RechartsTooltip
                       formatter={(value: any) => fm(Number(value))}
                       labelFormatter={(l, p) => p?.[0]?.payload ? `Year ${p[0].payload.world_year} Month ${p[0].payload.world_month}` : l}
-                      contentStyle={{ backgroundColor: '#11131A', borderColor: '#2A2630', fontSize: '12px', fontFamily: 'monospace' }}
+                      contentStyle={{ backgroundColor: '#13161E', borderColor: '#262B36', fontSize: '12px', fontFamily: 'monospace' }}
                       cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', paddingTop: '10px' }} />
@@ -4178,7 +4178,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                     </Pie>
                     <RechartsTooltip
                       formatter={(value: any) => fm(Number(value))}
-                      contentStyle={{ backgroundColor: '#11131A', borderColor: '#2A2630', fontSize: '12px', fontFamily: 'monospace' }}
+                      contentStyle={{ backgroundColor: '#13161E', borderColor: '#262B36', fontSize: '12px', fontFamily: 'monospace' }}
                       itemStyle={{ color: '#fff' }}
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', color: '#888' }} />
@@ -4334,40 +4334,40 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                           <h3 className="text-sm font-semibold text-zinc-100 mb-3">Production</h3>
                           <FieldRow label="Planned Units" value={r.planned_units} />
                           <FieldRow label="Actual Units Produced" value={r.units_produced} />
-                          <FieldRow label="Defective Units" value={r.defective_units} valueColor={Number(r.defective_units) > 0 ? '#ff453a' : 'rgb(229, 229, 229)'} />
-                          <FieldRow label="Production Efficiency" value={r.production_efficiency !== undefined && r.production_efficiency !== null ? `${Math.round(Number(r.production_efficiency) * 100)}%` : 'N/A'} valueColor={r.production_efficiency !== undefined && Number(r.production_efficiency) >= 1 ? '#30d158' : 'rgb(229, 229, 229)'} />
+                          <FieldRow label="Defective Units" value={r.defective_units} valueColor={Number(r.defective_units) > 0 ? '#D9625A' : 'rgb(229, 229, 229)'} />
+                          <FieldRow label="Production Efficiency" value={r.production_efficiency !== undefined && r.production_efficiency !== null ? `${Math.round(Number(r.production_efficiency) * 100)}%` : 'N/A'} valueColor={r.production_efficiency !== undefined && Number(r.production_efficiency) >= 1 ? '#4FB286' : 'rgb(229, 229, 229)'} />
                           <FieldRow label="Factory Condition" value={`${r.factory_condition || 100}%`} />
                           <FieldRow label="Factory Workers Required" value={r.factory_workers_required} />
                           <FieldRow label="Factory Workers Available" value={r.factory_workers_available} />
-                          <FieldRow label="Supervisor Bonus" value={`${r.supervisor_bonus}%`} valueColor={Number(r.supervisor_bonus) > 0 ? '#30d158' : 'rgb(229, 229, 229)'} />
-                          <FieldRow label="Inspector Defect Reduction" value={`${r.inspector_defect_reduction}%`} valueColor={Number(r.inspector_defect_reduction) > 0 ? '#30d158' : 'rgb(229, 229, 229)'} />
+                          <FieldRow label="Supervisor Bonus" value={`${r.supervisor_bonus}%`} valueColor={Number(r.supervisor_bonus) > 0 ? '#4FB286' : 'rgb(229, 229, 229)'} />
+                          <FieldRow label="Inspector Defect Reduction" value={`${r.inspector_defect_reduction}%`} valueColor={Number(r.inspector_defect_reduction) > 0 ? '#4FB286' : 'rgb(229, 229, 229)'} />
                         </div>
 
                         <div>
                           <h3 className="text-sm font-semibold text-zinc-100 mb-3">Sales</h3>
                           <FieldRow label="Total Available for Sale" value={Number(r.units_sold) + Number(r.units_unsold)} />
-                          <FieldRow label="Units Sold" value={r.units_sold} valueColor="#30d158" />
-                          <FieldRow label="Unsold Units" value={r.units_unsold} valueColor={Number(r.units_unsold) > 0 ? '#ff453a' : 'rgb(229, 229, 229)'} />
+                          <FieldRow label="Units Sold" value={r.units_sold} valueColor="#4FB286" />
+                          <FieldRow label="Unsold Units" value={r.units_unsold} valueColor={Number(r.units_unsold) > 0 ? '#D9625A' : 'rgb(229, 229, 229)'} />
                           <FieldRow label="Markets Used" value={marketData?.allocations?.length || 1} />
-                          <FieldRow label="Sale Revenue" value={fm(r.sales_revenue || r.gross_revenue)} valueColor="#30d158" />
-                          <FieldRow label="Sales Manager Bonus" value={`${r.sales_manager_bonus || 0}%`} valueColor={Number(r.sales_manager_bonus) > 0 ? '#30d158' : 'rgb(229, 229, 229)'} />
-                          <FieldRow label="Marketing Spend" value={fm(r.marketing_costs)} valueColor="#ff453a" />
-                          <FieldRow label="Storage Cost" value={fm(r.inventory_storage_costs)} valueColor="#ff453a" />
+                          <FieldRow label="Sale Revenue" value={fm(r.sales_revenue || r.gross_revenue)} valueColor="#4FB286" />
+                          <FieldRow label="Sales Manager Bonus" value={`${r.sales_manager_bonus || 0}%`} valueColor={Number(r.sales_manager_bonus) > 0 ? '#4FB286' : 'rgb(229, 229, 229)'} />
+                          <FieldRow label="Marketing Spend" value={fm(r.marketing_costs)} valueColor="#D9625A" />
+                          <FieldRow label="Storage Cost" value={fm(r.inventory_storage_costs)} valueColor="#D9625A" />
                         </div>
 
                         <div>
                           <h3 className="text-sm font-semibold text-zinc-100 mb-3">Finance</h3>
-                          <FieldRow label="Production Cost" value={fm(r.production_costs)} valueColor="#ff453a" />
-                          <FieldRow label="Lease" value={fm(r.factory_lease_costs)} valueColor="#ff453a" />
-                          <FieldRow label="Maintenance" value={fm(r.factory_maintenance_costs)} valueColor="#ff453a" />
-                          <FieldRow label="Wages" value={fm(r.staff_wages)} valueColor="#ff453a" />
-                          <FieldRow label="Marketing" value={fm(r.marketing_costs)} valueColor="#ff453a" />
-                          <FieldRow label="Storage" value={fm(r.inventory_storage_costs)} valueColor="#ff453a" />
-                          <FieldRow label="Warranty" value={fm(r.warranty_reserve_cost || 0)} valueColor="#ff453a" />
-                          <FieldRow label="Total Expenses" value={fm(Number(r.production_costs) + Number(r.factory_lease_costs) + Number(r.factory_maintenance_costs) + Number(r.staff_wages) + Number(r.marketing_costs) + Number(r.inventory_storage_costs) + Number(r.warranty_reserve_cost || 0))} valueColor="#ff453a" />
+                          <FieldRow label="Production Cost" value={fm(r.production_costs)} valueColor="#D9625A" />
+                          <FieldRow label="Lease" value={fm(r.factory_lease_costs)} valueColor="#D9625A" />
+                          <FieldRow label="Maintenance" value={fm(r.factory_maintenance_costs)} valueColor="#D9625A" />
+                          <FieldRow label="Wages" value={fm(r.staff_wages)} valueColor="#D9625A" />
+                          <FieldRow label="Marketing" value={fm(r.marketing_costs)} valueColor="#D9625A" />
+                          <FieldRow label="Storage" value={fm(r.inventory_storage_costs)} valueColor="#D9625A" />
+                          <FieldRow label="Warranty" value={fm(r.warranty_reserve_cost || 0)} valueColor="#D9625A" />
+                          <FieldRow label="Total Expenses" value={fm(Number(r.production_costs) + Number(r.factory_lease_costs) + Number(r.factory_maintenance_costs) + Number(r.staff_wages) + Number(r.marketing_costs) + Number(r.inventory_storage_costs) + Number(r.warranty_reserve_cost || 0))} valueColor="#D9625A" />
                           <div className="mt-3 pt-3 border-t border-zinc-800">
-                            <FieldRow label="Net Profit / Loss" value={fm(r.net_profit)} valueColor={Number(r.net_profit) >= 0 ? '#30d158' : '#ff453a'} />
-                            <FieldRow label="Ending Cash" value={fm(r.ending_cash)} valueColor="#30d158" />
+                            <FieldRow label="Net Profit / Loss" value={fm(r.net_profit)} valueColor={Number(r.net_profit) >= 0 ? '#4FB286' : '#D9625A'} />
+                            <FieldRow label="Ending Cash" value={fm(r.ending_cash)} valueColor="#4FB286" />
                           </div>
                         </div>
                       </div>
@@ -4555,7 +4555,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
         </div>
       )}
 
-      </main>
+      </div>
     </div>
   );
 }

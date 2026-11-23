@@ -15,8 +15,8 @@ export default function AnalyticsDashboard({ companyId, countryId }: AnalyticsDa
   const [activeTab, setActiveTab] = useState<'self' | 'market' | 'research'>('self');
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 py-8 bg-[#090A0F] min-h-screen">
-      <header className="mb-8 border-b border-[#23232b] pb-6 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+    <div className="w-full max-w-7xl mx-auto px-6 py-8 bg-[#0B0D12] min-h-screen">
+      <header className="mb-8 border-b border-[#262B36] pb-6 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-cinzel text-zinc-100 uppercase tracking-wider">
             Market Intelligence
@@ -26,7 +26,7 @@ export default function AnalyticsDashboard({ companyId, countryId }: AnalyticsDa
           </p>
         </div>
         
-        <div className="flex flex-wrap bg-[#0c0d13] border border-[#27272a] rounded-lg p-1">
+        <div className="flex flex-wrap bg-[#13161E] border border-[#27272a] rounded-lg p-1">
           <button
             onClick={() => setActiveTab('self')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-md font-outfit text-sm transition-all duration-200 ${

@@ -6,23 +6,23 @@ import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import { investmentsApi, companyApi } from '../../../lib/api';
 
 const T = {
-  bg: '#090A0F',
-  panel: '#11131A',
-  panelSoft: '#17151B',
-  paper: '#1E1A15',
-  border: '#2A2630',
-  borderGold: 'rgba(201,162,74,0.22)',
-  gold: '#C9A24A',
-  ivory: '#F4EBD6',
-  muted: '#A79D8C',
-  faint: '#6B6358',
-  mint: '#36D399',
+  bg: '#0B0D12',
+  panel: '#13161E',
+  panelSoft: '#1B1F29',
+  paper: '#1E1B14',
+  border: '#262B36',
+  borderGold: 'rgba(232,184,75,0.22)',
+  gold: '#E8B84B',
+  ivory: '#ECEAE4',
+  muted: '#A3A4AC',
+  faint: '#868994',
+  mint: '#4FB286',
   steel: '#4B6382',
-  red: '#B85555',
+  red: '#D9625A',
 };
 
 const mono: React.CSSProperties = { fontFamily: 'monospace' };
-const label: React.CSSProperties = { ...mono, fontSize: '9px', textTransform: 'uppercase' as const, letterSpacing: '0.15em', color: T.gold, fontWeight: 700 };
+const label: React.CSSProperties = { ...mono, fontSize: '10px', textTransform: 'uppercase' as const, letterSpacing: '0.15em', color: T.gold, fontWeight: 700 };
 
 function fmt(n: number | null | undefined, dec = 2): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
@@ -130,7 +130,7 @@ function PlacementsTab() {
         {showForm && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Company</div>
+              <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Company</div>
               <select
                 value={formCompany}
                 onChange={(e) => setFormCompany(e.target.value)}
@@ -145,20 +145,20 @@ function PlacementsTab() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
               <div>
-                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares to offer</div>
+                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares to offer</div>
                 <input aria-label="Shares to offer" value={formShares} onChange={(e) => setFormShares(e.target.value)} placeholder="e.g. 50000" inputMode="numeric" style={inputStyle} />
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Min Purchase</div>
+                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Min Purchase</div>
                 <input aria-label="Min Purchase" value={formMinPurchase} onChange={(e) => setFormMinPurchase(e.target.value)} placeholder="Default: 1" inputMode="numeric" style={inputStyle} />
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price per share ($)</div>
+                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price per share ($)</div>
                 <input aria-label="Price per share" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} placeholder="e.g. 2.50" inputMode="decimal" style={inputStyle} />
               </div>
             </div>
             <div>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Target character ID (optional — leave blank for open)</div>
+              <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Target character ID (optional — leave blank for open)</div>
               <input aria-label="Target character ID" value={formTarget} onChange={(e) => setFormTarget(e.target.value)} placeholder="Character UUID for private offer" style={inputStyle} />
             </div>
             {formShares && formPrice && Number(formShares) > 0 && Number(formPrice) > 0 && (
@@ -195,21 +195,21 @@ function PlacementsTab() {
                 <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
                   {fmtInt(Number(p.shares))} sh @ ${fmt(Number(p.price_per_share))} = ${fmt(Number(p.shares) * Number(p.price_per_share))}
                 </div>
-                {p.target_name && <div style={{ ...mono, fontSize: '9px', color: T.steel }}>Reserved for: {p.target_name}</div>}
+                {p.target_name && <div style={{ ...mono, fontSize: '10px', color: T.steel }}>Reserved for: {p.target_name}</div>}
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <span style={{
-                  ...mono, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px',
-                  background: p.status === 'open' ? 'rgba(201,162,74,0.12)' : p.status === 'accepted' ? 'rgba(54,211,153,0.12)' : 'rgba(107,99,88,0.2)',
+                  ...mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px',
+                  background: p.status === 'open' ? 'rgba(232,184,75,0.12)' : p.status === 'accepted' ? 'rgba(79,178,134,0.12)' : 'rgba(107,99,88,0.2)',
                   color: p.status === 'open' ? T.gold : p.status === 'accepted' ? T.mint : T.faint,
-                  border: `1px solid ${p.status === 'open' ? T.borderGold : p.status === 'accepted' ? 'rgba(54,211,153,0.25)' : T.border}`,
+                  border: `1px solid ${p.status === 'open' ? T.borderGold : p.status === 'accepted' ? 'rgba(79,178,134,0.25)' : T.border}`,
                 }}>
                   {p.status}
                 </span>
                 {p.status === 'open' && (
                   <button
                     onClick={() => cancelPlacement(p.id)}
-                    style={{ ...mono, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', background: 'transparent', border: `1px solid ${T.border}`, color: T.red, padding: '4px 10px', cursor: 'pointer' }}
+                    style={{ ...mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', background: 'transparent', border: `1px solid ${T.border}`, color: T.red, padding: '4px 10px', cursor: 'pointer' }}
                   >
                     Cancel
                   </button>
@@ -246,7 +246,7 @@ function PlacementsTab() {
                   <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
                     {fmtInt(available)} shares @ ${fmt(price)} {minPurchase > 1 ? ` · Min: ${minPurchase} sh` : ''}
                   </div>
-                  <div style={{ ...mono, fontSize: '9px', color: T.faint }}>
+                  <div style={{ ...mono, fontSize: '10px', color: T.faint }}>
                     Seller: {p.seller_name} · {p.legal_structure_id}
                     {p.target_character_id && <span style={{ color: T.steel }}> · Private offer</span>}
                   </div>
@@ -261,7 +261,7 @@ function PlacementsTab() {
                       inputMode="numeric" 
                       style={{ ...inputStyle, width: '70px', padding: '4px 6px', fontSize: '10px' }} 
                     />
-                    <div style={{ ...mono, fontSize: '9px', color: T.gold, width: '60px', textAlign: 'right' }}>
+                    <div style={{ ...mono, fontSize: '10px', color: T.gold, width: '60px', textAlign: 'right' }}>
                       ${fmt(total)}
                     </div>
                   </div>
@@ -373,7 +373,7 @@ function LoansTab() {
   const statusBadge = (status: string) => {
     const color = status === 'active' ? T.mint : status === 'repaid' ? T.muted : status === 'defaulted' ? T.red : T.gold;
     return (
-      <span style={{ ...mono, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px', background: `${color}18`, color, border: `1px solid ${color}40` }}>
+      <span style={{ ...mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px', background: `${color}18`, color, border: `1px solid ${color}40` }}>
         {status}
       </span>
     );
@@ -401,20 +401,20 @@ function LoansTab() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
               <div>
-                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Max Amount ($)</div>
+                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Max Amount ($)</div>
                 <input aria-label="Max loan amount" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 5000" inputMode="decimal" style={inputStyle} />
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Monthly Interest (%)</div>
+                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Monthly Interest (%)</div>
                 <input aria-label="Monthly interest rate percent" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="e.g. 2" inputMode="decimal" style={inputStyle} />
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Term (months, 1–60)</div>
+                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Term (months, 1–60)</div>
                 <input aria-label="Loan term in months" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="e.g. 12" inputMode="numeric" style={inputStyle} />
               </div>
             </div>
             <div>
-              <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Purpose / Notes (optional)</div>
+              <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Purpose / Notes (optional)</div>
               <input aria-label="Loan purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="e.g. Business expansion, working capital…" style={inputStyle} />
             </div>
             {previewPayment != null && (
@@ -445,7 +445,7 @@ function LoansTab() {
                   ${fmt(Number(o.max_amount), 0)} · {Number(o.monthly_interest_rate) * 100}%/mo · {o.term_months} months
                   {o.purpose && <span style={{ color: T.faint }}> — {o.purpose}</span>}
                 </div>
-                <button onClick={() => cancelOffer(o.id)} style={{ ...mono, fontSize: '9px', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${T.border}`, color: T.red, padding: '4px 10px', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={() => cancelOffer(o.id)} style={{ ...mono, fontSize: '10px', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${T.border}`, color: T.red, padding: '4px 10px', cursor: 'pointer' }}>Cancel</button>
               </div>
             ))}
           </div>
@@ -485,7 +485,7 @@ function LoansTab() {
                 {isExpanded && (
                   <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${T.border}`, display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Amount to borrow ($ 1 – {fmtInt(Number(o.max_amount))})</div>
+                      <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Amount to borrow ($ 1 – {fmtInt(Number(o.max_amount))})</div>
                       <input aria-label="Amount to borrow" value={acceptAmount} onChange={(e) => setAcceptAmount(e.target.value)} placeholder={`max $${fmtInt(Number(o.max_amount))}`} inputMode="decimal" style={inputStyle} />
                     </div>
                     <button
@@ -523,7 +523,7 @@ function LoansTab() {
                   {l.status === 'active' && (
                     <button
                       onClick={() => repayEarly(l.id)}
-                      style={{ ...mono, fontSize: '9px', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${T.border}`, color: T.mint, padding: '4px 10px', cursor: 'pointer' }}
+                      style={{ ...mono, fontSize: '10px', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${T.border}`, color: T.mint, padding: '4px 10px', cursor: 'pointer' }}
                     >
                       Repay Early (${fmt(Number(l.monthly_payment) * Number(l.months_remaining))})
                     </button>

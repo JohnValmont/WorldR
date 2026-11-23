@@ -4,14 +4,14 @@ import { createPortal } from 'react-dom';
 import { X, Book, LineChart, ChevronRight } from 'lucide-react';
 
 const T = {
-  bg:         '#090A0F',
+  bg:         '#0B0D12',
   overlay:    'rgba(9,10,15,0.92)',
-  panel:      '#11131A',
-  border:     '#2A2630',
-  amber:      '#C9A24A',
-  ivory:      '#F4EBD6',
-  muted:      '#A79D8C',
-  faint:      '#6B6358',
+  panel:      '#13161E',
+  border:     '#262B36',
+  amber:      '#E8B84B',
+  ivory:      '#ECEAE4',
+  muted:      '#A3A4AC',
+  faint:      '#868994',
 };
 
 interface GuideModalProps {
@@ -41,7 +41,7 @@ export default function GuideModal({ onDismiss }: GuideModalProps) {
       </div>
       <p style={{ fontSize: '15px', color: T.faint, marginBottom: '32px' }}>Step-by-step instructions to incorporate your business and manufacture your first automobile.</p>
       
-      <div style={{ background: 'rgba(201,162,74,0.05)', border: `1px solid rgba(201,162,74,0.2)`, borderRadius: '8px', padding: '16px', marginBottom: '32px' }}>
+      <div style={{ background: 'rgba(232,184,75,0.05)', border: `1px solid rgba(232,184,75,0.2)`, borderRadius: '8px', padding: '16px', marginBottom: '32px' }}>
         <strong style={{ color: T.amber }}>Game Time (Months):</strong> Every time the global timer rolls over, a new Month begins. Your staff are paid, factories produce cars, and market demand is calculated.
       </div>
 
@@ -57,7 +57,7 @@ export default function GuideModal({ onDismiss }: GuideModalProps) {
             <li>Inside the Business Desk, click the big button to <strong style={{ color: T.ivory }}>Start a Business</strong>.</li>
             <li><strong>Sector:</strong> Select <strong style={{ color: T.ivory }}>Manufacturing</strong> and choose the <strong style={{ color: T.ivory }}>Automobile Manufacturing</strong> subsector.</li>
             <li><strong>Headquarters:</strong> Select your HQ state (Drennport, Westport, Ironvale, or Greenmere).</li>
-            <li><strong>Legal Structure:</strong> Select <strong style={{ color: T.ivory }}>Private Company</strong> (costs $5,000 to file) or <strong style={{ color: T.ivory }}>Sole Trader</strong> ($500). <br/><span style={{ color: '#B85555', fontSize: '13px' }}>Note: Do not choose Corporation right now; it costs $50,000 and is intended for advanced equity trading later.</span></li>
+            <li><strong>Legal Structure:</strong> Select <strong style={{ color: T.ivory }}>Private Company</strong> (costs $5,000 to file) or <strong style={{ color: T.ivory }}>Sole Trader</strong> ($500). <br/><span style={{ color: '#D9625A', fontSize: '13px' }}>Note: Do not choose Corporation right now; it costs $50,000 and is intended for advanced equity trading later.</span></li>
             <li>Enter a company name, commit your starting capital, and register the company.</li>
           </ol>
         </div>
@@ -88,7 +88,7 @@ export default function GuideModal({ onDismiss }: GuideModalProps) {
             <li>Type a number into the quantity box and click <strong style={{ color: T.ivory }}>+ Hire</strong>.
               <ul style={{ listStyle: 'disc', paddingLeft: '24px', marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <li><em>Recommended for now:</em> Hire a few <strong>Automotive Engineers</strong> (they make designing cars cheaper) and a bunch of <strong>Factory Workers</strong> (you need them to actually build the cars later).</li>
-                <li style={{ color: '#B85555' }}><em>Warning:</em> You have to pay their wages every Month, so don't spend all your cash hiring thousands of people yet!</li>
+                <li style={{ color: '#D9625A' }}><em>Warning:</em> You have to pay their wages every Month, so don't spend all your cash hiring thousands of people yet!</li>
               </ul>
             </li>
           </ol>
@@ -292,7 +292,7 @@ export default function GuideModal({ onDismiss }: GuideModalProps) {
 
   const sidebarStyle: React.CSSProperties = {
     width: '280px',
-    background: '#0c0d13',
+    background: '#13161E',
     borderRight: `1px solid ${T.border}`,
     display: 'flex',
     flexDirection: 'column',
@@ -306,8 +306,8 @@ export default function GuideModal({ onDismiss }: GuideModalProps) {
     justifyContent: 'space-between',
     padding: '12px 16px',
     borderRadius: '8px',
-    background: isActive ? 'rgba(201,162,74,0.1)' : 'transparent',
-    border: `1px solid ${isActive ? 'rgba(201,162,74,0.3)' : 'transparent'}`,
+    background: isActive ? 'rgba(232,184,75,0.1)' : 'transparent',
+    border: `1px solid ${isActive ? 'rgba(232,184,75,0.3)' : 'transparent'}`,
     color: isActive ? T.amber : T.muted,
     fontFamily: 'monospace',
     fontSize: '11px',
@@ -341,7 +341,7 @@ export default function GuideModal({ onDismiss }: GuideModalProps) {
           height: '85vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: `0 0 80px rgba(201,162,74,0.1), 0 32px 100px rgba(0,0,0,0.8)`,
+          boxShadow: `0 0 80px rgba(232,184,75,0.1), 0 32px 100px rgba(0,0,0,0.8)`,
           overflow: 'hidden'
         }}
       >
@@ -350,7 +350,7 @@ export default function GuideModal({ onDismiss }: GuideModalProps) {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '16px 24px',
           borderBottom: `1px solid ${T.border}`,
-          background: '#0c0d13',
+          background: '#13161E',
           zIndex: 10
         }}>
           <div style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.25em', color: T.faint }}>
@@ -381,7 +381,7 @@ export default function GuideModal({ onDismiss }: GuideModalProps) {
           
           {/* Sidebar */}
           <div style={sidebarStyle}>
-            <div style={{ fontSize: 9, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: '8px', paddingLeft: '16px' }}>
+            <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: '8px', paddingLeft: '16px' }}>
               Topics
             </div>
             

@@ -27,14 +27,14 @@ export default function ForgotPasswordPage() {
     return (
       <div className="w-full animate-auth-enter">
         <div className="flex flex-col items-center text-center py-4 mb-6">
-          <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-5 shadow-[0_0_30px_rgba(245,158,11,0.1)]">
+          <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-5 shadow-[0_0_30px_rgba(232,184,75,0.1)]">
             <svg className="w-7 h-7 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
 
           <div className="flex items-center gap-2 mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(79,178,134,0.8)]" />
             <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.3em]">Reset Dispatched</span>
           </div>
 
@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)] animate-pulse" />
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(232,184,75,0.8)] animate-pulse" />
           <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.3em]">Password Recovery</span>
         </div>
         <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">Forgot password?</h1>

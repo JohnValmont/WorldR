@@ -33,7 +33,7 @@ const dotVariantMap: Record<BadgeVariant, string> = {
 };
 
 export function Badge({ children, variant = 'zinc', dot = false, size = 'xs', className }: BadgeProps) {
-  const textSize = size === 'xs' ? 'text-[9px]' : 'text-[10px]';
+  const textSize = size === 'xs' ? 'text-[10px]' : 'text-[10px]';
   return (
     <span className={cn(
       'inline-flex items-center gap-1 border px-1.5 py-0.5 font-mono uppercase tracking-widest',
@@ -58,9 +58,9 @@ interface StatusDotProps {
 }
 
 const dotColorMap: Record<StatusDotVariant, string> = {
-  live:    'bg-terminal-green  shadow-[0_0_6px_#30d158]  animate-pulse-glow',
-  warning: 'bg-terminal-amber  shadow-[0_0_6px_#ff9f0a]',
-  danger:  'bg-terminal-red    shadow-[0_0_6px_#ff453a]',
+  live:    'bg-terminal-green  shadow-[0_0_6px_#4FB286]  animate-pulse-glow',
+  warning: 'bg-terminal-amber  shadow-[0_0_6px_#E8B84B]',
+  danger:  'bg-terminal-red    shadow-[0_0_6px_#D9625A]',
   offline: 'bg-zinc-600',
 };
 
@@ -76,7 +76,7 @@ export function StatusDot({ variant = 'offline', label, className }: StatusDotPr
     <span className={cn('inline-flex items-center gap-1.5', className)}>
       <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', dotColorMap[variant])} />
       {label && (
-        <span className={cn('text-[9px] font-mono uppercase tracking-widest', dotLabelMap[variant])}>
+        <span className={cn('text-[13px] font-medium', dotLabelMap[variant])}>
           {label}
         </span>
       )}

@@ -2,20 +2,20 @@
 // Deep navy stone, brass and crimson from Drennia's flag, ivory ink.
 
 export const C = {
-  night: '#0A0E18',
-  stone: '#111827',
-  stone2: '#162033',
-  line: 'rgba(201,162,39,0.18)',
-  lineSoft: 'rgba(244,235,214,0.08)',
-  brass: '#C9A227',
-  brassSoft: 'rgba(201,162,39,0.14)',
+  night: '#0B0D12',
+  stone: '#13161E',
+  stone2: '#1B1F29',
+  line: 'rgba(232,184,75,0.18)',
+  lineSoft: 'rgba(236,234,228,0.08)',
+  brass: '#E8B84B',
+  brassSoft: 'rgba(232,184,75,0.14)',
   crimson: '#9E2B2B',
-  ivory: '#F4EBD6',
+  ivory: '#ECEAE4',
   ink: '#C9C2B2',
-  muted: '#8A8676',
-  faint: '#5F5D55',
-  yea: '#3FA36B',
-  nay: '#C2483F',
+  muted: '#868994',
+  faint: '#868994',
+  yea: '#4FB286',
+  nay: '#D9625A',
 } as const;
 
 export const STAT_LABELS: Record<string, { name: string; good: 'high' | 'low'; blurb: string }> = {

@@ -1,132 +1,85 @@
 'use client';
+// Release notes for the current build. Shown once per build (key from build.json), in-game only,
+// and only to RETURNING players: a brand-new player already gets the First Day guide, and stacking
+// two modals on their first screen is the worst possible first impression.
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Landmark, Handshake, Globe2, Map, Gauge } from 'lucide-react';
+import { BUILD, buildLabel } from '../../lib/design/tokens';
+import { FIRST_DAY_MODAL_KEY } from './FirstDayModal';
 
-import React, { useEffect, useState } from 'react';
-import { X, TrendingUp, Building2, ShieldCheck, Scale, Banknote } from 'lucide-react';
+const STORAGE_KEY = `worldr_seen_build_${BUILD.version}`;
 
-const STORAGE_KEY = 'worldr_seen_v0_2';
+const NOTES: { icon: React.ReactNode; title: string; desc: string }[] = [
+  { icon: <Landmark size={18} />, title: 'The Floor: politics rebuilt', desc: 'One Desk with three decisions a month, individual votes on every bill, and a race for your own district. Seats are shared out by vote in each district.' },
+  { icon: <Handshake size={18} />, title: 'Coalitions and deals', desc: 'After an election, any leader with seats can offer a coalition. Deals promise ministries and laws, and coalition unity decides how reliably partners vote with you.' },
+  { icon: <Globe2 size={18} />, title: 'Three nations, one world', desc: 'Drennia, Westmark and Eryndor each have their own government, laws and economy. Relations, treaties and trade link them. The World tab compares them side by side.' },
+  { icon: <Gauge size={18} />, title: 'An economy voters feel', desc: 'Jobs, growth and debt now move approval, and approval moves the election. Budgets and tariffs change who works where.' },
+  { icon: <Map size={18} />, title: 'One clock, a new look', desc: 'Business and politics now turn the same month. Every screen uses one design system, with clearer text, focus outlines for keyboard players and less motion if you ask your device for it.' },
+];
 
 export default function WhatsNewModal() {
-  const [isVisible, setIsVisible] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
+  const [open, setOpen] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    // Only check localStorage on the client
-    const hasSeen = localStorage.getItem(STORAGE_KEY);
-    if (!hasSeen) {
-      // Small delay to allow initial page render to finish before popping the modal
-      const timer = setTimeout(() => {
-        setIsVisible(true);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
+    try {
+      if (localStorage.getItem(STORAGE_KEY)) return;
+      // First session: the First Day guide covers it. Mark this build as seen.
+      if (!localStorage.getItem(FIRST_DAY_MODAL_KEY)) { localStorage.setItem(STORAGE_KEY, '1'); return; }
+    } catch { return; }
+    const t = setTimeout(() => setOpen(true), 600);
+    return () => clearTimeout(t);
   }, []);
 
-  const handleDismiss = () => {
-    setIsClosing(true);
-    setTimeout(() => {
-      localStorage.setItem(STORAGE_KEY, 'true');
-      setIsVisible(false);
-    }, 300); // Wait for fade out animation
+  useEffect(() => {
+    if (!open) return;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismiss(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  const dismiss = () => {
+    try { localStorage.setItem(STORAGE_KEY, '1'); } catch { /* private mode: show again next time */ }
+    setOpen(false);
   };
 
-  if (!isVisible) return null;
+  if (!open) return null;
 
   return (
-    <div className={`fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 transition-opacity duration-300 ${isClosing ? 'opacity-0' : 'opacity-100'}`}>
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-        onClick={handleDismiss}
-      />
-      
-      {/* Modal */}
-      <div className="relative w-full max-w-2xl bg-[#0a0a0a] border border-[#2a2a2a] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        
-        {/* Header Ribbon */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600" />
-        
-        {/* Header Content */}
-        <div className="px-8 pt-8 pb-6 border-b border-[#1a1a1a] flex justify-between items-start bg-gradient-to-b from-amber-900/10 to-transparent">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 animate-fade-in-up" role="dialog" aria-modal="true" aria-labelledby="whats-new-title">
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={dismiss} />
+      <div className="relative w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden rounded-[20px] border border-line bg-surface shadow-pop">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent to-transparent" />
+        <header className="flex items-start justify-between gap-4 px-6 pt-6 pb-4 sm:px-8 sm:pt-8">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-amber-500 font-mono mb-2 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              Pre-Alpha V0.2 Deployed
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
+              <span className="h-1.5 w-1.5 rounded-full bg-accent" />{buildLabel}
             </div>
-            <h2 className="text-2xl font-bold text-zinc-100 font-serif tracking-wide">
-              The Corporate Finance Update
-            </h2>
+            <h2 id="whats-new-title" className="font-display text-2xl font-semibold tracking-wide text-ink">What&apos;s new</h2>
           </div>
-          <button 
-            onClick={handleDismiss}
-            className="text-zinc-500 hover:text-zinc-100 transition-colors p-2 -mr-2 -mt-2 bg-[#111] hover:bg-[#222] rounded-full border border-transparent hover:border-[#333]"
-          >
+          <button ref={closeRef} onClick={dismiss} aria-label="Close" className="-mr-2 -mt-1 rounded-full p-2 text-ink-faint transition-colors hover:bg-raised hover:text-ink">
             <X size={18} />
           </button>
-        </div>
-
-        {/* Content Body */}
-        <div className="p-8 overflow-y-auto custom-scrollbar flex-1 bg-gradient-to-b from-transparent to-black/50">
-          <p className="text-zinc-400 text-sm leading-relaxed mb-8">
-            Over the last 1.5 weeks, we have completely overhauled the corporate finance, accounting, and business progression systems in WORLDr. Your economic empire just got a lot more realistic.
+        </header>
+        <div className="flex-1 space-y-3 overflow-y-auto px-6 pb-6 sm:px-8">
+          {NOTES.map(n => (
+            <div key={n.title} className="flex items-start gap-4 rounded-2xl border border-line bg-raised/50 p-4">
+              <div className="flex-shrink-0 rounded-xl bg-accent/10 p-2.5 text-accent">{n.icon}</div>
+              <div>
+                <h3 className="mb-1 text-sm font-semibold text-ink">{n.title}</h3>
+                <p className="text-[13px] leading-relaxed text-ink-dim">{n.desc}</p>
+              </div>
+            </div>
+          ))}
+          <p className="pt-1 text-[12px] leading-relaxed text-ink-faint">
+            This is a closed alpha: numbers will be rebalanced and the world may be reset. Report anything odd on{' '}
+            <a href={BUILD.discord} target="_blank" rel="noopener noreferrer" className="text-accent underline-offset-2 hover:underline">Discord</a>.
           </p>
-
-          <div className="space-y-6">
-            <FeatureRow 
-              icon={<Building2 size={18} className="text-amber-400" />}
-              title="Corporate Banking System"
-              desc="Secure capital from the Drennia National Bank. We've introduced Senior Term Loans (TLA) for rapid expansion, Growth Capital for proven operators, and Distressed Bailout Facilities to save failing businesses."
-            />
-            
-            <FeatureRow 
-              icon={<Scale size={18} className="text-blue-400" />}
-              title="Dynamic Credit Dossiers"
-              desc="The banking engine now actively analyzes your company's Character (Reputation), Capacity (Cashflow), Capital (Book Value), and Collateral to dynamically assign a Credit Rating (AAA to D). This rating directly dictates your borrowing power and interest rates."
-            />
-            
-            <FeatureRow 
-              icon={<TrendingUp size={18} className="text-emerald-400" />}
-              title="Automated Debt Amortization"
-              desc="Your corporate debt is now automatically serviced at the end of every month. Principal repayments are mathematically segregated from your operating profit margins to provide accurate, real-world accounting."
-            />
-            
-            <FeatureRow 
-              icon={<Banknote size={18} className="text-indigo-400" />}
-              title="True Book Value Capitalization"
-              desc="Your physical assets (Land Plots, Factories, Production Lines) are now properly capitalized on your balance sheet. Purchasing property no longer 'vaporizes' your cash—it accurately preserves your Net Worth on the ledger."
-            />
-            
-            <FeatureRow 
-              icon={<ShieldCheck size={18} className="text-zinc-300" />}
-              title="Security & Economy Integrity"
-              desc="We've locked down the banking endpoints to prevent infinite money exploits, unauthorized dossier snooping, and race-condition double-dipping. The simulation is mathematically sound."
-            />
-          </div>
         </div>
-
-        {/* Footer */}
-        <div className="p-6 border-t border-[#1a1a1a] bg-[#050505] flex justify-end">
-          <button 
-            onClick={handleDismiss}
-            className="px-8 py-3 bg-zinc-100 hover:bg-white text-black text-xs uppercase tracking-widest font-bold font-mono transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            Acknowledge & Continue
-          </button>
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-function FeatureRow({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
-  return (
-    <div className="flex gap-4 items-start p-4 rounded-lg bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:border-white/[0.1] transition-colors">
-      <div className="p-2.5 bg-black rounded-md border border-[#222] shadow-inner flex-shrink-0">
-        {icon}
-      </div>
-      <div>
-        <h3 className="text-zinc-200 text-sm font-semibold mb-1">{title}</h3>
-        <p className="text-zinc-500 text-xs leading-relaxed">{desc}</p>
+        <footer className="flex justify-end border-t border-line px-6 py-4 sm:px-8">
+          <button onClick={dismiss} className="btn-primary">Got it</button>
+        </footer>
       </div>
     </div>
   );

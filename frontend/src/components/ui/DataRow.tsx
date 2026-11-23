@@ -42,7 +42,7 @@ export default function DataRow({
       onClick={onClick}
       className={cn(
         'flex items-baseline justify-between py-2.5',
-        border && 'border-b border-[#23232b]',
+        border && 'border-b border-[#262B36]',
         onClick && 'cursor-pointer',
         'hover:bg-zinc-900/50 -mx-1 px-1 rounded transition-colors duration-100',
         className,

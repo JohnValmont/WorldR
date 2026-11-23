@@ -145,7 +145,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           
           {currentStructureId === 'public-corporation' ? (
-            <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
+            <div className="rounded border p-4 bg-[#0B0D12] border-zinc-800">
               <div className="text-[13px] font-bold text-zinc-500 mb-1">Market Capital Raising</div>
               <div className="text-[11px] text-zinc-500 mb-3 leading-relaxed">Public corporations cannot use ad-hoc owner injections. You must raise capital through the DRX Exchange.</div>
               <Link href="/drennia/exchange">
@@ -153,7 +153,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
               </Link>
             </div>
           ) : currentStructureId === 'sole-trader' ? (
-            <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
+            <div className="rounded border p-4 bg-[#0B0D12] border-zinc-800">
               <div className="text-[13px] font-bold text-terminal-green mb-1">↓ Inject Capital</div>
               <div className="text-[11px] text-zinc-400 mb-3 leading-relaxed min-h-[34px]">Transfer your personal cash into the company ledger (owner loan).</div>
               <div className="flex gap-2 items-center">
@@ -162,7 +162,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
               </div>
             </div>
           ) : currentStructureId === 'private-company' ? (
-            <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
+            <div className="rounded border p-4 bg-[#0B0D12] border-zinc-800">
               <div className="text-[13px] font-bold text-terminal-green mb-1">↑ Issue Shares</div>
               <div className="text-[11px] text-zinc-400 mb-3 leading-relaxed min-h-[34px]">Issue new shares to yourself to inject capital. Cash is transferred to company, and your equity increases.</div>
               <div className="flex gap-2 items-center">
@@ -175,7 +175,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
           ) : null}
 
           {currentStructureId === 'public-corporation' ? (
-            <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
+            <div className="rounded border p-4 bg-[#0B0D12] border-zinc-800">
               <div className="text-[13px] font-bold text-zinc-500 mb-1">Dividend Distribution</div>
               <div className="text-[11px] text-zinc-500 mb-3 leading-relaxed">Public corporations cannot allow direct ad-hoc owner drawings. You must set a Dividend Policy to distribute profits.</div>
               <Button variant="secondary" className="w-full" onClick={() => document.getElementById('dividend-policy')?.scrollIntoView({ behavior: 'smooth' })}>
@@ -183,7 +183,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
               </Button>
             </div>
           ) : (
-            <div className="rounded border p-4 bg-[#090A0F] border-zinc-800">
+            <div className="rounded border p-4 bg-[#0B0D12] border-zinc-800">
               <div className="text-[13px] font-bold text-terminal-amber mb-1">↑ Owner Drawings</div>
               <div className="text-[11px] text-zinc-400 mb-3 leading-relaxed min-h-[34px]">Withdraw company cash to your personal holdings.</div>
               <div className="flex gap-2 items-center">
@@ -210,10 +210,10 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
             const targetIdx = STRUCTURE_ORDER.indexOf(s.id);
             const isUpgrade = currentStructureId != null && targetIdx > currentIdx;
             return (
-              <div key={s.id} className={`rounded border p-4 ${isCurrent ? 'bg-[#1E1A15] border-terminal-amber/30' : 'bg-[#090A0F] border-zinc-800'}`}>
+              <div key={s.id} className={`rounded border p-4 ${isCurrent ? 'bg-[#1E1B14] border-terminal-amber/30' : 'bg-[#0B0D12] border-zinc-800'}`}>
                 <div className="flex justify-between items-baseline mb-2">
                   <div className={`text-sm font-bold ${isCurrent ? 'text-terminal-amber' : 'text-zinc-100'}`}>{s.name}</div>
-                  {isCurrent && <div className="font-mono text-[9px] text-terminal-amber uppercase tracking-widest">Current</div>}
+                  {isCurrent && <div className="font-mono text-[10px] text-terminal-amber uppercase tracking-widest">Current</div>}
                 </div>
                 <p className="text-[11px] text-zinc-400 leading-relaxed mb-3 min-h-[44px]">{s.description}</p>
                 <div className="font-mono text-[10px] text-zinc-500 flex flex-col gap-1">
@@ -249,11 +249,11 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
             <div className="text-xs text-zinc-200">{h.name || h.holder_name}</div>
             <div className="text-right font-mono">
               <div className="text-xs font-bold text-terminal-amber">{fmt(Number(h.percent), 2)}%</div>
-              <div className="text-[9px] text-zinc-500">{fmt(Number(h.shares))} shares</div>
+              <div className="text-[10px] text-zinc-500">{fmt(Number(h.shares))} shares</div>
             </div>
           </div>
         ))}
-        <div className="font-mono text-[9px] text-zinc-600 mt-3 uppercase tracking-wider">
+        <div className="font-mono text-[10px] text-zinc-600 mt-3 uppercase tracking-wider">
           {fmt(Number(capTable?.total_shares || 0))} total shares issued
         </div>
       </Card>
@@ -272,7 +272,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
             onChange={(e) => setPayoutInput(e.target.value)}
             placeholder={String(payoutPercent)}
             inputMode="numeric"
-            className="font-mono flex-1 bg-[#090A0F] border border-zinc-800 text-zinc-200 p-2 text-xs outline-none focus:border-terminal-amber/50 transition-colors rounded"
+            className="font-mono flex-1 bg-[#0B0D12] border border-zinc-800 text-zinc-200 p-2 text-xs outline-none focus:border-terminal-amber/50 transition-colors rounded"
           />
           <Button
             onClick={savePolicy}
@@ -282,7 +282,7 @@ export default function EquityDeskTab({ companyId, companyName }: { companyId: s
             Set %
           </Button>
         </div>
-        <div className="font-mono text-[9px] text-zinc-500 mt-3">0–50% allowed. Applies only to the owner's companies.</div>
+        <div className="font-mono text-[10px] text-zinc-500 mt-3">0–50% allowed. Applies only to the owner's companies.</div>
         </Card>
       </div>
     </div>

@@ -6,23 +6,23 @@ import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import { characterApi, investmentsApi, exchangeApi, companyApi } from '../../../lib/api';
 
 const T = {
-  bg: '#090A0F',
-  panel: '#11131A',
-  panelSoft: '#17151B',
-  paper: '#1E1A15',
-  border: '#2A2630',
-  borderGold: 'rgba(201,162,74,0.22)',
-  gold: '#C9A24A',
-  ivory: '#F4EBD6',
-  muted: '#A79D8C',
-  faint: '#6B6358',
-  mint: '#36D399',
+  bg: '#0B0D12',
+  panel: '#13161E',
+  panelSoft: '#1B1F29',
+  paper: '#1E1B14',
+  border: '#262B36',
+  borderGold: 'rgba(232,184,75,0.22)',
+  gold: '#E8B84B',
+  ivory: '#ECEAE4',
+  muted: '#A3A4AC',
+  faint: '#868994',
+  mint: '#4FB286',
   steel: '#4B6382',
-  red: '#B85555',
+  red: '#D9625A',
 };
 
 const mono: React.CSSProperties = { fontFamily: 'monospace' };
-const label: React.CSSProperties = { ...mono, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.gold, fontWeight: 700 };
+const label: React.CSSProperties = { ...mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.gold, fontWeight: 700 };
 const inputStyle: React.CSSProperties = { ...mono, width: '100%', background: T.bg, border: `1px solid ${T.border}`, color: T.ivory, padding: '8px 10px', fontSize: '12px', outline: 'none' };
 
 function fmt(n: number | null | undefined, dec = 2): string {
@@ -111,20 +111,20 @@ function LendingDesk({ onChanged }: { onChanged: () => void }) {
         <div style={{ ...label, marginBottom: '12px' }}>Post a Loan Offer</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
           <div>
-            <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Max amount ($)</div>
+            <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Max amount ($)</div>
             <input aria-label="Maximum loan amount" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="10000" inputMode="numeric" style={inputStyle} />
           </div>
           <div>
-            <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Monthly rate (%)</div>
+            <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Monthly rate (%)</div>
             <input aria-label="Monthly interest rate percent" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="2.5" inputMode="decimal" style={inputStyle} />
           </div>
           <div>
-            <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Term (months)</div>
+            <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Term (months)</div>
             <input aria-label="Loan term in months" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="12" inputMode="numeric" style={inputStyle} />
           </div>
         </div>
         <div style={{ marginTop: '8px' }}>
-          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Purpose (optional)</div>
+          <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Purpose (optional)</div>
           <input aria-label="Loan purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Working capital, expansion…" style={inputStyle} />
         </div>
         <button
@@ -163,7 +163,7 @@ function LendingDesk({ onChanged }: { onChanged: () => void }) {
                 <button
                   onClick={() => accept(o.id, Number(o.max_amount))}
                   disabled={busy}
-                  style={{ padding: '8px 14px', cursor: 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(54,211,153,0.15)', color: T.mint, border: `1px solid ${T.mint}` }}
+                  style={{ padding: '8px 14px', cursor: 'pointer', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(79,178,134,0.15)', color: T.mint, border: `1px solid ${T.mint}` }}
                 >
                   Borrow
                 </button>
@@ -210,7 +210,7 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
         <div style={{ fontSize: '11px', color: T.ivory }}>
           ${fmtInt(Number(l.principal))} {who}
           <span style={{
-            ...mono, fontSize: '9px', marginLeft: '8px', padding: '1px 6px', textTransform: 'uppercase',
+            ...mono, fontSize: '10px', marginLeft: '8px', padding: '1px 6px', textTransform: 'uppercase',
             color: l.status === 'active' ? T.mint : l.status === 'repaid' ? T.steel : T.red,
             border: `1px solid ${l.status === 'active' ? T.mint : l.status === 'repaid' ? T.steel : T.red}`,
           }}>{l.status}</span>
@@ -236,7 +236,7 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
             action={l.status === 'active' ? (
               <button
                 onClick={() => repay(l.id)}
-                style={{ ...mono, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', background: 'transparent', border: `1px solid ${T.border}`, color: T.muted, padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}
+                style={{ ...mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', background: 'transparent', border: `1px solid ${T.border}`, color: T.muted, padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}
               >
                 Repay Early
               </button>
@@ -257,7 +257,7 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
               </div>
               <button
                 onClick={() => cancelOffer(o.id)}
-                style={{ ...mono, fontSize: '9px', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${T.border}`, color: T.faint, padding: '4px 10px', cursor: 'pointer' }}
+                style={{ ...mono, fontSize: '10px', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${T.border}`, color: T.faint, padding: '4px 10px', cursor: 'pointer' }}
               >
                 Cancel
               </button>
@@ -360,22 +360,22 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr', gap: '8px' }}>
               <div>
-                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Company</div>
+                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Company</div>
                 <select aria-label="Company to sell shares of" value={companyId} onChange={(e) => setCompanyId(e.target.value)} style={{ ...inputStyle, appearance: 'none' }}>
                   <option value="">Select…</option>
                   {eligibleCompanies.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares</div>
+                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Shares</div>
                 <input aria-label="Number of shares" value={shares} onChange={(e) => setShares(e.target.value)} placeholder="100000" inputMode="numeric" style={inputStyle} />
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Min Purchase</div>
+                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Min Purchase</div>
                 <input aria-label="Min Purchase" value={minPurchase} onChange={(e) => setMinPurchase(e.target.value)} placeholder="1" inputMode="numeric" style={inputStyle} />
               </div>
               <div>
-                <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price / share ($)</div>
+                <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', marginBottom: '4px' }}>Price / share ($)</div>
                 <input aria-label="Price per share" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="1.00" inputMode="decimal" style={inputStyle} />
               </div>
             </div>
@@ -413,7 +413,7 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
               <div>
                 <div style={{ fontSize: '12px', color: T.ivory, fontWeight: 700 }}>
                   {p.company_name}
-                  {isOwn && <span style={{ ...mono, fontSize: '9px', color: T.gold, marginLeft: '8px', padding: '1px 6px', border: `1px solid ${T.gold}`, textTransform: 'uppercase' }}>yours</span>}
+                  {isOwn && <span style={{ ...mono, fontSize: '10px', color: T.gold, marginLeft: '8px', padding: '1px 6px', border: `1px solid ${T.gold}`, textTransform: 'uppercase' }}>yours</span>}
                 </div>
                 <div style={{ ...mono, fontSize: '10px', color: T.muted }}>
                   {fmtInt(available)} sh ({fmt((available / 1000000) * 100, 1)}%) @ ${fmt(priceVal)} {minP > 1 ? ` · Min: ${minP} sh` : ''} · seller {p.seller_name}
@@ -442,7 +442,7 @@ function PlacementsDesk({ onChanged }: { onChanged: () => void }) {
                     <button
                       onClick={() => accept(p.id, qty)}
                       disabled={busy || !valid}
-                      style={{ padding: '8px 14px', cursor: valid ? 'pointer' : 'not-allowed', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: valid ? 'rgba(54,211,153,0.15)' : T.border, color: valid ? T.mint : T.bg, border: valid ? `1px solid ${T.mint}` : 'none', opacity: busy || !valid ? 0.6 : 1 }}
+                      style={{ padding: '8px 14px', cursor: valid ? 'pointer' : 'not-allowed', ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', background: valid ? 'rgba(79,178,134,0.15)' : T.border, color: valid ? T.mint : T.bg, border: valid ? `1px solid ${T.mint}` : 'none', opacity: busy || !valid ? 0.6 : 1 }}
                     >
                       Buy
                     </button>
@@ -468,7 +468,7 @@ function PortfolioSummary({ refreshKey }: { refreshKey: number }) {
         <div key={h.company_id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
           <div>
             <div style={{ fontSize: '12px', color: T.ivory, fontWeight: 700 }}>{h.name}</div>
-            <div style={{ ...mono, fontSize: '9px', color: T.faint }}>{fmt(h.ownership_percent, 2)}% · {h.legal_structure_id}</div>
+            <div style={{ ...mono, fontSize: '10px', color: T.faint }}>{fmt(h.ownership_percent, 2)}% · {h.legal_structure_id}</div>
           </div>
           <div style={{ textAlign: 'right', ...mono }}>
             <div style={{ fontSize: '12px', color: T.ivory }}>{fmtInt(Number(h.shares))} sh</div>
@@ -494,13 +494,7 @@ export default function MoneyPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: T.bg, color: T.ivory, overflow: 'hidden' }}>
-      <div style={{ padding: '16px 24px 0', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span
-          style={{ cursor: 'pointer', color: T.muted, fontSize: '11px', ...mono, textTransform: 'uppercase', letterSpacing: '0.1em' }}
-          onClick={() => router.push('/drennia/chronicle')}
-        >
-          ← Back to Chronicle
-        </span>
+      <div style={{ padding: '16px 24px 0', flexShrink: 0, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
         <WorldTimeControl />
       </div>
 
@@ -511,7 +505,7 @@ export default function MoneyPage() {
           <p style={{ fontSize: '12px', color: T.muted, margin: 0 }}>Lend to other players, borrow capital, and buy into private companies.</p>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ ...mono, fontSize: '9px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Cash in Hand</div>
+          <div style={{ ...mono, fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Cash in Hand</div>
           <div style={{ ...mono, fontSize: '20px', fontWeight: 700, color: T.mint }}>{cash != null ? `$${fmtInt(cash)}` : '—'}</div>
         </div>
       </div>

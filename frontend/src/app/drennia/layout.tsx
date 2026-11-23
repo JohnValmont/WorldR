@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import BackBar from '../../components/ui/BackBar';
 import GameChat from '../../components/chat/GameChat';
+import WhatsNewModal from '../../components/gameplay/WhatsNewModal';
 import { resolveSession, LOGIN_PATH, CREATE_CHARACTER_PATH } from '../../lib/session';
 
 type Gate = 'checking' | 'ready' | 'offline';
@@ -41,31 +42,32 @@ export default function DrenniaLayout({ children }: { children: React.ReactNode 
 
   if (gate === 'checking') {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#090A0F' }}>
-        <div className="w-6 h-6 rounded-full border-2 border-amber-500/20 border-t-amber-500 animate-spin" />
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bg" role="status" aria-live="polite">
+        <span className="font-display text-xl font-bold text-ink"><span className="tracking-[0.2em]">WORLD</span><span className="-ml-[0.1em] text-accent text-[0.8em]">r</span></span>
+        <div className="h-0.5 w-32 overflow-hidden rounded-full bg-line">
+          <div className="h-full w-1/3 animate-[loadbar_1.2s_ease-in-out_infinite] rounded-full bg-accent" />
+        </div>
+        <span className="sr-only">Loading your world</span>
       </div>
     );
   }
 
   if (gate === 'offline') {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', justifyContent: 'center', background: '#090A0F', color: '#A79D8C', padding: 16, textAlign: 'center' }}>
-        <p>Can&apos;t reach the WORLDr servers right now.</p>
-        <button
-          onClick={check}
-          className="px-4 py-2 rounded border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors"
-        >
-          Try again
-        </button>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bg p-4 text-center" role="alert">
+        <span className="font-display text-xl font-bold text-ink"><span className="tracking-[0.2em]">WORLD</span><span className="-ml-[0.1em] text-accent text-[0.8em]">r</span></span>
+        <p className="max-w-sm text-ink-dim">Can&apos;t reach the WORLDr servers right now. Check your connection, or try again in a minute.</p>
+        <button onClick={check} className="btn-secondary">Try again</button>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#090A0F', width: '100%' }}>
+    <div className="flex min-h-screen w-full flex-col bg-bg">
       <BackBar />
-      {children}
+      <main id="main" className="flex w-full flex-1 flex-col">{children}</main>
       <GameChat />
+      <WhatsNewModal />
     </div>
   );
 }

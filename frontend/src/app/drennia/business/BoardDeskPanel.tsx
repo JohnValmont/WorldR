@@ -26,7 +26,7 @@ const BOARD_POSITIONS = [
     title: "CFO",
     fullTitle: "Chief Financial Officer",
     icon: "💰",
-    color: "#36d399",
+    color: "#4FB286",
     description:
       "Oversees all financial operations — cash flow, debt management, capital allocation, and financial reporting. Flags risks before they become crises.",
     responsibilities: [
@@ -146,9 +146,9 @@ function StatusPill({ status, name }: { status: string, name?: string }) {
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
-          background: "rgba(54,211,153,0.12)",
-          border: "1px solid rgba(54,211,153,0.35)",
-          color: "#36d399",
+          background: "rgba(79,178,134,0.12)",
+          border: "1px solid rgba(79,178,134,0.35)",
+          color: "#4FB286",
           fontSize: 10,
           fontFamily: "monospace",
           fontWeight: 700,
@@ -163,7 +163,7 @@ function StatusPill({ status, name }: { status: string, name?: string }) {
             width: 5,
             height: 5,
             borderRadius: "50%",
-            background: "#36d399",
+            background: "#4FB286",
             display: "inline-block",
           }}
         />
@@ -180,7 +180,7 @@ function StatusPill({ status, name }: { status: string, name?: string }) {
         background: "rgba(255,255,255,0.04)",
         border: "1px solid rgba(255,255,255,0.1)",
         color: "#666",
-        fontSize: 9,
+        fontSize: 10,
         fontFamily: "monospace",
         fontWeight: 700,
         letterSpacing: "0.12em",
@@ -426,7 +426,7 @@ export default function BoardDeskPanel({
                     {pos.badge && (
                       <span
                         style={{
-                          fontSize: 8,
+                          fontSize: 10,
                           fontFamily: "monospace",
                           fontWeight: 700,
                           letterSpacing: "0.14em",

@@ -83,14 +83,14 @@ function ResetPasswordForm() {
     return (
       <div className="w-full animate-auth-enter">
         <div className="flex flex-col items-center text-center py-6">
-          <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-5 shadow-[0_0_30px_rgba(16,185,129,0.15)]">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-5 shadow-[0_0_30px_rgba(79,178,134,0.15)]">
             <svg className="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
 
           <div className="flex items-center gap-2 mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(79,178,134,0.8)]" />
             <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.3em]">Reset Successful</span>
           </div>
 
@@ -118,7 +118,7 @@ function ResetPasswordForm() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)] animate-pulse" />
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(232,184,75,0.8)] animate-pulse" />
           <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.3em]">Set New Password</span>
         </div>
         <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">Reset password</h1>

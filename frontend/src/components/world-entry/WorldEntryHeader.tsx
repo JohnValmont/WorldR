@@ -42,7 +42,7 @@ export default function WorldEntryHeader() {
             color: '#B9B09B'
           }}
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)] animate-pulse mr-2" />
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(232,184,75,0.8)] animate-pulse mr-2" />
           Pre-Alpha Access Granted
         </div>
         

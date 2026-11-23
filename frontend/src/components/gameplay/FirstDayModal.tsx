@@ -1,4 +1,5 @@
 'use client';
+import { REAL_HOURS_PER_GAME_MONTH } from '../../lib/gameTime';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { politicsApi } from '../../lib/api';
@@ -6,16 +7,16 @@ import { Lock } from 'lucide-react';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
-  bg:         '#090A0F',
+  bg:         '#0B0D12',
   overlay:    'rgba(9,10,15,0.92)',
-  panel:      '#11131A',
-  border:     '#2A2630',
-  amber:      '#C9A24A',
-  amberDim:   'rgba(201,162,74,0.15)',
-  amberGlow:  'rgba(201,162,74,0.25)',
-  ivory:      '#F4EBD6',
-  muted:      '#A79D8C',
-  faint:      '#6B6358',
+  panel:      '#13161E',
+  border:     '#262B36',
+  amber:      '#E8B84B',
+  amberDim:   'rgba(232,184,75,0.15)',
+  amberGlow:  'rgba(232,184,75,0.25)',
+  ivory:      '#ECEAE4',
+  muted:      '#A3A4AC',
+  faint:      '#868994',
   green:      '#4D8C6A',
   greenDim:   'rgba(77,140,106,0.15)',
   blue:       '#4A6D8C',
@@ -42,8 +43,8 @@ function FactorBar({ label, value, color }: { label: string; value: number; colo
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 9, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint }}>{label}</span>
-        <span style={{ fontSize: 9, fontFamily: 'monospace', color: T.muted }}>{value}</span>
+        <span style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: T.faint }}>{label}</span>
+        <span style={{ fontSize: 10, fontFamily: 'monospace', color: T.muted }}>{value}</span>
       </div>
       <div style={{ height: 3, background: T.border, borderRadius: 2 }}>
         <div style={{ height: 3, width: `${Math.min(100, value)}%`, background: color, borderRadius: 2, transition: 'width 0.5s ease' }} />
@@ -63,10 +64,10 @@ function Card1({ name, polState, polCouncil }: { name: string; polState: any; po
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Title */}
       <div>
-        <div style={{ fontSize: 9, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.28em', color: T.amber, marginBottom: 6 }}>
+        <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.28em', color: T.amber, marginBottom: 6 }}>
           Drennia · January, Year 0
         </div>
-        <h2 style={{ fontSize: 24, fontWeight: 700, fontFamily: 'Georgia, serif', color: T.ivory, margin: 0, lineHeight: 1.2 }}>
+        <h2 style={{ fontSize: 24, fontWeight: 700, fontFamily: "'Cinzel', Georgia, serif", color: T.ivory, margin: 0, lineHeight: 1.2 }}>
           Welcome to Drennia,<br />{name}.
         </h2>
         <p style={{ fontSize: 13, color: T.muted, marginTop: 10, lineHeight: 1.6 }}>
@@ -81,7 +82,7 @@ function Card1({ name, polState, polCouncil }: { name: string; polState: any; po
         <div style={{ display: 'flex', gap: 8 }}>
           {/* Political phase */}
           <div style={{ flex: 1, background: T.amberDim, border: `1px solid ${T.border}`, borderRadius: 4, padding: '10px 12px' }}>
-            <div style={{ fontSize: 9, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: 4 }}>
+            <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: 4 }}>
               {stateName} State Council
             </div>
             <div style={{ fontSize: 13, color: T.ivory, fontWeight: 600 }}>
@@ -94,7 +95,7 @@ function Card1({ name, polState, polCouncil }: { name: string; polState: any; po
 
           {/* Economic phase */}
           <div style={{ flex: 1, background: T.greenDim, border: `1px solid ${T.border}`, borderRadius: 4, padding: '10px 12px' }}>
-            <div style={{ fontSize: 9, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: 4 }}>
+            <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.faint, marginBottom: 4 }}>
               Economy
             </div>
             <div style={{ fontSize: 13, color: T.ivory, fontWeight: 600 }}>Open Market</div>
@@ -120,10 +121,10 @@ function Card2({ onGoToBusiness, onGoToPolitics }: { onGoToBusiness: () => void;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <div style={{ fontSize: 9, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.28em', color: T.amber, marginBottom: 6 }}>
+        <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.28em', color: T.amber, marginBottom: 6 }}>
           Your first moves
         </div>
-        <h2 style={{ fontSize: 24, fontWeight: 700, fontFamily: 'Georgia, serif', color: T.ivory, margin: 0, lineHeight: 1.2 }}>
+        <h2 style={{ fontSize: 24, fontWeight: 700, fontFamily: "'Cinzel', Georgia, serif", color: T.ivory, margin: 0, lineHeight: 1.2 }}>
           Two paths. Both open.
         </h2>
         <p style={{ fontSize: 13, color: T.muted, marginTop: 10, lineHeight: 1.6 }}>
@@ -156,7 +157,7 @@ function Card2({ onGoToBusiness, onGoToPolitics }: { onGoToBusiness: () => void;
         </div>
 
         {/* Politics path */}
-        <div style={{ background: T.amberDim, border: `1px solid rgba(201,162,74,0.35)`, borderRadius: 4, padding: '14px 16px' }}>
+        <div style={{ background: T.amberDim, border: `1px solid rgba(232,184,75,0.35)`, borderRadius: 4, padding: '14px 16px' }}>
           <div style={{ fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.amber, marginBottom: 6 }}>
             🏛️ Politics Path
           </div>
@@ -168,7 +169,7 @@ function Card2({ onGoToBusiness, onGoToPolitics }: { onGoToBusiness: () => void;
           <button
             onClick={(e) => { e.preventDefault(); window.location.href = '/drennia/politics'; }}
             style={{
-              background: T.amberDim, border: `1px solid rgba(201,162,74,0.3)`,
+              background: T.amberDim, border: `1px solid rgba(232,184,75,0.3)`,
               color: T.amber, fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase',
               letterSpacing: '0.15em', padding: '7px 14px', borderRadius: 3, cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%'
@@ -193,10 +194,10 @@ function Card3({ citizenFile }: { citizenFile: any }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <div style={{ fontSize: 9, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.28em', color: T.amber, marginBottom: 6 }}>
+        <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.28em', color: T.amber, marginBottom: 6 }}>
           What you manage
         </div>
-        <h2 style={{ fontSize: 24, fontWeight: 700, fontFamily: 'Georgia, serif', color: T.ivory, margin: 0, lineHeight: 1.2 }}>
+        <h2 style={{ fontSize: 24, fontWeight: 700, fontFamily: "'Cinzel', Georgia, serif", color: T.ivory, margin: 0, lineHeight: 1.2 }}>
           Three things to track.
         </h2>
         <p style={{ fontSize: 13, color: T.muted, marginTop: 10, lineHeight: 1.6 }}>
@@ -237,11 +238,11 @@ function Card3({ citizenFile }: { citizenFile: any }) {
         <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 4, padding: '12px 14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: T.ivory }}>The Month Clock</span>
-            <span style={{ fontSize: 11, fontFamily: 'monospace', color: T.muted }}>1 month = 1 month</span>
+            <span style={{ fontSize: 11, fontFamily: 'monospace', color: T.muted }}>1 month = {REAL_HOURS_PER_GAME_MONTH} real hours</span>
           </div>
           <p style={{ fontSize: 10, color: T.faint, margin: 0, lineHeight: 1.5 }}>
-            Everything resolves monthly: sales, salaries, elections, bills, campaigns.
-            The admin button in the Business Desk advances the clock manually in pre-alpha.
+            Everything resolves when the month turns: sales, salaries, elections, bills, campaigns.
+            Business and politics share one clock, and it keeps running while you are away.
           </p>
         </div>
       </div>
@@ -321,7 +322,7 @@ export default function FirstDayModal({ characterName, citizenFile, onDismiss }:
           maxWidth: 480,
           maxHeight: '90vh',
           overflowY: 'auto',
-          boxShadow: `0 0 60px rgba(201,162,74,0.08), 0 24px 80px rgba(0,0,0,0.7)`,
+          boxShadow: `0 0 60px rgba(232,184,75,0.08), 0 24px 80px rgba(0,0,0,0.7)`,
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -332,7 +333,7 @@ export default function FirstDayModal({ characterName, citizenFile, onDismiss }:
           padding: '12px 18px',
           borderBottom: `1px solid ${T.border}`,
         }}>
-          <div style={{ fontSize: 9, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.25em', color: T.faint }}>
+          <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.25em', color: T.faint }}>
             Citizen File · Drennia
           </div>
           <button

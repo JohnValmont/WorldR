@@ -1,4 +1,5 @@
 'use client';
+import { Lock } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { cn } from './utils';
@@ -46,7 +47,7 @@ export default function Tabs({
   return (
     <div
       className={cn(
-        'w-full border-b border-[#23232b] bg-[#090A0F]/90 backdrop-blur-md z-20 overflow-x-auto no-scrollbar',
+        'w-full border-b border-[#262B36] bg-[#0B0D12]/90 backdrop-blur-md z-20 overflow-x-auto no-scrollbar',
         sticky && 'sticky',
         className
       )}
@@ -67,24 +68,24 @@ export default function Tabs({
               }}
               disabled={isDisabled}
               className={cn(
-                'flex items-center gap-2 px-4 py-3.5 text-[10px] font-mono uppercase tracking-[0.1em] whitespace-nowrap transition-colors duration-200 outline-none relative z-10',
+                'flex items-center gap-2 px-3.5 py-3.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-200 relative z-10',
                 isActive
-                  ? 'text-terminal-amber font-bold'
+                  ? 'text-accent font-semibold'
                   : isDisabled
-                  ? 'text-zinc-700 cursor-not-allowed'
-                  : 'text-zinc-500 hover:text-zinc-300 cursor-pointer'
+                  ? 'text-ink-faint cursor-not-allowed'
+                  : 'text-ink-dim hover:text-ink cursor-pointer'
               )}
               title={tab.locked ? 'Register a company to unlock' : undefined}
             >
-              {Icon && <Icon size={12} className={isActive ? 'text-terminal-amber' : 'text-zinc-500'} />}
+              {Icon && <Icon size={14} className={isActive ? 'text-accent' : 'text-ink-faint'} />}
               <span>{tab.label}</span>
-              {tab.locked && <span className="ml-1 text-zinc-600">🔒</span>}
+              {tab.locked && <Lock size={12} className="ml-0.5 text-ink-faint" aria-label="locked" />}
             </button>
           );
         })}
         {/* Animated Underline */}
         <div
-          className="absolute bottom-0 h-[2px] bg-terminal-amber transition-all duration-300 ease-out shadow-[0_-2px_8px_#ff9f0a]"
+          className="absolute bottom-0 h-[2px] rounded-full bg-accent transition-all duration-300 ease-out"
           style={{
             left: indicatorStyle.left,
             width: indicatorStyle.width,

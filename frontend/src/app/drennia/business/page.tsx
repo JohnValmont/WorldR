@@ -48,20 +48,20 @@ const getSubsectorName = (id?: string) => {
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 const T = {
-  bg: '#090A0F',
-  panel: '#11131A',
-  panelSoft: '#17151B',
-  paper: '#1E1A15',
-  border: '#2A2630',
-  borderGold: 'rgba(201,162,74,0.22)',
-  gold: '#C9A24A',
-  ivory: '#F4EBD6',
-  muted: '#A79D8C',
-  faint: '#6B6358',
-  mint: '#36D399',
+  bg: '#0B0D12',
+  panel: '#13161E',
+  panelSoft: '#1B1F29',
+  paper: '#1E1B14',
+  border: '#262B36',
+  borderGold: 'rgba(232,184,75,0.22)',
+  gold: '#E8B84B',
+  ivory: '#ECEAE4',
+  muted: '#A3A4AC',
+  faint: '#868994',
+  mint: '#4FB286',
   steel: '#4B6382',
   burgundy: '#8F3D3D',
-  red: '#B85555',
+  red: '#D9625A',
 };
 
 // ─── Display Name Helpers ────────────────────────────────────────────────────
@@ -74,29 +74,29 @@ const getLegalStructureName = (id?: string): string => {
 
 // ─── Reusable Atoms ──────────────────────────────────────────────────────────
 const Label = ({ children }: { children: React.ReactNode }) => (
-  <div className="font-mono text-[9px] uppercase tracking-[0.15em] text-zinc-500 mb-1">
+  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint mb-1">
     {children}
   </div>
 );
 
 const FieldRow = ({ label, value, valueColor }: { label: string; value: string | number; valueColor?: string }) => (
   <div className="flex justify-between items-baseline py-2 border-b border-zinc-800/60 last:border-0">
-    <span className="text-[11px] text-zinc-400">{label}</span>
-    <span className="font-mono text-xs font-bold" style={{ color: valueColor || '#F4EBD6' }}>{value}</span>
+    <span className="text-[13px] text-ink-dim">{label}</span>
+    <span className="font-mono text-[13px] font-semibold" style={{ color: valueColor || '#ECEAE4' }}>{value}</span>
   </div>
 );
 
 const SectionHeader = ({ children, stamp }: { children: React.ReactNode; stamp?: string }) => (
   <div className="flex justify-between items-center mb-4">
-    <div className="font-mono text-[11px] uppercase tracking-[0.15em] text-terminal-amber font-bold">
+    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
       {children}
     </div>
-    {stamp && <div className="font-mono text-[9px] text-zinc-500 tracking-wider border border-zinc-800 px-2 py-0.5 rounded">{stamp}</div>}
+    {stamp && <div className="text-[11px] text-ink-faint border border-line px-2 py-0.5 rounded-full">{stamp}</div>}
   </div>
 );
 
 const PanelBox = ({ children, style, className }: { children: React.ReactNode; style?: React.CSSProperties; className?: string }) => (
-  <div className={`bg-[#0c0d13] border border-[#23232b] rounded-xl p-5 ${className || ''}`} style={style}>
+  <div className={`bg-surface border border-line rounded-2xl shadow-card p-5 ${className || ''}`} style={style}>
     {children}
   </div>
 );
@@ -106,11 +106,7 @@ type GoldButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
 const GoldButton = ({ children, disabled, style, className, ...props }: GoldButtonProps & { className?: string }) => (
   <button
     disabled={disabled}
-    className={`font-mono text-[10px] uppercase tracking-[0.15em] font-bold px-6 py-2.5 rounded transition-all duration-150 
-      ${disabled 
-        ? 'bg-white/5 text-zinc-500 border border-zinc-800 cursor-not-allowed' 
-        : 'bg-terminal-amber text-black border border-terminal-amber hover:bg-[#d9b85c] hover:border-[#d9b85c] cursor-pointer'} 
-      ${className || ''}`}
+    className={`btn-primary ${className || ''}`}
     style={style}
     {...props}
   >
@@ -136,11 +132,7 @@ const GhostButton = ({
     type={type}
     disabled={disabled}
     aria-disabled={disabled}
-    className={`font-mono text-[10px] uppercase tracking-[0.12em] font-semibold px-4 py-2 rounded transition-all duration-150 border
-      ${disabled 
-        ? 'bg-transparent text-zinc-500 border-zinc-800 cursor-not-allowed opacity-50' 
-        : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-terminal-amber hover:text-zinc-100 cursor-pointer'} 
-      ${className || ''}`}
+    className={`btn-secondary ${disabled ? 'border-dashed text-ink-faint' : ''} ${className || ''}`}
     style={style}
   >
     {children}
@@ -505,50 +497,24 @@ export default function BusinessPage() {
   if (!authorized) return null;
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#090A0F] text-zinc-100 overflow-hidden">
+    <div className="flex flex-col h-full w-full bg-[#0B0D12] text-zinc-100 overflow-hidden">
 
       {/* ── Enhanced Business Header ── */}
-      <header className="flex items-center justify-between px-4 md:px-6 py-2.5 border-b border-[#23232b] bg-[#0c0d13] shrink-0 flex-wrap gap-3">
-        {/* Left: back + brand */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/drennia/chronicle')}
-            className="flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-[0.12em] text-zinc-500 hover:text-terminal-amber transition-colors"
-          >
-            <ArrowLeft size={11} /> Chronicle
-          </button>
-          <span className="w-px h-4 bg-[#23232b]" />
-          <span className="text-[10px] font-mono font-black tracking-[0.25em] text-terminal-amber amber-glow">WORLDr</span>
-          <span className="w-px h-4 bg-[#23232b]" />
-          <Briefcase size={12} className="text-zinc-500" />
-          <span className="text-[9px] font-mono uppercase tracking-[0.15em] text-zinc-500">Business Desk</span>
-          {company && <StatusDot variant="live" label={company.name} />}
+      <header className="flex items-center justify-between px-4 md:px-6 py-2.5 border-b border-[#262B36] bg-[#13161E] shrink-0 flex-wrap gap-3">
+        {/* Left: where you are (the global bar has Back and the brand) */}
+        <div className="flex items-center gap-2.5">
+          <Briefcase size={15} className="text-accent" />
+          {company
+            ? <StatusDot variant="live" label={company.name} />
+            : <span className="text-[13px] text-ink-dim">No company yet</span>}
         </div>
 
-        {/* Center: stat chips */}
+        {/* Centre: real balances only (no decorative sparklines: players read them as data) */}
         <div className="flex items-center gap-2 flex-wrap">
-          <StatChip
-            label="Net Worth"
-            value={formatMoney(netWorth)}
-            valueColor="amber"
-            trend="up"
-            sparkline={[{value:40},{value:45},{value:42},{value:50},{value:55},{value:52},{value:60}]}
-          />
-          <StatChip
-            label="Cash in Hand"
-            value={formatMoney(playerCash)}
-            valueColor="green"
-            trend="up"
-            sparkline={[{value:10},{value:15},{value:12},{value:20},{value:18},{value:25},{value:30}]}
-          />
+          <StatChip label="Net Worth" value={formatMoney(netWorth)} valueColor="amber" />
+          <StatChip label="Cash in Hand" value={formatMoney(playerCash)} valueColor="green" />
           {company && (
-            <StatChip
-              label="Company Cash"
-              value={formatMoney(company.companyCash ?? 0)}
-              valueColor="amber"
-              trend={Number(company.companyCash || 0) > 0 ? "up" : "flat"}
-              sparkline={[{value:5},{value:8},{value:7},{value:12},{value:10},{value:15},{value:18}]}
-            />
+            <StatChip label="Company Cash" value={formatMoney(company.companyCash ?? 0)} valueColor="amber" />
           )}
         </div>
 
@@ -560,7 +526,7 @@ export default function BusinessPage() {
 
       {/* ── Page Title ── */}
       <div className="flex items-center gap-2.5 px-4 md:px-6 pt-3.5 pb-1.5 shrink-0">
-        <h1 className="font-serif text-lg font-bold text-zinc-100 m-0">Business</h1>
+        <h1 className="font-display text-xl font-semibold tracking-wide text-ink m-0">Business</h1>
         {company && <Badge variant="green" dot>{company.sector === 'manufacturing' ? 'Manufacturing' : 'Logistics'}</Badge>}
         {company?.sector === 'manufacturing' && (
           <button
@@ -601,7 +567,7 @@ export default function BusinessPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
               <div>
                 <div style={{ color: '#4ade80', fontFamily: 'monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 4 }}>Business Guide</div>
-                <div style={{ color: '#f1f5f9', fontSize: 20, fontWeight: 800, fontFamily: 'Georgia, serif', letterSpacing: '-0.01em' }}>Manufacturing &amp; Automobiles</div>
+                <div style={{ color: '#f1f5f9', fontSize: 20, fontWeight: 800, fontFamily: "'Cinzel', Georgia, serif", letterSpacing: '-0.01em' }}>Manufacturing &amp; Automobiles</div>
               </div>
               <button onClick={() => setShowMfgGuide(false)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 16 }}>✕</button>
             </div>
@@ -817,8 +783,10 @@ Use paid research to spot rivals who are Sold Out (opportunity to grab share by 
       {/* ── Subtabs & Breadcrumbs ── */}
       <div className="px-4 md:px-6 border-b border-zinc-800 shrink-0">
         {/* Dynamic Breadcrumbs */}
-        <div className="flex gap-2 pt-2.5 pb-1 text-[10px] font-mono uppercase tracking-[0.1em] text-zinc-600">
-          <span className={`cursor-pointer transition-colors ${activeTab === 'overview' ? 'text-terminal-amber' : 'text-zinc-500 hover:text-zinc-300'}`} onClick={() => { setActiveTab('overview'); setSelectedCompanyId(null); }}>Business Desk</span>
+        {/* Breadcrumbs only when you are below a tab (the tabs already say where you are) */}
+        {(activeTab === 'banks' || (activeTab === 'companies' && selectedCompanyId)) && (
+        <div className="flex gap-2 pt-2.5 pb-1 text-[12px] text-ink-faint">
+          <span className="cursor-pointer text-ink-dim hover:text-ink transition-colors" onClick={() => { setActiveTab('overview'); setSelectedCompanyId(null); }}>Business Desk</span>
           {activeTab === 'companies' && (
             <>
               <span>→</span>
@@ -828,16 +796,17 @@ Use paid research to spot rivals who are Sold Out (opportunity to grab share by 
           {activeTab === 'companies' && selectedCompanyId && company && (
             <>
               <span>→</span>
-              <span className="text-terminal-amber">{company.name}</span>
+              <span className="text-accent">{company.name}</span>
             </>
           )}
           {activeTab === 'banks' && (
             <>
               <span>→</span>
-              <span className="text-terminal-amber">Banks</span>
+              <span className="text-accent">Banks</span>
             </>
           )}
         </div>
+        )}
 
         {/* Subtabs */}
         {!(activeTab === 'companies' && selectedCompanyId) && activeTab !== 'banks' && (
@@ -865,22 +834,12 @@ Use paid research to spot rivals who are Sold Out (opportunity to grab share by 
       {/* ── Back / Breadcrumb Navigation (Anchors) ── */}
       <div className="px-4 md:px-6 pt-2 shrink-0">
         {activeTab === 'companies' && selectedCompanyId && company && (
-          <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => setSelectedCompanyId(null)}>
+          <span className="cursor-pointer text-ink-dim hover:text-accent text-[13px] font-medium transition-colors" onClick={() => setSelectedCompanyId(null)}>
             ← Back to Companies
           </span>
         )}
         {activeTab === 'banks' && (
-          <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => setActiveTab('overview')}>
-            ← Back to Overview
-          </span>
-        )}
-        {activeTab === 'start' && (
-          <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => { setActiveTab('overview'); setStep(1); }}>
-            ← Back to Business Overview
-          </span>
-        )}
-        {activeTab === 'registry' && (
-          <span className="cursor-pointer text-terminal-amber hover:text-zinc-100 text-[11px] font-mono uppercase tracking-[0.1em] transition-colors" onClick={() => setActiveTab('overview')}>
+          <span className="cursor-pointer text-ink-dim hover:text-accent text-[13px] font-medium transition-colors" onClick={() => setActiveTab('overview')}>
             ← Back to Overview
           </span>
         )}
@@ -1019,7 +978,7 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
         <Card pad="lg" accent className="relative overflow-hidden">
           <div className="flex items-center gap-2 mb-3">
             <Landmark size={12} className="text-terminal-amber" />
-            <span className="text-[9px] font-mono uppercase tracking-[0.25em] text-terminal-amber">
+            <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-terminal-amber">
               Drennia Commercial Registry
             </span>
           </div>
@@ -1076,7 +1035,7 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
                   <span className="text-[11px] font-mono font-semibold text-terminal-amber shrink-0">{s.fee}</span>
                 </div>
                 <p className="text-[11px] leading-relaxed text-zinc-500">{s.desc}</p>
-                <span className="mt-1 text-[9px] font-mono uppercase tracking-[0.12em] text-terminal-green">● Available</span>
+                <span className="mt-1 text-[10px] font-mono uppercase tracking-[0.12em] text-terminal-green">● Available</span>
               </Card>
             ))}
           </div>
@@ -1167,7 +1126,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       <div className="max-w-[540px] rounded-md border border-zinc-800 bg-zinc-900/60 p-5">
         <div className="text-[11px] font-mono uppercase tracking-[0.15em] text-terminal-amber font-bold mb-4">Both Company Slots Filled</div>
         <p className="text-[13px] text-zinc-500 leading-relaxed m-0">
-          You have <strong className="text-zinc-100">{company.name}</strong> (operational) and <strong className="text-zinc-100">{financeCompany.name}</strong> (Capital Partners). No additional company slots are available in pre-alpha.
+          You have <strong className="text-zinc-100">{company.name}</strong> (operational) and <strong className="text-zinc-100">{financeCompany.name}</strong> (Capital Partners). No more company slots are available in the closed alpha.
         </p>
       </div>
     );
@@ -1205,7 +1164,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           const active = step === stepNum;
           return (
             <div key={label} className={`flex-1 px-1 pt-2 pb-2.5 text-center border-b-2 -mb-px transition-colors ${active ? 'border-terminal-amber' : 'border-transparent'}`}>
-              <div className={`text-[8px] font-mono uppercase tracking-[0.08em] ${done ? 'text-terminal-green' : active ? 'text-terminal-amber' : 'text-zinc-600'}`}>
+              <div className={`text-[10px] font-mono uppercase tracking-[0.08em] ${done ? 'text-terminal-green' : active ? 'text-terminal-amber' : 'text-zinc-600'}`}>
                 {done ? '✓' : stepNum}. {label}
               </div>
             </div>
@@ -1249,14 +1208,14 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
                     selectedSector === s.id
                       ? 'border-terminal-amber bg-terminal-amber/10'
                       : 'border-zinc-800 bg-zinc-900/40'
-                  } ${!locked ? 'cursor-pointer hover:border-zinc-600' : 'cursor-not-allowed opacity-40'}`}
+                  } ${!locked ? 'cursor-pointer hover:border-zinc-600' : 'cursor-not-allowed border-dashed bg-transparent'}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className={`text-[13px] font-semibold ${!locked ? 'text-zinc-100' : 'text-zinc-600'}`}>{s.id}</span>
-                    {locked && <span className="text-[9px] font-mono text-zinc-600 tracking-[0.1em]">{financeSlotOnly ? 'SLOT TAKEN' : ((s as any).note || 'LOCKED')}</span>}
-                    {selectedSector === s.id && <span className="text-[9px] font-mono text-terminal-amber tracking-[0.1em]">SELECTED ✓</span>}
+                    {locked && <span className="inline-flex items-center gap-1 rounded-full border border-line-strong px-2 py-0.5 text-[11px] text-ink-faint"><Lock size={10} />{financeSlotOnly ? 'Slot taken' : ((s as any).note || 'Locked')}</span>}
+                    {selectedSector === s.id && <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-semibold text-accent">Selected</span>}
                   </div>
-                  <div className="text-[11px] text-zinc-500 mt-1">{s.desc}</div>
+                  <div className="text-[12px] text-ink-dim mt-1">{s.desc}</div>
                 </button>
               );
             })}
@@ -1287,8 +1246,8 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
                     <span className="text-[10px] text-zinc-500 ml-2.5">{hq.tagline}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-mono" style={{ color: hq.costColor }}>{hq.costNote}</span>
-                    {selectedHQ === hq.id && <span className="text-[9px] font-mono text-terminal-amber">✓</span>}
+                    <span className="text-[10px] font-mono" style={{ color: hq.costColor }}>{hq.costNote}</span>
+                    {selectedHQ === hq.id && <span className="text-[10px] font-mono text-terminal-amber">✓</span>}
                   </div>
                 </div>
                 <div className="text-[11px] text-zinc-500 mt-1.5 leading-relaxed">{hq.desc}</div>
@@ -1323,7 +1282,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
               >
                 <div className="flex justify-between gap-2">
                   <span className="text-[13px] font-semibold text-zinc-100">{s.label}</span>
-                  {selectedStructure === s.id && <span className="text-[9px] font-mono text-terminal-amber">ACTIVE ✓</span>}
+                  {selectedStructure === s.id && <span className="text-[10px] font-mono text-terminal-amber">ACTIVE ✓</span>}
                 </div>
                 <div className="text-[11px] text-zinc-500 mt-1">{s.desc}</div>
               </button>
@@ -1393,8 +1352,8 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
                 className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-4 py-3 text-base font-mono font-bold text-terminal-green outline-none box-border focus:border-terminal-amber/60 transition-colors"
               />
             </div>
-            <FieldRow label="Chosen Capital" value={formatMoney(chosenCapital)} valueColor="#30d158" />
-            <FieldRow label={`Filing Fee (${isFinance ? 'Private Company' : getLegalStructureName(selectedStructure)})`} value={formatMoney(effectiveFee)} valueColor="#ff453a" />
+            <FieldRow label="Chosen Capital" value={formatMoney(chosenCapital)} valueColor="#4FB286" />
+            <FieldRow label={`Filing Fee (${isFinance ? 'Private Company' : getLegalStructureName(selectedStructure)})`} value={formatMoney(effectiveFee)} valueColor="#D9625A" />
             <div className="flex justify-between mt-3 pt-2.5 border-t border-zinc-800">
               <span className="text-xs font-bold text-zinc-100">Total Required</span>
               <span className="text-base font-mono font-bold text-terminal-amber">{formatMoney(total)}</span>
@@ -1443,12 +1402,12 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
                   selectedModel === model.id
                     ? 'border-terminal-amber bg-terminal-amber/10'
                     : 'border-zinc-800 bg-zinc-900/40'
-                } ${model.available ? 'cursor-pointer hover:border-zinc-600' : 'cursor-not-allowed opacity-40'}`}
+                } ${model.available ? 'cursor-pointer hover:border-zinc-600' : 'cursor-not-allowed border-dashed bg-transparent'}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[13px] font-semibold text-zinc-100">{model.title}</span>
-                  {selectedModel === model.id && <span className="text-[9px] font-mono text-terminal-amber">SELECTED ✓</span>}
-                  {!model.available && <span className="text-[9px] font-mono text-zinc-600">COMING SOON</span>}
+                  {selectedModel === model.id && <span className="text-[10px] font-mono text-terminal-amber">SELECTED ✓</span>}
+                  {!model.available && <span className="text-[10px] font-mono text-zinc-600">COMING SOON</span>}
                 </div>
                 <div className="text-[11px] text-zinc-500 mt-1 leading-normal">{model.desc}</div>
               </button>
@@ -1470,12 +1429,12 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
                   selectedModel === model.id
                     ? 'border-terminal-amber bg-terminal-amber/10'
                     : 'border-zinc-800 bg-zinc-900/40'
-                } ${model.available ? 'cursor-pointer hover:border-zinc-600' : 'cursor-not-allowed opacity-40'}`}
+                } ${model.available ? 'cursor-pointer hover:border-zinc-600' : 'cursor-not-allowed border-dashed bg-transparent'}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[13px] font-semibold text-zinc-100">{model.title}</span>
-                  {selectedModel === model.id && <span className="text-[9px] font-mono text-terminal-amber">SELECTED ✓</span>}
-                  {!model.available && <span className="text-[9px] font-mono text-zinc-600">COMING SOON</span>}
+                  {selectedModel === model.id && <span className="text-[10px] font-mono text-terminal-amber">SELECTED ✓</span>}
+                  {!model.available && <span className="text-[10px] font-mono text-zinc-600">COMING SOON</span>}
                 </div>
                 <div className="text-[11px] text-zinc-500 mt-1 leading-normal">{model.desc}</div>
               </button>
@@ -1505,8 +1464,8 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
               <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={isLogistics ? selectedModel : getSubsectorName(selectedModel)} valueColor="#f5a623" />
             )}
             <FieldRow label="Filing Date" value={formatGameDate()} />
-            <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor="#30d158" />
-            <FieldRow label="Filing Fee" value={formatMoney(effectiveFee)} valueColor="#ff453a" />
+            <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor="#4FB286" />
+            <FieldRow label="Filing Fee" value={formatMoney(effectiveFee)} valueColor="#D9625A" />
             <FieldRow label="Total Deducted from Cash" value={formatMoney(total)} valueColor="#f5a623" />
           </div>
           <p className="text-[11px] text-zinc-500 mb-5 leading-relaxed">
@@ -1537,8 +1496,8 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
         {!isFinance && (
           <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={selectedModel ? (isLogistics ? selectedModel : getSubsectorName(selectedModel)) : 'TBD'} valueColor="#f5a623" />
         )}
-        <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor="#30d158" />
-        <FieldRow label="Total Cost" value={formatMoney(totalCost)} valueColor="#ff453a" />
+        <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor="#4FB286" />
+        <FieldRow label="Total Cost" value={formatMoney(totalCost)} valueColor="#D9625A" />
         <FieldRow label="Remaining Cash" value={formatMoney(playerCash - totalCost)} />
         {isFinance ? (
           <div className="mt-5 rounded-md border border-dashed border-terminal-amber/60 bg-terminal-amber/5 p-4">
@@ -1836,8 +1795,8 @@ function CompanyDeskTab({
                 <FieldRow label="Net Worth" value={formatMoney(netWorth)} valueColor={T.gold} />
               </PanelBox>
             </div>
-            <PanelBox style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(54,211,153,0.03)', border: `1px solid ${T.mint}40` }}>
-              <div style={{ width: '120px', height: '120px', borderRadius: '50%', border: `6px solid ${T.mint}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', boxShadow: '0 0 20px rgba(54,211,153,0.1)' }}>
+            <PanelBox style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(79,178,134,0.03)', border: `1px solid ${T.mint}40` }}>
+              <div style={{ width: '120px', height: '120px', borderRadius: '50%', border: `6px solid ${T.mint}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', boxShadow: '0 0 20px rgba(79,178,134,0.1)' }}>
                 <span style={{ fontSize: '24px', fontWeight: 700, color: T.ivory }}>100%</span>
                 <span style={{ fontSize: '10px', color: T.mint, fontFamily: 'monospace', textTransform: 'uppercase' }}>Owned</span>
               </div>
@@ -1960,28 +1919,28 @@ function CompanyDeskTab({
                 const branchCount = (company.facilities || []).filter(f => f.type === 'Regional Branch Office').length;
                 return (
                   <>
-                    <PanelBox style={{ background: hasWestport ? 'rgba(54,211,153,0.02)' : T.panel, border: `1px solid ${hasWestport ? T.mint : T.border}` }}>
+                    <PanelBox style={{ background: hasWestport ? 'rgba(79,178,134,0.02)' : T.panel, border: `1px solid ${hasWestport ? T.mint : T.border}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                         <span style={{ fontSize: '12px', fontWeight: 700, color: hasWestport ? T.mint : T.ivory }}>Westport Depot</span>
-                        <span style={{ fontSize: '9px', fontFamily: 'monospace', color: hasWestport ? T.mint : T.faint, border: `1px solid ${hasWestport ? T.mint : T.border}`, padding: '1px 5px' }}>{hasWestport ? 'Active' : 'Missing'}</span>
+                        <span style={{ fontSize: '10px', fontFamily: 'monospace', color: hasWestport ? T.mint : T.faint, border: `1px solid ${hasWestport ? T.mint : T.border}`, padding: '1px 5px' }}>{hasWestport ? 'Active' : 'Missing'}</span>
                       </div>
                       <div style={{ fontSize: '11px', color: T.muted, lineHeight: 1.4 }}>
                         {hasWestport ? '✓ Port Shuttle yield increased by 35% across Westport routes.' : 'Lease Westport Depot/Warehouse to boost Port Shuttle yield by 35%.'}
                       </div>
                     </PanelBox>
-                    <PanelBox style={{ background: hasDrennport ? 'rgba(54,211,153,0.02)' : T.panel, border: `1px solid ${hasDrennport ? T.mint : T.border}` }}>
+                    <PanelBox style={{ background: hasDrennport ? 'rgba(79,178,134,0.02)' : T.panel, border: `1px solid ${hasDrennport ? T.mint : T.border}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                         <span style={{ fontSize: '12px', fontWeight: 700, color: hasDrennport ? T.mint : T.ivory }}>Drennport Depot</span>
-                        <span style={{ fontSize: '9px', fontFamily: 'monospace', color: hasDrennport ? T.mint : T.faint, border: `1px solid ${hasDrennport ? T.mint : T.border}`, padding: '1px 5px' }}>{hasDrennport ? 'Active' : 'Missing'}</span>
+                        <span style={{ fontSize: '10px', fontFamily: 'monospace', color: hasDrennport ? T.mint : T.faint, border: `1px solid ${hasDrennport ? T.mint : T.border}`, padding: '1px 5px' }}>{hasDrennport ? 'Active' : 'Missing'}</span>
                       </div>
                       <div style={{ fontSize: '11px', color: T.muted, lineHeight: 1.4 }}>
                         {hasDrennport ? '✓ Courier yield increased by 25% across Drennport routes.' : 'Lease Drennport Depot/Warehouse to boost Local Courier yield by 25%.'}
                       </div>
                     </PanelBox>
-                    <PanelBox style={{ background: branchCount > 0 ? 'rgba(54,211,153,0.02)' : T.panel, border: `1px solid ${branchCount > 0 ? T.mint : T.border}`, gridColumn: 'span 2' }}>
+                    <PanelBox style={{ background: branchCount > 0 ? 'rgba(79,178,134,0.02)' : T.panel, border: `1px solid ${branchCount > 0 ? T.mint : T.border}`, gridColumn: 'span 2' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                         <span style={{ fontSize: '12px', fontWeight: 700, color: branchCount > 0 ? T.mint : T.ivory }}>Branch Network</span>
-                        <span style={{ fontSize: '9px', fontFamily: 'monospace', color: branchCount > 0 ? T.mint : T.faint, border: `1px solid ${branchCount > 0 ? T.mint : T.border}`, padding: '1px 5px' }}>{branchCount > 0 ? `${branchCount} Active` : 'Inactive'}</span>
+                        <span style={{ fontSize: '10px', fontFamily: 'monospace', color: branchCount > 0 ? T.mint : T.faint, border: `1px solid ${branchCount > 0 ? T.mint : T.border}`, padding: '1px 5px' }}>{branchCount > 0 ? `${branchCount} Active` : 'Inactive'}</span>
                       </div>
                       <div style={{ fontSize: '11px', color: T.muted, lineHeight: 1.4 }}>
                         {branchCount > 0 ? `✓ Unlocks multi-state operations and lowers interstate route dispatch cost.` : 'Lease Regional Branch Offices to establish multi-state presence.'}
@@ -2012,7 +1971,7 @@ function CompanyDeskTab({
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: T.ivory }}>{pool}</div>
                     {isBoosted && (
-                      <span style={{ fontSize: '9px', fontFamily: 'monospace', color: T.mint, background: 'rgba(54,211,153,0.1)', border: `1px solid ${T.mint}`, padding: '1px 6px' }}>
+                      <span style={{ fontSize: '10px', fontFamily: 'monospace', color: T.mint, background: 'rgba(79,178,134,0.1)', border: `1px solid ${T.mint}`, padding: '1px 6px' }}>
                         ⚡ Boosted {boostPct}
                       </span>
                     )}
@@ -2068,7 +2027,7 @@ function CompanyDeskTab({
               </div>
             </PanelBox>
             {fleet.filter(v => !v.assignedContractId && !v.assignedAutoOpPool).length > 0 && (
-              <PanelBox style={{ marginBottom: '16px', background: 'rgba(184,85,85,0.05)', border: `1px solid ${T.red}` }}>
+              <PanelBox style={{ marginBottom: '16px', background: 'rgba(217,98,90,0.05)', border: `1px solid ${T.red}` }}>
                 <SectionHeader>Idle Fleet Warning</SectionHeader>
                 <div style={{ fontSize: '11px', color: T.red }}>You have idle vehicles. They cost maintenance without generating revenue.</div>
               </PanelBox>
@@ -2408,7 +2367,7 @@ function CompanyDeskTab({
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        {v.assignedContractId && <span style={{ color: T.mint, border: `1px solid ${T.mint}`, padding: '2px 6px', background: 'rgba(54,211,153,0.1)' }}>On Contract</span>}
+                        {v.assignedContractId && <span style={{ color: T.mint, border: `1px solid ${T.mint}`, padding: '2px 6px', background: 'rgba(79,178,134,0.1)' }}>On Contract</span>}
                         {v.assignedAutoOpPool && <span style={{ color: T.gold, border: `1px solid ${T.gold}`, padding: '2px 6px', background: 'rgba(224,185,83,0.1)' }}>{v.assignedAutoOpPool}</span>}
                         {!v.assignedContractId && !v.assignedAutoOpPool && <span style={{ color: T.faint }}>Idle</span>}
                       </div>
@@ -2461,7 +2420,7 @@ function CompanyDeskTab({
                     const assignedVehicle = fleet.find(v => v.id === c.assignedVehicleId);
                     const monthsRemaining = c.dueYear && c.dueMonth ? ((c.dueYear - getGameDate().worldYear) * 12 + c.dueMonth - getGameDate().worldMonth) : 0;
                     return (
-                      <div key={c.id} style={{ background: 'rgba(54,211,153,0.02)', padding: '16px', border: `1px solid ${T.mint}40`, borderRadius: '4px' }}>
+                      <div key={c.id} style={{ background: 'rgba(79,178,134,0.02)', padding: '16px', border: `1px solid ${T.mint}40`, borderRadius: '4px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
                           <div>
                             <div style={{ fontSize: '15px', fontWeight: 700, color: T.mint, marginBottom: '4px' }}>{c.title}</div>
@@ -2492,7 +2451,7 @@ function CompanyDeskTab({
                           </div>
                         </div>
                         
-                        <div style={{ background: 'rgba(201,162,74,0.08)', padding: '12px', border: `1px solid ${T.gold}40`, fontSize: '12px', color: T.gold }}>
+                        <div style={{ background: 'rgba(232,184,75,0.08)', padding: '12px', border: `1px solid ${T.gold}40`, fontSize: '12px', color: T.gold }}>
                           <strong>Next Action:</strong> {assignedVehicle ? "Advance the Month to resolve this contract." : "Assign an eligible vehicle before this contract can begin."}
                         </div>
                       </div>
@@ -3044,7 +3003,7 @@ function CompanyDeskTab({
               <SectionHeader stamp="VISUALS">Charts & Analysis</SectionHeader>
               <PanelBox style={{ textAlign: 'center', padding: '40px 20px', color: T.muted, fontStyle: 'italic' }}>
                 <div style={{ fontSize: '24px', marginBottom: '16px' }}>📊</div>
-                <div>Advanced financial charting is currently locked in the pre-alpha build.</div>
+                <div>Advanced financial charts are not in the closed alpha yet.</div>
                 <div style={{ fontSize: '11px', marginTop: '8px', color: T.faint }}>Visual analytics will become available in a future update.</div>
               </PanelBox>
             </div>
@@ -3230,7 +3189,7 @@ function FacilitiesTab({ company, onRefresh, showNotif }: any) {
                 <div>
                   <div style={{ fontSize: '14px', fontWeight: 700, color: T.ivory, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {f.type}
-                    <span style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', background: 'rgba(255,255,255,0.05)', color: T.faint, padding: '2px 6px', borderRadius: '2px' }}>{getStateName(f.stateId || f.state) || f.state}</span>
+                    <span style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', background: 'rgba(255,255,255,0.05)', color: T.faint, padding: '2px 6px', borderRadius: '2px' }}>{getStateName(f.stateId || f.state) || f.state}</span>
                   </div>
                   <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px' }}>Active Lease</div>
                 </div>
@@ -3324,7 +3283,7 @@ function RegistryTab({ company, onRefresh }: { company: Company | null; onRefres
         <SectionHeader stamp="PUBLIC RECORD">Drennia Commercial Registry</SectionHeader>
         <button
           onClick={onRefresh}
-          style={{ background: 'transparent', border: `1px solid ${T.border}`, color: T.muted, fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '4px 12px', cursor: 'pointer' }}
+          style={{ background: 'transparent', border: `1px solid ${T.border}`, color: T.muted, fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '4px 12px', cursor: 'pointer' }}
         >
           ↺ Refresh
         </button>
@@ -3341,23 +3300,23 @@ function RegistryTab({ company, onRefresh }: { company: Company | null; onRefres
       ) : (
         <>
           <p style={{ fontSize: '10px', fontFamily: 'monospace', color: T.faint, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-            {all.length} registered {all.length === 1 ? 'company' : 'companies'} — all active businesses in pre-alpha world
+            {all.length} registered {all.length === 1 ? 'company' : 'companies'} — every active business in the world
           </p>
           {all.map(c => (
             <div key={c.id} style={{ background: T.panel, border: `1px solid ${c.id === company?.id ? T.gold : T.border}`, padding: '14px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: c.id === company?.id ? T.gold : T.ivory }}>
-                    {c.name} {c.id === company?.id && <span style={{ fontSize: '9px', color: T.gold, fontFamily: 'monospace' }}>(Your Company)</span>}
+                    {c.name} {c.id === company?.id && <span style={{ fontSize: '10px', color: T.gold, fontFamily: 'monospace' }}>(Your Company)</span>}
                   </div>
                   <div style={{ fontSize: '11px', color: T.muted, marginTop: '3px' }}>
                     {getLegalStructureName(c.legal_structure_id)} · {getSectorName(c.industry_id)} · {getStateName(c.headquarters_state_id)}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.mint, textTransform: 'uppercase' }}>{c.status}</div>
+                  <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.mint, textTransform: 'uppercase' }}>{c.status}</div>
                   {c.created_at_world_year !== undefined && c.created_at_world_year !== null && (
-                    <div style={{ fontSize: '9px', fontFamily: 'monospace', color: T.faint }}>{formatWorldDate(c.created_at_world_year, c.created_at_world_month)}</div>
+                    <div style={{ fontSize: '10px', fontFamily: 'monospace', color: T.faint }}>{formatWorldDate(c.created_at_world_year, c.created_at_world_month)}</div>
                   )}
                 </div>
               </div>
@@ -3530,7 +3489,7 @@ function DrennportExchangeTab() {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '6px' }}>Westport Bourse</div>
+            <div style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '6px' }}>Westport Bourse</div>
             <div style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Share Market — Open for Trading</div>
             <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, maxWidth: '480px', margin: 0 }}>
               Trade shares of player-owned Public Corporations on a live order book. 
@@ -3538,7 +3497,7 @@ function DrennportExchangeTab() {
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Listing Requires</div>
+            <div style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Listing Requires</div>
             <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace' }}>Public Corporation Structure</div>
             <div style={{ fontSize: '11px', color: T.gold, fontFamily: 'monospace' }}>$250,000 Company Value Min.</div>
           </div>
@@ -3562,7 +3521,7 @@ function DrennportExchangeTab() {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.steel, marginBottom: '6px' }}>Drennia Commerce Division</div>
+            <div style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: T.steel, marginBottom: '6px' }}>Drennia Commerce Division</div>
             <div style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Private Capital Market</div>
             <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, maxWidth: '520px', margin: 0 }}>
               Trade equity in private and unlisted companies via fixed-price placements, and post or accept player-to-player loans.
@@ -3570,7 +3529,7 @@ function DrennportExchangeTab() {
             </p>
           </div>
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Instruments</div>
+            <div style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Instruments</div>
             <div style={{ fontSize: '11px', color: T.steel, fontFamily: 'monospace' }}>Private Equity Placements</div>
             <div style={{ fontSize: '11px', color: T.steel, fontFamily: 'monospace' }}>Player-to-Player Loans</div>
           </div>

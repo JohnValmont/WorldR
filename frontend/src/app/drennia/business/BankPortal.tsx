@@ -4,7 +4,7 @@ import { Landmark, ShieldCheck, TrendingUp, Wallet, Activity, ChevronLeft, Targe
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { api } from '@/lib/api';
 
-const COLORS = ['#4B6382', '#C9A24A', '#36D399', '#8F3D3D', '#B85555', '#6B6358'];
+const COLORS = ['#4B6382', '#E8B84B', '#4FB286', '#8F3D3D', '#D9625A', '#868994'];
 
 export default function BankPortal({ bank, company, playerCash, personalDossier, corporateDossier, institutionData, loadError, onBack, getRatingColor, onTakeLoan, isSubmitting: parentIsSubmitting, myCompanies, onSelectCompany }: any) {
   const [activeTab, setActiveTab] = useState<'portfolio' | 'apply' | 'debt'>('portfolio');
@@ -90,8 +90,8 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
   const renderPortfolioSnapshot = () => {
     if (!company) {
       return (
-        <div className="w-full bg-[#11131A] border border-zinc-800 rounded-lg p-10 flex flex-col items-center justify-center min-h-[300px]">
-          <ShieldCheck size={48} className="text-zinc-700 mb-4" />
+        <div className="w-full bg-[#13161E] border border-zinc-800 rounded-lg p-10 flex flex-col items-center justify-center min-h-[300px]">
+          <ShieldCheck size={48} className="text-zinc-600 mb-4" />
           <h2 className="text-xl font-serif text-zinc-100 mb-2">No Corporate Profile Found</h2>
           <p className="text-zinc-500 text-center max-w-md">You must own an active company to access the Corporate Treasury Portal.</p>
         </div>
@@ -112,9 +112,9 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
 
     return (
       <div className="w-full animate-slide-in space-y-6">
-        <div className="bg-[#11131A] border border-zinc-800 rounded-lg overflow-hidden">
-          <div className="border-b border-zinc-800 p-4 bg-[#17151B] flex items-center justify-between">
-            <h3 className="font-mono text-xs uppercase tracking-widest text-[#C9A24A]">Your Corporate Relationship</h3>
+        <div className="bg-[#13161E] border border-zinc-800 rounded-lg overflow-hidden">
+          <div className="border-b border-zinc-800 p-4 bg-[#1B1F29] flex items-center justify-between">
+            <h3 className="font-mono text-xs uppercase tracking-widest text-[#E8B84B]">Your Corporate Relationship</h3>
             <span className="text-[10px] text-zinc-500">Since: Y4 | Manager: Elena Voss</span>
           </div>
           <div className="p-6 grid grid-cols-4 gap-6">
@@ -124,7 +124,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
             </div>
             <div>
               <div className="text-[10px] font-mono text-zinc-500 mb-1">ASSETS (COLLATERAL)</div>
-              <div className="text-xl font-serif font-bold text-[#36D399]">${(d.totalAssets || 0).toLocaleString('en-US')}</div>
+              <div className="text-xl font-serif font-bold text-[#4FB286]">${(d.totalAssets || 0).toLocaleString('en-US')}</div>
             </div>
             <div>
               <div className="text-[10px] font-mono text-zinc-500 mb-1">EQUITY (BOOK VALUE)</div>
@@ -138,7 +138,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-[#11131A] border border-zinc-800 rounded-lg p-6">
+          <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-6">
             <h4 className="font-mono text-xs uppercase tracking-widest text-zinc-400 mb-4 border-b border-zinc-800 pb-2">Asset Diversification</h4>
             <div className="flex items-center h-40">
               <div className="w-1/2 h-full relative">
@@ -147,7 +147,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                     <Pie data={pieData} innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value" stroke="none">
                       {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                     </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: '#1E1A15', border: '1px solid #2A2630', fontSize: '11px', color: '#F4EBD6' }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#1E1B14', border: '1px solid #262B36', fontSize: '11px', color: '#ECEAE4' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -163,16 +163,16 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                 ))}
                 <div className="pt-4 mt-4 border-t border-zinc-800 flex justify-between items-center text-xs font-mono text-zinc-500">
                   <span>Collateral Coverage (LTV):</span>
-                  <span className={d.ltv > 0.8 ? 'text-[#B85555]' : 'text-zinc-300'}>{(d.ltv * 100).toFixed(1)}%</span>
+                  <span className={d.ltv > 0.8 ? 'text-[#D9625A]' : 'text-zinc-300'}>{(d.ltv * 100).toFixed(1)}%</span>
                 </div>
               </div>
             </div>
           </div>
           
-          <div className="bg-[#11131A] border border-zinc-800 rounded-lg p-6">
+          <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-6">
             <h4 className="font-mono text-xs uppercase tracking-widest text-zinc-400 mb-4 border-b border-zinc-800 pb-2">Revenue Trend (Underwriting View)</h4>
             <div className="h-40 flex flex-col items-center justify-center text-center">
-              <TrendingUp size={32} className="text-zinc-700 mb-2" />
+              <TrendingUp size={32} className="text-zinc-600 mb-2" />
               <div className="text-xs text-zinc-500">12m Trend: Stable / Positive</div>
             </div>
           </div>
@@ -183,16 +183,16 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
 
   const renderApplicationWizard = () => {
     return (
-      <div className="w-full bg-[#11131A] border border-zinc-800 rounded-lg p-6 animate-slide-in min-h-[500px]">
+      <div className="w-full bg-[#13161E] border border-zinc-800 rounded-lg p-6 animate-slide-in min-h-[500px]">
         {/* WIZARD HEADER */}
         <div className="border-b border-zinc-800 pb-4 mb-6 flex justify-between items-center">
-          <h3 className="font-serif text-xl text-[#F4EBD6]">Credit Application</h3>
+          <h3 className="font-serif text-xl text-[#ECEAE4]">Credit Application</h3>
           <div className="flex gap-4 font-mono text-xs text-zinc-500">
-            <span className={wizardStep === 1 ? 'text-[#C9A24A]' : ''}>1. FACILITY</span>
+            <span className={wizardStep === 1 ? 'text-[#E8B84B]' : ''}>1. FACILITY</span>
             <span>&gt;</span>
-            <span className={wizardStep === 2 ? 'text-[#C9A24A]' : ''}>2. TERMS</span>
+            <span className={wizardStep === 2 ? 'text-[#E8B84B]' : ''}>2. TERMS</span>
             <span>&gt;</span>
-            <span className={wizardStep === 3 ? 'text-[#C9A24A]' : ''}>3. UNDERWRITING</span>
+            <span className={wizardStep === 3 ? 'text-[#E8B84B]' : ''}>3. UNDERWRITING</span>
           </div>
         </div>
 
@@ -202,10 +202,10 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
             <div className="text-xs font-mono uppercase tracking-widest text-zinc-400 mb-4">Select Capital Type</div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
-              <div className="bg-[#17151B] border border-zinc-800 p-6 rounded hover:border-[#4B6382] transition-colors cursor-pointer" onClick={() => handleFacilitySelect('revolver', 2000000)}>
+              <div className="bg-[#1B1F29] border border-zinc-800 p-6 rounded hover:border-[#4B6382] transition-colors cursor-pointer" onClick={() => handleFacilitySelect('revolver', 2000000)}>
                 <div className="flex items-center gap-3 mb-4">
                   <Activity className="text-[#4B6382]" size={20} />
-                  <span className="font-bold text-sm text-[#F4EBD6]">Revolving Credit Facility</span>
+                  <span className="font-bold text-sm text-[#ECEAE4]">Revolving Credit Facility</span>
                 </div>
                 <div className="space-y-2 mb-6">
                   <div className="flex justify-between text-xs font-mono"><span className="text-zinc-500">Max:</span><span className="text-zinc-300">$5,000,000</span></div>
@@ -214,28 +214,28 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                 <button className="w-full py-2 bg-[#4B6382]/10 text-[#4B6382] border border-[#4B6382] rounded text-xs font-mono">SELECT</button>
               </div>
 
-              <div className="bg-[#17151B] border border-zinc-800 p-6 rounded hover:border-[#C9A24A] transition-colors cursor-pointer" onClick={() => handleFacilitySelect('term', 5000000)}>
+              <div className="bg-[#1B1F29] border border-zinc-800 p-6 rounded hover:border-[#E8B84B] transition-colors cursor-pointer" onClick={() => handleFacilitySelect('term', 5000000)}>
                 <div className="flex items-center gap-3 mb-4">
-                  <Building2 className="text-[#C9A24A]" size={20} />
-                  <span className="font-bold text-sm text-[#F4EBD6]">Term Loan (CapEx)</span>
+                  <Building2 className="text-[#E8B84B]" size={20} />
+                  <span className="font-bold text-sm text-[#ECEAE4]">Term Loan (CapEx)</span>
                 </div>
                 <div className="space-y-2 mb-6">
                   <div className="flex justify-between text-xs font-mono"><span className="text-zinc-500">Max:</span><span className="text-zinc-300">$10,000,000</span></div>
                   <div className="flex justify-between text-xs font-mono"><span className="text-zinc-500">Rate:</span><span className="text-zinc-300">Fixed 7.25%</span></div>
                 </div>
-                <button className="w-full py-2 bg-[#C9A24A]/10 text-[#C9A24A] border border-[#C9A24A] rounded text-xs font-mono">SELECT</button>
+                <button className="w-full py-2 bg-[#E8B84B]/10 text-[#E8B84B] border border-[#E8B84B] rounded text-xs font-mono">SELECT</button>
               </div>
 
-              <div className="bg-[#17151B] border border-zinc-800 p-6 rounded hover:border-[#36D399] transition-colors cursor-pointer" onClick={() => handleFacilitySelect('trade', 1000000)}>
+              <div className="bg-[#1B1F29] border border-zinc-800 p-6 rounded hover:border-[#4FB286] transition-colors cursor-pointer" onClick={() => handleFacilitySelect('trade', 1000000)}>
                 <div className="flex items-center gap-3 mb-4">
-                  <Wallet className="text-[#36D399]" size={20} />
-                  <span className="font-bold text-sm text-[#F4EBD6]">Trade Finance</span>
+                  <Wallet className="text-[#4FB286]" size={20} />
+                  <span className="font-bold text-sm text-[#ECEAE4]">Trade Finance</span>
                 </div>
                 <div className="space-y-2 mb-6">
                   <div className="flex justify-between text-xs font-mono"><span className="text-zinc-500">Max:</span><span className="text-zinc-300">$2,000,000</span></div>
                   <div className="flex justify-between text-xs font-mono"><span className="text-zinc-500">Rate:</span><span className="text-zinc-300">Base + 2.00%</span></div>
                 </div>
-                <button className="w-full py-2 bg-[#36D399]/10 text-[#36D399] border border-[#36D399] rounded text-xs font-mono">SELECT</button>
+                <button className="w-full py-2 bg-[#4FB286]/10 text-[#4FB286] border border-[#4FB286] rounded text-xs font-mono">SELECT</button>
               </div>
 
             </div>
@@ -245,7 +245,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
         {/* STEP 2 */}
         {wizardStep === 2 && (
           <div className="animate-fade-in space-y-8">
-            <div className="bg-[#17151B] border border-zinc-800 rounded p-6">
+            <div className="bg-[#1B1F29] border border-zinc-800 rounded p-6">
               <h4 className="font-mono text-xs uppercase tracking-widest text-zinc-400 mb-6 border-b border-zinc-800 pb-2">Desired Terms</h4>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -253,7 +253,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                   <label className="block text-[10px] font-mono text-zinc-500 mb-2">AMOUNT ($)</label>
                   <input 
                     type="text" 
-                    className="w-full bg-[#090A0F] border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-100 font-mono outline-none focus:border-[#C9A24A]"
+                    className="w-full bg-[#0B0D12] border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-100 font-mono outline-none focus:border-[#E8B84B]"
                     value={loanAmount}
                     onChange={(e) => setLoanAmount(Number(e.target.value.replace(/,/g, '')))}
                   />
@@ -261,7 +261,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                 <div>
                   <label className="block text-[10px] font-mono text-zinc-500 mb-2">TENOR (MONTHS)</label>
                   <select 
-                    className="w-full bg-[#090A0F] border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-100 font-mono outline-none focus:border-[#C9A24A]"
+                    className="w-full bg-[#0B0D12] border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-100 font-mono outline-none focus:border-[#E8B84B]"
                     value={loanTenor}
                     onChange={(e) => setLoanTenor(Number(e.target.value))}
                   >
@@ -275,7 +275,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                 <div>
                   <label className="block text-[10px] font-mono text-zinc-500 mb-2">PURPOSE</label>
                   <select 
-                    className="w-full bg-[#090A0F] border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-100 font-mono outline-none focus:border-[#C9A24A]"
+                    className="w-full bg-[#0B0D12] border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-100 font-mono outline-none focus:border-[#E8B84B]"
                     value={loanPurpose}
                     onChange={(e) => setLoanPurpose(e.target.value)}
                   >
@@ -290,7 +290,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
               <div className="mb-6">
                 <label className="block text-[10px] font-mono text-zinc-500 mb-2">AMORTIZATION SCHEDULE</label>
                 <select 
-                  className="w-full bg-[#090A0F] border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-100 font-mono outline-none focus:border-[#C9A24A]"
+                  className="w-full bg-[#0B0D12] border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-100 font-mono outline-none focus:border-[#E8B84B]"
                   value={amortizationType}
                   onChange={(e) => setAmortizationType(e.target.value)}
                 >
@@ -299,15 +299,15 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                 </select>
               </div>
 
-              <div className="bg-[#C9A24A]/10 border border-[#C9A24A]/30 p-4 rounded flex gap-3 text-sm text-[#C9A24A]">
+              <div className="bg-[#E8B84B]/10 border border-[#E8B84B]/30 p-4 rounded flex gap-3 text-sm text-[#E8B84B]">
                 <Info size={16} className="mt-0.5 shrink-0" />
                 <p><strong>System Suggestion:</strong> Based on your portfolio cash flow, a {loanTenor}-month tenor with {amortizationType === 'balloon' ? 'a balloon payment increases DSCR risk and may lower your approval chances.' : 'standard amortization lowers your DSCR risk.'}</p>
               </div>
             </div>
 
             <div className="flex justify-between">
-              <button onClick={() => setWizardStep(1)} className="px-6 py-2 bg-[#17151B] border border-zinc-700 text-zinc-300 font-mono text-xs rounded hover:bg-zinc-800">BACK</button>
-              <button onClick={handleSimulateUnderwriting} className="px-6 py-2 bg-[#C9A24A] text-black font-bold font-mono text-xs rounded hover:bg-[#D5AE55]">RUN UNDERWRITING</button>
+              <button onClick={() => setWizardStep(1)} className="px-6 py-2 bg-[#1B1F29] border border-zinc-700 text-zinc-300 font-mono text-xs rounded hover:bg-zinc-800">BACK</button>
+              <button onClick={handleSimulateUnderwriting} className="px-6 py-2 bg-[#E8B84B] text-black font-bold font-mono text-xs rounded hover:bg-[#D5AE55]">RUN UNDERWRITING</button>
             </div>
           </div>
         )}
@@ -317,17 +317,17 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
           <div className="animate-fade-in">
             {isUnderwriting ? (
               <div className="flex flex-col items-center justify-center min-h-[300px]">
-                <Activity size={32} className="text-[#C9A24A] animate-pulse mb-4" />
+                <Activity size={32} className="text-[#E8B84B] animate-pulse mb-4" />
                 <div className="font-mono text-sm text-zinc-300">Processing... Portfolio analyzed against Drennia National Standards.</div>
               </div>
             ) : underwritingResult && (
               <div className="space-y-6">
-                <div className="bg-[#17151B] border border-zinc-800 rounded overflow-hidden">
-                  <div className="border-b border-zinc-800 p-3 bg-[#1E1A15]">
-                    <h4 className="font-mono text-xs uppercase tracking-widest text-[#C9A24A]">AI Underwriter Decision Matrix</h4>
+                <div className="bg-[#1B1F29] border border-zinc-800 rounded overflow-hidden">
+                  <div className="border-b border-zinc-800 p-3 bg-[#1E1B14]">
+                    <h4 className="font-mono text-xs uppercase tracking-widest text-[#E8B84B]">AI Underwriter Decision Matrix</h4>
                   </div>
                   <table className="w-full text-left text-sm font-mono">
-                    <thead className="bg-[#090A0F] text-zinc-500 text-[10px]">
+                    <thead className="bg-[#0B0D12] text-zinc-500 text-[10px]">
                       <tr>
                         <th className="px-4 py-2 font-normal">CRITERIA</th>
                         <th className="px-4 py-2 font-normal">YOUR DATA</th>
@@ -339,9 +339,9 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                     <tbody className="divide-y divide-zinc-800/50">
                       {underwritingResult.matrix.map((row: any, i: number) => {
                         let colorClass = 'text-zinc-300';
-                        if (row.score >= 80) colorClass = 'text-[#36D399]';
-                        else if (row.score >= 50) colorClass = 'text-[#C9A24A]';
-                        else colorClass = 'text-[#B85555]';
+                        if (row.score >= 80) colorClass = 'text-[#4FB286]';
+                        else if (row.score >= 50) colorClass = 'text-[#E8B84B]';
+                        else colorClass = 'text-[#D9625A]';
                         
                         return (
                           <tr key={i} className="hover:bg-zinc-800/20 group" title={row.tip}>
@@ -349,12 +349,12 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                             <td className="px-4 py-3 text-white font-bold">{row.data}</td>
                             <td className={`px-4 py-3 font-bold ${colorClass}`}>{row.score}</td>
                             <td className="px-4 py-3 text-zinc-500">{row.weight}</td>
-                            <td className="px-4 py-3 font-bold text-[#C9A24A]">{row.total}</td>
+                            <td className="px-4 py-3 font-bold text-[#E8B84B]">{row.total}</td>
                           </tr>
                         );
                       })}
                     </tbody>
-                    <tfoot className="bg-[#1E1A15] border-t border-zinc-800">
+                    <tfoot className="bg-[#1E1B14] border-t border-zinc-800">
                       <tr>
                         <td colSpan={4} className="px-4 py-3 text-right text-[10px] text-zinc-500">OVERALL PORTFOLIO GRADE</td>
                         <td className="px-4 py-3 font-bold text-white text-base">{underwritingResult.overall} / 100</td>
@@ -363,7 +363,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                   </table>
                 </div>
 
-                <div className={`p-4 rounded border ${underwritingResult.status === 'APPROVED' ? 'bg-[#36D399]/10 border-[#36D399]/30 text-[#36D399]' : 'bg-[#B85555]/10 border-[#B85555]/30 text-[#B85555]'}`}>
+                <div className={`p-4 rounded border ${underwritingResult.status === 'APPROVED' ? 'bg-[#4FB286]/10 border-[#4FB286]/30 text-[#4FB286]' : 'bg-[#D9625A]/10 border-[#D9625A]/30 text-[#D9625A]'}`}>
                   <div className="flex items-start gap-3">
                     {underwritingResult.status === 'APPROVED' ? <CheckCircle2 size={24} className="shrink-0 mt-0.5" /> : <AlertTriangle size={24} className="shrink-0 mt-0.5" />}
                     <div>
@@ -385,7 +385,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                 )}
 
                 <div className="flex justify-between pt-4">
-                  <button onClick={() => setWizardStep(2)} className="px-6 py-2 bg-[#17151B] border border-zinc-700 text-zinc-300 font-mono text-xs rounded hover:bg-zinc-800">BACK</button>
+                  <button onClick={() => setWizardStep(2)} className="px-6 py-2 bg-[#1B1F29] border border-zinc-700 text-zinc-300 font-mono text-xs rounded hover:bg-zinc-800">BACK</button>
                   <div className="flex gap-4">
                     {underwritingResult.status === 'APPROVED' && Number(underwritingResult.overall) > 85 && (
                       <button className="px-6 py-2 bg-[#4B6382]/10 border border-[#4B6382] text-[#4B6382] font-mono text-xs rounded hover:bg-[#4B6382]/30 transition-colors">NEGOTIATE TERMS</button>
@@ -393,7 +393,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                     <button 
                       disabled={underwritingResult.status !== 'APPROVED' || isSubmitting}
                       onClick={handleFinalSubmit}
-                      className="px-6 py-2 bg-[#C9A24A] text-black font-bold font-mono text-xs rounded hover:bg-[#D5AE55] disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-6 py-2 bg-[#E8B84B] text-black font-bold font-mono text-xs rounded hover:bg-[#D5AE55] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSubmitting ? 'DISBURSING...' : 'ACCEPT TERMS & PROCEED'}
                     </button>
@@ -422,21 +422,21 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
 
     return (
       <div className="w-full animate-slide-in space-y-6">
-        <div className="bg-[#11131A] border border-zinc-800 rounded-lg p-6">
+        <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-serif text-xl text-zinc-100">Active Debt Maturity Ladder</h3>
             <div className="text-right">
               <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Est. 12m Debt Service</div>
-              <div className="text-lg font-bold font-mono text-[#B85555]">${annualDebtService.toLocaleString('en-US')}</div>
+              <div className="text-lg font-bold font-mono text-[#D9625A]">${annualDebtService.toLocaleString('en-US')}</div>
             </div>
           </div>
           <div className="h-64 mb-8">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={ladderData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2A2630" vertical={false} />
-                <XAxis dataKey="quarter" stroke="#6B6358" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#6B6358" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}M`} />
-                <Tooltip cursor={{ fill: '#17151B' }} contentStyle={{ backgroundColor: '#1E1A15', border: '1px solid #2A2630', fontSize: '11px', color: '#F4EBD6' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#262B36" vertical={false} />
+                <XAxis dataKey="quarter" stroke="#868994" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="#868994" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}M`} />
+                <Tooltip cursor={{ fill: '#1B1F29' }} contentStyle={{ backgroundColor: '#1E1B14', border: '1px solid #262B36', fontSize: '11px', color: '#ECEAE4' }} />
                 <Bar dataKey="amount" fill="#8F3D3D" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -444,7 +444,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm font-mono whitespace-nowrap">
-              <thead className="bg-[#17151B] text-zinc-500 text-[10px]">
+              <thead className="bg-[#1B1F29] text-zinc-500 text-[10px]">
                 <tr>
                   <th className="px-4 py-3 font-normal rounded-tl">#</th>
                   <th className="px-4 py-3 font-normal">FACILITY</th>
@@ -465,9 +465,9 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
                     <td className="px-4 py-3 text-white uppercase">{loan.facility_type}</td>
                     <td className="px-4 py-3 font-bold">${Number(loan.remaining_principal).toLocaleString('en-US')}</td>
                     <td className="px-4 py-3">{(Number(loan.interest_rate) * 100).toFixed(2)}%</td>
-                    <td className="px-4 py-3 text-[#B85555]">${Number(loan.monthly_payment).toLocaleString('en-US')}</td>
+                    <td className="px-4 py-3 text-[#D9625A]">${Number(loan.monthly_payment).toLocaleString('en-US')}</td>
                     <td className="px-4 py-3 text-zinc-500 uppercase">{loan.amortization_type || 'AMORTIZING'}</td>
-                    <td className="px-4 py-3 text-[#36D399]">✅ Active</td>
+                    <td className="px-4 py-3 text-[#4FB286]">✅ Active</td>
                   </tr>
                 ))}
               </tbody>
@@ -494,7 +494,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
           <button onClick={onBack} className="mr-4 p-2 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-zinc-100 flex items-center justify-center border border-zinc-700">
             <ChevronLeft size={16} />
           </button>
-          <div className="w-10 h-10 rounded border border-zinc-800 flex items-center justify-center mr-4 bg-[#090A0F]" style={{ color: bank.color }}>
+          <div className="w-10 h-10 rounded border border-zinc-800 flex items-center justify-center mr-4 bg-[#0B0D12]" style={{ color: bank.color }}>
             <Landmark size={20} />
           </div>
           <div>
@@ -517,19 +517,19 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
           </div>
         </div>
         
-          <div className="flex bg-[#11131A] p-1 rounded-md border border-zinc-800 mt-4 lg:mt-0">
-            <button onClick={() => setActiveTab('portfolio')} className={`px-4 py-1.5 text-[11px] font-mono tracking-widest uppercase rounded transition-colors ${activeTab === 'portfolio' ? 'bg-[#2A2630] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}>PORTFOLIO</button>
-            <button onClick={() => setActiveTab('apply')} className={`px-4 py-1.5 text-[11px] font-mono tracking-widest uppercase rounded transition-colors ${activeTab === 'apply' ? 'bg-[#2A2630] text-[#C9A24A] shadow' : 'text-zinc-500 hover:text-zinc-300'}`}>APPLY FOR CREDIT</button>
-            <button onClick={() => setActiveTab('debt')} className={`px-4 py-1.5 text-[11px] font-mono tracking-widest uppercase rounded transition-colors ${activeTab === 'debt' ? 'bg-[#2A2630] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}>ACTIVE DEBT</button>
+          <div className="flex bg-[#13161E] p-1 rounded-md border border-zinc-800 mt-4 lg:mt-0">
+            <button onClick={() => setActiveTab('portfolio')} className={`px-4 py-1.5 text-[11px] font-mono tracking-widest uppercase rounded transition-colors ${activeTab === 'portfolio' ? 'bg-[#262B36] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}>PORTFOLIO</button>
+            <button onClick={() => setActiveTab('apply')} className={`px-4 py-1.5 text-[11px] font-mono tracking-widest uppercase rounded transition-colors ${activeTab === 'apply' ? 'bg-[#262B36] text-[#E8B84B] shadow' : 'text-zinc-500 hover:text-zinc-300'}`}>APPLY FOR CREDIT</button>
+            <button onClick={() => setActiveTab('debt')} className={`px-4 py-1.5 text-[11px] font-mono tracking-widest uppercase rounded transition-colors ${activeTab === 'debt' ? 'bg-[#262B36] text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}>ACTIVE DEBT</button>
           </div>
         </div>
 
         {/* Liquidity Pool Gauge */}
-        <div className="bg-[#11131A] border border-zinc-800 p-3 rounded flex items-center gap-4 mb-6" title={`National Liquidity Pool: $${((institutionData?.availableLiquidity || 0)/1000000000).toFixed(2)}B remaining. High demand increases rates.`}>
+        <div className="bg-[#13161E] border border-zinc-800 p-3 rounded flex items-center gap-4 mb-6" title={`National Liquidity Pool: $${((institutionData?.availableLiquidity || 0)/1000000000).toFixed(2)}B remaining. High demand increases rates.`}>
           <div className="text-[10px] font-mono text-zinc-500 whitespace-nowrap">LIQUIDITY POOL</div>
           <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
             <div 
-              className={`h-full ${((institutionData?.availableLiquidity || 0)/(institutionData?.totalAssets || 1)) < 0.3 ? 'bg-[#B85555]' : 'bg-[#36D399]'}`}
+              className={`h-full ${((institutionData?.availableLiquidity || 0)/(institutionData?.totalAssets || 1)) < 0.3 ? 'bg-[#D9625A]' : 'bg-[#4FB286]'}`}
               style={{ width: `${((institutionData?.availableLiquidity || 0)/(institutionData?.totalAssets || 1)) * 100}%` }}
             />
           </div>
@@ -543,7 +543,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
 
       {/* Audit Trail Footer */}
       <div className="text-center mt-auto pt-6 border-t border-zinc-800/50">
-        <div className="text-[9px] font-mono text-zinc-600 tracking-widest uppercase flex items-center justify-center gap-2">
+        <div className="text-[10px] font-mono text-zinc-600 tracking-widest uppercase flex items-center justify-center gap-2">
           <ShieldCheck size={10} />
           <span>Last reviewed by Drennia Financial Authority • LIVE SYSTEM</span>
         </div>

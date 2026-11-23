@@ -2,49 +2,74 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Colours, type, space and motion come from public/design/tokens.css (linked in layout.tsx).
+   See docs/DESIGN_SYSTEM.md before adding a colour or a size here. */
 @layer base {
-
   /* overflow is managed per-layout: auth layout clips itself, onboarding scrolls freely */
+  html { background-color: var(--bg); -webkit-text-size-adjust: 100%; }
   body {
-    background-color: #090A0F !important;
-    @apply text-zinc-100 font-sans antialiased;
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-feature-settings: 'ss01', 'cv11';
+    text-rendering: optimizeLegibility;
+    @apply antialiased;
   }
+  * { box-sizing: border-box; }
+  ::selection { background: rgba(232, 184, 75, 0.28); color: #fff; }
 
-  * {
-    box-sizing: border-box;
+  /* Numbers line up in every table and counter. */
+  .font-mono, code, kbd, samp, td, [data-num] { font-variant-numeric: tabular-nums; }
+
+  /* Keyboard focus is always visible; mouse clicks stay clean. */
+  :focus { outline: none; }
+  :focus-visible {
+    outline: 2px solid rgba(232, 184, 75, 0.9);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offset: 0; }
+
+  button:not(:disabled), [role='button'], a[href], summary { cursor: pointer; }
+}
+
+/* Skip link for keyboard and screen-reader players. */
+.skip-link {
+  position: fixed; left: 12px; top: -48px; z-index: 200;
+  padding: 8px 14px; border-radius: var(--radius-md);
+  background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: 14px;
+  transition: top var(--dur-fast) var(--ease-out);
+}
+.skip-link:focus { top: 12px; }
+
+/* Respect "reduce motion": no loops, no travel, instant transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
 /* ── Scrollbar ─────────────────────────────────────────────── */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #3f3f46;
-  border-radius: 2px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
-}
+* { scrollbar-width: thin; scrollbar-color: #3A3F4C transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3A3F4C; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: #4A5060; background-clip: padding-box; }
 
 /* ── Terminal text effects ─────────────────────────────────── */
 .terminal-glow {
-  text-shadow: 0 0 8px rgba(48, 209, 88, 0.5), 0 0 2px rgba(48, 209, 88, 0.8);
+  text-shadow: 0 0 8px rgba(79,178,134, 0.5), 0 0 2px rgba(79,178,134, 0.8);
 }
 
 .amber-glow {
-  text-shadow: 0 0 8px rgba(255, 159, 10, 0.5), 0 0 2px rgba(255, 159, 10, 0.8);
+  text-shadow: 0 0 8px rgba(232,184,75, 0.5), 0 0 2px rgba(232,184,75, 0.8);
 }
 
 .red-glow {
-  text-shadow: 0 0 8px rgba(255, 69, 58, 0.5), 0 0 2px rgba(255, 69, 58, 0.8);
+  text-shadow: 0 0 8px rgba(217,98,90, 0.5), 0 0 2px rgba(217,98,90, 0.8);
 }
 
 .blue-glow {
@@ -86,19 +111,19 @@ td {
 }
 
 .status-dot.live {
-  background: #30d158;
-  box-shadow: 0 0 6px #30d158;
+  background: #4FB286;
+  box-shadow: 0 0 6px #4FB286;
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
 .status-dot.warning {
-  background: #ff9f0a;
-  box-shadow: 0 0 6px #ff9f0a;
+  background: #E8B84B;
+  box-shadow: 0 0 6px #E8B84B;
 }
 
 .status-dot.danger {
-  background: #ff453a;
-  box-shadow: 0 0 6px #ff453a;
+  background: #D9625A;
+  box-shadow: 0 0 6px #D9625A;
 }
 
 @keyframes pulse-glow {
@@ -117,7 +142,7 @@ td {
 .cursor-blink::after {
   content: '█';
   animation: blink 1s step-end infinite;
-  color: #ff9f0a;
+  color: #E8B84B;
   margin-left: 2px;
 }
 
@@ -151,29 +176,29 @@ td {
 
   /* ── Input field ──────────────────────────────────────────── */
   .terminal-input {
-    @apply w-full bg-zinc-900 border border-zinc-700 text-zinc-100 font-mono text-sm px-3 py-2 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 placeholder:text-zinc-600 transition-colors duration-150;
+    @apply w-full bg-raised border border-line-strong text-ink font-mono text-sm px-3 py-2 rounded-[10px] placeholder:text-ink-faint transition-colors duration-150;
   }
+  .terminal-input:focus { @apply border-accent ring-2 ring-accent/20; }
 
-  /* ── Button variants ─────────────────────────────────────── */
+  /* ── Buttons: one family everywhere (matches politics Btn) ── */
+  .btn-primary, .btn-secondary, .btn-danger, .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-[10px] px-4 py-2.5 text-sm font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
   .btn-primary {
-    @apply bg-amber-500 text-black font-bold text-xs uppercase tracking-widest px-4 py-2 hover:bg-amber-400 active:bg-amber-600 transition-colors duration-150 cursor-pointer;
+    color: var(--on-accent);
+    background: linear-gradient(180deg, #F2C964 0%, var(--accent) 100%);
+    border: 1px solid var(--accent);
+    box-shadow: var(--shadow-accent), inset 0 1px 0 rgba(255,255,255,0.35);
   }
-
-  .btn-secondary {
-    @apply border border-zinc-700 text-zinc-300 font-mono text-xs uppercase tracking-widest px-4 py-2 hover:border-zinc-500 hover:text-zinc-100 active:bg-zinc-900 transition-colors duration-150 cursor-pointer;
-  }
-
-  .btn-danger {
-    @apply border border-red-800 text-red-400 font-mono text-xs uppercase tracking-widest px-4 py-2 hover:border-red-600 hover:text-red-300 hover:bg-red-950/30 transition-colors duration-150 cursor-pointer;
-  }
-
-  .btn-ghost {
-    @apply text-zinc-500 font-mono text-xs uppercase tracking-widest px-3 py-1.5 hover:text-zinc-300 transition-colors duration-150 cursor-pointer;
-  }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
+  .btn-primary:active:not(:disabled) { filter: brightness(0.94); transform: translateY(1px); }
+  .btn-secondary { @apply border border-line-strong text-ink bg-transparent hover:bg-white/5 active:bg-white/10; }
+  .btn-danger { @apply border border-bad/60 text-bad bg-bad/10 hover:bg-bad/15; }
+  .btn-ghost { @apply px-3 py-1.5 text-ink-dim hover:text-ink hover:bg-white/5; }
 
   /* ── Section divider ─────────────────────────────────────── */
   .section-header {
-    @apply text-amber-500 font-bold text-xs uppercase tracking-widest border-b border-zinc-800 pb-2 mb-3;
+    @apply text-accent font-semibold text-[11px] uppercase tracking-[0.16em] border-b border-line pb-2 mb-3;
   }
 
   /* ── Animated entry ──────────────────────────────────────── */
@@ -240,7 +265,7 @@ td {
 
   /* ── Premium Glassmorphism & UI Additions ────────────────────── */
   .radial-ambient {
-    background: radial-gradient(circle at 50% -20%, rgba(99, 102, 241, 0.08) 0%, rgba(245, 158, 11, 0.03) 50%, rgba(0, 0, 0, 0) 100%), #050508;
+    background: radial-gradient(circle at 50% -20%, rgba(99, 102, 241, 0.08) 0%, rgba(232,184,75, 0.03) 50%, rgba(0, 0, 0, 0) 100%), #0B0D12;
   }
 
   .glass-panel {
@@ -257,42 +282,30 @@ td {
 
   .glass-panel-hover:hover {
     background: rgba(18, 18, 28, 0.85);
-    border-color: rgba(245, 158, 11, 0.25);
-    box-shadow: 0 8px 32px 0 rgba(245, 158, 11, 0.04);
+    border-color: rgba(232,184,75, 0.25);
+    box-shadow: 0 8px 32px 0 rgba(232,184,75, 0.04);
   }
 
   .glow-border {
     border-color: #f59e0b;
-    box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+    box-shadow: 0 0 10px rgba(232,184,75, 0.25);
   }
 
   .glow-text-amber {
-    text-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+    text-shadow: 0 0 12px rgba(232,184,75, 0.4);
   }
 
   .glow-text-emerald {
-    text-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+    text-shadow: 0 0 12px rgba(79,178,134, 0.4);
   }
 
-  /* Premium Buttons overrides */
-  .btn-premium-primary {
-    @apply relative overflow-hidden bg-gradient-to-r from-amber-500 to-amber-600 text-black font-semibold text-xs uppercase tracking-widest px-5 py-2.5 rounded-sm hover:from-amber-400 hover:to-amber-500 active:from-amber-600 active:to-amber-700 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
-    box-shadow: 0 2px 10px rgba(245, 158, 11, 0.2);
-  }
-  .btn-premium-primary:hover {
-    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.35);
-  }
-
-  .btn-premium-secondary {
-    @apply relative overflow-hidden bg-white/5 border border-white/10 text-zinc-300 font-sans text-xs uppercase tracking-widest px-5 py-2.5 rounded-sm hover:bg-white/10 hover:text-white hover:border-white/20 active:bg-white/15 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .btn-premium-danger {
-    @apply relative overflow-hidden bg-red-950/20 border border-red-800/40 text-red-400 font-sans text-xs uppercase tracking-widest px-5 py-2.5 rounded-sm hover:bg-red-900/30 hover:border-red-600 active:bg-red-950/45 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
-  }
+  /* Premium buttons: aliases of the one button family. */
+  .btn-premium-primary { @apply btn-primary; }
+  .btn-premium-secondary { @apply btn-secondary; }
+  .btn-premium-danger { @apply btn-danger; }
 
   .input-premium {
-    @apply w-full bg-black/40 border border-white/10 text-white font-sans text-sm px-3.5 py-2.5 rounded-sm focus:outline-none focus:border-amber-500/80 focus:ring-1 focus:ring-amber-500/20 placeholder:text-zinc-600 transition-all duration-200;
+    @apply w-full bg-raised border border-line-strong text-ink font-sans text-sm px-3.5 py-2.5 rounded-[10px] focus:border-accent focus:ring-2 focus:ring-accent/20 placeholder:text-ink-faint transition-all duration-200;
   }
 
   /* ── Smooth CSS Marquee ────────────────────────────────────── */
@@ -318,16 +331,10 @@ td {
   }
 
   .auth-input {
-    @apply w-full bg-white/[0.03] border border-white/[0.08] text-zinc-100 text-sm px-3.5 py-2.5 rounded-sm focus:outline-none focus:border-amber-500/60 focus:bg-white/[0.05] focus:ring-1 focus:ring-amber-500/15 placeholder:text-zinc-700 transition-all duration-200;
+    @apply w-full bg-white/[0.03] border border-white/[0.08] text-zinc-100 text-sm px-3.5 py-2.5 rounded-sm focus:outline-none focus:border-amber-500/60 focus:bg-white/[0.05] focus:ring-1 focus:ring-amber-500/15 placeholder:text-zinc-600 transition-all duration-200;
   }
 
-  .auth-btn-primary {
-    @apply relative overflow-hidden bg-gradient-to-r from-amber-500 to-amber-600 text-black font-semibold text-sm tracking-wide px-5 py-2.5 rounded-sm hover:from-amber-400 hover:to-amber-500 active:from-amber-600 active:to-amber-700 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
-    box-shadow: 0 2px 12px rgba(245, 158, 11, 0.25);
-  }
-  .auth-btn-primary:hover {
-    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
-  }
+  .auth-btn-primary { @apply btn-primary text-[15px] py-3; }
 
   @keyframes authEnter {
     from {
@@ -347,8 +354,8 @@ td {
 
   /* ── Simulator Theme ───────────────────────────────────────── */
   .simulator-bg {
-    background-color: #060805;
-    background-image: radial-gradient(circle at center, #0e120b 0%, #060805 100%);
+    background-color: #0B0D12;
+    background-image: radial-gradient(circle at center, #0e120b 0%, #0B0D12 100%);
   }
 
   .simulator-vignette {
@@ -356,13 +363,13 @@ td {
   }
 
   .border-premium-gold {
-    border: 1px solid rgba(245, 158, 11, 0.25);
-    box-shadow: 0 0 8px rgba(245, 158, 11, 0.03);
+    border: 1px solid rgba(232,184,75, 0.25);
+    box-shadow: 0 0 8px rgba(232,184,75, 0.03);
   }
 
   .border-premium-green {
-    border: 1px solid rgba(16, 185, 129, 0.25);
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.03);
+    border: 1px solid rgba(79,178,134, 0.25);
+    box-shadow: 0 0 8px rgba(79,178,134, 0.03);
   }
 
   .border-premium-red {
@@ -451,21 +458,17 @@ td {
 
 /* -- Terminal card refined ----------------------------------------- */
 .terminal-card {
-  @apply border border-[#23232b] bg-[#0c0d13] rounded-xl transition-colors duration-150;
+  @apply border border-line bg-surface rounded-2xl shadow-card transition-colors duration-150;
 }
 .terminal-card:hover {
   @apply border-zinc-700;
 }
 
-/* -- Updated input style ------------------------------------------- */
-.terminal-input {
-  @apply w-full bg-zinc-900 border border-[#23232b] text-zinc-100 font-mono text-sm
-         px-3 py-2 rounded-lg focus:outline-none focus:border-terminal-amber
-         focus:ring-1 focus:ring-terminal-amber/20 placeholder:text-zinc-600
-         transition-colors duration-150;
-}
 
 /* -- Card shadow --------------------------------------------------- */
 .shadow-card {
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03);
+  box-shadow: var(--shadow-card);
 }
+
+/* -- Loading bar (game shell) -------------------------------------- */
+@keyframes loadbar { 0% { transform: translateX(-110%); } 100% { transform: translateX(310%); } }

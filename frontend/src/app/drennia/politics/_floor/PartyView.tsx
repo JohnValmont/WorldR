@@ -78,7 +78,7 @@ function PartyList() {
           return (
             <Card key={p.id} className="p-4">
               <div className="flex items-start gap-3">
-                <span className="rounded-lg flex items-center justify-center font-bold text-xs shrink-0" style={{ width: 40, height: 40, background: p.color, color: '#0C0E13' }}>{p.abbreviation.slice(0, 3)}</span>
+                <span className="rounded-lg flex items-center justify-center font-bold text-xs shrink-0" style={{ width: 40, height: 40, background: p.color, color: '#0B0D12' }}>{p.abbreviation.slice(0, 3)}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="font-serif text-lg font-bold leading-tight" style={{ color: T.text }}>{p.name}</div>
@@ -206,7 +206,7 @@ function MyParty() {
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5">
       <div className="space-y-4 min-w-0">
         <div className="flex items-center gap-3">
-          <span className="rounded-xl flex items-center justify-center font-bold shrink-0" style={{ width: 52, height: 52, background: party.color, color: '#0C0E13' }}>{party.abbreviation.slice(0, 3)}</span>
+          <span className="rounded-xl flex items-center justify-center font-bold shrink-0" style={{ width: 52, height: 52, background: party.color, color: '#0B0D12' }}>{party.abbreviation.slice(0, 3)}</span>
           <div className="min-w-0">
             <h2 className="font-serif text-2xl sm:text-3xl font-bold leading-tight" style={{ color: T.text }}>{party.name}</h2>
             <div className="text-sm" style={{ color: T.dim }}>

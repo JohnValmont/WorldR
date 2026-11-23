@@ -33,7 +33,7 @@ export default function Tooltip({ children, content, position = 'top', className
       {isVisible && (
         <div
           className={cn(
-            'absolute z-50 px-3 py-2 text-[10px] font-mono leading-relaxed bg-[#0c0d13] border border-[#23232b] text-zinc-300 rounded-md shadow-card pointer-events-none w-max max-w-[250px] animate-slide-in',
+            'absolute z-50 px-3 py-2 text-[10px] font-mono leading-relaxed bg-[#13161E] border border-[#262B36] text-zinc-300 rounded-md shadow-card pointer-events-none w-max max-w-[250px] animate-slide-in',
             posClasses[position],
             className
           )}

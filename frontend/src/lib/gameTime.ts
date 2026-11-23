@@ -1,9 +1,11 @@
+import build from '../../public/design/build.json';
+
 /**
- * Real-time length of one game month. Keep in sync with the backend
- * DEFAULT_REAL_SECONDS_PER_MONTH (backend/src/api/constants/world.ts) and
- * migration 0095_four_hour_game_month.sql.
+ * Real-time length of one game month, from public/design/build.json (the static landing
+ * pages read the same file). Keep in sync with the backend DEFAULT_REAL_SECONDS_PER_MONTH
+ * (backend/src/api/constants/world.ts) and migration 0102_world_stage.sql (8 real hours, both clocks).
  */
-export const REAL_HOURS_PER_GAME_MONTH = 4;
+export const REAL_HOURS_PER_GAME_MONTH: number = build.realHoursPerGameMonth;
 
 /** "2 months (~8 hours)" style helper for UI copy. */
 export function gameMonthsToRealTime(months: number): string {

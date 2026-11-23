@@ -3,15 +3,15 @@ import React, { useState, useEffect } from 'react';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
-  bg:         '#090A0F',
+  bg:         '#0B0D12',
   overlay:    'rgba(9,10,15,0.92)',
-  panel:      '#11131A',
-  border:     '#2A2630',
-  amber:      '#C9A24A',
-  amberGlow:  'rgba(201,162,74,0.25)',
-  ivory:      '#F4EBD6',
-  muted:      '#A79D8C',
-  faint:      '#6B6358',
+  panel:      '#13161E',
+  border:     '#262B36',
+  amber:      '#E8B84B',
+  amberGlow:  'rgba(232,184,75,0.25)',
+  ivory:      '#ECEAE4',
+  muted:      '#A3A4AC',
+  faint:      '#868994',
 };
 
 const STORAGE_KEY = 'worldr_seen_3m_bonus_modal';
@@ -54,7 +54,7 @@ export default function ThreeMillionBonusModal({ onDismiss }: ThreeMillionBonusM
           borderRadius: 6,
           width: '100%',
           maxWidth: 480,
-          boxShadow: `0 0 60px rgba(201,162,74,0.08), 0 24px 80px rgba(0,0,0,0.7)`,
+          boxShadow: `0 0 60px rgba(232,184,75,0.08), 0 24px 80px rgba(0,0,0,0.7)`,
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -65,7 +65,7 @@ export default function ThreeMillionBonusModal({ onDismiss }: ThreeMillionBonusM
           padding: '12px 18px',
           borderBottom: `1px solid ${T.border}`,
         }}>
-          <div style={{ fontSize: 9, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.25em', color: T.faint }}>
+          <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.25em', color: T.faint }}>
             System Notice
           </div>
           <button
@@ -79,7 +79,7 @@ export default function ThreeMillionBonusModal({ onDismiss }: ThreeMillionBonusM
         {/* Card body */}
         <div style={{ padding: '30px 22px' }}>
           <div style={{ textAlign: 'center' }}>
-            <h2 style={{ fontSize: 24, fontWeight: 700, fontFamily: 'Georgia, serif', color: T.ivory, margin: '0 0 16px', lineHeight: 1.3 }}>
+            <h2 style={{ fontSize: 24, fontWeight: 700, fontFamily: "'Cinzel', Georgia, serif", color: T.ivory, margin: '0 0 16px', lineHeight: 1.3 }}>
               You have got 3 mILLION
             </h2>
             <p style={{ fontSize: 14, color: T.muted, margin: 0, lineHeight: 1.6 }}>

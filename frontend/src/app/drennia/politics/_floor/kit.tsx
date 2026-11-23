@@ -5,14 +5,14 @@ import React, { createContext, useContext, useEffect } from 'react';
 import type { Desk, Effects, Segment } from './types';
 
 export const T = {
-  bg: '#0C0E13',
-  surface: '#14171F',
-  raised: '#1C202B',
+  bg: '#0B0D12',
+  surface: '#13161E',
+  raised: '#1B1F29',
   line: 'rgba(255,255,255,0.08)',
   lineStrong: 'rgba(255,255,255,0.16)',
   text: '#ECEAE4',
   dim: '#A3A4AC',
-  faint: '#6E707A',
+  faint: '#868994',
   accent: '#E8B84B',
   accentSoft: 'rgba(232,184,75,0.12)',
   good: '#4FB286',
@@ -120,7 +120,7 @@ export function Btn({ children, onClick, kind = 'ghost', disabled, small, full, 
 export function Chip({ children, color = T.dim, filled = false, title }: { children: React.ReactNode; color?: string; filled?: boolean; title?: string }) {
   return (
     <span title={title} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap"
-      style={{ color: filled ? '#0C0E13' : color, background: filled ? color : 'transparent', border: `1px solid ${color}` }}>
+      style={{ color: filled ? '#0B0D12' : color, background: filled ? color : 'transparent', border: `1px solid ${color}` }}>
       {children}
     </span>
   );

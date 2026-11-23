@@ -58,7 +58,7 @@ export default function SelfAnalyticsDashboard({ companyId }: SelfAnalyticsDashb
 
   if (loading) {
     return (
-      <div className="w-full h-64 flex items-center justify-center bg-[#090A0F] text-zinc-400">
+      <div className="w-full h-64 flex items-center justify-center bg-[#0B0D12] text-zinc-400">
         <p className="font-outfit animate-pulse">Loading Analytics Data...</p>
       </div>
     );
@@ -66,7 +66,7 @@ export default function SelfAnalyticsDashboard({ companyId }: SelfAnalyticsDashb
 
   if (error || !data) {
     return (
-      <div className="w-full p-6 bg-[#090A0F] text-red-500 border border-red-900 rounded-md">
+      <div className="w-full p-6 bg-[#0B0D12] text-red-500 border border-red-900 rounded-md">
         <p className="font-outfit">Error: {error}</p>
       </div>
     );
@@ -74,7 +74,7 @@ export default function SelfAnalyticsDashboard({ companyId }: SelfAnalyticsDashb
 
   if (data.segments.length === 0) {
     return (
-      <div className="w-full max-w-7xl mx-auto px-6 py-8 bg-[#090A0F] text-zinc-300 font-outfit border border-[#23232b] rounded-lg">
+      <div className="w-full max-w-7xl mx-auto px-6 py-8 bg-[#0B0D12] text-zinc-300 font-outfit border border-[#262B36] rounded-lg">
         <h2 className="text-2xl font-cinzel text-zinc-100 mb-4">Market Intelligence</h2>
         <p>No sales data available yet. Complete a month to see analytics.</p>
       </div>
@@ -91,19 +91,19 @@ export default function SelfAnalyticsDashboard({ companyId }: SelfAnalyticsDashb
     <div className="w-full text-zinc-300">
       
       {/* Chart Section */}
-      <div className="bg-[#0c0d13] border border-[#27272a] rounded-lg p-6 mb-8 shadow-md">
+      <div className="bg-[#13161E] border border-[#27272a] rounded-lg p-6 mb-8 shadow-md">
         <h3 className="text-xl font-cinzel text-zinc-200 mb-6">Units Sold by Market</h3>
         <div className="h-72 w-full font-mono text-sm">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#23232b" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#262B36" vertical={false} />
               <XAxis dataKey="name" stroke="#52525b" tick={{ fill: '#a1a1aa' }} />
               <YAxis stroke="#52525b" tick={{ fill: '#a1a1aa' }} />
               <Tooltip 
                 cursor={{ fill: '#18181b' }}
                 contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', color: '#e4e4e7', fontFamily: 'JetBrains Mono, monospace' }}
               />
-              <Bar dataKey="Units" fill="#0a84ff" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Units" fill="#6AA6E8" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -112,7 +112,7 @@ export default function SelfAnalyticsDashboard({ companyId }: SelfAnalyticsDashb
       {/* Segments Analysis */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {data.segments.map(segment => (
-          <div key={segment.segmentId} className="bg-[#0c0d13] border border-[#27272a] rounded-lg p-5 flex flex-col justify-between shadow-sm">
+          <div key={segment.segmentId} className="bg-[#13161E] border border-[#27272a] rounded-lg p-5 flex flex-col justify-between shadow-sm">
             
             <div className="mb-4">
               <div className="flex justify-between items-start mb-2">
@@ -139,10 +139,10 @@ export default function SelfAnalyticsDashboard({ companyId }: SelfAnalyticsDashb
               </div>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-[#23232b]">
+            <div className="mt-4 pt-4 border-t border-[#262B36]">
               <div className="flex items-start space-x-2">
-                <Info className="w-5 h-5 text-[#ff9f0a] flex-shrink-0 mt-0.5" />
-                <p className="font-outfit text-sm text-[#ff9f0a] leading-relaxed">
+                <Info className="w-5 h-5 text-[#E8B84B] flex-shrink-0 mt-0.5" />
+                <p className="font-outfit text-sm text-[#E8B84B] leading-relaxed">
                   {segment.advisorText}
                 </p>
               </div>

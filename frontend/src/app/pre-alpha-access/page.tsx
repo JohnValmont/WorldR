@@ -13,7 +13,7 @@ export default function PreAlphaAccessPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-[#11131A] flex items-center justify-center">
+    <div className="min-h-screen bg-[#13161E] flex items-center justify-center">
       <div className="w-6 h-6 rounded-full border-2 border-amber-500/20 border-t-amber-500 animate-spin" />
     </div>
   );

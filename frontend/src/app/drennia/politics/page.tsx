@@ -245,7 +245,7 @@ export default function PoliticsPage() {
             <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: T.dim }} id="me-bar">
               <div className="flex items-center gap-2.5 rounded-2xl pl-1.5 pr-3 py-1.5" style={{ background: 'rgba(255,255,255,0.035)', border: `1px solid ${T.line}` }}>
                 <span className="inline-flex items-center justify-center rounded-xl font-bold text-sm shrink-0"
-                  style={{ width: 34, height: 34, background: `linear-gradient(135deg, ${me.party?.color ?? '#3A4050'}, #1C202B)`, color: '#fff', boxShadow: `0 0 0 2px ${me.party?.color ?? T.line}55` }}>{initials}</span>
+                  style={{ width: 34, height: 34, background: `linear-gradient(135deg, ${me.party?.color ?? '#3A4050'}, #1B1F29)`, color: '#fff', boxShadow: `0 0 0 2px ${me.party?.color ?? T.line}55` }}>{initials}</span>
                 <div className="leading-tight min-w-0">
                   <div className="font-semibold text-sm truncate" style={{ color: T.text }}>{me.name}</div>
                   <div className="text-[11px] truncate" style={{ color: T.faint }}>{rung}{me.background ? ` · ${me.background.label}` : ''}</div>
@@ -321,7 +321,7 @@ export default function PoliticsPage() {
           </nav>
         </aside>
 
-      <main className="min-w-0">
+      <div className="min-w-0">
         {!desk && !error && <div className="py-24 text-center text-xs uppercase tracking-[0.3em]" style={{ color: T.faint }}>Opening the session…</div>}
         {error && !desk && (
           <div className="rounded-2xl p-5 text-sm" style={{ background: T.badSoft, border: `1px solid ${T.bad}` }}>
@@ -357,7 +357,7 @@ export default function PoliticsPage() {
             {electionOpen && el && <ElectionNight onClose={() => setElectionOpen(false)} />}
           </FloorContext.Provider>
         )}
-      </main>
+      </div>
       </div>
 
       {toast && (() => {

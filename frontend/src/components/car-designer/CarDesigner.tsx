@@ -14,8 +14,8 @@ import { manufacturingApi } from '../../lib/api';
 import { gameMonthsToRealTime } from '../../lib/gameTime';
 
 const C = {
-  bg: '#090A0F', panel: '#11131A', panel2: '#161821', border: '#2A2630', gold: '#C9A24A',
-  ivory: '#F4EBD6', muted: '#A79D8C', faint: '#6B6358', green: '#4ADE80', red: '#F87171', blue: '#7DB4E6',
+  bg: '#0B0D12', panel: '#13161E', panel2: '#1B1F29', border: '#262B36', gold: '#E8B84B',
+  ivory: '#ECEAE4', muted: '#A3A4AC', faint: '#868994', green: '#4ADE80', red: '#F87171', blue: '#7DB4E6',
 };
 
 interface Option { id: string; label: string; desc?: string; baseCost?: number; locked?: boolean; costMultiplier?: number }
@@ -93,11 +93,11 @@ function OptionCard({ opt, selected, onSelect, extra }: { opt: Option; selected:
   return (
     <button type="button" disabled={opt.locked} onClick={onSelect}
       className="text-left p-3 rounded-md border transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-      style={{ borderColor: selected ? C.gold : C.border, background: selected ? 'rgba(201,162,74,0.08)' : C.panel2 }}>
+      style={{ borderColor: selected ? C.gold : C.border, background: selected ? 'rgba(232,184,75,0.08)' : C.panel2 }}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[13px] font-semibold" style={{ color: selected ? C.gold : C.ivory }}>{opt.label}</span>
         {selected && <Check size={14} color={C.gold} />}
-        {opt.locked && <span className="text-[9px] uppercase tracking-wider" style={{ color: C.faint }}>Locked</span>}
+        {opt.locked && <span className="text-[10px] uppercase tracking-wider" style={{ color: C.faint }}>Locked</span>}
       </div>
       {opt.desc && <p className="text-[11px] mt-1 leading-snug" style={{ color: C.muted }}>{opt.desc.replace(/Coming Soon.*Locked/, 'Coming soon')}</p>}
       {extra && <p className="text-[10px] mt-1.5 font-mono" style={{ color: C.faint }}>{extra}</p>}
@@ -255,7 +255,7 @@ export default function CarDesigner({ companyId, companyName, onClose, onCreated
         {STEPS.map((s, i) => (
           <button key={s.id} onClick={() => setStep(i)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] whitespace-nowrap"
-            style={{ background: i === step ? 'rgba(201,162,74,0.12)' : 'transparent', color: i === step ? C.gold : i < step ? C.ivory : C.faint }}>
+            style={{ background: i === step ? 'rgba(232,184,75,0.12)' : 'transparent', color: i === step ? C.gold : i < step ? C.ivory : C.faint }}>
             <span className="font-mono">{i + 1}</span> {s.label}
           </button>
         ))}
@@ -275,7 +275,7 @@ export default function CarDesigner({ companyId, companyName, onClose, onCreated
             <Section title="Pick a starting point" hint="Each template is a sensible car for one kind of buyer. You can change everything afterwards.">
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {TEMPLATES.map(t => (
-                  <button key={t.id} onClick={() => applyTemplate(t.id)} className="text-left rounded-md border p-3 transition-all hover:border-[#C9A24A]"
+                  <button key={t.id} onClick={() => applyTemplate(t.id)} className="text-left rounded-md border p-3 transition-all hover:border-[#E8B84B]"
                     style={{ borderColor: C.border, background: C.panel2 }}>
                     <CarPreview vehicleClass={t.design.vehicleClass} style={t.style} paints={paints} size="small" />
                     <div className="mt-2 text-[14px] font-semibold" style={{ color: C.ivory }}>{t.name}</div>
@@ -353,7 +353,7 @@ export default function CarDesigner({ companyId, companyName, onClose, onCreated
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {FOCUS_PRESETS.map(p => (
                     <button key={p.id} onClick={() => set({ priorities: { ...p.p } })} className="text-left rounded-md border p-3"
-                      style={{ borderColor: activePreset === p.id ? C.gold : C.border, background: activePreset === p.id ? 'rgba(201,162,74,0.08)' : C.panel2 }}>
+                      style={{ borderColor: activePreset === p.id ? C.gold : C.border, background: activePreset === p.id ? 'rgba(232,184,75,0.08)' : C.panel2 }}>
                       <div className="text-[13px] font-semibold" style={{ color: activePreset === p.id ? C.gold : C.ivory }}>{p.label}</div>
                       <div className="text-[11px] mt-0.5" style={{ color: C.muted }}>{p.hint}</div>
                     </button>
@@ -366,7 +366,7 @@ export default function CarDesigner({ companyId, companyName, onClose, onCreated
                     <label key={p.id} className="block">
                       <div className="flex justify-between text-[12px]"><span style={{ color: C.ivory }}>{p.label}</span><span className="font-mono" style={{ color: C.gold }}>{design.priorities[p.id] ?? 0}</span></div>
                       <input type="range" min={0} max={60} value={design.priorities[p.id] ?? 0} onChange={e => setPriority(p.id, Number(e.target.value))}
-                        className="w-full accent-[#C9A24A]" aria-label={p.label} />
+                        className="w-full accent-[#E8B84B]" aria-label={p.label} />
                     </label>
                   ))}
                 </div>
@@ -378,11 +378,11 @@ export default function CarDesigner({ companyId, companyName, onClose, onCreated
             <>
               <Section title="Name your car">
                 <input value={name} onChange={e => setName(e.target.value)} maxLength={60} placeholder="e.g. Drennport Falcon"
-                  className="w-full px-3 py-2.5 rounded-md border text-[14px] outline-none focus:border-[#C9A24A]"
+                  className="w-full px-3 py-2.5 rounded-md border text-[14px] outline-none focus:border-[#E8B84B]"
                   style={{ background: C.panel2, borderColor: C.border, color: C.ivory }} />
                 <input value={style.tagline} onChange={e => setStyle(s => ({ ...s, tagline: e.target.value }))} maxLength={boot.carStyle?.taglineMaxLength ?? 60}
                   placeholder="Tagline (optional) — e.g. Built for the long road"
-                  className="w-full mt-2 px-3 py-2 rounded-md border text-[13px] outline-none focus:border-[#C9A24A]"
+                  className="w-full mt-2 px-3 py-2 rounded-md border text-[13px] outline-none focus:border-[#E8B84B]"
                   style={{ background: C.panel2, borderColor: C.border, color: C.ivory }} />
               </Section>
               <Section title="Paint">
@@ -416,7 +416,7 @@ export default function CarDesigner({ companyId, companyName, onClose, onCreated
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {(boot.buyerSegments ?? []).map(s => (
                     <button key={s.id} onClick={() => set({ targetSegment: s.id })} className="text-left rounded-md border p-3"
-                      style={{ borderColor: design.targetSegment === s.id ? C.gold : C.border, background: design.targetSegment === s.id ? 'rgba(201,162,74,0.08)' : C.panel2 }}>
+                      style={{ borderColor: design.targetSegment === s.id ? C.gold : C.border, background: design.targetSegment === s.id ? 'rgba(232,184,75,0.08)' : C.panel2 }}>
                       <div className="flex justify-between"><span className="text-[13px] font-semibold" style={{ color: design.targetSegment === s.id ? C.gold : C.ivory }}>{s.name}</span>
                         <span className="text-[11px] font-mono" style={{ color: C.muted }}>{Math.round(s.populationShare * 100)}% of buyers</span></div>
                       <div className="text-[11px] mt-0.5" style={{ color: C.muted }}>Comfortable up to about {money(s.priceCeiling)}</div>
@@ -428,7 +428,7 @@ export default function CarDesigner({ companyId, companyName, onClose, onCreated
                 {preview ? (
                   <>
                     <input type="range" min={priceMin} max={priceMax} step={100} value={Math.min(Math.max(shownPrice, priceMin), priceMax)}
-                      onChange={e => set({ salePrice: Number(e.target.value) })} className="w-full accent-[#C9A24A]" aria-label="Sale price" />
+                      onChange={e => set({ salePrice: Number(e.target.value) })} className="w-full accent-[#E8B84B]" aria-label="Sale price" />
                     <div className="flex justify-between text-[12px] mt-1">
                       <span style={{ color: C.muted }}>Price <b className="font-mono" style={{ color: C.ivory }}>{money(shownPrice)}</b></span>
                       <span style={{ color: C.muted }}>Profit per car <b className="font-mono" style={{ color: preview.marginPerCar > 0 ? C.green : C.red }}>{money(preview.marginPerCar)}</b></span>
@@ -487,7 +487,7 @@ export default function CarDesigner({ companyId, companyName, onClose, onCreated
                 <div className="grid grid-cols-3 gap-2 mt-4">
                   {[['Cost / car', money(preview.unitCost)], ['Dev cost', money(preview.devCost)], ['Ready in', `${preview.devTimeMonths} mo`]].map(([k, v]) => (
                     <div key={k} className="rounded-md p-2 text-center" style={{ background: C.panel2 }}>
-                      <div className="text-[9px] uppercase tracking-wider" style={{ color: C.faint }}>{k}</div>
+                      <div className="text-[10px] uppercase tracking-wider" style={{ color: C.faint }}>{k}</div>
                       <div className="text-[14px] font-mono font-semibold" style={{ color: C.ivory }}>{v}</div>
                     </div>
                   ))}

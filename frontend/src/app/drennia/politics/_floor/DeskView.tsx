@@ -81,7 +81,7 @@ function QuickActions() {
         {desk.desk.segments.map(s => (
           <div key={s.key} className="flex items-center gap-3">
             <div className="w-24 shrink-0">
-              <div className="text-sm font-semibold" style={{ color: T.text }}>{s.short}{a.rally.homeGroup === s.key && <span className="ml-1.5 text-[9px] uppercase tracking-wider" style={{ color: T.accent }} title="Your home voter group: your rallies here go further">home</span>}</div>
+              <div className="text-sm font-semibold" style={{ color: T.text }}>{s.short}{a.rally.homeGroup === s.key && <span className="ml-1.5 text-[10px] uppercase tracking-wider" style={{ color: T.accent }} title="Your home voter group: your rallies here go further">home</span>}</div>
               <div className="text-[10px]" style={{ color: T.faint }}>{pct(s.size)} of voters</div>
             </div>
             <div className="flex-1 min-w-0">

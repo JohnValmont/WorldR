@@ -90,6 +90,9 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Type-check
         run: npx tsc --noEmit -p frontend
+      - name: Design tokens in sync
+        working-directory: frontend
+        run: npm run check:tokens
       - name: Production build
         working-directory: frontend
         run: npx next build

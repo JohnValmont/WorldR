@@ -202,3 +202,12 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Look up the player's character with `status: 'active'` (a user can have deleted characters).
 - Raw SQL inserts into tables with a NOT NULL world_instance_id must include it. One failing insert inside processCountryMonth rolls back the WHOLE country's business month for every company.
 - Tests that touch a database must check DATABASE_URL is on localhost (and skip when no local database is reachable), delete only the rows they created, and restore anything shared (e.g. world_clock). Never run a test that deletes or rewrites shared tables (pol_cycles, world_clock, ...) — the old politics-p3..p5/smoke tests did and were removed.
+
+## Design system (closed alpha UI) — Operational Rules (DO NOT BREAK)
+- Rulebook: docs/DESIGN_SYSTEM.md. Tokens live in frontend/public/design/tokens.css (the one source); tailwind.config.ts reads them; src/lib/design/tokens.ts is the hex mirror for inline styles. `npm run check:tokens` (CI) keeps the two in sync.
+- No new per-screen palette objects or raw hex in components. Use token classes (bg-surface, text-ink-dim, text-accent, border-line …) or `color` from lib/design/tokens.ts. Party and nation colours stay data.
+- Text must pass WCAG AA: nothing below text-ink-faint (#868994) for readable text; 10px is the minimum size and only for uppercase labels. Locked controls use a dashed outline + reason, never opacity fades.
+- The game has ONE top bar (components/ui/BackBar.tsx) with the build badge, Guide and Discord. Do not add fixed/floating elements over page content or per-page "Back to Chronicle" links/brand marks.
+- Build label, Discord link and real hours per game month come only from frontend/public/design/build.json (BUILD in lib/design/tokens.ts, REAL_HOURS_PER_GAME_MONTH in lib/gameTime.ts; landing pages via failsafe.js). Never hard-code "v0.x" or "pre-alpha" in UI text.
+- No decorative data: sparklines, trends and charts must be real numbers or absent.
+- Landing/sign-up scripts are self-hosted in frontend/public/landing/vendor; never load them from a CDN. The pages must work without WebGL (no-scene) and without their module script (failsafe.js).

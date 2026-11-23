@@ -4,10 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>WORLDr — Enter the World of Aethan</title>
-<meta name="description" content="WORLDr — a living multiplayer world of politics, business, power, and legacy. Set on the world of Aethan. Begin in the nation of Drennia. Pre-Alpha access." />
+<meta name="description" content="WORLDr — a living multiplayer world of politics, business, power, and legacy. Set on the world of Aethan. Choose Drennia, Westmark or Eryndor. Closed alpha." />
+<meta name="theme-color" content="#0B0D12" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/design/tokens.css" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -28,8 +30,9 @@
     <a href="#pillar-1">World</a>
     <a href="#pillar-2">Politics</a>
     <a href="#pillar-3">Business</a>
-    <a href="#pillar-4">Institutions</a>
-    <a href="#console" class="nav-cta">Enter</a>
+    <a href="#pillar-4">Rivals</a>
+    <a href="/landing/onboarding.html?action=login" class="nav-link-quiet">Sign in</a>
+    <a href="/landing/onboarding.html?action=register" class="nav-cta">Play free</a>
   </nav>
 </header>
 
@@ -51,9 +54,14 @@
     <h1 class="wordmark" id="wordmark" aria-label="WORLDr">
       <span class="glyph">W</span><span class="glyph">O</span><span class="glyph">R</span><span class="glyph">L</span><span class="glyph">D</span><span class="glyph lower">r</span>
     </h1>
-    <p class="tagline reveal">Politics. Business. Power. Legacy.<br/>A living world of many nations, already in motion. Your ascent begins in <span class="amber-word">Drennia</span> — the first nation to open its borders.</p>
-    <a href="#pillar-1" class="scroll-cue reveal" aria-label="Begin">
-      <span>BEGIN THE DESCENT</span>
+    <p class="tagline reveal">Build a company. Fund a party. Write the laws your rivals have to live under.<br/>Three nations, one world, and a month that turns every <span data-month-hours>8</span> hours.</p>
+    <div class="hero-cta reveal">
+      <a class="btn btn-primary" href="/landing/onboarding.html?action=register" data-track="signup_clicked"><span>Create your citizen</span></a>
+      <a class="btn btn-quiet" href="/landing/onboarding.html?action=login" data-track="login_clicked"><span>Sign in</span></a>
+    </div>
+    <p class="hero-note reveal"><span class="pulse"></span><span><span data-build>Closed alpha</span> · free in your browser · no download</span></p>
+    <a href="#pillar-1" class="scroll-cue reveal" aria-label="See how it works">
+      <span>HOW IT WORKS</span>
       <svg viewBox="0 0 24 40" width="20" height="34"><rect x="1" y="1" width="22" height="38" rx="11" fill="none" stroke="currentColor" stroke-width="1.2"/><circle class="cue-dot" cx="12" cy="11" r="3" fill="currentColor"/></svg>
     </a>
   </section>
@@ -64,11 +72,11 @@
       <div class="pillar-copy">
         <p class="pillar-eyebrow">CHAPTER I</p>
         <h2 class="pillar-title">The Living World</h2>
-        <p class="pillar-lead">Aethan does not pause when you log off. A macro-economic demand engine breathes through demographic segments, shifting affordability, and a calendar that turns month by month, year by year — a world of nations that keeps its own time.</p>
+        <p class="pillar-lead">Aethan does not pause when you log off. People, jobs and industries move every month; buyers choose cars by need and price; approval follows the economy people feel.</p>
         <ul class="pillar-points">
-          <li>Continents, nations and states with their own populations and jurisdictions.</li>
-          <li>A demand engine driven by real demographic segments and affordability.</li>
-          <li>Every action leaves a mark on a world that never resets.</li>
+          <li>Drennia, Westmark and Eryndor: different governments, laws and economies, kept in balance.</li>
+          <li>Unemployment, growth and debt move approval, and approval moves elections.</li>
+          <li>Trade and treaties link the three nations.</li>
         </ul>
       </div>
       <div class="data-panel parallax" data-speed="0.12">
@@ -90,11 +98,11 @@
       <div class="pillar-copy">
         <p class="pillar-eyebrow">CHAPTER II</p>
         <h2 class="pillar-title">The Political Rise</h2>
-        <p class="pillar-lead">Found a party. File your candidacy. Build coalitions, draft bills, win tenders. A full democratic legislature — elections, lobbying, government procurement — where power is earned seat by seat and defended vote by vote.</p>
+        <p class="pillar-lead">Join a party or found your own. Stand in a district, campaign, and win your seat. Every bill is a real vote, every coalition a written deal, and every minister holds a real brief.</p>
         <ul class="pillar-points">
-          <li>Elections, coalitions and legislative bills that reshape the nation.</li>
-          <li>Lobbying and government procurement with real economic weight.</li>
-          <li>Rise from candidate to head of state — or fall in the chamber.</li>
+          <li>District elections with seats shared out by vote.</li>
+          <li>Coalition talks with ministries and laws on the table.</li>
+          <li>Climb from citizen to head of government, or lose the leadership in a contest.</li>
         </ul>
       </div>
       <div class="data-panel parallax" data-speed="0.16">
@@ -116,11 +124,11 @@
       <div class="pillar-copy">
         <p class="pillar-eyebrow">CHAPTER III</p>
         <h2 class="pillar-title">Business Power</h2>
-        <p class="pillar-lead">Manufacturing, logistics, and full business ledgers. Set prices against competitor AI that adapts inventory and production to the market. Build supply chains, corner sectors, and turn capital into influence.</p>
+        <p class="pillar-lead">Design a car, lease a factory, set your price and fight for buyers in every region. Computer-run rivals reprice and restock against you, and the laws Parliament passes change your costs.</p>
         <ul class="pillar-points">
-          <li>End-to-end manufacturing, logistics and double-entry ledgers.</li>
-          <li>Competitor AI that reprices, restocks and reacts to your moves.</li>
-          <li>Convert market dominance into political leverage — and back again.</li>
+          <li>A guided car designer with a live forecast from the real demand engine.</li>
+          <li>Rival car makers that react to your prices and your stock.</li>
+          <li>Bank loans, shareholders and dividends.</li>
         </ul>
       </div>
       <div class="data-panel parallax" data-speed="0.16">
@@ -141,12 +149,12 @@
     <div class="pillar-inner reverse">
       <div class="pillar-copy">
         <p class="pillar-eyebrow">CHAPTER IV</p>
-        <h2 class="pillar-title">NPC Institutions</h2>
-        <p class="pillar-lead">Central banks, regulators, courts and corporations run by autonomous agents with their own physics and logic. The world governs itself around you — negotiating, competing, and pushing back with a will of its own.</p>
+        <h2 class="pillar-title">Never an Empty World</h2>
+        <p class="pillar-lead">Computer-run parties and companies fill every parliament and market, so the world works with ten players or a thousand. Real players are the bonus, not the requirement.</p>
         <ul class="pillar-points">
-          <li>Autonomous institutions with independent goals and behaviour.</li>
-          <li>Regulators, courts and central banks that respond to your conduct.</li>
-          <li>A world that acts even when no player is watching.</li>
+          <li>Computer-run parties table laws, vote by their beliefs and form governments.</li>
+          <li>Computer-run car makers compete for the same buyers you do.</li>
+          <li>A caretaker government keeps each nation running until one forms.</li>
         </ul>
       </div>
       <div class="data-panel parallax" data-speed="0.14">
@@ -167,14 +175,15 @@
     <div class="pillar-inner center">
       <div class="pillar-copy wide">
         <p class="pillar-eyebrow">CHAPTER V</p>
-        <h2 class="pillar-title">Public Records &amp; Consequences</h2>
-        <p class="pillar-lead">Every vote, every contract, every scandal is written into the public record. Reputation compounds. Debts come due. In Aethan, history remembers — and your name is already being written.</p>
+        <h2 class="pillar-title">The Record Remembers</h2>
+        <p class="pillar-lead">Every vote is public, every promise is checked against how you actually voted, and the Meridian Wire reports the month across all three nations. Players can write for it too.</p>
       </div>
       <div class="ledger parallax" data-speed="0.1">
-        <div class="ledger-line"><span class="lg-time">Yr41·Q3</span><span class="lg-txt">Tender #4471 awarded — Novaris Logistics Corp.</span></div>
-        <div class="ledger-line"><span class="lg-time">Yr41·Q3</span><span class="lg-txt">Bill 118 passed — Central Tariff Reform.</span></div>
-        <div class="ledger-line"><span class="lg-time">Yr41·Q2</span><span class="lg-txt">Ethics inquiry opened — Rep. A. Vhast.</span></div>
-        <div class="ledger-line"><span class="lg-time">Yr41·Q2</span><span class="lg-txt">DRX halt lifted — Meridian Steel resumes.</span></div>
+        <div class="ledger-cap">Example headlines · the kind of thing the Wire reports</div>
+        <div class="ledger-line"><span class="lg-time">Mar Yr 2</span><span class="lg-txt">Tariff bill passes Drennia's Parliament, 79 votes to 72.</span></div>
+        <div class="ledger-line"><span class="lg-time">Mar Yr 2</span><span class="lg-txt">Westmark coalition signs: two ministries change hands.</span></div>
+        <div class="ledger-line"><span class="lg-time">Feb Yr 2</span><span class="lg-txt">Party leader challenged after broken vote promise.</span></div>
+        <div class="ledger-line"><span class="lg-time">Feb Yr 2</span><span class="lg-txt">Eryndor and Drennia ratify a trade treaty.</span></div>
       </div>
     </div>
   </section>
@@ -189,31 +198,31 @@
       <h2 class="console-title">Enter Aethan</h2>
       <p class="console-sub">The world is already in motion. Begin your ascent in the nation of <span class="amber-word">Drennia</span> — the first of many to open.</p>
       <div class="console-actions">
-        <button class="btn btn-primary" id="btnCreate"><span>Create Account</span></button>
-        <button class="btn" id="btnLogin"><span>Login</span></button>
-        <button class="btn btn-guest" id="btnGuest" style="background: transparent; border: 1px solid rgba(255,255,255,0.1); color: #888;"><span>Play As Guest</span></button>
-        <a class="btn btn-discord" id="btnDiscord" href="https://discord.gg/m76prxKgTe" target="_blank" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;"><span>Join Discord</span></a>
+        <a class="btn btn-primary" id="btnCreate" href="/landing/onboarding.html?action=register"><span>Create account</span></a>
+        <a class="btn" id="btnLogin" href="/landing/onboarding.html?action=login"><span>Sign in</span></a>
+        <button class="btn btn-quiet" id="btnGuest" type="button"><span>Try as a guest</span></button>
+        <a class="btn btn-discord" id="btnDiscord" href="https://discord.gg/m76prxKgTe" target="_blank" rel="noopener noreferrer" data-discord><span>Join the Discord</span></a>
       </div>
       <div class="console-status">
         <span class="pulse"></span>
-        <span>PRE-ALPHA ACCESS — limited to testers · v0.1.0-prealpha</span>
+        <span><span data-build>Closed alpha</span> — a small test world: expect rebalancing and resets</span>
       </div>
     </div>
     <footer class="foot">
-      <span>WORLDr</span><span class="dot">·</span><span>The living world of Aethan · politics, business &amp; legacy</span><span class="dot">·</span><span>© Aethan Simulation Authority</span>
+      <span>WORLDr</span><span class="dot">·</span><span>A politics &amp; business simulation</span><span class="dot">·</span><a href="https://discord.gg/m76prxKgTe" target="_blank" rel="noopener noreferrer" data-discord>Discord</a><span class="dot">·</span><span>© 2026 WORLDr</span>
     </footer>
   </section>
 
 </main>
 <!-- GUEST MODAL -->
-<div id="guestModalOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease;">
-  <div class="guest-modal" style="background: #090a0f; border: 1px solid rgba(255,255,255,0.1); padding: 40px; text-align: center; max-width: 480px; transform: translateY(20px); transition: transform 0.3s ease;">
-    <div class="console-crest" style="color: #c9a050; font-size: 24px; margin-bottom: 20px;">✦</div>
-    <h3 style="font-family: 'Cinzel', serif; color: #fff; font-size: 24px; margin-bottom: 16px; font-weight: 500;">Guest Access Warning</h3>
-    <p style="font-family: 'Inter', sans-serif; color: #888; line-height: 1.6; margin-bottom: 32px; font-size: 14px;">Guest accounts are temporary. If you clear your browser data or switch devices, <span style="color: #c9a050;">all progress, wealth, and companies will be permanently lost</span>.</p>
-    <div style="display: flex; gap: 16px; justify-content: center;">
-      <button class="btn" id="btnCancelGuest" style="background: transparent; border: 1px solid rgba(255,255,255,0.1); color: #888;"><span>Cancel</span></button>
-      <button class="btn btn-primary" id="btnConfirmGuest"><span>Continue as Guest</span></button>
+<div id="guestModalOverlay" class="guest-overlay" role="dialog" aria-modal="true" aria-labelledby="guestTitle">
+  <div class="guest-modal">
+    <div class="console-crest" aria-hidden="true">✦</div>
+    <h3 id="guestTitle">Play as a guest?</h3>
+    <p>A guest account lives only in this browser. If you clear your browser data or switch devices, <span class="amber-word">everything you built is gone for good</span>. You can create a full account later.</p>
+    <div class="guest-actions">
+      <button class="btn btn-quiet" id="btnCancelGuest" type="button"><span>Cancel</span></button>
+      <button class="btn btn-primary" id="btnConfirmGuest" type="button"><span>Continue as guest</span></button>
     </div>
   </div>
 </div>
@@ -221,11 +230,12 @@
 
 <!-- libs -->
 <script src="analytics.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-<script src="https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
+<script src="failsafe.js"></script>
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/ScrollTrigger.min.js"></script>
+<script src="vendor/lenis.min.js"></script>
 <script type="importmap">
-{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+{ "imports": { "three": "./vendor/three.module.min.js" } }
 </script>
 <script type="module" src="app.js"></script>
 </body>

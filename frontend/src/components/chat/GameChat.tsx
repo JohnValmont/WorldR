@@ -197,7 +197,7 @@ export default function GameChat() {
                 flexDirection: 'column',
                 background: 'rgba(13, 15, 22, 0.95)',
                 backdropFilter: 'blur(12px)',
-                border: '1px solid #23273A',
+                border: '1px solid #262B36',
                 borderRadius: 12,
                 marginBottom: 16,
                 overflow: 'hidden',
@@ -211,21 +211,21 @@ export default function GameChat() {
                 className="chat-drag-handle"
                 style={{ 
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                  padding: '10px 14px', borderBottom: '1px solid #23273A', background: '#11141F',
+                  padding: '10px 14px', borderBottom: '1px solid #262B36', background: '#13161E',
                   cursor: 'grab'
                 }}
                 onPointerDown={(e) => { (e.target as HTMLElement).style.cursor = 'grabbing'; }}
                 onPointerUp={(e) => { (e.target as HTMLElement).style.cursor = 'grab'; }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <MessageCircle size={14} color="#7FB4FF" />
+                  <MessageCircle size={14} color="#E8B84B" />
                   <span style={{ color: '#E8EAF2', fontSize: 13, fontWeight: 600, letterSpacing: '0.05em' }}>COMMS LINK</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <button onClick={() => setMinimized(!minimized)} style={{ background: 'none', border: 'none', color: '#8B90A8', cursor: 'pointer', padding: 0 }}>
+                  <button onClick={() => setMinimized(!minimized)} style={{ background: 'none', border: 'none', color: '#A3A4AC', cursor: 'pointer', padding: 0 }}>
                     {minimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
                   </button>
-                  <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: '#8B90A8', cursor: 'pointer', padding: 0 }}>
+                  <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: '#A3A4AC', cursor: 'pointer', padding: 0 }}>
                     <X size={16} />
                   </button>
                 </div>
@@ -234,36 +234,36 @@ export default function GameChat() {
               {!minimized && (
                 <>
                   {/* Tabs */}
-                  <div style={{ display: 'flex', background: '#090A0F', borderBottom: '1px solid #23273A' }}>
+                  <div style={{ display: 'flex', background: '#0B0D12', borderBottom: '1px solid #262B36' }}>
                     <button
                       onClick={() => setActiveTab('world')}
                       style={{
-                        flex: 1, padding: '10px', border: 'none', background: activeTab === 'world' ? '#1A1E2E' : 'transparent',
-                        color: activeTab === 'world' ? '#E8EAF2' : '#8B90A8', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        flex: 1, padding: '10px', border: 'none', background: activeTab === 'world' ? '#1B1F29' : 'transparent',
+                        color: activeTab === 'world' ? '#E8EAF2' : '#A3A4AC', fontSize: 12, fontWeight: 600, cursor: 'pointer',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, position: 'relative'
                       }}
                     >
                       <Globe size={14} /> WORLD
-                      {unreadWorld > 0 && <span style={{ width: 6, height: 6, borderRadius: 3, background: '#FF4D4D', position: 'absolute', top: 10, right: 24 }} />}
+                      {unreadWorld > 0 && <span style={{ width: 6, height: 6, borderRadius: 3, background: '#D9625A', position: 'absolute', top: 10, right: 24 }} />}
                     </button>
                     <button
                       onClick={() => setActiveTab('private')}
                       style={{
-                        flex: 1, padding: '10px', border: 'none', background: activeTab === 'private' ? '#1A1E2E' : 'transparent',
-                        color: activeTab === 'private' ? '#E8EAF2' : '#8B90A8', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        flex: 1, padding: '10px', border: 'none', background: activeTab === 'private' ? '#1B1F29' : 'transparent',
+                        color: activeTab === 'private' ? '#E8EAF2' : '#A3A4AC', fontSize: 12, fontWeight: 600, cursor: 'pointer',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, position: 'relative'
                       }}
                     >
                       <MessageSquare size={14} /> PRIVATE
-                      {unreadPrivate > 0 && <span style={{ width: 6, height: 6, borderRadius: 3, background: '#FF4D4D', position: 'absolute', top: 10, right: 20 }} />}
+                      {unreadPrivate > 0 && <span style={{ width: 6, height: 6, borderRadius: 3, background: '#D9625A', position: 'absolute', top: 10, right: 20 }} />}
                     </button>
                   </div>
 
                   {/* Private DM Target Banner */}
                   {activeTab === 'private' && dmTargetName && (
-                    <div style={{ padding: '6px 12px', background: '#2E5CFF1A', borderBottom: '1px solid #2E5CFF33', color: '#7FB4FF', fontSize: 11, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ padding: '6px 12px', background: 'rgba(232,184,75,0.10)', borderBottom: '1px solid rgba(232,184,75,0.30)', color: '#E8B84B', fontSize: 11, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>Sending to: <strong>{dmTargetName}</strong></span>
-                      <button onClick={() => { setDmTargetId(null); setDmTargetName(null); }} style={{ background: 'none', border: 'none', color: '#7FB4FF', cursor: 'pointer', fontSize: 10 }}>[CLEAR]</button>
+                      <button onClick={() => { setDmTargetId(null); setDmTargetName(null); }} style={{ background: 'none', border: 'none', color: '#E8B84B', cursor: 'pointer', fontSize: 10 }}>[CLEAR]</button>
                     </div>
                   )}
 
@@ -287,7 +287,7 @@ export default function GameChat() {
                             {activeTab === 'private' && m.target_character_name && (
                               <>
                                 <span style={{ color: '#5A5F76', fontSize: 10 }}>▶</span>
-                                <span style={{ color: '#7FB4FF', fontSize: 12, fontWeight: 600 }}>{m.target_character_name}</span>
+                                <span style={{ color: '#E8B84B', fontSize: 12, fontWeight: 600 }}>{m.target_character_name}</span>
                               </>
                             )}
                             <span style={{ color: '#5A5F76', fontSize: 10 }}>{formatTime(m.created_at)}</span>
@@ -300,11 +300,11 @@ export default function GameChat() {
 
                   {/* Error */}
                   {error && (
-                    <p style={{ color: '#FF7A7A', fontSize: 11, margin: 0, padding: '6px 12px', background: '#2A1418' }}>{error}</p>
+                    <p style={{ color: '#E8837C', fontSize: 11, margin: 0, padding: '6px 12px', background: 'rgba(217,98,90,0.12)' }}>{error}</p>
                   )}
 
                   {/* Input */}
-                  <div style={{ display: 'flex', gap: 8, padding: 12, borderTop: '1px solid #23273A', background: '#090A0F' }}>
+                  <div style={{ display: 'flex', gap: 8, padding: 12, borderTop: '1px solid #262B36', background: '#0B0D12' }}>
                     <input
                       type="text"
                       value={draft}
@@ -314,7 +314,7 @@ export default function GameChat() {
                       placeholder={activeTab === 'private' && !dmTargetId ? "Select a user to DM..." : "Secure transmission..."}
                       disabled={activeTab === 'private' && !dmTargetId}
                       style={{
-                        flex: 1, background: '#11141F', border: '1px solid #23273A', borderRadius: 6,
+                        flex: 1, background: '#13161E', border: '1px solid #262B36', borderRadius: 6,
                         color: '#E8EAF2', fontSize: 13, padding: '8px 12px', outline: 'none'
                       }}
                     />
@@ -322,9 +322,9 @@ export default function GameChat() {
                       onClick={send}
                       disabled={sending || !draft.trim() || (activeTab === 'private' && !dmTargetId)}
                       style={{
-                        background: (draft.trim() && !sending && (activeTab !== 'private' || dmTargetId)) ? '#2E5CFF' : '#1A1E2E',
+                        background: (draft.trim() && !sending && (activeTab !== 'private' || dmTargetId)) ? '#E8B84B' : '#1B1F29',
                         border: 'none', borderRadius: 6,
-                        color: (draft.trim() && !sending && (activeTab !== 'private' || dmTargetId)) ? '#FFFFFF' : '#5A5F76',
+                        color: (draft.trim() && !sending && (activeTab !== 'private' || dmTargetId)) ? '#17130A' : '#868994',
                         cursor: (draft.trim() && !sending && (activeTab !== 'private' || dmTargetId)) ? 'pointer' : 'default',
                         padding: '0 12px', display: 'flex', alignItems: 'center', transition: 'background 0.2s'
                       }}
@@ -341,20 +341,22 @@ export default function GameChat() {
         {/* Toggle button */}
         <button
           onClick={() => { setOpen(o => !o); setMinimized(false); }}
+          aria-label={open ? 'Close chat' : totalUnread > 0 ? `Open chat, ${totalUnread} unread` : 'Open chat'}
+          aria-expanded={open}
           style={{
-            position: 'relative', width: 52, height: 52, borderRadius: 26, background: '#2E5CFF',
-            border: 'none', color: '#FFFFFF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 20px rgba(46,92,255,0.4)', pointerEvents: 'auto'
+            position: 'relative', width: 48, height: 48, borderRadius: 24, background: '#1B1F29',
+            border: '1px solid rgba(232,184,75,0.38)', color: '#E8B84B', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 12px 30px -10px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.06)', pointerEvents: 'auto'
           }}
         >
-          <MessageCircle size={24} />
+          <MessageCircle size={22} />
           {totalUnread > 0 && !open && (
             <span
               style={{
                 position: 'absolute', top: -2, right: -2, minWidth: 20, height: 20, borderRadius: 10,
-                background: '#FF4D4D', color: '#FFFFFF', fontSize: 11, fontWeight: 700,
+                background: '#D9625A', color: '#FFFFFF', fontSize: 11, fontWeight: 700,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
-                border: '2px solid #090A0F'
+                border: '2px solid #0B0D12'
               }}
             >
               {totalUnread > 99 ? '99+' : totalUnread}
