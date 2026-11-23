@@ -3,6 +3,7 @@ import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import { runWorldTick, runPoliticsTick } from '../services/worldTick.service';
 import { DEFAULT_REAL_SECONDS_PER_MONTH } from '../constants/world';
+import { realUserSql, whereRealUser } from '../services/realPlayers';
 
 
 
@@ -176,31 +177,34 @@ export class WorldController {
         return res.json({ operators: [], month: null });
       }
 
-      // All active characters
-      const characters = await db('characters')
-        .where({ status: 'active', world_instance_id: activeInstance.id })
+      // All active characters of real players. System accounts (e.g. "DRX Market Maker")
+      // are not players: same rule as Corridors and the citizens count (realPlayers.ts).
+      const characters = await db('characters as c')
+        .join('users as u', 'u.id', 'c.user_id')
+        .where({ 'c.status': 'active', 'c.world_instance_id': activeInstance.id })
+        .modify(whereRealUser)
         .select(
-          'id',
-          'name',
-          'age',
-          'credibility',
-          'charisma',
-          'influence',
-          'home_state_id',
-          'motherland_country_id',
-          'created_at_world_year',
-          'created_at_world_month'
+          'c.id',
+          'c.name',
+          'c.age',
+          'c.credibility',
+          'c.charisma',
+          'c.influence',
+          'c.home_state_id',
+          'c.motherland_country_id',
+          'c.created_at_world_year',
+          'c.created_at_world_month'
         );
 
       if (!characters.length) {
         return res.json({ operators: [], month: null });
       }
 
-      const buildCharIdQuery = () => db('characters').select('id').where({ status: 'active', world_instance_id: activeInstance.id });
+      const characterIds = characters.map((c: any) => c.id);
 
       // Their companies (can be multiple per character)
       const companies = await db('companies')
-        .whereIn('owner_character_id', buildCharIdQuery())
+        .whereIn('owner_character_id', characterIds)
         .where({ status: 'active' })
         .select('id', 'name', 'owner_character_id', 'headquarters_state_id', 'reputation', 'reliability');
 
@@ -208,7 +212,7 @@ export class WorldController {
       let partyMemberships: any[] = [];
       try {
         partyMemberships = await db('pol_party_members')
-          .whereIn('character_id', buildCharIdQuery())
+          .whereIn('character_id', characterIds)
           .join('pol_parties', 'pol_party_members.party_id', 'pol_parties.id')
           .select(
             'pol_party_members.character_id',
@@ -418,6 +422,7 @@ export class WorldController {
       } catch (_) { /* fall back to clock-based guess */ }
 
       // ── Run all three independent queries in PARALLEL ────────────────────────
+      const realUser = realUserSql('u');
       const [topCompanies, popularCars, popularCarsAllTime, richestPlayersResult] = await Promise.all([
 
         // ── Global 500: precompute share price, share count, inventory via CTE ──
@@ -600,16 +605,17 @@ export class WorldController {
               + COALESCE(ce.equity, 0) AS net_worth,
             ct.best_profit AS trend
           FROM characters c
+          JOIN users u ON u.id = c.user_id
           LEFT JOIN character_finances cf ON cf.character_id = c.id
           LEFT JOIN buy_escrow be ON be.character_id = c.id
           LEFT JOIN char_equity ce ON ce.char_id = c.id
           LEFT JOIN char_trend ct ON ct.char_id = c.id
           WHERE c.status = 'active'
-            AND c.name != 'System NPC'
+            AND ${realUser.sql}
             AND c.world_instance_id = ?
           ORDER BY net_worth DESC
           LIMIT 10
-        `, [activeInstanceId]),
+        `, [...realUser.bindings, activeInstanceId]),
       ]);
 
       const popularCarsArc = { year: prevYear, month: prevMonth };
