@@ -8,13 +8,8 @@
  * made-up value.
  */
 import { db } from '../../config/database';
-import {
-  ACTIVE_PLAYER_WINDOW_DAYS,
-  NO_LOGIN_PASSWORD_HASH,
-  NPC_EMAIL_DOMAIN_SUFFIX,
-  SYSTEM_NPC_EMAIL,
-  WORLD_SNAPSHOT_CACHE_MS,
-} from '../constants/world';
+import { ACTIVE_PLAYER_WINDOW_DAYS, WORLD_SNAPSHOT_CACHE_MS } from '../constants/world';
+import { whereRealUser } from './realPlayers';
 
 export interface WorldSnapshot {
   generated_at: string;
@@ -42,13 +37,6 @@ const n = (v: unknown): number => {
   const x = Number(v);
   return Number.isFinite(x) ? x : 0;
 };
-
-/** SQL fragment: users that are real people, not seeded NPC/system accounts. */
-function whereRealUser(qb: any) {
-  qb.whereNot('u.password_hash', NO_LOGIN_PASSWORD_HASH)
-    .whereNot('u.email', SYSTEM_NPC_EMAIL)
-    .whereRaw('LOWER(u.email) NOT LIKE ?', [`%${NPC_EMAIL_DOMAIN_SUFFIX}`]);
-}
 
 async function build(): Promise<WorldSnapshot> {
   const instance = await db('world_instances').where({ status: 'active' }).first();
