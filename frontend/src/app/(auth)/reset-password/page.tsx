@@ -1,4 +1,6 @@
 'use client';
+// Same minimum as the server (backend/src/api/constants/auth.ts).
+const PASSWORD_MIN_LENGTH = 8;
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -35,8 +37,8 @@ function ResetPasswordForm() {
     e.preventDefault();
     setError('');
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      setError(`Password must be at least ${PASSWORD_MIN_LENGTH} characters long.`);
       return;
     }
     if (password !== confirmPassword) {
@@ -168,7 +170,7 @@ function ResetPasswordForm() {
               onChange={e => setPassword(e.target.value)}
               autoComplete="new-password"
               required
-              minLength={6}
+              minLength={PASSWORD_MIN_LENGTH}
             />
             <button
               type="button"

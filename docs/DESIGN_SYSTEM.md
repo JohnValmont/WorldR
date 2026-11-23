@@ -11,7 +11,10 @@ This page is the rulebook; the values live in code.
 | Hex mirror for inline styles / charts / canvas | `frontend/src/lib/design/tokens.ts` | Code that needs real hex (e.g. `${color}88`) |
 | Build label, Discord link, real hours per game month | `frontend/public/design/build.json` | Game top bar, auth pages, What's New, landing + sign-up (`failsafe.js` fills `[data-build]`, `[data-month-hours]`, `[data-discord]`), `lib/gameTime.ts` |
 | Drift check | `frontend/scripts/check-tokens.mjs` (`npm run check:tokens`, runs in CI) | Fails if `tokens.ts` differs from `tokens.css` |
-| Shared components | `frontend/src/components/ui/*` (Button, Card, StatChip, Tabs, …), politics `_floor/kit.tsx` (Btn, Card, Chip, LockedBtn) | All screens |
+| Shared components | `frontend/src/components/ui/*` (PageHeader + HeaderStat, Tabs, Button, Card, StatChip, StatCard, EmptyState …), politics `_floor/kit.tsx` (Btn, Card, Chip, LockedBtn) | All screens |
+| Readable text on data colours | `readableOn(hex)` in `src/lib/design/tokens.ts` | Party/nation badges: picks dark or white text by measured contrast |
+| Nation flags + emblems | `Flag` / `EmblemGlyph` in `_floor/worldKit.tsx`, drawn from each nation's flag recipe (pattern, colours, emblem) | Every flag in the game |
+| Evidence | `tools/ui-audit/` (`journey.js`, `a11y.js`; local only) | New-player journey and axe-core audit behind the scorecard |
 | Global classes | `frontend/src/app/globals.css` (`.btn-primary/.btn-secondary/.btn-danger/.btn-ghost`, `.terminal-input`, `.auth-*`) | All screens |
 
 ## Colour
@@ -39,10 +42,26 @@ This page is the rulebook; the values live in code.
 ## Interaction rules
 
 - Keyboard focus is always visible (gold outline via `:focus-visible`). Never remove it without a replacement.
-- Locked features stay visible: dashed outline + lock icon + a reason (owner decision). Never fade them below AA contrast with `opacity-40`.
+- Locked features stay visible: dashed outline + lock icon + a reason (owner decision). Never fade them below AA contrast with `opacity-40`. The same goes for options the player can't afford yet: dashed, readable, with "Needs 2 energy · you have 0".
 - One top bar in the game (`components/ui/BackBar.tsx`): labelled destinations, Back, Guide, Discord and the build badge. Nothing floats over page content; pages do not add their own "Back to Chronicle" links or brand marks.
 - No decorative numbers: sparklines, trends and charts show real data or nothing. Players read every number as a fact.
 - Modals: one at a time on a player's first screen. What's New is shown only to returning players, once per build.
+
+## Page anatomy
+
+- Every game screen starts with `PageHeader` (gold kicker, Cinzel title as the page's only `h1`, one-line description, optional `aside` for a balance or the clock) and, when it has sections, `Tabs inset="none"` inside it.
+- `Tabs` is the one tab bar: real `role="tab"` buttons, arrow-key navigation, optional `badge` / `tone: 'warn'`, and a `trailing` slot that sits *outside* the tab group (for a link such as "Drennport Exchange →").
+- Long section lists are grouped by what the player is trying to do (the manufacturing desk: Run the plant / Cars / Sell / Company), not shown as one flat list.
+
+## The month turning
+
+- `components/gameplay/MonthBriefing.tsx` shows a short, skippable briefing when the politics month has moved on since the player last looked: money, trust, clout, energy and their nation's approval, each with the measured change, plus decisions waiting and the newest notices.
+- It reads the shared `politics-desk` SWR cache (no polling of its own), never shows on a first visit or while What's New for this build is pending, and stores its snapshot in `localStorage` (`worldr_month_snapshot_v1`).
+
+## Empty states
+
+- An empty panel says what will appear there and offers the next action ("Meet the other players in Corridors →"), never just "Nothing yet".
+- A brand-new company shows "No month closed" rather than zeroed charts or trends.
 
 ## Public pages (landing + sign-up)
 
@@ -50,6 +69,15 @@ This page is the rulebook; the values live in code.
 - Third-party libraries are self-hosted in `public/landing/vendor` (see its README). Do not load scripts from public CDNs: an outage there would block sign-up.
 - The 3D globe is decoration. Without WebGL the pages still work (`no-scene` class); `failsafe.js` hides the loader and offers the plain sign-in/register pages if the page script cannot start.
 - Copy describes only what exists in the current build. Example content is labelled as an example.
+
+## Checking your work
+
+```bash
+cd tools/ui-audit && npm init -y >/dev/null && npm i --no-save playwright@1 axe-core@4.10.2
+node journey.js && node journey.js mobile && node a11y.js
+```
+
+Both must pass (0 axe violations on 30 screen views; the journey reaches a first decision with no 5xx or dead end) before a UI change ships.
 
 ## Adding something
 

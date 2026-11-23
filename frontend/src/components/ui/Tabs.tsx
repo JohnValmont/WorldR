@@ -75,7 +75,8 @@ export default function Tabs({
       )}
       style={sticky ? { top: `${top}px` } : undefined}
     >
-      <div ref={containerRef} role="tablist" aria-label={label} onKeyDown={onKeyDown} className={cn('flex relative items-center', inset === 'page' && 'px-4 md:px-6')}>
+      <div className={cn('flex items-center', inset === 'page' && 'px-4 md:px-6')}>
+      <div ref={containerRef} role="tablist" aria-label={label} onKeyDown={onKeyDown} className="flex relative items-center">
         {tabs.map((tab) => {
           const isActive = activeId === tab.id;
           const isDisabled = tab.disabled || tab.locked;
@@ -114,7 +115,6 @@ export default function Tabs({
             </button>
           );
         })}
-        {trailing && <div className="ml-auto flex shrink-0 items-center pl-4">{trailing}</div>}
         {/* Animated Underline */}
         <div
           className="absolute bottom-0 h-[2px] rounded-full bg-accent transition-all duration-300 ease-out"
@@ -123,6 +123,8 @@ export default function Tabs({
             width: indicatorStyle.width,
           }}
         />
+      </div>
+      {trailing && <div className="ml-auto flex shrink-0 items-center pl-4">{trailing}</div>}
       </div>
     </div>
   );

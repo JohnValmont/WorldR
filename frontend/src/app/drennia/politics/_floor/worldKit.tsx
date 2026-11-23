@@ -1,7 +1,7 @@
 'use client';
 // Shared pieces for the Nation and World tabs: flags, number formats, charts
 // (recharts), the election timeline and the administrations record.
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useId } from 'react';
 import useSWR from 'swr';
 import {
   Area, AreaChart, CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -47,17 +47,59 @@ export function errorText(e: any, fallback: string): string {
   return fallback;
 }
 
-/** A small flag drawn from the nation's recipe (pattern + colours). */
-export function Flag({ flag, width = 44 }: { flag: NationRow['flag']; width?: number }) {
+/** A nation's emblem (from its flag recipe), drawn at (cx, cy) with radius r in flag units. */
+export function EmblemGlyph({ emblem, color, cx, cy, r }: { emblem: string; color: string; cx: number; cy: number; r: number }) {
+  const s = r / 8; // glyphs are drawn on a 16-unit grid centred on 0,0
+  const t = `translate(${cx} ${cy}) scale(${s})`;
+  if (emblem === 'star8') {
+    const pts = Array.from({ length: 16 }, (_, i) => {
+      const a = (Math.PI / 8) * i - Math.PI / 2;
+      const rad = i % 2 === 0 ? 8 : 3.4;
+      return `${(Math.cos(a) * rad).toFixed(2)},${(Math.sin(a) * rad).toFixed(2)}`;
+    }).join(' ');
+    return <polygon transform={t} points={pts} fill={color} />;
+  }
+  if (emblem === 'anchor') {
+    return (
+      <g transform={t} fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="0" cy="-5.8" r="1.9" />
+        <path d="M0 -3.9 V7.2 M-4 -1.6 H4 M-6.4 2.6 Q-6.2 7.6 0 7.6 Q6.2 7.6 6.4 2.6" />
+        <path d="M-6.4 2.6 l-1.3 1.4 M-6.4 2.6 l1.6 0.6 M6.4 2.6 l1.3 1.4 M6.4 2.6 l-1.6 0.6" />
+      </g>
+    );
+  }
+  if (emblem === 'wheat') {
+    const grain = (y: number, side: 1 | -1) => <ellipse key={`${y}${side}`} cx={side * 2.1} cy={y} rx="1.5" ry="2.6" transform={`rotate(${side * 32} ${side * 2.1} ${y})`} />;
+    return (
+      <g transform={t} fill={color} stroke={color}>
+        <path d="M0 8 V-6" strokeWidth={1.2} fill="none" strokeLinecap="round" />
+        {[-4.2, -0.6, 3].flatMap(y => [grain(y, -1), grain(y, 1)])}
+        <ellipse cx="0" cy="-6.6" rx="1.4" ry="2.4" stroke="none" />
+      </g>
+    );
+  }
+  return <circle cx={cx} cy={cy} r={r * 0.75} fill={color} />;
+}
+
+/** A small flag drawn from the nation's recipe (pattern + colours + emblem). */
+export function Flag({ flag, width = 44, label = 'Flag' }: { flag: NationRow['flag']; width?: number; label?: string }) {
   const h = Math.round(width * 0.62);
   const c = flag.colors;
+  const sheenId = `flag-sheen-${useId().replace(/:/g, '')}`;
+  // Where the emblem sits for each pattern: the hoist triangle, the canton of a cross, or the centre band.
+  const spot = flag.pattern === 'hoist-triangle-band' ? { cx: 12.5, cy: 31, r: 7.5 }
+    : flag.pattern === 'cross' ? { cx: 15, cy: 12.5, r: 7 }
+    : { cx: 50, cy: 31, r: 8.5 };
   return (
-    <svg width={width} height={h} viewBox="0 0 100 62" role="img" aria-label="Flag" style={{ borderRadius: 4, flexShrink: 0, boxShadow: '0 0 0 1px rgba(255,255,255,0.15)' }}>
+    <svg width={width} height={h} viewBox="0 0 100 62" role="img" aria-label={label} style={{ borderRadius: 4, flexShrink: 0, boxShadow: '0 0 0 1px rgba(255,255,255,0.15)' }}>
       {flag.pattern === 'tricolor-horizontal' && c.slice(0, 3).map((col, i) => <rect key={i} x="0" y={i * 62 / 3} width="100" height={62 / 3 + 0.5} fill={col} />)}
       {flag.pattern === 'tricolor-vertical' && c.slice(0, 3).map((col, i) => <rect key={i} x={i * 100 / 3} y="0" width={100 / 3 + 0.5} height="62" fill={col} />)}
       {flag.pattern === 'cross' && (<><rect width="100" height="62" fill={c[0]} /><rect x="30" y="0" width="12" height="62" fill={c[1]} /><rect x="0" y="25" width="100" height="12" fill={c[1]} /></>)}
       {flag.pattern === 'hoist-triangle-band' && (<><rect width="100" height="62" fill={c[0]} /><rect x="0" y="25" width="100" height="12" fill={c[1]} /><polygon points="0,0 38,31 0,62" fill={c[2] ?? c[1]} /></>)}
-      {flag.emblem !== 'none' && flag.pattern !== 'cross' && <circle cx={flag.pattern === 'hoist-triangle-band' ? 13 : 50} cy="31" r="6" fill={flag.emblemColor} />}
+      {flag.emblem && flag.emblem !== 'none' && <EmblemGlyph emblem={flag.emblem} color={flag.emblemColor} {...spot} />}
+      {/* subtle cloth sheen */}
+      <rect width="100" height="62" fill={`url(#${sheenId})`} opacity="0.5" />
+      <defs><linearGradient id={sheenId} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff" stopOpacity="0.18" /><stop offset="0.5" stopColor="#fff" stopOpacity="0" /><stop offset="1" stopColor="#000" stopOpacity="0.18" /></linearGradient></defs>
     </svg>
   );
 }

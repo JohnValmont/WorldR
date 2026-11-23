@@ -38,11 +38,13 @@ function Situation({ card }: { card: HandCard }) {
           return (
             <button key={i} type="button" disabled={busy || cant} id={`sit-${card.key}-${i}`}
               onClick={() => act(() => politicsApi.chooseSituation(card.id, i))}
-              className="w-full h-full text-left rounded-xl p-3 transition-colors disabled:opacity-45 hover:brightness-125"
-              style={{ background: T.raised, border: `1px solid ${T.line}` }}>
+              aria-describedby={cant ? `sit-${card.key}-${i}-why` : undefined}
+              className="w-full h-full text-left rounded-xl p-3 transition-colors enabled:hover:brightness-125 disabled:cursor-not-allowed"
+              style={{ background: cant ? 'transparent' : T.raised, border: `1px ${cant ? 'dashed' : 'solid'} ${cant ? T.lineStrong : T.line}` }}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold text-sm" style={{ color: T.text }}>{o.label}</span>
                 {o.cost.ap > 0 && <Chip color={T.accent}>{o.cost.ap} energy</Chip>}
+                {cant && <span id={`sit-${card.key}-${i}-why`} className="text-[11px]" style={{ color: T.faint }}>Needs {o.cost.ap} energy · you have {ap}</span>}
                 {o.cost.cash > 0 && <Chip color={T.accent}>{money(o.cost.cash)} of yours</Chip>}
                 {o.cost.funds > 0 && <Chip color={T.accent}>{money(o.cost.funds)} party funds</Chip>}
               </div>
@@ -223,7 +225,7 @@ function News() {
             <div className="text-[11px]" style={{ color: T.faint }}>{formatPolArc(n.arc)}</div>
           </div>
         ))}
-        {desk.news.length === 0 && <div className="text-xs" style={{ color: T.faint }}>Nothing has happened yet.</div>}
+        {desk.news.length === 0 && <div className="text-[13px] leading-relaxed" style={{ color: T.dim }}>Nothing has happened yet. Bills, votes and elections appear here when the month turns.</div>}
       </div>
     </Card>
   );

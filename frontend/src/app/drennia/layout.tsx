@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import BackBar from '../../components/ui/BackBar';
 import GameChat from '../../components/chat/GameChat';
 import WhatsNewModal from '../../components/gameplay/WhatsNewModal';
+import MonthBriefing from '../../components/gameplay/MonthBriefing';
 import { resolveSession, LOGIN_PATH, CREATE_CHARACTER_PATH } from '../../lib/session';
 
 type Gate = 'checking' | 'ready' | 'offline';
@@ -68,6 +69,7 @@ export default function DrenniaLayout({ children }: { children: React.ReactNode 
       <main id="main" className="flex w-full flex-1 flex-col">{children}</main>
       <GameChat />
       <WhatsNewModal />
+      <MonthBriefing />
     </div>
   );
 }

@@ -139,7 +139,7 @@ function LendingDesk({ onChanged }: { onChanged: () => void }) {
       </div>
 
       <Panel title="Open Loan Market">
-        {rows.length === 0 && <div style={{ fontSize: '11px', color: T.faint }}>No open loan offers. Post one above to become a lender.</div>}
+        {rows.length === 0 && <div style={{ fontSize: '13px', color: T.muted }}>No open loan offers yet. Post one above to become the first lender.</div>}
         {rows.map((o: any) => (
           <div key={o.id} style={{ padding: '10px 0', borderBottom: `1px solid ${T.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
@@ -228,7 +228,7 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <Panel title="Money I Owe">
-        {borrowed.length === 0 && <div style={{ fontSize: '11px', color: T.faint }}>No debts. Clean ledger.</div>}
+        {borrowed.length === 0 && <div style={{ fontSize: '13px', color: T.muted }}>No debts. Borrow from the open loan market when you need capital.</div>}
         {borrowed.map((l: any) => (
           <LoanRow
             key={l.id}
@@ -246,7 +246,7 @@ function MyLoans({ refreshKey, onChanged }: { refreshKey: number; onChanged: () 
         ))}
       </Panel>
       <Panel title="Money Owed to Me">
-        {lent.length === 0 && <div style={{ fontSize: '11px', color: T.faint }}>You have no active loans out.</div>}
+        {lent.length === 0 && <div style={{ fontSize: '13px', color: T.muted }}>You have no loans out. Borrowers repay you, with interest, every month.</div>}
         {lent.map((l: any) => <LoanRow key={l.id} l={l} who={`to ${l.borrower_name}`} />)}
       </Panel>
       {myOffers.length > 0 && (

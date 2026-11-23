@@ -6,6 +6,14 @@ export const metadata: Metadata = {
   title: 'WORLDr — Multiplayer Politics & Business Simulation',
   description: 'Build a company, found a political party and write the laws your rivals live under. A free browser-based political-economy simulation.',
   keywords: ['political simulation', 'economy simulation', 'browser game', 'multiplayer strategy', 'tycoon', 'elections'],
+  applicationName: 'WORLDr',
+  openGraph: {
+    type: 'website',
+    siteName: 'WORLDr',
+    title: 'WORLDr — Build a company. Fund a party. Write the laws.',
+    description: 'A persistent multiplayer politics and business simulation with three rival nations. Free in your browser.',
+  },
+  twitter: { card: 'summary', title: 'WORLDr', description: 'Build a company. Fund a party. Write the laws your rivals live under.' },
 };
 
 export const viewport: Viewport = {

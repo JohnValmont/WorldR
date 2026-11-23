@@ -1,4 +1,6 @@
 'use client';
+// Same minimum as the server (backend/src/api/constants/auth.ts).
+const PASSWORD_MIN_LENGTH = 8;
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -17,7 +19,7 @@ export default function RegisterPage() {
     const p = form.password;
     if (!p) return 0;
     let score = 0;
-    if (p.length >= 6) score++;
+    if (p.length >= PASSWORD_MIN_LENGTH) score++;
     if (p.length >= 10) score++;
     if (/[A-Z]/.test(p)) score++;
     if (/[0-9]/.test(p)) score++;
@@ -36,8 +38,8 @@ export default function RegisterPage() {
       setError('Passwords do not match.');
       return;
     }
-    if (form.password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (form.password.length < PASSWORD_MIN_LENGTH) {
+      setError(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
       return;
     }
 
@@ -162,7 +164,7 @@ export default function RegisterPage() {
                 onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                 autoComplete="new-password"
                 required
-                minLength={6}
+                minLength={PASSWORD_MIN_LENGTH}
               />
               <button
                 type="button"

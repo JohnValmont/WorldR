@@ -354,9 +354,12 @@ export default function ChroniclePage() {
   );
 
   const inboxPanel = !notices ? <SkeletonRows n={4} /> : notices.items.length === 0 ? (
-    <p className="text-[11px] text-zinc-500 leading-relaxed">
-      Nothing yet. Deal offers, challenges, votes on your bills and your world rank will show up here.
-    </p>
+    <div className="flex flex-col items-start gap-2">
+      <p className="text-[13px] text-ink-dim leading-relaxed">
+        Nothing yet. Deal offers, challenges, votes on your bills and your world rank land here.
+      </p>
+      <Link href={pol('corridors')} className="text-[13px] font-medium text-accent hover:underline underline-offset-2">Meet the other players in Corridors →</Link>
+    </div>
   ) : (
     <div className="flex flex-col">
       {notices.items.slice(0, INBOX_LIMIT).map((n: Notice) => (
@@ -393,7 +396,10 @@ export default function ChroniclePage() {
   ) : undefined;
 
   const ledgerPanel = !desk ? <SkeletonRows n={3} /> : desk.news.length === 0 ? (
-    <p className="text-[11px] text-zinc-500 italic">No national news yet. Bills, elections and scandals will be reported here.</p>
+    <div className="flex flex-col items-start gap-2">
+      <p className="text-[13px] text-ink-dim leading-relaxed">No news yet. The Meridian Wire reports bills, votes and elections when the month turns.</p>
+      <Link href={pol('wire')} className="text-[13px] font-medium text-accent hover:underline underline-offset-2">Write the first dispatch for the Wire →</Link>
+    </div>
   ) : (
     <div className="flex flex-col">
       {desk.news.slice(0, NEWS_LIMIT).map(ev => (

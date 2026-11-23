@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/design/tokens.css" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <meta name="theme-color" content="#0B0D12" />
 <link rel="stylesheet" href="styles.css" />
 <link rel="stylesheet" href="onboarding.css" />
@@ -106,7 +107,7 @@
             <div class="field"><label>Family name</label><input type="text" id="ch_last" maxlength="28" placeholder="e.g. Varn" autocomplete="off" /><div class="msg">Needed.</div></div>
           </div>
           <div class="field"><label>How the papers refer to you</label>
-            <div class="seg" id="ch_gender"><button type="button" data-v="he" class="on">He</button><button type="button" data-v="she">She</button><button type="button" data-v="they">They</button></div>
+            <div class="seg" id="ch_gender" role="group" aria-label="Pronouns"><button type="button" data-v="they" class="on" aria-pressed="true">They</button><button type="button" data-v="she" aria-pressed="false">She</button><button type="button" data-v="he" aria-pressed="false">He</button></div>
           </div>
           <div class="field"><label>Your background</label>
             <div class="bg-grid" id="bgGrid"></div>
@@ -148,7 +149,7 @@
     <div class="card">
       <div class="card-eyebrow">✦ STEP 05 · ALLEGIANCE</div>
       <h2 class="card-title">Choose your nation</h2>
-      <p class="card-sub">Three nations are open in the alpha, six citizens each. None is stronger than the others overall, but each runs differently. Where you play changes how you win.</p>
+      <p class="card-sub">Three nations are open in the alpha, each with a limited number of places. None is stronger than the others overall, but each runs differently. Where you play changes how you win.</p>
       <div class="nation-cards" id="nationCards"></div>
       <div class="nation-detail" id="nationDetail"></div>
       <div class="others" id="otherNations"></div>

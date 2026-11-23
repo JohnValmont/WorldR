@@ -166,10 +166,10 @@ function renderPicks(){
 renderPicks(); drawPortrait(mainC, portraitSeed, 380);
 
 /* ============ pronoun ============ */
-let pronoun = 'he';
+let pronoun = 'they'; // neutral default; the player picks
 document.querySelectorAll('#ch_gender button').forEach(b => b.onclick = () => {
-  document.querySelectorAll('#ch_gender button').forEach(x => x.classList.remove('on'));
-  b.classList.add('on'); pronoun = b.dataset.v;
+  document.querySelectorAll('#ch_gender button').forEach(x => { x.classList.remove('on'); x.setAttribute('aria-pressed', 'false'); });
+  b.classList.add('on'); b.setAttribute('aria-pressed', 'true'); pronoun = b.dataset.v;
 });
 
 /* ============ background + edge ============ */

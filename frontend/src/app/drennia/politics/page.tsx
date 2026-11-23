@@ -244,7 +244,7 @@ export default function PoliticsPage() {
           </div>
           {me && (
             <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: T.dim }} id="me-bar">
-              <div className="flex items-center gap-2.5 rounded-2xl pl-1.5 pr-3 py-1.5" style={{ background: 'rgba(255,255,255,0.035)', border: `1px solid ${T.line}` }}>
+              <div className="order-1 sm:order-none flex items-center gap-2.5 rounded-2xl pl-1.5 pr-3 py-1.5 min-w-0" style={{ background: 'rgba(255,255,255,0.035)', border: `1px solid ${T.line}` }}>
                 <span className="inline-flex items-center justify-center rounded-xl font-bold text-sm shrink-0"
                   style={{ width: 34, height: 34, background: `linear-gradient(135deg, ${me.party?.color ?? '#3A4050'}, #1B1F29)`, color: '#fff', boxShadow: `0 0 0 2px ${me.party?.color ?? T.line}55` }}>{initials}</span>
                 <div className="leading-tight min-w-0">
@@ -252,14 +252,14 @@ export default function PoliticsPage() {
                   <div className="text-[11px] truncate" style={{ color: T.faint }}>{rung}{me.background ? ` · ${me.background.label}` : ''}</div>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl px-3 py-2 max-w-full" style={{ background: 'rgba(255,255,255,0.035)', border: `1px solid ${T.line}` }}>
+              <div className="order-3 sm:order-none w-full sm:w-auto flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl px-3 py-2 max-w-full" style={{ background: 'rgba(255,255,255,0.035)', border: `1px solid ${T.line}` }}>
                 <span className="inline-flex items-center gap-1.5" title="Energy: what you can do. Each month adds 12; unused energy carries over, up to 24."><Zap size={13} style={{ color: T.accent }} aria-hidden /><Energy current={me.ap.current} cap={me.ap.cap} /></span>
                 <span className="hidden sm:inline-block w-px h-4" style={{ background: T.line }} />
                 <span title="Trust: how far voters believe you. Counts in the district you stand in, and in every deal you offer." className="inline-flex items-center gap-1"><ShieldCheck size={13} aria-hidden />Trust <strong style={{ color: T.text }}>{me.credibility}</strong></span>
                 <span title="Clout: your weight among politicians. Needed to lead a party." className="inline-flex items-center gap-1"><Crown size={13} aria-hidden />Clout <strong style={{ color: T.text }}>{me.influence}</strong></span>
                 {me.cash != null && <span title="Your own money" className="inline-flex items-center gap-1"><Wallet size={13} aria-hidden /><strong style={{ color: T.text }}>{money(me.cash)}</strong></span>}
               </div>
-              <Inbox notices={desk!.desk.notices} onOpen={(t) => t && setTab((TABS.find(x => x.id === t)?.id ?? 'desk') as Tab)} onRead={() => politicsApi.markNoticesRead().then(() => mutate()).catch(() => {})} />
+              <div className="order-2 sm:order-none ml-auto sm:ml-0"><Inbox notices={desk!.desk.notices} onOpen={(t) => t && setTab((TABS.find(x => x.id === t)?.id ?? 'desk') as Tab)} onRead={() => politicsApi.markNoticesRead().then(() => mutate()).catch(() => {})} /></div>
             </div>
           )}
         </div>
