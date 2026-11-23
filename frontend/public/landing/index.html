@@ -15,7 +15,7 @@
 <body>
 
 <!-- fixed cinematic layers -->
-<canvas id="scene"></canvas>
+<canvas id="scene" aria-hidden="true"></canvas>
 <div class="vignette" aria-hidden="true"></div>
 <div class="grain" aria-hidden="true"></div>
 <div id="loader" aria-hidden="true"><div class="loader-inner"><span class="loader-crest">✦</span><span class="loader-txt">INITIALISING AETHAN</span><span class="loader-bar"><i></i></span></div></div>
@@ -26,7 +26,7 @@
     <span class="crest" aria-hidden="true">✦</span>
     <span class="brand-mini-word">WORLDr</span>
   </div>
-  <nav class="topnav">
+  <nav class="topnav" aria-label="Main">
     <a href="#pillar-1">World</a>
     <a href="#pillar-2">Politics</a>
     <a href="#pillar-3">Business</a>
@@ -46,7 +46,7 @@
   <div class="hud-foot"><span class="pulse"></span><span data-live="footer">CONNECTING TO DRENNIA…</span></div>
 </aside>
 
-<main>
+<main id="main">
 
   <!-- HERO -->
   <section class="hero" id="hero">

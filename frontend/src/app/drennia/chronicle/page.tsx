@@ -594,7 +594,7 @@ export default function ChroniclePage() {
           <span className="text-[13px] font-semibold text-zinc-100 truncate">{characterName}</span>
         </div>
 
-        <div className="order-last sm:order-none w-full sm:w-auto flex items-center gap-2 flex-nowrap overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible">
+        <div tabIndex={0} role="group" aria-label="Your numbers" className="order-last sm:order-none w-full sm:w-auto flex items-center gap-2 flex-nowrap overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible rounded-lg">
           <StatChip label="Cash $" value={playerCash} prefix="$" valueColor="green" countUp />
           <StatChip label="Credibility" value={citizenFile?.credibility ?? 50} />
           <StatChip label="Charisma" value={citizenFile?.charisma ?? 50} />

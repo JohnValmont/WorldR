@@ -157,7 +157,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     <div className="h-screen w-full flex overflow-hidden bg-[#0B0D12]">
 
       {/* ── Left hero panel ─── */}
-      <div className="hidden lg:flex flex-col flex-1 relative overflow-hidden">
+      <aside aria-label="About WORLDr" className="hidden lg:flex flex-col flex-1 relative overflow-hidden">
         {/* Background gradient */}
         <div className="absolute inset-0 bg-[radial-gradient(90%_70%_at_30%_20%,rgba(232,184,75,0.07),transparent_60%)]" />
 
@@ -224,7 +224,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <span className="h-1.5 w-1.5 rounded-full bg-accent" />{buildLabel}
           </span>
         </div>
-      </div>
+      </aside>
 
       {/* ── Right form panel ─── */}
       <div className="flex flex-col w-full lg:w-[440px] xl:w-[480px] relative overflow-y-auto overflow-x-hidden">
@@ -246,22 +246,22 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
 
         {/* Mobile logo */}
-        <div className="relative z-10 flex lg:hidden items-center gap-3 p-6 pb-0">
+        <header className="relative z-10 flex lg:hidden items-center gap-3 p-6 pb-0">
           <span className="text-accent text-lg" aria-hidden>✦</span>
           <span className="font-display text-base font-bold text-ink"><span className="tracking-[0.2em]">WORLD</span><span className="-ml-[0.1em] text-accent text-[0.8em]">r</span></span>
           <span className="ml-auto rounded-full border border-accent/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">{buildLabel}</span>
-        </div>
+        </header>
 
         <main id="main" className="relative z-10 flex flex-col flex-1 justify-center p-6 lg:p-8 xl:p-10">
           {children}
         </main>
 
         {/* Bottom footer */}
-        <div className="relative z-10 px-6 lg:px-8 pb-4 pt-2">
+        <footer className="relative z-10 px-6 lg:px-8 pb-4 pt-2">
           <p className="text-ink-faint text-[11px] text-center">
             {`© ${new Date().getFullYear()} WORLDr · Politics & business simulation`}
           </p>
-        </div>
+        </footer>
       </div>
     </div>
   );

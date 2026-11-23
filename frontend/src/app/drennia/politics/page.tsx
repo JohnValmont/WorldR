@@ -220,6 +220,7 @@ export default function PoliticsPage() {
             <div className="min-w-0">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] truncate" style={{ color: T.accent }}>{desk?.nation.officialName ?? 'Politics'}</div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" style={{ color: T.dim }}>
+                <h1 className="sr-only">Politics{desk ? ` · ${desk.nation.shortName}` : ''}</h1>
                 {desk && <span className="font-serif text-xl font-bold leading-none" style={{ color: T.text }}>{formatPolArc(desk.calendar.arc, false)}</span>}
                 {desk && !myNation?.election && <span>{PHASE_LABEL[desk.calendar.phase] ?? desk.calendar.phase}</span>}
                 <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs" style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.line}` }}
@@ -288,8 +289,8 @@ export default function PoliticsPage() {
 
       <div className="mx-auto max-w-[1720px] px-4 sm:px-6 xl:px-8 py-5 xl:py-6 xl:grid xl:grid-cols-[232px_minmax(0,1fr)] xl:gap-8">
         {/* Wide screens: a navigation rail on the left. */}
-        <aside className="hidden xl:block">
-          <nav className="sticky top-5 rounded-2xl p-2 space-y-1.5" aria-label="Politics sections"
+        <aside className="hidden xl:block" aria-label="Politics navigation">
+          <nav className="sticky top-5 rounded-2xl p-2 space-y-1.5" aria-label="Politics sections (sidebar)"
             style={{ background: `linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0) 40%), ${T.surface}`, border: `1px solid ${T.line}`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 40px -28px rgba(0,0,0,0.9)' }}>
             {TABS.map(t => {
               const Icon = TAB_ICON[t.id];

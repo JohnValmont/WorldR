@@ -15,7 +15,7 @@
 </head>
 <body>
 
-<canvas id="scene"></canvas>
+<canvas id="scene" aria-hidden="true"></canvas>
 <div class="vignette" aria-hidden="true"></div>
 <div class="stage-scrim" aria-hidden="true"></div>
 <div class="grain" aria-hidden="true"></div>
@@ -26,14 +26,14 @@
 </header>
 
 <!-- stepper -->
-<div class="stepper"><div class="stepper-inner" id="stepper">
+<nav class="stepper" aria-label="Sign-up steps"><div class="stepper-inner" id="stepper">
   <div class="stp" data-node="0"><div class="node"><div class="ring">1</div><div class="lbl">Account</div></div><div class="bar"><i></i></div></div>
   <div class="stp" data-node="1"><div class="node"><div class="ring">2</div><div class="lbl">Verify</div></div><div class="bar"><i></i></div></div>
   <div class="stp" data-node="2"><div class="node"><div class="ring">3</div><div class="lbl">Who you are</div></div><div class="bar"><i></i></div></div>
   <div class="stp" data-node="3"><div class="node"><div class="ring">4</div><div class="lbl">Beliefs</div></div><div class="bar"><i></i></div></div>
   <div class="stp" data-node="4"><div class="node"><div class="ring">5</div><div class="lbl">Nation</div></div><div class="bar"><i></i></div></div>
   <div class="stp" data-node="5"><div class="node"><div class="ring">6</div><div class="lbl">Citizenship</div></div></div>
-</div></div>
+</div></nav>
 
 <main class="stage" id="stage">
 

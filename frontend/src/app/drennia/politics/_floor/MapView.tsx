@@ -160,7 +160,7 @@ export default function MapView() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-1" role="tablist" aria-label="Map layer">
             {LAYERS.map(l => (
-              <button key={l.id} type="button" id={`layer-${l.id}`} onClick={() => { setLayer(l.id); if (l.id === 'party' && !partyId) setPartyId(panelNation?.parties[0]?.id ?? null); }}
+              <button key={l.id} type="button" role="tab" aria-selected={layer === l.id} id={`layer-${l.id}`} onClick={() => { setLayer(l.id); if (l.id === 'party' && !partyId) setPartyId(panelNation?.parties[0]?.id ?? null); }}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold" title={l.hint}
                 style={{ background: layer === l.id ? T.accentSoft : 'transparent', border: `1px solid ${layer === l.id ? T.accent : T.line}`, color: layer === l.id ? T.text : T.dim }}>
                 {l.label}
@@ -333,7 +333,7 @@ function NationPanel({ n, onParty, activeParty }: { n: MapNation; onParty: (id: 
   return (
     <Card className="p-4">
       <Label>{n.government}</Label>
-      <h3 className="font-serif text-xl font-bold leading-tight mt-0.5" style={{ color: T.text }}>{n.officialName}</h3>
+      <h2 className="font-serif text-xl font-bold leading-tight mt-0.5" style={{ color: T.text }}>{n.officialName}</h2>
       <p className="text-xs mt-1" style={{ color: T.faint }}>{totalSeats} seats in {n.districts.length} districts. Click a party to see where it is strong, or a district for its story.</p>
       <div className="mt-3 space-y-2">
         {parties.map(p => (
@@ -374,7 +374,7 @@ function DistrictPanel({ info, partyById, groupName, onClose }: {
       <div className="flex items-start justify-between gap-2">
         <div>
           <Label>{region?.name} · {n.name}</Label>
-          <h3 className="font-serif text-xl font-bold leading-tight mt-0.5" style={{ color: T.text }}>{d.name}</h3>
+          <h2 className="font-serif text-xl font-bold leading-tight mt-0.5" style={{ color: T.text }}>{d.name}</h2>
         </div>
         <button type="button" onClick={onClose} aria-label="Close district" className="text-xl leading-none px-1" style={{ color: T.dim }}>×</button>
       </div>

@@ -528,7 +528,7 @@ export default function MoneyPage() {
         ))}
         <button
           onClick={() => router.push('/drennia/exchange')}
-          style={{ ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', padding: '10px 18px', cursor: 'pointer', background: 'transparent', border: 'none', borderBottom: '2px solid transparent', color: T.steel, marginLeft: 'auto' }}
+          style={{ ...mono, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', padding: '10px 18px', cursor: 'pointer', background: 'transparent', border: 'none', borderBottom: '2px solid transparent', color: '#6AA6E8', marginLeft: 'auto' }}
         >
           Westport Bourse →
         </button>
