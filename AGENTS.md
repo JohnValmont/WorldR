@@ -41,7 +41,14 @@ NPC competitors v1 is completely finished and validated. They use pooled sell on
 
 ### Architectural Rules (DO NOT BREAK):
 - "NPCs are strictly inventory-aware: The Ghost Car bug was fixed via a hard Math.min(demand, inventory_in_stock) clamp in settleForCompany."
-- "NPC pricing is strictly capped at 2.5 * manufacturing_cost_per_unit under Rule B2 (Sold Out) to prevent infinite hyperinflation loops."
+- "NPC pricing is strictly capped at NPC_MAX_PRICE_TO_COST (1.6) * manufacturing_cost_per_unit under Rule B2 (Sold Out) to prevent infinite hyperinflation loops. The cap is a hard ceiling (a price above it comes down). NPCs sell out every month, so this number sets their margin: 2.5 gave ~50% net margins, 1.6 gives ~10-23% (Nov 2026 rebalance)."
+
+### NPC cost parity (Nov 2026) — DO NOT BREAK
+- NPCs pay what a player in their seat would pay. Their factory comes from the NPC_FACTORY_TYPE_ID row of manufacturing_factory_types (lease, capacity, worker requirement; auto_condition_recovery on), never from literals. They employ that many workers.
+- Every company_staff role an NPC gets (seeds, spawnNpc) must be a STAFF_ROLES id, or it is paid nothing (seed 0004 used 'factory_worker' etc. and NPCs paid $0 wages). tests/npc-brain.test.ts checks it.
+- NPC production follows the players' labour and factory-condition rules. Only the parts check is skipped: NPCs pay for parts inside their cost per car.
+- NPCs sell only in their own nation: B7 expansion picks markets through expansionMarkets (own country only). Each nation's tick counts a market's buyers separately, so a foreign allocation sells into buyers that are counted again by that market's own nation.
+- A new NPC generation plans from its predecessor's sales (facelift_source_model_id) until it has its own.
 - "NPC Brain reactivity (Rule B1) uses explicit prevPrevArc market share comparisons to accurately gauge share drops without state-bleed."
 
 ## Phase 4 Complete

@@ -8,6 +8,22 @@ export const MIN_UNITS_FLOOR = 0;
 export const AWARENESS_BUMP_THRESHOLD = 70;     // Increased from 30 to 70 to push NPCs to spend more on marketing
 export const MODEL_AGE_FACELIFT = 36;
 
+// ── B2 price cap ──
+// An NPC never prices above this multiple of its build cost. It is a hard
+// ceiling: a price already above it comes down. NPCs sell out every month in
+// the current market (supply ~2,300 cars vs ~8,250 buyers per nation), so B2
+// always ends up AT this cap — it sets the NPC margin. 2.5 gave ~50% net
+// margins ($4.6M-$18.5M/month); 1.6 gives ~10-23%, about what a player earns
+// per car on a similar car at a similar price (model: Nov 2026 rebalance).
+export const NPC_MAX_PRICE_TO_COST = 1.6;
+
+// ── Factory parity ──
+// NPCs run the same 500-car factory a player would (manufacturing_factory_types
+// row): its lease, capacity and worker requirement, and they employ that many
+// workers. They used to run a 'small-workshop' (30 workers, $25k lease) with
+// its capacity overwritten to 500.
+export const NPC_FACTORY_TYPE_ID = 'medium-plant';
+
 // B7 Market Expansion: if sell-through ratio exceeds this threshold, the brain
 // signals that the NPC should be seeded into additional markets next tick.
 export const NPC_EXPAND_SELL_RATIO = 0.85;      // Dropped from 0.92 so NPCs expand more aggressively

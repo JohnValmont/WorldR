@@ -6,6 +6,10 @@ DECLARE
     v_sys_user_id BIGINT;
     v_sys_char_id UUID;
     v_factory_type_id VARCHAR(100);
+    v_ft_lease NUMERIC;
+    v_ft_maint NUMERIC;
+    v_ft_capacity INT;
+    v_ft_workers INT;
     v_region_market_id VARCHAR(100);
     
     v_company_id UUID;
@@ -29,8 +33,11 @@ BEGIN
         RETURNING id INTO v_sys_char_id;
     END IF;
     
-    -- 2. Get a standard factory type for leasing
-    SELECT id INTO v_factory_type_id FROM manufacturing_factory_types WHERE id = 'small-workshop' LIMIT 1;
+    -- 2. The 500-car factory a player would run (NPC_FACTORY_TYPE_ID in
+    --    backend/src/api/constants/npc.ts): its lease, capacity and workers.
+    SELECT id, base_lease_cost_per_month, base_maintenance_per_month, base_capacity_per_month, worker_requirement
+      INTO v_factory_type_id, v_ft_lease, v_ft_maint, v_ft_capacity, v_ft_workers
+      FROM manufacturing_factory_types WHERE id = 'medium-plant' LIMIT 1;
     
     -- 3. Get the primary Drennia market for initial allocations
     SELECT id INTO v_region_market_id FROM manufacturing_region_markets WHERE country_id = 'drennia' LIMIT 1;
@@ -56,16 +63,16 @@ BEGIN
         VALUES (v_company_id, 'pre-alpha-world-1', 'Valuecorp Standard', 'Compact Car', 'economy', 'small-i4', 'fwd', 'basic', 'standard', 'Budget', 14500, 8075, 60, 35, 80, 40, 50, 'launched', 'ready_to_launch', 'active', 0, 0, 0)
         RETURNING id INTO v_model_id;
 
-        INSERT INTO manufacturing_factories (company_id, world_instance_id, country_id, state_id, factory_type_id, name, lease_cost_per_month, maintenance_cost_per_month, capacity_per_month, status, created_at_world_year, created_at_world_month, created_at_world_day)
-        VALUES (v_company_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', v_factory_type_id, 'Valuecorp Primary Facility', 25000, 8000, 500, 'active', 0, 0, 0)
+        INSERT INTO manufacturing_factories (company_id, world_instance_id, country_id, state_id, factory_type_id, name, lease_cost_per_month, maintenance_cost_per_month, capacity_per_month, worker_capacity, auto_condition_recovery, status, created_at_world_year, created_at_world_month, created_at_world_day)
+        VALUES (v_company_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', v_factory_type_id, 'Valuecorp Primary Facility', v_ft_lease, v_ft_maint, v_ft_capacity, v_ft_workers, TRUE, 'active', 0, 0, 0)
         RETURNING id INTO v_factory_id;
 
         INSERT INTO manufacturing_production_lines (company_id, world_instance_id, factory_id, line_number, assigned_vehicle_model_id, target_units_per_month, status)
         VALUES (v_company_id, 'pre-alpha-world-1', v_factory_id, 1, v_model_id, 100, 'active');
 
-        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'factory_worker', 30);
-        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'supervisor', 1);
-        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'sales_manager', 1);
+        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'factory-worker', v_ft_workers);
+        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'production-supervisor', 1);
+        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'sales-manager', 1);
 
         INSERT INTO manufacturing_market_allocations (company_id, world_instance_id, vehicle_model_id, region_market_id, units_allocated, marketing_tier)
         VALUES (v_company_id, 'pre-alpha-world-1', v_model_id, v_region_market_id, 100, 'local');
@@ -89,16 +96,16 @@ BEGIN
         VALUES (v_company_id, 'pre-alpha-world-1', 'Veridian Family Sedan', 'Sedan', 'standard', 'standard-i4', 'fwd', 'comfort', 'enhanced', 'Family', 27000, 17000, 70, 45, 60, 55, 65, 'launched', 'ready_to_launch', 'active', 0, 0, 0)
         RETURNING id INTO v_model_id;
 
-        INSERT INTO manufacturing_factories (company_id, world_instance_id, country_id, state_id, factory_type_id, name, lease_cost_per_month, maintenance_cost_per_month, capacity_per_month, status, created_at_world_year, created_at_world_month, created_at_world_day)
-        VALUES (v_company_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', v_factory_type_id, 'Veridian Primary Facility', 25000, 8000, 500, 'active', 0, 0, 0)
+        INSERT INTO manufacturing_factories (company_id, world_instance_id, country_id, state_id, factory_type_id, name, lease_cost_per_month, maintenance_cost_per_month, capacity_per_month, worker_capacity, auto_condition_recovery, status, created_at_world_year, created_at_world_month, created_at_world_day)
+        VALUES (v_company_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', v_factory_type_id, 'Veridian Primary Facility', v_ft_lease, v_ft_maint, v_ft_capacity, v_ft_workers, TRUE, 'active', 0, 0, 0)
         RETURNING id INTO v_factory_id;
 
         INSERT INTO manufacturing_production_lines (company_id, world_instance_id, factory_id, line_number, assigned_vehicle_model_id, target_units_per_month, status)
         VALUES (v_company_id, 'pre-alpha-world-1', v_factory_id, 1, v_model_id, 90, 'active');
 
-        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'factory_worker', 30);
-        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'supervisor', 1);
-        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'sales_manager', 1);
+        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'factory-worker', v_ft_workers);
+        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'production-supervisor', 1);
+        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'sales-manager', 1);
 
         INSERT INTO manufacturing_market_allocations (company_id, world_instance_id, vehicle_model_id, region_market_id, units_allocated, marketing_tier)
         VALUES (v_company_id, 'pre-alpha-world-1', v_model_id, v_region_market_id, 90, 'regional');
@@ -122,18 +129,18 @@ BEGIN
         VALUES (v_company_id, 'pre-alpha-world-1', 'Apex GT', 'Sedan', 'standard', 'v6', 'awd', 'premium', 'advanced', 'Performance', 58000, 29400, 60, 85, 35, 80, 35, 'launched', 'ready_to_launch', 'active', 0, 0, 0)
         RETURNING id INTO v_model_id;
 
-        INSERT INTO manufacturing_factories (company_id, world_instance_id, country_id, state_id, factory_type_id, name, lease_cost_per_month, maintenance_cost_per_month, capacity_per_month, status, created_at_world_year, created_at_world_month, created_at_world_day)
-        VALUES (v_company_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', v_factory_type_id, 'Apex Primary Facility', 25000, 8000, 500, 'active', 0, 0, 0)
+        INSERT INTO manufacturing_factories (company_id, world_instance_id, country_id, state_id, factory_type_id, name, lease_cost_per_month, maintenance_cost_per_month, capacity_per_month, worker_capacity, auto_condition_recovery, status, created_at_world_year, created_at_world_month, created_at_world_day)
+        VALUES (v_company_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', v_factory_type_id, 'Apex Primary Facility', v_ft_lease, v_ft_maint, v_ft_capacity, v_ft_workers, TRUE, 'active', 0, 0, 0)
         RETURNING id INTO v_factory_id;
 
         INSERT INTO manufacturing_production_lines (company_id, world_instance_id, factory_id, line_number, assigned_vehicle_model_id, target_units_per_month, status)
         VALUES (v_company_id, 'pre-alpha-world-1', v_factory_id, 1, v_model_id, 40, 'active');
 
-        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'factory_worker', 30);
-        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'supervisor', 1);
-        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'sales_manager', 1);
-        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'engineer', 1);
-        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'inspector', 1);
+        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'factory-worker', v_ft_workers);
+        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'production-supervisor', 1);
+        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'sales-manager', 1);
+        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'automotive-engineer', 1);
+        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'quality-inspector', 1);
 
         INSERT INTO manufacturing_market_allocations (company_id, world_instance_id, vehicle_model_id, region_market_id, units_allocated, marketing_tier)
         VALUES (v_company_id, 'pre-alpha-world-1', v_model_id, v_region_market_id, 40, 'regional');
@@ -157,16 +164,16 @@ BEGIN
         VALUES (v_company_id, 'pre-alpha-world-1', 'HaulPro Utility', 'Utility Van', 'heavy-duty', 'standard-i4', 'rwd', 'basic', 'enhanced', 'Commercial', 34000, 22000, 75, 40, 60, 30, 90, 'launched', 'ready_to_launch', 'active', 0, 0, 0)
         RETURNING id INTO v_model_id;
 
-        INSERT INTO manufacturing_factories (company_id, world_instance_id, country_id, state_id, factory_type_id, name, lease_cost_per_month, maintenance_cost_per_month, capacity_per_month, status, created_at_world_year, created_at_world_month, created_at_world_day)
-        VALUES (v_company_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', v_factory_type_id, 'HaulPro Primary Facility', 25000, 8000, 500, 'active', 0, 0, 0)
+        INSERT INTO manufacturing_factories (company_id, world_instance_id, country_id, state_id, factory_type_id, name, lease_cost_per_month, maintenance_cost_per_month, capacity_per_month, worker_capacity, auto_condition_recovery, status, created_at_world_year, created_at_world_month, created_at_world_day)
+        VALUES (v_company_id, 'pre-alpha-world-1', 'drennia', 'drennia-drennport', v_factory_type_id, 'HaulPro Primary Facility', v_ft_lease, v_ft_maint, v_ft_capacity, v_ft_workers, TRUE, 'active', 0, 0, 0)
         RETURNING id INTO v_factory_id;
 
         INSERT INTO manufacturing_production_lines (company_id, world_instance_id, factory_id, line_number, assigned_vehicle_model_id, target_units_per_month, status)
         VALUES (v_company_id, 'pre-alpha-world-1', v_factory_id, 1, v_model_id, 80, 'active');
 
-        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'factory_worker', 30);
-        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'supervisor', 1);
-        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'sales_manager', 1);
+        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'factory-worker', v_ft_workers);
+        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'production-supervisor', 1);
+        INSERT INTO company_staff (company_id, role, quantity) VALUES (v_company_id, 'sales-manager', 1);
 
         INSERT INTO manufacturing_market_allocations (company_id, world_instance_id, vehicle_model_id, region_market_id, units_allocated, marketing_tier)
         VALUES (v_company_id, 'pre-alpha-world-1', v_model_id, v_region_market_id, 80, 'local');
