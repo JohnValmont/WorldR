@@ -49,6 +49,8 @@
         <div class="field"><label>Password</label><input type="password" id="acc_pass" placeholder="••••••••" autocomplete="new-password" /><div class="msg">Min 8 characters.</div></div>
         <div class="field"><label>Confirm</label><input type="password" id="acc_pass2" placeholder="••••••••" autocomplete="new-password" /><div class="msg">Passwords must match.</div></div>
       </div>
+      <!-- Shown only when the server says sign-up is invite-only (GET /auth/signup-config). -->
+      <div class="field" id="acc_invite_field" hidden><label for="acc_invite">Invite code</label><input type="text" id="acc_invite" placeholder="From your Discord invitation" autocomplete="off" autocapitalize="off" spellcheck="false" /><div class="msg">The closed alpha is invite-only. Enter the code from your invitation.</div></div>
       <div class="actions">
         <button class="btn btn-primary" data-next="0"><span>Request Access Code</span></button>
       </div>

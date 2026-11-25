@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../../services/auth.service';
 import { db } from '../../config/database';
+import { env } from '../../config/env';
+import { AppError } from '../../utils/errors';
+import { inviteCodeAccepted } from '../services/signup.rules';
 
 export class AuthController {
   // The database role is the single source of truth (see ADMIN_EMAILS in env.ts).
@@ -8,9 +11,17 @@ export class AuthController {
     return dbRole;
   }
 
+  // GET /auth/signup-config: whether sign-up needs an invite code (never the code itself).
+  public async signupConfig(_req: Request, res: Response) {
+    res.status(200).json({ inviteRequired: !!env.SIGNUP_ACCESS_CODE, guestPlay: !env.SIGNUP_ACCESS_CODE });
+  }
+
   public async register(req: Request, res: Response, next: NextFunction) {
     try {
-      const { email, password } = req.body;
+      const { email, password, accessCode } = req.body;
+      if (!inviteCodeAccepted(env.SIGNUP_ACCESS_CODE, accessCode)) {
+        throw new AppError('The closed alpha is invite-only. Enter the invite code from your Discord invitation.', 403, 'INVITE_REQUIRED');
+      }
       const { user } = await authService.register(email, password);
       res.status(201).json({
         message: 'Registration successful. A 6-digit verification code has been sent to your email.',
@@ -23,6 +34,10 @@ export class AuthController {
 
   public async guestLogin(req: Request, res: Response, next: NextFunction) {
     try {
+      // Guests would bypass the invite code, so guest play is off while one is set.
+      if (env.SIGNUP_ACCESS_CODE) {
+        throw new AppError('Guest play is closed during the invite-only alpha.', 403, 'INVITE_REQUIRED');
+      }
       const result = await authService.guestLogin();
 
       res.cookie('refreshToken', result.refreshToken, {

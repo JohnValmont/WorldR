@@ -1,0 +1,15 @@
+# Generated while making the trailer: footage, frames, audio, renders and videos stay out of git.
+clips/
+recon/
+render/
+audio/
+out/
+*.mp4
+*.wav
+comp/clips
+comp/clips.json
+comp/assets/gsap.min.js
+comp/assets/worldr-map.png
+world/cast.json
+world/state.json
+node_modules/

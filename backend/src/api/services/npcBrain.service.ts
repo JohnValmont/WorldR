@@ -1,4 +1,5 @@
 import { Knex } from 'knex';
+import { nationCapitalState } from '../constants/nations';
 import * as crypto from 'crypto';
 import { 
   PRODUCTION_BUFFER, 
@@ -22,6 +23,7 @@ import {
   NPC_ESPIONAGE_MIN_PLAYER_SALES,
   NPC_ESPIONAGE_SCORE_DELTA,
   NPC_ESPIONAGE_PRICE_FACTOR,
+  NPC_NATION_NAMES,
 } from '../constants/npc';
 
 // Defines the inputs required for an NPC company to make its monthly decisions
@@ -875,14 +877,15 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
   // 3. Create Company — always use the canonical roster name.
   // Bankrupt NPCs are renamed to [DISSOLVED] <name> before respawn, so
   // there is no unique-constraint collision and we never need a numbered suffix.
-  const companyName = roster.name;
+  const companyName = NPC_NATION_NAMES[countryId]?.[roster.key] ?? roster.name;
+  const hqState = nationCapitalState(countryId);
 
   const [company] = await trx('companies')
     .insert({
       owner_character_id: sysChar.id,
       world_instance_id: clock.world_instance_id,
       country_id: countryId,
-      headquarters_state_id: 'drennia-drennport', // fallback
+      headquarters_state_id: hqState,
       industry_id: 'manufacturing',
       legal_structure_id: 'sole-trader',
       currency_id: 'dollar', // fallback
@@ -904,7 +907,7 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
   // Auto-grant HQ state license
   await trx('company_state_licenses').insert({
     company_id: company.id,
-    state_id: 'drennia-drennport',
+    state_id: hqState,
     status: 'active'
   });
 
@@ -957,7 +960,7 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       company_id: company.id,
       world_instance_id: clock.world_instance_id,
       country_id: countryId,
-      state_id: 'drennia-drennport',
+      state_id: hqState,
       factory_type_id: factoryType.id,
       name: `${companyName} Primary Facility`,
       lease_cost_per_month: 25000,

@@ -118,8 +118,9 @@ A separate **rank** (1st, 2nd, 3rd) is shown beside the tier.
    the closed-alpha gate (30 people finishing a season) is not met yet.
 2. **Hidden cost per tick.** Each layer adds queries per nation per month. Measure tick time
    before and after L1 and L2; the plan already flags tick time as a risk.
-3. **Business is Drennia-only today.** L2 and L4 need Westmark and Eryndor to have their own
-   car markets first (prerequisite, "Slice 1").
+3. ~~**Business is Drennia-only today.**~~ Done 2026-11-25: Westmark and Eryndor have their own
+   car markets and rival car makers (seed 0006). The national sector model (L2) is still separate
+   from the car market.
 4. **Players cannot feel it with few humans.** With 6 per nation most actors are computer-run.
    Computer-run ministers and treaty proposals must carry the world, with rule-based heuristics
    like the NPC company brain.

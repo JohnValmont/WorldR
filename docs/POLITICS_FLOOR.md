@@ -99,8 +99,9 @@ Files: nation data, rules (`NationRules`) and caps in `constants/nations.ts`; de
 request is about); `database/migrations/0099_starter_nations.sql`; screen `_floor/NationView.tsx`.
 
 **Limits to know about**
-- Business is still Drennia-only. A Westmark or Eryndor player who opens the Business desk is in
-  Drennia's car market. Giving each nation its own economy is a separate, larger job.
+- ~~Business is still Drennia-only.~~ Fixed 2026-11-25: every nation has its own car market
+  (copied from Drennia's, so all start equal; database/seeds/0006_nation_car_markets.sql). The stock
+  exchange still lists Drennia's companies only.
 - Nations do not yet act on each other (no treaties, tariffs between them, or war). They are
   compared, not connected.
 - The game screens still live under the web address `/drennia/...` for every nation.

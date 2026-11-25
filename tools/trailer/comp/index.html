@@ -1,0 +1,149 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>WORLDr trailer compositor</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  :root { --gold:#E8B84B; --gold-hi:#F4D58A; --gold-lo:#B8892A; --ink:#ECEAE4; --dim:#A3A4AC; --bg:#0B0D12; --surface:#13161E; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { width:1920px; height:1080px; background:#000; overflow:hidden; }
+  #stage { position:relative; width:1920px; height:1080px; overflow:hidden; background:var(--bg); font-family:'Outfit',sans-serif; color:var(--ink); }
+  .layer { position:absolute; inset:0; }
+  .clip { position:absolute; inset:0; overflow:hidden; visibility:hidden; }
+  .clip img { position:absolute; inset:0; width:1920px; height:1080px; will-change:transform; }
+  .scene { position:absolute; inset:0; visibility:hidden; }
+  .serif { font-family:'Cinzel',serif; }
+  .mono { font-family:'JetBrains Mono',monospace; }
+  .goldtext { background:linear-gradient(100deg,#B8892A 0%,#F4D58A 22%,#E8B84B 40%,#FFF3C9 50%,#E8B84B 60%,#B8892A 100%); background-size:300% 100%; -webkit-background-clip:text; background-clip:text; color:transparent; }
+  /* captions */
+  .cap { position:absolute; left:110px; bottom:120px; visibility:hidden; }
+  .cap .label { font-family:'JetBrains Mono',monospace; font-size:20px; letter-spacing:.42em; color:var(--gold); text-transform:uppercase; display:flex; align-items:center; gap:18px; }
+  .cap .label i { display:inline-block; width:64px; height:2px; background:var(--gold); }
+  .cap .text { font-family:'Cinzel',serif; font-weight:700; font-size:74px; white-space:nowrap; line-height:1.02; letter-spacing:.02em; margin-top:16px; text-shadow:0 6px 40px rgba(0,0,0,.85), 0 2px 6px rgba(0,0,0,.9); max-width:1500px; }
+  .cap .rule { height:2px; background:linear-gradient(90deg,var(--gold),rgba(232,184,75,0)); margin-top:22px; width:520px; transform-origin:left; }
+  #capshade { position:absolute; inset:0; background:linear-gradient(0deg,rgba(5,6,9,.92) 0%,rgba(5,6,9,.55) 28%,rgba(5,6,9,0) 52%), linear-gradient(90deg,rgba(5,6,9,.55) 0%,rgba(5,6,9,0) 45%); opacity:0; }
+  /* fx */
+  #vignette { position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.55) 100%); }
+  #grain { position:absolute; inset:0; width:1920px; height:1080px; opacity:.07; mix-blend-mode:overlay; pointer-events:none; }
+  #flash { position:absolute; inset:0; background:radial-gradient(circle at 50% 50%, #FFF6DA 0%, #E8B84B 45%, rgba(232,184,75,0) 100%); opacity:0; mix-blend-mode:screen; }
+  #black { position:absolute; inset:0; background:#000; opacity:0; }
+  /* cold open */
+  #map { position:absolute; left:-200px; top:-560px; width:2320px; height:2320px; background:url(assets/worldr-map.png) center/cover; filter:saturate(.35) brightness(.9); opacity:0; }
+  #maptint { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 45%, rgba(232,184,75,.10), rgba(11,13,18,.0) 40%, rgba(11,13,18,.92) 85%); }
+  .dust { position:absolute; width:4px; height:4px; border-radius:50%; background:#F4D58A; box-shadow:0 0 8px #E8B84B; }
+  .bigline { position:absolute; left:0; right:0; text-align:center; font-family:'Cinzel',serif; font-weight:700; letter-spacing:.06em; font-size:76px; opacity:0; text-shadow:0 8px 50px rgba(0,0,0,.9); }
+  .bigline small { display:block; font-family:'JetBrains Mono',monospace; font-weight:400; font-size:20px; letter-spacing:.5em; color:var(--gold); margin-bottom:22px; }
+  /* flags */
+  .flagcard { position:absolute; top:300px; width:440px; text-align:center; opacity:0; }
+  .flagcard .fl { width:440px; height:273px; border-radius:8px; box-shadow:0 30px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.12); overflow:hidden; transform-origin:left center; }
+  .flagcard .fl img { width:100%; height:100%; display:block; }
+  .flagcard .nm { font-family:'Cinzel',serif; font-weight:700; font-size:54px; margin-top:34px; letter-spacing:.05em; }
+  .flagcard .gv { font-family:'JetBrains Mono',monospace; font-size:17px; letter-spacing:.38em; color:var(--gold); margin-top:10px; }
+  /* logo */
+  .logo { font-family:'Cinzel',serif; font-weight:800; font-size:220px; letter-spacing:.18em; line-height:1; }
+  .logo .r { font-size:.62em; letter-spacing:0; }
+  .tagrow { display:flex; align-items:center; justify-content:center; gap:30px; font-family:'JetBrains Mono',monospace; font-size:30px; letter-spacing:.7em; color:var(--gold); }
+  .tagrow i { display:block; width:160px; height:2px; background:linear-gradient(90deg,rgba(232,184,75,0),var(--gold)); }
+  .tagrow i.rev { background:linear-gradient(90deg,var(--gold),rgba(232,184,75,0)); }
+  /* roadmap */
+  #banner { position:absolute; top:70px; left:0; right:0; text-align:center; }
+  #banner .b1 { display:inline-flex; align-items:center; gap:18px; padding:14px 34px; border:1.5px solid rgba(232,184,75,.6); border-radius:999px; font-family:'JetBrains Mono',monospace; font-size:24px; letter-spacing:.42em; color:var(--gold-hi); background:rgba(11,13,18,.7); }
+  #banner .b1 b { width:10px; height:10px; border-radius:50%; background:var(--gold); box-shadow:0 0 12px var(--gold); }
+  #banner .b2 { margin-top:14px; font-family:'JetBrains Mono',monospace; font-size:17px; letter-spacing:.3em; color:var(--dim); }
+  .rm { position:absolute; inset:0; visibility:hidden; }
+  .rm .title { position:absolute; left:0; right:0; bottom:120px; text-align:center; font-family:'Cinzel',serif; font-weight:700; font-size:78px; letter-spacing:.04em; text-shadow:0 6px 40px rgba(0,0,0,.9); }
+  .rm .sub { position:absolute; left:0; right:0; bottom:84px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:18px; letter-spacing:.35em; color:var(--dim); }
+  .plaque { position:absolute; left:50%; width:760px; margin-left:-380px; white-space:nowrap; height:78px; border:1px solid rgba(232,184,75,.45); background:linear-gradient(180deg,rgba(232,184,75,.13),rgba(232,184,75,.03)); border-radius:10px; display:flex; align-items:center; justify-content:space-between; padding:0 30px; font-family:'Cinzel',serif; font-size:30px; }
+  .plaque span.m { font-family:'JetBrains Mono',monospace; font-size:16px; letter-spacing:.3em; color:var(--gold); }
+  .ticker { position:absolute; left:0; right:0; top:690px; height:66px; border-top:1px solid rgba(232,184,75,.35); border-bottom:1px solid rgba(232,184,75,.35); background:rgba(19,22,30,.85); overflow:hidden; white-space:nowrap; font-family:'JetBrains Mono',monospace; font-size:26px; line-height:66px; }
+  .ticker span { margin-right:70px; } .up { color:#4FB286; } .dn { color:#D9625A; }
+  .lockname { position:absolute; font-family:'Cinzel',serif; font-weight:700; font-size:30px; letter-spacing:.06em; display:flex; align-items:center; gap:10px; opacity:0; text-shadow:0 2px 14px rgba(0,0,0,.9); }
+  .lockname svg { width:22px; height:22px; }
+  .chip { display:inline-block; padding:10px 22px; margin:0 8px; border-radius:999px; border:1px solid rgba(232,184,75,.5); font-family:'JetBrains Mono',monospace; font-size:20px; letter-spacing:.2em; color:var(--gold-hi); background:rgba(11,13,18,.75); opacity:0; }
+  /* end */
+  .discord { display:inline-flex; align-items:center; gap:18px; padding:20px 40px; border-radius:14px; background:#5865F2; color:#fff; font-family:'Outfit',sans-serif; font-weight:600; font-size:34px; box-shadow:0 20px 60px rgba(88,101,242,.35); }
+  .foot { position:absolute; left:0; right:0; bottom:44px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:15px; letter-spacing:.2em; color:#868994; }
+</style></head>
+<body>
+<div id="stage">
+  <div class="layer" id="clips"></div>
+  <div id="capshade"></div>
+
+  <!-- COLD OPEN -->
+  <div class="scene" id="s-open">
+    <div id="map"></div><div id="maptint"></div>
+    <div id="dust" class="layer"></div>
+    <div class="bigline" id="l1" style="top:440px"><small>WORLDr</small>LAST TIME, YOU BUILT THE CARS.</div>
+    <div class="bigline" id="l2" style="top:440px"><small>WORLDr</small>THIS TIME, YOU RUN THE COUNTRY.</div>
+  </div>
+
+  <!-- FLAGS -->
+  <div class="scene" id="s-flags">
+    <div class="flagcard" id="f1" style="left:170px"><div class="fl"><img src="assets/flag-drennia.svg"></div><div class="nm">DRENNIA</div><div class="gv">FEDERAL REPUBLIC</div></div>
+    <div class="flagcard" id="f2" style="left:740px"><div class="fl"><img src="assets/flag-westmark.svg"></div><div class="nm">WESTMARK</div><div class="gv">MERCHANT REPUBLIC</div></div>
+    <div class="flagcard" id="f3" style="left:1310px"><div class="fl"><img src="assets/flag-eryndor.svg"></div><div class="nm">ERYNDOR</div><div class="gv">CONSTITUTIONAL MONARCHY</div></div>
+    <div class="bigline" id="flagline" style="top:820px;font-size:46px;letter-spacing:.3em">THREE NATIONS. ONE WORLD.</div>
+  </div>
+
+  <!-- LOGO -->
+  <div class="scene" id="s-logo" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
+    <div class="logo goldtext" id="logo">WORLD<span class="r">R</span></div>
+    <div class="tagrow" id="logotag" style="margin-top:46px"><i></i>CLOSED ALPHA<i class="rev"></i></div>
+  </div>
+
+  <!-- ROADMAP -->
+  <div class="scene" id="s-road">
+    <div class="layer" style="background:radial-gradient(ellipse at 50% 40%, #1a1d27 0%, #0B0D12 70%)"></div>
+    <div class="rm" id="rm1">
+      <svg id="laurel" viewBox="-210 -210 420 420" style="position:absolute;left:750px;top:170px;width:420px;height:420px"></svg>
+      <div class="plaque" id="pl1" style="top:620px"><span>Longest in power</span><span class="m">SEASON I</span></div>
+      <div class="plaque" id="pl2" style="top:716px"><span>Richest industrialist</span><span class="m">SEASON I</span></div>
+      <div class="title">SEASONS &amp; THE HALL OF LEGENDS</div>
+      <div class="sub">A FINALE EVERY SEASON · YOUR NAME CARVED IN THE HALL</div>
+    </div>
+    <div class="rm" id="rm2">
+      <svg id="candles" viewBox="0 0 1500 420" style="position:absolute;left:210px;top:230px;width:1500px;height:420px"></svg>
+      <div class="ticker"><div id="tick" style="display:inline-block"></div></div>
+      <div class="title">THE EXCHANGE RETURNS</div>
+      <div class="sub">IPOS · SHARES · TAKEOVERS</div>
+    </div>
+    <div class="rm" id="rm3">
+      <svg id="routes" viewBox="0 0 1920 1080" style="position:absolute;inset:0;width:1920px;height:1080px"></svg>
+      <div class="title">TRADE WARS BETWEEN NATIONS</div>
+      <div class="sub">TARIFFS · EMBARGOES · EXPORT MARKETS</div>
+    </div>
+    <div class="rm" id="rm4">
+      <div id="map2" style="position:absolute;left:310px;top:130px;width:1300px;height:820px;background:url(assets/worldr-map.png) 50% 45%/1500px auto no-repeat;filter:saturate(.5) brightness(1.1);opacity:.85;border-radius:20px;-webkit-mask-image:radial-gradient(ellipse at center, #000 45%, transparent 75%)"></div>
+      <div id="locks"></div>
+      <div style="position:absolute;left:0;right:0;top:860px;text-align:center" id="chips"><span class="chip">SHIPPING</span><span class="chip">ENERGY</span><span class="chip">TECHNOLOGY</span><span class="chip">AGRICULTURE</span></div>
+      <div class="title" style="bottom:90px;font-size:70px">NEW NATIONS. NEW INDUSTRIES.</div>
+    </div>
+    <div id="banner"><div class="b1"><b></b>COMING IN FUTURE SEASONS</div><div class="b2">PLANNED · NOT IN THE CLOSED ALPHA</div></div>
+  </div>
+
+  <!-- TAGLINE -->
+  <div class="scene" id="s-tag" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px">
+    <div class="serif" id="t1" style="font-size:70px;font-weight:700;letter-spacing:.06em;opacity:0">BUILD A COMPANY.</div>
+    <div class="serif" id="t2" style="font-size:70px;font-weight:700;letter-spacing:.06em;opacity:0">FUND A PARTY.</div>
+    <div class="serif goldtext" id="t3" style="font-size:70px;font-weight:700;letter-spacing:.06em;opacity:0">WRITE THE LAWS YOUR RIVALS LIVE UNDER.</div>
+  </div>
+
+  <!-- END CARD -->
+  <div class="scene" id="s-end" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
+    <div class="logo goldtext" id="elogo" style="font-size:150px">WORLD<span class="r">R</span></div>
+    <div class="tagrow" id="etag" style="margin-top:30px;font-size:26px"><i></i>CLOSED ALPHA<i class="rev"></i></div>
+    <div class="serif" id="edate" style="font-size:112px;font-weight:800;letter-spacing:.12em;margin-top:40px;color:var(--ink)">DECEMBER 2026</div>
+    <div id="ecta" style="margin-top:46px;display:flex;flex-direction:column;align-items:center;gap:22px">
+      <div class="mono" style="font-size:22px;letter-spacing:.45em;color:var(--gold-hi)">SIGN-UPS OPEN NOW</div>
+      <div class="discord"><svg width="44" height="34" viewBox="0 0 71 55"><path fill="#fff" d="M60.1 4.9A58.5 58.5 0 0 0 45.6.4a40 40 0 0 0-1.8 3.7 54 54 0 0 0-16.3 0A38 38 0 0 0 25.6.4 58.4 58.4 0 0 0 11 4.9C1.6 18.7-1 32.2.3 45.5a59 59 0 0 0 17.9 9 43 43 0 0 0 3.8-6.2 38 38 0 0 1-6-2.9l1.5-1.1a42 42 0 0 0 36 0l1.5 1.1a38 38 0 0 1-6 2.9 42 42 0 0 0 3.8 6.2 58.7 58.7 0 0 0 17.9-9C72.2 30.1 68.3 16.7 60.1 4.9ZM23.7 37.3c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.3 6.4 7.2c0 4-2.8 7.2-6.4 7.2Zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.3 6.4 7.2c0 4-2.8 7.2-6.4 7.2Z"/></svg>discord.gg/m76prxKgTe</div>
+    </div>
+    <div class="foot" id="efoot">GAMEPLAY CAPTURED FROM THE CLOSED-ALPHA BUILD · PLANNED FEATURES ARE MARKED AS SUCH</div>
+  </div>
+
+  <div id="captions" class="layer"></div>
+  <div id="flash"></div>
+  <div id="black"></div>
+  <div id="vignette"></div>
+  <canvas id="grain" width="960" height="540"></canvas>
+</div>
+<script src="assets/gsap.min.js"></script>
+<script src="trailer.js"></script>
+</body></html>

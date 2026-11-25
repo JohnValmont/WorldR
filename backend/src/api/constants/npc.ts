@@ -48,6 +48,16 @@ export const NPC_ESPIONAGE_SCORE_DELTA = -3;       // knock-off quality vs the o
 export const NPC_ESPIONAGE_PRICE_FACTOR = 1.0;     // copy priced at the player's price (no undercut)
 
 
+/**
+ * The rival car makers' names outside Drennia (Drennia uses NPC_ROSTER names).
+ * Must match database/seeds/0006_nation_car_markets.sql (a test checks), so a
+ * maker that goes bankrupt comes back under the same local name.
+ */
+export const NPC_NATION_NAMES: Record<string, Record<string, string>> = {
+  westmark: { valuecorp: 'Quayside Motors', veridian: 'Tidewater Carriage Co.', apex: 'Saltgate Grand Tourers', haulpro: 'Harbourmaster Vans' },
+  eryndor:  { valuecorp: 'Crownwheel', veridian: 'Highmoor Motor Company', apex: 'Royal Eryndor Coachworks', haulpro: 'Coalreach Haulage Works' },
+};
+
 export const NPC_ROSTER = [
   {
     key: 'valuecorp',

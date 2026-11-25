@@ -115,8 +115,9 @@ api.interceptors.response.use(
 
 // Auth Only
 export const authApi = {
-  register: (data: { email: string; password: string }) =>
+  register: (data: { email: string; password: string; accessCode?: string }) =>
     api.post('/auth/register', data),
+  signupConfig: () => api.get<{ inviteRequired: boolean; guestPlay: boolean }>('/auth/signup-config').then(res => res.data),
   login: (data: { email: string; password: string }) =>
     api.post('/auth/login', data),
   guestLogin: () => api.post('/auth/guest-login'),
@@ -148,8 +149,11 @@ export const characterApi = {
 export const companyApi = {
   getMy: () => api.get('/companies/my'),
   getById: (id: string) => api.get(`/companies/${id}`),
-  create: (data: { name: string; country_id: string; headquarters_state_id: string; industry_id: string; subsector_id?: string | null; legal_structure_id: string; currency_id: string; starting_capital: number }) =>
+  // The server opens the company in the player's own nation; no country is sent.
+  create: (data: { name: string; headquarters_state_id: string; industry_id: string; subsector_id?: string | null; legal_structure_id: string; currency_id: string; starting_capital: number }) =>
     api.post('/companies', data),
+  /** Headquarters choices: the regions of the player's own nation. */
+  getHqOptions: () => api.get<{ countryId: string; options: { id: string; city: string; tagline: string; desc: string }[] }>('/companies/hq-options').then(res => res.data),
   injectCapital: (id: string, amount: number) =>
     api.post(`/companies/${id}/inject-capital`, { amount }),
   issueShares: (id: string, sharesToIssue: number, pricePerShare: number) =>
@@ -459,11 +463,31 @@ export interface ChatMessage {
   created_at: string;
 }
 
+/** Who is reading chat: their character, whether they may moderate, and any mute. */
+export interface ChatMe { characterId: string; canModerate: boolean; mutedUntil: string | null }
+
+export interface ChatReport {
+  message_id: number; body: string; channel: string; created_at: string;
+  hidden_at: string | null; hidden_reason: string | null;
+  author_character_id: string; author_name: string; author_muted_until: string | null;
+  reports: number; reasons: string | null; last_reported_at: string;
+}
+
 export const chatApi = {
-  getMessages: (channel: string = 'world', after?: number, withId?: string): Promise<{ messages: ChatMessage[] }> =>
+  getMessages: (channel: string = 'world', after?: number, withId?: string): Promise<{ messages: ChatMessage[]; me?: ChatMe }> =>
     api.get(`/chat/messages?channel=${channel}${after ? `&after=${after}` : ''}${withId ? `&with=${withId}` : ''}`).then(res => res.data),
   sendMessage: (body: string, channel: string = 'world', target_character_id?: string): Promise<{ message: ChatMessage }> =>
-    api.post('/chat/messages', { body, channel, target_character_id }).then(res => res.data)
+    api.post('/chat/messages', { body, channel, target_character_id }).then(res => res.data),
+  /** Report a message to the moderators (enough reports hide it automatically). */
+  report: (messageId: number, reason?: string): Promise<{ reported: boolean; hidden: boolean }> =>
+    api.post(`/chat/messages/${messageId}/report`, { reason }).then(res => res.data),
+  // Admin only
+  reports: (): Promise<{ reports: ChatReport[] }> => api.get('/chat/reports').then(res => res.data),
+  moderate: (messageId: number, action: 'hide' | 'restore' | 'dismiss') =>
+    api.post(`/chat/messages/${messageId}/moderate`, { action }).then(res => res.data),
+  /** hours 0 lifts the mute. */
+  mute: (characterId: string, hours: number, reason?: string): Promise<{ mutedUntil: string | null; name: string }> =>
+    api.post(`/chat/characters/${characterId}/mute`, { hours, reason }).then(res => res.data),
 };
 
 // World — public world feed

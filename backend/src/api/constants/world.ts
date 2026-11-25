@@ -26,3 +26,11 @@ export const WORLD_SNAPSHOT_CACHE_MS = 60 * 1000; // 1 minute
 export const NPC_EMAIL_DOMAIN_SUFFIX = '@npc.worldr.game';
 export const SYSTEM_NPC_EMAIL = 'system_npc@worldr.game';
 export const NO_LOGIN_PASSWORD_HASH = 'no_login_allowed';
+
+/**
+ * Optional keep-awake (env KEEP_AWAKE_URL): the server calls its own public
+ * /health this often so a free host that sleeps after ~15 idle minutes stays up
+ * and the world clock turns on time. A host that never sleeps needs none of this.
+ */
+export const KEEP_AWAKE_INTERVAL_MINUTES = 10;
+export const KEEP_AWAKE_TIMEOUT_MS = 20_000;

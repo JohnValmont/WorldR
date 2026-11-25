@@ -4,6 +4,7 @@ import { checkDatabaseConnection, db, runMigrationsAndSeeds } from './config/dat
 import { env } from './config/env';
 import { logger } from './utils/logger';
 import { startWorldTickScheduler } from './api/services/worldTick.service';
+import { startKeepAwake } from './api/services/keepAwake';
 import { ManufacturingController } from './api/controllers/manufacturing.controller';
 import { processDrenniaTick } from './api/controllers/drennia.controller';
 import { syncAllNationDistricts } from './api/services/statecraft.service';
@@ -95,6 +96,8 @@ async function startServer() {
       // Start the world tick scheduler once the DB is ready
       startWorldTickScheduler();
       logger.info('World tick scheduler started (clock checked every 5s).');
+      // Optional: keep a host that sleeps when idle awake (KEEP_AWAKE_URL).
+      startKeepAwake(env.KEEP_AWAKE_URL);
     } catch (dbError) {
       logger.error('Database initialization failed, but server is still running:', dbError);
     }

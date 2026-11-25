@@ -3,7 +3,8 @@
  *
  * Off unless NEXT_PUBLIC_POSTHOG_KEY is set. Deliberately minimal and
  * privacy-friendly: no autocapture, no session recording, no emails sent —
- * only page views and the named funnel events we call explicitly.
+ * only page views, the named funnel events we call explicitly, and browser
+ * errors (capture_exceptions), so crashes players hit in the alpha are seen.
  *
  * The static landing/onboarding pages (public/landing) send events through
  * /analytics-event using the same anonymous id stored under ANON_ID_KEY, so a
@@ -42,6 +43,8 @@ export function initAnalytics(): void {
     capture_pageview: false, // sent manually on route change
     capture_pageleave: true,
     disable_session_recording: true,
+    // Uncaught errors and unhandled promise rejections (message + stack only).
+    capture_exceptions: true,
     person_profiles: 'identified_only',
     ...(anonId ? { bootstrap: { distinctID: anonId } } : {}),
   });

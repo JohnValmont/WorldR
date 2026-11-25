@@ -1,14 +1,19 @@
 'use client';
 // Same minimum as the server (backend/src/api/constants/auth.ts).
 const PASSWORD_MIN_LENGTH = 8;
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authApi } from '../../../lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ email: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({ email: '', password: '', confirmPassword: '', accessCode: '' });
+  // Closed alpha: the server says whether sign-up needs an invite code (never the code itself).
+  const [inviteRequired, setInviteRequired] = useState(false);
+  useEffect(() => {
+    authApi.signupConfig().then(c => setInviteRequired(!!c.inviteRequired)).catch(() => {});
+  }, []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -43,11 +48,17 @@ export default function RegisterPage() {
       return;
     }
 
+    if (inviteRequired && !form.accessCode.trim()) {
+      setError('The closed alpha is invite-only. Enter the code from your Discord invitation.');
+      return;
+    }
+
     setLoading(true);
     try {
       const { data } = await authApi.register({
         email: form.email.trim().toLowerCase(),
         password: form.password,
+        ...(inviteRequired ? { accessCode: form.accessCode } : {}),
       });
       void data;
       setSuccess(true);
@@ -261,6 +272,24 @@ export default function RegisterPage() {
               )}
             </div>
           </div>
+
+          {inviteRequired && (
+            <div>
+              <label className="auth-label" htmlFor="register-invite">Invite code</label>
+              <input
+                id="register-invite"
+                type="text"
+                className="auth-input"
+                placeholder="From your Discord invitation"
+                value={form.accessCode}
+                onChange={e => setForm(f => ({ ...f, accessCode: e.target.value }))}
+                autoComplete="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                required
+              />
+            </div>
+          )}
         </div>
 
         <button

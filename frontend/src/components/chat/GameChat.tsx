@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { MessageCircle, X, Send, Globe, MessageSquare, Maximize2, Minimize2 } from 'lucide-react';
+import { MessageCircle, X, Send, Globe, MessageSquare, Maximize2, Minimize2, Flag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { chatApi, getAccessToken, type ChatMessage } from '../../lib/api';
+import { chatApi, getAccessToken, type ChatMessage, type ChatMe } from '../../lib/api';
+import MessageActions from './MessageActions';
+import ReportsPanel from './ReportsPanel';
 import ChatContextMenu from './ChatContextMenu';
 
 const POLL_INTERVAL_MS = 5000;
@@ -18,7 +20,9 @@ function formatTime(iso: string): string {
 export default function GameChat() {
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
-  const [activeTab, setActiveTab] = useState<'world' | 'private'>('world');
+  const [activeTab, setActiveTab] = useState<'world' | 'private' | 'reports'>('world');
+  // Who is reading (from the server): own messages get no Report button; admins moderate.
+  const [me, setMe] = useState<ChatMe | null>(null);
   
   // Channels
   const [worldMessages, setWorldMessages] = useState<ChatMessage[]>([]);
@@ -95,6 +99,7 @@ export default function GameChat() {
         if (!cancelled) {
           appendWorldMessages(worldData.messages);
           appendPrivateMessages(privateData.messages);
+          if (worldData.me) setMe(worldData.me);
         }
       } catch {
         // silent — retry on next poll
@@ -109,8 +114,14 @@ export default function GameChat() {
     };
   }, [hasToken, appendWorldMessages, appendPrivateMessages]);
 
+  // A moderated message disappears from this window at once (the server stops serving it).
+  const dropMessage = useCallback((id: number) => {
+    setWorldMessages(prev => prev.filter(m => m.id !== id));
+    setPrivateMessages(prev => prev.filter(m => m.id !== id));
+  }, []);
+
   // Auto-scroll
-  const currentMessages = activeTab === 'world' ? worldMessages : privateMessages;
+  const currentMessages = activeTab === 'world' ? worldMessages : activeTab === 'private' ? privateMessages : [];
   useEffect(() => {
     if (open && !minimized && listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
@@ -136,6 +147,7 @@ export default function GameChat() {
         return;
       }
       
+      if (activeTab === 'reports') { setSending(false); return; }
       const data = await chatApi.sendMessage(body, activeTab, activeTab === 'private' ? dmTargetId! : undefined);
       setDraft('');
       
@@ -257,6 +269,18 @@ export default function GameChat() {
                       <MessageSquare size={14} /> PRIVATE
                       {unreadPrivate > 0 && <span style={{ width: 6, height: 6, borderRadius: 3, background: '#D9625A', position: 'absolute', top: 10, right: 20 }} />}
                     </button>
+                    {me?.canModerate && (
+                      <button
+                        onClick={() => setActiveTab('reports')}
+                        style={{
+                          flex: 1, padding: '10px', border: 'none', background: activeTab === 'reports' ? '#1B1F29' : 'transparent',
+                          color: activeTab === 'reports' ? '#E8EAF2' : '#A3A4AC', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                        }}
+                      >
+                        <Flag size={14} /> REPORTS
+                      </button>
+                    )}
                   </div>
 
                   {/* Private DM Target Banner */}
@@ -267,8 +291,10 @@ export default function GameChat() {
                     </div>
                   )}
 
+                  {activeTab === 'reports' && <ReportsPanel />}
+
                   {/* Messages */}
-                  <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {activeTab !== 'reports' && <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {currentMessages.length === 0 ? (
                       <p style={{ color: '#5A5F76', fontSize: 13, textAlign: 'center', marginTop: 32 }}>
                         {activeTab === 'world' ? 'No messages in World chat.' : 'No private messages. Click a name in World chat to start a conversation.'}
@@ -293,10 +319,18 @@ export default function GameChat() {
                             <span style={{ color: '#5A5F76', fontSize: 10 }}>{formatTime(m.created_at)}</span>
                           </div>
                           <p style={{ color: '#E8EAF2', fontSize: 13, lineHeight: 1.45, margin: 0, wordBreak: 'break-word' }}>{m.body}</p>
+                          <MessageActions message={m} me={me} onHidden={dropMessage} />
                         </div>
                       ))
                     )}
-                  </div>
+                  </div>}
+
+                  {/* Muted: can read, cannot post */}
+                  {me?.mutedUntil && activeTab !== 'reports' && (
+                    <p className="text-[11px] text-warn" style={{ margin: 0, padding: '6px 12px' }} role="status">
+                      You are muted in chat until {new Date(me.mutedUntil).toLocaleString()}. You can still read.
+                    </p>
+                  )}
 
                   {/* Error */}
                   {error && (
@@ -304,7 +338,7 @@ export default function GameChat() {
                   )}
 
                   {/* Input */}
-                  <div style={{ display: 'flex', gap: 8, padding: 12, borderTop: '1px solid #262B36', background: '#0B0D12' }}>
+                  {activeTab !== 'reports' && <div style={{ display: 'flex', gap: 8, padding: 12, borderTop: '1px solid #262B36', background: '#0B0D12' }}>
                     <input
                       type="text"
                       value={draft}
@@ -331,7 +365,7 @@ export default function GameChat() {
                     >
                       <Send size={15} />
                     </button>
-                  </div>
+                  </div>}
                 </>
               )}
             </motion.div>

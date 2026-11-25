@@ -504,7 +504,9 @@ export class ManufacturingController {
 
         const state = await trx('states').where({ id: targetStateId }).first();
         if (!state) throw new AppError('State not found', 404);
-        
+        // Each nation has its own car market: a company builds only at home.
+        if (state.country_id !== company.country_id) throw new AppError('You can only license states in your own nation.', 400, 'WRONG_NATION');
+
         const market = await trx('manufacturing_region_markets').where({ state_id: targetStateId }).first();
         const mult = Number(market?.economic_multiplier) || 1.0;
         const cost = 50000 * mult;
