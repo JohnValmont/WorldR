@@ -22,6 +22,8 @@ interface StatCardProps {
   valueColor?: 'amber' | 'green' | 'red' | 'blue' | 'white';
   /** Animate number counting up on mount */
   countUp?: boolean;
+  /** One short line under the value (e.g. "Repaying $161,256 a month") */
+  hint?: string;
   className?: string;
 }
 
@@ -80,6 +82,7 @@ export default function StatCard({
   sparkline,
   valueColor = 'white',
   countUp = false,
+  hint,
   className,
 }: StatCardProps) {
   const [displayed, setDisplayed] = useState<string | number>(countUp ? 0 : value);
@@ -129,6 +132,7 @@ export default function StatCard({
           </div>
         )}
       </div>
+      {hint && <div className="mt-2 text-[12px] text-ink-dim">{hint}</div>}
     </div>
   );
 }

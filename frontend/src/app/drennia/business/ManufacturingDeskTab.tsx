@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { manufacturingApi, worldApi } from '../../../lib/api';
+import { color as designColor } from '../../../lib/design/tokens';
 import EquityDeskTab from './EquityDeskTab';
 import CarDesigner from '../../../components/car-designer/CarDesigner';
 import CarPreview from '../../../components/car-designer/CarPreview';
@@ -22,7 +23,7 @@ import { LayoutDashboard, Factory, FlaskConical, ShoppingCart, Activity, BarChar
 const T = {
   gold: '#d4af37',
   muted: '#888888',
-  faint: '#444444',
+  faint: designColor.textFaint, // was #444444: unreadable (WCAG AA fails) on the dark surface
   ivory: '#fffff0',
   paper: '#0a0a0a',
   border: '#2a2a2a',
@@ -540,7 +541,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
 
     const loadLeaderboard = useCallback(async () => {
     try {
-      const res = await worldApi.getMarketLeaderboard();
+      const res = await worldApi.getMarketLeaderboard(company?.country_id);
       setLeaderboardData(res);
       if (res.segments && res.segments.length > 0 && !selectedLeaderboardRegion) {
         setSelectedLeaderboardRegion(res.segments[0].segmentId);
@@ -548,7 +549,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
     } catch (err) {
       console.error(err);
     }
-  }, [selectedLeaderboardRegion]);
+  }, [selectedLeaderboardRegion, company?.country_id]);
 
   useEffect(() => {
     if (deskTab === 'design' || deskTab === 'production' || deskTab === 'factory' || deskTab === 'sales') {
@@ -821,6 +822,23 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
     } finally { setSavingPrice(null); }
   };
 
+  // Saves every changed market row of one model in one go (was one button per market).
+  const handleSaveAllocations = async (modelId: string, marketIds: string[]) => {
+    if (marketIds.length === 0) return;
+    try {
+      for (const marketId of marketIds) {
+        const data = allocationForm[`${modelId}-${marketId}`];
+        if (!data) continue;
+        await manufacturingApi.setAllocation(company.id, { vehicleModelId: modelId, regionMarketId: marketId, unitsAllocated: data.units, marketingTier: data.tier });
+      }
+      showNotif(`Saved ${marketIds.length} market${marketIds.length === 1 ? '' : 's'}.`, true);
+      await Promise.all([loadMarketData(), onRefresh()]);
+    } catch (err: any) {
+      showNotif(err?.response?.data?.error || err?.response?.data?.message || 'Failed to save allocations.', false);
+      await loadMarketData();
+    }
+  };
+
   const handleSaveAllocation = async (modelId: string, marketId: string) => {
     const formKey = `${modelId}-${marketId}`;
     const data = allocationForm[formKey];
@@ -1045,11 +1063,10 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
               : undefined}
           />
           <StatCard
-            label="Reputation"
-            value={company?.reputation || 0}
-            suffix="/100"
-            valueColor="white"
-            countUp
+            label="Bank Debt"
+            value={fm(Number(mfgData?.bankLoans?.owed || 0))}
+            hint={Number(mfgData?.bankLoans?.owed || 0) > 0 ? `Repaying ${fm(Number(mfgData?.bankLoans?.monthlyPayment || 0))} a month` : 'No bank loans'}
+            valueColor={Number(mfgData?.bankLoans?.owed || 0) > 0 ? 'red' : 'white'}
           />
 
           {/* Charts Row */}
@@ -1063,7 +1080,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
             ) : (
             <div className="flex-1 flex gap-4 mt-4">
               <div className="flex-1 h-[250px]">
-                <h4 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint mb-2">Revenue vs costs (last 12 months)</h4>
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint mb-2">Revenue vs costs (last 12 months)</h2>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={[...allReports].sort((a,b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).slice(-12).map(r => ({
                     month: `Y${r.world_year} M${r.world_month}`,
@@ -1097,12 +1114,15 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                 <div><div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Factories</div><div className="font-mono text-[18px] text-ink">{factories.length}</div></div>
                 <div><div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Active lines</div><div className="font-mono text-[18px] text-ink">{activeLinesCount}</div></div>
                 <div><div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Car models</div><div className="font-mono text-[18px] text-ink">{models.length}</div></div>
-                <div><div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Staff</div><div className="font-mono text-[18px] text-ink">{staff.length}</div></div>
+                <div><div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Staff</div><div className="font-mono text-[18px] text-ink">{staff.reduce((n: number, r: any) => n + Number(r.quantity || 0), 0)}</div></div>
               </div>
             </div>
           </Card>
 
-          {/* Next Steps Checklist */}
+          {/* Setup checklist until the first line runs; then the company goals ladder. */}
+          {hasActivePlan && mfgData?.businessGoals ? (
+            <GoalsCard goals={mfgData.businessGoals} fm={fm} go={(tab: string) => setDeskTab(tab as any)} />
+          ) : (
           <Card className="lg:col-span-2 p-0 overflow-hidden border-zinc-800">
             <div className="p-6 pb-2">
               <SectionHeading>Executive Guide</SectionHeading>
@@ -1110,7 +1130,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
             
             <div className="flex flex-col">
               <DataRow
-                label={<span className={!hasFactory ? "text-zinc-100" : "text-zinc-500 line-through"}>1. Lease first factory</span>}
+                label={<span className={!hasFactory ? "text-zinc-100" : "text-zinc-500 line-through"}>1. Get your first factory (lease or build)</span>}
                 value={
                   <Button
                     variant={!hasFactory ? "primary" : "ghost"}
@@ -1157,6 +1177,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
               <ProgressBar value={hasActivePlan ? 100 : hasModel ? 66 : hasFactory ? 33 : 0} variant={hasActivePlan ? 'green' : 'amber'} />
             </div>
           </Card>
+          )}
 
           {/* Last Month Summary */}
           <Card className="lg:col-span-2 p-0 overflow-hidden border-zinc-800">
@@ -1214,6 +1235,18 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
             </GhostButton>
           </div>
 
+          <LeaseOrBuild
+            company={company}
+            bootstrap={bootstrapData}
+            licenses={licenses}
+            states={statesForCountry}
+            hasFactory={factories.length > 0}
+            resolveState={resolveState}
+            fm={fm}
+            onDone={(msg: string, ok: boolean) => { showNotif(msg, ok); if (ok) onRefresh(); }}
+            onBuild={() => { if (landPlots.length) { setConstructFactoryPlotId(landPlots[0].id); setShowConstructFactoryModal(true); } else setShowLandModal(true); }}
+          />
+
           {/* ── LICENSES ── */}
           <div className="mb-8">
             <h3 className="text-[13px] font-bold text-zinc-100 uppercase tracking-widest mb-4 border-b border-zinc-800 pb-2">Manufacturing Licenses</h3>
@@ -1224,7 +1257,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                 {licenses.map(lic => (
                   <PanelBox key={lic.id} className="border-terminal-blue/30 bg-terminal-blue/5">
                     <div className="font-bold text-terminal-blue mb-1">{resolveState(lic.state_id)}</div>
-                    <div className="text-[10px] uppercase tracking-wider text-terminal-blue/70">Active License</div>
+                    <div className="text-[10px] uppercase tracking-wider text-terminal-blue">Active License</div>
                   </PanelBox>
                 ))}
                 <div onClick={() => setShowLicenseModal(true)}>
@@ -1255,7 +1288,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                             await manufacturingApi.sellLand(company.id, plot.id);
                             onRefresh();
                           } catch (err: any) {
-                            alert(err.response?.data?.message || err.message);
+                            alert(err.response?.data?.error || err.response?.data?.message || err.message);
                           }
                         }
                       }}>Sell Plot</GhostButton>
@@ -1322,15 +1355,19 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                       <div className="mt-4 flex gap-2">
                         <GhostButton onClick={() => setDeskTab('production')}>Open Production →</GhostButton>
                         <GhostButton color="#D9625A" onClick={async () => {
-                          if (confirm(`Are you sure you want to scrap ${factory.name}? You will recover 30% of the construction cost, but this cannot be undone. All production lines must be scrapped first.`)) {
+                          const leased = factory.ownership_type === 'leased';
+                          const question = leased
+                            ? `End the lease on ${factory.name}? The building and its lines go back to the landlord and nothing is refunded. Stop its production first.`
+                            : `Are you sure you want to scrap ${factory.name}? You will recover 30% of the construction cost, but this cannot be undone. All production lines must be scrapped first.`;
+                          if (confirm(question)) {
                             try {
                               await manufacturingApi.scrapFactory(company.id, factory.id);
                               onRefresh();
                             } catch (err: any) {
-                              alert(err.response?.data?.message || err.message);
+                              alert(err.response?.data?.error || err.response?.data?.message || err.message);
                             }
                           }
-                        }}>Scrap Factory</GhostButton>
+                        }}>{factory.ownership_type === 'leased' ? 'End lease' : 'Scrap Factory'}</GhostButton>
                       </div>
                   {/* ── FACILITY GROWTH ── */}
                   {factory.factory_type_id === 'small-workshop' && (() => {
@@ -1436,7 +1473,12 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                             <FieldRow label="Upfront Investment" value={fm(EXPANSION_COST)} valueColor="#d4af37" />
                           </div>
                         </div>
-                        {canAfford ? (
+                        {factory.ownership_type === 'leased' ? (
+                          <div>
+                            <GoldButton disabled>Expand Workshop</GoldButton>
+                            <div className="text-[11px] text-ink-dim mt-1.5">A leased workshop can't be expanded. Lease a plant, or build your own workshop.</div>
+                          </div>
+                        ) : canAfford ? (
                           <GoldButton onClick={() => { setShowExpandConfirm(true); setExpandingFactoryId(factory.id); }}>
                             Expand Workshop
                           </GoldButton>
@@ -2801,7 +2843,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                      <div className="text-terminal-red mt-0.5">⚠️</div>
                      <div>
                        <div className="text-sm font-bold text-terminal-red mb-1">CRITICAL WARNING</div>
-                       <div className="text-xs text-terminal-red/90 leading-relaxed">{w}</div>
+                       <div className="text-xs text-terminal-red leading-relaxed">{w}</div>
                      </div>
                    </div>
                  ))}
@@ -3170,11 +3212,23 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                               <span className="text-[11px] text-zinc-500 ml-2">Sale Price:</span>
                               <input
                                 type="number"
-                                defaultValue={m.sale_price}
-                                value={priceEdits[m.id] !== undefined ? (priceEdits[m.id] === 0 ? '' : priceEdits[m.id]) : m.sale_price}
-                                onChange={e => setPriceEdits(prev => ({ ...prev, [m.id]: e.target.value ? Number(e.target.value) : 0 }))}
+                                min={1000}
+                                step={100}
+                                aria-label={`Sale price for ${m.name}`}
+                                value={priceEdits[m.id] !== undefined ? (priceEdits[m.id] === 0 ? '' : priceEdits[m.id]) : Math.round(Number(m.sale_price))}
+                                onChange={e => setPriceEdits(prev => ({ ...prev, [m.id]: e.target.value ? Math.round(Number(e.target.value)) : 0 }))}
                                 className="w-[100px] rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs font-mono text-terminal-amber focus:outline-none focus:border-terminal-amber/60 transition-colors"
                               />
+                              {(() => {
+                                const price = priceEdits[m.id] !== undefined ? Number(priceEdits[m.id]) : Number(m.sale_price);
+                                const cost = Number(m.manufacturing_cost_per_unit);
+                                const margin = price - cost;
+                                return price > 0 ? (
+                                  <span className={`text-[11px] font-mono ${margin > 0 ? 'text-good' : 'text-bad'}`} title="Sale price minus build cost, per car">
+                                    {margin >= 0 ? '+' : ''}{fm(margin)} a car ({Math.round((margin / price) * 100)}%)
+                                  </span>
+                                ) : null;
+                              })()}
                               <GhostButton color="#4FB286" disabled={savingPrice === m.id} onClick={() => handleSavePrice(m.id)}>
                                 {savingPrice === m.id ? 'Saving...' : 'Save Price'}
                               </GhostButton>
@@ -3202,16 +3256,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                                   const efficiency = staffingRatio * ((f?.condition || 100) / 100);
                                   const estUnitsRaw = Math.floor(planTarget * efficiency);
                                   
-                                  const cInv = mfgData?.componentInventory || [];
-                                  const getInv = (cid: string) => cInv.find((i: any) => i.component_id === cid)?.units_in_stock || 0;
-                                  let maxC = Math.floor(getInv('comp_engine'));
-                                  maxC = Math.min(maxC, Math.floor(getInv('comp_transmission')));
-                                  maxC = Math.min(maxC, Math.floor(getInv('comp_tyres') / 4));
-                                  maxC = Math.min(maxC, Math.floor(getInv('comp_steel')));
-                                  maxC = Math.min(maxC, Math.floor(getInv('comp_glass')));
-                                  maxC = Math.min(maxC, Math.floor(getInv('comp_electronics')));
-
-                                  const estUnitsProd = f ? Math.min(f.capacity_per_month, Math.min(estUnitsRaw, maxC)) : estUnitsRaw;
+                                  // Parts restock automatically each month, so they no longer cap the forecast.
+                                  const estUnitsProd = f ? Math.min(f.capacity_per_month, estUnitsRaw) : estUnitsRaw;
                                   const estDefects = Math.floor(estUnitsProd * defectRate);
                                   return s + (estUnitsProd - estDefects);
                                 }, 0);
@@ -3307,114 +3353,18 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                                 </p>
                               </div>
                             ) : (
-                              marketData?.markets?.map((market: any) => {
-                              const formKey = `${m.id}-${market.id}`;
-                              const alloc = allocationForm[formKey] || { units: 0, tier: 'none' };
-                              const brand = marketData.brandData?.find((b: any) => b.region_market_id === market.id);
-
-                              return (
-                                <div key={market.id} className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 py-3 border-b border-zinc-800/60 last:border-b-0">
-                                  <div className="w-full lg:w-[300px] shrink-0">
-                                    <div className="text-xs text-zinc-100 font-semibold mb-2">{market.name}</div>
-                                    <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-2.5">
-                                      <div className="text-[10px] text-terminal-amber font-bold uppercase tracking-[0.08em] mb-1.5">Local Brand Position</div>
-                                      {brand ? (() => {
-                                        const awText = brand.awareness >= 50 ? 'Established' : (brand.awareness >= 15 ? 'Recognised' : 'New');
-                                        const trText = brand.reputation >= 60 ? 'Trusted' : (brand.reputation >= 20 ? 'Developing' : 'Unproven');
-
-                                        const arcRes = marketData.recentBrandResults?.find((r: any) => r.region_market_id === market.id);
-
-                                        const formatDelta = (d: number) => {
-                                          if (!d || d === 0) return 'No Change';
-                                          return d > 0 ? `+${d.toFixed(1)}` : `${d.toFixed(1)}`;
-                                        };
-
-                                        const awDeltaStr = arcRes ? formatDelta(Number(arcRes.awareness_delta)) : 'No Change';
-                                        const trDeltaStr = arcRes ? formatDelta(Number(arcRes.trust_delta)) : 'No Change';
-
-                                        let mainDriver = 'Brand metrics maintained previous levels.';
-                                        if (arcRes) {
-                                          if (Number(arcRes.trust_delta) < 0 && arcRes.primary_trust_reason === 'Defective Products') {
-                                            mainDriver = 'Production defects reduced buyer trust this Month.';
-                                          } else if (Number(arcRes.trust_delta) > 0) {
-                                            mainDriver = 'Reliable deliveries supported gradual local trust growth.';
-                                          } else if (Number(arcRes.awareness_delta) > 0) {
-                                            mainDriver = 'Marketing and completed deliveries increased local awareness.';
-                                          }
-                                        }
-
-                                        return (
-                                          <div className="flex flex-col gap-1 text-[11px]">
-                                            <div className="flex justify-between gap-2">
-                                              <span className="text-zinc-500">Local Brand Awareness:</span>
-                                              <span className="text-zinc-200">{awText}</span>
-                                            </div>
-                                            <div className="flex justify-between gap-2">
-                                              <span className="text-zinc-500">Local Brand Trust:</span>
-                                              <span className="text-zinc-200">{trText}</span>
-                                            </div>
-                                            <div className="flex justify-between gap-2">
-                                              <span className="text-zinc-500">Last Month Awareness Change:</span>
-                                              <span className={awDeltaStr.startsWith('+') ? 'text-terminal-green' : awDeltaStr.startsWith('-') ? 'text-terminal-red' : 'text-zinc-600'}>{awDeltaStr}</span>
-                                            </div>
-                                            <div className="flex justify-between gap-2">
-                                              <span className="text-zinc-500">Last Month Trust Change:</span>
-                                              <span className={trDeltaStr.startsWith('+') ? 'text-terminal-green' : trDeltaStr.startsWith('-') ? 'text-terminal-red' : 'text-zinc-600'}>{trDeltaStr}</span>
-                                            </div>
-                                            <div className="mt-1 italic text-zinc-600 text-[10px]">
-                                              Main Brand Driver:<br />{mainDriver}
-                                            </div>
-                                          </div>
-                                        );
-                                      })() : (
-                                        <div className="flex flex-col gap-1 text-[11px]">
-                                          <div className="flex justify-between gap-2">
-                                            <span className="text-zinc-500">Local Brand Awareness:</span>
-                                            <span className="text-zinc-200">New to This Market</span>
-                                          </div>
-                                          <div className="flex justify-between gap-2">
-                                            <span className="text-zinc-500">Local Brand Trust:</span>
-                                            <span className="text-zinc-200">Unproven</span>
-                                          </div>
-                                          <div className="mt-1 italic text-zinc-600 text-[10px]">
-                                            Main Brand Driver:<br />New to This Market. Local awareness and trust will develop after operating here.
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-4 flex-wrap">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-[11px] text-zinc-500">Target Units:</span>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        value={alloc.units === 0 ? '' : alloc.units}
-                                        onChange={e => setAllocationForm(prev => ({ ...prev, [formKey]: { ...alloc, units: e.target.value ? Number(e.target.value) : 0 } }))}
-                                        className="w-20 rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs font-mono text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors"
-                                      />
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-[11px] text-zinc-500">Marketing:</span>
-                                      <select
-                                        value={alloc.tier}
-                                        onChange={e => setAllocationForm(prev => ({ ...prev, [formKey]: { ...alloc, tier: e.target.value } }))}
-                                        className="w-[110px] rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors cursor-pointer"
-                                      >
-                                        <option value="none">None</option>
-                                        <option value="local">Local</option>
-                                        <option value="regional">Regional</option>
-                                        <option value="national">National</option>
-                                      </select>
-                                    </div>
-
-                                    <GhostButton onClick={() => handleSaveAllocation(m.id, market.id)}>Update Allocation</GhostButton>
-                                  </div>
-                                </div>
-                              );
-                            })
+                              <AllocationTable
+                                model={m}
+                                markets={marketData.markets}
+                                allocations={marketData.allocations || []}
+                                brandData={marketData.brandData || []}
+                                brandResults={marketData.recentBrandResults || []}
+                                recentSales={(marketData.recentSales || []).filter((r: any) => r.vehicle_model_id === m.id)}
+                                form={allocationForm}
+                                setForm={setAllocationForm}
+                                marketingCost={{ none: 0, local: Number(autoConfig?.marketing_cost_local ?? 3500), regional: Number(autoConfig?.marketing_cost_regional ?? 12000), national: Number(autoConfig?.marketing_cost_national ?? 35000) }}
+                                onSave={(keys: string[]) => handleSaveAllocations(m.id, keys)}
+                              />
                             )}
                           </div>
                         </div>
@@ -3430,7 +3380,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
               {marketData?.recentSales && marketData.recentSales.length > 0 && (
                 <PanelBox>
                   <h3 className="text-[13px] font-bold text-zinc-100 m-0 mb-3">Recent Sales Results</h3>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Recent sales results">
                   <table className="w-full text-[11px] text-left border-collapse">
                     <thead>
                       <tr className="text-zinc-500 border-b border-zinc-800 text-[10px] uppercase tracking-[0.06em]">
@@ -3475,6 +3425,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-[13px] font-bold text-zinc-100 m-0">Regional Market Share</h3>
                     <select
+                      aria-label="Market to show"
                       value={selectedLeaderboardRegion}
                       onChange={e => setSelectedLeaderboardRegion(e.target.value)}
                       className="rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-terminal-amber/60 transition-colors cursor-pointer"
@@ -3974,8 +3925,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                 productionLines.reduce((acc: number, line: any) => acc + (Number(line.target_units_per_month) * Number(line.model_cost_per_unit || 0)), 0)
               )} valueColor={T.red} />
 
-              <FieldRow label="Vehicle Development Cost" value={fm(0)} valueColor={T.faint} />
-              <FieldRow label="Research Cost" value={fm(0)} valueColor={T.faint} />
+              {/* Real monthly cost that was missing: bank repayments (economy tick, banking.rules). */}
+              <FieldRow label="Bank Loan Repayments" value={fm(Number(mfgData?.bankLoans?.monthlyPayment || 0))} valueColor={T.red} />
 
               <div className="mt-3 pt-2 border-t border-zinc-800">
                 <FieldRow label="Estimated Total Next Month Cost" value={fm(
@@ -3984,7 +3935,8 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                     return acc + (MKT_COSTS[alloc.marketing_tier] || 0);
                   }, 0) || 0) +
                   inventory.reduce((acc: number, inv: any) => acc + (Number(inv.units_in_stock) * STORAGE_COST_PER_UNIT), 0) +
-                  productionLines.reduce((acc: number, line: any) => acc + (Number(line.target_units_per_month) * Number(line.model_cost_per_unit || 0)), 0)
+                  productionLines.reduce((acc: number, line: any) => acc + (Number(line.target_units_per_month) * Number(line.model_cost_per_unit || 0)), 0) +
+                  Number(mfgData?.bankLoans?.monthlyPayment || 0)
                 )} valueColor="#D9625A" />
               </div>
               <div className="mt-2 text-[10px] text-zinc-600 italic">
@@ -4006,7 +3958,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                 <div>
                   <div className="text-xs font-semibold text-terminal-amber border-b border-zinc-800 pb-1 mb-2">Cost of Goods Sold</div>
                   <FieldRow label="Vehicle Production Cost" value={fm(latestReport.production_costs)} valueColor="#D9625A" />
-                  <FieldRow label="Defective Unit Losses" value={fm(0)} valueColor={Number(latestReport.defective_units) > 0 ? '#D9625A' : 'rgb(113, 113, 122)'} />
+                  <FieldRow label="Defective Cars (not sellable)" value={Number(latestReport.defective_units || 0)} valueColor={Number(latestReport.defective_units) > 0 ? '#D9625A' : undefined} />
                 </div>
 
                 <div>
@@ -4017,8 +3969,6 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                   <FieldRow label="Marketing Expense" value={fm(latestReport.marketing_costs)} valueColor="#D9625A" />
                   <FieldRow label="Inventory Storage Cost" value={fm(latestReport.inventory_storage_costs)} valueColor="#D9625A" />
                   <FieldRow label="Warranty Reserve" value={fm(latestReport.warranty_reserve_cost || 0)} valueColor="#D9625A" />
-                  <FieldRow label="Vehicle Development Expense" value={fm(0)} valueColor="rgb(113, 113, 122)" />
-                  <FieldRow label="Research Expense" value={fm(0)} valueColor="rgb(113, 113, 122)" />
                 </div>
 
                 <div>
@@ -4044,6 +3994,7 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
                 <h3 className="text-[13px] font-bold text-zinc-100 m-0">Financial Analytics</h3>
                 {financeChartFilter === 'historical' && (
                   <select
+                    aria-label="Months to show"
                     value={financeTimeline}
                     onChange={(e) => setFinanceTimeline(Number(e.target.value))}
                     className="bg-zinc-950 text-zinc-300 text-[10px] uppercase tracking-wider border border-zinc-800/60 rounded-sm px-2 py-1 outline-none"
@@ -4561,5 +4512,253 @@ export default function ManufacturingDeskTab({ company, mfgData, playerCash, net
 
       </div>
     </div>
+  );
+}
+
+// ─── Allocation table ───────────────────────────────────────────────────────
+// One row per market: brand position, last month's real result, and the standing
+// order. One Save for every changed row. "Match last month's demand" fills targets
+// from real buyer interest (manufacturing_sales_results.raw_buyer_interest).
+function AllocationTable({ model, markets, allocations, brandData, brandResults, recentSales, form, setForm, marketingCost, onSave }: any) {
+  const keyOf = (marketId: string) => `${model.id}-${marketId}`;
+  const saved = (marketId: string) => {
+    const a = allocations.find((x: any) => x.vehicle_model_id === model.id && x.region_market_id === marketId);
+    return { units: a ? Number(a.monthly_target ?? a.units_allocated ?? 0) : 0, tier: a?.marketing_tier || 'none' };
+  };
+  const current = (marketId: string) => form[keyOf(marketId)] || saved(marketId);
+  const dirty = markets.map((mk: any) => mk.id).filter((id: string) => {
+    const c = current(id), s0 = saved(id);
+    return Number(c.units || 0) !== s0.units || (c.tier || 'none') !== s0.tier;
+  });
+  const set = (marketId: string, patch: any) => setForm((prev: any) => ({ ...prev, [keyOf(marketId)]: { ...current(marketId), ...patch } }));
+  const salesFor = (marketId: string) => recentSales.find((r: any) => r.region_market_id === marketId);
+  const totalTarget = markets.reduce((s: number, mk: any) => s + Number(current(mk.id).units || 0), 0);
+  const totalMarketing = markets.reduce((s: number, mk: any) => {
+    const c = current(mk.id); return s + (Number(c.units || 0) > 0 ? (marketingCost[c.tier || 'none'] || 0) : 0);
+  }, 0);
+  const anyDemand = recentSales.some((r: any) => Number(r.raw_buyer_interest || 0) > 0);
+  const matchDemand = () => {
+    for (const mk of markets) {
+      const r = salesFor(mk.id);
+      if (r && Number(r.raw_buyer_interest || 0) > 0) set(mk.id, { units: Math.round(Number(r.raw_buyer_interest)) });
+    }
+  };
+  const resultTone = (code?: string) =>
+    code === 'Sold Out' ? 'text-warn' : code === 'Balanced' ? 'text-good' : code ? 'text-bad' : 'text-ink-faint';
+  const delta = (d: any) => {
+    const n = Number(d || 0);
+    if (!n) return null;
+    return <span className={n > 0 ? 'text-good' : 'text-bad'}>{n > 0 ? '+' : ''}{n.toFixed(1)}</span>;
+  };
+
+  return (
+    <div>
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={`Standing orders for ${model.name}`}>
+        <table className="w-full min-w-[720px] border-collapse text-[12px]">
+          <caption className="sr-only">Standing sales orders for {model.name} by market</caption>
+          <thead>
+            <tr className="border-b border-line text-left text-[10px] uppercase tracking-[0.08em] text-ink-faint">
+              <th scope="col" className="py-2 pr-3 font-semibold">Market</th>
+              <th scope="col" className="py-2 pr-3 font-semibold">Awareness</th>
+              <th scope="col" className="py-2 pr-3 font-semibold">Trust</th>
+              <th scope="col" className="py-2 pr-3 font-semibold">Last month: sold / buyers</th>
+              <th scope="col" className="py-2 pr-3 font-semibold">Cars a month</th>
+              <th scope="col" className="py-2 font-semibold">Marketing</th>
+            </tr>
+          </thead>
+          <tbody>
+            {markets.map((mk: any) => {
+              const c = current(mk.id);
+              const b = brandData.find((x: any) => x.region_market_id === mk.id);
+              const br = brandResults.find((x: any) => x.region_market_id === mk.id);
+              const r = salesFor(mk.id);
+              const isDirty = dirty.includes(mk.id);
+              return (
+                <tr key={mk.id} className={`border-b border-line/60 last:border-b-0 ${isDirty ? 'bg-accent/5' : ''}`}>
+                  <th scope="row" className="py-2 pr-3 text-left font-normal">
+                    <div className="font-semibold text-ink">{mk.name}</div>
+                    <div className="text-[11px] text-ink-faint">{Number(mk.population || 0).toLocaleString('en-US')} people · {mk.market_tier || mk.income_tier} income</div>
+                  </th>
+                  <td className="py-2 pr-3 font-mono text-ink-dim">{b ? `${Math.round(Number(b.awareness || 0))}%` : '—'} {br && delta(br.awareness_delta)}</td>
+                  <td className="py-2 pr-3 font-mono text-ink-dim">{b ? `${Math.round(Number(b.reputation || 0))}%` : '—'} {br && delta(br.trust_delta)}</td>
+                  <td className="py-2 pr-3">
+                    {r ? (
+                      <span className="font-mono text-ink">{r.units_sold} / {Math.round(Number(r.raw_buyer_interest || 0))} <span className={`ml-1 font-sans text-[11px] ${resultTone(r.main_reason_code)}`}>{r.main_reason_code}</span></span>
+                    ) : <span className="text-ink-faint">Not selling here</span>}
+                  </td>
+                  <td className="py-2 pr-3">
+                    <input
+                      type="number" min={0} step={1} inputMode="numeric"
+                      aria-label={`Cars a month for ${mk.name}`}
+                      value={Number(c.units || 0) === 0 ? '' : c.units}
+                      placeholder="0"
+                      onChange={e => set(mk.id, { units: e.target.value ? Math.max(0, Math.floor(Number(e.target.value))) : 0 })}
+                      className="w-20 rounded-sm border border-line-strong bg-surface px-2 py-1 font-mono text-ink focus:border-accent focus:outline-none"
+                    />
+                  </td>
+                  <td className="py-2">
+                    <select
+                      aria-label={`Marketing in ${mk.name}`}
+                      value={c.tier || 'none'}
+                      onChange={e => set(mk.id, { tier: e.target.value })}
+                      className="rounded-sm border border-line-strong bg-surface px-2 py-1 text-ink focus:border-accent focus:outline-none"
+                    >
+                      {['none', 'local', 'regional', 'national'].map(t => (
+                        <option key={t} value={t}>{t === 'none' ? 'None' : `${t[0].toUpperCase()}${t.slice(1)} · $${(marketingCost[t] || 0).toLocaleString('en-US')}`}</option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
+        <div className="text-[12px] text-ink-dim">
+          Total <strong className="font-mono text-ink">{totalTarget}</strong> cars a month · marketing <strong className="font-mono text-ink">${totalMarketing.toLocaleString('en-US')}</strong> a month
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={matchDemand} disabled={!anyDemand}
+            title={anyDemand ? 'Set each market to last month’s number of buyers' : 'Available after your first month of sales'}
+            className={`rounded-md border px-3 py-1.5 text-[12px] font-semibold ${anyDemand ? 'border-line-strong text-ink hover:border-accent' : 'cursor-not-allowed border-dashed border-line-strong text-ink-faint'}`}>
+            Match last month’s demand
+          </button>
+          <button type="button" onClick={() => onSave(dirty)} disabled={dirty.length === 0}
+            className={`rounded-md px-3 py-1.5 text-[12px] font-semibold ${dirty.length ? 'bg-accent text-black hover:bg-accent-hi' : 'cursor-not-allowed border border-dashed border-line-strong text-ink-faint'}`}>
+            {dirty.length ? `Save ${dirty.length} change${dirty.length === 1 ? '' : 's'}` : 'No changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Lease or build ─────────────────────────────────────────────────────────
+// Two ways to get a factory. Leasing: ready this month, monthly rent, no asset.
+// Building: buy land, 5 months to build + 2 for a line, but you own it.
+// Prices come from GET /manufacturing/bootstrap (constants/companyAssets.ts).
+function LeaseOrBuild({ company, bootstrap, licenses, states, hasFactory, resolveState, fm, onDone, onBuild }: any) {
+  const options: any[] = bootstrap?.leaseOptions ?? [];
+  const signing = Number(bootstrap?.leaseSigningMonths ?? 2);
+  const build = bootstrap?.buildCosts;
+  const [stateId, setStateId] = useState<string>('');
+  const [typeId, setTypeId] = useState<string>('small-workshop');
+  const [busy, setBusy] = useState(false);
+  const licensedIds: string[] = licenses.map((l: any) => l.state_id);
+  const chosenState = stateId || licensedIds[0] || '';
+  const mult = Number(states.find((x: any) => x.id === chosenState)?.economic_multiplier ?? 1) || 1;
+  const opt = options.find(o => o.factoryTypeId === typeId);
+  const ftype = (bootstrap?.factoryTypes ?? []).find((f: any) => f.id === typeId);
+  const rent = opt ? Math.round(opt.monthlyRent * mult) : 0;
+  const buildTotal = build ? Math.round((build.landPerAcre * (typeId === 'medium-plant' ? 3 : 1) + build.factory[typeId] + build.productionLine * Number(ftype?.max_production_lines ?? 1)) * mult) : 0;
+  if (!options.length) return null;
+
+  const lease = async () => {
+    setBusy(true);
+    try {
+      const res = await manufacturingApi.leaseFactory(company.id, { factoryTypeId: typeId, stateId: chosenState });
+      onDone(res.data?.data?.message || 'Lease signed.', true);
+    } catch (err: any) {
+      onDone(err?.response?.data?.error || 'Could not sign the lease.', false);
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <section aria-labelledby="get-factory" className="mb-8 rounded-lg border border-line bg-surface p-5">
+      <h3 id="get-factory" className="mb-1 text-[15px] font-semibold text-ink">{hasFactory ? 'Add capacity' : 'Get your first factory'}</h3>
+      <p className="mb-4 text-[13px] text-ink-dim">Lease to start building cars this month, or build your own to pay less over time.</p>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="rounded-md border border-accent/40 bg-accent/5 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-ink">Lease a ready factory</span>
+            <span className="rounded-full bg-good/15 px-2 py-0.5 text-[11px] font-semibold text-good">Ready this month</span>
+          </div>
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <label className="text-[11px] text-ink-faint">Size
+              <select value={typeId} onChange={e => setTypeId(e.target.value)} className="mt-1 w-full rounded-sm border border-line-strong bg-surface px-2 py-1.5 text-[12px] text-ink">
+                {options.map(o => {
+                  const ft = (bootstrap?.factoryTypes ?? []).find((f: any) => f.id === o.factoryTypeId);
+                  return <option key={o.factoryTypeId} value={o.factoryTypeId}>{ft?.name || o.label} · {ft?.base_capacity_per_month ?? '?'} cars/month</option>;
+                })}
+              </select>
+            </label>
+            <label className="text-[11px] text-ink-faint">State
+              <select value={chosenState} onChange={e => setStateId(e.target.value)} disabled={!licensedIds.length} className="mt-1 w-full rounded-sm border border-line-strong bg-surface px-2 py-1.5 text-[12px] text-ink">
+                {licensedIds.map(id => <option key={id} value={id}>{resolveState(id)}</option>)}
+              </select>
+            </label>
+          </div>
+          <dl className="mb-4 grid grid-cols-3 gap-2 text-[12px]">
+            <div><dt className="text-ink-faint">Rent</dt><dd className="font-mono text-ink">{fm(rent)}/mo</dd></div>
+            <div><dt className="text-ink-faint">To sign</dt><dd className="font-mono text-ink">{fm(rent * signing)}</dd></div>
+            <div><dt className="text-ink-faint">Lines</dt><dd className="font-mono text-ink">{ftype?.max_production_lines ?? 1} ready</dd></div>
+          </dl>
+          <button type="button" onClick={lease} disabled={busy || !chosenState}
+            className={`w-full rounded-md px-3 py-2 text-[13px] font-semibold ${busy || !chosenState ? 'cursor-not-allowed border border-dashed border-line-strong text-ink-faint' : 'bg-accent text-black hover:bg-accent-hi'}`}>
+            {busy ? 'Signing…' : !chosenState ? 'Buy a state licence first' : `Sign lease · ${fm(rent * signing)}`}
+          </button>
+          <p className="mt-2 text-[11px] text-ink-faint">Not your asset: adds nothing to company value, can't be expanded, ending the lease refunds nothing.</p>
+        </div>
+        <div className="rounded-md border border-line p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-ink">Build your own</span>
+            <span className="rounded-full bg-line px-2 py-0.5 text-[11px] font-semibold text-ink-dim">About 7 months</span>
+          </div>
+          <dl className="mb-4 grid grid-cols-3 gap-2 text-[12px]">
+            <div><dt className="text-ink-faint">Up front</dt><dd className="font-mono text-ink">{fm(buildTotal)}</dd></div>
+            <div><dt className="text-ink-faint">Rent</dt><dd className="font-mono text-ink">{fm(0)}/mo</dd></div>
+            <div><dt className="text-ink-faint">Asset</dt><dd className="text-ink">Yours</dd></div>
+          </dl>
+          <p className="mb-4 text-[12px] text-ink-dim">Land, then the building (5 months), then a line (2 months). Counts toward company value; can be expanded or sold.</p>
+          <button type="button" onClick={onBuild} className="w-full rounded-md border border-line-strong px-3 py-2 text-[13px] font-semibold text-ink hover:border-accent">
+            Buy land to build
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Company goals ──────────────────────────────────────────────────────────
+// Real progress from GET .../manufacturing/data (businessGoals). Goals pay nothing;
+// they show the next thing worth doing once the factory runs.
+function GoalsCard({ goals, fm, go }: { goals: any; fm: (n: any) => string; go: (tab: string) => void }) {
+  const show = (g: any, n: number) => g.unit === 'money' ? fm(n) : g.unit === 'percent' ? `${n}%` : Number(n).toLocaleString('en-US');
+  const label = (g: any) => String(g.tierLabel).replace('{n}', show(g, g.target ?? g.tiers[g.tiers.length - 1]));
+  const next = (goals.next as string[]).map(k => goals.goals.find((g: any) => g.key === k)).filter(Boolean);
+  const rest = goals.goals.filter((g: any) => !goals.next.includes(g.key));
+  return (
+    <Card className="lg:col-span-2 p-0 overflow-hidden border-zinc-800">
+      <div className="flex items-baseline justify-between p-6 pb-3">
+        <SectionHeading>Company goals</SectionHeading>
+        <span className="font-mono text-[12px] text-ink-dim" aria-label={`${goals.earned} of ${goals.total} goal tiers reached`}>{goals.earned} / {goals.total} ★</span>
+      </div>
+      <ul className="flex flex-col">
+        {next.map((g: any) => (
+          <li key={g.key} className="border-t border-line px-6 py-3">
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <span className="text-[13px] font-semibold text-ink">{label(g)}</span>
+              <button type="button" onClick={() => go(g.tab)} className="shrink-0 rounded-md border border-line-strong px-2.5 py-1 text-[12px] font-semibold text-ink hover:border-accent">Go</button>
+            </div>
+            <div className="mb-1.5 flex items-center gap-3">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(g.progress * 100)} aria-label={g.title}>
+                <div className="h-full rounded-full bg-accent" style={{ width: `${Math.round(g.progress * 100)}%` }} />
+              </div>
+              <span className="w-28 text-right font-mono text-[11px] text-ink-dim">{show(g, g.value)} / {show(g, g.target)}</span>
+            </div>
+            <p className="m-0 text-[12px] text-ink-faint">{g.how}</p>
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap gap-2 border-t border-line bg-black/20 px-6 py-3">
+        {rest.map((g: any) => (
+          <span key={g.key} title={g.maxed ? 'All tiers reached' : label(g)}
+            className={`rounded-full border px-2.5 py-0.5 text-[11px] ${g.maxed ? 'border-good/40 text-good' : 'border-line-strong text-ink-dim'}`}>
+            {g.title} {'★'.repeat(g.level)}{'☆'.repeat(g.tiers.length - g.level)}
+          </span>
+        ))}
+      </div>
+    </Card>
   );
 }

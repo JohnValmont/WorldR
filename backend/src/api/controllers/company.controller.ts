@@ -1,8 +1,10 @@
+import { companyBookValueSql, characterNetDebt } from '../services/companyValue';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import { openAuction } from '../services/acquisitionAuction.service';
 import { hqOptionsFor } from '../constants/nations';
+import { OPEN_INDUSTRIES } from '../constants/companyAssets';
 export class CompanyController {
   // Helper to synchronize true net worth after capital movements
   private static async syncNetWorth(trx: any, characterId: number) {
@@ -21,7 +23,7 @@ export class CompanyController {
         'cs.company_id',
         'cf.available_cash',
         'cf.debt',
-        trx.raw(`COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0) as inventory_value`),
+        trx.raw(`${companyBookValueSql('c.id')} as book_value`),
         trx.raw(`(SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) as total_shares`)
       );
 
@@ -48,19 +50,19 @@ export class CompanyController {
           trueNetWorth += myShares * lastPrice;
         } else {
           // No price yet: fall back to book value
-          const bookValue = Math.max(0, Number(row.available_cash) - Number(row.debt || 0) + Number(row.inventory_value || 0));
+          const bookValue = Number(row.book_value || 0);
           trueNetWorth += (myShares / total) * bookValue;
         }
       } else {
         // Private: book value
-        const bookValue = Math.max(0, Number(row.available_cash) - Number(row.debt || 0) + Number(row.inventory_value || 0));
+        const bookValue = Number(row.book_value || 0);
         trueNetWorth += (myShares / total) * bookValue;
       }
     }
     
     await trx('character_finances')
       .where({ character_id: characterId })
-      .update({ net_worth: Math.floor(trueNetWorth) });
+      .update({ net_worth: Math.floor(trueNetWorth - await characterNetDebt(trx, characterId)) });
   }
   public static async getMyCompanies(req: Request, res: Response, next: NextFunction) {
     try {
@@ -137,16 +139,13 @@ export class CompanyController {
         return next(new AppError('Starting capital must be zero or a positive number', 400, 'BAD_REQUEST'));
       }
 
-      if (industry_id === 'manufacturing' && Number(starting_capital) < 500000) {
-        return next(new AppError('Manufacturing companies require a minimum of $500,000 in starting capital', 400, 'BAD_REQUEST'));
+      // Only open sectors (constants/companyAssets.ts). Logistics and the rest are closed.
+      const sector = OPEN_INDUSTRIES[String(industry_id)];
+      if (!sector) {
+        return next(new AppError('That sector is not open yet. You can start a car maker or a Capital Partners firm.', 400, 'SECTOR_CLOSED'));
       }
-
-      if (industry_id === 'shipping-logistics' && Number(starting_capital) < 50000) {
-        return next(new AppError('Logistics companies require a minimum of $50,000 in starting capital', 400, 'BAD_REQUEST'));
-      }
-
-      if (industry_id === 'finance' && Number(starting_capital) < 50000) {
-        return next(new AppError('A Capital Partners firm requires at least $50,000 in seed capital', 400, 'BAD_REQUEST'));
+      if (Number(starting_capital) < sector.minCapital) {
+        return next(new AppError(`A ${sector.label} needs at least $${sector.minCapital.toLocaleString('en-US')} in starting capital.`, 400, 'BAD_REQUEST'));
       }
 
       const activeInstance = await db('world_instances').where({ status: 'active' }).first();
