@@ -1,3 +1,4 @@
+import { refreshCompanyValue, companyBookValueSql, characterNetDebt } from './companyValue';
 import { logger } from '../../utils/logger';
 import { AmortizationType } from '../constants/banking';
 import { settleMonth } from './banking.rules';
@@ -86,6 +87,10 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
       status: out.status, updated_at: trx.fn.now(),
     });
   }
+
+  // Repayments change cash and debt: keep each borrower's book value current.
+  const borrowers = new Set<string>(companyLoans.filter((l: any) => l.borrower_type === 'company').map((l: any) => String(l.borrower_id)));
+  for (const id of borrowers) await refreshCompanyValue(trx, id);
 
   const personalLoans = await trx('character_debt_facilities').where({ status: 'active' }).forUpdate();
   for (const loan of personalLoans) {
@@ -223,7 +228,7 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
         'cf.company_value',
         'cf.available_cash',
         'cf.debt',
-        trx.raw(`COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0) as inventory_value`),
+        trx.raw(`${companyBookValueSql('c.id')} as book_value`),
         trx.raw(`(SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND side = 'sell' AND status = 'open'), 0) as total_shares`),
         trx.raw(`COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND character_id = cs.holder_character_id AND side = 'sell' AND status = 'open'), 0) as escrowed_shares`)
       );
@@ -251,16 +256,18 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
           equity += myShares * lastPrice;
         } else {
           // No price yet: fall back to book value
-          const bookValue = Math.max(0, Number(s.available_cash) - Number(s.debt || 0) + Number(s.inventory_value || 0));
+          const bookValue = Number(s.book_value || 0);
           equity += (myShares / tot) * bookValue;
         }
       } else {
         // Private: book value
-        const bookValue = Math.max(0, Number(s.available_cash) - Number(s.debt || 0) + Number(s.inventory_value || 0));
+        const bookValue = Number(s.book_value || 0);
         equity += (myShares / tot) * bookValue;
       }
     }
 
+    // Loans still owed are not wealth (services/companyValue.ts).
+    const netDebt = await characterNetDebt(trx, char.id);
     if (hasTable) {
       try {
         await trx('character_net_worth_history').insert({
@@ -270,7 +277,7 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
           world_month: month,
           cash_in_hand: cash,
           equity_value: equity,
-          total_net_worth: cash + equity
+          total_net_worth: cash + equity - netDebt
         });
         snapshotsInserted++;
       } catch (err) {

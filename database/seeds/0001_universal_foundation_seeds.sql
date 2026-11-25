@@ -43,9 +43,12 @@ INSERT INTO states (id, country_id, name, status) VALUES
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status;
 
 -- 6. INDUSTRIES
-INSERT INTO industries (id, name, status, is_playable) VALUES 
-('shipping-logistics', 'Shipping & Logistics', 'active', true),
-('manufacturing', 'Manufacturing', 'active', false)
+-- Open sectors match OPEN_INDUSTRIES (backend constants/companyAssets.ts). 'finance' is the
+-- Capital Partners firm: without this row a fresh world could not open one (foreign key error).
+INSERT INTO industries (id, name, status, is_playable) VALUES
+('shipping-logistics', 'Shipping & Logistics', 'active', false),
+('manufacturing', 'Manufacturing', 'active', true),
+('finance', 'Finance & Services', 'active', true)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, is_playable = EXCLUDED.is_playable;
 
 -- 7. LEGAL STRUCTURES

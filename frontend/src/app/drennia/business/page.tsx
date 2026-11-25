@@ -840,7 +840,7 @@ Use paid research to spot rivals who are Sold Out (opportunity to grab share by 
       {/* ── Tab Content ── */}
       <div className="flex-1 overflow-y-auto animate-slide-in">
         {activeTab === 'overview'  && <PageShell className="py-6"><OverviewTab company={company} playerCash={playerCash} netWorth={netWorth} onStartBusiness={() => setActiveTab('start')} onViewContracts={() => { setActiveTab('companies'); setSelectedCompanyId(null); }} onViewRegistry={() => setActiveTab('registry')}
-          myCompanies={[...operationalCompanies, ...(financeCompany ? [financeCompany] : [])].map((c: any) => ({ id: c.id, name: c.name, industry_id: c.industry_id }))}
+          myCompanies={[...operationalCompanies, ...(financeCompany ? [financeCompany] : [])].map((c: any) => ({ id: c.id, name: c.name, industry_id: c.industry_id, finances: c.finances }))}
           onOpenCompany={(id) => { setActiveTab('companies'); setSelectedCompanyId(id); }} /></PageShell>}
         {activeTab === 'start'     && <PageShell className="py-6"><StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} hqOptions={hqOptions} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} financeCompany={financeCompany} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} selectedStructure={selectedStructure} setSelectedStructure={setSelectedStructure} selectedModel={selectedModel} setSelectedModel={setSelectedModel} isSubmitting={isSubmitting} /></PageShell>}
         
@@ -961,11 +961,26 @@ Use paid research to spot rivals who are Sold Out (opportunity to grab share by 
 // ─────────────────────────────────────────────────────────────────────────────
 // OVERVIEW TAB
 // ———────────────────────────────────────────────────────────────────────────────
+/** Real numbers from company_finances: cash, last month's profit, book value, cars sold. */
+function CompanyFigures({ finances }: { finances: any }) {
+  const profit = Number(finances.last_arc_profit || 0);
+  const money = (n: number) => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
+  const sold = Number(finances.lifetime_units_sold || 0);
+  return (
+    <dl className="flex flex-wrap gap-x-6 gap-y-1 text-[12px]">
+      <div><dt className="text-ink-faint">Cash</dt><dd className="font-mono text-ink">{money(Number(finances.available_cash || 0))}</dd></div>
+      <div><dt className="text-ink-faint">Last month</dt><dd className={`font-mono ${profit > 0 ? 'text-good' : profit < 0 ? 'text-bad' : 'text-ink'}`}>{money(profit)}</dd></div>
+      <div><dt className="text-ink-faint">Value</dt><dd className="font-mono text-ink">{money(Number(finances.company_value || 0))}</dd></div>
+      {sold > 0 && <div><dt className="text-ink-faint">Cars sold</dt><dd className="font-mono text-ink">{sold.toLocaleString('en-US')}</dd></div>}
+    </dl>
+  );
+}
+
 function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewContracts, onViewRegistry, myCompanies = [], onOpenCompany }: {
   company: Company | null; playerCash: number; netWorth: number;
   onStartBusiness: () => void; onViewContracts: () => void; onViewRegistry: () => void;
   /** Companies the player already owns: owners get "Your business", not the registration pitch. */
-  myCompanies?: { id: string; name: string; industry_id?: string }[];
+  myCompanies?: { id: string; name: string; industry_id?: string; finances?: any }[];
   onOpenCompany?: (id: string) => void;
 }) {
   if (!company && myCompanies.length > 0) {
@@ -981,7 +996,7 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
             {myCompanies.length === 1 ? myCompanies[0].name : `${myCompanies.length} companies`}
           </h2>
           <p className="text-[14px] leading-relaxed text-ink-dim max-w-xl mb-6">
-            Open a company to run its factory, design cars, set prices and read last month&apos;s results.
+            How your companies did last month. Open one to run it.
           </p>
           <div className="flex flex-col gap-2">
             {myCompanies.map((c, i) => (
@@ -990,6 +1005,7 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
                   <div className="text-[15px] font-semibold text-ink truncate">{c.name}</div>
                   <div className="text-[12px] text-ink-faint">{sectorName(c.industry_id)}</div>
                 </div>
+                {c.finances && <CompanyFigures finances={c.finances} />}
                 <Button variant={i === 0 ? 'primary' : 'secondary'} size="md" iconRight={ArrowRight} onClick={() => onOpenCompany?.(c.id)}>
                   Open
                 </Button>
@@ -1217,7 +1233,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
             </div>
           ) : (
             <p className="text-xs text-zinc-500 mb-5 leading-relaxed">
-              <strong className="text-terminal-amber">Shipping &amp; Logistics</strong> and <strong className="text-terminal-amber">Manufacturing</strong> are available in the current version. Other sectors are coming soon.
+              <strong className="text-terminal-amber">Manufacturing</strong> (a car maker) and <strong className="text-terminal-amber">Finance &amp; Services</strong> (a Capital Partners firm that invests in other companies) are open. The other sectors are shown locked until they open.
             </p>
           )}
           <div className="flex flex-col gap-2 mb-6">

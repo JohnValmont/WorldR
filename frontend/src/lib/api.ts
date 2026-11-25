@@ -418,6 +418,7 @@ export const manufacturingApi = {
   purchaseLand: (companyId: string, data: { stateId: string; acres: number; name: string }) => api.post(`/companies/${companyId}/manufacturing/land`, data),
   sellLand: (companyId: string, landPlotId: string) => api.delete(`/companies/${companyId}/manufacturing/land/${landPlotId}`),
   constructFactory: (companyId: string, data: { landPlotId: string; factoryTypeId: string; name: string }) => api.post(`/companies/${companyId}/manufacturing/factories/construct`, data),
+  leaseFactory: (companyId: string, data: { factoryTypeId: string; stateId: string; name?: string }) => api.post(`/companies/${companyId}/manufacturing/factories/lease`, data),
   scrapFactory: (companyId: string, factoryId: string) => api.delete(`/companies/${companyId}/manufacturing/factories/${factoryId}`),
   constructProductionLine: (companyId: string, factoryId: string) => api.post(`/companies/${companyId}/manufacturing/factories/${factoryId}/production-lines/construct`),
   scrapProductionLine: (companyId: string, lineId: string) => api.delete(`/companies/${companyId}/manufacturing/production/lines/${lineId}`),
@@ -533,7 +534,7 @@ export interface WorldClock {
 export const worldApi = {
   getClock: (): Promise<WorldClock> => api.get('/world/clock').then(res => res.data),
   getOperators: () => api.get('/world/operators').then(res => res.data),
-  getMarketLeaderboard: () => api.get('/world/market-leaderboard').then(res => res.data),
+  getMarketLeaderboard: (country?: string) => api.get('/world/market-leaderboard', { params: country ? { country } : undefined }).then(res => res.data),
   getGlobalLeaderboards: () => api.get('/world/global-leaderboards').then(res => res.data),
   /** Real-data world summary (public). See backend worldSnapshot.service.ts. */
   getSnapshot: (): Promise<WorldSnapshot> => api.get('/world/snapshot').then(res => res.data),

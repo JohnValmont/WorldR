@@ -1,3 +1,4 @@
+import { refreshCompanyValue } from '../services/companyValue';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { randomUUID } from 'crypto';
@@ -278,11 +279,12 @@ export class BankController {
           game_year: clock?.current_year || 0,
           game_month: clock?.current_month || 0,
           game_day: clock?.current_day || 1,
-          entry_type: 'revenue',
+          entry_type: 'loan_drawdown', // borrowed money, not revenue
           amount: principalAmount,
           balance_after: currentCash + principalAmount,
           description: `Loan Disbursement (${facilityType.toUpperCase()})`,
         });
+        await refreshCompanyValue(trx, companyId);
         return { status: 200, body: { message: 'Loan secured successfully.', monthlyPayment: pmt } };
       });
       return res.status(outcome.status).json(outcome.body);

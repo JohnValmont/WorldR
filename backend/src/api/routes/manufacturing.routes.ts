@@ -14,6 +14,7 @@ router.post('/companies/:companyId/manufacturing/components/procure', authMiddle
 router.post('/companies/:companyId/manufacturing/licenses', authMiddleware, ManufacturingController.purchaseLicense);
 router.post('/companies/:companyId/manufacturing/land', authMiddleware, ManufacturingController.purchaseLand);
 router.post('/companies/:companyId/manufacturing/factories/construct', authMiddleware, ManufacturingController.constructFactory);
+router.post('/companies/:companyId/manufacturing/factories/lease', authMiddleware, ManufacturingController.leaseFactory);
 router.post('/companies/:companyId/manufacturing/factories/:factoryId/production-lines/construct', authMiddleware, ManufacturingController.constructProductionLine);
 router.delete('/companies/:companyId/manufacturing/land/:landPlotId', authMiddleware, ManufacturingController.sellLand);
 router.delete('/companies/:companyId/manufacturing/factories/:factoryId', authMiddleware, ManufacturingController.scrapFactory);
