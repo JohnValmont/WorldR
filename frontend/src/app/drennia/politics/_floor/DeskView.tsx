@@ -152,6 +152,53 @@ function Standing() {
  * The career ladder: eight rungs from citizen to world statesman. Shows where you
  * stand, the highest you have climbed, what the next rung needs, and your record.
  */
+/** First steps for a new player. Ticks come from the server; the card goes away when all are done. */
+function FirstStepsCard({ where, className }: { where: 'top' | 'side'; className: string }) {
+  const { desk, go } = useFloor();
+  const fs = desk.desk.firstSteps;
+  if (!fs || fs.complete) return null;
+  const open = (to: string | null) => {
+    if (to === null) { document.getElementById('desk-this-month')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    if (to.startsWith('/')) { window.location.href = to; return; }
+    go(to);
+  };
+  return (
+    <div className={className}>
+    <Card className="p-4" tone="accent">
+      <div className="flex items-baseline justify-between">
+        <Label color={T.accent}>First steps</Label>
+        <span className="text-[11px]" style={{ color: T.dim }}>{fs.done} of {fs.total} done</span>
+      </div>
+      <div className="mt-2"><Meter value={(fs.done / fs.total) * 100} /></div>
+      <ol className="mt-3 space-y-2.5">
+        {fs.steps.map(s => {
+          const isNext = s.key === fs.next;
+          return (
+            <li key={s.key} className="flex gap-2.5">
+              <span aria-hidden className="mt-0.5 inline-flex items-center justify-center rounded-full text-[11px] font-bold shrink-0"
+                style={{ width: 18, height: 18, background: s.done ? T.good : 'transparent', color: s.done ? '#0B0D12' : T.faint, border: `1px solid ${s.done ? T.good : T.lineStrong}` }}>
+                {s.done ? '✓' : ''}
+              </span>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold" style={{ color: s.done ? T.dim : T.text, textDecoration: s.done ? 'line-through' : undefined }}>
+                  {s.title}<span className="sr-only">{s.done ? ' (done)' : ' (not done yet)'}</span>
+                </div>
+                {isNext && (
+                  <>
+                    <p className="text-xs mt-0.5 leading-snug" style={{ color: T.dim }}>{s.why}</p>
+                    <div className="mt-2"><Btn small kind="primary" onClick={() => open(s.go)} id={`first-step-${where}-${s.key}`}>{s.cta}</Btn></div>
+                  </>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </Card>
+    </div>
+  );
+}
+
 function CareerLadder() {
   const { desk, go } = useFloor();
   const me = desk.me!;
@@ -258,8 +305,10 @@ export default function DeskView() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-5">
       <div className="space-y-4 min-w-0">
+        {/* Phones: the side column comes last, so first steps sit on top here. */}
+        <FirstStepsCard where="top" className="lg:hidden" />
         <RaceHero />
-        <div className="flex items-end justify-between gap-3 pt-2">
+        <div className="flex items-end justify-between gap-3 pt-2" id="desk-this-month">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: T.faint }}>This month</div>
             <h2 className="font-serif text-2xl sm:text-3xl font-bold leading-tight flex items-center gap-3" style={{ color: T.text }}>
@@ -379,6 +428,7 @@ export default function DeskView() {
       </div>
 
       <aside className="space-y-4">
+        <FirstStepsCard where="side" className="hidden lg:block" />
         <CareerLadder />
         <Standing />
         <News />

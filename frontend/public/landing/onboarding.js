@@ -327,13 +327,21 @@ $('resend').onclick = () => { otpInputs.forEach(i => { i.value = ''; i.classList
 /* ============ validation ============ */
 function err(id, on){ $(id).closest('.field').classList.toggle('err', on); }
 function fullName(){ return `${$('ch_first').value.trim()} ${$('ch_last').value.trim()}`.replace(/\s+/g, ' ').trim(); }
+/* Closed alpha: the server says whether sign-up needs an invite code (never the code itself). */
+let inviteRequired = false;
+fetch('/api/v1/auth/signup-config').then(r => r.ok ? r.json() : null).then(cfg => {
+  inviteRequired = !!(cfg && cfg.inviteRequired);
+  if ($('acc_invite_field')) $('acc_invite_field').hidden = !inviteRequired;
+}).catch(() => {});
 function validate(step){
   if (step === 0){
     const e = $('acc_email').value, p = $('acc_pass').value, p2 = $('acc_pass2').value;
     const okE = /^[^@]+@[^@]+\.[^@]+$/.test(e), okP = p.length >= 8, okP2 = p === p2 && !!p2;
+    const okI = !inviteRequired || !!$('acc_invite').value.trim();
     err('acc_email', !okE); err('acc_pass', !okP); err('acc_pass2', !okP2);
-    if (okE && okP && okP2){ $('otp_email').textContent = e; $('log_email').value = e; }
-    return okE && okP && okP2;
+    if (inviteRequired) err('acc_invite', !okI);
+    if (okE && okP && okP2 && okI){ $('otp_email').textContent = e; $('log_email').value = e; }
+    return okE && okP && okP2 && okI;
   }
   if (step === 1) return otpInputs.every(i => i.value);
   if (step === 2){
@@ -414,7 +422,7 @@ document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click'
     let next = s + 1;
     if (s === 0){
       span.textContent = 'Requesting…';
-      await postJson('/api/v1/auth/register', { email: $('acc_email').value, password: $('acc_pass').value });
+      await postJson('/api/v1/auth/register', { email: $('acc_email').value, password: $('acc_pass').value, accessCode: inviteRequired ? $('acc_invite').value : undefined });
       window.worldrTrack && window.worldrTrack('register_submitted');
     } else if (s === 1){
       span.textContent = 'Verifying…';

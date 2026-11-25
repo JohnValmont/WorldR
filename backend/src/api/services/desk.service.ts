@@ -33,6 +33,7 @@ import {
 import { getSupportMap } from './support.store';
 import { getGovernment, getLawsInForce, parsePlatform } from './statecraft.service';
 import { worldNations } from './nations.service';
+import { firstSteps } from './firstSteps.rules';
 import { coalitionView } from './coalition.service';
 import { DECREE_AP, DECREES } from '../constants/decrees';
 import { SHOCK_MONTHS } from '../constants/floor';
@@ -131,6 +132,8 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     coalition: null,
     // Your race: filing dates, where you stand and every district ranked for your party.
     race: null,
+    // New-player checklist (firstSteps.rules.ts); every tick is a real record.
+    firstSteps: null,
   };
 
   if (!character) {
@@ -154,6 +157,20 @@ export async function getDesk(userId: string | null, stateCodeOrId?: string) {
     desk.ladder = ladderFor(rungNow, (career?.peakRung ?? rungNow) as CareerRung, headOfGovernmentTitle(cap.state.code));
   });
   section(async () => { cap.me.ap = await getEnergy(db, character.id, arc); });
+  // ── First steps: one round trip, each fact a real record ──
+  section(async () => {
+    const r: any = (await db.raw(`
+      SELECT
+        EXISTS (SELECT 1 FROM pol_action_log WHERE character_id = :c AND kind = 'situation') AS decision,
+        EXISTS (SELECT 1 FROM pol_action_log WHERE character_id = :c AND kind IN ('rally', 'ad')) AS rally,
+        EXISTS (SELECT 1 FROM pol_bill_votes WHERE character_id = :c) AS vote,
+        EXISTS (SELECT 1 FROM chat_messages WHERE character_id = :c AND (channel LIKE 'nation:%' OR channel LIKE 'party:%')) AS room,
+        EXISTS (SELECT 1 FROM companies WHERE owner_character_id = :c AND is_npc = FALSE AND status = 'active') AS company
+    `, { c: character.id })).rows[0];
+    desk.firstSteps = firstSteps({
+      decision: !!r.decision, party: !!me.party, rally: !!r.rally, vote: !!r.vote, room: !!r.room, company: !!r.company,
+    });
+  });
   section(async () => { desk.log = await db('pol_action_log').where({ character_id: character.id }).orderBy('created_at', 'desc').limit(12).select('arc', 'kind', 'summary'); });
 
   // ── This month's hand ──

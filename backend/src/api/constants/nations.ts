@@ -333,6 +333,38 @@ export const STARTER_NATIONS: NationSpec[] = [DRENNIA, WESTMARK, ERYNDOR];
 export const NATIONS_BY_POL_STATE: Record<string, NationSpec> = Object.fromEntries(STARTER_NATIONS.map(n => [n.polStateCode, n]));
 export const NATIONS_BY_COUNTRY: Record<string, NationSpec> = Object.fromEntries(STARTER_NATIONS.map(n => [n.countryId, n]));
 
+// ─── Business: each nation has its own car market ───────────────────────────
+// A company always opens in its owner's nation (createCompany) and sells in that
+// nation's region markets. Markets, states and rival car makers for Westmark and
+// Eryndor are copied from Drennia's by database/seeds/0006_nation_car_markets.sql,
+// so all three markets start equal. A new nation needs an entry here AND rows
+// in that seed (tests/nationMarkets.test.ts checks every state id below exists there).
+/** Headquarters choice per region: region code -> states.id. */
+export const NATION_HQ_STATES: Record<string, Record<string, string>> = {
+  drennia:  { drennport: 'drennia-drennport', ironvale: 'drennia-ironvale', westport: 'drennia-westport', greenmere: 'drennia-greenmere' },
+  westmark: { saltgate: 'westmark-saltgate', tidewater: 'westmark-tidewater', marches: 'westmark-marches', downs: 'westmark-downs' },
+  eryndor:  { highmoor: 'eryndor-highmoor', coalreach: 'eryndor-coalreach', goldmere: 'eryndor-goldmere', southfold: 'eryndor-southfold' },
+};
+
+export interface HqOption { id: string; city: string; tagline: string; desc: string }
+
+/** The state of a nation's capital region (its first region), where computer-run companies sit. */
+export function nationCapitalState(countryId: string | null | undefined): string {
+  const spec = NATIONS_BY_COUNTRY[countryId ?? ''];
+  const states = NATION_HQ_STATES[countryId ?? ''];
+  return (spec && states && states[spec.regions[0]?.code]) || NATION_HQ_STATES.drennia.drennport;
+}
+
+/** The headquarters a player of this nation can choose, described from the nation's own regions. */
+export function hqOptionsFor(countryId: string | null | undefined): HqOption[] {
+  const spec = NATIONS_BY_COUNTRY[countryId ?? ''];
+  const states = NATION_HQ_STATES[countryId ?? ''];
+  if (!spec || !states) return [];
+  return spec.regions
+    .filter(r => states[r.code])
+    .map(r => ({ id: states[r.code], city: r.name, tagline: r.economy, desc: r.character }));
+}
+
 /** The rules in force in a nation's parliament (defaults where its constitution says nothing). */
 export function nationRules(polStateCode: string | null | undefined): NationRules {
   return { ...DEFAULT_NATION_RULES, ...(NATIONS_BY_POL_STATE[polStateCode ?? '']?.rules ?? {}) };
@@ -350,8 +382,10 @@ export const NATION_ACTIVE_DAYS = 14;
 /**
  * If every nation is full, a new player still gets in, to the least crowded
  * nation. Turning this off means "the world is full" and sign-ups are refused.
+ * Owner decision (2026-11-25, closed alpha): off, so the alpha is capped at
+ * NATION_PLAYER_CAP x 3 nations = 24 active players.
  */
-export const NATION_OVERFLOW_WHEN_ALL_FULL = true;
+export const NATION_OVERFLOW_WHEN_ALL_FULL = false;
 
 // ─── Nation power (shown on the Nation screen) ─────────────────────────────
 // Three scores out of 100 that let nations be compared. Nations start with

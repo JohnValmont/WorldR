@@ -34,6 +34,13 @@ const envSchema = z.object({
   // Optional Discord webhook: each monthly Meridian Wire edition (public game
   // news only: headline and the top of the World Influence Index) is posted there.
   AGENCY_DISCORD_WEBHOOK_URL: optionalUrl,
+  // Closed alpha: when set, signing up needs this invite code and guest play is
+  // off. Leave empty for open sign-up. Compared without case or spaces.
+  SIGNUP_ACCESS_CODE: z.preprocess(v => (typeof v === 'string' && v.trim() === '' ? undefined : v), z.string().optional()),
+  // Optional: this server's own PUBLIC address (e.g. https://worldr-api.onrender.com).
+  // When set, the server calls <url>/health every KEEP_AWAKE_INTERVAL_MINUTES so a
+  // host that sleeps when idle stays awake and the world clock is never late.
+  KEEP_AWAKE_URL: optionalUrl,
   // A tick counts as "overdue" on /health once it is this many minutes late.
   TICK_OVERDUE_GRACE_MINUTES: z.coerce.number().default(30),
 });

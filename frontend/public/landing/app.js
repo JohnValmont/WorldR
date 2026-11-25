@@ -593,6 +593,22 @@ if (btnCreate) btnCreate.addEventListener('click', () => { window.worldrTrack &&
 if (btnLogin) btnLogin.addEventListener('click', () => { window.worldrTrack && window.worldrTrack('login_clicked'); });
 document.querySelectorAll('[data-track]').forEach(el => el.addEventListener('click', () => { window.worldrTrack && window.worldrTrack(el.dataset.track, { from: 'hero' }); }));
 
+// Closed alpha: guest play is off while sign-up is invite-only. The button stays
+// visible but locked (dashed outline + reason), per the design system.
+if (btnGuest) {
+  fetch('/api/v1/auth/signup-config').then(r => r.ok ? r.json() : null).then(cfg => {
+    if (!cfg || cfg.guestPlay !== false) return;
+    btnGuest.disabled = true;
+    btnGuest.style.borderStyle = 'dashed';
+    btnGuest.setAttribute('aria-describedby', 'guestLockedReason');
+    const span = btnGuest.querySelector('span'); if (span) span.textContent = 'Guest play: closed';
+    const why = document.createElement('p');
+    why.id = 'guestLockedReason';
+    why.style.cssText = 'font-size:12px;margin-top:6px;color:var(--text-dim)';
+    why.textContent = 'The closed alpha is invite-only. Guest play opens with the public season.';
+    btnGuest.insertAdjacentElement('afterend', why);
+  }).catch(() => {});
+}
 if (btnGuest && guestModalOverlay) {
   let lastFocus = null;
   const openGuest = () => {

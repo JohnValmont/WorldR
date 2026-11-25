@@ -215,3 +215,15 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - The month briefing (components/gameplay/MonthBriefing.tsx) only shows measured changes from GET /politics/desk against the player's last snapshot. Never add an estimated or invented number to it, and never poll the desk from it.
 - Before shipping UI, run tools/ui-audit (journey.js desktop + mobile, a11y.js). Keep 0 axe violations. These scripts are local-only (guard.js) and use the non-production verification bypass.
 - Password minimum is PASSWORD_MIN_LENGTH (backend/src/api/constants/auth.ts); the sign-up page and the Next register/reset pages must match it.
+
+## Closed alpha (nation car markets, invite-only, chat moderation, first steps) — Operational Rules (DO NOT BREAK)
+- Plan, owner checklist and schedule: docs/CLOSED_ALPHA.md.
+- Every starter nation has its OWN car market. A company always opens in its owner's nation: createCompany takes country_id from characters.motherland_country_id and ignores the client's value; licences (and so land and factories) only in your own nation's states. Never send or trust a client country_id for companies.
+- Westmark/Eryndor states, region markets, business settings and rival car makers are COPIED from Drennia's by database/seeds/0006_nation_car_markets.sql (a seed, because on a fresh install migrations run before seeds and would find no rivals). It only adds what is missing and never deletes. Clones are not exchange-listed (no share rows). A new nation needs rows there + NATION_HQ_STATES (constants/nations.ts) + NPC_NATION_NAMES (constants/npc.ts); tests/nationMarkets.test.ts keeps them in step.
+- No question marks in any .sql file run by the migration/seed runner: knex raw reads `?` as a bind placeholder (use jsonb_exists, not the jsonb `?` operator).
+- Seeds have no explicit BEGIN/COMMIT: the runner does not roll back a failed seed, and an explicit transaction would leave the connection aborted.
+- Sign-up is invite-only while SIGNUP_ACCESS_CODE is set (env, never in code or the client): register checks it with inviteCodeAccepted (services/signup.rules.ts) and guest login is refused. Screens ask GET /auth/signup-config; it never reveals the code. NATION_OVERFLOW_WHEN_ALL_FULL is false for the alpha (hard cap 3 x NATION_PLAYER_CAP).
+- Chat moderation numbers in constants/chat.ts, rules in services/chat.rules.ts (tests/chat.test.ts). Hidden messages (chat_messages.hidden_at) are never served. CHAT_AUTO_HIDE_REPORTS different reporters hide a message automatically. Mutes live on users (chat_muted_until), not characters. Moderation endpoints are admin-only (requireAdmin). GET /chat/messages returns `me` (characterId, canModerate, mutedUntil); screens use it, never their own admin check.
+- First steps (Desk checklist) come from firstSteps (services/firstSteps.rules.ts) with facts read from real rows in desk.service. Never tick a step from localStorage.
+- KEEP_AWAKE_URL (optional) makes the server ping its own PUBLIC /health every KEEP_AWAKE_INTERVAL_MINUTES. It is a workaround for hosts that sleep; a plan that never sleeps is the real fix.
+

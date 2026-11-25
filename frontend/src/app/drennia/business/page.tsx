@@ -30,7 +30,8 @@ const getStateName = (id?: string) => {
   if (id === 'drennia-westport') return 'Westport State';
   if (id === 'drennia-ironvale') return 'Ironvale State';
   if (id === 'drennia-greenmere') return 'Greenmere State';
-  return id;
+  // Other nations' states ("westmark-saltgate" -> "Saltgate")
+  return id.replace(/^[a-z]+-/, '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 };
 
 const getSectorName = (id?: string) => {
@@ -192,12 +193,8 @@ const SECTORS = [
 
 
 // ─── HQ OPTIONS ──────────────────────────────────────────────────────────────
-const HQ_OPTIONS = [
-  { id: 'drennia-drennport',  city: 'Drennport', tagline: 'Finance, Law & Administration', costNote: '▲ Higher Costs',  costColor: T.red,   desc: 'Capital city. Excellent registry access and professional services. Higher operating costs.' },
-  { id: 'drennia-westport',   city: 'Westport',  tagline: 'Ports, Trade & Export',         costNote: '≈ Moderate Costs', costColor: T.gold,  desc: 'Major port hub with strong shipping and logistics contracts.' },
-  { id: 'drennia-ironvale',   city: 'Ironvale',  tagline: 'Manufacturing & Labour',        costNote: '▼ Lower Costs',   costColor: T.mint,  desc: 'Industrial state. Good supply of materials and factory capacity.' },
-  { id: 'drennia-greenmere',  city: 'Greenmere', tagline: 'Agriculture & Community',       costNote: '▼ Lowest Costs',  costColor: T.mint,  desc: 'Slow but steady market. Strong for food and local logistics.' },
-];
+// Loaded from the server (GET /companies/hq-options): the regions of the player's own nation.
+type HqOption = { id: string; city: string; tagline: string; desc: string };
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
@@ -225,6 +222,7 @@ export default function BusinessPage() {
   const [step, setStep] = useState(1);
   const [selectedSector, setSelectedSector] = useState('');
   const [selectedHQ, setSelectedHQ] = useState('');
+  const [hqOptions, setHqOptions] = useState<HqOption[]>([]);
   const [companyNameInput, setCompanyNameInput] = useState('');
   const [nameError, setNameError] = useState('');
   const [startError, setStartError] = useState('');
@@ -237,6 +235,7 @@ export default function BusinessPage() {
     if (typeof window === 'undefined') return;
     import('../../../lib/api').then(({ authApi, characterApi, companyApi, logisticsApi }) => {
       authApi.me().then(res => setIsAdmin(res.data.isAdmin)).catch(() => {});
+      companyApi.getHqOptions().then(d => setHqOptions(d.options)).catch(() => setHqOptions([]));
       characterApi.getMe()
         .then(res => {
           const char = res.data;
@@ -452,7 +451,6 @@ export default function BusinessPage() {
 
       companyApi.create({
         name: finalName,
-        country_id: 'drennia',
         headquarters_state_id: selectedHQ,
         industry_id: industryId,
         subsector_id: subsectorId,
@@ -473,8 +471,8 @@ export default function BusinessPage() {
               year: gDate.worldYear,
               month: gDate.worldMonth,
               text: isFinance
-                ? `${characterName} founded ${finalName} (Capital Partners firm) headquartered in ${HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ}, in ${formatGameDate(gDate)}.`
-                : `${characterName} started ${finalName} (${selectedModel}) headquartered in ${HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ}, in ${formatGameDate(gDate)}.`,
+                ? `${characterName} founded ${finalName} (Capital Partners firm) headquartered in ${hqOptions.find((h: HqOption) => h.id === selectedHQ)?.city || selectedHQ}, in ${formatGameDate(gDate)}.`
+                : `${characterName} started ${finalName} (${selectedModel}) headquartered in ${hqOptions.find((h: HqOption) => h.id === selectedHQ)?.city || selectedHQ}, in ${formatGameDate(gDate)}.`,
               relatedCompanyId: res.data?.id
             }
           ]
@@ -844,7 +842,7 @@ Use paid research to spot rivals who are Sold Out (opportunity to grab share by 
         {activeTab === 'overview'  && <PageShell className="py-6"><OverviewTab company={company} playerCash={playerCash} netWorth={netWorth} onStartBusiness={() => setActiveTab('start')} onViewContracts={() => { setActiveTab('companies'); setSelectedCompanyId(null); }} onViewRegistry={() => setActiveTab('registry')}
           myCompanies={[...operationalCompanies, ...(financeCompany ? [financeCompany] : [])].map((c: any) => ({ id: c.id, name: c.name, industry_id: c.industry_id }))}
           onOpenCompany={(id) => { setActiveTab('companies'); setSelectedCompanyId(id); }} /></PageShell>}
-        {activeTab === 'start'     && <PageShell className="py-6"><StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} financeCompany={financeCompany} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} selectedStructure={selectedStructure} setSelectedStructure={setSelectedStructure} selectedModel={selectedModel} setSelectedModel={setSelectedModel} isSubmitting={isSubmitting} /></PageShell>}
+        {activeTab === 'start'     && <PageShell className="py-6"><StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} hqOptions={hqOptions} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} financeCompany={financeCompany} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} selectedStructure={selectedStructure} setSelectedStructure={setSelectedStructure} selectedModel={selectedModel} setSelectedModel={setSelectedModel} isSubmitting={isSubmitting} /></PageShell>}
         
         {activeTab === 'companies' && (
             <div>
@@ -1150,7 +1148,7 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
 // ─────────────────────────────────────────────────────────────────────────────
 // START BUSINESS TAB
 // ───────────────────────———─────────────────────────────────────────────────────
-function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, selectedHQ, setSelectedHQ, companyNameInput, setCompanyNameInput, nameError, setNameError, startError, playerCash, company, financeCompany, onRegister, checkName, chosenCapital, setChosenCapital, selectedStructure, setSelectedStructure, selectedModel, setSelectedModel, isSubmitting }: any) {
+function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, selectedHQ, setSelectedHQ, hqOptions, companyNameInput, setCompanyNameInput, nameError, setNameError, startError, playerCash, company, financeCompany, onRegister, checkName, chosenCapital, setChosenCapital, selectedStructure, setSelectedStructure, selectedModel, setSelectedModel, isSubmitting }: any) {
   const isLogistics = selectedSector === 'Shipping & Logistics';
   const isFinance   = selectedSector === 'Finance & Services';
 
@@ -1262,9 +1260,10 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {step === 2 && (
         <div>
           <SectionHeader stamp="STEP 2 OF 7">Headquarters Location</SectionHeader>
-          <p className="text-xs text-zinc-500 mb-5 leading-relaxed">Your HQ state affects operating costs, contract access, and market exposure.</p>
+          <p className="text-xs text-zinc-500 mb-5 leading-relaxed">Your company opens in your own nation and sells in its car market. Pick the region for your head office.</p>
           <div className="flex flex-col gap-2.5 mb-6">
-            {HQ_OPTIONS.map(hq => (
+            {hqOptions.length === 0 && <p className="text-xs text-ink-dim">Loading your nation's regions…</p>}
+            {hqOptions.map((hq: HqOption) => (
               <button
                 key={hq.id}
                 onClick={() => setSelectedHQ(hq.id)}
@@ -1279,10 +1278,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
                     <span className="text-sm font-bold text-zinc-100">{hq.city}</span>
                     <span className="text-[10px] text-zinc-500 ml-2.5">{hq.tagline}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono" style={{ color: hq.costColor }}>{hq.costNote}</span>
-                    {selectedHQ === hq.id && <span className="text-[10px] font-mono text-terminal-amber">✓</span>}
-                  </div>
+                  {selectedHQ === hq.id && <span className="text-[10px] font-mono text-terminal-amber">✓</span>}
                 </div>
                 <div className="text-[11px] text-zinc-500 mt-1.5 leading-relaxed">{hq.desc}</div>
               </button>
@@ -1363,7 +1359,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           <div className="rounded-md border border-zinc-800 bg-zinc-900/60 p-5 mb-4">
             <FieldRow label="Company Name" value={companyNameInput} />
             <FieldRow label="Sector" value={selectedSector} />
-            <FieldRow label="HQ State" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ} />
+            <FieldRow label="HQ State" value={hqOptions.find((h: HqOption) => h.id === selectedHQ)?.city || selectedHQ} />
             {!isFinance && <FieldRow label="Legal Structure" value={getLegalStructureName(selectedStructure)} />}
           </div>
           <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-5 mb-6">
@@ -1493,7 +1489,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
             <FieldRow label="Legal Structure" value={isFinance ? 'Private Company' : selectedStructure === 'sole-trader' ? 'Sole Trader' : selectedStructure === 'private-company' ? 'Private Company' : 'Corporation'} />
 
             <FieldRow label="Sector" value={selectedSector} />
-            <FieldRow label="Headquarters" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ} />
+            <FieldRow label="Headquarters" value={hqOptions.find((h: HqOption) => h.id === selectedHQ)?.city || selectedHQ} />
             {!isFinance && (
               <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={isLogistics ? selectedModel : getSubsectorName(selectedModel)} valueColor="#f5a623" />
             )}
@@ -1526,7 +1522,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
         <FieldRow label="Legal Structure" value={isFinance ? 'Private Company' : selectedStructure === 'sole-trader' ? 'Sole Trader' : selectedStructure === 'private-company' ? 'Private Company' : 'Corporation'} />
 
         <FieldRow label="Sector" value={selectedSector || 'TBD'} />
-        <FieldRow label="Headquarters" value={HQ_OPTIONS.find(h => h.id === selectedHQ)?.city || selectedHQ || 'TBD'} />
+        <FieldRow label="Headquarters" value={hqOptions.find((h: HqOption) => h.id === selectedHQ)?.city || selectedHQ || 'TBD'} />
         {!isFinance && (
           <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={selectedModel ? (isLogistics ? selectedModel : getSubsectorName(selectedModel)) : 'TBD'} valueColor="#f5a623" />
         )}

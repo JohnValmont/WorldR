@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import { openAuction } from '../services/acquisitionAuction.service';
+import { hqOptionsFor } from '../constants/nations';
 export class CompanyController {
   // Helper to synchronize true net worth after capital movements
   private static async syncNetWorth(trx: any, characterId: number) {
@@ -124,9 +125,11 @@ export class CompanyController {
         return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
       }
 
-      const { name, country_id, headquarters_state_id, industry_id, subsector_id, legal_structure_id, currency_id, starting_capital } = req.body;
+      // country_id from the client is ignored: a company always opens in its
+      // owner's nation and sells in that nation's car market (see hqOptionsFor).
+      const { name, headquarters_state_id, industry_id, subsector_id, legal_structure_id, currency_id, starting_capital } = req.body;
 
-      if (!name || !country_id || !headquarters_state_id || !industry_id || !legal_structure_id || !currency_id || starting_capital === undefined) {
+      if (!name || !headquarters_state_id || !industry_id || !legal_structure_id || !currency_id || starting_capital === undefined) {
         return next(new AppError('Missing required fields', 400, 'BAD_REQUEST'));
       }
 
@@ -151,6 +154,12 @@ export class CompanyController {
         return next(new AppError('No active world instance found', 404, 'INSTANCE_NOT_FOUND'));
       }
 
+      const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+      if (!character) {
+        return next(new AppError('Active character required to create a company', 400, 'NO_CHARACTER'));
+      }
+      const country_id: string = character.motherland_country_id || 'drennia';
+
       // Check unique name constraint
       const existingName = await db('companies')
         .where({ world_instance_id: activeInstance.id, country_id })
@@ -159,11 +168,6 @@ export class CompanyController {
 
       if (existingName) {
         return next(new AppError('Company name already exists in this country', 400, 'NAME_TAKEN'));
-      }
-
-      const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
-      if (!character) {
-        return next(new AppError('Active character required to create a company', 400, 'NO_CHARACTER'));
       }
 
       // ── Slot enforcement ──────────────────────────────────────────────────
@@ -199,8 +203,8 @@ export class CompanyController {
 
       // The headquarters must be a state of the chosen country, and the currency must exist
       // (an unknown id used to fail the insert with a 500).
-      const hq = await db('states').where({ id: String(headquarters_state_id), country_id: String(country_id) }).first();
-      if (!hq) return next(new AppError('Choose a headquarters state in that country.', 400, 'BAD_REQUEST'));
+      const hq = await db('states').where({ id: String(headquarters_state_id), country_id }).first();
+      if (!hq) return next(new AppError('Choose a headquarters in your own nation.', 400, 'BAD_REQUEST'));
       const currency = await db('currencies').where({ id: String(currency_id) }).first();
       if (!currency) return next(new AppError('Unknown currency.', 400, 'BAD_REQUEST'));
 
@@ -728,6 +732,20 @@ export class CompanyController {
   }
 
   // GET /companies/structures — available legal structures with rules
+  // GET /companies/hq-options — where the player's company can have its
+  // headquarters: the regions of their own nation.
+  public static async getHqOptions(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
+      const character = await db('characters').where({ user_id: userId, status: 'active' }).first();
+      const countryId: string = character?.motherland_country_id || 'drennia';
+      res.status(200).json({ countryId, options: hqOptionsFor(countryId) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   public static async getStructures(req: Request, res: Response, next: NextFunction) {
     try {
       const structures = await db('legal_structures').where({ is_available: true }).orderBy('filing_fee', 'asc');

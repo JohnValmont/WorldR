@@ -10,7 +10,8 @@ const router = Router();
 const registerSchema = z.object({
   body: z.object({
     email: z.string().email(),
-    password: z.string().min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters`)
+    password: z.string().min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters`),
+    accessCode: z.string().max(64).optional()
   })
 });
 
@@ -54,6 +55,7 @@ const resetPasswordSchema = z.object({
   })
 });
 
+router.get('/signup-config', authController.signupConfig);
 router.post('/register', validate(registerSchema), authController.register);
 router.post('/login', validate(loginSchema), authController.login);
 router.post('/guest-login', authController.guestLogin);

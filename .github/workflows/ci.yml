@@ -60,6 +60,10 @@ jobs:
           tests/worldClock.test.ts
           tests/banking.test.ts
           tests/electionEngine.behaviour.test.ts
+          tests/nationMarkets.test.ts
+          tests/signup.test.ts
+          tests/chat.test.ts
+          tests/firstSteps.test.ts
 
   backend-all-tests:
     name: Backend — all tests (informational, allowed to fail)

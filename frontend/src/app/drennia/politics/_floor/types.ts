@@ -238,8 +238,13 @@ export interface Desk extends Omit<Capitol, 'bills' | 'me'> {
     ladder: LadderRung[] | null;
     career: Career | null;
     coalition: CoalitionView | null;
+    /** New-player checklist (backend firstSteps.rules.ts); every tick is a real record. */
+    firstSteps?: FirstSteps | null;
   };
 }
+
+export interface FirstStep { key: string; title: string; why: string; go: string | null; cta: string; done: boolean }
+export interface FirstSteps { steps: FirstStep[]; done: number; total: number; next: string | null; complete: boolean }
 
 // ─── Coalitions (docs/COALITIONS.md; part of GET /politics/desk) ─────────────
 export interface CoalitionPromise { category: string; option: string; months?: number; title: string }

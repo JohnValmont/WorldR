@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,6 +17,11 @@ export default function LoginPage() {
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  // Closed alpha: guest play is off while sign-up is invite-only (server decides).
+  const [guestPlay, setGuestPlay] = useState(true);
+  useEffect(() => {
+    authApi.signupConfig().then(c => setGuestPlay(c.guestPlay !== false)).catch(() => {});
+  }, []);
 
   const handleGuestLogin = async () => {
     setShowGuestModal(false);
@@ -324,8 +329,17 @@ export default function LoginPage() {
           )}
         </motion.button>
 
-        {/* Guest Login Button */}
-        <motion.button
+        {/* Guest Login Button: locked (dashed outline + reason) during the invite-only alpha */}
+        {!guestPlay && (
+          <div className="w-full mt-3">
+            <button type="button" disabled aria-describedby="guest-locked-reason"
+              className="w-full py-3 px-4 rounded-lg border border-dashed border-line-strong text-ink-dim font-semibold text-sm tracking-wide cursor-not-allowed">
+              Play as Guest: closed
+            </button>
+            <p id="guest-locked-reason" className="mt-1.5 text-xs text-ink-dim">The closed alpha is invite-only. Guest play opens with the public season.</p>
+          </div>
+        )}
+        {guestPlay && <motion.button
           type="button"
           onClick={() => setShowGuestModal(true)}
           disabled={loading || guestLoading}
@@ -356,7 +370,7 @@ export default function LoginPage() {
               Play as Guest
             </>
           )}
-        </motion.button>
+        </motion.button>}
       </form>
 
       {/* Divider */}

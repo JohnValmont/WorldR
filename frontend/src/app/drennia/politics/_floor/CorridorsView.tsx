@@ -5,6 +5,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { chatApi, politicsApi, type ChatMessage } from '@/lib/api';
+import MessageActions from '@/components/chat/MessageActions';
 import type { Corridors, Deal, DealSide, Person, Vote } from './types';
 import { Btn, Card, Chip, Label, PartyDot, Sheet, T, money, useFloor } from './kit';
 import { errorText } from './worldKit';
@@ -239,6 +240,7 @@ function Rooms({ room, setRoom, hasParty }: { room: Room; setRoom: (r: Room) => 
               <span className="font-semibold" style={{ color: T.dim }}>{m.character_name}</span> · {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
             <div className="text-sm whitespace-pre-wrap break-words" style={{ color: T.text }}>{m.body}</div>
+            <MessageActions message={m} me={data?.me} onHidden={() => mutate()} />
           </div>
         ))}
         <div ref={endRef} />
@@ -248,6 +250,7 @@ function Rooms({ room, setRoom, hasParty }: { room: Room; setRoom: (r: Room) => 
           className="flex-1 rounded-lg px-3 py-2 text-sm min-w-0" style={{ background: T.surface, border: `1px solid ${T.line}`, color: T.text }} />
         <Btn kind="primary" disabled={sending || !text.trim()} id="room-send" onClick={send}>Send</Btn>
       </form>
+      {data?.me?.mutedUntil && <div className="px-3 pb-2 text-xs text-warn" role="status">You are muted in chat until {new Date(data.me.mutedUntil).toLocaleString()}. You can still read.</div>}
       {err && <div className="px-3 pb-2 text-xs" style={{ color: T.bad }}>{err}</div>}
     </Card>
   );

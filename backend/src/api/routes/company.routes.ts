@@ -9,6 +9,7 @@ router.use(authMiddleware);
 
 router.get('/my', CompanyController.getMyCompanies);
 router.get('/structures', CompanyController.getStructures);
+router.get('/hq-options', CompanyController.getHqOptions);
 router.post('/', CompanyController.createCompany);
 router.get('/:id', CompanyController.getCompany);
 router.post('/:id/inject-capital', CompanyController.injectCapital);
