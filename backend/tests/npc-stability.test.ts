@@ -1,262 +1,143 @@
+/**
+ * NPC stability: 24 business months in Drennia with the seeded computer car
+ * makers and one passive player. The NPCs must not die out, must not sell cars
+ * they never built, must keep prices under the Rule B2 cap, and no single one
+ * may take over the market.
+ *
+ * SAFETY: runs on its own throwaway database (tests/helpers/scratchDatabase.ts)
+ * on a LOCAL Postgres; skipped when none is reachable. Nothing in the
+ * developer's database is read or changed.
+ */
 import * as assert from 'node:assert';
-import { db } from '../src/config/database';
-import { ManufacturingController } from '../src/api/controllers/manufacturing.controller';
-import { Request, Response, NextFunction } from 'express';
-import { randomUUID } from 'crypto';
+import { test } from 'node:test';
+import type { Knex } from 'knex';
+import { withScratchDatabase, quietly } from './helpers/scratchDatabase';
+import { clockAt, insertPlayerCarMaker, processMonth } from './helpers/monthRunner';
 
-async function runTest() {
-  const country = await db('countries').where('name', 'Drennia').first();
-  if (!country) throw new Error('Drennia not found');
-  
-  const worldId = country.world_instance_id;
-  
-  const market = await db('manufacturing_region_markets').where('id', 'drennport-consumer-market').first();
-  if (!market) throw new Error('Market not found');
+const MONTHS = 24;
+/** At least this share of the NPCs active in month 1 must still be active at the end. */
+const MIN_SURVIVAL_RATIO = 0.5;
+/** No NPC may sell more than this share of all cars sold in Drennia over the last RUNAWAY_WINDOW months. */
+const MAX_NPC_SHARE = 0.6;
+const RUNAWAY_WINDOW = 6;
+/** Rule B2 (npcBrain.decideNpcActions): price never above 2.5 x cost per unit. */
+const PRICE_CAP_MULTIPLE = 2.5;
+/** Prices are stored as whole currency units, so the cap may be exceeded by rounding (20,187.5 -> 20,188). */
+const PRICE_ROUNDING = 1;
 
-  const userId = Date.now();
-  const charId = randomUUID();
-  const playerCompanyId = randomUUID();
-  const modelId = randomUUID();
-  const factoryId = randomUUID();
-  const lineId = randomUUID();
-
-  const makeReq = (cId: string) => ({ params: { companyId: cId } } as unknown as Request);
-  const makeRes = () => {
-    const r: any = {};
-    r.status = (c: number) => { r.code = c; return r; };
-    r.json = (d: any) => { r.data = d; return r; };
-    return r as Response & { data: any, code: number };
-  };
-  const makeNext = () => ((err?: any) => { if (err) throw err; }) as NextFunction;
-
-  console.log('Setup Player Company in Drennia');
-  try {
-    await db('users').insert({ id: userId, email: `test_${Date.now()}@test.com`, password_hash: '123' });
-    await db('characters').insert({ id: charId, user_id: userId, world_instance_id: worldId, name: 'Passive Player', motherland_country_id: country.id, age: 26, created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1 });
-    await db('companies').insert({ id: playerCompanyId, world_instance_id: worldId, owner_character_id: charId, industry_id: 'manufacturing', country_id: country.id, headquarters_state_id: 'drennia-drennport', legal_structure_id: 'private-company', currency_id: country.currency_id, name: 'Player Corp 2 ' + Date.now(), status: 'active', created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1 });
-    await db('company_finances').insert({ company_id: playerCompanyId, currency_id: country.currency_id, available_cash: 50000000, debt: 0, company_value: 0, last_arc_profit: 0 });
-    
-    // Player model
-    await db('manufacturing_vehicle_models').insert({
-      id: modelId, company_id: playerCompanyId, world_instance_id: worldId, name: 'Player Box', vehicle_class: 'compact',
-      platform_type: 'compact_chassis_a', power_unit_type: 'ice_inline_4', drivetrain_type: 'fwd',
-      interior_tier: 'standard', safety_tier: 'standard', production_quality: 'standard',
-      manufacturing_cost_per_unit: 10000, reliability_score: 50, performance_score: 50, fuel_efficiency_score: 50, appeal_score: 50, cargo_score: 50, safety_score: 50,
-      target_segment: 'Economy', sale_price: 15000, development_status: 'launched', dev_stage: 'ready_to_launch', status: 'active',
-      created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1
-    });
-    
-    await db('manufacturing_factories').insert({ id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, country_id: country.id, state_id: 'drennia-drennport', factory_type_id: 'medium-plant', name: 'Player Factory', capacity_per_month: 200, lease_cost_per_month: 10000, maintenance_cost_per_month: 2000, status: 'active', created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1 });
-    await db('manufacturing_production_lines').insert({ id: lineId, factory_id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, assigned_vehicle_model_id: modelId, target_units_per_month: 100, status: 'active' });
-    
-    await db('manufacturing_market_allocations').insert({ company_id: playerCompanyId, vehicle_model_id: modelId, world_instance_id: worldId, region_market_id: market.id, units_allocated: 100, marketing_tier: 'local' });
-
-    const { NPC_ROSTER } = require('../src/api/constants/npc');
-    console.log('Resetting NPCs to Seed State for clean run...');
-    const npcs = await db('companies').where({ is_npc: true });
-    
-    // Repair legacy staff role typos
-    await db('company_staff').where({ role: 'factory_worker' }).update({ role: 'factory-worker' });
-    await db('company_staff').where({ role: 'supervisor' }).update({ role: 'production-supervisor' });
-    await db('company_staff').where({ role: 'sales_manager' }).update({ role: 'sales-manager' });
-    await db('company_staff').where({ role: 'engineer' }).update({ role: 'automotive-engineer' });
-    await db('company_staff').where({ role: 'inspector' }).update({ role: 'quality-inspector' });
-
-    for (const npc of npcs) {
-       const rosterData = NPC_ROSTER.find((r: any) => r.name === npc.name);
-       const seedCap = rosterData ? rosterData.seedCapital : 1500000;
-       
-       await db('manufacturing_inventory').where({ company_id: npc.id }).del();
-       await db('manufacturing_sales_results').where({ company_id: npc.id }).andWhere('world_month', '>', 0).del();
-       
-       await db('manufacturing_arc_reports').where({ company_id: npc.id }).del();
-       await db('manufacturing_model_snapshots').where({ company_id: npc.id }).del();
-       await db('company_finances').where({ company_id: npc.id }).update({ available_cash: seedCap });
-       
-       if (rosterData && rosterData.targetUnitsPerArc) {
-         await db('manufacturing_production_lines').where({ company_id: npc.id }).update({ target_units_per_month: rosterData.targetUnitsPerArc });
-       }
-       if (rosterData && rosterData.salePrice) {
-         await db('manufacturing_vehicle_models').where({ company_id: npc.id }).update({ sale_price: rosterData.salePrice });
-       }
-       
-       // Update npc state to reflect the seeded month 0
-       const seedSales = await db('manufacturing_sales_results').where({ company_id: npc.id, world_month: 0 }).first();
-       if (seedSales) {
-          await db('manufacturing_npc_state').where({ company_id: npc.id }).update({ last_units_sold: seedSales.units_sold, last_market_share: seedSales.market_share_estimate });
-       }
-    }
-
-    const runStats: any[] = [];
-    console.log('Run 24 Months');
-    // Ensure clock exists
-    const clockRow = await db('world_clock').first();
-    if (!clockRow) await db('world_clock').insert({ current_year: 1, current_month: 1, current_day: 1, status: 'running' });
-
-    for (let i = 1; i <= 24; i++) {
-      let year = Math.floor((i - 1) / 8) + 1;
-      let month = ((i - 1) % 8) + 1;
-      await db('world_clock').update({ current_year: year, current_month: month });
-
-      // Clean month reports for this month so it runs cleanly
-      await db('manufacturing_arc_reports').where({ world_year: year, world_month: month }).del();
-
-      console.log(`Starting Month ${i}...`);
-      const req = makeReq(playerCompanyId);
-      const res = makeRes();
-      await ManufacturingController.processManufacturingArc(req, res, makeNext());
-      
-      if (res.code >= 400) {
-         throw new Error('Month failed: ' + JSON.stringify(res.data));
-      }
-      console.log(`Finished Month ${i} - res.code=${res.code}`);
-
-      // Collect data for this month for the NPCs
-      const npcs = await db('companies as c')
-        .join('company_finances as f', 'f.company_id', 'c.id')
-        .leftJoin('manufacturing_vehicle_models as m', 'm.company_id', 'c.id')
-        .leftJoin('manufacturing_npc_state as s', 's.company_id', 'c.id')
-        .leftJoin(
-          db.raw(`(SELECT company_id, model_id, units_produced FROM manufacturing_model_snapshots WHERE world_year = ${year} AND world_month = ${month}) as snap`),
-          function() {
-            this.on('snap.company_id', '=', 'c.id').andOn('snap.model_id', '=', 'm.id');
-          }
-        )
-        .leftJoin(
-          db.raw(`(SELECT company_id, vehicle_model_id, main_reason_code, units_sold FROM manufacturing_sales_results WHERE world_year = ${year} AND world_month = ${month}) as sr`),
-          function() {
-            this.on('sr.company_id', '=', 'c.id').andOn('sr.vehicle_model_id', '=', 'm.id');
-          }
-        )
-        .leftJoin('manufacturing_inventory as inv', function() {
-            this.on('inv.company_id', '=', 'c.id').andOn('inv.vehicle_model_id', '=', 'm.id');
-        })
-        .where('c.is_npc', true)
-        .where('c.country_id', country.id)
-        .select(
-          'c.name', 'c.status as company_status', 'f.available_cash',
-          'm.sale_price', 's.last_units_sold', 's.last_market_share',
-          'snap.units_produced', 'sr.main_reason_code', 'sr.units_sold as current_units_sold', 'inv.units_in_stock'
-        )
-        .orderBy('c.name');
-
-      runStats.push({ month: i, npcs });
-    }
-
-    console.log('Assertions');
-    // Print the per-month table for requested months
-    const printArcs = [1, 2, 3, 6, 12, 18, 24];
-    for (const stat of runStats) {
-      if (!printArcs.includes(stat.month)) continue;
-      console.log(`\n--- ARC ${stat.month} ---`);
-      console.table(stat.npcs.map((n: any) => ({
-        NPC: n.name,
-        Status: n.company_status,
-        Cash: Number(n.available_cash).toLocaleString(),
-        Price: Number(n.sale_price || 0),
-        UnitsProduced: n.units_produced || 0,
-        UnitsSold: n.current_units_sold || 0,
-        Inventory: Number(n.units_in_stock || 0),
-        ReasonCode: n.main_reason_code || 'None',
-        MarketShare: (Number(n.last_market_share) * 100).toFixed(1) + '%'
-      })));
-    }
-
-    const finalNpcs = runStats[23].npcs;
-    
-    // Print the balance table
-    console.log('\n--- Month 24 ---');
-    console.table(finalNpcs.map((n: any) => ({
-      NPC: n.name,
-      Status: n.company_status,
-      Cash: Number(n.available_cash).toLocaleString('en-US'),
-      Price: Number(n.sale_price),
-      UnitsProduced: Number(n.units_produced || 0),
-      UnitsSold: Number(n.current_units_sold || 0),
-      Inventory: Number(n.units_in_stock || 0),
-      ReasonCode: n.main_reason_code || 'None',
-      MarketShare: ((Number(n.current_units_sold || 0) / finalNpcs.reduce((s: number, a: any) => s + (Number(a.current_units_sold)||0), 0)) * 100).toFixed(1) + '%'
-    })));
-
-    // NO MASS EXTINCTION
-    const initialActiveCount = runStats[0].npcs.filter((n: any) => n.company_status === 'active').length;
-    const finalActiveCount = finalNpcs.filter((n: any) => n.company_status === 'active').length;
-    assert.ok(finalActiveCount >= Math.max(1, Math.floor(initialActiveCount * 0.5)), `Survival rate too low. Expected at least half of ${initialActiveCount} to survive, got ${finalActiveCount}`);
-    
-    // NEVER EMPTY: Check no month had 0 ACTIVE NPCs
-    for (const stat of runStats) {
-      const active = stat.npcs.filter((n: any) => n.company_status === 'active').length;
-      
-    }
-
-    // NO RUNAWAY
-    for (const stat of runStats) {
-      const totalUnitsArc = stat.npcs.reduce((sum: number, n: any) => sum + (Number(n.last_units_sold) || 0), 0);
-      if (totalUnitsArc > 0) {
-        for (const npc of stat.npcs) {
-          const marketShareNum = Number(npc.last_market_share) * 100;
-       // assert.ok(
-       //  marketShareNum <= 60.0,
-       //  `NPC ${npc.name} exceeded 60% market share in month ${stat.month} (${marketShareNum.toFixed(1)}%)`
-       // );
-     } }
-    }
-
-    // REACTIVITY IN VIVO removed as frozen prices are correct for this test scenario.
-
-    // SOLVENCY SANITY
-    let solventRatioFound = false;
-    for (const npc of finalNpcs) {
-      const initialNpc = runStats[0].npcs.find((n: any) => n.name === npc.name);
-      if (initialNpc) {
-         const finalCash = Number(npc.available_cash);
-         const initialCash = Number(initialNpc.available_cash);
-         if (finalCash > initialCash * 1.05) solventRatioFound = true;
-      }
-    }
-    // ==========================================
-    // NEW: Output the requested report for Valuecorp
-    // ==========================================
-    console.log("\n--- VALUECORP PER-ARC REPORT ---");
-    console.log("Month | unitsProduced | unitsSold | inventory | reason_code | sale_price | available_cash");
-    const valCmp = await db('companies').where('name', 'Valuecorp').where('world_instance_id', worldId).first();
-    const valModel = await db('manufacturing_vehicle_models').where('company_id', valCmp.id).first();
-    
-    const arcsToReport = [1, 2, 3, 6, 12, 18, 24];
-    for (const reportArc of arcsToReport) {
-       const stat = runStats.find(s => s.month === reportArc);
-       if (!stat) continue;
-       
-       const npc = stat.npcs.find((n: any) => n.name === 'Valuecorp');
-       if (!npc) continue;
-
-       const unitsProduced = npc.units_produced || 0;
-       const unitsSold = npc.current_units_sold || 0;
-       const inv = npc.units_in_stock || 0;
-       const reason = npc.main_reason_code || 'N/A';
-       const price = npc.sale_price || 0;
-       const cash = npc.available_cash || 0;
-       
-       console.log(`${String(reportArc).padEnd(3)} | ${String(unitsProduced).padEnd(13)} | ${String(unitsSold).padEnd(9)} | ${String(inv).padEnd(9)} | ${String(reason).padEnd(20)} | ${String(Number(price).toFixed(2)).padEnd(10)} | ${String(Number(cash).toFixed(2))}`);
-    }
-    console.log("----------------------------------\n");
-
-    console.log('Stability Scenario Passed');
-  } catch (err) {
-    console.error('TEST CRASHED WITH ERROR:', err);
-    throw err;
-  } finally {
-    // Cleanup player
-    await db('manufacturing_market_allocations').where({ company_id: playerCompanyId }).del();
-    await db('manufacturing_production_lines').where({ company_id: playerCompanyId }).del();
-    await db('manufacturing_factories').where({ company_id: playerCompanyId }).del();
-    await db('manufacturing_vehicle_models').where({ company_id: playerCompanyId }).del();
-    await db('company_finances').where({ company_id: playerCompanyId }).del();
-    await db('companies').where({ id: playerCompanyId }).del();
-    await db('characters').where({ id: charId }).del();
-    await db('users').where({ id: userId }).del();
-    await db.destroy();
-  }
+interface NpcMonth {
+  id: string; name: string; status: string; cash: number;
+  price: number; cost: number; produced: number; sold: number; stock: number;
 }
 
-runTest().catch(console.error);
+async function npcMonth(db: Knex, countryId: string, year: number, month: number): Promise<NpcMonth[]> {
+  const rows = await db('companies as c')
+    .join('company_finances as f', 'f.company_id', 'c.id')
+    .where({ 'c.is_npc': true, 'c.country_id': countryId })
+    .select(
+      'c.id', 'c.name', 'c.status', 'f.available_cash as cash',
+      db.raw('(select max(m.sale_price) from manufacturing_vehicle_models m where m.company_id = c.id and m.status = ?) as price', ['active']),
+      db.raw('(select max(m.manufacturing_cost_per_unit) from manufacturing_vehicle_models m where m.company_id = c.id and m.status = ?) as cost', ['active']),
+      db.raw('(select coalesce(sum(s.units_produced), 0) from manufacturing_model_snapshots s where s.company_id = c.id and s.world_year = ? and s.world_month = ?) as produced', [year, month]),
+      db.raw('(select coalesce(sum(r.units_sold), 0) from manufacturing_sales_results r where r.company_id = c.id and r.world_year = ? and r.world_month = ?) as sold', [year, month]),
+      db.raw('(select coalesce(sum(i.units_in_stock), 0) from manufacturing_inventory i where i.company_id = c.id) as stock'),
+    )
+    .orderBy('c.name');
+  return rows.map((r: any) => ({
+    id: r.id, name: r.name, status: r.status, cash: Number(r.cash),
+    price: Number(r.price), cost: Number(r.cost),
+    produced: Number(r.produced), sold: Number(r.sold), stock: Number(r.stock),
+  }));
+}
+
+async function unitsSoldInCountry(db: Knex, countryId: string, year: number, month: number): Promise<number> {
+  const row = await db('manufacturing_sales_results as r')
+    .join('companies as c', 'c.id', 'r.company_id')
+    .where({ 'c.country_id': countryId, 'r.world_year': year, 'r.world_month': month })
+    .sum({ n: 'r.units_sold' }).first();
+  return Number(row?.n ?? 0);
+}
+
+test('NPC car makers stay alive, honest and competitive over 24 months', { timeout: 300_000 }, async (t) => {
+  await withScratchDatabase(t, 'npc_stability', async (db) => {
+    const npcMarket = await db('manufacturing_market_allocations as a')
+      .join('companies as c', 'c.id', 'a.company_id')
+      .where({ 'c.is_npc': true, 'c.country_id': 'drennia' })
+      .first('a.region_market_id');
+    assert.ok(npcMarket, 'the seeded Drennia NPCs sell somewhere');
+
+    // A passive player selling an ordinary budget car in the NPCs' own market.
+    const player = await insertPlayerCarMaker(db, {
+      model: {
+        vehicle_class: 'Compact Car', target_segment: 'Budget', sale_price: 15000, manufacturing_cost_per_unit: 10000,
+        reliability_score: 50, performance_score: 50, fuel_efficiency_score: 50, appeal_score: 50, cargo_score: 50, safety_score: 50,
+      },
+      factoryCapacity: 200, lineTarget: 100, marketId: npcMarket.region_market_id, marketingTier: 'local',
+    });
+
+    const startStock = new Map((await npcMonth(db, player.countryId, 1, 1)).map(n => [n.id, n.stock]));
+    const months: { i: number; npcs: NpcMonth[]; countrySold: number }[] = [];
+    for (let i = 1; i <= MONTHS; i++) {
+      await quietly(() => processMonth(db, player.companyId, i));
+      const { year, month } = clockAt(i);
+      months.push({ i, npcs: await npcMonth(db, player.countryId, year, month), countrySold: await unitsSoldInCountry(db, player.countryId, year, month) });
+    }
+
+    for (const m of months.filter(m => [1, 2, 3, 6, 12, 18, 24].includes(m.i))) {
+      console.info(`--- Month ${m.i} (all Drennia cars sold: ${m.countrySold}) ---`);
+      console.table(m.npcs.map(n => ({ NPC: n.name, Status: n.status, Cash: Math.round(n.cash), Price: n.price, Produced: n.produced, Sold: n.sold, Stock: n.stock })));
+    }
+
+    const first = months[0].npcs;
+    const last = months[MONTHS - 1].npcs;
+    assert.ok(first.length >= 2, `Drennia should start with several NPC car makers, found ${first.length}`);
+
+    // 1. No mass extinction.
+    const activeAtStart = first.filter(n => n.status === 'active').length;
+    const activeAtEnd = last.filter(n => n.status === 'active').length;
+    assert.ok(activeAtEnd / activeAtStart >= MIN_SURVIVAL_RATIO,
+      `only ${activeAtEnd} of ${activeAtStart} NPCs still active after ${MONTHS} months`);
+
+    // 2. The market is never empty: every month some NPC is active and sells cars.
+    for (const m of months) {
+      const active = m.npcs.filter(n => n.status === 'active');
+      const sold = active.reduce((s, n) => s + n.sold, 0);
+      assert.ok(active.length > 0 && sold > 0, `month ${m.i}: no active NPC sold a car (${active.length} active, ${sold} sold)`);
+    }
+
+    // 3. Inventory-aware (Ghost Car fix): an NPC never sells more than it built plus its starting stock.
+    for (const npc of first) {
+      const built = months.reduce((s, m) => s + (m.npcs.find(n => n.id === npc.id)?.produced ?? 0), 0);
+      const sold = months.reduce((s, m) => s + (m.npcs.find(n => n.id === npc.id)?.sold ?? 0), 0);
+      const available = built + (startStock.get(npc.id) ?? 0);
+      assert.ok(sold <= available, `${npc.name} sold ${sold} cars but only ever had ${available}`);
+    }
+
+    // 4. Rule B2 price cap holds every month.
+    for (const m of months) {
+      for (const n of m.npcs) {
+        if (!n.cost) continue;
+        assert.ok(n.price <= n.cost * PRICE_CAP_MULTIPLE + PRICE_ROUNDING,
+          `month ${m.i}: ${n.name} priced at ${(n.price / n.cost).toFixed(2)}x cost (cap ${PRICE_CAP_MULTIPLE}x)`);
+      }
+    }
+
+    // 5. No runaway: no NPC dominates Drennia's car sales over the last months.
+    const window = months.slice(-RUNAWAY_WINDOW);
+    const windowTotal = window.reduce((s, m) => s + m.countrySold, 0);
+    assert.ok(windowTotal > 0, `nobody sold a car in Drennia in the last ${RUNAWAY_WINDOW} months`);
+    for (const npc of last) {
+      const npcSold = window.reduce((s, m) => s + (m.npcs.find(n => n.id === npc.id)?.sold ?? 0), 0);
+      assert.ok(npcSold / windowTotal <= MAX_NPC_SHARE,
+        `${npc.name} sold ${(100 * npcSold / windowTotal).toFixed(1)}% of Drennia's cars in the last ${RUNAWAY_WINDOW} months (max ${MAX_NPC_SHARE * 100}%)`);
+    }
+
+    // 6. Solvency: every surviving NPC is solvent, and the field as a whole is profitable.
+    for (const n of last.filter(n => n.status === 'active')) {
+      assert.ok(n.cash >= 0, `${n.name} is active with negative cash (${n.cash})`);
+    }
+    const cashStart = first.reduce((s, n) => s + n.cash, 0);
+    const cashEnd = last.reduce((s, n) => s + n.cash, 0);
+    assert.ok(cashEnd / cashStart > 1, `the NPCs together ended with less cash than after month 1 (${(cashEnd / cashStart).toFixed(2)}x)`);
+  });
+});

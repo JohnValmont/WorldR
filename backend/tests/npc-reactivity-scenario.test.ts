@@ -1,237 +1,117 @@
+/**
+ * NPC reactivity, end to end: when a cheaper, better competitor enters its
+ * segment, the incumbent budget NPC (Valuecorp) answers with a lower price.
+ *
+ * Months 1-3: a player car maker exists but builds and offers nothing, so
+ * Valuecorp trades on its own. Month 4: the player sells a better budget car at
+ * UNDERCUT x Valuecorp's price, with national marketing and full brand
+ * awareness in Valuecorp's market.
+ *
+ * Timing: an NPC decides its price at the START of a month from the previous
+ * months' sales (npcBrain.runNpcBrainForCompany). Its month-4 price was set
+ * before the competitor sold anything; its month-5 price is the first one that
+ * can react. So the test compares the price Valuecorp actually charged in
+ * month 5 with month 4 (manufacturing_sales_results.sale_price, weighted by
+ * units), across all its models: Valuecorp may answer with a Rule B1 price cut
+ * or by copying the player's car at the player's price (industrial espionage,
+ * which retires its own model). Either is a reaction; holding or raising the
+ * price is not. Rule B1's own arithmetic is unit-tested in npc-brain.test.ts.
+ *
+ * SAFETY: runs on its own throwaway database (tests/helpers/scratchDatabase.ts)
+ * on a LOCAL Postgres; skipped when none is reachable. Nothing in the
+ * developer's database is read or changed.
+ */
 import * as assert from 'node:assert';
-import { db } from '../src/config/database';
-import { ManufacturingController } from '../src/api/controllers/manufacturing.controller';
-import { Request, Response, NextFunction } from 'express';
-import { randomUUID } from 'crypto';
+import { test } from 'node:test';
+import type { Knex } from 'knex';
+import { withScratchDatabase, quietly } from './helpers/scratchDatabase';
+import { clockAt, insertPlayerCarMaker, processMonth } from './helpers/monthRunner';
 
-async function runTest() {
-  const country = await db('countries').where('name', 'Drennia').first();
-  if (!country) throw new Error('Drennia not found');
-  
-  const worldId = country.world_instance_id;
-  
-  const market = await db('manufacturing_region_markets').where('id', 'drennport-consumer-market').first();
-  if (!market) throw new Error('Market not found');
+/** The competitor's first selling month. */
+const ENTRY_MONTH = 4;
+/** Cars a month the competitor builds and offers once it enters (far above Valuecorp's 500-car factory). */
+const COMPETITOR_UNITS = 5000;
+/** The competitor's price as a share of Valuecorp's price when it enters. */
+const UNDERCUT = 0.7;
 
-  const userId = Date.now();
-  const charId = randomUUID();
-  const playerCompanyId = randomUUID();
-  const modelId = randomUUID();
-  const factoryId = randomUUID();
-  const lineId = randomUUID();
+interface CompanyMonth { month: number; sold: number; avgPrice: number; models: string }
 
-  const makeReq = (cId: string) => ({ params: { companyId: cId } } as unknown as Request);
-  const makeRes = () => {
-    const r: any = {};
-    r.status = (c: number) => { r.code = c; return r; };
-    r.json = (d: any) => { r.data = d; return r; };
-    return r as Response & { data: any, code: number };
-  };
-  const makeNext = () => ((err?: any) => { if (err) throw err; }) as NextFunction;
-
-  console.log('Setup Competition in Drennia');
-  try {
-    // Ensure clock exists
-    const clockRow = await db('world_clock').first();
-    if (!clockRow) await db('world_clock').insert({ current_year: 1, current_month: 1, current_day: 1, status: 'running' });
-
-    await db('users').insert({ id: userId, email: `test_${Date.now()}@test.com`, password_hash: '123' });
-    await db('characters').insert({ id: charId, user_id: userId, world_instance_id: worldId, name: 'Dummy Player', motherland_country_id: country.id, age: 26, created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1 });
-    await db('companies').insert({ id: playerCompanyId, world_instance_id: worldId, owner_character_id: charId, industry_id: 'manufacturing', country_id: country.id, headquarters_state_id: 'drennia-drennport', legal_structure_id: 'private-company', currency_id: country.currency_id, name: 'Player Corp 2 ' + Date.now(), status: 'active', created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1 });
-    await db('company_finances').insert({ company_id: playerCompanyId, currency_id: country.currency_id, available_cash: 50000000, debt: 0, company_value: 0, last_arc_profit: 0 });
-
-    // RESET Valuecorp
-    const valCmpReset = await db('companies').where('name', 'Valuecorp').where('world_instance_id', worldId).first();
-    if (valCmpReset) {
-       await db('company_finances').where('company_id', valCmpReset.id).update({ available_cash: 1500000 });
-       await db('manufacturing_vehicle_models').where('company_id', valCmpReset.id).update({ sale_price: 14500, target_segment: 'Budget' });
-       const valInv = await db('manufacturing_inventory').where('company_id', valCmpReset.id).first();
-       if (valInv) await db('manufacturing_inventory').where('id', valInv.id).update({ units_in_stock: 0 });
-    }
-
-    const comps = ['comp_engine', 'comp_transmission', 'comp_tyres', 'comp_steel', 'comp_glass', 'comp_electronics'];
-    for (const c of comps) {
-      await db('manufacturing_component_inventory').insert({ company_id: playerCompanyId, component_id: c, units_in_stock: 9999999, world_instance_id: worldId });
-    }
-    
-    // High-priced dummy player initially, then cheap super-competitor
-    await db('manufacturing_vehicle_models').insert({
-      id: modelId, company_id: playerCompanyId, world_instance_id: worldId, name: 'Player Box', vehicle_class: 'Compact Car',
-      platform_type: 'compact_chassis_a', power_unit_type: 'ice_inline_4', drivetrain_type: 'fwd',
-      interior_tier: 'standard', safety_tier: 'standard', production_quality: 'standard',
-      manufacturing_cost_per_unit: 10000, reliability_score: 95, performance_score: 95, fuel_efficiency_score: 95, appeal_score: 95, cargo_score: 95, safety_score: 95,
-      target_segment: 'Budget', sale_price: 100000, development_status: 'launched', dev_stage: 'ready_to_launch', status: 'active',
-      created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1
-    });
-    await db('manufacturing_factories').insert({ id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, country_id: country.id, state_id: 'drennia-drennport', factory_type_id: 'medium-plant', name: 'Player Factory', capacity_per_month: 500000, lease_cost_per_month: 10000, maintenance_cost_per_month: 2000, condition: 100, status: 'active', created_at_world_year: 1, created_at_world_month: 1, created_at_world_day: 1 });
-    await db('manufacturing_production_lines').insert({ id: lineId, factory_id: factoryId, company_id: playerCompanyId, world_instance_id: worldId, assigned_vehicle_model_id: modelId, target_units_per_month: 300000, status: 'active' });
-    const valAlloc = await db('manufacturing_market_allocations')
-      .join('companies', 'companies.id', 'manufacturing_market_allocations.company_id')
-      .where('companies.name', 'Valuecorp')
-      .select('manufacturing_market_allocations.region_market_id')
-      .first();
-    const targetRegionId = valAlloc ? valAlloc.region_market_id : market.id;
-
-    await db('manufacturing_market_allocations').insert({ company_id: playerCompanyId, vehicle_model_id: modelId, world_instance_id: worldId, region_market_id: targetRegionId, units_allocated: 300000, marketing_tier: 'national' });
-    await db('company_staff').insert([
-      { company_id: playerCompanyId, role: 'factory-worker', quantity: 2000000 },
-      { company_id: playerCompanyId, role: 'production-supervisor', quantity: 10000 },
-      { company_id: playerCompanyId, role: 'sales-manager', quantity: 10000 }
-    ]);
-    const checkStaff = await db('company_staff').where({ company_id: playerCompanyId });
-    console.log("Check Staff inserted: ", checkStaff);
-
-    const getIncumbentPrice = async () => {
-      const npcs = await db('companies as c')
-        .join('manufacturing_vehicle_models as m', 'm.company_id', 'c.id')
-        .where('c.name', 'Valuecorp')
-        .select('m.sale_price', 'c.id as cid', 'm.id as mid');
-      console.log(`Found ${npcs.length} Valuecorp models!`);
-      if (npcs.length > 0) {
-          console.log(`First Valuecorp model price: ${npcs[0].sale_price}`);
-          return Number(npcs[0].sale_price);
-      }
-      return 0;
-    };
-
-
-
-    if (valCmpReset) {
-      const valLine = await db('manufacturing_production_lines').where('company_id', valCmpReset.id).first();
-      if (valLine) {
-        const targetAlloc = await db('manufacturing_market_allocations').where({ company_id: valCmpReset.id, region_market_id: targetRegionId }).first();
-        if (targetAlloc) {
-           await db('manufacturing_market_allocations').where({ id: targetAlloc.id }).update({ units_allocated: 10000 });
-        } else {
-           await db('manufacturing_market_allocations').insert({
-              world_instance_id: worldId, company_id: valCmpReset.id, vehicle_model_id: valLine.assigned_vehicle_model_id,
-              region_market_id: targetRegionId, marketing_tier: 'none', units_allocated: 10000
-           });
-        }
-        const existingInv = await db('manufacturing_inventory').where({ company_id: valCmpReset.id, vehicle_model_id: valLine.assigned_vehicle_model_id }).first();
-        if (existingInv) {
-           await db('manufacturing_inventory').where({ id: existingInv.id }).update({ units_in_stock: 10000 });
-        } else {
-           await db('manufacturing_inventory').insert({
-              world_instance_id: worldId, company_id: valCmpReset.id, vehicle_model_id: valLine.assigned_vehicle_model_id,
-              units_in_stock: 10000, inventory_value: 0, storage_cost_per_month: 0
-           });
-        }
-      }
-    }
-
-    // Run 3 months
-    for (let i = 1; i <= 3; i++) {
-      let year = Math.floor((i - 1) / 8) + 1;
-      let month = ((i - 1) % 8) + 1;
-      await db('world_clock').update({ current_year: year, current_month: month });
-      await db('manufacturing_arc_reports').where({ world_year: year, world_month: month }).del();
-      await db('manufacturing_sales_results').where({ world_year: year, world_month: month }).del();
-      await db('manufacturing_model_snapshots').where({ world_year: year, world_month: month }).del();
-      
-      const reqPlayer = makeReq(playerCompanyId);
-      const resPlayer = makeRes();
-      await ManufacturingController.processManufacturingArc(reqPlayer, resPlayer, makeNext());
-    }
-
-    const priceBefore = await getIncumbentPrice();
-    console.log(`Incumbent Price Before Competitor: ${priceBefore}`);
-
-    // Print market share of Valuecorp before
-    const valBefore = await db('manufacturing_npc_state').join('companies', 'companies.id', 'manufacturing_npc_state.company_id').where('companies.name', 'Valuecorp').where('companies.world_instance_id', worldId).first();
-    console.log(`Valuecorp Market Share Before: ${valBefore?.last_market_share}, Sold: ${valBefore?.last_units_sold}`);
-
-    // Inject Competitor (Price it well below Valuecorp)
-    console.log('Injecting Competitor to undercut Valuecorp (Budget Segment)');
-    await db('manufacturing_vehicle_models').where({ id: modelId }).update({ sale_price: 10000, target_segment: 'Budget' });
-    await db('manufacturing_production_lines').where({ id: lineId }).update({ target_units_per_month: 300000 });
-    await db('manufacturing_market_allocations').where({ company_id: playerCompanyId, vehicle_model_id: modelId }).update({ units_allocated: 300000, marketing_tier: 'national' });
-    
-    // Give Dummy perfect brand awareness and reputation in Drennia so it absorbs maximum raw interest
-    const existingBrand = await db('manufacturing_brand_awareness').where({ company_id: playerCompanyId, region_market_id: targetRegionId }).first();
-    if (existingBrand) {
-        await db('manufacturing_brand_awareness').where({ id: existingBrand.id }).update({ awareness: 100, reputation: 100 });
-    } else {
-        await db('manufacturing_brand_awareness').insert({
-            company_id: playerCompanyId,
-            region_market_id: targetRegionId,
-            awareness: 100,
-            reputation: 100
-        });
-    }
-
-    // Isolate Valuecorp to only the target region so the competitor has a global effect on its stats
-    const valCmpSetup = await db('companies').where('name', 'Valuecorp').where('world_instance_id', worldId).first();
-    const valLine = await db('manufacturing_production_lines').where('company_id', valCmpSetup.id).first();
-    if (valLine) {
-       await db('manufacturing_production_lines').where('id', valLine.id).update({ target_units_per_month: 100 });
-    }
-    const allAllocs = await db('manufacturing_market_allocations').where({ company_id: valCmpSetup.id });
-    
-    // Restore the market to realistic Drennia numbers (approx 2M pop)
-    await db('manufacturing_region_markets').where({ id: targetRegionId }).update({
-      baseline_replacement_rate: 0.05,
-      first_time_buyer_rate: 0.05,
-      population: 2100000
-    });
-
-    let finalYear = 1;
-    // Run 2 more months
-    for (let i = 4; i <= 5; i++) {
-      let year = Math.floor((i - 1) / 8) + 1;
-      let month = ((i - 1) % 8) + 1;
-      finalYear = year;
-      await db('world_clock').update({ current_year: year, current_month: month });
-      await db('manufacturing_arc_reports').where({ world_year: year, world_month: month }).del();
-      await db('manufacturing_sales_results').where({ world_year: year, world_month: month }).del();
-      await db('manufacturing_model_snapshots').where({ world_year: year, world_month: month }).del();
-      
-      const req = makeReq(playerCompanyId);
-      const res = makeRes();
-      await ManufacturingController.processManufacturingArc(req, res, makeNext());
-    }
-
-    const priceAfter = await getIncumbentPrice();
-    console.log(`Incumbent Price After Competitor: ${priceAfter}`);
-
-    // Print market share of Valuecorp after
-    const valAfter = await db('manufacturing_npc_state').join('companies', 'companies.id', 'manufacturing_npc_state.company_id').where('companies.name', 'Valuecorp').where('companies.world_instance_id', worldId).first();
-    console.log(`Valuecorp Market Share After: ${valAfter?.last_market_share}, Sold: ${valAfter?.last_units_sold}`);
-
-    // Print market share of dummy player after
-    const dummySales = await db('manufacturing_sales_results').where('company_id', playerCompanyId).orderBy('world_month', 'desc').first();
-    console.log(`Dummy Market Share After: ${dummySales?.market_share_estimate}, Sold: ${dummySales?.units_sold}, Reason: ${dummySales?.main_reason_code}`);
-    
-    const dummyAlloc = await db('manufacturing_market_allocations').where({ company_id: playerCompanyId }).first();
-    const dummyModel = await db('manufacturing_vehicle_models').where({ company_id: playerCompanyId }).first();
-    console.log(`Dummy Inventory: ${dummySales?.inventory_in_stock}, Alloc: ${dummyAlloc?.units_allocated}, Price: ${dummyModel?.sale_price}`);
-
-    const ratio = priceAfter / priceBefore;
-    console.log(`Reactivity Ratio: ${ratio.toFixed(2)}`);
-    const dummySalesArc = await db('manufacturing_sales_results').where({ company_id: playerCompanyId, world_year: finalYear }).whereIn('world_month', [4, 5]);
-    console.log("Dummy Sales in Month 4 and 5:", dummySalesArc.map(s => ({ month: s.world_month, sold: s.units_sold, share: s.market_share_estimate })));
-    const valCmp = await db('companies').where('name', 'Valuecorp').where('world_instance_id', worldId).first();
-    const valSales = await db('manufacturing_sales_results').where({ company_id: valCmp.id, world_year: finalYear }).whereIn('world_month', [4, 5]);
-    console.log("Valuecorp Sales in Month 4 and 5:", valSales.map(s => ({ month: s.world_month, sold: s.units_sold, share: s.market_share_estimate })));
-    
-    assert.ok(ratio < 1.0, `Incumbent failed to cut price! Ratio: ${ratio.toFixed(2)}`);
-
-    console.log('Reactivity Scenario Passed');
-  } catch (err) {
-    console.error('TEST CRASHED WITH ERROR:', err);
-    throw err;
-  } finally {
-    // Cleanup player
-    await db('manufacturing_market_allocations').where({ company_id: playerCompanyId }).del();
-    await db('manufacturing_production_lines').where({ company_id: playerCompanyId }).del();
-    await db('manufacturing_factories').where({ company_id: playerCompanyId }).del();
-    await db('manufacturing_vehicle_models').where({ company_id: playerCompanyId }).del();
-    await db('company_finances').where({ company_id: playerCompanyId }).del();
-    await db('companies').where({ id: playerCompanyId }).del();
-    await db('characters').where({ id: charId }).del();
-    await db('users').where({ id: userId }).del();
-    await db.destroy();
-  }
+/** What a company sold in month i and the units-weighted price it actually charged. */
+async function companyMonth(db: Knex, companyId: string, i: number): Promise<CompanyMonth> {
+  const { year, month } = clockAt(i);
+  const rows = await db('manufacturing_sales_results as r')
+    .join('manufacturing_vehicle_models as m', 'm.id', 'r.vehicle_model_id')
+    .where({ 'r.company_id': companyId, 'r.world_year': year, 'r.world_month': month })
+    .select('r.units_sold', 'r.sale_price', 'm.name');
+  const sold = rows.reduce((s: number, r: any) => s + Number(r.units_sold), 0);
+  const revenueAtListPrice = rows.reduce((s: number, r: any) => s + Number(r.units_sold) * Number(r.sale_price), 0);
+  const models = [...new Set(rows.filter((r: any) => Number(r.units_sold) > 0).map((r: any) => r.name))].join(', ');
+  return { month: i, sold, avgPrice: sold > 0 ? revenueAtListPrice / sold : 0, models };
 }
 
-runTest().catch(console.error);
+test('Valuecorp answers a cheaper, better competitor with a lower price', { timeout: 300_000 }, async (t) => {
+  await withScratchDatabase(t, 'npc_reactivity', async (db) => {
+    const valuecorp = await db('companies').where({ name: 'Valuecorp', country_id: 'drennia', is_npc: true }).first();
+    assert.ok(valuecorp, 'the seeded world has Valuecorp in Drennia');
+    const valuecorpModels = await db('manufacturing_vehicle_models').where({ company_id: valuecorp.id, status: 'active' });
+    assert.strictEqual(valuecorpModels.length, 1, 'Valuecorp starts with one model');
+    const valuecorpAlloc = await db('manufacturing_market_allocations').where({ vehicle_model_id: valuecorpModels[0].id }).first();
+    assert.ok(valuecorpAlloc, 'Valuecorp sells in a Drennia market');
+    const marketId = valuecorpAlloc.region_market_id;
+
+    // The competitor exists from month 1 but plans and offers no cars yet.
+    const player = await insertPlayerCarMaker(db, {
+      model: {
+        vehicle_class: 'Compact Car', target_segment: 'Budget', sale_price: 100_000, manufacturing_cost_per_unit: 10_000,
+        reliability_score: 95, performance_score: 95, fuel_efficiency_score: 95, appeal_score: 95, cargo_score: 95, safety_score: 95,
+      },
+      factoryCapacity: COMPETITOR_UNITS, lineTarget: 0, marketId, marketingTier: 'national', cash: 1_000_000_000,
+    });
+    await db('company_staff').insert([
+      { company_id: player.companyId, role: 'factory-worker', quantity: 5000 },
+      { company_id: player.companyId, role: 'production-supervisor', quantity: 50 },
+      { company_id: player.companyId, role: 'sales-manager', quantity: 50 },
+    ]);
+
+    const valuecorpHistory: CompanyMonth[] = [];
+    const playerHistory: CompanyMonth[] = [];
+    const runMonth = async (i: number) => {
+      await quietly(() => processMonth(db, player.companyId, i));
+      valuecorpHistory.push(await companyMonth(db, valuecorp.id, i));
+      playerHistory.push(await companyMonth(db, player.companyId, i));
+    };
+
+    for (let i = 1; i < ENTRY_MONTH; i++) await runMonth(i);
+
+    // The competitor enters: cheaper than Valuecorp, a better car, fully known in Valuecorp's market.
+    const valuecorpPriceNow = Number((await db('manufacturing_vehicle_models').where({ company_id: valuecorp.id, status: 'active' }).min({ p: 'sale_price' }).first())?.p);
+    await db('manufacturing_vehicle_models').where({ id: player.modelId }).update({ sale_price: Math.round(valuecorpPriceNow * UNDERCUT) });
+    await db('manufacturing_production_lines').where({ id: player.lineId }).update({ target_units_per_month: COMPETITOR_UNITS });
+    await db('manufacturing_market_allocations').where({ vehicle_model_id: player.modelId }).update({ units_allocated: COMPETITOR_UNITS });
+    await db('manufacturing_brand_awareness')
+      .insert({ company_id: player.companyId, region_market_id: marketId, awareness: 100, reputation: 100 })
+      .onConflict(['company_id', 'region_market_id']).merge();
+
+    await runMonth(ENTRY_MONTH);      // Valuecorp's price here was set before it saw the competitor
+    await runMonth(ENTRY_MONTH + 1);  // its first price that can react
+
+    console.info('Valuecorp (avgPrice = units-weighted price actually charged) and the competitor, month by month:');
+    console.table(valuecorpHistory.map((v, k) => ({
+      month: v.month, valuecorpSold: v.sold, valuecorpPrice: Math.round(v.avgPrice), valuecorpModels: v.models,
+      competitorSold: playerHistory[k].sold, competitorPrice: Math.round(playerHistory[k].avgPrice),
+    })));
+
+    const atEntry = valuecorpHistory[ENTRY_MONTH - 1];
+    const reacted = valuecorpHistory[ENTRY_MONTH];
+
+    // Preconditions: the competitor stayed out, then really entered; Valuecorp kept trading.
+    assert.strictEqual(playerHistory.slice(0, ENTRY_MONTH - 1).reduce((s, m) => s + m.sold, 0), 0, 'the competitor sold nothing before it entered');
+    assert.ok(playerHistory[ENTRY_MONTH - 1].sold > 0, 'the competitor sold cars once it entered');
+    assert.ok(playerHistory[ENTRY_MONTH - 1].avgPrice / atEntry.avgPrice < 1, 'the competitor undercut Valuecorp');
+    assert.ok(atEntry.sold > 0 && reacted.sold > 0, `Valuecorp kept selling (${atEntry.sold} then ${reacted.sold} cars)`);
+
+    // The behaviour under test: once it can see the competitor, Valuecorp charges less.
+    const ratio = reacted.avgPrice / atEntry.avgPrice;
+    assert.ok(ratio < 1, `Valuecorp did not lower its price after being undercut (month ${ENTRY_MONTH + 1} / month ${ENTRY_MONTH} price = ${ratio.toFixed(2)})`);
+  });
+});
