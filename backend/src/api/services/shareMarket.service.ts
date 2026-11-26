@@ -1,5 +1,7 @@
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
+import { fairValuePerShare, marketMakerAnchor, profitsFromBars } from './shareValuation.rules';
+import { FAIR_VALUE_PROFIT_MONTHS } from '../constants/shareValuation';
 
 /**
  * Share Market Service — realistic order-book exchange for PUBLIC player companies.
@@ -467,20 +469,26 @@ export async function getOrderBook(companyId: string, existingTrx?: any) {
   // Realism Fix: Inject multi-tier DRX Specialist market-maker order depth (bids & asks) for listed companies
   const company = await t('companies').where({ id: companyId, is_exchange_listed: true }).first();
   if (company) {
-    const prevBar = await t('share_price_history')
-      .where({ company_id: companyId })
-      .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
-      .first();
-    
-    const finRow = await t('company_finances').where({ company_id: companyId }).first();
-    const lastClose = Number(prevBar?.close_price || 10.00);
-    const bookValue = Number(finRow?.company_value || 0);
-    const bvps = bookValue / 1000000;
-    
-    let anchorPrice = lastClose;
-    if (bvps > 0) {
-      anchorPrice = Math.max(lastClose, lastClose + (bvps - lastClose) * 0.20);
-    }
+    // Anchor = the same fair-value step the monthly market maker uses (ipoExchange Step F),
+    // so this ladder can never hold the price away from fair value.
+    const [recentBars, finRow, sumRow] = await Promise.all([
+      t('share_price_history')
+        .where({ company_id: companyId })
+        .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
+        .limit(FAIR_VALUE_PROFIT_MONTHS),
+      t('company_finances').where({ company_id: companyId }).first(),
+      t('company_shares').where({ company_id: companyId }).sum('shares as total').first(),
+    ]);
+    const prevBar = recentBars[0] ?? null;
+    const shares = Number(sumRow?.total ?? TOTAL_SHARES) || TOTAL_SHARES;
+    const barProfits = profitsFromBars(recentBars, shares);
+    const fairValue = fairValuePerShare({
+      bookValue: Number(finRow?.company_value || 0),
+      monthlyProfits: barProfits.length ? barProfits : [Number(finRow?.last_arc_profit || 0)],
+      shares,
+    });
+    // Never priced yet: quote at fair value until the month end writes its opening bar.
+    const anchorPrice = marketMakerAnchor(prevBar ? Number(prevBar.close_price) : null, fairValue);
 
     const systemUser = await t('users').where({ email: 'system_npc@worldr.game' }).first();
     if (systemUser) {
