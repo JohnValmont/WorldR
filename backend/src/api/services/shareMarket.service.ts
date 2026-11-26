@@ -71,9 +71,13 @@ export async function placeOrder(params: {
     if (!isNpc && !skipCircuitBreaker) {
       const lastClose = await getLastClose(trx, companyId);
       if (lastClose != null && tripsCircuitBreaker(price, lastClose)) {
+        // Keep a record of the refused order. It must be RETURNED, not thrown:
+        // throwing here would roll the transaction back and lose the row. The
+        // error is thrown below, after the transaction has committed.
         await trx('share_orders').insert({
           company_id: companyId,
           character_id: characterId,
+          purchaser_company_id: purchaserCompanyId || null,
           side,
           price,
           quantity,
@@ -81,11 +85,13 @@ export async function placeOrder(params: {
           status: 'cancelled',
           rejected_circuit_breaker: true,
         });
-        throw new AppError(
-          `Order price $${price.toFixed(2)} exceeds the ±${Math.round(CIRCUIT_BREAKER_LIMIT * 100)}% circuit breaker (last close $${lastClose.toFixed(2)})`,
-          400,
-          'CIRCUIT_BREAKER'
-        );
+        return {
+          rejection: new AppError(
+            `Order price $${price.toFixed(2)} exceeds the ±${Math.round(CIRCUIT_BREAKER_LIMIT * 100)}% circuit breaker (last close $${lastClose.toFixed(2)})`,
+            400,
+            'CIRCUIT_BREAKER'
+          ),
+        };
       }
     }
 
@@ -308,7 +314,13 @@ export async function placeOrder(params: {
     return { order: finalOrder, trades };
   };
 
-  return existingTrx ? run(existingTrx) : db.transaction(run);
+  // A circuit-breaker refusal comes back as a value so its record commits first;
+  // only then is it raised to the caller. (Inside a caller's transaction the
+  // record commits or rolls back with that transaction.)
+  const result: { order?: any; trades?: any[]; rejection?: AppError } =
+    existingTrx ? await run(existingTrx) : await db.transaction(run);
+  if (result.rejection) throw result.rejection;
+  return result as { order: any; trades: any[] };
 }
 
 export async function cancelOrder(orderId: string, characterId: string) {
