@@ -1,3 +1,4 @@
+import { companyBookValueSql, characterNetDebt } from '../services/companyValue';
 import { assignNation } from '../services/nations.service';
 import { releaseCharacterPolitics } from '../services/floor.service';
 import { startingProfile } from '../services/character.rules';
@@ -54,7 +55,7 @@ export class CharacterController {
           'cs.company_id',
           'cf.available_cash',
           'cf.debt',
-          db.raw(`COALESCE((SELECT SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) FROM manufacturing_inventory mi JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id WHERE mi.company_id = c.id), 0) as inventory_value`),
+          db.raw(`${companyBookValueSql('c.id')} as book_value`),
           db.raw(`(SELECT SUM(shares) FROM company_shares WHERE company_id = cs.company_id) + COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND side = 'sell' AND status = 'open'), 0) as total_shares`),
           db.raw(`COALESCE((SELECT SUM(quantity) FROM share_orders WHERE company_id = cs.company_id AND character_id = cs.holder_character_id AND side = 'sell' AND status = 'open'), 0) as escrowed_shares`)
         );
@@ -82,18 +83,19 @@ export class CharacterController {
             trueNetWorth += myShares * lastPrice;
           } else {
             // No price yet (just listed): fall back to book value until first trade
-            const bookValue = Math.max(0, Number(row.available_cash) - Number(row.debt || 0) + Number(row.inventory_value || 0));
+            const bookValue = Number(row.book_value || 0);
             trueNetWorth += (myShares / total) * bookValue;
           }
         } else {
           // Private: book value
-          const bookValue = Math.max(0, Number(row.available_cash) - Number(row.debt || 0) + Number(row.inventory_value || 0));
+          const bookValue = Number(row.book_value || 0);
           trueNetWorth += (myShares / total) * bookValue;
         }
       }
 
       if (finances) {
-        finances.net_worth = trueNetWorth;
+        // Loans still owed are not wealth (services/companyValue.ts).
+        finances.net_worth = trueNetWorth - await characterNetDebt(db, character.id);
       }
 
       let netWorthHistory: any[] = [];

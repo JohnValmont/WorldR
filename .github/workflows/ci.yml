@@ -64,6 +64,8 @@ jobs:
           tests/signup.test.ts
           tests/chat.test.ts
           tests/firstSteps.test.ts
+          tests/businessGoals.test.ts
+          tests/shareValuation.test.ts
 
   backend-all-tests:
     name: Backend — all tests (informational, allowed to fail)

@@ -104,7 +104,7 @@ export function BrandMilestoneTracker({ company, finances, models }: any) {
       <div className="text-[10px] text-zinc-500 uppercase tracking-[0.12em] mb-2 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
            <span>Current Cap</span>
-           <button onClick={() => setShowAll(!showAll)} className="text-zinc-500 hover:text-terminal-amber transition-colors">
+           <button onClick={() => setShowAll(!showAll)} aria-label={showAll ? 'Hide reputation caps' : 'Show all reputation caps'} aria-expanded={showAll} className="text-zinc-500 hover:text-terminal-amber transition-colors">
               <Info size={12} />
            </button>
         </div>

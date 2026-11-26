@@ -41,8 +41,12 @@ import { normaliseCarStyle, PAINT_COLORS, BODY_STYLES, WHEEL_STYLES, TAGLINE_MAX
 import { runNpcBrainForCompany, spawnNpc } from '../services/npcBrain.service';
 import { BANKRUPTCY_FLOOR } from '../constants/npc';
 import { processPoliticalArc, worldClockToArc } from '../services/politics.service';
-import { getNationalPolicyMultipliers } from '../services/nationalEconomy.service';
+import { getNationalPolicyMultipliers, ManufacturingPolicyEffect } from '../services/nationalEconomy.service';
 import { openAuction } from '../services/acquisitionAuction.service';
+import { refreshCompanyValue } from '../services/companyValue';
+import { businessGoals, profitStreak } from '../services/businessGoals.rules';
+import { MIN_SALE_PRICE, MAX_SALE_PRICE, MAX_UNITS_INPUT } from '../constants/companyAssets';
+import { OWED_COMPANY_LOAN_STATUSES, FACTORY_LEASE_OPTIONS, LEASE_SIGNING_MONTHS, LAND_COST_PER_ACRE, STATE_LICENSE_COST, PRODUCTION_LINE_BUILD_COST, LAND_SALVAGE_SHARE, BUILDING_SALVAGE_SHARE, factoryBuildCost, factoryAcres, DEFAULT_EXPANSION_COST } from '../constants/companyAssets';
 
 
 // ── Score Calculation (Original formulas) ─────────────────────────────────────
@@ -120,6 +124,13 @@ function calculateDesignScores(design: {
 
 
 // ── Helper: Verify ownership + load country config ────────────────────────────
+/** A whole number in [min, max] from request input, or null (strings like "abc" used to reach SQL and 500). */
+function wholeNumberInput(v: unknown, min: number, max: number): number | null {
+  const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
+  if (typeof n !== 'number' || !Number.isFinite(n) || !Number.isInteger(n) || n < min || n > max) return null;
+  return n;
+}
+
 export async function verifyManufacturingCompany(trx: any, userId: number | string, companyId: string) {
   const character = await trx('characters').where({ user_id: userId, status: 'active' }).first();
   if (!character) throw new AppError('No active character found', 404, 'NOT_FOUND');
@@ -200,6 +211,9 @@ export class ManufacturingController {
         defaultEngineeringPriorities: DEFAULT_ENGINEERING_PRIORITIES,
         carStyle: { paints: PAINT_COLORS, bodyStyles: BODY_STYLES, wheels: WHEEL_STYLES, taglineMaxLength: TAGLINE_MAX_LENGTH },
         buyerSegments: Object.values(MARKET_SEGMENTS).map(s => ({ id: s.id, name: s.name, populationShare: s.populationShare, priceCeiling: s.priceCeiling })),
+        leaseOptions: Object.entries(FACTORY_LEASE_OPTIONS).map(([factoryTypeId, o]) => ({ factoryTypeId, monthlyRent: o.monthlyRent, label: o.label })),
+        leaseSigningMonths: LEASE_SIGNING_MONTHS,
+        buildCosts: { landPerAcre: LAND_COST_PER_ACRE, productionLine: PRODUCTION_LINE_BUILD_COST, factory: { 'small-workshop': factoryBuildCost('small-workshop'), 'medium-plant': factoryBuildCost('medium-plant') } },
       });
     } catch (error) {
       next(error);
@@ -354,12 +368,50 @@ export class ManufacturingController {
       const engReputation = await db('manufacturing_engineering_reputation')
         .where({ company_id: companyId }).first() ?? null;
 
+      // Bank loans the company still owes, so screens can show debt next to cash.
+      const loanRow = await db('banking_active_loans')
+        .where({ borrower_type: 'company', borrower_id: String(companyId) })
+        .whereIn('status', OWED_COMPANY_LOAN_STATUSES)
+        .select(db.raw('COALESCE(SUM(remaining_principal), 0) AS owed'), db.raw('COALESCE(SUM(monthly_payment), 0) AS monthly'))
+        .first();
+      const bankLoans = { owed: Number((loanRow as any)?.owed ?? 0), monthlyPayment: Number((loanRow as any)?.monthly ?? 0) };
+
+      // Company goals: every fact from real rows (services/businessGoals.rules.ts).
+      const lastSales = await db.raw(
+        `WITH last AS (SELECT world_year, world_month FROM manufacturing_sales_results WHERE company_id = ?
+                       ORDER BY world_year DESC, world_month DESC LIMIT 1),
+              mine AS (SELECT s.region_market_id, SUM(s.units_sold) AS u FROM manufacturing_sales_results s, last
+                       WHERE s.company_id = ? AND s.world_year = last.world_year AND s.world_month = last.world_month
+                       GROUP BY s.region_market_id HAVING SUM(s.units_sold) > 0),
+              allm AS (SELECT s.region_market_id, SUM(s.units_sold) AS u FROM manufacturing_sales_results s, last
+                       WHERE s.world_year = last.world_year AND s.world_month = last.world_month
+                         AND s.region_market_id IN (SELECT region_market_id FROM mine)
+                       GROUP BY s.region_market_id)
+         SELECT COUNT(*) AS markets, COALESCE(MAX(mine.u::float / NULLIF(allm.u, 0)), 0) AS best_share
+           FROM mine JOIN allm ON allm.region_market_id = mine.region_market_id`,
+        [companyId, companyId],
+      );
+      const ls = lastSales.rows?.[0] ?? {};
+      const runningFactory = factories.some((f: any) => f.status === 'active' && f.building_status === 'completed');
+      const businessGoalsView = businessGoals({
+        cars_sold: Number(finances?.lifetime_units_sold ?? 0),
+        profit_streak: profitStreak(allReports.map((r: any) => Number(r.net_profit))),
+        models: models.filter((m: any) => m.development_status === 'launched').length,
+        markets: Number(ls.markets ?? 0),
+        market_share: Math.round(Number(ls.best_share ?? 0) * 1000) / 10,
+        company_value: Number(finances?.company_value ?? 0),
+        own_factory: factories.some((f: any) => f.status === 'active' && f.building_status === 'completed' && f.ownership_type !== 'leased') ? 1 : 0,
+        debt_free: runningFactory && bankLoans.owed <= 0 && Number(finances?.debt ?? 0) <= 0 ? 1 : 0,
+      });
+
       res.status(200).json({
         factories,
         productionLines,
         models,
         inventory,
         latestReport,
+        bankLoans,
+        businessGoals: businessGoalsView,
         allReports,
         brandResults,
         staff,
@@ -396,7 +448,7 @@ export class ManufacturingController {
       const { companyId } = req.params;
       const { component_id, units } = req.body;
       
-      if (!userId || !companyId || !component_id || typeof units !== 'number' || units <= 0) {
+      if (!userId || !companyId || !component_id || wholeNumberInput(units, 1, MAX_UNITS_INPUT) === null) {
         return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
       }
 
@@ -509,7 +561,7 @@ export class ManufacturingController {
 
         const market = await trx('manufacturing_region_markets').where({ state_id: targetStateId }).first();
         const mult = Number(market?.economic_multiplier) || 1.0;
-        const cost = 50000 * mult;
+        const cost = STATE_LICENSE_COST * mult;
 
         const fin = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
         if (Number(fin.available_cash) < cost) throw new AppError('Insufficient cash for license', 400);
@@ -548,12 +600,12 @@ export class ManufacturingController {
         
         const market = await trx('manufacturing_region_markets').where({ state_id: stateId }).first();
         const mult = Number(market?.economic_multiplier) || 1.0;
-        const cost = (1000000 * mult) * acres;
+        const cost = (LAND_COST_PER_ACRE * mult) * acres;
 
         const fin = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
         if (Number(fin.available_cash) < cost) throw new AppError('Insufficient cash for land purchase', 400);
 
-        await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', cost).increment('company_value', cost);
+        await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', cost);
         
         const [plot] = await trx('manufacturing_land_plots').insert({
           world_instance_id: company.world_instance_id,
@@ -564,6 +616,7 @@ export class ManufacturingController {
           used_acres: 0,
           purchase_price: cost
         }).returning('*');
+        await refreshCompanyValue(trx, companyId);
 
         return { message: 'Land purchased', plot };
       });
@@ -592,7 +645,7 @@ export class ManufacturingController {
         const fType = await trx('manufacturing_factory_types').where({ id: factoryTypeId }).first();
         if (!fType) throw new AppError('Factory type not found', 404);
         
-        const requiredAcres = fType.id === 'small-workshop' ? 1 : (fType.id === 'medium-plant' ? 3 : 10);
+        const requiredAcres = factoryAcres(fType.id);
         if (plot.total_acres - plot.used_acres < requiredAcres) throw new AppError('Not enough free acres on this plot', 400);
 
         const state = await trx('states').where({ id: plot.state_id }).first();
@@ -600,15 +653,12 @@ export class ManufacturingController {
         const market = await trx('manufacturing_region_markets').where({ state_id: plot.state_id }).first();
         const mult = Number(market?.economic_multiplier) || 1.0;
         
-        let baseCost = 2500000;
-        if (fType.id === 'medium-plant') baseCost = 8000000;
-        if (fType.id === 'large-complex') baseCost = 25000000;
-        const cost = baseCost * mult;
+        const cost = factoryBuildCost(fType.id) * mult;
 
         const fin = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
         if (Number(fin.available_cash) < cost) throw new AppError('Insufficient cash for factory construction', 400);
 
-        await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', cost).increment('company_value', cost);
+        await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', cost);
         await trx('manufacturing_land_plots').where({ id: plot.id }).increment('used_acres', requiredAcres);
 
         const clock = await trx('world_clock').where({ world_instance_id: company.world_instance_id }).first();
@@ -639,8 +689,83 @@ export class ManufacturingController {
           created_at_world_day: clock?.current_day ?? 1
 
         }).returning('*');
+        await refreshCompanyValue(trx, companyId);
         
         return { message: 'Factory construction started', factory };
+      });
+      res.status(200).json({ status: 'success', data: result });
+    } catch (err) { next(err); }
+  }
+
+  // POST /companies/:companyId/manufacturing/factories/lease  { factoryTypeId, stateId, name }
+  // A ready-built factory with its lines, producing from this month (constants FACTORY_LEASE_OPTIONS).
+  public static async leaseFactory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { companyId } = req.params;
+      const factoryTypeId = String(req.body?.factoryTypeId || '');
+      const stateId = String(req.body?.stateId || '');
+      const name = typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 80) : '';
+      const option = FACTORY_LEASE_OPTIONS[factoryTypeId];
+      if (!option) return next(new AppError('Choose a workshop or a plant to lease.', 400, 'BAD_REQUEST'));
+      if (!stateId) return next(new AppError('Choose a state.', 400, 'BAD_REQUEST'));
+
+      const result = await db.transaction(async (trx) => {
+        const { company } = await verifyManufacturingCompany(trx, userId!, companyId);
+        const license = await trx('company_state_licenses').where({ company_id: companyId, state_id: stateId }).first();
+        if (!license) throw new AppError('Your company needs a licence in this state first.', 403, 'NO_LICENSE');
+        const fType = await trx('manufacturing_factory_types').where({ id: factoryTypeId }).first();
+        if (!fType) throw new AppError('Factory type not found', 404, 'NOT_FOUND');
+
+        const market = await trx('manufacturing_region_markets').where({ state_id: stateId }).first();
+        const mult = Number(market?.economic_multiplier) || 1.0;
+        const monthlyRent = Math.round(option.monthlyRent * mult);
+        const signingFee = monthlyRent * LEASE_SIGNING_MONTHS;
+
+        const fin = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
+        if (Number(fin.available_cash) < signingFee) {
+          throw new AppError(`Signing the lease costs $${signingFee.toLocaleString('en-US')} (${LEASE_SIGNING_MONTHS} months' rent).`, 400, 'INSUFFICIENT_FUNDS');
+        }
+        await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', signingFee);
+
+        const clock = await trx('world_clock').where({ world_instance_id: company.world_instance_id }).first();
+        const [factory] = await trx('manufacturing_factories').insert({
+          world_instance_id: company.world_instance_id,
+          company_id: companyId,
+          country_id: company.country_id,
+          state_id: stateId,
+          land_plot_id: null,
+          factory_type_id: factoryTypeId,
+          name: name || `${option.label} ${String(market?.name || '').split(' ')[0]}`.trim(),
+          capacity_per_month: fType.base_capacity_per_month,
+          lease_cost_per_month: monthlyRent,
+          maintenance_cost_per_month: fType.base_maintenance_per_month,
+          worker_capacity: fType.worker_requirement,
+          ownership_type: 'leased',
+          building_status: 'completed',
+          created_at_world_year: clock?.current_year ?? 1,
+          created_at_world_month: clock?.current_month ?? 1,
+          created_at_world_day: clock?.current_day ?? 1,
+        }).returning('*');
+
+        for (let n = 1; n <= Number(fType.max_production_lines || 1); n++) {
+          await trx('manufacturing_production_lines').insert({
+            world_instance_id: company.world_instance_id, company_id: companyId, factory_id: factory.id,
+            line_number: n, quality_setting: 'Standard', target_units_per_month: 0, status: 'idle', construction_status: 'completed',
+          });
+        }
+        await trx('company_ledger').insert({
+          company_id: companyId, game_year: clock?.current_year ?? 1, game_month: clock?.current_month ?? 1, game_day: clock?.current_day ?? 1,
+          entry_type: 'expense', description: `Lease signed: ${factory.name} (${LEASE_SIGNING_MONTHS} months' rent)`, amount: -signingFee,
+          balance_after: Number(fin.available_cash) - signingFee,
+        });
+        await trx('company_records').insert({
+          world_instance_id: company.world_instance_id, company_id: companyId, record_type: 'business',
+          summary: `Leased ${factory.name}: ${fType.base_capacity_per_month} cars a month, rent $${monthlyRent.toLocaleString('en-US')} a month.`,
+          created_at_world_year: clock?.current_year ?? 1, created_at_world_month: clock?.current_month ?? 1, created_at_world_day: clock?.current_day ?? 1,
+        });
+        await refreshCompanyValue(trx, companyId);
+        return { message: 'Lease signed. The factory is ready: assign a car to its line.', factory, monthlyRent, signingFee };
       });
       res.status(200).json({ status: 'success', data: result });
     } catch (err) { next(err); }
@@ -672,12 +797,12 @@ export class ManufacturingController {
         
         const market = await trx('manufacturing_region_markets').where({ state_id: factory.state_id }).first();
         const mult = Number(market?.economic_multiplier) || 1.0;
-        const cost = 1500000 * mult;
+        const cost = PRODUCTION_LINE_BUILD_COST * mult;
 
         const fin = await trx('company_finances').where({ company_id: companyId }).forUpdate().first();
         if (Number(fin.available_cash) < cost) throw new AppError('Insufficient cash for production line construction', 400);
 
-        await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', cost).increment('company_value', cost);
+        await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', cost);
 
         const clock = await trx('world_clock').where({ world_instance_id: company.world_instance_id }).first();
         const totalMonths = (clock?.current_month ?? 1) + 2;
@@ -696,6 +821,7 @@ export class ManufacturingController {
           construction_completion_year: compYear,
           construction_completion_month: compMonth
         }).returning('*');
+        await refreshCompanyValue(trx, companyId);
         
         return { message: 'Production line construction started', line };
       });
@@ -720,10 +846,11 @@ export class ManufacturingController {
         
         if (Number(plot.used_acres) > 0) throw new AppError('Cannot sell land that currently has factories built on it', 400);
 
-        const salvageValue = Math.floor(Number(plot.purchase_price) * 0.8);
+        const salvageValue = Math.floor(Number(plot.purchase_price) * LAND_SALVAGE_SHARE);
 
-        await trx('company_finances').where({ company_id: companyId }).increment('available_cash', salvageValue).decrement('company_value', Number(plot.purchase_price));
+        await trx('company_finances').where({ company_id: companyId }).increment('available_cash', salvageValue);
         await trx('manufacturing_land_plots').where({ id: landPlotId }).delete();
+        await refreshCompanyValue(trx, companyId);
 
         return { message: 'Land sold', salvageValue };
       });
@@ -746,33 +873,38 @@ export class ManufacturingController {
         const factory = await trx('manufacturing_factories').where({ id: factoryId, company_id: companyId }).forUpdate().first();
         if (!factory) throw new AppError('Factory not found', 404);
 
+        if (factory.ownership_type === 'leased') {
+          // Ending a lease: the building goes back to the landlord with its lines; nothing is refunded.
+          const busy = await trx('manufacturing_production_lines').where({ factory_id: factoryId, status: 'active' }).where('target_units_per_month', '>', 0).first();
+          if (busy) throw new AppError('Stop production on this factory before ending the lease.', 400, 'LINE_ACTIVE');
+          await trx('manufacturing_production_lines').where({ factory_id: factoryId }).del();
+          await trx('manufacturing_factories').where({ id: factoryId }).del();
+          await refreshCompanyValue(trx, companyId);
+          return { message: 'Lease ended', salvageValue: 0 };
+        }
+
         const lines = await trx('manufacturing_production_lines').where({ factory_id: factoryId }).count('id as c').first();
         if (Number(lines?.c || 0) > 0) throw new AppError('Cannot scrap a factory that has production lines', 400);
 
         const plot = await trx('manufacturing_land_plots').where({ id: factory.land_plot_id }).forUpdate().first();
         const fType = await trx('manufacturing_factory_types').where({ id: factory.factory_type_id }).first();
-        const requiredAcres = fType.id === 'small-workshop' ? 1 : (fType.id === 'medium-plant' ? 3 : 10);
+        const requiredAcres = factoryAcres(fType.id);
 
-        const state = await trx('states').where({ id: plot.state_id }).first();
-        
-        const market = await trx('manufacturing_region_markets').where({ state_id: plot.state_id }).first();
+        const market = await trx('manufacturing_region_markets').where({ state_id: factory.state_id }).first();
         const mult = Number(market?.economic_multiplier) || 1.0;
-        
-        let baseCost = 2500000;
-        if (fType.id === 'medium-plant') baseCost = 8000000;
-        if (fType.id === 'large-complex') baseCost = 25000000;
 
         let expansionCost = 0;
         if (factory.expansion_status === 'expanded' || factory.expansion_status === 'construction_underway') {
-          expansionCost = Number(factory.expansion_cost) || 500000;
+          expansionCost = Number(factory.expansion_cost) || DEFAULT_EXPANSION_COST;
         }
 
-        const originalCost = (baseCost * mult) + expansionCost;
-        const salvageValue = Math.floor(originalCost * 0.3);
+        const originalCost = (factoryBuildCost(fType.id) * mult) + expansionCost;
+        const salvageValue = Math.floor(originalCost * BUILDING_SALVAGE_SHARE);
 
-        await trx('company_finances').where({ company_id: companyId }).increment('available_cash', salvageValue).decrement('company_value', originalCost);
-        await trx('manufacturing_land_plots').where({ id: factory.land_plot_id }).decrement('used_acres', requiredAcres);
+        await trx('company_finances').where({ company_id: companyId }).increment('available_cash', salvageValue);
+        if (plot) await trx('manufacturing_land_plots').where({ id: plot.id }).decrement('used_acres', requiredAcres);
         await trx('manufacturing_factories').where({ id: factoryId }).delete();
+        await refreshCompanyValue(trx, companyId);
 
         return { message: 'Factory scrapped', salvageValue };
       });
@@ -802,11 +934,13 @@ export class ManufacturingController {
         
         const market = await trx('manufacturing_region_markets').where({ state_id: factory.state_id }).first();
         const mult = Number(market?.economic_multiplier) || 1.0;
-        const originalCost = 1500000 * mult;
-        const salvageValue = Math.floor(originalCost * 0.3);
+        const originalCost = PRODUCTION_LINE_BUILD_COST * mult;
+        // Lines in a leased factory belong to the landlord: removing one refunds nothing.
+        const salvageValue = factory.ownership_type === 'leased' ? 0 : Math.floor(originalCost * BUILDING_SALVAGE_SHARE);
 
-        await trx('company_finances').where({ company_id: companyId }).increment('available_cash', salvageValue).decrement('company_value', originalCost);
+        await trx('company_finances').where({ company_id: companyId }).increment('available_cash', salvageValue);
         await trx('manufacturing_production_lines').where({ id: lineId }).delete();
+        await refreshCompanyValue(trx, companyId);
 
         return { message: 'Production line scrapped', salvageValue };
       });
@@ -1060,7 +1194,8 @@ export class ManufacturingController {
       if (!userId || !companyId || !modelId || salePrice === undefined) {
         return next(new AppError('Invalid request', 400, 'BAD_REQUEST'));
       }
-      if (Number(salePrice) < 0) return next(new AppError('Sale price cannot be negative', 400, 'BAD_REQUEST'));
+      const price = wholeNumberInput(salePrice, MIN_SALE_PRICE, MAX_SALE_PRICE);
+      if (price === null) return next(new AppError(`Enter a price in whole dollars from ${MIN_SALE_PRICE.toLocaleString('en-US')} to ${MAX_SALE_PRICE.toLocaleString('en-US')}.`, 400, 'BAD_REQUEST'));
 
       await db.transaction(async (trx) => {
         await verifyManufacturingCompany(trx, userId, companyId);
@@ -1070,7 +1205,7 @@ export class ManufacturingController {
 
         await trx('manufacturing_vehicle_models')
           .where({ id: modelId })
-          .update({ sale_price: salePrice, updated_at: trx.fn.now() });
+          .update({ sale_price: price, updated_at: trx.fn.now() });
       });
 
       res.status(200).json({ success: true });
@@ -1087,6 +1222,9 @@ export class ManufacturingController {
       const { lineId, modelId, qualitySetting, targetUnitsPerArc } = req.body;
 
       if (!userId || !companyId || !lineId) return next(new AppError('Missing or invalid fields: userId, companyId, lineId', 400, 'BAD_REQUEST'));
+      if (targetUnitsPerArc !== undefined && targetUnitsPerArc !== null && wholeNumberInput(targetUnitsPerArc, 0, MAX_UNITS_INPUT) === null) {
+        return next(new AppError('Target must be a whole number of cars, zero or more.', 400, 'BAD_REQUEST'));
+      }
 
       await db.transaction(async (trx) => {
         await verifyManufacturingCompany(trx, userId, companyId);
@@ -1515,7 +1653,7 @@ export class ManufacturingController {
   // POST /admin/manufacturing/process-company/:companyId
   
 
-  private static async produceForCompany(trx: any, company: any, clock: any): Promise<ParticipantState> {
+  private static async produceForCompany(trx: any, company: any, clock: any, policy?: ManufacturingPolicyEffect): Promise<ParticipantState> {
     const currentYear = clock?.current_year ?? 1;
     const currentMonth = clock?.current_month ?? 1;
     const currentDay = clock?.current_day ?? 1;
@@ -1767,6 +1905,46 @@ export class ManufacturingController {
     const BOM = { engine: 1, transmission: 1, tyres: 4, steel: 1, glass: 1, electronics: 1 };
     const BOM_COST = 35 + 18 + (4) + 20 + 5 + 12;
 
+    // ── Parts auto-restock (players) ─────────────────────────────────────
+    // Buying six kinds of parts by hand every month was a chore with no real
+    // decision in it, and forgetting it silently halted the line. The purchasing
+    // desk now tops up exactly what this month's plan needs, at catalogue price
+    // (migration 0115: one car's parts = BOM_COST). Parts bought by hand are used first.
+    if (!company.is_npc) {
+      const BOM_IDS: Record<keyof typeof BOM, string> = { engine: 'comp_engine', transmission: 'comp_transmission', tyres: 'comp_tyres', steel: 'comp_steel', glass: 'comp_glass', electronics: 'comp_electronics' };
+      const plannedUnits = productionLines
+        .filter((l: any) => factories.some((f: any) => String(f.id) === String(l.factory_id)))
+        .reduce((sum: number, l: any) => sum + Number(l.target_units_per_month || 0), 0);
+      if (plannedUnits > 0) {
+        const catalogue = await trx('manufacturing_component_catalogue').whereIn('id', Object.values(BOM_IDS));
+        const price = (id: string) => Number(catalogue.find((c: any) => c.id === id)?.base_cost ?? 0);
+        const keys = Object.keys(BOM) as (keyof typeof BOM)[];
+        const shortfall = (units: number) => keys.map(k => ({ k, qty: Math.max(0, units * BOM[k] - Number(compInventory[k])) }));
+        const costOf = (units: number) => shortfall(units).reduce((s, x) => s + x.qty * price(BOM_IDS[x.k]), 0);
+        // Buy for the whole plan if cash allows, otherwise for as many cars as cash covers.
+        let unitsToCover = plannedUnits;
+        while (unitsToCover > 0 && costOf(unitsToCover) > Math.max(0, runningCash)) unitsToCover = Math.floor(unitsToCover * 0.9);
+        const buys = shortfall(unitsToCover).filter(x => x.qty > 0);
+        const totalCost = Math.round(buys.reduce((s, x) => s + x.qty * price(BOM_IDS[x.k]), 0) * 100) / 100;
+        if (buys.length > 0 && totalCost > 0) {
+          for (const b of buys) {
+            compInventory[b.k] = Number(compInventory[b.k]) + b.qty;
+            await trx.raw(
+              `INSERT INTO manufacturing_component_inventory (world_instance_id, company_id, component_id, units_in_stock)
+               VALUES (?, ?, ?, 0) ON CONFLICT (company_id, component_id) DO NOTHING`,
+              [company.world_instance_id, companyId, BOM_IDS[b.k]],
+            );
+          }
+          runningCash -= totalCost;
+          await trx('company_finances').where({ company_id: companyId }).decrement('available_cash', totalCost);
+          await trx('company_ledger').insert({
+            company_id: companyId, game_year: currentYear, game_month: currentMonth, game_day: currentDay,
+            entry_type: 'expense', description: `Parts auto-restock for ${unitsToCover} cars`, amount: -totalCost, balance_after: runningCash,
+          });
+        }
+      }
+    }
+
     const allFactoryTypes = await trx('manufacturing_factory_types');
     const existingInventoryMap = new Map();
     for (const inv of allInventoryInitial) {
@@ -1882,7 +2060,8 @@ export class ManufacturingController {
         const factoryStateId = factory.state_id || hqState;
         stMap.set(factoryStateId, (stMap.get(factoryStateId) || 0) + sellableUnits);
 
-        const costPerUnit    = Number(line.manufacturing_cost_per_unit);
+        // National laws scale what it costs to build a car this month (never the stored design cost).
+        const costPerUnit    = Number(line.manufacturing_cost_per_unit) * (policy?.costMultiplier ?? 1);
         const rawAssemblyCost = Math.max(0, costPerUnit - BOM_COST);
         const assemblyCost   = Math.round(rawAssemblyCost * engProdMods.labourCostModifier);
         
@@ -2348,71 +2527,20 @@ export class ManufacturingController {
       ]);
     }
 
-    // Calculate True Book Value (Cash - Debt + Total Inventory Value + Fixed Assets + Intangibles)
-    const inventoryQuery = await trx('manufacturing_inventory')
-      .join('manufacturing_vehicle_models', 'manufacturing_inventory.vehicle_model_id', 'manufacturing_vehicle_models.id')
-      .where('manufacturing_inventory.company_id', companyId)
-      .select('manufacturing_inventory.units_in_stock', 'manufacturing_vehicle_models.manufacturing_cost_per_unit');
-    
-    let totalInventoryValue = 0;
-    for (const item of inventoryQuery) {
-      totalInventoryValue += Number(item.units_in_stock) * Number(item.manufacturing_cost_per_unit);
-    }
-
-    // Company Value = Cash - Debt + Inventory at cost + Fixed Assets (Land, Factories, Lines).
-    // Land Plots
-    const plotsQuery = await trx('manufacturing_land_plots').where({ company_id: companyId }).select('purchase_price');
-    let totalPlotValue = 0;
-    for (const p of plotsQuery) totalPlotValue += Number(p.purchase_price) || 0;
-
-    // Factories
-    // Use LEFT JOIN on land_plots so NPC factories (which have no land plot) are still counted.
-    // Without this, NPC book value collapses to zero in month 1 triggering instant distress.
-    const factoriesQuery = await trx('manufacturing_factories')
-      .leftJoin('manufacturing_land_plots', 'manufacturing_factories.land_plot_id', 'manufacturing_land_plots.id')
-      .leftJoin('manufacturing_region_markets', 'manufacturing_land_plots.state_id', 'manufacturing_region_markets.state_id')
-      .join('manufacturing_factory_types', 'manufacturing_factories.factory_type_id', 'manufacturing_factory_types.id')
-      .where('manufacturing_factories.company_id', companyId)
-      .where('manufacturing_factories.status', 'active')
-      .select('manufacturing_factories.expansion_status', 'manufacturing_factories.expansion_cost', 'manufacturing_factory_types.id as type_id', 'manufacturing_region_markets.economic_multiplier');
-      
-    let totalFactoryValue = 0;
-    for (const f of factoriesQuery) {
-      let baseCost = 2500000;
-      if (f.type_id === 'medium-plant') baseCost = 8000000;
-      if (f.type_id === 'large-complex') baseCost = 25000000;
-      let expCost = (f.expansion_status === 'expanded' || f.expansion_status === 'construction_underway') ? (Number(f.expansion_cost) || 500000) : 0;
-      // economic_multiplier is null for NPC factories with no land plot — default to 1.0
-      totalFactoryValue += (baseCost * (Number(f.economic_multiplier) || 1.0)) + expCost;
-    }
-
-    // Production Lines
-    // Use LEFT JOIN on land_plots so NPC lines (factories with no land plot) are still counted.
-    const linesQuery = await trx('manufacturing_production_lines')
-      .join('manufacturing_factories', 'manufacturing_production_lines.factory_id', 'manufacturing_factories.id')
-      .leftJoin('manufacturing_land_plots', 'manufacturing_factories.land_plot_id', 'manufacturing_land_plots.id')
-      .leftJoin('manufacturing_region_markets', 'manufacturing_land_plots.state_id', 'manufacturing_region_markets.state_id')
-      .where('manufacturing_production_lines.company_id', companyId)
-      .select('manufacturing_region_markets.economic_multiplier');
-      
-    let totalLineValue = 0;
-    for (const l of linesQuery) {
-      totalLineValue += 1500000 * (Number(l.economic_multiplier) || 1.0);
-    }
-
-    const trueBookValue = Math.floor(Math.max(0, pState.runningCash - newTotalDebt + totalInventoryValue + totalPlotValue + totalFactoryValue + totalLineValue));
 
     await trx('company_finances')
       .where({ company_id: companyId })
       .update({ 
          available_cash: pState.runningCash, 
          last_arc_profit: finalNetProfit, 
-         company_value: trueBookValue, 
          debt: newTotalDebt, 
          lifetime_net_profit: trx.raw('lifetime_net_profit + ?', [finalNetProfit]),
          lifetime_units_sold: trx.raw('lifetime_units_sold + ?', [totalUnitsSold]),
          updated_at: trx.fn.now() 
       });
+
+    // Book value (cash − debt − bank loans + stock + land + buildings): one definition, services/companyValue.ts.
+    await refreshCompanyValue(trx, companyId);
 
     if (totalUnitsSold > 0) {
       const updatedFin = await trx('company_finances').where({ company_id: companyId }).first();
@@ -2694,11 +2822,16 @@ export class ManufacturingController {
            }
         }
 
+        // National laws in force this month (nationalEconomy.service). Applied in memory to this
+        // month's costs and scores only: they used to be written into every car's stored cost and
+        // scores each month, so a +10% cost law compounded to ~3x within a year.
+        const policyEffect = await getNationalPolicyMultipliers(trx, countryId);
+
         // 3. PRODUCE (per participant)
         (global as any).tickProgress = `Processing country: ${countryId} - Step 3: Produce`;
         const participantStates = [];
         for (const company of participants) {
-           const pState = await ManufacturingController.produceForCompany(trx, company, clock);
+           const pState = await ManufacturingController.produceForCompany(trx, company, clock, policyEffect);
            participantStates.push(pState);
         }
         // 4. SELL (pooled, per market)
@@ -2822,6 +2955,13 @@ export class ManufacturingController {
                }
              }
              // ─────────────────────────────────────────────────────────────────
+
+             if (policyEffect.reliabilityBonus || policyEffect.appealBonus) {
+               for (const alloc of marketAllocations) {
+                 alloc.reliability_score = Math.min(100, Number(alloc.reliability_score ?? 60) + policyEffect.reliabilityBonus);
+                 alloc.appeal_score      = Math.min(100, Number(alloc.appeal_score ?? 50) + policyEffect.appealBonus);
+               }
+             }
 
              allMarketAllocations.push(...marketAllocations.filter((a: any) => (a._original_units_allocated ?? a.units_allocated) > 0));
         }
@@ -3051,45 +3191,6 @@ export class ManufacturingController {
 
         // Process Political Month Hook
         // Politics has been separated into its own scheduler run.
-
-        // ── National Bill Effects → Manufacturing ────────────────────────────
-        // Read any active national policies (is_national=true) and derive
-        // multipliers. These currently log for observability; the demand sim
-        // already takes market conditions into account — the multipliers are
-        // stored per-tick for the next phase of integration where they will
-        // directly scale simulateSalesDemand inputs.
-        const policyEffect = await getNationalPolicyMultipliers(trx, countryId);
-        if (
-          policyEffect.costMultiplier !== 1.0 ||
-          policyEffect.demandMultiplier !== 1.0 ||
-          policyEffect.reliabilityBonus !== 0 ||
-          policyEffect.appealBonus !== 0
-        ) {
-          console.log(
-            `[NationalPolicy] ${countryId}: cost×${policyEffect.costMultiplier.toFixed(3)}` +
-            ` demand×${policyEffect.demandMultiplier.toFixed(3)}` +
-            ` +${policyEffect.reliabilityBonus}rel +${policyEffect.appealBonus}appeal`
-          );
-          // Apply cost multiplier to all companies in this country tick
-          for (const participant of participants) {
-            const models = await trx('manufacturing_vehicle_models')
-              .where({ company_id: participant.id, status: 'active' });
-            for (const model of models) {
-              const baseCost = Number(model.manufacturing_cost_per_unit);
-              const newCost = Math.round(baseCost * policyEffect.costMultiplier);
-              if (newCost !== baseCost) {
-                await trx('manufacturing_vehicle_models')
-                  .where({ id: model.id })
-                  .update({
-                    manufacturing_cost_per_unit: newCost,
-                    // Clamp reliability/appeal bonuses to 100
-                    reliability_score: Math.min(100, Number(model.reliability_score) + policyEffect.reliabilityBonus),
-                    appeal_score: Math.min(100, Number(model.appeal_score) + policyEffect.appealBonus),
-                  });
-              }
-            }
-          }
-        }
 
         // 6. CSO Auto-Allocation (for next month)
         (global as any).tickProgress = `Processing country: ${countryId} - Step 6: CSO Planning`;
@@ -3915,8 +4016,8 @@ export class ManufacturingController {
         return next(new AppError('Invalid marketing tier', 400, 'BAD_REQUEST'));
       }
 
-      const units = Number(unitsAllocated ?? 0);
-      if (units < 0) return next(new AppError('Units cannot be negative', 400, 'BAD_REQUEST'));
+      const units = wholeNumberInput(unitsAllocated ?? 0, 0, MAX_UNITS_INPUT);
+      if (units === null) return next(new AppError('Units must be a whole number of cars, zero or more.', 400, 'BAD_REQUEST'));
 
       await db.transaction(async (trx) => {
         const { company } = await verifyManufacturingCompany(trx, userId, companyId);
@@ -4199,6 +4300,9 @@ export class ManufacturingController {
           .first();
         if (!factory) throw new AppError('Factory not found', 404, 'NOT_FOUND');
 
+        if (factory.ownership_type === 'leased') {
+          throw new AppError('A leased workshop cannot be expanded. Lease a plant instead, or build your own.', 400, 'LEASED');
+        }
         // Must be a Small Workshop
         if (factory.factory_type_id !== 'small-workshop') {
           throw new AppError('Only a Small Workshop can be expanded with this option', 400, 'WRONG_TYPE');
@@ -4243,6 +4347,7 @@ export class ManufacturingController {
           expansion_cost:               EXPANSION_COST,
           updated_at:                   trx.fn.now(),
         });
+        await refreshCompanyValue(trx, companyId);
 
         // Ledger entry
         await trx('company_ledger').insert({

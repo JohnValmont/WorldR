@@ -3,6 +3,8 @@ import { AppError } from '../../utils/errors';
 import { logger } from '../../utils/logger';
 import { placeOrder, getLastClose, TOTAL_SHARES } from './shareMarket.service';
 import { recalcPortfolioValues } from './capitalPartners.service';
+import { fairValuePerShare, marketMakerAnchor, profitsFromBars, stepTowardFairValue } from './shareValuation.rules';
+import { FAIR_VALUE_PROFIT_MONTHS, MIN_SHARE_PRICE, NPC_TREASURY_ORDER_DISCOUNT } from '../constants/shareValuation';
 
 /**
  * IPO & DRX Bourse engine.
@@ -848,24 +850,27 @@ export async function processExchangeMonth(trx: any, year: number, month: number
 
   // ── Step C+D: monthly OHLC snapshot + earnings-driven mark for already-listed companies ──
   // Includes both player public-corporations AND NPC exchange-listed companies.
+  // The price moves toward fair value (book value + above-hurdle profit; shareValuation.rules.ts).
   const listedCompanies = await trx('companies as c')
     .join('company_finances as f', 'f.company_id', 'c.id')
     .where({ 'c.status': 'active' })
     .where({ 'c.is_exchange_listed': true })
-    .select('c.id', 'c.is_npc', 'f.last_arc_profit');
+    .select('c.id', 'c.is_npc', 'f.last_arc_profit', 'f.company_value');
+  const fairValues = new Map<string, number>();
 
   for (const co of listedCompanies) {
     if (justListed.has(co.id)) continue; // opening bar already written this tick
 
-    const prevBar = await trx('share_price_history')
-      .where({ company_id: co.id })
-      .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
-      .first();
-    if (!prevBar) continue; // not actually listed yet
     const already = await trx('share_price_history').where({ company_id: co.id, game_year: year, game_month: month }).first();
     if (already) continue;
 
-    const prevClose = Number(prevBar.close_price);
+    // Newest bars first: enough for the analyst estimate (3) and the fair-value profit average.
+    const pastBars = await trx('share_price_history')
+      .where({ company_id: co.id })
+      .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
+      .limit(Math.max(3, FAIR_VALUE_PROFIT_MONTHS - 1));
+    const prevBar = pastBars[0] ?? null;
+
     const trades = await trx('share_trades').where({ company_id: co.id, game_year: year, game_month: month });
     const volume = trades.reduce((s: number, t: any) => s + Number(t.quantity), 0);
 
@@ -875,14 +880,47 @@ export async function processExchangeMonth(trx: any, year: number, month: number
     const profit = Number(co.last_arc_profit) || 0;
     const eps = profit / companyTotalShares;
 
+    // Fair value per share: this month's profit + earlier months' real earnings.
+    const fairValue = fairValuePerShare({
+      bookValue: Number(co.company_value) || 0,
+      monthlyProfits: [profit, ...profitsFromBars(pastBars, companyTotalShares)],
+      shares: companyTotalShares,
+    });
+    co._fairValue = fairValue; // the market maker quotes toward it in Step F
+    fairValues.set(co.id, fairValue); // and so does the NPC treasury in Step H
+
+    // Listed but never priced (e.g. rivals listed by seed 0007): open AT fair value.
+    // Skipping them left their price to the order-book screen's old $10 fallback forever.
+    if (!prevBar) {
+      const prices = trades.map((t: any) => Number(t.price));
+      await trx('share_price_history')
+        .insert({
+          company_id: co.id,
+          game_year: year,
+          game_month: month,
+          open_price: fairValue,
+          high_price: Math.max(fairValue, ...prices),
+          low_price: Math.min(fairValue, ...prices),
+          close_price: fairValue,
+          volume_shares: volume,
+          market_cap: fairValue * companyTotalShares,
+          eps,
+          pe_ratio: eps > 0 ? Number((fairValue / (eps * 12)).toFixed(2)) : null,
+          analyst_estimate: Number(profit.toFixed(2)),
+          profit_surprise_pct: 0,
+        })
+        .onConflict(['company_id', 'game_year', 'game_month'])
+        .merge();
+      continue;
+    }
+
+    const prevClose = Number(prevBar.close_price);
+
     // Analyst estimate = trailing 3-month average profit (per share).
-    const trailing = await trx('share_price_history')
-      .where({ company_id: co.id })
-      .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
-      .limit(3);
+    const trailing = pastBars.slice(0, 3);
     const estEps = trailing.length ? trailing.reduce((s: number, r: any) => s + Number(r.eps), 0) / trailing.length : eps;
     const analystEstimate = estEps * companyTotalShares;
-    
+
     // Prevent infinite surprise percentages when earnings hover near zero.
     // We floor the denominator at 2% of the share price, or $0.10.
     const minDenom = Math.max(0.10, prevClose * 0.02);
@@ -894,41 +932,21 @@ export async function processExchangeMonth(trx: any, year: number, month: number
     let low: number;
     let close: number;
 
-    // Calculate Intrinsic Book Value per share to anchor sentiment
-    const finRow = await trx('company_finances').where({ company_id: co.id }).first();
-    const bookValue = Number(finRow?.company_value || 0);
-    const bookValuePerShare = companyTotalShares > 0 ? (bookValue / companyTotalShares) : prevClose;
-
-    // Calculate earnings surprise impulse & fundamental book value drift
+    // Earnings surprise impulse (one month of sentiment) on top of the move toward fair value.
     const impulse = clamp(prevClose * surprise * IMPULSE_COEFF, -prevClose * IMPULSE_CLAMP, prevClose * IMPULSE_CLAMP);
-    
-    let driftRate = 0.20;
-    if (bookValuePerShare > prevClose * 3) {
-      driftRate = 0.50;
-    } else if (bookValuePerShare > prevClose * 1.5) {
-      driftRate = 0.30;
-    }
-    const drift = (bookValuePerShare - prevClose) * driftRate;
-
-    let baseMark = Math.max(0.01, prevClose + impulse + drift);
 
     if (trades.length > 0) {
       const prices = trades.map((t: any) => Number(t.price));
       const lastTradePrice = Number(trades.slice().sort((a: any, b: any) => new Date(b.executed_at).getTime() - new Date(a.executed_at).getTime())[0].price);
-      // Incorporate earnings surprise impulse into last trade close price
-      close = Math.max(0.01, lastTradePrice + impulse);
+      // Trades already happened at the market maker's fair-value-led quotes (or between players).
+      close = Math.max(MIN_SHARE_PRICE, lastTradePrice + impulse);
       high = Math.max(open, close, ...prices);
       low = Math.min(open, close, ...prices);
     } else {
-      close = baseMark;
+      close = Math.max(MIN_SHARE_PRICE, stepTowardFairValue(prevClose, fairValue) + impulse);
       high = Math.max(open, close);
       low = Math.min(open, close);
     }
-
-    // Attach bookValuePerShare to the company object so the MM can use it in Step F
-    const finRowForMM = await trx('company_finances').where({ company_id: co.id }).first();
-    const bv = Number(finRowForMM?.company_value || 0);
-    co._bookValuePerShare = companyTotalShares > 0 ? (bv / companyTotalShares) : close;
 
     const pe = eps > 0 ? close / (eps * 12) : null;
 
@@ -1002,17 +1020,9 @@ export async function processExchangeMonth(trx: any, year: number, month: number
       await trx('share_orders').where({ id: o.id }).update({ status: 'cancelled', updated_at: trx.fn.now() });
     }
 
-    // Determine MM anchor price
-    let mmAnchor = lastClose;
-    if (co._bookValuePerShare) {
-      const bvps = co._bookValuePerShare;
-      let driftRate = 0.20;
-      if (bvps > lastClose * 3) driftRate = 0.50;
-      else if (bvps > lastClose * 1.5) driftRate = 0.30;
-      
-      // Drift symmetrically towards book value
-      mmAnchor = lastClose + (bvps - lastClose) * driftRate;
-    }
+    // Market maker quotes one month's step from the close toward fair value
+    // (the same step the order-book ladder uses: shareMarket.service getOrderBook).
+    const mmAnchor = co._fairValue != null ? marketMakerAnchor(lastClose, co._fairValue) : lastClose;
 
     const spread = Math.max(0.01, mmAnchor * MM_SPREAD_PCT);
     await safeNpcOrder(trx, co.id, systemCharId, 'buy', Math.max(0.01, mmAnchor - spread / 2), MM_ORDER_SIZE);
@@ -1020,7 +1030,7 @@ export async function processExchangeMonth(trx: any, year: number, month: number
   }
 
   // ── Step H: NPC Treasury Brain — buyback / secondary offering decisions ──
-  await processNpcEquityDecisions(trx, year, month, systemCharId);
+  await processNpcEquityDecisions(trx, year, month, systemCharId, fairValues);
 
   // ── Step I: Sweep system_npc cash_in_hand → company_finances.available_cash ──
   // When NPC sells treasury shares, cash lands in character_finances. Transfer it back.
@@ -1057,7 +1067,8 @@ async function processNpcEquityDecisions(
   trx: any,
   year: number,
   month: number,
-  systemCharId: string
+  systemCharId: string,
+  fairValues: Map<string, number> = new Map()
 ): Promise<void> {
   const npcCompanies = await trx('companies as c')
     .join('company_finances as f', 'f.company_id', 'c.id')
@@ -1089,6 +1100,11 @@ async function processNpcEquityDecisions(
         .first();
       if (!lastBar) continue;
       const lastClose = Number(lastBar.close_price);
+      // Treasury orders centre on the market maker's anchor (a step toward fair value),
+      // not on last close: a discounted offer bought every month would otherwise set
+      // each close 2% lower with nothing pulling it back.
+      const fv = fairValues.get(co.id);
+      const refPrice = fv != null ? marketMakerAnchor(lastClose, fv) : lastClose;
 
       // Rough operating cash reserve (capped to prevent hyper-offerings from brand value)
       const estimatedMonthlyCosts = Math.min(Number(co.company_value) * 0.03, 10_000_000);
@@ -1107,7 +1123,7 @@ async function processNpcEquityDecisions(
       ) {
         const sellQty = Math.min(NPC_SECONDARY_ORDER_SIZE, maxFloatShares - publicFloat);
         if (sellQty > 0) {
-          const offerPrice = Math.round(Math.max(0.01, lastClose * 0.98) * 100) / 100;
+          const offerPrice = Math.round(Math.max(0.01, refPrice * (1 - NPC_TREASURY_ORDER_DISCOUNT)) * 100) / 100;
           logger.info(`[drx-npc] ${co.name}: secondary offering ${sellQty} shares @ $${offerPrice.toFixed(2)}`);
           await safeNpcOrder(trx, co.id, systemCharId, 'sell', offerPrice, sellQty);
         }
@@ -1117,10 +1133,10 @@ async function processNpcEquityDecisions(
       // ── BUYBACK: profitable, cash-rich, treasury can absorb shares ──
       if (profit > 0 && cash > operatingReserve * 3 && treasuryShares < companyTotalShares) {
         const maxBuyable = Math.min(NPC_BUYBACK_ORDER_SIZE, companyTotalShares - treasuryShares);
-        const orderCost  = lastClose * 0.98 * maxBuyable;
+        const orderCost  = refPrice * (1 - NPC_TREASURY_ORDER_DISCOUNT) * maxBuyable;
         if (maxBuyable > 0 && orderCost < cash * 0.05) {
-          logger.info(`[drx-npc] ${co.name}: buyback ${maxBuyable} shares @ $${(lastClose * 0.98).toFixed(2)}`);
-          await safeNpcBuyback(trx, co.id, systemCharId, Math.round(lastClose * 0.98 * 100) / 100, maxBuyable);
+          logger.info(`[drx-npc] ${co.name}: buyback ${maxBuyable} shares @ $${(refPrice * (1 - NPC_TREASURY_ORDER_DISCOUNT)).toFixed(2)}`);
+          await safeNpcBuyback(trx, co.id, systemCharId, Math.round(refPrice * (1 - NPC_TREASURY_ORDER_DISCOUNT) * 100) / 100, maxBuyable);
         }
       }
     } catch (err: any) {

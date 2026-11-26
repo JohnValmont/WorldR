@@ -234,3 +234,20 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - First steps (Desk checklist) come from firstSteps (services/firstSteps.rules.ts) with facts read from real rows in desk.service. Never tick a step from localStorage.
 - KEEP_AWAKE_URL (optional) makes the server ping its own PUBLIC /health every KEEP_AWAKE_INTERVAL_MINUTES. It is a workaround for hosts that sleep; a plan that never sleeps is the real fix.
 
+
+## Business (book value, leasing, parts, goals) — Operational Rules (DO NOT BREAK)
+- ONE book-value definition: services/companyValue.ts (companyBookValueSql = cash − debt − bank loans still owed + stock at cost + owned land/factories/lines + shares the company holds + its buy-order escrow). company_value is written ONLY by refreshCompanyValue (settle, every buy/sell/lease of land and buildings, loan drawdown, monthly repayments, Capital Partners revaluation). Never `increment('company_value', cost)` on a purchase: cash→asset is value-neutral.
+- Net worth (Money page, rich list, history, syncNetWorth) uses companyBookValueSql for private companies and subtracts characterNetDebtSql (bank personal loans + money borrowed from players − money lent). Loans are never wealth.
+- National laws reach manufacturing ONLY in memory for the month (getNationalPolicyMultipliers → produceForCompany cost, allocation reliability/appeal). Never write a policy multiplier into manufacturing_vehicle_models: it compounded every month.
+- Build/lease/salvage prices, open sectors (OPEN_INDUSTRIES) and input limits live in constants/companyAssets.ts. createCompany refuses any sector not in OPEN_INDUSTRIES; the industries seed must contain every open sector ('finance' was missing, so no firm could open).
+- Leased factories (ownership_type 'leased'): ready at once with their lines, rent via lease_cost_per_month, no book value, no expansion, ending the lease or removing a line refunds nothing. NPC plants are 'owned'; do not change them.
+- Players' parts restock automatically for the month's plan in produceForCompany at catalogue price (migration 0115: one car's parts = BOM_COST). Never reintroduce a manual-only parts step that silently halts lines.
+- Request numbers (price, units, targets) go through wholeNumberInput in manufacturing.controller; strings must never reach SQL.
+- GET /world/market-leaderboard takes ?country=; each nation's market share is its own.
+- Company goals: constants/businessGoals.ts + services/businessGoals.rules.ts (tests/businessGoals.test.ts), facts from real rows in the manufacturing data endpoint. Goals pay nothing.
+- Drennia's rivals are listed on the DRX Bourse by seed 0007 (adds only what is missing) so Capital Partners firms have something to buy.
+
+## Share prices (DRX fair value) — Operational Rules (DO NOT BREAK)
+- ONE fair value per listed share: fairValuePerShare (services/shareValuation.rules.ts) = book value + EXCESS_PROFIT_YEARS x (yearly profit − SHARE_HURDLE_RATE_YEARLY x book), floored at FAIR_VALUE_BOOK_FLOOR x book. Profit is averaged over FAIR_VALUE_PROFIT_MONTHS of real earnings bars (profitsFromBars skips eps-0 opening bars). Numbers in constants/shareValuation.ts, tests in tests/shareValuation.test.ts.
+- The monthly bar, the market maker's quotes (Step F), the NPC treasury's orders (Step H) and the order-book ladder all centre on marketMakerAnchor(lastClose, fairValue). Never price an NPC order off last close or book value alone: a discounted order bought every month sets each close lower with nothing pulling it back.
+- A listed company with no price bar gets its opening bar AT fair value in the month tick. Never skip unpriced listed companies (seed-0007 rivals sat at the order book's old $10 fallback forever).

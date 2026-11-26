@@ -1,5 +1,6 @@
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
+import { refreshCompanyValue } from './companyValue';
 
 /**
  * Capital Partners Service
@@ -189,43 +190,6 @@ export async function recalcPortfolioValues(trx: any): Promise<void> {
     .where({ 'c.industry_id': 'finance', 'c.status': 'active', 'c.is_npc': false })
     .select('c.id', 'c.owner_character_id');
 
-  for (const firm of financeFirms) {
-    // Correlated subquery for latest close price — identical pattern to getPortfolio above
-    const row = await trx('company_shares as cs')
-      .join('companies as co', 'co.id', 'cs.company_id')
-      .where({ 'cs.holder_company_id': firm.id })
-      .where('cs.shares', '>', 0)
-      .select(
-        trx.raw(`
-          COALESCE(SUM(
-            cs.shares * COALESCE((
-              SELECT h.close_price
-              FROM share_price_history h
-              WHERE h.company_id = cs.company_id
-              ORDER BY h.game_year DESC, h.game_month DESC
-              LIMIT 1
-            ), cs.avg_cost_basis, 0)
-          ), 0) as portfolio_value
-        `)
-      )
-      .first();
-
-    const portfolioValue = Number(row?.portfolio_value ?? 0);
-
-    const finRow = await trx('company_finances')
-      .where({ company_id: firm.id })
-      .first('available_cash');
-
-    const escrowSum = await trx('share_orders')
-      .where({ purchaser_company_id: firm.id, status: 'open', side: 'buy' })
-      .sum('escrow_amount as total_escrow')
-      .first();
-    const escrowCash = Number(escrowSum?.total_escrow || 0);
-
-    const totalValue = portfolioValue + Number(finRow?.available_cash ?? 0) + escrowCash;
-
-    await trx('company_finances')
-      .where({ company_id: firm.id })
-      .update({ company_value: totalValue });
-  }
+  // One book-value definition (services/companyValue.ts): cash + portfolio + buy-order escrow − debts.
+  for (const firm of financeFirms) await refreshCompanyValue(trx, firm.id);
 }

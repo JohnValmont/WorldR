@@ -1,3 +1,4 @@
+import { companyBookValueSql, characterNetDebtSql } from '../services/companyValue';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
@@ -277,12 +278,18 @@ export class WorldController {
         return res.json({ segments: [], month: null });
       }
 
-      const sales = await db('manufacturing_sales_results')
+      // Each nation has its own car market: ?country=<id> shows one nation only
+      // (it used to mix all three nations' makers under "Drennia (National)").
+      const countryId = typeof req.query.country === 'string' && req.query.country ? req.query.country : null;
+      const country = countryId ? await db('countries').where({ id: countryId }).first() : null;
+      const salesQuery = db('manufacturing_sales_results')
         .where({
           'manufacturing_sales_results.world_year': targetYear,
           'manufacturing_sales_results.world_month': targetMonth,
         })
-        .join('companies', 'manufacturing_sales_results.company_id', 'companies.id')
+        .join('companies', 'manufacturing_sales_results.company_id', 'companies.id');
+      if (countryId) salesQuery.where('companies.country_id', countryId);
+      const sales = await salesQuery
         .join('manufacturing_region_markets', 'manufacturing_sales_results.region_market_id', 'manufacturing_region_markets.id')
         .select(
           'manufacturing_sales_results.region_market_id',
@@ -375,7 +382,7 @@ export class WorldController {
 
         segments.unshift({
           segmentId: 'national',
-          marketName: 'Drennia (National)',
+          marketName: country ? `${country.name} (national)` : 'All nations',
           companies: nationalCompArr,
         });
 
@@ -438,21 +445,11 @@ export class WorldController {
             FROM company_shares
             GROUP BY company_id
           ),
-          inv_val AS (
-            SELECT mi.company_id,
-              SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) AS val
-            FROM manufacturing_inventory mi
-            JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id
-            GROUP BY mi.company_id
-          ),
           book_val AS (
             SELECT cf.company_id,
-              GREATEST(0,
-                cf.available_cash - COALESCE(cf.debt, 0) + COALESCE(iv.val, 0)
-              ) AS bv,
+              ${companyBookValueSql('cf.company_id')} AS bv,
               cf.last_arc_profit
             FROM company_finances cf
-            LEFT JOIN inv_val iv ON iv.company_id = cf.company_id
           )
           SELECT
             c.id,
@@ -532,13 +529,6 @@ export class WorldController {
             WHERE side = 'sell' AND status = 'open'
             GROUP BY company_id
           ),
-          inv_val AS (
-            SELECT mi.company_id,
-              SUM(mi.units_in_stock * mv.manufacturing_cost_per_unit) AS val
-            FROM manufacturing_inventory mi
-            JOIN manufacturing_vehicle_models mv ON mi.vehicle_model_id = mv.id
-            GROUP BY mi.company_id
-          ),
           -- One row per company: most-recent monthly close price (DISTINCT ON guarantees uniqueness)
           latest_price AS (
             SELECT DISTINCT ON (company_id) company_id, close_price
@@ -552,12 +542,11 @@ export class WorldController {
             ORDER BY company_id, executed_at DESC
           ),
           company_book_value AS (
+            -- One book-value definition: services/companyValue.ts
             SELECT cf.company_id,
-              GREATEST(0, cf.available_cash - COALESCE(cf.debt, 0)
-                       + COALESCE(iv.val, 0)) AS real_value,
+              ${companyBookValueSql('cf.company_id')} AS real_value,
               cf.last_arc_profit
             FROM company_finances cf
-            LEFT JOIN inv_val iv ON iv.company_id = cf.company_id
           ),
           char_equity AS (
             SELECT cs.holder_character_id AS char_id,
@@ -602,7 +591,7 @@ export class WorldController {
             COALESCE(cf.cash_in_hand, 0) + COALESCE(be.total, 0) AS cash,
             COALESCE(ce.equity, 0) AS equity,
             COALESCE(cf.cash_in_hand, 0) + COALESCE(be.total, 0)
-              + COALESCE(ce.equity, 0) AS net_worth,
+              + COALESCE(ce.equity, 0) - ${characterNetDebtSql('c.id')} AS net_worth,
             ct.best_profit AS trend
           FROM characters c
           JOIN users u ON u.id = c.user_id
