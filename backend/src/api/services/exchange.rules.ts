@@ -1,11 +1,10 @@
 /**
- * DRX Bourse pure rules: the specialist's monthly quotes, an opening price, the
- * circuit breaker and the NPC owner's correct holding.
+ * DRX Bourse pure rules: the specialist's monthly quotes, the circuit breaker and the NPC owner's correct holding.
  * Numbers live in constants/exchange.ts; tests in tests/exchange.test.ts.
  * No database access here.
  */
 import {
-  CIRCUIT_BREAKER_LIMIT, MM_LADDER, MM_MIN_PRICE, MM_PRICE_DECIMALS, OPENING_PRICE_FLOOR, SHARES_PER_COMPANY,
+  CIRCUIT_BREAKER_LIMIT, MM_LADDER, MM_MIN_PRICE, MM_PRICE_DECIMALS, SHARES_PER_COMPANY,
 } from '../constants/exchange';
 
 export interface MarketMakerQuote {
@@ -55,11 +54,6 @@ export function marketMakerQuotes(
   return quotes;
 }
 
-/** Opening price for a listed company with no price history: book value per share, floored. */
-export function openingPrice(bookValue: number, totalShares: number = SHARES_PER_COMPANY): number {
-  const bvps = totalShares > 0 && Number.isFinite(bookValue) ? bookValue / totalShares : 0;
-  return Math.max(OPENING_PRICE_FLOOR, Math.round(bvps * 100) / 100);
-}
 
 /**
  * The prices a player order may use: within CIRCUIT_BREAKER_LIMIT of the last

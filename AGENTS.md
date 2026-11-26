@@ -240,10 +240,14 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Company goals: constants/businessGoals.ts + services/businessGoals.rules.ts (tests/businessGoals.test.ts), facts from real rows in the manufacturing data endpoint. Goals pay nothing.
 - Drennia's rivals are listed on the DRX Bourse by seed 0007 (adds only what is missing) so Capital Partners firms have something to buy.
 
+## Share prices (DRX fair value) — Operational Rules (DO NOT BREAK)
+- ONE fair value per listed share: fairValuePerShare (services/shareValuation.rules.ts) = book value + EXCESS_PROFIT_YEARS x (yearly profit − SHARE_HURDLE_RATE_YEARLY x book), floored at FAIR_VALUE_BOOK_FLOOR x book. Profit is averaged over FAIR_VALUE_PROFIT_MONTHS of real earnings bars (profitsFromBars skips eps-0 opening bars). Numbers in constants/shareValuation.ts, tests in tests/shareValuation.test.ts.
+- The monthly bar, the market maker's quotes (Step F) and the NPC treasury's orders (Step H) all centre on marketMakerAnchor(lastClose, fairValue). Never price an NPC order off last close or book value alone: a discounted order bought every month sets each close lower with nothing pulling it back.
+- A listed company with no price bar gets its opening bar AT fair value in the month tick. Never skip unpriced listed companies (seed-0007 rivals sat at the order book's old $10 fallback forever).
+
 ## DRX Bourse (order book, market maker) — Operational Rules (DO NOT BREAK)
 - GET /exchange/:companyId/book (shareMarket.service getOrderBook) is READ-ONLY: it never places orders, moves cash or touches company_shares (tests/exchange.test.ts checks it). An empty side is an empty list; the screen shows it.
 - The DRX specialist (system_npc market maker) quotes ONLY in processExchangeMonth Step F, inside the world-tick transaction. Ladder numbers in constants/exchange.ts (MM_LADDER); quotes come from marketMakerQuotes (services/exchange.rules.ts). Never quote from a request.
 - Nobody sells shares they don't hold, the specialist included (placeOrder). An order never creates shares. A share is held (company_shares.shares) or locked in an open sell order (quantity - filled_quantity); for NPC companies held + locked = SHARES_PER_COMPANY (1,000,000). Player IPOs issue new shares on purpose (clearAndList), so this fixed total is for NPC companies only.
-- A listed NPC company with no price history opens at book value per share (openingPrice) in Step C, so Step F can quote it on a fresh world.
 - The circuit-breaker limit is CIRCUIT_BREAKER_LIMIT (constants/exchange.ts), applied by tripsCircuitBreaker in placeOrder (players only; no limit before a company's first close). Screens read it from GET /exchange/rules; never write the percentage or a 0.8/1.2 band into UI text (a test checks the exchange page).
 - The admin backfill (POST /exchange/admin/backfill-npc-shares → backfillNpcOwnerShares) sets the NPC owner to npcOwnerTargetShares: total − held by others − locked in ALL open sells, one company per transaction with its rows locked. Never compute an owner holding as total − others alone.

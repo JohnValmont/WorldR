@@ -36,13 +36,6 @@ export const MM_MIN_PRICE = 0.01;
 /** Specialist quote prices are rounded to this many decimals. */
 export const MM_PRICE_DECIMALS = 4;
 
-/**
- * A listed computer-run company with no price history yet (rival car makers
- * listed by seed 0007 on a fresh world) opens at its book value per share,
- * never below this price.
- */
-export const OPENING_PRICE_FLOOR = 0.10;
-
 /** At an IPO listing (clearAndList) the specialist posts one opening quote pair of this size. */
 export const MM_IPO_ORDER_SIZE = 5_000;
 /** Spread of the opening bid under the IPO clearing price. */

@@ -8,10 +8,10 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { getOrderBook, TOTAL_SHARES } from '../src/api/services/shareMarket.service';
 import {
-  circuitBreakerBand, marketMakerQuotes, npcOwnerTargetShares, openingPrice, tripsCircuitBreaker,
+  circuitBreakerBand, marketMakerQuotes, npcOwnerTargetShares, tripsCircuitBreaker,
 } from '../src/api/services/exchange.rules';
 import {
-  CIRCUIT_BREAKER_LIMIT, MM_LADDER, MM_MIN_PRICE, OPENING_PRICE_FLOOR, SHARES_PER_COMPANY,
+  CIRCUIT_BREAKER_LIMIT, MM_LADDER, MM_MIN_PRICE, SHARES_PER_COMPANY,
 } from '../src/api/constants/exchange';
 import { getExchangeRules } from '../src/api/services/shareMarket.service';
 import fs from 'fs';
@@ -148,17 +148,7 @@ describe('The specialist quotes a ladder and never sells shares it does not hold
   });
 });
 
-describe('A listed computer company with no price opens at book value per share', () => {
-  it('opening price is proportional to book value', () => {
-    const p1 = openingPrice(1_500_000);
-    const p2 = openingPrice(3_000_000);
-    assert.ok(Math.abs(p2 / p1 - 2) < 1e-9);
-    assert.ok(Math.abs(p1 / (1_500_000 / SHARES_PER_COMPANY) - 1) < 1e-9);
-  });
-  it('never opens below the floor, even with no or negative book value', () => {
-    for (const bv of [0, -5_000_000, NaN]) assert.equal(openingPrice(bv), OPENING_PRICE_FLOOR);
-    assert.equal(openingPrice(1_000_000, 0), OPENING_PRICE_FLOOR);
-  });
+describe('One share count', () => {
   it('the exchange share count is the one constant', () => {
     assert.equal(TOTAL_SHARES, SHARES_PER_COMPANY);
   });

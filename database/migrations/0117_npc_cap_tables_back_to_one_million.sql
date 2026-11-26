@@ -1,4 +1,5 @@
--- 0116_npc_cap_tables_back_to_one_million.sql
+-- 0117_npc_cap_tables_back_to_one_million.sql
+-- Runs after 0116_cancel_unpriced_npc_ladders (which returns old NPC ask shares first).
 --
 -- Reading the order book (GET /exchange/:companyId/book) used to write: it topped
 -- the DRX market maker's holding of a company up to 500,000 shares whenever its
