@@ -1,10 +1,16 @@
 import * as assert from 'node:assert';
-import { db } from '../src/config/database';
-import { ManufacturingController } from '../src/api/controllers/manufacturing.controller';
-import { Request, Response, NextFunction } from 'express';
+import { test } from 'node:test';
+import type { Knex } from 'knex';
+import type { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
+import { openThrowawayDb } from './helpers/throwawayDb';
 
-async function runTest() {
+// Runs whole business months, so it builds its own throwaway database
+// (helpers/throwawayDb.ts) and skips when no local Postgres is available.
+// src/config/* is imported only after DATABASE_URL points at that database.
+type Controller = typeof import('../src/api/controllers/manufacturing.controller').ManufacturingController;
+
+async function runScenario(db: Knex, ManufacturingController: Controller) {
   const country = await db('countries').where('name', 'Drennia').first();
   if (!country) throw new Error('Drennia not found');
   
@@ -81,18 +87,24 @@ async function runTest() {
     const checkStaff = await db('company_staff').where({ company_id: playerCompanyId });
     console.log("Check Staff inserted: ", checkStaff);
 
-    const getIncumbentPrice = async () => {
-      const npcs = await db('companies as c')
-        .join('manufacturing_vehicle_models as m', 'm.company_id', 'c.id')
-        .where('c.name', 'Valuecorp')
-        .select('m.sale_price', 'c.id as cid', 'm.id as mid');
-      console.log(`Found ${npcs.length} Valuecorp models!`);
-      if (npcs.length > 0) {
-          console.log(`First Valuecorp model price: ${npcs[0].sale_price}`);
-          return Number(npcs[0].sale_price);
-      }
-      return 0;
+    // Valuecorp's car on sale: the brain only prices launched, active models.
+    // In month 3 Valuecorp copies the player's hit car (NPC espionage) and
+    // retires its original, whose price then never moves. Reading "the first
+    // Valuecorp model" in no set order watched that retired car (ratio 1.00).
+    // So pick the active model when the competitor arrives, and follow that
+    // same car afterwards.
+    const activeIncumbentModel = async () => {
+      const rows = await db('manufacturing_vehicle_models as m')
+        .join('companies as c', 'c.id', 'm.company_id')
+        .where({ 'c.name': 'Valuecorp', 'c.world_instance_id': worldId, 'c.country_id': country.id })
+        .where({ 'm.status': 'active', 'm.development_status': 'launched' })
+        .select('m.id', 'm.name', 'm.sale_price');
+      assert.strictEqual(rows.length, 1, `expected Valuecorp to have one car on sale, found ${rows.length}`);
+      console.log(`Valuecorp car on sale: ${rows[0].name} at ${rows[0].sale_price}`);
+      return rows[0];
     };
+    const priceOf = async (modelId: string) =>
+      Number((await db('manufacturing_vehicle_models').where({ id: modelId }).first()).sale_price);
 
 
 
@@ -134,7 +146,8 @@ async function runTest() {
       await ManufacturingController.processManufacturingArc(reqPlayer, resPlayer, makeNext());
     }
 
-    const priceBefore = await getIncumbentPrice();
+    const incumbent = await activeIncumbentModel();
+    const priceBefore = Number(incumbent.sale_price);
     console.log(`Incumbent Price Before Competitor: ${priceBefore}`);
 
     // Print market share of Valuecorp before
@@ -191,7 +204,9 @@ async function runTest() {
       await ManufacturingController.processManufacturingArc(req, res, makeNext());
     }
 
-    const priceAfter = await getIncumbentPrice();
+    const stillOnSale = await db('manufacturing_vehicle_models').where({ id: incumbent.id }).first();
+    assert.strictEqual(stillOnSale.status, 'active', 'Valuecorp retired the car being measured during the test');
+    const priceAfter = await priceOf(incumbent.id);
     console.log(`Incumbent Price After Competitor: ${priceAfter}`);
 
     // Print market share of Valuecorp after
@@ -220,18 +235,20 @@ async function runTest() {
   } catch (err) {
     console.error('TEST CRASHED WITH ERROR:', err);
     throw err;
-  } finally {
-    // Cleanup player
-    await db('manufacturing_market_allocations').where({ company_id: playerCompanyId }).del();
-    await db('manufacturing_production_lines').where({ company_id: playerCompanyId }).del();
-    await db('manufacturing_factories').where({ company_id: playerCompanyId }).del();
-    await db('manufacturing_vehicle_models').where({ company_id: playerCompanyId }).del();
-    await db('company_finances').where({ company_id: playerCompanyId }).del();
-    await db('companies').where({ id: playerCompanyId }).del();
-    await db('characters').where({ id: charId }).del();
-    await db('users').where({ id: userId }).del();
-    await db.destroy();
   }
 }
 
-runTest().catch(console.error);
+test('NPC reactivity: an undercut incumbent cuts its price', async (t) => {
+  const tmp = await openThrowawayDb('npc_reactivity');
+  if ('skip' in tmp) { t.skip(tmp.skip); return; }
+  process.env.DATABASE_URL = tmp.url;
+  const { db, runMigrationsAndSeeds } = await import('../src/config/database');
+  try {
+    const { ManufacturingController } = await import('../src/api/controllers/manufacturing.controller');
+    await runMigrationsAndSeeds();
+    await runScenario(db, ManufacturingController);
+  } finally {
+    await db.destroy();
+    await tmp.drop();
+  }
+});
