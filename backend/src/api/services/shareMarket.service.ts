@@ -2,6 +2,7 @@ import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import { fairValuePerShare, marketMakerAnchor, profitsFromBars } from './shareValuation.rules';
 import { FAIR_VALUE_PROFIT_MONTHS } from '../constants/shareValuation';
+import { CIRCUIT_BREAKER_LIMIT } from '../constants/exchange';
 
 /**
  * Share Market Service — realistic order-book exchange for PUBLIC player companies.
@@ -19,7 +20,7 @@ import { FAIR_VALUE_PROFIT_MONTHS } from '../constants/shareValuation';
  */
 
 export const TOTAL_SHARES = 1_000_000;
-export const CIRCUIT_BREAKER_LIMIT = 0.20; // ±20% from last month's close
+export { CIRCUIT_BREAKER_LIMIT }; // ±20% from last month's close (players only; NPC orders are exempt)
 
 async function assertListedCompany(trx: any, companyId: string) {
   const company = await trx('companies').where({ id: companyId }).first();

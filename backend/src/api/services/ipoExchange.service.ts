@@ -4,6 +4,7 @@ import { logger } from '../../utils/logger';
 import { placeOrder, getLastClose, TOTAL_SHARES } from './shareMarket.service';
 import { recalcPortfolioValues } from './capitalPartners.service';
 import { fairValuePerShare, marketMakerAnchor, profitsFromBars, stepTowardFairValue } from './shareValuation.rules';
+import { MM_ORDER_SIZE, MM_SPREAD_PCT } from '../constants/exchange';
 import { FAIR_VALUE_PROFIT_MONTHS, MIN_SHARE_PRICE, NPC_TREASURY_ORDER_DISCOUNT } from '../constants/shareValuation';
 
 /**
@@ -22,8 +23,6 @@ const MIN_COMPANY_AGE_MONTHS = 3;       // must exist ≥ 3 game months
 const MAX_DEBT_RATIO = 0.80;            // debt / company_value must be below this
 const REVIEW_MONTHS = 2;                // regulatory review window
 const BOOKBUILD_MONTHS = 3;             // roadshow window
-const MM_SPREAD_PCT = 0.025;            // 2.5% market-maker spread
-const MM_ORDER_SIZE = 5000;             // shares per market-maker quote
 const IPO_POP = 1.15;                   // opening ask = clearing × 1.15
 const IMPULSE_COEFF = 0.15;             // earnings surprise → price impulse coefficient
 const IMPULSE_CLAMP = 0.15;             // ±15% of last close per month
