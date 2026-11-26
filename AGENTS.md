@@ -239,3 +239,8 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - GET /world/market-leaderboard takes ?country=; each nation's market share is its own.
 - Company goals: constants/businessGoals.ts + services/businessGoals.rules.ts (tests/businessGoals.test.ts), facts from real rows in the manufacturing data endpoint. Goals pay nothing.
 - Drennia's rivals are listed on the DRX Bourse by seed 0007 (adds only what is missing) so Capital Partners firms have something to buy.
+
+## Share prices (DRX fair value) — Operational Rules (DO NOT BREAK)
+- ONE fair value per listed share: fairValuePerShare (services/shareValuation.rules.ts) = book value + EXCESS_PROFIT_YEARS x (yearly profit − SHARE_HURDLE_RATE_YEARLY x book), floored at FAIR_VALUE_BOOK_FLOOR x book. Profit is averaged over FAIR_VALUE_PROFIT_MONTHS of real earnings bars (profitsFromBars skips eps-0 opening bars). Numbers in constants/shareValuation.ts, tests in tests/shareValuation.test.ts.
+- The monthly bar, the market maker's quotes (Step F), the NPC treasury's orders (Step H) and the order-book ladder all centre on marketMakerAnchor(lastClose, fairValue). Never price an NPC order off last close or book value alone: a discounted order bought every month sets each close lower with nothing pulling it back.
+- A listed company with no price bar gets its opening bar AT fair value in the month tick. Never skip unpriced listed companies (seed-0007 rivals sat at the order book's old $10 fallback forever).
