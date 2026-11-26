@@ -209,6 +209,7 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - Look up the player's character with `status: 'active'` (a user can have deleted characters).
 - Raw SQL inserts into tables with a NOT NULL world_instance_id must include it. One failing insert inside processCountryMonth rolls back the WHOLE country's business month for every company.
 - Tests that touch a database must check DATABASE_URL is on localhost (and skip when no local database is reachable), delete only the rows they created, and restore anything shared (e.g. world_clock). Never run a test that deletes or rewrites shared tables (pol_cycles, world_clock, ...) — the old politics-p3..p5/smoke tests did and were removed.
+- A test that runs whole months or rewrites shared rows (NPC scenarios) uses withThrowawayDb (tests/helpers/throwawayDb.ts): a fresh local database from runMigrationsAndSeeds, dropped afterwards; it must not import src/config/database (or a controller) at the top of the file. Every test file wraps its checks in node:test `test(...)`; never end a file with `run().catch(console.error)`: a failure would exit 0 and show as a pass.
 
 ## Design system (closed alpha UI) — Operational Rules (DO NOT BREAK)
 - Rulebook: docs/DESIGN_SYSTEM.md. Tokens live in frontend/public/design/tokens.css (the one source); tailwind.config.ts reads them; src/lib/design/tokens.ts is the hex mirror for inline styles. `npm run check:tokens` (CI) keeps the two in sync.

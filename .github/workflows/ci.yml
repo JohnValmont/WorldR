@@ -37,6 +37,8 @@ jobs:
         working-directory: backend
         # These run without a database and currently pass. Add a file here once
         # it is repaired — see the "all tests" job below for the full picture.
+        # npc-reactivity-scenario / npc-stability need a local Postgres (they
+        # build a throwaway database) and report SKIPPED here, never passed.
         run: >
           npx tsx --test
           tests/marketing.test.ts
