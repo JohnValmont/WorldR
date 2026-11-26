@@ -54,13 +54,8 @@ async function runTest() {
     const { NPC_ROSTER } = require('../src/api/constants/npc');
     console.log('Resetting NPCs to Seed State for clean run...');
     const npcs = await db('companies').where({ is_npc: true });
-    
-    // Repair legacy staff role typos
-    await db('company_staff').where({ role: 'factory_worker' }).update({ role: 'factory-worker' });
-    await db('company_staff').where({ role: 'supervisor' }).update({ role: 'production-supervisor' });
-    await db('company_staff').where({ role: 'sales_manager' }).update({ role: 'sales-manager' });
-    await db('company_staff').where({ role: 'engineer' }).update({ role: 'automotive-engineer' });
-    await db('company_staff').where({ role: 'inspector' }).update({ role: 'quality-inspector' });
+    // Staff roles are already the STAFF_ROLES ids: seed 0004 writes them and
+    // migration 0117 renamed legacy rows. Tests must not rewrite shared rows.
 
     for (const npc of npcs) {
        const rosterData = NPC_ROSTER.find((r: any) => r.name === npc.name);
