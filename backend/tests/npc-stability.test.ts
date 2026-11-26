@@ -1,10 +1,16 @@
 import * as assert from 'node:assert';
-import { db } from '../src/config/database';
-import { ManufacturingController } from '../src/api/controllers/manufacturing.controller';
-import { Request, Response, NextFunction } from 'express';
+import { test } from 'node:test';
+import type { Knex } from 'knex';
+import type { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
+import { openThrowawayDb } from './helpers/throwawayDb';
 
-async function runTest() {
+// Runs whole business months, so it builds its own throwaway database
+// (helpers/throwawayDb.ts) and skips when no local Postgres is available.
+// src/config/* is imported only after DATABASE_URL points at that database.
+type Controller = typeof import('../src/api/controllers/manufacturing.controller').ManufacturingController;
+
+async function runScenario(db: Knex, ManufacturingController: Controller) {
   const country = await db('countries').where('name', 'Drennia').first();
   if (!country) throw new Error('Drennia not found');
   
@@ -54,13 +60,8 @@ async function runTest() {
     const { NPC_ROSTER } = require('../src/api/constants/npc');
     console.log('Resetting NPCs to Seed State for clean run...');
     const npcs = await db('companies').where({ is_npc: true });
-    
-    // Repair legacy staff role typos
-    await db('company_staff').where({ role: 'factory_worker' }).update({ role: 'factory-worker' });
-    await db('company_staff').where({ role: 'supervisor' }).update({ role: 'production-supervisor' });
-    await db('company_staff').where({ role: 'sales_manager' }).update({ role: 'sales-manager' });
-    await db('company_staff').where({ role: 'engineer' }).update({ role: 'automotive-engineer' });
-    await db('company_staff').where({ role: 'inspector' }).update({ role: 'quality-inspector' });
+    // Staff roles are already the STAFF_ROLES ids: seed 0004 writes them and
+    // migration 0117 renamed legacy rows. Tests must not rewrite shared rows.
 
     for (const npc of npcs) {
        const rosterData = NPC_ROSTER.find((r: any) => r.name === npc.name);
@@ -186,7 +187,7 @@ async function runTest() {
     // NEVER EMPTY: Check no month had 0 ACTIVE NPCs
     for (const stat of runStats) {
       const active = stat.npcs.filter((n: any) => n.company_status === 'active').length;
-      
+      assert.ok(active > 0, `No active NPC left in month ${stat.month}`);
     }
 
     // NO RUNAWAY
@@ -245,18 +246,20 @@ async function runTest() {
   } catch (err) {
     console.error('TEST CRASHED WITH ERROR:', err);
     throw err;
-  } finally {
-    // Cleanup player
-    await db('manufacturing_market_allocations').where({ company_id: playerCompanyId }).del();
-    await db('manufacturing_production_lines').where({ company_id: playerCompanyId }).del();
-    await db('manufacturing_factories').where({ company_id: playerCompanyId }).del();
-    await db('manufacturing_vehicle_models').where({ company_id: playerCompanyId }).del();
-    await db('company_finances').where({ company_id: playerCompanyId }).del();
-    await db('companies').where({ id: playerCompanyId }).del();
-    await db('characters').where({ id: charId }).del();
-    await db('users').where({ id: userId }).del();
-    await db.destroy();
   }
 }
 
-runTest().catch(console.error);
+test('NPC stability: 24 months on a fresh world, rivals survive', async (t) => {
+  const tmp = await openThrowawayDb('npc_stability');
+  if ('skip' in tmp) { t.skip(tmp.skip); return; }
+  process.env.DATABASE_URL = tmp.url;
+  const { db, runMigrationsAndSeeds } = await import('../src/config/database');
+  try {
+    const { ManufacturingController } = await import('../src/api/controllers/manufacturing.controller');
+    await runMigrationsAndSeeds();
+    await runScenario(db, ManufacturingController);
+  } finally {
+    await db.destroy();
+    await tmp.drop();
+  }
+});
