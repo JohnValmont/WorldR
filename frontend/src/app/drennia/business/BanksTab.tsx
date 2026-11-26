@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import BankPortal from './BankPortal';
 import { Landmark, ShieldCheck, TrendingUp, ArrowRight, Wallet, Activity, Target, Building2, User, ChevronLeft } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
+import { ResponsiveContainer, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 
 const T = {
   bg: '#0B0D12',
@@ -204,7 +204,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
 
     if (activeSidebarTab === 'debt') {
       return (
-        <div className="p-6 md:p-8 max-w-5xl space-y-6 animate-slide-in">
+        <div className="pt-5 md:pt-0 md:pl-8 space-y-6 animate-slide-in">
           <h3 className="font-serif text-2xl font-bold text-zinc-100">Active Debt Schedule</h3>
           <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-8 flex flex-col items-center justify-center min-h-[300px]">
             <Activity size={32} className="text-zinc-800 mb-4" />
@@ -216,7 +216,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
 
     if (activeSidebarTab === 'treasury') {
       return (
-        <div className="p-6 md:p-8 max-w-5xl space-y-6 animate-slide-in">
+        <div className="pt-5 md:pt-0 md:pl-8 space-y-6 animate-slide-in">
           <h3 className="font-serif text-2xl font-bold text-zinc-100">Treasury & Wealth</h3>
           <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-8 flex flex-col items-center justify-center min-h-[300px]">
             <Wallet size={32} className="text-zinc-800 mb-4" />
@@ -230,23 +230,18 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0B0D12]">
+    <div className="flex flex-col">
       {/* Optional Top Bar if needed, but since it's full screen, it's covered by sidebar layout */}
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
         
         {/* ── MASTER SIDEBAR ── */}
-        <div className="flex md:flex-col gap-1.5 md:min-w-[220px] md:max-w-[220px] md:border-r border-zinc-800 pr-5 pt-5 overflow-x-auto bg-[#0B0D12] shrink-0">
-          <div className="px-4 mb-6 flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              <Landmark size={18} className="text-terminal-amber" />
-              <span className="font-serif text-lg font-bold text-zinc-100 uppercase tracking-widest text-[13px]">Financial District</span>
-            </div>
-            
-            {myCompanies.length > 0 && (
-              <div className="flex flex-col gap-1.5 mt-2">
-                <span className="text-[10px] uppercase text-zinc-500 tracking-widest">Active Corporation</span>
-                <select 
-                  className="bg-[#13161E] text-zinc-300 text-[11px] font-mono border border-zinc-800 rounded px-2 py-1.5 focus:outline-none focus:border-terminal-amber truncate max-w-[170px]"
+        <nav aria-label="Bank sections" className="flex shrink-0 gap-1 overflow-x-auto border-b border-line pb-2 md:w-[220px] md:flex-col md:border-b-0 md:border-r md:pb-0 md:pr-4">
+          {myCompanies.length > 0 && (
+            <div className="mb-3 hidden flex-col gap-1.5 md:flex">
+              <label htmlFor="bank-company" className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Borrowing for</label>
+              <select
+                  id="bank-company"
+                  className="terminal-input !py-2 !text-[13px]"
                   value={activeCompany?.id || ''}
                   onChange={(e) => {
                     const found = myCompanies.find(c => c.id === e.target.value);
@@ -256,11 +251,10 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
                   {myCompanies.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
-                </select>
-              </div>
-            )}
-          </div>
-          
+              </select>
+            </div>
+          )}
+
           {(['institutions', 'profile', 'debt', 'treasury'] as const).map((tab) => {
             const isActive = activeSidebarTab === tab;
             return (
@@ -273,22 +267,23 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
                     setSelectedBankId(null);
                   }
                 }}
-                className={`px-4 py-3 text-[12px] font-semibold text-left whitespace-nowrap rounded-r-md border-l-2 transition-colors cursor-pointer
+                aria-current={isActive ? 'page' : undefined}
+                className={`whitespace-nowrap rounded-control px-3.5 py-2.5 text-left text-[13px] font-medium transition-colors
                   ${isActive
-                    ? 'bg-zinc-800/40 text-terminal-amber border-terminal-amber'
-                    : 'text-zinc-500 bg-transparent border-transparent hover:text-zinc-300 hover:bg-zinc-800/20'}`}
+                    ? 'bg-accent/10 text-accent'
+                    : 'text-ink-dim hover:bg-white/5 hover:text-ink'}`}
               >
-                {tab === 'institutions' ? 'Banking Institutions' : 
-                 tab === 'profile' ? 'Financial Profile' : 
-                 tab === 'debt' ? 'Active Debt Schedule' : 
-                 'Treasury & Wealth'}
+                {tab === 'institutions' ? 'Banks' :
+                 tab === 'profile' ? 'Credit profile' :
+                 tab === 'debt' ? 'Debt schedule' :
+                 'Treasury'}
               </button>
             );
           })}
-        </div>
+        </nav>
 
         {/* ── MAIN CONTENT AREA ── */}
-        <div className="flex-1 overflow-y-auto bg-[#0B0D12]">
+        <div className="min-w-0 flex-1">
           {renderContent()}
         </div>
 
@@ -302,7 +297,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
 // ─────────────────────────────────────────────────────────────────────────────
 function FinancialDistrict({ banks, onSelectBank }: any) {
   return (
-    <div className="flex flex-col animate-slide-in w-full pb-10 p-6 md:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="flex flex-col animate-slide-in w-full pb-10 pt-5 md:pt-0 md:pl-8 space-y-8">
       
       <div>
         <h2 className="font-serif text-2xl font-bold text-zinc-100 mb-2">Banking Institutions</h2>
@@ -345,25 +340,21 @@ function FinancialDistrict({ banks, onSelectBank }: any) {
 // FINANCIAL PROFILE
 // ─────────────────────────────────────────────────────────────────────────────
 function FinancialProfile({ company, personalDossier, corporateDossier, getRatingColor }: any) {
-  // Fake some values for the Radar Chart if they don't exist
+  // Only measured inputs from the credit dossiers (no invented axes or placeholder values:
+  // players read every chart as fact). Each is scaled to 0-100 for the shape.
+  const clamp = (n: number) => Math.max(0, Math.min(100, n));
   const radarData = [
-    { subject: 'Character', value: Math.max(10, Math.min(100, personalDossier?.metrics?.character || 50)) },
-    { subject: 'Capacity', value: Math.max(10, Math.min(100, ((personalDossier?.metrics?.capacity || 0) + (corporateDossier?.metrics?.capacity || 0)) / 50000)) },
-    { subject: 'Capital', value: Math.max(10, Math.min(100, ((personalDossier?.metrics?.capital || 0) + (corporateDossier?.metrics?.capital || 0)) / 2000000)) },
-    { subject: 'Collateral', value: Math.max(10, Math.min(100, ((personalDossier?.metrics?.collateral || 0) + (corporateDossier?.metrics?.collateral || 0)) / 2000000)) },
-    { subject: 'Conditions', value: 65 }, // Macro hardcoded
+    { subject: 'Character', value: clamp(personalDossier?.metrics?.character || 0) },
+    { subject: 'Capacity', value: clamp(((personalDossier?.metrics?.capacity || 0) + (corporateDossier?.metrics?.capacity || 0)) / 50000) },
+    { subject: 'Capital', value: clamp(((personalDossier?.metrics?.capital || 0) + (corporateDossier?.metrics?.capital || 0)) / 2000000) },
+    { subject: 'Collateral', value: clamp(((personalDossier?.metrics?.collateral || 0) + (corporateDossier?.metrics?.collateral || 0)) / 2000000) },
   ];
 
-  // Pie chart data
-  const totalAssets = Math.max(0, (personalDossier?.metrics?.capital || 0) + (corporateDossier?.metrics?.capital || 0));
-  const pieData = [
-    { name: 'Equity / Cash', value: totalAssets || 100000 },
-    { name: 'Liabilities', value: 0 }, // Fake liabilities since we don't have debt loaded in dossier yet
-  ];
-  const COLORS = [T.mint, T.red];
+  const totalCapital = Math.max(0, (personalDossier?.metrics?.capital || 0) + (corporateDossier?.metrics?.capital || 0));
+  const totalCollateral = Math.max(0, (personalDossier?.metrics?.collateral || 0) + (corporateDossier?.metrics?.collateral || 0));
 
   return (
-    <div className="flex flex-col animate-slide-in w-full pb-10 p-6 md:p-8 max-w-7xl mx-auto space-y-10">
+    <div className="flex flex-col animate-slide-in w-full pb-10 pt-5 md:pt-0 md:pl-8 space-y-10">
       <div>
         <h2 className="font-serif text-2xl font-bold text-zinc-100 mb-2">Unified Credit Profile</h2>
         <p className="text-sm text-zinc-400">Your consolidated financial health and credit standing.</p>
@@ -398,7 +389,7 @@ function FinancialProfile({ company, personalDossier, corporateDossier, getRatin
 
         {/* Radar Chart */}
         <div className="col-span-1 bg-[#13161E] border border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[250px]">
-          <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">The 5 C's (Consolidated)</div>
+          <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">Credit factors</div>
           <div className="w-full flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
@@ -411,34 +402,15 @@ function FinancialProfile({ company, personalDossier, corporateDossier, getRatin
           </div>
         </div>
 
-        {/* Pie Chart */}
-        <div className="col-span-1 bg-[#13161E] border border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[250px]">
-          <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">Debt to Asset Ratio</div>
-          <div className="w-full flex-1 relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={70}
-                  paddingAngle={5}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#1E1B14', border: '1px solid #262B36', fontSize: '11px', color: '#ECEAE4' }} />
-              </PieChart>
-            </ResponsiveContainer>
-            {/* Center text manually */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none flex-col">
-              <span className="text-[10px] font-mono text-zinc-500">NET WORTH</span>
-              <span className="text-sm font-bold text-zinc-200">${(totalAssets).toLocaleString('en-US')}</span>
-            </div>
+        {/* Capital figures (real dossier numbers) */}
+        <div className="col-span-1 flex flex-col justify-center gap-4 rounded-card border border-line bg-surface p-6">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Capital (you + company)</div>
+            <div className="mt-1 font-mono text-[22px] font-semibold text-ink">${totalCapital.toLocaleString('en-US')}</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Collateral</div>
+            <div className="mt-1 font-mono text-[22px] font-semibold text-ink">${totalCollateral.toLocaleString('en-US')}</div>
           </div>
         </div>
       </div>

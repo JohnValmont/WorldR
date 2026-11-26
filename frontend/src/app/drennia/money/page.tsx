@@ -512,7 +512,7 @@ export default function MoneyPage() {
       </PageHeader>
 
       {/* Content */}
-      <div className="grid flex-1 grid-cols-1 items-start gap-5 overflow-y-auto px-4 py-5 md:px-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,1fr)]">
+      <div className="page-frame grid flex-1 grid-cols-1 items-start gap-5 overflow-y-auto py-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,1fr)]">
         {tab === 'lending' ? <LendingDesk onChanged={onChanged} /> : <PlacementsDesk onChanged={onChanged} />}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <MyLoans refreshKey={refreshKey} onChanged={onChanged} />

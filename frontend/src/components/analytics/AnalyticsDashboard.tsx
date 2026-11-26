@@ -15,13 +15,14 @@ export default function AnalyticsDashboard({ companyId, countryId }: AnalyticsDa
   const [activeTab, setActiveTab] = useState<'self' | 'market' | 'research'>('self');
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 py-8 bg-[#0B0D12] min-h-screen">
-      <header className="mb-8 border-b border-[#262B36] pb-6 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+    <div className="page-frame py-6">
+      <header className="mb-6 flex flex-col justify-between gap-4 border-b border-line pb-5 lg:flex-row lg:items-end">
         <div>
-          <h1 className="text-3xl font-cinzel text-zinc-100 uppercase tracking-wider">
-            Market Intelligence
-          </h1>
-          <p className="text-zinc-400 font-outfit mt-2">
+          {/* h2: the screen's PageHeader owns the page's only h1. */}
+          <h2 className="m-0 font-display text-[22px] font-semibold text-ink">
+            Market intelligence
+          </h2>
+          <p className="mt-1 text-[14px] text-ink-dim">
             Strategic analysis and performance metrics
           </p>
         </div>

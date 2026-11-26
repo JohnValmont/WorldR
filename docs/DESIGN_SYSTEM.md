@@ -49,6 +49,7 @@ This page is the rulebook; the values live in code.
 
 ## Page anatomy
 
+- Every game screen's content sits in ONE centred frame, the same as the top bar and Politics: the `.page-frame` class (globals.css, width `--page-max` from tokens.css). `PageShell`, `PageHeader` and `Tabs` (inset "page") already use it; a screen with its own layout puts `page-frame` on its content wrapper. Never cap a section with a left-aligned `max-w-*` that leaves the right side of a wide screen empty: use a main column + right rail grid instead.
 - Every game screen starts with `PageHeader` (gold kicker, Cinzel title as the page's only `h1`, one-line description, optional `aside` for a balance or the clock) and, when it has sections, `Tabs inset="none"` inside it.
 - `Tabs` is the one tab bar: real `role="tab"` buttons, arrow-key navigation, optional `badge` / `tone: 'warn'`, and a `trailing` slot that sits *outside* the tab group (for a link such as "Drennport Exchange →").
 - Long section lists are grouped by what the player is trying to do (the manufacturing desk: Run the plant / Cars / Sell / Company), not shown as one flat list.
