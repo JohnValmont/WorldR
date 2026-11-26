@@ -1,4 +1,4 @@
--- 0115_npc_cost_parity.sql
+-- 0117_npc_cost_parity.sql
 --
 -- Rival car makers (NPCs) pay what a player in their seat would pay, and sell
 -- only in their own nation. Model and numbers: Nov 2026 NPC rebalance (NPCs were
