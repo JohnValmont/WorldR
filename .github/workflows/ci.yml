@@ -67,6 +67,7 @@ jobs:
           tests/businessGoals.test.ts
           tests/exchange.test.ts
           tests/shareValuation.test.ts
+          tests/exchangeRules.test.ts
 
   backend-all-tests:
     name: Backend — all tests (informational, allowed to fail)

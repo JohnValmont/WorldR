@@ -21,11 +21,6 @@ export class ShareMarketController {
     }
   }
 
-  // GET /exchange/rules — numbers the exchange screens show (circuit breaker)
-  public static rules(req: Request, res: Response) {
-    res.status(200).json(market.getExchangeRules());
-  }
-
   // GET /exchange/:companyId/book
   public static async orderBook(req: Request, res: Response, next: NextFunction) {
     try {

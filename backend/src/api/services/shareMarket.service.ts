@@ -442,11 +442,6 @@ export async function getOrderBook(companyId: string, conn: any = db) {
   return { bids: bidsData.map(level), asks: asksData.map(level) };
 }
 
-/** Exchange rules the screens show. One source: constants/exchange.ts. */
-export function getExchangeRules() {
-  return { circuit_breaker_limit: CIRCUIT_BREAKER_LIMIT };
-}
-
 /**
  * Admin repair: give each listed NPC company's owner the holding that makes the
  * company exactly SHARES_PER_COMPANY. Shares locked in open sell orders count

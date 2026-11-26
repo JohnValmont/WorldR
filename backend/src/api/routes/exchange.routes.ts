@@ -9,7 +9,6 @@ router.use(authMiddleware);
 
 // ── Secondary market (continuous order book) ──
 router.get('/listings', ShareMarketController.listings);
-router.get('/rules', ShareMarketController.rules);
 router.get('/portfolio', ShareMarketController.portfolio);
 router.get('/my-orders', ShareMarketController.myOrders);
 router.delete('/orders/:orderId', ShareMarketController.cancelOrder);

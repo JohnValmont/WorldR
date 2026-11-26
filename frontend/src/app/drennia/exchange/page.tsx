@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import { exchangeApi, characterApi, companyApi } from '../../../lib/api';
+import { CIRCUIT_BREAKER_LIMIT, pctText } from '../../../lib/exchangeRules';
 import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Line, LineChart, Area, PieChart, Pie, Cell } from 'recharts';
 
 const T = {
@@ -26,13 +27,6 @@ const T = {
 };
 
 const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", fontVariantNumeric: 'tabular-nums' };
-/** Circuit-breaker limit as a fraction of last close, from GET /exchange/rules; null until the server answers. */
-function useCircuitBreakerLimit(): number | null {
-  const { data } = useSWR('exchange-rules', () => exchangeApi.getRules(), { revalidateOnFocus: false });
-  const v = Number(data?.circuit_breaker_limit);
-  return Number.isFinite(v) && v > 0 ? v : null;
-}
-const pctLabel = (limit: number) => `±${Math.round(limit * 100)}%`;
 const label: React.CSSProperties = { fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.14em', color: T.gold, fontWeight: 600 }; // design system: section label
 
 function fmt(n: number | null | undefined, dec = 2): string {
@@ -420,7 +414,6 @@ function OrderTicket({ companyId, lastClose, onPlaced, myFinanceFirms = [] }: { 
   const [purchaserCompanyId, setPurchaserCompanyId] = useState<string>('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
-  const cbLimit = useCircuitBreakerLimit();
 
   // Reset price when the selected company changes
   useEffect(() => {
@@ -460,7 +453,7 @@ function OrderTicket({ companyId, lastClose, onPlaced, myFinanceFirms = [] }: { 
     input::placeholder { color: ${T.faint}; opacity: 0.5; }
   `;
 
-  const band = lastClose != null && cbLimit != null ? { lo: lastClose * (1 - cbLimit), hi: lastClose * (1 + cbLimit) } : null;
+  const band = lastClose != null ? { lo: lastClose * (1 - CIRCUIT_BREAKER_LIMIT), hi: lastClose * (1 + CIRCUIT_BREAKER_LIMIT) } : null;
 
   return (
     <div style={{ background: T.paper, border: `1px solid ${T.borderGold}`, padding: '16px' }}>
@@ -505,9 +498,9 @@ function OrderTicket({ companyId, lastClose, onPlaced, myFinanceFirms = [] }: { 
             </select>
           </div>
         )}
-        {band && cbLimit != null && (
+        {band && (
           <div style={{ ...mono, fontSize: '11px', color: T.faint }}>
-            Circuit breaker: ${fmt(band.lo)} – ${fmt(band.hi)} ({pctLabel(cbLimit)} of last monthly close)
+            Circuit breaker: ${fmt(band.lo)} – ${fmt(band.hi)} (±{pctText(CIRCUIT_BREAKER_LIMIT)} of last monthly close)
           </div>
         )}
         {price && quantity && Number(price) > 0 && Number(quantity) > 0 && (
@@ -1317,7 +1310,6 @@ export default function ExchangePage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
-  const cbLimit = useCircuitBreakerLimit();
 
   const { data: listings, mutate: mutateListings } = useSWR('exchange-listings', () => exchangeApi.getListings(), { refreshInterval: 15000 });
   // getMe returns the character object flat: { id, name, finances, ... }
@@ -1446,7 +1438,7 @@ export default function ExchangePage() {
                   ['Limit Orders', 'You set a price. Buy orders wait in the book until a seller matches. Sell orders wait until a buyer matches. Orders may partially fill.'],
                   ['Price-Time Priority', 'Among orders at the same price, the one placed earliest fills first. Being early matters.'],
                   ['Market Maker', 'At each month end the DRX Specialist posts a ladder of bids and asks around the share price: a few thousand shares near the price, more further away. Once players take those quotes, that side can stay empty until the next month end. The Specialist only sells shares it owns.'],
-                  ['Circuit Breaker', `Your orders priced more than ${cbLimit != null ? pctLabel(cbLimit) : 'the limit'} away from the last monthly close are refused. The DRX Specialist is exempt, and a newly listed company has no limit until its first monthly close.`],
+                  ['Circuit Breaker', `Your orders priced more than ±${pctText(CIRCUIT_BREAKER_LIMIT)} from last month's close are refused. The DRX Specialist is exempt, and a newly listed company has no limit until its first monthly close.`],
                   ['Trade As', 'Place orders from your Personal Portfolio or from any Capital Partners company you own. Institutions can build positions at scale.'],
                 ].map(([term, desc]) => (
                   <div key={term} style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>

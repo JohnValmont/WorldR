@@ -1,11 +1,14 @@
 /**
- * DRX Bourse: market-maker (the "DRX Specialist") numbers.
+ * DRX Bourse: trading rules and market-maker (the "DRX Specialist") numbers.
  *
  * The specialist quotes ONLY in the monthly exchange step (processExchangeMonth
  * Step F, ipoExchange.service.ts), inside the world-tick transaction. Reading the
  * order book (GET /exchange/:companyId/book) never places orders or moves money.
  * Rules that use these numbers are pure functions in services/exchange.rules.ts
  * (tests/exchange.test.ts).
+ *
+ * Numbers the exchange screen shows are mirrored in frontend/src/lib/exchangeRules.ts;
+ * tests/exchangeRules.test.ts fails if the two differ.
  */
 
 /**
@@ -14,6 +17,14 @@
  * filled_quantity), so held + locked always equals this number.
  */
 export const SHARES_PER_COMPANY = 1_000_000;
+
+/**
+ * Circuit breaker: a PLAYER order priced more than this share away from the
+ * last monthly close is refused (the specialist and NPC treasury orders are
+ * exempt). Before a company's first close there is no limit. Shown on screen
+ * via frontend/src/lib/exchangeRules.ts (kept equal by tests/exchangeRules.test.ts).
+ */
+export const CIRCUIT_BREAKER_LIMIT = 0.20;
 
 /**
  * The specialist's monthly quote ladder. Each tier is posted on BOTH sides:
@@ -36,15 +47,8 @@ export const MM_MIN_PRICE = 0.01;
 /** Specialist quote prices are rounded to this many decimals. */
 export const MM_PRICE_DECIMALS = 4;
 
-/** At an IPO listing (clearAndList) the specialist posts one opening quote pair of this size. */
-export const MM_IPO_ORDER_SIZE = 5_000;
-/** Spread of the opening bid under the IPO clearing price. */
-export const MM_IPO_SPREAD_PCT = 0.025;
+/** At an IPO listing (clearAndList) the specialist posts one opening quote pair: the bid sits this far under the clearing price. */
+export const MM_SPREAD_PCT = 0.025;
 
-/**
- * Circuit breaker: a PLAYER order priced more than this share away from the
- * last monthly close is refused (the specialist and NPC treasury orders are
- * exempt). Before a company's first close there is no limit. Screens read this
- * number from GET /exchange/rules; never write it into UI text.
- */
-export const CIRCUIT_BREAKER_LIMIT = 0.20;
+/** Shares in each side of that IPO opening quote pair. */
+export const MM_ORDER_SIZE = 5000;

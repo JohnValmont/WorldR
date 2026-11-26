@@ -4,8 +4,8 @@ import { logger } from '../../utils/logger';
 import { placeOrder, getLastClose, TOTAL_SHARES } from './shareMarket.service';
 import { recalcPortfolioValues } from './capitalPartners.service';
 import { marketMakerQuotes } from './exchange.rules';
-import { MM_IPO_ORDER_SIZE, MM_IPO_SPREAD_PCT } from '../constants/exchange';
 import { fairValuePerShare, marketMakerAnchor, profitsFromBars, stepTowardFairValue } from './shareValuation.rules';
+import { MM_ORDER_SIZE, MM_SPREAD_PCT } from '../constants/exchange';
 import { FAIR_VALUE_PROFIT_MONTHS, MIN_SHARE_PRICE, NPC_TREASURY_ORDER_DISCOUNT } from '../constants/shareValuation';
 
 /**
@@ -790,9 +790,9 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
     .merge();
 
   // IPO pop: opening market-maker ask at clearing × 1.15, bid just under clearing.
-  const spread = Math.max(0.01, clearingPrice * MM_IPO_SPREAD_PCT);
-  await safeNpcOrder(trx, listing.company_id, systemCharId, 'sell', clearingPrice * IPO_POP, MM_IPO_ORDER_SIZE);
-  await safeNpcOrder(trx, listing.company_id, systemCharId, 'buy', Math.max(0.01, clearingPrice - spread / 2), MM_IPO_ORDER_SIZE);
+  const spread = Math.max(0.01, clearingPrice * MM_SPREAD_PCT);
+  await safeNpcOrder(trx, listing.company_id, systemCharId, 'sell', clearingPrice * IPO_POP, MM_ORDER_SIZE);
+  await safeNpcOrder(trx, listing.company_id, systemCharId, 'buy', Math.max(0.01, clearingPrice - spread / 2), MM_ORDER_SIZE);
 
   logger.info(`[ipo] ${listing.company_id} LISTED @ $${clearingPrice.toFixed(2)} — ${totalAllocated} shares, $${proceeds.toFixed(0)} raised`);
 }

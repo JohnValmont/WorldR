@@ -13,9 +13,6 @@ import {
 import {
   CIRCUIT_BREAKER_LIMIT, MM_LADDER, MM_MIN_PRICE, SHARES_PER_COMPANY,
 } from '../src/api/constants/exchange';
-import { getExchangeRules } from '../src/api/services/shareMarket.service';
-import fs from 'fs';
-import path from 'path';
 
 const WRITE_METHODS = new Set([
   'insert', 'update', 'del', 'delete', 'increment', 'decrement', 'upsert', 'merge', 'truncate', 'forUpdate',
@@ -154,7 +151,7 @@ describe('One share count', () => {
   });
 });
 
-describe('The circuit breaker: one number, the same on the server and the screen', () => {
+describe('The circuit breaker refuses player orders too far from the last close', () => {
   const close = 8;
 
   it('refuses orders just beyond the limit and allows orders just inside it (ratios of last close)', () => {
@@ -184,17 +181,7 @@ describe('The circuit breaker: one number, the same on the server and the screen
     assert.equal(tripsCircuitBreaker(1_000_000, 0), false);
   });
 
-  it('GET /exchange/rules serves the constant', () => {
-    assert.equal(getExchangeRules().circuit_breaker_limit, CIRCUIT_BREAKER_LIMIT);
-  });
 
-  it('the exchange screen hard-codes no breaker number', () => {
-    const page = fs.readFileSync(path.join(__dirname, '../../frontend/src/app/drennia/exchange/page.tsx'), 'utf8');
-    const lines = page.split('\n').filter((l) => /circuit/i.test(l));
-    assert.ok(lines.length > 0);
-    for (const l of lines) assert.ok(!/\d+\s*%/.test(l), `hard-coded percentage: ${l.trim()}`);
-    assert.ok(!/lastClose \* 0\.8|lastClose \* 1\.2/.test(page), 'band must come from the served limit');
-  });
 });
 
 describe('Admin NPC share backfill counts shares locked in open sell orders', () => {

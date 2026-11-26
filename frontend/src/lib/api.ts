@@ -175,7 +175,6 @@ export const companyApi = {
 // Exchange — player-only share market (public corporations)
 export const exchangeApi = {
   getListings: () => api.get('/exchange/listings').then(res => res.data),
-  getRules: () => api.get('/exchange/rules').then(res => res.data),
   getOrderBook: (companyId: string) => api.get(`/exchange/${companyId}/book`).then(res => res.data),
   getTrades: (companyId: string) => api.get(`/exchange/${companyId}/trades`).then(res => res.data),
   placeOrder: (companyId: string, data: { side: 'buy' | 'sell'; price: number; quantity: number; purchaserCompanyId?: string }) =>
