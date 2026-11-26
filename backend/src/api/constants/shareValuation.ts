@@ -9,8 +9,8 @@
  * below, never under FAIR_VALUE_BOOK_FLOOR x book.
  *
  * Pure rules in services/shareValuation.rules.ts, tests in tests/shareValuation.test.ts.
- * Used by the monthly price bar, the market maker's quotes and the order-book ladder
- * (ipoExchange.service.ts, shareMarket.service.ts): one number everywhere.
+ * Used by the monthly price bar, the market maker's quotes (Step F) and the NPC
+ * treasury's orders (Step H) in ipoExchange.service.ts: one number everywhere.
  */
 
 /** Yearly return a shareholder expects on book value (above the bank's 7.25% term rate). */

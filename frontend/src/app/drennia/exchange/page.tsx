@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import { exchangeApi, characterApi, companyApi } from '../../../lib/api';
-import { CIRCUIT_BREAKER_LIMIT, MM_ORDER_SIZE, MM_SPREAD_PCT, pctText } from '../../../lib/exchangeRules';
+import { CIRCUIT_BREAKER_LIMIT, pctText } from '../../../lib/exchangeRules';
 import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Line, LineChart, Area, PieChart, Pie, Cell } from 'recharts';
 
 const T = {
@@ -292,21 +292,21 @@ function OrderBook({ companyId }: { companyId: string }) {
     <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
         <div style={label}>Order Book</div>
-        <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>DRX specialist quotes both sides</div>
+        <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>DRX specialist quotes at month end</div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         <div>
           <div style={{ fontSize: '10px', color: T.mint, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px', padding: '0 8px', display: 'flex', justifyContent: 'space-between' }}>
             <span>Bid</span><span>Qty</span>
           </div>
-          {bids.length === 0 && <div style={{ fontSize: '10px', color: T.faint, padding: '4px 8px' }}>No bids</div>}
+          {bids.length === 0 && <div style={{ fontSize: '11px', color: T.faint, padding: '4px 8px' }}>No bids. The specialist quotes again at month end.</div>}
           {bids.map((b: any, i: number) => <Row key={i} price={b.price} quantity={b.quantity} side="bid" />)}
         </div>
         <div>
           <div style={{ fontSize: '10px', color: T.red, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px', padding: '0 8px', display: 'flex', justifyContent: 'space-between' }}>
             <span>Ask</span><span>Qty</span>
           </div>
-          {asks.length === 0 && <div style={{ fontSize: '10px', color: T.faint, padding: '4px 8px' }}>No asks</div>}
+          {asks.length === 0 && <div style={{ fontSize: '11px', color: T.faint, padding: '4px 8px' }}>No asks. The specialist quotes again at month end.</div>}
           {asks.map((a: any, i: number) => <Row key={i} price={a.price} quantity={a.quantity} side="ask" />)}
         </div>
       </div>
@@ -499,8 +499,8 @@ function OrderTicket({ companyId, lastClose, onPlaced, myFinanceFirms = [] }: { 
           </div>
         )}
         {band && (
-          <div style={{ ...mono, fontSize: '10px', color: T.faint }}>
-            Circuit breaker: ${fmt(band.lo)} – ${fmt(band.hi)} (±{pctText(CIRCUIT_BREAKER_LIMIT)} of last close)
+          <div style={{ ...mono, fontSize: '11px', color: T.faint }}>
+            Circuit breaker: ${fmt(band.lo)} – ${fmt(band.hi)} (±{pctText(CIRCUIT_BREAKER_LIMIT)} of last monthly close)
           </div>
         )}
         {price && quantity && Number(price) > 0 && Number(quantity) > 0 && (
@@ -1437,8 +1437,8 @@ export default function ExchangePage() {
                 {[
                   ['Limit Orders', 'You set a price. Buy orders wait in the book until a seller matches. Sell orders wait until a buyer matches. Orders may partially fill.'],
                   ['Price-Time Priority', 'Among orders at the same price, the one placed earliest fills first. Being early matters.'],
-                  ['Market Maker', `Each month the DRX Specialist posts a buy and a sell quote of ${MM_ORDER_SIZE.toLocaleString()} shares, ${pctText(MM_SPREAD_PCT / 2)} either side of its price. Its price moves part of the way from last close toward the company's fair value: what it owns plus what it earns.`],
-                  ['Circuit Breaker', `Your orders priced more than ±${pctText(CIRCUIT_BREAKER_LIMIT)} from last month's close are refused. This prevents crashes and manipulation.`],
+                  ['Market Maker', 'At each month end the DRX Specialist posts a ladder of bids and asks around the share price: a few thousand shares near the price, more further away. Once players take those quotes, that side can stay empty until the next month end. The Specialist only sells shares it owns.'],
+                  ['Circuit Breaker', `Your orders priced more than ±${pctText(CIRCUIT_BREAKER_LIMIT)} from last month's close are refused. The DRX Specialist is exempt, and a newly listed company has no limit until its first monthly close.`],
                   ['Trade As', 'Place orders from your Personal Portfolio or from any Capital Partners company you own. Institutions can build positions at scale.'],
                 ].map(([term, desc]) => (
                   <div key={term} style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>

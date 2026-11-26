@@ -3,6 +3,7 @@ import { AppError } from '../../utils/errors';
 import { logger } from '../../utils/logger';
 import { placeOrder, getLastClose, TOTAL_SHARES } from './shareMarket.service';
 import { recalcPortfolioValues } from './capitalPartners.service';
+import { marketMakerQuotes } from './exchange.rules';
 import { fairValuePerShare, marketMakerAnchor, profitsFromBars, stepTowardFairValue } from './shareValuation.rules';
 import { MM_ORDER_SIZE, MM_SPREAD_PCT } from '../constants/exchange';
 import { FAIR_VALUE_PROFIT_MONTHS, MIN_SHARE_PRICE, NPC_TREASURY_ORDER_DISCOUNT } from '../constants/shareValuation';
@@ -998,6 +999,7 @@ export async function processExchangeMonth(trx: any, year: number, month: number
   }
 
   // ── Step F: refresh NPC market-maker quotes (skip companies just listed this tick) ──
+  // The specialist's only regular quoting step (GET /exchange/:id/book is read-only).
   for (const co of listedCompanies) {
     if (justListed.has(co.id)) continue;
     const bar = await trx('share_price_history').where({ company_id: co.id, game_year: year, game_month: month }).first();
@@ -1019,13 +1021,20 @@ export async function processExchangeMonth(trx: any, year: number, month: number
       await trx('share_orders').where({ id: o.id }).update({ status: 'cancelled', updated_at: trx.fn.now() });
     }
 
-    // Market maker quotes one month's step from the close toward fair value
-    // (the same step the order-book ladder uses: shareMarket.service getOrderBook).
+    // Market maker quotes centre on one month's step from the close toward fair value
+    // (marketMakerAnchor, shareValuation.rules.ts).
     const mmAnchor = co._fairValue != null ? marketMakerAnchor(lastClose, co._fairValue) : lastClose;
 
-    const spread = Math.max(0.01, mmAnchor * MM_SPREAD_PCT);
-    await safeNpcOrder(trx, co.id, systemCharId, 'buy', Math.max(0.01, mmAnchor - spread / 2), MM_ORDER_SIZE);
-    await safeNpcOrder(trx, co.id, systemCharId, 'sell', mmAnchor + spread / 2, MM_ORDER_SIZE);
+    // Quote ladder (constants/exchange.ts MM_LADDER). Asks are limited to shares the
+    // specialist actually holds: it never creates shares. This is the ONLY place the
+    // specialist quotes on listed companies; reading the order book never does.
+    const inventoryRow = await trx('company_shares')
+      .where({ company_id: co.id, holder_character_id: systemCharId })
+      .first();
+    const inventory = Number(inventoryRow?.shares ?? 0);
+    for (const q of marketMakerQuotes(mmAnchor, inventory)) {
+      await safeNpcOrder(trx, co.id, systemCharId, q.side, q.price, q.quantity);
+    }
   }
 
   // ── Step H: NPC Treasury Brain — buyback / secondary offering decisions ──

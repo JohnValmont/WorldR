@@ -68,7 +68,7 @@ export function stepTowardFairValue(price: number, fairValue: number): number {
 /**
  * Where the market maker centres its quotes: one month's step from the last close
  * toward fair value, or fair value itself for a share that was never priced.
- * Used by the monthly quotes (ipoExchange Step F) and the order-book ladder.
+ * Used by the monthly quotes (ipoExchange Step F) and the NPC treasury (Step H).
  */
 export function marketMakerAnchor(lastClose: number | null | undefined, fairValue: number): number {
   return lastClose != null && lastClose > 0 ? stepTowardFairValue(lastClose, fairValue) : Math.max(MIN_SHARE_PRICE, fairValue);

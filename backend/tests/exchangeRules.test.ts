@@ -20,7 +20,7 @@ function frontendNumber(name: string): number {
 }
 
 describe('Exchange rules shown to players match the server', () => {
-  for (const name of ['CIRCUIT_BREAKER_LIMIT', 'MM_SPREAD_PCT', 'MM_ORDER_SIZE'] as const) {
+  for (const name of ['CIRCUIT_BREAKER_LIMIT'] as const) {
     it(`${name} is the same on screen and on the server`, () => {
       assert.equal(frontendNumber(name), server[name]);
     });
