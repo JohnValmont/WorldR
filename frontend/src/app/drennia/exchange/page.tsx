@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import WorldTimeControl from '../../../components/gameplay/WorldTimeControl';
 import { exchangeApi, characterApi, companyApi } from '../../../lib/api';
+import { CIRCUIT_BREAKER_LIMIT, MM_ORDER_SIZE, MM_SPREAD_PCT, pctText } from '../../../lib/exchangeRules';
 import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Line, LineChart, Area, PieChart, Pie, Cell } from 'recharts';
 
 const T = {
@@ -452,7 +453,7 @@ function OrderTicket({ companyId, lastClose, onPlaced, myFinanceFirms = [] }: { 
     input::placeholder { color: ${T.faint}; opacity: 0.5; }
   `;
 
-  const band = lastClose != null ? { lo: lastClose * 0.8, hi: lastClose * 1.2 } : null;
+  const band = lastClose != null ? { lo: lastClose * (1 - CIRCUIT_BREAKER_LIMIT), hi: lastClose * (1 + CIRCUIT_BREAKER_LIMIT) } : null;
 
   return (
     <div style={{ background: T.paper, border: `1px solid ${T.borderGold}`, padding: '16px' }}>
@@ -499,7 +500,7 @@ function OrderTicket({ companyId, lastClose, onPlaced, myFinanceFirms = [] }: { 
         )}
         {band && (
           <div style={{ ...mono, fontSize: '10px', color: T.faint }}>
-            Circuit breaker: ${fmt(band.lo)} – ${fmt(band.hi)} (±20% of last close)
+            Circuit breaker: ${fmt(band.lo)} – ${fmt(band.hi)} (±{pctText(CIRCUIT_BREAKER_LIMIT)} of last close)
           </div>
         )}
         {price && quantity && Number(price) > 0 && Number(quantity) > 0 && (
@@ -1436,8 +1437,8 @@ export default function ExchangePage() {
                 {[
                   ['Limit Orders', 'You set a price. Buy orders wait in the book until a seller matches. Sell orders wait until a buyer matches. Orders may partially fill.'],
                   ['Price-Time Priority', 'Among orders at the same price, the one placed earliest fills first. Being early matters.'],
-                  ['Market Maker', 'The DRX Specialist always posts a two-sided quote at ±3% of last close to provide baseline liquidity. You will always see at least two quotes in the book.'],
-                  ['Circuit Breaker', 'Orders priced more than ±50% from last close are blocked. This prevents crashes and manipulation.'],
+                  ['Market Maker', `Each month the DRX Specialist posts a buy and a sell quote of ${MM_ORDER_SIZE.toLocaleString()} shares, ${pctText(MM_SPREAD_PCT / 2)} either side of its price. Its price moves part of the way from last close toward the company's fair value: what it owns plus what it earns.`],
+                  ['Circuit Breaker', `Your orders priced more than ±${pctText(CIRCUIT_BREAKER_LIMIT)} from last month's close are refused. This prevents crashes and manipulation.`],
                   ['Trade As', 'Place orders from your Personal Portfolio or from any Capital Partners company you own. Institutions can build positions at scale.'],
                 ].map(([term, desc]) => (
                   <div key={term} style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
