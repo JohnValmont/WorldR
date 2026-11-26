@@ -24,6 +24,8 @@ import {
   NPC_ESPIONAGE_SCORE_DELTA,
   NPC_ESPIONAGE_PRICE_FACTOR,
   NPC_NATION_NAMES,
+  NPC_MAX_PRICE_TO_COST,
+  NPC_FACTORY_TYPE_ID,
 } from '../constants/npc';
 
 // Defines the inputs required for an NPC company to make its monthly decisions
@@ -108,8 +110,8 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
   let expandMarkets = false;
 
   // B2 Rule: If we completely sold out, increase the price step and boost production generously
+  const maxAllowedPrice = costPerUnit * NPC_MAX_PRICE_TO_COST;
   if (reasonCode === 'Sold Out') {
-    const maxAllowedPrice = costPerUnit * 2.5;
     if (salePrice < maxAllowedPrice) {
       newSalePrice = Math.min(salePrice * (1 + PRICE_STEP), maxAllowedPrice);
     }
@@ -151,6 +153,11 @@ export function decideNpcActions(input: NpcBrainInput): NpcBrainOutput {
   const priceFloor = costPerUnit * 1.05;
   if (newSalePrice < priceFloor) {
     newSalePrice = priceFloor;
+  }
+  // B2 cap is a hard ceiling: a price that is already above it (seeded, copied
+  // from a player car, or from before the cap was lowered) comes down to it.
+  if (newSalePrice > maxAllowedPrice && maxAllowedPrice >= priceFloor) {
+    newSalePrice = maxAllowedPrice;
   }
 
   // B3 Rule: Try to bump marketing if awareness is low or reason code demands it
@@ -370,6 +377,21 @@ async function performIndustrialEspionage(trx: Knex, companyId: string, currentY
 }
 
 // ── Pure helpers (exported for tests) ──────────────────────────────────────
+
+/**
+ * B7: the markets an NPC may expand into next — only its OWN nation's markets
+ * it is not in yet (every nation has its own car market; a company only sells
+ * at home). The old query took any market in the world, so Westmark and
+ * Eryndor rivals sold ~310 cars/month each into Drennia, in a market that each
+ * nation's tick counts separately.
+ */
+export function expansionMarkets<T extends { id: string; country_id: string }>(
+  markets: T[], countryId: string, coveredMarketIds: Set<string>, limit: number,
+): T[] {
+  return markets
+    .filter(m => m.country_id === countryId && !coveredMarketIds.has(m.id))
+    .slice(0, Math.max(0, limit));
+}
 
 /** Full model age in months, across year boundaries. */
 export function modelAgeInMonths(createdYear: number, createdMonth: number, currentYear: number, currentMonth: number): number {
@@ -591,13 +613,20 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
 
     // Fetch the previous month's sales results to see how we did
     (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - Fetching lastSales`;
-    const lastSales = await trx('manufacturing_sales_results')
-      .where({ 
-        company_id: companyId, 
-        vehicle_model_id: modelId,
-        world_year: prevYear,
-        world_month: prevMonth 
-      });
+    // A new generation has no sales of its own yet: read its predecessor's
+    // (same car line, same markets). Without this the first month split stock
+    // evenly across markets (a rural market got as many cars as the capital)
+    // and ~20% of the cars went unsold every generation change.
+    const salesModelIds = [modelId, ...(model.facelift_source_model_id ? [model.facelift_source_model_id] : [])];
+    const salesFor = async (year: number, month: number) => {
+      for (const id of salesModelIds) {
+        const rows = await trx('manufacturing_sales_results')
+          .where({ company_id: companyId, vehicle_model_id: id, world_year: year, world_month: month });
+        if (rows.length > 0) return rows;
+      }
+      return [];
+    };
+    const lastSales = await salesFor(prevYear, prevMonth);
 
     let marketShareThisArc = 0;
     let lastRevenue = 0;
@@ -639,13 +668,7 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
     }
 
     (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - Fetching prevSales`;
-    const prevSales = await trx('manufacturing_sales_results')
-      .where({ 
-        company_id: companyId, 
-        vehicle_model_id: modelId,
-        world_year: prevPrevYear,
-        world_month: prevPrevMonth 
-      });
+    const prevSales = await salesFor(prevPrevYear, prevPrevMonth);
 
     let marketShareLastArc = 0;
     if (prevSales.length > 0) {
@@ -751,10 +774,13 @@ export async function runNpcBrainForCompany(trx: Knex, companyId: string, curren
       // B7 Market Expansion: enter new markets if sell-through is high and cap not reached
       if (output.expandMarkets && allocations.length < NPC_MAX_MARKETS) {
         (global as any).tickProgress = `Processing country: ... - Step 2: Decide (NPCs) - Company ${companyId} Model ${modelId} - B7 expand markets`;
-        const coveredMarketIds = new Set(allocations.map((a: any) => a.region_market_id));
-        const uncoveredMarkets = await trx('manufacturing_region_markets')
-          .whereNotIn('id', [...coveredMarketIds])
-          .limit(2); // expand to at most 2 new markets per tick to avoid flooding
+        const coveredMarketIds = new Set<string>(allocations.map((a: any) => a.region_market_id));
+        const npcCompany = await trx('companies').where({ id: companyId }).first('country_id');
+        const nationMarkets = await trx('manufacturing_region_markets')
+          .where({ country_id: npcCompany?.country_id ?? '' })
+          .orderBy('id');
+        // expand to at most 2 new markets per tick to avoid flooding
+        const uncoveredMarkets = expansionMarkets(nationMarkets, npcCompany?.country_id ?? '', coveredMarketIds, 2);
         for (const newMarket of uncoveredMarkets) {
           if (allocations.length + uncoveredMarkets.indexOf(newMarket) >= NPC_MAX_MARKETS) break;
           await trx('manufacturing_market_allocations')
@@ -866,7 +892,7 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
   }
 
   // 2. Get a standard factory type and region market
-  const factoryType = await trx('manufacturing_factory_types').where({ id: 'small-workshop' }).first();
+  const factoryType = await trx('manufacturing_factory_types').where({ id: NPC_FACTORY_TYPE_ID }).first();
   const regionMarket = await trx('manufacturing_region_markets').where({ country_id: countryId }).first();
 
   if (!sysChar || !factoryType || !regionMarket) {
@@ -963,9 +989,12 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
       state_id: hqState,
       factory_type_id: factoryType.id,
       name: `${companyName} Primary Facility`,
-      lease_cost_per_month: 25000,
-      maintenance_cost_per_month: 8000,
-      capacity_per_month: 500,
+      // Same factory, same bill as a player: everything comes from the factory type.
+      lease_cost_per_month: factoryType.base_lease_cost_per_month,
+      maintenance_cost_per_month: factoryType.base_maintenance_per_month,
+      capacity_per_month: factoryType.base_capacity_per_month,
+      worker_capacity: factoryType.worker_requirement,
+      auto_condition_recovery: true, // NPCs keep their factory in repair the way a player can
       status: 'active',
       created_at_world_year: clock.current_year,
       created_at_world_month: clock.current_month,
@@ -986,7 +1015,7 @@ export async function spawnNpc(trx: Knex, personality: string, countryId: string
     });
 
   // Staff
-  await trx('company_staff').insert({ company_id: company.id, role: 'factory-worker', quantity: 30 });
+  await trx('company_staff').insert({ company_id: company.id, role: 'factory-worker', quantity: Number(factoryType.worker_requirement) });
   await trx('company_staff').insert({ company_id: company.id, role: 'production-supervisor', quantity: roster.staff.supervisor });
   await trx('company_staff').insert({ company_id: company.id, role: 'sales-manager', quantity: roster.staff.salesManager });
   if (roster.staff.engineer > 0) {

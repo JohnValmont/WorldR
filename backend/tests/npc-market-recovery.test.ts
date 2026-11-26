@@ -15,7 +15,7 @@ import {
   nextGenerationName,
   modelAgeInMonths,
 } from '../src/api/services/npcBrain.service';
-import { NPC_FORECAST_CONFIDENCE } from '../src/api/constants/npc';
+import { NPC_FORECAST_CONFIDENCE, NPC_MAX_PRICE_TO_COST } from '../src/api/constants/npc';
 
 const COST = 17050;          // HaulPro roster build cost (31000 * 0.55)
 const LAUNCH_PRICE = 31000;
@@ -86,17 +86,17 @@ describe('NPC market recovery — production escapes the low-volume spiral', () 
 });
 
 describe('NPC pricing stays bounded over a long game', () => {
-  it('price never exceeds 2.5x build cost across 600 months of sell-outs', () => {
+  it('price never exceeds the B2 cap (NPC_MAX_PRICE_TO_COST x build cost) across 600 months of sell-outs', () => {
     const { maxPriceToCost } = simulate(600, true, true);
-    assert.ok(maxPriceToCost <= 2.5 + 1e-9, `max price/cost ratio ${maxPriceToCost}`);
+    assert.ok(maxPriceToCost <= NPC_MAX_PRICE_TO_COST + 1e-9, `max price/cost ratio ${maxPriceToCost}`);
   });
 
-  it('price never exceeds 2.5x launch build cost even if every month sells out (fixed cost)', () => {
+  it('price never exceeds the B2 cap even if every month sells out (fixed cost)', () => {
     let price = LAUNCH_PRICE;
     for (let m = 0; m < 600; m++) {
       price = decideNpcActions(baseInput({ salePrice: price, reasonCode: 'Sold Out' })).newSalePrice;
     }
-    assert.ok(price / COST <= 2.5 + 1e-9);
+    assert.ok(price / COST <= NPC_MAX_PRICE_TO_COST + 1e-9);
     assert.ok(price / LAUNCH_PRICE < 1.5, 'a $31k van should stay well under 1.5x its launch price');
   });
 });

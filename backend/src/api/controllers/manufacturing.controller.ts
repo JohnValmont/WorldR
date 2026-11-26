@@ -1975,24 +1975,24 @@ export class ManufacturingController {
           lackedWorkers = true;
         } else {
           laborEfficiency = Math.min(1.0, workerCount / requiredWorkers);
-          if (!company.is_npc) {
-            workerCount = Math.max(0, workerCount - requiredWorkers);
-          }
+          workerCount = Math.max(0, workerCount - requiredWorkers);
         }
 
         let supervisorBonus = 0.0;
         if (supervisorCount > 0) {
           supervisorBonus = 0.05;
-          if (!company.is_npc) supervisorCount -= 1;
+          supervisorCount -= 1;
         }
         const conditionFactor = Number(factory.condition) / 100;
         let finalEfficiency = Math.min(1.0, laborEfficiency * conditionFactor * (1 + supervisorBonus));
         if (hasAssemblyTimeStudy) finalEfficiency = Math.min(1.0, finalEfficiency * 1.05);
 
+        // NPCs follow the same labour and factory-condition rules as players
+        // (they employ their factory's worker requirement and keep it repaired
+        // with auto_condition_recovery). Only the parts check below is skipped:
+        // NPCs pay for parts inside their cost per car instead of stocking them.
         let unitsProduced: number;
-        if (company.is_npc) {
-          unitsProduced = targetUnits;
-        } else if (lackedWorkers) {
+        if (lackedWorkers) {
           unitsProduced = 0;
         } else {
           unitsProduced = Math.floor(targetUnits * finalEfficiency);
