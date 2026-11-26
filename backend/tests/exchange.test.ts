@@ -7,8 +7,15 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { getOrderBook, TOTAL_SHARES } from '../src/api/services/shareMarket.service';
-import { marketMakerQuotes, openingPrice } from '../src/api/services/exchange.rules';
-import { MM_LADDER, MM_MIN_PRICE, OPENING_PRICE_FLOOR, SHARES_PER_COMPANY } from '../src/api/constants/exchange';
+import {
+  circuitBreakerBand, marketMakerQuotes, npcOwnerTargetShares, openingPrice, tripsCircuitBreaker,
+} from '../src/api/services/exchange.rules';
+import {
+  CIRCUIT_BREAKER_LIMIT, MM_LADDER, MM_MIN_PRICE, OPENING_PRICE_FLOOR, SHARES_PER_COMPANY,
+} from '../src/api/constants/exchange';
+import { getExchangeRules } from '../src/api/services/shareMarket.service';
+import fs from 'fs';
+import path from 'path';
 
 const WRITE_METHODS = new Set([
   'insert', 'update', 'del', 'delete', 'increment', 'decrement', 'upsert', 'merge', 'truncate', 'forUpdate',
@@ -154,5 +161,87 @@ describe('A listed computer company with no price opens at book value per share'
   });
   it('the exchange share count is the one constant', () => {
     assert.equal(TOTAL_SHARES, SHARES_PER_COMPANY);
+  });
+});
+
+describe('The circuit breaker: one number, the same on the server and the screen', () => {
+  const close = 8;
+
+  it('refuses orders just beyond the limit and allows orders just inside it (ratios of last close)', () => {
+    const L = CIRCUIT_BREAKER_LIMIT;
+    assert.equal(tripsCircuitBreaker(close * (1 + L * 0.99), close), false);
+    assert.equal(tripsCircuitBreaker(close * (1 - L * 0.99), close), false);
+    assert.equal(tripsCircuitBreaker(close * (1 + L * 1.01), close), true);
+    assert.equal(tripsCircuitBreaker(close * (1 - L * 1.01), close), true);
+    // Same verdict at any price level.
+    for (const k of [0.01, 1, 250]) {
+      assert.equal(tripsCircuitBreaker(close * k * (1 + L * 1.01), close * k), true);
+      assert.equal(tripsCircuitBreaker(close * k * (1 + L * 0.99), close * k), false);
+    }
+  });
+
+  it('the band the screen draws is exactly the range the server allows', () => {
+    const band = circuitBreakerBand(close)!;
+    assert.ok(Math.abs(band.lo / close - (1 - CIRCUIT_BREAKER_LIMIT)) < 1e-12);
+    assert.ok(Math.abs(band.hi / close - (1 + CIRCUIT_BREAKER_LIMIT)) < 1e-12);
+    assert.equal(tripsCircuitBreaker(band.lo, close), false);
+    assert.equal(tripsCircuitBreaker(band.hi, close), false);
+  });
+
+  it('no limit before the first monthly close', () => {
+    assert.equal(circuitBreakerBand(null), null);
+    assert.equal(tripsCircuitBreaker(1_000_000, null), false);
+    assert.equal(tripsCircuitBreaker(1_000_000, 0), false);
+  });
+
+  it('GET /exchange/rules serves the constant', () => {
+    assert.equal(getExchangeRules().circuit_breaker_limit, CIRCUIT_BREAKER_LIMIT);
+  });
+
+  it('the exchange screen hard-codes no breaker number', () => {
+    const page = fs.readFileSync(path.join(__dirname, '../../frontend/src/app/drennia/exchange/page.tsx'), 'utf8');
+    const lines = page.split('\n').filter((l) => /circuit/i.test(l));
+    assert.ok(lines.length > 0);
+    for (const l of lines) assert.ok(!/\d+\s*%/.test(l), `hard-coded percentage: ${l.trim()}`);
+    assert.ok(!/lastClose \* 0\.8|lastClose \* 1\.2/.test(page), 'band must come from the served limit');
+  });
+});
+
+describe('Admin NPC share backfill counts shares locked in open sell orders', () => {
+  it('owner + others + locked always add up to the total', () => {
+    for (const [others, locked] of [[0, 0], [120_000, 0], [0, 75_000], [120_000, 75_000], [400_000, 90_000]]) {
+      const { target, excess } = npcOwnerTargetShares(others, locked);
+      assert.equal(excess, 0);
+      assert.equal(target + others + locked, SHARES_PER_COMPANY);
+    }
+  });
+
+  it('the owner never gets its own open asks twice (the old bug)', () => {
+    // Owner holds 925,000 and has 75,000 locked in its own open asks: already exactly 1,000,000.
+    const { target } = npcOwnerTargetShares(0, 75_000);
+    assert.equal(target, 925_000);
+    // The old rule (total - others) would have handed back the locked 75,000 a second time.
+    assert.ok((target + 75_000) / SHARES_PER_COMPANY === 1);
+  });
+
+  it('scales with the total (ratios)', () => {
+    const a = npcOwnerTargetShares(SHARES_PER_COMPANY * 0.2, SHARES_PER_COMPANY * 0.05);
+    assert.ok(Math.abs(a.target / SHARES_PER_COMPANY - 0.75) < 1e-12);
+    const b = npcOwnerTargetShares(2_000 * 0.2, 2_000 * 0.05, 2_000);
+    assert.ok(Math.abs(b.target / 2_000 - 0.75) < 1e-12);
+  });
+
+  it('when others already hold more than the total, the owner gets 0 and the excess is reported', () => {
+    const { target, excess } = npcOwnerTargetShares(SHARES_PER_COMPANY * 0.9, SHARES_PER_COMPANY * 0.3);
+    assert.equal(target, 0);
+    assert.ok(Math.abs(excess / SHARES_PER_COMPANY - 0.2) < 1e-9);
+  });
+
+  it('bad inputs never produce a negative or non-number holding', () => {
+    for (const [o, l] of [[NaN, 0], [-5, 0], [0, -5], [undefined as any, null as any]]) {
+      const { target, excess } = npcOwnerTargetShares(o, l);
+      assert.ok(Number.isFinite(target) && target >= 0 && target <= SHARES_PER_COMPANY);
+      assert.ok(Number.isFinite(excess) && excess >= 0);
+    }
   });
 });

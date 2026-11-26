@@ -47,3 +47,11 @@ export const OPENING_PRICE_FLOOR = 0.10;
 export const MM_IPO_ORDER_SIZE = 5_000;
 /** Spread of the opening bid under the IPO clearing price. */
 export const MM_IPO_SPREAD_PCT = 0.025;
+
+/**
+ * Circuit breaker: a PLAYER order priced more than this share away from the
+ * last monthly close is refused (the specialist and NPC treasury orders are
+ * exempt). Before a company's first close there is no limit. Screens read this
+ * number from GET /exchange/rules; never write it into UI text.
+ */
+export const CIRCUIT_BREAKER_LIMIT = 0.20;

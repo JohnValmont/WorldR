@@ -1,10 +1,11 @@
 /**
- * DRX Bourse pure rules: the specialist's monthly quotes and an opening price.
+ * DRX Bourse pure rules: the specialist's monthly quotes, an opening price, the
+ * circuit breaker and the NPC owner's correct holding.
  * Numbers live in constants/exchange.ts; tests in tests/exchange.test.ts.
  * No database access here.
  */
 import {
-  MM_LADDER, MM_MIN_PRICE, MM_PRICE_DECIMALS, OPENING_PRICE_FLOOR, SHARES_PER_COMPANY,
+  CIRCUIT_BREAKER_LIMIT, MM_LADDER, MM_MIN_PRICE, MM_PRICE_DECIMALS, OPENING_PRICE_FLOOR, SHARES_PER_COMPANY,
 } from '../constants/exchange';
 
 export interface MarketMakerQuote {
@@ -58,4 +59,39 @@ export function marketMakerQuotes(
 export function openingPrice(bookValue: number, totalShares: number = SHARES_PER_COMPANY): number {
   const bvps = totalShares > 0 && Number.isFinite(bookValue) ? bookValue / totalShares : 0;
   return Math.max(OPENING_PRICE_FLOOR, Math.round(bvps * 100) / 100);
+}
+
+/**
+ * The prices a player order may use: within CIRCUIT_BREAKER_LIMIT of the last
+ * monthly close. null = no limit (no close yet).
+ */
+export function circuitBreakerBand(
+  lastClose: number | null,
+  limit: number = CIRCUIT_BREAKER_LIMIT,
+): { lo: number; hi: number } | null {
+  if (lastClose == null || !Number.isFinite(lastClose) || lastClose <= 0) return null;
+  return { lo: lastClose * (1 - limit), hi: lastClose * (1 + limit) };
+}
+
+/** True when a player order at `price` is refused by the circuit breaker. */
+export function tripsCircuitBreaker(price: number, lastClose: number | null, limit: number = CIRCUIT_BREAKER_LIMIT): boolean {
+  if (lastClose == null || !Number.isFinite(lastClose) || lastClose <= 0) return false;
+  return Math.abs(price - lastClose) / lastClose > limit;
+}
+
+/**
+ * How many shares an NPC company's owner should hold so the company has exactly
+ * SHARES_PER_COMPANY. Every share is either held or locked in an open sell order
+ * (the seller's holding drops when the order is placed), so:
+ *   owner held = total - shares held by everyone else - shares locked in ALL open sells.
+ * `excess` > 0 means others already hold or offer more than the total: the owner
+ * gets 0 and those extra shares cannot be fixed by changing the owner's row.
+ */
+export function npcOwnerTargetShares(
+  heldByOthers: number,
+  lockedInOpenSells: number,
+  total: number = SHARES_PER_COMPANY,
+): { target: number; excess: number } {
+  const others = Math.max(0, Number(heldByOthers) || 0) + Math.max(0, Number(lockedInOpenSells) || 0);
+  return { target: Math.max(0, total - others), excess: Math.max(0, others - total) };
 }

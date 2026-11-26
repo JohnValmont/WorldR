@@ -1,6 +1,7 @@
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
-import { SHARES_PER_COMPANY } from '../constants/exchange';
+import { CIRCUIT_BREAKER_LIMIT, SHARES_PER_COMPANY } from '../constants/exchange';
+import { npcOwnerTargetShares, tripsCircuitBreaker } from './exchange.rules';
 
 /**
  * Share Market Service — realistic order-book exchange for PUBLIC player companies.
@@ -18,7 +19,7 @@ import { SHARES_PER_COMPANY } from '../constants/exchange';
  */
 
 export const TOTAL_SHARES = SHARES_PER_COMPANY; // constants/exchange.ts
-export const CIRCUIT_BREAKER_LIMIT = 0.20; // ±20% from last month's close
+export { CIRCUIT_BREAKER_LIMIT }; // constants/exchange.ts
 
 async function assertListedCompany(trx: any, companyId: string) {
   const company = await trx('companies').where({ id: companyId }).first();
@@ -69,25 +70,22 @@ export async function placeOrder(params: {
     // ---- Circuit breaker (players only; NPC specialist is exempt) ----
     if (!isNpc && !skipCircuitBreaker) {
       const lastClose = await getLastClose(trx, companyId);
-      if (lastClose != null && lastClose > 0) {
-        const move = Math.abs(price - lastClose) / lastClose;
-        if (move > CIRCUIT_BREAKER_LIMIT) {
-          await trx('share_orders').insert({
-            company_id: companyId,
-            character_id: characterId,
-            side,
-            price,
-            quantity,
-            escrow_amount: 0,
-            status: 'cancelled',
-            rejected_circuit_breaker: true,
-          });
-          throw new AppError(
-            `Order price $${price.toFixed(2)} exceeds the ±${Math.round(CIRCUIT_BREAKER_LIMIT * 100)}% circuit breaker (last close $${lastClose.toFixed(2)})`,
-            400,
-            'CIRCUIT_BREAKER'
-          );
-        }
+      if (lastClose != null && tripsCircuitBreaker(price, lastClose)) {
+        await trx('share_orders').insert({
+          company_id: companyId,
+          character_id: characterId,
+          side,
+          price,
+          quantity,
+          escrow_amount: 0,
+          status: 'cancelled',
+          rejected_circuit_breaker: true,
+        });
+        throw new AppError(
+          `Order price $${price.toFixed(2)} exceeds the ±${Math.round(CIRCUIT_BREAKER_LIMIT * 100)}% circuit breaker (last close $${lastClose.toFixed(2)})`,
+          400,
+          'CIRCUIT_BREAKER'
+        );
       }
     }
 
@@ -442,6 +440,63 @@ export async function getOrderBook(companyId: string, conn: any = db) {
   const [bidsData, asksData] = await Promise.all([side('buy'), side('sell')]);
   const level = (r: any) => ({ price: Number(r.price), quantity: Number(r.quantity) });
   return { bids: bidsData.map(level), asks: asksData.map(level) };
+}
+
+/** Exchange rules the screens show. One source: constants/exchange.ts. */
+export function getExchangeRules() {
+  return { circuit_breaker_limit: CIRCUIT_BREAKER_LIMIT };
+}
+
+/**
+ * Admin repair: give each listed NPC company's owner the holding that makes the
+ * company exactly SHARES_PER_COMPANY. Shares locked in open sell orders count
+ * (npcOwnerTargetShares), so the owner never gets its own open asks twice.
+ * Each company runs in its own transaction with its cap table and open sell
+ * orders locked, so an order placed meanwhile cannot change the count.
+ */
+export async function backfillNpcOwnerShares() {
+  const companies = await db('companies')
+    .where({ is_npc: true, status: 'active', is_exchange_listed: true })
+    .select('id', 'name', 'owner_character_id');
+
+  const results: any[] = [];
+  for (const co of companies) {
+    const result = await db.transaction(async (trx: any) => {
+      const rows = await trx('company_shares').where({ company_id: co.id }).forUpdate();
+      const sells = await trx('share_orders')
+        .where({ company_id: co.id, side: 'sell', status: 'open' })
+        .select('quantity', 'filled_quantity')
+        .forUpdate();
+
+      const ownerRows = rows.filter((r: any) => r.holder_character_id === co.owner_character_id && !r.holder_company_id);
+      const ownerHeld = ownerRows.reduce((s: number, r: any) => s + Number(r.shares), 0);
+      const heldByOthers = rows.reduce((s: number, r: any) => s + Number(r.shares), 0) - ownerHeld;
+      const locked = sells.reduce((s: number, o: any) => s + Number(o.quantity) - Number(o.filled_quantity), 0);
+      const { target, excess } = npcOwnerTargetShares(heldByOthers, locked);
+      const report = { company: co.name, held_by_others: heldByOthers, locked_in_open_sells: locked, excess };
+
+      if (ownerRows.length === 0) {
+        await trx('company_shares').insert({
+          company_id: co.id,
+          holder_character_id: co.owner_character_id,
+          shares: target,
+          avg_cost_basis: 0,
+        });
+        return { ...report, action: 'inserted', owner_shares: target };
+      }
+      if (ownerHeld === target && ownerRows.length === 1) {
+        return { ...report, action: 'ok', owner_shares: ownerHeld };
+      }
+      // One owner row holds the target; any duplicate rows go to 0 (never deleted).
+      await trx('company_shares').where({ id: ownerRows[0].id }).update({ shares: target, updated_at: trx.fn.now() });
+      for (const extra of ownerRows.slice(1)) {
+        await trx('company_shares').where({ id: extra.id }).update({ shares: 0, updated_at: trx.fn.now() });
+      }
+      return { ...report, action: 'corrected', owner_shares_before: ownerHeld, owner_shares_after: target };
+    });
+    results.push(result);
+  }
+  return results;
 }
 
 export async function getTradeHistory(companyId: string, limit = 50) {
