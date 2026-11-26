@@ -3,6 +3,8 @@ import { AppError } from '../../utils/errors';
 import { logger } from '../../utils/logger';
 import { placeOrder, getLastClose, TOTAL_SHARES } from './shareMarket.service';
 import { recalcPortfolioValues } from './capitalPartners.service';
+import { marketMakerQuotes, openingPrice } from './exchange.rules';
+import { MM_IPO_ORDER_SIZE, MM_IPO_SPREAD_PCT, SHARES_PER_COMPANY } from '../constants/exchange';
 
 /**
  * IPO & DRX Bourse engine.
@@ -20,8 +22,6 @@ const MIN_COMPANY_AGE_MONTHS = 3;       // must exist ≥ 3 game months
 const MAX_DEBT_RATIO = 0.80;            // debt / company_value must be below this
 const REVIEW_MONTHS = 2;                // regulatory review window
 const BOOKBUILD_MONTHS = 3;             // roadshow window
-const MM_SPREAD_PCT = 0.025;            // 2.5% market-maker spread
-const MM_ORDER_SIZE = 5000;             // shares per market-maker quote
 const IPO_POP = 1.15;                   // opening ask = clearing × 1.15
 const IMPULSE_COEFF = 0.15;             // earnings surprise → price impulse coefficient
 const IMPULSE_CLAMP = 0.15;             // ±15% of last close per month
@@ -788,9 +788,9 @@ async function clearAndList(trx: any, listing: any, curYear: number, curMonth: n
     .merge();
 
   // IPO pop: opening market-maker ask at clearing × 1.15, bid just under clearing.
-  const spread = Math.max(0.01, clearingPrice * MM_SPREAD_PCT);
-  await safeNpcOrder(trx, listing.company_id, systemCharId, 'sell', clearingPrice * IPO_POP, MM_ORDER_SIZE);
-  await safeNpcOrder(trx, listing.company_id, systemCharId, 'buy', Math.max(0.01, clearingPrice - spread / 2), MM_ORDER_SIZE);
+  const spread = Math.max(0.01, clearingPrice * MM_IPO_SPREAD_PCT);
+  await safeNpcOrder(trx, listing.company_id, systemCharId, 'sell', clearingPrice * IPO_POP, MM_IPO_ORDER_SIZE);
+  await safeNpcOrder(trx, listing.company_id, systemCharId, 'buy', Math.max(0.01, clearingPrice - spread / 2), MM_IPO_ORDER_SIZE);
 
   logger.info(`[ipo] ${listing.company_id} LISTED @ $${clearingPrice.toFixed(2)} — ${totalAllocated} shares, $${proceeds.toFixed(0)} raised`);
 }
@@ -852,7 +852,7 @@ export async function processExchangeMonth(trx: any, year: number, month: number
     .join('company_finances as f', 'f.company_id', 'c.id')
     .where({ 'c.status': 'active' })
     .where({ 'c.is_exchange_listed': true })
-    .select('c.id', 'c.is_npc', 'f.last_arc_profit');
+    .select('c.id', 'c.is_npc', 'f.last_arc_profit', 'f.company_value');
 
   for (const co of listedCompanies) {
     if (justListed.has(co.id)) continue; // opening bar already written this tick
@@ -861,7 +861,32 @@ export async function processExchangeMonth(trx: any, year: number, month: number
       .where({ company_id: co.id })
       .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
       .first();
-    if (!prevBar) continue; // not actually listed yet
+    if (!prevBar) {
+      // A listed computer-run company with no price yet (rivals listed by seed 0007
+      // on a fresh world) opens at book value per share, so Step F can quote it.
+      // Player companies get their opening bar from clearAndList, never here.
+      if (!co.is_npc) continue;
+      const open = openingPrice(Number(co.company_value) || 0, SHARES_PER_COMPANY);
+      const profit = Number(co.last_arc_profit) || 0;
+      await trx('share_price_history')
+        .insert({
+          company_id: co.id,
+          game_year: year,
+          game_month: month,
+          open_price: open,
+          high_price: open,
+          low_price: open,
+          close_price: open,
+          volume_shares: 0,
+          market_cap: open * SHARES_PER_COMPANY,
+          eps: profit / SHARES_PER_COMPANY,
+          pe_ratio: null,
+        })
+        .onConflict(['company_id', 'game_year', 'game_month'])
+        .ignore();
+      co._bookValuePerShare = open;
+      continue;
+    }
     const already = await trx('share_price_history').where({ company_id: co.id, game_year: year, game_month: month }).first();
     if (already) continue;
 
@@ -981,6 +1006,7 @@ export async function processExchangeMonth(trx: any, year: number, month: number
   }
 
   // ── Step F: refresh NPC market-maker quotes (skip companies just listed this tick) ──
+  // The specialist's only regular quoting step (GET /exchange/:id/book is read-only).
   for (const co of listedCompanies) {
     if (justListed.has(co.id)) continue;
     const bar = await trx('share_price_history').where({ company_id: co.id, game_year: year, game_month: month }).first();
@@ -1014,9 +1040,16 @@ export async function processExchangeMonth(trx: any, year: number, month: number
       mmAnchor = lastClose + (bvps - lastClose) * driftRate;
     }
 
-    const spread = Math.max(0.01, mmAnchor * MM_SPREAD_PCT);
-    await safeNpcOrder(trx, co.id, systemCharId, 'buy', Math.max(0.01, mmAnchor - spread / 2), MM_ORDER_SIZE);
-    await safeNpcOrder(trx, co.id, systemCharId, 'sell', mmAnchor + spread / 2, MM_ORDER_SIZE);
+    // Quote ladder (constants/exchange.ts MM_LADDER). Asks are limited to shares the
+    // specialist actually holds: it never creates shares. This is the ONLY place the
+    // specialist quotes on listed companies; reading the order book never does.
+    const inventoryRow = await trx('company_shares')
+      .where({ company_id: co.id, holder_character_id: systemCharId })
+      .first();
+    const inventory = Number(inventoryRow?.shares ?? 0);
+    for (const q of marketMakerQuotes(mmAnchor, inventory)) {
+      await safeNpcOrder(trx, co.id, systemCharId, q.side, q.price, q.quantity);
+    }
   }
 
   // ── Step H: NPC Treasury Brain — buyback / secondary offering decisions ──

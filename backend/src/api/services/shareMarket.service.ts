@@ -1,5 +1,6 @@
 import { db } from '../../config/database';
 import { AppError } from '../../utils/errors';
+import { SHARES_PER_COMPANY } from '../constants/exchange';
 
 /**
  * Share Market Service — realistic order-book exchange for PUBLIC player companies.
@@ -16,7 +17,7 @@ import { AppError } from '../../utils/errors';
  * - Sell orders lock shares: holder's cap-table shares are reduced up-front and restored on cancel.
  */
 
-export const TOTAL_SHARES = 1_000_000;
+export const TOTAL_SHARES = SHARES_PER_COMPANY; // constants/exchange.ts
 export const CIRCUIT_BREAKER_LIMIT = 0.20; // ±20% from last month's close
 
 async function assertListedCompany(trx: any, companyId: string) {
@@ -114,75 +115,55 @@ export async function placeOrder(params: {
           .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
           .forUpdate()
           .first();
-        if ((!holding || Number(holding.shares) < quantity) && !isNpc) {
+        // Everyone, the DRX specialist included, sells only shares it holds: an order
+        // never creates shares (constants/exchange.ts SHARES_PER_COMPANY).
+        if (!holding || Number(holding.shares) < quantity) {
           throw new AppError('Insufficient firm shares to cover this sell order', 400, 'INSUFFICIENT_SHARES');
         }
-        if (holding && holding.lockup_until_year != null && holding.lockup_until_month != null && !isNpc) {
+        if (holding.lockup_until_year != null && holding.lockup_until_month != null && !isNpc) {
           const ly = Number(holding.lockup_until_year);
           const lm = Number(holding.lockup_until_month);
           if (gameYear < ly || (gameYear === ly && gameMonth < lm)) {
             throw new AppError(`Shares are locked up until Year ${ly} Month ${lm}`, 400, 'LOCKED_UP');
           }
         }
-        if (holding) {
-          const currentShares = Math.max(0, Number(holding.shares));
-          const newShares = isNpc ? Math.max(0, currentShares - quantity) : currentShares - quantity;
-          await trx('company_shares')
-            .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
-            .update({ shares: newShares, updated_at: trx.fn.now() });
-        } else if (isNpc) {
-          // NPC had no row yet — treat as if it started with TOTAL_SHARES
-          await trx('company_shares').insert({
-            company_id: companyId,
-            holder_company_id: purchaserCompanyId,
-            shares: Math.max(0, TOTAL_SHARES - quantity),
-            avg_cost_basis: price,
-          });
-        }
+        await trx('company_shares')
+          .where({ company_id: companyId, holder_company_id: purchaserCompanyId })
+          .update({ shares: Number(holding.shares) - quantity, updated_at: trx.fn.now() });
       } else {
         const holding = await trx('company_shares')
           .where({ company_id: companyId, holder_character_id: characterId })
           .forUpdate()
           .first();
-        if (!holding) {
-          if (isNpc) {
-            // NPC had no row yet — treat as if it started with TOTAL_SHARES
-            await trx('company_shares').insert({
-              company_id: companyId,
-              holder_character_id: characterId,
-              shares: Math.max(0, TOTAL_SHARES - quantity),
-              avg_cost_basis: price,
-            });
-          } else {
-            throw new AppError('Insufficient shares to cover this sell order', 400, 'INSUFFICIENT_SHARES');
-          }
-        } else if (Number(holding.shares) < quantity && !isNpc) {
+        // Everyone, the DRX specialist included, sells only shares it holds: an order
+        // never creates shares (constants/exchange.ts SHARES_PER_COMPANY).
+        if (!holding || Number(holding.shares) < quantity) {
           throw new AppError('Insufficient shares to cover this sell order', 400, 'INSUFFICIENT_SHARES');
-        } else if (holding.lockup_until_year != null && holding.lockup_until_month != null && !isNpc) {
+        }
+        if (holding.lockup_until_year != null && holding.lockup_until_month != null && !isNpc) {
           const ly = Number(holding.lockup_until_year);
           const lm = Number(holding.lockup_until_month);
           if (gameYear < ly || (gameYear === ly && gameMonth < lm)) {
             throw new AppError(`Shares are locked up until Year ${ly} Month ${lm}`, 400, 'LOCKED_UP');
           }
-        } else {
-          // Check 49% Public Float Cap: Founders must retain at least 51% of total shares
-          const targetCompany = await trx('companies').where({ id: companyId }).first();
-          if (targetCompany && targetCompany.owner_character_id === characterId) {
-            const sumRow = await trx('company_shares').where({ company_id: companyId }).sum('shares as total').first();
-            const totalShares = Number(sumRow?.total ?? TOTAL_SHARES);
-            const currentShares = Number(holding.shares);
-            const minRequiredFounderShares = Math.ceil(totalShares * 0.51);
-            if (currentShares - quantity < minRequiredFounderShares) {
-              throw new AppError(`Public ownership cannot exceed 49%. As founder, you must retain at least 51% of total shares (${minRequiredFounderShares.toLocaleString()} shares).`, 400, 'FLOAT_CAP_EXCEEDED');
-            }
-          }
-
-          const currentShares = Math.max(0, Number(holding.shares));
-          const newShares = isNpc ? Math.max(0, currentShares - quantity) : currentShares - quantity;
-          await trx('company_shares')
-            .where({ company_id: companyId, holder_character_id: characterId })
-            .update({ shares: newShares, updated_at: trx.fn.now() });
+          // A lockup that has ended falls through: the shares are still locked into the order below.
         }
+
+        // Check 49% Public Float Cap: Founders must retain at least 51% of total shares
+        const targetCompany = await trx('companies').where({ id: companyId }).first();
+        if (targetCompany && targetCompany.owner_character_id === characterId) {
+          const sumRow = await trx('company_shares').where({ company_id: companyId }).sum('shares as total').first();
+          const totalShares = Number(sumRow?.total ?? TOTAL_SHARES);
+          const currentShares = Number(holding.shares);
+          const minRequiredFounderShares = Math.ceil(totalShares * 0.51);
+          if (currentShares - quantity < minRequiredFounderShares) {
+            throw new AppError(`Public ownership cannot exceed 49%. As founder, you must retain at least 51% of total shares (${minRequiredFounderShares.toLocaleString()} shares).`, 400, 'FLOAT_CAP_EXCEEDED');
+          }
+        }
+
+        await trx('company_shares')
+          .where({ company_id: companyId, holder_character_id: characterId })
+          .update({ shares: Number(holding.shares) - quantity, updated_at: trx.fn.now() });
       }
     }
 
@@ -442,136 +423,25 @@ export async function getListings() {
   return result;
 }
 
-export async function getOrderBook(companyId: string, existingTrx?: any) {
-  const t = existingTrx || db;
-  const [bidsData, asksData] = await Promise.all([
-    t('share_orders')
-      .where({ company_id: companyId, side: 'buy', status: 'open' })
+/**
+ * The order book for one company: open orders aggregated by price, best first.
+ * READ-ONLY: it never places orders, moves cash or touches the cap table. The
+ * DRX specialist quotes only in the monthly exchange step (processExchangeMonth
+ * Step F). A side with no open orders comes back as an empty list.
+ */
+export async function getOrderBook(companyId: string, conn: any = db) {
+  const side = (s: 'buy' | 'sell') =>
+    conn('share_orders')
+      .where({ company_id: companyId, side: s, status: 'open' })
       .select('price')
-      .sum({ quantity: t.raw('quantity - filled_quantity') })
+      .sum({ quantity: conn.raw('quantity - filled_quantity') })
       .groupBy('price')
-      .orderBy('price', 'desc')
-      .limit(15),
-    t('share_orders')
-      .where({ company_id: companyId, side: 'sell', status: 'open' })
-      .select('price')
-      .sum({ quantity: t.raw('quantity - filled_quantity') })
-      .groupBy('price')
-      .orderBy('price', 'asc')
-      .limit(15),
-  ]);
+      .orderBy('price', s === 'buy' ? 'desc' : 'asc')
+      .limit(15);
 
-  let bids: Array<{ price: number; quantity: any }> = bidsData.map((b: any) => ({ price: Number(b.price), quantity: Number(b.quantity) }));
-  let asks: Array<{ price: number; quantity: any }> = asksData.map((a: any) => ({ price: Number(a.price), quantity: Number(a.quantity) }));
-
-  // Realism Fix: Inject multi-tier DRX Specialist market-maker order depth (bids & asks) for listed companies
-  const company = await t('companies').where({ id: companyId, is_exchange_listed: true }).first();
-  if (company) {
-    const prevBar = await t('share_price_history')
-      .where({ company_id: companyId })
-      .orderBy([{ column: 'game_year', order: 'desc' }, { column: 'game_month', order: 'desc' }])
-      .first();
-    
-    const finRow = await t('company_finances').where({ company_id: companyId }).first();
-    const lastClose = Number(prevBar?.close_price || 10.00);
-    const bookValue = Number(finRow?.company_value || 0);
-    const bvps = bookValue / 1000000;
-    
-    let anchorPrice = lastClose;
-    if (bvps > 0) {
-      anchorPrice = Math.max(lastClose, lastClose + (bvps - lastClose) * 0.20);
-    }
-
-    const systemUser = await t('users').where({ email: 'system_npc@worldr.game' }).first();
-    if (systemUser) {
-      const sysChar = await t('characters').where({ user_id: systemUser.id }).first();
-      if (sysChar) {
-        // Ensure System Market Maker has ample cash for market depth
-        await t('character_finances').where({ character_id: sysChar.id }).update({ cash_in_hand: 500000000 });
-
-        // Auto-inject 5-tier Bid Depth Ladder if bids are empty
-        if (bids.length === 0) {
-          const bidTiers = [
-            { mult: 0.990, qty: 10000 },
-            { mult: 0.975, qty: 25000 },
-            { mult: 0.950, qty: 50000 },
-            { mult: 0.900, qty: 100000 },
-            { mult: 0.850, qty: 250000 },
-          ];
-          for (const tier of bidTiers) {
-            try {
-              await placeOrder({
-                companyId,
-                characterId: sysChar.id,
-                side: 'buy',
-                price: Number((anchorPrice * tier.mult).toFixed(2)),
-                quantity: tier.qty,
-                isNpc: true,
-                existingTrx: t
-              });
-            } catch (e) {}
-          }
-          const freshBids = await t('share_orders')
-            .where({ company_id: companyId, side: 'buy', status: 'open' })
-            .select('price')
-            .sum({ quantity: t.raw('quantity - filled_quantity') })
-            .groupBy('price')
-            .orderBy('price', 'desc')
-            .limit(15);
-          bids = freshBids.map((b: any) => ({ price: Number(b.price), quantity: Number(b.quantity) }));
-        }
-
-        // Auto-inject 5-tier Ask Depth Ladder if asks are empty
-        if (asks.length === 0) {
-          // Ensure System MM holds inventory shares so Ask quotes succeed without INSUFFICIENT_SHARES error
-          const sysShares = await t('company_shares').where({ company_id: companyId, holder_character_id: sysChar.id }).first();
-          if (!sysShares) {
-            await t('company_shares').insert({
-              id: crypto.randomUUID(),
-              company_id: companyId,
-              holder_character_id: sysChar.id,
-              shares: 500000,
-              avg_cost_basis: anchorPrice,
-              updated_at: new Date()
-            });
-          } else if (Number(sysShares.shares) < 500000) {
-            await t('company_shares').where({ id: sysShares.id }).update({ shares: 500000, updated_at: new Date() });
-          }
-
-          const askTiers = [
-            { mult: 1.010, qty: 10000 },
-            { mult: 1.025, qty: 25000 },
-            { mult: 1.050, qty: 50000 },
-            { mult: 1.100, qty: 100000 },
-            { mult: 1.150, qty: 250000 },
-          ];
-          for (const tier of askTiers) {
-            try {
-              await placeOrder({
-                companyId,
-                characterId: sysChar.id,
-                side: 'sell',
-                price: Number((anchorPrice * tier.mult).toFixed(2)),
-                quantity: tier.qty,
-                isNpc: true,
-                existingTrx: t
-              });
-            } catch (e) {}
-          }
-          const freshAsks = await t('share_orders')
-            .where({ company_id: companyId, side: 'sell', status: 'open' })
-            .select('price')
-            .sum({ quantity: t.raw('quantity - filled_quantity') })
-            .groupBy('price')
-            .orderBy('price', 'asc')
-            .limit(15);
-          asks = freshAsks.map((a: any) => ({ price: Number(a.price), quantity: Number(a.quantity) }));
-        }
-      }
-    }
-  }
-
-  return { bids, asks };
+  const [bidsData, asksData] = await Promise.all([side('buy'), side('sell')]);
+  const level = (r: any) => ({ price: Number(r.price), quantity: Number(r.quantity) });
+  return { bids: bidsData.map(level), asks: asksData.map(level) };
 }
 
 export async function getTradeHistory(companyId: string, limit = 50) {

@@ -239,3 +239,9 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - GET /world/market-leaderboard takes ?country=; each nation's market share is its own.
 - Company goals: constants/businessGoals.ts + services/businessGoals.rules.ts (tests/businessGoals.test.ts), facts from real rows in the manufacturing data endpoint. Goals pay nothing.
 - Drennia's rivals are listed on the DRX Bourse by seed 0007 (adds only what is missing) so Capital Partners firms have something to buy.
+
+## DRX Bourse (order book, market maker) — Operational Rules (DO NOT BREAK)
+- GET /exchange/:companyId/book (shareMarket.service getOrderBook) is READ-ONLY: it never places orders, moves cash or touches company_shares (tests/exchange.test.ts checks it). An empty side is an empty list; the screen shows it.
+- The DRX specialist (system_npc market maker) quotes ONLY in processExchangeMonth Step F, inside the world-tick transaction. Ladder numbers in constants/exchange.ts (MM_LADDER); quotes come from marketMakerQuotes (services/exchange.rules.ts). Never quote from a request.
+- Nobody sells shares they don't hold, the specialist included (placeOrder). An order never creates shares. A share is held (company_shares.shares) or locked in an open sell order (quantity - filled_quantity); for NPC companies held + locked = SHARES_PER_COMPANY (1,000,000). Player IPOs issue new shares on purpose (clearAndList), so this fixed total is for NPC companies only.
+- A listed NPC company with no price history opens at book value per share (openingPrice) in Step C, so Step F can quote it on a fresh world.

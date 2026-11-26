@@ -291,21 +291,21 @@ function OrderBook({ companyId }: { companyId: string }) {
     <div style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
         <div style={label}>Order Book</div>
-        <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>DRX specialist quotes both sides</div>
+        <div style={{ fontSize: '10px', color: T.faint, textTransform: 'uppercase', letterSpacing: '0.12em' }}>DRX specialist quotes at month end</div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         <div>
           <div style={{ fontSize: '10px', color: T.mint, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px', padding: '0 8px', display: 'flex', justifyContent: 'space-between' }}>
             <span>Bid</span><span>Qty</span>
           </div>
-          {bids.length === 0 && <div style={{ fontSize: '10px', color: T.faint, padding: '4px 8px' }}>No bids</div>}
+          {bids.length === 0 && <div style={{ fontSize: '11px', color: T.faint, padding: '4px 8px' }}>No bids. The specialist quotes again at month end.</div>}
           {bids.map((b: any, i: number) => <Row key={i} price={b.price} quantity={b.quantity} side="bid" />)}
         </div>
         <div>
           <div style={{ fontSize: '10px', color: T.red, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px', padding: '0 8px', display: 'flex', justifyContent: 'space-between' }}>
             <span>Ask</span><span>Qty</span>
           </div>
-          {asks.length === 0 && <div style={{ fontSize: '10px', color: T.faint, padding: '4px 8px' }}>No asks</div>}
+          {asks.length === 0 && <div style={{ fontSize: '11px', color: T.faint, padding: '4px 8px' }}>No asks. The specialist quotes again at month end.</div>}
           {asks.map((a: any, i: number) => <Row key={i} price={a.price} quantity={a.quantity} side="ask" />)}
         </div>
       </div>
@@ -1436,7 +1436,7 @@ export default function ExchangePage() {
                 {[
                   ['Limit Orders', 'You set a price. Buy orders wait in the book until a seller matches. Sell orders wait until a buyer matches. Orders may partially fill.'],
                   ['Price-Time Priority', 'Among orders at the same price, the one placed earliest fills first. Being early matters.'],
-                  ['Market Maker', 'The DRX Specialist always posts a two-sided quote at ±3% of last close to provide baseline liquidity. You will always see at least two quotes in the book.'],
+                  ['Market Maker', 'At each month end the DRX Specialist posts a ladder of bids and asks around the share price: a few thousand shares near the price, more further away. Once players take those quotes, that side can stay empty until the next month end. The Specialist only sells shares it owns.'],
                   ['Circuit Breaker', 'Orders priced more than ±50% from last close are blocked. This prevents crashes and manipulation.'],
                   ['Trade As', 'Place orders from your Personal Portfolio or from any Capital Partners company you own. Institutions can build positions at scale.'],
                 ].map(([term, desc]) => (
